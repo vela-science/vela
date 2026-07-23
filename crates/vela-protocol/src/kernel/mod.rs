@@ -6,6 +6,7 @@ pub mod bundle;
 pub mod canonical;
 pub mod detached;
 pub mod events;
+pub mod frontier_repository;
 pub mod reducer;
 pub mod repo;
 pub mod sign;

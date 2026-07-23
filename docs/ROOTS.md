@@ -29,6 +29,9 @@ wins.
 6. Missing, malformed, truncated, multiply resolving, or differently typed
    roots fail closed. They are unknown or unresolvable, never an approximate
    match.
+7. Repository bytes cannot select their own first administrator. A Profile v1
+   boundary chain also needs the consumer's exact out-of-band first-boundary
+   pin before it can authorize a canonical write.
 
 ## Canonicalization profiles
 
@@ -63,6 +66,12 @@ with either JSON profile.
 | Name | Derivation and role | Required comparison | Not a substitute for |
 | --- | --- | --- | --- |
 | Frontier handle `vfr_…` | First 16 hex characters of the SHA-256 commitment to the canonical `frontier.created` event preimage. Legacy frontiers fall back to a canonical metadata preimage. | Exact handle inside a replay-validated frontier; pair with Git and frontier roots at a handoff. | Event-log root, Git identity, or proof that a checkout is current. |
+| Profile root | `sha256:` plus SHA-256 of Vela-canonical JSON for the parsed, closed `vela.frontier-profile.v1` value. YAML comments, whitespace, key order, and quoting are erased before hashing; array order remains semantic. | Full root plus successful closed-profile parsing and an independently derived matching Frontier ID. | Frontier identity, scientific state, maintainer authority, or accepted standing. |
+| Frontier identity root | `sha256:` plus SHA-256 of the closed `vela.frontier-identity.v1` record derived from the exact Profile v1 genesis or signed legacy boundary. | Full root rederived from the complete valid identity-event chain. | Readable `vfr_` handle, profile root, administrator authentication, or scientific-state root. |
+| Dependency root | `sha256:` plus SHA-256 of the Vela-canonical sorted list of closed exact Frontier dependency records. Each entry binds Frontier ID, identity root, scientific-state root, Git object format, commit, and tree. | Full root, exact ordered entries, and successful resolution of every named Git and Vela root. | A remote URL, mutable ref, availability promise, transfer of standing, or scientific support edge. |
+| Repository-boundary content root | The full event-content root of one signed `frontier.repository_bound` event. It binds identity/dependencies, administrator, exact Git/event/state anchor, actor registry, artifacts, and retained canonical bytes. | Full root, valid signature and linear boundary chain, complete repository-context checks, and the consumer's first-boundary pin. | Event ID, event-log root, timestamp-based membership, acceptance, or a self-authenticating administrator. |
+| Repository trust-anchor root | SHA-256 of the closed local `vela.repository-trust-anchor.v1` record containing Frontier identity, first-boundary content root, administrator actor, and public key. | Full root of the atomically installed, out-of-band reviewed record under the operating-system account home. | Repository content, a secret key, universal trust, claim authority, or scientific state. |
+| Scientific-state root v2 | `sha256:` plus SHA-256 of the closed `vela.scientific-state.v2` component-root record. It binds identity, dependencies, and the explicitly named scientific collections; every component binds canonical JSON, including empty arrays. | Full root plus rederivation of every named component from the replayed Project. | Legacy snapshot root, event/proposal/actor/policy roots, Git identity, graph position, or accepted standing. |
 | Finding handle `vf_…` | First 16 hex characters of SHA-256 over the normalized assertion type, text, and selected provenance identity. It routes to a claim lineage. | Exact, unique handle plus the full finding revision root when the revision matters. | A full revision commitment, acceptance, or proof. |
 | Finding revision root | `sha256:` plus SHA-256 of Vela-canonical `FindingBundle` bytes with mutable relationship `links` cleared. It commits to the current claim-bearing bundle. | Full root in the finding-revision domain. | Stable `vf_` handle, event-log root, or standing. |
 | Evidence-atom root | `sha256:` plus SHA-256 of the Vela-canonical evidence atom. | Full root in the evidence-atom domain. | Artifact bytes, a verifier attachment, or a finding revision. |
@@ -81,12 +90,16 @@ with either JSON profile.
 | Non-lease event-log root | The event-log algorithm after excluding only `attempt.claimed` coordination events. It pins the proof subject while leases change. | Full root explicitly typed as non-lease. | Full event-log root or a general rule for excluding future event kinds. |
 | Transparency root | RFC 6962 Merkle tree root over event-content preimage bytes: empty `SHA256("")`, leaf `SHA256(0x00 || leaf)`, node `SHA256(0x01 || left || right)`. | Full root, tree size, and the applicable inclusion or consistency proof. | Event-log root; the trees have different ordering and domain separation. |
 | Snapshot root | `sha256:` plus SHA-256 of the Vela-canonical project after removing top-level `events`, `signatures`, and `proof_state`. | Full root and the event-log root from which the snapshot is replayed. | Event-log root, Git tree, or accepted-state authority by itself. |
+| Legacy snapshot root | The v0.1 snapshot algorithm above, named explicitly in Profile v1 compatibility and migration output. | Full root under the historical schema and the exact boundary that anchored it. | `scientific_state_root`, even when both describe the same pre-migration history. |
 | Actor-registry root | SHA-256 of the exact `.vela/actors.json` bytes. Legacy fallback uses Vela-canonical actor-array bytes when the file is absent. | Full root and the explicitly identified source form. | Proof of key possession, event signature, or temporal registration boundary. |
 | Policy bytes/root | Exact policy bytes or the explicitly named Vela-canonical policy/head preimage, depending on the field. Policy observations separately bind policy and signature byte roots. | The exact field's schema/domain, full root, policy ID/version, and signature/authorization checks. | Policy Decision Plan, policy-head event, or permission inferred from a merely present file. |
 | Review Decision Plan root | SHA-256 of `"vela.decision-plan.internal.v1\0" || canonical-preimage`, returned as `sha256:…`. It binds the frontier root, ordered answers, consumed facts, policy inputs, and semantic event cores. | Full root, observation/confirmation time, pinned binary, and complete revalidation immediately before protected signing. | Proposal root, signature, or reusable approval. |
 | Policy Decision Plan root | SHA-256 of `"vela.policy-decision.v1\0" || canonical-plan-without-self-root`, returned as `sha256:…`. | Full root and the same late revalidation requirements as the protected policy path. | Review Decision Plan or active policy root. |
 | Git commit | Git object ID for `HEAD^{commit}`. It binds a commit object, its tree and parents according to Git. | Complete object ID, repository, and ancestry/pin expectations. | Git tree, event-log validity, signatures, or scientific acceptance. |
 | Git tree | Git object ID for `HEAD^{tree}`. It binds tracked paths and bytes but not history. | Complete object ID and repository hash format. | Commit ancestry, untracked state, event replay, or currentness. |
+| Target input root | `sha256:` plus SHA-256 of the closed `vela.target-index-input-manifest.v1`, whose sorted entries bind source-commit path, mode, size, and digest. | Full root plus resolution of every entry from the exact source Git tree. | Proof that a domain generator disclosed every input, target-index root, or packet digest. |
+| Target-index root | `sha256:` plus SHA-256 of the complete canonical `vela.target-index.v2` object with only `index_root` omitted. | Full root, closed-schema validation, exact source/input/packet/repository roots, and freshness at the operation edge. | Work authority, scientific standing, graph rank, or a historical task binding. |
+| Target-task binding root | `sha256:` plus SHA-256 of the complete canonical `vela.target-task-binding.v1` with only `binding_root` omitted. It retains the exact target, index, packet, source, repository roots, and claim-time read set. | Full root in both the private session and the byte-identical Receipt v1 extension. | A current offer, verifier result, policy Permit, or accepted state. |
 | Projection or site-bundle root | A non-authoritative projection's own documented canonical or exact-byte digest, together with its bound source roots. | Projection schema/version, full projection root, and exact source roots. | Any source root or a claim that the projection is live. |
 | Release checksum | SHA-256 of exact binary or archive bytes. | Full checksum, artifact name/platform, release version, and trusted publication source. | Git commit, package integrity metadata, code signature, or build provenance. |
 | Build attestation | A signed provenance statement binding a produced artifact digest to a workflow and source identity. | Attestation verification, expected issuer/workflow/source, and the artifact digest. | Artifact checksum, platform code signature, scientific signature, or frontier authority. |
@@ -114,6 +127,10 @@ with either JSON profile.
 - Git ancestry answers whether one published history descends from another.
   Vela roots and replay answer whether the contained scientific and authority
   history is valid. Claims of continuity need both when both questions matter.
+- Profile v0.1 `snapshot_hash` and Profile v1 `scientific_state_root` are
+  different typed commitments. Migration records the former as
+  `legacy_snapshot_root` and derives the latter; no implementation substitutes
+  one for the other in a historical signature or Decision Plan.
 
 ## Adversarial examples
 
@@ -132,6 +149,13 @@ with either JSON profile.
   away.
 - A site bundle is internally valid but names an old frontier commit. It is a
   valid historical projection, not a current or live view.
+- A checkout contains a valid signed boundary but no independently installed
+  consumer pin. Its internal chain may be well formed, but it has not selected
+  which first administrator fork the consumer intended and cannot authorize a
+  canonical write.
+- A valid target index names a source commit that is no longer an ancestor, or
+  one packet differs from its tracked blob. The affected work is stale and
+  unactionable even if the index's own JSON root still rederives.
 
 ## Conformance anchors
 
@@ -142,6 +166,9 @@ cargo test -p vela-protocol --test canonical_hashing_conformance
 cargo test -p vela-protocol receipt_v1
 cargo test -p vela-protocol event_log_hash_is_independent_of_input_order
 cargo test -p vela-protocol rfc6962_canonical_ct_vectors
+cargo test -p vela-protocol scientific_state_root_v2
+cargo test -p vela-protocol --test frontier_profile_loader_v1
+cargo test -p vela-edge target_index
 cargo test -p vela-protocol --test cross_impl_reducer_fixtures
 python3 conformance/verify.py
 ```

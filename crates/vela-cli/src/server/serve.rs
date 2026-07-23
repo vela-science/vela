@@ -15,7 +15,6 @@ use reqwest::Client;
 use serde::Serialize;
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
-use tower_http::cors::CorsLayer;
 
 use vela_edge::signals;
 use vela_edge::tool_registry;
@@ -461,10 +460,9 @@ pub(crate) async fn mcp_http_exchange(
     }
 }
 
-/// A hosted, in-process MCP service over named frontier checkouts. The hub
-/// embeds this to serve `hub.constellate.science/mcp` without a sidecar:
+/// An embeddable, in-process MCP service over named frontier checkouts. It uses
 /// the same dispatcher, profile gate, and tool registry as `vela serve`,
-/// loaded from the git checkouts its ingest lane already maintains.
+/// loaded from explicitly configured Git checkouts.
 pub struct McpService {
     state: AppState,
     excluded: HashSet<String>,
@@ -622,10 +620,13 @@ pub async fn run_http(
     // not enforce per-actor or per-IP request budgets).
     let app = app
         .layer(axum::extract::DefaultBodyLimit::max(8 * 1024 * 1024))
-        .layer(CorsLayer::permissive())
         .with_state(state);
 
-    let addr = format!("0.0.0.0:{port}");
+    // `vela serve` is an advanced local inspection surface, not a hosted
+    // authority or authenticated API. Keep it unreachable from the network;
+    // deployments need a separately designed authentication boundary rather
+    // than a caller-controlled actor header or permissive CORS.
+    let addr = format!("127.0.0.1:{port}");
     eprintln!(
         "  {}",
         format!("VELA · SERVE · HTTP :{port}").to_uppercase()

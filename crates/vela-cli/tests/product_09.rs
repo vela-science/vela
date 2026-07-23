@@ -1,6 +1,5 @@
 //! Focused product regressions for ADR 0010.
 
-use std::collections::BTreeMap;
 use std::path::Path;
 use std::process::{Command, Output};
 
@@ -81,6 +80,7 @@ fn compact_contract_exposes_only_the_daily_surface_and_bounded_status() {
         "review",
         "check",
         "reproduce",
+        "verify",
         "log",
         "doctor",
         "migrate",
@@ -91,6 +91,7 @@ fn compact_contract_exposes_only_the_daily_surface_and_bounded_status() {
     let advanced = run(temp.path(), temp.path(), &["help", "advanced"]);
     assert_success(&advanced);
     assert!(text(&advanced).contains("historical batch and detached-file signing compatibility"));
+    assert!(text(&advanced).contains("target-index  inspect, diagnose, or seal"));
     for retired in ["proposals", "foundry", "atlas", "hub", "publication"] {
         assert!(
             !help.contains(retired),
@@ -115,6 +116,40 @@ fn compact_contract_exposes_only_the_daily_surface_and_bounded_status() {
             .unwrap()
             .starts_with("sha256:")
     );
+    assert!(
+        value["roots"]["scientific_state_root"]
+            .as_str()
+            .unwrap()
+            .starts_with("sha256:")
+    );
+    assert!(
+        value["roots"]["legacy_snapshot_root"]
+            .as_str()
+            .unwrap()
+            .starts_with("sha256:")
+    );
+    assert!(value["roots"].get("snapshot").is_none());
+    assert_eq!(
+        value["integrity"]["repository_context"]["generation"],
+        "profile_v1"
+    );
+    assert_eq!(value["integrity"]["repository_context"]["valid"], true);
+    assert_eq!(
+        value["roots"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>(),
+        std::collections::BTreeSet::from([
+            "actor_registry",
+            "artifacts",
+            "event_log",
+            "legacy_snapshot_root",
+            "proposals",
+            "scientific_state_root",
+        ])
+    );
     assert!(value.get("inbox").is_none());
     assert!(value.get("testing").is_none());
     assert_eq!(value["counts"]["open_work"], 1);
@@ -129,9 +164,31 @@ fn compact_contract_exposes_only_the_daily_surface_and_bounded_status() {
     assert_success(&next);
     let next: serde_json::Value = serde_json::from_slice(&next.stdout).unwrap();
     assert_eq!(next["schema"], "vela.offer.v1");
-    assert_eq!(next["availability"]["configured_open"], 1);
+    assert_eq!(
+        next["availability"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>(),
+        std::collections::BTreeSet::from([
+            "available",
+            "configured",
+            "leased",
+            "repair_command",
+            "returned",
+            "stale",
+        ])
+    );
+    assert_eq!(next["availability"]["configured"], 1);
+    assert_eq!(next["availability"]["stale"], 0);
     assert_eq!(next["availability"]["available"], 1);
     assert_eq!(next["availability"]["leased"], 0);
+    assert_eq!(next["availability"]["returned"], 1);
+    assert_eq!(
+        next["availability"]["repair_command"],
+        format!("vela target-index repair {} --json", frontier.display())
+    );
     assert_eq!(next["targets"][0]["target_id"], "seed:first");
     assert_eq!(next["leased_targets"], serde_json::json!([]));
 
@@ -252,6 +309,101 @@ fn compact_contract_exposes_only_the_daily_surface_and_bounded_status() {
     }
 }
 
+#[test]
+fn nested_frontier_failures_keep_stable_dotted_command_ids() {
+    let temp = tempfile::tempdir().unwrap();
+
+    let bind = run(
+        temp.path(),
+        temp.path(),
+        &[
+            "frontier",
+            "bind",
+            temp.path().to_str().unwrap(),
+            "--reason",
+            "exercise the failure envelope",
+            "--json",
+        ],
+    );
+    assert!(!bind.status.success(), "{}", text(&bind));
+    assert!(bind.stderr.is_empty(), "{}", text(&bind));
+    let bind: serde_json::Value = serde_json::from_slice(&bind.stdout).unwrap();
+    assert_eq!(bind["ok"], false);
+    assert_eq!(bind["command"], "frontier.bind");
+
+    let recover = run(
+        temp.path(),
+        temp.path(),
+        &[
+            "frontier",
+            "recover-publication",
+            "--operation",
+            "vop_0000000000000000000000000000000000000000000000000000000000000000",
+            "--json",
+        ],
+    );
+    assert!(!recover.status.success(), "{}", text(&recover));
+    assert!(recover.stderr.is_empty(), "{}", text(&recover));
+    let recover: serde_json::Value = serde_json::from_slice(&recover.stdout).unwrap();
+    assert_eq!(recover["ok"], false);
+    assert_eq!(recover["command"], "frontier.recover-publication");
+}
+
+#[cfg(unix)]
+#[test]
+fn compact_status_ignores_hostile_repository_git_configuration() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let temp = tempfile::tempdir().unwrap();
+    let frontier = temp.path().join("frontier");
+    let init = run(
+        temp.path(),
+        temp.path(),
+        &[
+            "init",
+            frontier.to_str().unwrap(),
+            "--name",
+            "hostile-git-status",
+            "--scope",
+            "Can repository Git configuration influence compact status?",
+            "--json",
+        ],
+    );
+    assert_success(&init);
+    commit_all(&frontier);
+
+    let git_dir = frontier.join(".git");
+    let canary = git_dir.join("status-fsmonitor-ran");
+    let helper = git_dir.join("status-fsmonitor");
+    std::fs::write(
+        &helper,
+        format!(
+            "#!/bin/sh\nprintf ran > '{}'\nprintf '0\\n'\n",
+            canary.display()
+        ),
+    )
+    .unwrap();
+    std::fs::set_permissions(&helper, std::fs::Permissions::from_mode(0o700)).unwrap();
+    assert_success(&git(
+        &frontier,
+        &["config", "core.fsmonitor", helper.to_str().unwrap()],
+    ));
+
+    let status = run(
+        temp.path(),
+        temp.path(),
+        &["status", frontier.to_str().unwrap(), "--json"],
+    );
+    assert_success(&status);
+    let value: serde_json::Value = serde_json::from_slice(&status.stdout).unwrap();
+    assert_eq!(value["git"]["clean"], true);
+    assert_eq!(value["integrity"]["repository_context"]["valid"], true);
+    assert!(
+        !canary.exists(),
+        "compact status executed repository-configured fsmonitor code"
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn compact_read_projections_work_without_checkout_write_access() {
@@ -369,189 +521,4 @@ fn init_minimal_requires_bounded_inputs_and_omits_optional_scaffolding() {
         &["check", frontier.to_str().unwrap(), "--json"],
     );
     assert_success(&check);
-}
-
-fn canonical_bytes(frontier: &Path) -> BTreeMap<String, Vec<u8>> {
-    fn collect(frontier: &Path, path: &Path, files: &mut BTreeMap<String, Vec<u8>>) {
-        let mut entries = std::fs::read_dir(path)
-            .unwrap()
-            .collect::<Result<Vec<_>, _>>()
-            .unwrap();
-        entries.sort_by_key(std::fs::DirEntry::file_name);
-        for entry in entries {
-            let path = entry.path();
-            if path.is_dir() {
-                collect(frontier, &path, files);
-            } else if path.is_file() {
-                let name = path
-                    .strip_prefix(frontier)
-                    .unwrap()
-                    .to_string_lossy()
-                    .to_string();
-                files.insert(name, std::fs::read(path).unwrap());
-            }
-        }
-    }
-    let mut files = BTreeMap::new();
-    for relative in [
-        ".vela/actors.json",
-        ".vela/events",
-        ".vela/proposals",
-        ".vela/artifacts",
-    ] {
-        let path = frontier.join(relative);
-        if path.is_file() {
-            files.insert(relative.to_string(), std::fs::read(path).unwrap());
-            continue;
-        }
-        if !path.is_dir() {
-            continue;
-        }
-        collect(frontier, &path, &mut files);
-    }
-    files
-}
-
-#[test]
-fn migration_previews_exact_files_preserves_roots_and_refuses_dirty_input() {
-    let temp = tempfile::tempdir().unwrap();
-    let frontier = temp.path().join("legacy");
-    vela_protocol::frontier_repo::initialize(
-        &frontier,
-        vela_protocol::frontier_repo::InitOptions {
-            name: "legacy-migration",
-            initialize_git: true,
-        },
-    )
-    .unwrap();
-    let manifest_path = frontier.join("frontier.yaml");
-    let mut manifest = std::fs::read_to_string(&manifest_path).unwrap();
-    manifest.push_str("carina:\n  kernel: carina@0.1.0\n");
-    std::fs::write(&manifest_path, manifest).unwrap();
-    std::fs::write(
-        frontier.join(".gitignore"),
-        "/.vela/tasks/\n/.vela/workspaces/\n# Regenerated by CI + the hub from the event log — never committed.\nproof/\nrecords/\n",
-    )
-    .unwrap();
-    commit_all(&frontier);
-    let canonical_before = canonical_bytes(&frontier);
-    let git_before = String::from_utf8(git(&frontier, &["rev-parse", "HEAD^{tree}"]).stdout)
-        .unwrap()
-        .trim()
-        .to_string();
-
-    let check = run(
-        temp.path(),
-        temp.path(),
-        &[
-            "migrate",
-            frontier.to_str().unwrap(),
-            "--to",
-            "0.900",
-            "--check",
-            "--json",
-        ],
-    );
-    assert_success(&check);
-    let check_value: serde_json::Value = serde_json::from_slice(&check.stdout).unwrap();
-    assert_eq!(check_value["schema"], "vela.migration.v1");
-    assert_eq!(
-        check_value["roots"]["before"],
-        check_value["roots"]["after"]
-    );
-    assert!(
-        check_value["touched"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|path| path == "frontier.yaml")
-    );
-    assert!(
-        check_value["touched"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|path| path == ".gitignore")
-    );
-    assert!(
-        String::from_utf8(
-            git(
-                &frontier,
-                &["status", "--porcelain=v1", "--untracked-files=all"]
-            )
-            .stdout
-        )
-        .unwrap()
-        .trim()
-        .is_empty(),
-        "migration preview must not dirty a legacy checkout"
-    );
-    assert!(
-        std::fs::read_to_string(&manifest_path)
-            .unwrap()
-            .contains("carina:")
-    );
-
-    let apply = run(
-        temp.path(),
-        temp.path(),
-        &[
-            "migrate",
-            frontier.to_str().unwrap(),
-            "--to",
-            "0.900",
-            "--apply",
-            "--json",
-        ],
-    );
-    assert_success(&apply);
-    let apply_value: serde_json::Value = serde_json::from_slice(&apply.stdout).unwrap();
-    assert_eq!(
-        apply_value["roots"]["before"],
-        apply_value["roots"]["after"]
-    );
-    assert_eq!(canonical_bytes(&frontier), canonical_before);
-    assert!(
-        !std::fs::read_to_string(&manifest_path)
-            .unwrap()
-            .contains("carina:")
-    );
-    assert!(
-        std::fs::read_to_string(frontier.join(".gitignore"))
-            .unwrap()
-            .lines()
-            .any(|line| line == "/.vela/operation-journals/")
-    );
-    let migrated_ignore = std::fs::read_to_string(frontier.join(".gitignore")).unwrap();
-    assert!(
-        migrated_ignore.lines().any(|line| line == "/.vela/work/"),
-        "migration must keep private work-session records out of Git"
-    );
-    assert!(
-        !migrated_ignore
-            .lines()
-            .any(|line| matches!(line.trim(), "proof/" | "/proof/" | "records/" | "/records/")),
-        "proof projections and public records must survive a clean clone"
-    );
-    let git_after = String::from_utf8(git(&frontier, &["rev-parse", "HEAD^{tree}"]).stdout)
-        .unwrap()
-        .trim()
-        .to_string();
-    assert_eq!(git_after, git_before, "migration must not move Git HEAD");
-
-    std::fs::write(frontier.join("unrelated.txt"), "untracked\n").unwrap();
-    let refused = run(
-        temp.path(),
-        temp.path(),
-        &[
-            "migrate",
-            frontier.to_str().unwrap(),
-            "--to",
-            "0.900",
-            "--check",
-            "--json",
-        ],
-    );
-    assert_eq!(refused.status.code(), Some(1));
-    assert!(text(&refused).contains("requires a clean checkout"));
 }

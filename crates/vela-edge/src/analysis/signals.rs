@@ -109,6 +109,7 @@ pub fn analyze_at(
             .and_then(Value::as_str)
             .unwrap_or("check_error");
         if severity == "error"
+            || is_repository_context_rule(rule_id)
             || matches!(
                 rule_id,
                 "missing_source_record" | "missing_evidence_atom" | "condition_record_missing"
@@ -123,6 +124,7 @@ pub fn analyze_at(
                     "missing_evidence_atom" => "missing_evidence_atom",
                     "condition_record_missing" => "condition_record_missing",
                     "reviewer_identity_missing" => "reviewer_identity_missing",
+                    rule if is_repository_context_rule(rule) => rule,
                     _ => "check_error",
                 }
                 .to_string(),
@@ -150,7 +152,14 @@ pub fn analyze_at(
                     .unwrap_or("Inspect and correct the referenced frontier field.")
                     .to_string(),
                 blocks: vec!["strict_check".to_string(), "proof_ready".to_string()],
-                caveats: vec![],
+                caveats: if is_repository_context_rule(rule_id) {
+                    vec![
+                        "An invalid or unavailable Profile v1 repository context grants no identity, signature, dependency, or historical exemption in strict or non-strict reads."
+                            .to_string(),
+                    ]
+                } else {
+                    Vec::new()
+                },
             });
         }
     }
@@ -1084,6 +1093,23 @@ pub fn analyze_at(
         review_queue,
         proof_readiness,
     }
+}
+
+fn is_repository_context_rule(rule_id: &str) -> bool {
+    matches!(
+        rule_id,
+        "frontier_profile_upgrade_required"
+            | "frontier_profile_invalid"
+            | "frontier_settings_missing"
+            | "frontier_settings_invalid"
+            | "frontier_profile_mismatch"
+            | "repository_identity_invalid"
+            | "reducer_replay_failed"
+            | "proposal_parity_failed"
+            | "repository_trust_anchor_required"
+            | "repository_trust_anchor_invalid"
+            | "repository_boundary_invalid"
+    )
 }
 
 pub fn quality_table(frontier: &Project, report: &SignalReport) -> Value {

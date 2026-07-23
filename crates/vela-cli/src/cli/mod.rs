@@ -49,13 +49,14 @@ mod checks;
 mod frontier_audit;
 pub(crate) mod help_text;
 mod identity;
-mod json_edit;
 mod lifecycle;
 mod migration;
 mod output;
 pub(crate) mod progress;
 pub(crate) mod prompt;
 pub(crate) mod records;
+pub(crate) mod repository_bind;
+pub(crate) mod repository_trust;
 pub(crate) mod safe_text;
 mod session;
 pub(crate) mod sign_session;
@@ -66,7 +67,6 @@ mod tests;
 pub(crate) use checks::*;
 pub(crate) use frontier_audit::*;
 pub(crate) use identity::*;
-pub(crate) use json_edit::*;
 pub(crate) use lifecycle::*;
 pub(crate) use migration::*;
 pub(crate) use output::*;
@@ -80,8 +80,8 @@ pub use surface::is_science_subcommand;
 pub async fn run_command() {
     // Deliberately NO dotenv here. `dotenvy::dotenv()` walks the working
     // tree upward, and vela runs inside CLONED frontier repos — a
-    // committed .env could silently inject VELA_HUB_URL / VELA_ACTOR_ID /
-    // VELA_KEY_PATH / VELA_NO_PUBLISH for anyone who runs vela in it
+    // committed .env could silently inject VELA_ACTOR_ID / VELA_KEY_PATH /
+    // VELA_NO_PUBLISH for anyone who runs vela in it
     // (the attack class git blocks via protected configuration and
     // Codex blocks by refusing base-url keys in project config).
     // Configuration comes from the real environment and ~/.vela only.
@@ -179,6 +179,11 @@ pub async fn run_command() {
                     Err(e) => fail(&format!("Tool check failed: {e}")),
                 }
             } else {
+                let profile = profile.unwrap_or_else(|| {
+                    crate::config::settings::try_resolve("mcp.profile", frontier.as_deref())
+                        .unwrap_or_else(|error| fail_return(&error))
+                        .0
+                });
                 let mcp_profile = vela_edge::tool_registry::McpProfile::parse(&profile)
                     .unwrap_or_else(|e| fail_return(&e));
                 let source =
@@ -257,13 +262,33 @@ pub async fn run_command() {
             json,
         } => cmd_init(&path, name.as_deref(), scope.as_deref(), json),
         Commands::Review { action } => cmd_review(action),
+        Commands::TargetIndex { action } => crate::target_index::cmd_target_index(action),
         Commands::Migrate {
             frontier,
             target_version,
             check: _,
             apply,
+            profile,
+            dependency_input,
+            target_candidate,
+            actor,
+            reason,
+            confirm_root,
+            confirm_at,
             json,
-        } => cmd_migrate(&frontier, &target_version, apply, json),
+        } => cmd_migrate(
+            &frontier,
+            &target_version,
+            apply,
+            &profile,
+            dependency_input.as_deref(),
+            &target_candidate,
+            &actor,
+            &reason,
+            confirm_root.as_deref(),
+            confirm_at.as_deref(),
+            json,
+        ),
         Commands::Finding {
             command:
                 FindingCommands::Show {
@@ -350,14 +375,22 @@ pub async fn run_command() {
             let dir = crate::ui::resolve_frontier(frontier);
             let project =
                 vela_protocol::repo::load_from_path(&dir).unwrap_or_else(|e| fail_return(&e));
+            let loaded_anchor =
+                crate::target_index::load_user_repository_trust_anchor(&project.frontier_id())
+                    .unwrap_or_else(|error| fail_return(&error));
+            let repository_anchor = loaded_anchor
+                .as_ref()
+                .map(|loaded| crate::target_index::boundary_anchor(&loaded.anchor));
             let observed_at = chrono::Utc::now().to_rfc3339();
-            let projection = vela_edge::frontier_next::try_frontier_next_projection(
-                &project,
-                Some(&dir),
-                &observed_at,
-                limit,
-            )
-            .unwrap_or_else(|error| fail_return(&error));
+            let projection =
+                vela_edge::frontier_next::try_frontier_next_projection_with_trust_anchor(
+                    &project,
+                    Some(&dir),
+                    &observed_at,
+                    limit,
+                    repository_anchor.as_ref(),
+                )
+                .unwrap_or_else(|error| fail_return(&error));
             let targets = &projection.targets;
             if json {
                 let offers = targets
@@ -371,8 +404,14 @@ pub async fn run_command() {
                             .and_then(|task| task.get("objective"))
                             .and_then(serde_json::Value::as_str)
                             .unwrap_or(&target.why);
+                        let canonical_rank = target
+                            .task
+                            .as_ref()
+                            .and_then(|task| task.get("rank"))
+                            .and_then(serde_json::Value::as_u64)
+                            .unwrap_or_else(|| u64::try_from(index + 1).unwrap_or(u64::MAX));
                         serde_json::json!({
-                            "rank": index + 1,
+                            "rank": canonical_rank,
                             "lane": target.lane,
                             "target_id": target.id,
                             "title": target.title,
@@ -386,6 +425,7 @@ pub async fn run_command() {
                         })
                     })
                     .collect::<Vec<_>>();
+                let returned = offers.len();
                 print_json(&serde_json::json!({
                     "ok": true,
                     "command": "next",
@@ -393,9 +433,14 @@ pub async fn run_command() {
                     "frontier_id": project.frontier_id(),
                     "event_log_root": format!("sha256:{}", vela_protocol::events::event_log_hash(&project.events)),
                     "availability": {
-                        "configured_open": projection.producer_work.configured_open,
+                        "configured": projection.producer_work.configured_open,
+                        "stale": projection.producer_work.stale,
                         "available": projection.producer_work.available,
                         "leased": projection.producer_work.leased,
+                        "returned": returned,
+                        "repair_command": vela_edge::target_index::target_index_repair_command(
+                            &dir.display().to_string()
+                        ),
                     },
                     "leased_targets": projection.producer_work.leased_targets,
                     "targets": offers,
@@ -514,10 +559,13 @@ pub async fn run_command() {
                 );
             }
             let ttl = ttl.unwrap_or_else(|| {
-                crate::config::settings::resolve("work.lease_ttl_seconds", Some(&dir))
+                crate::config::settings::try_resolve("work.lease_ttl_seconds", Some(&dir))
+                    .unwrap_or_else(|error| fail_return(&error))
                     .0
                     .parse()
-                    .unwrap_or(86400)
+                    .unwrap_or_else(|_| {
+                        fail_return("resolved work.lease_ttl_seconds is not a positive integer")
+                    })
             });
             match crate::workflow::open_session(&dir, &target, &actor, ttl) {
                 Ok(opened) => {

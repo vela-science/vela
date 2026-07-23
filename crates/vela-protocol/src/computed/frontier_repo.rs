@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Component, Path};
 
 use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
@@ -14,13 +14,20 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 
 use crate::events;
+use crate::frontier_profile::{
+    FRONTIER_PROFILE_SCHEMA_V1, FrontierProfileLicenseV1, FrontierProfileScopeV1, FrontierProfileV1,
+};
+use crate::frontier_settings::{FRONTIER_SETTINGS_SCHEMA, FrontierSettingsV1};
 use crate::project::{self, Project, ProjectDependency};
 use crate::proposals;
 
 pub const FRONTIER_REPO_LAYOUT: &str = "vela.frontier_repo.v0.1";
+pub const FRONTIER_REPO_LAYOUT_V1: &str = "vela.frontier_repo.v1";
 pub const FRONTIER_MANIFEST_SCHEMA: &str = "vela.frontier_manifest.v0.1";
 pub const FRONTIER_LOCK_SCHEMA: &str = "vela.frontier_lock.v0.1";
+pub const FRONTIER_LOCK_SCHEMA_V1: &str = "vela.frontier_lock.v1";
 pub const FRONTIER_INIT_SCHEMA: &str = "vela.frontier_repo_init.v0.1";
+pub const FRONTIER_INIT_SCHEMA_V1: &str = "vela.frontier_repo_init.v1";
 pub const FRONTIER_MATERIALIZE_SCHEMA: &str = "vela.frontier_materialize.v0.1";
 pub const FRONTIER_REPO_STATUS_SCHEMA: &str = "vela.frontier_repo_status.v0.1";
 pub const FRONTIER_REPO_DOCTOR_SCHEMA: &str = "vela.frontier_repo_doctor.v0.1";
@@ -57,6 +64,17 @@ pub struct FrontierManifest {
     pub license: ManifestLicense,
     #[serde(default)]
     pub dependencies: ManifestDependencies,
+}
+
+/// The two repository-profile generations accepted by this binary.
+///
+/// Dispatch is driven only by the exact top-level schema. An unknown schema
+/// never falls through to the permissive legacy manifest reader, and a v1
+/// profile is always parsed with its closed validator.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FrontierProfileFile {
+    LegacyV0_1(FrontierManifest),
+    V1(FrontierProfileV1),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -183,6 +201,45 @@ pub struct FrontierLock {
     pub dependencies: Vec<LockedDependency>,
 }
 
+/// Generated Profile v1 lock projection.
+///
+/// Unlike the legacy lock, this names the closed scientific-state root and
+/// labels the old broad Project hash explicitly as compatibility data. It is
+/// derived entirely from a validated profile/event projection and grants no
+/// authority of its own.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct FrontierLockV1 {
+    pub schema: String,
+    pub generated_at: String,
+    pub vela_version: String,
+    pub frontier_id: String,
+    pub profile_root: String,
+    pub identity_root: String,
+    pub dependency_root: String,
+    pub scientific_state_root: String,
+    pub legacy_snapshot_root: String,
+    pub event_log_root: String,
+    pub event_count: u64,
+    pub proposal_root: String,
+    pub canonicalization: LockCanonicalization,
+    pub reducer: LockPackage,
+    pub verifiers: LockVerifiers,
+    pub sources_hash: String,
+    pub artifacts_hash: String,
+    pub review_hash: String,
+    pub proof_freshness: String,
+    pub proof: LockProof,
+    pub paths: LockPaths,
+    pub dependencies: Vec<crate::frontier_repository::ExactFrontierDependencyV1>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FrontierLockFile {
+    LegacyV0_1(FrontierLock),
+    V1(FrontierLockV1),
+}
+
 /// v0.109: per-dependency pin entry inside `vela.lock`. Mirrors
 /// the manifest's `ProjectDependency` fields that affect
 /// reproducibility (id, snapshot, locator) and drops the rest
@@ -293,6 +350,17 @@ pub struct InitOptions<'a> {
     pub initialize_git: bool,
 }
 
+/// Inputs for the Profile v1 initializer used by the ordinary CLI path.
+///
+/// The caller supplies the complete scientific scope. Initialization does not
+/// infer a domain, target catalogue, verifier, maintainer, or authority.
+#[derive(Debug, Clone)]
+pub struct ProfileV1InitOptions<'a> {
+    pub name: &'a str,
+    pub scope: &'a str,
+    pub initialize_git: bool,
+}
+
 pub fn initialize(path: &Path, options: InitOptions<'_>) -> Result<serde_json::Value, String> {
     if path.exists() && !path.is_dir() {
         return Err(format!("{} exists and is not a directory", path.display()));
@@ -309,23 +377,8 @@ pub fn initialize(path: &Path, options: InitOptions<'_>) -> Result<serde_json::V
     crate::repo::init_repo(path, &project)?;
     write_frontier_card(path, options.name)?;
     write_scope(path, options.name)?;
-    write_git_native_scaffold(path, options.name)?;
-    if options.initialize_git && !path.join(".git").exists() {
-        // Default to `main`, the ecosystem convention (the hub ingests `main` and
-        // the CI workflow triggers on it) — never the git-version-dependent
-        // `master`, which silently breaks both if a repo ships with it.
-        let output = std::process::Command::new("git")
-            .args(["init", "--quiet", "-b", "main"])
-            .arg(path)
-            .output()
-            .map_err(|e| format!("Failed to run git init: {e}"))?;
-        if !output.status.success() {
-            return Err(format!(
-                "git init failed: {}",
-                String::from_utf8_lossy(&output.stderr).trim()
-            ));
-        }
-    }
+    write_git_native_scaffold(path, options.name, true)?;
+    initialize_git_repository(path, options.initialize_git)?;
 
     let payload = json!({
         "schema": FRONTIER_INIT_SCHEMA,
@@ -409,6 +462,295 @@ pub fn initialize_minimal(
     Ok(payload)
 }
 
+/// Create a new, minimal Profile v1 Frontier without first materializing a
+/// legacy repository. Historical fixture helpers continue to use
+/// [`initialize`] and [`initialize_minimal`]; this function is the new-product
+/// path used by `vela init`.
+pub fn initialize_profile_v1_minimal(
+    path: &Path,
+    options: ProfileV1InitOptions<'_>,
+) -> Result<serde_json::Value, String> {
+    let name = options.name.trim();
+    let scope = options.scope.trim();
+    if name.is_empty() {
+        return Err("Profile v1 initialization requires a non-empty name".to_string());
+    }
+    if scope.is_empty() {
+        return Err("Profile v1 initialization requires a non-empty bounded scope".to_string());
+    }
+
+    let target_existed = match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+            return Err(format!(
+                "{} must be a real directory or an absent path",
+                path.display()
+            ));
+        }
+        Ok(_) => {
+            let mut entries = fs::read_dir(path)
+                .map_err(|error| format!("inspect init target '{}': {error}", path.display()))?;
+            if entries
+                .next()
+                .transpose()
+                .map_err(|error| format!("inspect init target '{}': {error}", path.display()))?
+                .is_some()
+            {
+                return Err(format!(
+                    "refusing to initialize non-empty directory {}; adopt an existing repository through the explicit migration path",
+                    path.display()
+                ));
+            }
+            true
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            fs::create_dir_all(path).map_err(|error| {
+                format!(
+                    "Failed to create frontier directory '{}': {error}",
+                    path.display()
+                )
+            })?;
+            false
+        }
+        Err(error) => {
+            return Err(format!("inspect init target '{}': {error}", path.display()));
+        }
+    };
+
+    // Construct the complete repository below a temporary child first. The
+    // target is still empty, so an initialization failure cannot leave a
+    // half-formed `.vela/` history or overwrite an existing project file.
+    let staging = tempfile::Builder::new()
+        .prefix(".vela-init-")
+        .tempdir_in(path)
+        .map_err(|error| format!("create initialization staging directory: {error}"))?;
+    let staged = initialize_profile_v1_minimal_in_place(staging.path(), &options);
+    let mut payload = match staged {
+        Ok(payload) => payload,
+        Err(error) => {
+            drop(staging);
+            if !target_existed {
+                let _ = fs::remove_dir(path);
+            }
+            return Err(error);
+        }
+    };
+
+    let mut entries = fs::read_dir(staging.path())
+        .map_err(|error| format!("read initialization staging directory: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("read initialization staging entry: {error}"))?;
+    entries.sort_by_key(fs::DirEntry::file_name);
+    let mut installed = Vec::new();
+    for entry in entries {
+        let destination = path.join(entry.file_name());
+        if fs::symlink_metadata(&destination).is_ok() {
+            for (source, destination) in installed.iter().rev() {
+                let _ = fs::rename(destination, source);
+            }
+            drop(staging);
+            if !target_existed {
+                let _ = fs::remove_dir(path);
+            }
+            return Err(format!(
+                "initialization target changed while staging: {}",
+                destination.display()
+            ));
+        }
+        if let Err(error) = fs::rename(entry.path(), &destination) {
+            for (source, destination) in installed.iter().rev() {
+                let _ = fs::rename(destination, source);
+            }
+            drop(staging);
+            if !target_existed {
+                let _ = fs::remove_dir(path);
+            }
+            return Err(format!(
+                "install initialized repository entry '{}': {error}",
+                destination.display()
+            ));
+        }
+        installed.push((entry.path(), destination));
+    }
+    drop(staging);
+
+    payload["path"] = json!(path.display().to_string());
+    payload["next_commands"] = json!([
+        format!(
+            "vela doctor {} --json",
+            posix_shell_arg(&path.display().to_string())
+        ),
+        format!(
+            "vela status {} --json",
+            posix_shell_arg(&path.display().to_string())
+        ),
+        format!(
+            "vela next {} --json",
+            posix_shell_arg(&path.display().to_string())
+        )
+    ]);
+    Ok(payload)
+}
+
+fn initialize_profile_v1_minimal_in_place(
+    path: &Path,
+    options: &ProfileV1InitOptions<'_>,
+) -> Result<serde_json::Value, String> {
+    let name = options.name.trim();
+    let scope = options.scope.trim();
+
+    let project = project::assemble_profile_v1(name, Vec::new(), 0, 0, scope);
+    let frontier_id = project.frontier_id();
+    let profile = FrontierProfileV1 {
+        schema: FRONTIER_PROFILE_SCHEMA_V1.to_string(),
+        frontier_id: frontier_id.clone(),
+        name: name.to_string(),
+        // The CLI accepts one bounded sentence. Reusing it here avoids
+        // inventing a broader summary during initialization.
+        summary: scope.to_string(),
+        scope: FrontierProfileScopeV1 {
+            question: scope.to_string(),
+            includes: Vec::new(),
+            excludes: Vec::new(),
+        },
+        maintainers: Vec::new(),
+        license: FrontierProfileLicenseV1 {
+            content: "CC-BY-4.0".to_string(),
+            code: "Apache-2.0".to_string(),
+            data: "varies".to_string(),
+        },
+    };
+    profile.validate()?;
+    let profile_root = profile.profile_root()?;
+    let dependency_root = crate::frontier_repository::exact_dependency_root(&[])?;
+    let genesis = project
+        .events
+        .first()
+        .ok_or_else(|| "Profile v1 initialization did not produce frontier.created".to_string())?;
+    if project.events.len() != 1 || genesis.kind != "frontier.created" {
+        return Err(
+            "Profile v1 initialization must produce exactly one frontier.created event".to_string(),
+        );
+    }
+
+    let profile_bytes = serde_yaml::to_string(&profile)
+        .map_err(|error| format!("Failed to serialize Profile v1: {error}"))?;
+    fs::write(path.join("frontier.yaml"), profile_bytes)
+        .map_err(|error| format!("Failed to write frontier.yaml: {error}"))?;
+
+    write_profile_v1_canonical_skeleton(path, &project)?;
+    write_visible_state(
+        path,
+        &project,
+        &materialization_generated_at(path, &project),
+    )?;
+
+    // Proof packets are explicit derived products, not part of the initial
+    // repository. The initial v1 lock states that none has been materialized.
+    let proof_dir = path.join("proof");
+    let generated_at = materialization_generated_at(path, &project);
+    let empty_proof = ProofWrite {
+        digest: directory_hash(&proof_dir),
+        freshness: "not_materialized".to_string(),
+        latest: String::new(),
+        events_manifest: String::new(),
+        replay_trace: String::new(),
+    };
+    let (_, lock_bytes) = render_lock_v1(path, &project, &profile, &empty_proof, &generated_at)?;
+    fs::write(path.join("vela.lock"), lock_bytes)
+        .map_err(|error| format!("Failed to write vela.lock: {error}"))?;
+
+    let settings = FrontierSettingsV1 {
+        schema: FRONTIER_SETTINGS_SCHEMA.to_string(),
+        publish: None,
+        work: None,
+        mcp: None,
+    };
+    fs::write(path.join(".vela/settings.toml"), settings.to_toml()?)
+        .map_err(|error| format!("Failed to write .vela/settings.toml: {error}"))?;
+    write_frontier_card_v1(path, name, scope)?;
+    write_scope_v1(path, scope)?;
+    write_git_native_scaffold(path, name, false)?;
+    initialize_git_repository(path, options.initialize_git)?;
+
+    let event_path = format!(".vela/events/{}.json", genesis.id);
+    Ok(json!({
+        "schema": FRONTIER_INIT_SCHEMA_V1,
+        "ok": true,
+        "layout": FRONTIER_REPO_LAYOUT_V1,
+        "path": path.display().to_string(),
+        "name": name,
+        "scope": scope,
+        "frontier_id": frontier_id,
+        "frontier_created_event_id": genesis.id,
+        "profile_root": profile_root,
+        "dependency_root": dependency_root,
+        "wrote": [
+            "README.md",
+            "SCOPE.md",
+            "frontier.yaml",
+            "frontier.json",
+            "vela.lock",
+            ".gitignore",
+            ".gitattributes",
+            "VELA.md",
+            ".vela/settings.toml",
+            event_path,
+            ".vela/proof-state.json",
+            ".vela/actors.json"
+        ],
+        "next_commands": [
+            format!("vela doctor {} --json", posix_shell_arg(&path.display().to_string())),
+            format!("vela status {} --json", posix_shell_arg(&path.display().to_string())),
+            format!("vela next {} --json", posix_shell_arg(&path.display().to_string()))
+        ]
+    }))
+}
+
+fn write_profile_v1_canonical_skeleton(path: &Path, project: &Project) -> Result<(), String> {
+    let vela_dir = path.join(".vela");
+    for relative in ["findings", "events", "proposals", "artifacts"] {
+        let directory = vela_dir.join(relative);
+        fs::create_dir_all(&directory)
+            .map_err(|error| format!("Failed to create {}: {error}", directory.display()))?;
+    }
+    for event in &project.events {
+        let destination = vela_dir.join("events").join(format!("{}.json", event.id));
+        let bytes = serde_json::to_vec_pretty(event)
+            .map_err(|error| format!("Failed to serialize state event {}: {error}", event.id))?;
+        fs::write(&destination, bytes)
+            .map_err(|error| format!("Failed to write {}: {error}", destination.display()))?;
+    }
+    let proof_state = serde_json::to_vec_pretty(&project.proof_state)
+        .map_err(|error| format!("Failed to serialize proof state: {error}"))?;
+    fs::write(vela_dir.join("proof-state.json"), proof_state)
+        .map_err(|error| format!("Failed to write .vela/proof-state.json: {error}"))?;
+    let actors = serde_json::to_vec_pretty(&project.actors)
+        .map_err(|error| format!("Failed to serialize actors: {error}"))?;
+    fs::write(vela_dir.join("actors.json"), actors)
+        .map_err(|error| format!("Failed to write .vela/actors.json: {error}"))?;
+    Ok(())
+}
+
+fn initialize_git_repository(path: &Path, requested: bool) -> Result<(), String> {
+    if !requested || path.join(".git").exists() {
+        return Ok(());
+    }
+    // Pin the ecosystem branch name instead of inheriting Git's machine-local
+    // default. This is repository setup only; it installs no hooks.
+    let output = std::process::Command::new("git")
+        .args(["init", "--quiet", "-b", "main"])
+        .arg(path)
+        .output()
+        .map_err(|error| format!("Failed to run git init: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "git init failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    Ok(())
+}
+
 fn init_next_commands(path: &Path) -> Vec<String> {
     let target = posix_shell_arg(&path.display().to_string());
     vec![
@@ -442,7 +784,11 @@ fn posix_shell_arg(value: &str) -> String {
 ///   CLAUDE.md / AGENTS.md / editor adapters from it).
 /// - `.mcp.json` selects the nonfinalizing draft MCP profile so agents can use
 ///   the task-first producer loop; no finalizer or human key is exposed.
-fn write_git_native_scaffold(path: &Path, name: &str) -> Result<(), String> {
+fn write_git_native_scaffold(
+    path: &Path,
+    name: &str,
+    include_optional_integrations: bool,
+) -> Result<(), String> {
     let write = |rel: &str, contents: String| -> Result<(), String> {
         let dest = path.join(rel);
         if dest.exists() {
@@ -498,9 +844,10 @@ fn write_git_native_scaffold(path: &Path, name: &str) -> Result<(), String> {
             .to_string(),
     )?;
 
-    let vela_release = current_vela_release();
-    let vela_action_ref = format!("{VELA_ACTION_REPOSITORY}@{vela_release}");
-    let workflow = r#"name: Verify the signed frontier
+    if include_optional_integrations {
+        let vela_release = current_vela_release();
+        let vela_action_ref = format!("{VELA_ACTION_REPOSITORY}@{vela_release}");
+        let workflow = r#"name: Verify the signed frontier
 
 # The git-native gate: every main push and every pull request runs the shared
 # vela-check action. This is deliberately unfiltered: public canonical roots
@@ -526,9 +873,10 @@ jobs:
         with:
           vela-version: __VELA_RELEASE__
 "#
-    .replace("__VELA_ACTION_REF__", &vela_action_ref)
-    .replace("__VELA_RELEASE__", &vela_release);
-    write(".github/workflows/vela-frontier.yml", workflow)?;
+        .replace("__VELA_ACTION_REF__", &vela_action_ref)
+        .replace("__VELA_RELEASE__", &vela_release);
+        write(".github/workflows/vela-frontier.yml", workflow)?;
+    }
 
     write(
         "VELA.md",
@@ -579,9 +927,10 @@ git push                                         # publication; no authority
         ),
     )?;
 
-    write(
-        ".mcp.json",
-        r#"{
+    if include_optional_integrations {
+        write(
+            ".mcp.json",
+            r#"{
   "_generated_by": "vela agents sync (from VELA.md) — edit VELA.md, not this file",
   "mcpServers": {
     "vela-local": {
@@ -596,8 +945,9 @@ git push                                         # publication; no authority
   }
 }
 "#
-        .to_string(),
-    )?;
+            .to_string(),
+        )?;
+    }
 
     Ok(())
 }
@@ -612,6 +962,27 @@ pub fn materialize(path: &Path) -> Result<serde_json::Value, String> {
     write_visible_state(path, &project, &generated_at)?;
     write_manifest(path, &project)?;
     let proof = write_proof(path, &project, &generated_at)?;
+    if let Some(FrontierProfileFile::V1(profile)) = read_repository_profile(path)? {
+        let (lock, bytes) = render_lock_v1(path, &project, &profile, &proof, &generated_at)?;
+        fs::write(path.join("vela.lock"), bytes)
+            .map_err(|error| format!("Failed to write vela.lock: {error}"))?;
+        return Ok(json!({
+            "schema": FRONTIER_MATERIALIZE_SCHEMA,
+            "ok": true,
+            "path": path.display().to_string(),
+            "wrote_frontier": "frontier.json",
+            "wrote_lock": "vela.lock",
+            "wrote_proof": "proof/latest.json",
+            "wrote_events_manifest": "proof/events.manifest.jsonl",
+            "profile_root": lock.profile_root,
+            "identity_root": lock.identity_root,
+            "dependency_root": lock.dependency_root,
+            "scientific_state_root": lock.scientific_state_root,
+            "legacy_snapshot_root": lock.legacy_snapshot_root,
+            "event_log_root": lock.event_log_root,
+            "proposal_root": lock.proposal_root,
+        }));
+    }
     let lock = write_lock(path, &project, &proof, &generated_at)?;
     Ok(json!({
         "schema": FRONTIER_MATERIALIZE_SCHEMA,
@@ -648,21 +1019,84 @@ pub fn render_visible_repo_files(
     path: &Path,
     project: &Project,
 ) -> Result<VisibleRepoFiles, String> {
+    render_visible_repo_files_inner(path, project, None)
+}
+
+/// Render the exact Profile v1 migration postimage without first installing
+/// the candidate profile in the source checkout.
+///
+/// This is the pure staging counterpart of [`render_visible_repo_files`].
+/// The supplied bytes are preserved exactly while the parsed profile drives
+/// the v1 lock projection. It exists so the protected migration transaction
+/// can bind every derived postimage before its commit marker.
+pub fn render_visible_repo_files_for_profile_migration(
+    path: &Path,
+    project: &Project,
+    profile: &FrontierProfileV1,
+    profile_bytes: &[u8],
+) -> Result<VisibleRepoFiles, String> {
+    profile.validate()?;
+    profile.assert_frontier_id(&project.frontier_id())?;
+    let reparsed = std::str::from_utf8(profile_bytes)
+        .map_err(|error| format!("candidate Profile v1 bytes are not UTF-8: {error}"))
+        .and_then(FrontierProfileV1::from_yaml_str)?;
+    if &reparsed != profile {
+        return Err(
+            "candidate Profile v1 bytes do not match the parsed migration profile".to_string(),
+        );
+    }
+    render_visible_repo_files_inner(path, project, Some((profile, profile_bytes)))
+}
+
+fn render_visible_repo_files_inner(
+    path: &Path,
+    project: &Project,
+    migration_profile: Option<(&FrontierProfileV1, &[u8])>,
+) -> Result<VisibleRepoFiles, String> {
+    // Split-repository loading is filename ordered. New objects are commonly
+    // appended in memory, and their content-derived ids do not necessarily
+    // sort after the prior set. Render the visible projection in the same
+    // deterministic order a clean clone will load, or `frontier.json` can
+    // become stale immediately after an otherwise exact transaction.
+    let mut projected: Project = serde_json::from_value(
+        serde_json::to_value(project)
+            .map_err(|error| format!("clone split-repository projection: {error}"))?,
+    )
+    .map_err(|error| format!("clone split-repository projection: {error}"))?;
+    projected
+        .findings
+        .sort_by(|left, right| left.id.cmp(&right.id));
+    projected
+        .events
+        .sort_by(|left, right| left.id.cmp(&right.id));
+    projected
+        .proposals
+        .sort_by(|left, right| left.id.cmp(&right.id));
+    projected
+        .artifacts
+        .sort_by(|left, right| left.id.cmp(&right.id));
+    let project = &projected;
     let generated_at = materialization_generated_at(path, project);
     let mut files = VisibleRepoFiles::new();
     files.insert(
         "frontier.json".to_string(),
-        render_visible_state(project, &generated_at)?,
+        render_visible_state(path, project, &generated_at)?,
     );
-    let manifest = if !path.join("frontier.yaml").is_file() {
-        render_manifest(path, project)?
-    } else {
-        // v0.59: keep the structured cross-frontier deps in the
-        // existing yaml in sync with `Project.dependencies`. We
-        // intentionally only touch the `dependencies.frontiers_v2`
-        // field; other user-edited fields (scope, maintainers,
-        // policies) are preserved.
-        render_synced_manifest(path, &project.project.dependencies)?
+    let manifest = match migration_profile {
+        Some((_, bytes)) => bytes.to_vec(),
+        None => match read_repository_profile(path)? {
+            None => render_manifest(path, project)?,
+            Some(FrontierProfileFile::LegacyV0_1(_)) => {
+                // v0.59: keep the structured cross-frontier deps in the
+                // existing yaml in sync with `Project.dependencies`. We
+                // intentionally only touch the `dependencies.frontiers_v2`
+                // field; other user-edited fields (scope, maintainers,
+                // policies) are preserved.
+                render_synced_manifest(path, &project.project.dependencies)?
+            }
+            Some(FrontierProfileFile::V1(_)) => fs::read(path.join("frontier.yaml"))
+                .map_err(|error| format!("Failed to preserve frontier.yaml: {error}"))?,
+        },
     };
     files.insert("frontier.yaml".to_string(), manifest);
 
@@ -673,39 +1107,237 @@ pub fn render_visible_repo_files(
             .into_iter()
             .map(|(relative_path, bytes)| (format!("proof/{relative_path}"), bytes)),
     );
-    let (_, lock_bytes) = render_lock(path, project, &rendered_proof.proof, &generated_at)?;
+    let lock_bytes = match migration_profile {
+        Some((profile, _)) => {
+            render_lock_v1(path, project, profile, &rendered_proof.proof, &generated_at)?.1
+        }
+        None => match read_repository_profile(path)? {
+            Some(FrontierProfileFile::V1(profile)) => {
+                render_lock_v1(
+                    path,
+                    project,
+                    &profile,
+                    &rendered_proof.proof,
+                    &generated_at,
+                )?
+                .1
+            }
+            _ => render_lock(path, project, &rendered_proof.proof, &generated_at)?.1,
+        },
+    };
     files.insert("vela.lock".to_string(), lock_bytes);
     Ok(files)
 }
 
 pub fn read_manifest(path: &Path) -> Result<Option<FrontierManifest>, String> {
-    let manifest_path = path.join("frontier.yaml");
-    if !manifest_path.is_file() {
-        return Ok(None);
+    match read_repository_profile(path)? {
+        Some(FrontierProfileFile::LegacyV0_1(manifest)) => Ok(Some(manifest)),
+        Some(FrontierProfileFile::V1(_)) => Err(
+            "frontier.yaml is a vela.frontier-profile.v1 document, not a legacy manifest"
+                .to_string(),
+        ),
+        None => Ok(None),
     }
-    let data = fs::read_to_string(&manifest_path)
-        .map_err(|e| format!("Failed to read frontier.yaml: {e}"))?;
-    serde_yaml::from_str(&data).map(Some).map_err(|e| {
+}
+
+/// Parse `frontier.yaml` through an exact schema dispatch.
+pub fn read_repository_profile(path: &Path) -> Result<Option<FrontierProfileFile>, String> {
+    let profile_path = path.join("frontier.yaml");
+    let Some(data) =
+        read_repository_control_text(path, Path::new("frontier.yaml"), "frontier.yaml")?
+    else {
+        return Ok(None);
+    };
+    let value: serde_yaml::Value = serde_yaml::from_str(&data).map_err(|error| {
         format!(
-            "Failed to parse frontier manifest '{}': {e}",
-            manifest_path.display()
+            "Failed to parse frontier profile '{}': {error}",
+            profile_path.display()
         )
-    })
+    })?;
+    let schema = value
+        .as_mapping()
+        .and_then(|mapping| mapping.get(serde_yaml::Value::String("schema".to_string())))
+        .and_then(serde_yaml::Value::as_str)
+        .ok_or_else(|| "frontier.yaml must contain a string schema field".to_string())?;
+    match schema {
+        FRONTIER_MANIFEST_SCHEMA => serde_yaml::from_value::<FrontierManifest>(value)
+            .map(FrontierProfileFile::LegacyV0_1)
+            .map(Some)
+            .map_err(|error| {
+                format!(
+                    "Failed to parse legacy frontier manifest '{}': {error}",
+                    profile_path.display()
+                )
+            }),
+        FRONTIER_PROFILE_SCHEMA_V1 => FrontierProfileV1::from_yaml_str(&data)
+            .map(FrontierProfileFile::V1)
+            .map(Some),
+        other => Err(format!(
+            "unsupported frontier.yaml schema `{other}`; expected `{FRONTIER_MANIFEST_SCHEMA}` or `{FRONTIER_PROFILE_SCHEMA_V1}`"
+        )),
+    }
+}
+
+/// Read one repository-relative control file while pinning every directory in
+/// its lexical parent chain. A safe leaf is insufficient when `.vela/` (or the
+/// repository path itself) can be swapped for a symlink between authorization
+/// and use. Relative paths are deliberately closed: no root, prefix, `.` or
+/// `..` components are accepted.
+pub fn read_repository_control_text(
+    repository: &Path,
+    relative: &Path,
+    label: &str,
+) -> Result<Option<String>, String> {
+    let components = relative.components().collect::<Vec<_>>();
+    if components.is_empty()
+        || components
+            .iter()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return Err(format!(
+            "{label} must use a normalized repository-relative path"
+        ));
+    }
+
+    let mut directories = Vec::with_capacity(components.len());
+    let mut current = repository.to_path_buf();
+    directories.push(current.clone());
+    for component in &components[..components.len() - 1] {
+        let Component::Normal(name) = component else {
+            unreachable!("closed component check above")
+        };
+        current.push(name);
+        directories.push(current.clone());
+    }
+
+    let mut pinned = Vec::with_capacity(directories.len());
+    for directory in &directories {
+        let metadata = fs::symlink_metadata(directory)
+            .map_err(|error| format!("Failed to inspect parent of {label}: {error}"))?;
+        if metadata.file_type().is_symlink() || !metadata.is_dir() {
+            return Err(format!(
+                "{label} must be beneath real non-symlink repository directories"
+            ));
+        }
+        pinned.push(
+            same_file::Handle::from_path(directory)
+                .map_err(|error| format!("Failed to identify parent of {label}: {error}"))?,
+        );
+    }
+
+    let value = read_regular_nonsymlink_text(&repository.join(relative), label)?;
+    for (directory, expected) in directories.iter().zip(&pinned) {
+        let metadata = fs::symlink_metadata(directory)
+            .map_err(|error| format!("Failed to reinspect parent of {label}: {error}"))?;
+        let actual = same_file::Handle::from_path(directory)
+            .map_err(|error| format!("Failed to reidentify parent of {label}: {error}"))?;
+        if metadata.file_type().is_symlink() || !metadata.is_dir() || &actual != expected {
+            return Err(format!(
+                "repository parent of {label} changed while it was read"
+            ));
+        }
+    }
+    Ok(value)
+}
+
+/// Read one repository control file without following a symlink or accepting
+/// a non-regular filesystem object. The descriptor identity is compared with
+/// the path both before and after the read so a concurrent replacement fails
+/// closed instead of authorizing bytes from outside the repository.
+pub fn read_regular_nonsymlink_text(path: &Path, label: &str) -> Result<Option<String>, String> {
+    use std::io::Read;
+
+    const MAX_CONTROL_FILE_BYTES: u64 = 16 * 1024 * 1024;
+
+    let linked = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(format!("Failed to inspect {label}: {error}")),
+    };
+    if linked.file_type().is_symlink() || !linked.is_file() {
+        return Err(format!("{label} must be a regular non-symlink file"));
+    }
+    let inspected = same_file::Handle::from_path(path)
+        .map_err(|error| format!("Failed to identify {label}: {error}"))?;
+    let mut file =
+        fs::File::open(path).map_err(|error| format!("Failed to open {label}: {error}"))?;
+    let opened = same_file::Handle::from_file(
+        file.try_clone()
+            .map_err(|error| format!("Failed to clone the open {label} descriptor: {error}"))?,
+    )
+    .map_err(|error| format!("Failed to identify the open {label}: {error}"))?;
+    if inspected != opened {
+        return Err(format!("{label} changed while it was opened"));
+    }
+    let mut bytes = Vec::new();
+    file.by_ref()
+        .take(MAX_CONTROL_FILE_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("Failed to read {label}: {error}"))?;
+    if bytes.len() as u64 > MAX_CONTROL_FILE_BYTES {
+        return Err(format!("{label} exceeds the 16 MiB control-file limit"));
+    }
+    let data =
+        String::from_utf8(bytes).map_err(|error| format!("{label} is not UTF-8: {error}"))?;
+    let final_link = fs::symlink_metadata(path)
+        .map_err(|error| format!("Failed to reinspect {label}: {error}"))?;
+    let final_identity = same_file::Handle::from_path(path)
+        .map_err(|error| format!("Failed to reidentify {label}: {error}"))?;
+    if final_link.file_type().is_symlink() || !final_link.is_file() || opened != final_identity {
+        return Err(format!("{label} changed while it was read"));
+    }
+    Ok(Some(data))
 }
 
 pub fn read_lock(path: &Path) -> Result<Option<FrontierLock>, String> {
+    match read_repository_lock(path)? {
+        Some(FrontierLockFile::LegacyV0_1(lock)) => Ok(Some(lock)),
+        Some(FrontierLockFile::V1(_)) => {
+            Err("vela.lock is a vela.frontier_lock.v1 document".to_string())
+        }
+        None => Ok(None),
+    }
+}
+
+pub fn read_repository_lock(path: &Path) -> Result<Option<FrontierLockFile>, String> {
     let lock_path = path.join("vela.lock");
     if !lock_path.is_file() {
         return Ok(None);
     }
     let data =
         fs::read_to_string(&lock_path).map_err(|e| format!("Failed to read vela.lock: {e}"))?;
-    serde_yaml::from_str(&data).map(Some).map_err(|e| {
+    let value: serde_yaml::Value = serde_yaml::from_str(&data).map_err(|error| {
         format!(
-            "Failed to parse frontier lock '{}': {e}",
+            "Failed to parse frontier lock '{}': {error}",
             lock_path.display()
         )
-    })
+    })?;
+    let schema = value
+        .as_mapping()
+        .and_then(|mapping| mapping.get(serde_yaml::Value::String("schema".to_string())))
+        .and_then(serde_yaml::Value::as_str)
+        .ok_or_else(|| "vela.lock must contain a string schema field".to_string())?;
+    match schema {
+        FRONTIER_LOCK_SCHEMA => serde_yaml::from_value::<FrontierLock>(value)
+            .map(FrontierLockFile::LegacyV0_1)
+            .map(Some)
+            .map_err(|error| {
+                format!(
+                    "Failed to parse frontier lock '{}': {error}",
+                    lock_path.display()
+                )
+            }),
+        FRONTIER_LOCK_SCHEMA_V1 => serde_yaml::from_value::<FrontierLockV1>(value)
+            .map(FrontierLockFile::V1)
+            .map(Some)
+            .map_err(|error| {
+                format!(
+                    "Failed to parse frontier lock '{}': {error}",
+                    lock_path.display()
+                )
+            }),
+        other => Err(format!("unsupported vela.lock schema `{other}`")),
+    }
 }
 
 pub fn layout_issues(path: &Path, project: &Project) -> Vec<RepoLayoutIssue> {
@@ -713,14 +1345,14 @@ pub fn layout_issues(path: &Path, project: &Project) -> Vec<RepoLayoutIssue> {
         return Vec::new();
     }
     let mut issues = Vec::new();
-    let manifest = match read_manifest(path) {
+    let profile = match read_repository_profile(path) {
         Ok(value) => value,
         Err(e) => {
             issues.push(issue("invalid_frontier_manifest", e));
             None
         }
     };
-    let lock = match read_lock(path) {
+    let lock_file = match read_repository_lock(path) {
         Ok(value) => value,
         Err(e) => {
             issues.push(issue("invalid_frontier_lock", e));
@@ -728,13 +1360,13 @@ pub fn layout_issues(path: &Path, project: &Project) -> Vec<RepoLayoutIssue> {
         }
     };
 
-    if manifest.is_none() {
+    if profile.is_none() {
         issues.push(issue(
             "missing_frontier_manifest",
             "Split frontier repo is missing frontier.yaml.",
         ));
     }
-    let Some(lock) = lock else {
+    let Some(lock_file) = lock_file else {
         // A missing vela.lock is benign: it is a DERIVED view, regenerated
         // byte-for-byte by `vela frontier materialize`. The lock is not
         // canonical custody: a fresh Git checkout may have no lock until the
@@ -744,6 +1376,38 @@ pub fn layout_issues(path: &Path, project: &Project) -> Vec<RepoLayoutIssue> {
         return issues;
     };
 
+    match (profile.as_ref(), lock_file) {
+        (Some(FrontierProfileFile::V1(profile)), FrontierLockFile::V1(lock)) => {
+            validate_v1_layout(path, project, profile, &lock, &mut issues);
+            issues
+        }
+        (Some(FrontierProfileFile::V1(_)), FrontierLockFile::LegacyV0_1(_))
+        | (Some(FrontierProfileFile::LegacyV0_1(_)), FrontierLockFile::V1(_)) => {
+            issues.push(issue(
+                "frontier_lock_schema_mismatch",
+                "frontier.yaml and vela.lock use different repository-profile generations.",
+            ));
+            issues
+        }
+        (_, FrontierLockFile::V1(_)) => {
+            issues.push(issue(
+                "frontier_lock_schema_mismatch",
+                "vela.lock v1 requires a validated Repository Profile v1.",
+            ));
+            issues
+        }
+        (_, FrontierLockFile::LegacyV0_1(lock)) => {
+            validate_legacy_layout(path, project, lock, issues)
+        }
+    }
+}
+
+fn validate_legacy_layout(
+    path: &Path,
+    project: &Project,
+    lock: FrontierLock,
+    mut issues: Vec<RepoLayoutIssue>,
+) -> Vec<RepoLayoutIssue> {
     let locked_project = project_with_frontier_id(project);
     let hash_project = locked_project.as_ref().unwrap_or(project);
     let expected_snapshot = prefixed(events::snapshot_hash(hash_project));
@@ -870,12 +1534,153 @@ pub fn layout_issues(path: &Path, project: &Project) -> Vec<RepoLayoutIssue> {
     issues
 }
 
+fn validate_v1_layout(
+    path: &Path,
+    project: &Project,
+    profile: &FrontierProfileV1,
+    lock: &FrontierLockV1,
+    issues: &mut Vec<RepoLayoutIssue>,
+) {
+    let projection = match profile.project(project) {
+        Ok(projection) => projection,
+        Err(error) => {
+            issues.push(issue("invalid_frontier_profile", error));
+            return;
+        }
+    };
+    let visible = project_with_frontier_id(project);
+    let hash_project = visible.as_ref().unwrap_or(project);
+    let expected_legacy_snapshot = prefixed(events::snapshot_hash(hash_project));
+    let expected_event_log = prefixed(events::event_log_hash(&project.events));
+    let expected_proposals = proposal_state_hash(&project.proposals);
+    for (field, actual, expected) in [
+        (
+            "frontier_id",
+            lock.frontier_id.as_str(),
+            projection.frontier_id.as_str(),
+        ),
+        (
+            "profile_root",
+            lock.profile_root.as_str(),
+            projection.profile_root.as_str(),
+        ),
+        (
+            "identity_root",
+            lock.identity_root.as_str(),
+            projection.identity_root.as_str(),
+        ),
+        (
+            "dependency_root",
+            lock.dependency_root.as_str(),
+            projection.dependency_root.as_str(),
+        ),
+        (
+            "scientific_state_root",
+            lock.scientific_state_root.as_str(),
+            projection.scientific_state_root.as_str(),
+        ),
+        (
+            "legacy_snapshot_root",
+            lock.legacy_snapshot_root.as_str(),
+            expected_legacy_snapshot.as_str(),
+        ),
+        (
+            "event_log_root",
+            lock.event_log_root.as_str(),
+            expected_event_log.as_str(),
+        ),
+        (
+            "proposal_root",
+            lock.proposal_root.as_str(),
+            expected_proposals.as_str(),
+        ),
+    ] {
+        if actual != expected {
+            issues.push(issue(
+                "frontier_lock_mismatch",
+                format!("vela.lock {field} does not match derived state: lock={actual}, current={expected}"),
+            ));
+        }
+    }
+    if lock.event_count != project.events.len() as u64 {
+        issues.push(issue(
+            "frontier_lock_mismatch",
+            format!(
+                "vela.lock event_count does not match .vela/events: lock={}, current={}",
+                lock.event_count,
+                project.events.len()
+            ),
+        ));
+    }
+    if lock.dependencies != projection.dependencies {
+        issues.push(issue(
+            "frontier_lock_mismatch",
+            "vela.lock dependencies do not match the effective identity-event payload.",
+        ));
+    }
+    for (field, actual, expected) in [
+        (
+            "sources_hash",
+            lock.sources_hash.as_str(),
+            directory_hash(&path.join("sources")),
+        ),
+        (
+            "artifacts_hash",
+            lock.artifacts_hash.as_str(),
+            directory_hash(&path.join("artifacts")),
+        ),
+        (
+            "review_hash",
+            lock.review_hash.as_str(),
+            directory_hash(&path.join("review")),
+        ),
+    ] {
+        if actual != expected {
+            issues.push(issue(
+                "frontier_lock_mismatch",
+                format!("vela.lock {field} does not match repository bytes: lock={actual}, current={expected}"),
+            ));
+        }
+    }
+    if !lock.verifiers.package.is_empty() && lock.verifiers.kinds != collect_verifier_kinds(path) {
+        issues.push(issue(
+            "frontier_lock_mismatch",
+            "vela.lock verifiers.kinds does not match the witnesses on disk.",
+        ));
+    }
+    if !lock.proof.digest.is_empty() && lock.proof.digest != directory_hash(&path.join("proof")) {
+        issues.push(issue(
+            "frontier_lock_mismatch",
+            "vela.lock proof digest does not match proof/.",
+        ));
+    }
+    let visible_path = path.join("frontier.json");
+    if !visible_path.is_file() {
+        issues.push(issue(
+            "missing_materialized_frontier",
+            "Split frontier repo is missing frontier.json.",
+        ));
+        return;
+    }
+    let expected_visible =
+        render_visible_state(path, project, &materialization_generated_at(path, project));
+    match (fs::read(&visible_path), expected_visible) {
+        (Ok(actual), Ok(expected)) if actual == expected => {}
+        (Ok(_), Ok(_)) => issues.push(issue(
+            "frontier_lock_mismatch",
+            "frontier.json does not match the exact Profile v1 read projection.",
+        )),
+        (Err(error), _) => issues.push(issue("invalid_materialized_frontier", error.to_string())),
+        (_, Err(error)) => issues.push(issue("invalid_materialized_frontier", error)),
+    }
+}
+
 pub fn manifest_overrides(path: &Path) -> Result<Option<FrontierManifest>, String> {
     read_manifest(path)
 }
 pub fn proof_verify(path: &Path) -> Result<serde_json::Value, String> {
     let project = crate::repo::load_from_path(path)?;
-    let lock = read_lock(path)?;
+    let lock = read_repository_lock(path)?;
     let proof_path = path.join("proof/latest.json");
     let mut issues = layout_issues(path, &project)
         .into_iter()
@@ -927,10 +1732,14 @@ pub fn proof_verify(path: &Path) -> Result<serde_json::Value, String> {
     }
     let proof_digest = directory_hash(&path.join("proof"));
     if let Some(lock) = &lock {
-        if !lock.proof.digest.is_empty() && lock.proof.digest != proof_digest {
+        let locked_proof = match lock {
+            FrontierLockFile::LegacyV0_1(lock) => &lock.proof,
+            FrontierLockFile::V1(lock) => &lock.proof,
+        };
+        if !locked_proof.digest.is_empty() && locked_proof.digest != proof_digest {
             issues.push(json!({
                 "rule_id": "proof_digest_mismatch",
-                "message": format!("proof/ digest does not match vela.lock: lock={}, current={proof_digest}", lock.proof.digest),
+                "message": format!("proof/ digest does not match vela.lock: lock={}, current={proof_digest}", locked_proof.digest),
             }));
         }
     } else {
@@ -1022,12 +1831,16 @@ fn empty_project(name: &str, description: &str, compiled_at: &str) -> Project {
 }
 
 fn write_visible_state(path: &Path, project: &Project, generated_at: &str) -> Result<(), String> {
-    let bytes = render_visible_state(project, generated_at)?;
+    let bytes = render_visible_state(path, project, generated_at)?;
     fs::write(path.join("frontier.json"), bytes)
         .map_err(|e| format!("Failed to write frontier.json: {e}"))
 }
 
-fn render_visible_state(project: &Project, generated_at: &str) -> Result<Vec<u8>, String> {
+fn render_visible_state(
+    path: &Path,
+    project: &Project,
+    generated_at: &str,
+) -> Result<Vec<u8>, String> {
     let visible = project_with_frontier_id(project)?;
     let snapshot_hash = prefixed(events::snapshot_hash(&visible));
     let event_log_hash = prefixed(events::event_log_hash(&visible.events));
@@ -1041,9 +1854,27 @@ fn render_visible_state(project: &Project, generated_at: &str) -> Result<Vec<u8>
                     .to_string(),
             ),
         );
-        object.insert(
-            "_meta".to_string(),
-            json!({
+        let metadata = match read_repository_profile(path)? {
+            Some(FrontierProfileFile::V1(profile)) => {
+                let projection = profile.project(&visible)?;
+                json!({
+                    "schema": "vela.frontier_state_meta.v1",
+                    "generated_at": generated_at,
+                    "materialized_from": ".vela/events/",
+                    "proof": "proof/latest.json",
+                    "lockfile": "vela.lock",
+                    "events_manifest": "proof/events.manifest.jsonl",
+                    "replay_trace": "proof/replay.trace.jsonl",
+                    "profile_root": projection.profile_root,
+                    "identity_root": projection.identity_root,
+                    "dependency_root": projection.dependency_root,
+                    "scientific_state_root": projection.scientific_state_root,
+                    "legacy_snapshot_root": snapshot_hash,
+                    "event_log_root": event_log_hash,
+                    "vela_reducer": format!("vela@{}", env!("CARGO_PKG_VERSION")),
+                })
+            }
+            _ => json!({
                 "schema": "vela.frontier_state_meta.v0.1",
                 "generated_at": generated_at,
                 "materialized_from": ".vela/events/",
@@ -1055,7 +1886,8 @@ fn render_visible_state(project: &Project, generated_at: &str) -> Result<Vec<u8>
                 "event_log_hash": event_log_hash,
                 "vela_reducer": format!("vela@{}", env!("CARGO_PKG_VERSION")),
             }),
-        );
+        };
+        object.insert("_meta".to_string(), metadata);
     }
     serde_json::to_vec_pretty(&value).map_err(|e| format!("Failed to serialize frontier.json: {e}"))
 }
@@ -1072,13 +1904,26 @@ fn render_synced_manifest(path: &Path, deps: &[ProjectDependency]) -> Result<Vec
 }
 
 fn write_manifest(path: &Path, project: &Project) -> Result<(), String> {
-    let yaml = render_manifest(path, project)?;
-    fs::write(path.join("frontier.yaml"), yaml)
-        .map_err(|e| format!("Failed to write frontier.yaml: {e}"))
+    match read_repository_profile(path)? {
+        Some(FrontierProfileFile::V1(_)) => Ok(()),
+        _ => {
+            let yaml = render_manifest(path, project)?;
+            fs::write(path.join("frontier.yaml"), yaml)
+                .map_err(|e| format!("Failed to write frontier.yaml: {e}"))
+        }
+    }
 }
 
 fn render_manifest(path: &Path, project: &Project) -> Result<Vec<u8>, String> {
-    let existing = read_manifest(path).ok().flatten();
+    let existing = match read_repository_profile(path)? {
+        Some(FrontierProfileFile::LegacyV0_1(manifest)) => Some(manifest),
+        Some(FrontierProfileFile::V1(_)) => {
+            return Err(
+                "cannot render a legacy frontier manifest over a Profile v1 document".to_string(),
+            );
+        }
+        None => None,
+    };
     let existing_dependencies = existing
         .as_ref()
         .map(|manifest| manifest.dependencies.clone())
@@ -1215,6 +2060,63 @@ fn render_lock(
     Ok((lock, yaml))
 }
 
+fn render_lock_v1(
+    path: &Path,
+    project: &Project,
+    profile: &FrontierProfileV1,
+    proof: &ProofWrite,
+    generated_at: &str,
+) -> Result<(FrontierLockV1, Vec<u8>), String> {
+    let locked = project_with_frontier_id(project)?;
+    let projection = profile.project(&locked)?;
+    let reducer_package = format!("vela@{}", env!("CARGO_PKG_VERSION"));
+    let verifier_package = format!("vela-verify@{}", env!("CARGO_PKG_VERSION"));
+    let lock = FrontierLockV1 {
+        schema: FRONTIER_LOCK_SCHEMA_V1.to_string(),
+        generated_at: generated_at.to_string(),
+        vela_version: env!("CARGO_PKG_VERSION").to_string(),
+        frontier_id: projection.frontier_id,
+        profile_root: projection.profile_root,
+        identity_root: projection.identity_root,
+        dependency_root: projection.dependency_root,
+        scientific_state_root: projection.scientific_state_root,
+        legacy_snapshot_root: prefixed(events::snapshot_hash(&locked)),
+        event_log_root: prefixed(events::event_log_hash(&locked.events)),
+        event_count: locked.events.len() as u64,
+        proposal_root: proposal_state_hash(&locked.proposals),
+        canonicalization: LockCanonicalization::default(),
+        reducer: LockPackage {
+            package: reducer_package.clone(),
+            digest: identity_digest(&reducer_package),
+        },
+        verifiers: LockVerifiers {
+            package: verifier_package.clone(),
+            digest: identity_digest(&verifier_package),
+            kinds: collect_verifier_kinds(path),
+        },
+        sources_hash: directory_hash(&path.join("sources")),
+        artifacts_hash: directory_hash(&path.join("artifacts")),
+        review_hash: directory_hash(&path.join("review")),
+        proof_freshness: proof.freshness.clone(),
+        proof: LockProof {
+            latest: proof.latest.clone(),
+            digest: proof.digest.clone(),
+            freshness: proof.freshness.clone(),
+            events_manifest: proof.events_manifest.clone(),
+            replay_trace: proof.replay_trace.clone(),
+        },
+        paths: LockPaths {
+            frontier: "frontier.json".to_string(),
+            events: ".vela/events/".to_string(),
+        },
+        dependencies: projection.dependencies,
+    };
+    let bytes = serde_yaml::to_string(&lock)
+        .map(String::into_bytes)
+        .map_err(|error| format!("Failed to serialize vela.lock v1: {error}"))?;
+    Ok((lock, bytes))
+}
+
 /// Collect the sorted, unique verifier `kind`s this frontier's witnesses
 /// declare, mirroring how `vela reproduce` finds witnesses: scan the top-level
 /// `witnesses/` subdir if present, else the whole working tree (skipping `.vela`
@@ -1303,11 +2205,35 @@ fn write_frontier_card(path: &Path, name: &str) -> Result<(), String> {
     fs::write(path.join("README.md"), text).map_err(|e| format!("Failed to write README.md: {e}"))
 }
 
+fn write_frontier_card_v1(path: &Path, name: &str, scope: &str) -> Result<(), String> {
+    let text = format!(
+        "# {name}\n\n{scope}\n\nThis repository is a Vela Frontier. Canonical state lives in `.vela/`; `frontier.json` and `vela.lock` are generated read projections.\n\n## Start here\n\n```bash\nvela status . --json\nvela next . --json\nvela check . --strict --json\n```\n\nAgents may produce and land bounded evidence. Only verified policy or an exact protected human decision changes accepted scientific state.\n"
+    );
+    fs::write(path.join("README.md"), text).map_err(|error| {
+        format!(
+            "Failed to write Profile v1 README.md '{}': {error}",
+            path.join("README.md").display()
+        )
+    })
+}
+
 fn write_scope(path: &Path, name: &str) -> Result<(), String> {
     let text = format!(
         "# Scope\n\nFrontier: {name}\n\nThis file records boundaries, exclusions, caveats, and review policy for the frontier.\n\nExternal artifacts and agent outputs are source material until reviewed into accepted Vela events.\n"
     );
     fs::write(path.join("SCOPE.md"), text).map_err(|e| format!("Failed to write SCOPE.md: {e}"))
+}
+
+fn write_scope_v1(path: &Path, scope: &str) -> Result<(), String> {
+    let text = format!(
+        "# Scope\n\n## Question\n\n{scope}\n\n## Includes\n\nNo additional inclusions are declared.\n\n## Excludes\n\nNo exclusions are declared.\n"
+    );
+    fs::write(path.join("SCOPE.md"), text).map_err(|error| {
+        format!(
+            "Failed to write Profile v1 SCOPE.md '{}': {error}",
+            path.join("SCOPE.md").display()
+        )
+    })
 }
 
 fn write_proof(path: &Path, project: &Project, generated_at: &str) -> Result<ProofWrite, String> {
@@ -1339,7 +2265,25 @@ fn render_proof(
     // materialize after a real change still regenerates in full.
     let event_log_hash = prefixed(events::event_log_hash(&locked.events));
     let snapshot_hash = prefixed(events::snapshot_hash(&locked));
-    if proof_is_current(&proof_dir, &event_log_hash, &snapshot_hash) {
+    let profile_projection = match read_repository_profile(path)? {
+        Some(FrontierProfileFile::V1(profile)) => Some(profile.project(&locked)?),
+        _ => None,
+    };
+    let (event_root_field, state_root_field, state_root) = match &profile_projection {
+        Some(projection) => (
+            "event_log_root",
+            "scientific_state_root",
+            projection.scientific_state_root.as_str(),
+        ),
+        None => ("event_log_hash", "frontier_hash", snapshot_hash.as_str()),
+    };
+    if proof_is_current(
+        &proof_dir,
+        event_root_field,
+        &event_log_hash,
+        state_root_field,
+        state_root,
+    ) {
         return Ok(RenderedProof {
             files: VisibleRepoFiles::new(),
             proof: ProofWrite {
@@ -1354,30 +2298,51 @@ fn render_proof(
     let proposal_state_hash = proposal_state_hash(&locked.proposals);
     let reducer_package = format!("vela@{}", env!("CARGO_PKG_VERSION"));
 
-    let latest = json!({
-        "schema": "vela.frontier_repo_proof.v0.1",
-        "frontier_id": locked.frontier_id(),
-        "frontier_hash": snapshot_hash,
-        "event_log_hash": event_log_hash,
-        "proposal_state_hash": proposal_state_hash,
-        "reducer": {
-            "name": "vela",
-            "version": env!("CARGO_PKG_VERSION"),
-            "package": reducer_package,
-            "digest": identity_digest(&format!("vela@{}", env!("CARGO_PKG_VERSION"))),
-        },
-        "materialized_at": generated_at,
-        "freshness": "fresh",
-        "event_count": locked.events.len(),
-        "paths": {
-            "frontier": "frontier.json",
-            "lockfile": "vela.lock",
-            "events_authority": ".vela/events/",
-            "events_manifest": "proof/events.manifest.jsonl",
-            "replay_trace": "proof/replay.trace.jsonl"
-        },
-        "warning": "Do not edit frontier.json directly. Use Vela's task-first receipt, signing, materialization, and proof commands."
+    let common_reducer = json!({
+        "name": "vela",
+        "version": env!("CARGO_PKG_VERSION"),
+        "package": reducer_package,
+        "digest": identity_digest(&format!("vela@{}", env!("CARGO_PKG_VERSION"))),
     });
+    let common_paths = json!({
+        "frontier": "frontier.json",
+        "lockfile": "vela.lock",
+        "events_authority": ".vela/events/",
+        "events_manifest": "proof/events.manifest.jsonl",
+        "replay_trace": "proof/replay.trace.jsonl"
+    });
+    let latest = match &profile_projection {
+        Some(projection) => json!({
+            "schema": "vela.frontier_repo_proof.v1",
+            "frontier_id": projection.frontier_id,
+            "profile_root": projection.profile_root,
+            "identity_root": projection.identity_root,
+            "dependency_root": projection.dependency_root,
+            "scientific_state_root": projection.scientific_state_root,
+            "legacy_snapshot_root": snapshot_hash,
+            "event_log_root": event_log_hash,
+            "proposal_root": proposal_state_hash,
+            "reducer": common_reducer,
+            "materialized_at": generated_at,
+            "freshness": "fresh",
+            "event_count": locked.events.len(),
+            "paths": common_paths,
+            "warning": "Generated integrity evidence. Scientific acceptance remains event-derived."
+        }),
+        None => json!({
+            "schema": "vela.frontier_repo_proof.v0.1",
+            "frontier_id": locked.frontier_id(),
+            "frontier_hash": snapshot_hash,
+            "event_log_hash": event_log_hash,
+            "proposal_state_hash": proposal_state_hash,
+            "reducer": common_reducer,
+            "materialized_at": generated_at,
+            "freshness": "fresh",
+            "event_count": locked.events.len(),
+            "paths": common_paths,
+            "warning": "Do not edit frontier.json directly. Use Vela's task-first receipt, signing, materialization, and proof commands."
+        }),
+    };
     let mut files = VisibleRepoFiles::new();
     files.insert(
         "latest.json".to_string(),
@@ -1444,25 +2409,46 @@ fn render_proof(
         manifest_lines.into_bytes(),
     );
     files.insert("replay.trace.jsonl".to_string(), trace_lines.into_bytes());
+    let state_label = if profile_projection.is_some() {
+        "Scientific-state root"
+    } else {
+        "Snapshot hash"
+    };
     files.insert(
         "freshness.md".to_string(),
         format!(
-            "# Freshness\n\nCurrent proof status: fresh\n\n`frontier.json` was materialized from `.vela/events/` at {generated_at}.\n\nAccepted events: {}\nEvent log hash: `{event_log_hash}`\nSnapshot hash: `{snapshot_hash}`\n\nRun:\n\n```bash\nvela check . --strict --json\nvela proof verify . --json\n```\n",
+            "# Freshness\n\nCurrent proof status: fresh\n\n`frontier.json` was materialized from `.vela/events/` at {generated_at}.\n\nAccepted events: {}\nEvent log root: `{event_log_hash}`\n{state_label}: `{state_root}`\n\nRun:\n\n```bash\nvela check . --strict --json\nvela proof verify . --json\n```\n",
             locked.events.len()
         )
         .into_bytes(),
     );
 
-    let hashes = json!({
-        "schema": "vela.frontier_repo_hashes.v0.1",
-        "frontier_id": locked.frontier_id(),
-        "snapshot_hash": snapshot_hash,
-        "event_log_hash": event_log_hash,
-        "proposal_state_hash": proposal_state_hash,
-        "sources_hash": directory_hash(&path.join("sources")),
-        "artifacts_hash": directory_hash(&path.join("artifacts")),
-        "review_hash": directory_hash(&path.join("review")),
-    });
+    let hashes = match &profile_projection {
+        Some(projection) => json!({
+            "schema": "vela.frontier_repo_hashes.v1",
+            "frontier_id": projection.frontier_id,
+            "profile_root": projection.profile_root,
+            "identity_root": projection.identity_root,
+            "dependency_root": projection.dependency_root,
+            "scientific_state_root": projection.scientific_state_root,
+            "legacy_snapshot_root": snapshot_hash,
+            "event_log_root": event_log_hash,
+            "proposal_root": proposal_state_hash,
+            "sources_hash": directory_hash(&path.join("sources")),
+            "artifacts_hash": directory_hash(&path.join("artifacts")),
+            "review_hash": directory_hash(&path.join("review")),
+        }),
+        None => json!({
+            "schema": "vela.frontier_repo_hashes.v0.1",
+            "frontier_id": locked.frontier_id(),
+            "snapshot_hash": snapshot_hash,
+            "event_log_hash": event_log_hash,
+            "proposal_state_hash": proposal_state_hash,
+            "sources_hash": directory_hash(&path.join("sources")),
+            "artifacts_hash": directory_hash(&path.join("artifacts")),
+            "review_hash": directory_hash(&path.join("review")),
+        }),
+    };
     files.insert(
         "hashes.json".to_string(),
         serde_json::to_vec_pretty(&hashes)
@@ -1486,15 +2472,21 @@ fn render_proof(
 /// reducer version (and its files exist) — so regeneration would be a byte-for-byte
 /// no-op and can be skipped. Reads only `proof/latest.json` (O(1)); the event-log
 /// hash is computed once by the caller (O(N), not O(N^2)).
-fn proof_is_current(proof_dir: &Path, event_log_hash: &str, snapshot_hash: &str) -> bool {
+fn proof_is_current(
+    proof_dir: &Path,
+    event_root_field: &str,
+    event_log_root: &str,
+    state_root_field: &str,
+    state_root: &str,
+) -> bool {
     let Ok(text) = fs::read_to_string(proof_dir.join("latest.json")) else {
         return false;
     };
     let Ok(latest) = serde_json::from_str::<serde_json::Value>(&text) else {
         return false;
     };
-    let same_log = latest.get("event_log_hash").and_then(|v| v.as_str()) == Some(event_log_hash);
-    let same_snapshot = latest.get("frontier_hash").and_then(|v| v.as_str()) == Some(snapshot_hash);
+    let same_log = latest.get(event_root_field).and_then(|v| v.as_str()) == Some(event_log_root);
+    let same_snapshot = latest.get(state_root_field).and_then(|v| v.as_str()) == Some(state_root);
     let same_reducer = latest.pointer("/reducer/version").and_then(|v| v.as_str())
         == Some(env!("CARGO_PKG_VERSION"));
     same_log
@@ -1782,7 +2774,9 @@ mod tests {
 
         assert!(!proof_is_current(
             proof_dir,
+            "event_log_hash",
             "sha256:event-log",
+            "frontier_hash",
             "sha256:new-snapshot"
         ));
     }

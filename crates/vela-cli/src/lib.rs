@@ -23,6 +23,7 @@ mod tools;
 mod withdrawal;
 pub(crate) use tools::{cli_check, cli_proof};
 mod config;
+pub(crate) mod git_hardened;
 pub(crate) use config::{cli_admin, cli_agents, cli_identity};
 // The full durability seam intentionally lands before every legacy writer is
 // migrated, so some caller-facing pieces remain unused inside this slice.
@@ -31,6 +32,7 @@ pub(crate) mod frontier_txn;
 mod operation_journal;
 pub(crate) mod review_material;
 mod server;
+mod target_index;
 pub(crate) mod ui;
 pub(crate) mod workflow;
 pub(crate) use server::{cli_commands, cli_engine, serve};

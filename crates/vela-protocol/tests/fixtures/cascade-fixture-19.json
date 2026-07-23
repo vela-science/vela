@@ -1,0 +1,2026 @@
+{
+  "doctrine": "every reducer implementation must agree on per-kind mutation rules across findings and artifacts",
+  "event_log": [
+    {
+      "actor": {
+        "id": "reviewer:repository-boundary-fixture",
+        "type": "human"
+      },
+      "after_hash": "sha256:null",
+      "before_hash": "sha256:null",
+      "caveats": [],
+      "id": "vev_739e7853a8a1f17d",
+      "kind": "frontier.repository_bound",
+      "payload": {
+        "administrator_actor_id": "reviewer:repository-boundary-fixture",
+        "administrator_algorithm": "ed25519",
+        "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+        "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+        "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "anchor_event_count": 11,
+        "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "anchor_git_commit": "2222222222222222222222222222222222222222",
+        "anchor_git_tree": "3333333333333333333333333333333333333333",
+        "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "anchor_snapshot_schema": "vela.project.v0.1",
+        "dependencies": [],
+        "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "frontier_id": "vfr_1234567890abcdef",
+        "git_object_format": "sha1",
+        "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+        "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "mode": "temporalize_existing",
+        "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "previous_identity_event_root": null,
+        "schema": "vela.frontier-repository-boundary.v1",
+        "trust_mode": "tofu"
+      },
+      "reason": "Fixture: bind an exact legacy Frontier repository.",
+      "schema": "vela.event.v0.1",
+      "signature": "v1:93dbc505118deed36e18951f348b200c7b20d36109238566d9f444be99d7b8890f7b5b929bc482b26856a71f45f88c1772db6d6af71c1888bff295ba5a0e5006",
+      "target": {
+        "id": "vfr_1234567890abcdef",
+        "type": "frontier"
+      },
+      "timestamp": "2026-05-02T19:00:00Z"
+    },
+    {
+      "actor": {
+        "id": "reviewer:repository-boundary-fixture",
+        "type": "human"
+      },
+      "after_hash": "sha256:null",
+      "before_hash": "sha256:null",
+      "caveats": [],
+      "id": "vev_58d5630bd0cf62bd",
+      "kind": "frontier.repository_bound",
+      "payload": {
+        "administrator_actor_id": "reviewer:repository-boundary-fixture",
+        "administrator_algorithm": "ed25519",
+        "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+        "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+        "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "anchor_event_count": 12,
+        "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "anchor_git_commit": "2222222222222222222222222222222222222222",
+        "anchor_git_tree": "3333333333333333333333333333333333333333",
+        "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "anchor_snapshot_schema": "vela.project.v0.1",
+        "dependencies": [],
+        "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "frontier_id": "vfr_1234567890abcdef",
+        "git_object_format": "sha1",
+        "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+        "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "mode": "update_dependencies",
+        "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "previous_identity_event_root": "sha256:739e7853a8a1f17dd7b5a838554c14d8ff0b6ecf822ccefe94a068a59c7d3023",
+        "schema": "vela.frontier-repository-boundary.v1",
+        "trust_mode": "previous_boundary"
+      },
+      "reason": "Fixture: advance the exact repository boundary chain.",
+      "schema": "vela.event.v0.1",
+      "signature": "v1:e2686a600f8a76431bb090b51caa03a527c898ad110e2f0478ff17795cc5e80279caeec7a85050fd6e4136cde779d1187bee1932a34bf51a68b5b0f98d6ccc08",
+      "target": {
+        "id": "vfr_1234567890abcdef",
+        "type": "frontier"
+      },
+      "timestamp": "2026-05-02T19:00:01Z"
+    }
+  ],
+  "expected_artifacts": [],
+  "expected_states": [
+    {
+      "access_tier": "public",
+      "annotation_ids": [],
+      "confidence_score": "0.700000",
+      "contested": false,
+      "id": "vf_1562f955fd36db6d",
+      "retracted": false,
+      "review_state": "none"
+    },
+    {
+      "access_tier": "public",
+      "annotation_ids": [],
+      "confidence_score": "0.700000",
+      "contested": false,
+      "id": "vf_6302380d00aba772",
+      "retracted": false,
+      "review_state": "none"
+    },
+    {
+      "access_tier": "public",
+      "annotation_ids": [],
+      "confidence_score": "0.700000",
+      "contested": false,
+      "id": "vf_af35ba9f30aab691",
+      "retracted": false,
+      "review_state": "none"
+    },
+    {
+      "access_tier": "public",
+      "annotation_ids": [],
+      "confidence_score": "0.700000",
+      "contested": false,
+      "id": "vf_e3523057eed5ecdd",
+      "retracted": false,
+      "review_state": "none"
+    },
+    {
+      "access_tier": "public",
+      "annotation_ids": [],
+      "confidence_score": "0.700000",
+      "contested": false,
+      "id": "vf_ebe13baf9e5f2056",
+      "retracted": false,
+      "review_state": "none"
+    },
+    {
+      "access_tier": "public",
+      "annotation_ids": [],
+      "confidence_score": "0.700000",
+      "contested": false,
+      "id": "vf_ebf2bbb9e87fc9e3",
+      "retracted": false,
+      "review_state": "none"
+    },
+    {
+      "access_tier": "public",
+      "annotation_ids": [],
+      "confidence_score": "0.700000",
+      "contested": false,
+      "id": "vf_f3ac6dc1bb07d7fa",
+      "retracted": false,
+      "review_state": "none"
+    },
+    {
+      "access_tier": "public",
+      "annotation_ids": [],
+      "confidence_score": "0.700000",
+      "contested": false,
+      "id": "vf_fe0796cf6301d646",
+      "retracted": false,
+      "review_state": "none"
+    }
+  ],
+  "fixture_version": "6",
+  "frontier_idx": 19,
+  "genesis_findings": [
+    {
+      "assertion": {
+        "direction": "positive",
+        "entities": [
+          {
+            "aliases": [],
+            "candidates": [],
+            "identifiers": {},
+            "name": "ProteinX0",
+            "resolution_confidence": 1.0,
+            "type": "protein"
+          }
+        ],
+        "relation": "activates",
+        "text": "Cross-impl finding 0 in frontier 19: protein-X activates pathway-Y.",
+        "type": "mechanism"
+      },
+      "conditions": {
+        "duration": null,
+        "text": "In vitro, mouse microglia"
+      },
+      "confidence": {
+        "basis": "Cross-impl test fixture",
+        "extraction_confidence": 0.9,
+        "kind": "frontier_epistemic",
+        "method": "llm_initial",
+        "score": 0.7
+      },
+      "created": "2026-05-02T19:30:00Z",
+      "evidence": {
+        "evidence_spans": [],
+        "method": "Western blot",
+        "model_system": "mouse",
+        "replicated": true,
+        "replication_count": 3,
+        "type": "experimental"
+      },
+      "flags": {
+        "contested": false,
+        "declining": false,
+        "gap": false,
+        "gravity_well": false,
+        "negative_space": false,
+        "retracted": false
+      },
+      "id": "vf_f3ac6dc1bb07d7fa",
+      "links": [
+        {
+          "created_at": "2026-05-02T00:00:00Z",
+          "inferred_by": "vela-cross-impl-fixture/0",
+          "note": "synthetic dependency",
+          "target": "vf_6302380d00aba772",
+          "type": "supports"
+        }
+      ],
+      "previous_version": null,
+      "provenance": {
+        "authors": [
+          {
+            "name": "Cross-Impl A",
+            "orcid": null
+          }
+        ],
+        "doi": "10.0000/crossimpl.frontier0019.finding0000",
+        "extraction": {
+          "extracted_at": "",
+          "extractor_version": "",
+          "method": "",
+          "model": null,
+          "model_version": null
+        },
+        "review": null,
+        "source_type": "published_paper",
+        "title": "Cross-impl paper 19-0",
+        "year": 2026
+      },
+      "updated": null,
+      "version": 1
+    },
+    {
+      "assertion": {
+        "direction": "positive",
+        "entities": [
+          {
+            "aliases": [],
+            "candidates": [],
+            "identifiers": {},
+            "name": "ProteinX1",
+            "resolution_confidence": 1.0,
+            "type": "protein"
+          }
+        ],
+        "relation": "activates",
+        "text": "Cross-impl finding 1 in frontier 19: protein-X activates pathway-Y.",
+        "type": "mechanism"
+      },
+      "conditions": {
+        "duration": null,
+        "text": "In vitro, mouse microglia"
+      },
+      "confidence": {
+        "basis": "Cross-impl test fixture",
+        "extraction_confidence": 0.9,
+        "kind": "frontier_epistemic",
+        "method": "llm_initial",
+        "score": 0.7
+      },
+      "created": "2026-05-02T19:30:01Z",
+      "evidence": {
+        "evidence_spans": [],
+        "method": "Western blot",
+        "model_system": "mouse",
+        "replicated": true,
+        "replication_count": 3,
+        "type": "experimental"
+      },
+      "flags": {
+        "contested": false,
+        "declining": false,
+        "gap": false,
+        "gravity_well": false,
+        "negative_space": false,
+        "retracted": false
+      },
+      "id": "vf_6302380d00aba772",
+      "links": [
+        {
+          "created_at": "2026-05-02T00:00:00Z",
+          "inferred_by": "vela-cross-impl-fixture/0",
+          "note": "synthetic dependency",
+          "target": "vf_ebf2bbb9e87fc9e3",
+          "type": "supports"
+        }
+      ],
+      "previous_version": null,
+      "provenance": {
+        "authors": [
+          {
+            "name": "Cross-Impl A",
+            "orcid": null
+          }
+        ],
+        "doi": "10.0000/crossimpl.frontier0019.finding0001",
+        "extraction": {
+          "extracted_at": "",
+          "extractor_version": "",
+          "method": "",
+          "model": null,
+          "model_version": null
+        },
+        "review": null,
+        "source_type": "published_paper",
+        "title": "Cross-impl paper 19-1",
+        "year": 2026
+      },
+      "updated": null,
+      "version": 1
+    },
+    {
+      "assertion": {
+        "direction": "positive",
+        "entities": [
+          {
+            "aliases": [],
+            "candidates": [],
+            "identifiers": {},
+            "name": "ProteinX2",
+            "resolution_confidence": 1.0,
+            "type": "protein"
+          }
+        ],
+        "relation": "activates",
+        "text": "Cross-impl finding 2 in frontier 19: protein-X activates pathway-Y.",
+        "type": "mechanism"
+      },
+      "conditions": {
+        "duration": null,
+        "text": "In vitro, mouse microglia"
+      },
+      "confidence": {
+        "basis": "Cross-impl test fixture",
+        "extraction_confidence": 0.9,
+        "kind": "frontier_epistemic",
+        "method": "llm_initial",
+        "score": 0.7
+      },
+      "created": "2026-05-02T19:30:02Z",
+      "evidence": {
+        "evidence_spans": [],
+        "method": "Western blot",
+        "model_system": "mouse",
+        "replicated": true,
+        "replication_count": 3,
+        "type": "experimental"
+      },
+      "flags": {
+        "contested": false,
+        "declining": false,
+        "gap": false,
+        "gravity_well": false,
+        "negative_space": false,
+        "retracted": false
+      },
+      "id": "vf_ebf2bbb9e87fc9e3",
+      "links": [
+        {
+          "created_at": "2026-05-02T00:00:00Z",
+          "inferred_by": "vela-cross-impl-fixture/0",
+          "note": "synthetic dependency",
+          "target": "vf_fe0796cf6301d646",
+          "type": "supports"
+        }
+      ],
+      "previous_version": null,
+      "provenance": {
+        "authors": [
+          {
+            "name": "Cross-Impl A",
+            "orcid": null
+          }
+        ],
+        "doi": "10.0000/crossimpl.frontier0019.finding0002",
+        "extraction": {
+          "extracted_at": "",
+          "extractor_version": "",
+          "method": "",
+          "model": null,
+          "model_version": null
+        },
+        "review": null,
+        "source_type": "published_paper",
+        "title": "Cross-impl paper 19-2",
+        "year": 2026
+      },
+      "updated": null,
+      "version": 1
+    },
+    {
+      "assertion": {
+        "direction": "positive",
+        "entities": [
+          {
+            "aliases": [],
+            "candidates": [],
+            "identifiers": {},
+            "name": "ProteinX3",
+            "resolution_confidence": 1.0,
+            "type": "protein"
+          }
+        ],
+        "relation": "activates",
+        "text": "Cross-impl finding 3 in frontier 19: protein-X activates pathway-Y.",
+        "type": "mechanism"
+      },
+      "conditions": {
+        "duration": null,
+        "text": "In vitro, mouse microglia"
+      },
+      "confidence": {
+        "basis": "Cross-impl test fixture",
+        "extraction_confidence": 0.9,
+        "kind": "frontier_epistemic",
+        "method": "llm_initial",
+        "score": 0.7
+      },
+      "created": "2026-05-02T19:30:03Z",
+      "evidence": {
+        "evidence_spans": [],
+        "method": "Western blot",
+        "model_system": "mouse",
+        "replicated": true,
+        "replication_count": 3,
+        "type": "experimental"
+      },
+      "flags": {
+        "contested": false,
+        "declining": false,
+        "gap": false,
+        "gravity_well": false,
+        "negative_space": false,
+        "retracted": false
+      },
+      "id": "vf_fe0796cf6301d646",
+      "links": [
+        {
+          "created_at": "2026-05-02T00:00:00Z",
+          "inferred_by": "vela-cross-impl-fixture/0",
+          "note": "synthetic dependency",
+          "target": "vf_ebe13baf9e5f2056",
+          "type": "supports"
+        }
+      ],
+      "previous_version": null,
+      "provenance": {
+        "authors": [
+          {
+            "name": "Cross-Impl A",
+            "orcid": null
+          }
+        ],
+        "doi": "10.0000/crossimpl.frontier0019.finding0003",
+        "extraction": {
+          "extracted_at": "",
+          "extractor_version": "",
+          "method": "",
+          "model": null,
+          "model_version": null
+        },
+        "review": null,
+        "source_type": "published_paper",
+        "title": "Cross-impl paper 19-3",
+        "year": 2026
+      },
+      "updated": null,
+      "version": 1
+    },
+    {
+      "assertion": {
+        "direction": "positive",
+        "entities": [
+          {
+            "aliases": [],
+            "candidates": [],
+            "identifiers": {},
+            "name": "ProteinX4",
+            "resolution_confidence": 1.0,
+            "type": "protein"
+          }
+        ],
+        "relation": "activates",
+        "text": "Cross-impl finding 4 in frontier 19: protein-X activates pathway-Y.",
+        "type": "mechanism"
+      },
+      "conditions": {
+        "duration": null,
+        "text": "In vitro, mouse microglia"
+      },
+      "confidence": {
+        "basis": "Cross-impl test fixture",
+        "extraction_confidence": 0.9,
+        "kind": "frontier_epistemic",
+        "method": "llm_initial",
+        "score": 0.7
+      },
+      "created": "2026-05-02T19:30:04Z",
+      "evidence": {
+        "evidence_spans": [],
+        "method": "Western blot",
+        "model_system": "mouse",
+        "replicated": true,
+        "replication_count": 3,
+        "type": "experimental"
+      },
+      "flags": {
+        "contested": false,
+        "declining": false,
+        "gap": false,
+        "gravity_well": false,
+        "negative_space": false,
+        "retracted": false
+      },
+      "id": "vf_ebe13baf9e5f2056",
+      "links": [
+        {
+          "created_at": "2026-05-02T00:00:00Z",
+          "inferred_by": "vela-cross-impl-fixture/0",
+          "note": "synthetic dependency",
+          "target": "vf_af35ba9f30aab691",
+          "type": "supports"
+        }
+      ],
+      "previous_version": null,
+      "provenance": {
+        "authors": [
+          {
+            "name": "Cross-Impl A",
+            "orcid": null
+          }
+        ],
+        "doi": "10.0000/crossimpl.frontier0019.finding0004",
+        "extraction": {
+          "extracted_at": "",
+          "extractor_version": "",
+          "method": "",
+          "model": null,
+          "model_version": null
+        },
+        "review": null,
+        "source_type": "published_paper",
+        "title": "Cross-impl paper 19-4",
+        "year": 2026
+      },
+      "updated": null,
+      "version": 1
+    },
+    {
+      "assertion": {
+        "direction": "positive",
+        "entities": [
+          {
+            "aliases": [],
+            "candidates": [],
+            "identifiers": {},
+            "name": "ProteinX5",
+            "resolution_confidence": 1.0,
+            "type": "protein"
+          }
+        ],
+        "relation": "activates",
+        "text": "Cross-impl finding 5 in frontier 19: protein-X activates pathway-Y.",
+        "type": "mechanism"
+      },
+      "conditions": {
+        "duration": null,
+        "text": "In vitro, mouse microglia"
+      },
+      "confidence": {
+        "basis": "Cross-impl test fixture",
+        "extraction_confidence": 0.9,
+        "kind": "frontier_epistemic",
+        "method": "llm_initial",
+        "score": 0.7
+      },
+      "created": "2026-05-02T19:30:05Z",
+      "evidence": {
+        "evidence_spans": [],
+        "method": "Western blot",
+        "model_system": "mouse",
+        "replicated": true,
+        "replication_count": 3,
+        "type": "experimental"
+      },
+      "flags": {
+        "contested": false,
+        "declining": false,
+        "gap": false,
+        "gravity_well": false,
+        "negative_space": false,
+        "retracted": false
+      },
+      "id": "vf_af35ba9f30aab691",
+      "links": [
+        {
+          "created_at": "2026-05-02T00:00:00Z",
+          "inferred_by": "vela-cross-impl-fixture/0",
+          "note": "synthetic dependency",
+          "target": "vf_1562f955fd36db6d",
+          "type": "supports"
+        }
+      ],
+      "previous_version": null,
+      "provenance": {
+        "authors": [
+          {
+            "name": "Cross-Impl A",
+            "orcid": null
+          }
+        ],
+        "doi": "10.0000/crossimpl.frontier0019.finding0005",
+        "extraction": {
+          "extracted_at": "",
+          "extractor_version": "",
+          "method": "",
+          "model": null,
+          "model_version": null
+        },
+        "review": null,
+        "source_type": "published_paper",
+        "title": "Cross-impl paper 19-5",
+        "year": 2026
+      },
+      "updated": null,
+      "version": 1
+    },
+    {
+      "assertion": {
+        "direction": "positive",
+        "entities": [
+          {
+            "aliases": [],
+            "candidates": [],
+            "identifiers": {},
+            "name": "ProteinX6",
+            "resolution_confidence": 1.0,
+            "type": "protein"
+          }
+        ],
+        "relation": "activates",
+        "text": "Cross-impl finding 6 in frontier 19: protein-X activates pathway-Y.",
+        "type": "mechanism"
+      },
+      "conditions": {
+        "duration": null,
+        "text": "In vitro, mouse microglia"
+      },
+      "confidence": {
+        "basis": "Cross-impl test fixture",
+        "extraction_confidence": 0.9,
+        "kind": "frontier_epistemic",
+        "method": "llm_initial",
+        "score": 0.7
+      },
+      "created": "2026-05-02T19:30:06Z",
+      "evidence": {
+        "evidence_spans": [],
+        "method": "Western blot",
+        "model_system": "mouse",
+        "replicated": true,
+        "replication_count": 3,
+        "type": "experimental"
+      },
+      "flags": {
+        "contested": false,
+        "declining": false,
+        "gap": false,
+        "gravity_well": false,
+        "negative_space": false,
+        "retracted": false
+      },
+      "id": "vf_1562f955fd36db6d",
+      "links": [
+        {
+          "created_at": "2026-05-02T00:00:00Z",
+          "inferred_by": "vela-cross-impl-fixture/0",
+          "note": "synthetic dependency",
+          "target": "vf_e3523057eed5ecdd",
+          "type": "supports"
+        }
+      ],
+      "previous_version": null,
+      "provenance": {
+        "authors": [
+          {
+            "name": "Cross-Impl A",
+            "orcid": null
+          }
+        ],
+        "doi": "10.0000/crossimpl.frontier0019.finding0006",
+        "extraction": {
+          "extracted_at": "",
+          "extractor_version": "",
+          "method": "",
+          "model": null,
+          "model_version": null
+        },
+        "review": null,
+        "source_type": "published_paper",
+        "title": "Cross-impl paper 19-6",
+        "year": 2026
+      },
+      "updated": null,
+      "version": 1
+    },
+    {
+      "assertion": {
+        "direction": "positive",
+        "entities": [
+          {
+            "aliases": [],
+            "candidates": [],
+            "identifiers": {},
+            "name": "ProteinX7",
+            "resolution_confidence": 1.0,
+            "type": "protein"
+          }
+        ],
+        "relation": "activates",
+        "text": "Cross-impl finding 7 in frontier 19: protein-X activates pathway-Y.",
+        "type": "mechanism"
+      },
+      "conditions": {
+        "duration": null,
+        "text": "In vitro, mouse microglia"
+      },
+      "confidence": {
+        "basis": "Cross-impl test fixture",
+        "extraction_confidence": 0.9,
+        "kind": "frontier_epistemic",
+        "method": "llm_initial",
+        "score": 0.7
+      },
+      "created": "2026-05-02T19:30:07Z",
+      "evidence": {
+        "evidence_spans": [],
+        "method": "Western blot",
+        "model_system": "mouse",
+        "replicated": true,
+        "replication_count": 3,
+        "type": "experimental"
+      },
+      "flags": {
+        "contested": false,
+        "declining": false,
+        "gap": false,
+        "gravity_well": false,
+        "negative_space": false,
+        "retracted": false
+      },
+      "id": "vf_e3523057eed5ecdd",
+      "links": [],
+      "previous_version": null,
+      "provenance": {
+        "authors": [
+          {
+            "name": "Cross-Impl A",
+            "orcid": null
+          }
+        ],
+        "doi": "10.0000/crossimpl.frontier0019.finding0007",
+        "extraction": {
+          "extracted_at": "",
+          "extractor_version": "",
+          "method": "",
+          "model": null,
+          "model_version": null
+        },
+        "review": null,
+        "source_type": "published_paper",
+        "title": "Cross-impl paper 19-7",
+        "year": 2026
+      },
+      "updated": null,
+      "version": 1
+    }
+  ],
+  "repository_boundary_validation": {
+    "cases": [
+      {
+        "events": [
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_739e7853a8a1f17d",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 11,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "temporalize_existing",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": null,
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "tofu"
+            },
+            "reason": "Fixture: bind an exact legacy Frontier repository.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:93dbc505118deed36e18951f348b200c7b20d36109238566d9f444be99d7b8890f7b5b929bc482b26856a71f45f88c1772db6d6af71c1888bff295ba5a0e5006",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:00Z"
+          },
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_58d5630bd0cf62bd",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 12,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "update_dependencies",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": "sha256:739e7853a8a1f17dd7b5a838554c14d8ff0b6ecf822ccefe94a068a59c7d3023",
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "previous_boundary"
+            },
+            "reason": "Fixture: advance the exact repository boundary chain.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:e2686a600f8a76431bb090b51caa03a527c898ad110e2f0478ff17795cc5e80279caeec7a85050fd6e4136cde779d1187bee1932a34bf51a68b5b0f98d6ccc08",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:01Z"
+          }
+        ],
+        "expected_valid": true,
+        "id": "valid_linear_chain"
+      },
+      {
+        "events": [
+          {
+            "actor": {
+              "id": "Profile v1 native repository fixture",
+              "type": "frontier"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_154f1dd2af096f6a",
+            "kind": "frontier.created",
+            "payload": {
+              "created_at": "2026-05-02T19:00:10Z",
+              "creator": "Profile v1 native repository fixture",
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "name_at_creation": "Profile v1 native repository fixture",
+              "profile_schema": "vela.frontier-profile.v1",
+              "schema": "vela.frontier-created.v1"
+            },
+            "reason": "frontier compiled",
+            "schema": "vela.event.v0.1",
+            "target": {
+              "id": "Profile v1 native repository fixture",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:10Z"
+          },
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_dab3ecefeaf0397f",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 1,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_154f1dd2af096f6a",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:4abb949a64c134c1b4eae64f40c2dbae20d3796a51b864e7a73fdcbf2c86f84a",
+              "legacy_identity_preimage_root": null,
+              "mode": "update_dependencies",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": "sha256:154f1dd2af096f6aa79ea17ae7453a8ad7bab40474db7bf84f1034f585885662",
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "genesis"
+            },
+            "reason": "Fixture: establish the first native administrator boundary.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:f8a4c7b11c48a0a90850e6de69e0e167150b048d301de198b55cf36f9e7479040842c740a6bb7d7369c52663f4bff37b68c117d45b8f66fbef5c9240dbd8cc0a",
+            "target": {
+              "id": "vfr_154f1dd2af096f6a",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:11Z"
+          }
+        ],
+        "expected_valid": true,
+        "id": "valid_native_genesis_chain"
+      },
+      {
+        "events": [
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_dab3ecefeaf0397f",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 1,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_154f1dd2af096f6a",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:4abb949a64c134c1b4eae64f40c2dbae20d3796a51b864e7a73fdcbf2c86f84a",
+              "legacy_identity_preimage_root": null,
+              "mode": "update_dependencies",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": "sha256:154f1dd2af096f6aa79ea17ae7453a8ad7bab40474db7bf84f1034f585885662",
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "genesis"
+            },
+            "reason": "Fixture: establish the first native administrator boundary.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:f8a4c7b11c48a0a90850e6de69e0e167150b048d301de198b55cf36f9e7479040842c740a6bb7d7369c52663f4bff37b68c117d45b8f66fbef5c9240dbd8cc0a",
+            "target": {
+              "id": "vfr_154f1dd2af096f6a",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:11Z"
+          }
+        ],
+        "expected_valid": false,
+        "id": "missing_native_genesis"
+      },
+      {
+        "events": [
+          {
+            "actor": {
+              "id": "Profile v1 native repository fixture",
+              "type": "frontier"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_154f1dd2af096f6a",
+            "kind": "frontier.created",
+            "payload": {
+              "created_at": "2026-05-02T19:00:10Z",
+              "creator": "Profile v1 native repository fixture",
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "name_at_creation": "Profile v1 native repository fixture",
+              "profile_schema": "vela.frontier-profile.v1",
+              "schema": "vela.frontier-created.v1"
+            },
+            "reason": "frontier compiled",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "target": {
+              "id": "Profile v1 native repository fixture",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:10Z"
+          },
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_dab3ecefeaf0397f",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 1,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_154f1dd2af096f6a",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:4abb949a64c134c1b4eae64f40c2dbae20d3796a51b864e7a73fdcbf2c86f84a",
+              "legacy_identity_preimage_root": null,
+              "mode": "update_dependencies",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": "sha256:154f1dd2af096f6aa79ea17ae7453a8ad7bab40474db7bf84f1034f585885662",
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "genesis"
+            },
+            "reason": "Fixture: establish the first native administrator boundary.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:f8a4c7b11c48a0a90850e6de69e0e167150b048d301de198b55cf36f9e7479040842c740a6bb7d7369c52663f4bff37b68c117d45b8f66fbef5c9240dbd8cc0a",
+            "target": {
+              "id": "vfr_154f1dd2af096f6a",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:11Z"
+          }
+        ],
+        "expected_valid": false,
+        "id": "invalid_native_genesis"
+      },
+      {
+        "events": [
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_739e7853a8a1f17d",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 11,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "temporalize_existing",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": null,
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "tofu"
+            },
+            "reason": "Fixture: bind an exact legacy Frontier repository.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:93dbc505118deed36e18951f348b200c7b20d36109238566d9f444be99d7b8890f7b5b929bc482b26856a71f45f88c1772db6d6af71c1888bff295ba5a0e5006",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:00Z"
+          },
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_58d5630bd0cf62bd",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 12,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "update_dependencies",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": "sha256:739e7853a8a1f17dd7b5a838554c14d8ff0b6ecf822ccefe94a068a59c7d3023",
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "previous_boundary"
+            },
+            "reason": "Fixture: advance the exact repository boundary chain.",
+            "schema": "vela.event.v0.1",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:01Z"
+          }
+        ],
+        "expected_valid": false,
+        "id": "unsigned"
+      },
+      {
+        "events": [
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_739e7853a8a1f17d",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 11,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "temporalize_existing",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": null,
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "tofu"
+            },
+            "reason": "Fixture: bind an exact legacy Frontier repository.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:93dbc505118deed36e18951f348b200c7b20d36109238566d9f444be99d7b8890f7b5b929bc482b26856a71f45f88c1772db6d6af71c1888bff295ba5a0e5006",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:00Z"
+          },
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_58d5630bd0cf62bd",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 12,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "update_dependencies",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": "sha256:739e7853a8a1f17dd7b5a838554c14d8ff0b6ecf822ccefe94a068a59c7d3023",
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "previous_boundary"
+            },
+            "reason": "Fixture: advance the exact repository boundary chain.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:e2686a600f8a76431bb090b51caa03a527c898ad110e2f0478ff17795cc5e80279caeec7a85050fd6e4136cde779d1187bee1932a34bf51a68b5b0f98d6ccc00",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:01Z"
+          }
+        ],
+        "expected_valid": false,
+        "id": "corrupt_signature"
+      },
+      {
+        "events": [
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_739e7853a8a1f17d",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 11,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "temporalize_existing",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": null,
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "tofu"
+            },
+            "reason": "Fixture: bind an exact legacy Frontier repository.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:93dbc505118deed36e18951f348b200c7b20d36109238566d9f444be99d7b8890f7b5b929bc482b26856a71f45f88c1772db6d6af71c1888bff295ba5a0e5006",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:00Z"
+          },
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_58d5630bd0cf62bd",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 12,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "update_dependencies",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": "sha256:739e7853a8a1f17dd7b5a838554c14d8ff0b6ecf822ccefe94a068a59c7d3023",
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "previous_boundary"
+            },
+            "reason": "Fixture: advance the exact repository boundary chain. altered",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:e2686a600f8a76431bb090b51caa03a527c898ad110e2f0478ff17795cc5e80279caeec7a85050fd6e4136cde779d1187bee1932a34bf51a68b5b0f98d6ccc08",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:01Z"
+          }
+        ],
+        "expected_valid": false,
+        "id": "event_id_drift"
+      },
+      {
+        "events": [
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_739e7853a8a1f17d",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 11,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "temporalize_existing",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": null,
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "tofu"
+            },
+            "reason": "Fixture: bind an exact legacy Frontier repository.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:93dbc505118deed36e18951f348b200c7b20d36109238566d9f444be99d7b8890f7b5b929bc482b26856a71f45f88c1772db6d6af71c1888bff295ba5a0e5006",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:00Z"
+          },
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_9f09b447427b5f4c",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 12,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "update_dependencies",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": "sha256:739e7853a8a1f17dd7b5a838554c14d8ff0b6ecf822ccefe94a068a59c7d3023",
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "previous_boundary"
+            },
+            "reason": "Fixture: advance the exact repository boundary chain.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:9ba9c78c5f0140912c2ee0d499304a4143a0950d2ef9f7328bdaa9de32c713d9ce7c2820c2d9a1f6acff4e3bbaadae3a575fc6cb2243ad4c672b307d67ae580e",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:01Z"
+          }
+        ],
+        "expected_valid": false,
+        "id": "fixed_envelope_drift"
+      },
+      {
+        "events": [
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_739e7853a8a1f17d",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 11,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "temporalize_existing",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": null,
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "tofu"
+            },
+            "reason": "Fixture: bind an exact legacy Frontier repository.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:93dbc505118deed36e18951f348b200c7b20d36109238566d9f444be99d7b8890f7b5b929bc482b26856a71f45f88c1772db6d6af71c1888bff295ba5a0e5006",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:00Z"
+          },
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_c70f4704dc6897e5",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 12,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "update_dependencies",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": "sha256:739e7853a8a1f17dd7b5a838554c14d8ff0b6ecf822ccefe94a068a59c7d3023",
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "previous_boundary"
+            },
+            "reason": "",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:41b9d841951a9ce6eda3b663cfe4cf5e6a8b526f6851dced5c2f8b9d4110febac42977d036f6493ae619a45abf6b06a7175da79efefc404e730d3486d3ef9d04",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:01Z"
+          }
+        ],
+        "expected_valid": false,
+        "id": "empty_reason"
+      },
+      {
+        "events": [
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_739e7853a8a1f17d",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 11,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "temporalize_existing",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": null,
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "tofu"
+            },
+            "reason": "Fixture: bind an exact legacy Frontier repository.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:93dbc505118deed36e18951f348b200c7b20d36109238566d9f444be99d7b8890f7b5b929bc482b26856a71f45f88c1772db6d6af71c1888bff295ba5a0e5006",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:00Z"
+          },
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_c481cbe26b8ee31a",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 12,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "update_dependencies",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": "sha256:739e7853a8a1f17dd7b5a838554c14d8ff0b6ecf822ccefe94a068a59c7d3023",
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "previous_boundary"
+            },
+            "reason": "Fixture: advance the exact repository boundary chain.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:d0b154e4ae11a77c60669ab8e57e19e63f72ebf1c566d864d35163e73625b121c94d153fd2e603e16f88c76ac3262026d96d66173142a3388e5de8144a98ca05",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "not-rfc3339"
+          }
+        ],
+        "expected_valid": false,
+        "id": "invalid_timestamp"
+      },
+      {
+        "events": [
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_739e7853a8a1f17d",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 11,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "temporalize_existing",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": null,
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "tofu"
+            },
+            "reason": "Fixture: bind an exact legacy Frontier repository.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:93dbc505118deed36e18951f348b200c7b20d36109238566d9f444be99d7b8890f7b5b929bc482b26856a71f45f88c1772db6d6af71c1888bff295ba5a0e5006",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:00Z"
+          },
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_d4e752dacc93ff09",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 12,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "update_dependencies",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "previous_boundary"
+            },
+            "reason": "Fixture hostile case: reference a missing boundary parent.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:02ab3cf5445c0ea532de24a7cfdfb5ef649b1559ad96286ff43021339372ec5f663c6de1ee8b34d63c8b1e4ff8ee3948dcc9d967ea2fbe01ca9329a9da333203",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:02Z"
+          }
+        ],
+        "expected_valid": false,
+        "id": "missing_parent"
+      },
+      {
+        "events": [
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_739e7853a8a1f17d",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 11,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "temporalize_existing",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": null,
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "tofu"
+            },
+            "reason": "Fixture: bind an exact legacy Frontier repository.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:93dbc505118deed36e18951f348b200c7b20d36109238566d9f444be99d7b8890f7b5b929bc482b26856a71f45f88c1772db6d6af71c1888bff295ba5a0e5006",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:00Z"
+          },
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_58d5630bd0cf62bd",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 12,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "update_dependencies",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": "sha256:739e7853a8a1f17dd7b5a838554c14d8ff0b6ecf822ccefe94a068a59c7d3023",
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "previous_boundary"
+            },
+            "reason": "Fixture: advance the exact repository boundary chain.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:e2686a600f8a76431bb090b51caa03a527c898ad110e2f0478ff17795cc5e80279caeec7a85050fd6e4136cde779d1187bee1932a34bf51a68b5b0f98d6ccc08",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:01Z"
+          },
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_4c3c38a9e2aae3f3",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 12,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "update_dependencies",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": "sha256:739e7853a8a1f17dd7b5a838554c14d8ff0b6ecf822ccefe94a068a59c7d3023",
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "previous_boundary"
+            },
+            "reason": "Fixture hostile case: create a conflicting child.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:29dbf27238abab3f38dad4f5f3f48cc38368f0b4f2cb40705453f583b3297d7a9ccd00876dd2aa2232a0c70d0497cf6a011ab1e90aa3548639b25a09e02a710c",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:03Z"
+          }
+        ],
+        "expected_valid": false,
+        "id": "fork"
+      },
+      {
+        "events": [
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_739e7853a8a1f17d",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 11,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "temporalize_existing",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": null,
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "tofu"
+            },
+            "reason": "Fixture: bind an exact legacy Frontier repository.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:93dbc505118deed36e18951f348b200c7b20d36109238566d9f444be99d7b8890f7b5b929bc482b26856a71f45f88c1772db6d6af71c1888bff295ba5a0e5006",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:00Z"
+          },
+          {
+            "actor": {
+              "id": "reviewer:repository-boundary-fixture",
+              "type": "human"
+            },
+            "after_hash": "sha256:null",
+            "before_hash": "sha256:null",
+            "caveats": [],
+            "id": "vev_7c36e1d317bc5053",
+            "kind": "frontier.repository_bound",
+            "payload": {
+              "administrator_actor_id": "reviewer:repository-boundary-fixture",
+              "administrator_algorithm": "ed25519",
+              "administrator_public_key": "66cd608b928b88e50e0efeaa33faf1c43cefe07294b0b87e9fe0aba6a3cf7633",
+              "anchor_actor_registry_root": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "anchor_artifact_registry_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "anchor_canonical_store_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "anchor_event_count": 11,
+              "anchor_event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "anchor_git_commit": "2222222222222222222222222222222222222222",
+              "anchor_git_tree": "3333333333333333333333333333333333333333",
+              "anchor_proposal_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+              "anchor_snapshot_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+              "anchor_snapshot_schema": "vela.project.v0.1",
+              "dependencies": [],
+              "dependency_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "frontier_id": "vfr_1234567890abcdef",
+              "git_object_format": "sha1",
+              "identity_root": "sha256:36221d19b6eb156b55aa864b8ea411535562c9d0dd932814ed0a2e86284face8",
+              "legacy_identity_preimage_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "mode": "update_dependencies",
+              "observed_profile_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "previous_identity_event_root": "sha256:739e7853a8a1f17dd7b5a838554c14d8ff0b6ecf822ccefe94a068a59c7d3023",
+              "schema": "vela.frontier-repository-boundary.v1",
+              "trust_mode": "previous_boundary"
+            },
+            "reason": "Fixture hostile case: do not advance the anchor count.",
+            "schema": "vela.event.v0.1",
+            "signature": "v1:d158e96bbcc68c35b9a7bea06eec5921a5ac57adc3ba05d34e0540216c52227f09c6863686647e51851600094f5cfcb4cdab5a575544d1d2fa98aae1a171df0b",
+            "target": {
+              "id": "vfr_1234567890abcdef",
+              "type": "frontier"
+            },
+            "timestamp": "2026-05-02T19:00:04Z"
+          }
+        ],
+        "expected_valid": false,
+        "id": "rollback"
+      }
+    ],
+    "schema": "vela.frontier-repository-boundary-conformance.v1",
+    "signature_version": "v1",
+    "valid_chain_tip_root": "sha256:58d5630bd0cf62bde06ffa847befa2f1ba63f16ac801ec0fa156140ea899b10e"
+  },
+  "scenario": "frontier_repository_bound",
+  "schema_url": "https://vela.science/schema/cross-impl-reducer-fixture/v6",
+  "stats": {
+    "artifacts": 0,
+    "cascade_depth": 0,
+    "events": 2,
+    "findings": 8,
+    "kinds_seen": {
+      "frontier.repository_bound": 2
+    }
+  }
+}

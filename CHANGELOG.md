@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.914.0 — 2026-07-23 — Bind portable frontier repositories
+
+- Replace the permissive v0.1 repository manifest with closed Profile v1 and
+  Settings v1 contracts. Minimal initialization now records the real scope,
+  rejects unknown state-carrying fields, and separates human profile data,
+  operational preferences, derived views, and canonical protocol bytes.
+- Add one signed, non-scientific `frontier.repository_bound` event with exact
+  repository identity, dependency, Git, event-prefix, registry, retained-byte,
+  and Scientific State Root v2 commitments. The boundary governs repository
+  administration and continuity; it grants no scientific acceptance.
+- Add protected native binding and legacy temporalization ceremonies with
+  proof of actor possession, out-of-band full-root trust pins, exact
+  destination binding, recoverable transactions, and byte-preserving replay.
+  Invalid, missing, forked, stale, or substituted context fails closed.
+- Add Target Index v2 as a sealed, derived producer-work projection with exact
+  candidate inputs, canonical rank, availability state, repair commands, and
+  strict suppression when repository trust or roots do not verify.
+- Make compact status, checks, policy administration, CI, publishing, work,
+  and landing share the complete hardened repository/Git read boundary. Add a
+  closed JSON command envelope and cross-implementation fixture 19.
+- Harden Settings and Target Index writes with descriptor-relative no-follow
+  paths, exact preimages, cooperative repository locking, atomic replacement,
+  readback, durability barriers, rollback, mode repair, and hostile race/error
+  regressions. These files remain non-authoritative.
+- Keep native Windows read, check, reproduce, key-free preview, and protected
+  signing support. The two standalone exact-preimage maintenance writes fail
+  closed on native Windows until a handle-relative exchange/rollback primitive
+  is proven; WSL2 with a Linux-filesystem checkout is the supported path.
+
 ## v0.913.0 — 2026-07-22 — Keep producer work and review legible
 
 - Restore the retained assertion text in compact `finding.add` review rows so

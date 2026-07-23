@@ -8,8 +8,8 @@ pub use validation::{
 mod analysis;
 pub use analysis::{
     actor_registration, artifact_audit, channel_map, decision_brief, frontier_health,
-    frontier_next, provenance_compute, research_trace, review_backpressure, sign_preview,
-    sign_queue, signals, verify,
+    frontier_next, frontier_repository, git_read, provenance_compute, repository_write,
+    research_trace, review_backpressure, sign_preview, sign_queue, signals, target_index, verify,
 };
 mod packaging;
 pub use packaging::{export, packet, proof_packet};

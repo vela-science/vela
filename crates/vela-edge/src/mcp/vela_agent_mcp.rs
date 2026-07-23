@@ -400,6 +400,12 @@ pub fn apply_claim_task_to_project(
         .get("ttl_seconds")
         .and_then(Value::as_u64)
         .unwrap_or(86_400);
+    if ttl > vela_protocol::events::MAX_ATTEMPT_LEASE_TTL_SECONDS {
+        return Err(format!(
+            "ttl_seconds must be at most {}",
+            vela_protocol::events::MAX_ATTEMPT_LEASE_TTL_SECONDS
+        ));
+    }
     let pubkey = hex::encode(key.verifying_key().to_bytes());
     let state_root_before = format!(
         "sha256:{}",
@@ -426,11 +432,11 @@ pub fn apply_claim_task_to_project(
     let now = chrono::Utc::now();
     let live = project.attempt_claims.iter().find(|claim| {
         claim.obligation_id == obligation
-            && chrono::DateTime::parse_from_rfc3339(&claim.claimed_at)
-                .map(|claimed| {
-                    claimed + chrono::Duration::seconds(claim.lease_ttl_seconds as i64) > now
-                })
-                .unwrap_or(false)
+            && vela_protocol::events::attempt_lease_expiry(
+                &claim.claimed_at,
+                claim.lease_ttl_seconds,
+            )
+            .is_ok_and(|expires_at| expires_at > now)
     });
     let requested_prior = args.get("prior_claim_event_id").and_then(Value::as_str);
     let release_reason = args.get("release_reason").and_then(Value::as_str);

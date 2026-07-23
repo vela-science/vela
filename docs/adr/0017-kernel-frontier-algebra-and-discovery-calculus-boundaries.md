@@ -64,9 +64,11 @@ The Kernel owns only protocol facts and deterministic projections, including:
   erasure; and
 - transaction and publication separation.
 
-The Kernel does not own probability, confidence, importance, ontology
-inference, heuristic transfer, information gain, opportunity ranking, or a
-global truth score.
+The Kernel may retain and root released confidence, transfer, attestation, and
+other scientific-state bytes required for exact replay. It does not define a
+universal probabilistic meaning or calibrated-confidence doctrine for those
+bytes, and it does not own importance, ontology inference, heuristic transfer,
+information gain, opportunity ranking, or a global truth score.
 
 ### 2. Frontier Algebra is a disposable exact projection
 
@@ -88,6 +90,10 @@ or(children)
 and(children)
 ```
 
+`one` means an unconditional derivation only relative to the projector's
+explicit context and closed derivation rules. It is not global truth,
+acceptance, or authority.
+
 Runtime circuits are canonical, hash-consed acyclic DAGs with sorted children,
 typed leaves, exact source roots, explicit duplicate semantics, and a projector
 version. They are derived artifacts, not event or acceptance objects.
@@ -106,6 +112,15 @@ source_assertion
 Authority events do not become scientific-evidence leaves. They remain a
 separate Kernel standing projection.
 
+The projector also keeps distinct justification planes for scientific
+support, scientific opposition, artifact integrity, verifier reproduction,
+statement faithfulness, and transfer validity. A stronger resolution claim
+may require judgments from several planes, but it does not multiply them into
+one undifferentiated evidence score. In particular, a successful verifier,
+faithfulness judgment, valid transfer, or human decision is not by itself
+evidence that the underlying scientific assertion is true. Review-event and
+authority-root material cannot be emitted as scientific-evidence atoms.
+
 The algebra's exact initial outputs are:
 
 - support and opposition existence using circuit nonzeroness;
@@ -120,6 +135,33 @@ The algebra's exact initial outputs are:
 Every output binds the source Frontier identity, Git commit/tree, event root,
 scientific-state root, exact claim revision, projector version, completeness
 status, and output root.
+
+For a Profile v1 source, the projector first validates the complete repository
+context from ADR 0016 and binds the full `frontier_id`, `identity_root`,
+`dependency_root`, and `scientific_state_root`. Membership in
+`vela.scientific-state.v2` is a source commitment, not proof that an object is
+accepted or is scientific evidence; the projector derives role and standing
+from the exact event and object semantics. Likewise, a Profile v1 dependency
+pin is retrieval and context identity only. It cannot become a support atom,
+transfer edge, or standing claim without a separately retained, exact
+class-specific relation.
+
+Before a circuit root is portable, the Phase 1 specification must freeze:
+
+- `or([]) = zero` and `and([]) = one`;
+- same-operator flattening rules;
+- whether and where duplicate children retain multiplicity;
+- typed-atom encoding and domain-separated node hashing;
+- canonical child ordering; and
+- the behavior of Boolean, natural-number, and minimal-environment readings
+  when multiplicity is present.
+
+The projector output additionally binds the closed derivation-rule schema and
+root, projector implementation digest, source component roots, circuit
+canonicalization policy, and exact complete or truncated limits. It fails
+closed on dirty or unrooted input, a missing exact reference, an unknown
+state-carrying relation, a cycle in a relation declared acyclic, or replacement
+of an exact ID with a label, embedding, or short digest.
 
 ### 3. Polynomial semantics are denotational, not the runtime store
 
@@ -194,6 +236,33 @@ Information, decision utility, downstream value, execution cost, verification
 cost, time, safety risk, and model uncertainty remain a vector unless a named
 policy declares an optimization rule.
 
+A lens may consume a pinned Target Index v2 as an action catalogue. It does not
+become the domain generator or Vela seal: lens scores and ordering remain a
+separate rooted advisory artifact and cannot rewrite the candidate, sealed
+index, canonical producer order, `vela next` offer, or retained
+`vela.target-task-binding.v1`. Promoting one lens into domain ranking requires
+the ordinary domain candidate-generation path plus the later preregistered
+product gate; ADR 0017 itself grants no such promotion.
+
+The retained operational outcome alphabet distinguishes at least verifier
+rejection, verifier inconclusive, artifact unavailable, scope mismatch,
+authority deferral, authority rejection, and accepted delta. A named lens may
+collapse selected outcomes to a null or erasure symbol, but the underlying
+projection does not erase those distinctions.
+
+Any data-processing theorem is scoped first to a pinned automated policy whose
+output is downstream of the raw/verifier result and whose routing contributes
+no additional information about the hidden scientific state. A human decision
+may introduce external scientific knowledge; the theorem applies only when
+that input is represented in the channel model or when the required
+conditional-independence premise is proved.
+
+Reproduction equivalence belongs to the named, versioned verifier. An
+assurance summary or automation envelope is a derived read projection over
+existing Receipt, execution-binding, verifier, fidelity, consequence, replay,
+and signed-policy facts. Neither is a new protocol object, authority status, or
+automatic implication of acceptance.
+
 ### 6. No new protocol or file format
 
 The first implementation is a source-local read projection over one frozen
@@ -208,7 +277,9 @@ the same stable contract and extraction deletes duplicated code.
 
 ## Current research migration
 
-Before presenting new results:
+Before presenting new results, complete the two bounded reconciliation steps.
+Phase 0A corrects current prose and claim status without changing theorem
+surfaces. Phase 0B then:
 
 1. Keep public `THEORY.md` as the normative formal-boundary document.
 2. Split protocol and research axiom registries.
@@ -229,6 +300,9 @@ Before presenting new results:
 10. Preserve falsified sheaf and transfer-amplification experiments as negative
     evidence, outside the active theory.
 
+Phase 0B does not block Repository Profile v1 or Vela `v0.914.0`; it blocks the
+presentation of any new Frontier Algebra theorem or runtime result.
+
 Historical commits and reports remain available. Current documentation must
 not present experimental statements as shipped protocol guarantees.
 
@@ -238,14 +312,19 @@ not present experimental statements as shipped protocol guarantees.
 
 Use one exact Erdos statement/proof/fidelity case. The slice passes only if:
 
-- every atom resolves to exact retained Vela evidence;
+- every atom resolves to an exact retained Vela source object in its declared
+  justification plane;
 - direct runtime evaluation agrees with frozen formal fixtures;
 - a correction removes the affected stronger route without erasing the
   narrower formal theorem;
 - minimal environments and shared-origin warnings are complete within declared
   bounds; and
-- a user answers "why does this stand and what would unsettle it?" more
-  accurately than from the current graph alone.
+- a first-party observed user answers "why does this stand and what would
+  unsettle it?" more accurately than from the current graph alone.
+
+Paper, breakthrough, or broad product claims require later external use or
+independent reproduction. First-party vertical-slice evidence earns no
+independent credit.
 
 ### Discovery Calculus vertical slice
 
@@ -254,9 +333,16 @@ Use a finite Sidon bound interval. The slice passes only if:
 - the state, lens, action catalogue, verifier, prior, likelihood, and output are
   root-bound;
 - the finite-uniform special case and sequential accounting fixtures agree;
+- finite nonnegativity and hard-elimination telescoping are proved for the
+  declared model;
+- finite expected Bayesian surprise agrees with mutual information;
 - null verifier and authority outcomes are represented;
 - ranking sensitivity to defensible model changes is disclosed; and
 - the result is labeled information under the lens, never impact or truth.
+
+The first Sidon slice is diagnostic only. Product-ranking promotion requires a
+later preregistered pilot against random and cost-only baselines, with the
+selected metric, model, and falsification rule frozen before actions run.
 
 Failure of the Discovery slice does not invalidate the Frontier Algebra.
 

@@ -15,7 +15,7 @@ Each `fixtures/cascade-fixture-*.json` contains:
 
 An implementation parses the fixture, replays the event log, projects the same
 effect rows, and compares them with `expected_states`. The current set contains
-15 `fixture_version: 6` fixtures. Its manifest records the byte length and
+16 `fixture_version: 6` fixtures. Its manifest records the byte length and
 SHA-256 of every cascade fixture; the verifier refuses drift.
 
 The source of truth for mutation kinds is
@@ -38,6 +38,17 @@ python3 conformance/verify.py
 
 `verify.py` checks the manifest, runs the Python reducer and canonical-hashing
 vectors, then runs the TypeScript reducer when Node supports native TypeScript.
+The routine core surface also runs `conformance.test_verify_manifest`, which
+proves the preflight rejects both unlisted fixture bytes and duplicate
+manifest entries before any reducer executes.
+
+Fixture 19 carries the portable
+`vela.frontier-repository-boundary-conformance.v1` contract. Its valid case is
+a two-event temporal repository-boundary chain. Its hostile cases require the
+Rust, Python, and TypeScript verifiers to reject event-ID or fixed-envelope
+drift, empty reasons, malformed timestamps, unsigned or corrupt signatures, a
+missing parent, a fork, and anchor-count rollback. Only after that validation succeeds is
+`frontier.repository_bound` reducer-neutral.
 
 ## Other public vectors
 

@@ -61,6 +61,14 @@ tempfile = { workspace = true }
 # vela-verify re-checks every witness, so trust stays the verifier.
 splr = "0.17"
 same-file = "1.0.6"
+unicode-normalization = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+rustix = { version = "1", features = ["process"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = ["Win32_System_Com", "Win32_UI_Shell"] }
 
 [lints]
 workspace = true

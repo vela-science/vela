@@ -1,4 +1,4 @@
-# Vela 0.9 command contract
+# Vela command contract
 
 Vela keeps scientific authority in signed frontier events. Agents inspect,
 reproduce, claim work, and land evidence. A signed policy may admit a bounded
@@ -35,6 +35,14 @@ vela check . --strict --json
 
 `land` builds or imports Receipt v1 and routes the proposal through the active
 signed policy. An agent cannot accept or reject the result.
+
+On Profile v1, `vela check` validates the repository context as a read-side
+gate. A valid event log is necessary but not sufficient: Vela checks the
+closed profile and settings, replay/parity, signed boundary chain, Git anchor
+and ancestry, retained canonical bytes, actor registry, and—when an
+administrator boundary exists—the consumer's independent first-boundary pin.
+A repository-context defect never becomes an identity or
+historical-signature exemption.
 
 An exact delegated producer may additionally pass all four full roots:
 
@@ -90,7 +98,8 @@ Advanced help contains:
 gate proof ci serve
 ```
 
-Run `vela help advanced` for the complete grouped list.
+Advanced setup also exposes `target-index` maintenance. Run
+`vela help advanced` for the complete grouped list.
 
 ## Compact JSON
 
@@ -105,7 +114,8 @@ Run `vela help advanced` for the complete grouped list.
   "git": {"commit": "...", "tree": "...", "clean": true},
   "roots": {
     "event_log": "sha256:...",
-    "snapshot": "sha256:...",
+    "scientific_state_root": "sha256:...",
+    "legacy_snapshot_root": "sha256:...",
     "proposals": "sha256:...",
     "actor_registry": "sha256:...",
     "artifacts": "sha256:..."
@@ -114,7 +124,13 @@ Run `vela help advanced` for the complete grouped list.
     "replay": "reproduced",
     "strict": "blocked",
     "blocker_count": 3,
-    "blockers_by_code": {"missing_conditions": 3}
+    "blockers_by_code": {"missing_conditions": 3},
+    "repository_context": {
+      "generation": "profile_v1",
+      "valid": true,
+      "identity_mode": "pinned_boundary",
+      "trust_anchor_root": "sha256:..."
+    }
   },
   "counts": {
     "events": 10,
@@ -127,6 +143,22 @@ Run `vela help advanced` for the complete grouped list.
 }
 ```
 
+For Profile v1, `scientific_state_root` is the closed scientific-state root and
+`legacy_snapshot_root` names the historical snapshot algorithm explicitly.
+For a read-only Profile v0.1 replay, `scientific_state_root` is `null`,
+`legacy_snapshot_root` remains available, and
+`frontier.profile_generation` is `legacy_v0_1`; the command never relabels the
+legacy snapshot as the current scientific root.
+
+Compact status runs the same complete Profile v1 repository-context gate as a
+canonical write: profile and settings, reducer and proposal parity, exact Git
+boundary, retained bytes, and the independently installed consumer trust pin.
+The verified pin is also supplied to Target Index v2 assessment. A missing,
+wrong, tampered, forked, or incomplete boundary/pin appears under
+`integrity.repository_context`, contributes its exact code to
+`blockers_by_code`, makes strict standing `blocked`, and grants no producer
+offer.
+
 The command omits Decision Briefs, packet bodies, pressure metrics, and test
 telemetry. Use `review show` for a full brief.
 
@@ -134,7 +166,10 @@ telemetry. Use `review show` for a full brief.
 
 `vela next . --limit 1 --json` emits `vela.offer.v1`. Each item contains its
 rank, target ID, packet path and root, objective, verifier profile, lease state,
-and next command.
+and next command. The top-level `availability` object has the exact integer
+fields `configured`, `stale`, `leased`, `available`, and `returned`, plus the
+single `repair_command`. The object is closed and does not also emit
+`configured_open`.
 
 ### Work session
 
@@ -165,10 +200,70 @@ vela init ./frontier \
   --json
 ```
 
-The command creates the canonical skeleton, `README.md`, `SCOPE.md`, Git safety
-files, and `VELA.md`. It does not install MCP, CI, proof packets, or editor
-adapters. Add an optional integration through its named setup command after
-the frontier exists.
+The command creates Profile v1, closed `.vela/settings.toml`, the canonical
+empty stores, one unsigned structural `frontier.created` event, `README.md`,
+`SCOPE.md`, Git safety files, and `VELA.md`. The event establishes structural
+identity and the canonical empty dependency root. It does not authenticate an
+administrator or grant scientific authority.
+
+Initialization does not install MCP, CI, proof packets, target indexes, domain
+directory matrices, or editor adapters. Add an optional integration through
+its named setup command after the frontier exists.
+
+### First administrator
+
+A new Frontier's first human administrator is a rare protected repository
+ceremony:
+
+```bash
+vela id create
+vela id protect --json
+vela actor add . --json
+
+# Inspect and commit only the exact actor-bootstrap paths.
+git status --short
+git diff
+git add <exact-paths-from-the-bootstrap-delta>
+git commit -m "Bootstrap Frontier administrator"
+
+vela frontier bind . \
+  --reason "establish the first administrator" \
+  --json
+vela frontier bind . \
+  --reason "establish the first administrator" \
+  --confirm-root <sha256:...> \
+  --confirm-at <RFC3339> \
+  --json
+```
+
+`actor add` works only against the canonical empty registry and only for a
+protected human identity whose key matches the candidate record. Its possession
+proof and the resulting delta are exact; it is not a general actor-registration
+writer. The subsequent repository boundary requires a `reviewer:` or
+`steward:` identity.
+
+`frontier bind` previews without reading the key. Matching execution asks the
+protected OS signer for one exact approval, appends one signed,
+non-scientific boundary event, and installs the local first-boundary pin. It
+does not stage, commit, or push. Inspect and commit its exact delta separately.
+
+`0.914.0` does not expose a writer for later dependency changes. The first
+boundary's exact dependency set remains fixed until a separately reviewed
+two-phase protected-update command is released; do not hand-author a
+`previous_boundary` event.
+
+Another consumer receives the full first-boundary content root through an
+independent channel and installs it in two phases:
+
+```bash
+vela frontier trust pin . --boundary-root <sha256:...> --json
+vela frontier trust pin . --boundary-root <sha256:...> \
+  --confirm-root <sha256:...> --confirm-at <RFC3339> --json
+```
+
+The pin is public local consumer configuration under
+`~/.vela/trust/frontiers/`, not a key, policy, event, or source of scientific
+authority. Vela never derives it automatically from repository bytes.
 
 ## Review and authority
 
@@ -257,22 +352,105 @@ evidence, or signed decision bytes that already exist.
 
 ## Migration
 
-Preview first:
+Profile v0.1 remains readable, replayable, reproducible, and migratable. It is
+not writable in Vela 0.914. Migration requires an external candidate Profile
+v1 file and a domain-owned Target Index v2 candidate; a Frontier with legacy
+dependencies also requires a closed dependency-resolution input.
+
+Preview the exact protected plan:
 
 ```bash
-vela migrate . --to 0.900 --check --json
+vela migrate . --to frontier-repo-v1 --check \
+  --profile ../frontier-profile-v1.yaml \
+  --target-candidate ../target-index-candidate.json \
+  --as reviewer:<administrator> \
+  --reason "Bind exact legacy repository" \
+  --json
 ```
 
-Apply the exact preview:
+Apply only the matching plan:
 
 ```bash
-vela migrate . --to 0.900 --apply --json
+vela migrate . --to frontier-repo-v1 --apply \
+  --profile ../frontier-profile-v1.yaml \
+  --target-candidate ../target-index-candidate.json \
+  --as reviewer:<administrator> \
+  --reason "Bind exact legacy repository" \
+  --confirm-root <sha256:...> \
+  --confirm-at <RFC3339> \
+  --json
 ```
 
-Migration refuses dirty input, an incomplete journal, non-ancestor state,
-replay failure, root drift, and an unexpected output path. A clean migration
-keeps canonical event, proposal, Receipt, registration, artifact, and signed
-policy bytes unchanged. Scientific debt remains visible.
+When the legacy profile has dependencies, add
+`--dependency-input ../dependency-migration.json` to either command.
+
+The preview is key-free. It binds the candidate files, signer, reason, Git and
+Vela roots, exact touched paths, before/after root families, dependency
+resolutions, sealed target index, and one planned non-scientific boundary
+event. Matching apply revalidates those facts and expiry before the protected
+OS card.
+
+Migration refuses dirty input, incomplete recovery, shallow or non-ancestor
+history, replay failure, root drift, unknown legacy settings, ambiguous
+dependencies, and unexpected paths. It preserves every pre-boundary event,
+proposal, Receipt, registration, policy, finding, artifact, evidence object,
+and signature byte. It appends one boundary event, so Git and event-log roots
+change intentionally. Scientific debt remains visible. Apply leaves an exact
+uncommitted delta for human inspection; it does not stage, commit, or push.
+
+## Target-index maintenance
+
+The hidden advanced setup surface seals domain-owned candidates; it does not
+author target meaning:
+
+```bash
+vela target-index repair . --json
+vela target-index seal . --candidate <candidate.json> --check --json
+vela target-index seal . --candidate <candidate.json> --apply --json
+vela target-index inspect . [<full-target-id>] --json
+```
+
+`next` and `work` require a fresh, tracked Profile v1 Target Index v2 and exact
+packet bytes. Stale indexes grant no work. A claimed target is retained as
+`vela.target-task-binding.v1` in both the private session and the eventual
+Receipt.
+
+Native Windows is read/check/reproduce capable, but Profile v1 settings writes
+and `target-index seal --apply` are deliberately unavailable in this release.
+Those commands require a handle-relative atomic exchange that preserves and
+checks the displaced exact preimage. `ReplaceFileW` is path-based, while the
+documented Win32 `FileRenameInfoEx` operation replaces rather than exchanges
+the destination. Vela therefore fails before creating a temporary or touching
+the destination. Use WSL2 with the checkout on its Linux filesystem, or a
+supported Unix host; a checkout under `/mnt/c` is not the supported WSL2
+mutation path.
+
+## Local serving
+
+```bash
+vela serve .                       # read-only MCP over stdio
+vela serve . --profile draft       # adds only nonfinalizing work
+vela serve . --http 3741           # same selected profile on loopback
+```
+
+The HTTP read path has no authenticated request identity. It ignores
+caller-asserted actor names and returns only public-tier data even when the
+nonfinalizing draft tool is selected. Neither profile offers signing or a
+protected-decision operation. It cannot be turned into a network service by
+supplying another bind address.
+
+## Strict and non-strict checking
+
+```bash
+vela check . --json
+vela check . --strict --json
+```
+
+Both forms report invalid Profile v1 repository context with the same typed
+signal and `valid: false`. Non-strict mode is useful for diagnosis, but grants
+no boundary, identity, dependency, signature, or historical exemption. Strict
+mode also makes the signal fatal. Canonical writers use the strict
+repository-context gate regardless of how a prior diagnostic check was run.
 
 ## Retired 0.8 surfaces
 

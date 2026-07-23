@@ -30,8 +30,10 @@ ed25519-dalek.workspace = true
 rand.workspace = true
 toml.workspace = true
 same-file = "1.0.6"
-[dev-dependencies]
 tempfile.workspace = true
+unicode-normalization.workspace = true
+rustix = { version = "1", features = ["fs", "process"] }
+[dev-dependencies]
 vela-protocol = { workspace = true, features = ["test-support"] }
 [lints]
 workspace = true

@@ -1,0 +1,34 @@
+{
+  "commits": {
+    "A": {
+      "commit": "0c8cc9e6b3f98a5581a3e9d459bb73962ec6fad6",
+      "tree": "7919a7d199aba59dcf1bad74bfdfe42e16489772"
+    },
+    "B": {
+      "commit": "725e991e44aad89f84e987bad46447e71753ef22",
+      "tree": "5639cac381a4b35fd963e07cbc2e5847201a8885"
+    },
+    "C": {
+      "commit": "225abdf5494ab15d7b29fc3ecd4ee3983f2d4d46",
+      "tree": "50c6de175d946a811503c0e7d68fbbf8f9a7b65b"
+    },
+    "D": {
+      "commit": "4549c014332609b7bc5e0e7c4d864353f8969454",
+      "tree": "f1c3af4fe251736bfe8e9dfdc467d71b60ef9b7b"
+    },
+    "D_nonlease": {
+      "commit": "78bbd7f9baa006bdd1d10264a5ce351eba17dd99",
+      "tree": "6210487490aeb07bb970e847d73b32b197854df2"
+    }
+  },
+  "git_object_format": "sha1",
+  "roots": {
+    "binding_document_root": "sha256:7e85f8ef6eb9b83656dfa7dab0d9070c4fd8ff0f62585d0f3ba3f9c0055d7626",
+    "binding_root": "sha256:d525b7f39a67f4cafa557aed6fabd62bd0cc06b9a428a125f7eb5bb60f7955eb",
+    "candidate_document_root": "sha256:f506f69114bb8f32aaca516f2eefd5bd44a2d0cd8b6377716e94b5bef5884dce",
+    "index_root": "sha256:5be5f9c18dffb538c344c3f05153986447e6939eb3c8f41b8649e08a68cd53cc",
+    "input_root": "sha256:b08486c1c108fb397824e0e8ca563486c862af0112cd794261615bcf0e8d78b0",
+    "packet_root": "sha256:32a0b3c8c5c8bc4cb13baafcebf135c3a81112479b4781c882e76c14be0f10e4"
+  },
+  "schema": "vela.target-index-conformance-expected.v1"
+}

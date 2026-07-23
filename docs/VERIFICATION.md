@@ -26,8 +26,11 @@ verifier checked and refuses malformed or mismatched inputs.
 
 `vela check <frontier> --strict --json` validates the frontier record: content
 addresses, accepted-event replay, signatures and policy certificates, required
-artifacts, derived-state parity, and strict trust debt. It does not replace the
-domain verifier.
+artifacts, derived-state parity, and strict trust debt. For Profile v1 it also
+validates the closed profile/settings, complete identity-boundary chain, Git
+anchors and ancestry, retained canonical bytes, actor registry, and the
+consumer's independently installed first-boundary pin whenever an
+administrator boundary exists. It does not replace the domain verifier.
 
 Run both from the exact Git tree being cited:
 
@@ -35,6 +38,12 @@ Run both from the exact Git tree being cited:
 vela check . --strict --json
 vela reproduce .
 ```
+
+Non-strict `vela check . --json` reports the same typed Profile v1
+repository-context defects and keeps that context invalid. It is diagnostic,
+not a compatibility bypass: an invalid boundary grants no identity,
+dependency, signature, or historical exemption, and canonical writers still
+fail before transaction journaling.
 
 To reproduce only immutable verifier-tagged artifacts bound to one pending
 proposal, use:

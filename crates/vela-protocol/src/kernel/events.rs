@@ -25,11 +25,12 @@ pub const NULL_HASH: &str = "sha256:null";
 /// `RevocationPayload` and `new_revocation_event` below.
 ///
 /// Existing signed history stays valid as a record of what was
-/// signed when; clients that re-verify against the post-revocation
-/// actor list flag any signature whose `signed_at` is after the
-/// `revoked_at` moment. The hub is transport, not authority — it
-/// stores the revocation alongside the entries that referenced the
-/// revoked key, lets readers decide.
+/// signed when; clients that re-verify against a governed actor
+/// registry may flag signatures whose `signed_at` is after the
+/// `revoked_at` moment. This historical event is audit-only in the
+/// repository reducer: it does not itself mutate `.vela/actors.json`.
+/// Profile v1 therefore freezes the actor registry until a separate,
+/// repository-local rotation and recovery contract is accepted.
 pub const EVENT_KIND_KEY_REVOKE: &str = "key.revoke";
 
 /// Generic artifact lifecycle. Carries the full `Artifact` inline on
@@ -140,6 +141,37 @@ pub const EVENT_KIND_STATEMENT_ATTESTED: &str = "statement.attested";
 /// Expiry is computed at READ time from event timestamp + ttl — the
 /// reducer never reads a clock.
 pub const EVENT_KIND_ATTEMPT_CLAIMED: &str = "attempt.claimed";
+/// Maximum duration of one coordination lease: 365 days.
+///
+/// A lease is temporary operational coordination, not scientific authority.
+/// Bounding its wire value prevents integer/date overflow and makes every
+/// implementation agree on whether a lease can be live. A zero value remains
+/// reserved for the compare-and-swap release form.
+pub const MAX_ATTEMPT_LEASE_TTL_SECONDS: u64 = 31_536_000;
+
+/// Parse and safely add one protocol-bounded coordination lease duration.
+///
+/// Callers must not reproduce date arithmetic with integer casts: malformed
+/// historical input is an error, never a perpetually live lease or a panic.
+pub fn attempt_lease_expiry(
+    claimed_at: &str,
+    ttl_seconds: u64,
+) -> Result<chrono::DateTime<chrono::FixedOffset>, String> {
+    if ttl_seconds > MAX_ATTEMPT_LEASE_TTL_SECONDS {
+        return Err(format!(
+            "lease_ttl_seconds must be at most {MAX_ATTEMPT_LEASE_TTL_SECONDS}"
+        ));
+    }
+    let claimed = chrono::DateTime::parse_from_rfc3339(claimed_at)
+        .map_err(|error| format!("invalid lease timestamp: {error}"))?;
+    let seconds = i64::try_from(ttl_seconds)
+        .map_err(|_| "lease_ttl_seconds cannot be represented safely".to_string())?;
+    let duration = chrono::Duration::try_seconds(seconds)
+        .ok_or_else(|| "lease_ttl_seconds exceeds the supported duration".to_string())?;
+    claimed
+        .checked_add_signed(duration)
+        .ok_or_else(|| "lease expiry exceeds the supported timestamp range".to_string())
+}
 
 /// Priority registration: a content-addressed statement hash with a hub
 /// receipt timestamp. External anchoring rides the release-archive
@@ -175,6 +207,11 @@ pub const PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA: &str = "vela.proposal-withdrawal.v
 /// audit-only boundary over exact Git/Vela history; it neither authenticates
 /// unsigned legacy events nor mutates scientific state.
 pub const EVENT_KIND_ACTOR_REGISTRATION_ACTIVATED: &str = "actor.registration_activated";
+
+/// Signed, non-scientific binding between one exact Frontier repository
+/// history, its stable identity, and its exact dependency list.
+pub const EVENT_KIND_FRONTIER_REPOSITORY_BOUND: &str = "frontier.repository_bound";
+pub const FRONTIER_CREATED_SCHEMA_V1: &str = "vela.frontier-created.v1";
 
 /// Deterministic machine-verified admission (Phase 1A). Emitted, UNSIGNED, when a
 /// proposal clears the exact-lane auto-admission predicate (kernel-clean, >=2
@@ -239,6 +276,7 @@ pub const KNOWN_EVENT_KINDS: &[&str] = &[
     "review.revision_requested",
     "proposal.withdrawn",
     "actor.registration_activated",
+    "frontier.repository_bound",
     "policy.auto_admitted",
 ];
 
@@ -362,6 +400,7 @@ event_kinds! {
     ReviewRevisionRequested => "review.revision_requested",
     ProposalWithdrawn => "proposal.withdrawn",
     ActorRegistrationActivated => "actor.registration_activated",
+    FrontierRepositoryBound => "frontier.repository_bound",
     PolicyAutoAdmitted => "policy.auto_admitted",
 }
 
@@ -1095,6 +1134,9 @@ pub fn replay_report(frontier: &Project) -> ReplayReport {
     for orphan in &event_log.orphan_targets {
         conflicts.push(format!("orphan event target: {orphan}"));
     }
+    conflicts.extend(
+        crate::frontier_repository::validate_repository_boundary_event_set(&frontier.events),
+    );
 
     let mut chains = BTreeMap::<String, Vec<&StateEvent>>::new();
     for event in &frontier.events {
@@ -1464,11 +1506,47 @@ pub fn validate_event_payload(kind: &str, payload: &Value) -> Result<(), String>
             // proposal_id present for cascade-source traceability.
             require_str("proposal_id")?;
         }
-        // Phase H will introduce frontier.created. For v0.3 it accepts
-        // a name + creator pair; left here for forward compatibility.
         "frontier.created" => {
-            require_str("name")?;
-            require_str("creator")?;
+            if object.get("schema").and_then(Value::as_str) == Some(FRONTIER_CREATED_SCHEMA_V1) {
+                const FIELDS: &[&str] = &[
+                    "schema",
+                    "name_at_creation",
+                    "creator",
+                    "profile_schema",
+                    "dependency_root",
+                    "created_at",
+                ];
+                if object.len() != FIELDS.len()
+                    || object.keys().any(|key| !FIELDS.contains(&key.as_str()))
+                {
+                    return Err(format!(
+                        "{FRONTIER_CREATED_SCHEMA_V1} payload is closed; expected exactly {}",
+                        FIELDS.join(", ")
+                    ));
+                }
+                require_str("name_at_creation")?;
+                require_str("creator")?;
+                if require_str("profile_schema")? != "vela.frontier-profile.v1" {
+                    return Err(
+                        "payload.profile_schema must be vela.frontier-profile.v1".to_string()
+                    );
+                }
+                let dependency_root = require_str("dependency_root")?;
+                if !crate::receipt_v1::is_full_sha256_root(dependency_root) {
+                    return Err(
+                        "payload.dependency_root must use sha256:<64 lowercase hex>".to_string()
+                    );
+                }
+                chrono::DateTime::parse_from_rfc3339(require_str("created_at")?).map_err(
+                    |error| format!("payload.created_at must be an RFC3339 timestamp: {error}"),
+                )?;
+            } else {
+                // Historical structural genesis events predate the closed v1
+                // payload. They remain replayable, but only the v1 shape may
+                // establish a Profile v1 repository identity.
+                require_str("name")?;
+                require_str("creator")?;
+            }
         }
         "frontier.observation_reviewed" => {
             require_str("proposal_id")?;
@@ -1634,6 +1712,12 @@ pub fn validate_event_payload(kind: &str, payload: &Value) -> Result<(), String>
             let parsed: crate::actor_registration::ActorRegistrationBoundaryPayload =
                 serde_json::from_value(payload.clone())
                     .map_err(|error| format!("invalid actor-registration payload: {error}"))?;
+            parsed.validate()?;
+        }
+        EVENT_KIND_FRONTIER_REPOSITORY_BOUND => {
+            let parsed: crate::frontier_repository::FrontierRepositoryBoundaryPayloadV1 =
+                serde_json::from_value(payload.clone())
+                    .map_err(|error| format!("invalid repository-boundary payload: {error}"))?;
             parsed.validate()?;
         }
         EVENT_KIND_ARTIFACT_ASSERTED => {
@@ -1900,6 +1984,11 @@ pub fn validate_event_payload(kind: &str, payload: &Value) -> Result<(), String>
                     "attempt.claimed payload.lease_ttl_seconds must be a non-negative integer"
                         .to_string()
                 })?;
+            if ttl > MAX_ATTEMPT_LEASE_TTL_SECONDS {
+                return Err(format!(
+                    "attempt.claimed payload.lease_ttl_seconds must be at most {MAX_ATTEMPT_LEASE_TTL_SECONDS}"
+                ));
+            }
             for field in ["claimant_actor", "claimant_pubkey", "prior_claim_event_id"] {
                 if let Some(value) = object.get(field)
                     && !value.is_string()
@@ -2238,6 +2327,18 @@ mod tests {
             "external obligation lease misread as orphan: {:?}",
             report.event_log.orphan_targets
         );
+    }
+
+    #[test]
+    fn attempt_claimed_rejects_unbounded_lease_ttl() {
+        let payload = serde_json::json!({
+            "obligation_id": "erdos:1056",
+            "lease_ttl_seconds": u64::MAX,
+            "claimant_actor": "agent:fixture",
+            "claimant_pubkey": "00",
+        });
+        let error = validate_event_payload(EVENT_KIND_ATTEMPT_CLAIMED, &payload).unwrap_err();
+        assert!(error.contains("must be at most"), "{error}");
     }
 
     #[test]

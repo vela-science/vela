@@ -9,6 +9,7 @@ Hub write protocol, signed mirror, or special publication database.
 From the standalone repository:
 
 ```bash
+vela check . --strict --json
 vela frontier materialize .
 vela check . --strict --json
 vela reproduce .
@@ -27,6 +28,13 @@ them. They remain derived views. The `.vela/events` log and the artifacts it
 binds are the replay source; do not repair a release by hand-editing
 `frontier.json`, a proof packet, or a Hub row.
 
+On Profile v1, the first strict check proves the complete repository context
+before materialization: closed profile/settings, boundary chain, Git anchor
+and ancestry, retained bytes, actor registry, and the consumer's independent
+first-boundary pin whenever an administrator boundary exists. A non-strict
+report is not sufficient for publication. Materialization validates but never
+creates or repairs a repository boundary.
+
 ## Pull requests
 
 A Git pull request is the collaboration and branch-review mechanism. Vela's
@@ -40,6 +48,29 @@ next -> work -> land -> signed policy route -> Permit | Defer -> protected human
 host may run `vela check --strict` and selected frozen verifiers, but CI cannot
 use a human key or turn a deferred proposal into accepted state. A merge is
 publication of the committed bytes, not an independent acceptance mechanism.
+
+For the released composite action, pin both the action version and—when the
+Profile v1 repository has an administrator boundary—the first full boundary
+content root:
+
+```yaml
+- uses: actions/checkout@v5
+- uses: vela-science/vela@v0.914.0
+  with:
+    frontier: .
+    vela-version: v0.914.0
+    repository-boundary-root: ${{ vars.VELA_REPOSITORY_BOUNDARY_ROOT }}
+```
+
+An organization or repository administrator must set that Actions variable
+from an independently reviewed channel. Do not copy it from the proposed
+checkout or interpolate a repository file. The action installs only the public
+consumer pin in the ephemeral runner account, installs Vela under the runner's
+temporary directory without modifying system signer integration, and runs the
+non-JSON strict check, including the sensitive-path audit. It never
+materializes the Frontier.
+On a self-hosted runner an already installed exact pin is also accepted; if no
+input or installed pin exists, an administrator-bound repository fails closed.
 
 ## Read-only discovery
 

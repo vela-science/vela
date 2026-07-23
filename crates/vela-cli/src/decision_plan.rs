@@ -19,7 +19,7 @@ use vela_protocol::proposals::EngineVerdict;
 
 use crate::config::git_publish::{PublicationDelta, PublicationDeltaEntry};
 use crate::frontier_txn::{
-    ContentDigest, DeltaDraft, FrontierBinding, FrontierRecoveryBarrier, FrontierTxn,
+    CanonicalWriteBarrier, ContentDigest, DeltaDraft, FrontierBinding, FrontierTxn,
     FrontierTxnError, FrontierTxnPlan, FrontierTxnPlanSpec, InputBinding, OperationId,
     OperationKind, PlannedWrite, RecoveryOutcome, RepoPath, WriteClass,
 };
@@ -243,7 +243,7 @@ struct LegacyRetirementMutation {
 
 #[derive(Debug)]
 pub(crate) struct LockedPreparedDecision {
-    barrier: FrontierRecoveryBarrier,
+    barrier: CanonicalWriteBarrier,
     prepared: PreparedDecision,
     read_set: Vec<InputBinding>,
 }
@@ -470,7 +470,7 @@ pub(crate) fn validate_scripted_confirmation_time(
 /// recovery barrier for `FrontierTxn::prepare_with_barrier`.
 pub(crate) fn build_locked(
     frontier: &Path,
-    barrier: FrontierRecoveryBarrier,
+    barrier: CanonicalWriteBarrier,
     answers: &[SavedAnswer],
     reviewer: &str,
     decided_at: &str,
@@ -1936,12 +1936,25 @@ fn ensure_transactional_frontier(frontier: &Path) -> Result<(), DecisionPlanErro
 
 fn acquire_barrier_with_recovery(
     frontier: &Path,
-) -> Result<FrontierRecoveryBarrier, DecisionPlanError> {
+) -> Result<CanonicalWriteBarrier, DecisionPlanError> {
     let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier)
         .map_err(|error| DecisionPlanError::new("frontier_unavailable", error))?;
+    #[cfg(not(test))]
+    FrontierTxn::preflight_write_intent(
+        frontier,
+        crate::frontier_txn::CanonicalWriteIntent::Administrator,
+    )
+    .map_err(DecisionPlanError::transaction)?;
     for _ in 0..3 {
         match FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir) {
-            Ok(barrier) => return Ok(barrier),
+            Ok(barrier) => {
+                #[cfg(test)]
+                return Ok(barrier.authorize_for_test());
+                #[cfg(not(test))]
+                return barrier
+                    .authorize_for_administrator_write()
+                    .map_err(DecisionPlanError::transaction);
+            }
             Err(FrontierTxnError::RecoveryRequired { operation_id, .. }) => {
                 let operation_id =
                     OperationId::parse(operation_id).map_err(DecisionPlanError::transaction)?;
@@ -2539,7 +2552,8 @@ mod tests {
     fn locked_read_set_binds_project_engine_policy_and_exact_absent_files() {
         let (temp, _key, answer) = decision_fixture();
         let journal_dir = crate::workflow::frontier_transaction_journal_dir(temp.path()).unwrap();
-        let barrier = FrontierTxn::acquire_recovery_barrier(temp.path(), &journal_dir).unwrap();
+        let barrier =
+            FrontierTxn::acquire_write_barrier_for_test(temp.path(), &journal_dir).unwrap();
         let locked = build_locked(
             temp.path(),
             barrier,

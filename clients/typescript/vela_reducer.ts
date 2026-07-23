@@ -33,6 +33,11 @@
 import { readFileSync, statSync, readdirSync } from "node:fs";
 import { join, resolve, basename } from "node:path";
 import { argv, exit, stdout, stderr } from "node:process";
+import {
+  createHash,
+  createPublicKey,
+  verify as verifySignature,
+} from "node:crypto";
 
 // ── Shared types ───────────────────────────────────────────────────
 
@@ -121,6 +126,788 @@ function canonicalJson(x: unknown): string {
     return v;
   }
   return JSON.stringify(sort(x));
+}
+
+// ── Signed repository-boundary validation ──────────────────────────
+//
+// `frontier.repository_bound` is reducer-neutral but not
+// validation-neutral. The exact envelope, content address, v1 signature, and
+// one linear repository-identity chain are checked before the reducer no-op.
+
+const BOUNDARY_SCHEMA = "vela.frontier-repository-boundary.v1";
+const FRONTIER_CREATED_SCHEMA_V1 = "vela.frontier-created.v1";
+const FRONTIER_PROFILE_SCHEMA_V1 = "vela.frontier-profile.v1";
+const FRONTIER_IDENTITY_SCHEMA_V1 = "vela.frontier-identity.v1";
+const EVENT_SCHEMA = "vela.event.v0.1";
+const NULL_HASH = "sha256:null";
+const EVENT_PAYLOAD_TYPE = "application/vnd.vela.event+json";
+const SHA256_ROOT = /^sha256:[0-9a-f]{64}$/;
+const LOWER_HEX_64 = /^[0-9a-f]{64}$/;
+const FRONTIER_ID = /^vfr_[0-9a-f]{16}$/;
+const RFC3339 =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+const BOUNDARY_PAYLOAD_KEYS = new Set([
+  "schema",
+  "mode",
+  "frontier_id",
+  "identity_root",
+  "observed_profile_root",
+  "dependency_root",
+  "dependencies",
+  "previous_identity_event_root",
+  "legacy_identity_preimage_root",
+  "administrator_actor_id",
+  "administrator_public_key",
+  "administrator_algorithm",
+  "trust_mode",
+  "git_object_format",
+  "anchor_git_commit",
+  "anchor_git_tree",
+  "anchor_event_log_root",
+  "anchor_event_count",
+  "anchor_snapshot_root",
+  "anchor_snapshot_schema",
+  "anchor_proposal_root",
+  "anchor_actor_registry_root",
+  "anchor_artifact_registry_root",
+  "anchor_canonical_store_root",
+]);
+const DEPENDENCY_KEYS = new Set([
+  "frontier_id",
+  "identity_root",
+  "scientific_state_root",
+  "git_object_format",
+  "git_commit",
+  "git_tree",
+]);
+const FRONTIER_CREATED_PAYLOAD_KEYS = new Set([
+  "schema",
+  "name_at_creation",
+  "creator",
+  "profile_schema",
+  "dependency_root",
+  "created_at",
+]);
+const BOUNDARY_CASE_IDS = new Set([
+  "valid_linear_chain",
+  "valid_native_genesis_chain",
+  "missing_native_genesis",
+  "invalid_native_genesis",
+  "unsigned",
+  "corrupt_signature",
+  "event_id_drift",
+  "fixed_envelope_drift",
+  "empty_reason",
+  "invalid_timestamp",
+  "missing_parent",
+  "fork",
+  "rollback",
+]);
+
+type JsonObject = { [key: string]: Json };
+type BoundaryRecord = { event: Event; payload: JsonObject };
+
+function objectValue(value: unknown, label: string): JsonObject {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+  return value as JsonObject;
+}
+
+function hasExactKeys(
+  value: JsonObject,
+  expected: Set<string>,
+): boolean {
+  const actual = Object.keys(value);
+  return (
+    actual.length === expected.size &&
+    actual.every((key) => expected.has(key))
+  );
+}
+
+function sha256Hex(bytes: Uint8Array | string): string {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+function canonicalRoot(value: unknown): string {
+  return `sha256:${sha256Hex(canonicalJson(value))}`;
+}
+
+function eventContent(event: Event): JsonObject {
+  return {
+    schema: (event.schema as Json) ?? null,
+    kind: (event.kind as Json) ?? null,
+    target: (event.target as Json) ?? null,
+    actor: (event.actor as Json) ?? null,
+    timestamp: (event.timestamp as Json) ?? null,
+    reason: (event.reason as Json) ?? null,
+    before_hash: (event.before_hash as Json) ?? null,
+    after_hash: (event.after_hash as Json) ?? null,
+    payload: (event.payload as Json) ?? null,
+    caveats: (event.caveats as Json) ?? null,
+  };
+}
+
+function eventContentRoot(event: Event): string {
+  return canonicalRoot(eventContent(event));
+}
+
+function eventId(event: Event): string {
+  return `vev_${eventContentRoot(event).slice(7, 23)}`;
+}
+
+function eventSigningBytes(event: Event, version: "v0" | "v1"): Buffer {
+  const body = Buffer.from(
+    canonicalJson({
+      schema: event.schema ?? null,
+      id: event.id ?? null,
+      kind: event.kind ?? null,
+      target: event.target ?? null,
+      actor: event.actor ?? null,
+      timestamp: event.timestamp ?? null,
+      reason: event.reason ?? null,
+      before_hash: event.before_hash ?? null,
+      after_hash: event.after_hash ?? null,
+      payload: event.payload ?? null,
+      caveats: event.caveats ?? null,
+    }),
+    "utf8",
+  );
+  if (version === "v0") return body;
+  const media = Buffer.from(EVENT_PAYLOAD_TYPE, "ascii");
+  return Buffer.concat([
+    Buffer.from(`DSSEv1 ${media.length} `, "ascii"),
+    media,
+    Buffer.from(` ${body.length} `, "ascii"),
+    body,
+  ]);
+}
+
+function requireText(field: string, value: unknown): string {
+  if (
+    typeof value !== "string" ||
+    value.trim().length === 0 ||
+    value.normalize("NFC") !== value ||
+    /[\u0000-\u001f\u007f-\u009f]/u.test(value)
+  ) {
+    throw new Error(`${field} must be non-empty NFC text without controls`);
+  }
+  return value;
+}
+
+function requireRoot(field: string, value: unknown): string {
+  if (typeof value !== "string" || !SHA256_ROOT.test(value)) {
+    throw new Error(`${field} must be a full lowercase sha256 root`);
+  }
+  return value;
+}
+
+function requireGitObject(
+  field: string,
+  value: unknown,
+  objectFormat: unknown,
+): string {
+  const length =
+    objectFormat === "sha1" ? 40 : objectFormat === "sha256" ? 64 : 0;
+  if (
+    length === 0 ||
+    typeof value !== "string" ||
+    !new RegExp(`^[0-9a-f]{${length}}$`).test(value)
+  ) {
+    throw new Error(`${field} is not a lowercase ${String(objectFormat)} Git object`);
+  }
+  return value;
+}
+
+function validateDependency(dependencyValue: unknown): [string, string] {
+  const dependency = objectValue(
+    dependencyValue,
+    "repository boundary dependency",
+  );
+  if (!hasExactKeys(dependency, DEPENDENCY_KEYS)) {
+    throw new Error(
+      "repository boundary dependency has an open or incomplete shape",
+    );
+  }
+  const frontierId = dependency.frontier_id;
+  if (typeof frontierId !== "string" || !FRONTIER_ID.test(frontierId)) {
+    throw new Error("dependency.frontier_id is invalid");
+  }
+  const identityRoot = requireRoot(
+    "dependency.identity_root",
+    dependency.identity_root,
+  );
+  requireRoot(
+    "dependency.scientific_state_root",
+    dependency.scientific_state_root,
+  );
+  const objectFormat = dependency.git_object_format;
+  if (objectFormat !== "sha1" && objectFormat !== "sha256") {
+    throw new Error("dependency.git_object_format is invalid");
+  }
+  requireGitObject(
+    "dependency.git_commit",
+    dependency.git_commit,
+    objectFormat,
+  );
+  requireGitObject("dependency.git_tree", dependency.git_tree, objectFormat);
+  return [frontierId, identityRoot];
+}
+
+function validateBoundaryPayload(payloadValue: unknown): JsonObject {
+  const payload = objectValue(payloadValue, "repository boundary payload");
+  if (!hasExactKeys(payload, BOUNDARY_PAYLOAD_KEYS)) {
+    throw new Error(
+      "repository boundary payload has an open or incomplete shape",
+    );
+  }
+  if (payload.schema !== BOUNDARY_SCHEMA) {
+    throw new Error("repository boundary payload schema mismatch");
+  }
+  const mode = payload.mode;
+  const trustMode = payload.trust_mode;
+  if (
+    mode !== "temporalize_existing" &&
+    mode !== "update_dependencies"
+  ) {
+    throw new Error("repository boundary mode is invalid");
+  }
+  if (
+    trustMode !== "tofu" &&
+    trustMode !== "genesis" &&
+    trustMode !== "previous_boundary"
+  ) {
+    throw new Error("repository boundary trust_mode is invalid");
+  }
+  const frontierId = payload.frontier_id;
+  if (typeof frontierId !== "string" || !FRONTIER_ID.test(frontierId)) {
+    throw new Error("repository boundary frontier_id is invalid");
+  }
+  for (const field of [
+    "identity_root",
+    "observed_profile_root",
+    "dependency_root",
+    "anchor_event_log_root",
+    "anchor_snapshot_root",
+    "anchor_proposal_root",
+    "anchor_actor_registry_root",
+    "anchor_artifact_registry_root",
+    "anchor_canonical_store_root",
+  ]) {
+    requireRoot(`payload.${field}`, payload[field]);
+  }
+  for (const field of [
+    "previous_identity_event_root",
+    "legacy_identity_preimage_root",
+  ]) {
+    if (payload[field] !== null) requireRoot(`payload.${field}`, payload[field]);
+  }
+  if (!Array.isArray(payload.dependencies)) {
+    throw new Error("payload.dependencies must be an array");
+  }
+  const dependencies = payload.dependencies;
+  const dependencyKeys = dependencies.map(validateDependency);
+  const sortedKeys = [...dependencyKeys].sort((left, right) =>
+    left[0] === right[0]
+      ? left[1].localeCompare(right[1])
+      : left[0].localeCompare(right[0]),
+  );
+  if (
+    canonicalJson(dependencyKeys) !== canonicalJson(sortedKeys) ||
+    new Set(dependencyKeys.map((key) => `${key[0]}\0${key[1]}`)).size !==
+      dependencyKeys.length
+  ) {
+    throw new Error("payload.dependencies must be uniquely sorted");
+  }
+  if (canonicalRoot(dependencies) !== payload.dependency_root) {
+    throw new Error("payload.dependency_root does not match dependencies");
+  }
+  const actorId = payload.administrator_actor_id;
+  if (
+    typeof actorId !== "string" ||
+    (!actorId.startsWith("reviewer:") && !actorId.startsWith("steward:"))
+  ) {
+    throw new Error("payload administrator must be a reviewer or steward");
+  }
+  const publicKey = payload.administrator_public_key;
+  if (typeof publicKey !== "string" || !LOWER_HEX_64.test(publicKey)) {
+    throw new Error("payload administrator public key is invalid");
+  }
+  if (payload.administrator_algorithm !== "ed25519") {
+    throw new Error("payload administrator algorithm must be ed25519");
+  }
+  const objectFormat = payload.git_object_format;
+  if (objectFormat !== "sha1" && objectFormat !== "sha256") {
+    throw new Error("payload.git_object_format is invalid");
+  }
+  requireGitObject(
+    "payload.anchor_git_commit",
+    payload.anchor_git_commit,
+    objectFormat,
+  );
+  requireGitObject(
+    "payload.anchor_git_tree",
+    payload.anchor_git_tree,
+    objectFormat,
+  );
+  const count = payload.anchor_event_count;
+  if (!Number.isSafeInteger(count) || Number(count) <= 0) {
+    throw new Error("payload.anchor_event_count must be positive");
+  }
+  requireText("payload.anchor_snapshot_schema", payload.anchor_snapshot_schema);
+
+  if (mode === "temporalize_existing") {
+    if (
+      trustMode !== "tofu" ||
+      payload.previous_identity_event_root !== null ||
+      payload.legacy_identity_preimage_root === null
+    ) {
+      throw new Error("temporal boundary trust fields are inconsistent");
+    }
+    const legacyOrigin = {
+      schema: "vela.legacy-frontier-origin.v1",
+      frontier_id: frontierId,
+      legacy_identity_preimage_root: payload.legacy_identity_preimage_root,
+      git_object_format: objectFormat,
+      anchor_git_commit: payload.anchor_git_commit,
+      anchor_git_tree: payload.anchor_git_tree,
+      anchor_event_log_root: payload.anchor_event_log_root,
+      anchor_event_count: count,
+    };
+    const identity = {
+      schema: "vela.frontier-identity.v1",
+      frontier_id: frontierId,
+      origin: "legacy_boundary",
+      origin_commitment: canonicalRoot(legacyOrigin),
+      legacy_identity_preimage_root: payload.legacy_identity_preimage_root,
+    };
+    if (canonicalRoot(identity) !== payload.identity_root) {
+      throw new Error("temporal boundary identity_root is invalid");
+    }
+  } else if (
+    (trustMode !== "genesis" && trustMode !== "previous_boundary") ||
+    payload.previous_identity_event_root === null
+  ) {
+    throw new Error("dependency update trust fields are inconsistent");
+  }
+  return payload;
+}
+
+function validateBoundaryEvent(eventValue: unknown): BoundaryRecord & {
+  root: string;
+} {
+  const event = objectValue(eventValue, "repository boundary event") as Event;
+  if (
+    event.schema !== EVENT_SCHEMA ||
+    event.kind !== "frontier.repository_bound"
+  ) {
+    throw new Error("repository boundary event schema or kind mismatch");
+  }
+  if (event.id !== eventId(event)) {
+    throw new Error(
+      "repository boundary event id does not match canonical content",
+    );
+  }
+  const target = objectValue(event.target, "repository boundary target");
+  const actor = objectValue(event.actor, "repository boundary actor");
+  if (target.type !== "frontier") {
+    throw new Error("repository boundary target.type must be frontier");
+  }
+  if (actor.type !== "human") {
+    throw new Error("repository boundary actor.type must be human");
+  }
+  if (
+    event.before_hash !== NULL_HASH ||
+    event.after_hash !== NULL_HASH
+  ) {
+    throw new Error(
+      "repository boundary must use null before_hash and after_hash",
+    );
+  }
+  requireText("event.reason", event.reason);
+  if (
+    typeof event.timestamp !== "string" ||
+    !RFC3339.test(event.timestamp) ||
+    Number.isNaN(Date.parse(event.timestamp))
+  ) {
+    throw new Error("repository boundary timestamp must be RFC3339");
+  }
+  if (
+    !Array.isArray(event.caveats) ||
+    !event.caveats.every((value) => typeof value === "string")
+  ) {
+    throw new Error("repository boundary caveats must be strings");
+  }
+  const payload = validateBoundaryPayload(event.payload);
+  if (target.id !== payload.frontier_id) {
+    throw new Error(
+      "repository boundary target does not match payload frontier",
+    );
+  }
+  if (actor.id !== payload.administrator_actor_id) {
+    throw new Error(
+      "repository boundary actor does not match payload administrator",
+    );
+  }
+  const rawSignature = event.signature;
+  if (typeof rawSignature !== "string") {
+    throw new Error("repository boundary must carry an event signature");
+  }
+  const version = rawSignature.startsWith("v1:") ? "v1" : "v0";
+  const signatureHex =
+    version === "v1" ? rawSignature.slice(3) : rawSignature;
+  if (!/^[0-9a-f]{128}$/.test(signatureHex)) {
+    throw new Error("repository boundary signature encoding is invalid");
+  }
+  const publicKeyBytes = Buffer.from(
+    payload.administrator_public_key as string,
+    "hex",
+  );
+  const spki = Buffer.concat([
+    Buffer.from("302a300506032b6570032100", "hex"),
+    publicKeyBytes,
+  ]);
+  const publicKey = createPublicKey({
+    key: spki,
+    format: "der",
+    type: "spki",
+  });
+  if (
+    !verifySignature(
+      null,
+      eventSigningBytes(event, version),
+      publicKey,
+      Buffer.from(signatureHex, "hex"),
+    )
+  ) {
+    throw new Error("repository boundary event signature does not verify");
+  }
+  return { event, payload, root: eventContentRoot(event) };
+}
+
+function validateProfileV1GenesisEvent(eventValue: unknown): {
+  event: Event;
+  frontierId: string;
+  identityRoot: string;
+  root: string;
+} {
+  const event = objectValue(
+    eventValue,
+    "Profile v1 frontier.created",
+  ) as Event;
+  if (event.schema !== EVENT_SCHEMA || event.kind !== "frontier.created") {
+    throw new Error("Profile v1 frontier.created schema or kind mismatch");
+  }
+  if (event.id !== eventId(event)) {
+    throw new Error(
+      "Profile v1 frontier.created id does not match canonical content",
+    );
+  }
+  const target = objectValue(event.target, "Profile v1 frontier.created target");
+  const actor = objectValue(event.actor, "Profile v1 frontier.created actor");
+  if (target.type !== "frontier" || actor.type !== "frontier") {
+    throw new Error(
+      "Profile v1 frontier.created target and actor must be frontiers",
+    );
+  }
+  if (event.before_hash !== NULL_HASH || event.after_hash !== NULL_HASH) {
+    throw new Error("Profile v1 frontier.created must use null state hashes");
+  }
+  if (
+    event.signature !== null &&
+    event.signature !== undefined
+  ) {
+    throw new Error("Profile v1 frontier.created must be unsigned");
+  }
+  if (!Array.isArray(event.caveats) || event.caveats.length !== 0) {
+    throw new Error("Profile v1 frontier.created must carry no caveats");
+  }
+
+  const payload = objectValue(
+    event.payload,
+    "Profile v1 frontier.created payload",
+  );
+  if (!hasExactKeys(payload, FRONTIER_CREATED_PAYLOAD_KEYS)) {
+    throw new Error(
+      "Profile v1 frontier.created payload has an open or incomplete shape",
+    );
+  }
+  if (payload.schema !== FRONTIER_CREATED_SCHEMA_V1) {
+    throw new Error("Profile v1 frontier.created payload schema mismatch");
+  }
+  const name = payload.name_at_creation;
+  const creator = payload.creator;
+  if (
+    typeof name !== "string" ||
+    name.length === 0 ||
+    typeof creator !== "string" ||
+    creator.length === 0
+  ) {
+    throw new Error("Profile v1 frontier.created identity text is invalid");
+  }
+  if (payload.profile_schema !== FRONTIER_PROFILE_SCHEMA_V1) {
+    throw new Error("Profile v1 frontier.created profile schema mismatch");
+  }
+  if (payload.dependency_root !== canonicalRoot([])) {
+    throw new Error(
+      "Profile v1 frontier.created dependency root is not empty",
+    );
+  }
+  const createdAt = payload.created_at;
+  if (
+    typeof createdAt !== "string" ||
+    !RFC3339.test(createdAt) ||
+    Number.isNaN(Date.parse(createdAt))
+  ) {
+    throw new Error(
+      "Profile v1 frontier.created created_at must be RFC3339",
+    );
+  }
+  if (
+    target.id !== name ||
+    actor.id !== creator ||
+    event.timestamp !== createdAt
+  ) {
+    throw new Error(
+      "Profile v1 frontier.created identity disagrees with its event core",
+    );
+  }
+
+  const root = eventContentRoot(event);
+  const frontierId = `vfr_${root.slice(7, 23)}`;
+  const identityRoot = canonicalRoot({
+    schema: FRONTIER_IDENTITY_SCHEMA_V1,
+    frontier_id: frontierId,
+    origin: "genesis",
+    origin_commitment: root,
+    legacy_identity_preimage_root: null,
+  });
+  return { event, frontierId, identityRoot, root };
+}
+
+function validateRepositoryBoundaryEventSet(eventsValue: unknown): void {
+  if (!Array.isArray(eventsValue)) {
+    throw new Error("repository boundary event set must be an array");
+  }
+  const boundaries = new Map<string, BoundaryRecord>();
+  for (const eventValue of eventsValue) {
+    if (
+      !eventValue ||
+      typeof eventValue !== "object" ||
+      Array.isArray(eventValue) ||
+      (eventValue as { kind?: unknown }).kind !== "frontier.repository_bound"
+    ) {
+      continue;
+    }
+    const { event, payload, root } = validateBoundaryEvent(eventValue);
+    if (boundaries.has(root)) {
+      throw new Error("duplicate repository boundary content root");
+    }
+    boundaries.set(root, { event, payload });
+  }
+  if (boundaries.size === 0) return;
+
+  const genesis = new Map<
+    string,
+    ReturnType<typeof validateProfileV1GenesisEvent>
+  >();
+  for (const eventValue of eventsValue) {
+    if (
+      !eventValue ||
+      typeof eventValue !== "object" ||
+      Array.isArray(eventValue)
+    ) {
+      continue;
+    }
+    const event = eventValue as Event;
+    if (
+      event.kind !== "frontier.created" ||
+      !event.payload ||
+      event.payload.schema !== FRONTIER_CREATED_SCHEMA_V1
+    ) {
+      continue;
+    }
+    const native = validateProfileV1GenesisEvent(event);
+    if (genesis.has(native.root)) {
+      throw new Error(
+        "duplicate Profile v1 frontier.created content root",
+      );
+    }
+    genesis.set(native.root, native);
+  }
+  if (genesis.size > 1) {
+    throw new Error(
+      "repository boundary graph has multiple Profile v1 genesis events",
+    );
+  }
+
+  let roots = 0;
+  const children = new Map<string, string[]>();
+  for (const [root, boundary] of boundaries) {
+    const payload = boundary.payload;
+    if (payload.mode === "temporalize_existing") {
+      roots += 1;
+      if (genesis.size !== 0) {
+        throw new Error(
+          "legacy temporal boundary cannot coexist with Profile v1 frontier.created",
+        );
+      }
+      continue;
+    }
+    const parentRoot = payload.previous_identity_event_root as string;
+    const childRoots = children.get(parentRoot) ?? [];
+    childRoots.push(root);
+    children.set(parentRoot, childRoots);
+    const parent = boundaries.get(parentRoot);
+    const nativeParent = genesis.get(parentRoot);
+    if (!parent && !nativeParent) {
+      throw new Error(
+        "repository boundary references a missing identity parent",
+      );
+    }
+    if (nativeParent) {
+      roots += 1;
+      if (payload.trust_mode !== "genesis") {
+        throw new Error("frontier.created parent requires genesis trust");
+      }
+      if (
+        payload.frontier_id !== nativeParent.frontierId ||
+        payload.identity_root !== nativeParent.identityRoot ||
+        payload.legacy_identity_preimage_root !== null
+      ) {
+        throw new Error(
+          "genesis-chained boundary changed the derived Frontier identity",
+        );
+      }
+      continue;
+    }
+    if (!parent) {
+      throw new Error(
+        "repository boundary references a missing identity parent",
+      );
+    }
+    if (payload.trust_mode !== "previous_boundary") {
+      throw new Error(
+        "repository boundary parent requires previous_boundary trust",
+      );
+    }
+    if (
+      Number(payload.anchor_event_count) <=
+      Number(parent.payload.anchor_event_count)
+    ) {
+      throw new Error(
+        "repository boundary anchor_event_count did not advance",
+      );
+    }
+    for (const field of [
+      "frontier_id",
+      "identity_root",
+      "legacy_identity_preimage_root",
+      "administrator_actor_id",
+      "administrator_public_key",
+      "administrator_algorithm",
+    ]) {
+      if (payload[field] !== parent.payload[field]) {
+        throw new Error(
+          "repository boundary changed immutable identity fields",
+        );
+      }
+    }
+  }
+  if ([...children.values()].some((values) => values.length > 1)) {
+    throw new Error("repository boundary graph contains a fork");
+  }
+  if (roots !== 1) {
+    throw new Error("repository boundary graph must have exactly one root");
+  }
+  for (const start of boundaries.keys()) {
+    let current = start;
+    const visited = new Set<string>();
+    while (boundaries.has(current)) {
+      if (visited.has(current)) {
+        throw new Error("repository boundary graph contains a cycle");
+      }
+      visited.add(current);
+      const payload = boundaries.get(current)!.payload;
+      if (payload.mode === "temporalize_existing") break;
+      const parent = payload.previous_identity_event_root as string;
+      if (genesis.has(parent)) break;
+      current = parent;
+    }
+  }
+}
+
+function verifyRepositoryBoundaryContract(fixture: JsonObject): void {
+  const eventLog = fixture.event_log;
+  if (
+    Array.isArray(eventLog) &&
+    eventLog.some(
+      (event) =>
+        Boolean(event) &&
+        typeof event === "object" &&
+        !Array.isArray(event) &&
+        (event as { kind?: unknown }).kind === "frontier.repository_bound",
+    )
+  ) {
+    validateRepositoryBoundaryEventSet(eventLog);
+  }
+  const vectors = fixture.repository_boundary_validation;
+  if (fixture.scenario !== "frontier_repository_bound") {
+    if (vectors !== undefined) {
+      throw new Error(
+        "repository boundary vectors appear on the wrong fixture",
+      );
+    }
+    return;
+  }
+  const vectorObject = objectValue(
+    vectors,
+    "repository boundary conformance vectors",
+  );
+  if (
+    vectorObject.schema !==
+      "vela.frontier-repository-boundary-conformance.v1" ||
+    vectorObject.signature_version !== "v1" ||
+    !Array.isArray(vectorObject.cases)
+  ) {
+    throw new Error("repository boundary conformance vectors are missing");
+  }
+  const cases = vectorObject.cases;
+  const ids = new Set(
+    cases.map((entry) =>
+      objectValue(entry, "repository boundary conformance case").id,
+    ),
+  );
+  if (
+    cases.length !== BOUNDARY_CASE_IDS.size ||
+    ids.size !== BOUNDARY_CASE_IDS.size ||
+    [...ids].some(
+      (id) => typeof id !== "string" || !BOUNDARY_CASE_IDS.has(id),
+    )
+  ) {
+    throw new Error("repository boundary conformance case inventory drifted");
+  }
+  for (const entry of cases) {
+    const testCase = objectValue(
+      entry,
+      "repository boundary conformance case",
+    );
+    if (typeof testCase.expected_valid !== "boolean") {
+      throw new Error("repository boundary conformance case is malformed");
+    }
+    let actualValid = true;
+    try {
+      validateRepositoryBoundaryEventSet(testCase.events);
+    } catch {
+      actualValid = false;
+    }
+    if (actualValid !== testCase.expected_valid) {
+      throw new Error(
+        `repository boundary case ${JSON.stringify(testCase.id)} ` +
+          `expected valid=${String(testCase.expected_valid)}, got ${String(actualValid)}`,
+      );
+    }
+  }
 }
 
 // Mirror of reducer.rs::apply_finding_asserted.
@@ -524,7 +1311,8 @@ function applyEvent(state: ReducerState, event: Event): void {
     kind === "review.rejected" ||
     kind === "review.revision_requested" ||
     kind === "actor.registration_activated" ||
-    kind === "proposal.withdrawn"
+    kind === "proposal.withdrawn" ||
+    kind === "frontier.repository_bound"
   )
     return;
   // policy.auto_admitted (Phase 1A): deterministic machine-verified admission
@@ -669,6 +1457,14 @@ function verifyFixture(path: string): FixtureResult {
   const expectedFindings = (fx.expected_states as FindingEffectRow[]) ?? [];
   const expectedArtifacts =
     (fx.expected_artifacts as ArtifactEffectRow[]) ?? [];
+
+  try {
+    verifyRepositoryBoundaryContract(fx);
+  } catch (e) {
+    result.error =
+      `repository boundary conformance error: ` + (e as Error).message;
+    return result;
+  }
 
   for (const event of eventLog) {
     try {

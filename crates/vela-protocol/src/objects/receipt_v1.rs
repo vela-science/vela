@@ -54,6 +54,7 @@ const NEUTRAL_RECEIPT_GENERATOR: &str = "vela-protocol/neutral-receipt-v1";
 const NO_ACTIVE_POLICY_REF: &str = "urn:vela:policy:none";
 const SCIENTIFIC_CHAIN_SCHEMA: &str = "vela.scientific-chain.producer.v1";
 pub const EXECUTION_BINDING_SCHEMA: &str = "vela.execution-binding.v1";
+const TARGET_TASK_BINDING_SCHEMA: &str = "vela.target-task-binding.v1";
 const SCIENTIFIC_CHAIN_MAX_TEXT_BYTES: usize = 16 * 1024;
 const SCIENTIFIC_CHAIN_MAX_REFERENCE_BYTES: usize = 16 * 1024;
 const SCIENTIFIC_CHAIN_MAX_REFERENCES: usize = 64;
@@ -1379,6 +1380,7 @@ fn validate_semantics(value: &Value, limits: ReceiptLimits) -> Result<(), Receip
     validate_safe_public_artifact_descriptors(receipt)?;
     validate_scientific_chain_extension(receipt)?;
     validate_execution_binding_extension(receipt)?;
+    validate_target_task_binding_extension(receipt)?;
 
     let caveats = array(required(receipt, "caveats", "$")?, "$.caveats")?;
     if caveats.is_empty() {
@@ -1532,6 +1534,40 @@ fn validate_execution_binding_extension(
     receipt: &Map<String, Value>,
 ) -> Result<(), ReceiptV1Error> {
     parse_execution_binding_extension(receipt).map(|_| ())
+}
+
+fn validate_target_task_binding_extension(
+    receipt: &Map<String, Value>,
+) -> Result<(), ReceiptV1Error> {
+    let environment = object(&receipt["environment"], "$.environment")?;
+    let Some(value) = environment.get("vela:target_task_binding") else {
+        return Ok(());
+    };
+    let path = "$.environment.vela:target_task_binding";
+    let binding = object(value, path)?;
+    if text(
+        required(binding, "schema", path)?,
+        &format!("{path}.schema"),
+        false,
+    )? != TARGET_TASK_BINDING_SCHEMA
+    {
+        return Err(error(
+            format!("{path}.schema"),
+            format!("must be {TARGET_TASK_BINDING_SCHEMA}"),
+        ));
+    }
+    let binding_root = text(
+        required(binding, "binding_root", path)?,
+        &format!("{path}.binding_root"),
+        false,
+    )?;
+    if !is_full_sha256_root(binding_root) {
+        return Err(error(
+            format!("{path}.binding_root"),
+            "must be sha256: followed by 64 lowercase hexadecimal characters",
+        ));
+    }
+    Ok(())
 }
 
 fn scientific_chain_text<'a>(value: &'a Value, path: &str) -> Result<&'a str, ReceiptV1Error> {
@@ -2826,6 +2862,7 @@ mod authoring {
         task_contract_root: Option<String>,
         scientific_chain: Option<ScientificChainAssertion>,
         execution_binding: Option<ExecutionBindingV1>,
+        target_task_binding: Option<Value>,
     }
 
     impl NeutralReceiptInput {
@@ -2860,6 +2897,7 @@ mod authoring {
                 task_contract_root: None,
                 scientific_chain: None,
                 execution_binding: None,
+                target_task_binding: None,
             };
             validate_neutral_input(&input)?;
             Ok(input)
@@ -2907,6 +2945,22 @@ mod authoring {
             self.execution_binding = Some(execution_binding);
             Ok(self)
         }
+
+        /// Carry one already validated closed target-task binding into the
+        /// receipt's open environment. Vela Edge owns the repository-aware
+        /// validation; Receipt v1 preserves and attests the exact JSON bytes.
+        pub fn with_target_task_binding(
+            mut self,
+            target_task_binding: Value,
+        ) -> Result<Self, ReceiptV1Error> {
+            let receipt = json!({
+                "environment": {"vela:target_task_binding": target_task_binding}
+            });
+            super::validate_target_task_binding_extension(object(&receipt, "$")?)?;
+            self.target_task_binding =
+                Some(receipt["environment"]["vela:target_task_binding"].clone());
+            Ok(self)
+        }
     }
 
     #[derive(Debug, Clone)]
@@ -2920,6 +2974,7 @@ mod authoring {
         producer: ProducerContext,
         scientific_chain: Option<ScientificChainAssertion>,
         execution_binding: Option<ExecutionBindingV1>,
+        target_task_binding: Option<Value>,
     }
 
     impl ReceiptInput {
@@ -2943,6 +2998,7 @@ mod authoring {
                 producer,
                 scientific_chain: None,
                 execution_binding: None,
+                target_task_binding: None,
             };
             validate_input(&input)?;
             Ok(input)
@@ -2972,6 +3028,7 @@ mod authoring {
             let task_contract_root = input.task_contract_root.clone();
             let scientific_chain = input.scientific_chain.clone();
             let execution_binding = input.execution_binding.clone();
+            let target_task_binding = input.target_task_binding.clone();
             let NeutralReceiptInput {
                 claim,
                 claim_type,
@@ -2993,6 +3050,7 @@ mod authoring {
             validated.producer.task_contract_root = task_contract_root;
             validated.scientific_chain = scientific_chain;
             validated.execution_binding = execution_binding;
+            validated.target_task_binding = target_task_binding;
             Self::build_validated(validated)
         }
 
@@ -3147,6 +3205,9 @@ mod authoring {
                         )
                     })?;
             }
+            if let Some(target_task_binding) = input.target_task_binding {
+                receipt["environment"]["vela:target_task_binding"] = target_task_binding;
+            }
             let statement = statement_projection(object(&receipt, "$")?)?;
             let payload = canonical_receipt_bytes(&statement)
                 .map_err(|cause| error("$.attestation.statement", cause.to_string()))?;
@@ -3218,6 +3279,12 @@ mod authoring {
                 )
             })?;
         }
+        if let Some(target_task_binding) = &input.target_task_binding {
+            let receipt = json!({
+                "environment": {"vela:target_task_binding": target_task_binding}
+            });
+            super::validate_target_task_binding_extension(object(&receipt, "$")?)?;
+        }
         Ok(())
     }
 
@@ -3258,6 +3325,12 @@ mod authoring {
                     format!("is invalid: {cause}"),
                 )
             })?;
+        }
+        if let Some(target_task_binding) = &input.target_task_binding {
+            let receipt = json!({
+                "environment": {"vela:target_task_binding": target_task_binding}
+            });
+            super::validate_target_task_binding_extension(object(&receipt, "$")?)?;
         }
         Ok(())
     }
@@ -3387,6 +3460,10 @@ mod tests {
 
     fn build(runs: Vec<ProducerReportedRun>) -> ReceiptV1 {
         ReceiptBuilder::build(input(runs), &identity("agent:receipt-test")).unwrap()
+    }
+
+    fn target_task_binding_vector() -> Value {
+        serde_json::from_str(r#"{"binding_root":"sha256:1e370daa0628b2f26c1a84a073cbab78ba5760a85e50e908f3b80be2f6d80851","claim_read_set":{"event_count":43,"event_log_root":"sha256:9999999999999999999999999999999999999999999999999999999999999999","git_commit":"3333333333333333333333333333333333333333","git_object_format":"sha1","git_tree":"4444444444444444444444444444444444444444"},"frontier_id":"vfr_1234567890abcdef","index_roots":{"dependency_root":"sha256:8888888888888888888888888888888888888888888888888888888888888888","event_count":42,"event_log_root":"sha256:3333333333333333333333333333333333333333333333333333333333333333","identity_root":"sha256:7777777777777777777777777777777777777777777777777777777777777777","nonlease_event_log_root":"sha256:4444444444444444444444444444444444444444444444444444444444444444","proposal_root":"sha256:6666666666666666666666666666666666666666666666666666666666666666","scientific_state_root":"sha256:5555555555555555555555555555555555555555555555555555555555555555"},"input_root":"sha256:b08486c1c108fb397824e0e8ca563486c862af0112cd794261615bcf0e8d78b0","packet":{"path":"site/problems/1056.json","schema":"erdos-frontier.problem-work.v1","sha256":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":456},"schema":"vela.target-task-binding.v1","source":{"git_commit":"1111111111111111111111111111111111111111","git_object_format":"sha1","git_tree":"2222222222222222222222222222222222222222"},"target_id":"erdos:1056","target_index_root":"sha256:c2b65099d8bd2e55dabbc14d17bfd42db33a5e00d17bdc6b9455fba97fd767ce"}"#).unwrap()
     }
 
     fn schema() -> Value {
@@ -3559,6 +3636,54 @@ mod tests {
                 .unwrap_err()
                 .path()
                 .contains("vela:execution_binding")
+        );
+    }
+
+    #[test]
+    fn target_task_binding_extension_has_fixed_bytes_and_receipt_root() {
+        const EXPECTED_BINDING_JSON: &str = r#"{"binding_root":"sha256:1e370daa0628b2f26c1a84a073cbab78ba5760a85e50e908f3b80be2f6d80851","claim_read_set":{"event_count":43,"event_log_root":"sha256:9999999999999999999999999999999999999999999999999999999999999999","git_commit":"3333333333333333333333333333333333333333","git_object_format":"sha1","git_tree":"4444444444444444444444444444444444444444"},"frontier_id":"vfr_1234567890abcdef","index_roots":{"dependency_root":"sha256:8888888888888888888888888888888888888888888888888888888888888888","event_count":42,"event_log_root":"sha256:3333333333333333333333333333333333333333333333333333333333333333","identity_root":"sha256:7777777777777777777777777777777777777777777777777777777777777777","nonlease_event_log_root":"sha256:4444444444444444444444444444444444444444444444444444444444444444","proposal_root":"sha256:6666666666666666666666666666666666666666666666666666666666666666","scientific_state_root":"sha256:5555555555555555555555555555555555555555555555555555555555555555"},"input_root":"sha256:b08486c1c108fb397824e0e8ca563486c862af0112cd794261615bcf0e8d78b0","packet":{"path":"site/problems/1056.json","schema":"erdos-frontier.problem-work.v1","sha256":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":456},"schema":"vela.target-task-binding.v1","source":{"git_commit":"1111111111111111111111111111111111111111","git_object_format":"sha1","git_tree":"2222222222222222222222222222222222222222"},"target_id":"erdos:1056","target_index_root":"sha256:c2b65099d8bd2e55dabbc14d17bfd42db33a5e00d17bdc6b9455fba97fd767ce"}"#;
+        let binding = target_task_binding_vector();
+        assert_eq!(
+            canonical_receipt_bytes(&binding).unwrap(),
+            EXPECTED_BINDING_JSON.as_bytes()
+        );
+        assert_eq!(
+            format!(
+                "sha256:{}",
+                hex::encode(Sha256::digest(EXPECTED_BINDING_JSON.as_bytes()))
+            ),
+            "sha256:1f956f2e9f7e291af0e0bba9f1a95507b6805898211b7010063b06476fb2976d"
+        );
+
+        let receipt = ReceiptBuilder::build(
+            input(Vec::new())
+                .with_target_task_binding(binding.clone())
+                .unwrap(),
+            &identity("agent:receipt-test"),
+        )
+        .unwrap();
+        assert_eq!(
+            receipt.canonical_root().unwrap(),
+            "sha256:5c5787b602ea3dc19668165fd5b88b9a4f1179e4fbfd24292454ef3a4b5d657b"
+        );
+        let parsed = ReceiptV1::parse(&receipt.canonical_bytes().unwrap()).unwrap();
+        assert_eq!(
+            canonical_receipt_bytes(&parsed.as_value()["environment"]["vela:target_task_binding"])
+                .unwrap(),
+            EXPECTED_BINDING_JSON.as_bytes()
+        );
+
+        let mut tampered = parsed.into_value();
+        tampered["environment"]["vela:target_task_binding"]["binding_root"] =
+            json!(format!("sha256:{}", "0".repeat(64)));
+        refresh_bound_attestation(&mut tampered);
+        assert_ne!(
+            ReceiptV1::parse(&serde_json::to_vec(&tampered).unwrap())
+                .unwrap()
+                .canonical_root()
+                .unwrap(),
+            receipt.canonical_root().unwrap(),
+            "even a syntactically valid replacement is bound into the Receipt root"
         );
     }
 

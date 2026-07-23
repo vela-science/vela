@@ -22,6 +22,13 @@ vela check . --strict --json
 Stop if the versions differ or the strict check fails. Do not repair signed
 events or derived files by hand.
 
+For Profile v1, strict checking also requires the exact repository boundary,
+Git anchor/ancestry, retained bytes, actor registry, and independently
+installed first-boundary pin whenever an administrator boundary exists. Obtain
+that full boundary root from the Frontier's trusted distribution channel and
+use `vela frontier trust pin`; never accept a pin asserted only by the checkout
+itself.
+
 ## Take one target
 
 Create a branch, inspect the ranked offer, and claim one target with an
@@ -36,6 +43,11 @@ vela work <target-id> --frontier . --as agent:<your-handle> --json
 The work response names the fixed base, completion condition, required
 checks, constraints, and authority ceiling. Vela writes one private session
 under `.vela/work/`. Do not edit or stage that directory.
+
+Profile v1 `next` and `work` validate the complete Target Index v2 and selected
+packet against tracked Git bytes and current roots. A stale index grants no
+work. The resulting `vela.target-task-binding.v1` is retained in the session
+and copied byte-for-byte into Receipt v1 at landing.
 
 ## Run the selected verifier
 

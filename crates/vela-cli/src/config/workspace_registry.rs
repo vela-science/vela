@@ -1,11 +1,9 @@
-//! The workspace registry: `~/.vela/frontiers.json`, the list of
-//! frontiers on this machine. It exists for ONE ritual: `vela sign`
-//! outside any frontier walks every registered frontier and builds one
-//! aggregated queue — one session, one key read, all frontiers.
-//! Registration is best-effort convenience state (a missing or stale
-//! entry breaks nothing; the frontier itself is always the truth).
+//! Read-only compatibility for the historical workspace registry at
+//! `~/.vela/frontiers.json`. Legacy batch signing can still inspect existing
+//! entries, but ordinary initialization no longer mutates host-global state.
+//! A missing or stale registry never affects the Frontier itself.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
@@ -39,43 +37,6 @@ pub fn load() -> WorkspaceRegistry {
         .ok()
         .and_then(|raw| serde_json::from_str(&raw).ok())
         .unwrap_or_default()
-}
-
-/// Register a frontier (idempotent on canonical path). Called by init
-/// and by any verb that touches a frontier not yet listed — silent
-/// best-effort: registry failure never fails the verb.
-pub fn register(frontier_dir: &Path, name: Option<&str>) {
-    let Some(reg_path) = registry_path() else {
-        return;
-    };
-    let canonical = frontier_dir
-        .canonicalize()
-        .unwrap_or_else(|_| frontier_dir.to_path_buf());
-    let mut reg = load();
-    // Write-time compaction: rows whose frontier vanished (deleted temp
-    // dirs, moved checkouts) drop here, so the registry self-heals on
-    // every registration instead of accreting debris forever.
-    reg.frontiers
-        .retain(|f| Path::new(&f.path).join(".vela").is_dir());
-    if let Some(existing) = reg
-        .frontiers
-        .iter_mut()
-        .find(|f| Path::new(&f.path) == canonical)
-    {
-        if existing.name.is_none() && name.is_some() {
-            existing.name = name.map(str::to_string);
-        }
-    } else {
-        reg.frontiers.push(RegisteredFrontier {
-            path: canonical.display().to_string(),
-            name: name.map(str::to_string),
-            registered_at: chrono::Utc::now().to_rfc3339(),
-        });
-    }
-    let _ = std::fs::create_dir_all(reg_path.parent().unwrap());
-    if let Ok(body) = serde_json::to_string_pretty(&reg) {
-        let _ = std::fs::write(reg_path, format!("{body}\n"));
-    }
 }
 
 /// Registered frontiers that still exist on disk and still look like

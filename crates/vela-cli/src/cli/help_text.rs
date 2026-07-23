@@ -91,8 +91,18 @@ EXAMPLES
 
 pub const MIGRATE: &str = "\
 EXAMPLES
-  vela migrate . --to 0.900 --check --json  preview exact touched files and roots
-  vela migrate . --to 0.900 --apply --json  apply the verified derived projection";
+  vela migrate . --to frontier-repo-v1 --check --profile ../profile.yaml \\
+    --target-candidate ../target-index-candidate.json \\
+    --as reviewer:steward --reason \"Bind exact legacy repository\" --json
+      render one key-free, root-bound migration plan
+  vela migrate . --to frontier-repo-v1 --apply --profile ../profile.yaml \\
+    --target-candidate ../target-index-candidate.json \\
+    --as reviewer:steward --reason \"Bind exact legacy repository\" \\
+    --confirm-root sha256:<64hex> --confirm-at <RFC3339> --json
+      revalidate the exact plan before protected repository administration
+
+When the legacy profile has dependencies, add:
+  --dependency-input ../dependency-migration.json";
 
 pub const LOG: &str = "\
 EXAMPLES
@@ -150,16 +160,19 @@ EXAMPLES
 pub const SERVE: &str = "\
 EXAMPLES
   vela serve .          MCP over stdio for an agent
-  vela serve . --http   the same dispatcher over HTTP";
+  vela serve . --http 3741
+                        the same dispatcher over loopback HTTP";
 
 pub const CONFIG: &str = "\
 EXAMPLES
-  vela config get hub.url
-  vela config set hub.url https://hub.constellate.science
+  vela config get work.lease_ttl_seconds --frontier .
+  vela config set work.lease_ttl_seconds 43200 --frontier .
   vela config list --json
-  vela config unset hub.url
+  vela config unset work.lease_ttl_seconds --frontier .
 
-Layered: flag > VELA_* env > frontier .vela/config.toml > user ~/.vela/config.toml";
+Layered: flag > VELA_* env > user config > Frontier convention > default.
+Checked-in publish.git_push = off is narrowing-only and may override user auto.
+Frontier v1 uses .vela/settings.toml; legacy .vela/config.toml remains readable.";
 
 pub const ID: &str = "\
 EXAMPLES
@@ -180,10 +193,21 @@ Unsigned anchor members remain legacy and unauthenticated.";
 
 pub const FRONTIER: &str = "\
 EXAMPLES
+  vela frontier bind . --reason \"establish the first administrator\" --json
+                                       preview one protected native boundary
+  vela frontier trust pin . --boundary-root sha256:... --json
+                                       preview an out-of-band consumer pin
   vela frontier materialize .         rebuild derived views
   vela frontier diff left right       compare two frontiers
   vela frontier recover-publication --operation vop_…
-                                       resume exact Git publication";
+                                       resume exact Git publication
+
+`frontier bind` appends exactly one signed, non-scientific boundary after a
+matching confirmation and protected user presence. It installs the local trust
+pin but does not commit or publish Git. Other consumers pin the full first
+boundary root obtained through an independent channel. Vela 0.914 has no
+writer for a later dependency update; inspect dependencies with `frontier
+list-deps` and do not hand-author a continuation event.";
 
 pub const FINDING: &str = "\
 EXAMPLES

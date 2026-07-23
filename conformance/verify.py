@@ -39,10 +39,12 @@ from pathlib import Path
 def _check_manifest(fixtures_dir: Path) -> int:
     """v0.107.4: integrity preflight.
 
-    Reads `fixtures.manifest.json` and verifies the SHA-256 of every
-    listed fixture against its recorded digest. Refuses to run if any
-    fixture has been tampered with. Closes THREAT_MODEL.md A12
-    (integrity half; signed-manifest variant is a future cycle).
+    Reads `fixtures.manifest.json`, requires it to name exactly the
+    cascade fixtures present on disk, and verifies the size and SHA-256
+    of every fixture against its recorded values. Refuses to run if the
+    manifest is malformed, incomplete, duplicated, or any fixture has
+    been tampered with. Closes THREAT_MODEL.md A12 (integrity half;
+    signed-manifest variant is a future cycle).
 
     Returns 0 if every fixture matches the manifest, 2 if the manifest
     is missing or any fixture's digest drifts. Skips with a one-line
@@ -61,6 +63,12 @@ def _check_manifest(fixtures_dir: Path) -> int:
     except json.JSONDecodeError as e:
         print(f"  fail: fixtures.manifest.json is not valid JSON: {e}", file=sys.stderr)
         return 2
+    if not isinstance(manifest, dict):
+        print(
+            "  fail: fixtures.manifest.json must be a JSON object",
+            file=sys.stderr,
+        )
+        return 2
     if manifest.get("schema") != "vela.conformance-fixtures-manifest.v1":
         print(
             f"  fail: fixtures.manifest.json has wrong schema: "
@@ -68,11 +76,102 @@ def _check_manifest(fixtures_dir: Path) -> int:
             file=sys.stderr,
         )
         return 2
+
+    fixtures = manifest.get("fixtures")
+    if not isinstance(fixtures, list):
+        print(
+            "  fail: fixtures.manifest.json fixtures must be an array",
+            file=sys.stderr,
+        )
+        return 2
+
+    required_entry_keys = {"path", "sha256", "bytes"}
+    fixture_name_pattern = re.compile(
+        r"cascade-fixture-[A-Za-z0-9][A-Za-z0-9._-]*\.json"
+    )
+    manifest_names: list[str] = []
+    for index, entry in enumerate(fixtures):
+        if not isinstance(entry, dict) or set(entry) != required_entry_keys:
+            print(
+                "  fail: fixtures.manifest.json entry "
+                f"{index} must contain exactly path, sha256, and bytes",
+                file=sys.stderr,
+            )
+            return 2
+
+        name = entry["path"]
+        expected_digest = entry["sha256"]
+        expected_bytes = entry["bytes"]
+        if (
+            not isinstance(name, str)
+            or Path(name).name != name
+            or fixture_name_pattern.fullmatch(name) is None
+        ):
+            print(
+                "  fail: fixtures.manifest.json entry "
+                f"{index} path must be a cascade-fixture-*.json basename",
+                file=sys.stderr,
+            )
+            return 2
+        if (
+            not isinstance(expected_digest, str)
+            or re.fullmatch(r"sha256:[0-9a-f]{64}", expected_digest) is None
+        ):
+            print(
+                "  fail: fixtures.manifest.json entry "
+                f"{index} sha256 must be a lowercase full SHA-256 digest",
+                file=sys.stderr,
+            )
+            return 2
+        if (
+            not isinstance(expected_bytes, int)
+            or isinstance(expected_bytes, bool)
+            or expected_bytes < 0
+        ):
+            print(
+                "  fail: fixtures.manifest.json entry "
+                f"{index} bytes must be a non-negative integer",
+                file=sys.stderr,
+            )
+            return 2
+        manifest_names.append(name)
+
+    duplicate_names = sorted(
+        name for name in set(manifest_names) if manifest_names.count(name) > 1
+    )
+    if duplicate_names:
+        print(
+            "  fail: fixtures.manifest.json contains duplicate fixture paths: "
+            + ", ".join(duplicate_names),
+            file=sys.stderr,
+        )
+        return 2
+
+    disk_names = {
+        path.name
+        for path in fixtures_dir.glob("cascade-fixture-*.json")
+        if path.is_file()
+    }
+    manifest_name_set = set(manifest_names)
+    if manifest_name_set != disk_names:
+        missing_from_manifest = sorted(disk_names - manifest_name_set)
+        missing_on_disk = sorted(manifest_name_set - disk_names)
+        print(
+            "  fail: fixtures.manifest.json does not exactly match cascade fixtures "
+            "on disk:",
+            file=sys.stderr,
+        )
+        for name in missing_from_manifest:
+            print(f"    - {name}: present on disk but absent from manifest", file=sys.stderr)
+        for name in missing_on_disk:
+            print(f"    - {name}: listed in manifest but absent from disk", file=sys.stderr)
+        return 2
+
     drift = []
-    for entry in manifest.get("fixtures", []):
-        name = entry.get("path", "")
-        expected_digest = entry.get("sha256", "")
-        expected_bytes = entry.get("bytes", -1)
+    for entry in fixtures:
+        name = entry["path"]
+        expected_digest = entry["sha256"]
+        expected_bytes = entry["bytes"]
         path = fixtures_dir / name
         if not path.is_file():
             drift.append(f"{name}: missing on disk")
@@ -94,7 +193,7 @@ def _check_manifest(fixtures_dir: Path) -> int:
         for d in drift:
             print(f"    - {d}", file=sys.stderr)
         return 2
-    print(f"  ok: integrity preflight ({len(manifest.get('fixtures', []))} fixtures)")
+    print(f"  ok: integrity preflight ({len(fixtures)} fixtures)")
     return 0
 
 

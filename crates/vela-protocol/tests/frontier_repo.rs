@@ -102,8 +102,8 @@ fn init_creates_canonical_frontier_repo_layout() {
         "--json",
     ]);
 
-    assert_eq!(payload["schema"], "vela.frontier_repo_init.v0.1");
-    assert_eq!(payload["layout"], "vela.frontier_repo.v0.1");
+    assert_eq!(payload["schema"], "vela.frontier_repo_init.v1");
+    assert_eq!(payload["layout"], "vela.frontier_repo.v1");
     // The git-clean skeleton contains the canonical store, compact derived
     // views, safety files, and the agent charter. Optional integrations are
     // explicit follow-up actions.
@@ -115,7 +115,7 @@ fn init_creates_canonical_frontier_repo_layout() {
         "frontier.yaml",
         "frontier.json",
         "vela.lock",
-        ".vela/config.toml",
+        ".vela/settings.toml",
         ".vela/findings",
         ".vela/events",
         ".vela/proposals",
@@ -133,6 +133,8 @@ fn init_creates_canonical_frontier_repo_layout() {
         "proof",
         ".mcp.json",
         ".github/workflows/vela-frontier.yml",
+        ".vela/config.toml",
+        ".vela/hooks",
     ] {
         assert!(
             !frontier.join(stub).exists(),
@@ -192,7 +194,7 @@ fn init_creates_canonical_frontier_repo_layout() {
     assert!(
         fs::read_to_string(frontier.join("frontier.yaml"))
             .unwrap()
-            .contains("mode: split")
+            .contains("schema: vela.frontier-profile.v1")
     );
     assert!(
         fs::read_to_string(frontier.join("vela.lock"))
@@ -202,7 +204,7 @@ fn init_creates_canonical_frontier_repo_layout() {
     assert!(
         fs::read_to_string(frontier.join("vela.lock"))
             .unwrap()
-            .contains("proof:")
+            .contains("scientific_state_root:")
     );
     let frontier_json: Value =
         serde_json::from_slice(&fs::read(frontier.join("frontier.json")).unwrap()).unwrap();
@@ -283,7 +285,7 @@ fn frontier_materialize_writes_frontier_json_and_lock() {
     assert!(
         fs::read_to_string(frontier.join("vela.lock"))
             .unwrap()
-            .contains("event_log_hash:")
+            .contains("event_log_root:")
     );
 }
 

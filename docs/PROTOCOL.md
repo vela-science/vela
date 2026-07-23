@@ -1,13 +1,13 @@
 # Vela protocol: current contract
 
-Status: current public-beta contract for Vela `0.913.0`.
+Status: current public-beta contract for Vela `0.914.0`.
 
 This document defines the small protocol surface that Vela ships now. Git
 stores and transports immutable bytes. Vela gives a scientific meaning to a
 bounded subset of those bytes, records who had authority to change accepted
 state, and deterministically rebuilds the current frontier from the event log.
 
-The workspace release (`0.913.0`), finding-bundle schema (`0.10.0`), and wire
+The workspace release (`0.914.0`), finding-bundle schema (`0.10.0`), and wire
 schema names such as `vela.event.v0.1` are separate identifiers. New work uses
 the current forms below. Older micro-version chronology belongs in Git history
 and `CHANGELOG.md`, not in the active protocol.
@@ -208,6 +208,108 @@ mismatched producer key cannot gain withdrawn standing.
 The event type, known-kind registry, validation, and constructors live in
 [`crates/vela-protocol/src/kernel/events.rs`](../crates/vela-protocol/src/kernel/events.rs).
 
+New Profile v1 repositories begin with exactly one unsigned structural
+`frontier.created` event. Its closed `vela.frontier-created.v1` payload contains
+`name_at_creation`, `creator`, `profile_schema`, the canonical empty
+`dependency_root`, and `created_at`. Those values must agree with the event
+core; the event targets the creation name, uses null scientific hashes, and
+carries neither a signature nor caveats. The full canonical event-content root
+derives the readable `vfr_` handle and the closed Frontier identity record. It
+is a structural identity commitment, not administrator authentication or human
+authority. Historical pre-v1
+`frontier.created` payloads remain replayable but cannot establish a Profile v1
+genesis or parent a `trust_mode: genesis` repository boundary.
+
+`frontier.repository_bound` is a signed, non-scientific repository-boundary
+event with closed payload schema `vela.frontier-repository-boundary.v1`. Its
+fixed core targets `{type: frontier, id: <frontier_id>}`, uses a human
+administrator actor, null before/after scientific hashes, and an ordinary
+Ed25519 event signature. The payload contains:
+
+```text
+schema, mode, frontier_id, identity_root, observed_profile_root,
+dependency_root, dependencies, previous_identity_event_root,
+legacy_identity_preimage_root, administrator_actor_id,
+administrator_public_key, administrator_algorithm, trust_mode,
+git_object_format, anchor_git_commit, anchor_git_tree,
+anchor_event_log_root, anchor_event_count, anchor_snapshot_root,
+anchor_snapshot_schema, anchor_proposal_root, anchor_actor_registry_root,
+anchor_artifact_registry_root, anchor_canonical_store_root
+```
+
+Dependencies are exact closed records sorted by `(frontier_id,
+identity_root)` with fields `frontier_id`, `identity_root`,
+`scientific_state_root`, `git_object_format`, `git_commit`, and `git_tree`;
+alternate ordering and duplicate keys are invalid. Retrieval locators are not
+part of this security identity. The dependency-list root is recomputed from
+canonical JSON. `temporalize_existing` requires `trust_mode: tofu`, a null
+previous identity event, and a legacy identity root recomputed from the payload
+anchor.
+The first dependency update of a new v1 Frontier requires `trust_mode:
+genesis` and chains `previous_identity_event_root` to the full canonical
+content root of its `frontier.created` event. Every later update requires
+`trust_mode: previous_boundary`, chains to the full preceding boundary content
+root, preserves frontier identity, legacy identity root, administrator, key,
+and algorithm, and strictly increases `anchor_event_count`.
+
+Vela `0.914.0` has maintained porcelain only for the first protected genesis
+boundary and the one-time legacy temporalization boundary. It verifies later
+`previous_boundary` events for replay compatibility but does not create them;
+the initially bound dependency set is immutable through ordinary `0.914.0`
+commands. Hand-authoring a later event is unsupported. A future writer must
+provide a separately reviewed, two-phase protected plan and transaction.
+
+Before replay accepts repository identity or dependency state, the complete
+known boundary event set is validated independently of timestamps. Every event
+must have its fixed core, closed payload, canonical ID, and valid signature;
+the identity-event graph must be one linear chain. Unsigned or malformed known
+events, missing parents, duplicate roots, forks, cycles, trust/mode mismatch,
+identity drift, or rollback-shaped anchor counts fail closed. Signature-only
+verification proves possession of the named key; full validity additionally
+requires the anchored Git, retained-object, and active actor-registry checks
+defined by
+[ADR 0016](adr/0016-frontier-repository-profile-v1-and-legacy-identity-migration.md).
+
+Any chain containing an administrator boundary also requires the consumer's
+exact out-of-band `vela.repository-trust-anchor.v1` pin to the first such
+boundary and its administrator key. This applies to both legacy temporalization
+and the first native genesis-rooted dependency boundary: an unsigned genesis
+can prove continuity but cannot select the intended administrator from two
+otherwise valid forks. The pin is public local consumer configuration, never a
+repository object, secret, scientific-state input, or source of acceptance
+authority.
+
+`vela.retained-object-manifest.v1` is a canonical sorted JSON list of
+`{path, git_mode, size, sha256}` entries. Only tracked regular-file modes
+`100644` and `100755` are valid; `sha256` is a bare 64-character lowercase
+digest. Paths are NFC relative repository paths without traversal, backslashes,
+controls, duplicates, or collisions under the documented conservative
+portable key (NFC followed by Unicode lowercase).
+
+The pure value, root, event-shape, signature-only, boundary-chain, and complete
+event-set checks live in
+[`crates/vela-protocol/src/kernel/frontier_repository.rs`](../crates/vela-protocol/src/kernel/frontier_repository.rs).
+
+Repository Profile v1 replaces the legacy whole-`Project` snapshot identity
+with the closed `vela.scientific-state.v2` component-root record. It contains
+`identity_root`, `dependency_root`, and explicit roots for findings, sources,
+evidence atoms, conditions, legacy review/confidence records, artifacts,
+released diff packs, verdict conflicts, contradictions, verifier attachments,
+attempts and resolutions, transfers, endorsements, statement attestations,
+anchor links, and statement registrations. Every component binds canonical
+JSON, including `[]` for an empty collection.
+
+The findings component uses a closed scientific projection rather than raw
+`FindingBundle` serialization. Mutable graph `links` and the read-side
+`access_tier` are excluded; assertion, evidence, conditions, interpretation,
+provenance, annotations, attachments, and version identity remain bound. The
+record also deliberately excludes display metadata, counters, events,
+proposals, signatures, actors, proof exports, and active leases. Those values
+have separate roots or non-scientific roles; adding a new display or
+operational field cannot silently change scientific identity. Its pure
+implementation and fixed empty-state vector live in
+[`crates/vela-protocol/src/computed/scientific_state.rs`](../crates/vela-protocol/src/computed/scientific_state.rs).
+
 ### 4.5 Actor and policy
 
 The frontier actor registry maps a namespaced actor ID to an Ed25519 public key
@@ -217,8 +319,11 @@ write.
 
 New event signatures use the current versioned signing input. Historical
 signatures may still verify for immutable replay, but no new writer emits the
-historical form. Revocation invalidates signatures at or after its effective
-time without rewriting valid earlier history.
+historical form. The historical `key.revoke` kind is audit-only: it can inform
+verification against an already governed registry, but it does not itself
+rewrite `.vela/actors.json`. Profile v1 therefore rejects any actor-registry
+change until a separate repository-local rotation and recovery contract is
+specified; it never delegates that authority to a Hub or other service.
 
 An established actor may opt into temporal registration through one signed
 `actor.registration_activated` event carrying

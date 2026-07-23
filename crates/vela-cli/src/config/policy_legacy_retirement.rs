@@ -23,7 +23,7 @@ use vela_protocol::proposals::policy_accept::{
 };
 
 use crate::frontier_txn::{
-    ContentDigest, DeltaDraft, FrontierBinding, FrontierRecoveryBarrier, FrontierTxn,
+    CanonicalWriteBarrier, ContentDigest, DeltaDraft, FrontierBinding, FrontierTxn,
     FrontierTxnError, FrontierTxnPlan, FrontierTxnPlanSpec, InputBinding, OperationId,
     OperationKind, PlannedWrite, RecoveryOutcome, RepoPath,
 };
@@ -460,10 +460,23 @@ fn read_optional(
 fn acquire_barrier_with_recovery(
     frontier: &Path,
     journal_dir: &Path,
-) -> Result<FrontierRecoveryBarrier, String> {
+) -> Result<CanonicalWriteBarrier, String> {
+    #[cfg(not(test))]
+    FrontierTxn::preflight_write_intent(
+        frontier,
+        crate::frontier_txn::CanonicalWriteIntent::Administrator,
+    )
+    .map_err(|error| error.to_string())?;
     for _ in 0..3 {
         match FrontierTxn::acquire_recovery_barrier(frontier, journal_dir) {
-            Ok(barrier) => return Ok(barrier),
+            Ok(barrier) => {
+                #[cfg(test)]
+                return Ok(barrier.authorize_for_test());
+                #[cfg(not(test))]
+                return barrier
+                    .authorize_for_administrator_write()
+                    .map_err(|error| error.to_string());
+            }
             Err(FrontierTxnError::RecoveryRequired { operation_id, .. }) => {
                 let operation_id =
                     OperationId::parse(operation_id).map_err(|error| error.to_string())?;

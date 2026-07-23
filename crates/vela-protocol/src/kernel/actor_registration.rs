@@ -41,7 +41,7 @@ pub struct ActorRegistrationBoundaryPayload {
     pub anchor: ActorRegistrationAnchor,
 }
 
-fn require_lower_hex(field: &str, value: &str, len: usize) -> Result<(), String> {
+pub(crate) fn require_lower_hex(field: &str, value: &str, len: usize) -> Result<(), String> {
     if value.len() != len
         || !value
             .chars()
@@ -52,7 +52,7 @@ fn require_lower_hex(field: &str, value: &str, len: usize) -> Result<(), String>
     Ok(())
 }
 
-fn require_sha256_root(field: &str, value: &str) -> Result<(), String> {
+pub(crate) fn require_sha256_root(field: &str, value: &str) -> Result<(), String> {
     let Some(hex) = value.strip_prefix("sha256:") else {
         return Err(format!("{field} must use the sha256:<64hex> form"));
     };

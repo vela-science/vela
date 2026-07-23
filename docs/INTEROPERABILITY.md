@@ -1,6 +1,6 @@
 # Interoperability and the narrow waist
 
-Status: prelaunch `0.800` candidate boundary, 2026-07-15.
+Status: current public boundary through Profile v1, 2026-07-23.
 
 Vela interoperates by preserving a small public boundary, not by making every
 scientific tool adopt Vela's internal model. A producer can keep its own Git
@@ -13,8 +13,9 @@ authority-bearing event without giving the producer authority to decide it.
 
 | Class | Contracts | Prelaunch stability intent |
 | --- | --- | --- |
-| Candidate | Receipt v1 JSON and canonicalization, canonical event JSON and replay, content-addressed artifacts, documented CLI JSON | Versioned, bounded, and conformance-tested for `0.800`. Unknown namespaced Receipt v1 extensions survive parsing and canonical re-emission. |
-| Experimental | Decision Brief, `next` task contract, packet decision view | Useful and covered by fixtures, but may change before evidence from independent producers and consumers. |
+| Released | Receipt v1 JSON and canonicalization, canonical event JSON and replay, content-addressed artifacts, Profile v1 identity/boundary contracts, Scientific State Root v2, and documented CLI JSON | Versioned, bounded, and conformance-tested. Unknown namespaced Receipt v1 extensions survive parsing and canonical re-emission. |
+| Derived work | Target Index v2 candidate/seal, `vela.offer.v1`, and retained `vela.target-task-binding.v1` | Exact and fail-closed for Profile v1 work, but non-authoritative and replaceable by another domain candidate generator. |
+| Experimental | Decision Brief presentation and packet decision view | Useful and covered by fixtures, but may change before evidence from independent producers and consumers. |
 | Internal | Work sessions, transaction journals, adapter result JSON, caches, Rust modules | Replaceable implementation detail. Producers must not author or depend on it. |
 
 The packet file `decisions/decision-view.json` is a derived offline view. It
@@ -55,9 +56,16 @@ restricted references, and continue from the accepted parent root.
 ```bash
 git bundle verify frontier.bundle
 git clone frontier.bundle offline-frontier
+vela check offline-frontier --strict --json
 vela frontier materialize offline-frontier
 vela reproduce offline-frontier
 ```
+
+A Profile v1 bundle must include the complete Git anchor history. Each
+consumer separately installs the independently reviewed first-administrator
+boundary pin; repository bytes cannot create that trust decision for the
+recipient. A shallow bundle that omits the anchor is unavailable, not valid by
+assertion.
 
 The manual portability checklist, including incremental bundles and failure on
 missing prerequisites, is in

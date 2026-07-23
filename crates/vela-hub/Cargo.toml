@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Vela hub: read-only HTTP index over verified Git frontier projections"
+publish = false
 
 [[bin]]
 name = "vela-hub"

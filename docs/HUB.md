@@ -55,11 +55,14 @@ registration, deprecation, or mutation endpoint. Catalog selection is operator
 configuration, not scientific authority.
 
 The ingest loop fetches each source, requires the replayed `vfr_id` to match the
-catalog, validates content addresses and signatures, and runs strict replay
-before replacing projections. A later indexed tip must descend from the last
-indexed commit. Sources removed from the active catalog and their projections
-are pruned. Prelaunch databases from earlier schemas should be recreated, not
-migrated through compatibility shims.
+catalog, validates content addresses and signatures, and runs strict checking
+before replacing projections. For Profile v1 this includes profile/settings,
+the repository-boundary chain, Git anchors and ancestry, retained canonical
+bytes, actor registry, and the operator's independently installed
+first-boundary pin whenever an administrator boundary exists. A later indexed
+tip must descend from the last indexed commit. Sources removed from the active
+catalog and their projections are pruned. Prelaunch databases from earlier
+schemas should be recreated, not migrated through compatibility shims.
 
 ## Read surface
 

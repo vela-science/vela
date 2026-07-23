@@ -5,11 +5,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use axum::{
-    Json,
-    extract::State,
-    http::{HeaderMap, StatusCode},
-};
+use axum::{Json, extract::State, http::StatusCode};
 use serde_json::{Value, json};
 
 use vela_edge::signals;
@@ -126,33 +122,6 @@ pub(crate) async fn http_entry_events(
     )
 }
 
-/// v0.51: Resolve the requesting actor's read-side access clearance
-/// from the `X-Vela-Actor` request header. The header value, if
-/// present, is matched against `Project.actors` by id; the actor's
-/// `access_clearance` field is returned. Anonymous reads (header
-/// absent) get `None`, which equals "public-only" per
-/// `access_tier::actor_may_read`.
-///
-/// This is a deliberately thin authentication surface for v0.51 —
-/// the assumption is that a real deployment terminates TLS and
-/// validates actor signatures at a reverse proxy in front of `vela
-/// serve`, then forwards `X-Vela-Actor` only when verified. v0.52+
-/// can tighten this to require a signed bearer token end-to-end.
-fn requesting_clearance(
-    headers: &HeaderMap,
-    project: &Project,
-) -> Option<vela_protocol::access_tier::AccessTier> {
-    let actor_id = headers
-        .get("x-vela-actor")
-        .and_then(|v| v.to_str().ok())?
-        .trim();
-    if actor_id.is_empty() {
-        return None;
-    }
-    let actor = project.actors.iter().find(|a| a.id == actor_id)?;
-    actor.access_clearance
-}
-
 /// GET /entries — the single-element registry list. `vela serve` serves one
 /// (possibly merged) frontier; this mirrors the hub's `/entries` shape so a
 /// client can speak one protocol to either server.
@@ -210,14 +179,16 @@ pub(crate) async fn http_entry(
 pub(crate) async fn http_entry_findings(
     State(state): State<AppState>,
     axum::extract::Path(vfr): axum::extract::Path<String>,
-    headers: HeaderMap,
     axum::extract::Query(params): axum::extract::Query<HashMap<String, String>>,
 ) -> (StatusCode, Json<Value>) {
     let project = state.project.lock().await;
     if resolve_vfr(&project, &vfr).is_none() {
         return vfr_not_found(&project, &vfr);
     }
-    let clearance = requesting_clearance(&headers, &project);
+    // The local HTTP reader has no authenticated request identity. An actor
+    // name supplied by a caller is not proof of possession, so HTTP is always
+    // public-only until a real end-to-end authentication protocol exists.
+    let clearance = None;
     let view = vela_protocol::access_tier::redact_for_actor(&project, clearance);
 
     // v0.91: When no search-style filter is supplied, return a
@@ -270,13 +241,12 @@ pub(crate) async fn http_entry_findings(
 pub(crate) async fn http_entry_finding(
     State(state): State<AppState>,
     axum::extract::Path((vfr, id)): axum::extract::Path<(String, String)>,
-    headers: HeaderMap,
 ) -> (StatusCode, Json<Value>) {
     let project = state.project.lock().await;
     if resolve_vfr(&project, &vfr).is_none() {
         return vfr_not_found(&project, &vfr);
     }
-    let clearance = requesting_clearance(&headers, &project);
+    let clearance = None;
     match project
         .findings
         .iter()
@@ -385,4 +355,73 @@ pub(crate) async fn http_mcp_get() -> (StatusCode, Json<Value>) {
             "error": "stateless MCP endpoint: POST a JSON-RPC message; no server-initiated stream is offered"
         })),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+    use vela_protocol::access_tier::AccessTier;
+    use vela_protocol::sign::ActorRecord;
+
+    fn public_only_state() -> (AppState, String) {
+        let path =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/erdos-formalization");
+        let mut project = vela_protocol::repo::load_from_path(&path).unwrap();
+        let finding = project.findings.first_mut().expect("fixture finding");
+        finding.access_tier = AccessTier::Classified;
+        let classified_id = finding.id.clone();
+        project.actors.push(ActorRecord {
+            id: "reviewer:classified-http-fixture".to_string(),
+            public_key: "11".repeat(32),
+            algorithm: "ed25519".to_string(),
+            created_at: "2026-07-22T00:00:00Z".to_string(),
+            tier: None,
+            orcid: None,
+            access_clearance: Some(AccessTier::Classified),
+            revoked_at: None,
+            revoked_reason: None,
+        });
+        (
+            AppState {
+                project: Arc::new(Mutex::new(project)),
+                project_infos: Vec::new(),
+                client: reqwest::Client::new(),
+                profile: vela_edge::tool_registry::McpProfile::ReadOnly,
+                source_path: Some(path),
+            },
+            classified_id,
+        )
+    }
+
+    #[tokio::test]
+    async fn http_reader_is_always_public_only_without_authenticated_identity() {
+        let (state, classified_id) = public_only_state();
+        let project = state.project.lock().await;
+        let frontier_id = project.frontier_id();
+        let public_count = project
+            .findings
+            .iter()
+            .filter(|finding| finding.access_tier == AccessTier::Public)
+            .count();
+        drop(project);
+
+        let (status, Json(list)) = http_entry_findings(
+            State(state.clone()),
+            axum::extract::Path(frontier_id.clone()),
+            axum::extract::Query(HashMap::new()),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(list["count"], public_count);
+
+        let (status, _) = http_entry_finding(
+            State(state),
+            axum::extract::Path((frontier_id, classified_id)),
+        )
+        .await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
 }

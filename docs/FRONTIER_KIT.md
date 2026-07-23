@@ -18,7 +18,7 @@ private work-session record.
 | README section | It must answer | Existing source |
 | --- | --- | --- |
 | 1. Question | Which bounded scientific or formal question does this frontier maintain? Which claims fall outside its scope? | Root `README.md` and `SCOPE.md` |
-| 2. Start state | Which full Git commit and event-log root form the accepted base for this task? | `git rev-parse HEAD`; `vela status . --json` at that commit |
+| 2. Start state | Which full Git commit, event-log root, scientific-state root, and repository identity form the base for this task? | `git rev-parse HEAD`; `vela status . --json`; `vela.lock` at that commit |
 | 3. First target | Which ranked target should a newcomer take, and which accepted result could it unlock? | `vela next . --json` and the target briefing |
 | 4. Environment and verifier | Which OS tools, language/toolchain versions, dependency commits, limits, and frozen verifier apply? | `vela.lock`, checked-in environment files, verifier source, and witness metadata |
 | 5. Result classes | Which observable counts as success, informative failure, correction, or inconclusive evidence? Which command checks it? | `SCOPE.md`, task briefing, and verifier contract |
@@ -26,10 +26,12 @@ private work-session record.
 | 7. Upstream path | Which domain library or source repository should receive reusable definitions, fixes, or methods? | Root README link to the named upstream project and its contribution guide |
 | 8. Fork and replay | Which commands let a contributor clone, verify, reproduce, and continue without a Vela service? | Git, `vela check`, `vela reproduce`, and the commands below |
 
-Record the event-log root shown at the pinned start commit. In current JSON
-output, `vela status . --json` exposes it at
-`roots.event_log`. `vela work` copies the same base into the typed
-private session and binds the task-contract root into a session-built receipt.
+Record the event-log root shown at the pinned start commit and the Profile v1
+scientific-state, identity, dependency, and profile roots from `vela.lock`.
+Current `vela status . --json` exposes the event root at `roots.event_log`.
+`vela work` retains the exact Target Index v2, packet, repository roots, and
+claim-time read set in `vela.target-task-binding.v1`; landing copies the same
+binding into Receipt v1.
 
 ## Copyable contributor path
 

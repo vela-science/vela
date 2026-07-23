@@ -8,107 +8,61 @@ use colored::Colorize;
 use serde_json::json;
 use vela_protocol::cli_style as style;
 use vela_protocol::frontier_repo;
-use vela_protocol::project;
-use vela_protocol::proposals;
 
 pub(crate) fn cmd_frontier(action: FrontierAction) {
     use vela_protocol::project::ProjectDependency;
     use vela_protocol::repo;
     match action {
+        FrontierAction::Bind {
+            frontier,
+            reason,
+            confirm_root,
+            confirm_at,
+            json,
+        } => crate::cli::repository_bind::cmd_frontier_bind(
+            &frontier,
+            &reason,
+            confirm_root.as_deref(),
+            confirm_at.as_deref(),
+            json,
+        ),
+        FrontierAction::Trust { action } => match action {
+            crate::cli_commands::FrontierTrustAction::Pin {
+                frontier,
+                boundary_root,
+                confirm_root,
+                confirm_at,
+                json,
+            } => crate::cli::repository_trust::cmd_frontier_trust_pin(
+                &frontier,
+                &boundary_root,
+                confirm_root.as_deref(),
+                confirm_at.as_deref(),
+                json,
+            ),
+        },
         FrontierAction::New {
             path,
-            name,
-            description,
-            force,
-            json,
+            name: _,
+            description: _,
+            force: _,
+            json: _,
         } => {
-            if path.exists() && !force {
-                crate::ui::fail_with(
-                    crate::ui::ErrorKind::Exists,
-                    &format!("{} already exists", path.display()),
-                    Some("pass --force to overwrite"),
-                );
-            }
-            let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-            let project = project::Project {
-                vela_version: project::VELA_SCHEMA_VERSION.to_string(),
-                schema: project::VELA_SCHEMA_URL.to_string(),
-                frontier_id: None,
-                project: project::ProjectMeta {
-                    name: name.clone(),
-                    description: description.clone(),
-                    compiled_at: now,
-                    compiler: project::VELA_COMPILER_VERSION.to_string(),
-                    papers_processed: 0,
-                    errors: 0,
-                    dependencies: Vec::new(),
-                },
-                stats: project::ProjectStats::default(),
-                findings: Vec::new(),
-                sources: Vec::new(),
-                evidence_atoms: Vec::new(),
-                condition_records: Vec::new(),
-                review_events: Vec::new(),
-                confidence_updates: Vec::new(),
-                events: Vec::new(),
-                proposals: Vec::new(),
-                proof_state: proposals::ProofState::default(),
-                signatures: Vec::new(),
-                actors: Vec::new(),
-                artifacts: Vec::new(),
-                released_diff_packs: Vec::new(),
-                verdict_conflicts: Vec::new(),
-                contradictions: Vec::new(),
-                verifier_attachments: Vec::new(),
-                attempts: Vec::new(),
-                attempt_resolutions: Vec::new(),
-                transfers: Vec::new(),
-                endorsements: Vec::new(),
-                statement_attestations: Vec::new(),
-                anchor_links: Vec::new(),
-                attempt_claims: Vec::new(),
-                statement_registrations: Vec::new(),
-            };
-            repo::save_to_path(&path, &project).unwrap_or_else(|e| fail_return(&e));
-            let payload = json!({
-                "ok": true,
-                "command": "frontier.new",
-                "path": path.display().to_string(),
-                "name": name,
-                "schema": project::VELA_SCHEMA_URL,
-                "vela_version": env!("CARGO_PKG_VERSION"),
-                "next_steps": [
-                    "vela id create --handle <your-name>",
-                    "vela actor add <path>",
-                    "vela land <receipt.json> --frontier <path> --as agent:<you>",
-                    "vela sign --frontier <path>",
-                    "git push   # publication to a Hub-configured source repository",
-                ],
-            });
-            if json {
-                print_json(&payload);
-            } else {
-                println!(
-                    "{} scaffolded frontier '{name}' at {}",
-                    style::ok("frontier"),
+            crate::ui::fail_with(
+                crate::ui::ErrorKind::Usage,
+                "frontier new is retired; it cannot create or overwrite a legacy v0.1 repository",
+                Some(&format!(
+                    "use `vela init {} --name <name> --scope <bounded-question>` for a new Profile v1 frontier; use `vela migrate` for an existing repository",
                     path.display()
-                );
-                println!("  next steps:");
-                println!("    1. vela id create --handle <your-name>");
-                println!("    2. vela actor add {}", path.display());
-                println!(
-                    "    3. vela land <receipt.json> --frontier {} --as agent:<you>",
-                    path.display()
-                );
-                println!("    4. vela sign --frontier {}", path.display());
-                println!("    5. git push   # publication to a Hub-configured source repository");
-            }
+                )),
+            );
         }
         FrontierAction::Materialize { frontier, json } => {
             let spin = (!json).then(|| {
                 crate::cli::progress::Spinner::start("materializing derived views from the log")
             });
-            let payload = frontier_repo::materialize(&frontier).unwrap_or_else(|e| fail_return(&e));
+            let payload =
+                materialize_with_write_gate(&frontier).unwrap_or_else(|error| fail_return(&error));
             if let Some(s) = spin {
                 s.finish("materialized");
             }
@@ -178,7 +132,7 @@ pub(crate) fn cmd_frontier(action: FrontierAction) {
             push,
             json,
         } => {
-            crate::ui::set_mode("frontier recover-publication", json);
+            crate::ui::set_mode("frontier.recover-publication", json);
             let dir = crate::ui::resolve_frontier(frontier);
             let opts = if push {
                 crate::config::git_publish::PublishOptions::pushing()
@@ -244,6 +198,70 @@ pub(crate) fn cmd_frontier(action: FrontierAction) {
             json,
         } => cmd_frontier_rank(&frontier, limit, json),
     }
+}
+
+fn materialize_with_write_gate(frontier: &std::path::Path) -> Result<serde_json::Value, String> {
+    let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier)?;
+    let write_barrier =
+        crate::frontier_txn::FrontierTxn::acquire_write_barrier(frontier, &journal_dir)
+            .map_err(|error| error.to_string())?;
+    let project = vela_protocol::repo::load_from_path(frontier)?;
+    let visible = frontier_repo::render_visible_repo_files(frontier, &project)?;
+    let managed = vela_protocol::repo::ManagedFileSet {
+        writes: visible,
+        deletes: Default::default(),
+    };
+    let writes = crate::frontier_txn::PlannedWrite::from_managed_files(managed)
+        .map_err(|error| error.to_string())?;
+    let request = vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
+        "schema": "vela.frontier-materialize-request.internal.v1",
+        "frontier_id": project.frontier_id(),
+        "event_log_root": format!("sha256:{}", vela_protocol::events::event_log_hash(&project.events)),
+    }))?;
+    crate::frontier_txn::execute_no_event_transaction(
+        write_barrier,
+        frontier,
+        "frontier-materialize",
+        crate::frontier_txn::ContentDigest::hash(request),
+        &chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
+        &project,
+        writes,
+        Vec::new(),
+        serde_json::json!({"schema": "vela.frontier-materialize-result.internal.v1"}),
+    )
+    .map_err(|error| error.to_string())?;
+    let lock = frontier_repo::read_repository_lock(frontier)?
+        .ok_or_else(|| "materialization completed without vela.lock".to_string())?;
+    Ok(match lock {
+        frontier_repo::FrontierLockFile::V1(lock) => serde_json::json!({
+            "schema": frontier_repo::FRONTIER_MATERIALIZE_SCHEMA,
+            "ok": true,
+            "path": frontier.display().to_string(),
+            "wrote_frontier": "frontier.json",
+            "wrote_lock": "vela.lock",
+            "wrote_proof": "proof/latest.json",
+            "wrote_events_manifest": "proof/events.manifest.jsonl",
+            "profile_root": lock.profile_root,
+            "identity_root": lock.identity_root,
+            "dependency_root": lock.dependency_root,
+            "scientific_state_root": lock.scientific_state_root,
+            "legacy_snapshot_root": lock.legacy_snapshot_root,
+            "event_log_root": lock.event_log_root,
+            "proposal_root": lock.proposal_root,
+        }),
+        frontier_repo::FrontierLockFile::LegacyV0_1(lock) => serde_json::json!({
+            "schema": frontier_repo::FRONTIER_MATERIALIZE_SCHEMA,
+            "ok": true,
+            "path": frontier.display().to_string(),
+            "wrote_frontier": "frontier.json",
+            "wrote_lock": "vela.lock",
+            "wrote_proof": "proof/latest.json",
+            "wrote_events_manifest": "proof/events.manifest.jsonl",
+            "snapshot_hash": lock.snapshot_hash,
+            "event_log_hash": lock.event_log_hash,
+            "proposal_state_hash": lock.proposal_state_hash,
+        }),
+    })
 }
 
 /// `vela frontier rank` — rank OPEN findings by accumulating structural support
@@ -320,4 +338,54 @@ fn cmd_frontier_rank(frontier: &std::path::Path, limit: usize, json: bool) {
     println!(
         "\n  structural advice, not authority. Use `vela next . --json` for canonical producer offers; verification is not acceptance."
     );
+}
+
+#[cfg(test)]
+mod write_gate_tests {
+    use super::*;
+
+    fn snapshot(root: &std::path::Path) -> std::collections::BTreeMap<String, Vec<u8>> {
+        fn walk(
+            root: &std::path::Path,
+            directory: &std::path::Path,
+            files: &mut std::collections::BTreeMap<String, Vec<u8>>,
+        ) {
+            let Ok(entries) = std::fs::read_dir(directory) else {
+                return;
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    walk(root, &path, files);
+                } else if path.is_file() {
+                    files.insert(
+                        path.strip_prefix(root)
+                            .unwrap()
+                            .to_string_lossy()
+                            .into_owned(),
+                        std::fs::read(path).unwrap(),
+                    );
+                }
+            }
+        }
+        let mut files = std::collections::BTreeMap::new();
+        walk(root, root, &mut files);
+        files
+    }
+
+    #[test]
+    fn materialize_requires_profile_v1_without_touching_legacy_bytes() {
+        let temp = tempfile::tempdir().unwrap();
+        let project = vela_protocol::project::assemble("legacy", Vec::new(), 0, 0, "fixture");
+        vela_protocol::repo::init_repo(temp.path(), &project).unwrap();
+        let before = snapshot(temp.path());
+
+        let error = materialize_with_write_gate(temp.path()).unwrap_err();
+        assert!(
+            error.contains("frontier_profile_upgrade_required"),
+            "{error}"
+        );
+        assert_eq!(snapshot(temp.path()), before);
+        assert!(!temp.path().join(".vela/operation-journals").exists());
+    }
 }

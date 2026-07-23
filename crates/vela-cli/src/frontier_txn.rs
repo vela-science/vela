@@ -7,6 +7,7 @@
 //! verification, clocks, or key-bearing code.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::ffi::OsString;
 use std::fmt;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
@@ -14,6 +15,11 @@ use std::path::{Component, Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as ShaDigest, Sha256};
+use unicode_normalization::UnicodeNormalization;
+use vela_edge::repository_write::{
+    RepositoryWriteGateError, VerifiedRepositoryIdentity, VerifiedRepositoryWriteContext,
+    load_repository_trust_anchor_from_home, verify_repository_for_write,
+};
 
 use crate::operation_journal;
 
@@ -126,6 +132,12 @@ impl RepoPath {
             return Err(FrontierTxnError::InvalidPath {
                 path: value,
                 reason: "path must be a non-empty normalized relative path".to_string(),
+            });
+        }
+        if value.nfc().ne(value.chars()) {
+            return Err(FrontierTxnError::InvalidPath {
+                path: value,
+                reason: "path must already be Unicode NFC".to_string(),
             });
         }
         for segment in value.split('/') {
@@ -263,11 +275,24 @@ impl CanonicalDelta {
                 .then_with(|| left.path.cmp(&right.path))
         });
         let mut paths = BTreeSet::new();
+        let mut portable_paths = BTreeMap::new();
         for write in &writes {
             if !paths.insert(write.path.clone()) {
                 return Err(FrontierTxnError::DuplicatePath(
                     write.path.as_str().to_string(),
                 ));
+            }
+            let portable_key = write
+                .path
+                .as_str()
+                .nfc()
+                .flat_map(char::to_lowercase)
+                .collect::<String>();
+            if let Some(previous) = portable_paths.insert(portable_key, write.path.clone()) {
+                return Err(FrontierTxnError::PortablePathCollision {
+                    first: previous.as_str().to_string(),
+                    second: write.path.as_str().to_string(),
+                });
             }
         }
         let root = Self::compute_root(&writes)?;
@@ -405,6 +430,13 @@ pub(crate) struct DeltaDraft {
     blobs: BTreeMap<ContentDigest, Vec<u8>>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CompletedFrontierTxn {
+    pub(crate) operation_id: String,
+    pub(crate) plan_root: String,
+    pub(crate) canonical_delta_root: String,
+}
+
 impl DeltaDraft {
     pub(crate) fn prepare(
         frontier_root: &Path,
@@ -472,6 +504,99 @@ impl DeltaDraft {
             Ok(bytes)
         })
     }
+}
+
+/// Execute one non-event canonical transaction under an already-authorized
+/// write barrier. The intent-specific delta contract remains the authority;
+/// this helper only removes legacy direct filesystem writers for derived and
+/// registry maintenance.
+pub(crate) fn execute_no_event_transaction(
+    barrier: CanonicalWriteBarrier,
+    frontier_root: &Path,
+    operation_domain: &str,
+    request_root: ContentDigest,
+    fixed_time: &str,
+    project: &vela_protocol::project::Project,
+    writes: Vec<PlannedWrite>,
+    mut read_set: Vec<InputBinding>,
+    result: serde_json::Value,
+) -> Result<Option<CompletedFrontierTxn>, FrontierTxnError> {
+    let preimage_project = vela_protocol::repo::load_from_path(frontier_root).map_err(|error| {
+        FrontierTxnError::Io(format!(
+            "load repository preimage for non-event transaction: {error}"
+        ))
+    })?;
+    if preimage_project.frontier_id() != project.frontier_id()
+        || vela_protocol::events::event_log_hash(&preimage_project.events)
+            != vela_protocol::events::event_log_hash(&project.events)
+    {
+        return Err(FrontierTxnError::CorruptPlan(
+            "non-event transaction cannot change frontier identity or event history".to_string(),
+        ));
+    }
+    let draft = DeltaDraft::prepare(frontier_root, writes)?;
+    if draft.delta.writes().is_empty() {
+        return Ok(None);
+    }
+    if !read_set
+        .iter()
+        .any(|binding| binding.name == FRONTIER_PROJECT_INPUT_NAME)
+    {
+        read_set.insert(0, InputBinding::project_snapshot(&preimage_project)?);
+    }
+    let layout_identity = vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
+        "schema": "vela.frontier-layout.internal.v1",
+        "frontier_id": project.frontier_id(),
+        "paths": draft
+            .delta
+            .writes()
+            .iter()
+            .map(|write| write.path.as_str())
+            .collect::<Vec<_>>(),
+    }))
+    .map_err(FrontierTxnError::Canonicalize)?;
+    let event_root = ContentDigest::parse(format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&preimage_project.events)
+    ))?;
+    let mut event_ids = preimage_project
+        .events
+        .iter()
+        .map(|event| event.id.clone())
+        .collect::<Vec<_>>();
+    event_ids.sort();
+    event_ids.dedup();
+    if event_ids.len() != project.events.len() {
+        return Err(FrontierTxnError::CorruptPlan(
+            "non-event transaction refuses duplicate event identifiers".to_string(),
+        ));
+    }
+    let operation_id = OperationId::derive(operation_domain, request_root.as_str().as_bytes());
+    let plan = FrontierTxnPlan::new(
+        FrontierTxnPlanSpec {
+            kind: OperationKind::Maintenance,
+            operation_id: operation_id.clone(),
+            request_root,
+            frontier: FrontierBinding::new(frontier_root, project.frontier_id(), &layout_identity)?,
+            fixed_time: fixed_time.to_string(),
+            expected_event_log_root: event_root.clone(),
+            resulting_event_log_root: event_root,
+            resulting_event_ids: event_ids,
+            read_set,
+            result,
+        },
+        draft.delta.clone(),
+    )?;
+    let completed = CompletedFrontierTxn {
+        operation_id: operation_id.as_str().to_string(),
+        plan_root: plan.root().as_str().to_string(),
+        canonical_delta_root: draft.delta.root().as_str().to_string(),
+    };
+    let mut transaction = FrontierTxn::prepare_with_barrier(barrier, plan, draft)?;
+    transaction.mark_committed()?;
+    transaction.install()?;
+    transaction.complete()?;
+    Ok(Some(completed))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1016,6 +1141,816 @@ pub(crate) struct FrontierRecoveryBarrier {
     lock: FrontierWriteLock,
 }
 
+/// A recovery barrier that has additionally passed the repository-generation
+/// write gate.
+///
+/// The authorization is deliberately in-memory and non-serializable. A
+/// durable Prepared journal therefore cannot recreate permission to cross the
+/// commit-marker boundary after a process restart.
+#[derive(Debug)]
+pub(crate) struct CanonicalWriteBarrier {
+    recovery: FrontierRecoveryBarrier,
+    authorization: FrontierTxnAuthorization,
+}
+
+/// Exact facts checked before showing the protected Profile v0.1 -> v1
+/// approval prompt.
+///
+/// This value can retain the recovery lock but cannot prepare or commit a
+/// transaction. Only the matching protected signer response can promote it
+/// into a [`MigrationWriteBarrier`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct MigrationCeremonySpec {
+    canonical_frontier_root: PathBuf,
+    frontier_id: String,
+    anchor_git_commit: String,
+    anchor_git_tree: String,
+    pre_event_log_root: ContentDigest,
+    pre_event_count: usize,
+    confirmed_plan_root: ContentDigest,
+    request_root: ContentDigest,
+    boundary_event_id: String,
+}
+
+impl MigrationCeremonySpec {
+    pub(crate) fn from_protected_request(
+        request: &vela_signer::RepositoryBoundarySignerRequest,
+    ) -> Result<Self, FrontierTxnError> {
+        Self::from_protected_request_at(request, chrono::Utc::now())
+    }
+
+    fn from_protected_request_at(
+        request: &vela_signer::RepositoryBoundarySignerRequest,
+        validation_time: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Self, FrontierTxnError> {
+        vela_signer::validate_repository_boundary_request(request, validation_time)
+            .map_err(FrontierTxnError::MigrationAuthorizationInvalid)?;
+        let payload: vela_protocol::frontier_repository::FrontierRepositoryBoundaryPayloadV1 =
+            serde_json::from_value(request.event.payload.clone()).map_err(|error| {
+                FrontierTxnError::MigrationAuthorizationInvalid(format!(
+                    "decode protected migration boundary payload: {error}"
+                ))
+            })?;
+        if payload.mode
+            != vela_protocol::frontier_repository::FrontierRepositoryBoundaryMode::TemporalizeExisting
+        {
+            return Err(FrontierTxnError::MigrationAuthorizationInvalid(
+                "migration ceremony accepts only temporalize_existing repository boundaries"
+                    .to_string(),
+            ));
+        }
+        if payload.trust_mode
+            != vela_protocol::frontier_repository::FrontierRepositoryTrustMode::Tofu
+        {
+            return Err(FrontierTxnError::MigrationAuthorizationInvalid(
+                "legacy Profile v0.1 migration requires the first TOFU repository boundary"
+                    .to_string(),
+            ));
+        }
+        let pre_event_count = usize::try_from(payload.anchor_event_count).map_err(|_| {
+            FrontierTxnError::MigrationAuthorizationInvalid(
+                "migration anchor event count does not fit this platform".to_string(),
+            )
+        })?;
+        let canonical_frontier_root = PathBuf::from(&request.frontier_path);
+        if !canonical_frontier_root.is_absolute()
+            || canonical_frontier_root.components().any(|component| {
+                matches!(
+                    component,
+                    std::path::Component::CurDir | std::path::Component::ParentDir
+                )
+            })
+        {
+            return Err(FrontierTxnError::MigrationAuthorizationInvalid(
+                "protected migration frontier_path must be an absolute normalized path".to_string(),
+            ));
+        }
+        let spec = Self {
+            canonical_frontier_root,
+            frontier_id: payload.frontier_id,
+            anchor_git_commit: payload.anchor_git_commit,
+            anchor_git_tree: payload.anchor_git_tree,
+            pre_event_log_root: ContentDigest::parse(payload.anchor_event_log_root)?,
+            pre_event_count,
+            confirmed_plan_root: ContentDigest::parse(request.boundary_plan_root.clone())?,
+            request_root: ContentDigest::parse(
+                vela_signer::repository_boundary_request_root(request)
+                    .map_err(FrontierTxnError::MigrationAuthorizationInvalid)?,
+            )?,
+            boundary_event_id: request.event.id.clone(),
+        };
+        validate_git_oid("migration anchor commit", &spec.anchor_git_commit)?;
+        validate_git_oid("migration anchor tree", &spec.anchor_git_tree)?;
+        if spec.frontier_id.trim().is_empty() {
+            return Err(FrontierTxnError::MigrationAuthorizationInvalid(
+                "migration frontier id is empty".to_string(),
+            ));
+        }
+        Ok(spec)
+    }
+
+    pub(crate) fn confirmed_plan_root(&self) -> &ContentDigest {
+        &self.confirmed_plan_root
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct MigrationCeremonyBarrier {
+    recovery: FrontierRecoveryBarrier,
+    spec: MigrationCeremonySpec,
+}
+
+/// Exact facts reauthorized for the one protected Profile v0.1 -> v1
+/// migration transaction. This is private transaction plumbing, not a
+/// protocol object or a reusable administrator permission. There is
+/// deliberately no caller-facing constructor: promotion from a held ceremony
+/// barrier is the only production path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct MigrationWritePermitSpec {
+    ceremony: MigrationCeremonySpec,
+    confirmed_delta_root: ContentDigest,
+}
+
+impl MigrationWritePermitSpec {
+    fn from_protected_response(
+        ceremony: &MigrationCeremonySpec,
+        request: &vela_signer::RepositoryBoundarySignerRequest,
+        response: &vela_signer::RepositoryBoundarySignerResponse,
+        confirmed_delta_root: impl Into<String>,
+    ) -> Result<Self, FrontierTxnError> {
+        let approved_at = chrono::DateTime::parse_from_rfc3339(&response.approved_at)
+            .map_err(|error| {
+                FrontierTxnError::MigrationAuthorizationInvalid(format!(
+                    "repository-boundary response approved_at is not RFC3339: {error}"
+                ))
+            })?
+            .with_timezone(&chrono::Utc);
+        let current = MigrationCeremonySpec::from_protected_request_at(request, approved_at)?;
+        if &current != ceremony {
+            return Err(FrontierTxnError::MigrationAuthorizationInvalid(
+                "protected repository-boundary request differs from the held migration ceremony"
+                    .to_string(),
+            ));
+        }
+        // `approved_at` is response metadata, not part of the signed event.
+        // Recheck freshness against this process's current wall clock so a
+        // captured, formerly valid request/response cannot mint a new
+        // migration capability after its bounded ceremony window.
+        vela_signer::validate_repository_boundary_request_fresh(request, chrono::Utc::now())
+            .map_err(FrontierTxnError::MigrationAuthorizationInvalid)?;
+        vela_signer::validate_repository_boundary_response(request, response)
+            .map_err(FrontierTxnError::MigrationAuthorizationInvalid)?;
+        if response.request_root != ceremony.request_root.as_str()
+            || response.event_id != ceremony.boundary_event_id
+        {
+            return Err(FrontierTxnError::MigrationAuthorizationInvalid(
+                "protected response differs from the held request or boundary event".to_string(),
+            ));
+        }
+        Ok(Self {
+            ceremony: ceremony.clone(),
+            confirmed_delta_root: ContentDigest::parse(confirmed_delta_root)?,
+        })
+    }
+
+    pub(crate) fn confirmed_plan_root(&self) -> &ContentDigest {
+        &self.ceremony.confirmed_plan_root
+    }
+
+    pub(crate) fn confirmed_delta_root(&self) -> &ContentDigest {
+        &self.confirmed_delta_root
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct MigrationWriteBarrier {
+    recovery: FrontierRecoveryBarrier,
+    authorization: FrontierTxnAuthorization,
+}
+
+/// The exact repository authority required by one canonical write attempt.
+///
+/// This value is deliberately part of the in-memory capability rather than a
+/// caller-controlled boolean. Migration uses its own exact, protected permit
+/// and may not enter through any of these ordinary write intents.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CanonicalWriteIntent {
+    /// Producer evidence, leases, verifier attachments, and derived views.
+    Producer,
+    /// Add the first proof-of-possession actor at structural genesis. Any
+    /// established-registry mutation is rejected in this release.
+    ActorRegistry,
+    /// Create the first protected administrator boundary for a native v1
+    /// repository. Later boundary updates use `Administrator`.
+    FirstAdministratorBoundary,
+    /// Human review, policy, registry extension, and other administrator
+    /// operations.
+    Administrator,
+}
+
+impl CanonicalWriteIntent {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Producer => "producer",
+            Self::ActorRegistry => "actor_registry",
+            Self::FirstAdministratorBoundary => "first_administrator_boundary",
+            Self::Administrator => "administrator",
+        }
+    }
+}
+
+#[derive(Debug)]
+struct CanonicalWriteAuthorization {
+    frontier_id: String,
+    context_root: ContentDigest,
+    trusted_user_home: PathBuf,
+    intent: CanonicalWriteIntent,
+    delta_root: Option<ContentDigest>,
+}
+
+#[derive(Debug)]
+struct MigrationWriteAuthorization {
+    spec: MigrationWritePermitSpec,
+    context_root: ContentDigest,
+}
+
+#[derive(Serialize)]
+struct MigrationWriteAuthorizationCommitment<'a> {
+    schema: &'static str,
+    frontier_id: &'a str,
+    canonical_root: String,
+    anchor_git_commit: &'a str,
+    anchor_git_tree: &'a str,
+    pre_event_log_root: &'a ContentDigest,
+    pre_event_count: usize,
+    confirmed_plan_root: &'a ContentDigest,
+    confirmed_delta_root: &'a ContentDigest,
+    request_root: &'a ContentDigest,
+    boundary_event_id: &'a str,
+}
+
+#[derive(Serialize)]
+struct RepositoryWriteAuthorizationCommitment<'a> {
+    schema: &'static str,
+    frontier_id: &'a str,
+    profile_root: &'a str,
+    identity_root: &'a str,
+    dependency_root: &'a str,
+    identity_event_root: &'a str,
+    scientific_state_root: &'a str,
+    settings_root: ContentDigest,
+    replayed_snapshot_hash: &'a str,
+    materialized_snapshot_hash: &'a str,
+    trust_store_home: String,
+    write_intent: &'static str,
+    identity: serde_json::Value,
+}
+
+fn repository_write_authorization_root(
+    context: &VerifiedRepositoryWriteContext,
+    trusted_user_home: &Path,
+    intent: CanonicalWriteIntent,
+) -> Result<ContentDigest, FrontierTxnError> {
+    let settings_bytes = vela_protocol::canonical::to_canonical_bytes(&context.settings)
+        .map_err(FrontierTxnError::Canonicalize)?;
+    let identity = match &context.identity {
+        VerifiedRepositoryIdentity::Genesis {
+            identity_event_root,
+        } => serde_json::json!({
+            "kind": "genesis",
+            "identity_event_root": identity_event_root,
+        }),
+        VerifiedRepositoryIdentity::PinnedBoundary {
+            origin,
+            boundary,
+            trust_anchor_root,
+        } => serde_json::json!({
+            "kind": "pinned_boundary",
+            "origin": format!("{origin:?}"),
+            "boundary": boundary,
+            "trust_anchor_root": trust_anchor_root,
+        }),
+    };
+    let bytes =
+        vela_protocol::canonical::to_canonical_bytes(&RepositoryWriteAuthorizationCommitment {
+            schema: "vela.repository-write-authorization.internal.v1",
+            frontier_id: &context.frontier_id,
+            profile_root: &context.profile.profile_root,
+            identity_root: &context.profile.identity_root,
+            dependency_root: &context.profile.dependency_root,
+            identity_event_root: &context.profile.identity_event_root,
+            scientific_state_root: &context.profile.scientific_state_root,
+            settings_root: ContentDigest::hash(settings_bytes),
+            replayed_snapshot_hash: &context.replayed_snapshot_hash,
+            materialized_snapshot_hash: &context.materialized_snapshot_hash,
+            trust_store_home: trusted_user_home.to_string_lossy().into_owned(),
+            write_intent: intent.as_str(),
+            identity,
+        })
+        .map_err(FrontierTxnError::Canonicalize)?;
+    Ok(ContentDigest::hash(bytes))
+}
+
+fn verify_repository_write_authorization(
+    root: &Path,
+    trusted_user_home: &Path,
+    intent: CanonicalWriteIntent,
+) -> Result<CanonicalWriteAuthorization, FrontierTxnError> {
+    let trusted_user_home = fs::canonicalize(trusted_user_home).map_err(|error| {
+        FrontierTxnError::RepositoryTrustAnchor(format!(
+            "resolve operating-system account home for trust store: {error}"
+        ))
+    })?;
+    let project = vela_protocol::repo::load_from_path(root).map_err(|error| {
+        FrontierTxnError::Io(format!("load repository for write gate: {error}"))
+    })?;
+    let loaded_anchor =
+        load_repository_trust_anchor_from_home(&trusted_user_home, &project.frontier_id())
+            .map_err(FrontierTxnError::RepositoryTrustAnchor)?;
+    let context = verify_repository_for_write(
+        root,
+        &project,
+        loaded_anchor.as_ref().map(|loaded| &loaded.anchor),
+    )
+    .map_err(FrontierTxnError::RepositoryWriteGate)?;
+    verify_write_intent(intent, &project, &context)?;
+    let context_root = repository_write_authorization_root(&context, &trusted_user_home, intent)?;
+    Ok(CanonicalWriteAuthorization {
+        frontier_id: context.frontier_id,
+        context_root,
+        trusted_user_home,
+        intent,
+        delta_root: None,
+    })
+}
+
+fn repository_derived_path(path: &str) -> bool {
+    path == "frontier.json"
+        || path == "vela.lock"
+        || path == ".vela/proof-state.json"
+        || path.starts_with("proof/")
+}
+
+fn protected_producer_event(kind: &str) -> bool {
+    matches!(
+        kind,
+        vela_protocol::events::EVENT_KIND_KEY_REVOKE
+            | vela_protocol::events::EVENT_KIND_ARTIFACT_REVIEWED
+            | vela_protocol::events::EVENT_KIND_TIER_SET
+            | vela_protocol::events::EVENT_KIND_EVIDENCE_ATOM_LOCATOR_REPAIRED
+            | vela_protocol::events::EVENT_KIND_FINDING_SPAN_REPAIRED
+            | vela_protocol::events::EVENT_KIND_FRONTIER_OBSERVATION_REVIEWED
+            | vela_protocol::events::EVENT_KIND_CONTRADICTION_RESOLVED
+            | vela_protocol::events::EVENT_KIND_REVIEW_ACCEPTED
+            | vela_protocol::events::EVENT_KIND_REVIEW_REJECTED
+            | vela_protocol::events::EVENT_KIND_REVIEW_REVISION_REQUESTED
+            | vela_protocol::events::EVENT_KIND_ACTOR_REGISTRATION_ACTIVATED
+            | vela_protocol::events::EVENT_KIND_FRONTIER_REPOSITORY_BOUND
+    )
+}
+
+fn staged_event(
+    write: &StagedWrite,
+    mut read_blob: impl FnMut(&JournalBlobRef) -> Result<Vec<u8>, FrontierTxnError>,
+) -> Result<Option<vela_protocol::events::StateEvent>, FrontierTxnError> {
+    let Some(relative) = write.path.as_str().strip_prefix(".vela/events/") else {
+        return Ok(None);
+    };
+    let Some(event_id) = relative.strip_suffix(".json") else {
+        return Err(FrontierTxnError::RepositoryWriteIntentDenied {
+            intent: "invalid",
+            reason: format!(
+                "event write {} is not one direct JSON event",
+                write.path.as_str()
+            ),
+        });
+    };
+    if write.class != WriteClass::Authority
+        || !matches!(write.preimage, FileState::Absent)
+        || !matches!(write.postimage, FileState::File { .. })
+    {
+        return Err(FrontierTxnError::RepositoryWriteIntentDenied {
+            intent: "invalid",
+            reason: format!(
+                "canonical events are append-only Authority writes: {}",
+                write.path.as_str()
+            ),
+        });
+    }
+    let blob = write.payload.as_ref().ok_or_else(|| {
+        FrontierTxnError::CorruptPlan(format!(
+            "event write {} has no postimage blob",
+            write.path.as_str()
+        ))
+    })?;
+    let bytes = read_blob(blob)?;
+    let event =
+        serde_json::from_slice::<vela_protocol::events::StateEvent>(&bytes).map_err(|error| {
+            FrontierTxnError::CorruptPlan(format!(
+                "event write {} is not a StateEvent: {error}",
+                write.path.as_str()
+            ))
+        })?;
+    if event.id != event_id || vela_protocol::events::compute_event_id(&event) != event.id {
+        return Err(FrontierTxnError::CorruptPlan(format!(
+            "event write {} has a mismatched or stale content id",
+            write.path.as_str()
+        )));
+    }
+    Ok(Some(event))
+}
+
+fn verify_write_intent_delta(
+    intent: CanonicalWriteIntent,
+    delta: &CanonicalDelta,
+    mut read_blob: impl FnMut(&JournalBlobRef) -> Result<Vec<u8>, FrontierTxnError>,
+) -> Result<(), FrontierTxnError> {
+    let deny = |reason: String| FrontierTxnError::RepositoryWriteIntentDenied {
+        intent: intent.as_str(),
+        reason,
+    };
+    let mut actor_registry_writes = 0_usize;
+    let mut boundary_events = 0_usize;
+
+    for write in delta.writes() {
+        let path = write.path.as_str();
+        let event = staged_event(write, &mut read_blob)?;
+        match intent {
+            CanonicalWriteIntent::Producer => {
+                if path == ".vela/actors.json"
+                    || path.starts_with(".vela/policies/")
+                    || path == "frontier.yaml"
+                {
+                    return Err(deny(format!(
+                        "producer writes cannot change repository administration path {path}"
+                    )));
+                }
+                if let Some(event) = event
+                    && protected_producer_event(event.kind.as_str())
+                {
+                    return Err(deny(format!(
+                        "producer writes cannot append protected event kind {}",
+                        event.kind
+                    )));
+                }
+            }
+            CanonicalWriteIntent::ActorRegistry => {
+                if path == ".vela/actors.json" {
+                    actor_registry_writes += 1;
+                    if write.class != WriteClass::CanonicalEvidence
+                        || !matches!(write.preimage, FileState::File { .. })
+                        || !matches!(write.postimage, FileState::File { .. })
+                    {
+                        return Err(deny(
+                            "actor bootstrap must replace the exact empty regular registry"
+                                .to_string(),
+                        ));
+                    }
+                } else if !repository_derived_path(path) {
+                    return Err(deny(format!(
+                        "actor bootstrap delta contains unrelated path {path}"
+                    )));
+                }
+                if event.is_some() {
+                    return Err(deny(
+                        "actor bootstrap cannot append an event before the protected repository boundary"
+                            .to_string(),
+                    ));
+                }
+            }
+            CanonicalWriteIntent::FirstAdministratorBoundary => {
+                if let Some(event) = event {
+                    if event.kind != vela_protocol::events::EVENT_KIND_FRONTIER_REPOSITORY_BOUND {
+                        return Err(deny(format!(
+                            "first administrator boundary cannot append event kind {}",
+                            event.kind
+                        )));
+                    }
+                    boundary_events += 1;
+                } else if !repository_derived_path(path) {
+                    return Err(deny(format!(
+                        "first administrator boundary delta contains unrelated path {path}"
+                    )));
+                }
+            }
+            CanonicalWriteIntent::Administrator => {
+                if path == ".vela/actors.json" {
+                    return Err(deny(
+                        "Profile v1 has no actor-registry extension or rotation primitive"
+                            .to_string(),
+                    ));
+                }
+                if let Some(event) = event
+                    && event.kind == vela_protocol::events::EVENT_KIND_FRONTIER_REPOSITORY_BOUND
+                {
+                    return Err(deny(
+                        "ordinary administrator writes cannot create a repository boundary"
+                            .to_string(),
+                    ));
+                }
+            }
+        }
+    }
+
+    if intent == CanonicalWriteIntent::ActorRegistry && actor_registry_writes != 1 {
+        return Err(deny(format!(
+            "actor bootstrap requires exactly one actor-registry postimage, found {actor_registry_writes}"
+        )));
+    }
+    if intent == CanonicalWriteIntent::FirstAdministratorBoundary && boundary_events != 1 {
+        return Err(deny(format!(
+            "first administrator boundary requires exactly one boundary event, found {boundary_events}"
+        )));
+    }
+    Ok(())
+}
+
+fn bind_authorization_to_delta(
+    authorization: &mut CanonicalWriteAuthorization,
+    delta: &CanonicalDelta,
+    read_blob: impl FnMut(&JournalBlobRef) -> Result<Vec<u8>, FrontierTxnError>,
+) -> Result<(), FrontierTxnError> {
+    verify_write_intent_delta(authorization.intent, delta, read_blob)?;
+    if let Some(bound) = &authorization.delta_root
+        && bound != delta.root()
+    {
+        return Err(FrontierTxnError::WriteAuthorizationDeltaMismatch {
+            authorized: bound.clone(),
+            planned: delta.root().clone(),
+        });
+    }
+    authorization.delta_root = Some(delta.root().clone());
+    Ok(())
+}
+
+fn verify_write_intent(
+    intent: CanonicalWriteIntent,
+    project: &vela_protocol::project::Project,
+    context: &VerifiedRepositoryWriteContext,
+) -> Result<(), FrontierTxnError> {
+    let pinned = matches!(
+        context.identity,
+        VerifiedRepositoryIdentity::PinnedBoundary { .. }
+    );
+    match intent {
+        CanonicalWriteIntent::Producer => Ok(()),
+        CanonicalWriteIntent::Administrator if pinned => Ok(()),
+        CanonicalWriteIntent::Administrator => Err(
+            FrontierTxnError::RepositoryWriteIntentDenied {
+                intent: intent.as_str(),
+                reason: "administrator writes require a signed repository boundary selected by the operating-system account trust pin".to_string(),
+            },
+        ),
+        CanonicalWriteIntent::ActorRegistry
+            if matches!(context.identity, VerifiedRepositoryIdentity::Genesis { .. })
+                && project.actors.is_empty() =>
+        {
+            Ok(())
+        }
+        CanonicalWriteIntent::ActorRegistry => {
+            Err(FrontierTxnError::RepositoryWriteIntentDenied {
+                intent: intent.as_str(),
+                reason: "only an empty structural-genesis registry may self-bind its first proof-of-possession actor; established registry mutation has no v0.914 governance primitive and is blocked".to_string(),
+            })
+        }
+        CanonicalWriteIntent::FirstAdministratorBoundary
+            if matches!(context.identity, VerifiedRepositoryIdentity::Genesis { .. })
+                && !project.actors.is_empty() =>
+        {
+            Ok(())
+        }
+        CanonicalWriteIntent::FirstAdministratorBoundary => {
+            Err(FrontierTxnError::RepositoryWriteIntentDenied {
+                intent: intent.as_str(),
+                reason: "the first administrator boundary requires structural genesis and a previously self-bound actor; existing boundary chains use administrator authorization".to_string(),
+            })
+        }
+    }
+}
+
+/// Resolve the current operating-system account home without consulting
+/// `HOME`, repository configuration, or a process-local override.
+#[cfg(unix)]
+#[allow(unsafe_code)]
+pub(crate) fn operating_system_account_home() -> Result<PathBuf, FrontierTxnError> {
+    use std::ffi::CStr;
+    use std::os::unix::ffi::OsStringExt;
+
+    // SAFETY: `geteuid` has no preconditions. `getpwuid_r` receives a live
+    // passwd allocation, an owned writable buffer, and a result pointer for
+    // the duration of each call. The returned `pw_dir` is copied before the
+    // buffer is dropped.
+    let uid = unsafe { libc::geteuid() };
+    let suggested = unsafe { libc::sysconf(libc::_SC_GETPW_R_SIZE_MAX) };
+    let mut capacity = if suggested > 0 {
+        usize::try_from(suggested).unwrap_or(16 * 1024)
+    } else {
+        16 * 1024
+    }
+    .clamp(1024, 1024 * 1024);
+    loop {
+        let mut buffer = vec![0_u8; capacity];
+        let mut passwd = std::mem::MaybeUninit::<libc::passwd>::uninit();
+        let mut result = std::ptr::null_mut();
+        let status = unsafe {
+            libc::getpwuid_r(
+                uid,
+                passwd.as_mut_ptr(),
+                buffer.as_mut_ptr().cast(),
+                buffer.len(),
+                &mut result,
+            )
+        };
+        if status == libc::ERANGE && capacity < 1024 * 1024 {
+            capacity = (capacity * 2).min(1024 * 1024);
+            continue;
+        }
+        if status != 0 {
+            return Err(FrontierTxnError::RepositoryTrustAnchor(format!(
+                "resolve operating-system account home for effective uid {uid}: OS error {status}"
+            )));
+        }
+        if result.is_null() {
+            return Err(FrontierTxnError::RepositoryTrustAnchor(format!(
+                "operating-system account for effective uid {uid} has no password-database entry"
+            )));
+        }
+        let directory = unsafe { CStr::from_ptr((*result).pw_dir) };
+        if directory.to_bytes().is_empty() {
+            return Err(FrontierTxnError::RepositoryTrustAnchor(
+                "operating-system account has an empty home directory".to_string(),
+            ));
+        }
+        return Ok(PathBuf::from(OsString::from_vec(
+            directory.to_bytes().to_vec(),
+        )));
+    }
+}
+
+#[cfg(windows)]
+#[allow(unsafe_code)]
+pub(crate) fn operating_system_account_home() -> Result<PathBuf, FrontierTxnError> {
+    use std::os::windows::ffi::OsStringExt;
+    use windows_sys::Win32::System::Com::CoTaskMemFree;
+    use windows_sys::Win32::UI::Shell::{FOLDERID_Profile, KF_FLAG_DEFAULT, SHGetKnownFolderPath};
+
+    let mut raw = std::ptr::null_mut();
+    // SAFETY: Windows allocates a NUL-terminated UTF-16 string for the current
+    // user's Profile known folder. We copy it before releasing the allocation
+    // with the documented COM task allocator.
+    let status = unsafe {
+        SHGetKnownFolderPath(
+            &FOLDERID_Profile,
+            KF_FLAG_DEFAULT,
+            std::ptr::null_mut(),
+            &mut raw,
+        )
+    };
+    if status < 0 || raw.is_null() {
+        return Err(FrontierTxnError::RepositoryTrustAnchor(format!(
+            "resolve operating-system Profile known folder: HRESULT {status:#x}"
+        )));
+    }
+    let mut length = 0_usize;
+    while unsafe { *raw.add(length) } != 0 {
+        length += 1;
+    }
+    let wide = unsafe { std::slice::from_raw_parts(raw, length) };
+    let home = PathBuf::from(OsString::from_wide(wide));
+    unsafe { CoTaskMemFree(raw.cast()) };
+    if home.as_os_str().is_empty() {
+        return Err(FrontierTxnError::RepositoryTrustAnchor(
+            "operating-system Profile known folder is empty".to_string(),
+        ));
+    }
+    Ok(home)
+}
+
+#[cfg(not(any(unix, windows)))]
+pub(crate) fn operating_system_account_home() -> Result<PathBuf, FrontierTxnError> {
+    Err(FrontierTxnError::RepositoryTrustAnchor(
+        "this platform has no supported operating-system account-home resolver".to_string(),
+    ))
+}
+
+fn validate_git_oid(label: &str, value: &str) -> Result<(), FrontierTxnError> {
+    if !matches!(value.len(), 40 | 64)
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(FrontierTxnError::MigrationAuthorizationInvalid(format!(
+            "{label} must be a full lowercase SHA-1 or SHA-256 Git object id"
+        )));
+    }
+    Ok(())
+}
+
+fn exact_git_revision(root: &Path, revision: &str) -> Result<String, FrontierTxnError> {
+    let value =
+        crate::git_hardened::text(root, &["rev-parse", "--verify", revision]).map_err(|error| {
+            FrontierTxnError::MigrationAuthorizationInvalid(format!(
+                "git rev-parse for {revision} failed: {error}"
+            ))
+        })?;
+    validate_git_oid(revision, &value)?;
+    Ok(value)
+}
+
+fn verify_migration_ceremony_source(
+    root: &Path,
+    spec: &MigrationCeremonySpec,
+) -> Result<(), FrontierTxnError> {
+    use vela_protocol::frontier_repo::{FrontierProfileFile, read_repository_profile};
+
+    let root = canonical_frontier_root(root)?;
+    if root != spec.canonical_frontier_root {
+        return Err(FrontierTxnError::MigrationAuthorizationInvalid(format!(
+            "migration destination differs from protected plan: expected {}, found {}",
+            spec.canonical_frontier_root.display(),
+            root.display()
+        )));
+    }
+
+    match read_repository_profile(&root) {
+        Ok(Some(FrontierProfileFile::LegacyV0_1(_))) | Ok(None) => {}
+        Ok(Some(FrontierProfileFile::V1(_))) => {
+            return Err(FrontierTxnError::MigrationAuthorizationInvalid(
+                "migration permit applies only to a legacy Profile v0.1 repository".to_string(),
+            ));
+        }
+        Err(error) => {
+            return Err(FrontierTxnError::MigrationAuthorizationInvalid(format!(
+                "read migration source profile: {error}"
+            )));
+        }
+    }
+    let project = vela_protocol::repo::load_from_path(&root).map_err(|error| {
+        FrontierTxnError::MigrationAuthorizationInvalid(format!(
+            "load migration source repository: {error}"
+        ))
+    })?;
+    if project.frontier_id() != spec.frontier_id {
+        return Err(FrontierTxnError::MigrationAuthorizationInvalid(format!(
+            "migration permit frontier {} does not match current {}",
+            spec.frontier_id,
+            project.frontier_id()
+        )));
+    }
+    let actual_event_count = project.events.len();
+    let actual_event_log_root = ContentDigest::parse(format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&project.events)
+    ))?;
+    if actual_event_count != spec.pre_event_count
+        || actual_event_log_root != spec.pre_event_log_root
+    {
+        return Err(FrontierTxnError::MigrationAuthorizationInvalid(format!(
+            "migration source event prefix drifted: expected {} events at {}, found {} at {}",
+            spec.pre_event_count,
+            spec.pre_event_log_root.as_str(),
+            actual_event_count,
+            actual_event_log_root.as_str()
+        )));
+    }
+    let actual_commit = exact_git_revision(&root, "HEAD")?;
+    let actual_tree = exact_git_revision(&root, "HEAD^{tree}")?;
+    if actual_commit != spec.anchor_git_commit || actual_tree != spec.anchor_git_tree {
+        return Err(FrontierTxnError::MigrationAuthorizationInvalid(format!(
+            "migration Git anchor drifted: expected {}/{}, found {}/{}",
+            spec.anchor_git_commit, spec.anchor_git_tree, actual_commit, actual_tree
+        )));
+    }
+    Ok(())
+}
+
+fn verify_migration_write_authorization(
+    root: &Path,
+    spec: &MigrationWritePermitSpec,
+) -> Result<MigrationWriteAuthorization, FrontierTxnError> {
+    verify_migration_ceremony_source(root, &spec.ceremony)?;
+    let root = canonical_frontier_root(root)?;
+    let bytes =
+        vela_protocol::canonical::to_canonical_bytes(&MigrationWriteAuthorizationCommitment {
+            schema: "vela.migration-write-authorization.internal.v1",
+            frontier_id: &spec.ceremony.frontier_id,
+            canonical_root: root.to_string_lossy().into_owned(),
+            anchor_git_commit: &spec.ceremony.anchor_git_commit,
+            anchor_git_tree: &spec.ceremony.anchor_git_tree,
+            pre_event_log_root: &spec.ceremony.pre_event_log_root,
+            pre_event_count: spec.ceremony.pre_event_count,
+            confirmed_plan_root: &spec.ceremony.confirmed_plan_root,
+            confirmed_delta_root: &spec.confirmed_delta_root,
+            request_root: &spec.ceremony.request_root,
+            boundary_event_id: &spec.ceremony.boundary_event_id,
+        })
+        .map_err(FrontierTxnError::Canonicalize)?;
+    Ok(MigrationWriteAuthorization {
+        spec: spec.clone(),
+        context_root: ContentDigest::hash(bytes),
+    })
+}
+
 impl FrontierRecoveryBarrier {
     /// Re-verify a caller's complete bound read set while retaining the
     /// frontier write lock. The lock coordinates Vela writers; it is advisory
@@ -1052,6 +1987,107 @@ impl FrontierRecoveryBarrier {
             }
         }
         Ok(None)
+    }
+
+    /// Upgrade a recovery-only barrier to the canonical write capability.
+    ///
+    /// This is the last operation callers perform before creating a new
+    /// transaction journal or reading a signing key. The operating-system
+    /// account home is resolved without consulting `HOME`, canonicalized
+    /// once, included in the authorization commitment, and retained only in
+    /// memory, so a later environment change cannot redirect the marker-time
+    /// trust-pin read.
+    pub(crate) fn authorize_for_write(self) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
+        self.authorize_for_intent(CanonicalWriteIntent::Producer)
+    }
+
+    pub(crate) fn authorize_for_administrator_write(
+        self,
+    ) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
+        self.authorize_for_intent(CanonicalWriteIntent::Administrator)
+    }
+
+    pub(crate) fn authorize_for_actor_registry_write(
+        self,
+    ) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
+        self.authorize_for_intent(CanonicalWriteIntent::ActorRegistry)
+    }
+
+    pub(crate) fn authorize_for_first_administrator_boundary(
+        self,
+    ) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
+        self.authorize_for_intent(CanonicalWriteIntent::FirstAdministratorBoundary)
+    }
+
+    fn authorize_for_intent(
+        self,
+        intent: CanonicalWriteIntent,
+    ) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
+        let trusted_user_home = operating_system_account_home()?;
+        let authorization =
+            verify_repository_write_authorization(&self.root, &trusted_user_home, intent)?;
+        Ok(CanonicalWriteBarrier {
+            recovery: self,
+            authorization: FrontierTxnAuthorization::Verified(authorization),
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn authorize_for_test(self) -> CanonicalWriteBarrier {
+        CanonicalWriteBarrier {
+            recovery: self,
+            authorization: FrontierTxnAuthorization::TestHarness,
+        }
+    }
+}
+
+impl CanonicalWriteBarrier {
+    pub(crate) fn verify_read_set(
+        &self,
+        read_set: &[InputBinding],
+    ) -> Result<(), FrontierTxnError> {
+        self.recovery.verify_read_set(read_set)
+    }
+
+    pub(crate) fn completed_plan(
+        &self,
+        operation_id: &OperationId,
+    ) -> Result<Option<FrontierTxnPlan>, FrontierTxnError> {
+        self.recovery.completed_plan(operation_id)
+    }
+}
+
+fn reverify_transaction_authorization(
+    root: &Path,
+    authorization: &FrontierTxnAuthorization,
+) -> Result<(), FrontierTxnError> {
+    match authorization {
+        FrontierTxnAuthorization::Verified(expected) => {
+            let actual = verify_repository_write_authorization(
+                root,
+                &expected.trusted_user_home,
+                expected.intent,
+            )?;
+            if actual.context_root != expected.context_root {
+                return Err(FrontierTxnError::StaleWriteAuthorization {
+                    expected: expected.context_root.clone(),
+                    actual: actual.context_root,
+                });
+            }
+            Ok(())
+        }
+        FrontierTxnAuthorization::Migration(expected) => {
+            let actual = verify_migration_write_authorization(root, &expected.spec)?;
+            if actual.context_root != expected.context_root {
+                return Err(FrontierTxnError::StaleWriteAuthorization {
+                    expected: expected.context_root.clone(),
+                    actual: actual.context_root,
+                });
+            }
+            Ok(())
+        }
+        #[cfg(test)]
+        FrontierTxnAuthorization::TestHarness => Ok(()),
     }
 }
 
@@ -1483,7 +2519,27 @@ pub(crate) struct FrontierTxn {
     root: PathBuf,
     paths: FrontierTxnPaths,
     journal: FrontierTxnJournal,
+    authorization: Option<FrontierTxnAuthorization>,
     _lock: FrontierWriteLock,
+}
+
+#[derive(Debug)]
+enum FrontierTxnAuthorization {
+    Verified(CanonicalWriteAuthorization),
+    Migration(MigrationWriteAuthorization),
+    #[cfg(test)]
+    TestHarness,
+}
+
+impl FrontierTxnAuthorization {
+    fn verified_frontier_id(&self) -> Option<&str> {
+        match self {
+            Self::Verified(authorization) => Some(&authorization.frontier_id),
+            Self::Migration(authorization) => Some(&authorization.spec.ceremony.frontier_id),
+            #[cfg(test)]
+            Self::TestHarness => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1587,6 +2643,128 @@ impl FrontierTxn {
         })
     }
 
+    /// Acquire recovery and repository-generation authorization as one
+    /// type-state boundary for a new canonical transaction.
+    pub(crate) fn acquire_write_barrier(
+        frontier_root: &Path,
+        journal_dir: &Path,
+    ) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
+        Self::acquire_write_barrier_for_intent(
+            frontier_root,
+            journal_dir,
+            CanonicalWriteIntent::Producer,
+        )
+    }
+
+    pub(crate) fn acquire_administrator_write_barrier(
+        frontier_root: &Path,
+        journal_dir: &Path,
+    ) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
+        Self::acquire_write_barrier_for_intent(
+            frontier_root,
+            journal_dir,
+            CanonicalWriteIntent::Administrator,
+        )
+    }
+
+    pub(crate) fn acquire_actor_registry_write_barrier(
+        frontier_root: &Path,
+        journal_dir: &Path,
+    ) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
+        Self::acquire_write_barrier_for_intent(
+            frontier_root,
+            journal_dir,
+            CanonicalWriteIntent::ActorRegistry,
+        )
+    }
+
+    pub(crate) fn acquire_first_administrator_boundary_barrier(
+        frontier_root: &Path,
+        journal_dir: &Path,
+    ) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
+        Self::acquire_write_barrier_for_intent(
+            frontier_root,
+            journal_dir,
+            CanonicalWriteIntent::FirstAdministratorBoundary,
+        )
+    }
+
+    fn acquire_write_barrier_for_intent(
+        frontier_root: &Path,
+        journal_dir: &Path,
+        intent: CanonicalWriteIntent,
+    ) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
+        // This unlocked check is not authority; it exists so legacy Profile
+        // v0.1 fails before even an ignored lock file is created. The complete
+        // check runs again while the recovery lock is held below.
+        Self::preflight_write_intent(frontier_root, intent)?;
+        Self::acquire_recovery_barrier(frontier_root, journal_dir)?.authorize_for_intent(intent)
+    }
+
+    pub(crate) fn preflight_write_intent(
+        frontier_root: &Path,
+        intent: CanonicalWriteIntent,
+    ) -> Result<(), FrontierTxnError> {
+        let root = canonical_frontier_root(frontier_root)?;
+        let trusted_user_home = operating_system_account_home()?;
+        verify_repository_write_authorization(&root, &trusted_user_home, intent).map(|_| ())
+    }
+
+    /// Lock and recheck the exact legacy source before showing a protected
+    /// migration approval prompt.
+    ///
+    /// This barrier cannot prepare a transaction. Holding it across the
+    /// prompt prevents another Vela writer from making the approval stale and
+    /// ensures contention or recovery failures happen before user presence is
+    /// requested.
+    pub(crate) fn acquire_migration_ceremony_barrier(
+        frontier_root: &Path,
+        journal_dir: &Path,
+        spec: MigrationCeremonySpec,
+    ) -> Result<MigrationCeremonyBarrier, FrontierTxnError> {
+        let root = canonical_frontier_root(frontier_root)?;
+        // Exact unlocked preflight prevents a malformed request from creating
+        // even an ignored lock. The same source is rechecked under lock.
+        verify_migration_ceremony_source(&root, &spec)?;
+        let recovery = Self::acquire_recovery_barrier(&root, journal_dir)?;
+        verify_migration_ceremony_source(&recovery.root, &spec)?;
+        Ok(MigrationCeremonyBarrier { recovery, spec })
+    }
+
+    /// Promote a still-held ceremony barrier after the matching protected
+    /// response and exact signed delta have been verified.
+    pub(crate) fn authorize_migration_write_barrier(
+        ceremony: MigrationCeremonyBarrier,
+        request: &vela_signer::RepositoryBoundarySignerRequest,
+        response: &vela_signer::RepositoryBoundarySignerResponse,
+        confirmed_delta_root: impl Into<String>,
+    ) -> Result<MigrationWriteBarrier, FrontierTxnError> {
+        let MigrationCeremonyBarrier { recovery, spec } = ceremony;
+        let permit = MigrationWritePermitSpec::from_protected_response(
+            &spec,
+            request,
+            response,
+            confirmed_delta_root,
+        )?;
+        // The recovery lock acquired before the prompt is still held here.
+        // Recheck the exact source after approval and bind the final delta.
+        verify_migration_ceremony_source(&recovery.root, &spec)?;
+        let authorization = verify_migration_write_authorization(&recovery.root, &permit)?;
+        Ok(MigrationWriteBarrier {
+            recovery,
+            authorization: FrontierTxnAuthorization::Migration(authorization),
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn acquire_write_barrier_for_test(
+        frontier_root: &Path,
+        journal_dir: &Path,
+    ) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
+        Ok(Self::acquire_recovery_barrier(frontier_root, journal_dir)?.authorize_for_test())
+    }
+
+    #[cfg(test)]
     pub(crate) fn prepare(
         frontier_root: &Path,
         journal_dir: &Path,
@@ -1594,29 +2772,95 @@ impl FrontierTxn {
         draft: DeltaDraft,
     ) -> Result<Self, FrontierTxnError> {
         let barrier = Self::acquire_recovery_barrier(frontier_root, journal_dir)?;
-        Self::prepare_with_barrier(barrier, plan, draft)
-    }
-
-    pub(crate) fn prepare_with_barrier(
-        barrier: FrontierRecoveryBarrier,
-        plan: FrontierTxnPlan,
-        draft: DeltaDraft,
-    ) -> Result<Self, FrontierTxnError> {
-        Self::prepare_with_barrier_and_failpoints(
+        Self::prepare_with_recovery_barrier_and_authorization(
             barrier,
+            FrontierTxnAuthorization::TestHarness,
             plan,
             draft,
             &mut NoFrontierTxnFailpoints,
         )
     }
 
-    fn prepare_with_barrier_and_failpoints(
+    pub(crate) fn prepare_with_barrier(
+        barrier: CanonicalWriteBarrier,
+        plan: FrontierTxnPlan,
+        draft: DeltaDraft,
+    ) -> Result<Self, FrontierTxnError> {
+        let CanonicalWriteBarrier {
+            recovery,
+            authorization,
+        } = barrier;
+        Self::prepare_with_recovery_barrier_and_authorization(
+            recovery,
+            authorization,
+            plan,
+            draft,
+            &mut NoFrontierTxnFailpoints,
+        )
+    }
+
+    pub(crate) fn prepare_with_migration_barrier(
+        barrier: MigrationWriteBarrier,
+        plan: FrontierTxnPlan,
+        draft: DeltaDraft,
+    ) -> Result<Self, FrontierTxnError> {
+        let MigrationWriteBarrier {
+            recovery,
+            authorization,
+        } = barrier;
+        let FrontierTxnAuthorization::Migration(migration) = &authorization else {
+            return Err(FrontierTxnError::MigrationAuthorizationInvalid(
+                "migration barrier did not carry a migration authorization".to_string(),
+            ));
+        };
+        if &plan.request_root != migration.spec.confirmed_plan_root() {
+            return Err(FrontierTxnError::MigrationPlanRootMismatch {
+                permitted: migration.spec.confirmed_plan_root().clone(),
+                planned: plan.request_root.clone(),
+            });
+        }
+        if plan.canonical_delta.root() != migration.spec.confirmed_delta_root() {
+            return Err(FrontierTxnError::MigrationDeltaRootMismatch {
+                permitted: migration.spec.confirmed_delta_root().clone(),
+                planned: plan.canonical_delta.root().clone(),
+            });
+        }
+        Self::prepare_with_recovery_barrier_and_authorization(
+            recovery,
+            authorization,
+            plan,
+            draft,
+            &mut NoFrontierTxnFailpoints,
+        )
+    }
+
+    fn prepare_with_recovery_barrier_and_authorization(
         barrier: FrontierRecoveryBarrier,
+        mut authorization: FrontierTxnAuthorization,
         plan: FrontierTxnPlan,
         draft: DeltaDraft,
         failpoints: &mut impl FrontierTxnFailpoints,
     ) -> Result<Self, FrontierTxnError> {
         plan.verify()?;
+        if let FrontierTxnAuthorization::Verified(verified) = &mut authorization {
+            bind_authorization_to_delta(verified, &plan.canonical_delta, |blob| {
+                let bytes = draft
+                    .blobs
+                    .get(&blob.digest)
+                    .cloned()
+                    .ok_or_else(|| FrontierTxnError::MissingBlob(blob.digest.clone()))?;
+                validate_blob_bytes(blob, &bytes)?;
+                Ok(bytes)
+            })?;
+        }
+        if let Some(authorized) = authorization.verified_frontier_id()
+            && plan.frontier.frontier_id != authorized
+        {
+            return Err(FrontierTxnError::WriteAuthorizationFrontierMismatch {
+                authorized: authorized.to_string(),
+                planned: plan.frontier.frontier_id.clone(),
+            });
+        }
         if plan.canonical_delta != draft.delta {
             return Err(FrontierTxnError::CorruptPlan(
                 "plan delta differs from prepared postimage blobs".to_string(),
@@ -1664,6 +2908,7 @@ impl FrontierTxn {
                         root,
                         paths,
                         journal,
+                        authorization: Some(authorization),
                         _lock: lock,
                     };
                     txn.verify_blobs()?;
@@ -1706,6 +2951,7 @@ impl FrontierTxn {
             root,
             paths,
             journal,
+            authorization: Some(authorization),
             _lock: lock,
         };
         txn.verify_blobs()?;
@@ -1721,8 +2967,9 @@ impl FrontierTxn {
         step: FrontierTxnStep,
     ) -> Result<Self, FrontierTxnError> {
         let barrier = Self::acquire_recovery_barrier(frontier_root, journal_dir)?;
-        Self::prepare_with_barrier_and_failpoints(
+        Self::prepare_with_recovery_barrier_and_authorization(
             barrier,
+            FrontierTxnAuthorization::TestHarness,
             plan,
             draft,
             &mut FailAtFrontierTxnStep { target: step },
@@ -1790,6 +3037,7 @@ impl FrontierTxn {
             root,
             paths,
             journal,
+            authorization: None,
             _lock: lock,
         };
         match txn.journal.recovery {
@@ -1815,6 +3063,113 @@ impl FrontierTxn {
 
     pub(crate) fn mark_committed(&mut self) -> Result<(), FrontierTxnError> {
         self.mark_committed_with_failpoints(&mut NoFrontierTxnFailpoints)
+    }
+
+    /// Explicitly authorize a marker-free Prepared journal after reopening it.
+    ///
+    /// Authorization is not journaled. Every process that resumes an
+    /// uncommitted plan must independently cross the repository write gate;
+    /// committed recovery never calls this method.
+    pub(crate) fn reauthorize_prepared_for_commit(
+        &mut self,
+        intent: CanonicalWriteIntent,
+    ) -> Result<(), FrontierTxnError> {
+        if !matches!(self.journal.recovery, RecoveryState::Prepared) {
+            return Err(FrontierTxnError::WriteAuthorizationNotApplicable {
+                state: self.journal.recovery.clone(),
+            });
+        }
+        match read_commit_marker(&self.paths, &self.journal) {
+            Err(FrontierTxnError::NotCommitted) => {}
+            Ok(_) => {
+                return Err(FrontierTxnError::WriteAuthorizationNotApplicable {
+                    state: self.journal.recovery.clone(),
+                });
+            }
+            Err(error) => return Err(error),
+        }
+        let trusted_user_home = operating_system_account_home()?;
+        let mut authorization =
+            verify_repository_write_authorization(&self.root, &trusted_user_home, intent)?;
+        bind_authorization_to_delta(
+            &mut authorization,
+            &self.journal.plan.canonical_delta,
+            |blob| self.read_blob(blob),
+        )?;
+        self.authorization = Some(FrontierTxnAuthorization::Verified(authorization));
+        Ok(())
+    }
+
+    /// Recheck a reopened, marker-free migration before requesting another
+    /// protected approval. The transaction already retains its recovery lock,
+    /// so a successful return guarantees another Vela writer cannot alter the
+    /// source between this preflight and explicit reauthorization.
+    pub(crate) fn preflight_prepared_migration_ceremony(
+        &self,
+        request: &vela_signer::RepositoryBoundarySignerRequest,
+    ) -> Result<MigrationCeremonySpec, FrontierTxnError> {
+        if !matches!(self.journal.recovery, RecoveryState::Prepared) {
+            return Err(FrontierTxnError::WriteAuthorizationNotApplicable {
+                state: self.journal.recovery.clone(),
+            });
+        }
+        match read_commit_marker(&self.paths, &self.journal) {
+            Err(FrontierTxnError::NotCommitted) => {}
+            Ok(_) => {
+                return Err(FrontierTxnError::WriteAuthorizationNotApplicable {
+                    state: self.journal.recovery.clone(),
+                });
+            }
+            Err(error) => return Err(error),
+        }
+        let ceremony = MigrationCeremonySpec::from_protected_request(request)?;
+        if &self.journal.plan.request_root != ceremony.confirmed_plan_root() {
+            return Err(FrontierTxnError::MigrationPlanRootMismatch {
+                permitted: ceremony.confirmed_plan_root().clone(),
+                planned: self.journal.plan.request_root.clone(),
+            });
+        }
+        verify_migration_ceremony_source(&self.root, &ceremony)?;
+        Ok(ceremony)
+    }
+
+    pub(crate) fn reauthorize_prepared_for_migration(
+        &mut self,
+        ceremony: MigrationCeremonySpec,
+        request: &vela_signer::RepositoryBoundarySignerRequest,
+        response: &vela_signer::RepositoryBoundarySignerResponse,
+    ) -> Result<(), FrontierTxnError> {
+        let checked = self.preflight_prepared_migration_ceremony(request)?;
+        if checked != ceremony {
+            return Err(FrontierTxnError::MigrationAuthorizationInvalid(
+                "protected request differs from the pre-prompt migration ceremony".to_string(),
+            ));
+        }
+        let spec = MigrationWritePermitSpec::from_protected_response(
+            &ceremony,
+            request,
+            response,
+            self.journal
+                .plan
+                .canonical_delta
+                .root()
+                .as_str()
+                .to_string(),
+        )?;
+        let authorization = verify_migration_write_authorization(&self.root, &spec)?;
+        self.authorization = Some(FrontierTxnAuthorization::Migration(authorization));
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn reauthorize_prepared_for_test(&mut self) -> Result<(), FrontierTxnError> {
+        if !matches!(self.journal.recovery, RecoveryState::Prepared) {
+            return Err(FrontierTxnError::WriteAuthorizationNotApplicable {
+                state: self.journal.recovery.clone(),
+            });
+        }
+        self.authorization = Some(FrontierTxnAuthorization::TestHarness);
+        Ok(())
     }
 
     fn mark_committed_with_failpoints(
@@ -1843,7 +3198,38 @@ impl FrontierTxn {
                         self.journal.recovery
                     )));
                 }
+                if self.authorization.is_none() {
+                    return Err(FrontierTxnError::WriteAuthorizationRequired {
+                        operation_id: self.journal.plan.operation_id.as_str().to_string(),
+                    });
+                }
                 let preflight = (|| {
+                    reverify_transaction_authorization(
+                        &self.root,
+                        self.authorization
+                            .as_ref()
+                            .expect("authorization checked above"),
+                    )?;
+                    if let Some(FrontierTxnAuthorization::Verified(verified)) =
+                        self.authorization.as_ref()
+                    {
+                        if verified.delta_root.as_ref()
+                            != Some(self.journal.plan.canonical_delta.root())
+                        {
+                            return Err(FrontierTxnError::WriteAuthorizationDeltaMismatch {
+                                authorized: verified
+                                    .delta_root
+                                    .clone()
+                                    .unwrap_or_else(|| ContentDigest::hash(b"unbound")),
+                                planned: self.journal.plan.canonical_delta.root().clone(),
+                            });
+                        }
+                        verify_write_intent_delta(
+                            verified.intent,
+                            &self.journal.plan.canonical_delta,
+                            |blob| self.read_blob(blob),
+                        )?;
+                    }
                     ensure_recovery_barrier_locked(
                         &self.root,
                         self.paths
@@ -2254,6 +3640,10 @@ pub(crate) enum FrontierTxnError {
         reason: String,
     },
     DuplicatePath(String),
+    PortablePathCollision {
+        first: String,
+        second: String,
+    },
     FrontierBindingMismatch {
         expected: String,
         actual: String,
@@ -2285,6 +3675,37 @@ pub(crate) enum FrontierTxnError {
         expected: ContentDigest,
         actual: ContentDigest,
     },
+    WriteAuthorizationRequired {
+        operation_id: String,
+    },
+    WriteAuthorizationNotApplicable {
+        state: RecoveryState,
+    },
+    WriteAuthorizationFrontierMismatch {
+        authorized: String,
+        planned: String,
+    },
+    WriteAuthorizationDeltaMismatch {
+        authorized: ContentDigest,
+        planned: ContentDigest,
+    },
+    RepositoryWriteIntentDenied {
+        intent: &'static str,
+        reason: String,
+    },
+    MigrationAuthorizationInvalid(String),
+    MigrationPlanRootMismatch {
+        permitted: ContentDigest,
+        planned: ContentDigest,
+    },
+    MigrationDeltaRootMismatch {
+        permitted: ContentDigest,
+        planned: ContentDigest,
+    },
+    StaleWriteAuthorization {
+        expected: ContentDigest,
+        actual: ContentDigest,
+    },
     CommittedConflict {
         path: RepoPath,
         expected_preimage: Box<FileState>,
@@ -2311,6 +3732,8 @@ pub(crate) enum FrontierTxnError {
         step: FrontierTxnStep,
     },
     Canonicalize(String),
+    RepositoryWriteGate(RepositoryWriteGateError),
+    RepositoryTrustAnchor(String),
     CorruptPlan(String),
     Journal(String),
     Io(String),
@@ -2328,6 +3751,10 @@ impl fmt::Display for FrontierTxnError {
                 write!(formatter, "unsafe target {}: {reason}", path.as_str())
             }
             Self::DuplicatePath(path) => write!(formatter, "duplicate staged path: {path}"),
+            Self::PortablePathCollision { first, second } => write!(
+                formatter,
+                "staged paths {first:?} and {second:?} collide under portable Unicode/case normalization"
+            ),
             Self::FrontierBindingMismatch { expected, actual } => write!(
                 formatter,
                 "frontier binding mismatch: expected {expected}, found {actual}"
@@ -2361,6 +3788,55 @@ impl fmt::Display for FrontierTxnError {
             Self::StaleEventLog { expected, actual } => write!(
                 formatter,
                 "event log changed before commit: expected {}, found {}",
+                expected.as_str(),
+                actual.as_str()
+            ),
+            Self::WriteAuthorizationRequired { operation_id } => write!(
+                formatter,
+                "frontier transaction {operation_id} is Prepared without an in-memory canonical write authorization; explicitly reauthorize before commit"
+            ),
+            Self::WriteAuthorizationNotApplicable { state } => write!(
+                formatter,
+                "canonical write reauthorization applies only to a marker-free Prepared transaction, found {state:?}"
+            ),
+            Self::WriteAuthorizationFrontierMismatch {
+                authorized,
+                planned,
+            } => write!(
+                formatter,
+                "repository write authorization for frontier {authorized} cannot authorize transaction plan for {planned}"
+            ),
+            Self::WriteAuthorizationDeltaMismatch {
+                authorized,
+                planned,
+            } => write!(
+                formatter,
+                "repository write authorization for delta {} cannot authorize transaction delta {}",
+                authorized.as_str(),
+                planned.as_str()
+            ),
+            Self::RepositoryWriteIntentDenied { intent, reason } => write!(
+                formatter,
+                "repository_write_intent_denied: {intent}: {reason}"
+            ),
+            Self::MigrationAuthorizationInvalid(reason) => {
+                write!(formatter, "migration_write_authorization_invalid: {reason}")
+            }
+            Self::MigrationPlanRootMismatch { permitted, planned } => write!(
+                formatter,
+                "migration plan root mismatch: permit binds {}, transaction binds {}",
+                permitted.as_str(),
+                planned.as_str()
+            ),
+            Self::MigrationDeltaRootMismatch { permitted, planned } => write!(
+                formatter,
+                "migration delta root mismatch: permit binds {}, transaction binds {}",
+                permitted.as_str(),
+                planned.as_str()
+            ),
+            Self::StaleWriteAuthorization { expected, actual } => write!(
+                formatter,
+                "repository write authorization drifted before commit: expected {}, found {}",
                 expected.as_str(),
                 actual.as_str()
             ),
@@ -2405,6 +3881,10 @@ impl fmt::Display for FrontierTxnError {
                 )
             }
             Self::Canonicalize(error) => write!(formatter, "canonicalize transaction: {error}"),
+            Self::RepositoryWriteGate(error) => write!(formatter, "{error}"),
+            Self::RepositoryTrustAnchor(error) => {
+                write!(formatter, "repository_trust_anchor_invalid: {error}")
+            }
             Self::CorruptPlan(error) => write!(formatter, "corrupt transaction plan: {error}"),
             Self::Journal(error) => write!(formatter, "frontier transaction journal: {error}"),
             Self::Io(error) => write!(formatter, "frontier transaction I/O: {error}"),
@@ -2825,11 +4305,15 @@ fn sync_directory(path: &Path) -> Result<(), FrontierTxnError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ed25519_dalek::SigningKey;
     use serde_json::json;
 
     fn fixture_plan(root: &Path, draft: &DeltaDraft, identity: &[u8]) -> FrontierTxnPlan {
         let operation_id = OperationId::derive("submission", identity);
         let request_root = ContentDigest::hash(identity);
+        let frontier_id = vela_protocol::repo::load_from_path(root)
+            .map(|project| project.frontier_id().to_string())
+            .unwrap_or_else(|_| "vfr_test".to_string());
         let resulting_event_ids = current_event_log_events(root)
             .unwrap()
             .into_iter()
@@ -2840,7 +4324,7 @@ mod tests {
                 kind: OperationKind::Submission,
                 operation_id,
                 request_root,
-                frontier: FrontierBinding::new(root, "vfr_test", b"split-layout-v1").unwrap(),
+                frontier: FrontierBinding::new(root, frontier_id, b"split-layout-v1").unwrap(),
                 fixed_time: "2026-07-13T00:00:00Z".to_string(),
                 expected_event_log_root: current_event_log_root(root).unwrap(),
                 resulting_event_log_root: current_event_log_root(root).unwrap(),
@@ -2854,6 +4338,554 @@ mod tests {
             draft.delta.clone(),
         )
         .unwrap()
+    }
+
+    fn initialize_profile_v1_frontier(root: &Path) {
+        vela_protocol::frontier_repo::initialize_profile_v1_minimal(
+            root,
+            vela_protocol::frontier_repo::ProfileV1InitOptions {
+                name: "write gate fixture",
+                scope: "exercise the canonical transaction authorization boundary",
+                initialize_git: false,
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn legacy_profile_is_typed_upgrade_required_before_transaction_journal() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        let journals = temp.path().join("journals");
+        let project = vela_protocol::project::assemble("legacy", Vec::new(), 0, 0, "fixture");
+        vela_protocol::repo::init_repo(&root, &project).unwrap();
+        let before = snapshot_files(&root);
+
+        let error = FrontierTxn::acquire_write_barrier(&root, &journals).unwrap_err();
+        assert!(matches!(
+            error,
+            FrontierTxnError::RepositoryWriteGate(RepositoryWriteGateError {
+                code: vela_edge::repository_write::RepositoryWriteGateCode::FrontierProfileUpgradeRequired,
+                ..
+            })
+        ));
+        assert_eq!(snapshot_files(&root), before);
+        assert!(!journals.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_profile_or_settings_fails_before_transaction_journal() {
+        use std::os::unix::fs::symlink;
+
+        for relative in ["frontier.yaml", ".vela/settings.toml"] {
+            let temp = tempfile::tempdir().unwrap();
+            let root = temp.path().join("frontier");
+            let journals = temp.path().join("journals");
+            initialize_profile_v1_frontier(&root);
+            let path = root.join(relative);
+            let external = temp
+                .path()
+                .join(format!("external-{}", relative.replace(['/', '.'], "-")));
+            fs::copy(&path, &external).unwrap();
+            fs::remove_file(&path).unwrap();
+            symlink(&external, &path).unwrap();
+            let external_before = fs::read(&external).unwrap();
+            let actors_before = fs::read(root.join(".vela/actors.json")).unwrap();
+
+            let error = FrontierTxn::acquire_write_barrier(&root, &journals).unwrap_err();
+            assert!(
+                error.to_string().contains("symlink"),
+                "unexpected error for {relative}: {error}"
+            );
+            let metadata = fs::symlink_metadata(&path).unwrap();
+            assert!(metadata.file_type().is_symlink());
+            assert_eq!(fs::read(&external).unwrap(), external_before);
+            assert_eq!(
+                fs::read(root.join(".vela/actors.json")).unwrap(),
+                actors_before
+            );
+            assert!(!journals.exists(), "journal created for {relative}");
+        }
+    }
+
+    #[test]
+    fn proposal_parity_failure_precedes_transaction_journal_and_writes() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        let journals = temp.path().join("journals");
+        initialize_profile_v1_frontier(&root);
+        let mut project = vela_protocol::repo::load_from_path(&root).unwrap();
+        let proposal = vela_protocol::proposals::new_proposal_at(
+            "finding.note",
+            vela_protocol::events::StateTarget {
+                r#type: "finding".to_string(),
+                id: "vf_write_gate_fixture".to_string(),
+            },
+            "agent:fixture",
+            "agent",
+            "record bounded evidence",
+            json!({"note": "bounded evidence"}),
+            Vec::new(),
+            Vec::new(),
+            "2026-07-22T00:00:00Z",
+        );
+        let proposal_path = root.join(format!(".vela/proposals/{}.json", proposal.id));
+        project.proposals.push(proposal);
+        vela_protocol::repo::save_to_path(&root, &project).unwrap();
+
+        let mut stored: serde_json::Value =
+            serde_json::from_slice(&fs::read(&proposal_path).unwrap()).unwrap();
+        stored["status"] = json!("rejected");
+        stored["decision_reason"] = json!("hand-edited rejection");
+        fs::write(&proposal_path, serde_json::to_vec_pretty(&stored).unwrap()).unwrap();
+        let before = snapshot_files(&root);
+        let error = FrontierTxn::acquire_write_barrier(&root, &journals).unwrap_err();
+        assert!(matches!(
+            error,
+            FrontierTxnError::RepositoryWriteGate(RepositoryWriteGateError {
+                code: vela_edge::repository_write::RepositoryWriteGateCode::ProposalParityFailed,
+                ..
+            })
+        ));
+        assert_eq!(snapshot_files(&root), before);
+        assert!(!journals.exists());
+    }
+
+    #[test]
+    fn deleted_decided_proposal_precedes_transaction_journal_and_writes() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        let journals = temp.path().join("journals");
+        initialize_profile_v1_frontier(&root);
+        let mut project = vela_protocol::repo::load_from_path(&root).unwrap();
+        let proposal = vela_protocol::proposals::new_proposal_at(
+            "finding.note",
+            vela_protocol::events::StateTarget {
+                r#type: "finding".to_string(),
+                id: "vf_write_gate_fixture".to_string(),
+            },
+            "agent:fixture",
+            "agent",
+            "record bounded evidence",
+            json!({"note": "bounded evidence"}),
+            Vec::new(),
+            Vec::new(),
+            "2026-07-22T00:00:00Z",
+        );
+        let proposal_id = proposal.id.clone();
+        let proposal_kind = proposal.kind.clone();
+        project.proposals.push(proposal);
+        let decision = vela_protocol::events::new_review_decision_event(
+            &proposal_id,
+            &proposal_kind,
+            "rejected",
+            None,
+            "reviewer:fixture",
+            "bounded evidence is insufficient",
+            Some("2026-07-22T00:01:00Z"),
+        )
+        .unwrap();
+        let stored = project.proposals.first_mut().unwrap();
+        stored.status = "rejected".to_string();
+        stored.reviewed_by = Some("reviewer:fixture".to_string());
+        stored.reviewed_at = Some("2026-07-22T00:01:00Z".to_string());
+        stored.decision_reason = Some("bounded evidence is insufficient".to_string());
+        project.events.push(decision);
+        vela_protocol::repo::save_to_path(&root, &project).unwrap();
+        drop(FrontierTxn::acquire_write_barrier(&root, &journals).unwrap());
+        let journals_before = snapshot_files(&journals);
+
+        fs::remove_file(root.join(format!(".vela/proposals/{proposal_id}.json"))).unwrap();
+        let before = snapshot_files(&root);
+        let error = FrontierTxn::acquire_write_barrier(&root, &journals).unwrap_err();
+        assert!(matches!(
+            error,
+            FrontierTxnError::RepositoryWriteGate(RepositoryWriteGateError {
+                code: vela_edge::repository_write::RepositoryWriteGateCode::ProposalParityFailed,
+                ..
+            })
+        ));
+        assert_eq!(snapshot_files(&root), before);
+        assert_eq!(snapshot_files(&journals), journals_before);
+    }
+
+    #[test]
+    fn unsigned_genesis_cannot_authorize_review_policy_or_administrator_writes() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        let journals = temp.path().join("journals");
+        initialize_profile_v1_frontier(&root);
+        let before = snapshot_files(&root);
+
+        let error = FrontierTxn::acquire_administrator_write_barrier(&root, &journals).unwrap_err();
+        assert!(matches!(
+            error,
+            FrontierTxnError::RepositoryWriteIntentDenied {
+                intent: "administrator",
+                ..
+            }
+        ));
+        assert_eq!(snapshot_files(&root), before);
+        assert!(!journals.exists());
+
+        // Structural genesis exists specifically so the empty registry can
+        // self-bind one proof-of-possession actor before the protected first
+        // boundary. This exception does not grant reviewer or policy power.
+        drop(FrontierTxn::acquire_actor_registry_write_barrier(&root, &journals).unwrap());
+
+        let mut project = vela_protocol::repo::load_from_path(&root).unwrap();
+        project.actors.push(vela_protocol::sign::ActorRecord {
+            id: "reviewer:bootstrap".to_string(),
+            public_key: "11".repeat(32),
+            algorithm: "ed25519".to_string(),
+            created_at: "2026-07-22T00:00:00Z".to_string(),
+            tier: None,
+            orcid: None,
+            access_clearance: None,
+            revoked_at: None,
+            revoked_reason: None,
+        });
+        vela_protocol::repo::save_to_path(&root, &project).unwrap();
+        let error =
+            FrontierTxn::acquire_actor_registry_write_barrier(&root, &journals).unwrap_err();
+        assert!(matches!(
+            error,
+            FrontierTxnError::RepositoryWriteIntentDenied {
+                intent: "actor_registry",
+                ..
+            }
+        ));
+
+        // The populated structural-genesis registry can authorize exactly
+        // the native first-boundary ceremony. It still cannot authorize an
+        // ordinary administrator write until that signed boundary is pinned.
+        drop(FrontierTxn::acquire_first_administrator_boundary_barrier(&root, &journals).unwrap());
+        assert!(matches!(
+            FrontierTxn::acquire_administrator_write_barrier(&root, &journals),
+            Err(FrontierTxnError::RepositoryWriteIntentDenied {
+                intent: "administrator",
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn operating_system_account_home_ignores_hostile_home_environment() {
+        const CHILD: &str = "VELA_OS_ACCOUNT_HOME_REDIRECTION_CHILD";
+        if std::env::var_os(CHILD).is_some() {
+            let hostile = fs::canonicalize(
+                std::env::var_os("HOME")
+                    .map(PathBuf::from)
+                    .expect("child HOME is set"),
+            )
+            .unwrap();
+            let actual = fs::canonicalize(operating_system_account_home().unwrap()).unwrap();
+            assert_ne!(actual, hostile, "hostile HOME redirected trust-pin lookup");
+            return;
+        }
+
+        let attacker_home = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .arg("--exact")
+            .arg("frontier_txn::tests::operating_system_account_home_ignores_hostile_home_environment")
+            .arg("--nocapture")
+            .env(CHILD, "1")
+            .env("HOME", attacker_home.path())
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "hostile-HOME child failed:\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr),
+        );
+    }
+
+    fn expired_migration_signer_exchange() -> (
+        tempfile::NamedTempFile,
+        vela_signer::RepositoryBoundarySignerRequest,
+        vela_signer::RepositoryBoundarySignerResponse,
+    ) {
+        use vela_protocol::frontier_repository::{
+            FRONTIER_REPOSITORY_BOUNDARY_SCHEMA, FrontierRepositoryBoundaryMode,
+            FrontierRepositoryBoundaryPayloadV1, FrontierRepositoryTrustMode, GitObjectFormat,
+            LEGACY_FRONTIER_ORIGIN_SCHEMA, LegacyFrontierOriginV1, exact_dependency_root,
+            new_repository_boundary_event,
+        };
+
+        let binary = tempfile::NamedTempFile::new().unwrap();
+        fs::write(binary.path(), b"fixed migration test binary").unwrap();
+        let key = SigningKey::from_bytes(&[73; 32]);
+        let public_key = hex::encode(key.verifying_key().to_bytes());
+        let legacy_identity_preimage_root = format!("sha256:{}", "1".repeat(64));
+        let frontier_id = "vfr_0123456789abcdef".to_string();
+        let anchor_git_commit = "2".repeat(40);
+        let anchor_git_tree = "3".repeat(40);
+        let anchor_event_log_root = format!("sha256:{}", "4".repeat(64));
+        let identity_root = LegacyFrontierOriginV1 {
+            schema: LEGACY_FRONTIER_ORIGIN_SCHEMA.to_string(),
+            frontier_id: frontier_id.clone(),
+            legacy_identity_preimage_root: legacy_identity_preimage_root.clone(),
+            git_object_format: GitObjectFormat::Sha1,
+            anchor_git_commit: anchor_git_commit.clone(),
+            anchor_git_tree: anchor_git_tree.clone(),
+            anchor_event_log_root: anchor_event_log_root.clone(),
+            anchor_event_count: 1,
+        }
+        .identity_root()
+        .unwrap();
+        let dependencies = Vec::new();
+        let payload = FrontierRepositoryBoundaryPayloadV1 {
+            schema: FRONTIER_REPOSITORY_BOUNDARY_SCHEMA.to_string(),
+            mode: FrontierRepositoryBoundaryMode::TemporalizeExisting,
+            frontier_id: frontier_id.clone(),
+            identity_root,
+            observed_profile_root: format!("sha256:{}", "5".repeat(64)),
+            dependency_root: exact_dependency_root(&dependencies).unwrap(),
+            dependencies,
+            previous_identity_event_root: None,
+            legacy_identity_preimage_root: Some(legacy_identity_preimage_root),
+            administrator_actor_id: "reviewer:migration".to_string(),
+            administrator_public_key: public_key.clone(),
+            administrator_algorithm: "ed25519".to_string(),
+            trust_mode: FrontierRepositoryTrustMode::Tofu,
+            git_object_format: GitObjectFormat::Sha1,
+            anchor_git_commit,
+            anchor_git_tree,
+            anchor_event_log_root,
+            anchor_event_count: 1,
+            anchor_snapshot_root: format!("sha256:{}", "6".repeat(64)),
+            anchor_snapshot_schema: "vela.frontier.v0.1".to_string(),
+            anchor_proposal_root: format!("sha256:{}", "7".repeat(64)),
+            anchor_actor_registry_root: format!("sha256:{}", "8".repeat(64)),
+            anchor_artifact_registry_root: format!("sha256:{}", "9".repeat(64)),
+            anchor_canonical_store_root: format!("sha256:{}", "a".repeat(64)),
+        };
+        let observed_at = "2020-01-01T00:00:00Z";
+        let event =
+            new_repository_boundary_event(payload, "Bind exact repository", observed_at).unwrap();
+        let request = vela_signer::RepositoryBoundarySignerRequest {
+            schema: vela_signer::REPOSITORY_REQUEST_SCHEMA.to_string(),
+            nonce: "b".repeat(64),
+            expires_at: "2020-01-01T00:01:00Z".to_string(),
+            vela_binary_path: binary.path().display().to_string(),
+            vela_binary_sha256: vela_signer::contract::file_sha256(binary.path()).unwrap(),
+            helper_sha256: format!("sha256:{}", "c".repeat(64)),
+            frontier_id,
+            frontier_path: "/tmp/frontier".to_string(),
+            reason: "Bind exact repository".to_string(),
+            administrator_actor: "reviewer:migration".to_string(),
+            administrator_public_key: public_key.clone(),
+            observed_at: observed_at.to_string(),
+            boundary_plan_root: format!("sha256:{}", "d".repeat(64)),
+            provider: "os_store".to_string(),
+            protection_grade: "user_session".to_string(),
+            protection_mode: vela_signer::contract::ProtectionMode::Session,
+            display: vela_signer::RepositoryBoundaryDisplay {
+                frontier_name: "Migration fixture".to_string(),
+                profile_version: "vela.frontier-profile.v1".to_string(),
+                dependency_summary: "0 exact dependencies".to_string(),
+                consequence:
+                    "temporalize existing repository; first boundary requires an out-of-band pin"
+                        .to_string(),
+            },
+            event,
+        };
+        let response = vela_signer::RepositoryBoundarySignerResponse {
+            schema: vela_signer::REPOSITORY_RESPONSE_SCHEMA.to_string(),
+            request_root: vela_signer::repository_boundary_request_root(&request).unwrap(),
+            administrator_public_key: public_key,
+            helper_version: "0.914.0".to_string(),
+            helper_sha256: request.helper_sha256.clone(),
+            provider: request.provider.clone(),
+            protection_grade: request.protection_grade.clone(),
+            approved_at: "2020-01-01T00:00:30Z".to_string(),
+            protection_mode: request.protection_mode,
+            event_id: request.event.id.clone(),
+            event_signature: vela_protocol::sign::sign_event(&request.event, &key).unwrap(),
+        };
+        (binary, request, response)
+    }
+
+    #[test]
+    fn expired_protected_migration_exchange_cannot_mint_write_capability() {
+        let (_binary, request, response) = expired_migration_signer_exchange();
+        let approved_at = chrono::DateTime::parse_from_rfc3339(&response.approved_at)
+            .unwrap()
+            .with_timezone(&chrono::Utc);
+        let ceremony =
+            MigrationCeremonySpec::from_protected_request_at(&request, approved_at).unwrap();
+        let error = MigrationWritePermitSpec::from_protected_response(
+            &ceremony,
+            &request,
+            &response,
+            format!("sha256:{}", "e".repeat(64)),
+        )
+        .unwrap_err();
+        assert!(matches!(
+            error,
+            FrontierTxnError::MigrationAuthorizationInvalid(reason)
+                if reason.contains("expired before approval completed")
+        ));
+    }
+
+    #[test]
+    fn reopened_prepared_journal_requires_explicit_reauthorization() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        let journals = temp.path().join("journals");
+        initialize_profile_v1_frontier(&root);
+        let draft = DeltaDraft::prepare(
+            &root,
+            vec![PlannedWrite::write(
+                RepoPath::parse("records/authorized.txt").unwrap(),
+                WriteClass::CanonicalEvidence,
+                b"authorized".to_vec(),
+            )],
+        )
+        .unwrap();
+        let plan = fixture_plan(&root, &draft, b"reauthorize prepared");
+        let operation_id = plan.operation_id.clone();
+        let barrier = FrontierTxn::acquire_write_barrier(&root, &journals).unwrap();
+        drop(FrontierTxn::prepare_with_barrier(barrier, plan, draft).unwrap());
+
+        let mut reopened = FrontierTxn::open(&root, &journals, &operation_id).unwrap();
+        assert!(matches!(
+            reopened.mark_committed(),
+            Err(FrontierTxnError::WriteAuthorizationRequired { .. })
+        ));
+        assert!(!reopened.paths.marker.exists());
+        reopened
+            .reauthorize_prepared_for_commit(CanonicalWriteIntent::Producer)
+            .unwrap();
+        reopened.mark_committed().unwrap();
+        reopened.install().unwrap();
+        reopened.complete().unwrap();
+        assert_eq!(
+            fs::read(root.join("records/authorized.txt")).unwrap(),
+            b"authorized"
+        );
+    }
+
+    #[test]
+    fn marker_time_reverification_rejects_drifted_authorization() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        let journals = temp.path().join("journals");
+        initialize_profile_v1_frontier(&root);
+        let draft = DeltaDraft::prepare(
+            &root,
+            vec![PlannedWrite::write(
+                RepoPath::parse("records/drift.txt").unwrap(),
+                WriteClass::CanonicalEvidence,
+                b"must not install".to_vec(),
+            )],
+        )
+        .unwrap();
+        let plan = fixture_plan(&root, &draft, b"authorization drift");
+        let barrier = FrontierTxn::acquire_write_barrier(&root, &journals).unwrap();
+        let mut transaction = FrontierTxn::prepare_with_barrier(barrier, plan, draft).unwrap();
+        fs::write(
+            root.join(".vela/settings.toml"),
+            "schema = \"vela.frontier-settings.v1\"\n\n[work]\nlease_ttl_seconds = 60\n",
+        )
+        .unwrap();
+
+        assert!(matches!(
+            transaction.mark_committed(),
+            Err(FrontierTxnError::StaleWriteAuthorization { .. })
+        ));
+        assert!(!transaction.paths.marker.exists());
+        assert!(!root.join("records/drift.txt").exists());
+    }
+
+    #[test]
+    fn marker_time_does_not_follow_a_redirected_home_after_authorization() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        let journals = temp.path().join("journals");
+        let trusted_home = temp.path().join("trusted-home");
+        let attacker_home = temp.path().join("attacker-home");
+        fs::create_dir_all(&trusted_home).unwrap();
+        fs::create_dir_all(&attacker_home).unwrap();
+        initialize_profile_v1_frontier(&root);
+
+        let authorization = verify_repository_write_authorization(
+            &root,
+            &trusted_home,
+            CanonicalWriteIntent::Producer,
+        )
+        .unwrap();
+        assert_eq!(
+            authorization.trusted_user_home,
+            fs::canonicalize(&trusted_home).unwrap()
+        );
+        fs::write(attacker_home.join(".vela"), b"hostile trust-store redirect").unwrap();
+        assert!(matches!(
+            verify_repository_write_authorization(
+                &root,
+                &attacker_home,
+                CanonicalWriteIntent::Producer,
+            ),
+            Err(FrontierTxnError::RepositoryTrustAnchor(_))
+        ));
+
+        let draft = DeltaDraft::prepare(
+            &root,
+            vec![PlannedWrite::write(
+                RepoPath::parse("records/home-bound.txt").unwrap(),
+                WriteClass::CanonicalEvidence,
+                b"trusted home retained".to_vec(),
+            )],
+        )
+        .unwrap();
+        let plan = fixture_plan(&root, &draft, b"home redirection");
+        let barrier = CanonicalWriteBarrier {
+            recovery: FrontierTxn::acquire_recovery_barrier(&root, &journals).unwrap(),
+            authorization: FrontierTxnAuthorization::Verified(authorization),
+        };
+        let mut transaction = FrontierTxn::prepare_with_barrier(barrier, plan, draft).unwrap();
+        transaction.mark_committed().unwrap();
+        transaction.install().unwrap();
+        transaction.complete().unwrap();
+        assert_eq!(
+            fs::read(root.join("records/home-bound.txt")).unwrap(),
+            b"trusted home retained"
+        );
+    }
+
+    #[test]
+    fn committed_recovery_does_not_reopen_repository_authorization() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        let journals = temp.path().join("journals");
+        initialize_profile_v1_frontier(&root);
+        let draft = DeltaDraft::prepare(
+            &root,
+            vec![PlannedWrite::write(
+                RepoPath::parse("records/recovered.txt").unwrap(),
+                WriteClass::CanonicalEvidence,
+                b"recovered".to_vec(),
+            )],
+        )
+        .unwrap();
+        let plan = fixture_plan(&root, &draft, b"committed recovery");
+        let operation_id = plan.operation_id.clone();
+        let barrier = FrontierTxn::acquire_write_barrier(&root, &journals).unwrap();
+        let mut transaction = FrontierTxn::prepare_with_barrier(barrier, plan, draft).unwrap();
+        transaction.mark_committed().unwrap();
+        drop(transaction);
+
+        fs::write(root.join(".vela/settings.toml"), "not valid TOML = [").unwrap();
+        assert_eq!(
+            FrontierTxn::recover(&root, &journals, &operation_id).unwrap(),
+            RecoveryOutcome::Completed
+        );
+        assert_eq!(
+            fs::read(root.join("records/recovered.txt")).unwrap(),
+            b"recovered"
+        );
     }
 
     fn fixture_event(label: &str) -> vela_protocol::events::StateEvent {
@@ -3023,6 +5055,7 @@ mod tests {
             "records/COM1.txt",
             "records/LPT¹.txt",
             "records/CLOCK$",
+            "records/cafe\u{301}.json",
         ] {
             assert!(
                 RepoPath::parse(path).is_err(),
@@ -3210,6 +5243,124 @@ mod tests {
         )
         .unwrap_err();
         assert!(matches!(duplicate, FrontierTxnError::DuplicatePath(_)));
+
+        let portable_collision = DeltaDraft::prepare(
+            &root,
+            vec![
+                PlannedWrite::write(
+                    RepoPath::parse("records/Foo.json").unwrap(),
+                    WriteClass::CanonicalEvidence,
+                    vec![1],
+                ),
+                PlannedWrite::write(
+                    RepoPath::parse("records/foo.json").unwrap(),
+                    WriteClass::CanonicalEvidence,
+                    vec![2],
+                ),
+            ],
+        )
+        .unwrap_err();
+        assert!(matches!(
+            portable_collision,
+            FrontierTxnError::PortablePathCollision { .. }
+        ));
+    }
+
+    fn verify_draft_intent(
+        intent: CanonicalWriteIntent,
+        draft: &DeltaDraft,
+    ) -> Result<(), FrontierTxnError> {
+        verify_write_intent_delta(intent, &draft.delta, |blob| {
+            let bytes = draft
+                .blobs
+                .get(&blob.digest)
+                .cloned()
+                .ok_or_else(|| FrontierTxnError::MissingBlob(blob.digest.clone()))?;
+            validate_blob_bytes(blob, &bytes)?;
+            Ok(bytes)
+        })
+    }
+
+    fn intent_test_event(kind: &str) -> vela_protocol::events::StateEvent {
+        let mut event = vela_protocol::events::StateEvent {
+            schema: vela_protocol::events::EVENT_SCHEMA.to_string(),
+            id: String::new(),
+            kind: kind.into(),
+            target: vela_protocol::events::StateTarget {
+                r#type: "proposal".to_string(),
+                id: "vpr_intent_fixture".to_string(),
+            },
+            actor: vela_protocol::events::StateActor {
+                r#type: "human".to_string(),
+                id: "reviewer:intent-fixture".to_string(),
+            },
+            timestamp: "2026-07-22T18:00:00Z".to_string(),
+            reason: "exercise the write-intent delta boundary".to_string(),
+            before_hash: vela_protocol::events::NULL_HASH.to_string(),
+            after_hash: vela_protocol::events::NULL_HASH.to_string(),
+            payload: json!({"proposal_id": "vpr_intent_fixture", "verdict": "rejected"}),
+            caveats: vec![],
+            signature: None,
+        };
+        event.id = vela_protocol::events::compute_event_id(&event);
+        event
+    }
+
+    #[test]
+    fn canonical_write_intent_is_bound_to_delta_paths_and_event_kinds() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        let journals = temp.path().join("journals");
+        fs::create_dir_all(root.join(".vela")).unwrap();
+        fs::write(root.join(".vela/actors.json"), b"[]\n").unwrap();
+
+        let actor_delta = DeltaDraft::prepare(
+            &root,
+            vec![PlannedWrite::write(
+                RepoPath::parse(".vela/actors.json").unwrap(),
+                WriteClass::CanonicalEvidence,
+                b"[{\"id\":\"reviewer:forged\"}]\n".to_vec(),
+            )],
+        )
+        .unwrap();
+        assert!(matches!(
+            verify_draft_intent(CanonicalWriteIntent::Producer, &actor_delta),
+            Err(FrontierTxnError::RepositoryWriteIntentDenied { .. })
+        ));
+
+        let policy_delta = DeltaDraft::prepare(
+            &root,
+            vec![PlannedWrite::write(
+                RepoPath::parse(".vela/policies/active.json").unwrap(),
+                WriteClass::CanonicalEvidence,
+                b"{}\n".to_vec(),
+            )],
+        )
+        .unwrap();
+        assert!(matches!(
+            verify_draft_intent(CanonicalWriteIntent::Producer, &policy_delta),
+            Err(FrontierTxnError::RepositoryWriteIntentDenied { .. })
+        ));
+
+        let review = intent_test_event(vela_protocol::events::EVENT_KIND_REVIEW_REJECTED);
+        let review_delta = DeltaDraft::prepare(
+            &root,
+            vec![PlannedWrite::write(
+                RepoPath::parse(format!(".vela/events/{}.json", review.id)).unwrap(),
+                WriteClass::Authority,
+                serde_json::to_vec_pretty(&review).unwrap(),
+            )],
+        )
+        .unwrap();
+        assert!(matches!(
+            verify_draft_intent(CanonicalWriteIntent::Producer, &review_delta),
+            Err(FrontierTxnError::RepositoryWriteIntentDenied { .. })
+        ));
+        assert!(
+            !journals.exists(),
+            "intent rejection must precede journal creation"
+        );
+        assert_eq!(fs::read(root.join(".vela/actors.json")).unwrap(), b"[]\n");
     }
 
     #[test]
@@ -3285,6 +5436,9 @@ mod tests {
             } else {
                 FrontierTxn::prepare(&root, &journals, retry_plan, retry_draft).unwrap()
             };
+            if retry.authorization.is_none() {
+                retry.reauthorize_prepared_for_test().unwrap();
+            }
             retry.mark_committed().unwrap();
             retry.install().unwrap();
             retry.complete().unwrap();

@@ -1,30 +1,24 @@
-# vela-check — verify a git-native Vela frontier.
+# vela-check — strictly verify one clean Git-native Vela frontier.
 #
-# Consume from any frontier repo:
+# Consume from a frontier repository:
 #
 #   - uses: actions/checkout@v5
-#   - uses: vela-science/vela@v0.913.0
+#   - uses: vela-science/vela@v0.914.0
 #     with:
 #       frontier: .
-#       vela-version: v0.913.0
+#       vela-version: v0.914.0
+#       repository-boundary-root: ${{ vars.VELA_REPOSITORY_BOUNDARY_ROOT }}
 #
-# It replays the signed event log from the clean checkout and proves the
-# committed materialized state (frontier.json / vela.lock / proof/) reproduces:
-# the repo IS the authority (docs/HUB.md). Mark the job a required status check
-# and merging is gated on the frozen verifier, never on a click. The action
-# only re-derives and reports — it NEVER signs; the human-key accept stays the
-# reviewer's signed event committed in the repo.
-#
-# Note on parity: `vela frontier materialize` stamps generated_at into the
-# derived files, so a raw `git diff --exit-code` on them would be flaky by
-# design. Parity is therefore proved on the content hashes (snapshot_hash,
-# event_log_hash) recomputed from the event log against the committed
-# vela.lock — timestamp-independent and byte-equivalent in authority.
+# For an administrator-bound Profile v1 repository, the first boundary root
+# must come from protected GitHub repository or organization configuration,
+# never from the proposed checkout. The action installs that public consumer
+# pin in the ephemeral runner account and runs the strict read-only verifier.
+# It never materializes, signs, or changes scientific state.
 
 name: vela-check
 description: >-
-  Verifies a git-native Vela frontier: replays the signed event log from the
-  clean checkout and proves the committed materialized state reproduces.
+  Strictly verifies a clean Git-native Vela frontier with an optional exact
+  out-of-band repository-boundary pin.
 
 inputs:
   frontier:
@@ -33,10 +27,20 @@ inputs:
     default: "."
   vela-version:
     description: >-
-      Required reviewed Vela release tag (e.g. v0.911.0). It must match the
+      Required reviewed Vela release tag (e.g. v0.914.0). It must match the
       `vela_version` recorded in the frontier's vela.lock, preventing the
       proposed frontier bytes from selecting an older verifier.
     required: true
+  repository-boundary-root:
+    description: >-
+      Full sha256 content root of the first administrator boundary. Required
+      for an administrator-bound Profile v1 frontier. Supply it from a
+      protected GitHub repository or organization variable, not from a file in
+      the proposed checkout. Omit it when the runner already has the exact pin,
+      or for legacy or structural-genesis repositories with no administrator
+      boundary.
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -57,7 +61,7 @@ runs:
         lock_version="$(awk '/^vela_version:/{print $2}' "$lock")"
         lock_version="${lock_version#v}"
         if [ -z "$lock_version" ]; then
-          echo "::error::$lock has no vela_version — materialize it with a pinned Vela release"
+          echo "::error::$lock has no vela_version — regenerate it with a pinned Vela release"
           exit 1
         fi
         requested="${VELA_VERSION_INPUT#v}"
@@ -70,72 +74,59 @@ runs:
           exit 1
         fi
         release="v$lock_version"
-        # install.sh ships with this action (the repo root). It fetches the
-        # platform asset from the GitHub release and verifies its sha256.
-        # Run it with bash, never `sh` (it uses pipefail; dash rejects it).
+        install_root="${RUNNER_TEMP:?}/vela-action-$lock_version"
+        policy_root="$install_root/share/polkit-1/actions"
+        # install.sh ships with this exact action tag. It fetches the platform
+        # asset from the matching GitHub release and verifies its SHA-256.
         if [ -f "$ACTION_PATH/install.sh" ]; then
-          VELA_VERSION="$release" bash "$ACTION_PATH/install.sh"
+          VELA_VERSION="$release" \
+            VELA_INSTALL_PREFIX="$install_root" \
+            VELA_POLKIT_POLICY_DIR="$policy_root" \
+            bash "$ACTION_PATH/install.sh"
         else
           curl -fsSL "https://raw.githubusercontent.com/vela-science/vela/$release/install.sh" \
-            | VELA_VERSION="$release" bash
+            | VELA_VERSION="$release" \
+                VELA_INSTALL_PREFIX="$install_root" \
+                VELA_POLKIT_POLICY_DIR="$policy_root" \
+                bash
         fi
-        version_output="$(vela --version)"
+        version_output="$("$install_root/bin/vela" --version)"
         installed="${version_output##* }"
         installed="${installed#v}"
         if [ "$installed" != "$lock_version" ]; then
           echo "::error::installed Vela $installed does not match $lock's vela_version $lock_version"
           exit 1
         fi
+        echo "$install_root/bin" >> "$GITHUB_PATH"
         echo "$version_output (matches $lock)"
 
-    - name: Replay + verify signatures (structural gate)
+    - name: Install the exact consumer boundary pin
+      shell: bash
+      env:
+        FRONTIER: ${{ inputs.frontier }}
+        REPOSITORY_BOUNDARY_ROOT: ${{ inputs.repository-boundary-root }}
+      run: |
+        set -euo pipefail
+        if [ -z "$REPOSITORY_BOUNDARY_ROOT" ]; then
+          echo "No new administrator-boundary pin supplied; strict verification will use an existing exact pin or permit only a legacy or structural-genesis repository."
+          exit 0
+        fi
+        preview="$(vela frontier trust pin "$FRONTIER" \
+          --boundary-root "$REPOSITORY_BOUNDARY_ROOT" --json)"
+        plan_root="$(printf '%s' "$preview" | python3 -c 'import json,sys; print(json.load(sys.stdin)["plan_root"])')"
+        observed_at="$(printf '%s' "$preview" | python3 -c 'import json,sys; print(json.load(sys.stdin)["observed_at"])')"
+        vela frontier trust pin "$FRONTIER" \
+          --boundary-root "$REPOSITORY_BOUNDARY_ROOT" \
+          --confirm-root "$plan_root" --confirm-at "$observed_at" --json
+
+    - name: Strict read-only repository verification
       shell: bash
       env:
         FRONTIER: ${{ inputs.frontier }}
       run: |
         set -euo pipefail
-        if ! vela check "$FRONTIER"; then
-          echo "::error::vela check failed — the signed event log does not replay cleanly (invalid finding, event, or signature)"
-          exit 1
-        fi
-
-    - name: Hash parity — the committed materialized state reproduces
-      shell: bash
-      env:
-        FRONTIER: ${{ inputs.frontier }}
-      run: |
-        set -uo pipefail
-        lock="$FRONTIER/vela.lock"
-        if [ ! -f "$lock" ]; then
-          echo "::error::$lock not found — cannot prove the working tree matches the signed state"
-          exit 1
-        fi
-        # Read the committed lock FIRST; materialize rewrites it.
-        # vela.lock is YAML with flat `key: value` lines — awk avoids PyYAML.
-        lsnap="$(awk '/^snapshot_hash:/{print $2}' "$lock")"
-        lelog="$(awk '/^event_log_hash:/{print $2}' "$lock")"
-        out="$(vela frontier materialize "$FRONTIER" --json)"
-        snap="$(printf '%s' "$out" | python3 -c 'import json,sys;print(json.load(sys.stdin).get("snapshot_hash",""))')"
-        elog="$(printf '%s' "$out" | python3 -c 'import json,sys;print(json.load(sys.stdin).get("event_log_hash",""))')"
-        echo "committed:  snapshot=$lsnap event_log=$lelog"
-        echo "recomputed: snapshot=$snap event_log=$elog"
-        if [ -z "$snap" ] || [ "$snap" != "$lsnap" ] || [ "$elog" != "$lelog" ]; then
-          echo "::error::the committed materialized state does not reproduce from the event log — regenerate with \`vela frontier materialize\` or investigate tampering"
-          exit 1
-        fi
-        echo "hash parity OK — the working tree IS the signed state"
-        # Undo materialize's generated_at churn so later steps see a clean tree.
-        for p in frontier.json vela.lock proof; do
-          git -C "$FRONTIER" checkout -q -- "$p" 2>/dev/null || true
-        done
-
-    - name: Strict trust gate
-      shell: bash
-      env:
-        FRONTIER: ${{ inputs.frontier }}
-      run: |
-        set -uo pipefail
         if ! vela check "$FRONTIER" --strict; then
-          echo "::error::vela check --strict failed; proof-readiness or state-integrity debt is blocking"
+          echo "::error::strict Vela verification failed; replay, repository context, signatures, committed projections, or trust debt is blocking"
           exit 1
         fi
+        echo "strict verification OK — exact repository and scientific-state roots reproduce"

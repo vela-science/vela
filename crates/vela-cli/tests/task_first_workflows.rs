@@ -383,7 +383,7 @@ fn temporal_actor_registration_strict_check_preserves_legacy_history() {
 }
 
 #[test]
-fn temporal_actor_registration_command_previews_then_installs_one_signed_event() {
+fn temporal_actor_registration_requires_a_pinned_repository_boundary_before_key_use() {
     use ed25519_dalek::SigningKey;
     use serde_json::json;
     use vela_protocol::events::{
@@ -572,8 +572,9 @@ fn temporal_actor_registration_command_previews_then_installs_one_signed_event()
         hex::encode(correct_key.to_bytes()),
     )
     .unwrap();
+    std::fs::remove_file(tmp.path().join(".vela/keys/t/private.key")).unwrap();
 
-    let activated = run(
+    let blocked_without_repository_boundary = run(
         tmp.path(),
         &[
             "actor",
@@ -587,31 +588,26 @@ fn temporal_actor_registration_command_previews_then_installs_one_signed_event()
             "--json",
         ],
     );
-    assert_success(&activated, "actor activation ceremony");
-    let activated_json: serde_json::Value = serde_json::from_slice(&activated.stdout).unwrap();
-    assert_eq!(activated_json["command"], "actor.activate");
+    assert!(!blocked_without_repository_boundary.status.success());
+    assert!(
+        String::from_utf8_lossy(&blocked_without_repository_boundary.stderr)
+            .contains("repository_write_intent_denied")
+    );
     let reloaded = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
-    assert_eq!(reloaded.events.len(), before + 1);
+    assert_eq!(reloaded.events.len(), before);
     for (name, bytes) in &before_event_bytes {
         assert_eq!(
             std::fs::read(tmp.path().join(".vela/events").join(name)).unwrap(),
             *bytes,
-            "actor activation rewrote immutable event file {name}"
+            "blocked actor activation rewrote immutable event file {name}"
         );
     }
-    let activation = reloaded
-        .events
-        .iter()
-        .find(|event| event.kind.as_str() == "actor.registration_activated")
-        .unwrap();
-    let actor = reloaded
-        .actors
-        .iter()
-        .find(|actor| actor.id == "reviewer:t")
-        .unwrap();
-    assert!(vela_protocol::sign::verify_event_signature(activation, &actor.public_key).unwrap());
-    let strict = run(tmp.path(), &["check", ".", "--strict", "--json"]);
-    assert_success(&strict, "strict check after actor activation");
+    assert!(
+        reloaded
+            .events
+            .iter()
+            .all(|event| event.kind.as_str() != "actor.registration_activated")
+    );
 }
 
 #[test]
@@ -5167,7 +5163,7 @@ fn ai_volume_preview_has_stable_bounded_keyset_pages_and_never_fetches_locators(
 }
 
 #[test]
-fn decision_plan_direct_sign_accept_uses_the_same_two_phase_root_and_time_handshake() {
+fn decision_plan_direct_sign_requires_a_pinned_repository_boundary_before_key_use() {
     let tmp = tempfile::TempDir::new().unwrap();
     init_git_frontier(tmp.path());
     let key_path = register_deterministic_reviewer(tmp.path(), 0x56);
@@ -5301,7 +5297,8 @@ fn decision_plan_direct_sign_accept_uses_the_same_two_phase_root_and_time_handsh
     );
 
     std::thread::sleep(std::time::Duration::from_millis(25));
-    let accepted = run(
+    std::fs::remove_file(&key_path).unwrap();
+    let blocked_without_repository_boundary = run(
         tmp.path(),
         &[
             "sign",
@@ -5320,10 +5317,21 @@ fn decision_plan_direct_sign_accept_uses_the_same_two_phase_root_and_time_handsh
             "--json",
         ],
     );
-    assert_success(&accepted, "direct sign exact confirmation");
-    let accepted = one_json_object(&accepted);
-    assert_eq!(accepted["command"], "sign");
-    assert_eq!(accepted["decision"]["decision_root"], decision_root);
+    assert!(!blocked_without_repository_boundary.status.success());
+    assert!(
+        String::from_utf8_lossy(&blocked_without_repository_boundary.stdout)
+            .contains("repository_write_intent_denied")
+    );
+    assert_eq!(snapshot_scientific_tree(tmp.path()), scientific_before);
+    assert_eq!(snapshot_exact_tree(&journal_dir), journal_before);
+    assert_eq!(git_stdout(tmp.path(), &["rev-parse", "HEAD"]), head_before);
+    assert_eq!(
+        git_stdout(
+            tmp.path(),
+            &["status", "--porcelain=v1", "--untracked-files=all"]
+        ),
+        status_before
+    );
     let project = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
     assert_eq!(
         project
@@ -5332,21 +5340,8 @@ fn decision_plan_direct_sign_accept_uses_the_same_two_phase_root_and_time_handsh
             .find(|proposal| proposal.id == proposal_id)
             .unwrap()
             .status,
-        "applied"
+        "pending_review"
     );
-    let actor = project
-        .actors
-        .iter()
-        .find(|actor| actor.id == "reviewer:t")
-        .unwrap();
-    for event_id in accepted["event_ids"].as_array().unwrap() {
-        let event = project
-            .events
-            .iter()
-            .find(|event| event.id == event_id.as_str().unwrap())
-            .unwrap();
-        assert!(vela_protocol::sign::verify_event_signature(event, &actor.public_key).unwrap());
-    }
 }
 
 #[test]

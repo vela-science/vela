@@ -116,6 +116,9 @@ Advanced verification and integration:
   serve         read-only or nonfinalizing draft MCP/HTTP surface
   sign          historical batch and detached-file signing compatibility
 
+Advanced setup:
+  target-index  inspect, diagnose, or seal derived producer targets
+
 Hidden utility:
   completions   generate shell completion scripts
 

@@ -1293,6 +1293,332 @@ fn build_proposal_withdrawn_log(frontier_idx: usize) -> Vec<events::StateEvent> 
     }]
 }
 
+/// `frontier.repository_bound` is a signed, non-scientific repository
+/// identity event. It leaves the finding/artifact effect digest untouched,
+/// but every implementation must validate its closed envelope, content
+/// address, v1 signature, and linear boundary chain before applying that
+/// reducer no-op.
+fn build_frontier_repository_bound_log(frontier_idx: usize) -> Vec<events::StateEvent> {
+    use vela_protocol::frontier_repository::{
+        FRONTIER_REPOSITORY_BOUNDARY_SCHEMA, FrontierRepositoryBoundaryMode,
+        FrontierRepositoryBoundaryPayloadV1, FrontierRepositoryTrustMode, GitObjectFormat,
+        LEGACY_FRONTIER_ORIGIN_SCHEMA, LegacyFrontierOriginV1, exact_dependency_root,
+        new_repository_boundary_event, repository_boundary_event_content_root,
+    };
+    use vela_protocol::sign::{pubkey_hex, sign_event};
+
+    let key = ed25519_dalek::SigningKey::from_bytes(&[19u8; 32]);
+    let frontier_id = "vfr_1234567890abcdef".to_string();
+    let legacy_identity_preimage_root = format!("sha256:{}", "1".repeat(64));
+    let anchor_git_commit = "2".repeat(40);
+    let anchor_git_tree = "3".repeat(40);
+    let anchor_event_log_root = format!("sha256:{}", "4".repeat(64));
+    let anchor_event_count = 11;
+    let origin = LegacyFrontierOriginV1 {
+        schema: LEGACY_FRONTIER_ORIGIN_SCHEMA.to_string(),
+        frontier_id: frontier_id.clone(),
+        legacy_identity_preimage_root: legacy_identity_preimage_root.clone(),
+        git_object_format: GitObjectFormat::Sha1,
+        anchor_git_commit: anchor_git_commit.clone(),
+        anchor_git_tree: anchor_git_tree.clone(),
+        anchor_event_log_root: anchor_event_log_root.clone(),
+        anchor_event_count,
+    };
+    let payload = FrontierRepositoryBoundaryPayloadV1 {
+        schema: FRONTIER_REPOSITORY_BOUNDARY_SCHEMA.to_string(),
+        mode: FrontierRepositoryBoundaryMode::TemporalizeExisting,
+        frontier_id,
+        identity_root: origin
+            .identity_root()
+            .expect("derive fixture legacy identity root"),
+        observed_profile_root: format!("sha256:{}", "5".repeat(64)),
+        dependency_root: exact_dependency_root(&[]).expect("derive empty dependency root"),
+        dependencies: vec![],
+        previous_identity_event_root: None,
+        legacy_identity_preimage_root: Some(legacy_identity_preimage_root),
+        administrator_actor_id: "reviewer:repository-boundary-fixture".to_string(),
+        administrator_public_key: pubkey_hex(&key),
+        administrator_algorithm: "ed25519".to_string(),
+        trust_mode: FrontierRepositoryTrustMode::Tofu,
+        git_object_format: GitObjectFormat::Sha1,
+        anchor_git_commit,
+        anchor_git_tree,
+        anchor_event_log_root,
+        anchor_event_count,
+        anchor_snapshot_root: format!("sha256:{}", "6".repeat(64)),
+        anchor_snapshot_schema: "vela.project.v0.1".to_string(),
+        anchor_proposal_root: format!("sha256:{}", "7".repeat(64)),
+        anchor_actor_registry_root: format!("sha256:{}", "8".repeat(64)),
+        anchor_artifact_registry_root: format!("sha256:{}", "a".repeat(64)),
+        anchor_canonical_store_root: format!("sha256:{}", "b".repeat(64)),
+    };
+    let mut event = new_repository_boundary_event(
+        payload,
+        "Fixture: bind an exact legacy Frontier repository.",
+        &fixture_timestamp(frontier_idx, 0),
+    )
+    .expect("build repository-boundary fixture event");
+    event.signature = Some(sign_event(&event, &key).expect("sign repository-boundary fixture"));
+
+    let mut update_payload: FrontierRepositoryBoundaryPayloadV1 =
+        serde_json::from_value(event.payload.clone()).expect("parse fixture boundary payload");
+    update_payload.mode = FrontierRepositoryBoundaryMode::UpdateDependencies;
+    update_payload.trust_mode = FrontierRepositoryTrustMode::PreviousBoundary;
+    update_payload.previous_identity_event_root =
+        Some(repository_boundary_event_content_root(&event).expect("derive boundary parent root"));
+    update_payload.anchor_event_count += 1;
+    let mut update = new_repository_boundary_event(
+        update_payload,
+        "Fixture: advance the exact repository boundary chain.",
+        &fixture_timestamp(frontier_idx, 1),
+    )
+    .expect("build repository-boundary update fixture event");
+    update.signature =
+        Some(sign_event(&update, &key).expect("sign repository-boundary update fixture"));
+    vec![event, update]
+}
+
+fn repository_boundary_validation_vectors(
+    frontier_idx: usize,
+    valid_chain: &[events::StateEvent],
+) -> serde_json::Value {
+    use vela_protocol::events::{EVENT_SCHEMA, FRONTIER_CREATED_SCHEMA_V1, compute_event_id};
+    use vela_protocol::frontier_repository::{
+        FrontierIdentityV1, FrontierRepositoryBoundaryMode, FrontierRepositoryBoundaryPayloadV1,
+        FrontierRepositoryTrustMode, exact_dependency_root, new_repository_boundary_event,
+        repository_boundary_event_content_root, repository_identity_event_content_root,
+        validate_repository_boundary_event_set,
+    };
+    use vela_protocol::sign::{pubkey_hex, sign_event};
+
+    let key = ed25519_dalek::SigningKey::from_bytes(&[19u8; 32]);
+    let root = valid_chain[0].clone();
+    let child = valid_chain[1].clone();
+
+    let native_name = "Profile v1 native repository fixture";
+    let native_timestamp = fixture_timestamp(frontier_idx, 10);
+    let mut native_genesis = StateEvent {
+        schema: EVENT_SCHEMA.to_string(),
+        id: String::new(),
+        kind: "frontier.created".into(),
+        target: StateTarget {
+            r#type: "frontier".to_string(),
+            id: native_name.to_string(),
+        },
+        actor: StateActor {
+            r#type: "frontier".to_string(),
+            id: native_name.to_string(),
+        },
+        timestamp: native_timestamp.clone(),
+        reason: "frontier compiled".to_string(),
+        before_hash: NULL_HASH.to_string(),
+        after_hash: NULL_HASH.to_string(),
+        payload: json!({
+            "schema": FRONTIER_CREATED_SCHEMA_V1,
+            "name_at_creation": native_name,
+            "creator": native_name,
+            "profile_schema": "vela.frontier-profile.v1",
+            "dependency_root": exact_dependency_root(&[])
+                .expect("derive native empty dependency root"),
+            "created_at": native_timestamp,
+        }),
+        caveats: vec![],
+        signature: None,
+    };
+    native_genesis.id = compute_event_id(&native_genesis);
+    let native_identity =
+        FrontierIdentityV1::from_genesis_event(&native_genesis).expect("derive native identity");
+    let native_genesis_root = repository_identity_event_content_root(&native_genesis)
+        .expect("derive native genesis root");
+
+    let mut native_payload: FrontierRepositoryBoundaryPayloadV1 =
+        serde_json::from_value(root.payload.clone()).expect("parse fixture boundary payload");
+    native_payload.mode = FrontierRepositoryBoundaryMode::UpdateDependencies;
+    native_payload.frontier_id = native_identity.frontier_id.clone();
+    native_payload.identity_root = native_identity.root().expect("derive native identity root");
+    native_payload.previous_identity_event_root = Some(native_genesis_root);
+    native_payload.legacy_identity_preimage_root = None;
+    native_payload.administrator_public_key = pubkey_hex(&key);
+    native_payload.trust_mode = FrontierRepositoryTrustMode::Genesis;
+    native_payload.anchor_event_count = 1;
+    let mut native_boundary = new_repository_boundary_event(
+        native_payload,
+        "Fixture: establish the first native administrator boundary.",
+        &fixture_timestamp(frontier_idx, 11),
+    )
+    .expect("build native repository-boundary fixture event");
+    native_boundary.signature =
+        Some(sign_event(&native_boundary, &key).expect("sign native boundary fixture"));
+
+    let mut cases: Vec<(&str, bool, Vec<events::StateEvent>)> = Vec::new();
+    cases.push(("valid_linear_chain", true, valid_chain.to_vec()));
+    cases.push((
+        "valid_native_genesis_chain",
+        true,
+        vec![native_genesis.clone(), native_boundary.clone()],
+    ));
+    cases.push((
+        "missing_native_genesis",
+        false,
+        vec![native_boundary.clone()],
+    ));
+    let mut invalid_native_genesis = native_genesis;
+    invalid_native_genesis.signature = Some(format!("v1:{}", "0".repeat(128)));
+    cases.push((
+        "invalid_native_genesis",
+        false,
+        vec![invalid_native_genesis, native_boundary],
+    ));
+
+    let mut unsigned = child.clone();
+    unsigned.signature = None;
+    cases.push(("unsigned", false, vec![root.clone(), unsigned]));
+
+    let mut corrupt_signature = child.clone();
+    let signature = corrupt_signature
+        .signature
+        .as_mut()
+        .expect("fixture child is signed");
+    let replacement = if signature.ends_with('0') { "1" } else { "0" };
+    signature.replace_range(signature.len() - 1.., replacement);
+    cases.push((
+        "corrupt_signature",
+        false,
+        vec![root.clone(), corrupt_signature],
+    ));
+
+    let mut event_id_drift = child.clone();
+    event_id_drift.reason.push_str(" altered");
+    cases.push(("event_id_drift", false, vec![root.clone(), event_id_drift]));
+
+    let mut envelope_drift = child.clone();
+    envelope_drift.after_hash = format!("sha256:{}", "f".repeat(64));
+    envelope_drift.id = compute_event_id(&envelope_drift);
+    envelope_drift.signature =
+        Some(sign_event(&envelope_drift, &key).expect("sign fixed-envelope hostile fixture"));
+    cases.push((
+        "fixed_envelope_drift",
+        false,
+        vec![root.clone(), envelope_drift],
+    ));
+
+    let mut empty_reason = child.clone();
+    empty_reason.reason.clear();
+    empty_reason.id = compute_event_id(&empty_reason);
+    empty_reason.signature =
+        Some(sign_event(&empty_reason, &key).expect("sign empty-reason hostile fixture"));
+    cases.push(("empty_reason", false, vec![root.clone(), empty_reason]));
+
+    let mut invalid_timestamp = child.clone();
+    invalid_timestamp.timestamp = "not-rfc3339".to_string();
+    invalid_timestamp.id = compute_event_id(&invalid_timestamp);
+    invalid_timestamp.signature =
+        Some(sign_event(&invalid_timestamp, &key).expect("sign invalid-timestamp hostile fixture"));
+    cases.push((
+        "invalid_timestamp",
+        false,
+        vec![root.clone(), invalid_timestamp],
+    ));
+
+    let mut missing_parent_payload: FrontierRepositoryBoundaryPayloadV1 =
+        serde_json::from_value(child.payload.clone()).expect("parse child payload");
+    missing_parent_payload.previous_identity_event_root =
+        Some(format!("sha256:{}", "0".repeat(64)));
+    let mut missing_parent = new_repository_boundary_event(
+        missing_parent_payload,
+        "Fixture hostile case: reference a missing boundary parent.",
+        &fixture_timestamp(frontier_idx, 2),
+    )
+    .expect("build missing-parent hostile fixture");
+    missing_parent.signature =
+        Some(sign_event(&missing_parent, &key).expect("sign missing-parent hostile fixture"));
+    cases.push(("missing_parent", false, vec![root.clone(), missing_parent]));
+
+    let mut fork_child = child.clone();
+    fork_child.timestamp = fixture_timestamp(frontier_idx, 3);
+    fork_child.reason = "Fixture hostile case: create a conflicting child.".to_string();
+    fork_child.id = compute_event_id(&fork_child);
+    fork_child.signature = Some(sign_event(&fork_child, &key).expect("sign fork hostile fixture"));
+    cases.push(("fork", false, vec![root.clone(), child.clone(), fork_child]));
+
+    let mut rollback_payload: FrontierRepositoryBoundaryPayloadV1 =
+        serde_json::from_value(child.payload.clone()).expect("parse child payload");
+    rollback_payload.anchor_event_count =
+        serde_json::from_value::<FrontierRepositoryBoundaryPayloadV1>(root.payload.clone())
+            .expect("parse root payload")
+            .anchor_event_count;
+    let mut rollback = new_repository_boundary_event(
+        rollback_payload,
+        "Fixture hostile case: do not advance the anchor count.",
+        &fixture_timestamp(frontier_idx, 4),
+    )
+    .expect("build rollback hostile fixture");
+    rollback.signature = Some(sign_event(&rollback, &key).expect("sign rollback hostile fixture"));
+    cases.push(("rollback", false, vec![root, rollback]));
+
+    let expected_ids = [
+        "valid_linear_chain",
+        "valid_native_genesis_chain",
+        "missing_native_genesis",
+        "invalid_native_genesis",
+        "unsigned",
+        "corrupt_signature",
+        "event_id_drift",
+        "fixed_envelope_drift",
+        "empty_reason",
+        "invalid_timestamp",
+        "missing_parent",
+        "fork",
+        "rollback",
+    ];
+    assert_eq!(
+        cases.iter().map(|(id, _, _)| *id).collect::<Vec<_>>(),
+        expected_ids
+    );
+    for (id, expected_valid, events) in &cases {
+        let actual_valid = validate_repository_boundary_event_set(events).is_empty();
+        assert_eq!(
+            actual_valid, *expected_valid,
+            "Rust repository-boundary vector {id} disagrees with its expectation"
+        );
+    }
+
+    json!({
+        "schema": "vela.frontier-repository-boundary-conformance.v1",
+        "signature_version": "v1",
+        "cases": cases.into_iter().map(|(id, expected_valid, events)| json!({
+            "id": id,
+            "expected_valid": expected_valid,
+            "events": events,
+        })).collect::<Vec<_>>(),
+        "valid_chain_tip_root": repository_boundary_event_content_root(&child)
+            .expect("derive valid boundary-chain tip root"),
+    })
+}
+
+fn attach_repository_boundary_validation_vectors(
+    out_dir: &PathBuf,
+    fixture_idx: usize,
+    valid_chain: &[events::StateEvent],
+) {
+    let path = out_dir.join(format!("cascade-fixture-{fixture_idx:02}.json"));
+    let mut fixture: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).expect("read boundary fixture"))
+            .expect("parse boundary fixture");
+    fixture
+        .as_object_mut()
+        .expect("fixture is an object")
+        .insert(
+            "repository_boundary_validation".to_string(),
+            repository_boundary_validation_vectors(fixture_idx, valid_chain),
+        );
+    std::fs::write(
+        &path,
+        serde_json::to_string_pretty(&fixture).expect("serialize boundary fixture vectors"),
+    )
+    .expect("write boundary fixture vectors");
+}
+
 /// v0.220: diff_pack.released / diff_pack.reviewed /
 /// verdict_conflict.resolved fixture builders. These three reducer
 /// arms write to side tables (`released_diff_packs`,
@@ -1857,6 +2183,27 @@ fn export_cross_impl_reducer_fixtures() {
             findings,
             event_log,
         );
+    }
+
+    // Fixture 19 — frontier.repository_bound. The event changes repository
+    // identity/dependency standing outside the finding/artifact projection.
+    // Its embedded valid and hostile vectors require every implementation to
+    // validate the exact signed boundary chain before applying the
+    // reducer-neutral effect.
+    {
+        let frontier_idx = FIXTURE_FRONTIER_COUNT + 16;
+        let findings: Vec<FindingBundle> = (0..FINDINGS_PER_FRONTIER)
+            .map(|i| make_finding(frontier_idx, i))
+            .collect();
+        let event_log = build_frontier_repository_bound_log(frontier_idx);
+        export_one(
+            &out_dir,
+            frontier_idx,
+            "frontier_repository_bound",
+            findings,
+            event_log.clone(),
+        );
+        attach_repository_boundary_validation_vectors(&out_dir, frontier_idx, &event_log);
     }
 
     // v0.107.4: write fixtures.manifest.json with SHA-256 of every

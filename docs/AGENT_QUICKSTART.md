@@ -102,8 +102,13 @@ vela reproduce .
 ```
 
 `check` verifies frontier structure, event replay, signatures, roots, policy,
-and strict signals. `reproduce` reruns stored scientific evidence. A frontier
-can replay while strict scientific debt remains; report both states.
+strict signals, and Profile v1 repository context. Repository context includes
+the closed profile/settings, boundary chain, Git anchor and ancestry, retained
+bytes, actor registry, and the consumer's independent first-boundary pin when
+an administrator boundary exists. Non-strict inspection reports the same
+defects but never grants an identity, dependency, signature, or historical
+exemption. `reproduce` reruns stored scientific evidence. A frontier can replay
+while strict scientific debt remains; report both states.
 
 ## Optional tool surface
 
@@ -112,6 +117,10 @@ after initialization. The draft profile can expose the nonfinalizing producer
 loop. An agent may invoke one exact protected `review decide` request, but only
 the registered human can approve the exact local decision card. MCP exposes no
 decision path.
+
+`vela serve . --http 3741` is a loopback-only public reader. HTTP has no
+authenticated actor identity and cannot expose restricted data, protected
+decisions, or signing.
 
 ## Output contracts
 

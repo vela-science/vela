@@ -1,9 +1,10 @@
 use std::io::Read;
 
 use crate::{
-    Approval, Custody, EnrollmentRequest, PolicySignerRequest, ProtectionMode, RebindRequest,
-    SessionRecord, SessionState, SignerRequest, approve_and_sign, approve_and_sign_policy, enroll,
-    rebind,
+    ActorBootstrapProofRequest, Approval, Custody, EnrollmentRequest, PolicySignerRequest,
+    ProtectionMode, RebindRequest, RepositoryBoundarySignerRequest, SessionRecord, SessionState,
+    SignerRequest, approve_and_sign, approve_and_sign_policy, approve_and_sign_repository_boundary,
+    enroll, prove_actor_bootstrap, rebind,
 };
 use clap::{Parser, Subcommand};
 use rfd::{MessageButtons, MessageDialog, MessageDialogResult, MessageLevel};
@@ -29,6 +30,10 @@ enum Command {
     Approve,
     /// Read one closed policy request from stdin, show one exact card, sign, exit.
     ApprovePolicy,
+    /// Read one closed repository-boundary request, authenticate once, sign, exit.
+    ApproveRepositoryBoundary,
+    /// Prove possession of one exact protected actor-bootstrap key, then exit.
+    ProveActorBootstrap,
     /// Read one closed enrollment request from stdin, install and verify custody.
     Enroll,
     /// Rebind an existing protected identity to this exact helper binary.
@@ -142,6 +147,22 @@ impl Approval for SystemApproval {
             request.selected_policy_id,
             short_root(&request.decision_plan_root)
         ))
+    }
+
+    fn reauthenticate_repository_boundary(
+        &self,
+        request: &RepositoryBoundarySignerRequest,
+    ) -> Result<(), String> {
+        require_user_interaction("authenticate a repository boundary")?;
+        platform_reauthenticate(&repository_boundary_prompt(request))
+    }
+
+    fn reauthenticate_actor_bootstrap(
+        &self,
+        request: &ActorBootstrapProofRequest,
+    ) -> Result<(), String> {
+        require_user_interaction("authenticate an actor-registry bootstrap")?;
+        platform_reauthenticate(&actor_bootstrap_prompt(request))
     }
 
     fn reauthenticate_enrollment(&self, request: &EnrollmentRequest) -> Result<(), String> {
@@ -606,9 +627,55 @@ fn run() -> Result<(), String> {
     match cli.command {
         Command::Approve => approve_once(),
         Command::ApprovePolicy => approve_policy_once(),
+        Command::ApproveRepositoryBoundary => approve_repository_boundary_once(),
+        Command::ProveActorBootstrap => prove_actor_bootstrap_once(),
         Command::Enroll => enroll_once(),
         Command::Rebind => rebind_once(),
     }
+}
+
+fn prove_actor_bootstrap_once() -> Result<(), String> {
+    let mut bytes = read_request_bytes()?;
+    let request: ActorBootstrapProofRequest = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("parse closed actor-bootstrap proof request: {error}"))?;
+    bytes.zeroize();
+    let helper_path =
+        std::env::current_exe().map_err(|error| format!("resolve running helper path: {error}"))?;
+    let response = prove_actor_bootstrap(
+        &request,
+        &SystemApproval,
+        &SystemCustody::new(request.protection_mode),
+        &helper_path,
+        chrono::Utc::now(),
+    )?;
+    println!(
+        "{}",
+        serde_json::to_string(&response)
+            .map_err(|error| format!("serialize actor-bootstrap proof response: {error}"))?
+    );
+    Ok(())
+}
+
+fn approve_repository_boundary_once() -> Result<(), String> {
+    let mut bytes = read_request_bytes()?;
+    let request: RepositoryBoundarySignerRequest = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("parse closed repository-boundary signer request: {error}"))?;
+    bytes.zeroize();
+    let helper_path =
+        std::env::current_exe().map_err(|error| format!("resolve running helper path: {error}"))?;
+    let response = approve_and_sign_repository_boundary(
+        &request,
+        &SystemApproval,
+        &SystemCustody::new(request.protection_mode),
+        &helper_path,
+        chrono::Utc::now(),
+    )?;
+    println!(
+        "{}",
+        serde_json::to_string(&response)
+            .map_err(|error| format!("serialize repository-boundary signer response: {error}"))?
+    );
+    Ok(())
 }
 
 fn approve_policy_once() -> Result<(), String> {
@@ -740,6 +807,67 @@ fn capitalize(value: &str) -> String {
         Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
         None => String::new(),
     }
+}
+
+fn repository_boundary_prompt(request: &RepositoryBoundarySignerRequest) -> String {
+    let payload = serde_json::from_value::<
+        vela_protocol::frontier_repository::FrontierRepositoryBoundaryPayloadV1,
+    >(request.event.payload.clone())
+    .map_err(|error| error.to_string())
+    .and_then(|payload| payload.validate().map(|_| payload));
+    let (mode, trust, actor_registry_root) = payload
+        .map(|payload| {
+            (
+                format!("{:?}", payload.mode),
+                format!("{:?}", payload.trust_mode),
+                payload.anchor_actor_registry_root,
+            )
+        })
+        .unwrap_or_else(|_| {
+            (
+                "invalid".to_string(),
+                "invalid".to_string(),
+                "invalid".to_string(),
+            )
+        });
+    repository_boundary_prompt_text(
+        &request.display.frontier_name,
+        &mode,
+        &trust,
+        &request.administrator_actor,
+        &request.administrator_public_key,
+        &actor_registry_root,
+        &request.boundary_plan_root,
+        &request.reason,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn repository_boundary_prompt_text(
+    frontier_name: &str,
+    mode: &str,
+    trust: &str,
+    administrator_actor: &str,
+    administrator_public_key: &str,
+    actor_registry_root: &str,
+    boundary_plan_root: &str,
+    reason: &str,
+) -> String {
+    format!(
+        "Authorize Vela repository boundary for {}: {} / {}; administrator {} / key {}; actor registry {}; plan {}; reason: {}",
+        frontier_name,
+        mode,
+        trust,
+        administrator_actor,
+        short_root(administrator_public_key),
+        short_root(actor_registry_root),
+        short_root(boundary_plan_root),
+        reason,
+    )
+}
+
+fn actor_bootstrap_prompt(request: &ActorBootstrapProofRequest) -> String {
+    crate::actor_contract::actor_bootstrap_prompt(request)
 }
 
 #[cfg(target_os = "macos")]
@@ -1004,6 +1132,25 @@ mod tests {
         assert!(card.description.contains("sha256:4444444"));
         assert!(card.description.contains("does not approve a policy"));
         assert!(!card.description.contains(&request.public_key));
+    }
+
+    #[test]
+    fn repository_boundary_prompt_discloses_actor_key_registry_and_plan() {
+        let prompt = repository_boundary_prompt_text(
+            "Native frontier",
+            "UpdateDependencies",
+            "Genesis",
+            "reviewer:administrator",
+            &"a".repeat(64),
+            &format!("sha256:{}", "b".repeat(64)),
+            &format!("sha256:{}", "c".repeat(64)),
+            "Bind the exact native repository",
+        );
+        assert!(prompt.contains("reviewer:administrator"));
+        assert!(prompt.contains(&"a".repeat(15)));
+        assert!(prompt.contains("sha256:bbbbbbbb"));
+        assert!(prompt.contains("sha256:cccccccc"));
+        assert!(prompt.contains("Bind the exact native repository"));
     }
 
     #[test]

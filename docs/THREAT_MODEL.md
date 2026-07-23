@@ -11,6 +11,9 @@ The protected assets are:
 - artifact content identities and verifier pins;
 - human signing keys and signed policy authority;
 - the exact proposal, base root, policy, and effect shown at decision time;
+- Profile v1 Frontier identity, exact dependency pins, first-administrator
+  selection, and retained bytes anchored by repository boundaries;
+- Target Index v2 source, packet, and claim-time task bindings; and
 - deterministic replay and public wire contracts.
 
 The system boundary is:
@@ -48,6 +51,10 @@ roots.
    binary that misrenders or mishandles a ceremony.
 7. **Resource-exhaustion attacker.** Can send large or repeated requests to an
    exposed HTTP or MCP service.
+8. **Malicious repository publisher.** Can present a valid-looking checkout
+   with a forked first administrator, backdated boundary, substituted
+   dependency, shallow anchor history, altered retained object, or stale target
+   index.
 
 ## Defended properties
 
@@ -102,9 +109,16 @@ accepted effect.
 ### Git history replacement
 
 Anyone can retain an earlier clone, verify event signatures, and compare roots.
-The Hub indexes only descendants of the last promoted commit and refuses a
-rewind. This makes one class of force-push visible, but it is not a substitute
-for protected branches, independent clones, or repository credential recovery.
+Profile v1 repository verification also requires the signed boundary chain,
+complete anchor objects, exact Git ancestry, retained-object manifest, actor
+registry, and the consumer's independently installed first-boundary pin. A
+valid Git commit or boundary signature alone does not prove that this is the
+administrator fork the consumer intended.
+
+The Observatory may index only descendants of its selected promoted commit.
+That can make one class of force-push visible, but it is not a substitute for
+protected branches, independent clones, the consumer pin, or repository
+credential recovery.
 
 If a Git host and every available copy are compromised, Vela cannot recover
 missing bytes. Durable replication remains an operator and community
@@ -122,13 +136,70 @@ configured Git URL and exact commit with `vela check . --strict` and the frozen
 verifier. Agreement between multiple Hub deployments is corroborative only; it
 does not create authority.
 
+### Repository-boundary substitution
+
+The first administrator boundary cannot authenticate itself from repository
+bytes. An attacker may copy a valid unsigned Profile v1 genesis and create a
+different signed administrator fork with the same structural Frontier
+identity. Every consumer therefore pins the full first-boundary content root
+and administrator key through a separately reviewed
+`vela.repository-trust-anchor.v1` record under the operating-system account
+home.
+
+Vela accepts no environment, profile, settings, lockfile, remote-URL, or
+mutable-tag override for that pin and never creates it from a checkout on first
+use. Boundary membership comes from exact anchored Git and event history, not
+timestamps. Missing parents, forks, cycles, non-ancestor or unavailable Git
+objects, rollback-shaped anchors, altered historical bytes, registry drift,
+and invalid signatures fail closed.
+
+The pure event-set validator and repository-context verifier answer different
+questions and both are required. Non-strict checking reports the same typed
+defects but grants no identity, dependency, signature, or historical
+exemption. Canonical writers fail before creating a transaction journal.
+
+### Malicious or stale work projection
+
+Target Index v2 is derived and non-authoritative, but a substituted packet or
+stale rank can still misdirect a producer. Vela therefore seals exact source
+Git identity, declared input bytes, event prefix, scientific-state, proposal,
+identity, dependency, packet, and index roots. `next` validates all open
+entries; `work` revalidates the selected entry and transaction read set at the
+write edge.
+
+A stale or invalid index grants no offer or lease. Successful work retains a
+closed target-task binding in the private session and byte-identically inside
+Receipt v1, so later index changes or deleted scratch cannot rewrite the
+historical task. This does not prove that a domain generator disclosed every
+semantic input or chose a scientifically valuable rank.
+
 ### Service resource abuse
 
 Local `vela serve` and the Hub cap request bodies; the Hub also rate-limits its
-public route classes. Keep local serving bound to a trusted interface unless a
-reverse proxy supplies authentication and additional budgets. Receipts should
-reference large artifacts by content digest and path rather than embedding
-unbounded payloads.
+public route classes. `vela serve --http` always binds loopback. Its HTTP
+reader has no authenticated request identity, ignores caller-asserted actor
+names, and returns public-tier data only. It exposes no signing or protected
+decision operation. A networked or authenticated deployment needs a separate
+designed boundary; a reverse proxy does not retroactively authenticate the
+local actor model. Receipts should reference large artifacts by content digest
+and path rather than embedding unbounded payloads.
+
+### Protected bootstrap and migration
+
+`actor add` uses a one-shot protected possession challenge bound to the exact
+empty-registry delta. `frontier bind`, `frontier trust pin`, and Profile v1
+migration use exact two-phase plans: preview is key-free, and matching
+execution rederives the plan, binary/helper identity, repository roots, Git
+ancestry, candidate bytes, actor authority, and transaction read set before
+the protected operation.
+
+Actor bootstrap can replace only the canonical empty registry with one
+matching protected human actor. It cannot extend an established registry.
+Migration preserves every pre-boundary canonical and retained-evidence byte
+and appends one non-scientific boundary; it cannot silently relabel a v0.1
+checkout. Cancellation, stale confirmation, root drift, missing dependency
+anchors, or protected-authentication failure writes no durable canonical
+delta.
 
 ## Partially mitigated risks
 
@@ -177,6 +248,16 @@ review changes that affect key custody, and keep the signing binary pin outside
 agent-writable sandboxes where possible. Vela cannot use its scientific event
 protocol to make a malicious executable safe.
 
+### Profile metadata and settings confusion
+
+`frontier.yaml` is closed non-authoritative metadata. Its `frontier_id` is
+checked against identity derived from canonical events; maintainers and scope
+cannot grant authority. `.vela/settings.toml` is a closed allowlist for
+publication narrowing, lease TTL, and MCP profile only. It cannot carry
+credentials, dependencies, verifier commands, policy, actors, network
+endpoints, or accepted-state inputs. Unknown fields fail validation rather
+than becoming an ambient extension surface.
+
 ## Explicitly out of scope
 
 - deciding scientific truth, novelty, importance, or ethics;
@@ -185,7 +266,9 @@ protocol to make a malicious executable safe.
   compromised;
 - Git-host availability and organization-account recovery;
 - governance institutions, IRB-equivalent review, or legal compliance;
-- confidentiality for data committed to a public frontier repository.
+- confidentiality for data committed to a public frontier repository;
+- authenticating restricted or classified readers over `vela serve --http`;
+- automatic administrator-key recovery or Profile v1 actor-registry rotation.
 
 A conformant, signed, replayable frontier can still contain a bad human
 judgment. Vela makes the judgment attributable and correctable; it does not make

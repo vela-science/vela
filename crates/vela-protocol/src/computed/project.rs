@@ -337,6 +337,53 @@ fn build_genesis_event(name: &str, compiled_at: &str, creator: &str) -> crate::e
     event
 }
 
+/// Construct the closed structural genesis used only by Repository Profile v1.
+///
+/// Keeping this separate from [`assemble`] is intentional. The generic
+/// constructor is also used by historical importers and legacy fixtures; if it
+/// emitted this payload, a v0.1 repository could appear to have native v1
+/// identity and incorrectly bypass the signed legacy migration boundary.
+fn build_profile_v1_genesis_event(
+    name: &str,
+    compiled_at: &str,
+    creator: &str,
+) -> crate::events::StateEvent {
+    use crate::events::{
+        EVENT_SCHEMA, FRONTIER_CREATED_SCHEMA_V1, NULL_HASH, StateActor, StateEvent, StateTarget,
+    };
+    let dependency_root = crate::frontier_repository::exact_dependency_root(&[])
+        .expect("the canonical empty dependency list is always valid");
+    let mut event = StateEvent {
+        schema: EVENT_SCHEMA.to_string(),
+        id: String::new(),
+        kind: "frontier.created".into(),
+        target: StateTarget {
+            r#type: "frontier".to_string(),
+            id: name.to_string(),
+        },
+        actor: StateActor {
+            id: creator.to_string(),
+            r#type: "frontier".to_string(),
+        },
+        timestamp: compiled_at.to_string(),
+        reason: "frontier compiled".to_string(),
+        before_hash: NULL_HASH.to_string(),
+        after_hash: NULL_HASH.to_string(),
+        payload: serde_json::json!({
+            "schema": FRONTIER_CREATED_SCHEMA_V1,
+            "name_at_creation": name,
+            "creator": creator,
+            "profile_schema": "vela.frontier-profile.v1",
+            "dependency_root": dependency_root,
+            "created_at": compiled_at,
+        }),
+        caveats: vec![],
+        signature: None,
+    };
+    event.id = crate::events::compute_event_id(&event);
+    event
+}
+
 pub fn assemble(
     name: &str,
     bundles: Vec<FindingBundle>,
@@ -345,6 +392,51 @@ pub fn assemble(
     description: &str,
 ) -> Project {
     let compiled_at = Utc::now().to_rfc3339();
+    let genesis = build_genesis_event(name, &compiled_at, VELA_COMPILER_VERSION);
+    assemble_with_genesis(
+        name,
+        bundles,
+        papers_processed,
+        errors,
+        description,
+        compiled_at,
+        genesis,
+    )
+}
+
+/// Assemble a new Repository Profile v1 project with its closed structural
+/// genesis. This is deliberately narrower than [`assemble`]; callers creating
+/// historical fixtures or importing old packet formats must use the legacy
+/// constructor so migration remains representative and fail-closed.
+pub fn assemble_profile_v1(
+    name: &str,
+    bundles: Vec<FindingBundle>,
+    papers_processed: usize,
+    errors: usize,
+    description: &str,
+) -> Project {
+    let compiled_at = Utc::now().to_rfc3339();
+    let genesis = build_profile_v1_genesis_event(name, &compiled_at, VELA_COMPILER_VERSION);
+    assemble_with_genesis(
+        name,
+        bundles,
+        papers_processed,
+        errors,
+        description,
+        compiled_at,
+        genesis,
+    )
+}
+
+fn assemble_with_genesis(
+    name: &str,
+    bundles: Vec<FindingBundle>,
+    papers_processed: usize,
+    errors: usize,
+    description: &str,
+    compiled_at: String,
+    genesis: crate::events::StateEvent,
+) -> Project {
     let meta = ProjectMeta {
         name: name.to_string(),
         description: description.to_string(),
@@ -358,7 +450,6 @@ pub fn assemble(
     // events[0] and derive frontier_id from its canonical hash. The
     // address primitive becomes doctrine-grounded — a frontier IS what
     // the genesis event creates, not a convenience over its metadata.
-    let genesis = build_genesis_event(name, &compiled_at, VELA_COMPILER_VERSION);
     let frontier_id = frontier_id_from_genesis(std::slice::from_ref(&genesis));
     let mut project = Project {
         vela_version: VELA_SCHEMA_VERSION.to_string(),

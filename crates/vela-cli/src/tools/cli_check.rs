@@ -2,7 +2,8 @@
 
 use crate::cli::{
     active_policy_pair_snapshot, check_json_payload, fail_usage, frontier_dir_for_source,
-    load_frontier_or_fail, print_json, print_signal_summary, scan_for_sensitive_paths,
+    load_frontier_or_fail, print_json, print_signal_summary, repository_context_check,
+    scan_for_sensitive_paths,
 };
 use serde_json::Value;
 use std::path::Path;
@@ -67,6 +68,33 @@ pub(crate) fn cmd_check(
     }
 
     let run_all = all || (!schema && !stats && !conformance_flag && !schema_only);
+    let repository_context = if schema_only {
+        None
+    } else {
+        source.map(repository_context_check)
+    };
+    let repository_context_invalid = repository_context
+        .as_ref()
+        .is_some_and(|check| check.get("valid").and_then(Value::as_bool) == Some(false));
+    if let Some(check) = repository_context.as_ref()
+        && check.get("status").and_then(Value::as_str) != Some("not_applicable")
+    {
+        let status = check
+            .get("status")
+            .and_then(Value::as_str)
+            .unwrap_or("fail");
+        let generation = check
+            .get("generation")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
+        println!("repository context: {status} ({generation})");
+        if let Some(code) = check.get("code").and_then(Value::as_str) {
+            println!("repository context code: {code}");
+        }
+        if let Some(error) = check.get("error").and_then(Value::as_str) {
+            println!("repository context detail: {error}");
+        }
+    }
     let active_policy_error = if schema_only {
         None
     } else if let Some(src) = source {
@@ -271,6 +299,7 @@ pub(crate) fn cmd_check(
             || active_policy_error.is_some()
             || !policy_lane_errors.is_empty()
             || !activity_leaks.is_empty()
+            || (strict && repository_context_invalid)
             || (strict
                 && (!signal_report.review_queue.is_empty()
                     || signal_report.proof_readiness.status != "ready"))
@@ -297,7 +326,7 @@ pub(crate) fn cmd_check(
             );
         }
     }
-    if active_policy_error.is_some() {
+    if active_policy_error.is_some() || (strict && repository_context_invalid) {
         std::process::exit(1);
     }
     let _ = fix;

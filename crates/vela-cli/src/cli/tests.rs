@@ -241,6 +241,61 @@ mod surface_tests {
         });
     }
 
+    #[test]
+    fn repository_maintenance_modes_are_exactly_one_and_help_is_truthful() {
+        on_big_stack(|| {
+            let migrate = [
+                "vela",
+                "migrate",
+                ".",
+                "--profile",
+                "../frontier-profile.yaml",
+                "--target-candidate",
+                "../target-index-candidate.json",
+                "--as",
+                "reviewer:repository-administrator",
+                "--reason",
+                "bind the exact repository",
+            ];
+            assert!(Cli::try_parse_from(migrate).is_err());
+            for mode in ["--check", "--apply"] {
+                let mut args = migrate.to_vec();
+                args.push(mode);
+                assert!(Cli::try_parse_from(args).is_ok(), "{mode} must parse alone");
+            }
+            let mut both = migrate.to_vec();
+            both.extend(["--check", "--apply"]);
+            assert!(Cli::try_parse_from(both).is_err());
+
+            let seal = [
+                "vela",
+                "target-index",
+                "seal",
+                ".",
+                "--candidate",
+                "../target-index-candidate.json",
+            ];
+            assert!(Cli::try_parse_from(seal).is_err());
+            for mode in ["--check", "--apply"] {
+                let mut args = seal.to_vec();
+                args.push(mode);
+                assert!(Cli::try_parse_from(args).is_ok(), "{mode} must parse alone");
+            }
+            let mut both = seal.to_vec();
+            both.extend(["--check", "--apply"]);
+            assert!(Cli::try_parse_from(both).is_err());
+
+            let migrate_help = match Cli::try_parse_from(["vela", "migrate", "--help"]) {
+                Ok(_) => panic!("--help must exit through clap"),
+                Err(error) => error.to_string(),
+            };
+            assert!(!migrate_help.contains("--check --apply"));
+            assert!(migrate_help.contains("Exact acting identity"));
+            assert!(crate::cli::help_text::SERVE.contains("--http 3741"));
+            assert!(!crate::cli::help_text::SERVE.contains("hub.constellate.science"));
+        });
+    }
+
     /// The v0.912 product surface, guarded in both directions. A dropped
     /// command and an unreviewed addition both fail this test.
     const V0912_VISIBLE: &[&str] = &[
@@ -270,7 +325,7 @@ mod surface_tests {
         "verify",
         "work",
     ];
-    const V0900_HIDDEN: &[&str] = &["completions"];
+    const V0900_HIDDEN: &[&str] = &["completions", "target-index"];
 
     #[test]
     fn v0900_surface_is_exact_both_directions() {

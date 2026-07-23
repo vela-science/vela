@@ -1,6 +1,7 @@
 //! Identity, policy, admin, agents, experiments.
 //! Re-exported flat (`crate::cli_*`) at the crate root; file organization only.
 
+pub(crate) mod actor_bootstrap;
 pub(crate) mod actor_registration;
 pub mod cli_admin;
 pub mod cli_agents;

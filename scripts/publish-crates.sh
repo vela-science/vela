@@ -15,6 +15,13 @@ TAG="v$VERSION"
 CRATES=(vela-protocol-core vela-verify vela-protocol vela-signer vela-edge vela-cli)
 CRATES_API_USER_AGENT="vela-release-publisher/$VERSION (https://github.com/vela-science/vela)"
 
+preflight_package_graph() {
+  # Cargo 1.91+ assembles and verifies unpublished workspace dependencies in a
+  # temporary local registry. This proves the complete six-crate graph before
+  # the first immutable upload; vela-hub is explicitly non-publishable.
+  cargo package --workspace --exclude vela-hub --locked
+}
+
 crate_exists() {
   local crate="$1"
   curl -A "$CRATES_API_USER_AGENT" -fsS \
@@ -23,10 +30,8 @@ crate_exists() {
 
 case "$MODE" in
   check)
-    cargo publish --locked -p vela-protocol-core --dry-run
-    cargo publish --locked -p vela-verify --dry-run
-    printf '%s\n' "Independent leaf packages are publishable."
-    printf '%s\n' "The remaining packages are checked in dependency order during --execute."
+    preflight_package_graph
+    printf '%s\n' "Complete six-crate package graph is publishable."
     ;;
   --execute)
     [[ "$VERSION" != *-* ]] || {
@@ -49,6 +54,8 @@ case "$MODE" in
       printf '%s\n' "refusing crates publication unless local $TAG points to HEAD" >&2
       exit 1
     }
+
+    preflight_package_graph
 
     for crate in "${CRATES[@]}"; do
       if crate_exists "$crate"; then

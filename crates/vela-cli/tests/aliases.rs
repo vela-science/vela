@@ -32,18 +32,6 @@ fn combined(out: &Output) -> String {
     )
 }
 
-fn vela_in(home: &std::path::Path, cwd: &std::path::Path, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_vela"))
-        .args(args)
-        .current_dir(cwd)
-        .env("HOME", home)
-        .env("NO_COLOR", "1")
-        .env_remove("VELA_ACTOR_ID")
-        .env_remove("VELA_KEY_PATH")
-        .output()
-        .expect("run vela with isolated identity")
-}
-
 /// The acting-identity flag is `--as` and ONLY `--as` — the retired
 /// `--reviewer`/`--actor`/`--by` spellings must be rejected (one name).
 #[test]
@@ -240,17 +228,19 @@ fn review_decide_has_no_batch_key_yes_or_wildcard_surface() {
 }
 
 #[test]
-fn legacy_policy_retirement_is_prepare_only_json_porcelain() {
+fn legacy_policy_retirement_is_prepare_only_and_boundary_gated() {
     const POLICY_ID: &str = "vap_e0abc750544408e637bd90e0661bac15";
     let frontier = TempDir::new().unwrap();
-    vela_protocol::frontier_repo::initialize(
-        frontier.path(),
-        vela_protocol::frontier_repo::InitOptions {
-            name: "legacy-policy-retirement-cli",
-            initialize_git: false,
-        },
-    )
-    .unwrap();
+    let initialized = vela(&[
+        "init",
+        frontier.path().to_str().unwrap(),
+        "--name",
+        "legacy-policy-retirement-cli",
+        "--scope",
+        "Retire one retained prelaunch policy pair without accepting it.",
+        "--json",
+    ]);
+    assert!(initialized.status.success(), "{}", combined(&initialized));
     let policies = frontier.path().join(".vela/policies");
     std::fs::create_dir_all(&policies).unwrap();
     std::fs::write(
@@ -263,6 +253,9 @@ fn legacy_policy_retirement_is_prepare_only_json_porcelain() {
         format!("{{\"policy_id\":\"{POLICY_ID}\",\"signature\":\"historical\"}}\n"),
     )
     .unwrap();
+    let before = vela_protocol::repo::load_from_path(frontier.path()).unwrap();
+    let before_event_count = before.events.len();
+    let before_proposal_count = before.proposals.len();
 
     let out = vela(&[
         "policy",
@@ -274,16 +267,14 @@ fn legacy_policy_retirement_is_prepare_only_json_porcelain() {
         "agent:test",
         "--json",
     ]);
-    assert!(out.status.success(), "{}", combined(&out));
-    assert!(stderr(&out).is_empty(), "{}", stderr(&out));
-    let value: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
-    assert_eq!(value["status"], "pending_review");
-    assert_eq!(value["policy_id"], POLICY_ID);
+    assert!(!out.status.success(), "{}", combined(&out));
+    assert!(combined(&out).contains("signed repository boundary"));
     let project = vela_protocol::repo::load_from_path(frontier.path()).unwrap();
-    assert_eq!(project.proposals.len(), 1);
-    assert!(
-        project.events.is_empty(),
-        "prepare must not create a decision"
+    assert_eq!(project.proposals.len(), before_proposal_count);
+    assert_eq!(
+        project.events.len(),
+        before_event_count,
+        "failed preparation must not create a decision event"
     );
     assert!(policies.join("active.json").exists());
     assert!(policies.join("active.sig.json").exists());
@@ -484,69 +475,25 @@ fn direct_writer_bypasses_are_absent() {
 }
 
 #[test]
-fn actor_add_is_configured_identity_bootstrap_only() {
-    let home = tempfile::tempdir().unwrap();
-    let frontier = tempfile::tempdir().unwrap();
-    let created = vela_in(
-        home.path(),
-        frontier.path(),
-        &["id", "create", "--handle", "bootstrap", "--agent", "--json"],
-    );
-    assert!(created.status.success(), "{}", combined(&created));
-    let identity: serde_json::Value = serde_json::from_slice(&created.stdout).unwrap();
+fn actor_add_has_no_identity_or_key_injection_surface() {
+    let help = vela(&["actor", "add", "--help"]);
+    assert!(help.status.success(), "{}", combined(&help));
+    let help = combined(&help);
+    for forbidden in ["--key", "--pubkey", "--as", "--actor-id"] {
+        assert!(
+            !help.contains(forbidden),
+            "actor add exposed {forbidden}: {help}"
+        );
+    }
 
-    let init = vela_in(
-        home.path(),
-        frontier.path(),
-        &[
-            "init",
-            ".",
-            "--name",
-            "actor-bootstrap",
-            "--scope",
-            "Exercise actor bootstrap.",
-            "--json",
-        ],
-    );
-    assert!(init.status.success(), "{}", combined(&init));
-
-    let added = vela_in(
-        home.path(),
-        frontier.path(),
-        &["actor", "add", ".", "--json"],
-    );
-    assert!(added.status.success(), "{}", combined(&added));
-    let project = vela_protocol::repo::load_from_path(frontier.path()).unwrap();
-    assert_eq!(project.actors.len(), 1);
-    assert_eq!(project.actors[0].id, identity["actor_id"].as_str().unwrap());
-    assert_eq!(
-        project.actors[0].public_key,
-        identity["pubkey"].as_str().unwrap()
-    );
-
-    let second = vela_in(
-        home.path(),
-        frontier.path(),
-        &["actor", "add", ".", "--json"],
-    );
-    assert!(
-        !second.status.success(),
-        "second bootstrap unexpectedly succeeded"
-    );
-    assert!(combined(&second).contains("bootstrap-only"));
-
-    let arbitrary = vela_in(
-        home.path(),
-        frontier.path(),
-        &[
-            "actor",
-            "add",
-            ".",
-            "reviewer:other",
-            "--pubkey",
-            &"00".repeat(32),
-        ],
-    );
+    let arbitrary = vela(&[
+        "actor",
+        "add",
+        "/tmp/never-opened-frontier",
+        "reviewer:other",
+        "--pubkey",
+        &"00".repeat(32),
+    ]);
     assert_eq!(arbitrary.status.code(), Some(2));
     assert!(
         combined(&arbitrary).contains("unexpected argument")

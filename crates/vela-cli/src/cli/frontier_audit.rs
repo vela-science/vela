@@ -14,6 +14,11 @@ pub(crate) fn cmd_frontier_release(
 ) {
     use vela_edge::frontier_release::{FrontierRelease, ReleaseDraft};
 
+    let journal_dir = crate::workflow::frontier_transaction_journal_dir(&frontier)
+        .unwrap_or_else(|error| fail_return(&error));
+    let write_barrier =
+        crate::frontier_txn::FrontierTxn::acquire_write_barrier(&frontier, &journal_dir)
+            .unwrap_or_else(|error| fail_return(&error.to_string()));
     let project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
     let frontier_id = project.frontier_id();
     let snapshot_hash = events::snapshot_hash(&project);
@@ -46,13 +51,35 @@ pub(crate) fn cmd_frontier_release(
     };
     let release = FrontierRelease::from_draft(draft).unwrap_or_else(|e| fail_return(&e));
 
-    if let Err(e) = std::fs::create_dir_all(&releases_dir) {
-        fail(&format!("create releases dir: {e}"));
-    }
     let path = releases_dir.join(format!("{}.json", release.release_id));
     let body = serde_json::to_string_pretty(&release).expect("serialize frontier release");
-    std::fs::write(&path, format!("{body}\n"))
-        .unwrap_or_else(|e| fail_return(&format!("write {}: {e}", path.display())));
+    let relative = format!(".vela/releases/{}.json", release.release_id);
+    let request_bytes = vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
+        "schema": "vela.frontier-release-request.internal.v1",
+        "release": release,
+    }))
+    .unwrap_or_else(|error| fail_return(&error));
+    let writes = vec![crate::frontier_txn::PlannedWrite::write(
+        crate::frontier_txn::RepoPath::parse(relative)
+            .unwrap_or_else(|error| fail_return(&error.to_string())),
+        crate::frontier_txn::WriteClass::CanonicalEvidence,
+        format!("{body}\n").into_bytes(),
+    )];
+    crate::frontier_txn::execute_no_event_transaction(
+        write_barrier,
+        &frontier,
+        "frontier-release",
+        crate::frontier_txn::ContentDigest::hash(request_bytes),
+        &release.released_at,
+        &project,
+        writes,
+        Vec::new(),
+        serde_json::json!({
+            "schema": "vela.frontier-release-result.internal.v1",
+            "release_id": release.release_id,
+        }),
+    )
+    .unwrap_or_else(|error| fail_return(&error.to_string()));
 
     if json {
         let payload = json!({

@@ -21,7 +21,9 @@ use std::ffi::OsString;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
+#[cfg(test)]
+use std::process::Command;
+use std::process::{Output, Stdio};
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -148,6 +150,42 @@ impl PublicationOutcome {
             },
             recovery_command: None,
         }
+    }
+}
+
+/// Describe an exact Frontier transaction that has been installed in the
+/// worktree but deliberately not committed by the command that produced it.
+///
+/// Repository binding and Profile v1 migration are protected administrative
+/// ceremonies. They return their transaction operation and canonical-delta
+/// roots to the caller, but leave Git publication as an explicit subsequent
+/// act. The recovery command is therefore read-only and scoped to the exact
+/// public paths in that delta; it never stages or commits unrelated work.
+pub(crate) fn manual_uncommitted_exact_delta(
+    frontier: &Path,
+    operation_id: &str,
+    delta_root: &str,
+    paths: &[String],
+) -> PublicationOutcome {
+    let mut paths = paths.to_vec();
+    paths.sort();
+    paths.dedup();
+    let mut recovery_command = format!(
+        "git -C {} status --short --",
+        shell_quote(&frontier.display().to_string())
+    );
+    for path in paths {
+        recovery_command.push(' ');
+        recovery_command.push_str(&shell_quote(&path));
+    }
+    PublicationOutcome {
+        state: PublicationState::Uncommitted {
+            candidate: None,
+            reason: format!(
+                "operation {operation_id} installed exact canonical delta {delta_root}; no Git commit was created"
+            ),
+        },
+        recovery_command: Some(recovery_command),
     }
 }
 
@@ -358,9 +396,43 @@ struct GitRunner {
     empty_hooks: PathBuf,
     empty_attributes: PathBuf,
     attribute_source: Option<String>,
+    #[cfg(test)]
+    test_file_transport_root: Option<PathBuf>,
 }
 
 impl GitRunner {
+    fn new(root: PathBuf, empty_hooks: PathBuf, empty_attributes: PathBuf) -> Self {
+        Self {
+            root,
+            empty_hooks,
+            empty_attributes,
+            attribute_source: None,
+            #[cfg(test)]
+            test_file_transport_root: None,
+        }
+    }
+
+    fn for_publish_options(
+        root: PathBuf,
+        empty_hooks: PathBuf,
+        empty_attributes: PathBuf,
+        opts: &PublishOptions,
+    ) -> Self {
+        let runner = Self::new(root, empty_hooks, empty_attributes);
+        #[cfg(test)]
+        {
+            Self {
+                test_file_transport_root: opts.test_file_transport_root.clone(),
+                ..runner
+            }
+        }
+        #[cfg(not(test))]
+        {
+            let _ = opts;
+            runner
+        }
+    }
+
     fn run(
         &self,
         args: &[OsString],
@@ -368,10 +440,15 @@ impl GitRunner {
         index: Option<&Path>,
         identity: Option<(&str, &str, &str)>,
     ) -> Result<Output, String> {
-        let mut command = Command::new("git");
+        let mut command = crate::git_hardened::command(&self.root);
+        #[cfg(test)]
+        if self.test_file_transport_root.is_some() {
+            // The production runner always inherits `protocol.file.allow=never`
+            // from `git_hardened`. A controlled fixture can override it only
+            // through the cfg(test)-only, root-bound PublishOptions seam.
+            command.arg("-c").arg("protocol.file.allow=always");
+        }
         command
-            .arg("-C")
-            .arg(&self.root)
             .arg("-c")
             .arg(format!("core.hooksPath={}", self.empty_hooks.display()))
             .arg("-c")
@@ -384,11 +461,6 @@ impl GitRunner {
             .args(args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-        for (name, _) in std::env::vars_os() {
-            if name.to_str().is_some_and(|name| name.starts_with("GIT_")) {
-                command.env_remove(name);
-            }
-        }
         command.env("GIT_OPTIONAL_LOCKS", "0");
         command.env("GIT_LITERAL_PATHSPECS", "1");
         command.env("GIT_ATTR_NOSYSTEM", "1");
@@ -449,6 +521,32 @@ impl GitRunner {
     fn pin_attributes(&mut self, source: &GitOid) {
         self.attribute_source = Some(source.hex.clone());
     }
+
+    #[cfg(test)]
+    fn validate_test_file_transport_remote(&self, remote: &str) -> Result<(), String> {
+        let Some(expected_root) = &self.test_file_transport_root else {
+            return Ok(());
+        };
+        let url = self.text(&["remote", "get-url", "--", remote])?;
+        let actual_root = Path::new(&url).canonicalize().map_err(|error| {
+            format!(
+                "test file transport remote `{remote}` is not the explicitly allowed fixture repository: {error}"
+            )
+        })?;
+        if &actual_root != expected_root {
+            return Err(format!(
+                "test file transport remote `{remote}` resolved to {}, expected {}",
+                actual_root.display(),
+                expected_root.display()
+            ));
+        }
+        Ok(())
+    }
+
+    #[cfg(not(test))]
+    fn validate_test_file_transport_remote(&self, _remote: &str) -> Result<(), String> {
+        Ok(())
+    }
 }
 
 fn sanitized_git_runner(frontier: &Path) -> Result<(tempfile::TempDir, GitRunner), String> {
@@ -459,23 +557,33 @@ fn sanitized_git_runner(frontier: &Path) -> Result<(tempfile::TempDir, GitRunner
         .map_err(|error| format!("create empty hooks directory: {error}"))?;
     fs::write(&empty_attributes, [])
         .map_err(|error| format!("create empty global attributes file: {error}"))?;
-    let bootstrap = GitRunner {
-        root: frontier.to_path_buf(),
-        empty_hooks: empty_hooks.clone(),
-        empty_attributes: empty_attributes.clone(),
-        attribute_source: None,
-    };
+    let bootstrap = GitRunner::new(
+        frontier.to_path_buf(),
+        empty_hooks.clone(),
+        empty_attributes.clone(),
+    );
     let root = PathBuf::from(bootstrap.text(&["rev-parse", "--show-toplevel"])?)
         .canonicalize()
         .map_err(|error| format!("canonicalize Git root: {error}"))?;
     Ok((
         temporary,
-        GitRunner {
-            root,
-            empty_hooks,
-            empty_attributes,
-            attribute_source: None,
-        },
+        GitRunner::new(root, empty_hooks, empty_attributes),
+    ))
+}
+
+fn sanitized_git_runner_for_options(
+    frontier: &Path,
+    opts: &PublishOptions,
+) -> Result<(tempfile::TempDir, GitRunner), String> {
+    let (temporary, runner) = sanitized_git_runner(frontier)?;
+    Ok((
+        temporary,
+        GitRunner::for_publish_options(
+            runner.root,
+            runner.empty_hooks,
+            runner.empty_attributes,
+            opts,
+        ),
     ))
 }
 
@@ -559,6 +667,8 @@ pub(crate) struct PublishOptions {
     pub preflight_inputs: Vec<PathBuf>,
     #[cfg(test)]
     test_step: PublicationTestStep,
+    #[cfg(test)]
+    test_file_transport_root: Option<PathBuf>,
 }
 
 #[cfg(test)]
@@ -585,6 +695,8 @@ impl PublishOptions {
             preflight_inputs: Vec::new(),
             #[cfg(test)]
             test_step: PublicationTestStep::None,
+            #[cfg(test)]
+            test_file_transport_root: None,
         }
     }
 
@@ -597,6 +709,8 @@ impl PublishOptions {
             preflight_inputs: Vec::new(),
             #[cfg(test)]
             test_step: PublicationTestStep::None,
+            #[cfg(test)]
+            test_file_transport_root: None,
         }
     }
 
@@ -608,6 +722,16 @@ impl PublishOptions {
     #[cfg(test)]
     fn at_test_step(mut self, step: PublicationTestStep) -> Self {
         self.test_step = step;
+        self
+    }
+
+    #[cfg(test)]
+    fn allow_file_transport_for_test(mut self, remote_root: &Path) -> Self {
+        self.test_file_transport_root = Some(
+            remote_root
+                .canonicalize()
+                .expect("controlled file-transport fixture repository must exist"),
+        );
         self
     }
 }
@@ -714,21 +838,16 @@ fn exact_publication_preflight_inner(
         .map_err(|error| format!("create empty hooks directory: {error}"))?;
     fs::write(&empty_attributes, [])
         .map_err(|error| format!("create empty global attributes file: {error}"))?;
-    let bootstrap = GitRunner {
-        root: frontier.to_path_buf(),
-        empty_hooks: empty_hooks.clone(),
-        empty_attributes: empty_attributes.clone(),
-        attribute_source: None,
-    };
+    let bootstrap = GitRunner::new(
+        frontier.to_path_buf(),
+        empty_hooks.clone(),
+        empty_attributes.clone(),
+    );
     let root = PathBuf::from(bootstrap.text(&["rev-parse", "--show-toplevel"])?)
         .canonicalize()
         .map_err(|error| format!("canonicalize Git root: {error}"))?;
-    let mut runner = GitRunner {
-        root: root.clone(),
-        empty_hooks,
-        empty_attributes,
-        attribute_source: None,
-    };
+    let mut runner =
+        GitRunner::for_publish_options(root.clone(), empty_hooks, empty_attributes, opts);
     let publication_lock = acquire_publication_lock(&runner).map_err(|error| match error {
         PublicationLockError::Busy => PUBLICATION_BUSY_RETRY_REASON.to_string(),
         PublicationLockError::Failed(reason) => reason,
@@ -842,21 +961,16 @@ fn exact_publication_resume_preflight_inner(
         .map_err(|error| format!("create empty hooks directory: {error}"))?;
     fs::write(&empty_attributes, [])
         .map_err(|error| format!("create empty global attributes file: {error}"))?;
-    let bootstrap = GitRunner {
-        root: frontier.to_path_buf(),
-        empty_hooks: empty_hooks.clone(),
-        empty_attributes: empty_attributes.clone(),
-        attribute_source: None,
-    };
+    let bootstrap = GitRunner::new(
+        frontier.to_path_buf(),
+        empty_hooks.clone(),
+        empty_attributes.clone(),
+    );
     let root = PathBuf::from(bootstrap.text(&["rev-parse", "--show-toplevel"])?)
         .canonicalize()
         .map_err(|error| format!("canonicalize Git root: {error}"))?;
-    let mut runner = GitRunner {
-        root: root.clone(),
-        empty_hooks,
-        empty_attributes,
-        attribute_source: None,
-    };
+    let mut runner =
+        GitRunner::for_publish_options(root.clone(), empty_hooks, empty_attributes, opts);
     let publication_lock = acquire_publication_lock(&runner).map_err(|error| match error {
         PublicationLockError::Busy => PUBLICATION_BUSY_RETRY_REASON.to_string(),
         PublicationLockError::Failed(reason) => reason,
@@ -974,7 +1088,7 @@ fn discover_exact_publication_inner(
     anchor_path: &str,
     opts: &PublishOptions,
 ) -> Result<Option<PublicationOutcome>, String> {
-    let (temporary, runner) = sanitized_git_runner(frontier)?;
+    let (temporary, runner) = sanitized_git_runner_for_options(frontier, opts)?;
     reject_local_attribute_overrides(&runner)?;
     let frontier_abs = frontier
         .canonicalize()
@@ -1067,7 +1181,7 @@ fn discover_receipt_publication_inner(
         .expect("validated receipt root");
     let receipt_path = format!("records/receipts/sha256/{receipt_hex}.json");
 
-    let (temporary, runner) = sanitized_git_runner(frontier)?;
+    let (temporary, runner) = sanitized_git_runner_for_options(frontier, opts)?;
     reject_local_attribute_overrides(&runner)?;
     let frontier_abs = frontier
         .canonicalize()
@@ -1253,21 +1367,16 @@ fn recover_publication_inner(
         .map_err(|error| format!("create empty hooks directory: {error}"))?;
     fs::write(&empty_attributes, [])
         .map_err(|error| format!("create empty global attributes file: {error}"))?;
-    let bootstrap = GitRunner {
-        root: frontier.to_path_buf(),
-        empty_hooks: empty_hooks.clone(),
-        empty_attributes: empty_attributes.clone(),
-        attribute_source: None,
-    };
+    let bootstrap = GitRunner::new(
+        frontier.to_path_buf(),
+        empty_hooks.clone(),
+        empty_attributes.clone(),
+    );
     let root = PathBuf::from(bootstrap.text(&["rev-parse", "--show-toplevel"])?)
         .canonicalize()
         .map_err(|error| format!("canonicalize Git root: {error}"))?;
-    let mut runner = GitRunner {
-        root: root.clone(),
-        empty_hooks,
-        empty_attributes,
-        attribute_source: None,
-    };
+    let mut runner =
+        GitRunner::for_publish_options(root.clone(), empty_hooks, empty_attributes, opts);
     let _publication_lock = match acquire_publication_lock(&runner) {
         Ok(lock) => lock,
         Err(PublicationLockError::Busy) => {
@@ -1369,7 +1478,8 @@ fn recover_publication_inner(
             candidate_commit_oid: Some(candidate.clone()),
             lfs_objects: journal.lfs_objects.clone(),
         };
-        let (push_mode, _) = crate::config::settings::resolve("publish.git_push", Some(frontier));
+        let (push_mode, _) =
+            crate::config::settings::try_resolve("publish.git_push", Some(frontier))?;
         let local_only = (opts.no_push || push_mode == "off") && !opts.force_push;
         let outcome = if local_only {
             PublicationOutcome {
@@ -1470,7 +1580,7 @@ fn recover_publication_inner(
         candidate_commit_oid: Some(candidate.clone()),
         lfs_objects: journal.lfs_objects,
     };
-    let (push_mode, _) = crate::config::settings::resolve("publish.git_push", Some(frontier));
+    let (push_mode, _) = crate::config::settings::try_resolve("publish.git_push", Some(frontier))?;
     let local_only = (opts.no_push || push_mode == "off") && !opts.force_push;
     let outcome = if local_only {
         PublicationOutcome {
@@ -1553,21 +1663,16 @@ fn publish_exact_inner(
         .map_err(|error| format!("create empty hooks directory: {error}"))?;
     fs::write(&empty_attributes, [])
         .map_err(|error| format!("create empty global attributes file: {error}"))?;
-    let bootstrap = GitRunner {
-        root: frontier.to_path_buf(),
-        empty_hooks: empty_hooks.clone(),
-        empty_attributes: empty_attributes.clone(),
-        attribute_source: None,
-    };
+    let bootstrap = GitRunner::new(
+        frontier.to_path_buf(),
+        empty_hooks.clone(),
+        empty_attributes.clone(),
+    );
     let root = PathBuf::from(bootstrap.text(&["rev-parse", "--show-toplevel"])?)
         .canonicalize()
         .map_err(|error| format!("canonicalize Git root: {error}"))?;
-    let mut runner = GitRunner {
-        root: root.clone(),
-        empty_hooks,
-        empty_attributes,
-        attribute_source: None,
-    };
+    let mut runner =
+        GitRunner::for_publish_options(root.clone(), empty_hooks, empty_attributes, opts);
     let publication_lock = &preflight.publication_lock;
     if publication_lock.repository != root {
         return Err("publication preflight lock belongs to a different repository".to_string());
@@ -2100,7 +2205,7 @@ fn publish_exact_inner(
     }
     txn.candidate_commit_oid = Some(candidate.clone());
 
-    let (push_mode, _) = crate::config::settings::resolve("publish.git_push", Some(frontier));
+    let (push_mode, _) = crate::config::settings::try_resolve("publish.git_push", Some(frontier))?;
     let outcome = if (opts.no_push || push_mode == "off") && !opts.force_push {
         PublicationOutcome {
             state: PublicationState::CommittedLocal {
@@ -2152,7 +2257,7 @@ fn exact_unchanged_outcome(
             .filter_map(|entry| parse_lfs_pointer(&entry.bytes).ok())
             .collect(),
     };
-    let (push_mode, _) = crate::config::settings::resolve("publish.git_push", Some(frontier));
+    let (push_mode, _) = crate::config::settings::try_resolve("publish.git_push", Some(frontier))?;
     if (opts.no_push || push_mode == "off") && !opts.force_push {
         return Ok(PublicationOutcome {
             state: PublicationState::Unchanged {
@@ -2250,15 +2355,25 @@ fn frontier_specs(frontier: &Path, root: &Path) -> Result<Vec<String>, String> {
         "frontier.yaml".to_string(),
         "vela.lock".to_string(),
         "proof".to_string(),
+        "sources".to_string(),
+        "artifacts".to_string(),
+        "review".to_string(),
+        "exports".to_string(),
         "witnesses".to_string(),
         "records".to_string(),
     ];
-    if let Some(manifest) = vela_protocol::frontier_repo::read_manifest(frontier)? {
-        names.push(manifest.paths.state);
-        names.push(manifest.paths.sources);
-        names.push(manifest.paths.artifacts);
-        names.push(manifest.paths.review);
-        names.push(manifest.paths.proof);
+    match vela_protocol::frontier_repo::read_repository_profile(frontier)? {
+        Some(vela_protocol::frontier_repo::FrontierProfileFile::LegacyV0_1(manifest)) => {
+            names.push(manifest.paths.state);
+            names.push(manifest.paths.sources);
+            names.push(manifest.paths.artifacts);
+            names.push(manifest.paths.review);
+            names.push(manifest.paths.proof);
+        }
+        // Profile v1 has one fixed repository layout. The fixed specs above
+        // are complete; legacy caller-selected path fields must never be
+        // inferred from or applied to the closed v1 profile.
+        Some(vela_protocol::frontier_repo::FrontierProfileFile::V1(_)) | None => {}
     }
     let mut specs = BTreeSet::new();
     for name in names {
@@ -4567,6 +4682,7 @@ fn remote_ref_tip(
     upstream: &UpstreamTarget,
     object_format: &str,
 ) -> Result<Option<GitOid>, String> {
+    runner.validate_test_file_transport_remote(&upstream.remote)?;
     let output = runner.run(
         &[
             OsString::from("ls-remote"),
@@ -4674,6 +4790,7 @@ fn upload_lfs_objects(
     if remote.starts_with('-') {
         return Err("LFS upload refuses an option-like remote name".to_string());
     }
+    runner.validate_test_file_transport_remote(remote)?;
     runner.text(&["lfs", "version"])?;
     let mut input = pointers
         .iter()
@@ -4709,6 +4826,9 @@ fn observe_remote_ref(
     upstream: &UpstreamTarget,
     candidate: &GitOid,
 ) -> RemoteRefObservation {
+    if let Err(error) = runner.validate_test_file_transport_remote(&upstream.remote) {
+        return RemoteRefObservation::Unknown(error);
+    }
     let output = match runner.run(
         &[
             OsString::from("ls-remote"),
@@ -4781,6 +4901,12 @@ fn push_and_verify(
         }
     };
     let recovery = push_command_for(txn, Some(&upstream));
+    if let Err(error) = runner.validate_test_file_transport_remote(&upstream.remote) {
+        return PublicationOutcome {
+            state: PublicationState::Unknown { reason: error },
+            recovery_command: Some(recovery),
+        };
+    }
     if let Err(upload_error) = upload_lfs_objects(runner, &upstream.remote, &txn.lfs_objects) {
         return match observe_remote_ref(runner, &upstream, &candidate) {
             RemoteRefObservation::Different => PublicationOutcome {
@@ -4914,6 +5040,29 @@ mod tests {
         temporary
     }
 
+    #[test]
+    fn profile_v1_publication_uses_only_the_fixed_repository_specs() {
+        let temporary = tempfile::tempdir().unwrap();
+        vela_protocol::frontier_repo::initialize_profile_v1_minimal(
+            temporary.path(),
+            vela_protocol::frontier_repo::ProfileV1InitOptions {
+                name: "publication v1 fixture",
+                scope: "prove publication does not parse v1 as a legacy manifest",
+                initialize_git: false,
+            },
+        )
+        .unwrap();
+        let root = temporary.path().canonicalize().unwrap();
+        let specs = frontier_specs(&root, &root).unwrap();
+        assert!(specs.contains(&".vela".to_string()));
+        assert!(specs.contains(&"frontier.json".to_string()));
+        assert!(specs.contains(&"frontier.yaml".to_string()));
+        assert!(specs.contains(&"vela.lock".to_string()));
+        assert!(specs.contains(&"proof".to_string()));
+        assert!(specs.contains(&"records".to_string()));
+        assert!(specs.contains(&"witnesses".to_string()));
+    }
+
     fn operation_from(outcome: &PublicationOutcome) -> String {
         let parts = outcome
             .recovery_command
@@ -4933,12 +5082,7 @@ mod tests {
         let attributes = temporary.path().join("attributes");
         fs::create_dir_all(&hooks).unwrap();
         fs::write(&attributes, []).unwrap();
-        GitRunner {
-            root: path.to_path_buf(),
-            empty_hooks: hooks,
-            empty_attributes: attributes,
-            attribute_source: None,
-        }
+        GitRunner::new(path.to_path_buf(), hooks, attributes)
     }
 
     fn exact_delta(label: &str, entries: Vec<PublicationDeltaEntry>) -> PublicationDelta {
@@ -5168,7 +5312,50 @@ mod tests {
             "identical-write-push",
             vec![exact_write(path, ".vela/actors.json", &unchanged)],
         );
-        let opts = PublishOptions::pushing();
+        let denied_opts = PublishOptions::pushing();
+        let denied_preflight = exact_publication_preflight(path, &delta, &denied_opts).unwrap();
+        let denied = publish_exact_delta(
+            path,
+            "reject unapproved file transport",
+            &[],
+            &delta,
+            denied_preflight,
+            &denied_opts,
+        )
+        .unwrap();
+        assert!(
+            matches!(
+                &denied.state,
+                PublicationState::Unknown { reason }
+                    if reason.contains("transport 'file' not allowed")
+            ),
+            "the production-default runner must reject local file transport: {denied:?}"
+        );
+
+        let wrong_remote = tempfile::tempdir().unwrap();
+        sh(wrong_remote.path(), &["init", "-q", "--bare"]);
+        let wrong_opts =
+            PublishOptions::pushing().allow_file_transport_for_test(wrong_remote.path());
+        let wrong_preflight = exact_publication_preflight(path, &delta, &wrong_opts).unwrap();
+        let wrong = publish_exact_delta(
+            path,
+            "reject wrong fixture file transport",
+            &[],
+            &delta,
+            wrong_preflight,
+            &wrong_opts,
+        )
+        .unwrap();
+        assert!(
+            matches!(
+                &wrong.state,
+                PublicationState::Unknown { reason }
+                    if reason.contains("expected")
+            ),
+            "the test-only override must be bound to one exact fixture repository: {wrong:?}"
+        );
+
+        let opts = PublishOptions::pushing().allow_file_transport_for_test(remote.path());
         let head_before = sh(path, &["rev-parse", "HEAD"]);
         let index_before = fs::read(path.join(".git/index")).unwrap();
         let objects_before = sh(path, &["count-objects", "-v"]);
@@ -6174,7 +6361,7 @@ mod tests {
             !clone.join(".git/vela/operation-journals").exists(),
             "clean-clone discovery must not depend on private journals"
         );
-        let clone_opts = PublishOptions::new(true);
+        let clone_opts = PublishOptions::new(true).allow_file_transport_for_test(path);
         let clean_found =
             discover_receipt_publication(&clone, receipt_a, &root_a, &operation_a, &clone_opts)
                 .unwrap();
@@ -6513,7 +6700,9 @@ mod tests {
                 &format!("pushed-completion-{step:?}"),
                 vec![exact_write(path, ".vela/actors.json", &postimage)],
             );
-            let opts = PublishOptions::pushing().at_test_step(step);
+            let opts = PublishOptions::pushing()
+                .allow_file_transport_for_test(remote.path())
+                .at_test_step(step);
             let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
             fs::write(path.join(".vela/actors.json"), &postimage).unwrap();
 
@@ -6568,7 +6757,11 @@ mod tests {
             );
             let index_after_failure = fs::read(path.join(".git/index")).unwrap();
 
-            let recovered = recover_publication(path, &operation, &PublishOptions::pushing());
+            let recovered = recover_publication(
+                path,
+                &operation,
+                &PublishOptions::pushing().allow_file_transport_for_test(remote.path()),
+            );
             assert_eq!(
                 recovered.state,
                 PublicationState::Pushed {
@@ -6602,7 +6795,11 @@ mod tests {
             assert!(active_operations(path).is_empty());
             assert!(completed_path.is_file());
 
-            let repeated = recover_publication(path, &operation, &PublishOptions::pushing());
+            let repeated = recover_publication(
+                path,
+                &operation,
+                &PublishOptions::pushing().allow_file_transport_for_test(remote.path()),
+            );
             assert_eq!(repeated, recovered);
             assert_eq!(all_commit_oids(path), local_commits);
             assert_eq!(all_commit_oids(remote.path()), remote_commits);
@@ -6644,7 +6841,7 @@ mod tests {
             "push-failure",
             vec![exact_write(path, ".vela/actors.json", written)],
         );
-        let opts = PublishOptions::pushing();
+        let opts = PublishOptions::pushing().allow_file_transport_for_test(remote.path());
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::write(path.join(".vela/actors.json"), written).unwrap();
         let outcome =
@@ -6667,7 +6864,7 @@ mod tests {
                 remote.path().to_str().unwrap(),
             ],
         );
-        let recovered = recover_publication(path, &operation, &PublishOptions::pushing());
+        let recovered = recover_publication(path, &operation, &opts);
         assert!(matches!(recovered.state, PublicationState::Pushed { .. }));
         assert_eq!(
             sh(remote.path(), &["rev-parse", "refs/heads/main"]),
@@ -6733,7 +6930,11 @@ mod tests {
         let actors_before = fs::read(path.join(".vela/actors.json")).unwrap();
         let index_before = fs::read(path.join(".git/index")).unwrap();
 
-        let recovered = recover_publication(path, &operation_a, &PublishOptions::pushing());
+        let recovered = recover_publication(
+            path,
+            &operation_a,
+            &PublishOptions::pushing().allow_file_transport_for_test(remote.path()),
+        );
         assert_eq!(
             recovered.state,
             PublicationState::Pushed {
@@ -6819,7 +7020,11 @@ mod tests {
         let actors_before = fs::read(path.join(".vela/actors.json")).unwrap();
         let index_before = fs::read(path.join(".git/index")).unwrap();
 
-        let recovered = recover_publication(path, &operation_a, &PublishOptions::pushing());
+        let recovered = recover_publication(
+            path,
+            &operation_a,
+            &PublishOptions::pushing().allow_file_transport_for_test(remote.path()),
+        );
         assert_eq!(
             recovered.state,
             PublicationState::Pushed {
@@ -6842,7 +7047,11 @@ mod tests {
         );
         assert_eq!(fs::read(path.join(".git/index")).unwrap(), index_before);
 
-        let recovered_again = recover_publication(path, &operation_a, &PublishOptions::pushing());
+        let recovered_again = recover_publication(
+            path,
+            &operation_a,
+            &PublishOptions::pushing().allow_file_transport_for_test(remote.path()),
+        );
         assert_eq!(recovered_again, recovered);
         assert_eq!(fs::read(path.join(".git/index")).unwrap(), index_before);
     }

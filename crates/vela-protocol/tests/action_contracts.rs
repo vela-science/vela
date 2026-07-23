@@ -100,7 +100,19 @@ fn assert_immutable_action_pins(name: &str, workflow: &str) {
 fn root_action_is_lock_pinned_strict_and_nonfinalizing() {
     let action = parse_action(ROOT_ACTION);
     assert!(action["inputs"].get("strict").is_none());
+    assert_eq!(
+        action["inputs"]
+            .as_object()
+            .expect("action inputs must be an object")
+            .len(),
+        3,
+        "the public action accepts only frontier, release, and one exact boundary root"
+    );
     assert_eq!(action["inputs"]["vela-version"]["required"], true);
+    assert_eq!(
+        action["inputs"]["repository-boundary-root"]["required"],
+        false
+    );
 
     let install = script_named(
         &action,
@@ -114,12 +126,38 @@ fn root_action_is_lock_pinned_strict_and_nonfinalizing() {
     assert!(
         install.contains("https://raw.githubusercontent.com/vela-science/vela/$release/install.sh")
     );
+    assert!(install.contains("install_root=\"${RUNNER_TEMP:?}/vela-action-$lock_version\""));
+    assert!(install.contains("VELA_INSTALL_PREFIX=\"$install_root\""));
+    assert!(install.contains("VELA_POLKIT_POLICY_DIR=\"$policy_root\""));
+    assert!(install.contains("\"$install_root/bin/vela\" --version"));
+    assert!(install.contains("echo \"$install_root/bin\" >> \"$GITHUB_PATH\""));
     assert!(install.contains("installed Vela $installed does not match $lock's vela_version"));
 
-    let strict = script_named(&action, "Strict trust gate");
+    let trust = script_named(&action, "Install the exact consumer boundary pin");
+    assert!(trust.contains("REPOSITORY_BOUNDARY_ROOT"));
+    assert!(trust.contains("vela frontier trust pin \"$FRONTIER\""));
+    assert!(trust.contains("--confirm-root \"$plan_root\" --confirm-at \"$observed_at\""));
+
+    let strict = script_named(&action, "Strict read-only repository verification");
     assert!(strict.contains("vela check \"$FRONTIER\" --strict"));
+    assert!(!strict.contains("--strict --json"));
     assert!(!strict.contains("STRICT"));
     assert!(!strict.contains("::notice::"));
+
+    for forbidden in [
+        "vela frontier materialize",
+        "snapshot_hash",
+        "event_log_hash",
+        "hub.constellate.science",
+        "trust-anchor-file",
+        ".vela/events",
+    ] {
+        assert!(
+            !ROOT_ACTION.contains(forbidden),
+            "root action retains obsolete or mutating contract `{forbidden}`"
+        );
+    }
+    assert!(ROOT_ACTION.contains("vars.VELA_REPOSITORY_BOUNDARY_ROOT"));
 
     assert!(!ROOT_ACTION.contains("constellate-science/vela"));
     assert!(!ROOT_ACTION.contains("/main/install.sh"));

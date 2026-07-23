@@ -1,0 +1,41 @@
+{
+  "schema": "vela.target-index-conformance-manifest.v1",
+  "doctrine": "every Target Index v2 conformance artifact is listed by basename with exact byte length and SHA-256; consumers reject missing, duplicate, unlisted, or drifted files",
+  "files": [
+    {
+      "bytes": 626,
+      "path": "candidate.json",
+      "sha256": "sha256:f506f69114bb8f32aaca516f2eefd5bd44a2d0cd8b6377716e94b5bef5884dce"
+    },
+    {
+      "bytes": 1395,
+      "path": "expected.json",
+      "sha256": "sha256:c1562b8b504c16fefa62f59c8faa36cca42d9d1210f45fc968a78e92485948c5"
+    },
+    {
+      "bytes": 283,
+      "path": "input-manifest.json",
+      "sha256": "sha256:8d66c4f81cda941342aeca52d6bf6e69c2c0e689abbe480e718732297d615cbb"
+    },
+    {
+      "bytes": 58,
+      "path": "packet.json",
+      "sha256": "sha256:32a0b3c8c5c8bc4cb13baafcebf135c3a81112479b4781c882e76c14be0f10e4"
+    },
+    {
+      "bytes": 34418,
+      "path": "repository.fast-import",
+      "sha256": "sha256:42f62e5c955a868e2a05880f72fa838b8124e9baa9ecb0cf2528b1e5638d7f65"
+    },
+    {
+      "bytes": 1555,
+      "path": "target-task-binding.json",
+      "sha256": "sha256:7e85f8ef6eb9b83656dfa7dab0d9070c4fd8ff0f62585d0f3ba3f9c0055d7626"
+    },
+    {
+      "bytes": 1772,
+      "path": "targets.json",
+      "sha256": "sha256:7fbd2463c7eb48c6076601a46cbad9021a1e8960bcdb7661e786528daaaf8f52"
+    }
+  ]
+}

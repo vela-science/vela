@@ -238,9 +238,10 @@ pub fn apply_event_indexed(
         // correction-return, research-trace, and prediction-expiry kinds had
         // their CLI writers removed in the v0.700 surface cut (zero such
         // events exist in any live log); `frontier.observation_reviewed` and
-        // `key.revoke` are audit records (authoritative revocation lives in
-        // the hub's append-only revocation table). Explicit arms so a
-        // historical log containing any of them replays instead of erroring.
+        // `key.revoke` are audit records. `key.revoke` does not mutate the
+        // repository actor registry; Profile v1 freezes that registry until
+        // a separate governed rotation and recovery contract exists. Explicit
+        // arms let historical logs containing either event replay.
         // A reviewer-tier key's recommend-accept: audit record consumed by
         // owner/maintainer keys; no projected-state mutation.
         EventKind::ProposalRecommended
@@ -265,6 +266,7 @@ pub fn apply_event_indexed(
         // audited predicate) without mutating findings — the verifier attachments
         // already on the frontier define the gate status. No-op on finding hashes.
         | EventKind::PolicyAutoAdmitted => Ok(()),
+        EventKind::FrontierRepositoryBound => apply_frontier_repository_bound(event),
         EventKind::Other(other) => Err(format!("reducer: unsupported event kind '{other}'")),
     }
 }
@@ -283,6 +285,14 @@ pub fn replay_from_genesis(
     compiled_at: &str,
     compiler: &str,
 ) -> Result<Project, String> {
+    let boundary_errors =
+        crate::frontier_repository::validate_repository_boundary_event_set(&events);
+    if !boundary_errors.is_empty() {
+        return Err(format!(
+            "repository-boundary event set is invalid: {}",
+            boundary_errors.join("; ")
+        ));
+    }
     let mut state = Project {
         vela_version: project::VELA_SCHEMA_VERSION.to_string(),
         schema: project::VELA_SCHEMA_URL.to_string(),
@@ -340,6 +350,15 @@ pub fn replay_from_genesis(
     }
     project::recompute_stats(&mut state);
     Ok(state)
+}
+
+fn apply_frontier_repository_bound(event: &StateEvent) -> Result<(), String> {
+    let payload = crate::frontier_repository::repository_boundary_payload_from_event_shape(event)?;
+    crate::frontier_repository::verify_repository_boundary_signature_only(
+        event,
+        &payload.administrator_public_key,
+    )?;
+    Ok(())
 }
 
 /// Canonical replay order: (timestamp, id). This is the same order
@@ -1393,6 +1412,12 @@ fn apply_attempt_claimed(state: &mut Project, event: &StateEvent) -> Result<(), 
         .get("lease_ttl_seconds")
         .and_then(Value::as_u64)
         .ok_or("attempt.claimed missing payload.lease_ttl_seconds")?;
+    if ttl > crate::events::MAX_ATTEMPT_LEASE_TTL_SECONDS {
+        return Err(format!(
+            "attempt.claimed payload.lease_ttl_seconds must be at most {}",
+            crate::events::MAX_ATTEMPT_LEASE_TTL_SECONDS
+        ));
+    }
     let claimant_actor = p
         .get("claimant_actor")
         .and_then(Value::as_str)
@@ -1421,15 +1446,11 @@ fn apply_attempt_claimed(state: &mut Project, event: &StateEvent) -> Result<(), 
     let event_at = parse(&event.timestamp)
         .map_err(|e| format!("attempt.claimed: bad event timestamp: {e}"))?;
     let live_at_event = |claimed_at: &chrono::DateTime<chrono::FixedOffset>, lease_ttl: u64| {
-        let Ok(seconds) = i64::try_from(lease_ttl) else {
-            return true;
-        };
-        let Some(duration) = chrono::Duration::try_seconds(seconds) else {
-            return true;
-        };
-        claimed_at
-            .checked_add_signed(duration)
-            .is_none_or(|expires_at| expires_at > event_at)
+        i64::try_from(lease_ttl)
+            .ok()
+            .and_then(chrono::Duration::try_seconds)
+            .and_then(|duration| claimed_at.checked_add_signed(duration))
+            .is_some_and(|expires_at| expires_at > event_at)
     };
     let existing = state
         .attempt_claims

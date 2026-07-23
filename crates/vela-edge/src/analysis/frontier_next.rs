@@ -16,11 +16,10 @@
 //! and claiming a target still goes through the lease tool.
 
 use std::io::Read;
-use std::path::{Component, Path};
+use std::path::Path;
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use vela_protocol::project::Project;
 
 #[derive(Debug, Clone, Serialize)]
@@ -62,6 +61,9 @@ pub struct ProducerWorkAvailability {
     pub configured_open: usize,
     pub available: usize,
     pub leased: usize,
+    /// Configured open entries withheld because their index or packet is
+    /// historical, stale, or otherwise fails closed.
+    pub stale: usize,
     pub leased_targets: Vec<LeasedProducerTarget>,
 }
 
@@ -79,54 +81,7 @@ const CAMPAIGN_YAML_MAX_BYTES: u64 = 1024 * 1024;
 const CAMPAIGN_TASK_MAX_BYTES: usize = 256 * 1024;
 const CAMPAIGN_MAX_BATCHES: usize = 4096;
 const CAMPAIGN_MAX_SEEDS: usize = 16_384;
-const TARGET_INDEX_JSON_MAX_BYTES: u64 = 4 * 1024 * 1024;
-const TARGET_PACKET_MAX_BYTES: u64 = 1024 * 1024;
-const TARGET_INDEX_MAX_TARGETS: usize = 16_384;
-const TARGET_INDEX_MAX_LABELS: usize = 64;
-pub const EXTERNAL_TARGET_ID_MAX_BYTES: usize = 256;
-
-#[derive(Debug, Clone, Deserialize)]
-struct TargetIndex {
-    schema: String,
-    frontier_id: String,
-    as_of: TargetIndexAsOf,
-    targets: Vec<TargetIndexEntry>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-struct TargetIndexAsOf {
-    snapshot_hash: String,
-    event_log_hash: String,
-    proposal_state_hash: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct TargetIndexEntry {
-    id: String,
-    title: String,
-    why: String,
-    state: String,
-    rank: u64,
-    objective: String,
-    #[serde(default)]
-    labels: Vec<String>,
-    packet: TargetPacketRef,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-struct TargetPacketRef {
-    path: String,
-    sha256: String,
-    schema: String,
-}
-
-#[derive(Debug, Clone)]
-struct LoadedTargetIndex {
-    sha256: String,
-    stale_against_loaded_frontier: bool,
-    loaded_event_log_root: String,
-    index: TargetIndex,
-}
+pub use super::target_index::EXTERNAL_TARGET_ID_MAX_BYTES;
 
 #[derive(Debug, Clone)]
 struct CampaignSeed {
@@ -139,233 +94,21 @@ struct CampaignSeed {
     task: Option<Value>,
 }
 
-fn valid_sha256(value: &str) -> bool {
-    value.strip_prefix("sha256:").is_some_and(|digest| {
-        digest.len() == 64 && digest.bytes().all(|byte| byte.is_ascii_hexdigit())
-    })
-}
-
-fn bounded_text(value: &str, field: &str, max: usize) -> Result<(), String> {
-    if value.trim().is_empty() || value.len() > max || value.chars().any(char::is_control) {
-        return Err(format!(
-            "target index {field} must be non-empty, at most {max} bytes, and free of control characters"
-        ));
-    }
-    Ok(())
-}
-
-fn read_regular_file(path: &Path, max_bytes: u64, label: &str) -> Result<Vec<u8>, String> {
-    let metadata = std::fs::symlink_metadata(path)
-        .map_err(|error| format!("inspect {label} {}: {error}", path.display()))?;
-    if metadata.file_type().is_symlink() || !metadata.is_file() {
-        return Err(format!(
-            "{label} must be a regular non-symlink file: {}",
-            path.display()
-        ));
-    }
-    if metadata.len() > max_bytes {
-        return Err(format!(
-            "{label} {} exceeds the {max_bytes}-byte limit",
-            path.display()
-        ));
-    }
-    let initial_identity = same_file::Handle::from_path(path)
-        .map_err(|error| format!("identify {label} {}: {error}", path.display()))?;
-    let file = std::fs::File::open(path)
-        .map_err(|error| format!("open {label} {}: {error}", path.display()))?;
-    let opened = file
-        .metadata()
-        .map_err(|error| format!("inspect open {label} {}: {error}", path.display()))?;
-    if !opened.is_file() || opened.len() > max_bytes {
-        return Err(format!(
-            "{label} must remain a regular file within the {max_bytes}-byte limit: {}",
-            path.display()
-        ));
-    }
-    let opened_identity = same_file::Handle::from_file(
-        file.try_clone()
-            .map_err(|error| format!("clone open {label} {}: {error}", path.display()))?,
-    )
-    .map_err(|error| format!("identify open {label} {}: {error}", path.display()))?;
-    if initial_identity != opened_identity {
-        return Err(format!(
-            "{label} changed while it was being opened: {}",
-            path.display()
-        ));
-    }
-    let mut bytes = Vec::new();
-    file.take(max_bytes + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|error| format!("read {label} {}: {error}", path.display()))?;
-    if bytes.len() as u64 > max_bytes {
-        return Err(format!(
-            "{label} {} exceeds the {max_bytes}-byte limit",
-            path.display()
-        ));
-    }
-    let named = std::fs::symlink_metadata(path)
-        .map_err(|error| format!("reinspect {label} {}: {error}", path.display()))?;
-    let final_identity = same_file::Handle::from_path(path)
-        .map_err(|error| format!("reidentify {label} {}: {error}", path.display()))?;
-    if named.file_type().is_symlink() || !named.is_file() || opened_identity != final_identity {
-        return Err(format!(
-            "{label} changed while it was being read: {}",
-            path.display()
-        ));
-    }
-    Ok(bytes)
-}
-
-fn validate_target_packet_relative_path(relative: &str) -> Result<&Path, String> {
-    bounded_text(relative, "packet.path", 1024)?;
-    let relative_path = Path::new(relative);
-    if relative_path.is_absolute()
-        || relative_path
-            .components()
-            .any(|component| !matches!(component, Component::Normal(_)))
-    {
-        return Err(format!(
-            "target packet path must be a normalized frontier-relative path: {relative:?}"
-        ));
-    }
-    Ok(relative_path)
-}
-
-fn target_packet_path(dir: &Path, relative: &str) -> Result<std::path::PathBuf, String> {
-    let relative_path = validate_target_packet_relative_path(relative)?;
-    let mut cursor = dir.to_path_buf();
-    for component in relative_path.components() {
-        let Component::Normal(component) = component else {
-            unreachable!("relative path was validated above");
-        };
-        cursor.push(component);
-        let metadata = std::fs::symlink_metadata(&cursor)
-            .map_err(|error| format!("inspect target packet path {}: {error}", cursor.display()))?;
-        if metadata.file_type().is_symlink() {
-            return Err(format!(
-                "target packet path must not contain symlinks: {}",
-                cursor.display()
-            ));
-        }
-    }
-    let root = std::fs::canonicalize(dir)
-        .map_err(|error| format!("resolve frontier directory {}: {error}", dir.display()))?;
-    let candidate = dir.join(relative_path);
-    let resolved = std::fs::canonicalize(&candidate)
-        .map_err(|error| format!("resolve target packet {}: {error}", candidate.display()))?;
-    if !resolved.starts_with(&root) {
-        return Err(format!(
-            "target packet escapes the frontier: {}",
-            candidate.display()
-        ));
-    }
-    Ok(candidate)
-}
-
-fn load_target_index(project: &Project, dir: &Path) -> Result<Option<LoadedTargetIndex>, String> {
-    let path = dir.join("targets.json");
-    if !path.exists() {
-        return Ok(None);
-    }
-    let bytes = read_regular_file(&path, TARGET_INDEX_JSON_MAX_BYTES, "target index")?;
-    let index: TargetIndex = serde_json::from_slice(&bytes)
-        .map_err(|error| format!("parse target index {}: {error}", path.display()))?;
-    if index.schema != "vela.target-index.v1" {
-        return Err(format!(
-            "target index has unsupported schema {:?}",
-            index.schema
-        ));
-    }
-    if index.frontier_id != project.frontier_id() {
-        return Err(format!(
-            "target index frontier {:?} differs from loaded frontier {:?}",
-            index.frontier_id,
-            project.frontier_id()
-        ));
-    }
-    for (field, digest) in [
-        ("as_of.snapshot_hash", index.as_of.snapshot_hash.as_str()),
-        ("as_of.event_log_hash", index.as_of.event_log_hash.as_str()),
-        (
-            "as_of.proposal_state_hash",
-            index.as_of.proposal_state_hash.as_str(),
-        ),
-    ] {
-        if !valid_sha256(digest) {
-            return Err(format!("target index {field} must be a sha256: digest"));
-        }
-    }
-    if index.targets.len() > TARGET_INDEX_MAX_TARGETS {
-        return Err(format!(
-            "target index has {} targets; limit is {TARGET_INDEX_MAX_TARGETS}",
-            index.targets.len()
-        ));
-    }
-    let mut ids = std::collections::BTreeSet::new();
-    for target in &index.targets {
-        validate_external_target_id(&target.id)
-            .map_err(|error| format!("invalid target index id {:?}: {error}", target.id))?;
-        bounded_text(&target.title, "target.title", 512)?;
-        bounded_text(&target.why, "target.why", 2048)?;
-        bounded_text(&target.objective, "target.objective", 4096)?;
-        if !matches!(
-            target.state.as_str(),
-            "open" | "paused" | "blocked" | "done" | "retired"
-        ) {
-            return Err(format!(
-                "target index state for {:?} is unsupported: {:?}",
-                target.id, target.state
-            ));
-        }
-        if target.labels.len() > TARGET_INDEX_MAX_LABELS {
-            return Err(format!(
-                "target index target {:?} has more than {TARGET_INDEX_MAX_LABELS} labels",
-                target.id
-            ));
-        }
-        for label in &target.labels {
-            bounded_text(label, "target.labels[]", 128)?;
-        }
-        bounded_text(&target.packet.schema, "packet.schema", 256)?;
-        if !valid_sha256(&target.packet.sha256) {
-            return Err(format!(
-                "target index packet digest for {:?} must be a sha256: digest",
-                target.id
-            ));
-        }
-        validate_target_packet_relative_path(&target.packet.path)?;
-        if !ids.insert(target.id.clone()) {
-            return Err(format!("duplicate target index id {:?}", target.id));
-        }
-    }
-    let loaded_event_log_root = format!(
-        "sha256:{}",
-        vela_protocol::events::event_log_hash(&project.events)
-    );
-    let stale_against_loaded_frontier =
-        target_index_is_stale(project, &index, &loaded_event_log_root);
-    Ok(Some(LoadedTargetIndex {
-        sha256: format!("sha256:{}", hex::encode(Sha256::digest(&bytes))),
-        stale_against_loaded_frontier,
-        loaded_event_log_root,
-        index,
-    }))
-}
-
-fn target_index_is_stale(
-    project: &Project,
-    index: &TargetIndex,
-    loaded_event_log_root: &str,
-) -> bool {
-    index.as_of.snapshot_hash != format!("sha256:{}", vela_protocol::events::snapshot_hash(project))
-        || index.as_of.event_log_hash != loaded_event_log_root
+#[derive(Debug, Clone)]
+pub struct TargetIndexSelection {
+    pub packet: Value,
+    pub task: Value,
+    pub binding: super::target_index::TargetTaskBindingV1,
 }
 
 fn pinned_target_index_task(
     project: &Project,
-    loaded: &LoadedTargetIndex,
-    target: &TargetIndexEntry,
+    assessment: &super::target_index::TargetIndexAssessment,
+    target: &super::target_index::TargetIndexEntryV2,
 ) -> Value {
+    let index = assessment
+        .v2()
+        .expect("a v2 target can only come from a v2 assessment");
     json!({
         "kind": "target_packet",
         "objective": target.objective,
@@ -375,93 +118,142 @@ fn pinned_target_index_task(
         "packet_ref": target.packet,
         "index": {
             "path": "targets.json",
-            "schema": loaded.index.schema,
-            "sha256": loaded.sha256,
-            "as_of": loaded.index.as_of,
-            "stale_against_loaded_frontier": loaded.stale_against_loaded_frontier,
+            "schema": index.schema,
+            "root": index.index_root,
+            "file_sha256": assessment.document_root,
+            "source": index.source,
+            "input_root": index.inputs.input_root,
+            "roots": index.roots,
+            "stale_against_loaded_frontier": false,
         },
         "fixed_base": {
             "frontier_id": project.frontier_id(),
-            "event_log_root": loaded.loaded_event_log_root,
+            "event_log_root": index.roots.event_log_root,
+            "nonlease_event_log_root": index.roots.nonlease_event_log_root,
         },
         "authority_ceiling": PRODUCER_AUTHORITY_CEILING,
     })
 }
 
-/// Return the non-authorizing target-index task metadata for one external
-/// target. The index is a deletable projection; accepted state remains the
-/// event log and the selected packet is hash-checked separately.
+/// Resolve one actionable v2 target from one Git-backed assessment. Historical
+/// v1 entries remain inspectable through `target_index::assess_target_index`,
+/// but they cannot cross this work-selection edge.
+pub fn target_index_selection_for_target(
+    project: &Project,
+    dir: &Path,
+    target_id: &str,
+) -> Result<Option<TargetIndexSelection>, String> {
+    target_index_selection_for_target_with_trust_anchor(project, dir, target_id, None)
+}
+
+/// Resolve one actionable v2 target using an independently retained first
+/// repository-boundary trust pin. The pin is never inferred from the target
+/// index or any other bytes in the Frontier under assessment.
+pub fn target_index_selection_for_target_with_trust_anchor(
+    project: &Project,
+    dir: &Path,
+    target_id: &str,
+    trust_anchor: Option<&super::frontier_repository::RepositoryTrustAnchor>,
+) -> Result<Option<TargetIndexSelection>, String> {
+    let Some(assessment) =
+        super::target_index::assess_target_index_with_trust_anchor(project, dir, trust_anchor)?
+    else {
+        return Ok(None);
+    };
+    if assessment.is_historical_v1() {
+        if assessment.indexed_ids().contains(target_id) {
+            return Err(format!(
+                "target index entry {target_id:?} is historical v1 inspection only; seal vela.target-index.v2 before work"
+            ));
+        }
+        return Ok(None);
+    }
+    let Some(index) = assessment.v2() else {
+        unreachable!("non-v1 assessment must be v2");
+    };
+    let Some(target) = index.targets.iter().find(|target| target.id == target_id) else {
+        return Ok(None);
+    };
+    if target.state != "open" {
+        return Err(format!(
+            "target index entry {target_id:?} is {}, not open",
+            target.state
+        ));
+    }
+    if !assessment.global_issues.is_empty()
+        || assessment
+            .target_issues
+            .get(target_id)
+            .is_some_and(|issues| !issues.is_empty())
+    {
+        let codes = assessment
+            .global_issues
+            .iter()
+            .chain(
+                assessment
+                    .target_issues
+                    .get(target_id)
+                    .into_iter()
+                    .flatten(),
+            )
+            .map(|issue| issue.code)
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .join(", ");
+        return Err(format!(
+            "target index entry {target_id:?} is stale or invalid ({codes})"
+        ));
+    }
+    let packet = assessment
+        .packet_value(target_id)
+        .ok_or_else(|| format!("target index entry {target_id:?} has no verified packet"))?;
+    let binding =
+        super::target_index::build_target_task_binding(project, dir, &assessment, target_id)?;
+    Ok(Some(TargetIndexSelection {
+        packet: json!({
+            "kind": "target_packet",
+            "target": target_id,
+            "objective": target.objective,
+            "packet": packet,
+            "packet_ref": target.packet,
+            "index": {
+                "path": "targets.json",
+                "schema": index.schema,
+                "root": index.index_root,
+                "file_sha256": assessment.document_root,
+                "source": index.source,
+                "input_root": index.inputs.input_root,
+                "roots": index.roots,
+                "stale_against_loaded_frontier": false,
+            },
+            "authority_ceiling": PRODUCER_AUTHORITY_CEILING,
+            "caveat": "The target index and packet are derived briefing projections. Their exact bytes are pinned here, but only signed frontier events carry accepted truth.",
+        }),
+        task: pinned_target_index_task(project, &assessment, target),
+        binding,
+    }))
+}
+
+/// Compatibility accessor for existing internal callers. It only returns an
+/// actionable v2 value; stale, terminal, or historical entries fail closed.
 pub fn target_index_task_for_target(
     project: &Project,
     dir: &Path,
     target: &str,
 ) -> Result<Option<Value>, String> {
-    let Some(loaded) = load_target_index(project, dir)? else {
-        return Ok(None);
-    };
-    Ok(loaded
-        .index
-        .targets
-        .iter()
-        .find(|entry| entry.id == target)
-        .map(|entry| pinned_target_index_task(project, &loaded, entry)))
+    Ok(target_index_selection_for_target(project, dir, target)?.map(|value| value.task))
 }
 
-/// Load and hash-check the selected target packet. This is producer briefing
-/// material only: the wrapper names both its derived index root and the live
-/// frontier root, and never converts packet content into accepted state.
+/// Compatibility accessor for existing internal callers. Prefer
+/// [`target_index_selection_for_target`] when both values are required so the
+/// repository and index are assessed exactly once.
 pub fn target_index_packet_for_target(
     project: &Project,
     dir: &Path,
     target: &str,
 ) -> Result<Option<Value>, String> {
-    let Some(loaded) = load_target_index(project, dir)? else {
-        return Ok(None);
-    };
-    let Some(entry) = loaded.index.targets.iter().find(|entry| entry.id == target) else {
-        return Ok(None);
-    };
-    let path = target_packet_path(dir, &entry.packet.path)?;
-    let bytes = read_regular_file(&path, TARGET_PACKET_MAX_BYTES, "target packet")?;
-    let digest = format!("sha256:{}", hex::encode(Sha256::digest(&bytes)));
-    if digest != entry.packet.sha256 {
-        return Err(format!(
-            "target packet digest mismatch for {:?}: index {} != bytes {}",
-            target, entry.packet.sha256, digest
-        ));
-    }
-    let packet: Value = serde_json::from_slice(&bytes)
-        .map_err(|error| format!("parse target packet {}: {error}", path.display()))?;
-    if !packet.is_object() {
-        return Err(format!(
-            "target packet {} must be a JSON object",
-            path.display()
-        ));
-    }
-    if packet.get("schema").and_then(Value::as_str) != Some(entry.packet.schema.as_str()) {
-        return Err(format!(
-            "target packet schema mismatch for {:?}: index {:?} != packet {:?}",
-            target,
-            entry.packet.schema,
-            packet.get("schema")
-        ));
-    }
-    Ok(Some(json!({
-        "kind": "target_packet",
-        "target": target,
-        "objective": entry.objective,
-        "packet": packet,
-        "packet_ref": entry.packet,
-        "index": {
-            "path": "targets.json",
-            "schema": loaded.index.schema,
-            "sha256": loaded.sha256,
-            "as_of": loaded.index.as_of,
-            "stale_against_loaded_frontier": loaded.stale_against_loaded_frontier,
-        },
-        "authority_ceiling": PRODUCER_AUTHORITY_CEILING,
-        "caveat": "The target index and packet are derived briefing projections. Their bytes are pinned here, but only signed frontier events carry accepted truth.",
-    })))
+    Ok(target_index_selection_for_target(project, dir, target)?.map(|value| value.packet))
 }
 
 /// A pack awaits a decision only while it has no verdict AND at least
@@ -491,16 +283,13 @@ fn lease_live_at(
     let Some(observed_at) = observed_at else {
         return true;
     };
-    chrono::DateTime::parse_from_rfc3339(claimed_at)
-        .map(|claimed| claimed + chrono::Duration::seconds(ttl_seconds as i64) > *observed_at)
-        .unwrap_or(true)
+    vela_protocol::events::attempt_lease_expiry(claimed_at, ttl_seconds)
+        .is_ok_and(|expires_at| expires_at > *observed_at)
 }
 
 fn lease_expires_at(lease: &vela_protocol::project::AttemptClaim) -> Option<String> {
-    let seconds = i64::try_from(lease.lease_ttl_seconds).ok()?;
-    chrono::DateTime::parse_from_rfc3339(&lease.claimed_at)
-        .ok()?
-        .checked_add_signed(chrono::Duration::try_seconds(seconds)?)
+    vela_protocol::events::attempt_lease_expiry(&lease.claimed_at, lease.lease_ttl_seconds)
+        .ok()
         .map(|time| time.to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
 }
 
@@ -541,26 +330,6 @@ fn yaml_scalar_string(value: &serde_yaml::Value) -> Option<String> {
     }
 }
 
-fn scientific_target_punctuation_is_balanced(target: &str) -> bool {
-    let mut bracket_depth = 0_u8;
-    for byte in target.bytes() {
-        match byte {
-            b'[' => {
-                bracket_depth = match bracket_depth.checked_add(1) {
-                    Some(depth) if depth <= 2 => depth,
-                    _ => return false,
-                };
-            }
-            b']' if bracket_depth > 0 => bracket_depth -= 1,
-            b']' => return false,
-            b',' if bracket_depth > 0 => {}
-            b',' => return false,
-            _ => {}
-        }
-    }
-    bracket_depth == 0
-}
-
 fn shell_target_argument(target: &str) -> String {
     if target
         .bytes()
@@ -578,32 +347,7 @@ fn shell_target_argument(target: &str) -> String {
 /// It admits a bounded square-bracket notation for conventional scientific
 /// identifiers and quotes those identifiers in the human `next_command`.
 pub fn validate_external_target_id(target: &str) -> Result<(), String> {
-    if target.is_empty() || target.len() > EXTERNAL_TARGET_ID_MAX_BYTES {
-        return Err(format!(
-            "external target id must be 1..={EXTERNAL_TARGET_ID_MAX_BYTES} bytes"
-        ));
-    }
-    if target.starts_with('-') || target.starts_with("vf_") {
-        return Err(
-            "external target id must not start with '-' or use the reserved vf_ prefix".to_string(),
-        );
-    }
-    if !target.contains(':')
-        || target
-            .split(':')
-            .any(|segment| segment.is_empty() || segment.starts_with('-'))
-        || !target.bytes().all(|byte| {
-            byte.is_ascii_alphanumeric()
-                || matches!(byte, b':' | b'.' | b'_' | b'-' | b'[' | b']' | b',')
-        })
-        || !scientific_target_punctuation_is_balanced(target)
-    {
-        return Err(
-            "external target id must have non-empty, non-option-like ':'-separated segments using ASCII letters, digits, '.', '_', '-', or balanced square-bracket notation"
-                .to_string(),
-        );
-    }
-    Ok(())
+    super::target_index::validate_target_id(target)
 }
 
 fn read_campaign_yaml(dir: &Path) -> Result<Option<Vec<u8>>, String> {
@@ -918,6 +662,16 @@ pub fn try_frontier_next_projection(
     observed_at: &str,
     limit: usize,
 ) -> Result<FrontierNextProjection, String> {
+    try_frontier_next_projection_with_trust_anchor(project, frontier_dir, observed_at, limit, None)
+}
+
+pub fn try_frontier_next_projection_with_trust_anchor(
+    project: &Project,
+    frontier_dir: Option<&Path>,
+    observed_at: &str,
+    limit: usize,
+    trust_anchor: Option<&super::frontier_repository::RepositoryTrustAnchor>,
+) -> Result<FrontierNextProjection, String> {
     let observed_at = chrono::DateTime::parse_from_rfc3339(observed_at)
         .ok()
         .map(|time| time.to_utc());
@@ -941,17 +695,13 @@ pub fn try_frontier_next_projection(
                 .map(|lease| (lease.obligation_id.as_str(), lease))
                 .collect();
         let mut indexed_ids = std::collections::BTreeSet::new();
-        if let Some(loaded) = load_target_index(project, dir)? {
-            let mut indexed = loaded
-                .index
-                .targets
-                .iter()
-                .filter(|target| target.state == "open")
-                .collect::<Vec<_>>();
-            indexed.sort_by(|left, right| left.rank.cmp(&right.rank).then(left.id.cmp(&right.id)));
-            for target in indexed {
-                indexed_ids.insert(target.id.clone());
-                producer_work.configured_open += 1;
+        if let Some(assessment) =
+            super::target_index::assess_target_index_with_trust_anchor(project, dir, trust_anchor)?
+        {
+            indexed_ids.extend(assessment.indexed_ids().into_iter().map(str::to_string));
+            producer_work.configured_open += assessment.configured_open();
+            producer_work.stale += assessment.stale_open();
+            for target in assessment.fresh_open_v2_targets() {
                 if let Some(lease) = live_leases.get(target.id.as_str()) {
                     producer_work.leased += 1;
                     producer_work.leased_targets.push(leased_producer_target(
@@ -968,7 +718,7 @@ pub fn try_frontier_next_projection(
                     title: target.title.clone(),
                     why: target.why.clone(),
                     next_command: format!("vela work {}", shell_target_argument(&target.id)),
-                    task: Some(pinned_target_index_task(project, &loaded, target)),
+                    task: Some(pinned_target_index_task(project, &assessment, target)),
                 });
             }
         }
@@ -1058,6 +808,17 @@ pub fn try_frontier_next_projection(
         }
     }
 
+    if producer_work.configured_open
+        != producer_work.available + producer_work.leased + producer_work.stale
+    {
+        return Err(format!(
+            "producer work availability is inconsistent: configured={}, available={}, leased={}, stale={}",
+            producer_work.configured_open,
+            producer_work.available,
+            producer_work.leased,
+            producer_work.stale
+        ));
+    }
     validate_producer_targets(&actionable_targets, producer_work.available)?;
 
     let targets = actionable_targets.into_iter().take(limit).collect();
@@ -1082,6 +843,7 @@ pub fn try_frontier_next(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sha2::{Digest, Sha256};
     use vela_protocol::bundle::{
         Assertion, Conditions, Confidence, Evidence, Extraction, FindingBundle, Flags, Provenance,
         ReviewState,
@@ -1158,7 +920,10 @@ mod tests {
                         "sha256:{}",
                         vela_protocol::events::event_log_hash(&project.events)
                     ),
-                    "proposal_state_hash": format!("sha256:{}", "0".repeat(64)),
+                    "proposal_state_hash": format!(
+                        "sha256:{}",
+                        vela_protocol::proposals::proposal_state_hash(&project.proposals)
+                    ),
                 },
                 "claim_boundary": {
                     "derived": true,
@@ -1185,7 +950,7 @@ mod tests {
     }
 
     #[test]
-    fn target_index_offers_and_loads_one_hash_pinned_native_target() {
+    fn target_index_v1_is_historical_inspection_only_and_never_offered() {
         let temp = tempfile::tempdir().unwrap();
         let project = vela_protocol::project::assemble("target-index", Vec::new(), 0, 0, "fixture");
         write_target_index(
@@ -1195,22 +960,48 @@ mod tests {
             None,
         );
 
-        let targets =
-            try_frontier_next(&project, Some(temp.path()), "2026-07-16T12:00:00Z", 10).unwrap();
-        assert_eq!(targets[0].id, "erdos:443");
-        assert_eq!(targets[0].lane, "attack");
-        assert_eq!(targets[0].task.as_ref().unwrap()["kind"], "target_packet");
-        assert_eq!(
-            targets[0].task.as_ref().unwrap()["authority_ceiling"],
-            PRODUCER_AUTHORITY_CEILING
+        let projection =
+            try_frontier_next_projection(&project, Some(temp.path()), "2026-07-16T12:00:00Z", 10)
+                .unwrap();
+        assert!(projection.targets.is_empty());
+        assert_eq!(projection.producer_work.configured_open, 1);
+        assert_eq!(projection.producer_work.stale, 1);
+        assert_eq!(projection.producer_work.available, 0);
+        assert!(
+            target_index_selection_for_target(&project, temp.path(), "erdos:443")
+                .unwrap_err()
+                .contains("historical v1 inspection only")
         );
+    }
 
-        let loaded = target_index_packet_for_target(&project, temp.path(), "erdos:443")
+    #[test]
+    fn reproduced_stale_v1_index_is_counted_but_never_offered() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut project = vela_protocol::project::assemble("stale-v1", Vec::new(), 0, 0, "fixture");
+        write_target_index(
+            temp.path(),
+            &project,
+            br#"{"schema":"fixture.problem.v1","problem":443}"#,
+            None,
+        );
+        project.project.description = "changed after target-index generation".to_string();
+
+        let assessment = super::super::target_index::assess_target_index(&project, temp.path())
             .unwrap()
             .unwrap();
-        assert_eq!(loaded["packet"]["problem"], 443);
-        assert_eq!(loaded["packet_ref"]["path"], "packets/443.json");
-        assert_eq!(loaded["index"]["stale_against_loaded_frontier"], false);
+        assert!(
+            assessment
+                .global_issues
+                .iter()
+                .any(|issue| issue.code == super::super::target_index::CODE_STATE_ROOT_MISMATCH)
+        );
+        let projection =
+            try_frontier_next_projection(&project, Some(temp.path()), "2026-07-16T12:00:00Z", 10)
+                .unwrap();
+        assert_eq!(projection.producer_work.configured_open, 1);
+        assert_eq!(projection.producer_work.stale, 1);
+        assert_eq!(projection.producer_work.available, 0);
+        assert!(projection.targets.is_empty());
     }
 
     #[test]
@@ -1232,10 +1023,9 @@ mod tests {
             try_frontier_next_projection(&project, Some(temp.path()), "2026-07-16T12:00:00Z", 10)
                 .unwrap();
         assert_eq!(projection.producer_work.configured_open, 1);
-        assert_eq!(projection.producer_work.available, 1);
-        assert_eq!(projection.targets.len(), 1);
-        assert_eq!(projection.targets[0].id, "erdos:443");
-        assert_eq!(projection.targets[0].lane, "attack");
+        assert_eq!(projection.producer_work.available, 0);
+        assert_eq!(projection.producer_work.stale, 1);
+        assert!(projection.targets.is_empty());
     }
 
     #[test]
@@ -1265,12 +1055,11 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let mut project =
             vela_protocol::project::assemble("leased-target", Vec::new(), 0, 0, "fixture");
-        write_target_index(
-            temp.path(),
-            &project,
-            br#"{"schema":"fixture.problem.v1","problem":443}"#,
-            None,
-        );
+        std::fs::write(
+            temp.path().join("campaign.yaml"),
+            "batches:\n  - name: open\n    state: open\n    problems:\n      - id: erdos:443\n        title: Erdős 443\n",
+        )
+        .unwrap();
         project
             .attempt_claims
             .push(vela_protocol::project::AttemptClaim {
@@ -1302,7 +1091,7 @@ mod tests {
     }
 
     #[test]
-    fn target_index_refuses_packet_digest_drift_and_path_escape() {
+    fn target_index_v1_refuses_path_escape_before_historical_inspection() {
         let temp = tempfile::tempdir().unwrap();
         let project = vela_protocol::project::assemble("target-index", Vec::new(), 0, 0, "fixture");
         write_target_index(
@@ -1311,12 +1100,6 @@ mod tests {
             br#"{"schema":"fixture.problem.v1","problem":443}"#,
             Some(format!("sha256:{}", "1".repeat(64))),
         );
-        assert!(
-            target_index_packet_for_target(&project, temp.path(), "erdos:443")
-                .unwrap_err()
-                .contains("digest mismatch")
-        );
-
         let mut index: Value =
             serde_json::from_slice(&std::fs::read(temp.path().join("targets.json")).unwrap())
                 .unwrap();
@@ -1327,9 +1110,9 @@ mod tests {
         )
         .unwrap();
         assert!(
-            load_target_index(&project, temp.path())
+            super::super::target_index::assess_target_index(&project, temp.path())
                 .unwrap_err()
-                .contains("normalized frontier-relative")
+                .contains("normalized frontier-relative path")
         );
     }
 
@@ -1357,15 +1140,15 @@ mod tests {
             try_frontier_next(&project, Some(temp.path()), "2026-07-16T12:00:00Z", 10).unwrap();
         assert!(targets.iter().all(|target| target.id != "erdos:443"));
         assert!(
-            target_index_packet_for_target(&project, temp.path(), "erdos:443")
-                .unwrap()
-                .is_some()
+            target_index_selection_for_target(&project, temp.path(), "erdos:443")
+                .unwrap_err()
+                .contains("historical v1 inspection only")
         );
     }
 
     #[cfg(unix)]
     #[test]
-    fn target_index_packet_rejects_a_symlinked_parent_directory() {
+    fn historical_v1_inspection_rejects_a_symlinked_packet_parent() {
         use std::os::unix::fs::symlink;
 
         let temp = tempfile::tempdir().unwrap();
@@ -1408,10 +1191,20 @@ mod tests {
             .unwrap(),
         )
         .unwrap();
+        let inspection = super::super::target_index::inspect_target_index_target(
+            &project,
+            temp.path(),
+            "erdos:443",
+        )
+        .unwrap()
+        .unwrap();
+        assert!(inspection.historical_only);
+        assert!(!inspection.actionable);
+        assert!(inspection.packet.is_none());
         assert!(
-            target_index_packet_for_target(&project, temp.path(), "erdos:443")
-                .unwrap_err()
-                .contains("must not contain symlinks")
+            inspection
+                .codes
+                .contains(&super::super::target_index::CODE_PACKET_MISMATCH)
         );
     }
 

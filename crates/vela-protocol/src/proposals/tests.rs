@@ -1907,8 +1907,12 @@ fn parity_flags_status_with_no_backing_event() {
     project.proposals[idx].status = "rejected".to_string();
     project.proposals[idx].reviewed_by = Some("reviewer:ghost".to_string());
     let conflicts = verify_proposal_decision_parity(&project);
-    assert_eq!(conflicts.len(), 1);
-    assert!(conflicts[0].contains("NO decision event"));
+    assert!(
+        conflicts
+            .iter()
+            .any(|conflict| conflict.contains("NO decision event")),
+        "{conflicts:?}"
+    );
 }
 
 #[test]
@@ -1929,6 +1933,43 @@ fn review_event_targeting_missing_proposal_is_flagged() {
     assert!(
         conflicts.iter().any(|c| c.contains("does not exist")),
         "an orphan review event must be flagged: {conflicts:?}"
+    );
+}
+
+#[test]
+fn parity_flags_hand_edited_terminal_decision_fields() {
+    let (mut project, proposal) = frontier_with_proposal(vec![]);
+    let decided_at = "2026-06-01T00:00:00Z";
+    let reason = "exact reviewer reason";
+    let event = events::new_review_decision_event(
+        &proposal.id,
+        &proposal.kind,
+        "rejected",
+        None,
+        "reviewer:x",
+        reason,
+        Some(decided_at),
+    )
+    .unwrap();
+    let stored = project
+        .proposals
+        .iter_mut()
+        .find(|candidate| candidate.id == proposal.id)
+        .unwrap();
+    stored.status = "rejected".to_string();
+    stored.reviewed_by = Some("reviewer:x".to_string());
+    stored.reviewed_at = Some(decided_at.to_string());
+    stored.decision_reason = Some(reason.to_string());
+    project.events.push(event);
+    assert!(verify_proposal_decision_parity(&project).is_empty());
+
+    project.proposals[0].decision_reason = Some("hand-edited reason".to_string());
+    let conflicts = verify_proposal_decision_parity(&project);
+    assert!(
+        conflicts
+            .iter()
+            .any(|conflict| conflict.contains("stored decision fields")),
+        "{conflicts:?}"
     );
 }
 

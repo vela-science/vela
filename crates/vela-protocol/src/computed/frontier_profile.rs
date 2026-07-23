@@ -6,12 +6,26 @@
 //! repository migration and v0.1 loader compatibility are owned by later
 //! implementation slices.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 
+use crate::events::{
+    EVENT_KIND_FRONTIER_REPOSITORY_BOUND, EVENT_SCHEMA, NULL_HASH, StateEvent, compute_event_id,
+    event_content_preimage_bytes,
+};
+use crate::frontier_repository::{
+    ExactFrontierDependencyV1, FRONTIER_IDENTITY_SCHEMA, FrontierIdentityOrigin,
+    FrontierIdentityV1, exact_dependency_root, repository_boundary_event_content_root,
+    repository_boundary_payload_from_event_shape, validate_repository_boundary_event_set,
+};
+use crate::project::Project;
+use crate::scientific_state::scientific_state_root_v2;
+
 pub const FRONTIER_PROFILE_SCHEMA_V1: &str = "vela.frontier-profile.v1";
+pub const FRONTIER_CREATED_SCHEMA_V1: &str = crate::events::FRONTIER_CREATED_SCHEMA_V1;
 
 pub const FRONTIER_PROFILE_NAME_MAX_BYTES: usize = 256;
 pub const FRONTIER_PROFILE_SUMMARY_MAX_BYTES: usize = 2 * 1024;
@@ -50,6 +64,48 @@ pub struct FrontierProfileLicenseV1 {
     pub content: String,
     pub code: String,
     pub data: String,
+}
+
+/// Security-bearing state associated with a Profile v1 repository.
+///
+/// Every field is derived from canonical identity-event bytes. In particular,
+/// no value in `frontier.yaml`, `.vela/config.toml`, or `.vela/settings.toml`
+/// can supply or override this record. Repository-context verification of Git
+/// anchors and actor authority remains a higher-layer prerequisite for writes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EffectiveFrontierAuthorityV1 {
+    pub frontier_id: String,
+    pub identity_root: String,
+    pub dependency_root: String,
+    pub dependencies: Vec<ExactFrontierDependencyV1>,
+    pub identity_event_root: String,
+}
+
+/// Read-only roots for a validated Profile v1 repository.
+///
+/// This is an in-process projection, not a new protocol wire object. It gives
+/// lock/proof writers one explicit source for the profile and scientific-state
+/// roots without adding profile metadata to [`Project`] or its reducer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FrontierProfileProjectionV1 {
+    pub profile_root: String,
+    pub frontier_id: String,
+    pub identity_root: String,
+    pub dependency_root: String,
+    pub dependencies: Vec<ExactFrontierDependencyV1>,
+    pub identity_event_root: String,
+    pub scientific_state_root: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct FrontierCreatedPayloadV1 {
+    pub schema: String,
+    pub name_at_creation: String,
+    pub creator: String,
+    pub profile_schema: String,
+    pub dependency_root: String,
+    pub created_at: String,
 }
 
 impl FrontierProfileV1 {
@@ -151,6 +207,176 @@ impl FrontierProfileV1 {
         self.validate()?;
         crate::canonical::sha256_canonical(self).map(|digest| format!("sha256:{digest}"))
     }
+
+    /// Bind the editable profile to independently derived identity-event state
+    /// and compute the closed scientific-state root.
+    pub fn project(&self, project: &Project) -> Result<FrontierProfileProjectionV1, String> {
+        self.validate()?;
+        let authority = EffectiveFrontierAuthorityV1::from_events(&project.events)?;
+        self.assert_frontier_id(&authority.frontier_id)?;
+        let scientific_state_root = scientific_state_root_v2(
+            project,
+            &authority.identity_root,
+            &authority.dependency_root,
+        )?;
+        Ok(FrontierProfileProjectionV1 {
+            profile_root: self.profile_root()?,
+            frontier_id: authority.frontier_id,
+            identity_root: authority.identity_root,
+            dependency_root: authority.dependency_root,
+            dependencies: authority.dependencies,
+            identity_event_root: authority.identity_event_root,
+            scientific_state_root,
+        })
+    }
+}
+
+impl EffectiveFrontierAuthorityV1 {
+    /// Derive effective identity and dependencies from the complete canonical
+    /// event set. Profile and settings bytes are deliberately not parameters.
+    pub fn from_events(events: &[StateEvent]) -> Result<Self, String> {
+        let boundary_events = events
+            .iter()
+            .filter(|event| event.kind.as_str() == EVENT_KIND_FRONTIER_REPOSITORY_BOUND)
+            .collect::<Vec<_>>();
+
+        if boundary_events.is_empty() {
+            return authority_from_profile_v1_genesis(events);
+        }
+
+        let errors = validate_repository_boundary_event_set(events);
+        if !errors.is_empty() {
+            return Err(format!(
+                "repository identity-event set is invalid: {}",
+                errors.join("; ")
+            ));
+        }
+
+        let mut by_root = BTreeMap::new();
+        let mut referenced_parents = BTreeSet::new();
+        for event in boundary_events {
+            let root = repository_boundary_event_content_root(event)?;
+            let payload = repository_boundary_payload_from_event_shape(event)?;
+            if let Some(parent) = payload.previous_identity_event_root.as_ref() {
+                referenced_parents.insert(parent.clone());
+            }
+            if by_root.insert(root.clone(), payload).is_some() {
+                return Err(format!(
+                    "repository identity-event set contains duplicate root {root}"
+                ));
+            }
+        }
+
+        let heads = by_root
+            .iter()
+            .filter(|(root, _)| !referenced_parents.contains(*root))
+            .collect::<Vec<_>>();
+        let [(identity_event_root, payload)] = heads.as_slice() else {
+            return Err(format!(
+                "repository identity-event set must have exactly one boundary head, found {}",
+                heads.len()
+            ));
+        };
+        Ok(Self {
+            frontier_id: payload.frontier_id.clone(),
+            identity_root: payload.identity_root.clone(),
+            dependency_root: payload.dependency_root.clone(),
+            dependencies: payload.dependencies.clone(),
+            identity_event_root: (*identity_event_root).clone(),
+        })
+    }
+}
+
+/// Validate and derive the identity of a new Profile v1 Frontier directly
+/// from its structural genesis event. The generic event validator/reducer must
+/// separately learn this closed payload before v1 initialization can ship;
+/// keeping the derivation here lets repository loading stay fail-closed rather
+/// than falling back to legacy metadata.
+fn authority_from_profile_v1_genesis(
+    events: &[StateEvent],
+) -> Result<EffectiveFrontierAuthorityV1, String> {
+    let genesis_events = events
+        .iter()
+        .filter(|event| {
+            event.kind.as_str() == "frontier.created"
+                && event
+                    .payload
+                    .get("schema")
+                    .and_then(serde_json::Value::as_str)
+                    == Some(FRONTIER_CREATED_SCHEMA_V1)
+        })
+        .collect::<Vec<_>>();
+    let [event] = genesis_events.as_slice() else {
+        return Err(format!(
+            "Profile v1 requires exactly one frontier.created genesis or one valid repository-boundary chain, found {} genesis events and no boundaries",
+            genesis_events.len()
+        ));
+    };
+    if event.schema != EVENT_SCHEMA || event.id != compute_event_id(event) {
+        return Err("Profile v1 frontier.created core or content ID is invalid".to_string());
+    }
+    if event.target.r#type != "frontier"
+        || event.actor.r#type != "frontier"
+        || event.before_hash != NULL_HASH
+        || event.after_hash != NULL_HASH
+        || event.signature.is_some()
+        || !event.caveats.is_empty()
+    {
+        return Err("Profile v1 frontier.created core shape is invalid".to_string());
+    }
+    let payload: FrontierCreatedPayloadV1 = serde_json::from_value(event.payload.clone())
+        .map_err(|error| format!("invalid {FRONTIER_CREATED_SCHEMA_V1} payload: {error}"))?;
+    if payload.schema != FRONTIER_CREATED_SCHEMA_V1 {
+        return Err(format!(
+            "frontier.created payload.schema must be {FRONTIER_CREATED_SCHEMA_V1}"
+        ));
+    }
+    if payload.profile_schema != FRONTIER_PROFILE_SCHEMA_V1 {
+        return Err(format!(
+            "frontier.created profile_schema must be {FRONTIER_PROFILE_SCHEMA_V1}"
+        ));
+    }
+    validate_text(
+        "frontier.created.name_at_creation",
+        &payload.name_at_creation,
+        FRONTIER_PROFILE_NAME_MAX_BYTES,
+    )?;
+    validate_text(
+        "frontier.created.creator",
+        &payload.creator,
+        FRONTIER_PROFILE_MAINTAINER_MAX_BYTES,
+    )?;
+    chrono::DateTime::parse_from_rfc3339(&payload.created_at)
+        .map_err(|error| format!("frontier.created created_at must be RFC3339: {error}"))?;
+    if payload.name_at_creation != event.target.id
+        || payload.creator != event.actor.id
+        || payload.created_at != event.timestamp
+    {
+        return Err("frontier.created payload identity disagrees with its event core".to_string());
+    }
+    let empty_dependency_root = exact_dependency_root(&[])?;
+    if payload.dependency_root != empty_dependency_root {
+        return Err(
+            "Profile v1 frontier.created must bind the canonical empty dependency root".to_string(),
+        );
+    }
+
+    let digest = hex::encode(Sha256::digest(event_content_preimage_bytes(event)));
+    let identity_event_root = format!("sha256:{digest}");
+    let identity = FrontierIdentityV1 {
+        schema: FRONTIER_IDENTITY_SCHEMA.to_string(),
+        frontier_id: format!("vfr_{}", &digest[..16]),
+        origin: FrontierIdentityOrigin::Genesis,
+        origin_commitment: identity_event_root.clone(),
+        legacy_identity_preimage_root: None,
+    };
+    Ok(EffectiveFrontierAuthorityV1 {
+        frontier_id: identity.frontier_id.clone(),
+        identity_root: identity.root()?,
+        dependency_root: empty_dependency_root,
+        dependencies: Vec::new(),
+        identity_event_root,
+    })
 }
 
 fn validate_frontier_id(value: &str) -> Result<(), String> {

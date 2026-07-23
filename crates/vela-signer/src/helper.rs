@@ -3,6 +3,11 @@ use ed25519_dalek::{Signer, SigningKey};
 use std::io::Read;
 use zeroize::Zeroize;
 
+use crate::actor_contract::{
+    ACTOR_BOOTSTRAP_RESPONSE_SCHEMA, ActorBootstrapProofRequest, ActorBootstrapProofResponse,
+    actor_bootstrap_request_root, actor_bootstrap_response_signing_bytes,
+    validate_actor_bootstrap_request, validate_actor_bootstrap_request_fresh,
+};
 use crate::contract::{
     ENROLLMENT_RESPONSE_SCHEMA, EnrollmentRequest, EnrollmentResponse, EventSignature,
     ProtectionMode, REBIND_RESPONSE_SCHEMA, RESPONSE_SCHEMA, RebindRequest, RebindResponse,
@@ -14,6 +19,11 @@ use crate::contract::{
 use crate::policy_contract::{
     POLICY_RESPONSE_SCHEMA, PolicySignerRequest, PolicySignerResponse, policy_request_root,
     validate_policy_request, validate_policy_request_fresh,
+};
+use crate::repository_contract::{
+    REPOSITORY_RESPONSE_SCHEMA, RepositoryBoundarySignerRequest, RepositoryBoundarySignerResponse,
+    repository_boundary_request_root, validate_repository_boundary_request,
+    validate_repository_boundary_request_fresh,
 };
 
 pub trait Approval {
@@ -35,6 +45,18 @@ pub trait Approval {
     fn reauthenticate_policy(&self, _request: &PolicySignerRequest) -> Result<(), String> {
         Err("policy approvals are unsupported by this approval provider".to_string())
     }
+    fn reauthenticate_repository_boundary(
+        &self,
+        _request: &RepositoryBoundarySignerRequest,
+    ) -> Result<(), String> {
+        Err("repository-boundary approvals are unsupported by this approval provider".to_string())
+    }
+    fn reauthenticate_actor_bootstrap(
+        &self,
+        _request: &ActorBootstrapProofRequest,
+    ) -> Result<(), String> {
+        Err("actor-bootstrap proofs are unsupported by this approval provider".to_string())
+    }
     fn reauthenticate_enrollment(&self, request: &EnrollmentRequest) -> Result<(), String>;
     fn reauthenticate_rebind(&self, request: &RebindRequest) -> Result<(), String>;
     fn record_enrollment_session(
@@ -47,6 +69,72 @@ pub trait Approval {
         request: &RebindRequest,
         key: &SigningKey,
     ) -> Result<(), String>;
+}
+
+/// Obtain fresh platform user presence and prove possession of the exact
+/// protected actor key for one closed empty-registry bootstrap request.
+///
+/// This returns a signed local proof; it does not write the actor registry or
+/// append an authority event.
+pub fn prove_actor_bootstrap<A: Approval, C: Custody>(
+    request: &ActorBootstrapProofRequest,
+    approval: &A,
+    custody: &C,
+    helper_path: &std::path::Path,
+    now: chrono::DateTime<Utc>,
+) -> Result<ActorBootstrapProofResponse, String> {
+    validate_actor_bootstrap_request(request, now)?;
+    let helper_sha256 = file_sha256(helper_path)?;
+    if helper_sha256 != request.helper_sha256 {
+        return Err("running helper digest does not match actor-bootstrap request".to_string());
+    }
+    if custody.provider() != request.provider {
+        return Err(
+            "requested actor-bootstrap custody provider does not match helper provider".to_string(),
+        );
+    }
+    if custody.protection_grade() != request.protection_grade {
+        return Err(
+            "requested actor-bootstrap protection grade does not match helper custody".to_string(),
+        );
+    }
+    // Bootstrap always requires fresh presence. A general decision session is
+    // deliberately insufficient for establishing the first repository actor.
+    approval.reauthenticate_actor_bootstrap(request)?;
+    let approved_at = approval.now();
+    validate_actor_bootstrap_request(request, approved_at)?;
+    validate_actor_bootstrap_request_fresh(request, approved_at)?;
+
+    let mut seed = custody.load_seed(&request.actor_id, &request.actor_public_key)?;
+    let key = SigningKey::from_bytes(&seed);
+    seed.zeroize();
+    let public_key = hex::encode(key.verifying_key().to_bytes());
+    if public_key != request.actor_public_key {
+        return Err("custody seed does not match the actor-bootstrap public key".to_string());
+    }
+
+    let mut response = ActorBootstrapProofResponse {
+        schema: ACTOR_BOOTSTRAP_RESPONSE_SCHEMA.to_string(),
+        request_root: actor_bootstrap_request_root(request)?,
+        frontier_id: request.frontier_id.clone(),
+        profile_root: request.profile_root.clone(),
+        actor_id: request.actor_id.clone(),
+        actor_public_key: public_key,
+        actor_record_root: request.actor_record_root.clone(),
+        actor_registry_root_before: request.actor_registry_root_before.clone(),
+        actor_registry_root_after: request.actor_registry_root_after.clone(),
+        helper_version: env!("CARGO_PKG_VERSION").to_string(),
+        helper_sha256,
+        provider: custody.provider().to_string(),
+        protection_grade: custody.protection_grade().to_string(),
+        approved_at: approved_at.to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
+        protection_mode: request.protection_mode,
+        signature: String::new(),
+    };
+    let signature = key.sign(&actor_bootstrap_response_signing_bytes(&response)?);
+    response.signature = format!("v1:{}", hex::encode(signature.to_bytes()));
+    drop(key);
+    Ok(response)
 }
 
 pub fn rebind<A: Approval, C: Custody>(
@@ -352,6 +440,60 @@ pub fn approve_and_sign_policy<A: Approval, C: Custody>(
     })
 }
 
+/// Obtain fresh platform user presence and sign exactly one closed repository
+/// boundary event. There is deliberately no reusable approval or generic
+/// signing fallback for repository administration.
+pub fn approve_and_sign_repository_boundary<A: Approval, C: Custody>(
+    request: &RepositoryBoundarySignerRequest,
+    approval: &A,
+    custody: &C,
+    helper_path: &std::path::Path,
+    now: chrono::DateTime<Utc>,
+) -> Result<RepositoryBoundarySignerResponse, String> {
+    validate_repository_boundary_request(request, now)?;
+    let helper_sha256 = file_sha256(helper_path)?;
+    if helper_sha256 != request.helper_sha256 {
+        return Err("running helper digest does not match repository-boundary request".to_string());
+    }
+    if custody.provider() != request.provider {
+        return Err(
+            "requested repository-boundary custody provider does not match helper provider"
+                .to_string(),
+        );
+    }
+    approval.reauthenticate_repository_boundary(request)?;
+    let approved_at = approval.now();
+    validate_repository_boundary_request(request, approved_at)?;
+    validate_repository_boundary_request_fresh(request, approved_at)?;
+
+    let mut seed = custody.load_seed(
+        &request.administrator_actor,
+        &request.administrator_public_key,
+    )?;
+    let key = SigningKey::from_bytes(&seed);
+    seed.zeroize();
+    let public_key = hex::encode(key.verifying_key().to_bytes());
+    if public_key != request.administrator_public_key {
+        return Err("custody seed does not match the repository administrator key".to_string());
+    }
+    let event_signature = vela_protocol::sign::sign_event(&request.event, &key)?;
+    drop(key);
+
+    Ok(RepositoryBoundarySignerResponse {
+        schema: REPOSITORY_RESPONSE_SCHEMA.to_string(),
+        request_root: repository_boundary_request_root(request)?,
+        administrator_public_key: public_key,
+        helper_version: env!("CARGO_PKG_VERSION").to_string(),
+        helper_sha256,
+        provider: custody.provider().to_string(),
+        protection_grade: custody.protection_grade().to_string(),
+        approved_at: approved_at.to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
+        protection_mode: request.protection_mode,
+        event_id: request.event.id.clone(),
+        event_signature,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -387,6 +529,14 @@ mod tests {
         }
 
         fn reauthenticate(&self, _request: &SignerRequest) -> Result<(), String> {
+            self.reauths.set(self.reauths.get() + 1);
+            Ok(())
+        }
+
+        fn reauthenticate_actor_bootstrap(
+            &self,
+            _request: &ActorBootstrapProofRequest,
+        ) -> Result<(), String> {
             self.reauths.set(self.reauths.get() + 1);
             Ok(())
         }
@@ -550,6 +700,170 @@ mod tests {
             remove_source_after_install: true,
         };
         (vela, helper, source, request)
+    }
+
+    fn actor_bootstrap_fixture() -> (
+        tempfile::NamedTempFile,
+        tempfile::NamedTempFile,
+        ActorBootstrapProofRequest,
+        [u8; 32],
+    ) {
+        use vela_protocol::frontier_profile::{
+            FRONTIER_PROFILE_SCHEMA_V1, FrontierProfileLicenseV1, FrontierProfileScopeV1,
+            FrontierProfileV1,
+        };
+        use vela_protocol::sign::ActorRecord;
+
+        let mut vela = tempfile::NamedTempFile::new().unwrap();
+        vela.write_all(b"vela").unwrap();
+        let mut helper = tempfile::NamedTempFile::new().unwrap();
+        helper.write_all(b"helper").unwrap();
+        let seed = [13_u8; 32];
+        let public_key = hex::encode(SigningKey::from_bytes(&seed).verifying_key().to_bytes());
+        let profile = FrontierProfileV1 {
+            schema: FRONTIER_PROFILE_SCHEMA_V1.to_string(),
+            frontier_id: "vfr_0123456789abcdef".to_string(),
+            name: "Actor proof fixture".to_string(),
+            summary: "Prove the exact protected actor key.".to_string(),
+            scope: FrontierProfileScopeV1 {
+                question: "Does protected custody contain the candidate actor key?".to_string(),
+                includes: Vec::new(),
+                excludes: Vec::new(),
+            },
+            maintainers: Vec::new(),
+            license: FrontierProfileLicenseV1 {
+                content: "CC-BY-4.0".to_string(),
+                code: "Apache-2.0".to_string(),
+                data: "varies".to_string(),
+            },
+        };
+        let actor_record = ActorRecord {
+            id: "reviewer:fixture".to_string(),
+            public_key: public_key.clone(),
+            algorithm: "ed25519".to_string(),
+            created_at: "2026-07-17T12:00:00Z".to_string(),
+            tier: None,
+            orcid: None,
+            access_clearance: None,
+            revoked_at: None,
+            revoked_reason: None,
+        };
+        let request = ActorBootstrapProofRequest {
+            schema: crate::ACTOR_BOOTSTRAP_REQUEST_SCHEMA.to_string(),
+            nonce: "6".repeat(64),
+            expires_at: "2026-07-17T12:01:00Z".to_string(),
+            vela_binary_path: vela.path().display().to_string(),
+            vela_binary_sha256: file_sha256(vela.path()).unwrap(),
+            helper_sha256: file_sha256(helper.path()).unwrap(),
+            frontier_id: profile.frontier_id.clone(),
+            frontier_path: "/tmp/actor-proof-frontier".to_string(),
+            profile_root: profile.profile_root().unwrap(),
+            profile,
+            actor_id: actor_record.id.clone(),
+            actor_public_key: public_key,
+            actor_record_root: crate::actor_record_root(&actor_record).unwrap(),
+            actor_registry_root_before: crate::actor_registry_file_root(&[]).unwrap(),
+            actor_registry_root_after: crate::actor_registry_file_root(std::slice::from_ref(
+                &actor_record,
+            ))
+            .unwrap(),
+            actor_record,
+            event_log_root: format!("sha256:{}", "7".repeat(64)),
+            event_count: 1,
+            snapshot_root: format!("sha256:{}", "8".repeat(64)),
+            reason: "Establish the first protected human repository actor".to_string(),
+            observed_at: "2026-07-17T12:00:00Z".to_string(),
+            provider: "test".to_string(),
+            protection_grade: "user_session".to_string(),
+            protection_mode: ProtectionMode::Session,
+            display: crate::ActorBootstrapDisplay {
+                frontier_name: "Actor proof fixture".to_string(),
+                actor: "reviewer:fixture".to_string(),
+                consequence: concat!(
+                    "Register this one human key as the first repository actor. ",
+                    "This proves key possession only; it does not accept scientific state or activate policy."
+                )
+                .to_string(),
+            },
+        };
+        (vela, helper, request, seed)
+    }
+
+    #[test]
+    fn protected_actor_bootstrap_returns_a_verifiable_key_possession_proof() {
+        let (_vela, helper, request, seed) = actor_bootstrap_fixture();
+        let approval = FakeApproval {
+            approved: true,
+            reauths: Cell::new(0),
+            recorded_sessions: Cell::new(0),
+        };
+        let response = prove_actor_bootstrap(
+            &request,
+            &approval,
+            &FakeCustody { seed },
+            helper.path(),
+            "2026-07-17T12:00:00Z".parse().unwrap(),
+        )
+        .unwrap();
+        crate::validate_actor_bootstrap_response(&request, &response).unwrap();
+        assert_eq!(approval.reauths.get(), 1);
+        assert_eq!(approval.recorded_sessions.get(), 0);
+    }
+
+    #[test]
+    fn protected_actor_bootstrap_absent_or_wrong_seed_fails_closed() {
+        struct AbsentCustody;
+        impl Custody for AbsentCustody {
+            fn provider(&self) -> &str {
+                "test"
+            }
+            fn provider_session(&self) -> Result<String, String> {
+                Ok("unused".to_string())
+            }
+            fn protection_grade(&self) -> &str {
+                "user_session"
+            }
+            fn load_seed(&self, _actor: &str, _public_key: &str) -> Result<[u8; 32], String> {
+                Err("protected key is absent".to_string())
+            }
+            fn store_seed(
+                &self,
+                _actor: &str,
+                _public_key: &str,
+                _seed: &[u8; 32],
+            ) -> Result<(), String> {
+                panic!("bootstrap proof must not store a key")
+            }
+            fn delete_seed(&self, _actor: &str, _public_key: &str) -> Result<(), String> {
+                panic!("bootstrap proof must not delete a key")
+            }
+        }
+
+        let (_vela, helper, request, _seed) = actor_bootstrap_fixture();
+        let approval = FakeApproval {
+            approved: true,
+            reauths: Cell::new(0),
+            recorded_sessions: Cell::new(0),
+        };
+        let absent = prove_actor_bootstrap(
+            &request,
+            &approval,
+            &AbsentCustody,
+            helper.path(),
+            "2026-07-17T12:00:00Z".parse().unwrap(),
+        )
+        .unwrap_err();
+        assert!(absent.contains("protected key is absent"));
+
+        let wrong = prove_actor_bootstrap(
+            &request,
+            &approval,
+            &FakeCustody { seed: [99_u8; 32] },
+            helper.path(),
+            "2026-07-17T12:00:00Z".parse().unwrap(),
+        )
+        .unwrap_err();
+        assert!(wrong.contains("does not match the actor-bootstrap public key"));
     }
 
     #[test]

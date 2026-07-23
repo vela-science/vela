@@ -20,10 +20,14 @@
 
 mod kernel;
 pub use kernel::{
-    actor_registration, bundle, canonical, detached, events, reducer, repo, sign, signing_input,
+    actor_registration, bundle, canonical, detached, events, frontier_repository, reducer, repo,
+    sign, signing_input,
 };
 mod computed;
-pub use computed::{frontier_profile, frontier_repo, project, sources, state, transfer_registry};
+pub use computed::{
+    frontier_profile, frontier_repo, frontier_settings, project, scientific_state, sources, state,
+    transfer_registry,
+};
 mod analysis;
 pub use analysis::{
     atlas, boundary, contradiction, credit, diff, diff_pack_review, evidence_ci, evidence_diff,

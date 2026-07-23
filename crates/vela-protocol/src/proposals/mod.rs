@@ -4506,6 +4506,12 @@ pub struct DerivedDecision {
     pub reviewer: String,
     /// The latest decision event's timestamp.
     pub decided_at: String,
+    /// The exact reason carried by the latest decision event.
+    pub reason: String,
+    /// The domain event applied by an acceptance, when one exists. Historical
+    /// accepts that use their review event as the applied record carry that
+    /// review event id here.
+    pub applied_event_id: Option<String>,
     /// The `review.*` event id that carried the decision, when one exists.
     /// `None` for an accept whose only trace is its domain event (the
     /// pre-`review.accepted` accept path; see module note).
@@ -4551,6 +4557,19 @@ pub fn proposal_status_from_log(
                 status: status.to_string(),
                 reviewer: event.actor.id.clone(),
                 decided_at: event.timestamp.clone(),
+                reason: event.reason.clone(),
+                applied_event_id: if status == "applied" {
+                    event
+                        .payload
+                        .get("applied_event_id")
+                        .and_then(Value::as_str)
+                        .map(str::to_string)
+                        .or_else(|| {
+                            (applied_event_id == Some(event.id.as_str())).then(|| event.id.clone())
+                        })
+                } else {
+                    None
+                },
                 review_event_id: Some(event.id.clone()),
             });
             continue;
@@ -4564,6 +4583,8 @@ pub fn proposal_status_from_log(
                 status: "applied".to_string(),
                 reviewer: event.actor.id.clone(),
                 decided_at: event.timestamp.clone(),
+                reason: event.reason.clone(),
+                applied_event_id: Some(event.id.clone()),
                 review_event_id: None,
             });
         }
@@ -4588,9 +4609,20 @@ pub fn proposal_status_from_log(
 ///   - every `review.*` event MUST reference a proposal that exists.
 pub fn verify_proposal_decision_parity(frontier: &Project) -> Vec<String> {
     let mut conflicts = Vec::new();
-    let proposal_ids: BTreeSet<&str> = frontier.proposals.iter().map(|p| p.id.as_str()).collect();
+    let mut proposal_ids = BTreeSet::new();
 
     for proposal in &frontier.proposals {
+        let expected_id = proposal_id(proposal);
+        if proposal.id != expected_id {
+            conflicts.push(format!(
+                "proposal {} logical content derives id {expected_id}",
+                proposal.id
+            ));
+        }
+        if !proposal_ids.insert(proposal.id.as_str()) {
+            conflicts.push(format!("proposal {} occurs more than once", proposal.id));
+        }
+
         let derived =
             proposal_status_from_log(frontier, &proposal.id, proposal.applied_event_id.as_deref());
         match proposal.status.as_str() {
@@ -4603,6 +4635,16 @@ pub fn verify_proposal_decision_parity(frontier: &Project) -> Vec<String> {
                         d.review_event_id.as_deref().unwrap_or("domain event")
                     ));
                 }
+                if proposal.reviewed_by.is_some()
+                    || proposal.reviewed_at.is_some()
+                    || proposal.decision_reason.is_some()
+                    || proposal.applied_event_id.is_some()
+                {
+                    conflicts.push(format!(
+                        "proposal {} is pending_review but carries terminal decision fields",
+                        proposal.id
+                    ));
+                }
             }
             "accepted" => {
                 // Transient in-memory state only; never persisted.
@@ -4611,18 +4653,41 @@ pub fn verify_proposal_decision_parity(frontier: &Project) -> Vec<String> {
                     proposal.id
                 ));
             }
-            stored @ ("applied" | "rejected" | "needs_revision" | "withdrawn") => match derived {
-                None => conflicts.push(format!(
-                    "proposal {} is stored '{}' but NO decision event backs it in the log \
-                     — a decision with no signed, replayable record (the silent-drop vector)",
-                    proposal.id, stored
-                )),
-                Some(d) if d.status != stored => conflicts.push(format!(
-                    "proposal {} is stored '{}' but the log's latest decision is '{}'",
-                    proposal.id, stored, d.status
-                )),
-                Some(_) => {}
-            },
+            stored @ ("applied" | "rejected" | "needs_revision" | "withdrawn") => {
+                match derived {
+                    None => conflicts.push(format!(
+                        "proposal {} is stored '{}' but NO decision event backs it in the log \
+                         — a decision with no signed, replayable record (the silent-drop vector)",
+                        proposal.id, stored
+                    )),
+                    Some(d) if d.status != stored => conflicts.push(format!(
+                        "proposal {} is stored '{}' but the log's latest decision is '{}'",
+                        proposal.id, stored, d.status
+                    )),
+                    // Historical accepts predate explicit `review.accepted`
+                    // events. Their domain event proves status and the stored
+                    // decision metadata remains legacy display context.
+                    // Explicit review events, including every current
+                    // decision path, bind the complete decision projection.
+                    Some(d) if d.review_event_id.is_some() => {
+                        let expected_reviewer =
+                            (stored != "withdrawn").then_some(d.reviewer.as_str());
+                        let expected_reviewed_at =
+                            (stored != "withdrawn").then_some(d.decided_at.as_str());
+                        if proposal.reviewed_by.as_deref() != expected_reviewer
+                            || proposal.reviewed_at.as_deref() != expected_reviewed_at
+                            || proposal.decision_reason.as_deref() != Some(d.reason.as_str())
+                            || proposal.applied_event_id != d.applied_event_id
+                        {
+                            conflicts.push(format!(
+                                "proposal {} stored decision fields do not match the latest {} event projection",
+                                proposal.id, stored
+                            ));
+                        }
+                    }
+                    Some(_) => {}
+                }
+            }
             other => conflicts.push(format!(
                 "proposal {} has unknown status '{}'",
                 proposal.id, other

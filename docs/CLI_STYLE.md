@@ -91,7 +91,39 @@ the signing path.
 
 ## Config layering (`config/settings.rs`)
 
-Effective value = flag > `VELA_*` env > frontier `.vela/config.toml`
-(allowlisted keys only) > user `~/.vela/config.toml` > built-in default.
-The frontier file is the committed/team layer; `~/.vela` is the personal
-override — the same split Entire spells `settings.json` / `settings.local.json`.
+For Profile v1, effective value = flag > allowlisted `VELA_*` environment
+override > user `~/.vela/config.toml` > Frontier
+`.vela/settings.toml` > built-in default. Safety may narrow that order:
+checked-in `publish.git_push = "off"` can disable a wider user preference, and
+a user `mcp.profile = "read-only"` cannot be widened by a repository.
+
+`.vela/settings.toml` is closed `vela.frontier-settings.v1`. Its only initial
+keys are `publish.git_push`, `work.lease_ttl_seconds`, and `mcp.profile`;
+credentials, key paths, hooks, commands, network endpoints, dependencies,
+verifiers, policy, actors, and accepted-state settings are forbidden. Profile
+v0.1 `.vela/config.toml` remains read-compatible and its writer preserves
+unknown legacy sections until protected migration. It is absent from an active
+Profile v1 repository.
+
+## Repository context
+
+The Profile v1 read-side repository check and every canonical writer never
+trust `frontier.yaml` alone. They derive identity and dependencies from the
+canonical identity-event chain and validate the profile, settings,
+replay/parity, Git ancestry and anchors, retained bytes, actor registry, and
+the operating-system account's independent first-boundary pin whenever an
+administrator boundary exists.
+
+`check` reports one typed `repository_context` result. Non-strict mode keeps an
+invalid context invalid and reports the same signal; strict mode makes it
+fatal. No non-strict result grants an identity, signature, dependency, or
+historical exemption. Canonical writers fail before creating a transaction
+journal.
+
+## Local HTTP reads
+
+`vela serve <frontier> --http <port>` always binds `127.0.0.1`. HTTP has no
+authenticated reader identity, so its read operations expose only public-tier
+data and ignore caller-asserted actor names. The selected `read-only` or
+nonfinalizing `draft` MCP tool profile does not alter that disclosure rule. It
+is not a hidden hosted API, signing surface, or network-listen configuration.

@@ -98,12 +98,12 @@ pub fn detect(path: &Path) -> Result<VelaSource, String> {
 
 // ── Config TOML ──────────────────────────────────────────────────────
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 struct RepoConfig {
     project: RepoProjectMeta,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 struct RepoProjectMeta {
     name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -120,6 +120,88 @@ struct RepoProjectMeta {
 
 fn default_compiler() -> String {
     crate::project::VELA_COMPILER_VERSION.into()
+}
+
+/// Render the legacy v0.1 mixed config without erasing operational or unknown
+/// sections. If Vela-owned project metadata is unchanged, retain the original
+/// bytes exactly (including comments and formatting). If it changed, merge only
+/// the closed project fields into the parsed TOML tree and preserve every other
+/// value structurally. Invalid existing TOML fails closed rather than being
+/// replaced by a clean file that silently drops operator settings.
+fn render_legacy_repo_config(config_path: &Path, desired: &RepoConfig) -> Result<Vec<u8>, String> {
+    let fresh = || {
+        toml::to_string_pretty(desired)
+            .map(String::into_bytes)
+            .map_err(|error| format!("Failed to serialize config.toml: {error}"))
+    };
+    let existing = match std::fs::read(config_path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return fresh(),
+        Err(error) => {
+            return Err(format!(
+                "Failed to read existing config.toml '{}': {error}",
+                config_path.display()
+            ));
+        }
+    };
+    let existing_text = std::str::from_utf8(&existing).map_err(|error| {
+        format!(
+            "Existing config.toml '{}' is not UTF-8: {error}",
+            config_path.display()
+        )
+    })?;
+    let existing_project: RepoConfig = toml::from_str(existing_text).map_err(|error| {
+        format!(
+            "Existing config.toml '{}' cannot be decoded without data loss: {error}",
+            config_path.display()
+        )
+    })?;
+    if existing_project == *desired {
+        return Ok(existing);
+    }
+
+    let mut merged: toml::Value = existing_text.parse().map_err(|error| {
+        format!(
+            "Existing config.toml '{}' cannot be parsed without data loss: {error}",
+            config_path.display()
+        )
+    })?;
+    let desired_value = toml::Value::try_from(desired)
+        .map_err(|error| format!("Failed to encode desired config.toml fields: {error}"))?;
+    let desired_project = desired_value
+        .get("project")
+        .and_then(toml::Value::as_table)
+        .ok_or("serialized config.toml is missing [project]")?;
+    let merged_root = merged
+        .as_table_mut()
+        .ok_or("existing config.toml root must be a table")?;
+    let merged_project = merged_root
+        .entry("project".to_string())
+        .or_insert_with(|| toml::Value::Table(Default::default()))
+        .as_table_mut()
+        .ok_or("existing config.toml [project] must be a table")?;
+
+    for field in [
+        "name",
+        "frontier_id",
+        "compiled_at",
+        "description",
+        "compiler",
+        "papers_processed",
+    ] {
+        match desired_project.get(field) {
+            Some(value) => {
+                merged_project.insert(field.to_string(), value.clone());
+            }
+            None => {
+                merged_project.remove(field);
+            }
+        }
+    }
+
+    toml::to_string_pretty(&merged)
+        .map(String::into_bytes)
+        .map_err(|error| format!("Failed to serialize merged config.toml: {error}"))
 }
 
 // ── Load ─────────────────────────────────────────────────────────────
@@ -307,9 +389,32 @@ fn load_packet_dir(dir: &Path) -> Result<Project, String> {
 fn load_vela_repo(dir: &Path) -> Result<Project, String> {
     let vela_dir = dir.join(".vela");
     let config_path = vela_dir.join("config.toml");
+    let repository_profile = crate::frontier_repo::read_repository_profile(dir)?;
 
-    // Read config
-    let config: RepoConfig = if config_path.exists() {
+    // Profile v1 deliberately does not read reducer seed metadata from the
+    // legacy mixed config. Migration removes that file; ignoring it here keeps
+    // profile loading from accidentally restoring identity or dependency
+    // authority from legacy TOML bytes.
+    let profile_is_v1 = matches!(
+        &repository_profile,
+        Some(crate::frontier_repo::FrontierProfileFile::V1(_))
+    );
+    let config: RepoConfig = if profile_is_v1 {
+        RepoConfig {
+            project: RepoProjectMeta {
+                name: dir
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string(),
+                frontier_id: None,
+                compiled_at: String::new(),
+                description: String::new(),
+                compiler: default_compiler(),
+                papers_processed: 0,
+            },
+        }
+    } else if config_path.exists() {
         let toml_str = std::fs::read_to_string(&config_path)
             .map_err(|e| format!("Failed to read config.toml: {e}"))?;
         toml::from_str(&toml_str).map_err(|e| format!("Failed to parse config.toml: {e}"))?
@@ -481,46 +586,62 @@ fn load_vela_repo(dir: &Path) -> Result<Project, String> {
         Vec::new()
     };
 
-    let manifest = crate::frontier_repo::manifest_overrides(dir)?;
-
-    // Assemble into Project using the project::assemble function for stats,
-    // then patch metadata from config and optional frontier.yaml.
-    let manifest_name = manifest
-        .as_ref()
-        .map(|m| m.name.as_str())
-        .unwrap_or(config.project.name.as_str());
-    let manifest_description = manifest
-        .as_ref()
-        .map(|m| m.description.as_str())
-        .unwrap_or(config.project.description.as_str());
-    // v0.59: rehydrate cross-frontier dependencies from the yaml
-    // manifest. Pre-v0.59 these were written into the rendered
-    // `frontier.json` but `vela frontier materialize` regenerated
-    // that file without them, so any cross-frontier link from a
-    // split-repo failed with "no matching dep is declared". The
-    // structured field `manifest.dependencies.frontiers_v2` is the
-    // durable source of truth.
-    let manifest_deps: Vec<project::ProjectDependency> = manifest
-        .as_ref()
-        .map(|m| m.dependencies.frontiers_v2.clone())
-        .unwrap_or_default();
+    // V0.1 keeps its exact manifest/config behavior. Profile v1 contributes
+    // display metadata only; identity and dependency state come exclusively
+    // from the validated canonical identity-event set.
+    let (display_name, display_description, manifest_deps, configured_frontier_id) =
+        match repository_profile.as_ref() {
+            Some(crate::frontier_repo::FrontierProfileFile::LegacyV0_1(manifest)) => (
+                manifest.name.clone(),
+                manifest.description.clone(),
+                manifest.dependencies.frontiers_v2.clone(),
+                manifest
+                    .frontier_id
+                    .clone()
+                    .or_else(|| config.project.frontier_id.clone()),
+            ),
+            Some(crate::frontier_repo::FrontierProfileFile::V1(profile)) => {
+                let authority =
+                    crate::frontier_profile::EffectiveFrontierAuthorityV1::from_events(&events)?;
+                profile.assert_frontier_id(&authority.frontier_id)?;
+                (
+                    profile.name.clone(),
+                    profile.summary.clone(),
+                    Vec::new(),
+                    Some(authority.frontier_id),
+                )
+            }
+            None => (
+                config.project.name.clone(),
+                config.project.description.clone(),
+                Vec::new(),
+                config.project.frontier_id.clone(),
+            ),
+        };
     let mut c = project::assemble(
-        manifest_name,
+        &display_name,
         findings,
         config.project.papers_processed,
         0,
-        manifest_description,
+        &display_description,
     );
-    if !config.project.compiled_at.is_empty() {
+    if profile_is_v1 {
+        // Avoid the wall-clock timestamp produced by `assemble`; Profile v1
+        // has no config seed. This value is display metadata and is excluded
+        // from scientific_state_root_v2.
+        c.project.compiled_at = events
+            .iter()
+            .map(|event| event.timestamp.as_str())
+            .min()
+            .unwrap_or("")
+            .to_string();
+    } else if !config.project.compiled_at.is_empty() {
         c.project.compiled_at = config.project.compiled_at;
     }
     c.project.compiler = config.project.compiler;
     if !manifest_deps.is_empty() {
         c.project.dependencies = manifest_deps;
     }
-    let configured_frontier_id = manifest
-        .and_then(|m| m.frontier_id)
-        .or(config.project.frontier_id);
     c.review_events = review_events;
     c.confidence_updates = confidence_updates;
     c.events = events;
@@ -656,22 +777,26 @@ impl ManagedFileSet {
 /// views, without mutating `dir`.
 pub fn render_vela_repo_files(dir: &Path, project: &Project) -> Result<ManagedFileSet, String> {
     let mut managed = ManagedFileSet::default();
-    let config = RepoConfig {
-        project: RepoProjectMeta {
-            name: project.project.name.clone(),
-            frontier_id: Some(project.frontier_id()),
-            compiled_at: project.project.compiled_at.clone(),
-            description: project.project.description.clone(),
-            compiler: project.project.compiler.clone(),
-            papers_processed: project.project.papers_processed,
-        },
-    };
-    managed.insert(
-        ".vela/config.toml".to_string(),
-        toml::to_string_pretty(&config)
-            .map_err(|e| format!("Failed to serialize config.toml: {e}"))?
-            .into_bytes(),
-    )?;
+    let profile_is_v1 = matches!(
+        crate::frontier_repo::read_repository_profile(dir)?,
+        Some(crate::frontier_repo::FrontierProfileFile::V1(_))
+    );
+    if !profile_is_v1 {
+        let config = RepoConfig {
+            project: RepoProjectMeta {
+                name: project.project.name.clone(),
+                frontier_id: Some(project.frontier_id()),
+                compiled_at: project.project.compiled_at.clone(),
+                description: project.project.description.clone(),
+                compiler: project.project.compiler.clone(),
+                papers_processed: project.project.papers_processed,
+            },
+        };
+        managed.insert(
+            ".vela/config.toml".to_string(),
+            render_legacy_repo_config(&dir.join(".vela/config.toml"), &config)?,
+        )?;
+    }
 
     for finding in &project.findings {
         let path = managed_object_path("findings", &finding.id)?;
@@ -1362,6 +1487,124 @@ mod tests {
     }
 
     // ── config.toml parsing ─────────────────────────────────────────
+
+    #[test]
+    fn legacy_config_save_preserves_unchanged_bytes_and_operational_sections() {
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path().join("config-byte-preservation");
+        let project = make_project("config-byte-preservation", vec![]);
+        init_repo(&dir, &project).unwrap();
+
+        let config_path = dir.join(".vela/config.toml");
+        let mut exact = std::fs::read(&config_path).unwrap();
+        exact.extend_from_slice(
+            br#"
+# operator-owned formatting and settings must survive a state save
+[publish]
+git_push = "off"
+
+[work]
+lease_ttl_seconds = 7200
+
+[mcp]
+profile = "draft"
+"#,
+        );
+        std::fs::write(&config_path, &exact).unwrap();
+
+        let rendered = render_vela_repo_files(&dir, &project).unwrap();
+        assert_eq!(rendered.writes[".vela/config.toml"], exact);
+        save_vela_repo(&dir, &project).unwrap();
+        assert_eq!(std::fs::read(config_path).unwrap(), exact);
+    }
+
+    #[test]
+    fn legacy_config_save_structurally_merges_project_changes() {
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path().join("config-structural-preservation");
+        let mut project = make_project("config-structural-preservation", vec![]);
+        init_repo(&dir, &project).unwrap();
+
+        let config_path = dir.join(".vela/config.toml");
+        let mut value: toml::Value = std::fs::read_to_string(&config_path)
+            .unwrap()
+            .parse()
+            .unwrap();
+        value
+            .get_mut("project")
+            .and_then(toml::Value::as_table_mut)
+            .unwrap()
+            .insert(
+                "legacy_seed".to_string(),
+                toml::Value::String("retain-me".to_string()),
+            );
+        let root = value.as_table_mut().unwrap();
+        root.insert(
+            "publish".to_string(),
+            toml::Value::Table(toml::map::Map::from_iter([(
+                "git_push".to_string(),
+                toml::Value::String("off".to_string()),
+            )])),
+        );
+        root.insert(
+            "work".to_string(),
+            toml::Value::Table(toml::map::Map::from_iter([(
+                "lease_ttl_seconds".to_string(),
+                toml::Value::Integer(3600),
+            )])),
+        );
+        root.insert(
+            "custom".to_string(),
+            toml::Value::Table(toml::map::Map::from_iter([(
+                "nested".to_string(),
+                toml::Value::Array(vec![
+                    toml::Value::String("one".to_string()),
+                    toml::Value::String("two".to_string()),
+                ]),
+            )])),
+        );
+        std::fs::write(&config_path, toml::to_string_pretty(&value).unwrap()).unwrap();
+
+        project.project.description = "updated project metadata".to_string();
+        let rendered = render_vela_repo_files(&dir, &project).unwrap();
+        let merged: toml::Value = std::str::from_utf8(&rendered.writes[".vela/config.toml"])
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert_eq!(
+            merged["project"]["description"].as_str(),
+            Some("updated project metadata")
+        );
+        assert_eq!(merged["project"]["legacy_seed"].as_str(), Some("retain-me"));
+        assert_eq!(merged["publish"]["git_push"].as_str(), Some("off"));
+        assert_eq!(merged["work"]["lease_ttl_seconds"].as_integer(), Some(3600));
+        assert_eq!(merged["custom"]["nested"].as_array().unwrap().len(), 2);
+
+        save_vela_repo(&dir, &project).unwrap();
+        assert_eq!(
+            std::fs::read(&config_path).unwrap(),
+            rendered.writes[".vela/config.toml"]
+        );
+    }
+
+    #[test]
+    fn legacy_config_save_refuses_to_clobber_invalid_or_non_utf8_bytes() {
+        for (case, invalid) in [
+            ("invalid-toml", b"[project\nname = broken\n".as_slice()),
+            ("non-utf8", b"[project]\nname = \"broken\xff\"\n".as_slice()),
+        ] {
+            let tmp = TempDir::new().unwrap();
+            let dir = tmp.path().join(format!("config-{case}-preservation"));
+            let project = make_project(&format!("config-{case}-preservation"), vec![]);
+            init_repo(&dir, &project).unwrap();
+
+            let config_path = dir.join(".vela/config.toml");
+            std::fs::write(&config_path, invalid).unwrap();
+            assert!(render_vela_repo_files(&dir, &project).is_err());
+            assert!(save_vela_repo(&dir, &project).is_err());
+            assert_eq!(std::fs::read(config_path).unwrap(), invalid);
+        }
+    }
 
     #[test]
     fn config_toml_parsing() {

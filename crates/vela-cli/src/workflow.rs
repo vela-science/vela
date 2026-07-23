@@ -39,6 +39,34 @@ use vela_protocol::proposals::policy_accept::{self, PolicyLaneRefusal};
 use vela_protocol::receipt_v1::ReceiptV1;
 use vela_protocol::repo;
 
+pub(crate) fn acquire_canonical_write_barrier(
+    frontier: &Path,
+    journal_dir: &Path,
+) -> Result<crate::frontier_txn::CanonicalWriteBarrier, crate::frontier_txn::FrontierTxnError> {
+    #[cfg(test)]
+    {
+        crate::frontier_txn::FrontierTxn::acquire_write_barrier_for_test(frontier, journal_dir)
+    }
+    #[cfg(not(test))]
+    {
+        crate::frontier_txn::FrontierTxn::acquire_write_barrier(frontier, journal_dir)
+    }
+}
+
+fn reauthorize_prepared_canonical_write(
+    transaction: &mut crate::frontier_txn::FrontierTxn,
+) -> Result<(), crate::frontier_txn::FrontierTxnError> {
+    #[cfg(test)]
+    {
+        transaction.reauthorize_prepared_for_test()
+    }
+    #[cfg(not(test))]
+    {
+        transaction
+            .reauthorize_prepared_for_commit(crate::frontier_txn::CanonicalWriteIntent::Producer)
+    }
+}
+
 /// Where a landing ended up.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -339,7 +367,7 @@ fn preserve_existing_event_bytes(
 
 fn transact_event_candidate_with_barrier<F>(
     frontier: &Path,
-    barrier: crate::frontier_txn::FrontierRecoveryBarrier,
+    barrier: crate::frontier_txn::CanonicalWriteBarrier,
     original: &vela_protocol::project::Project,
     candidate: &vela_protocol::project::Project,
     mut result: Value,
@@ -532,7 +560,7 @@ where
 
 fn transact_lease_candidate_with_barrier<F>(
     frontier: &Path,
-    barrier: crate::frontier_txn::FrontierRecoveryBarrier,
+    barrier: crate::frontier_txn::CanonicalWriteBarrier,
     original: &vela_protocol::project::Project,
     candidate: &vela_protocol::project::Project,
     result: Value,
@@ -567,9 +595,20 @@ where
     ) -> Result<(vela_protocol::project::Project, String, String), String>,
 {
     let journal_dir = frontier_transaction_journal_dir(frontier)?;
-    let barrier =
-        crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir)
-            .map_err(|error| error.to_string())?;
+    let barrier = {
+        #[cfg(test)]
+        {
+            crate::frontier_txn::FrontierTxn::acquire_write_barrier_for_test(frontier, &journal_dir)
+        }
+        #[cfg(not(test))]
+        {
+            crate::frontier_txn::FrontierTxn::acquire_administrator_write_barrier(
+                frontier,
+                &journal_dir,
+            )
+        }
+    }
+    .map_err(|error| error.to_string())?;
     let original = repo::load_from_path(frontier)?;
     let state_root_before = format!(
         "sha256:{}",
@@ -621,9 +660,8 @@ where
         return Err("withdrawal reason must not be empty".to_string());
     }
     let journal_dir = frontier_transaction_journal_dir(frontier)?;
-    let barrier =
-        crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir)
-            .map_err(|error| error.to_string())?;
+    let barrier = acquire_canonical_write_barrier(frontier, &journal_dir)
+        .map_err(|error| error.to_string())?;
     let original = repo::load_from_path(frontier)?;
     if let Some(event) =
         vela_protocol::proposals::existing_proposal_withdrawal(frontier, &original, proposal_id)?
@@ -716,9 +754,8 @@ pub(crate) fn attach_proposal_verifier(
     actor: &str,
 ) -> Result<Value, String> {
     let journal_dir = frontier_transaction_journal_dir(frontier)?;
-    let barrier =
-        crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir)
-            .map_err(|error| error.to_string())?;
+    let barrier = acquire_canonical_write_barrier(frontier, &journal_dir)
+        .map_err(|error| error.to_string())?;
     let original = repo::load_from_path(frontier)?;
     let proposal = original
         .proposals
@@ -827,28 +864,39 @@ pub(crate) fn attach_proposal_verifier(
 /// The pre-loaded briefing for a target — the compounding payload the
 /// session starts from. Problem-shaped targets get the full task packet;
 /// rich campaign targets also carry their non-authorizing coordination task.
+#[derive(Debug)]
+struct PreparedWorkBriefing {
+    value: Value,
+    target_task_binding: Option<vela_edge::target_index::TargetTaskBindingV1>,
+}
+
 fn briefing_from_project(
     frontier: &Path,
     target: &str,
     project: &vela_protocol::project::Project,
-) -> Result<Value, String> {
+    trust_anchor: Option<&vela_edge::frontier_repository::RepositoryTrustAnchor>,
+) -> Result<PreparedWorkBriefing, String> {
     let head = vela_protocol::events::event_log_hash(&project.events);
     let finding_target = project.findings.iter().any(|finding| finding.id == target);
-    let packet = if finding_target {
-        crate::server::tools::briefing_for_target(project, frontier, target)
-    } else if let Some(packet) =
-        vela_edge::frontier_next::target_index_packet_for_target(project, frontier, target)?
-    {
-        packet
+    let indexed = if finding_target {
+        None
     } else {
-        crate::server::tools::briefing_for_target(project, frontier, target)
+        vela_edge::frontier_next::target_index_selection_for_target_with_trust_anchor(
+            project,
+            frontier,
+            target,
+            trust_anchor,
+        )?
     };
+    let packet = indexed.as_ref().map_or_else(
+        || crate::server::tools::briefing_for_target(project, frontier, target),
+        |selection| selection.packet.clone(),
+    );
+    let target_task_binding = indexed.as_ref().map(|selection| selection.binding.clone());
     let task = if finding_target {
         None
-    } else if let Some(task) =
-        vela_edge::frontier_next::target_index_task_for_target(project, frontier, target)?
-    {
-        Some(task)
+    } else if let Some(selection) = indexed {
+        Some(selection.task)
     } else {
         vela_edge::frontier_next::campaign_task_for_target(project, frontier, target)?
     };
@@ -864,7 +912,10 @@ fn briefing_from_project(
     if let Some(task) = task {
         offer["task"] = task;
     }
-    Ok(offer)
+    Ok(PreparedWorkBriefing {
+        value: offer,
+        target_task_binding,
+    })
 }
 
 /// The session directory for a target within a frontier.
@@ -915,6 +966,8 @@ pub(crate) struct WorkSession {
     pub task_contract: TaskContract,
     pub task_contract_root: String,
     pub receipt_builder: ReceiptBuilderSessionFacts,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_task_binding: Option<vela_edge::target_index::TargetTaskBindingV1>,
     pub briefing: Value,
 }
 
@@ -1025,6 +1078,31 @@ fn sha256_root(value: &impl Serialize) -> Result<String, String> {
     ))
 }
 
+fn work_session_id(
+    frontier_id: &str,
+    target: &str,
+    actor: &str,
+    claim_event_id: &str,
+    task_contract_root: &str,
+    target_task_binding_root: Option<&str>,
+) -> Result<String, String> {
+    let mut preimage = json!({
+        "schema": WORK_SESSION_SCHEMA,
+        "frontier_id": frontier_id,
+        "target": target,
+        "actor": actor,
+        "claim_event_id": claim_event_id,
+        "task_contract_root": task_contract_root,
+    });
+    if let Some(binding_root) = target_task_binding_root {
+        preimage["target_task_binding_root"] = json!(binding_root);
+    }
+    Ok(format!(
+        "vws_{}",
+        vela_protocol::canonical::sha256_canonical(&preimage)?
+    ))
+}
+
 fn nonlease_event_log_root(events: &[vela_protocol::events::StateEvent]) -> String {
     format!(
         "sha256:{}",
@@ -1033,34 +1111,7 @@ fn nonlease_event_log_root(events: &[vela_protocol::events::StateEvent]) -> Stri
 }
 
 fn source_git_commit(frontier: &Path) -> (Option<String>, String) {
-    let mut command = std::process::Command::new("git");
-    command.arg("-C").arg(frontier).args([
-        "--no-replace-objects",
-        "-c",
-        "core.hooksPath=/dev/null",
-        "-c",
-        "fetch.fsckObjects=true",
-        "rev-parse",
-        "--verify",
-        "HEAD^{commit}",
-    ]);
-    for name in [
-        "GIT_DIR",
-        "GIT_WORK_TREE",
-        "GIT_INDEX_FILE",
-        "GIT_OBJECT_DIRECTORY",
-        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-        "GIT_REPLACE_REF_BASE",
-        "GIT_CONFIG_GLOBAL",
-        "GIT_CONFIG_SYSTEM",
-    ] {
-        command.env_remove(name);
-    }
-    command
-        .env("GIT_CONFIG_NOSYSTEM", "1")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_OPTIONAL_LOCKS", "0");
-    match command.output() {
+    match crate::git_hardened::output(frontier, &["rev-parse", "--verify", "HEAD^{commit}"]) {
         Ok(output) if output.status.success() => {
             let oid = String::from_utf8_lossy(&output.stdout).trim().to_string();
             if (40..=64).contains(&oid.len())
@@ -1103,6 +1154,7 @@ fn preflight_work_session_size(
     ttl_seconds: u64,
     task_contract: TaskContract,
     task_contract_root: String,
+    target_task_binding: Option<vela_edge::target_index::TargetTaskBindingV1>,
     briefing: Value,
 ) -> Result<(), String> {
     // These placeholders are at least as long as the generated identity and
@@ -1130,6 +1182,7 @@ fn preflight_work_session_size(
         task_contract,
         task_contract_root,
         receipt_builder: ReceiptBuilderSessionFacts::default(),
+        target_task_binding,
         briefing,
     };
     encoded_work_session(&session).map(|_| ())
@@ -1254,22 +1307,60 @@ fn parse_work_session(path: &Path) -> Result<WorkSession, String> {
             path.display()
         )
     })?;
+    validate_work_session_record(&session)
+        .map_err(|error| format!("{error}: {}", path.display()))?;
+    Ok(session)
+}
+
+fn validate_work_session_record(session: &WorkSession) -> Result<(), String> {
     if session.schema != WORK_SESSION_SCHEMA {
         return Err(format!(
-            "unsupported work-session schema {} in {}",
-            session.schema,
-            path.display()
+            "unsupported work-session schema {}",
+            session.schema
         ));
     }
     if session.task_contract.schema != TASK_CONTRACT_SCHEMA
         || sha256_root(&session.task_contract)? != session.task_contract_root
     {
-        return Err(format!(
-            "work-session task contract does not match its content root: {}",
-            path.display()
-        ));
+        return Err("work-session task contract does not match its content root".to_string());
     }
-    Ok(session)
+    let expected_session_id = work_session_id(
+        &session.frontier_id,
+        &session.target,
+        &session.actor,
+        &session.lease.claim_event_id,
+        &session.task_contract_root,
+        session
+            .target_task_binding
+            .as_ref()
+            .map(|binding| binding.binding_root.as_str()),
+    )?;
+    if session.session_id != expected_session_id {
+        return Err("work-session identity does not match its closed root preimage".to_string());
+    }
+    if let Some(binding) = &session.target_task_binding {
+        binding.validate().map_err(|error| {
+            format!(
+                "work-session target task binding does not match its closed content root: {error}"
+            )
+        })?;
+        if binding.frontier_id != session.frontier_id || binding.target_id != session.target {
+            return Err(
+                "work-session target task binding does not match its Frontier and target"
+                    .to_string(),
+            );
+        }
+        if binding.claim_read_set.event_log_root != session.base_event_log_root
+            || session.source_git_commit_oid.as_deref()
+                != Some(binding.claim_read_set.git_commit.as_str())
+            || session.source_git_state != "pinned"
+        {
+            return Err(
+                "work-session target task binding does not match its claim read set".to_string(),
+            );
+        }
+    }
+    Ok(())
 }
 
 fn validate_active_session(
@@ -1290,6 +1381,7 @@ fn validate_active_session(
             session.target
         ));
     }
+    revalidate_work_session_target_binding(frontier, &project, session)?;
     let current = project
         .attempt_claims
         .iter()
@@ -1304,13 +1396,74 @@ fn validate_active_session(
             session.target
         ));
     }
-    let expires = chrono::DateTime::parse_from_rfc3339(&current.claimed_at)
-        .map_err(|error| format!("work lease timestamp: {error}"))?
-        + chrono::Duration::seconds(current.lease_ttl_seconds as i64);
+    let expires =
+        vela_protocol::events::attempt_lease_expiry(&current.claimed_at, current.lease_ttl_seconds)
+            .map_err(|error| format!("work lease: {error}"))?;
     if expires <= chrono::Utc::now() {
         return Err(format!("work session {} lease has expired", session.target));
     }
     Ok(())
+}
+
+fn revalidate_work_session_target_binding(
+    frontier: &Path,
+    project: &vela_protocol::project::Project,
+    session: &WorkSession,
+) -> Result<(), String> {
+    let Some(binding) = &session.target_task_binding else {
+        return Ok(());
+    };
+    let loaded_anchor =
+        crate::target_index::load_user_repository_trust_anchor(&project.frontier_id())?;
+    let repository_anchor = loaded_anchor
+        .as_ref()
+        .map(|loaded| crate::target_index::boundary_anchor(&loaded.anchor));
+    vela_edge::target_index::revalidate_target_task_binding(
+        project,
+        frontier,
+        binding,
+        repository_anchor.as_ref(),
+    )
+}
+
+fn receipt_target_task_binding(
+    receipt: &ReceiptV1,
+) -> Result<Option<vela_edge::target_index::TargetTaskBindingV1>, String> {
+    let Some(value) = receipt
+        .as_value()
+        .pointer("/environment/vela:target_task_binding")
+    else {
+        return Ok(None);
+    };
+    let binding =
+        serde_json::from_value::<vela_edge::target_index::TargetTaskBindingV1>(value.clone())
+            .map_err(|error| format!("receipt target task binding is not closed: {error}"))?;
+    binding
+        .validate()
+        .map_err(|error| format!("receipt target task binding is invalid: {error}"))?;
+    Ok(Some(binding))
+}
+
+fn revalidate_receipt_target_task_binding(
+    frontier: &Path,
+    project: &vela_protocol::project::Project,
+    receipt: &ReceiptV1,
+) -> Result<Option<vela_edge::target_index::TargetTaskBindingV1>, String> {
+    let Some(binding) = receipt_target_task_binding(receipt)? else {
+        return Ok(None);
+    };
+    let loaded_anchor =
+        crate::target_index::load_user_repository_trust_anchor(&project.frontier_id())?;
+    let repository_anchor = loaded_anchor
+        .as_ref()
+        .map(|loaded| crate::target_index::boundary_anchor(&loaded.anchor));
+    vela_edge::target_index::revalidate_target_task_binding(
+        project,
+        frontier,
+        &binding,
+        repository_anchor.as_ref(),
+    )?;
+    Ok(Some(binding))
 }
 
 /// Return the exact causal root for a session whose scientific base is still
@@ -1452,13 +1605,15 @@ fn open_session_with_after_barrier<F>(
 where
     F: FnOnce() -> Result<(), String>,
 {
-    if ttl_seconds == 0 {
-        return Err("work lease TTL must be greater than zero".to_string());
+    if ttl_seconds == 0 || ttl_seconds > vela_protocol::events::MAX_ATTEMPT_LEASE_TTL_SECONDS {
+        return Err(format!(
+            "work lease TTL must be between 1 and {} seconds",
+            vela_protocol::events::MAX_ATTEMPT_LEASE_TTL_SECONDS
+        ));
     }
     let journal_dir = frontier_transaction_journal_dir(frontier)?;
-    let barrier =
-        crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir)
-            .map_err(|error| error.to_string())?;
+    let barrier = acquire_canonical_write_barrier(frontier, &journal_dir)
+        .map_err(|error| error.to_string())?;
     after_barrier()?;
     // Pin the producer's scientific base before the coordination lease adds
     // its own event. The claim remains the exact live-lease identity, while
@@ -1471,9 +1626,11 @@ where
         .find(|claim| claim.obligation_id == target)
         .filter(|claim| claim.claimant_actor == actor && claim.lease_ttl_seconds > 0)
     {
-        let expires = chrono::DateTime::parse_from_rfc3339(&current.claimed_at)
-            .map_err(|error| format!("work lease timestamp: {error}"))?
-            + chrono::Duration::seconds(current.lease_ttl_seconds as i64);
+        let expires = vela_protocol::events::attempt_lease_expiry(
+            &current.claimed_at,
+            current.lease_ttl_seconds,
+        )
+        .map_err(|error| format!("work lease: {error}"))?;
         if expires > chrono::Utc::now() {
             let path = session_dir(frontier, target).join("session.json");
             let session = parse_work_session(&path).map_err(|error| {
@@ -1499,7 +1656,15 @@ where
             }));
         }
     }
-    let briefing = briefing_from_project(frontier, target, &base_project)?;
+    let loaded_anchor =
+        crate::target_index::load_user_repository_trust_anchor(&base_project.frontier_id())?;
+    let repository_anchor = loaded_anchor
+        .as_ref()
+        .map(|loaded| crate::target_index::boundary_anchor(&loaded.anchor));
+    let prepared =
+        briefing_from_project(frontier, target, &base_project, repository_anchor.as_ref())?;
+    let briefing = prepared.value;
+    let target_task_binding = prepared.target_task_binding;
     let base_event_log_root = format!(
         "sha256:{}",
         vela_protocol::events::event_log_hash(&base_project.events)
@@ -1519,6 +1684,7 @@ where
         ttl_seconds,
         contract.clone(),
         task_contract_root.clone(),
+        target_task_binding.clone(),
         briefing.clone(),
     )?;
     let args = lease_args(frontier, target, actor, ttl_seconds, None, None);
@@ -1550,22 +1716,18 @@ where
         .and_then(Value::as_str)
         .ok_or_else(|| "lease claim did not return its timestamp".to_string())?
         .to_string();
-    let expires_at = (chrono::DateTime::parse_from_rfc3339(&claimed_at)
-        .map_err(|error| format!("lease timestamp: {error}"))?
-        + chrono::Duration::seconds(ttl_seconds as i64))
-    .to_rfc3339();
-    let session_preimage = json!({
-        "schema": WORK_SESSION_SCHEMA,
-        "frontier_id": base_project.frontier_id(),
-        "target": target,
-        "actor": actor,
-        "claim_event_id": claim_event_id,
-        "task_contract_root": task_contract_root,
-    });
-    let session_id = format!(
-        "vws_{}",
-        vela_protocol::canonical::sha256_canonical(&session_preimage)?
-    );
+    let expires_at =
+        vela_protocol::events::attempt_lease_expiry(&claimed_at, ttl_seconds)?.to_rfc3339();
+    let session_id = work_session_id(
+        &base_project.frontier_id(),
+        target,
+        actor,
+        &claim_event_id,
+        &task_contract_root,
+        target_task_binding
+            .as_ref()
+            .map(|binding| binding.binding_root.as_str()),
+    )?;
     let session = WorkSession {
         schema: WORK_SESSION_SCHEMA.to_string(),
         session_id,
@@ -1587,10 +1749,12 @@ where
         task_contract: contract,
         task_contract_root,
         receipt_builder: ReceiptBuilderSessionFacts::default(),
+        target_task_binding,
         briefing: briefing.clone(),
     };
     // Measure the exact record, including the signed event identity and
     // timestamp, before crossing the transaction commit marker.
+    validate_work_session_record(&session)?;
     encoded_work_session(&session)?;
     let claim = transact_lease_candidate_with_barrier(
         frontier,
@@ -1625,9 +1789,8 @@ pub(crate) fn release_session(
         return Err("work --drop requires a non-empty release reason".to_string());
     }
     let journal_dir = frontier_transaction_journal_dir(frontier)?;
-    let barrier =
-        crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir)
-            .map_err(|error| error.to_string())?;
+    let barrier = acquire_canonical_write_barrier(frontier, &journal_dir)
+        .map_err(|error| error.to_string())?;
     let project = repo::load_from_path(frontier)?;
     let lease = project
         .attempt_claims
@@ -1640,9 +1803,9 @@ pub(crate) fn release_session(
             lease.claimant_actor
         ));
     }
-    let claimed_at = chrono::DateTime::parse_from_rfc3339(&lease.claimed_at)
-        .map_err(|error| format!("work lease timestamp: {error}"))?;
-    let expires_at = claimed_at + chrono::Duration::seconds(lease.lease_ttl_seconds as i64);
+    let expires_at =
+        vela_protocol::events::attempt_lease_expiry(&lease.claimed_at, lease.lease_ttl_seconds)
+            .map_err(|error| format!("work lease: {error}"))?;
     if lease.lease_ttl_seconds == 0 || expires_at <= chrono::Utc::now() {
         return Err(format!("work target {target} has no current live lease"));
     }
@@ -1713,6 +1876,16 @@ pub(crate) fn author_receipt(
                 .to_string(),
         );
     }
+    // Receipt authoring reads the producer's private signing key even though
+    // it does not itself mutate the frontier.  Establish the same repository
+    // write authorization used by `land` before that key can be reached.  The
+    // capability is deliberately retained only for this authoring attempt;
+    // `land` obtains a fresh capability for its separate canonical
+    // transaction, so repository drift between the two operations fails
+    // closed rather than reusing stale authority.
+    let journal_dir = frontier_transaction_journal_dir(frontier)?;
+    let _write_authorization = acquire_canonical_write_barrier(frontier, &journal_dir)
+        .map_err(|error| error.to_string())?;
     let work = resolve_work_session(frontier, actor, requested_work)?;
     let work_target = work.record.target.clone();
     let work_started_at = work.record.created_at.clone();
@@ -1754,6 +1927,7 @@ pub(crate) fn author_receipt(
         normalized_artifacts.push(json!({"path": path, "kind": kind, "sha256": digest}));
     }
     let project = repo::load_from_path(frontier)?;
+    revalidate_work_session_target_binding(frontier, &project, &work.record)?;
     let event_root = work_session_landing_event_root(&project, &work.record)?;
     let policy_ref = vela_protocol::acceptance_policy::load_active_policy(frontier)?
         .map(|policy| policy.policy.id)
@@ -1797,6 +1971,7 @@ pub(crate) fn author_receipt(
         "caveats": caveats,
         "scientific_chain": scientific_chain.as_ref().map(ScientificChainAssertion::as_value),
         "execution_binding": execution_binding,
+        "target_task_binding": &work.record.target_task_binding,
         "policy_ref": policy_ref,
     }))?;
     let operation_id = crate::operation_journal::operation_id("land", &operation_preimage);
@@ -1833,6 +2008,13 @@ pub(crate) fn author_receipt(
     if let Some(execution_binding) = execution_binding {
         input = input
             .with_execution_binding(execution_binding)
+            .map_err(|error| error.to_string())?;
+    }
+    if let Some(target_task_binding) = &work.record.target_task_binding {
+        input = input
+            .with_target_task_binding(
+                serde_json::to_value(target_task_binding).map_err(|error| error.to_string())?,
+            )
             .map_err(|error| error.to_string())?;
     }
     ReceiptBuilder::build(input, &identity).map_err(|error| error.to_string())
@@ -1960,6 +2142,12 @@ fn active_work_session_close(
         .ok_or_else(|| "work session receipt has no task-contract root".to_string())?;
     if receipt_task_root != session.task_contract_root {
         return Err("work session receipt is not bound to its task contract".to_string());
+    }
+    let receipt_binding = receipt_target_task_binding(receipt)?;
+    if receipt_binding != session.target_task_binding {
+        return Err(
+            "work session receipt does not carry its exact target task binding".to_string(),
+        );
     }
 
     let lease = project
@@ -2218,6 +2406,10 @@ pub(crate) fn land(
                     if !scientific_completed {
                         let mut txn = FrontierTxn::open(frontier, &journal_dir, &operation_id)
                             .map_err(|error| error.to_string())?;
+                        if matches!(txn.recovery_state(), RecoveryState::Prepared) {
+                            reauthorize_prepared_canonical_write(&mut txn)
+                                .map_err(|error| error.to_string())?;
+                        }
                         txn.mark_committed().map_err(|error| error.to_string())?;
                         txn.install().map_err(|error| error.to_string())?;
                         txn.complete().map_err(|error| error.to_string())?;
@@ -2233,6 +2425,10 @@ pub(crate) fn land(
             if !scientific_completed {
                 let mut txn = FrontierTxn::open(frontier, &journal_dir, &operation_id)
                     .map_err(|error| error.to_string())?;
+                if matches!(txn.recovery_state(), RecoveryState::Prepared) {
+                    reauthorize_prepared_canonical_write(&mut txn)
+                        .map_err(|error| error.to_string())?;
+                }
                 txn.mark_committed().map_err(|error| error.to_string())?;
                 txn.install().map_err(|error| error.to_string())?;
                 txn.complete().map_err(|error| error.to_string())?;
@@ -2321,13 +2517,14 @@ pub(crate) fn land(
         ));
     }
 
-    let recovery_barrier = FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir)
+    let recovery_barrier = acquire_canonical_write_barrier(frontier, &journal_dir)
         .map_err(|error| error.to_string())?;
     let policy_snapshot = vela_protocol::acceptance_policy::load_active_policy_snapshot(frontier)?;
     let original = repo::load_from_path(frontier)?;
     if original.frontier_id() != frontier_id {
         return Err("frontier identity changed while acquiring the write barrier".to_string());
     }
+    revalidate_receipt_target_task_binding(frontier, &original, receipt)?;
     let expected_event_hash = vela_protocol::events::event_log_hash(&original.events);
     let expected_event_root = format!("sha256:{expected_event_hash}");
     let fixed_time = chrono::Utc::now().to_rfc3339();
@@ -2566,19 +2763,22 @@ pub(crate) fn land(
             .to_str()
             .ok_or_else(|| "policy snapshot path is not UTF-8".to_string())?;
         let target = frontier.join(&snapshot.relative_path);
-        if let Ok(existing) = std::fs::read(&target)
-            && existing != snapshot.bytes
-        {
+        let existing = std::fs::read(&target).map_err(|error| {
+            format!(
+                "signed policy snapshot {} is unavailable: {error}; activate or migrate the policy before producer landing",
+                target.display()
+            )
+        })?;
+        if existing != snapshot.bytes {
             return Err(format!(
-                "content-addressed policy snapshot {} already exists with different bytes",
+                "content-addressed policy snapshot {} exists with different bytes",
                 target.display()
             ));
         }
-        writes.push(PlannedWrite::write(
-            RepoPath::parse(path).map_err(|error| error.to_string())?,
-            WriteClass::Authority,
-            snapshot.bytes,
-        ));
+        // Policy activation owns immutable policy bytes. A producer landing
+        // may consume the exact snapshot but cannot create or repair it under
+        // a producer write capability.
+        let _ = RepoPath::parse(path).map_err(|error| error.to_string())?;
     }
     let draft = DeltaDraft::prepare(frontier, writes).map_err(|error| error.to_string())?;
     let public = draft
@@ -3509,12 +3709,45 @@ mod workflow_transaction_tests {
             task_contract_root: sha256_root(&contract).unwrap(),
             task_contract: contract,
             receipt_builder: ReceiptBuilderSessionFacts::default(),
+            target_task_binding: None,
             briefing: json!({"padding": "x".repeat(padding)}),
         }
     }
 
     const PRODUCER_AUTHORITY_CEILING_FOR_TEST: &str =
         "Producer evidence only; fixture cannot accept truth.";
+
+    #[test]
+    fn target_binding_extends_session_identity_without_changing_legacy_sessions() {
+        let legacy = work_session_id(
+            "vfr_1234567890abcdef",
+            "erdos:1056",
+            "agent:indexed",
+            &format!("vev_{}", "1".repeat(64)),
+            &format!("sha256:{}", "2".repeat(64)),
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            legacy,
+            "vws_fde56ebc2573d6f9c363bc4970adfac66f62ca175698c480ef58bc898744f5fc"
+        );
+
+        let bound = work_session_id(
+            "vfr_1234567890abcdef",
+            "erdos:1056",
+            "agent:indexed",
+            &format!("vev_{}", "1".repeat(64)),
+            &format!("sha256:{}", "2".repeat(64)),
+            Some(&format!("sha256:{}", "3".repeat(64))),
+        )
+        .unwrap();
+        assert_eq!(
+            bound,
+            "vws_6c76d7c76f326b78b46e16f92f403c4424067b76b2ef997c42b20e171a32fed6"
+        );
+        assert_ne!(bound, legacy);
+    }
 
     #[test]
     fn work_session_requires_the_nonlease_root_without_a_legacy_fallback() {
@@ -3628,13 +3861,14 @@ mod workflow_transaction_tests {
             vela_protocol::project::assemble("finding-briefing", vec![finding], 0, 0, "fixture");
         vela_protocol::repo::init_repo(temp.path(), &project).unwrap();
         std::fs::write(temp.path().join("campaign.yaml"), "not: [valid").unwrap();
-        let briefing = briefing_from_project(temp.path(), &target, &project).unwrap();
-        assert_eq!(briefing["target"], target);
-        assert!(briefing.get("task").is_none());
+        let briefing = briefing_from_project(temp.path(), &target, &project, None).unwrap();
+        assert_eq!(briefing.value["target"], target);
+        assert!(briefing.value.get("task").is_none());
+        assert!(briefing.target_task_binding.is_none());
     }
 
     #[test]
-    fn target_index_briefing_loads_the_hash_pinned_packet_and_objective() {
+    fn historical_target_index_briefing_is_not_actionable() {
         let temp = tempfile::tempdir().unwrap();
         let project =
             vela_protocol::project::assemble("indexed-briefing", Vec::new(), 0, 0, "fixture");
@@ -3666,7 +3900,7 @@ mod workflow_transaction_tests {
                     "state": "open",
                     "rank": 0,
                     "objective": "Advance Erdős problem 1056 without repeating banked routes.",
-                    "labels": ["erdos", "open", "banked"],
+                    "labels": ["banked", "erdos", "open"],
                     "packet": {
                         "path": "site/problems/1056.json",
                         "sha256": packet_digest,
@@ -3678,13 +3912,8 @@ mod workflow_transaction_tests {
         )
         .unwrap();
 
-        let briefing = briefing_from_project(temp.path(), "erdos:1056", &project).unwrap();
-        assert_eq!(briefing["briefing"]["packet"]["problem"], 1056);
-        assert_eq!(briefing["task"]["kind"], "target_packet");
-        assert_eq!(
-            task_contract(&briefing, "erdos:1056").objective,
-            "Advance Erdős problem 1056 without repeating banked routes."
-        );
+        let error = briefing_from_project(temp.path(), "erdos:1056", &project, None).unwrap_err();
+        assert!(error.contains("historical v1 inspection only"), "{error}");
     }
 
     fn signed_lease_candidate(
@@ -3860,9 +4089,11 @@ mod workflow_transaction_tests {
             .to_string();
         let planned_event_id = result["claim_event_id"].as_str().unwrap().to_string();
         let journal_dir = frontier_transaction_journal_dir(temp.path()).unwrap();
-        let barrier =
-            crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(temp.path(), &journal_dir)
-                .unwrap();
+        let barrier = crate::frontier_txn::FrontierTxn::acquire_write_barrier_for_test(
+            temp.path(),
+            &journal_dir,
+        )
+        .unwrap();
         let error = transact_lease_candidate_with_barrier(
             temp.path(),
             barrier,

@@ -83,7 +83,266 @@ pub(crate) fn active_policy_pair_snapshot(
     vela_protocol::acceptance_policy::load_active_policy_snapshot(frontier_dir_for_source(source))
 }
 
+const REPOSITORY_CONTEXT_CHECK_ID: &str = "repository_context";
+
+pub(crate) struct RepositoryContextAssessment {
+    pub(crate) payload: Value,
+    /// Independently retained consumer pin, converted to the narrow form
+    /// accepted by read-only Target Index verification. This is populated
+    /// only after the complete repository context has verified successfully;
+    /// repository-controlled bytes can never manufacture it.
+    pub(crate) target_index_trust_anchor:
+        Option<vela_edge::frontier_repository::RepositoryTrustAnchor>,
+}
+
+fn repository_context_not_applicable() -> Value {
+    json!({
+        "id": REPOSITORY_CONTEXT_CHECK_ID,
+        "status": "not_applicable",
+        "valid": null,
+        "generation": null,
+        "checked": 0,
+        "failed": 0,
+        "code": null,
+        "error": null,
+        "trust_anchor_root": null,
+    })
+}
+
+fn repository_context_legacy(generation: &str) -> Value {
+    json!({
+        "id": REPOSITORY_CONTEXT_CHECK_ID,
+        "status": "pass",
+        "valid": true,
+        "generation": generation,
+        "checked": 1,
+        "failed": 0,
+        "code": null,
+        "error": null,
+        "trust_anchor_root": null,
+        "compatibility": "read_only_replay",
+    })
+}
+
+fn repository_context_invalid(code: &str, message: impl Into<String>) -> Value {
+    json!({
+        "id": REPOSITORY_CONTEXT_CHECK_ID,
+        "status": "fail",
+        "valid": false,
+        "generation": "profile_v1",
+        "checked": 1,
+        "failed": 1,
+        "code": code,
+        "error": message.into(),
+        "trust_anchor_root": null,
+    })
+}
+
+fn repository_context_suggestion(code: &str) -> &'static str {
+    match code {
+        "repository_trust_anchor_required" => {
+            "Inspect the exact first administrator boundary, then install its independently reviewed consumer pin with `vela frontier trust pin`; never derive trust from repository bytes alone."
+        }
+        "repository_trust_anchor_invalid" => {
+            "Restore the exact independently reviewed consumer pin or stop using this checkout; an invalid or mismatched pin grants no repository-boundary validity."
+        }
+        "repository_boundary_invalid" => {
+            "Restore complete Git ancestry and the exact anchored repository bytes. Missing, forked, non-ancestor, or root-mismatched boundaries grant no exemption."
+        }
+        "frontier_profile_upgrade_required" => {
+            "Legacy v0.1 remains readable, but Profile v1 identity events require a valid closed frontier.yaml; use the reviewed migration flow instead of hand-editing it."
+        }
+        _ => {
+            "Restore the exact Profile v1 repository, canonical event projection, and independently pinned boundary context before relying on repository identity."
+        }
+    }
+}
+
+/// Inspect the repository-generation and boundary context used by read-side
+/// verification.
+///
+/// This function is deliberately read-only. Profile v0.1 remains replayable.
+/// Profile v1 reuses the canonical write gate's complete profile, settings,
+/// replay, actor/retained-byte, Git-anchor, and external trust-pin validation,
+/// but does not acquire a transaction barrier or create a journal.
+pub(crate) fn repository_context_assessment_with_home(
+    source: &Path,
+    trusted_home: Option<&Path>,
+) -> RepositoryContextAssessment {
+    use vela_edge::frontier_repository::RepositoryTrustAnchor;
+    use vela_edge::repository_write::{
+        RepositoryWriteGateCode, VerifiedRepositoryIdentity,
+        load_repository_trust_anchor_from_home, verify_repository_for_write,
+    };
+    use vela_protocol::events::EVENT_KIND_FRONTIER_REPOSITORY_BOUND;
+    use vela_protocol::frontier_repo::{FrontierProfileFile, read_repository_profile};
+
+    let repository = frontier_dir_for_source(source);
+    if !repository.join(".vela").is_dir() && !repository.join("frontier.yaml").exists() {
+        return RepositoryContextAssessment {
+            payload: repository_context_not_applicable(),
+            target_index_trust_anchor: None,
+        };
+    }
+
+    let profile = match read_repository_profile(repository) {
+        Ok(Some(profile)) => profile,
+        Ok(None) => {
+            return RepositoryContextAssessment {
+                payload: repository_context_invalid(
+                    RepositoryWriteGateCode::FrontierProfileInvalid.as_str(),
+                    "frontier.yaml is missing; repository generation and identity context are unknown",
+                ),
+                target_index_trust_anchor: None,
+            };
+        }
+        Err(error) => {
+            return RepositoryContextAssessment {
+                payload: repository_context_invalid(
+                    RepositoryWriteGateCode::FrontierProfileInvalid.as_str(),
+                    error,
+                ),
+                target_index_trust_anchor: None,
+            };
+        }
+    };
+
+    match profile {
+        FrontierProfileFile::LegacyV0_1(_) => RepositoryContextAssessment {
+            payload: repository_context_legacy("legacy_v0_1"),
+            target_index_trust_anchor: None,
+        },
+        FrontierProfileFile::V1(_) => {
+            let project = match repo::load_from_path(source) {
+                Ok(project) => project,
+                Err(error) => {
+                    return RepositoryContextAssessment {
+                        payload: repository_context_invalid(
+                            RepositoryWriteGateCode::RepositoryIdentityInvalid.as_str(),
+                            format!("load Profile v1 repository for context verification: {error}"),
+                        ),
+                        target_index_trust_anchor: None,
+                    };
+                }
+            };
+            let has_administrator_boundary = project
+                .events
+                .iter()
+                .any(|event| event.kind.as_str() == EVENT_KIND_FRONTIER_REPOSITORY_BOUND);
+            let loaded_anchor = if has_administrator_boundary {
+                let home = match trusted_home {
+                    Some(home) => std::fs::canonicalize(home).map_err(|error| {
+                        format!("resolve operating-system account home for trust store: {error}")
+                    }),
+                    None => crate::frontier_txn::operating_system_account_home()
+                        .map_err(|error| error.to_string())
+                        .and_then(|home| {
+                            std::fs::canonicalize(&home).map_err(|error| {
+                                format!(
+                                    "resolve operating-system account home for trust store: {error}"
+                                )
+                            })
+                        }),
+                };
+                let home = match home {
+                    Ok(home) => home,
+                    Err(error) => {
+                        return RepositoryContextAssessment {
+                            payload: repository_context_invalid(
+                                RepositoryWriteGateCode::RepositoryTrustAnchorInvalid.as_str(),
+                                error,
+                            ),
+                            target_index_trust_anchor: None,
+                        };
+                    }
+                };
+                match load_repository_trust_anchor_from_home(&home, &project.frontier_id()) {
+                    Ok(anchor) => anchor,
+                    Err(error) => {
+                        return RepositoryContextAssessment {
+                            payload: repository_context_invalid(
+                                RepositoryWriteGateCode::RepositoryTrustAnchorInvalid.as_str(),
+                                error,
+                            ),
+                            target_index_trust_anchor: None,
+                        };
+                    }
+                }
+            } else {
+                None
+            };
+            match verify_repository_for_write(
+                repository,
+                &project,
+                loaded_anchor.as_ref().map(|loaded| &loaded.anchor),
+            ) {
+                Ok(context) => {
+                    let target_index_trust_anchor =
+                        loaded_anchor.as_ref().map(|loaded| RepositoryTrustAnchor {
+                            boundary_content_root: loaded.anchor.boundary_content_root.clone(),
+                            administrator_public_key: loaded
+                                .anchor
+                                .administrator_public_key
+                                .clone(),
+                        });
+                    let (identity_mode, trust_anchor_root) = match context.identity {
+                        VerifiedRepositoryIdentity::Genesis { .. } => ("genesis", None),
+                        VerifiedRepositoryIdentity::PinnedBoundary {
+                            trust_anchor_root, ..
+                        } => ("pinned_boundary", Some(trust_anchor_root)),
+                    };
+                    RepositoryContextAssessment {
+                        payload: json!({
+                            "id": REPOSITORY_CONTEXT_CHECK_ID,
+                            "status": "pass",
+                            "valid": true,
+                            "generation": "profile_v1",
+                            "checked": 1,
+                            "failed": 0,
+                            "code": null,
+                            "error": null,
+                            "frontier_id": context.frontier_id,
+                            "profile_root": context.profile.profile_root,
+                            "identity_root": context.profile.identity_root,
+                            "identity_event_root": context.profile.identity_event_root,
+                            "scientific_state_root": context.profile.scientific_state_root,
+                            "identity_mode": identity_mode,
+                            "trust_anchor_root": trust_anchor_root,
+                        }),
+                        target_index_trust_anchor,
+                    }
+                }
+                Err(error) => RepositoryContextAssessment {
+                    payload: repository_context_invalid(error.code.as_str(), error.message),
+                    target_index_trust_anchor: None,
+                },
+            }
+        }
+    }
+}
+
+fn repository_context_check_with_home(source: &Path, trusted_home: Option<&Path>) -> Value {
+    repository_context_assessment_with_home(source, trusted_home).payload
+}
+
+pub(crate) fn repository_context_assessment(source: &Path) -> RepositoryContextAssessment {
+    repository_context_assessment_with_home(source, None)
+}
+
+pub(crate) fn repository_context_check(source: &Path) -> Value {
+    repository_context_assessment(source).payload
+}
+
 pub(crate) fn check_json_payload(src: &Path, schema_only: bool, strict: bool) -> Value {
+    check_json_payload_with_home(src, schema_only, strict, None)
+}
+
+fn check_json_payload_with_home(
+    src: &Path,
+    schema_only: bool,
+    strict: bool,
+    trusted_home: Option<&Path>,
+) -> Value {
     let report = validate::validate(src);
     let loaded = repo::load_from_path(src).ok();
     let (method_report, graph_report) = if schema_only {
@@ -97,6 +356,11 @@ pub(crate) fn check_json_payload(src: &Path, schema_only: bool, strict: bool) ->
         (None, None)
     };
     let source_hash = hash_path(src).unwrap_or_else(|_| "unavailable".to_string());
+    let repository_context = if schema_only {
+        repository_context_not_applicable()
+    } else {
+        repository_context_check_with_home(src, trusted_home)
+    };
     let mut diagnostics = Vec::new();
     diagnostics.extend(report.errors.iter().map(|e| {
         json!({
@@ -203,6 +467,27 @@ pub(crate) fn check_json_payload(src: &Path, schema_only: bool, strict: bool) ->
             "normalize_action": null,
         })
     }));
+    if repository_context.get("valid").and_then(Value::as_bool) == Some(false) {
+        let code = repository_context
+            .get("code")
+            .and_then(Value::as_str)
+            .unwrap_or("repository_boundary_invalid");
+        let message = repository_context
+            .get("error")
+            .and_then(Value::as_str)
+            .unwrap_or("Profile v1 repository context did not validate");
+        diagnostics.push(json!({
+            "severity": "warning",
+            "rule_id": code,
+            "check": REPOSITORY_CONTEXT_CHECK_ID,
+            "finding_id": null,
+            "field_path": "frontier.yaml|events[frontier.repository_bound]|git|<os-account-home>/.vela/trust/frontiers",
+            "message": message,
+            "suggestion": repository_context_suggestion(code),
+            "fixable": false,
+            "normalize_action": null,
+        }));
+    }
     // Active-pair integrity and current Permit readiness are assessed once.
     // Historical admissions remain the separate strict `policy_lane` check.
     let frontier_dir = frontier_dir_for_source(src);
@@ -578,7 +863,8 @@ pub(crate) fn check_json_payload(src: &Path, schema_only: bool, strict: bool) ->
                 "failed": policy_lane_errors.len(),
                 "errors": policy_lane_errors,
                 "skipped": !strict || schema_only || loaded.is_none(),
-            }
+            },
+            repository_context.clone(),
         ],
         "event_log": replay_report.as_ref().map(|replay| &replay.event_log),
         "replay": replay_report,
@@ -588,6 +874,7 @@ pub(crate) fn check_json_payload(src: &Path, schema_only: bool, strict: bool) ->
         "conditions": conditions,
         "proposals": proposal_summary,
         "proof_state": proof_state,
+        "repository_context": repository_context,
         "diagnostics": diagnostics,
         "signals": signal_report.signals,
         "review_queue": signal_report.review_queue,
@@ -620,27 +907,68 @@ pub(crate) fn save_recorded_proof_state(
         None
     };
     if let Some(dir) = repo_dir {
-        return repo::save_to_path(&dir, loaded);
+        let journal_dir = crate::workflow::frontier_transaction_journal_dir(&dir)?;
+        let write_barrier = crate::workflow::acquire_canonical_write_barrier(&dir, &journal_dir)
+            .map_err(|error| error.to_string())?;
+        let managed = repo::render_vela_repo_files(&dir, loaded)?;
+        let writes = crate::frontier_txn::PlannedWrite::from_managed_files(managed)
+            .map_err(|error| error.to_string())?;
+        let request = vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
+            "schema": "vela.proof-state-recording.internal.v1",
+            "frontier_id": loaded.frontier_id(),
+            "proof_state": &loaded.proof_state,
+        }))?;
+        crate::frontier_txn::execute_no_event_transaction(
+            write_barrier,
+            &dir,
+            "proof-state-recording",
+            crate::frontier_txn::ContentDigest::hash(request),
+            &chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
+            loaded,
+            writes,
+            Vec::new(),
+            serde_json::json!({
+                "schema": "vela.proof-state-recording-result.internal.v1",
+            }),
+        )
+        .map_err(|error| error.to_string())?;
+        return Ok(());
     }
 
     if !frontier.is_file() {
-        return repo::save_to_path(frontier, loaded);
+        let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier)?;
+        let write_barrier =
+            crate::workflow::acquire_canonical_write_barrier(frontier, &journal_dir)
+                .map_err(|error| error.to_string())?;
+        let managed = repo::render_vela_repo_files(frontier, loaded)?;
+        let writes = crate::frontier_txn::PlannedWrite::from_managed_files(managed)
+            .map_err(|error| error.to_string())?;
+        let request = vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
+            "schema": "vela.proof-state-recording.internal.v1",
+            "frontier_id": loaded.frontier_id(),
+            "proof_state": &loaded.proof_state,
+        }))?;
+        crate::frontier_txn::execute_no_event_transaction(
+            write_barrier,
+            frontier,
+            "proof-state-recording",
+            crate::frontier_txn::ContentDigest::hash(request),
+            &chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
+            loaded,
+            writes,
+            Vec::new(),
+            serde_json::json!({
+                "schema": "vela.proof-state-recording-result.internal.v1",
+            }),
+        )
+        .map_err(|error| error.to_string())?;
+        return Ok(());
     }
 
-    let raw = std::fs::read_to_string(frontier)
-        .map_err(|e| format!("Failed to read frontier '{}': {e}", frontier.display()))?;
-    let proof_state = serde_json::to_value(&loaded.proof_state)
-        .map_err(|e| format!("serialize proof_state: {e}"))?;
-    let stats = serde_json::to_value(&loaded.stats).map_err(|e| format!("serialize stats: {e}"))?;
-    let updated = replace_top_level_json_field(&raw, "proof_state", &proof_state)
-        .and_then(|next| replace_top_level_json_field(&next, "stats", &stats))?;
-    let rendered = if updated.ends_with('\n') {
-        updated
-    } else {
-        format!("{updated}\n")
-    };
-    std::fs::write(frontier, rendered)
-        .map_err(|e| format!("Failed to write frontier '{}': {e}", frontier.display()))
+    Err(format!(
+        "frontier_profile_upgrade_required: proof-state recording cannot rewrite legacy standalone snapshot '{}'; migrate it to a Profile v1 repository first",
+        frontier.display()
+    ))
 }
 
 pub(crate) fn hash_path(path: &Path) -> Result<String, String> {
@@ -765,5 +1093,624 @@ fn empty_signal_report() -> signals::SignalReport {
             warnings: 0,
             caveats: vec!["Frontier could not be loaded for signal analysis.".to_string()],
         },
+    }
+}
+
+#[cfg(test)]
+mod write_gate_tests {
+    use super::*;
+
+    #[test]
+    fn legacy_standalone_proof_state_save_requires_profile_upgrade_without_writes() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("frontier.json");
+        let project = project::assemble("legacy proof fixture", Vec::new(), 0, 0, "fixture");
+        let mut bytes = serde_json::to_vec_pretty(&project).unwrap();
+        bytes.push(b'\n');
+        std::fs::write(&path, &bytes).unwrap();
+
+        let error = save_recorded_proof_state(&path, &project).unwrap_err();
+        assert!(
+            error.contains("frontier_profile_upgrade_required"),
+            "{error}"
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    }
+}
+
+#[cfg(test)]
+mod repository_context_tests {
+    use super::*;
+    use ed25519_dalek::SigningKey;
+    use std::collections::BTreeMap;
+    use vela_edge::repository_write::{
+        REPOSITORY_TRUST_ANCHOR_SCHEMA_V1, RepositoryTrustAnchorV1,
+        install_repository_trust_anchor_from_home,
+    };
+    use vela_protocol::frontier_profile::FrontierProfileV1;
+    use vela_protocol::frontier_repo::{
+        FrontierProfileFile, ProfileV1InitOptions, initialize_profile_v1_minimal,
+        read_repository_profile,
+    };
+    use vela_protocol::frontier_repository::{
+        FRONTIER_REPOSITORY_BOUNDARY_SCHEMA, FrontierIdentityV1, FrontierRepositoryBoundaryMode,
+        FrontierRepositoryBoundaryPayloadV1, FrontierRepositoryTrustMode, GitObjectFormat,
+        exact_dependency_root, new_repository_boundary_event,
+        repository_boundary_event_content_root, repository_boundary_payload_from_event_shape,
+        repository_identity_event_content_root,
+    };
+    use vela_protocol::sign::{ActorRecord, pubkey_hex, sign_event};
+
+    #[derive(Clone, Copy)]
+    enum AnchorCase {
+        Valid,
+        WrongTree,
+        NonAncestor,
+    }
+
+    struct BoundRepositoryFixture {
+        repo: tempfile::TempDir,
+        home: tempfile::TempDir,
+        anchor: RepositoryTrustAnchorV1,
+    }
+
+    fn git(repo: &Path, args: &[&str]) -> String {
+        let output = std::process::Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "git {}: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8_lossy(&output.stdout).trim().to_string()
+    }
+
+    fn profile(repository: &Path) -> FrontierProfileV1 {
+        match read_repository_profile(repository).unwrap().unwrap() {
+            FrontierProfileFile::V1(profile) => profile,
+            FrontierProfileFile::LegacyV0_1(_) => panic!("expected Profile v1"),
+        }
+    }
+
+    fn bound_repository(case: AnchorCase) -> BoundRepositoryFixture {
+        let repo = tempfile::tempdir().unwrap();
+        let home = tempfile::tempdir().unwrap();
+        initialize_profile_v1_minimal(
+            repo.path(),
+            ProfileV1InitOptions {
+                name: "Read context fixture",
+                scope: "Does read-side verification fail closed over repository context?",
+                initialize_git: false,
+            },
+        )
+        .unwrap();
+        let mut project = repo::load_from_path(repo.path()).unwrap();
+        let genesis = project.events.first().unwrap().clone();
+        let identity = FrontierIdentityV1::from_genesis_event(&genesis).unwrap();
+        let key = SigningKey::from_bytes(&[73; 32]);
+        let actor = ActorRecord {
+            id: "reviewer:repository-administrator".to_string(),
+            public_key: pubkey_hex(&key),
+            algorithm: "ed25519".to_string(),
+            created_at: "2026-07-23T00:00:00Z".to_string(),
+            tier: None,
+            orcid: None,
+            access_clearance: None,
+            revoked_at: None,
+            revoked_reason: None,
+        };
+        project.actors = vec![actor.clone()];
+        repo::save_to_path(repo.path(), &project).unwrap();
+
+        git(repo.path(), &["init", "-q", "-b", "main"]);
+        git(repo.path(), &["config", "user.name", "Vela Test"]);
+        git(
+            repo.path(),
+            &["config", "user.email", "vela@example.invalid"],
+        );
+        git(repo.path(), &["add", "."]);
+        git(repo.path(), &["commit", "-qm", "repository anchor"]);
+        let main_commit = git(repo.path(), &["rev-parse", "HEAD^{commit}"]);
+        let anchor_commit = if matches!(case, AnchorCase::NonAncestor) {
+            git(repo.path(), &["checkout", "-qb", "fork"]);
+            git(
+                repo.path(),
+                &["commit", "--allow-empty", "-qm", "fork-only anchor"],
+            );
+            let fork = git(repo.path(), &["rev-parse", "HEAD^{commit}"]);
+            git(repo.path(), &["checkout", "-q", "main"]);
+            fork
+        } else {
+            main_commit
+        };
+        let facts = vela_edge::frontier_repository::derive_repository_anchor_facts(
+            repo.path(),
+            &anchor_commit,
+        )
+        .unwrap();
+        let mut anchor_tree = facts.git_tree;
+        if matches!(case, AnchorCase::WrongTree) {
+            anchor_tree = if facts.git_object_format == GitObjectFormat::Sha1 {
+                "0".repeat(40)
+            } else {
+                "0".repeat(64)
+            };
+        }
+        let mut boundary = new_repository_boundary_event(
+            FrontierRepositoryBoundaryPayloadV1 {
+                schema: FRONTIER_REPOSITORY_BOUNDARY_SCHEMA.to_string(),
+                mode: FrontierRepositoryBoundaryMode::UpdateDependencies,
+                frontier_id: identity.frontier_id.clone(),
+                identity_root: identity.root().unwrap(),
+                observed_profile_root: profile(repo.path()).profile_root().unwrap(),
+                dependency_root: exact_dependency_root(&[]).unwrap(),
+                dependencies: Vec::new(),
+                previous_identity_event_root: Some(
+                    repository_identity_event_content_root(&genesis).unwrap(),
+                ),
+                legacy_identity_preimage_root: None,
+                administrator_actor_id: actor.id,
+                administrator_public_key: actor.public_key,
+                administrator_algorithm: actor.algorithm,
+                trust_mode: FrontierRepositoryTrustMode::Genesis,
+                git_object_format: facts.git_object_format,
+                anchor_git_commit: facts.git_commit,
+                anchor_git_tree: anchor_tree,
+                anchor_event_log_root: facts.event_log_root,
+                anchor_event_count: facts.event_count,
+                anchor_snapshot_root: facts.snapshot_root,
+                anchor_snapshot_schema: facts.snapshot_schema,
+                anchor_proposal_root: facts.proposal_root,
+                anchor_actor_registry_root: facts.actor_registry_root,
+                anchor_artifact_registry_root: facts.artifact_registry_root,
+                anchor_canonical_store_root: facts.canonical_store_root,
+            },
+            "bind exact repository context",
+            "2026-07-23T00:01:00Z",
+        )
+        .unwrap();
+        boundary.signature = Some(sign_event(&boundary, &key).unwrap());
+        let payload = repository_boundary_payload_from_event_shape(&boundary).unwrap();
+        let anchor = RepositoryTrustAnchorV1 {
+            schema: REPOSITORY_TRUST_ANCHOR_SCHEMA_V1.to_string(),
+            frontier_id: payload.frontier_id,
+            identity_root: payload.identity_root,
+            boundary_content_root: repository_boundary_event_content_root(&boundary).unwrap(),
+            administrator_actor_id: payload.administrator_actor_id,
+            administrator_public_key: payload.administrator_public_key,
+        };
+        project.events.push(boundary);
+        repo::save_to_path(repo.path(), &project).unwrap();
+        vela_protocol::frontier_repo::materialize(repo.path()).unwrap();
+        git(repo.path(), &["add", "."]);
+        git(
+            repo.path(),
+            &[
+                "commit",
+                "-qm",
+                "bind repository and materialize exact views",
+            ],
+        );
+
+        BoundRepositoryFixture { repo, home, anchor }
+    }
+
+    fn snapshot_without_git(root: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
+        fn visit(root: &Path, current: &Path, files: &mut BTreeMap<PathBuf, Vec<u8>>) {
+            for entry in std::fs::read_dir(current).unwrap() {
+                let path = entry.unwrap().path();
+                if path.file_name().is_some_and(|name| name == ".git") {
+                    continue;
+                }
+                if path.is_dir() {
+                    visit(root, &path, files);
+                } else if path.is_file() {
+                    files.insert(
+                        path.strip_prefix(root).unwrap().to_path_buf(),
+                        std::fs::read(&path).unwrap(),
+                    );
+                }
+            }
+        }
+        let mut files = BTreeMap::new();
+        visit(root, root, &mut files);
+        files
+    }
+
+    fn repository_signal(payload: &Value, kind: &str) -> Option<Value> {
+        payload
+            .get("signals")
+            .and_then(Value::as_array)
+            .and_then(|signals| {
+                signals
+                    .iter()
+                    .find(|signal| signal.get("kind").and_then(Value::as_str) == Some(kind))
+            })
+            .cloned()
+    }
+
+    #[test]
+    fn strict_nonstrict_invalid_boundary_no_exemption() {
+        let fixture = bound_repository(AnchorCase::WrongTree);
+        install_repository_trust_anchor_from_home(fixture.home.path(), &fixture.anchor).unwrap();
+        let repository_before = snapshot_without_git(fixture.repo.path());
+        let trust_before = snapshot_without_git(fixture.home.path());
+
+        let non_strict = check_json_payload_with_home(
+            fixture.repo.path(),
+            false,
+            false,
+            Some(fixture.home.path()),
+        );
+        assert_eq!(
+            non_strict
+                .pointer("/summary/strict")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            non_strict
+                .pointer("/repository_context/status")
+                .and_then(Value::as_str),
+            Some("fail")
+        );
+        assert_eq!(
+            non_strict
+                .pointer("/repository_context/valid")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert!(
+            non_strict
+                .pointer("/repository_context/error")
+                .and_then(Value::as_str)
+                .is_some_and(|error| error.contains("anchor_git_tree mismatch")),
+            "{}",
+            non_strict
+        );
+        let signal = repository_signal(&non_strict, "repository_boundary_invalid").unwrap();
+        assert!(
+            signal
+                .get("blocks")
+                .and_then(Value::as_array)
+                .is_some_and(|blocks| blocks.iter().any(|block| block == "strict_check"))
+        );
+        assert!(
+            signal
+                .get("caveats")
+                .and_then(Value::as_array)
+                .is_some_and(|caveats| caveats.iter().any(|caveat| caveat
+                    .as_str()
+                    .is_some_and(|text| text.contains("grants no identity"))))
+        );
+
+        let strict = check_json_payload_with_home(
+            fixture.repo.path(),
+            false,
+            true,
+            Some(fixture.home.path()),
+        );
+        assert_eq!(strict.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            strict
+                .pointer("/repository_context/valid")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert!(repository_signal(&strict, "repository_boundary_invalid").is_some());
+        assert_eq!(snapshot_without_git(fixture.repo.path()), repository_before);
+        assert_eq!(snapshot_without_git(fixture.home.path()), trust_before);
+    }
+
+    #[test]
+    fn repository_context_rejects_nonancestor_anchor() {
+        let fixture = bound_repository(AnchorCase::NonAncestor);
+        install_repository_trust_anchor_from_home(fixture.home.path(), &fixture.anchor).unwrap();
+        let repository_before = snapshot_without_git(fixture.repo.path());
+        let trust_before = snapshot_without_git(fixture.home.path());
+        let checked =
+            repository_context_check_with_home(fixture.repo.path(), Some(fixture.home.path()));
+        assert_eq!(
+            checked.get("code").and_then(Value::as_str),
+            Some("repository_boundary_invalid")
+        );
+        assert!(
+            checked
+                .get("error")
+                .and_then(Value::as_str)
+                .is_some_and(|error| error.contains("not an ancestor")),
+            "{checked}"
+        );
+        assert_eq!(snapshot_without_git(fixture.repo.path()), repository_before);
+        assert_eq!(snapshot_without_git(fixture.home.path()), trust_before);
+    }
+
+    #[test]
+    fn repository_context_requires_and_matches_external_pin() {
+        let fixture = bound_repository(AnchorCase::Valid);
+        let repository_before = snapshot_without_git(fixture.repo.path());
+        let empty_home = snapshot_without_git(fixture.home.path());
+        let missing =
+            repository_context_check_with_home(fixture.repo.path(), Some(fixture.home.path()));
+        assert_eq!(
+            missing.get("code").and_then(Value::as_str),
+            Some("repository_trust_anchor_required")
+        );
+        let missing_payload = check_json_payload_with_home(
+            fixture.repo.path(),
+            false,
+            false,
+            Some(fixture.home.path()),
+        );
+        assert!(repository_signal(&missing_payload, "repository_trust_anchor_required").is_some());
+        assert_eq!(snapshot_without_git(fixture.repo.path()), repository_before);
+        assert_eq!(snapshot_without_git(fixture.home.path()), empty_home);
+
+        let mut mismatched = fixture.anchor.clone();
+        mismatched.boundary_content_root = format!("sha256:{}", "f".repeat(64));
+        install_repository_trust_anchor_from_home(fixture.home.path(), &mismatched).unwrap();
+        let mismatched_home = snapshot_without_git(fixture.home.path());
+        let mismatch =
+            repository_context_check_with_home(fixture.repo.path(), Some(fixture.home.path()));
+        assert_eq!(
+            mismatch.get("code").and_then(Value::as_str),
+            Some("repository_trust_anchor_invalid")
+        );
+        assert_eq!(mismatch.get("valid").and_then(Value::as_bool), Some(false));
+        let mismatch_payload = check_json_payload_with_home(
+            fixture.repo.path(),
+            false,
+            false,
+            Some(fixture.home.path()),
+        );
+        assert!(repository_signal(&mismatch_payload, "repository_trust_anchor_invalid").is_some());
+        assert_eq!(snapshot_without_git(fixture.repo.path()), repository_before);
+        assert_eq!(snapshot_without_git(fixture.home.path()), mismatched_home);
+    }
+
+    #[test]
+    fn repository_context_accepts_the_exact_external_pin_without_writes() {
+        let fixture = bound_repository(AnchorCase::Valid);
+        let installed =
+            install_repository_trust_anchor_from_home(fixture.home.path(), &fixture.anchor)
+                .unwrap();
+        let repository_before = snapshot_without_git(fixture.repo.path());
+        let trust_before = snapshot_without_git(fixture.home.path());
+
+        let checked =
+            repository_context_check_with_home(fixture.repo.path(), Some(fixture.home.path()));
+        assert_eq!(checked.get("status").and_then(Value::as_str), Some("pass"));
+        assert_eq!(checked.get("valid").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            checked.get("identity_mode").and_then(Value::as_str),
+            Some("pinned_boundary")
+        );
+        assert_eq!(
+            checked.get("trust_anchor_root").and_then(Value::as_str),
+            Some(installed.root.as_str())
+        );
+        assert_eq!(snapshot_without_git(fixture.repo.path()), repository_before);
+        assert_eq!(snapshot_without_git(fixture.home.path()), trust_before);
+    }
+
+    #[test]
+    fn github_action_profile_v1_strict_check_uses_exact_pin_without_frontier_writes() {
+        let fixture = bound_repository(AnchorCase::Valid);
+        install_repository_trust_anchor_from_home(fixture.home.path(), &fixture.anchor).unwrap();
+        let repository_before = snapshot_without_git(fixture.repo.path());
+        let trust_before = snapshot_without_git(fixture.home.path());
+
+        let checked = check_json_payload_with_home(
+            fixture.repo.path(),
+            false,
+            true,
+            Some(fixture.home.path()),
+        );
+        assert_eq!(
+            checked.get("ok").and_then(Value::as_bool),
+            Some(true),
+            "{checked}"
+        );
+        assert_eq!(
+            checked
+                .pointer("/repository_context/identity_mode")
+                .and_then(Value::as_str),
+            Some("pinned_boundary")
+        );
+        assert_eq!(
+            checked
+                .pointer("/repository_context/valid")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(snapshot_without_git(fixture.repo.path()), repository_before);
+        assert_eq!(snapshot_without_git(fixture.home.path()), trust_before);
+    }
+
+    #[test]
+    fn github_action_profile_v1_genesis_strict_check_needs_no_pin() {
+        let repository = tempfile::tempdir().unwrap();
+        let home = tempfile::tempdir().unwrap();
+        initialize_profile_v1_minimal(
+            repository.path(),
+            ProfileV1InitOptions {
+                name: "Action genesis fixture",
+                scope: "Can strict CI verify structural genesis without inventing an administrator?",
+                initialize_git: true,
+            },
+        )
+        .unwrap();
+        vela_protocol::frontier_repo::materialize(repository.path()).unwrap();
+        let repository_before = snapshot_without_git(repository.path());
+        let home_before = snapshot_without_git(home.path());
+
+        let checked =
+            check_json_payload_with_home(repository.path(), false, true, Some(home.path()));
+        assert_eq!(
+            checked.get("ok").and_then(Value::as_bool),
+            Some(true),
+            "{checked}"
+        );
+        assert_eq!(
+            checked
+                .pointer("/repository_context/identity_mode")
+                .and_then(Value::as_str),
+            Some("genesis")
+        );
+        assert_eq!(snapshot_without_git(repository.path()), repository_before);
+        assert_eq!(snapshot_without_git(home.path()), home_before);
+    }
+
+    #[test]
+    fn compact_status_fails_closed_for_missing_or_wrong_pin_and_projects_with_exact_pin() {
+        let fixture = bound_repository(AnchorCase::Valid);
+        let observed_at = "2026-07-23T00:02:00Z";
+
+        let missing = crate::cli_read::compact_status_payload_with_home(
+            fixture.repo.path(),
+            observed_at,
+            Some(fixture.home.path()),
+        )
+        .unwrap();
+        assert_eq!(missing.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            missing.pointer("/integrity/strict").and_then(Value::as_str),
+            Some("blocked")
+        );
+        assert_eq!(
+            missing
+                .pointer("/integrity/blockers_by_code/repository_trust_anchor_required")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            missing
+                .pointer("/integrity/repository_context/code")
+                .and_then(Value::as_str),
+            Some("repository_trust_anchor_required")
+        );
+        assert_eq!(
+            missing.pointer("/counts/open_work").and_then(Value::as_u64),
+            Some(0),
+            "unverified repository context must not grant a Target Index projection"
+        );
+
+        let wrong_home = tempfile::tempdir().unwrap();
+        let mut wrong = fixture.anchor.clone();
+        wrong.boundary_content_root = format!("sha256:{}", "f".repeat(64));
+        install_repository_trust_anchor_from_home(wrong_home.path(), &wrong).unwrap();
+        let mismatched = crate::cli_read::compact_status_payload_with_home(
+            fixture.repo.path(),
+            observed_at,
+            Some(wrong_home.path()),
+        )
+        .unwrap();
+        assert_eq!(mismatched.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            mismatched
+                .pointer("/integrity/blockers_by_code/repository_trust_anchor_invalid")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            mismatched
+                .pointer("/integrity/repository_context/code")
+                .and_then(Value::as_str),
+            Some("repository_trust_anchor_invalid")
+        );
+
+        let valid_home = tempfile::tempdir().unwrap();
+        install_repository_trust_anchor_from_home(valid_home.path(), &fixture.anchor).unwrap();
+        let valid = crate::cli_read::compact_status_payload_with_home(
+            fixture.repo.path(),
+            observed_at,
+            Some(valid_home.path()),
+        )
+        .unwrap();
+        assert_eq!(valid.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            valid
+                .pointer("/integrity/repository_context/identity_mode")
+                .and_then(Value::as_str),
+            Some("pinned_boundary")
+        );
+        assert_eq!(
+            valid
+                .pointer("/integrity/repository_context/valid")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            valid
+                .pointer("/roots/scientific_state_root")
+                .and_then(Value::as_str),
+            valid
+                .pointer("/integrity/repository_context/scientific_state_root")
+                .and_then(Value::as_str)
+        );
+        assert!(
+            valid
+                .pointer("/roots/legacy_snapshot_root")
+                .and_then(Value::as_str)
+                .is_some_and(|root| root.starts_with("sha256:"))
+        );
+        assert!(valid.pointer("/roots/snapshot").is_none());
+        assert_eq!(
+            valid.pointer("/counts/open_work").and_then(Value::as_u64),
+            Some(1),
+            "the exact external pin must reach the Target Index projection"
+        );
+    }
+
+    #[test]
+    fn legacy_v0_1_read_replay_remains_compatible() {
+        let repository = tempfile::tempdir().unwrap();
+        vela_protocol::frontier_repo::initialize_minimal(
+            repository.path(),
+            vela_protocol::frontier_repo::InitOptions {
+                name: "legacy read fixture",
+                initialize_git: false,
+            },
+        )
+        .unwrap();
+        let checked = repository_context_check_with_home(repository.path(), None);
+        assert_eq!(checked.get("status").and_then(Value::as_str), Some("pass"));
+        assert_eq!(
+            checked.get("generation").and_then(Value::as_str),
+            Some("legacy_v0_1")
+        );
+        assert_eq!(
+            checked.get("compatibility").and_then(Value::as_str),
+            Some("read_only_replay")
+        );
+
+        let status = crate::cli_read::compact_status_payload_with_home(
+            repository.path(),
+            "2026-07-23T00:02:00Z",
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            status
+                .pointer("/frontier/profile_generation")
+                .and_then(Value::as_str),
+            Some("legacy_v0_1")
+        );
+        assert_eq!(
+            status.pointer("/roots/scientific_state_root"),
+            Some(&Value::Null)
+        );
+        assert!(
+            status
+                .pointer("/roots/legacy_snapshot_root")
+                .and_then(Value::as_str)
+                .is_some_and(|root| root.starts_with("sha256:"))
+        );
+        assert!(status.pointer("/roots/snapshot").is_none());
     }
 }

@@ -15,7 +15,7 @@
 //!   `--to` (a publish/append destination), `--from` (a read source). One
 //!   meaning each; do not overload.
 
-use clap::Subcommand;
+use clap::{ArgGroup, Subcommand};
 use std::path::PathBuf;
 
 /// One meaning per flag, everywhere (the audit's top finding was
@@ -23,6 +23,8 @@ use std::path::PathBuf;
 /// every variant that carries the flag.
 pub(crate) const HELP_KEY: &str = "Path to an Ed25519 private key (hex seed file). Optional: defaults to your `vela id` identity key";
 pub(crate) const HELP_AS: &str = "Acting identity for this write (reviewer:<you> or agent:<name>). Optional: defaults to your `vela id`";
+pub(crate) const HELP_REQUIRED_AS: &str =
+    "Exact acting identity for this write (reviewer:<you> or agent:<name>)";
 pub(crate) const HELP_AS_OF: &str = "Answer as of this RFC3339 instant, e.g. 2026-07-02T16:00:00Z";
 
 #[derive(Subcommand, Debug)]
@@ -192,7 +194,7 @@ pub enum PolicyAction {
         /// Why these unsupported prelaunch bytes should be retired.
         #[arg(long)]
         reason: String,
-        #[arg(long = "as", help = HELP_AS)]
+        #[arg(long = "as", help = HELP_REQUIRED_AS)]
         actor: String,
         #[arg(long)]
         json: bool,
@@ -283,8 +285,7 @@ pub(crate) enum Commands {
     /// Make this frontier queryable by AI agents: an MCP server any
     /// client (Claude Code, Cursor, …) can attach to, over stdio or
     /// HTTP. Profiles gate what tools exist: read-only (default), or draft
-    /// for nonfinalizing writes. The public hub serves the same
-    /// read surface at hub.constellate.science/mcp with no clone at all.
+    /// for nonfinalizing writes.
     #[command(after_long_help = crate::cli::help_text::SERVE)]
     Serve {
         /// Frontier JSON file or Vela repo
@@ -310,8 +311,8 @@ pub(crate) enum Commands {
         adoption: bool,
         /// MCP exposure profile: `read-only` (default) or `draft` (adds only
         /// the task-first `work` tool). Human finalization is terminal-only.
-        #[arg(long, default_value = "read-only")]
-        profile: String,
+        #[arg(long)]
+        profile: Option<String>,
         /// Output stable JSON for --check-tools
         #[arg(long)]
         json: bool,
@@ -430,20 +431,49 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         action: ReviewAction,
     },
+    /// Seal, diagnose, or inspect the optional derived producer target index.
+    /// These commands never grant scientific authority.
+    #[command(hide = true)]
+    TargetIndex {
+        #[command(subcommand)]
+        action: TargetIndexAction,
+    },
     /// Migrate a frontier repository format without rewriting canonical state.
     #[command(after_long_help = crate::cli::help_text::MIGRATE)]
+    #[command(group(ArgGroup::new("migration_mode").required(true).multiple(false).args(["check", "apply"])))]
     Migrate {
         /// Frontier repository directory.
         frontier: PathBuf,
         /// Target repository format.
-        #[arg(long = "to", default_value = "0.900")]
+        #[arg(long = "to", default_value = "frontier-repo-v1")]
         target_version: String,
         /// Preview the exact migration without writing.
-        #[arg(long, conflicts_with = "apply", required_unless_present = "apply")]
+        #[arg(long)]
         check: bool,
         /// Apply the previewed repository-format migration.
-        #[arg(long, conflicts_with = "check", required_unless_present = "check")]
+        #[arg(long)]
         apply: bool,
+        /// Read-only candidate Profile v1 YAML outside the Frontier checkout.
+        #[arg(long)]
+        profile: PathBuf,
+        /// Closed exact dependency-resolution input for legacy dependencies.
+        #[arg(long)]
+        dependency_input: Option<PathBuf>,
+        /// Read-only domain target-index candidate outside the checkout.
+        #[arg(long)]
+        target_candidate: PathBuf,
+        /// Registered human repository administrator.
+        #[arg(long = "as", help = HELP_REQUIRED_AS)]
+        actor: String,
+        /// Exact reason bound into the boundary event and migration plan.
+        #[arg(long)]
+        reason: String,
+        /// Root from the exact key-free preview.
+        #[arg(long, requires = "confirm_at")]
+        confirm_root: Option<String>,
+        /// Observation time from the exact key-free preview.
+        #[arg(long, requires = "confirm_root")]
+        confirm_at: Option<String>,
         #[arg(long)]
         json: bool,
     },
@@ -663,6 +693,39 @@ pub(crate) enum Commands {
 }
 
 #[derive(Subcommand)]
+pub(crate) enum TargetIndexAction {
+    /// Derive all seal-owned roots and exact packet digests from a closed
+    /// domain candidate. Check is write-free; apply writes only targets.json.
+    #[command(group(ArgGroup::new("target_index_seal_mode").required(true).multiple(false).args(["check", "apply"])))]
+    Seal {
+        frontier: PathBuf,
+        #[arg(long)]
+        candidate: PathBuf,
+        #[arg(long)]
+        check: bool,
+        #[arg(long)]
+        apply: bool,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Report stale codes and the exact candidate-seal check without changing
+    /// roots, packets, or target semantics.
+    Repair {
+        frontier: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Inspect the complete index or one exact full target ID. Inspection
+    /// never creates an offer or lease.
+    Inspect {
+        frontier: PathBuf,
+        target_id: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand)]
 pub(crate) enum IdAction {
     /// Protect an existing human approval identity, or authorize its exact
     /// local helper after a package update. Safe defaults authenticate first,
@@ -850,7 +913,7 @@ pub(crate) enum VerifyAction {
         attachment: PathBuf,
         #[arg(long)]
         proposal: String,
-        #[arg(long = "as", help = HELP_AS)]
+        #[arg(long = "as", help = HELP_REQUIRED_AS)]
         actor: String,
         #[arg(long)]
         json: bool,
@@ -907,12 +970,50 @@ pub(crate) enum ActorAction {
 }
 
 #[derive(Subcommand)]
+pub(crate) enum FrontierTrustAction {
+    /// Preview or install one out-of-band pin for the first administrator boundary.
+    Pin {
+        /// Frontier repository directory.
+        frontier: PathBuf,
+        /// Full content root obtained from a trusted out-of-band source.
+        #[arg(long)]
+        boundary_root: String,
+        /// Exact plan root returned by a prior key-free preview.
+        #[arg(long, requires = "confirm_at")]
+        confirm_root: Option<String>,
+        /// Exact observation time returned by the same preview.
+        #[arg(long, requires = "confirm_root")]
+        confirm_at: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand)]
 pub(crate) enum FrontierAction {
-    /// Scaffold a fresh `frontier.json` stub. The result passes
-    /// `vela check --strict` immediately and is ready to accept
-    /// Receipt v1 work via `vela land`. Prefer `vela init` for new
-    /// work: it creates the event-logged `.vela/` repo, and `git push`
-    /// publishes to any Hub-configured source repository.
+    /// Establish the first protected administrator boundary for a native Profile v1 Frontier.
+    Bind {
+        /// Frontier repository directory.
+        frontier: PathBuf,
+        /// Human-readable reason bound into the signed boundary.
+        #[arg(long)]
+        reason: String,
+        /// Exact plan root returned by a prior key-free preview.
+        #[arg(long, requires = "confirm_at")]
+        confirm_root: Option<String>,
+        /// Exact observation time returned by the same preview.
+        #[arg(long, requires = "confirm_root")]
+        confirm_at: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Manage user-local trust pins for repository administrator boundaries.
+    Trust {
+        #[command(subcommand)]
+        action: FrontierTrustAction,
+    },
+    /// Retired legacy v0.1 initializer. Use `vela init`.
+    #[command(hide = true)]
     New {
         /// Path to write the new frontier file (e.g. `./frontier.json`).
         path: PathBuf,
@@ -935,7 +1036,7 @@ pub(crate) enum FrontierAction {
         #[arg(long)]
         json: bool,
     },
-    /// List the frontier's declared dependencies.
+    /// List exact dependencies. Vela 0.914 has no later dependency-update writer.
     ListDeps {
         frontier: PathBuf,
         #[arg(long)]
@@ -1106,7 +1207,7 @@ pub(crate) enum ReviewAction {
     Withdraw {
         frontier: PathBuf,
         proposal_id: String,
-        #[arg(long = "as", help = HELP_AS)]
+        #[arg(long = "as", help = HELP_REQUIRED_AS)]
         actor: String,
         #[arg(long)]
         reason: String,

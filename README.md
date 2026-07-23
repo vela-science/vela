@@ -20,7 +20,7 @@
   <a href="https://app.vela.space/frontiers">Observatory</a> ·
   <a href="docs/PROTOCOL.md">Protocol</a> ·
   <a href="docs/CLI.md">CLI</a> ·
-  <a href="docs/PRODUCER_QUICKSTART.md">Producer guide</a>
+  <a href="docs/QUICKSTART.md">Quickstart</a>
 </p>
 
 Vela turns a Git repository into a **frontier**: a content-addressed,
@@ -38,17 +38,26 @@ Install the checksum-verified public beta on Apple Silicon macOS or Linux
 x86-64:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.913.0/install.sh \
-  | VELA_VERSION=v0.913.0 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.914.0/install.sh \
+  | VELA_VERSION=v0.914.0 bash
 vela --version
 ```
 
 Windows x86-64:
 
 ```powershell
-& ([scriptblock]::Create((Invoke-WebRequest https://raw.githubusercontent.com/vela-science/vela/v0.913.0/install.ps1).Content)) -Version v0.913.0
+& ([scriptblock]::Create((Invoke-WebRequest https://raw.githubusercontent.com/vela-science/vela/v0.914.0/install.ps1).Content)) -Version v0.914.0
 vela --version
 ```
+
+The native Windows binary supports inspection, checking, reproduction,
+key-free Target Index previews, and protected human signing. Profile v1
+settings updates and `target-index seal --apply` remain fail-closed on native
+Windows in this release: the write edge requires an exact-preimage atomic
+exchange that the current Windows implementation does not claim. Run those
+repository-file mutations from WSL2 with the checkout on its Linux filesystem,
+or from a supported Unix host. Vela does not silently fall back to path-based
+replacement.
 
 Reproduce the included Sidon witness set from tracked bytes:
 
@@ -101,13 +110,15 @@ python3 conformance/verify.py
 ```
 
 To install from crates.io, run
-`cargo install --locked vela-cli --version 0.913.0`. Human signing setup is
+`cargo install --locked vela-cli --version 0.914.0`. Human signing setup is
 documented under [Review and authority](docs/CLI.md#review-and-authority); agents
 must never receive a human key.
 
 ## Documentation
 
-- [Use Vela](docs/PRODUCER_QUICKSTART.md): produce work without a human key
+- [Start here](docs/QUICKSTART.md): inspect, produce, initialize, or migrate
+- [Produce work](docs/PRODUCER_QUICKSTART.md): contribute without a human key
+- [Protect authority](docs/SIGNING.md): custody, exact decisions, and repository administration
 - [Understand the protocol](docs/PROTOCOL.md): objects, events, replay, and standing
 - [Inspect exact contracts](docs/RECEIPTS.md): Receipts, roots, and provenance
 - [Operate safely](docs/THREAT_MODEL.md): trust boundaries and governance

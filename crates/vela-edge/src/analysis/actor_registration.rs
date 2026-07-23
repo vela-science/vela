@@ -5,7 +5,6 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
-use std::process::Command;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -62,12 +61,10 @@ impl ActorRegistrationReport {
 }
 
 fn git(repo: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(repo)
+    let output = super::git_read::hardened_command(repo, "actor-registration Git repository")?
         .args(args)
         .output()
-        .map_err(|error| format!("failed to run git: {error}"))?;
+        .map_err(|error| format!("failed to run git {}: {error}", args.join(" ")))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
         return Err(if stderr.is_empty() {
@@ -77,6 +74,14 @@ fn git(repo: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
         });
     }
     Ok(output.stdout)
+}
+
+fn git_succeeds(repo: &Path, args: &[&str]) -> Result<bool, String> {
+    super::git_read::hardened_command(repo, "actor-registration Git repository")?
+        .args(args)
+        .status()
+        .map(|status| status.success())
+        .map_err(|error| format!("failed to run git {}: {error}", args.join(" ")))
 }
 
 fn git_text(repo: &Path, args: &[&str]) -> Result<String, String> {
@@ -172,13 +177,10 @@ fn assess_one(
     }
     let head = git_text(repo, &["rev-parse", "HEAD^{commit}"])
         .map_err(|error| format!("checked revision unavailable: {error}"))?;
-    let ancestor = Command::new("git")
-        .arg("-C")
-        .arg(repo)
-        .args(["merge-base", "--is-ancestor", &resolved_commit, &head])
-        .status()
-        .map_err(|error| format!("failed to test anchor ancestry: {error}"))?;
-    if !ancestor.success() {
+    if !git_succeeds(
+        repo,
+        &["merge-base", "--is-ancestor", &resolved_commit, &head],
+    )? {
         return Err("anchor commit is not an ancestor of the checked revision".to_string());
     }
     let tree = git_text(repo, &["show", "-s", "--format=%T", &resolved_commit])?;
@@ -325,13 +327,10 @@ pub fn preview_temporalize_existing(
     )
     .map_err(|error| format!("anchor unavailable: {error}"))?;
     let head = git_text(repo, &["rev-parse", "HEAD^{commit}"])?;
-    let ancestor = Command::new("git")
-        .arg("-C")
-        .arg(repo)
-        .args(["merge-base", "--is-ancestor", &resolved_commit, &head])
-        .status()
-        .map_err(|error| format!("failed to test anchor ancestry: {error}"))?;
-    if !ancestor.success() {
+    if !git_succeeds(
+        repo,
+        &["merge-base", "--is-ancestor", &resolved_commit, &head],
+    )? {
         return Err("anchor commit is not an ancestor of the checked revision".to_string());
     }
     let tree = git_text(repo, &["show", "-s", "--format=%T", &resolved_commit])?;

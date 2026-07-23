@@ -1,5 +1,5 @@
 use crate::cli::print_identity_created;
-use crate::cli::{fail, fail_return, fail_usage, parse_signing_key, print_json};
+use crate::cli::{fail_return, parse_signing_key, print_json};
 use crate::cli_commands::*;
 use colored::Colorize;
 use serde_json::json;
@@ -779,52 +779,29 @@ pub(crate) fn cmd_actor(action: ActorAction) {
             clearance,
             json,
         } => {
-            // Registry bootstrap is deliberately one-shot and self-binding:
-            // only the configured identity may become the first actor. There
-            // is no arbitrary id/pubkey insertion path on an established
-            // frontier; later membership and rotation need signed governance.
-            let identity = crate::cli_identity::load_identity().unwrap_or_else(|| {
-                fail_usage("no configured identity; run `vela id create --handle <your-name>` before bootstrapping the frontier actor registry")
-            });
-            let protected_enrollment_proves_possession = match &identity.signer {
-                Some(crate::cli_identity::IdentitySigner::Helper {
-                    key_id,
-                    public_key,
-                    pending_source_removal: None,
-                    ..
-                }) => {
-                    if public_key != &identity.pubkey
-                        || key_id != &format!("{}:{}", identity.actor_id, identity.pubkey)
-                    {
-                        fail_return::<()>(
-                            "protected identity key binding does not match its profile",
-                        );
-                    }
-                    true
-                }
-                Some(crate::cli_identity::IdentitySigner::Helper { .. }) => {
-                    fail_return::<()>(
-                        "protected identity enrollment is incomplete; finish plaintext cleanup before actor bootstrap",
-                    );
-                    unreachable!()
-                }
-                _ => false,
-            };
-            let id = identity.actor_id;
-            let pubkey = identity.pubkey;
-            let trimmed = pubkey.trim();
+            // Administration ignores ambient HOME and loads one private,
+            // regular identity file from the operating-system account home.
+            // Editable metadata is not proof of possession: the protected
+            // helper performs a fresh signed challenge while the repository
+            // write barrier is held, and the registry installs transactionally.
+            let identity = crate::cli_identity::load_administrative_identity()
+                .unwrap_or_else(|error| fail_return(&error));
+            if identity.actor_type != "human"
+                || !matches!(
+                    identity.signer.as_ref(),
+                    Some(crate::cli_identity::IdentitySigner::Helper { .. })
+                )
+            {
+                fail_return::<()>(
+                    "actor bootstrap requires one protected human identity; agent and plaintext-file identities cannot establish repository administration",
+                );
+            }
+            let id = identity.actor_id.clone();
+            let trimmed = identity.pubkey.trim();
             if trimmed.len() != 64 || hex::decode(trimmed).is_err() {
                 fail_return::<()>(
                     "configured identity contains an invalid Ed25519 public key; recreate or re-import it with `vela id`",
                 );
-            }
-            if !protected_enrollment_proves_possession {
-                let key = crate::cli_identity::resolve_signing_key(None);
-                if sign::pubkey_hex(&key) != trimmed {
-                    fail_return::<()>(
-                        "configured identity pubkey does not match its private key; refusing actor-registry bootstrap",
-                    );
-                }
             }
             // v0.43: Validate ORCID shape if supplied. Stored in bare form.
             let orcid_normalized = orcid
@@ -838,35 +815,25 @@ pub(crate) fn cmd_actor(action: ActorAction) {
                         .unwrap_or_else(|e| fail_return(&e))
                 });
 
-            let mut project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
-            if !project.actors.is_empty() {
-                fail(
-                    "actor registry is already established; `vela actor add` is bootstrap-only and cannot extend or replace it",
-                );
-            }
-            project.actors.push(sign::ActorRecord {
+            let actor_record = sign::ActorRecord {
                 id: id.clone(),
                 public_key: trimmed.to_string(),
                 algorithm: "ed25519".to_string(),
-                created_at: chrono::Utc::now().to_rfc3339(),
+                created_at: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
                 tier: None,
                 orcid: orcid_normalized.clone(),
                 access_clearance: clearance,
                 revoked_at: None,
                 revoked_reason: None,
-            });
-            repo::save_to_path(&frontier, &project).unwrap_or_else(|e| fail_return(&e));
-            let payload = json!({
-                "ok": true,
-                "command": "actor.add",
-                "frontier": frontier.display().to_string(),
-                "actor_id": id,
-                "public_key": trimmed,
-                "orcid": orcid_normalized,
-                "registered_count": project.actors.len(),
-            });
+            };
+            let result = crate::config::actor_bootstrap::install_protected_actor_bootstrap(
+                &frontier,
+                &identity,
+                actor_record,
+            )
+            .unwrap_or_else(|error| fail_return(&error));
             if json {
-                print_json(&payload);
+                print_json(&result);
             } else {
                 println!(
                     "{} actor {} (pubkey {})",
@@ -874,6 +841,10 @@ pub(crate) fn cmd_actor(action: ActorAction) {
                     id,
                     &trimmed[..16]
                 );
+                println!("  proof: {}", result.proof_request_root);
+                println!("  transaction: {}", result.operation_id);
+                println!("  delta: {}", result.canonical_delta_root);
+                println!("  next: {}", result.next_action);
             }
         }
         ActorAction::List { frontier, json } => {

@@ -2526,9 +2526,9 @@ dependencies = [
 
 [[package]]
 name = "spin"
-version = "0.9.8"
+version = "0.9.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
+checksum = "3763264f6b73151db08c50ff20d7d8a0b8796e021cdea7ceedad07b80155fa0e"
 dependencies = [
  "lock_api",
 ]
@@ -3199,7 +3199,7 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "vela-cli"
-version = "0.913.0"
+version = "0.914.0"
 dependencies = [
  "axum",
  "chrono",
@@ -3209,8 +3209,10 @@ dependencies = [
  "dotenvy",
  "ed25519-dalek",
  "hex",
+ "libc",
  "rand 0.8.6",
  "reqwest",
+ "rustix",
  "same-file",
  "serde",
  "serde_json",
@@ -3221,18 +3223,20 @@ dependencies = [
  "tokio",
  "toml",
  "tower-http",
+ "unicode-normalization",
  "urlencoding",
  "vela-edge",
  "vela-protocol",
  "vela-protocol-core",
  "vela-signer",
  "vela-verify",
+ "windows-sys 0.61.2",
  "zeroize",
 ]
 
 [[package]]
 name = "vela-edge"
-version = "0.913.0"
+version = "0.914.0"
 dependencies = [
  "chrono",
  "colored",
@@ -3240,6 +3244,7 @@ dependencies = [
  "hex",
  "rand 0.8.6",
  "reqwest",
+ "rustix",
  "same-file",
  "serde",
  "serde_json",
@@ -3249,6 +3254,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "toml",
+ "unicode-normalization",
  "urlencoding",
  "vela-protocol",
  "vela-protocol-core",
@@ -3257,7 +3263,7 @@ dependencies = [
 
 [[package]]
 name = "vela-hub"
-version = "0.913.0"
+version = "0.914.0"
 dependencies = [
  "async-stream",
  "axum",
@@ -3282,7 +3288,7 @@ dependencies = [
 
 [[package]]
 name = "vela-protocol"
-version = "0.913.0"
+version = "0.914.0"
 dependencies = [
  "base64",
  "chrono",
@@ -3291,6 +3297,7 @@ dependencies = [
  "hex",
  "rand 0.8.6",
  "reqwest",
+ "same-file",
  "serde",
  "serde_json",
  "serde_json_canonicalizer",
@@ -3305,7 +3312,7 @@ dependencies = [
 
 [[package]]
 name = "vela-protocol-core"
-version = "0.913.0"
+version = "0.914.0"
 dependencies = [
  "ed25519-dalek",
  "hex",
@@ -3316,7 +3323,7 @@ dependencies = [
 
 [[package]]
 name = "vela-signer"
-version = "0.913.0"
+version = "0.914.0"
 dependencies = [
  "block2",
  "chrono",
@@ -3344,7 +3351,7 @@ dependencies = [
 
 [[package]]
 name = "vela-verify"
-version = "0.913.0"
+version = "0.914.0"
 dependencies = [
  "serde",
  "serde_json",

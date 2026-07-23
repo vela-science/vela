@@ -651,7 +651,7 @@ fn seal_policy_with_issued_by(
 /// postimage edge keeps those completed journals auditable and supersedable.
 fn install_policy_draft_transactional(
     frontier: &Path,
-    barrier: crate::frontier_txn::FrontierRecoveryBarrier,
+    barrier: crate::frontier_txn::CanonicalWriteBarrier,
     project: &Project,
     observed: &ActivePolicySnapshot,
     replacement: &AcceptancePolicy,
@@ -1090,12 +1090,25 @@ fn transaction_error(error: impl std::fmt::Display) -> CmdError {
 fn acquire_policy_draft_barrier(
     frontier: &Path,
     journal_dir: &Path,
-) -> Result<crate::frontier_txn::FrontierRecoveryBarrier, CmdError> {
+) -> Result<crate::frontier_txn::CanonicalWriteBarrier, CmdError> {
     use crate::frontier_txn::{FrontierTxn, FrontierTxnError, OperationId, RecoveryOutcome};
 
+    #[cfg(not(test))]
+    FrontierTxn::preflight_write_intent(
+        frontier,
+        crate::frontier_txn::CanonicalWriteIntent::Administrator,
+    )
+    .map_err(transaction_error)?;
     for _ in 0..3 {
         match FrontierTxn::acquire_recovery_barrier(frontier, journal_dir) {
-            Ok(barrier) => return Ok(barrier),
+            Ok(barrier) => {
+                #[cfg(test)]
+                return Ok(barrier.authorize_for_test());
+                #[cfg(not(test))]
+                return barrier
+                    .authorize_for_administrator_write()
+                    .map_err(transaction_error);
+            }
             Err(FrontierTxnError::RecoveryRequired { operation_id, .. }) => {
                 let operation_id = OperationId::parse(operation_id).map_err(transaction_error)?;
                 match FrontierTxn::recover(frontier, journal_dir, &operation_id)
@@ -1118,6 +1131,41 @@ fn acquire_policy_draft_barrier(
     Err(transaction_error(
         "frontier recovery did not reach a stable policy-draft barrier",
     ))
+}
+
+fn acquire_policy_write_barrier(
+    frontier: &Path,
+    journal_dir: &Path,
+) -> Result<crate::frontier_txn::CanonicalWriteBarrier, CmdError> {
+    #[cfg(test)]
+    {
+        crate::frontier_txn::FrontierTxn::acquire_write_barrier_for_test(frontier, journal_dir)
+            .map_err(transaction_error)
+    }
+    #[cfg(not(test))]
+    {
+        crate::frontier_txn::FrontierTxn::acquire_administrator_write_barrier(frontier, journal_dir)
+            .map_err(transaction_error)
+    }
+}
+
+fn reauthorize_prepared_policy_write(
+    transaction: &mut crate::frontier_txn::FrontierTxn,
+) -> Result<(), CmdError> {
+    #[cfg(test)]
+    {
+        transaction
+            .reauthorize_prepared_for_test()
+            .map_err(transaction_error)
+    }
+    #[cfg(not(test))]
+    {
+        transaction
+            .reauthorize_prepared_for_commit(
+                crate::frontier_txn::CanonicalWriteIntent::Administrator,
+            )
+            .map_err(transaction_error)
+    }
 }
 
 fn policy_ceremony_identity(
@@ -1171,6 +1219,9 @@ fn resume_policy_ceremony(
     }
     let result = transaction.plan().result.clone();
     if !matches!(transaction.recovery_state(), RecoveryState::Completed) {
+        if matches!(transaction.recovery_state(), RecoveryState::Prepared) {
+            reauthorize_prepared_policy_write(&mut transaction)?;
+        }
         transaction.mark_committed().map_err(transaction_error)?;
         transaction.install().map_err(transaction_error)?;
         transaction.complete().map_err(transaction_error)?;
@@ -1335,7 +1386,7 @@ fn prepare_policy_head_mutation(
 #[allow(clippy::too_many_arguments)]
 fn commit_policy_head_transaction<S>(
     frontier: &Path,
-    barrier: crate::frontier_txn::FrontierRecoveryBarrier,
+    barrier: crate::frontier_txn::CanonicalWriteBarrier,
     original: &Project,
     actor: &str,
     sign_event: S,
@@ -1468,7 +1519,7 @@ where
     C: FnOnce() -> String,
     K: FnOnce() -> ed25519_dalek::SigningKey,
 {
-    use crate::frontier_txn::{FrontierTxn, InputBinding, PlannedWrite, RepoPath, WriteClass};
+    use crate::frontier_txn::{InputBinding, PlannedWrite, RepoPath, WriteClass};
 
     const REASON: &str = "activate signed acceptance policy";
     let journal_dir = policy_transaction_journal_dir(frontier)?;
@@ -1506,8 +1557,7 @@ where
         let head = policy_head_from_transaction_result(frontier, &result)?;
         return Ok((policy, record, head));
     }
-    let barrier =
-        FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir).map_err(transaction_error)?;
+    let barrier = acquire_policy_write_barrier(frontier, &journal_dir)?;
     let original = repo::load_from_path(frontier).map_err(transaction_error)?;
     let policy = read_sealed_active(frontier)?;
     if policy.id != expected_policy_id {
@@ -1649,7 +1699,7 @@ where
     C: FnOnce() -> String,
     K: FnOnce() -> ed25519_dalek::SigningKey,
 {
-    use crate::frontier_txn::{FrontierTxn, InputBinding, PlannedWrite, RepoPath, WriteClass};
+    use crate::frontier_txn::{InputBinding, PlannedWrite, RepoPath, WriteClass};
 
     let journal_dir = policy_transaction_journal_dir(frontier)?;
     let observed = repo::load_from_path(frontier).map_err(transaction_error)?;
@@ -1683,8 +1733,7 @@ where
         }
         return Ok((policy.id, head));
     }
-    let barrier =
-        FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir).map_err(transaction_error)?;
+    let barrier = acquire_policy_write_barrier(frontier, &journal_dir)?;
     let original = repo::load_from_path(frontier).map_err(transaction_error)?;
     let policy = read_sealed_active(frontier)?;
     if policy.id != expected_policy_id {
@@ -2827,35 +2876,79 @@ struct PreparedProtectedPolicyDecision {
     event: vela_protocol::events::StateEvent,
 }
 
-fn git_value(frontier: &Path, args: &[&str]) -> Result<String, CmdError> {
-    let output = std::process::Command::new("git")
-        .arg("-C")
-        .arg(frontier)
-        .args(args)
-        .output()
-        .map_err(transaction_error)?;
-    if !output.status.success() {
-        return Err(transaction_error(format!(
-            "git {} failed: {}",
-            args.join(" "),
-            String::from_utf8_lossy(&output.stderr).trim()
-        )));
+fn trust_bound_git_value(frontier: &Path, args: &[&str]) -> Result<String, String> {
+    let frontier = std::fs::canonicalize(frontier)
+        .map_err(|error| format!("resolve policy Git repository: {error}"))?;
+    crate::git_hardened::text(&frontier, args)
+}
+
+struct CiGitContext {
+    prefix: String,
+    changed: String,
+    base_lock: String,
+    head_lock: String,
+    base_proposals: String,
+}
+
+fn load_ci_git_context_with(
+    base: &str,
+    mut git: impl FnMut(&[&str]) -> Result<String, String>,
+) -> Result<CiGitContext, String> {
+    let prefix = git(&["rev-parse", "--show-prefix"])
+        .map_err(|error| format!("resolve frontier Git prefix: {error}"))?;
+    let base_revision = format!("{base}^{{commit}}");
+    let base_commit = git(&["rev-parse", "--verify", "--quiet", &base_revision])
+        .map_err(|error| format!("resolve base ref {base:?}: {error}"))?;
+    if !matches!(base_commit.len(), 40 | 64)
+        || !base_commit
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(format!(
+            "resolved base ref {base:?} is not a full lowercase Git object id"
+        ));
     }
-    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    let range = format!("{base_commit}...HEAD");
+    let changed = git(&["diff", "--name-only", &range, "--"])
+        .map_err(|error| format!("derive changed-path allowlist evidence: {error}"))?;
+    let base_lock_spec = format!("{base_commit}:{prefix}vela.lock");
+    let base_lock =
+        git(&["show", &base_lock_spec]).map_err(|error| format!("read base vela.lock: {error}"))?;
+    let head_lock_spec = format!("HEAD:{prefix}vela.lock");
+    let head_lock =
+        git(&["show", &head_lock_spec]).map_err(|error| format!("read HEAD vela.lock: {error}"))?;
+    let proposal_path = format!("{prefix}.vela/proposals");
+    let base_proposals = git(&[
+        "ls-tree",
+        "--name-only",
+        "-r",
+        &base_commit,
+        "--",
+        &proposal_path,
+    ])
+    .map_err(|error| format!("enumerate base proposals: {error}"))?;
+    Ok(CiGitContext {
+        prefix,
+        changed,
+        base_lock,
+        head_lock,
+        base_proposals,
+    })
+}
+
+fn load_ci_git_context(frontier: &Path, base: &str) -> Result<CiGitContext, String> {
+    load_ci_git_context_with(base, |args| trust_bound_git_value(frontier, args))
+}
+
+fn git_value(frontier: &Path, args: &[&str]) -> Result<String, CmdError> {
+    trust_bound_git_value(frontier, args).map_err(transaction_error)
 }
 
 fn require_clean_policy_decision_checkout(frontier: &Path) -> Result<(), CmdError> {
-    let status = git_value(
-        frontier,
-        &["status", "--porcelain=v1", "--untracked-files=all"],
-    )?;
-    let unrelated = status
-        .lines()
-        .filter(|line| {
-            !line
-                .get(3..)
-                .is_some_and(|path| path.starts_with(".vela/operation-journals/"))
-        })
+    let unrelated = vela_edge::git_read::dirty_worktree_paths(frontier, true)
+        .map_err(transaction_error)?
+        .into_iter()
+        .filter(|path| !path.starts_with(".vela/operation-journals/"))
         .collect::<Vec<_>>();
     if !unrelated.is_empty() {
         return Err(CmdError::hinted(
@@ -3259,7 +3352,7 @@ where
         &PreparedProtectedPolicyDecision,
     ) -> Result<vela_signer::PolicySignerResponse, CmdError>,
 {
-    use crate::frontier_txn::{FrontierTxn, InputBinding, PlannedWrite, RepoPath, WriteClass};
+    use crate::frontier_txn::{InputBinding, PlannedWrite, RepoPath, WriteClass};
 
     let journal_dir = policy_transaction_journal_dir(frontier)?;
     let (request_root, operation_id) = protected_policy_operation(&confirmed.plan)?;
@@ -3268,8 +3361,7 @@ where
     {
         return policy_head_from_transaction_result(frontier, &result);
     }
-    let barrier =
-        FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir).map_err(transaction_error)?;
+    let barrier = acquire_policy_write_barrier(frontier, &journal_dir)?;
     let locked = build_protected_policy_decision(
         frontier,
         confirmed.plan.action,
@@ -3625,40 +3717,27 @@ pub(crate) fn cmd_policy_decide(
 /// iff the PR may auto-merge. The floor (replay, signatures, reproduce, hash
 /// parity) is the shared `vela-science/vela` action's job, run before this.
 pub(crate) fn cmd_ci_verdict(frontier: &Path, base: &str, json: bool) {
-    use std::process::Command;
-
-    let git = |args: &[&str]| -> Result<String, String> {
-        let out = Command::new("git")
-            .arg("-C")
-            .arg(frontier)
-            .args(args)
-            .output()
-            .map_err(|e| format!("git: {e}"))?;
-        if !out.status.success() {
-            return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
-        }
-        Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
-    };
+    let context = load_ci_git_context(frontier, base).unwrap_or_else(|error| {
+        fail_with(
+            ErrorKind::Domain,
+            &format!(
+                "CI verdict cannot establish exact Git evidence: {}",
+                crate::cli::safe_text::inline(&error)
+            ),
+            Some("restore the exact base and HEAD objects, then rerun the complete CI floor"),
+        )
+    });
 
     // The frontier's path prefix within the repo ("" at the root), so root-relative
     // diff paths can be compared against the store layout.
-    let prefix = git(&["rev-parse", "--show-prefix"]).unwrap_or_default();
+    let prefix = context.prefix;
     let rel = |p: &str| -> String { p.strip_prefix(&prefix).unwrap_or(p).to_string() };
-
-    if git(&["rev-parse", "--verify", "--quiet", base]).is_err() {
-        fail_with(
-            ErrorKind::NotFound,
-            &format!("base ref '{base}' not found"),
-            Some("CI must fetch it — actions/checkout with fetch-depth: 0"),
-        );
-    }
 
     let mut reasons: Vec<String> = Vec::new();
 
     // (1) ALLOWLIST. A producer PR may add to the append-only store and its
     // derived views; anything else (bounds.json, .github, docs) waits for a human.
-    let changed = git(&["diff", "--name-only", &format!("{base}...HEAD")]).unwrap_or_default();
-    for path in changed.lines().filter(|l| !l.is_empty()) {
+    for path in context.changed.lines().filter(|l| !l.is_empty()) {
         let p = rel(path);
         let allowed = p.starts_with(".vela/")
             || p.starts_with("witnesses/")
@@ -3682,36 +3761,28 @@ pub(crate) fn cmd_ci_verdict(frontier: &Path, base: &str, json: bool) {
                 .map(|v| v.trim().to_string())
         })
     };
-    let base_ver = git(&["show", &format!("{base}:{prefix}vela.lock")])
-        .ok()
-        .and_then(|s| ver_of(&s));
-    let head_ver = std::fs::read_to_string(frontier.join("vela.lock"))
-        .ok()
-        .and_then(|s| ver_of(&s));
-    if let (Some(b), Some(h)) = (&base_ver, &head_ver)
-        && b != h
-    {
-        reasons.push(format!("vela_version changed ({b} -> {h})"));
+    let base_ver = ver_of(&context.base_lock);
+    let head_ver = ver_of(&context.head_lock);
+    match (&base_ver, &head_ver) {
+        (Some(base), Some(head)) if base != head => {
+            reasons.push(format!("vela_version changed ({base} -> {head})"));
+        }
+        (Some(_), Some(_)) => {}
+        (None, _) => reasons.push("base vela.lock has no vela_version pin".to_string()),
+        (_, None) => reasons.push("HEAD vela.lock has no vela_version pin".to_string()),
     }
 
     // (2) NEW PROPOSALS = present at HEAD, absent at base.
-    let base_props: std::collections::HashSet<String> = git(&[
-        "ls-tree",
-        "--name-only",
-        "-r",
-        base,
-        "--",
-        &format!("{prefix}.vela/proposals"),
-    ])
-    .unwrap_or_default()
-    .lines()
-    .filter_map(|p| {
-        std::path::Path::new(p)
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .map(str::to_string)
-    })
-    .collect();
+    let base_props: std::collections::HashSet<String> = context
+        .base_proposals
+        .lines()
+        .filter_map(|p| {
+            std::path::Path::new(p)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .map(str::to_string)
+        })
+        .collect();
 
     let project = repo::load_from_path(frontier)
         .unwrap_or_else(|e| fail_with(ErrorKind::NotFound, &format!("load frontier: {e}"), None));
@@ -4535,6 +4606,169 @@ mod tests {
                 at,
             )
             .is_err()
+        );
+    }
+
+    #[test]
+    fn ci_git_context_fails_closed_on_every_trust_bound_read() {
+        for fail_at in 0..6 {
+            let mut call = 0_usize;
+            let result = load_ci_git_context_with("origin/main", |args| {
+                let current = call;
+                call += 1;
+                if current == fail_at {
+                    return Err(format!("injected Git read failure at step {fail_at}"));
+                }
+                match args.first().copied() {
+                    Some("rev-parse") if args.contains(&"--show-prefix") => Ok(String::new()),
+                    Some("rev-parse") => Ok("a".repeat(40)),
+                    Some("diff") => Ok(".vela/proposals/vpr_new.json".to_string()),
+                    Some("show") => Ok("vela_version: 0.914.0".to_string()),
+                    Some("ls-tree") => Ok(".vela/proposals/vpr_old.json".to_string()),
+                    other => panic!("unexpected CI Git command: {other:?}"),
+                }
+            });
+            let error = match result {
+                Err(error) => error,
+                Ok(_) => panic!("CI Git read failure at step {fail_at} was ignored"),
+            };
+            assert!(
+                error.contains("injected Git read failure"),
+                "unexpected CI Git failure at step {fail_at}: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn protected_policy_and_ci_git_reads_ignore_hostile_environment() {
+        const TEST_NAME: &str = "config::cli_policy::tests::protected_policy_and_ci_git_reads_ignore_hostile_environment";
+        const CHILD_ENV: &str = "VELA_TEST_HOSTILE_POLICY_GIT_CHILD";
+        const SOURCE_ENV: &str = "VELA_TEST_HOSTILE_POLICY_GIT_SOURCE";
+        const DECOY_ENV: &str = "VELA_TEST_HOSTILE_POLICY_GIT_DECOY";
+        const POLICY_ENV: &str = "VELA_TEST_HOSTILE_POLICY_GIT_POLICY";
+        const SOURCE_HEAD_ENV: &str = "VELA_TEST_HOSTILE_POLICY_GIT_SOURCE_HEAD";
+        const SOURCE_TREE_ENV: &str = "VELA_TEST_HOSTILE_POLICY_GIT_SOURCE_TREE";
+        const DECOY_HEAD_ENV: &str = "VELA_TEST_HOSTILE_POLICY_GIT_DECOY_HEAD";
+
+        if std::env::var_os(CHILD_ENV).is_none() {
+            let tmp = TempDir::new().unwrap();
+            let source = init_frontier(&tmp);
+            register_transaction_reviewer(&source);
+            let (policy, _) = draft_policy(&source, "witness-rederivation", false).unwrap();
+            commit_frontier(&source);
+
+            let hostile = TempDir::new().unwrap();
+            let decoy = hostile.path().join("decoy");
+            let clone = std::process::Command::new("git")
+                .args(["clone", "-q"])
+                .arg(&source)
+                .arg(&decoy)
+                .output()
+                .unwrap();
+            assert!(
+                clone.status.success(),
+                "clone decoy: {}",
+                String::from_utf8_lossy(&clone.stderr)
+            );
+
+            std::fs::write(source.join("source-only.txt"), "source anchor\n").unwrap();
+            commit_frontier_changes(&source, "advance protected source");
+            let source_head =
+                crate::git_hardened::text(&source, &["rev-parse", "HEAD^{commit}"]).unwrap();
+            let source_tree =
+                crate::git_hardened::text(&source, &["rev-parse", "HEAD^{tree}"]).unwrap();
+            let decoy_head =
+                crate::git_hardened::text(&decoy, &["rev-parse", "HEAD^{commit}"]).unwrap();
+            assert_ne!(source_head, decoy_head);
+
+            let mut child = std::process::Command::new(std::env::current_exe().unwrap());
+            child.args(["--exact", TEST_NAME, "--nocapture"]);
+            for (name, _) in std::env::vars_os() {
+                if name.to_str().is_some_and(|name| name.starts_with("GIT_")) {
+                    child.env_remove(name);
+                }
+            }
+            child
+                .env(CHILD_ENV, "1")
+                .env(SOURCE_ENV, &source)
+                .env(DECOY_ENV, &decoy)
+                .env(POLICY_ENV, &policy.id)
+                .env(SOURCE_HEAD_ENV, &source_head)
+                .env(SOURCE_TREE_ENV, &source_tree)
+                .env(DECOY_HEAD_ENV, &decoy_head)
+                .env("GIT_DIR", decoy.join(".git"))
+                .env("GIT_WORK_TREE", &decoy)
+                .env("GIT_COMMON_DIR", decoy.join(".git"))
+                .env("GIT_INDEX_FILE", decoy.join(".git/index"))
+                .env("GIT_OBJECT_DIRECTORY", decoy.join(".git/objects"))
+                .env("GIT_CONFIG_COUNT", "2")
+                .env("GIT_CONFIG_KEY_0", "core.bare")
+                .env("GIT_CONFIG_VALUE_0", "true")
+                .env("GIT_CONFIG_KEY_1", "core.worktree")
+                .env("GIT_CONFIG_VALUE_1", &decoy);
+            let output = child.output().unwrap();
+            assert!(
+                output.status.success(),
+                "hostile policy Git child failed:\nstdout:\n{}\nstderr:\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            return;
+        }
+
+        let source = std::path::PathBuf::from(std::env::var_os(SOURCE_ENV).unwrap());
+        let decoy = std::path::PathBuf::from(std::env::var_os(DECOY_ENV).unwrap());
+        let policy_id = std::env::var(POLICY_ENV).unwrap();
+        let source_head = std::env::var(SOURCE_HEAD_ENV).unwrap();
+        let source_tree = std::env::var(SOURCE_TREE_ENV).unwrap();
+        let decoy_head = std::env::var(DECOY_HEAD_ENV).unwrap();
+
+        let prepared = build_protected_policy_decision(
+            &source,
+            vela_signer::PolicyDecisionAction::Activate,
+            &policy_id,
+            "reviewer:test",
+            "bind the named source rather than an ambient Git repository",
+            "2026-12-01T00:00:00Z",
+        )
+        .unwrap();
+        assert_eq!(prepared.plan.git_commit, source_head);
+        assert_eq!(prepared.plan.git_tree, source_tree);
+        assert_ne!(prepared.plan.git_commit, decoy_head);
+
+        let ci = load_ci_git_context(&source, "HEAD^").unwrap();
+        assert_eq!(
+            trust_bound_git_value(&source, &["rev-parse", "HEAD^{commit}"]).unwrap(),
+            source_head,
+            "CI Git reads followed ambient GIT_DIR instead of the named frontier"
+        );
+        assert_eq!(
+            ci.changed, "source-only.txt",
+            "CI diff discovery followed the ambient repository"
+        );
+        assert!(ci.base_lock.contains("vela_version:"));
+        assert!(ci.head_lock.contains("vela_version:"));
+
+        std::fs::write(source.join("source-only.txt"), "uncommitted source drift\n").unwrap();
+        let error = match build_protected_policy_decision(
+            &source,
+            vela_signer::PolicyDecisionAction::Activate,
+            &policy_id,
+            "reviewer:test",
+            "dirty source must fail before protected authorization",
+            "2026-12-01T00:00:00Z",
+        ) {
+            Err(error) => error,
+            Ok(_) => panic!("dirty protected-policy source unexpectedly produced a plan"),
+        };
+        assert!(
+            error.message.contains("clean tracked frontier checkout"),
+            "unexpected protected-policy dirt failure: {}",
+            error.message
+        );
+        assert!(
+            !decoy.join("source-only.txt").exists(),
+            "protected policy inspection wrote into the redirected decoy"
         );
     }
 

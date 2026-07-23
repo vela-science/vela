@@ -33,12 +33,652 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import re
 import sys
+import unicodedata
 from copy import deepcopy
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
-from typing import Any
+
+
+# ── Signed repository-boundary validation ───────────────────────────
+#
+# `frontier.repository_bound` is reducer-neutral but not validation-neutral.
+# Before the no-op is applied, every implementation verifies the canonical
+# event envelope, content address, v1 Ed25519 signature, and one linear
+# repository-identity chain. This implementation stays stdlib-only; the small
+# Ed25519 verifier below implements the RFC 8032 verification equation solely
+# for public conformance verification.
+
+_BOUNDARY_SCHEMA = "vela.frontier-repository-boundary.v1"
+_FRONTIER_CREATED_SCHEMA_V1 = "vela.frontier-created.v1"
+_FRONTIER_PROFILE_SCHEMA_V1 = "vela.frontier-profile.v1"
+_FRONTIER_IDENTITY_SCHEMA_V1 = "vela.frontier-identity.v1"
+_EVENT_SCHEMA = "vela.event.v0.1"
+_NULL_HASH = "sha256:null"
+_EVENT_PAYLOAD_TYPE = "application/vnd.vela.event+json"
+_SHA256_ROOT = re.compile(r"^sha256:[0-9a-f]{64}$")
+_LOWER_HEX_64 = re.compile(r"^[0-9a-f]{64}$")
+_FRONTIER_ID = re.compile(r"^vfr_[0-9a-f]{16}$")
+_RFC3339 = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$"
+)
+_BOUNDARY_PAYLOAD_KEYS = {
+    "schema",
+    "mode",
+    "frontier_id",
+    "identity_root",
+    "observed_profile_root",
+    "dependency_root",
+    "dependencies",
+    "previous_identity_event_root",
+    "legacy_identity_preimage_root",
+    "administrator_actor_id",
+    "administrator_public_key",
+    "administrator_algorithm",
+    "trust_mode",
+    "git_object_format",
+    "anchor_git_commit",
+    "anchor_git_tree",
+    "anchor_event_log_root",
+    "anchor_event_count",
+    "anchor_snapshot_root",
+    "anchor_snapshot_schema",
+    "anchor_proposal_root",
+    "anchor_actor_registry_root",
+    "anchor_artifact_registry_root",
+    "anchor_canonical_store_root",
+}
+_DEPENDENCY_KEYS = {
+    "frontier_id",
+    "identity_root",
+    "scientific_state_root",
+    "git_object_format",
+    "git_commit",
+    "git_tree",
+}
+_FRONTIER_CREATED_PAYLOAD_KEYS = {
+    "schema",
+    "name_at_creation",
+    "creator",
+    "profile_schema",
+    "dependency_root",
+    "created_at",
+}
+_BOUNDARY_CASE_IDS = {
+    "valid_linear_chain",
+    "valid_native_genesis_chain",
+    "missing_native_genesis",
+    "invalid_native_genesis",
+    "unsigned",
+    "corrupt_signature",
+    "event_id_drift",
+    "fixed_envelope_drift",
+    "empty_reason",
+    "invalid_timestamp",
+    "missing_parent",
+    "fork",
+    "rollback",
+}
+
+
+def _canonical_json_bytes(value: object) -> bytes:
+    return json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+
+
+def _sha256_root(value: object) -> str:
+    return "sha256:" + hashlib.sha256(_canonical_json_bytes(value)).hexdigest()
+
+
+def _event_content(event: dict) -> dict:
+    return {
+        "schema": event.get("schema"),
+        "kind": event.get("kind"),
+        "target": event.get("target"),
+        "actor": event.get("actor"),
+        "timestamp": event.get("timestamp"),
+        "reason": event.get("reason"),
+        "before_hash": event.get("before_hash"),
+        "after_hash": event.get("after_hash"),
+        "payload": event.get("payload"),
+        "caveats": event.get("caveats"),
+    }
+
+
+def _event_content_root(event: dict) -> str:
+    return _sha256_root(_event_content(event))
+
+
+def _event_id(event: dict) -> str:
+    return "vev_" + _event_content_root(event)[7:23]
+
+
+def _event_signing_bytes(event: dict, version: str) -> bytes:
+    body = _canonical_json_bytes(
+        {
+            "schema": event.get("schema"),
+            "id": event.get("id"),
+            "kind": event.get("kind"),
+            "target": event.get("target"),
+            "actor": event.get("actor"),
+            "timestamp": event.get("timestamp"),
+            "reason": event.get("reason"),
+            "before_hash": event.get("before_hash"),
+            "after_hash": event.get("after_hash"),
+            "payload": event.get("payload"),
+            "caveats": event.get("caveats"),
+        }
+    )
+    if version == "v0":
+        return body
+    media = _EVENT_PAYLOAD_TYPE.encode("ascii")
+    return b"".join(
+        (
+            b"DSSEv1 ",
+            str(len(media)).encode("ascii"),
+            b" ",
+            media,
+            b" ",
+            str(len(body)).encode("ascii"),
+            b" ",
+            body,
+        )
+    )
+
+
+# RFC 8032 verification in extended Edwards coordinates. This is intentionally
+# verification-only: no private key material or signing surface exists here.
+_ED_Q = 2**255 - 19
+_ED_L = 2**252 + 27742317777372353535851937790883648493
+_ED_D = (-121665 * pow(121666, _ED_Q - 2, _ED_Q)) % _ED_Q
+_ED_I = pow(2, (_ED_Q - 1) // 4, _ED_Q)
+
+
+def _ed_xrecover(y: int) -> int:
+    x2 = (y * y - 1) * pow(_ED_D * y * y + 1, _ED_Q - 2, _ED_Q)
+    x = pow(x2 % _ED_Q, (_ED_Q + 3) // 8, _ED_Q)
+    if (x * x - x2) % _ED_Q != 0:
+        x = (x * _ED_I) % _ED_Q
+    if (x * x - x2) % _ED_Q != 0:
+        raise ValueError("invalid Ed25519 point")
+    return x
+
+
+def _ed_decode(encoded: bytes) -> tuple[int, int, int, int]:
+    if len(encoded) != 32:
+        raise ValueError("Ed25519 point must be 32 bytes")
+    raw = int.from_bytes(encoded, "little")
+    sign = raw >> 255
+    y = raw & ((1 << 255) - 1)
+    if y >= _ED_Q:
+        raise ValueError("non-canonical Ed25519 point")
+    x = _ed_xrecover(y)
+    if (x & 1) != sign:
+        x = _ED_Q - x
+    if x == 0 and sign:
+        raise ValueError("non-canonical Ed25519 sign bit")
+    if (-x * x + y * y - 1 - _ED_D * x * x * y * y) % _ED_Q != 0:
+        raise ValueError("Ed25519 point is not on the curve")
+    return (x, y, 1, (x * y) % _ED_Q)
+
+
+def _ed_add(
+    left: tuple[int, int, int, int], right: tuple[int, int, int, int]
+) -> tuple[int, int, int, int]:
+    x1, y1, z1, t1 = left
+    x2, y2, z2, t2 = right
+    a = ((y1 - x1) * (y2 - x2)) % _ED_Q
+    b = ((y1 + x1) * (y2 + x2)) % _ED_Q
+    c = (2 * _ED_D * t1 * t2) % _ED_Q
+    d = (2 * z1 * z2) % _ED_Q
+    e = (b - a) % _ED_Q
+    f = (d - c) % _ED_Q
+    g = (d + c) % _ED_Q
+    h = (b + a) % _ED_Q
+    return (e * f % _ED_Q, g * h % _ED_Q, f * g % _ED_Q, e * h % _ED_Q)
+
+
+def _ed_scalarmult(
+    point: tuple[int, int, int, int], scalar: int
+) -> tuple[int, int, int, int]:
+    result = (0, 1, 1, 0)
+    addend = point
+    while scalar:
+        if scalar & 1:
+            result = _ed_add(result, addend)
+        addend = _ed_add(addend, addend)
+        scalar >>= 1
+    return result
+
+
+def _ed_equal(
+    left: tuple[int, int, int, int], right: tuple[int, int, int, int]
+) -> bool:
+    return (
+        (left[0] * right[2] - right[0] * left[2]) % _ED_Q == 0
+        and (left[1] * right[2] - right[1] * left[2]) % _ED_Q == 0
+    )
+
+
+_ED_BASE_Y = (4 * pow(5, _ED_Q - 2, _ED_Q)) % _ED_Q
+_ED_BASE_X = _ed_xrecover(_ED_BASE_Y)
+if _ED_BASE_X & 1:
+    _ED_BASE_X = _ED_Q - _ED_BASE_X
+_ED_BASE = (_ED_BASE_X, _ED_BASE_Y, 1, _ED_BASE_X * _ED_BASE_Y % _ED_Q)
+
+
+def _verify_ed25519(public_key: bytes, message: bytes, signature: bytes) -> bool:
+    if len(public_key) != 32 or len(signature) != 64:
+        return False
+    scalar = int.from_bytes(signature[32:], "little")
+    if scalar >= _ED_L:
+        return False
+    try:
+        public_point = _ed_decode(public_key)
+        signature_point = _ed_decode(signature[:32])
+    except ValueError:
+        return False
+    challenge = int.from_bytes(
+        hashlib.sha512(signature[:32] + public_key + message).digest(), "little"
+    ) % _ED_L
+    return _ed_equal(
+        _ed_scalarmult(_ED_BASE, scalar),
+        _ed_add(signature_point, _ed_scalarmult(public_point, challenge)),
+    )
+
+
+def _require_text(field: str, value: object) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field} must be non-empty text")
+    if unicodedata.normalize("NFC", value) != value:
+        raise ValueError(f"{field} must already be Unicode NFC")
+    if any(unicodedata.category(char) == "Cc" for char in value):
+        raise ValueError(f"{field} contains a forbidden control character")
+    return value
+
+
+def _require_root(field: str, value: object) -> str:
+    if not isinstance(value, str) or _SHA256_ROOT.fullmatch(value) is None:
+        raise ValueError(f"{field} must be a full lowercase sha256 root")
+    return value
+
+
+def _require_git_object(field: str, value: object, object_format: str) -> str:
+    length = 40 if object_format == "sha1" else 64 if object_format == "sha256" else 0
+    if (
+        length == 0
+        or not isinstance(value, str)
+        or re.fullmatch(rf"[0-9a-f]{{{length}}}", value) is None
+    ):
+        raise ValueError(f"{field} is not a lowercase {object_format} Git object")
+    return value
+
+
+def _validate_dependency(dependency: object) -> tuple[str, str]:
+    if not isinstance(dependency, dict) or set(dependency) != _DEPENDENCY_KEYS:
+        raise ValueError("repository boundary dependency has an open or incomplete shape")
+    frontier_id = dependency.get("frontier_id")
+    if not isinstance(frontier_id, str) or _FRONTIER_ID.fullmatch(frontier_id) is None:
+        raise ValueError("dependency.frontier_id is invalid")
+    identity_root = _require_root("dependency.identity_root", dependency.get("identity_root"))
+    _require_root(
+        "dependency.scientific_state_root", dependency.get("scientific_state_root")
+    )
+    object_format = dependency.get("git_object_format")
+    if object_format not in ("sha1", "sha256"):
+        raise ValueError("dependency.git_object_format is invalid")
+    _require_git_object("dependency.git_commit", dependency.get("git_commit"), object_format)
+    _require_git_object("dependency.git_tree", dependency.get("git_tree"), object_format)
+    return (frontier_id, identity_root)
+
+
+def _validate_boundary_payload(payload: object) -> dict:
+    if not isinstance(payload, dict) or set(payload) != _BOUNDARY_PAYLOAD_KEYS:
+        raise ValueError("repository boundary payload has an open or incomplete shape")
+    if payload.get("schema") != _BOUNDARY_SCHEMA:
+        raise ValueError("repository boundary payload schema mismatch")
+    mode = payload.get("mode")
+    trust_mode = payload.get("trust_mode")
+    if mode not in ("temporalize_existing", "update_dependencies"):
+        raise ValueError("repository boundary mode is invalid")
+    if trust_mode not in ("tofu", "genesis", "previous_boundary"):
+        raise ValueError("repository boundary trust_mode is invalid")
+    frontier_id = payload.get("frontier_id")
+    if not isinstance(frontier_id, str) or _FRONTIER_ID.fullmatch(frontier_id) is None:
+        raise ValueError("repository boundary frontier_id is invalid")
+    for field_name in (
+        "identity_root",
+        "observed_profile_root",
+        "dependency_root",
+        "anchor_event_log_root",
+        "anchor_snapshot_root",
+        "anchor_proposal_root",
+        "anchor_actor_registry_root",
+        "anchor_artifact_registry_root",
+        "anchor_canonical_store_root",
+    ):
+        _require_root(f"payload.{field_name}", payload.get(field_name))
+    for field_name in ("previous_identity_event_root", "legacy_identity_preimage_root"):
+        if payload.get(field_name) is not None:
+            _require_root(f"payload.{field_name}", payload.get(field_name))
+    dependencies = payload.get("dependencies")
+    if not isinstance(dependencies, list):
+        raise ValueError("payload.dependencies must be an array")
+    dependency_keys = [_validate_dependency(dependency) for dependency in dependencies]
+    if dependency_keys != sorted(dependency_keys) or len(set(dependency_keys)) != len(
+        dependency_keys
+    ):
+        raise ValueError("payload.dependencies must be uniquely sorted")
+    if _sha256_root(dependencies) != payload.get("dependency_root"):
+        raise ValueError("payload.dependency_root does not match dependencies")
+    actor_id = payload.get("administrator_actor_id")
+    if not isinstance(actor_id, str) or not actor_id.startswith(("reviewer:", "steward:")):
+        raise ValueError("payload administrator must be a reviewer or steward")
+    public_key = payload.get("administrator_public_key")
+    if not isinstance(public_key, str) or _LOWER_HEX_64.fullmatch(public_key) is None:
+        raise ValueError("payload administrator public key is invalid")
+    if payload.get("administrator_algorithm") != "ed25519":
+        raise ValueError("payload administrator algorithm must be ed25519")
+    object_format = payload.get("git_object_format")
+    if object_format not in ("sha1", "sha256"):
+        raise ValueError("payload.git_object_format is invalid")
+    _require_git_object("payload.anchor_git_commit", payload.get("anchor_git_commit"), object_format)
+    _require_git_object("payload.anchor_git_tree", payload.get("anchor_git_tree"), object_format)
+    count = payload.get("anchor_event_count")
+    if not isinstance(count, int) or isinstance(count, bool) or count <= 0:
+        raise ValueError("payload.anchor_event_count must be positive")
+    _require_text("payload.anchor_snapshot_schema", payload.get("anchor_snapshot_schema"))
+
+    if mode == "temporalize_existing":
+        if (
+            trust_mode != "tofu"
+            or payload.get("previous_identity_event_root") is not None
+            or payload.get("legacy_identity_preimage_root") is None
+        ):
+            raise ValueError("temporal boundary trust fields are inconsistent")
+        legacy_origin = {
+            "schema": "vela.legacy-frontier-origin.v1",
+            "frontier_id": frontier_id,
+            "legacy_identity_preimage_root": payload["legacy_identity_preimage_root"],
+            "git_object_format": object_format,
+            "anchor_git_commit": payload["anchor_git_commit"],
+            "anchor_git_tree": payload["anchor_git_tree"],
+            "anchor_event_log_root": payload["anchor_event_log_root"],
+            "anchor_event_count": count,
+        }
+        origin_commitment = _sha256_root(legacy_origin)
+        identity = {
+            "schema": "vela.frontier-identity.v1",
+            "frontier_id": frontier_id,
+            "origin": "legacy_boundary",
+            "origin_commitment": origin_commitment,
+            "legacy_identity_preimage_root": payload["legacy_identity_preimage_root"],
+        }
+        if _sha256_root(identity) != payload.get("identity_root"):
+            raise ValueError("temporal boundary identity_root is invalid")
+    elif (
+        trust_mode not in ("genesis", "previous_boundary")
+        or payload.get("previous_identity_event_root") is None
+    ):
+        raise ValueError("dependency update trust fields are inconsistent")
+    return payload
+
+
+def _validate_boundary_event(event: object) -> tuple[dict, str]:
+    if not isinstance(event, dict):
+        raise ValueError("repository boundary event must be an object")
+    if event.get("schema") != _EVENT_SCHEMA or event.get("kind") != "frontier.repository_bound":
+        raise ValueError("repository boundary event schema or kind mismatch")
+    if event.get("id") != _event_id(event):
+        raise ValueError("repository boundary event id does not match canonical content")
+    target = event.get("target")
+    actor = event.get("actor")
+    if not isinstance(target, dict) or target.get("type") != "frontier":
+        raise ValueError("repository boundary target.type must be frontier")
+    if not isinstance(actor, dict) or actor.get("type") != "human":
+        raise ValueError("repository boundary actor.type must be human")
+    if event.get("before_hash") != _NULL_HASH or event.get("after_hash") != _NULL_HASH:
+        raise ValueError("repository boundary must use null before_hash and after_hash")
+    _require_text("event.reason", event.get("reason"))
+    timestamp = event.get("timestamp")
+    if not isinstance(timestamp, str) or _RFC3339.fullmatch(timestamp) is None:
+        raise ValueError("repository boundary timestamp must be RFC3339")
+    try:
+        datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise ValueError("repository boundary timestamp must be RFC3339") from error
+    caveats = event.get("caveats")
+    if not isinstance(caveats, list) or not all(isinstance(item, str) for item in caveats):
+        raise ValueError("repository boundary caveats must be strings")
+    payload = _validate_boundary_payload(event.get("payload"))
+    if target.get("id") != payload["frontier_id"]:
+        raise ValueError("repository boundary target does not match payload frontier")
+    if actor.get("id") != payload["administrator_actor_id"]:
+        raise ValueError("repository boundary actor does not match payload administrator")
+    raw_signature = event.get("signature")
+    if not isinstance(raw_signature, str):
+        raise ValueError("repository boundary must carry an event signature")
+    if raw_signature.startswith("v1:"):
+        version, signature_hex = "v1", raw_signature[3:]
+    else:
+        version, signature_hex = "v0", raw_signature
+    if re.fullmatch(r"[0-9a-f]{128}", signature_hex) is None:
+        raise ValueError("repository boundary signature encoding is invalid")
+    if not _verify_ed25519(
+        bytes.fromhex(payload["administrator_public_key"]),
+        _event_signing_bytes(event, version),
+        bytes.fromhex(signature_hex),
+    ):
+        raise ValueError("repository boundary event signature does not verify")
+    return payload, _event_content_root(event)
+
+
+def _validate_profile_v1_genesis_event(event: object) -> tuple[dict, str]:
+    if not isinstance(event, dict):
+        raise ValueError("Profile v1 frontier.created must be an object")
+    if event.get("schema") != _EVENT_SCHEMA or event.get("kind") != "frontier.created":
+        raise ValueError("Profile v1 frontier.created schema or kind mismatch")
+    if event.get("id") != _event_id(event):
+        raise ValueError("Profile v1 frontier.created id does not match canonical content")
+    target = event.get("target")
+    actor = event.get("actor")
+    if (
+        not isinstance(target, dict)
+        or target.get("type") != "frontier"
+        or not isinstance(actor, dict)
+        or actor.get("type") != "frontier"
+    ):
+        raise ValueError("Profile v1 frontier.created target and actor must be frontiers")
+    if event.get("before_hash") != _NULL_HASH or event.get("after_hash") != _NULL_HASH:
+        raise ValueError("Profile v1 frontier.created must use null state hashes")
+    if event.get("signature") is not None or event.get("caveats") != []:
+        raise ValueError("Profile v1 frontier.created must be unsigned and carry no caveats")
+
+    payload = event.get("payload")
+    if not isinstance(payload, dict) or set(payload) != _FRONTIER_CREATED_PAYLOAD_KEYS:
+        raise ValueError("Profile v1 frontier.created payload has an open or incomplete shape")
+    if payload.get("schema") != _FRONTIER_CREATED_SCHEMA_V1:
+        raise ValueError("Profile v1 frontier.created payload schema mismatch")
+    name = payload.get("name_at_creation")
+    creator = payload.get("creator")
+    if not isinstance(name, str) or not name or not isinstance(creator, str) or not creator:
+        raise ValueError("Profile v1 frontier.created identity text is invalid")
+    if payload.get("profile_schema") != _FRONTIER_PROFILE_SCHEMA_V1:
+        raise ValueError("Profile v1 frontier.created profile schema mismatch")
+    if payload.get("dependency_root") != _sha256_root([]):
+        raise ValueError("Profile v1 frontier.created dependency root is not empty")
+    created_at = payload.get("created_at")
+    if not isinstance(created_at, str) or _RFC3339.fullmatch(created_at) is None:
+        raise ValueError("Profile v1 frontier.created created_at must be RFC3339")
+    try:
+        datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise ValueError("Profile v1 frontier.created created_at must be RFC3339") from error
+    if (
+        target.get("id") != name
+        or actor.get("id") != creator
+        or event.get("timestamp") != created_at
+    ):
+        raise ValueError("Profile v1 frontier.created identity disagrees with its event core")
+
+    root = _event_content_root(event)
+    frontier_id = "vfr_" + root[7:23]
+    identity = {
+        "schema": _FRONTIER_IDENTITY_SCHEMA_V1,
+        "frontier_id": frontier_id,
+        "origin": "genesis",
+        "origin_commitment": root,
+        "legacy_identity_preimage_root": None,
+    }
+    return (
+        {
+            "frontier_id": frontier_id,
+            "identity_root": _sha256_root(identity),
+        },
+        root,
+    )
+
+
+def _validate_repository_boundary_event_set(events: object) -> None:
+    if not isinstance(events, list):
+        raise ValueError("repository boundary event set must be an array")
+    boundaries: dict[str, tuple[dict, dict]] = {}
+    for event in events:
+        if not isinstance(event, dict) or event.get("kind") != "frontier.repository_bound":
+            continue
+        payload, root = _validate_boundary_event(event)
+        if root in boundaries:
+            raise ValueError("duplicate repository boundary content root")
+        boundaries[root] = (event, payload)
+    if not boundaries:
+        return
+
+    genesis: dict[str, tuple[dict, dict]] = {}
+    for event in events:
+        if (
+            not isinstance(event, dict)
+            or event.get("kind") != "frontier.created"
+            or not isinstance(event.get("payload"), dict)
+            or event["payload"].get("schema") != _FRONTIER_CREATED_SCHEMA_V1
+        ):
+            continue
+        identity, root = _validate_profile_v1_genesis_event(event)
+        if root in genesis:
+            raise ValueError("duplicate Profile v1 frontier.created content root")
+        genesis[root] = (event, identity)
+    if len(genesis) > 1:
+        raise ValueError("repository boundary graph has multiple Profile v1 genesis events")
+
+    roots = 0
+    children: dict[str, list[str]] = {}
+    for root, (_, payload) in boundaries.items():
+        if payload["mode"] == "temporalize_existing":
+            roots += 1
+            if genesis:
+                raise ValueError(
+                    "legacy temporal boundary cannot coexist with Profile v1 frontier.created"
+                )
+            continue
+        parent_root = payload["previous_identity_event_root"]
+        children.setdefault(parent_root, []).append(root)
+        parent = boundaries.get(parent_root)
+        native_parent = genesis.get(parent_root)
+        if parent is None and native_parent is None:
+            raise ValueError("repository boundary references a missing identity parent")
+        if native_parent is not None:
+            roots += 1
+            identity = native_parent[1]
+            if payload["trust_mode"] != "genesis":
+                raise ValueError("frontier.created parent requires genesis trust")
+            if (
+                payload["frontier_id"] != identity["frontier_id"]
+                or payload["identity_root"] != identity["identity_root"]
+                or payload["legacy_identity_preimage_root"] is not None
+            ):
+                raise ValueError(
+                    "genesis-chained boundary changed the derived Frontier identity"
+                )
+            continue
+        assert parent is not None
+        previous = parent[1]
+        if payload["trust_mode"] != "previous_boundary":
+            raise ValueError("repository boundary parent requires previous_boundary trust")
+        if payload["anchor_event_count"] <= previous["anchor_event_count"]:
+            raise ValueError("repository boundary anchor_event_count did not advance")
+        for field_name in (
+            "frontier_id",
+            "identity_root",
+            "legacy_identity_preimage_root",
+            "administrator_actor_id",
+            "administrator_public_key",
+            "administrator_algorithm",
+        ):
+            if payload[field_name] != previous[field_name]:
+                raise ValueError("repository boundary changed immutable identity fields")
+    if any(len(values) > 1 for values in children.values()):
+        raise ValueError("repository boundary graph contains a fork")
+    if roots != 1:
+        raise ValueError("repository boundary graph must have exactly one root")
+    for start in boundaries:
+        current = start
+        visited: set[str] = set()
+        while current in boundaries:
+            if current in visited:
+                raise ValueError("repository boundary graph contains a cycle")
+            visited.add(current)
+            payload = boundaries[current][1]
+            if payload["mode"] == "temporalize_existing":
+                break
+            parent = payload["previous_identity_event_root"]
+            if parent in genesis:
+                break
+            current = parent
+
+
+def _verify_repository_boundary_contract(fixture: dict) -> None:
+    event_log = fixture.get("event_log") or []
+    if any(
+        isinstance(event, dict) and event.get("kind") == "frontier.repository_bound"
+        for event in event_log
+    ):
+        _validate_repository_boundary_event_set(event_log)
+    vectors = fixture.get("repository_boundary_validation")
+    if fixture.get("scenario") != "frontier_repository_bound":
+        if vectors is not None:
+            raise ValueError("repository boundary vectors appear on the wrong fixture")
+        return
+    if (
+        not isinstance(vectors, dict)
+        or vectors.get("schema") != "vela.frontier-repository-boundary-conformance.v1"
+        or vectors.get("signature_version") != "v1"
+    ):
+        raise ValueError("repository boundary conformance vectors are missing")
+    cases = vectors.get("cases")
+    if not isinstance(cases, list):
+        raise ValueError("repository boundary conformance cases are missing")
+    case_ids = {
+        case.get("id") for case in cases if isinstance(case, dict)
+    }
+    if case_ids != _BOUNDARY_CASE_IDS or len(cases) != len(_BOUNDARY_CASE_IDS):
+        raise ValueError("repository boundary conformance case inventory drifted")
+    for case in cases:
+        if not isinstance(case, dict) or not isinstance(case.get("expected_valid"), bool):
+            raise ValueError("repository boundary conformance case is malformed")
+        try:
+            _validate_repository_boundary_event_set(case.get("events"))
+            actual_valid = True
+        except ValueError:
+            actual_valid = False
+        if actual_valid is not case["expected_valid"]:
+            raise ValueError(
+                f"repository boundary case {case.get('id')!r} "
+                f"expected valid={case['expected_valid']}, got {actual_valid}"
+            )
 
 
 # ── Per-kind reducer rules ─────────────────────────────────────────────
@@ -557,6 +1197,7 @@ def apply_event(state: dict, event: dict) -> None:
         "review.revision_requested",
         "actor.registration_activated",
         "proposal.withdrawn",
+        "frontier.repository_bound",
     ):
         return
     # policy.auto_admitted (Phase 1A): deterministic machine-verified admission
@@ -802,6 +1443,12 @@ def verify_fixture(path: Path) -> FixtureResult:
     event_log = fx.get("event_log") or []
     expected_findings = fx.get("expected_states") or []
     expected_artifacts = fx.get("expected_artifacts") or []
+
+    try:
+        _verify_repository_boundary_contract(fx)
+    except ValueError as e:
+        result.error = f"repository boundary conformance error: {e}"
+        return result
 
     for event in event_log:
         try:

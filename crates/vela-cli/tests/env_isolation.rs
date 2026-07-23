@@ -2,7 +2,7 @@
 //!
 //! Regression tests for the working-tree `.env` injection: `dotenvy`
 //! used to ancestor-walk from cwd, so a frontier repo could commit a
-//! `.env` that silently set VELA_ACTOR_ID / VELA_HUB_URL /
+//! `.env` that silently set VELA_ACTOR_ID / VELA_KEY_PATH /
 //! VELA_NO_PUBLISH for anyone running vela inside it — the attack
 //! class git's protected configuration and Codex's project-scope key
 //! blocking exist for. The CLI now reads NO .env from the working

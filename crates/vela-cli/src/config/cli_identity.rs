@@ -3,23 +3,20 @@
 //! Signed commands can resolve a key and actor from one local identity.
 //!
 //! A `vela id create` writes a single profile to `~/.vela/identity.json`:
-//! the generated key and actor id. Routing and publication preferences live in
-//! `config.toml`, not in identity state.
+//! the generated key and actor id. User preferences live in
+//! `~/.vela/config.toml`, not in identity state.
 //!
 //! Precedence for every resolver: an explicit flag wins, then a `VELA_*`
 //! environment variable, then the stored profile. Nothing is silent: when
 //! none resolves, the error names the exact next command to run.
 
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use ed25519_dalek::SigningKey;
 use serde::{Deserialize, Serialize};
 
 use crate::cli::{fail_return, parse_signing_key};
-
-/// The default public hub. Matches the constant baked into the registry
-/// commands so an unconfigured user still reaches the live hub.
-pub(crate) const DEFAULT_HUB: &str = "https://hub.constellate.science";
 
 /// One stored identity. Written to `~/.vela/identity.json`. The private
 /// key itself lives in its own file (`key_path`), never inline here, so
@@ -114,6 +111,106 @@ pub(crate) fn load_identity() -> Option<Identity> {
     let path = identity_path();
     let text = std::fs::read_to_string(&path).ok()?;
     serde_json::from_str(&text).ok()
+}
+
+/// Load security-sensitive identity metadata from the operating-system
+/// account home, never from `HOME`. Administration commands use this reader
+/// so an injected environment or symlink cannot substitute an identity file.
+pub(crate) fn load_administrative_identity() -> Result<Identity, String> {
+    let home =
+        crate::frontier_txn::operating_system_account_home().map_err(|error| error.to_string())?;
+    load_administrative_identity_from_home(&home)
+}
+
+fn load_administrative_identity_from_home(home: &Path) -> Result<Identity, String> {
+    let vela_directory = home.join(".vela");
+    let directory_metadata = std::fs::symlink_metadata(&vela_directory).map_err(|error| {
+        format!(
+            "inspect administrative identity directory '{}': {error}",
+            vela_directory.display()
+        )
+    })?;
+    if directory_metadata.file_type().is_symlink() || !directory_metadata.is_dir() {
+        return Err("administrative identity directory must be a real directory".to_string());
+    }
+
+    let path = vela_directory.join("identity.json");
+    let linked = std::fs::symlink_metadata(&path).map_err(|error| {
+        format!(
+            "inspect administrative identity '{}': {error}",
+            path.display()
+        )
+    })?;
+    if linked.file_type().is_symlink() || !linked.is_file() {
+        return Err("administrative identity must be a regular non-symlink file".to_string());
+    }
+    reject_insecure_administrative_identity(&path, &linked)?;
+
+    let inspected = same_file::Handle::from_path(&path)
+        .map_err(|error| format!("identify administrative identity: {error}"))?;
+    let mut file = std::fs::File::open(&path)
+        .map_err(|error| format!("open administrative identity: {error}"))?;
+    let opened = same_file::Handle::from_file(
+        file.try_clone()
+            .map_err(|error| format!("clone administrative identity descriptor: {error}"))?,
+    )
+    .map_err(|error| format!("identify open administrative identity: {error}"))?;
+    if inspected != opened {
+        return Err("administrative identity changed while it was opened".to_string());
+    }
+    let mut bytes = Vec::new();
+    file.by_ref()
+        .take(64 * 1024 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("read administrative identity: {error}"))?;
+    if bytes.len() > 64 * 1024 {
+        return Err("administrative identity is unexpectedly large".to_string());
+    }
+    let final_link = std::fs::symlink_metadata(&path)
+        .map_err(|error| format!("reinspect administrative identity: {error}"))?;
+    let final_identity = same_file::Handle::from_path(&path)
+        .map_err(|error| format!("reidentify administrative identity: {error}"))?;
+    if final_link.file_type().is_symlink() || !final_link.is_file() || opened != final_identity {
+        return Err("administrative identity changed while it was read".to_string());
+    }
+    reject_insecure_administrative_identity(&path, &final_link)?;
+    serde_json::from_slice(&bytes).map_err(|error| {
+        format!(
+            "parse administrative identity '{}': {error}",
+            path.display()
+        )
+    })
+}
+
+#[cfg(unix)]
+fn reject_insecure_administrative_identity(
+    path: &Path,
+    metadata: &std::fs::Metadata,
+) -> Result<(), String> {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+    let owner = rustix::process::geteuid().as_raw();
+    if metadata.uid() != owner {
+        return Err(format!(
+            "administrative identity '{}' is not owned by the current operating-system account",
+            path.display()
+        ));
+    }
+    if metadata.permissions().mode() & 0o077 != 0 {
+        return Err(format!(
+            "administrative identity '{}' must not be accessible by group or others",
+            path.display()
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn reject_insecure_administrative_identity(
+    _path: &Path,
+    _metadata: &std::fs::Metadata,
+) -> Result<(), String> {
+    Ok(())
 }
 
 /// Persist an identity, creating `~/.vela` if needed.
@@ -328,7 +425,9 @@ fn platform_signer_integration(platform: &str) -> (&'static str, bool, Option<St
     }
 }
 
-fn protected_signer_profile_for(identity: &Identity) -> Result<ProtectedSignerProfile, String> {
+pub(crate) fn protected_signer_profile_for(
+    identity: &Identity,
+) -> Result<ProtectedSignerProfile, String> {
     let expected_key_id = format!("{}:{}", identity.actor_id, identity.pubkey);
     match &identity.signer {
         Some(IdentitySigner::Helper {
@@ -472,6 +571,19 @@ pub(crate) fn resolve_co_author_provenance(
 mod protected_profile_tests {
     use super::*;
 
+    fn write_private_administrative_identity(home: &Path, value: &Identity) -> PathBuf {
+        let directory = home.join(".vela");
+        std::fs::create_dir_all(&directory).unwrap();
+        let path = directory.join("identity.json");
+        std::fs::write(&path, serde_json::to_vec(value).unwrap()).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        }
+        path
+    }
+
     fn identity() -> Identity {
         let public_key = "4".repeat(64);
         Identity {
@@ -557,5 +669,34 @@ mod protected_profile_tests {
         }
         let error = protected_signer_profile_for(&incomplete).unwrap_err();
         assert!(error.contains("migration is incomplete"));
+    }
+
+    #[test]
+    fn administrative_identity_reader_accepts_only_private_regular_files() {
+        let home = tempfile::tempdir().unwrap();
+        let path = write_private_administrative_identity(home.path(), &identity());
+        assert_eq!(
+            load_administrative_identity_from_home(home.path())
+                .unwrap()
+                .actor_id,
+            "reviewer:test"
+        );
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::{PermissionsExt, symlink};
+
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+            let error = load_administrative_identity_from_home(home.path()).unwrap_err();
+            assert!(error.contains("group or others"), "{error}");
+
+            let external = tempfile::tempdir().unwrap();
+            let target = external.path().join("identity.json");
+            std::fs::copy(&path, &target).unwrap();
+            std::fs::remove_file(&path).unwrap();
+            symlink(&target, &path).unwrap();
+            let error = load_administrative_identity_from_home(home.path()).unwrap_err();
+            assert!(error.contains("regular non-symlink"), "{error}");
+        }
     }
 }
