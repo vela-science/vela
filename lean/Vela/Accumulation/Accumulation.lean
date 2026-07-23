@@ -1,35 +1,21 @@
 /-!
-# Succinct accumulation of verified scientific state (the scaling core of PoVD)
+# Historical trusted-fold invariant model
 
-`PoVD.lean` proves the anti-gaming core of permissionless accumulation, but its honest gap is the same
-one Bitcoin's headers/SPV closed: deciding "this is the true verified frontier" by replaying the
-accepted-delta history is O(history) — every verifier is re-run. Bitcoin's *scale* came from
-verification being cheap relative to the work that built the chain; a light client checks a
-constant-size object, not the whole history.
+This file models a trusted computation that carries a running `state` and one
+Boolean invariant `ok`. Folding a delta keeps `ok = true` only if the supplied
+verifier passes and the numeric frontier strictly improves. `accumulate_sound`
+proves an invariant of that trusted fold.
 
-This file proves the abstract heart of that scaling property for science. Following the
-folding/accumulation-scheme line (Nova → HyperNova, CRYPTO 2024; MicroNova, IEEE S&P 2025) and
-Proof-Carrying Data (Bünz et al.), we model an **accumulator**: a constant-size object carrying the
-running verified `state` plus a single integrity bit `ok`. Folding a delta keeps `ok = true` only if
-the delta passed its frozen verifier AND strictly improved its frontier. The load-bearing theorem
-(`accumulate_sound`) is that **the single bit certifies the entire history**: if the final
-accumulator's `ok` is true, then *every* delta ever folded passed verification — even though a checker
-inspects only the constant-size accumulator, never the unbounded list.
+The Boolean is not a cryptographic proof binding an external checker to the
+history, and the model does not provide succinct verification, an accumulator
+scheme, IVC, PCD, or a light-client protocol. A real construction would need to
+prove the actual Vela transition relation and bind every step and root. The
+historical declarations remain for research reproduction and are not imported
+by the active theorem aggregate.
 
-This is the abstract soundness a real recursive-SNARK / PCD instantiation must preserve. It is
-Mathlib-free and compiles standalone (`lean Vela/Accumulation.lean`).
-
-## Honest scope (the parts a real instantiation must still supply)
-* **Constant-size is modelled, not enforced.** `Acc` is `O(1)` in the number of deltas (a state map +
-  one bit), and the checker `globalCheck` reads only `Acc`. But Lean does not bill the cost of *carrying*
-  the soundness argument; a real system needs a recursive SNARK / folding scheme so the *proof* of `ok`
-  is also `O(1)`, not just the object. That cryptographic instantiation is out of scope here.
-* **Single verifier here.** This file folds one frozen verifier. The cross-frontier (heterogeneous)
-  case — importing one frontier's verified state into another's accumulator via a soundness-preserving
-  transfer — is proved separately in `Vela/Accumulation/HeteroAccumulation.lean`; it is not proved in
-  this file.
-* **Adoption is unwillable.** As with PoVD, mechanism + proof is necessary, not sufficient, for a
-  breakthrough.
+The model has one supplied verifier and a state function whose in-memory size
+is not analyzed. It assumes the trusted fold was executed as defined. It makes
+no claim about external proof size, consensus, authority, credit, or adoption.
 -/
 
 namespace Vela.Accumulation
@@ -45,8 +31,8 @@ structure Delta where
   level    : Level
   witness  : Nat
 
-/-- The accumulator: a *constant-size* summary of an arbitrarily long accepted-delta history.
-    `state` is the running best-verified level per frontier; `ok` is the single integrity bit. -/
+/-- The trusted fold state. No memory-size or cryptographic-proof bound is
+    established by this structure. -/
 structure Acc where
   state : State
   ok    : Bool
@@ -63,11 +49,11 @@ def fold (verify : Delta → Bool) (a : Acc) (d : Delta) : Acc :=
   else
     { a with ok := false }
 
-/-- Accumulate an entire history into one constant-size object. -/
+/-- Fold a finite history into the trusted model state. -/
 def accumulate (verify : Delta → Bool) (ds : List Delta) : Acc :=
   ds.foldl (fold verify) init
 
-/-- The light-client check: inspect ONLY the constant-size accumulator (never the history). -/
+/-- Read the Boolean carried by the trusted fold. -/
 def globalCheck (a : Acc) : Bool := a.ok
 
 /-- Folding never resurrects a cleared integrity bit: once `ok` is false it stays false. -/
@@ -87,10 +73,8 @@ theorem fold_ok_inv (verify : Delta → Bool) (a : Acc) (d : Delta)
   · rw [if_pos hc] at h; exact ⟨h, hc.1⟩
   · rw [if_neg hc] at h; simp at h
 
-/-- **The scaling theorem (succinct-accumulation soundness).** Checking the single constant-size
-    accumulator certifies a property of the ENTIRE unbounded history: if the final integrity bit is
-    set, then every delta ever folded passed its frozen verifier. Stated for an arbitrary starting
-    accumulator to carry the induction. -/
+/-- Induction invariant for the trusted fold: if its final Boolean is true,
+    every input delta satisfied the supplied Boolean verifier. -/
 theorem accumulate_sound (verify : Delta → Bool) :
     ∀ (ds : List Delta) (a : Acc),
       (ds.foldl (fold verify) a).ok = true → a.ok = true ∧ ∀ d ∈ ds, verify d = true := by
@@ -109,9 +93,7 @@ theorem accumulate_sound (verify : Delta → Bool) :
     | head => exact hd_ok
     | tail _ he' => exact hrest e he'
 
-/-- Corollary specialized to genesis: a passing `globalCheck` on the accumulated history certifies
-    that every accepted delta in that history was verified — a constant-size check, history-wide
-    guarantee. This is the property a light client relies on. -/
+/-- Corollary specialized to the initial trusted fold state. -/
 theorem globalCheck_sound (verify : Delta → Bool) (ds : List Delta)
     (h : globalCheck (accumulate verify ds) = true) : ∀ d ∈ ds, verify d = true := by
   have h' : (ds.foldl (fold verify) init).ok = true := h
@@ -131,9 +113,8 @@ theorem fold_state_monotone (verify : Delta → Bool) (a : Acc) (d : Delta) :
     · exact Nat.le_refl _
   · rw [if_neg hc]; exact Nat.le_refl _
 
-/-- Determinism / authority-free global verification: the accumulator (hence the light-client verdict)
-    is a pure function of the verifier and the history — every party computes the identical
-    constant-size summary with no trusted adjudicator. -/
+/-- Reflexivity of the pure trusted-fold function; not an authority or
+    consensus theorem. -/
 theorem accumulate_deterministic (verify : Delta → Bool) (ds : List Delta) :
     accumulate verify ds = accumulate verify ds := rfl
 

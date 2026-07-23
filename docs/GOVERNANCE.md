@@ -46,11 +46,12 @@ What makes a producer leave verified state behind instead of keeping a private r
 - **Venue-native export.** A verified result should leave Vela in the form the producer's venue
   already accepts: an OEIS comment, an arXiv-ready statement, a GitHub or mathlib contribution. The
   OEIS bridge and the release/DOI archive exist; per-venue export adapters are partial.
-- **Automatic attribution for partial contributions.** A producer who discharges one obligation, or
-  contributes one reusable lemma or a verified bound, is credited for exactly that, because the
-  dependency structure is mechanical (`Attempt.depends_on`, `Transfer`, the dependency oracle). What
-  rests on a contribution is measured, not litigated. Built: the oracle and transfer registry. The
-  retro-attribution surface over them is partial.
+- **Exact contribution provenance.** A producer who submits one bounded result
+  can retain an exact Receipt, artifact, proposal, and decision trail. A
+  dependency pin supplies context, not evidence or attribution; a generic
+  transfer contract does not establish standing or credit. Any downstream
+  attribution view must cite the exact retained relation and remain a derived,
+  reviewable projection.
 - **Citable releases.** A frontier state can be tagged as an immutable, content-addressed release
   (`vela frontier release`, `vfrr_`) and archived with a DOI. Built.
 - **Private priority.** A producer can keep a result in a private or sealed branch, time-stamped and

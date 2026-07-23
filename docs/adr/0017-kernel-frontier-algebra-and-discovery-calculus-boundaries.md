@@ -70,7 +70,7 @@ universal probabilistic meaning or calibrated-confidence doctrine for those
 bytes, and it does not own importance, ontology inference, heuristic transfer,
 information gain, opportunity ranking, or a global truth score.
 
-### 2. Frontier Algebra is a disposable exact projection
+### 2. Frontier Algebra is a disposable root-bound projection
 
 For an exact claim revision and explicit context, derive separate supporting
 and opposing justification circuits:
@@ -121,7 +121,8 @@ faithfulness judgment, valid transfer, or human decision is not by itself
 evidence that the underlying scientific assertion is true. Review-event and
 authority-root material cannot be emitted as scientific-evidence atoms.
 
-The algebra's exact initial outputs are:
+The algebra's initial outputs are exact only relative to the pinned source,
+closed rooted derivation rules, projector version, and canonicalization policy:
 
 - support and opposition existence using circuit nonzeroness;
 - `unresolved`, `supported`, `opposed`, or `contested` standing;

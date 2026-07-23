@@ -1,27 +1,17 @@
 /-!
-# Vela Theorem 23: cross-frontier transfer soundness (the constellation layer)
+# Predicate-preserving maps between abstract frontiers
 
-The substrate theorems (`Vela.Provenance`: T2, T3, T4) are SINGLE-frontier. This file adds the
-CONSTELLATION layer: the formal relation BETWEEN frontiers, which is Vela's distinctive edge
-(discoveries that live in the connections, invisible to single-frontier search).
+This historical compatibility module packages a type with a proposition and a
+map with an explicit proof field saying that the proposition is preserved.
+`transfer_sound` projects that supplied field; it does not discover or verify a
+bridge, connect repositories, transport Vela standing, or refine an executable
+verifier. Identity and composition establish the ordinary laws of these
+property-carrying functions at their object maps.
 
-A frontier exposes a type of candidate objects and a `verified` predicate -- its frozen verifier.
-A TRANSFER between frontiers is a map that PRESERVES verification: a *verifier-homomorphism*. Two
-guarantees:
-
-* **Theorem 23 (cross-frontier transfer soundness)** `transfer_sound`: a verified object in `A` transfers to a
-  verified object in `B`.
-* **Frontiers + transfers form a category** (`Transfer.id`, `Transfer.comp`), so transfers chain;
-  a path of bridges composes into one transfer.
-
-Real instances produced this session (the empirical grounding, not metaphor):
-* Sidon (B_2) sets `{0,1}^n`  →  B_h sets  (the packed-encoding map; verifier = `verify_bh`).
-* the `[8,4,4]` extended Hamming code  →  the E8 kissing configuration (Construction A; verifier
-  = `verify_kissing`), which reproduced the proven optimum `K(8)=240`.
-
-This is NOT new mathematics -- it is a category of objects-with-verifiers and verification-preserving
-maps. The contribution is that it is the formal specification of the cross-frontier moat, and it is
-machine-checked. It is deliberately Mathlib-free so it compiles standalone.
+Concrete declarations later in this file prove small combinatorial lemmas at
+their exact theorem surfaces. Each must be judged from its own definitions and
+hypotheses. The retained historical theorem names do not create a general
+cross-frontier protocol guarantee or scientific-transfer authority.
 -/
 
 namespace Vela
@@ -33,14 +23,13 @@ structure Frontier where
   Obj : Type u
   verified : Obj → Prop
 
-/-- A transfer between frontiers is a verifier-homomorphism: a map of candidate objects that
-    sends verified objects to verified objects. -/
+/-- A property-preserving map. Preservation is data supplied in `sound`; the
+    structure does not prove or validate that premise externally. -/
 structure Transfer (A B : Frontier) where
   toFun : A.Obj → B.Obj
   sound : ∀ o : A.Obj, A.verified o → B.verified (toFun o)
 
-/-- **Theorem 23 (cross-frontier transfer soundness).** A verified object in `A` transfers, along any
-    verifier-homomorphism `T : A → B`, to a verified object in `B`. -/
+/-- Project the predicate-preservation proof carried by `T`. -/
 theorem transfer_sound {A B : Frontier} (T : Transfer A B)
     {o : A.Obj} (h : A.verified o) : B.verified (T.toFun o) :=
   T.sound o h
@@ -50,8 +39,7 @@ def Transfer.id (A : Frontier) : Transfer A A where
   toFun := fun o => o
   sound := fun _ h => h
 
-/-- Transfers compose: a verifier-homomorphism `A → B` followed by `B → C` is a
-    verifier-homomorphism `A → C`. With `Transfer.id` this makes frontiers a category. -/
+/-- Property-preserving maps compose. -/
 def Transfer.comp {A B C : Frontier} (S : Transfer A B) (T : Transfer B C) : Transfer A C where
   toFun := fun o => T.toFun (S.toFun o)
   sound := fun o h => T.sound _ (S.sound o h)
@@ -74,29 +62,27 @@ def Transfer.comp {A B C : Frontier} (S : Transfer A B) (T : Transfer B C) : Tra
     (R : Transfer A B) (S : Transfer B C) (T : Transfer C D) (o : A.Obj) :
     ((R.comp S).comp T).toFun o = (R.comp (S.comp T)).toFun o := rfl
 
-/-- **Frontier reduction along a transfer.** Model a frontier question as a predicate `q` on
-    `B`'s objects together with the demand that it be witnessed by a verified object. If a verified
-    object in `A` transfers to a `B`-object satisfying `q`, then `q` is *closed*: a verified witness
-    for it exists. (This is how a resolved finding in one frontier removes discord in a connected
-    one.) -/
+/-- If the supplied preservation proof and an additional predicate `q` both
+    hold for the mapped object, that object witnesses their conjunction in
+    `B`. This is a local logical consequence, not a Vela correction or standing
+    transition. -/
 theorem transfer_closes {A B : Frontier} (T : Transfer A B)
     (q : B.Obj → Prop) {o : A.Obj}
     (h : A.verified o) (hq : q (T.toFun o)) :
     ∃ b : B.Obj, B.verified b ∧ q b :=
   ⟨T.toFun o, transfer_sound T h, hq⟩
 
-/-- Sanity: the constellation is non-vacuous -- every frontier has at least the identity transfer,
-    and transfer soundness fires on it. -/
+/-- Sanity check for the identity property-preserving map. -/
 example (A : Frontier) {o : A.Obj} (h : A.verified o) :
     A.verified ((Transfer.id A).toFun o) := transfer_sound (Transfer.id A) h
 
-/-! ## A concrete transfer with genuine (non-definitional) soundness
+/-! ## A concrete property-preservation lemma
 
-`transfer_sound` above is the *contract* (definitional). To show the constellation layer carries
-real content -- not an axiom over an opaque reducer, the failure mode audited out of the descriptor
-theorems -- here is a fully-proven verifier-homomorphism between two genuine combinatorial frontiers.
-The soundness proof is a real argument (membership unfolding + arithmetic): no `axiom`, no `opaque`,
-no `sorry`. -/
+The generic theorem above merely projects a field. The following declaration
+instead proves, for the exact `SidonList` predicate below, that translation
+preserves that predicate. It says nothing about Vela records, accepted state,
+or an executable verifier unless a separate refinement theorem supplies that
+connection. -/
 
 /-- A Sidon set over `List Nat`: every coincidence of pairwise sums comes from the same pair. -/
 def SidonList (S : List Nat) : Prop :=
@@ -119,27 +105,25 @@ theorem sidon_translate_sound (t : Nat) {S : List Nat} (h : SidonList S) :
   · exact Or.inl ⟨by omega, by omega⟩
   · exact Or.inr ⟨by omega, by omega⟩
 
-/-- Translation by `t` is a concrete verifier-homomorphism on the Sidon frontier: a transfer whose
-    `sound` field is a real theorem, not an axiom. The constellation layer with content. -/
+/-- Package the exact translation lemma as a property-preserving map. -/
 def translateTransfer (t : Nat) : Transfer sidonFrontier sidonFrontier where
   toFun := fun S => S.map (· + t)
   sound := fun _ h => sidon_translate_sound t h
 
-/-- Transfer soundness fires on it with genuine content: translating a verified Sidon set yields a
-    verified Sidon set. -/
+/-- Apply the exact translation lemma through the retained generic interface. -/
 example {S : List Nat} (h : SidonList S) (t : Nat) :
     sidonFrontier.verified ((translateTransfer t).toFun S) :=
   transfer_sound (translateTransfer t) h
 
-/-! ## A second, genuinely CROSS-frontier transfer (distinct sums ⇄ distinct differences)
+/-! ## An equivalence between two predicates (distinct sums ⇄ distinct differences)
 
-The translation transfer above stays inside one frontier. Here are two *different* combinatorial
-frontiers bridged by a proven verifier-homomorphism — the kind of bridge the moat theorem
-(`Vela/HeteroAccumulation.lean`) consumes. A **Golomb ruler** is a set whose pairwise *differences*
-are distinct; written additively (to avoid `Nat` truncated subtraction), `a - b = c - d` becomes
-`a + d = b + c`. The classical fact is that distinct-sums and distinct-differences are the *same*
-condition on a set. We prove both directions, so the two frontiers are verifier-isomorphic via the
-identity map: a record on either is, with no recomputation, a record on the other. -/
+The translation example stays within one predicate. Here two predicates on the
+same `List Nat` carrier are related by exact reindexing lemmas. A **Golomb
+ruler** is a set whose pairwise differences are distinct; written additively
+(to avoid truncated subtraction), `a - b = c - d` becomes
+`a + d = b + c`. The proofs establish both implications for these definitions.
+They do not by themselves equate repository records, verifier identities, or
+scientific standing.
 
 /-- A Golomb-ruler set over `List Nat`: every coincidence of pairwise differences (in additive form)
     comes from the same pair. -/
@@ -168,9 +152,8 @@ theorem golomb_to_sidon_sound {S : List Nat} (h : GolombList S) : SidonList S :=
   · exact Or.inr ⟨by omega, by omega⟩
   · exact Or.inl ⟨h1, by omega⟩
 
-/-- The cross-frontier transfer `Sidon → Golomb`: identity on the underlying set, soundness the real
-    theorem `sidon_to_golomb_sound`. A genuine second entry in the sound-transfer registry, between
-    *distinct* frontiers. -/
+/-- Package `sidon_to_golomb_sound` as an identity-on-values
+    property-preserving map. -/
 def sidonToGolomb : Transfer sidonFrontier golombFrontier where
   toFun := fun S => S
   sound := fun _ h => sidon_to_golomb_sound h
@@ -180,12 +163,11 @@ def golombToSidon : Transfer golombFrontier sidonFrontier where
   toFun := fun S => S
   sound := fun _ h => golomb_to_sidon_sound h
 
-/-- The bridge fires: a verified Sidon record is, with no recomputation, a verified Golomb ruler. -/
+/-- Apply the exact predicate implication to the same underlying list. -/
 example {S : List Nat} (h : SidonList S) : golombFrontier.verified (sidonToGolomb.toFun S) :=
   transfer_sound sidonToGolomb h
 
-/-- Round-trip is the identity on objects: composing the two bridges returns the original set, so the
-    frontiers are genuinely verifier-isomorphic (not merely connected one way). -/
+/-- The two packaged maps are both identity on the underlying list. -/
 @[simp] theorem sidon_golomb_roundtrip {S : List Nat} :
     (golombToSidon.toFun (sidonToGolomb.toFun S)) = S := rfl
 

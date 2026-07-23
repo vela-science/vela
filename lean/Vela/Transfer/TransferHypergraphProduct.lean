@@ -1,16 +1,19 @@
 import Mathlib
 
 /-!
-# Cross-frontier transfer (Lean-proven): the hypergraph product is always a valid CSS code
+# Hypergraph-product CSS commutation precondition
 
 The construction behind modern good quantum-LDPC codes (Tillich–Zémor), proven sound *in general*. From any
 classical parity-check matrix `H` over `GF(2)` form the block matrices
 
   `Hx = [ H ⊗ I | I ⊗ Hᵀ ]`,   `Hz = [ I ⊗ H | Hᵀ ⊗ I ]`.
 
-We prove `Hx · Hzᵀ = 0` for **every** `H` — so by `Vela.TransferClassicalToCSS.css_commute` the hypergraph
-product of any classical code is a valid stabilizer code. The proof is the Kronecker mixed-product identity
-plus characteristic two: `Hx Hzᵀ = H⊗Hᵀ + H⊗Hᵀ = 0`. The construction *is* the verifier-homomorphism.
+We prove `Hx · Hzᵀ = 0` for every `H`. Together with
+`Vela.TransferClassicalToCSS.css_commute`, this establishes pairwise
+commutation for the generated operators. It does not prove rank, encoded
+dimension, distance, or executable-verifier refinement. The proof is the
+Kronecker mixed-product identity plus characteristic two:
+`Hx Hzᵀ = H⊗Hᵀ + H⊗Hᵀ = 0`.
 -/
 
 namespace Vela.TransferHypergraphProduct
@@ -30,8 +33,8 @@ def Hz : Matrix (Fin n × Fin m) ((Fin n × Fin n) ⊕ (Fin m × Fin m)) (ZMod 2
   fromCols ((1 : Matrix (Fin n) (Fin n) (ZMod 2)) ⊗ₖ H)
            (Hᵀ ⊗ₖ (1 : Matrix (Fin m) (Fin m) (ZMod 2)))
 
-/-- **The hypergraph product always satisfies the CSS precondition.** `Hx · Hzᵀ = 0` over `GF(2)` for
-    every classical `H`, so (with `css_commute`) it is a valid quantum-LDPC code. -/
+/-- The matrices satisfy the stated CSS commutation precondition over `GF(2)`
+    for every `H`; no parameter or distance theorem is included. -/
 theorem hgp_css_precondition : (Hx H) * (Hz H)ᵀ = 0 := by
   have h2 : ∀ x : ZMod 2, x + x = 0 := by decide
   unfold Hx Hz

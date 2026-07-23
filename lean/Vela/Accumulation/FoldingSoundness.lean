@@ -1,10 +1,10 @@
 /-!
-# Folding soundness: the Nova accumulation step is sound (machine-checked, Mathlib-free)
+# Local relaxed-row folding identity (historical research)
 
-`scripts/pck_fold.py` runs the Nova folding scheme and checks the identity
-`folded_residual = residual_1 + r²·residual_2` numerically. This file PROVES it, over `Int` (an
-integral domain), with no Mathlib and no `sorry`/`axiom` — so the soundness of what the demo runs is a
-checked theorem, not an observation.
+The historical `scripts/pck_fold.py` demo checks the identity
+`folded_residual = residual_1 + r²·residual_2` numerically. This file proves
+that stated identity over `Int` for the definitions below. It does not prove
+that the demo or a folding implementation refines this model.
 
 A relaxed-R1CS row is *satisfied* when `a*b = u*c + e` (the subtraction-free form of
 `a*b - u*c - e = 0`). Folding two rows under challenge `r` produces folded values with the Nova cross
@@ -15,11 +15,12 @@ term `T = a1*b2 + a2*b1 - u1*c2 - u2*c1` (here carried subtraction-free as a hyp
   satisfaction).
 * **`fold_sound`** — over an integral domain with `r ≠ 0`, if the folded row is satisfied and the first
   row is satisfied, then the second row *must* have been satisfied. Contrapositive: you cannot fold an
-  UNsatisfied (forged) row into a satisfied accumulator and have the result pass. This is exactly the
-  anti-gaming guarantee the running demo exhibits, now proven.
+  unsatisfied row into the stated local identity and have the result pass under
+  these hypotheses.
 
-The single load-bearing fact is the cross-term cancellation: the `r¹` terms vanish, leaving
-`residual_1 + r²·residual_2`, so a nonzero `residual_2` survives as `r²·residual_2 ≠ 0`.
+This file does not formalize commitments, transcript challenges,
+Fiat-Shamir, knowledge soundness, Nova, or an IVC protocol. It remains outside
+the active theorem aggregate.
 -/
 
 namespace Vela.FoldingSoundness
@@ -46,7 +47,7 @@ theorem fold_complete
 private theorem sq_ne_zero {r : Int} (hr : r ≠ 0) : r*r ≠ 0 := by
   intro h; rcases Int.mul_eq_zero.mp h with h' | h' <;> exact hr h'
 
-/-- **Folding soundness (anti-gaming).** Over `Int`, with `r ≠ 0`: if the folded row is satisfied and
+/-- **Local folding implication.** Over `Int`, with `r ≠ 0`: if the folded row is satisfied and
     the first row is satisfied, the second row must have been satisfied. So a forged (unsatisfied) row
     cannot be folded into a satisfied accumulator without breaking the folded check — exactly the
     property `scripts/pck_fold.py` exhibits (the forged delta flips the relaxed check). -/

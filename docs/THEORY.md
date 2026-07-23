@@ -264,10 +264,12 @@ current modules are:
 | [`Governance/GovernedQuorumSoundness.lean`](../lean/Vela/Governance/GovernedQuorumSoundness.lean) | the modeled acceptance predicate yields enough distinct eligible, unrevoked, valid signers | equivalence to every Rust governance path is not proved |
 | [`Crypto/Signing.lean`](../lean/Vela/Crypto/Signing.lean) | a historical finding-signing model is invariant to one excluded cache flag | useful regression history, not the current end-to-end key-custody theorem |
 
-The build root [`Vela.lean`](../lean/Vela.lean) imports a much broader theorem
-bundle plus a Sidon certificate. Transfer, accumulation, older diff-pack,
-frontier-calculus, and domain-construction modules are research or domain proofs;
-their presence does not enlarge the current Vela protocol.
+The build root [`Vela.lean`](../lean/Vela.lean) imports a broad compatibility
+bundle plus a Sidon certificate. Historical accumulation, folding, and
+sum-check modules remain available at their exact paths but are excluded from
+that aggregate. Transfer, older diff-pack, frontier-calculus, and
+domain-construction modules are scoped models or domain proofs; their presence
+does not enlarge the current Vela protocol.
 
 Some modules state abstract hash or serializer injectivity as axioms, and some
 composition modules use opaque functions with preservation assumptions. This is

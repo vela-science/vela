@@ -14,12 +14,6 @@ import Vela.Transfer.TransferHypergraphProductRing
 import Vela.Transfer.TransferLiftedProduct
 import Vela.Protocol.ReducerModel
 import Vela.Protocol.Core
-import Vela.Accumulation.PoVD
-import Vela.Accumulation.Accumulation
-import Vela.Accumulation.HeteroAccumulation
-import Vela.Accumulation.ProtocolKeystone
-import Vela.Accumulation.FoldingSoundness
-import Vela.Accumulation.SumcheckSoundness
 import Vela.Protocol.Log
 import Vela.Crypto.Signing
 import Vela.Protocol.ReplayIndex
@@ -50,22 +44,19 @@ import Vela.Governance.ReleasedDiffPackReplay
 import Vela.Governance.EvaluationDescriptorComposition
 
 /-!
-# Vela core theorem bundle
+# Vela compatibility theorem bundle
 
-This module imports the machine-checked substrate theorems for Vela:
+This module is a compatibility import target for scoped Lean models and domain
+results related to Vela. Each declaration applies only to its definitions,
+hypotheses, and axiom audit; the aggregate is not an end-to-end proof of the
+Rust implementation.
 
 - `Vela.Provenance`: substrate Theorems 2, 3, and 4.
-- `Vela.Transfer`: the constellation layer -- substrate Theorem 23 (cross-frontier transfer
-  soundness) plus the category structure on frontiers (Mathlib-free; compiles standalone).
-- `Vela.ReducerModel`: a CONCRETE event-sourced reducer with PROVEN invariants (replay
-  determinism + append law + append-only log + descriptor preservation), de-hollowing the
-  assume-guarantee descriptor theorems (Mathlib-free; compiles standalone).
-- `Vela.Core`: the DEPENDENCY-FREE nucleus -- substrate
-  Theorems 2,3,4 re-proven over plain `List` with NO Mathlib, so the core invariants verify in
-  seconds via `lean Vela/Core.lean` (with Transfer + ReducerModel, also Mathlib-free).
-- `Vela.PoVD`: Proof-of-Verified-Delta -- a permissionless accumulation mechanism for the
-  verifiable slice, with machine-checked anti-gaming properties (no credit without verification,
-  monotone state, no double-spend, Sybil/duplication resistance). Mathlib-free.
+- `Vela.Transfer`: property-preserving maps whose generic theorem projects a
+  supplied preservation field, plus separately scoped concrete lemmas.
+- `Vela.ReducerModel`: invariants of one deliberately small abstract reducer;
+  no refinement to the Rust `Project` is established here.
+- `Vela.Core`: dependency-free list models of selected provenance invariants.
 - `Vela.Log`: substrate Theorems 1 and 5.
 - `Vela.Signing`: Theorem 6 (v0.104 multi-sig canonical-bytes fix).
 - `Vela.ReplayIndex`: Theorem 7 (v0.105 O(N) replay index maintenance).
@@ -84,6 +75,10 @@ This module imports the machine-checked substrate theorems for Vela:
 - `Vela.CanonicalSequenceLength`: Theorem 21 (canonical-sequence cardinality preservation).
 - `Vela.ReplayAppend`: Theorem 22 (replay-compositional append; incremental-replay legitimacy).
 
-It is intended as the single import target for downstream documentation and
-experiments.
+This aggregate intentionally excludes the historical PoVD, trusted-fold
+accumulation, protocol-keystone, folding, and sum-check research modules. They
+remain importable at their exact paths for historical experiments, but they are
+not part of the Vela Kernel or the active theorem surface. Current documentation
+must cite a scoped module and its exact assumptions rather than treating this
+compatibility aggregate as one end-to-end protocol proof.
 -/

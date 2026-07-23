@@ -1,15 +1,13 @@
 import Mathlib
 
 /-!
-# Cross-frontier transfer (Lean-proven): MDS / Reed–Solomon codes → threshold secret sharing
+# Polynomial reconstruction uniqueness used by threshold sharing
 
-A new domain pair for the moat: **coding theory → cryptography**. Shamir's `(k, n)` threshold scheme is
-Reed–Solomon evaluation: the dealer picks a polynomial `p` of degree `< k` with secret `p(0)`, and hands
-share `i` the value `p(xᵢ)` at a distinct point. The load-bearing soundness fact — the reason `k` shares
-*reconstruct* and the scheme is well-defined — is that a degree-`< k` polynomial is determined by its
-values at any `k` distinct points. We prove exactly that, and the corollary that the recovered secret is
-unique. (The complementary privacy bound — that `k−1` shares reveal nothing — is the information-theoretic
-half, not formalized here.)
+For polynomials of degree `< k`, agreement at at least `k` distinct field
+points implies equality. The corollary gives equality at zero. These are
+reconstruction-uniqueness lemmas for the definitions below; they do not prove a
+complete Shamir implementation, privacy, robustness, repository transfer, or
+Vela standing.
 -/
 
 namespace Vela.TransferMDSToSecretSharing
@@ -18,8 +16,8 @@ open Polynomial
 
 variable {F : Type*} [Field F] [DecidableEq F]
 
-/-- **Reconstruction soundness.** Two polynomials of degree `< k` that agree at `k` distinct points are
-    equal — so any `k` shares determine a unique sharing polynomial (Reed–Solomon ⇒ Shamir). -/
+/-- Two degree-`< k` polynomials agreeing on at least `k` distinct points are
+    equal. -/
 theorem shares_determine_polynomial {k : ℕ} (p q : F[X])
     (hp : p.degree < (k : ℕ)) (hq : q.degree < (k : ℕ))
     (pts : Finset F) (hcard : k ≤ pts.card)

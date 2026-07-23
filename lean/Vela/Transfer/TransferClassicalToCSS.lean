@@ -1,16 +1,13 @@
 import Mathlib
 
 /-!
-# Cross-frontier transfer (Lean-proven): classical linear codes → CSS quantum code
+# Pairwise commutation for CSS-style stabilizer generators
 
-The bridge that points the moat at the flagship (docs/PLAN_2026-06b.md). A CSS code is built from two
-classical binary parity-check matrices `Hx`, `Hz` satisfying the orthogonality `Hx · Hzᵀ = 0` over `GF(2)`
-(equivalently the dual-containment `C₂ ⊆ C₁`). The X-type stabilizers are the rows of `Hx`, the Z-type the
-rows of `Hz`. This file proves the **load-bearing soundness fact**: that single classical condition makes
-the entire quantum stabilizer set pairwise commute — i.e. a *valid* stabilizer code. This is exactly the
-commutation check the frozen `scripts/verify_qec.py` re-runs, so a verified classical orthogonal pair maps
-to a verified quantum `[[n, k]]` code. (The distance bound `d ≥ min(d(C₁), d(C₂^⊥))` is the OA/Hadamard-
-style minimum-weight content, certified separately by `verify_qec` exactly or by witness.)
+Given binary matrices `Hx` and `Hz` satisfying the stated orthogonality
+premise, this file proves that the resulting X- and Z-type Pauli generators
+commute pairwise. It does not prove matrix rank, encoded dimension, code
+distance, independence of generators, refinement of `scripts/verify_qec.py`,
+or the existence of a quantum `[[n,k,d]]` code with claimed parameters.
 -/
 
 namespace Vela.TransferClassicalToCSS
@@ -41,8 +38,9 @@ def stab {rx rz : ℕ} (Hx : Fin rx → Fin n → ZMod 2) (Hz : Fin rz → Fin n
   | Sum.inl i => Xstab Hx i
   | Sum.inr j => Zstab Hz j
 
-/-- **Classical orthogonality ⇒ valid stabilizer code.** If `Hx · Hzᵀ = 0` over `GF(2)`, then every pair
-    of CSS stabilizers commutes — the verifier-homomorphism from classical codes to a valid quantum code. -/
+/-- If `Hx · Hzᵀ = 0` over `GF(2)`, the generators defined above commute
+    pairwise. This is one necessary CSS-code condition, not a full code
+    certificate. -/
 theorem css_commute {rx rz : ℕ}
     (Hx : Fin rx → Fin n → ZMod 2) (Hz : Fin rz → Fin n → ZMod 2)
     (hortho : ∀ i j, ∑ a, Hx i a * Hz j a = 0) :

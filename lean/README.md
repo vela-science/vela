@@ -20,15 +20,17 @@ Modules are grouped by domain under `Vela/`:
 |---|---|
 | `Vela/Protocol/` | state, replay, log, reducer, provenance, canonical ordering |
 | `Vela/Crypto/` | signing, signatures, multi-sig, canonical/event/frontier ids, checkpoints, attestation |
-| `Vela/Accumulation/` | proof-carrying accumulation: folding, sumcheck, PoVD, the protocol keystone |
+| `Vela/Accumulation/` | historical research models: monotone improvement, trusted folds, and scoped folding/sum-check lemmas; not active Kernel claims |
 | `Vela/Governance/` | abstract and historical proposal, quorum, diff-pack, owner-epoch, and descriptor models |
 | `Vela/Transfer/` | research proofs for cross-domain construction maps |
 | `Vela/Constructions/` | verified math construction certs (Sidon — the OEIS A309370 cert, Erdős-Ginzburg-Ziv) |
 
-`Vela/CoreTheorems.lean` (the theorem aggregator) and `Vela/AxiomAudit.lean`
+`Vela/CoreTheorems.lean` (the compatibility aggregator) and `Vela/AxiomAudit.lean`
 (the axiom-report harness) stay at the `Vela/` root. `Vela.lean` is the build
-root and imports the broad aggregator plus the Sidon certificate. Importing a
-model here does not make its vocabulary part of the current Vela protocol.
+root and imports the compatibility aggregate plus the Sidon certificate. The
+aggregate excludes the historical `Vela/Accumulation/` research tree; importing
+one of those modules explicitly does not make its vocabulary part of the
+current Vela protocol.
 
 ## Build / verify
 

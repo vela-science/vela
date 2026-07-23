@@ -1,34 +1,31 @@
 /-!
-# Proof-of-Verified-Delta (PoVD): permissionless accumulation of verified scientific state
+# Historical monotone-improvement policy model (formerly PoVD)
 
-A candidate mechanism for the one honest analogue of Bitcoin's breakthrough, scoped to the
-*frozen-verifiable slice* of science. Bitcoin needed three separate mechanisms — proof-of-work
-(Sybil resistance), longest-chain (consensus), and validation (fraud prevention). The PoVD thesis is
-that a **frozen verifier collapses all three into one primitive** on the verifiable slice:
+This compatibility module models a local deterministic rule over one supplied
+Boolean verifier and one numeric frontier level:
 
 * a contribution is a `Delta` proposing to raise a frontier to a new `level`, backed by a `witness`;
-* it is ACCEPTED iff the frozen verifier passes the witness AND it strictly improves the current
-  shared state — a pure function anyone computes identically (no trusted authority = consensus);
-* you cannot earn credit without producing a witness the verifier accepts (anti-fraud), and
-  re-submitting a stale or duplicate delta earns nothing (Sybil resistance / no double-spend).
+* it is accepted iff the verifier passes and the level strictly increases; and
+* a stale or duplicate delta is rejected by that local rule.
 
-This file PROVES those properties over a concrete model (Mathlib-free, compiles standalone). It is NOT
-a claim that the breakthrough is *done*: that status, like Bitcoin's, comes only from adoption and
-surviving reality, which no proof grants. And the mechanism is bounded — see the honest limits in
-`docs/POVD.md` (verifiable slice only; credit, not a speculative token; novelty bounded by substrate
-completeness; no economic 51%-style security model). What is proven here is the *anti-gaming core*.
+The theorems establish only those properties for this concrete model. They do
+not establish network consensus, agreement across different event sets,
+personhood, Sybil resistance, fraud resistance, fair credit, or authority-free
+scientific acceptance. The historical name and declarations remain for exact
+research reproduction; this module is not imported by the active theorem
+aggregate.
 -/
 
 namespace Vela.PoVD
 
-/-- Frontier identifiers and the quality level of a frontier's best verified result. -/
+/-- Numeric identifiers and levels in the historical toy model. -/
 abbrev Frontier := Nat
 abbrev Level := Nat
 
-/-- The shared scientific state: the best verified level recorded for each frontier. -/
+/-- The model state: one numeric level per identifier. -/
 abbrev State := Frontier → Level
 
-/-- The empty initial state `S_0`: nothing verified yet. -/
+/-- The all-zero initial state. -/
 def empty : State := fun _ => 0
 
 /-- A contribution: raise `frontier` to `level`, backed by `witness`. -/
@@ -37,21 +34,19 @@ structure Delta where
   level    : Level
   witness  : Nat
 
-/-- Acceptance rule, parameterized by the FROZEN verifier `verify`. A delta is accepted iff the
-    verifier passes it AND it strictly improves the current best level for its frontier. On
-    acceptance the state rises at exactly that frontier; nothing else changes. This is a pure
-    function of `(verify, S, d)` — every node computes the same verdict, so there is no adjudicator. -/
+/-- Local transition rule parameterized by an arbitrary Boolean `verify`. The
+    rule returns a new state iff the Boolean is true and the numeric level
+    strictly increases. -/
 def accept (verify : Delta → Bool) (S : State) (d : Delta) : Option State :=
   if verify d = true ∧ d.level > S d.frontier then
     some (fun f => if f = d.frontier then d.level else S f)
   else none
 
-/-- Credit accrues iff the delta was accepted (one unit per accepted delta). -/
+/-- Historical compatibility name for whether the local rule returns a state. -/
 def credited (verify : Delta → Bool) (S : State) (d : Delta) : Bool :=
   (accept verify S d).isSome
 
-/-- **PoVD-1 (no credit without verification).** An accepted delta necessarily passed the frozen
-    verifier. Credit is impossible without real, re-checkable verification work. -/
+/-- If the local rule returns a state, the supplied Boolean was true. -/
 theorem accept_implies_verified
     (verify : Delta → Bool) (S : State) (d : Delta) (S' : State)
     (h : accept verify S d = some S') : verify d = true := by
@@ -60,8 +55,7 @@ theorem accept_implies_verified
   · exact hc.1
   · rw [if_neg hc] at h; simp at h
 
-/-- **PoVD-2 (monotone state / no regression, no zombies).** Acceptance never lowers any frontier's
-    verified level. The shared state only ever improves. -/
+/-- A successful local transition never lowers a numeric level. -/
 theorem accept_monotone
     (verify : Delta → Bool) (S : State) (d : Delta) (S' : State)
     (h : accept verify S d = some S') : ∀ f, S f ≤ S' f := by
@@ -77,19 +71,16 @@ theorem accept_monotone
     · exact Nat.le_refl _
   · rw [if_neg hc] at h; simp at h
 
-/-- **PoVD-3 (no double-spend / stale-or-known rejected).** A delta that does not strictly improve
-    the current state is rejected — you cannot re-claim credit for a result already in the shared
-    state. This is the "double-spend" defence: known/stale results earn nothing. -/
+/-- A delta whose level does not strictly increase is rejected by this local
+    rule. This is numeric stale-value rejection, not a double-spend theorem. -/
 theorem stale_rejected
     (verify : Delta → Bool) (S : State) (d : Delta)
     (h : d.level ≤ S d.frontier) : accept verify S d = none := by
   unfold accept
   rw [if_neg (by rintro ⟨_, hlt⟩; exact absurd hlt (Nat.not_lt.mpr h))]
 
-/-- **PoVD-4 (duplication earns nothing / Sybil resistance).** After a delta is accepted, submitting
-    the *same* delta again — from the same or any Sybil identity — is rejected, because the frontier's
-    level has already risen to it. Credit is a function of distinct verified improvements, not of how
-    many identities resubmit them. -/
+/-- Repeating the same delta after this local rule accepted it is stale and is
+    therefore rejected. This is duplicate suppression, not Sybil resistance. -/
 theorem duplicate_rejected
     (verify : Delta → Bool) (S : State) (d : Delta) (S' : State)
     (h : accept verify S d = some S') : accept verify S' d = none := by
@@ -100,15 +91,14 @@ theorem duplicate_rejected
     · rw [if_neg hc] at h; simp at h
   exact stale_rejected verify S' d (by simp [hlevel])
 
-/-- **PoVD-5 (authority-free determinism).** Acceptance is a pure function: two parties with the same
-    verifier and the same state reach the identical verdict and identical next state. Consensus on
-    "what is verified" requires no trusted adjudicator — only re-running the frozen verifier. -/
+/-- Reflexivity of the local pure acceptance function. This is not a consensus
+    or authority theorem. -/
 theorem accept_deterministic
     (verify : Delta → Bool) (S : State) (d : Delta) :
     accept verify S d = accept verify S d := rfl
 
-/-- Putting it together: a credited delta is verified AND strictly advanced its frontier. The shared
-    state grows only by genuine, re-checkable improvements. -/
+/-- The historical `credited` Boolean is true only when the supplied Boolean
+    is true and the proposed level strictly increases. -/
 theorem credited_is_real
     (verify : Delta → Bool) (S : State) (d : Delta)
     (h : credited verify S d = true) :

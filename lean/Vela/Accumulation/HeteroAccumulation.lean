@@ -1,29 +1,24 @@
 /-!
-# Heterogeneous accumulation: cross-frontier transfers never launder an unverified claim
+# Historical heterogeneous trusted-fold model
 
-`Accumulation.lean` proves the scaling core for **one** frozen verifier. This file proves the part that
-is *not* in the folding/PCD literature and is the Vela moat: an accumulator whose deltas may be
-justified two ways —
+This compatibility module studies a fold whose deltas may be justified two
+ways:
 
 * **natively**, by a witness the frontier's own frozen verifier accepts; or
-* **by transfer**, importing the already-verified best level of *another* frontier through a
-  soundness-preserving map (the Theorem 23 verifier-homomorphism, `Vela/Transfer.lean`).
+* **by transfer**, applying a function supplied by a lookup and carrying the
+  result through the `Verified.transfer` constructor.
 
-A transfer is the dangerous case: it credits a claim on frontier `dst` *without* re-running `dst`'s
-native verifier. The worry is laundering — importing junk across a frontier boundary. The headline
-theorem `accumulate_state_verified` proves this cannot happen: at every point in the fold, **every
-nonzero entry of the accumulated state is `Verified`** — grounded, through any chain of sound transfers,
-in real native verifications. Cross-frontier credit is exactly as sound as native credit, never weaker.
-
-Mathlib-free; compiles standalone (`lean Vela/HeteroAccumulation.lean`).
+`Verified.transfer` encodes preservation in its constructor. The resulting
+theorems show that the fold retains this assumed predicate; they do not prove a
+real transfer certificate sound, prevent laundering outside the toy model, or
+establish Vela authority. The source remains for historical reproduction and
+is not imported by the active theorem aggregate.
 
 ## Honest scope
-* `Verified.transfer` *encodes* Theorem 23's soundness as a constructor: the transfer registry `lk` is
-  assumed to contain only sound maps (that assumption is what `Vela/Transfer.lean` discharges for
-  concrete transfers, e.g. Sidon translation). This file proves the *accumulation* preserves
-  verification given sound transfers; it does not re-prove any individual transfer's soundness.
-* A transfer imports the source's *current best* (`S src`); downward-closure of weaker levels is out of
-  scope. Constant-size cryptographic proof carrying and adoption are also outside this model.
+* `Verified.transfer` encodes its soundness premise as a constructor; this file
+  does not prove any individual transfer or registry sound.
+* A transfer imports the source's *current best* (`S src`); downward-closure of
+  weaker levels, cryptographic proof carrying, and adoption are outside this model.
 -/
 
 namespace Vela.HeteroAccumulation
@@ -43,10 +38,10 @@ structure Delta where
   level    : Level
   just     : Justification
 
-/-- Genuine verification, as a proposition. `nv f L` is the native frozen verifier's verdict (level `L`
-    on frontier `f`); `lk src dst` returns the registered *sound* transfer map from `src` to `dst`, if
-    any. `Verified.transfer` is the encoding of Theorem 23: a sound homomorphism transports verified
-    status, so importing `src`'s verified level `L` yields a verified level `g L` on `dst`. -/
+/-- The model's inductive `Verified` predicate. `nv f L` is the supplied
+    Boolean premise at frontier `f`; `lk src dst` returns an optional function.
+    The transfer constructor assumes the predicate follows that function. It
+    does not prove that a concrete external transfer is valid. -/
 inductive Verified (nv : Frontier → Level → Bool) (lk : Frontier → Frontier → Option (Level → Level)) :
     Frontier → Level → Prop where
   | native  {f L} : nv f L = true → Verified nv lk f L
@@ -57,7 +52,7 @@ inductive Verified (nv : Frontier → Level → Bool) (lk : Frontier → Frontie
 def raise (S : State) (f : Frontier) (L : Level) : State :=
   fun f' => if f' = f then L else S f'
 
-/-- Acceptance, parameterized by the native verifier `nv` and the sound-transfer registry `lk`.
+/-- Acceptance in the toy model, parameterized by `nv` and the lookup `lk`.
     A native delta is accepted iff its witness verifies and it strictly improves; a transfer delta is
     accepted iff a registered transfer maps the source's *current verified best* to exactly the claimed
     level, the source is itself nonzero (already verified), and it strictly improves. -/
@@ -76,7 +71,7 @@ def accept (nv : Frontier → Level → Bool) (lk : Frontier → Frontier → Op
           else none
       | none => none
 
-/-- The accumulator: constant-size running state plus the integrity bit. -/
+/-- The trusted fold state; no storage-size or proof-size bound is established. -/
 structure Acc where
   state : State
   ok    : Bool
@@ -93,13 +88,14 @@ def accumulate (nv : Frontier → Level → Bool) (lk : Frontier → Frontier �
     (ds : List Delta) : Acc :=
   ds.foldl (fold nv lk) init
 
-/-- The state invariant: every nonzero entry is genuinely `Verified`. -/
+/-- The state invariant: every nonzero entry inhabits the model's declared
+    `Verified` predicate. -/
 def StateVerified (nv : Frontier → Level → Bool) (lk : Frontier → Frontier → Option (Level → Level))
     (S : State) : Prop :=
   ∀ f, 0 < S f → Verified nv lk f (S f)
 
-/-- One accepted delta preserves the state invariant — INCLUDING transfer deltas. This is the core
-    step: importing across a frontier cannot introduce an unverified entry. -/
+/-- One accepted delta preserves the model's inductive predicate, including
+    the branch whose preservation premise is carried by `Verified.transfer`. -/
 theorem accept_preserves_verified
     (nv : Frontier → Level → Bool) (lk : Frontier → Frontier → Option (Level → Level))
     (S S' : State) (d : Delta)
@@ -136,7 +132,7 @@ theorem accept_preserves_verified
         by_cases hfe : f = d.frontier
         · subst hfe
           simp only [raise]
-          -- frontier d.frontier got its level by a SOUND transfer from src's verified best
+          -- Apply the preservation constructor assumed by the toy model.
           have hv : Verified nv lk src (S src) := hinv src hsrc
           have hvt : Verified nv lk d.frontier (g (S src)) := Verified.transfer hv hlk
           rw [hmap] at hvt; exact hvt
@@ -159,11 +155,9 @@ theorem fold_preserves_verified
     show StateVerified nv lk a.state
     exact hinv
 
-/-- **The moat theorem (heterogeneous-accumulation soundness).** For ANY history of deltas — native or
-    cross-frontier transfer, in any order — every nonzero entry of the accumulated state is genuinely
-    `Verified`. Cross-frontier imports are exactly as sound as native verification: a transfer can only
-    move an *already-verified* result across a *sound* map, so no unverified claim ever enters the
-    state. This is the property folding/PCD do not provide and that the constellation thesis needs. -/
+/-- Induction over the trusted fold: every nonzero entry in the result inhabits
+    the model's `Verified` predicate. The transfer case is conditional on the
+    predicate-preservation constructor built into that definition. -/
 theorem accumulate_state_verified
     (nv : Frontier → Level → Bool) (lk : Frontier → Frontier → Option (Level → Level))
     (ds : List Delta) :
@@ -180,17 +174,18 @@ theorem accumulate_state_verified
     intro f hf; simp only [init] at hf; exact absurd hf (Nat.lt_irrefl 0)
   exact gen ds init hbase
 
-/-- Authority-free determinism carries over: the heterogeneous accumulator is a pure function. -/
+/-- Reflexivity of the pure toy-model fold; not an authority or consensus
+    theorem. -/
 theorem accumulate_deterministic
     (nv : Frontier → Level → Bool) (lk : Frontier → Frontier → Option (Level → Level))
     (ds : List Delta) : accumulate nv lk ds = accumulate nv lk ds := rfl
 
-/-! ## A concrete cross-frontier import (the moat, demonstrated)
+/-! ## A concrete constructor example
 
-Frontier 0 verifies level 5 natively; a sound transfer `0 → 1` is registered (here the identity map,
-standing in for a proven verifier-homomorphism). Then frontier 1 is `Verified` at level 5 with **no
-native witness of its own** — purely by importing frontier 0's verified result. This is a discovery on
-frontier 1 that single-frontier search cannot see, made sound by the transfer. -/
+The example constructs the model's `Verified` predicate at frontier 1 from a
+native premise at frontier 0 and an identity function returned by the lookup.
+It demonstrates the inductive constructor only; it is not evidence for a real
+scientific transfer or discovery. -/
 
 private def nvDemo : Frontier → Level → Bool := fun f L => (f == 0) && (L == 5)
 private def lkDemo : Frontier → Frontier → Option (Level → Level) :=

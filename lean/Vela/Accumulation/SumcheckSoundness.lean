@@ -1,23 +1,23 @@
 import Mathlib
 
 /-!
-# Sum-check round soundness: a cheating prover is caught (machine-checked)
+# Single-variable root bound used by a historical sum-check experiment
 
-`scripts/pck_spartan.py` runs the sum-check protocol and rejects a forged folded instance. This file
-proves the soundness core that makes that rejection sound: **single-variable Schwartz-Zippel**.
+The historical `scripts/pck_spartan.py` demo rejects one forged folded
+instance. This file proves a single-variable Schwartz-Zippel root bound used by
+that experiment.
 
 In each sum-check round the honest prover would send a specific degree-`≤ d` univariate polynomial `p`;
 a cheating prover sends some `g ≠ p` (forced to differ because the claimed sum is wrong). The verifier
 picks a uniformly random challenge `r` and continues with the cheater only if `g(r) = p(r)`. Since
 `g - p` is a nonzero polynomial of degree `≤ d`, it has at most `d` roots, so there are at most `d`
-"fooling" challenges out of `|F|`. The cheat survives a round with probability `≤ d / |F|`, which over a
-large field is negligible — and it must survive every round.
+"fooling" challenges out of `|F|` for the declared one-round model.
 
 `sumcheck_round_sound` states exactly this: the set of fooling challenges has cardinality `≤ d`.
 
-This is the field/polynomial fact that the substrate's Mathlib-free nucleus cannot express; it depends
-on `Mathlib` (`Polynomial.card_roots'`, etc.), so it is part of the full bundle, not the
-seconds-to-verify nucleus.
+It does not formalize a full sum-check transcript, round composition,
+challenge generation, Fiat-Shamir, completeness, or total protocol soundness,
+and it remains outside the active theorem aggregate.
 -/
 
 namespace Vela.SumcheckSoundness

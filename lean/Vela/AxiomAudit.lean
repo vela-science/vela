@@ -14,6 +14,11 @@ surfaces `Lean.ofReduceBool` (+ `Lean.trustCompiler`) and is demoted to
 `compiler_checked`; a `sorry` surfaces `sorryAx` and fails; a proof depending
 only on `{propext, Classical.choice, Quot.sound}` is kernel-clean.
 
+The registry mixes scoped protocol models, governance lemmas, domain results,
+and transfers. It is a fail-closed audit of the existing Rust `THEOREMS`
+registry, not a protocol-only Vela Kernel theorem list. Directory placement or
+membership here does not enlarge the assurance boundary in `docs/THEORY.md`.
+
 `theoremsToAudit` is written with double-backtick name literals, so the file
 FAILS TO COMPILE if any decl is missing or renamed — there is no silent gap.
 Keep it in lockstep with the Rust `THEOREMS` registry
