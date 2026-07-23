@@ -205,6 +205,38 @@ LinkML, SHACL, OWL, JSON-LD, RDF, and other standards technologies do not
 become a Vela protocol dependency. OWL reasoning is off by default. A generated
 OWL artifact is an interoperability export, not a source of Vela facts.
 
+### 4.1 Verification-economy and operating-system boundary
+
+The package layer may name a verifier profile, validation scope, limitation,
+assurance dimension, independence disclosure, or common-mode dependency. Those
+records make a check interpretable. They do not turn the check into authority
+or compress heterogeneous assurance into one score.
+
+The boundary remains:
+
+```text
+candidate artifact
+  -> scoped verifier observation
+  -> explicit residual uncertainty
+  -> ordinary Vela proposal and route
+  -> authorized standing or explicit non-admission
+```
+
+Negative, failed, and inconclusive attempts may remain addressable evidence so
+that later work does not erase or repeat them. Their retention does not place
+them in accepted scientific state.
+
+This package program is a small transition envelope between existing systems,
+not a universal scientific ontology or a claim that Vela is the complete
+scientific operating system. Domain languages, workflow engines, repositories,
+and provenance standards keep their established jobs. Adapters must state
+preserved, omitted, approximated, scope-restricted, and unsupported semantics
+rather than pretending every translation is exact.
+
+No validator marketplace, reputation score, accreditation system, protocol
+foundation, or multi-authority merge layer is part of this ADR. Those require
+independent use and governance evidence beyond first-party package work.
+
 ### 5. Every mapping declares its consequence tier
 
 Mappings are closed records with exact source and target package roots,
@@ -392,7 +424,9 @@ package, portable projection, or successful adapter result.
 
 - The terminology document contains no duplicate or circular ownership.
 - A minimal LinkML-authored grammar generates pinned JSON Schema and SHACL
-  outputs byte-identically in two clean, network-disabled paths.
+  outputs byte-identically in two clean, network-disabled paths; otherwise a
+  documented LinkML NO-GO selects the smaller hand-authored closed contract,
+  which must pass the same path-independence and offline checks.
 - The canonical package root changes for every semantic source, import,
   generated-output, license, or toolchain mutation.
 - Remote imports, cycles, unknown fields, wrong roots, and unreported output

@@ -61,6 +61,10 @@ produce -> preserve -> check -> decide -> reuse
 | **Discovery Calculus** | Optional root-bound information and decision lenses for choosing research actions. | None; rankings remain advisory. |
 | **Accepted Information Channel** | A lens model of raw result → verifier outcome → authority outcome → accepted delta or explicit null outcome. | Descriptive only. |
 | **Semantic package** | A content-addressed, versioned set of terms, constraints, mappings, fixtures, licenses, and generated interoperability artifacts. | None. |
+| **Transition envelope** | The minimum cross-system record needed to retain exact identity, scope, evidence, check results, residual uncertainty, and a proposed state change without replacing domain semantics. | None until an ordinary authorized Vela transition occurs. |
+| **Verification scope** | The exact claim, inputs, method, environment, and property covered by one verifier observation. | None; it bounds what the observation means. |
+| **Assurance profile** | A versioned description of which assurance dimension a named check addresses, its prerequisites, and what a pass does not establish. | None. |
+| **Independence disclosure** | Retained facts about shared models, code, data, specifications, maintainers, and other possible common-mode causes across producers or verifiers. | None; it is evidence for a policy or reviewer, not a global score. |
 | **Vocabulary** | A controlled set of discovery or domain terms. | None. |
 | **Mapping** | A versioned relation between exact package terms with a declared consequence tier. | None by itself. |
 | **Bridge** | A maintained set of mappings between domains, including every premise and scope needed for permitted transport. | None by itself. |
@@ -90,6 +94,7 @@ Shared labels, embeddings, graph proximity, `skos:exactMatch`, or
 artifact integrity != verifier success
 verifier success != scientific acceptance
 package or mapping validity != scientific standing
+multiple checks != independence without disclosed lineage
 ```
 
 Likewise:
