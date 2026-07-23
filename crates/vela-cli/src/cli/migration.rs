@@ -28,8 +28,7 @@ use vela_protocol::frontier_repo::{
 use vela_protocol::frontier_repository::{
     ExactFrontierDependencyV1, FRONTIER_REPOSITORY_BOUNDARY_SCHEMA, FrontierRepositoryBoundaryMode,
     FrontierRepositoryBoundaryPayloadV1, FrontierRepositoryTrustMode, LegacyFrontierOriginV1,
-    new_repository_boundary_event, repository_boundary_payload_from_event_shape,
-    repository_identity_event_content_root,
+    new_repository_boundary_event, repository_identity_event_content_root,
 };
 use vela_protocol::frontier_settings::{
     FRONTIER_SETTINGS_SCHEMA, FrontierSettingsV1, McpSettingsV1, PublishSettingsV1, WorkSettingsV1,
@@ -3137,7 +3136,10 @@ mod tests {
                 "the selected boundary must be the exact externally pinned event"
             );
             let formal_boundary_payload =
-                repository_boundary_payload_from_event_shape(formal_boundary).unwrap();
+                vela_protocol::frontier_repository::repository_boundary_payload_from_event_shape(
+                    formal_boundary,
+                )
+                .unwrap();
             assert_eq!(
                 formal_boundary_payload.mode,
                 FrontierRepositoryBoundaryMode::TemporalizeExisting
