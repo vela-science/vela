@@ -54,6 +54,11 @@ pub struct FrontierManifest {
     pub visibility: String,
     #[serde(default)]
     pub scope: FrontierScope,
+    /// Retired pre-0.9 integration metadata. This field is readable only so
+    /// exact historical manifests can replay and migrate; Profile v1 has no
+    /// corresponding surface and migration deliberately drops it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub carina: Option<LegacyCarinaManifest>,
     pub vela: VelaManifest,
     pub paths: FrontierPaths,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -64,6 +69,12 @@ pub struct FrontierManifest {
     pub license: ManifestLicense,
     #[serde(default)]
     pub dependencies: ManifestDependencies,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LegacyCarinaManifest {
+    pub kernel: String,
 }
 
 /// The two repository-profile generations accepted by this binary.
@@ -1947,6 +1958,7 @@ fn render_manifest(path: &Path, project: &Project) -> Result<Vec<u8>, String> {
                 includes: Vec::new(),
                 excludes: Vec::new(),
             }),
+        carina: None,
         vela: VelaManifest {
             reducer: format!("vela@{}", env!("CARGO_PKG_VERSION")),
         },
@@ -2592,6 +2604,86 @@ fn default_visibility() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn retired_carina_field_is_readable_only_in_legacy_manifests() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        fs::write(
+            tmp.path().join("frontier.yaml"),
+            r#"schema: vela.frontier_manifest.v0.1
+layout: vela.frontier_repo.v0.1
+mode: split
+name: Historical formal frontier
+carina:
+  kernel: carina@0.1.0
+vela:
+  reducer: vela@0.757.4
+paths:
+  state: frontier.json
+  sources: sources/
+  artifacts: artifacts/
+  review: review/
+  proof: proof/
+  exports: exports/
+"#,
+        )
+        .expect("write historical manifest");
+
+        let Some(FrontierProfileFile::LegacyV0_1(manifest)) =
+            read_repository_profile(tmp.path()).expect("parse historical manifest")
+        else {
+            panic!("expected legacy manifest");
+        };
+        assert_eq!(
+            manifest.carina,
+            Some(LegacyCarinaManifest {
+                kernel: "carina@0.1.0".to_string()
+            })
+        );
+
+        let project = empty_project(
+            "Historical formal frontier",
+            "Legacy rendering drops retired integration metadata.",
+            "2026-07-23T00:00:00Z",
+        );
+        let rendered = String::from_utf8(
+            render_manifest(tmp.path(), &project).expect("render migrated legacy manifest"),
+        )
+        .expect("rendered manifest is UTF-8");
+        assert!(
+            !rendered.contains("carina:") && !rendered.contains("carina@0.1.0"),
+            "legacy re-rendering must drop retired carina metadata:\n{rendered}"
+        );
+        let rendered_manifest: FrontierManifest =
+            serde_yaml::from_str(&rendered).expect("parse rendered legacy manifest");
+        assert_eq!(rendered_manifest.carina, None);
+
+        let profile_v1_with_carina = r#"schema: vela.frontier-profile.v1
+frontier_id: vfr_0123456789abcdef
+name: Closed profile
+summary: Profile v1 rejects retired integration metadata.
+scope:
+  question: Which exact result does this Frontier maintain?
+  includes:
+    - Rooted evidence
+  excludes:
+    - Unbounded discovery
+maintainers:
+  - maintainer:example
+license:
+  content: CC-BY-4.0
+  code: Apache-2.0
+  data: CC0-1.0
+carina:
+  kernel: carina@0.1.0
+"#;
+        let error = FrontierProfileV1::from_yaml_str(profile_v1_with_carina)
+            .expect_err("Profile v1 must reject the retired carina field");
+        assert!(
+            error.contains("unknown field `carina`"),
+            "unexpected closed Profile v1 error: {error}"
+        );
+    }
 
     #[test]
     fn visible_repo_render_is_read_only_and_byte_equivalent_to_write() {

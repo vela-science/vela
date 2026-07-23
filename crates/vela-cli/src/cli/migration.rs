@@ -28,7 +28,8 @@ use vela_protocol::frontier_repo::{
 use vela_protocol::frontier_repository::{
     ExactFrontierDependencyV1, FRONTIER_REPOSITORY_BOUNDARY_SCHEMA, FrontierRepositoryBoundaryMode,
     FrontierRepositoryBoundaryPayloadV1, FrontierRepositoryTrustMode, LegacyFrontierOriginV1,
-    new_repository_boundary_event, repository_identity_event_content_root,
+    new_repository_boundary_event, repository_boundary_payload_from_event_shape,
+    repository_identity_event_content_root,
 };
 use vela_protocol::frontier_settings::{
     FRONTIER_SETTINGS_SCHEMA, FrontierSettingsV1, McpSettingsV1, PublishSettingsV1, WorkSettingsV1,
@@ -1740,6 +1741,63 @@ mod tests {
         files
     }
 
+    fn directory_bytes_root(path: &Path) -> String {
+        fn walk(root: &Path, current: &Path, paths: &mut Vec<PathBuf>) {
+            let mut entries = std::fs::read_dir(current)
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap();
+            entries.sort_by_key(std::fs::DirEntry::file_name);
+            for entry in entries {
+                let path = entry.path();
+                let metadata = std::fs::symlink_metadata(&path).unwrap();
+                if metadata.is_dir() {
+                    walk(root, &path, paths);
+                } else {
+                    assert!(
+                        metadata.is_file() || metadata.file_type().is_symlink(),
+                        "unsupported repository path {}",
+                        path.display()
+                    );
+                    paths.push(path.strip_prefix(root).unwrap().to_path_buf());
+                }
+            }
+        }
+
+        let mut paths = Vec::new();
+        walk(path, path, &mut paths);
+        paths.sort();
+        let mut digest = Sha256::new();
+        let mut buffer = [0_u8; 64 * 1024];
+        for relative in paths {
+            let source = path.join(&relative);
+            let metadata = std::fs::symlink_metadata(&source).unwrap();
+            let display = relative.to_string_lossy().replace('\\', "/");
+            digest.update((display.len() as u64).to_be_bytes());
+            digest.update(display.as_bytes());
+            if metadata.file_type().is_symlink() {
+                digest.update(b"symlink\0");
+                let target = std::fs::read_link(&source).unwrap();
+                let target = target.to_string_lossy();
+                digest.update((target.len() as u64).to_be_bytes());
+                digest.update(target.as_bytes());
+            } else {
+                digest.update(b"file\0");
+                digest.update(metadata.len().to_be_bytes());
+                let mut file = std::fs::File::open(&source).unwrap();
+                use std::io::Read;
+                loop {
+                    let read = file.read(&mut buffer).unwrap();
+                    if read == 0 {
+                        break;
+                    }
+                    digest.update(&buffer[..read]);
+                }
+            }
+        }
+        format!("sha256:{}", hex::encode(digest.finalize()))
+    }
+
     fn copy_tree(source: &Path, destination: &Path) {
         std::fs::create_dir_all(destination).unwrap();
         for entry in std::fs::read_dir(source).unwrap() {
@@ -2642,7 +2700,7 @@ mod tests {
     #[test]
     #[ignore = "requires VELA_ERDOS_REGRESSION_FRONTIER pointing at the exact read-only Erdős vector"]
     fn erdos_13_pending_proposals_read_only_regression_vector() {
-        const EXPECTED_COMMIT: &str = "c900a8a0318b6738612627d18efedba36b5f5516";
+        const EXPECTED_COMMIT: &str = "e79feaeddf2d4c68ce395d2e7daec1e7fae41702";
         const EXPECTED_EVENT_ROOT: &str =
             "sha256:a06797bc0d1b0e3c88a2f97507fe0832661e3992d8df41187a0aa6d3ceee9bde";
         const EXPECTED_SNAPSHOT_ROOT: &str =
@@ -2719,6 +2777,447 @@ mod tests {
             status_after, status_before,
             "read-only Erdős regression inspection mutated the checkout"
         );
+    }
+
+    #[test]
+    #[ignore = "requires exact canonical Erdős/Formal checkouts and external migration inputs"]
+    fn erdos_formal_historical_dependency_read_only_regression() {
+        const ERDOS_COMMIT: &str = "e79feaeddf2d4c68ce395d2e7daec1e7fae41702";
+        const HISTORICAL_FORMAL_COMMIT: &str = "a143c351f8488e0c621598307e248373d9dc3374";
+        const HISTORICAL_FORMAL_TREE: &str = "093e84c03a722e5367812a6e6240b1c28042f969";
+        const HISTORICAL_FORMAL_SNAPSHOT: &str =
+            "sha256:48ec4e84bb4640fa54023db58d7eabc6a713a46b053b6ccc3050414ab18520ec";
+        const FORMAL_TEMPORALIZATION_ANCHOR_COMMIT: &str =
+            "4e6f040aa204f0dcdf26b4b5c39779cef03fbefc";
+        const FORMAL_TEMPORALIZATION_ANCHOR_TREE: &str = "5b001592ce7e3d56ac039872b2dfcf9bb5a27e65";
+        const FORMAL_TEMPORALIZATION_ANCHOR_SNAPSHOT: &str =
+            "sha256:45fa712bd6d9a8d4c8514a7cba107e7f814f2c1368805abd577e762ccb6123a4";
+        const FORMAL_FRONTIER_ID: &str = "vfr_97d7d25957384f80";
+        const FORMAL_IDENTITY_ROOT: &str =
+            "sha256:1832b08fb8a4a9afcbdfcd0b7d9743e7949efa795cc3133ce33087a7ed8b08c0";
+        const HISTORICAL_FORMAL_SCIENTIFIC_STATE_ROOT: &str =
+            "sha256:f772058f55dcaaa9f2f2bda39b7a6d5a43fefac9987b3b98b797dbe2047aac03";
+        const FORMAL_ADMINISTRATOR_PUBLIC_KEY: &str =
+            "4892f93877e637b5f59af31d9ec6704814842fb278cacb0eb94704baef99455e";
+        const ERDOS_EVENT_ROOT: &str =
+            "sha256:a06797bc0d1b0e3c88a2f97507fe0832661e3992d8df41187a0aa6d3ceee9bde";
+        const ERDOS_SNAPSHOT_ROOT: &str =
+            "sha256:1faedc24f040a60a22177b456c74b969a61ce8836082297b1835797a57b4fa56";
+        const ERDOS_PROPOSAL_ROOT: &str =
+            "sha256:e69b38037814f2e8ca826942cfc50ab370993889be2913cac1c0b3e77711160f";
+        const ERDOS_ACTOR_ROOT: &str =
+            "sha256:665f3e1c48f0a50fac949681c0af01bdd28de2991f2cdc5cc4cddbe69df6311b";
+        const ERDOS_ARTIFACT_ROOT: &str =
+            "sha256:3d58619c5cfb7e28de2f344476e35c9f0b80709c996b2a1bfdb2e11496f7e1da";
+
+        fn exact_env_path(name: &str) -> PathBuf {
+            let path = PathBuf::from(
+                std::env::var(name).unwrap_or_else(|_| panic!("set {name} to the exact input")),
+            );
+            std::fs::canonicalize(&path)
+                .unwrap_or_else(|error| panic!("resolve {name} {}: {error}", path.display()))
+        }
+
+        fn git_status(path: &Path) -> String {
+            crate::git_hardened::text(path, &["status", "--short", "--untracked-files=all"])
+                .unwrap()
+        }
+
+        fn strict_blocker_counts(project: &Project, frontier: &Path) -> BTreeMap<String, usize> {
+            let mut counts = BTreeMap::new();
+            for signal in vela_edge::signals::analyze_at(project, &[], Some(frontier))
+                .signals
+                .into_iter()
+                .filter(|signal| signal.blocks.iter().any(|block| block == "strict_check"))
+            {
+                *counts.entry(signal.kind).or_default() += 1;
+            }
+            counts
+        }
+
+        let erdos = exact_env_path("VELA_ERDOS_REGRESSION_FRONTIER");
+        let formal = exact_env_path("VELA_FORMAL_REGRESSION_FRONTIER");
+        let profile = exact_env_path("VELA_ERDOS_REGRESSION_PROFILE");
+        let target_candidate = exact_env_path("VELA_ERDOS_REGRESSION_TARGET_CANDIDATE");
+        let dependency_input = exact_env_path("VELA_ERDOS_REGRESSION_DEPENDENCY_INPUT");
+        for external in [&profile, &target_candidate, &dependency_input] {
+            assert!(
+                !external.starts_with(&erdos) && !external.starts_with(&formal),
+                "migration input {} must remain outside both Frontier checkouts",
+                external.display()
+            );
+        }
+
+        let erdos_status_before = git_status(&erdos);
+        let formal_status_before = git_status(&formal);
+        assert!(
+            erdos_status_before.is_empty(),
+            "Erdős checkout must be clean"
+        );
+        assert!(
+            formal_status_before.is_empty(),
+            "Formal checkout must be clean"
+        );
+        let erdos_dot_vela_before = directory_bytes_root(&erdos.join(".vela"));
+        let formal_dot_vela_before = directory_bytes_root(&formal.join(".vela"));
+        let profile_root_before = sha256_root(&std::fs::read(&profile).unwrap());
+        let target_candidate_root_before = sha256_root(&std::fs::read(&target_candidate).unwrap());
+        let dependency_input_root_before = sha256_root(&std::fs::read(&dependency_input).unwrap());
+
+        let erdos_head = git(&erdos, &["rev-parse", "HEAD^{commit}"]).unwrap();
+        assert_eq!(erdos_head, ERDOS_COMMIT);
+        let erdos_project = vela_protocol::repo::load_from_path(&erdos).unwrap();
+        let erdos_facts =
+            vela_edge::frontier_repository::derive_repository_anchor_facts(&erdos, &erdos_head)
+                .unwrap();
+        assert_eq!(erdos_facts.event_log_root, ERDOS_EVENT_ROOT);
+        assert_eq!(erdos_facts.snapshot_root, ERDOS_SNAPSHOT_ROOT);
+        assert_eq!(erdos_facts.proposal_root, ERDOS_PROPOSAL_ROOT);
+        assert_eq!(erdos_facts.actor_registry_root, ERDOS_ACTOR_ROOT);
+        assert_eq!(erdos_facts.artifact_registry_root, ERDOS_ARTIFACT_ROOT);
+        assert_eq!(
+            strict_blocker_counts(&erdos_project, &erdos),
+            BTreeMap::from([
+                ("missing_conditions".to_string(), 1_511),
+                ("unsigned_registered_actor".to_string(), 81),
+            ])
+        );
+
+        let candidate: vela_edge::target_index::TargetIndexCandidateV1 =
+            serde_json::from_slice(&std::fs::read(&target_candidate).unwrap()).unwrap();
+        candidate.validate().unwrap();
+        assert_eq!(candidate.frontier_id, erdos_project.frontier_id());
+        assert_eq!(candidate.source.git_commit, erdos_head);
+        assert_eq!(candidate.targets.len(), 1_217);
+        let candidate_ids = candidate
+            .targets
+            .iter()
+            .map(|target| target.id.clone())
+            .collect::<BTreeSet<_>>();
+        let expected_ids = (1..=1_217)
+            .map(|problem| format!("erdos:{problem}"))
+            .collect::<BTreeSet<_>>();
+        assert_eq!(candidate_ids, expected_ids);
+        for path in candidate
+            .source
+            .input_paths
+            .iter()
+            .chain(candidate.targets.iter().map(|target| &target.packet.path))
+        {
+            assert!(
+                erdos.join(path).is_file(),
+                "candidate path {path:?} is absent from the exact Erdős checkout"
+            );
+        }
+
+        let dependency: DependencyMigrationInputV1 =
+            serde_json::from_slice(&std::fs::read(&dependency_input).unwrap()).unwrap();
+        assert_eq!(dependency.schema, MIGRATION_DEPENDENCY_INPUT_SCHEMA);
+        assert_eq!(dependency.entries.len(), 1);
+        let entry = &dependency.entries[0];
+        assert_eq!(
+            entry.legacy,
+            LegacyDependencyDescriptorV1::from(&erdos_project.project.dependencies[0])
+        );
+        assert_eq!(
+            std::fs::canonicalize(&entry.repository_path).unwrap(),
+            formal
+        );
+        assert_eq!(
+            entry.boundary_content_root,
+            entry.trust_anchor.boundary_content_root
+        );
+        assert_eq!(
+            entry.trust_anchor.administrator_public_key,
+            FORMAL_ADMINISTRATOR_PUBLIC_KEY
+        );
+        assert_eq!(entry.exact.frontier_id, FORMAL_FRONTIER_ID);
+        assert_eq!(entry.exact.identity_root, FORMAL_IDENTITY_ROOT);
+        assert_eq!(
+            entry.exact.scientific_state_root,
+            HISTORICAL_FORMAL_SCIENTIFIC_STATE_ROOT
+        );
+        assert_eq!(entry.exact.git_commit, HISTORICAL_FORMAL_COMMIT);
+        assert_eq!(entry.exact.git_tree, HISTORICAL_FORMAL_TREE);
+
+        let historical_facts = vela_edge::frontier_repository::derive_repository_anchor_facts(
+            &formal,
+            HISTORICAL_FORMAL_COMMIT,
+        )
+        .unwrap();
+        assert_eq!(historical_facts.git_tree, HISTORICAL_FORMAL_TREE);
+        assert_eq!(historical_facts.snapshot_root, HISTORICAL_FORMAL_SNAPSHOT);
+        let temporalization_anchor =
+            vela_edge::frontier_repository::derive_repository_anchor_facts(
+                &formal,
+                FORMAL_TEMPORALIZATION_ANCHOR_COMMIT,
+            )
+            .unwrap();
+        assert_eq!(
+            temporalization_anchor.git_tree,
+            FORMAL_TEMPORALIZATION_ANCHOR_TREE
+        );
+        assert_eq!(
+            temporalization_anchor.snapshot_root,
+            FORMAL_TEMPORALIZATION_ANCHOR_SNAPSHOT
+        );
+
+        // The external target candidate must independently pass the complete
+        // write-free Target Index v2 seal before the dependency trust gate is
+        // evaluated. This keeps the pre-ceremony failure specific: an absent
+        // Formal boundary grants no dependency authority, but it cannot hide
+        // a malformed or incomplete 1,217-target Erdős candidate.
+        let (_, _, candidate_profile) = read_candidate_profile(&erdos, &profile).unwrap();
+        let observed_profile_root = candidate_profile.profile_root().unwrap();
+        let legacy_identity_preimage_root =
+            vela_edge::frontier_repository::derive_legacy_identity_preimage_root(&erdos_project)
+                .unwrap();
+        let origin = LegacyFrontierOriginV1 {
+            schema: vela_protocol::frontier_repository::LEGACY_FRONTIER_ORIGIN_SCHEMA.to_string(),
+            frontier_id: erdos_project.frontier_id(),
+            legacy_identity_preimage_root: legacy_identity_preimage_root.clone(),
+            git_object_format: erdos_facts.git_object_format,
+            anchor_git_commit: erdos_facts.git_commit.clone(),
+            anchor_git_tree: erdos_facts.git_tree.clone(),
+            anchor_event_log_root: erdos_facts.event_log_root.clone(),
+            anchor_event_count: erdos_facts.event_count,
+        };
+        let identity_root = origin.identity_root().unwrap();
+        let mut exact_dependencies = dependency
+            .entries
+            .iter()
+            .map(|entry| entry.exact.clone())
+            .collect::<Vec<_>>();
+        exact_dependencies.sort_by(|left, right| {
+            (&left.frontier_id, &left.identity_root)
+                .cmp(&(&right.frontier_id, &right.identity_root))
+        });
+        let dependency_root =
+            vela_protocol::frontier_repository::exact_dependency_root(&exact_dependencies).unwrap();
+        let actor = vela_protocol::proposals::validate_human_reviewer_authority_at(
+            &erdos_project,
+            "reviewer:will-blair",
+            OBSERVED_AT,
+        )
+        .unwrap();
+        let planned_payload = FrontierRepositoryBoundaryPayloadV1 {
+            schema: FRONTIER_REPOSITORY_BOUNDARY_SCHEMA.to_string(),
+            mode: FrontierRepositoryBoundaryMode::TemporalizeExisting,
+            frontier_id: erdos_project.frontier_id(),
+            identity_root: identity_root.clone(),
+            observed_profile_root: observed_profile_root.clone(),
+            dependency_root: dependency_root.clone(),
+            dependencies: exact_dependencies,
+            previous_identity_event_root: None,
+            legacy_identity_preimage_root: Some(legacy_identity_preimage_root),
+            administrator_actor_id: actor.id.clone(),
+            administrator_public_key: actor.public_key.clone(),
+            administrator_algorithm: actor.algorithm.clone(),
+            trust_mode: FrontierRepositoryTrustMode::Tofu,
+            git_object_format: erdos_facts.git_object_format,
+            anchor_git_commit: erdos_facts.git_commit.clone(),
+            anchor_git_tree: erdos_facts.git_tree.clone(),
+            anchor_event_log_root: erdos_facts.event_log_root.clone(),
+            anchor_event_count: erdos_facts.event_count,
+            anchor_snapshot_root: erdos_facts.snapshot_root.clone(),
+            anchor_snapshot_schema: erdos_facts.snapshot_schema.clone(),
+            anchor_proposal_root: erdos_facts.proposal_root.clone(),
+            anchor_actor_registry_root: erdos_facts.actor_registry_root.clone(),
+            anchor_artifact_registry_root: erdos_facts.artifact_registry_root.clone(),
+            anchor_canonical_store_root: erdos_facts.canonical_store_root.clone(),
+        };
+        let planned_boundary = new_repository_boundary_event(
+            planned_payload,
+            "Bind exact legacy repository",
+            OBSERVED_AT,
+        )
+        .unwrap();
+        let planned_boundary_content_root = event_content_root(&planned_boundary);
+        let mut after_project: Project = serde_json::from_value(
+            serde_json::to_value(&erdos_project).expect("encode exact Erdős project"),
+        )
+        .expect("clone exact Erdős project");
+        after_project.events.push(planned_boundary.clone());
+        let target_context = vela_edge::target_index::TargetIndexMigrationContextV1 {
+            schema: vela_edge::target_index::TARGET_INDEX_MIGRATION_CONTEXT_SCHEMA_V1.to_string(),
+            anchor_git_commit: erdos_facts.git_commit.clone(),
+            anchor_git_tree: erdos_facts.git_tree.clone(),
+            source_event_log_root: erdos_facts.event_log_root.clone(),
+            source_event_count: erdos_facts.event_count,
+            source_nonlease_event_log_root: format!(
+                "sha256:{}",
+                vela_protocol::events::nonlease_event_log_hash(&erdos_project.events)
+            ),
+            planned_boundary_event: planned_boundary,
+            planned_boundary_event_content_root: planned_boundary_content_root,
+            final_roots: vela_edge::target_index::TargetIndexRootsV2 {
+                event_log_root: format!(
+                    "sha256:{}",
+                    vela_protocol::events::event_log_hash(&after_project.events)
+                ),
+                event_count: erdos_facts.event_count + 1,
+                nonlease_event_log_root: format!(
+                    "sha256:{}",
+                    vela_protocol::events::nonlease_event_log_hash(&after_project.events)
+                ),
+                scientific_state_root: vela_protocol::scientific_state::scientific_state_root_v2(
+                    &after_project,
+                    &identity_root,
+                    &dependency_root,
+                )
+                .unwrap(),
+                proposal_root: erdos_facts.proposal_root.clone(),
+                identity_root,
+                dependency_root,
+                observed_profile_root,
+            },
+        };
+        let sealed_target_index = vela_edge::target_index::prepare_target_index_seal_for_migration(
+            &erdos,
+            &target_candidate,
+            env!("CARGO_PKG_VERSION"),
+            &target_context,
+        )
+        .expect("seal the exact 1,217-target Erdős candidate");
+        assert_eq!(sealed_target_index.index.targets.len(), 1_217);
+        assert_eq!(sealed_target_index.source.git_commit, ERDOS_COMMIT);
+        assert_eq!(
+            sealed_target_index.candidate_root,
+            target_candidate_root_before
+        );
+        assert_eq!(
+            sealed_target_index
+                .index
+                .targets
+                .iter()
+                .map(|target| target.id.clone())
+                .collect::<BTreeSet<_>>(),
+            expected_ids
+        );
+
+        let formal_project = vela_protocol::repo::load_from_path(&formal).unwrap();
+        let repository_boundaries = formal_project
+            .events
+            .iter()
+            .filter(|event| event.kind.as_str() == EVENT_KIND_FRONTIER_REPOSITORY_BOUND)
+            .collect::<Vec<_>>();
+        let preview = prepare_migration(
+            &erdos,
+            &profile,
+            Some(&dependency_input),
+            &target_candidate,
+            "reviewer:will-blair",
+            "Bind exact legacy repository",
+            OBSERVED_AT,
+        );
+        if repository_boundaries.is_empty() {
+            assert_eq!(
+                repository_boundaries.len(),
+                0,
+                "pre-ceremony Formal history must contain exactly zero repository boundaries"
+            );
+            let error = preview.expect_err(
+                "an unmigrated Formal repository must not authenticate the historical pin",
+            );
+            assert!(
+                error.contains("dependency boundary root")
+                    && error.contains("resolves to 0 events, expected exactly one"),
+                "unexpected pre-ceremony blocker: {error}"
+            );
+        } else {
+            assert_eq!(
+                repository_boundaries.len(),
+                1,
+                "post-ceremony Formal history must contain exactly one repository boundary"
+            );
+            let formal_boundary = repository_boundaries[0];
+            assert_eq!(
+                repository_identity_event_content_root(formal_boundary).unwrap(),
+                entry.boundary_content_root,
+                "the selected boundary must be the exact externally pinned event"
+            );
+            let formal_boundary_payload =
+                repository_boundary_payload_from_event_shape(formal_boundary).unwrap();
+            assert_eq!(
+                formal_boundary_payload.mode,
+                FrontierRepositoryBoundaryMode::TemporalizeExisting
+            );
+            assert_eq!(
+                formal_boundary_payload.anchor_git_commit,
+                FORMAL_TEMPORALIZATION_ANCHOR_COMMIT
+            );
+            assert_eq!(
+                formal_boundary_payload.anchor_git_tree,
+                FORMAL_TEMPORALIZATION_ANCHOR_TREE
+            );
+            assert_eq!(
+                formal_boundary_payload.anchor_snapshot_root,
+                FORMAL_TEMPORALIZATION_ANCHOR_SNAPSHOT
+            );
+            let preview = preview.unwrap();
+            assert!(preview.plan.ready_for_protected_apply);
+            assert!(preview.plan.blockers.is_empty());
+            assert_eq!(preview.plan.git_commit, erdos_head);
+            assert_eq!(preview.plan.roots_before.event_log_root, ERDOS_EVENT_ROOT);
+            assert_eq!(
+                preview.plan.roots_before.legacy_snapshot_root,
+                ERDOS_SNAPSHOT_ROOT
+            );
+            assert_eq!(preview.plan.roots_before.proposal_root, ERDOS_PROPOSAL_ROOT);
+            assert_eq!(
+                preview.plan.roots_before.actor_registry_root,
+                ERDOS_ACTOR_ROOT
+            );
+            assert_eq!(
+                preview.plan.roots_before.artifact_registry_root,
+                ERDOS_ARTIFACT_ROOT
+            );
+            assert_eq!(
+                preview.plan.dependency_migration.entries,
+                dependency.entries
+            );
+            assert_eq!(preview.plan.boundary_payload.dependencies.len(), 1);
+            assert_eq!(preview.plan.boundary_payload.dependencies[0], entry.exact);
+            assert_eq!(
+                preview.plan.boundary_payload.dependency_root,
+                preview.plan.dependency_migration.dependency_root
+            );
+        }
+
+        let erdos_after = vela_protocol::repo::load_from_path(&erdos).unwrap();
+        assert_eq!(
+            strict_blocker_counts(&erdos_after, &erdos),
+            BTreeMap::from([
+                ("missing_conditions".to_string(), 1_511),
+                ("unsigned_registered_actor".to_string(), 81),
+            ])
+        );
+        assert_eq!(git_status(&erdos), erdos_status_before);
+        assert_eq!(git_status(&formal), formal_status_before);
+        assert_eq!(
+            directory_bytes_root(&erdos.join(".vela")),
+            erdos_dot_vela_before
+        );
+        assert_eq!(
+            directory_bytes_root(&formal.join(".vela")),
+            formal_dot_vela_before
+        );
+        assert_eq!(
+            sha256_root(&std::fs::read(&profile).unwrap()),
+            profile_root_before
+        );
+        assert_eq!(
+            sha256_root(&std::fs::read(&target_candidate).unwrap()),
+            target_candidate_root_before
+        );
+        assert_eq!(
+            sha256_root(&std::fs::read(&dependency_input).unwrap()),
+            dependency_input_root_before
+        );
+        let erdos_facts_after =
+            vela_edge::frontier_repository::derive_repository_anchor_facts(&erdos, &erdos_head)
+                .unwrap();
+        assert_eq!(erdos_facts_after, erdos_facts);
     }
 
     #[test]

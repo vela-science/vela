@@ -630,8 +630,9 @@ filesystem.
 
 Historical retained bytes are not deleted to make the layout prettier:
 
-- Sidon's tracked `.vela/artifact-blobs/` remain public retained artifacts
-  until an exact digest-locator migration preserves every reference.
+- Sidon's tracked `.vela/artifact-blobs/` and Erdős's 32 restored
+  content-addressed blobs remain public retained artifacts until an exact
+  digest-locator migration preserves every reference.
 - Formal Conjectures' Receipt-bound `proof/erdos505-test-dim-one-proof.lean`
   remains resolvable at its historical path. New formal work uses
   `formal/lean/`; retiring the old locator requires a separately verified
@@ -1308,7 +1309,7 @@ test proves pending standing and historical snapshot references are not
 substituted with `scientific_state_root_v2`.
 
 The current read-only Erdős vector is pinned separately at Git commit
-`c900a8a0318b6738612627d18efedba36b5f5516`: 13 pending proposal files,
+`e79feaeddf2d4c68ce395d2e7daec1e7fae41702`: 13 pending proposal files,
 proposal root
 `sha256:e69b38037814f2e8ca826942cfc50ab370993889be2913cac1c0b3e77711160f`,
 and pending-byte root

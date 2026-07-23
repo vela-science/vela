@@ -198,10 +198,12 @@ There is no `--force`, automatic TOFU, or repository-local fallback.
 | domain-native files | Scientific source and evidence | Use stable identity paths |
 | `.vela/work/`, operation journals | Local coordination and recovery | Never publish as scientific state |
 
-Two maintained histories contain immutable legacy exceptions: Formal
-Conjectures has a Receipt-bound Lean file under `proof/`, and Sidon has tracked
-artifact blobs under `.vela/artifact-blobs/`. Migration preserves their exact
-bytes; neither path is a precedent for new writes.
+Three maintained histories contain immutable legacy exceptions: Formal
+Conjectures has a Receipt-bound Lean file under `proof/`; Sidon has tracked
+artifact blobs under `.vela/artifact-blobs/`; and Erdős `main` restores 32
+content-addressed blobs whose immutable records already named those exact
+locators. Migration preserves their exact bytes; none of these paths is a
+precedent for new writes.
 
 ## Target Index v2
 

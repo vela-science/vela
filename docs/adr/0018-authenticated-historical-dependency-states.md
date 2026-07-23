@@ -45,6 +45,23 @@ its immutable scientific context. Rewriting or splicing Git history is
 forbidden. The missing operation is a stricter read derivation, not another
 authority object.
 
+The first real regression also exposed two operational preconditions that the
+synthetic fixtures did not:
+
+- Erdős had 32 content-addressed local artifact objects whose exact bytes were
+  already retained under tracked `witnesses/` paths but not at the canonical
+  artifact locators named by its immutable records. Commit
+  `5ac839c385b92d62c9f323fa6eff26beb5fd4f5a` restores those identical bytes at
+  the named paths without changing any event, artifact record, or scientific
+  root.
+- the historical Formal manifest carries the retired, non-scientific
+  `carina.kernel` field. Historical replay recognizes that one closed legacy
+  field as inert migration input; Profile v1 still rejects it, and migration
+  drops it.
+
+Neither repair grants dependency authentication. They make the exact historical
+bytes available so the signed boundary proof can be evaluated.
+
 ## Decision
 
 Clarify the existing `vela.exact-frontier-dependency.v1` semantics:
@@ -237,7 +254,9 @@ Focused implementation checks:
 
 ```bash
 cargo test -p vela-edge authenticated_ancestor_dependency
+cargo test -p vela-edge git_read::tests
 cargo test -p vela-cli --lib cli::migration::tests
+cargo test -p vela-protocol retired_carina_field_is_readable_only_in_legacy_manifests
 cargo test -p vela-protocol --test frontier_repository_bound
 cargo test -p vela-protocol --test cross_impl_reducer_fixtures
 python3 conformance/verify.py
@@ -255,22 +274,39 @@ authenticated_ancestor_dependency_rejects_event_signature_or_proposal_loss imple
 authenticated_ancestor_dependency_rejects_retained_object_loss_or_mutation implemented
 authenticated_ancestor_dependency_rejects_nonempty_dependency_context implemented
 migration_historical_dependency_preview_uses_authenticated_ancestor   implemented
+dirt_check_drains_large_path_and_hash_streams_without_deadlock         implemented
+retired_carina_field_is_readable_only_in_legacy_manifests              implemented
 exact_dependency_pin_is_derived_from_the_boundary_anchor               existing 0.914 compatibility
 migration_frontier_repo_v1_injected_signer_applies_one_exact_transaction existing transaction rederivation
 migration_cancellation_zero_writes_and_crash_recovers                  existing zero-write recovery
-erdos_formal_historical_dependency_read_only_regression                release gate
+erdos_formal_historical_dependency_read_only_regression                pre-ceremony branch passed; post-boundary branch is release gate
 ```
 
-The historical migration test additionally mutates the expected Git tree and
-consumer trust anchor and requires both failures before any source write. The
-existing migration transaction tests continue to cover late rederivation,
-cancellation, drift, and recovery for the same plan executor; the real
-Erdős/Formal vector remains the final read-only gate before ADR acceptance.
+The focused synthetic tests mutate the expected Git tree and consumer trust
+anchor and require both failures before any source write. The existing
+migration transaction tests continue to cover late rederivation, cancellation,
+drift, and recovery for the same plan executor.
 
-The Erdős vector asserts the exact historical and current commits, trees, and
-snapshot roots above. It must prove that one later Formal temporalization
-boundary authenticates the retained historical state without changing the pin,
-creating a competing Formal boundary, or rewriting history.
+The real ignored vector is bound to Erdős `main` commit
+`e79feaeddf2d4c68ce395d2e7daec1e7fae41702`, all 1,217 target packets, both
+canonical `.vela` stores, and external candidate files under
+`~/Desktop/Constellate/Archives/vela-0.914-migration-previews-2026-07-23/`.
+Before a Formal ceremony it now passes by requiring the anticipated all-zero
+boundary root to resolve to zero events, independently sealing the complete
+1,217-target candidate as Target Index v2, and proving zero writes plus
+unchanged Erdős roots and the exact 1,511/81 strict-blocker distribution. The
+post-ceremony branch requires exactly one Formal repository boundary, selects
+that event by its full content root, and checks that its signed payload names
+the reviewed `4e6f040a…` commit, `5b001592…` tree, and
+`sha256:45fa712b…` snapshot before the historical dependency preview may pass.
+
+ADR acceptance and Vela `0.915.0` remain blocked. After the human creates
+Formal's first protected temporalization boundary, the same external
+dependency file must replace only its two boundary-root fields with the real
+content root. The unchanged test must then take its positive branch and prove
+that the signed later boundary authenticates the retained historical state
+without changing the pin, creating a competing Formal boundary, or rewriting
+history.
 
 ## Alternatives rejected
 

@@ -189,6 +189,11 @@ fn hash_regular_paths(repo: &Path, paths: &[String]) -> Result<Vec<String>, Stri
     if paths.is_empty() {
         return Ok(Vec::new());
     }
+    let mut input = Vec::new();
+    for path in paths {
+        input.extend_from_slice(path.as_bytes());
+        input.push(b'\n');
+    }
     let mut child = hardened_command(repo, "Git repository")?
         .args(["hash-object", "--no-filters", "--stdin-paths"])
         .stdin(Stdio::piped())
@@ -196,19 +201,24 @@ fn hash_regular_paths(repo: &Path, paths: &[String]) -> Result<Vec<String>, Stri
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|error| format!("run filter-free worktree hashing: {error}"))?;
-    {
-        let stdin = child
-            .stdin
-            .as_mut()
-            .ok_or_else(|| "open filter-free worktree hashing input".to_string())?;
-        for path in paths {
-            writeln!(stdin, "{path}")
-                .map_err(|error| format!("write filter-free Git path {path:?}: {error}"))?;
-        }
-    }
+    let mut stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| "open filter-free worktree hashing input".to_string())?;
+    // Git emits one root for every input path. Writing all paths before reading
+    // stdout can deadlock once both bounded OS pipes fill. Feed stdin on a
+    // dedicated thread while `wait_with_output` drains stdout and stderr.
+    let writer = std::thread::spawn(move || {
+        stdin
+            .write_all(&input)
+            .map_err(|error| format!("write filter-free Git paths: {error}"))
+    });
     let output = child
         .wait_with_output()
         .map_err(|error| format!("wait for filter-free worktree hashing: {error}"))?;
+    let writer_result = writer
+        .join()
+        .map_err(|_| "filter-free worktree hashing writer panicked".to_string())?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
         return Err(if stderr.is_empty() {
@@ -217,6 +227,7 @@ fn hash_regular_paths(repo: &Path, paths: &[String]) -> Result<Vec<String>, Stri
             stderr
         });
     }
+    writer_result?;
     let stdout = String::from_utf8(output.stdout)
         .map_err(|error| format!("filter-free worktree hashes were not UTF-8: {error}"))?;
     let hashes = stdout.lines().map(str::to_string).collect::<Vec<_>>();
@@ -423,5 +434,30 @@ mod tests {
         );
         assert!(!fsmonitor_canary.exists());
         assert!(!filter_canary.exists());
+    }
+
+    #[test]
+    fn dirt_check_drains_large_path_and_hash_streams_without_deadlock() {
+        let repo = tempfile::tempdir().unwrap();
+        run(repo.path(), &["init", "-q", "-b", "main"]);
+        run(repo.path(), &["config", "user.name", "Vela Test"]);
+        run(
+            repo.path(),
+            &["config", "user.email", "vela@example.invalid"],
+        );
+        for index in 0..1_217 {
+            let name = format!(
+                "tracked-{index:04}-{}.txt",
+                "long-path-component-for-bounded-git-pipe-regression"
+            );
+            std::fs::write(repo.path().join(name), format!("{index}\n")).unwrap();
+        }
+        run(repo.path(), &["add", "."]);
+        run(
+            repo.path(),
+            &["commit", "-qm", "large tracked path fixture"],
+        );
+
+        assert!(dirty_worktree_paths(repo.path(), true).unwrap().is_empty());
     }
 }
