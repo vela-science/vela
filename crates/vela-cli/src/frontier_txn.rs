@@ -1801,7 +1801,7 @@ pub(crate) fn operating_system_account_home() -> Result<PathBuf, FrontierTxnErro
     let status = unsafe {
         SHGetKnownFolderPath(
             &FOLDERID_Profile,
-            KF_FLAG_DEFAULT,
+            KF_FLAG_DEFAULT as u32,
             std::ptr::null_mut(),
             &mut raw,
         )
