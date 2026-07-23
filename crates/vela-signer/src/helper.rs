@@ -756,7 +756,10 @@ mod tests {
             vela_binary_sha256: file_sha256(vela.path()).unwrap(),
             helper_sha256: file_sha256(helper.path()).unwrap(),
             frontier_id: profile.frontier_id.clone(),
-            frontier_path: "/tmp/actor-proof-frontier".to_string(),
+            frontier_path: std::env::temp_dir()
+                .join("actor-proof-frontier")
+                .display()
+                .to_string(),
             profile_root: profile.profile_root().unwrap(),
             profile,
             actor_id: actor_record.id.clone(),

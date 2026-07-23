@@ -476,7 +476,10 @@ mod tests {
             vela_binary_sha256: file_sha256(binary.path()).unwrap(),
             helper_sha256: format!("sha256:{}", "2".repeat(64)),
             frontier_id: profile.frontier_id.clone(),
-            frontier_path: "/tmp/bootstrap-frontier".to_string(),
+            frontier_path: std::env::temp_dir()
+                .join("bootstrap-frontier")
+                .display()
+                .to_string(),
             profile_root: profile.profile_root().unwrap(),
             profile,
             actor_id: actor_record.id.clone(),
