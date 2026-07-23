@@ -278,12 +278,13 @@ the same stable contract and extraction deletes duplicated code.
 
 ## Current research migration
 
-Before presenting new results, complete the two bounded reconciliation steps.
+Before presenting new results, complete the bounded reconciliation steps.
 Phase 0A corrects current prose and claim status without changing theorem
-surfaces. Phase 0B then:
+surfaces. Phase 0B quarantines the active compatibility aggregate. Phase 0C
+then separates protocol and research axiom reports from one membership source:
 
 1. Keep public `THEORY.md` as the normative formal-boundary document.
-2. Split protocol and research axiom registries.
+2. Split protocol and research axiom reports without duplicating membership.
 3. Remove PoVD, Accumulation, HeteroAccumulation, and ProtocolKeystone from the
    active core-theorem bundle. Preserve them under research history with claims
    narrowed to what the statements prove.
@@ -301,8 +302,9 @@ surfaces. Phase 0B then:
 10. Preserve falsified sheaf and transfer-amplification experiments as negative
     evidence, outside the active theory.
 
-Phase 0B does not block Repository Profile v1 or Vela `v0.914.0`; it blocks the
-presentation of any new Frontier Algebra theorem or runtime result.
+Phases 0A–0C are complete. They do not block Repository Profile v1 or Vela
+`v0.914.0`; they block the presentation of any new Frontier Algebra theorem or
+runtime result until the later evidence gates pass.
 
 Historical commits and reports remain available. Current documentation must
 not present experimental statements as shipped protocol guarantees.

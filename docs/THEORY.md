@@ -273,11 +273,16 @@ does not enlarge the current Vela protocol.
 
 Some modules state abstract hash or serializer injectivity as axioms, and some
 composition modules use opaque functions with preservation assumptions. This is
-legitimate only when surfaced as an assumption. The
-[`AxiomAudit`](../lean/Vela/AxiomAudit.lean) reports dependencies for its explicit
-registry; it should not be summarized as “the whole implementation is
-axiom-free.” A compiler-checked `native_decide` certificate also has a different
-trusted computing base from a small kernel reduction.
+legitimate only when surfaced as an assumption. One fail-closed
+[`AxiomAuditRegistry`](../lean/Vela/AxiomAuditRegistry.lean) classifies every
+publicly audited declaration. [`ProtocolAxiomAudit`](../lean/Vela/ProtocolAxiomAudit.lean)
+reports only the small structural surface above;
+[`ResearchAxiomAudit`](../lean/Vela/ResearchAxiomAudit.lean) reports compatibility
+models, governance lemmas, domain mathematics, and transfers. The historical
+[`AxiomAudit`](../lean/Vela/AxiomAudit.lean) remains their combined compatibility
+view. None should be summarized as “the whole implementation is axiom-free.”
+A compiler-checked `native_decide` certificate also has a different trusted
+computing base from a small kernel reduction.
 
 The honest Lean claim is:
 
@@ -330,7 +335,8 @@ For Lean itself:
 ```bash
 cd lean
 lake build
-lake env lean Vela/AxiomAudit.lean
+lake build Vela.ProtocolAxiomAudit Vela.ResearchAxiomAudit Vela.AxiomAudit
+python3 ../scripts/check-lean-axiom-audits.py --project .
 ```
 
 Those commands may be expensive on a cold toolchain. A claim that a revision is

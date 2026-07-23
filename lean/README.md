@@ -25,19 +25,22 @@ Modules are grouped by domain under `Vela/`:
 | `Vela/Transfer/` | research proofs for cross-domain construction maps |
 | `Vela/Constructions/` | verified math construction certs (Sidon — the OEIS A309370 cert, Erdős-Ginzburg-Ziv) |
 
-`Vela/CoreTheorems.lean` (the compatibility aggregator) and `Vela/AxiomAudit.lean`
-(the axiom-report harness) stay at the `Vela/` root. `Vela.lean` is the build
-root and imports the compatibility aggregate plus the Sidon certificate. The
-aggregate excludes the historical `Vela/Accumulation/` research tree; importing
-one of those modules explicitly does not make its vocabulary part of the
-current Vela protocol.
+`Vela/CoreTheorems.lean` is the compatibility aggregator.
+`Vela/AxiomAuditRegistry.lean` is the single public audit-membership source;
+`ProtocolAxiomAudit.lean` and `ResearchAxiomAudit.lean` produce the classified
+reports, while `AxiomAudit.lean` preserves the combined historical report.
+`Vela.lean` is the build root and imports the compatibility aggregate plus the
+Sidon certificate. The aggregate excludes the historical
+`Vela/Accumulation/` research tree; importing one of those modules explicitly
+does not make its vocabulary part of the current Vela protocol.
 
 ## Build / verify
 
 ```bash
 cd lean
 lake build Vela
-lake env lean Vela/AxiomAudit.lean
+lake build Vela.ProtocolAxiomAudit Vela.ResearchAxiomAudit Vela.AxiomAudit
+python3 ../scripts/check-lean-axiom-audits.py --project .
 ```
 
 `lake build Vela` elaborates `Vela.lean` and its imported closure against the
@@ -45,13 +48,13 @@ pinned toolchain. Lean permits `sorry` with a warning, so that command alone is
 not a no-`sorry` gate. It also does not inspect the Rust implementation or prove
 that an abstract model refines it.
 
-`Vela/AxiomAudit.lean` separately prints the dependencies collected for the
-explicit `theoremsToAudit` registry. It is not imported by `Vela.lean`, is not
-run by `lake build Vela`, and does not claim coverage of every declaration in
-the repository. Its output must be reviewed or passed to the documented axiom
-policy before making a claim about a registered theorem's trusted computing
-base. The manual GitHub workflow currently runs only the model build; it does
-not run or interpret this audit.
+The classified audit modules print dependencies collected for the explicit
+registry. They are not imported by `Vela.lean` and do not claim coverage of
+every declaration in the repository. The checker requires the protocol report
+to use only the frozen policy axioms, rejects `sorryAx` and compiler-trust
+closures throughout the combined report, and proves the compatibility report
+is exactly the disjoint protocol/research union. Research-specific axioms remain
+visible rather than being misreported as protocol guarantees.
 
 The exact assurance is therefore:
 

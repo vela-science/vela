@@ -124,6 +124,7 @@ ruler** is a set whose pairwise differences are distinct; written additively
 `a + d = b + c`. The proofs establish both implications for these definitions.
 They do not by themselves equate repository records, verifier identities, or
 scientific standing.
+-/
 
 /-- A Golomb-ruler set over `List Nat`: every coincidence of pairwise differences (in additive form)
     comes from the same pair. -/
