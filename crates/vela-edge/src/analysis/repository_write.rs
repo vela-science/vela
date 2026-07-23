@@ -132,18 +132,41 @@ struct RepositoryFileIdentity {
     mode: u32,
 }
 
+// `rustix::fs::Stat` exposes normalized `u64`/`u32` fields on Linux and
+// Android. Apple uses libc's narrower `dev_t`/`mode_t`, so only that ABI needs
+// explicit widening.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn stat_device(stat: &rustix::fs::Stat) -> u64 {
+    stat.st_dev
+}
+
+#[cfg(target_vendor = "apple")]
+fn stat_device(stat: &rustix::fs::Stat) -> u64 {
+    stat.st_dev as u64
+}
+
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn stat_mode(stat: &rustix::fs::Stat) -> u32 {
+    stat.st_mode
+}
+
+#[cfg(target_vendor = "apple")]
+fn stat_mode(stat: &rustix::fs::Stat) -> u32 {
+    stat.st_mode as u32
+}
+
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 impl RepositoryFileIdentity {
     fn from_stat(stat: &rustix::fs::Stat) -> Self {
         Self {
-            device: stat.st_dev as u64,
+            device: stat_device(stat),
             inode: stat.st_ino,
-            mode: stat.st_mode as u32,
+            mode: stat_mode(stat),
         }
     }
 
     fn same_object(self, stat: &rustix::fs::Stat) -> bool {
-        self.device == stat.st_dev as u64 && self.inode == stat.st_ino
+        self.device == stat_device(stat) && self.inode == stat.st_ino
     }
 }
 
