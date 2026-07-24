@@ -259,6 +259,17 @@ installation, rotation, emergency close, exact retry semantics, and a
 CLI-unreachable disposable Frontier exercise. No active Frontier or human key
 was used.
 
+Progress evidence, 2026-07-24: the writer now installs missing
+content-addressed keyset and policy-bundle manifests through the same covered
+object delta and recoverable journal as the Era-1 events. Existing manifests
+must match exactly, direct store membership is bound through the commit
+marker, and the runtime Cedar schema, policies, and entities must rederive the
+roots in the retained bundle. A completed operation can be retried without an
+authentication or signing interface only when its full retained result
+matches. Thirteen focused tests pass. The disposable migration exercise must
+still prove that sequence 1 installs the initial snapshots; rotation and
+emergency close remain open.
+
 ## Phase 4: authority transaction writer
 
 1. Adapt the existing recoverable transaction barrier rather than creating a

@@ -688,6 +688,21 @@ struct DirectoryEntryState {
 }
 
 impl InputBinding {
+    /// Bind the exact current direct membership and file states of a
+    /// repository directory.
+    ///
+    /// This is used when the caller must preserve an append-only store whose
+    /// historical members are discovered from the held repository rather
+    /// than supplied as a parsed object list.
+    pub(crate) fn current_directory(
+        frontier_root: &Path,
+        path: RepoPath,
+    ) -> Result<Self, FrontierTxnError> {
+        let root = canonical_frontier_root(frontier_root)?;
+        let state = inspect_directory_state(&root, &path)?;
+        Self::from_directory_state(path, state)
+    }
+
     /// Bind either the exact current file state or its exact absence.
     ///
     /// This is the read-set counterpart to a bounded caller read: it does not

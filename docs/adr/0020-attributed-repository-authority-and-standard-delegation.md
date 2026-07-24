@@ -682,6 +682,27 @@ emergency close, exact retry semantics, and a CLI-unreachable disposable
 Frontier exercise. It does not authorize a live writer, accept this ADR,
 migrate an active Frontier, or access any human signing key.
 
+The following bounded writer slice now derives content-addressed keyset and
+policy-manifest paths from the verified history. Missing snapshots are covered
+by the same authority record and recoverable journal as the events and other
+objects; an existing snapshot must match its canonical bytes. Exact
+direct-directory bindings reject store membership changes before the marker.
+The runtime Cedar schema, policies, and entities must independently rederive
+the roots retained by the policy bundle, closing a policy-byte substitution
+gap.
+
+Completed authority operations also retain the full typed result in the
+verified journal. An exact retry supplies that complete result and receives it
+back only after the marker, blobs, postimages, and event commitment verify.
+This path has no authentication adapter or signer argument. A changed
+transaction ID, record root, event set, read-set root, or write-set root is not
+a retry.
+
+Thirteen writer tests now cover these additions. Phase 4 remains open for
+sequence-1 installation in the disposable migration exercise, rotation,
+emergency close, and the full offline Frontier drill. No live writer, CLI
+route, active Frontier, or human key is involved.
+
 ## Alternatives rejected
 
 ### Preserve or improve the current helper

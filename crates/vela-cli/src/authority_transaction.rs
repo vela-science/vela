@@ -8,11 +8,13 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
+use std::fs;
+use std::io::ErrorKind;
 use std::path::Path;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use vela_authority::CedarEvaluationInput;
 use vela_authority::runtime_authentication::{
@@ -43,6 +45,7 @@ const TRANSACTION_ID_SCHEMA: &str = "vela.authority-transaction-id.internal.v1";
 const READ_SET_SCHEMA: &str = "vela.authority-read-set.internal.v1";
 const WRITE_SET_SCHEMA: &str = "vela.authority-write-set.internal.v1";
 const LAYOUT_SCHEMA: &str = "vela.authority-layout.internal.v1";
+const RESULT_SCHEMA: &str = "vela.authority-transaction-result.internal.v1";
 const OPERATION_DOMAIN: &str = "authority_transaction";
 
 /// Complete verified-history input for the next transaction.
@@ -118,7 +121,8 @@ pub(crate) trait RepositoryAuthoritySigner {
     ) -> Result<Vec<DsseSignatureV1>, String>;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct AuthorityTransactionResult {
     pub(crate) operation_id: String,
     pub(crate) transaction_id: String,
@@ -129,6 +133,13 @@ pub(crate) struct AuthorityTransactionResult {
     pub(crate) after_event_log_root: String,
     pub(crate) read_set_root: String,
     pub(crate) write_set_root: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DurableAuthorityTransactionResult {
+    schema: String,
+    result: AuthorityTransactionResult,
 }
 
 #[derive(Debug)]
@@ -206,6 +217,7 @@ where
     A: AuthenticationAdapter,
     S: RepositoryAuthoritySigner,
 {
+    normalize_authority_snapshots(frontier_root, &mut request)?;
     normalize_object_drafts(frontier_root, &mut request)?;
     validate_request_shape(&request)?;
     let history = verify_authority_history(AuthorityHistoryInput {
@@ -462,6 +474,17 @@ where
             "legacy event IDs are not unique".into(),
         ));
     }
+    let result = AuthorityTransactionResult {
+        operation_id: record.content.operation_id.clone(),
+        transaction_id: record.content.transaction_id.clone(),
+        event_ids: record.content.event_ids.clone(),
+        authority_record_id: record.record_id.clone(),
+        authority_record_root: verified.record_root.clone(),
+        before_event_log_root: record.content.before_event_log_root.clone(),
+        after_event_log_root: record.content.after_event_log_root.clone(),
+        read_set_root,
+        write_set_root,
+    };
     let layout_identity = to_canonical_bytes(&LayoutCommitment {
         schema: LAYOUT_SCHEMA,
         frontier_id: &request.history.frontier_id,
@@ -494,30 +517,17 @@ where
             resulting_event_log_root: legacy_event_root,
             resulting_event_ids: legacy_event_ids,
             read_set: request.read_set,
-            result: serde_json::json!({
-                "schema": "vela.authority-transaction-result.internal.v1",
-                "transaction_id": transaction_id,
-                "authority_record_id": record.record_id,
-                "authority_record_root": verified.record_root,
-                "event_ids": event_ids,
-            }),
+            result: serde_json::to_value(DurableAuthorityTransactionResult {
+                schema: RESULT_SCHEMA.into(),
+                result: result.clone(),
+            })
+            .map_err(|error| AuthorityTransactionError::Invalid(error.to_string()))?,
         },
         draft.delta.clone(),
     )
     .map_err(AuthorityTransactionError::Transaction)?;
     let transaction = FrontierTxn::prepare_with_barrier(barrier, plan, draft)
         .map_err(AuthorityTransactionError::Transaction)?;
-    let result = AuthorityTransactionResult {
-        operation_id: record.content.operation_id.clone(),
-        transaction_id: record.content.transaction_id.clone(),
-        event_ids: record.content.event_ids.clone(),
-        authority_record_id: record.record_id.clone(),
-        authority_record_root: verified.record_root,
-        before_event_log_root: record.content.before_event_log_root.clone(),
-        after_event_log_root: record.content.after_event_log_root.clone(),
-        read_set_root,
-        write_set_root,
-    };
     Ok(PreparedAuthorityTransaction {
         transaction,
         result,
@@ -548,6 +558,126 @@ where
     prepared.install()?;
     prepared.complete()?;
     Ok(prepared.result)
+}
+
+/// Return one already-completed authority result without authenticating or
+/// signing again.
+///
+/// The caller must retain the complete result from the first execution. A
+/// short ID, intent digest, or transaction ID alone is insufficient. The
+/// recovery barrier verifies the completed marker, blobs, canonical
+/// postimages, and historical event commitment before this function compares
+/// the durable result byte-for-byte.
+pub(crate) fn retry_completed_authority_transaction(
+    barrier: &CanonicalWriteBarrier,
+    expected: &AuthorityTransactionResult,
+) -> Result<AuthorityTransactionResult, AuthorityTransactionError> {
+    let operation_id = OperationId::parse(expected.operation_id.as_str())
+        .map_err(AuthorityTransactionError::Transaction)?;
+    let plan = barrier
+        .completed_plan(&operation_id)
+        .map_err(AuthorityTransactionError::Transaction)?
+        .ok_or_else(|| {
+            AuthorityTransactionError::Invalid(format!(
+                "authority transaction {} is not completed",
+                expected.operation_id
+            ))
+        })?;
+    let durable: DurableAuthorityTransactionResult = serde_json::from_value(plan.result.clone())
+        .map_err(|error| {
+            AuthorityTransactionError::Invalid(format!(
+                "completed authority transaction result is invalid: {error}"
+            ))
+        })?;
+    if durable.schema != RESULT_SCHEMA || durable.result != *expected {
+        return Err(AuthorityTransactionError::Invalid(
+            "completed authority transaction does not match the exact retained result".into(),
+        ));
+    }
+    Ok(durable.result)
+}
+
+fn normalize_authority_snapshots(
+    frontier_root: &Path,
+    request: &mut AuthorityTransactionRequest,
+) -> Result<(), AuthorityTransactionError> {
+    if request.object_drafts.iter().any(|draft| {
+        draft.path.starts_with(".vela/authority/keysets/")
+            || draft.path.starts_with(".vela/authority/policies/")
+    }) {
+        return Err(AuthorityTransactionError::Invalid(
+            "authority keyset and policy snapshots are derived from the verified history, not caller object drafts"
+                .into(),
+        ));
+    }
+
+    let keyset_root = request
+        .history
+        .authority_keyset
+        .root()
+        .map_err(AuthorityTransactionError::Invalid)?;
+    let policy_root = request
+        .history
+        .policy_bundle
+        .root()
+        .map_err(AuthorityTransactionError::Invalid)?;
+    let snapshots = [
+        (
+            authority_keyset_path(&keyset_root)?,
+            "authority_keyset",
+            to_canonical_bytes(&request.history.authority_keyset)
+                .map_err(AuthorityTransactionError::Invalid)?,
+        ),
+        (
+            authority_policy_path(&policy_root)?,
+            "policy_bundle",
+            to_canonical_bytes(&request.history.policy_bundle)
+                .map_err(AuthorityTransactionError::Invalid)?,
+        ),
+    ];
+
+    for directory in [".vela/authority/keysets", ".vela/authority/policies"] {
+        let binding = InputBinding::current_directory(
+            frontier_root,
+            RepoPath::parse(directory.to_string())
+                .map_err(AuthorityTransactionError::Transaction)?,
+        )
+        .map_err(AuthorityTransactionError::Transaction)?;
+        merge_input_binding(&mut request.read_set, binding)?;
+    }
+
+    for (path_text, object_kind, bytes) in snapshots {
+        let path =
+            RepoPath::parse(path_text.clone()).map_err(AuthorityTransactionError::Transaction)?;
+        let absolute = frontier_root.join(path.as_str());
+        match fs::symlink_metadata(&absolute) {
+            Ok(_) => {
+                let binding = InputBinding::exact_file(frontier_root, path, &bytes)
+                    .map_err(AuthorityTransactionError::Transaction)?;
+                merge_input_binding(&mut request.read_set, binding)?;
+            }
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                let binding = InputBinding::absent_file(frontier_root, path)
+                    .map_err(AuthorityTransactionError::Transaction)?;
+                merge_input_binding(&mut request.read_set, binding)?;
+                request.object_drafts.push(AuthorityObjectDraft {
+                    path: path_text,
+                    object_kind: object_kind.into(),
+                    class: WriteClass::Authority,
+                    postimage: Some(bytes),
+                });
+            }
+            Err(error) => {
+                return Err(AuthorityTransactionError::Transaction(
+                    FrontierTxnError::Io(format!(
+                        "inspect authority snapshot {}: {error}",
+                        absolute.display()
+                    )),
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn normalize_object_drafts(
@@ -823,6 +953,22 @@ fn validate_request_shape(
             "history, keyset, and policy bundle name different frontiers".into(),
         ));
     }
+    let authorization_schema_root =
+        ContentDigest::hash(request.authorization_input.schema.as_bytes());
+    let authorization_policies_root =
+        ContentDigest::hash(request.authorization_input.policies.as_bytes());
+    let authorization_entities = to_canonical_bytes(&request.authorization_input.entities)
+        .map_err(AuthorityTransactionError::Invalid)?;
+    let authorization_entities_root = ContentDigest::hash(authorization_entities);
+    if request.history.policy_bundle.cedar_schema_root != authorization_schema_root.as_str()
+        || request.history.policy_bundle.policies_root != authorization_policies_root.as_str()
+        || request.history.policy_bundle.entities_root != authorization_entities_root.as_str()
+    {
+        return Err(AuthorityTransactionError::Invalid(
+            "runtime Cedar schema, policies, or entities differ from the retained policy bundle"
+                .into(),
+        ));
+    }
     ContentDigest::parse(request.intent_digest.clone())
         .map_err(AuthorityTransactionError::Transaction)?;
     ContentDigest::parse(request.binary_sha256.clone())
@@ -1033,6 +1179,26 @@ fn authority_record_path(record_id: &str) -> String {
     format!(".vela/authority/records/{record_id}.dsse.json")
 }
 
+fn authority_keyset_path(root: &str) -> Result<String, AuthorityTransactionError> {
+    Ok(format!(
+        ".vela/authority/keysets/{}.json",
+        authority_snapshot_stem(root)?
+    ))
+}
+
+fn authority_policy_path(root: &str) -> Result<String, AuthorityTransactionError> {
+    Ok(format!(
+        ".vela/authority/policies/{}.json",
+        authority_snapshot_stem(root)?
+    ))
+}
+
+fn authority_snapshot_stem(root: &str) -> Result<&str, AuthorityTransactionError> {
+    ContentDigest::parse(root.to_string()).map_err(AuthorityTransactionError::Transaction)?;
+    root.strip_prefix("sha256:")
+        .ok_or_else(|| AuthorityTransactionError::Invalid("snapshot root lacks sha256 tag".into()))
+}
+
 #[derive(Serialize)]
 struct TransactionIdCommitment<'a> {
     schema: &'static str,
@@ -1141,6 +1307,55 @@ mod tests {
             .to_string()
     }
 
+    fn fixture_authorization_input() -> CedarEvaluationInput {
+        CedarEvaluationInput {
+            schema: r#"
+                entity Human;
+                entity Proposal;
+                action "review_reject" appliesTo {
+                    principal: Human,
+                    resource: Proposal,
+                    context: {
+                        exact: Bool,
+                        authentication: {
+                            method: String,
+                            assurance: String,
+                            authenticated_at: String,
+                            observed_at: String,
+                            expires_at: String,
+                            user_presence: Bool,
+                            user_verification: Bool,
+                            recovery_recent: Bool
+                        }
+                    }
+                };
+            "#
+            .into(),
+            policies: r#"
+                permit(principal, action, resource)
+                when { context.exact };
+            "#
+            .into(),
+            entities: json!([
+                {
+                    "uid": {"type": "Human", "id": REPOSITORY_PRINCIPAL},
+                    "attrs": {},
+                    "parents": []
+                },
+                {
+                    "uid": {"type": "Proposal", "id": "vpr_0123456789abcdef"},
+                    "attrs": {},
+                    "parents": []
+                }
+            ]),
+            principal: format!(r#"Human::"{REPOSITORY_PRINCIPAL}""#),
+            principal_class: PrincipalClass::Human,
+            action: "review_reject".into(),
+            resource: r#"Proposal::"vpr_0123456789abcdef""#.into(),
+            context: json!({"exact": true}),
+        }
+    }
+
     struct TestSigner {
         key: SigningKey,
         calls: usize,
@@ -1236,6 +1451,7 @@ mod tests {
         fs::write(root_path.join(".vela/actors.json"), &actor_registry_bytes).unwrap();
         fs::write(root_path.join(".vela/input.json"), b"{\"fixture\":true}\n").unwrap();
 
+        let authorization_input = fixture_authorization_input();
         let keyset = AuthorityKeysetV1 {
             schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
             frontier_id: FRONTIER_ID.into(),
@@ -1255,9 +1471,17 @@ mod tests {
         let policy_bundle = PolicyBundleV1 {
             schema: POLICY_BUNDLE_SCHEMA_V1.into(),
             frontier_id: FRONTIER_ID.into(),
-            cedar_schema_root: root('a'),
-            policies_root: root('b'),
-            entities_root: root('c'),
+            cedar_schema_root: ContentDigest::hash(authorization_input.schema.as_bytes())
+                .as_str()
+                .into(),
+            policies_root: ContentDigest::hash(authorization_input.policies.as_bytes())
+                .as_str()
+                .into(),
+            entities_root: ContentDigest::hash(
+                to_canonical_bytes(&authorization_input.entities).unwrap(),
+            )
+            .as_str()
+            .into(),
             tests_root: root('d'),
             engine: CEDAR_ENGINE.into(),
             engine_version: CEDAR_ENGINE_VERSION.into(),
@@ -1430,52 +1654,6 @@ mod tests {
         )
         .unwrap();
 
-        let authorization_input = CedarEvaluationInput {
-            schema: r#"
-                entity Human;
-                entity Proposal;
-                action "review_reject" appliesTo {
-                    principal: Human,
-                    resource: Proposal,
-                    context: {
-                        exact: Bool,
-                        authentication: {
-                            method: String,
-                            assurance: String,
-                            authenticated_at: String,
-                            observed_at: String,
-                            expires_at: String,
-                            user_presence: Bool,
-                            user_verification: Bool,
-                            recovery_recent: Bool
-                        }
-                    }
-                };
-            "#
-            .into(),
-            policies: r#"
-                permit(principal, action, resource)
-                when { context.exact };
-            "#
-            .into(),
-            entities: json!([
-                {
-                    "uid": {"type": "Human", "id": REPOSITORY_PRINCIPAL},
-                    "attrs": {},
-                    "parents": []
-                },
-                {
-                    "uid": {"type": "Proposal", "id": "vpr_0123456789abcdef"},
-                    "attrs": {},
-                    "parents": []
-                }
-            ]),
-            principal: format!(r#"Human::"{REPOSITORY_PRINCIPAL}""#),
-            principal_class: PrincipalClass::Human,
-            action: "review_reject".into(),
-            resource: r#"Proposal::"vpr_0123456789abcdef""#.into(),
-            context: json!({"exact": true}),
-        };
         let fixture_input = InputBinding::existing_file(
             root_path,
             RepoPath::parse(".vela/input.json".to_string()).unwrap(),
@@ -1584,7 +1762,17 @@ mod tests {
         let record_count = fs::read_dir(fixture.temporary.path().join(".vela/authority/records"))
             .unwrap()
             .count();
-        events_absent && record_count == 1
+        let keysets_absent = !fixture
+            .temporary
+            .path()
+            .join(".vela/authority/keysets")
+            .exists();
+        let policies_absent = !fixture
+            .temporary
+            .path()
+            .join(".vela/authority/policies")
+            .exists();
+        events_absent && record_count == 1 && keysets_absent && policies_absent
     }
 
     fn prepared_journal_absent(fixture: &Fixture) -> bool {
@@ -1626,8 +1814,154 @@ mod tests {
         .unwrap();
         let envelope: AuthorityEnvelopeV1 = serde_json::from_slice(&envelope_bytes).unwrap();
         assert_eq!(envelope_bytes, to_canonical_bytes(&envelope).unwrap());
+        let keyset_path =
+            authority_keyset_path(&fixture.request.history.authority_keyset.root().unwrap())
+                .unwrap();
+        let policy_path =
+            authority_policy_path(&fixture.request.history.policy_bundle.root().unwrap()).unwrap();
+        assert_eq!(
+            fs::read(fixture.temporary.path().join(keyset_path)).unwrap(),
+            to_canonical_bytes(&fixture.request.history.authority_keyset).unwrap()
+        );
+        assert_eq!(
+            fs::read(fixture.temporary.path().join(policy_path)).unwrap(),
+            to_canonical_bytes(&fixture.request.history.policy_bundle).unwrap()
+        );
 
         verify_installed_history(&fixture, &[event], &envelope);
+    }
+
+    #[test]
+    fn completed_retry_returns_only_the_exact_durable_result_without_another_signature() {
+        let fixture = fixture();
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let result = execute_authority_transaction(
+            fixture.barrier(),
+            fixture.temporary.path(),
+            fixture.request.clone(),
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap();
+        assert_eq!(signer.calls, 1);
+
+        let barrier = fixture.barrier();
+        let retried = retry_completed_authority_transaction(&barrier, &result).unwrap();
+        assert_eq!(retried, result);
+        assert_eq!(signer.calls, 1);
+
+        let mut substituted = result.clone();
+        substituted.transaction_id.push('0');
+        let error = retry_completed_authority_transaction(&barrier, &substituted).unwrap_err();
+        assert!(matches!(error, AuthorityTransactionError::Invalid(_)));
+        assert_eq!(signer.calls, 1);
+    }
+
+    #[test]
+    fn authority_snapshot_paths_and_store_membership_fail_closed() {
+        let fixture = fixture();
+        let keyset_path =
+            authority_keyset_path(&fixture.request.history.authority_keyset.root().unwrap())
+                .unwrap();
+        let mut request = fixture.request.clone();
+        request.object_drafts = vec![AuthorityObjectDraft {
+            path: keyset_path.clone(),
+            object_kind: "caller_substitution".into(),
+            class: WriteClass::Authority,
+            postimage: Some(to_canonical_bytes(&json!({"wrong": true})).unwrap()),
+        }];
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let error = prepare_authority_transaction(
+            fixture.barrier(),
+            fixture.temporary.path(),
+            request,
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap_err();
+        assert!(matches!(error, AuthorityTransactionError::Invalid(_)));
+        assert_eq!(signer.calls, 0);
+
+        let fixture = self::fixture();
+        let keyset_path =
+            authority_keyset_path(&fixture.request.history.authority_keyset.root().unwrap())
+                .unwrap();
+        fs::create_dir_all(fixture.temporary.path().join(".vela/authority/keysets")).unwrap();
+        fs::write(
+            fixture.temporary.path().join(&keyset_path),
+            to_canonical_bytes(&json!({"wrong": true})).unwrap(),
+        )
+        .unwrap();
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let error = prepare_authority_transaction(
+            fixture.barrier(),
+            fixture.temporary.path(),
+            fixture.request.clone(),
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap_err();
+        assert!(
+            matches!(
+                error,
+                AuthorityTransactionError::Transaction(FrontierTxnError::StaleInput { .. })
+            ),
+            "{error:?}"
+        );
+        assert_eq!(signer.calls, 0);
+
+        let fixture = self::fixture();
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let mut prepared = prepare_authority_transaction(
+            fixture.barrier(),
+            fixture.temporary.path(),
+            fixture.request.clone(),
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap();
+        fs::create_dir_all(fixture.temporary.path().join(".vela/authority/keysets")).unwrap();
+        fs::write(
+            fixture
+                .temporary
+                .path()
+                .join(".vela/authority/keysets/unexpected.json"),
+            b"{}\n",
+        )
+        .unwrap();
+        let error = prepared.mark_committed().unwrap_err();
+        assert!(
+            matches!(
+                error,
+                AuthorityTransactionError::Transaction(FrontierTxnError::StaleSnapshot { .. })
+            ),
+            "{error:?}"
+        );
+        assert_eq!(signer.calls, 1);
+        assert!(
+            !fixture
+                .temporary
+                .path()
+                .join(".vela/authority/events")
+                .exists()
+        );
+        assert_eq!(
+            fs::read_dir(fixture.temporary.path().join(".vela/authority/records"))
+                .unwrap()
+                .count(),
+            1
+        );
+        assert!(
+            !fixture
+                .temporary
+                .path()
+                .join(".vela/authority/policies")
+                .exists()
+        );
     }
 
     #[test]
@@ -1704,12 +2038,7 @@ mod tests {
             &mut signer,
         )
         .unwrap_err();
-        assert!(matches!(
-            error,
-            AuthorityTransactionError::Authentication(
-                AuthorityPreflightFailure::AuthorizationDenied
-            )
-        ));
+        assert!(matches!(error, AuthorityTransactionError::Invalid(_)));
         assert_eq!(signer.calls, 0);
         assert!(authority_transaction_postimages_absent(&fixture_two));
         assert!(prepared_journal_absent(&fixture_two));
@@ -1963,7 +2292,21 @@ mod tests {
         .unwrap();
         let payload = BASE64_STANDARD.decode(&prepared.envelope.payload).unwrap();
         let record: AuthorityRecordV1 = serde_json::from_slice(&payload).unwrap();
-        assert_eq!(record.content.object_delta.len(), 5);
+        assert_eq!(record.content.object_delta.len(), 7);
+        assert!(record.content.object_delta.iter().any(|delta| {
+            delta.path
+                == authority_keyset_path(&fixture.request.history.authority_keyset.root().unwrap())
+                    .unwrap()
+                && delta.before_root.is_none()
+                && delta.object_kind == "authority_keyset"
+        }));
+        assert!(record.content.object_delta.iter().any(|delta| {
+            delta.path
+                == authority_policy_path(&fixture.request.history.policy_bundle.root().unwrap())
+                    .unwrap()
+                && delta.before_root.is_none()
+                && delta.object_kind == "policy_bundle"
+        }));
         assert!(record.content.object_delta.iter().any(|delta| {
             delta.path == ".vela/evidence/update.json"
                 && delta.before_root == Some(ContentDigest::hash(&old_update).as_str().to_string())

@@ -402,6 +402,16 @@ covering DSSE envelopes live at
 `.vela/authority/records/<record-id>.dsse.json`. The legacy `StateEvent` loader
 therefore never has to interpret Era-1 bytes.
 
+The proposed writer also retains the exact active manifests at
+`.vela/authority/keysets/<sha256>.json` and
+`.vela/authority/policies/<sha256>.json`. These paths use the full canonical
+object root, not a generation number or mutable alias. A transaction verifies
+that the runtime Cedar schema, policy, and entity bytes match the roots in the
+retained policy manifest. Missing manifests are installed as covered object
+deltas; existing manifests must match exactly. Direct store membership is a
+transaction input, so an added, replaced, deleted, or symlinked snapshot
+aborts before the commit marker.
+
 The authority record's `transaction_write_set_root` is a domain-separated
 commitment over the transaction ID, before and after authority-event-log
 roots, sorted event IDs, and exact object deltas. It deliberately excludes the
