@@ -231,6 +231,34 @@ only deterministic fixture keys. Phase 4 therefore remains open at the
 provider, broader object-delta, disposable-frontier, and idempotency/fork
 gates.
 
+Progress evidence, 2026-07-24: the first provider boundary is now qualified
+against a real ephemeral OpenSSH agent. The implementation uses only the
+standard request-identities and sign-request messages, accepts exactly one
+plain Ed25519 identity matching the full authority-keyset public key, signs the
+exact DSSE PAE, and verifies the returned signature locally. It rejects
+certificate, security-key, algorithm, identity, payload-type, and response
+substitution. The provider reads no private key and adds no unrelated
+cryptographic dependency graph; only the test harness creates and loads a
+disposable fixture key.
+
+The writer now derives create, update, and delete roots from the held
+repository for authority, public-review, and canonical-evidence objects. It
+automatically binds every object preimage and the complete direct membership
+of the legacy event, Era-1 event, and authority-envelope directories. Every
+expected history file and the legacy actor registry are byte-bound. Missing,
+extra, altered, executable, or symlinked history fails before authentication
+or signing; marker-time membership and object drift fail before the commit
+marker. A stale supplied history can no longer create a sibling record after a
+completed transaction.
+
+Eleven writer tests and three provider tests now cover these paths, including
+no-op and non-canonical object refusal, post-signing drift, multi-class partial
+recovery, stale-history fork refusal, and exact OpenSSH-agent DSSE
+verification. Phase 4 is narrowed to canonical keyset and policy-snapshot
+installation, rotation, emergency close, exact retry semantics, and a
+CLI-unreachable disposable Frontier exercise. No active Frontier or human key
+was used.
+
 ## Phase 4: authority transaction writer
 
 1. Adapt the existing recoverable transaction barrier rather than creating a

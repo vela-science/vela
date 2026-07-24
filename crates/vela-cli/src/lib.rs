@@ -20,6 +20,8 @@ mod bounded_file;
 #[allow(dead_code)]
 pub(crate) mod decision_plan;
 mod frontier;
+#[allow(dead_code)]
+pub(crate) mod repository_authority_provider;
 pub(crate) use frontier::{cli_frontier, cli_read};
 mod write;
 pub(crate) use write::{cli_finding, cli_write, review_work};

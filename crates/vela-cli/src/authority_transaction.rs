@@ -6,9 +6,12 @@
 //! a second journal or a live writer. A later migration slice may expose it
 //! only after the ADR 0020 gates pass.
 
+use std::collections::BTreeMap;
 use std::fmt;
 use std::path::Path;
 
+use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use serde::Serialize;
 use serde_json::Value;
 use vela_authority::CedarEvaluationInput;
@@ -74,6 +77,19 @@ pub(crate) struct AuthorityEventDraft {
     pub(crate) caveats: Vec<String>,
 }
 
+/// Canonical non-event postimage covered by the same authority transaction.
+///
+/// `None` deletes an existing object. The writer derives before/after roots
+/// from the held Frontier and refuses no-ops, duplicate paths, derived views,
+/// private coordination, legacy events, or covering-record paths.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub(crate) struct AuthorityObjectDraft {
+    pub(crate) path: String,
+    pub(crate) object_kind: String,
+    pub(crate) class: WriteClass,
+    pub(crate) postimage: Option<Vec<u8>>,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct AuthorityTransactionRequest {
     pub(crate) history: AuthorityHistorySnapshot,
@@ -85,6 +101,7 @@ pub(crate) struct AuthorityTransactionRequest {
     pub(crate) delegation: Option<DelegationClaimV1>,
     pub(crate) semantic_approvals: Vec<SemanticApprovalV1>,
     pub(crate) event_drafts: Vec<AuthorityEventDraft>,
+    pub(crate) object_drafts: Vec<AuthorityObjectDraft>,
     pub(crate) read_set: Vec<InputBinding>,
     pub(crate) vela_version: String,
     pub(crate) binary_sha256: String,
@@ -189,6 +206,7 @@ where
     A: AuthenticationAdapter,
     S: RepositoryAuthoritySigner,
 {
+    normalize_object_drafts(frontier_root, &mut request)?;
     validate_request_shape(&request)?;
     let history = verify_authority_history(AuthorityHistoryInput {
         frontier_id: &request.history.frontier_id,
@@ -202,6 +220,7 @@ where
         authority_envelopes: &request.history.authority_envelopes,
     })
     .map_err(AuthorityTransactionError::History)?;
+    bind_repository_authority_history(frontier_root, &mut request)?;
     if history.era != AuthorityHistoryEra::RepositoryAuthority {
         return Err(AuthorityTransactionError::History(
             "the disposable Era-1 writer requires a verified migration bridge".into(),
@@ -299,17 +318,27 @@ where
         .iter()
         .map(|event| event.id.clone())
         .collect::<Vec<_>>();
-    let object_delta = events
+    let mut content_writes = events
         .iter()
         .map(|event| {
-            Ok(ObjectDeltaV1 {
-                path: authority_event_path(&event.id),
-                before_root: None,
-                after_root: Some(event.root().map_err(AuthorityTransactionError::Invalid)?),
-                object_kind: "event".into(),
-            })
+            Ok(PlannedWrite::write(
+                RepoPath::parse(authority_event_path(&event.id))
+                    .map_err(AuthorityTransactionError::Transaction)?,
+                WriteClass::Authority,
+                to_canonical_bytes(event).map_err(AuthorityTransactionError::Invalid)?,
+            ))
         })
         .collect::<Result<Vec<_>, AuthorityTransactionError>>()?;
+    content_writes.extend(
+        request
+            .object_drafts
+            .iter()
+            .map(authority_object_planned_write)
+            .collect::<Result<Vec<_>, _>>()?,
+    );
+    let unsigned_draft = DeltaDraft::prepare(frontier_root, content_writes.clone())
+        .map_err(AuthorityTransactionError::Transaction)?;
+    let object_delta = authority_object_delta(&unsigned_draft, &events, &request.object_drafts)?;
 
     let read_set_root = read_set_root(
         &request,
@@ -380,17 +409,7 @@ where
         ));
     }
 
-    let mut writes = events
-        .iter()
-        .map(|event| {
-            Ok(PlannedWrite::write(
-                RepoPath::parse(authority_event_path(&event.id))
-                    .map_err(AuthorityTransactionError::Transaction)?,
-                WriteClass::Authority,
-                to_canonical_bytes(event).map_err(AuthorityTransactionError::Invalid)?,
-            ))
-        })
-        .collect::<Result<Vec<_>, AuthorityTransactionError>>()?;
+    let mut writes = content_writes;
     writes.push(PlannedWrite::write(
         RepoPath::parse(authority_record_path(&record.record_id))
             .map_err(AuthorityTransactionError::Transaction)?,
@@ -399,15 +418,30 @@ where
     ));
     let draft = DeltaDraft::prepare(frontier_root, writes)
         .map_err(AuthorityTransactionError::Transaction)?;
-    if draft.delta.writes().len() != events.len() + 1
-        || draft
-            .delta
-            .writes()
-            .iter()
-            .any(|write| !matches!(write.preimage, crate::frontier_txn::FileState::Absent))
+    let record_path = authority_record_path(&record.record_id);
+    let record_writes = draft
+        .delta
+        .writes()
+        .iter()
+        .filter(|write| write.path.as_str() == record_path)
+        .collect::<Vec<_>>();
+    let content_delta = draft
+        .delta
+        .writes()
+        .iter()
+        .filter(|write| write.path.as_str() != record_path)
+        .cloned()
+        .collect::<Vec<_>>();
+    if record_writes.len() != 1
+        || !matches!(
+            record_writes[0].preimage,
+            crate::frontier_txn::FileState::Absent
+        )
+        || content_delta != unsigned_draft.delta.writes()
     {
         return Err(AuthorityTransactionError::Invalid(
-            "authority event and record paths must all be new".into(),
+            "covering record must be new and the signed object delta must equal the journal delta"
+                .into(),
         ));
     }
 
@@ -434,6 +468,11 @@ where
         authority_event_paths: &event_ids
             .iter()
             .map(|event_id| authority_event_path(event_id))
+            .collect::<Vec<_>>(),
+        object_paths: &request
+            .object_drafts
+            .iter()
+            .map(|draft| draft.path.clone())
             .collect::<Vec<_>>(),
         authority_record_path: &authority_record_path(&record.record_id),
     })
@@ -509,6 +548,259 @@ where
     prepared.install()?;
     prepared.complete()?;
     Ok(prepared.result)
+}
+
+fn normalize_object_drafts(
+    frontier_root: &Path,
+    request: &mut AuthorityTransactionRequest,
+) -> Result<(), AuthorityTransactionError> {
+    request
+        .object_drafts
+        .sort_by(|left, right| left.path.cmp(&right.path));
+    let mut previous_path: Option<&str> = None;
+    let mut object_inputs = Vec::with_capacity(request.object_drafts.len());
+    for draft in &request.object_drafts {
+        if previous_path == Some(draft.path.as_str()) {
+            return Err(AuthorityTransactionError::Invalid(format!(
+                "duplicate authority object path {}",
+                draft.path
+            )));
+        }
+        previous_path = Some(&draft.path);
+        if draft.object_kind.trim().is_empty() {
+            return Err(AuthorityTransactionError::Invalid(format!(
+                "authority object {} has an empty kind",
+                draft.path
+            )));
+        }
+        let path =
+            RepoPath::parse(draft.path.clone()).map_err(AuthorityTransactionError::Transaction)?;
+        validate_authority_object_path(&path, draft.class)?;
+        if let Some(bytes) = &draft.postimage
+            && draft.path.ends_with(".json")
+        {
+            let value = serde_json::from_slice::<Value>(bytes).map_err(|error| {
+                AuthorityTransactionError::Invalid(format!(
+                    "authority object {} is not valid JSON: {error}",
+                    draft.path
+                ))
+            })?;
+            let canonical =
+                to_canonical_bytes(&value).map_err(AuthorityTransactionError::Invalid)?;
+            if canonical != *bytes {
+                return Err(AuthorityTransactionError::Invalid(format!(
+                    "authority object {} is not canonical JSON",
+                    draft.path
+                )));
+            }
+        }
+        object_inputs.push(
+            InputBinding::current_file(frontier_root, path)
+                .map_err(AuthorityTransactionError::Transaction)?,
+        );
+    }
+    for binding in object_inputs {
+        merge_input_binding(&mut request.read_set, binding)?;
+    }
+    Ok(())
+}
+
+fn bind_repository_authority_history(
+    frontier_root: &Path,
+    request: &mut AuthorityTransactionRequest,
+) -> Result<(), AuthorityTransactionError> {
+    let mut bindings = Vec::new();
+    let mut legacy_event_paths = Vec::new();
+    for event in &request.history.legacy_events {
+        let path = RepoPath::parse(format!(".vela/events/{}.json", event.id))
+            .map_err(AuthorityTransactionError::Transaction)?;
+        let bytes = to_canonical_bytes(event).map_err(AuthorityTransactionError::Invalid)?;
+        bindings.push(
+            InputBinding::exact_file(frontier_root, path.clone(), &bytes)
+                .map_err(AuthorityTransactionError::Transaction)?,
+        );
+        legacy_event_paths.push(path);
+    }
+    let mut authority_event_paths = Vec::new();
+    for event in &request.history.authority_events {
+        let path = RepoPath::parse(authority_event_path(&event.id))
+            .map_err(AuthorityTransactionError::Transaction)?;
+        let bytes = to_canonical_bytes(event).map_err(AuthorityTransactionError::Invalid)?;
+        bindings.push(
+            InputBinding::exact_file(frontier_root, path.clone(), &bytes)
+                .map_err(AuthorityTransactionError::Transaction)?,
+        );
+        authority_event_paths.push(path);
+    }
+    let mut authority_record_paths = Vec::new();
+    for envelope in &request.history.authority_envelopes {
+        let payload = BASE64_STANDARD.decode(&envelope.payload).map_err(|error| {
+            AuthorityTransactionError::History(format!(
+                "authority envelope payload is not base64: {error}"
+            ))
+        })?;
+        let record = serde_json::from_slice::<AuthorityRecordV1>(&payload).map_err(|error| {
+            AuthorityTransactionError::History(format!(
+                "authority envelope record JSON is invalid: {error}"
+            ))
+        })?;
+        let path = RepoPath::parse(authority_record_path(&record.record_id))
+            .map_err(AuthorityTransactionError::Transaction)?;
+        let bytes = to_canonical_bytes(envelope).map_err(AuthorityTransactionError::Invalid)?;
+        bindings.push(
+            InputBinding::exact_file(frontier_root, path.clone(), &bytes)
+                .map_err(AuthorityTransactionError::Transaction)?,
+        );
+        authority_record_paths.push(path);
+    }
+    bindings.push(
+        InputBinding::exact_file(
+            frontier_root,
+            RepoPath::parse(".vela/actors.json".to_string())
+                .map_err(AuthorityTransactionError::Transaction)?,
+            &request.history.legacy_actor_registry_bytes,
+        )
+        .map_err(AuthorityTransactionError::Transaction)?,
+    );
+    for (directory, paths) in [
+        (".vela/events", legacy_event_paths),
+        (".vela/authority/events", authority_event_paths),
+        (".vela/authority/records", authority_record_paths),
+    ] {
+        bindings.push(
+            InputBinding::exact_directory(
+                frontier_root,
+                RepoPath::parse(directory.to_string())
+                    .map_err(AuthorityTransactionError::Transaction)?,
+                &paths,
+            )
+            .map_err(AuthorityTransactionError::Transaction)?,
+        );
+    }
+    for binding in bindings {
+        merge_input_binding(&mut request.read_set, binding)?;
+    }
+    Ok(())
+}
+
+fn merge_input_binding(
+    read_set: &mut Vec<InputBinding>,
+    binding: InputBinding,
+) -> Result<(), AuthorityTransactionError> {
+    if let Some(existing) = read_set.iter().find(|input| input.name == binding.name) {
+        if existing.digest == binding.digest {
+            return Ok(());
+        }
+        return Err(AuthorityTransactionError::Invalid(format!(
+            "authority transaction input {} conflicts with the verified repository history",
+            binding.name
+        )));
+    }
+    read_set.push(binding);
+    Ok(())
+}
+
+fn validate_authority_object_path(
+    path: &RepoPath,
+    class: WriteClass,
+) -> Result<(), AuthorityTransactionError> {
+    let value = path.as_str();
+    if value.starts_with(".vela/events/")
+        || value.starts_with(".vela/authority/events/")
+        || value.starts_with(".vela/authority/records/")
+    {
+        return Err(AuthorityTransactionError::Invalid(format!(
+            "authority object drafts cannot replace event or covering-record path {value}"
+        )));
+    }
+    let valid = match class {
+        WriteClass::Authority => value.starts_with(".vela/authority/"),
+        WriteClass::PublicReview => value.starts_with(".vela/proposals/"),
+        WriteClass::CanonicalEvidence => {
+            value.starts_with(".vela/")
+                && !value.starts_with(".vela/authority/")
+                && !value.starts_with(".vela/proposals/")
+        }
+        WriteClass::Derived | WriteClass::PrivateCoordination => false,
+    };
+    if !valid {
+        return Err(AuthorityTransactionError::Invalid(format!(
+            "authority object path {value} is incompatible with write class {class:?}"
+        )));
+    }
+    Ok(())
+}
+
+fn authority_object_planned_write(
+    draft: &AuthorityObjectDraft,
+) -> Result<PlannedWrite, AuthorityTransactionError> {
+    let path =
+        RepoPath::parse(draft.path.clone()).map_err(AuthorityTransactionError::Transaction)?;
+    Ok(match &draft.postimage {
+        Some(bytes) => PlannedWrite::write(path, draft.class, bytes.clone()),
+        None => PlannedWrite::delete(path, draft.class),
+    })
+}
+
+fn authority_object_delta(
+    draft: &DeltaDraft,
+    events: &[AuthorityEventV1],
+    objects: &[AuthorityObjectDraft],
+) -> Result<Vec<ObjectDeltaV1>, AuthorityTransactionError> {
+    let mut kinds = events
+        .iter()
+        .map(|event| (authority_event_path(&event.id), "event".to_string()))
+        .collect::<BTreeMap<_, _>>();
+    for object in objects {
+        if kinds
+            .insert(object.path.clone(), object.object_kind.clone())
+            .is_some()
+        {
+            return Err(AuthorityTransactionError::Invalid(format!(
+                "duplicate authority object path {}",
+                object.path
+            )));
+        }
+    }
+    if draft.delta.writes().len() != kinds.len() {
+        return Err(AuthorityTransactionError::Invalid(
+            "every requested authority object must change exactly one canonical path".into(),
+        ));
+    }
+    draft
+        .delta
+        .writes()
+        .iter()
+        .map(|write| {
+            let object_kind = kinds.get(write.path.as_str()).cloned().ok_or_else(|| {
+                AuthorityTransactionError::Invalid(format!(
+                    "journal delta contains uncovered authority object {}",
+                    write.path.as_str()
+                ))
+            })?;
+            let before_root = file_state_root(&write.preimage);
+            let after_root = file_state_root(&write.postimage);
+            if before_root == after_root {
+                return Err(AuthorityTransactionError::Invalid(format!(
+                    "authority object {} changes no bytes",
+                    write.path.as_str()
+                )));
+            }
+            Ok(ObjectDeltaV1 {
+                path: write.path.as_str().to_string(),
+                before_root,
+                after_root,
+                object_kind,
+            })
+        })
+        .collect()
+}
+
+fn file_state_root(state: &crate::frontier_txn::FileState) -> Option<String> {
+    match state {
+        crate::frontier_txn::FileState::Absent => None,
+        crate::frontier_txn::FileState::File { digest, .. } => Some(digest.as_str().to_string()),
+    }
 }
 
 fn validate_request_shape(
@@ -653,6 +945,7 @@ fn transaction_id(
             delegation: request.delegation.as_ref(),
             semantic_approvals: &request.semantic_approvals,
             event_drafts: &request.event_drafts,
+            object_drafts: &request.object_drafts,
             read_set: &request.read_set,
             vela_version: &request.vela_version,
             binary_sha256: &request.binary_sha256,
@@ -755,6 +1048,7 @@ struct TransactionIdCommitment<'a> {
     delegation: Option<&'a DelegationClaimV1>,
     semantic_approvals: &'a [SemanticApprovalV1],
     event_drafts: &'a [AuthorityEventDraft],
+    object_drafts: &'a [AuthorityObjectDraft],
     read_set: &'a [InputBinding],
     vela_version: &'a str,
     binary_sha256: &'a str,
@@ -797,6 +1091,7 @@ struct LayoutCommitment<'a> {
     schema: &'static str,
     frontier_id: &'a str,
     authority_event_paths: &'a [String],
+    object_paths: &'a [String],
     authority_record_path: &'a str,
 }
 
@@ -939,6 +1234,7 @@ mod tests {
         }])
         .unwrap();
         fs::write(root_path.join(".vela/actors.json"), &actor_registry_bytes).unwrap();
+        fs::write(root_path.join(".vela/input.json"), b"{\"fixture\":true}\n").unwrap();
 
         let keyset = AuthorityKeysetV1 {
             schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
@@ -1127,6 +1423,12 @@ mod tests {
                 ),
             }],
         };
+        fs::create_dir_all(root_path.join(".vela/authority/records")).unwrap();
+        fs::write(
+            root_path.join(authority_record_path(&first_record.record_id)),
+            to_canonical_bytes(&first_envelope).unwrap(),
+        )
+        .unwrap();
 
         let authorization_input = CedarEvaluationInput {
             schema: r#"
@@ -1174,9 +1476,9 @@ mod tests {
             resource: r#"Proposal::"vpr_0123456789abcdef""#.into(),
             context: json!({"exact": true}),
         };
-        let actor_input = InputBinding::existing_file(
+        let fixture_input = InputBinding::existing_file(
             root_path,
-            RepoPath::parse(".vela/actors.json".to_string()).unwrap(),
+            RepoPath::parse(".vela/input.json".to_string()).unwrap(),
         )
         .unwrap();
         let request = AuthorityTransactionRequest {
@@ -1232,7 +1534,8 @@ mod tests {
                 payload: json!({"proposal_id": "vpr_0123456789abcdef"}),
                 caveats: Vec::new(),
             }],
-            read_set: vec![actor_input],
+            object_drafts: Vec::new(),
+            read_set: vec![fixture_input],
             vela_version: "0.930.0-rc.1".into(),
             binary_sha256: root('1'),
             recorded_at: RECORDED_AT.into(),
@@ -1272,8 +1575,16 @@ mod tests {
         assert_eq!(result.authority_record_count, 2);
     }
 
-    fn authority_store_absent(fixture: &Fixture) -> bool {
-        !fixture.temporary.path().join(".vela/authority").exists()
+    fn authority_transaction_postimages_absent(fixture: &Fixture) -> bool {
+        let events_absent = !fixture
+            .temporary
+            .path()
+            .join(".vela/authority/events")
+            .exists();
+        let record_count = fs::read_dir(fixture.temporary.path().join(".vela/authority/records"))
+            .unwrap()
+            .count();
+        events_absent && record_count == 1
     }
 
     fn prepared_journal_absent(fixture: &Fixture) -> bool {
@@ -1339,7 +1650,7 @@ mod tests {
             ))
         ));
         assert_eq!(signer.calls, 0);
-        assert!(authority_store_absent(&fixture_one));
+        assert!(authority_transaction_postimages_absent(&fixture_one));
         assert!(prepared_journal_absent(&fixture_one));
 
         let fixture_two = fixture();
@@ -1356,7 +1667,7 @@ mod tests {
         .unwrap_err();
         assert!(matches!(error, AuthorityTransactionError::Signing(_)));
         assert_eq!(signer.calls, 1);
-        assert!(authority_store_absent(&fixture_two));
+        assert!(authority_transaction_postimages_absent(&fixture_two));
         assert!(prepared_journal_absent(&fixture_two));
     }
 
@@ -1377,7 +1688,7 @@ mod tests {
         .unwrap_err();
         assert!(matches!(error, AuthorityTransactionError::History(_)));
         assert_eq!(signer.calls, 0);
-        assert!(authority_store_absent(&fixture_one));
+        assert!(authority_transaction_postimages_absent(&fixture_one));
         assert!(prepared_journal_absent(&fixture_one));
 
         let fixture_two = fixture();
@@ -1400,7 +1711,7 @@ mod tests {
             )
         ));
         assert_eq!(signer.calls, 0);
-        assert!(authority_store_absent(&fixture_two));
+        assert!(authority_transaction_postimages_absent(&fixture_two));
         assert!(prepared_journal_absent(&fixture_two));
     }
 
@@ -1417,7 +1728,7 @@ mod tests {
             &mut signer,
         )
         .unwrap();
-        assert!(authority_store_absent(&fixture));
+        assert!(authority_transaction_postimages_absent(&fixture));
         fs::write(
             fixture.temporary.path().join(".vela/actors.json"),
             b"tampered after semantic approval",
@@ -1428,12 +1739,313 @@ mod tests {
             error,
             AuthorityTransactionError::Transaction(FrontierTxnError::StaleInput { .. })
         ));
-        assert!(authority_store_absent(&fixture));
+        assert!(authority_transaction_postimages_absent(&fixture));
         assert!(!prepared.transaction.plan().operation_id.as_str().is_empty());
         assert!(matches!(
             prepared.transaction.recovery_state(),
             crate::frontier_txn::RecoveryState::Aborted
         ));
+    }
+
+    #[test]
+    fn authority_object_drift_after_signing_aborts_before_commit_marker() {
+        let fixture = fixture();
+        fs::create_dir_all(fixture.temporary.path().join(".vela/evidence")).unwrap();
+        let path = fixture
+            .temporary
+            .path()
+            .join(".vela/evidence/existing.json");
+        fs::write(&path, to_canonical_bytes(&json!({"version": 1})).unwrap()).unwrap();
+        let mut request = fixture.request.clone();
+        request.object_drafts = vec![AuthorityObjectDraft {
+            path: ".vela/evidence/existing.json".into(),
+            object_kind: "evidence".into(),
+            class: WriteClass::CanonicalEvidence,
+            postimage: Some(to_canonical_bytes(&json!({"version": 2})).unwrap()),
+        }];
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let mut prepared = prepare_authority_transaction(
+            fixture.barrier(),
+            fixture.temporary.path(),
+            request,
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap();
+        fs::write(&path, to_canonical_bytes(&json!({"version": 3})).unwrap()).unwrap();
+        let error = prepared.mark_committed().unwrap_err();
+        assert!(matches!(
+            error,
+            AuthorityTransactionError::Transaction(FrontierTxnError::StaleInput { .. })
+        ));
+        assert_eq!(signer.calls, 1);
+        assert!(authority_transaction_postimages_absent(&fixture));
+    }
+
+    #[test]
+    fn repository_history_membership_refuses_stale_forks_and_marker_time_additions() {
+        let fixture = fixture();
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        execute_authority_transaction(
+            fixture.barrier(),
+            fixture.temporary.path(),
+            fixture.request.clone(),
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap();
+
+        let mut adapter = fixture.adapter();
+        let mut stale_signer = fixture.signer();
+        let error = prepare_authority_transaction(
+            fixture.barrier(),
+            fixture.temporary.path(),
+            fixture.request.clone(),
+            &mut adapter,
+            &mut stale_signer,
+        )
+        .unwrap_err();
+        assert!(matches!(
+            error,
+            AuthorityTransactionError::Transaction(FrontierTxnError::CorruptPlan(message))
+                if message.contains("membership differs")
+        ));
+        assert_eq!(stale_signer.calls, 0);
+
+        let fresh = self::fixture();
+        let mut adapter = fresh.adapter();
+        let mut signer = fresh.signer();
+        let mut prepared = prepare_authority_transaction(
+            fresh.barrier(),
+            fresh.temporary.path(),
+            fresh.request.clone(),
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap();
+        fs::write(
+            fresh
+                .temporary
+                .path()
+                .join(".vela/authority/records/unexpected.dsse.json"),
+            b"unexpected",
+        )
+        .unwrap();
+        let error = prepared.mark_committed().unwrap_err();
+        assert!(matches!(
+            error,
+            AuthorityTransactionError::Transaction(FrontierTxnError::StaleSnapshot { .. })
+        ));
+        assert_eq!(signer.calls, 1);
+        fs::remove_file(
+            fresh
+                .temporary
+                .path()
+                .join(".vela/authority/records/unexpected.dsse.json"),
+        )
+        .unwrap();
+        assert!(authority_transaction_postimages_absent(&fresh));
+    }
+
+    #[test]
+    fn repository_history_bytes_fail_closed_before_authentication_or_signing() {
+        let fixture = self::fixture();
+        let legacy_path = fixture.temporary.path().join(format!(
+            ".vela/events/{}.json",
+            fixture.request.history.legacy_events[0].id
+        ));
+        fs::write(legacy_path, b"tampered").unwrap();
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let error = prepare_authority_transaction(
+            fixture.barrier(),
+            fixture.temporary.path(),
+            fixture.request.clone(),
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap_err();
+        assert!(matches!(
+            error,
+            AuthorityTransactionError::Transaction(FrontierTxnError::StaleInput { .. })
+        ));
+        assert_eq!(signer.calls, 0);
+        assert!(authority_transaction_postimages_absent(&fixture));
+        assert!(prepared_journal_absent(&fixture));
+
+        let missing = self::fixture();
+        let payload = BASE64_STANDARD
+            .decode(&missing.request.history.authority_envelopes[0].payload)
+            .unwrap();
+        let record: AuthorityRecordV1 = serde_json::from_slice(&payload).unwrap();
+        fs::remove_file(
+            missing
+                .temporary
+                .path()
+                .join(authority_record_path(&record.record_id)),
+        )
+        .unwrap();
+        let mut adapter = missing.adapter();
+        let mut signer = missing.signer();
+        let error = prepare_authority_transaction(
+            missing.barrier(),
+            missing.temporary.path(),
+            missing.request.clone(),
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap_err();
+        assert!(matches!(
+            error,
+            AuthorityTransactionError::Transaction(FrontierTxnError::StaleInput { .. })
+        ));
+        assert_eq!(signer.calls, 0);
+        assert!(prepared_journal_absent(&missing));
+    }
+
+    #[test]
+    fn authority_transaction_covers_create_update_delete_and_distinct_write_classes() {
+        let fixture = fixture();
+        fs::create_dir_all(fixture.temporary.path().join(".vela/evidence")).unwrap();
+        let old_update = to_canonical_bytes(&json!({"version": 1})).unwrap();
+        let old_delete = to_canonical_bytes(&json!({"delete": true})).unwrap();
+        fs::write(
+            fixture.temporary.path().join(".vela/evidence/update.json"),
+            &old_update,
+        )
+        .unwrap();
+        fs::write(
+            fixture.temporary.path().join(".vela/evidence/delete.json"),
+            &old_delete,
+        )
+        .unwrap();
+        let mut request = fixture.request.clone();
+        let new_update = to_canonical_bytes(&json!({"version": 2})).unwrap();
+        let new_proposal = to_canonical_bytes(&json!({"proposal": "pending"})).unwrap();
+        let new_authority = to_canonical_bytes(&json!({"decision": "recorded"})).unwrap();
+        request.object_drafts = vec![
+            AuthorityObjectDraft {
+                path: ".vela/proposals/vpr_fixture.json".into(),
+                object_kind: "proposal".into(),
+                class: WriteClass::PublicReview,
+                postimage: Some(new_proposal.clone()),
+            },
+            AuthorityObjectDraft {
+                path: ".vela/evidence/update.json".into(),
+                object_kind: "evidence".into(),
+                class: WriteClass::CanonicalEvidence,
+                postimage: Some(new_update.clone()),
+            },
+            AuthorityObjectDraft {
+                path: ".vela/evidence/delete.json".into(),
+                object_kind: "evidence".into(),
+                class: WriteClass::CanonicalEvidence,
+                postimage: None,
+            },
+            AuthorityObjectDraft {
+                path: ".vela/authority/decisions/fixture.json".into(),
+                object_kind: "authority_decision".into(),
+                class: WriteClass::Authority,
+                postimage: Some(new_authority.clone()),
+            },
+        ];
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let mut prepared = prepare_authority_transaction(
+            fixture.barrier(),
+            fixture.temporary.path(),
+            request,
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap();
+        let payload = BASE64_STANDARD.decode(&prepared.envelope.payload).unwrap();
+        let record: AuthorityRecordV1 = serde_json::from_slice(&payload).unwrap();
+        assert_eq!(record.content.object_delta.len(), 5);
+        assert!(record.content.object_delta.iter().any(|delta| {
+            delta.path == ".vela/evidence/update.json"
+                && delta.before_root == Some(ContentDigest::hash(&old_update).as_str().to_string())
+                && delta.after_root == Some(ContentDigest::hash(&new_update).as_str().to_string())
+        }));
+        assert!(record.content.object_delta.iter().any(|delta| {
+            delta.path == ".vela/evidence/delete.json"
+                && delta.before_root == Some(ContentDigest::hash(&old_delete).as_str().to_string())
+                && delta.after_root.is_none()
+        }));
+        prepared.mark_committed().unwrap();
+        prepared.install().unwrap();
+        prepared.complete().unwrap();
+        assert_eq!(
+            fs::read(
+                fixture
+                    .temporary
+                    .path()
+                    .join(".vela/proposals/vpr_fixture.json")
+            )
+            .unwrap(),
+            new_proposal
+        );
+        assert_eq!(
+            fs::read(fixture.temporary.path().join(".vela/evidence/update.json")).unwrap(),
+            new_update
+        );
+        assert!(
+            !fixture
+                .temporary
+                .path()
+                .join(".vela/evidence/delete.json")
+                .exists()
+        );
+        assert_eq!(signer.calls, 1);
+    }
+
+    #[test]
+    fn invalid_or_noop_object_drafts_fail_before_repository_signing() {
+        let fixture = fixture();
+        let mut request = fixture.request.clone();
+        request.object_drafts = vec![AuthorityObjectDraft {
+            path: ".vela/proposals/bad.json".into(),
+            object_kind: "proposal".into(),
+            class: WriteClass::PublicReview,
+            postimage: Some(b"{ \"not\": \"canonical\" }".to_vec()),
+        }];
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let error = prepare_authority_transaction(
+            fixture.barrier(),
+            fixture.temporary.path(),
+            request,
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap_err();
+        assert!(matches!(error, AuthorityTransactionError::Invalid(_)));
+        assert_eq!(signer.calls, 0);
+
+        let fixture = self::fixture();
+        let existing = fs::read(fixture.temporary.path().join(".vela/input.json")).unwrap();
+        let mut request = fixture.request.clone();
+        request.object_drafts = vec![AuthorityObjectDraft {
+            path: ".vela/input.json".into(),
+            object_kind: "evidence".into(),
+            class: WriteClass::CanonicalEvidence,
+            postimage: Some(existing),
+        }];
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let error = prepare_authority_transaction(
+            fixture.barrier(),
+            fixture.temporary.path(),
+            request,
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap_err();
+        assert!(matches!(error, AuthorityTransactionError::Invalid(_)));
+        assert_eq!(signer.calls, 0);
+        assert!(prepared_journal_absent(&fixture));
     }
 
     #[test]
@@ -1491,12 +2103,20 @@ mod tests {
     #[test]
     fn committed_partial_install_recovers_without_authentication_or_resigning() {
         let fixture = fixture();
+        let mut request = fixture.request.clone();
+        let proposal_bytes = to_canonical_bytes(&json!({"proposal": "recoverable"})).unwrap();
+        request.object_drafts = vec![AuthorityObjectDraft {
+            path: ".vela/proposals/vpr_recovery.json".into(),
+            object_kind: "proposal".into(),
+            class: WriteClass::PublicReview,
+            postimage: Some(proposal_bytes.clone()),
+        }];
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
         let mut prepared = prepare_authority_transaction(
             fixture.barrier(),
             fixture.temporary.path(),
-            fixture.request.clone(),
+            request,
             &mut adapter,
             &mut signer,
         )
@@ -1527,6 +2147,16 @@ mod tests {
             RecoveryOutcome::Completed
         );
         assert_eq!(signer.calls, 1);
+        assert_eq!(
+            fs::read(
+                fixture
+                    .temporary
+                    .path()
+                    .join(".vela/proposals/vpr_recovery.json")
+            )
+            .unwrap(),
+            proposal_bytes
+        );
         verify_installed_history(&fixture, &events, &envelope);
     }
 }

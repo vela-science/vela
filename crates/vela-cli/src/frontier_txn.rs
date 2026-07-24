@@ -654,6 +654,8 @@ pub(crate) struct InputBinding {
 
 const FRONTIER_FILE_INPUT_PREFIX: &str = "frontier_file:";
 const FRONTIER_FILE_INPUT_SCHEMA: &str = "vela.frontier-file-input.internal.v1";
+const FRONTIER_DIRECTORY_INPUT_PREFIX: &str = "frontier_directory:";
+const FRONTIER_DIRECTORY_INPUT_SCHEMA: &str = "vela.frontier-directory-input.internal.v1";
 const FRONTIER_PROJECT_INPUT_NAME: &str = "frontier_project:vela.project-snapshot.internal.v1";
 const ENGINE_POLICY_INPUT_NAME: &str =
     "frontier_observation:vela.engine-policy-summary-observation.v1";
@@ -663,6 +665,26 @@ struct FrontierFileInputCommitment<'a> {
     schema: &'a str,
     path: &'a RepoPath,
     state: &'a FileState,
+}
+
+#[derive(Serialize)]
+struct FrontierDirectoryInputCommitment<'a> {
+    schema: &'a str,
+    path: &'a RepoPath,
+    state: &'a FrontierDirectoryState,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum FrontierDirectoryState {
+    Absent,
+    Directory { entries: Vec<DirectoryEntryState> },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct DirectoryEntryState {
+    path: RepoPath,
+    state: FileState,
 }
 
 impl InputBinding {
@@ -734,6 +756,73 @@ impl InputBinding {
         Self::from_frontier_state(path, state)
     }
 
+    /// Bind a regular file to exact caller-supplied bytes and regular mode.
+    ///
+    /// This closes the gap between a parsed, caller-supplied history object
+    /// and the canonical bytes actually present in the held Frontier.
+    pub(crate) fn exact_file(
+        frontier_root: &Path,
+        path: RepoPath,
+        bytes: &[u8],
+    ) -> Result<Self, FrontierTxnError> {
+        let root = canonical_frontier_root(frontier_root)?;
+        let expected = FileState::File {
+            digest: ContentDigest::hash(bytes),
+            size: bytes.len() as u64,
+            mode: FileMode::Regular,
+        };
+        let actual = inspect_file_state(&root, &path)?;
+        if actual != expected {
+            return Err(FrontierTxnError::StaleInput {
+                name: format!("{FRONTIER_FILE_INPUT_PREFIX}{}", path.as_str()),
+                path: path.clone(),
+                expected: frontier_file_input_digest(&path, &expected)?,
+                actual: frontier_file_input_digest(&path, &actual)?,
+            });
+        }
+        Self::from_frontier_state(path, expected)
+    }
+
+    /// Bind a directory only if its direct membership equals the supplied
+    /// canonical path set.
+    pub(crate) fn exact_directory(
+        frontier_root: &Path,
+        path: RepoPath,
+        expected_paths: &[RepoPath],
+    ) -> Result<Self, FrontierTxnError> {
+        let root = canonical_frontier_root(frontier_root)?;
+        let state = inspect_directory_state(&root, &path)?;
+        let mut expected = expected_paths.to_vec();
+        expected.sort();
+        if expected.windows(2).any(|pair| pair[0] == pair[1])
+            || expected.iter().any(|entry| {
+                entry
+                    .as_str()
+                    .strip_prefix(path.as_str())
+                    .and_then(|suffix| suffix.strip_prefix('/'))
+                    .is_none_or(|suffix| suffix.is_empty() || suffix.contains('/'))
+            })
+        {
+            return Err(FrontierTxnError::CorruptPlan(format!(
+                "expected membership for {} is not a sorted set of direct child paths",
+                path.as_str()
+            )));
+        }
+        let actual = match &state {
+            FrontierDirectoryState::Absent => Vec::new(),
+            FrontierDirectoryState::Directory { entries } => {
+                entries.iter().map(|entry| entry.path.clone()).collect()
+            }
+        };
+        if actual != expected {
+            return Err(FrontierTxnError::CorruptPlan(format!(
+                "directory {} membership differs from the verified repository history",
+                path.as_str()
+            )));
+        }
+        Self::from_directory_state(path, state)
+    }
+
     /// Bind the complete typed Project loaded under the recovery barrier.
     /// Event-log binding alone is insufficient: proposal answers, actor
     /// authority/revocation, and derived verifier state can change without
@@ -771,8 +860,25 @@ impl InputBinding {
         })
     }
 
+    fn from_directory_state(
+        path: RepoPath,
+        state: FrontierDirectoryState,
+    ) -> Result<Self, FrontierTxnError> {
+        Ok(Self {
+            name: format!("{FRONTIER_DIRECTORY_INPUT_PREFIX}{}", path.as_str()),
+            digest: frontier_directory_input_digest(&path, &state)?,
+        })
+    }
+
     fn frontier_path(&self) -> Result<Option<RepoPath>, FrontierTxnError> {
         let Some(path) = self.name.strip_prefix(FRONTIER_FILE_INPUT_PREFIX) else {
+            return Ok(None);
+        };
+        RepoPath::parse(path.to_string()).map(Some)
+    }
+
+    fn frontier_directory_path(&self) -> Result<Option<RepoPath>, FrontierTxnError> {
+        let Some(path) = self.name.strip_prefix(FRONTIER_DIRECTORY_INPUT_PREFIX) else {
             return Ok(None);
         };
         RepoPath::parse(path.to_string()).map(Some)
@@ -786,6 +892,7 @@ impl InputBinding {
         }
         ContentDigest::parse(self.digest.as_str().to_string())?;
         self.frontier_path()?;
+        self.frontier_directory_path()?;
         Ok(())
     }
 
@@ -808,6 +915,18 @@ impl InputBinding {
             let actual = ContentDigest::parse(
                 vela_protocol::frontier_policy::engine_policy_summary_root(root),
             )?;
+            if actual != self.digest {
+                return Err(FrontierTxnError::StaleSnapshot {
+                    name: self.name.clone(),
+                    expected: self.digest.clone(),
+                    actual,
+                });
+            }
+            return Ok(());
+        }
+        if let Some(path) = self.frontier_directory_path()? {
+            let state = inspect_directory_state(root, &path)?;
+            let actual = frontier_directory_input_digest(&path, &state)?;
             if actual != self.digest {
                 return Err(FrontierTxnError::StaleSnapshot {
                     name: self.name.clone(),
@@ -840,6 +959,19 @@ fn frontier_file_input_digest(
 ) -> Result<ContentDigest, FrontierTxnError> {
     let bytes = vela_protocol::canonical::to_canonical_bytes(&FrontierFileInputCommitment {
         schema: FRONTIER_FILE_INPUT_SCHEMA,
+        path,
+        state,
+    })
+    .map_err(FrontierTxnError::Canonicalize)?;
+    Ok(ContentDigest::hash(bytes))
+}
+
+fn frontier_directory_input_digest(
+    path: &RepoPath,
+    state: &FrontierDirectoryState,
+) -> Result<ContentDigest, FrontierTxnError> {
+    let bytes = vela_protocol::canonical::to_canonical_bytes(&FrontierDirectoryInputCommitment {
+        schema: FRONTIER_DIRECTORY_INPUT_SCHEMA,
         path,
         state,
     })
@@ -4154,6 +4286,67 @@ fn inspect_file_state(root: &Path, path: &RepoPath) -> Result<FileState, Frontie
         size: bytes.len() as u64,
         mode: file_mode(&metadata),
     })
+}
+
+fn inspect_directory_state(
+    root: &Path,
+    path: &RepoPath,
+) -> Result<FrontierDirectoryState, FrontierTxnError> {
+    let mut current = root.to_path_buf();
+    for segment in path.as_str().split('/') {
+        current.push(segment);
+        match fs::symlink_metadata(&current) {
+            Ok(metadata) => {
+                if metadata.file_type().is_symlink() || !metadata.is_dir() {
+                    return Err(FrontierTxnError::UnsafeTarget {
+                        path: path.clone(),
+                        reason: format!(
+                            "{} is not a regular, non-symlink directory",
+                            current.display()
+                        ),
+                    });
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(FrontierDirectoryState::Absent);
+            }
+            Err(error) => {
+                return Err(FrontierTxnError::Io(format!(
+                    "inspect transaction input directory {}: {error}",
+                    current.display()
+                )));
+            }
+        }
+    }
+
+    let mut entries = Vec::new();
+    for entry in fs::read_dir(&current).map_err(|error| {
+        FrontierTxnError::Io(format!(
+            "read transaction input directory {}: {error}",
+            current.display()
+        ))
+    })? {
+        let entry = entry.map_err(|error| {
+            FrontierTxnError::Io(format!(
+                "enumerate transaction input directory {}: {error}",
+                current.display()
+            ))
+        })?;
+        let name = entry.file_name().into_string().map_err(|_| {
+            FrontierTxnError::Io(format!(
+                "transaction input directory contains a non-UTF-8 entry: {}",
+                current.display()
+            ))
+        })?;
+        let entry_path = RepoPath::parse(format!("{}/{}", path.as_str(), name))?;
+        let state = inspect_file_state(root, &entry_path)?;
+        entries.push(DirectoryEntryState {
+            path: entry_path,
+            state,
+        });
+    }
+    entries.sort_by(|left, right| left.path.cmp(&right.path));
+    Ok(FrontierDirectoryState::Directory { entries })
 }
 
 fn file_mode(metadata: &fs::Metadata) -> FileMode {

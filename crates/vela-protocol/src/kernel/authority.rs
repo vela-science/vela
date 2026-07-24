@@ -447,7 +447,7 @@ impl AuthorityRecordV1 {
             if let Some(root) = &delta.after_root {
                 require_sha256("object_delta.after_root", root)?;
             }
-            if delta.before_root.is_none() && delta.after_root.is_none() {
+            if delta.before_root == delta.after_root {
                 return Err(format!("object delta {} changes no bytes", delta.path));
             }
         }
@@ -801,6 +801,15 @@ mod tests {
         .unwrap();
         assert_eq!(verified.record, record);
         assert_eq!(verified.verified_key_ids, vec!["repo-key-1"]);
+    }
+
+    #[test]
+    fn authority_record_rejects_object_delta_with_identical_roots() {
+        let (record, _, _) = fixture();
+        let mut content = record.content;
+        content.object_delta[0].before_root = content.object_delta[0].after_root.clone();
+        let error = AuthorityRecordV1::new(content).unwrap_err();
+        assert!(error.contains("changes no bytes"), "{error}");
     }
 
     #[test]

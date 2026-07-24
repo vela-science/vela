@@ -650,6 +650,38 @@ This advances Phase 4 to the provider and broader object-delta gates. It does
 not authorize a live writer, accept the ADR, migrate a Frontier, or access any
 human signing key.
 
+The next disposable slice now qualifies the first repository-authority
+provider against a real ephemeral OpenSSH agent. The provider implements only
+the standard request-identities and sign-request messages, selects exactly one
+plain Ed25519 identity matching the full keyset public key, signs the exact
+DSSE pre-authentication encoding, and verifies the returned signature locally.
+It rejects certificates, security-key identities, other algorithms, missing
+or duplicate matching identities, malformed responses, wrong payload types,
+and key substitution. It reads no private-key file and adds no new
+cryptographic dependency graph; the three provider tests use only an
+ephemeral fixture key loaded into a disposable `ssh-agent`.
+
+The writer now also binds the complete on-disk authority history rather than
+trusting a caller-supplied verified snapshot. Exact direct-directory manifests
+cover legacy events, Era-1 events, and authority envelopes, while individual
+bindings cover every expected canonical byte and the legacy actor registry.
+Missing, extra, altered, mode-drifted, or symlinked history fails before
+authentication or signing, and marker-time directory changes abort before any
+canonical postimage. This closes the stale-snapshot sibling-fork path.
+
+Eleven writer tests now additionally cover create, update, and delete deltas
+across authority, public-review, and canonical-evidence classes; automatic
+object read-set binding; no-op and non-canonical object refusal; post-signing
+object drift; broader partial-install recovery; missing history; extra history;
+and stale-history fork refusal. Authority-record validation also rejects any
+object delta whose two roots are equal.
+
+This evidence completes the provider and broader object-delta sub-gates. Phase
+4 remains open for canonical keyset and policy-snapshot installation, rotation,
+emergency close, exact retry semantics, and a CLI-unreachable disposable
+Frontier exercise. It does not authorize a live writer, accept this ADR,
+migrate an active Frontier, or access any human signing key.
+
 ## Alternatives rejected
 
 ### Preserve or improve the current helper
