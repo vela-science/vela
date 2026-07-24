@@ -37,6 +37,7 @@ use vela_protocol::project::{Project, ProjectDependency};
 
 const MIGRATION_TARGET: &str = "frontier-repo-v1";
 const MIGRATION_PLAN_SCHEMA: &str = "vela.frontier-repository-migration-plan.v1";
+const MIGRATION_PREVIEW_SCHEMA: &str = "vela.frontier-repository-migration-preview.v1";
 const MIGRATION_PLAN_DOMAIN: &[u8] = b"vela.frontier-repository-migration-plan.v1\0";
 const MIGRATION_DEPENDENCY_INPUT_SCHEMA: &str = "vela.frontier-dependency-migration.v1";
 
@@ -251,6 +252,57 @@ struct MigrationInputs {
 struct MigrationPreview {
     plan: RepositoryMigrationPlan,
     inputs: MigrationInputs,
+}
+
+/// Reader-facing projection of an exact migration plan.
+///
+/// The complete target candidate and sealed index remain independently
+/// content-addressed and are included in `plan_root`. Repeating their targets,
+/// packet paths, and canonical JSON in the command response made a 1,217-target
+/// Erdős preview larger than one megabyte without adding verification value.
+fn migration_preview_json(plan: &RepositoryMigrationPlan) -> Result<serde_json::Value, String> {
+    let mut projection = serde_json::to_value(plan).map_err(|error| error.to_string())?;
+    let object = projection
+        .as_object_mut()
+        .ok_or_else(|| "migration preview must serialize as an object".to_string())?;
+    object.insert(
+        "schema".to_string(),
+        serde_json::Value::String(MIGRATION_PREVIEW_SCHEMA.to_string()),
+    );
+    object.insert(
+        "plan_schema".to_string(),
+        serde_json::Value::String(plan.schema.clone()),
+    );
+
+    let target_index = object
+        .get_mut("target_index")
+        .and_then(serde_json::Value::as_object_mut)
+        .ok_or_else(|| "migration preview is missing target_index".to_string())?;
+    target_index.remove("canonical_json");
+    target_index.remove("packet_paths");
+    target_index.insert(
+        "packet_count".to_string(),
+        serde_json::json!(plan.target_index.packet_paths.len()),
+    );
+
+    let mut state_counts = BTreeMap::<String, u64>::new();
+    for target in &plan.target_index.index.targets {
+        *state_counts.entry(target.state.clone()).or_default() += 1;
+    }
+    let index = target_index
+        .get_mut("index")
+        .and_then(serde_json::Value::as_object_mut)
+        .ok_or_else(|| "migration preview target_index is missing index".to_string())?;
+    index.remove("targets");
+    index.insert(
+        "target_count".to_string(),
+        serde_json::json!(plan.target_index.index.targets.len()),
+    );
+    index.insert(
+        "target_state_counts".to_string(),
+        serde_json::to_value(state_counts).map_err(|error| error.to_string())?,
+    );
+    Ok(projection)
 }
 
 /// A verified, still-uninstalled protocol delta.
@@ -1681,7 +1733,9 @@ pub(crate) fn cmd_migrate(
     )
     .unwrap_or_else(|error| fail_return(&error));
     if json_out {
-        print_json(&preview.plan);
+        print_json(
+            &migration_preview_json(&preview.plan).unwrap_or_else(|error| fail_return(&error)),
+        );
     } else {
         println!("migrate · protected preview · {}", preview.plan.frontier);
         println!("  target: {}", preview.plan.target);
@@ -2194,6 +2248,56 @@ mod tests {
         )
         .unwrap();
         assert_ne!(preview.plan.plan_root, changed_reason.plan.plan_root);
+    }
+
+    #[test]
+    fn migration_frontier_repo_v1_json_preview_is_compact_and_keeps_exact_roots() {
+        let fixture = fixture();
+        let preview = prepare_migration(
+            fixture.frontier.path(),
+            fixture.profile_file.path(),
+            None,
+            fixture.target_candidate_file.path(),
+            &fixture.actor.id,
+            "Bind exact legacy repository",
+            OBSERVED_AT,
+        )
+        .unwrap();
+        let projection = migration_preview_json(&preview.plan).unwrap();
+
+        assert_eq!(
+            projection["schema"],
+            serde_json::json!(MIGRATION_PREVIEW_SCHEMA)
+        );
+        assert_eq!(
+            projection["plan_schema"],
+            serde_json::json!(MIGRATION_PLAN_SCHEMA)
+        );
+        assert_eq!(
+            projection["plan_root"],
+            serde_json::json!(preview.plan.plan_root)
+        );
+        assert_eq!(
+            projection["target_index"]["candidate_root"],
+            serde_json::json!(preview.plan.target_index.candidate_root)
+        );
+        assert_eq!(
+            projection["target_index"]["index_root"],
+            serde_json::json!(preview.plan.target_index.index_root)
+        );
+        assert_eq!(projection["target_index"]["packet_count"], 1);
+        assert_eq!(projection["target_index"]["index"]["target_count"], 1);
+        assert_eq!(
+            projection["target_index"]["index"]["target_state_counts"]["open"],
+            1
+        );
+        assert!(projection["target_index"].get("canonical_json").is_none());
+        assert!(projection["target_index"].get("packet_paths").is_none());
+        assert!(projection["target_index"]["index"].get("targets").is_none());
+        assert!(
+            serde_json::to_vec(&projection).unwrap().len()
+                < serde_json::to_vec(&preview.plan).unwrap().len()
+        );
     }
 
     #[test]

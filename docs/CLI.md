@@ -368,6 +368,11 @@ vela migrate . --to frontier-repo-v1 --check \
   --json
 ```
 
+The JSON preview is a compact reader projection. It reports the exact
+candidate, index, packet, input, and Decision Plan roots plus target and packet
+counts, without embedding the complete target collection a second time. The
+`plan_root` still binds the full sealed target index and every packet byte.
+
 Apply only the matching plan:
 
 ```bash
