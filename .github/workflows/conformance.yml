@@ -57,8 +57,10 @@ jobs:
         run: cargo build --release -p vela-cli --bin vela
       - name: focused core protocol and task-first tests
         run: ./scripts/check-core-surface.sh
-      - name: independent authority-history migration verifier
-        run: python3 conformance/verify.py --authority-history-only
+      - name: independent authority foundation verifiers
+        run: |
+          python3 conformance/verify.py --authority-history-only
+          python3 conformance/verify_principal_capability.py
       - name: reproduce (frozen verifiers re-derive every shipped witness)
         run: |
           ./target/release/vela reproduce examples/sidon-a309370

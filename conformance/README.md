@@ -93,6 +93,16 @@ missing parent, a fork, and anchor-count rollback. Only after that validation su
   denied. It requires `sandbox-exec` on macOS, or Bubblewrap/a usable network
   namespace on Linux. OpenSSL 3 supplies the independent RFC 8410 Ed25519
   verification path; the script neither builds Rust nor reads a Vela key.
+- `fixtures/principal-capability-v1.json` freezes one stable human
+  issuer-subject identity, one short-lived agent capability, one attenuated
+  workload child, and the bearer-free verified claim retained by an authority
+  record. Rust generates the vector. An independent Python verifier rederives
+  every content address and rejects identity inference from email, human
+  capability subjects, human-only actions, lifetimes over 24 hours, delegation
+  broadening, parent substitution, bearer-token retention, and revocation.
+  The capability is an immutable claim profile, not a new token format:
+  OAuth/OIDC, SciTokens, GitHub App, or local credentials remain replaceable
+  runtime adapters.
 - `pre-adr-0003-replay.json` freezes every canonical `.vela` byte from one
   pre-ADR 0003 frontier plus its strict replay roots and counts. The focused
   CLI integration test replays a temporary copy; it performs no signing,

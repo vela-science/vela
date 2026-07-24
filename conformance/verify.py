@@ -334,6 +334,12 @@ def main() -> int:
         return 1
     print("vela conformance: ok  [authority-history migration]")
 
+    principal_rc = _run_principal_capability(repo_root)
+    if principal_rc != 0:
+        print("vela conformance: FAIL  [principal-capability v1]")
+        return 1
+    print("vela conformance: ok  [principal-capability v1]")
+
     floor_rc = _run_exact_witness_floor(repo_root)
     if floor_rc != 0:
         print("vela conformance: FAIL  [exact-witness-floor]")
@@ -368,6 +374,19 @@ def _run_canonical_hashing(repo_root: Path) -> int:
         result = subprocess.run([sys.executable, str(script)], cwd=repo_root)
     except Exception as e:  # noqa: BLE001
         print(f"  canonical-hashing invocation failed: {e}", file=sys.stderr)
+        return 1
+    return result.returncode
+
+
+def _run_principal_capability(repo_root: Path) -> int:
+    script = repo_root / "conformance" / "verify_principal_capability.py"
+    try:
+        result = subprocess.run([sys.executable, str(script)], cwd=repo_root)
+    except Exception as error:  # noqa: BLE001
+        print(
+            f"  principal-capability invocation failed: {error}",
+            file=sys.stderr,
+        )
         return 1
     return result.returncode
 

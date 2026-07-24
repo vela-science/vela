@@ -411,6 +411,34 @@ No Frontier may emit these objects or delete Era-0 verification until the
 remaining ADR 0020 writer, migration, clean-clone, and active-Frontier gates
 pass.
 
+The same candidate read contract defines `vela.principal.v1` and
+`vela.capability-grant.v1`. A human principal is an exact retained
+`local:issuer|subject`, `oidc:issuer|subject`, or `orcid:issuer|subject`
+identity; email and display metadata never create identity. Runtime
+capabilities are content-addressed, restricted to agent or workload subjects,
+bound to the exact repository-authority audience, Frontier, resources,
+execution inputs, action set, validity window, and consequence ceiling, and
+expire within 24 hours. A single child delegation may only attenuate its
+parent and must bind the parent's full root.
+
+Bearer tokens and authentication material are never canonical. An authority
+record retains only the independently replayable verified claim, including
+issuer, subject, actor chain, grant root, exact scope, token identifier,
+expiry, revocation reference, and observation time. Human governance actions
+cannot be represented by the capability action enum and are also rejected for
+agent/workload callers before Cedar evaluation. OAuth/OIDC, SciTokens, GitHub
+App identity, SPIFFE, and local credentials remain replaceable runtime
+adapters.
+
+The candidate implementation is:
+
+- [`crates/vela-protocol/src/kernel/principal_capability.rs`](../crates/vela-protocol/src/kernel/principal_capability.rs)
+- [`conformance/fixtures/principal-capability-v1.json`](../conformance/fixtures/principal-capability-v1.json)
+- [`conformance/verify_principal_capability.py`](../conformance/verify_principal_capability.py)
+
+This contract is verify-only while ADR 0020 is Proposed. It issues no
+credential and enables no writer.
+
 ### 4.6 Verifier attachment
 
 A verifier attachment (`vela.verifier_attachment.v0.1`, `vva_`) binds a method,

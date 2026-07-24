@@ -14,6 +14,8 @@ use serde_json::Value;
 
 use crate::canonical::{sha256_canonical, to_canonical_bytes};
 use crate::events::{EventKind, StateActor, StateTarget};
+pub use crate::principal_capability::PrincipalClass;
+use crate::principal_capability::VerifiedCapabilityClaimV1;
 
 pub const AUTHORITY_KEYSET_SCHEMA_V1: &str = "vela.authority-keyset.v1";
 pub const AUTHORITY_RECORD_SCHEMA_V1: &str = "vela.authority-record.v1";
@@ -26,19 +28,6 @@ pub const CEDAR_ENGINE: &str = "cedar-policy";
 pub const CEDAR_ENGINE_VERSION: &str = "4.11.2";
 pub const CEDAR_PROFILE_V1: &str = "vela.cedar-restricted.v1";
 pub const POLICY_BUNDLE_SCHEMA_V1: &str = "vela.policy-bundle.v1";
-
-/// Principal class is an application invariant as well as a Cedar attribute.
-/// Agent and workload callers cannot gain human-only authority through a
-/// malformed or overly broad policy bundle.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum PrincipalClass {
-    Human,
-    Agent,
-    Workload,
-    Service,
-    Institution,
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -283,18 +272,7 @@ pub struct AuthenticationClaimV1 {
     pub provider: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct DelegationClaimV1 {
-    pub capability_id: String,
-    pub issuer_principal_id: String,
-    pub subject_principal_id: String,
-    pub actions: Vec<String>,
-    pub resource_roots: Vec<String>,
-    pub issued_at: String,
-    pub expires_at: String,
-    pub revoked_at: Option<String>,
-}
+pub type DelegationClaimV1 = VerifiedCapabilityClaimV1;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -483,6 +461,17 @@ impl AuthorityRecordV1 {
             || content.authentication.session_id.trim().is_empty()
         {
             return Err("authority attribution and authentication must be explicit".into());
+        }
+        if let Some(delegation) = &content.delegation {
+            delegation.validate()?;
+            if delegation.subject_principal_id != content.principal.principal_id
+                || delegation.current_actor_principal_id != content.principal.principal_id
+                || delegation.frontier_id != content.frontier_id
+            {
+                return Err(
+                    "authority-record principal or Frontier differs from its capability".into(),
+                );
+            }
         }
         Ok(())
     }

@@ -167,6 +167,26 @@ permits work on Phase 3; neither gate accepts ADR 0020.
 
 Exit: no live agent or workload operation requires a permanent Frontier key.
 
+Progress evidence, 2026-07-24: the read-only candidate now defines closed
+`vela.principal.v1`, `vela.capability-grant.v1`, and retained bearer-free
+verified capability claims. Human identity is an exact retained
+issuer-subject link, never an inferred email or display field. Agent and
+workload grants bind the repository-authority audience, one Frontier, sorted
+full-root resources and execution inputs, a maximum 24-hour window, at most
+one attenuating delegation, and a pending-review or policy-routed consequence
+ceiling. Human governance actions are structurally absent from the capability
+enum and rejected from agent/workload Cedar requests by the same
+protocol-owned forbid list.
+
+The cross-implementation fixture root is
+`sha256:67bf660a0733bbc7579a883e8cc2e1b9ae09843e6ecee856794e2c07f1f5ef2d`.
+An independent Python verifier rederives all roots and rejects eight hostile
+cases, including identity inference, authority escalation, time widening,
+parent substitution, bearer retention, and revocation. Phase 3's stable claim
+contract is complete. Runtime local-session authentication, logout/recovery
+context, and the writer remain later gates; no token format or identity
+provider has been added.
+
 ## Phase 4: authority transaction writer
 
 1. Adapt the existing recoverable transaction barrier rather than creating a

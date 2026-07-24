@@ -157,19 +157,29 @@ may enter the authority log.
 
 ### 4. Separate human identity from authority keys
 
-A human principal is a stable Vela identifier with namespaced account links:
+`vela.principal.v1` uses an exact namespaced issuer-subject identifier:
 
 ```text
-principal:01J...
-  <- local:<device-id>|uid:<uid>
-  <- oidc:<issuer>|<subject>
-  <- orcid:<issuer>|<subject>
+local:<device-id>|uid:<uid>
+oidc:<issuer>|<subject>
+orcid:<issuer>|<subject>
 ```
 
-Authorization uses the stable principal and governed role bindings. Email,
-display name, GitHub handle, and ORCID are never security identifiers by
-themselves. Display name and affiliation are retained only as readable
-snapshots.
+A human principal ID must equal one retained local, OIDC, or ORCID account
+link. It is never inferred from email, display name, affiliation, a GitHub
+handle, or an unlinked ORCID value. Display name and affiliation are readable
+snapshots only. Current account links and governed role bindings determine
+authorization. Revocation appends to the account-link history rather than
+silently reassigning a principal.
+
+Non-human principal namespaces are explicit:
+
+```text
+agent:<provider>:<agent-id>:<run-id>
+workload:<provider>:<workload-id>
+service:<service-id>
+institution:<institution-id>
+```
 
 Human authentication is replaceable:
 
@@ -276,44 +286,67 @@ temporal voting protocol.
 Agents and workloads are non-human principals. They use short-lived,
 audience-, Frontier-, resource-, action-, and expiry-bound capabilities.
 
-The first capability profile records:
+The first capability profile is the closed, content-addressed
+`vela.capability-grant.v1`. It records:
 
 ```text
 issuer
 subject
+subject class
 current actor
-delegation chain
+actor chain
+parent capability full root
+delegation depth and maximum depth
 audience
 frontier
 actions
 resource bindings
 exact execution bindings
+consequence ceiling
 issued_at
+not_before
 expires_at
 token_id
-maximum delegation depth
 revocation reference
 ```
 
+The profile permits only `agent` and `workload` subjects, the exact
+`vela.repository-authority.v1` audience, full resource and execution roots,
+and a maximum lifetime of 24 hours. Delegation depth is at most one. A child
+must name the full parent root and may only narrow action, resource, execution,
+time, and consequence scope. Expiry and revocation are evaluated at the
+authority record's observation time, so a backdated operation cannot revive a
+grant.
+
 Runtime bearer credentials are never committed. The authority record retains
-only verified claims and the grant identity. OAuth token-exchange/SciTokens
-claims are adapters, not Vela protocol dependencies. DPoP or SPIFFE is added
+only `vela.verified-capability-claim.v1` fields and the grant identity, never a
+JWT, CWT, OAuth token, refresh token, cookie, or provider assertion. OAuth
+token exchange, OIDC, SciTokens, GitHub App identity, and local credentials are
+replaceable adapters, not Vela protocol dependencies. DPoP or SPIFFE is added
 only for a reproduced network or institutional workload threat.
 
 An agent or workload can never obtain:
 
 ```text
-decideClaim
-managePolicy
-manageMembership
-approveRecovery
-rotateAuthority
-correctBulk
+authority_migrate
+authority_revoke
+authority_rotate
+bulk_correct
 destroy
+membership_manage
+policy_activate
+policy_revoke
+policy_rotate
+quorum_manage
+recovery_approve
+review_accept
+review_reject
 ```
 
-This is enforced both by unconditional Cedar forbids and by application
-invariants outside the policy engine.
+Those actions are absent from the capability action enum and are also rejected
+by the shared application invariant before Cedar evaluation. The same closed
+list is used by `vela-protocol` and `vela-authority`, so policy text cannot
+manufacture an agent or workload decision path.
 
 ### 8. Keep exact intent binding; remove root ceremonies
 
@@ -549,6 +582,21 @@ commit in a clean clone with network access denied. Phase 1 is therefore
 complete. This advances the candidate only to the principal and capability
 model; it does not authorize a writer or substitute for the deterministic
 release union at an actual release boundary.
+
+Phase 3 now has a committed `vela.principal-capability-conformance.v1` vector
+at
+`sha256:67bf660a0733bbc7579a883e8cc2e1b9ae09843e6ecee856794e2c07f1f5ef2d`.
+The Rust and independent Python paths rederive the exact human
+issuer-subject identity, agent grant, attenuated workload child, and
+bearer-free verified claim. Eight hostile cases reject email-based identity
+inference, human capability subjects, human-only actions, lifetimes over 24
+hours, delegation broadening, parent substitution, bearer-token retention,
+and revocation. The application-level human-action forbid now consumes the
+same protocol-owned list used by the capability contract.
+
+This evidence freezes only the principal and capability read contract. It does
+not authenticate a live session, issue a runtime token, enable an authority
+writer, accept this ADR, or migrate a Frontier.
 
 ## Alternatives rejected
 

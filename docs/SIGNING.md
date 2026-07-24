@@ -14,6 +14,13 @@ The candidate read side now recognizes the closed
 authority-record coverage after it. That verifier exposes no signing command,
 does not read a key, and does not make the proposed Era-1 path a live writer.
 
+The candidate also recognizes stable issuer-subject principals and retained,
+short-lived capability claims for agents and workloads. Those objects contain
+no bearer credential and cannot express human review, policy, membership,
+recovery, quorum, bulk-correction, destructive, migration, rotation, or
+revocation authority. Runtime local-session, OIDC, GitHub App, or SciTokens
+authentication remains an adapter and is not yet a released writer.
+
 Vela uses signatures to attribute exact authority-bearing actions. A
 signature proves control of one registered key over one canonical input; it
 does not prove scientific truth. Git publication and verifier success are

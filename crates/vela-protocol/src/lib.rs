@@ -21,7 +21,7 @@
 mod kernel;
 pub use kernel::{
     actor_registration, authority, authority_history, bundle, canonical, detached, events,
-    frontier_repository, reducer, repo, sign, signing_input,
+    frontier_repository, principal_capability, reducer, repo, sign, signing_input,
 };
 mod computed;
 pub use computed::{

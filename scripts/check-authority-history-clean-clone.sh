@@ -14,7 +14,8 @@ if [[ -n "$(git -C "$TMP/vela" status --short)" ]]; then
   exit 1
 fi
 
-run=(env PYTHONDONTWRITEBYTECODE=1 python3 conformance/verify.py --authority-history-only)
+authority_run=(env PYTHONDONTWRITEBYTECODE=1 python3 conformance/verify.py --authority-history-only)
+capability_run=(env PYTHONDONTWRITEBYTECODE=1 python3 conformance/verify_principal_capability.py)
 case "$(uname -s)" in
   Darwin)
     if ! command -v sandbox-exec >/dev/null 2>&1; then
@@ -23,7 +24,8 @@ case "$(uname -s)" in
     fi
     (
       cd "$TMP/vela"
-      sandbox-exec -p '(version 1) (allow default) (deny network*)' "${run[@]}"
+      sandbox-exec -p '(version 1) (allow default) (deny network*)' "${authority_run[@]}"
+      sandbox-exec -p '(version 1) (allow default) (deny network*)' "${capability_run[@]}"
     )
     ;;
   Linux)
@@ -35,9 +37,18 @@ case "$(uname -s)" in
         --proc /proc \
         --tmpfs /tmp \
         --chdir "$TMP/vela" \
-        "${run[@]}"
+        "${authority_run[@]}"
+      bwrap \
+        --unshare-net \
+        --ro-bind / / \
+        --dev-bind /dev /dev \
+        --proc /proc \
+        --tmpfs /tmp \
+        --chdir "$TMP/vela" \
+        "${capability_run[@]}"
     elif command -v unshare >/dev/null 2>&1 && unshare -n true 2>/dev/null; then
-      (cd "$TMP/vela" && unshare -n "${run[@]}")
+      (cd "$TMP/vela" && unshare -n "${authority_run[@]}")
+      (cd "$TMP/vela" && unshare -n "${capability_run[@]}")
     else
       printf 'clean-clone authority replay: bwrap or usable unshare -n is required on Linux\n' >&2
       exit 1
@@ -49,4 +60,4 @@ case "$(uname -s)" in
     ;;
 esac
 
-printf 'clean-clone authority replay: ok (%s, network denied)\n' "$COMMIT"
+printf 'clean-clone authority foundation: ok (%s, network denied)\n' "$COMMIT"

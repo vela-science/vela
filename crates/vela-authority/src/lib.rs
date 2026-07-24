@@ -19,15 +19,7 @@ pub use vela_protocol::authority::{
     CEDAR_ENGINE, CEDAR_ENGINE_VERSION, CEDAR_PROFILE_V1, CedarDecision, CedarEvaluation,
     PrincipalClass,
 };
-
-const HUMAN_ONLY_ACTIONS: &[&str] = &[
-    "authority_migrate",
-    "policy_activate",
-    "policy_revoke",
-    "policy_rotate",
-    "review_accept",
-    "review_reject",
-];
+use vela_protocol::principal_capability::principal_class_may_request;
 const FORBIDDEN_EXTENSION_CONSTRUCTORS: &[&str] = &["datetime(", "decimal(", "duration(", "ip("];
 
 #[derive(Debug, Clone)]
@@ -74,11 +66,7 @@ fn application_denied(diagnostic: String) -> CedarEvaluation {
 /// This makes the fail-closed outcome explicit and deterministic for audit
 /// records while callers may still distinguish malformed input via `valid`.
 pub fn evaluate(input: &CedarEvaluationInput) -> CedarEvaluation {
-    if matches!(
-        input.principal_class,
-        PrincipalClass::Agent | PrincipalClass::Workload
-    ) && HUMAN_ONLY_ACTIONS.contains(&input.action.as_str())
-    {
+    if !principal_class_may_request(input.principal_class, &input.action) {
         return application_denied(format!(
             "application_forbid: {:?} principals cannot perform {}",
             input.principal_class, input.action
