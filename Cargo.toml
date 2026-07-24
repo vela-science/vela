@@ -2,6 +2,7 @@
 # The consolidated Vela workspace:
 #   vela-protocol       the protocol kernel (events, reducer, objects)
 #   vela-protocol-core  shared primitives under the kernel
+#   vela-authority      restricted standard authorization evaluation
 #   vela-edge           derived views and adapters over kernel state
 #   vela-cli            the `vela` product binary
 #   vela-signer         one-shot protected human signer
@@ -11,6 +12,7 @@
 #                       build on
 members = [
     "crates/vela-protocol",
+    "crates/vela-authority",
     "crates/vela-edge",
     "crates/vela-protocol-core",
     "crates/vela-cli",
@@ -63,6 +65,7 @@ sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio",
 ed25519-dalek = { version = "2", features = ["rand_core", "zeroize"] }
 zeroize = "1"
 base64 = "0.22"
+cedar-policy = { version = "=4.11.2", default-features = false }
 unicode-normalization = "0.1"
 rand = "0.8"
 toml = "0.8"
@@ -73,6 +76,7 @@ windows-sys = "0.61"
 # Internal crates. `version` is required so cargo publish can resolve
 # the dep against crates.io; `path` is used for in-workspace builds.
 vela-protocol = { path = "crates/vela-protocol", version = "0.915.1" }
+vela-authority = { path = "crates/vela-authority", version = "0.915.1" }
 vela-protocol-core = { path = "crates/vela-protocol-core", version = "0.915.1" }
 vela-verify = { path = "crates/vela-verify", version = "0.915.1" }
 vela-signer = { path = "crates/vela-signer", version = "0.915.1" }

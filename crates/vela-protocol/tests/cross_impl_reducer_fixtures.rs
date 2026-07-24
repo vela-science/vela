@@ -21,6 +21,7 @@
 //! cascade chains, the doctrine is no longer a single-implementation
 //! claim.
 
+use serde::Serialize;
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -38,6 +39,33 @@ use vela_protocol::reducer::replay_from_genesis;
 const FIXTURE_FRONTIER_COUNT: usize = 3;
 const FINDINGS_PER_FRONTIER: usize = 8;
 const CASCADE_DEPTH: usize = 5;
+
+/// Pretty fixture bytes must not depend on transitive `serde_json` features.
+/// Cedar enables `preserve_order`; without this explicit sort, merely linking
+/// the evaluator rewrites every cross-implementation fixture even though the
+/// logical values are unchanged.
+fn stable_pretty_json<T: Serialize>(value: &T) -> String {
+    fn sort_value(value: Value) -> Value {
+        match value {
+            Value::Object(object) => {
+                let sorted = object
+                    .into_iter()
+                    .map(|(key, value)| (key, sort_value(value)))
+                    .collect::<BTreeMap<_, _>>();
+                let mut object = Map::with_capacity(sorted.len());
+                for (key, value) in sorted {
+                    object.insert(key, value);
+                }
+                Value::Object(object)
+            }
+            Value::Array(values) => Value::Array(values.into_iter().map(sort_value).collect()),
+            other => other,
+        }
+    }
+
+    let value = serde_json::to_value(value).expect("serialize stable fixture value");
+    serde_json::to_string_pretty(&sort_value(value)).expect("serialize stable fixture JSON")
+}
 
 fn fixture_timestamp(frontier_idx: usize, event_idx: usize) -> String {
     format!(
@@ -1612,11 +1640,7 @@ fn attach_repository_boundary_validation_vectors(
             "repository_boundary_validation".to_string(),
             repository_boundary_validation_vectors(fixture_idx, valid_chain),
         );
-    std::fs::write(
-        &path,
-        serde_json::to_string_pretty(&fixture).expect("serialize boundary fixture vectors"),
-    )
-    .expect("write boundary fixture vectors");
+    std::fs::write(&path, stable_pretty_json(&fixture)).expect("write boundary fixture vectors");
 }
 
 /// v0.220: diff_pack.released / diff_pack.reviewed /
@@ -1905,7 +1929,7 @@ fn export_one(
     });
 
     let path = out_dir.join(format!("cascade-fixture-{fixture_idx:02}.json"));
-    std::fs::write(&path, serde_json::to_string_pretty(&fixture).unwrap()).expect("write fixture");
+    std::fs::write(&path, stable_pretty_json(&fixture)).expect("write fixture");
     eprintln!("wrote {}", path.display());
 }
 
@@ -2254,11 +2278,7 @@ fn write_fixtures_manifest(out_dir: &PathBuf) {
         "fixtures": entries,
     });
     let manifest_path = out_dir.join("fixtures.manifest.json");
-    std::fs::write(
-        &manifest_path,
-        serde_json::to_string_pretty(&manifest).expect("serialize manifest"),
-    )
-    .expect("write manifest");
+    std::fs::write(&manifest_path, stable_pretty_json(&manifest)).expect("write manifest");
     eprintln!("wrote {}", manifest_path.display());
 }
 

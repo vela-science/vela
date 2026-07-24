@@ -20,8 +20,8 @@
 
 mod kernel;
 pub use kernel::{
-    actor_registration, bundle, canonical, detached, events, frontier_repository, reducer, repo,
-    sign, signing_input,
+    actor_registration, authority, bundle, canonical, detached, events, frontier_repository,
+    reducer, repo, sign, signing_input,
 };
 mod computed;
 pub use computed::{

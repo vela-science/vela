@@ -1,5 +1,14 @@
 # Signing and protected administration
 
+> **Era-0 release behavior.** This document describes the writer shipped in
+> Vela `0.915.1`. Proposed
+> [ADR 0020](adr/0020-attributed-repository-authority-and-standard-delegation.md)
+> replaces the personal-key helper, copied root/time confirmation, and custom
+> AcceptancePolicy writer with attributed repository authority, restricted
+> Cedar policy, and ordinary authentication. Until a Frontier crosses its
+> explicit migration boundary, the released behavior below remains the only
+> live writer and historical verification remains unchanged.
+
 Vela uses signatures to attribute exact authority-bearing actions. A
 signature proves control of one registered key over one canonical input; it
 does not prove scientific truth. Git publication and verifier success are

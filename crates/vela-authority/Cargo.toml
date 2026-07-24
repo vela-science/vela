@@ -1,0 +1,25 @@
+[package]
+name = "vela-authority"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Restricted standards-based authorization evaluation for Vela repository authority."
+readme = "../../README.md"
+keywords = ["science", "authorization", "cedar", "policy", "provenance"]
+categories = ["authentication", "science"]
+publish = true
+
+[lib]
+name = "vela_authority"
+path = "src/lib.rs"
+
+[dependencies]
+cedar-policy.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+vela-protocol.workspace = true
+
+[lints]
+workspace = true
