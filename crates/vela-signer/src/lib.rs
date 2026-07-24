@@ -35,8 +35,8 @@ pub use policy_contract::{
     policy_signer_display, validate_policy_request, validate_policy_response,
 };
 pub use repository_contract::{
-    REPOSITORY_REQUEST_SCHEMA, REPOSITORY_RESPONSE_SCHEMA, RepositoryBoundaryDisplay,
-    RepositoryBoundarySignerRequest, RepositoryBoundarySignerResponse,
+    REPOSITORY_REQUEST_LIFETIME_SECONDS, REPOSITORY_REQUEST_SCHEMA, REPOSITORY_RESPONSE_SCHEMA,
+    RepositoryBoundaryDisplay, RepositoryBoundarySignerRequest, RepositoryBoundarySignerResponse,
     repository_boundary_request_root, validate_repository_boundary_request,
     validate_repository_boundary_request_fresh, validate_repository_boundary_response,
 };

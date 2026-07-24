@@ -20,8 +20,8 @@ use crate::contract::{ProtectionMode, file_sha256, validate_hex_signature};
 
 pub const REPOSITORY_REQUEST_SCHEMA: &str = "vela.repository-boundary-signer-request.v1";
 pub const REPOSITORY_RESPONSE_SCHEMA: &str = "vela.repository-boundary-signer-response.v1";
+pub const REPOSITORY_REQUEST_LIFETIME_SECONDS: i64 = 10 * 60;
 const REPOSITORY_REQUEST_DOMAIN: &[u8] = b"vela.repository-boundary-signer-request.v1\0";
-const MAX_REQUEST_LIFETIME_SECONDS: i64 = 120;
 const MAX_CLOCK_SKEW_SECONDS: i64 = 60;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -257,8 +257,8 @@ fn validate_window(expires_at: &str, now: DateTime<Utc>) -> Result<(), String> {
     if expiry < now - Duration::seconds(MAX_CLOCK_SKEW_SECONDS) {
         return Err("repository-boundary signer request expired".to_string());
     }
-    if expiry > now + Duration::seconds(MAX_REQUEST_LIFETIME_SECONDS) {
-        return Err("repository-boundary signer expiry exceeds two minutes".to_string());
+    if expiry > now + Duration::seconds(REPOSITORY_REQUEST_LIFETIME_SECONDS) {
+        return Err("repository-boundary signer expiry exceeds ten minutes".to_string());
     }
     Ok(())
 }
@@ -414,5 +414,19 @@ mod tests {
             validate_repository_boundary_request(&display_drifted_request, NOW.parse().unwrap())
                 .is_err()
         );
+    }
+
+    #[test]
+    fn repository_request_allows_human_review_but_rejects_long_lived_capability() {
+        let now: DateTime<Utc> = NOW.parse().unwrap();
+        let (_binary, _key, mut request) = request();
+        request.expires_at = (now + Duration::seconds(REPOSITORY_REQUEST_LIFETIME_SECONDS))
+            .to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
+        validate_repository_boundary_request(&request, now).unwrap();
+
+        request.expires_at = (now + Duration::seconds(REPOSITORY_REQUEST_LIFETIME_SECONDS + 1))
+            .to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
+        let error = validate_repository_boundary_request(&request, now).unwrap_err();
+        assert!(error.contains("exceeds ten minutes"), "{error}");
     }
 }

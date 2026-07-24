@@ -1168,7 +1168,10 @@ fn build_repository_signer_request(
     let request = vela_signer::RepositoryBoundarySignerRequest {
         schema: vela_signer::REPOSITORY_REQUEST_SCHEMA.to_string(),
         nonce: hex::encode(nonce),
-        expires_at: (now + chrono::Duration::seconds(120))
+        expires_at: (now
+            + chrono::Duration::seconds(
+                vela_signer::REPOSITORY_REQUEST_LIFETIME_SECONDS,
+            ))
             .to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
         vela_binary_path: vela_binary.display().to_string(),
         vela_binary_sha256: preview.plan.vela_binary_sha256.clone(),

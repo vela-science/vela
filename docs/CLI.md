@@ -396,7 +396,9 @@ The preview is key-free. It binds the candidate files, signer, reason, Git and
 Vela roots, exact touched paths, before/after root families, dependency
 resolutions, sealed target index, and one planned non-scientific boundary
 event. Matching apply revalidates those facts and expiry before the protected
-OS card.
+OS card. Repository-boundary approval remains one-shot and root-bound, with a
+ten-minute card window so a full retained-history revalidation does not turn
+ordinary human review into a race.
 
 Migration refuses dirty input, incomplete recovery, shallow or non-ancestor
 history, replay failure, root drift, unknown legacy settings, ambiguous

@@ -42,6 +42,9 @@ enum Command {
 
 struct SystemApproval;
 
+const REPOSITORY_REAUTHENTICATION_TIMEOUT_SECONDS: u64 =
+    crate::REPOSITORY_REQUEST_LIFETIME_SECONDS as u64;
+
 impl Approval for SystemApproval {
     fn now(&self) -> chrono::DateTime<chrono::Utc> {
         chrono::Utc::now()
@@ -154,7 +157,10 @@ impl Approval for SystemApproval {
         request: &RepositoryBoundarySignerRequest,
     ) -> Result<(), String> {
         require_user_interaction("authenticate a repository boundary")?;
-        platform_reauthenticate(&repository_boundary_prompt(request))
+        platform_reauthenticate_with_timeout(
+            &repository_boundary_prompt(request),
+            REPOSITORY_REAUTHENTICATION_TIMEOUT_SECONDS,
+        )
     }
 
     fn reauthenticate_actor_bootstrap(
@@ -870,9 +876,13 @@ fn actor_bootstrap_prompt(request: &ActorBootstrapProofRequest) -> String {
     crate::actor_contract::actor_bootstrap_prompt(request)
 }
 
+fn platform_reauthenticate(reason: &str) -> Result<(), String> {
+    platform_reauthenticate_with_timeout(reason, 120)
+}
+
 #[cfg(target_os = "macos")]
 #[allow(unsafe_code)]
-fn platform_reauthenticate(reason: &str) -> Result<(), String> {
+fn platform_reauthenticate_with_timeout(reason: &str, timeout_seconds: u64) -> Result<(), String> {
     use block2::RcBlock;
     use objc2::MainThreadMarker;
     use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy};
@@ -921,7 +931,7 @@ fn platform_reauthenticate(reason: &str) -> Result<(), String> {
             &reply,
         );
     }
-    match rx.recv_timeout(Duration::from_secs(120)) {
+    match rx.recv_timeout(Duration::from_secs(timeout_seconds)) {
         Ok(result) => result,
         Err(mpsc::RecvTimeoutError::Timeout) => {
             unsafe { context.invalidate() };
@@ -935,7 +945,7 @@ fn platform_reauthenticate(reason: &str) -> Result<(), String> {
 
 #[cfg(target_os = "windows")]
 #[allow(unsafe_code)]
-fn platform_reauthenticate(reason: &str) -> Result<(), String> {
+fn platform_reauthenticate_with_timeout(reason: &str, _timeout_seconds: u64) -> Result<(), String> {
     use windows::Security::Credentials::UI::{UserConsentVerificationResult, UserConsentVerifier};
     use windows::Win32::System::Console::GetConsoleWindow;
     use windows::Win32::System::WinRT::IUserConsentVerifierInterop;
@@ -967,7 +977,10 @@ fn platform_reauthenticate(reason: &str) -> Result<(), String> {
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
-fn platform_reauthenticate(_reason: &str) -> Result<(), String> {
+fn platform_reauthenticate_with_timeout(
+    _reason: &str,
+    _timeout_seconds: u64,
+) -> Result<(), String> {
     let process = linux_process_subject()?;
     let status = std::process::Command::new("pkcheck")
         .args([
@@ -1012,7 +1025,10 @@ fn linux_process_subject() -> Result<String, String> {
 }
 
 #[cfg(not(any(unix, target_os = "windows")))]
-fn platform_reauthenticate(_reason: &str) -> Result<(), String> {
+fn platform_reauthenticate_with_timeout(
+    _reason: &str,
+    _timeout_seconds: u64,
+) -> Result<(), String> {
     Err("always mode is unsupported on this platform".to_string())
 }
 
