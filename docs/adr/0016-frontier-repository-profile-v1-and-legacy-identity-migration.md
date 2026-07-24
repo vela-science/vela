@@ -651,6 +651,14 @@ metadata; their terminal standing and applied domain-event pointer remain
 checked, while current explicit review events bind the complete decision
 projection.
 
+Some exact legacy proposal files also predate the current logical-ID preimage.
+A verified pinned temporalization boundary may retain that finite conflict set
+as `anchored_immutable_unauthenticated` compatibility debt. The conflicts grant
+no proposal authentication or authority. Every conflicted proposal is frozen
+byte-for-byte at the anchor; adding a conflict, changing one of those bytes, or
+losing the exact Git boundary or consumer pin fails closed. Native Profile v1
+repositories receive no such compatibility classification.
+
 ### 8. Minimal initialization
 
 `vela init <path> --name <name> --scope <question>` creates a v1 profile and a

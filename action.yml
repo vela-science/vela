@@ -3,10 +3,10 @@
 # Consume from a frontier repository:
 #
 #   - uses: actions/checkout@v5
-#   - uses: vela-science/vela@v0.914.1
+#   - uses: vela-science/vela@v0.914.2
 #     with:
 #       frontier: .
-#       vela-version: v0.914.1
+#       vela-version: v0.914.2
 #       repository-boundary-root: ${{ vars.VELA_REPOSITORY_BOUNDARY_ROOT }}
 #
 # For an administrator-bound Profile v1 repository, the first boundary root
@@ -27,7 +27,7 @@ inputs:
     default: "."
   vela-version:
     description: >-
-      Required reviewed Vela release tag (e.g. v0.914.1). It must match the
+      Required reviewed Vela release tag (e.g. v0.914.2). It must match the
       `vela_version` recorded in the frontier's vela.lock, preventing the
       proposed frontier bytes from selecting an older verifier.
     required: true

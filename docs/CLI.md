@@ -153,6 +153,12 @@ legacy snapshot as the current scientific root.
 Compact status runs the same complete Profile v1 repository-context gate as a
 canonical write: profile and settings, reducer and proposal parity, exact Git
 boundary, retained bytes, and the independently installed consumer trust pin.
+For a verified pinned legacy boundary, proposal logical-ID conflicts already
+present at the exact anchor are reported as
+`anchored_immutable_unauthenticated` audit debt rather than current tampering.
+The boundary freezes every such proposal byte and grants it no authentication
+or authority; any new conflict, changed byte, invalid anchor, or missing pin
+still blocks strict checking and every canonical write.
 The verified pin is also supplied to Target Index v2 assessment. A missing,
 wrong, tampered, forked, or incomplete boundary/pin appears under
 `integrity.repository_context`, contributes its exact code to

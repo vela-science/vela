@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.914.2 — 2026-07-24 — Preserve exact legacy proposal identity debt
+
+- Make `vela check --strict` agree with the Profile v1 repository write gate:
+  a verified, externally pinned temporalization boundary may retain only the
+  exact proposal logical-ID conflicts present at its Git anchor.
+- Report those anchored historical IDs as
+  `anchored_immutable_unauthenticated` audit facts. They confer no proposal
+  authentication, acceptance, identity, or authority.
+- Continue to fail closed for native Profile v1 conflicts, legacy repositories
+  without a verified boundary, any new conflict, any changed conflicted
+  proposal byte, an invalid boundary or trust pin, and every withdrawal
+  conflict.
+- Restore strict checking of the signed Formal Conjectures migration after
+  ordinary regeneration of its derived `frontier.json`, `vela.lock`, and proof
+  readouts. Canonical events, proposals, findings, artifacts, registries,
+  accepted state, and scientific roots remain unchanged.
+
 ## v0.914.1 — 2026-07-24 — Preserve exact legacy signature debt
 
 - Let a signed repository temporalization retain signature bytes already

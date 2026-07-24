@@ -32,6 +32,14 @@ anchors and ancestry, retained canonical bytes, actor registry, and the
 consumer's independently installed first-boundary pin whenever an
 administrator boundary exists. It does not replace the domain verifier.
 
+A verified pinned temporalization boundary may preserve proposal logical-ID
+conflicts that already existed at its exact Git anchor. Strict checking labels
+them `anchored_immutable_unauthenticated` and keeps them nonblocking only after
+the repository gate proves that the conflict set did not expand and every
+conflicted proposal byte remains exact. This is replay compatibility, not
+authentication: native conflicts, new conflicts, changed historical bytes,
+invalid boundaries, and missing or wrong trust pins fail closed.
+
 Run both from the exact Git tree being cited:
 
 ```bash

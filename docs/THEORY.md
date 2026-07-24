@@ -1,6 +1,6 @@
 # Vela theory: the formal boundary
 
-Status: current public-beta boundary for Vela `0.914.1`.
+Status: current public-beta boundary for Vela `0.914.2`.
 
 This document says exactly what can be inferred from Vela's protocol, code,
 conformance vectors, and Lean models. It is intentionally smaller than the

@@ -356,7 +356,7 @@ fn check_json_payload_with_home(
         (None, None)
     };
     let source_hash = hash_path(src).unwrap_or_else(|_| "unavailable".to_string());
-    let repository_context = if schema_only {
+    let mut repository_context = if schema_only {
         repository_context_not_applicable()
     } else {
         repository_context_check_with_home(src, trusted_home)
@@ -430,19 +430,54 @@ fn check_json_payload_with_home(
         .as_ref()
         .map(vela_protocol::proposals::verify_proposal_decision_parity)
         .unwrap_or_default();
+    // A verified pinned boundary may retain proposal IDs created under an
+    // older logical-ID preimage. The repository write gate has already proved
+    // that every such conflict existed at the exact Git anchor, that the
+    // conflicted proposal bytes remain unchanged, and that no new conflict was
+    // introduced. Report that historical debt explicitly, but do not run the
+    // context-free parity rule a second time and misclassify it as current
+    // tampering. Native Profile v1, legacy v0.1, and every invalid boundary
+    // retain the ordinary blocking behavior.
+    let preserved_legacy_parity = !parity_conflicts.is_empty()
+        && repository_context.get("valid").and_then(Value::as_bool) == Some(true)
+        && repository_context.get("generation").and_then(Value::as_str) == Some("profile_v1")
+        && repository_context
+            .get("identity_mode")
+            .and_then(Value::as_str)
+            == Some("pinned_boundary");
+    if preserved_legacy_parity {
+        repository_context["legacy_proposal_identity_debt"] = json!({
+            "classification": "anchored_immutable_unauthenticated",
+            "count": parity_conflicts.len(),
+        });
+    }
     if !parity_conflicts.is_empty() {
         diagnostics.extend(parity_conflicts.iter().map(|conflict| {
-            json!({
-                "severity": "error",
-                "rule_id": "review_decision_parity",
-                "check": "proposals",
-                "finding_id": null,
-                "field_path": null,
-                "message": conflict,
-                "suggestion": "Every decided proposal must have a signed review.* event (or, for accepts, its domain event). Re-issue the decision through `vela sign`.",
-                "fixable": false,
-                "normalize_action": null,
-            })
+            if preserved_legacy_parity {
+                json!({
+                    "severity": "info",
+                    "rule_id": "anchored_legacy_proposal_identity",
+                    "check": "proposals",
+                    "finding_id": null,
+                    "field_path": ".vela/proposals",
+                    "message": conflict,
+                    "suggestion": "Retain the exact anchored proposal bytes. The historical ID is readable but unauthenticated by the current logical-ID rule; changing it or adding another conflict fails closed.",
+                    "fixable": false,
+                    "normalize_action": null,
+                })
+            } else {
+                json!({
+                    "severity": "error",
+                    "rule_id": "review_decision_parity",
+                    "check": "proposals",
+                    "finding_id": null,
+                    "field_path": null,
+                    "message": conflict,
+                    "suggestion": "Every decided proposal must have a signed review.* event (or, for accepts, its domain event). Re-issue the decision through `vela sign`.",
+                    "fixable": false,
+                    "normalize_action": null,
+                })
+            }
         }));
     }
     let withdrawal_conflicts: Vec<String> = loaded
@@ -609,7 +644,7 @@ fn check_json_payload_with_home(
     let event_errors = replay_report
         .as_ref()
         .map_or(0, |replay| usize::from(!replay.ok))
-        + usize::from(!parity_conflicts.is_empty())
+        + usize::from(!parity_conflicts.is_empty() && !preserved_legacy_parity)
         + policy_lane_errors.len();
     let state_integrity_errors = state_integrity_report
         .as_ref()
@@ -1177,7 +1212,10 @@ mod repository_context_tests {
         }
     }
 
-    fn bound_repository(case: AnchorCase) -> BoundRepositoryFixture {
+    fn bound_repository_with_legacy_parity(
+        case: AnchorCase,
+        preserve_legacy_parity: bool,
+    ) -> BoundRepositoryFixture {
         let repo = tempfile::tempdir().unwrap();
         let home = tempfile::tempdir().unwrap();
         initialize_profile_v1_minimal(
@@ -1205,6 +1243,24 @@ mod repository_context_tests {
             revoked_reason: None,
         };
         project.actors = vec![actor.clone()];
+        if preserve_legacy_parity {
+            let mut proposal = vela_protocol::proposals::new_proposal_at(
+                "finding.note",
+                vela_protocol::events::StateTarget {
+                    r#type: "frontier".to_string(),
+                    id: project.frontier_id(),
+                },
+                "agent:legacy",
+                "agent",
+                "retain exact legacy proposal identity",
+                json!({"note": "legacy logical-id preimage"}),
+                vec!["src:legacy".to_string()],
+                vec!["historical identity is unauthenticated".to_string()],
+                "2026-07-22T00:00:30Z",
+            );
+            proposal.id = "vpr_legacy000000001".to_string();
+            project.proposals.push(proposal);
+        }
         repo::save_to_path(repo.path(), &project).unwrap();
 
         git(repo.path(), &["init", "-q", "-b", "main"]);
@@ -1298,6 +1354,10 @@ mod repository_context_tests {
         );
 
         BoundRepositoryFixture { repo, home, anchor }
+    }
+
+    fn bound_repository(case: AnchorCase) -> BoundRepositoryFixture {
+        bound_repository_with_legacy_parity(case, false)
     }
 
     fn snapshot_without_git(root: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
@@ -1530,6 +1590,113 @@ mod repository_context_tests {
         );
         assert_eq!(snapshot_without_git(fixture.repo.path()), repository_before);
         assert_eq!(snapshot_without_git(fixture.home.path()), trust_before);
+    }
+
+    #[test]
+    fn strict_check_reports_exact_anchored_legacy_proposal_identity_without_blocking() {
+        let fixture = bound_repository_with_legacy_parity(AnchorCase::Valid, true);
+        install_repository_trust_anchor_from_home(fixture.home.path(), &fixture.anchor).unwrap();
+        let repository_before = snapshot_without_git(fixture.repo.path());
+        let trust_before = snapshot_without_git(fixture.home.path());
+
+        let checked = check_json_payload_with_home(
+            fixture.repo.path(),
+            false,
+            true,
+            Some(fixture.home.path()),
+        );
+        assert_eq!(
+            checked.get("ok").and_then(Value::as_bool),
+            Some(true),
+            "{checked}"
+        );
+        assert_eq!(
+            checked
+                .pointer("/repository_context/legacy_proposal_identity_debt/classification")
+                .and_then(Value::as_str),
+            Some("anchored_immutable_unauthenticated")
+        );
+        assert_eq!(
+            checked
+                .pointer("/repository_context/legacy_proposal_identity_debt/count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert!(
+            checked
+                .get("diagnostics")
+                .and_then(Value::as_array)
+                .is_some_and(|diagnostics| diagnostics.iter().any(|diagnostic| {
+                    diagnostic.get("rule_id").and_then(Value::as_str)
+                        == Some("anchored_legacy_proposal_identity")
+                        && diagnostic.get("severity").and_then(Value::as_str) == Some("info")
+                })),
+            "{checked}"
+        );
+        assert!(
+            checked
+                .get("signals")
+                .and_then(Value::as_array)
+                .is_some_and(|signals| signals.iter().all(|signal| {
+                    signal
+                        .get("kind")
+                        .and_then(Value::as_str)
+                        .is_none_or(|kind| kind != "check_error")
+                })),
+            "{checked}"
+        );
+        assert_eq!(snapshot_without_git(fixture.repo.path()), repository_before);
+        assert_eq!(snapshot_without_git(fixture.home.path()), trust_before);
+    }
+
+    #[test]
+    fn strict_check_grants_no_legacy_proposal_exemption_after_tampering() {
+        let fixture = bound_repository_with_legacy_parity(AnchorCase::Valid, true);
+        install_repository_trust_anchor_from_home(fixture.home.path(), &fixture.anchor).unwrap();
+        let mut project = repo::load_from_path(fixture.repo.path()).unwrap();
+        project.proposals[0].reason = "tampered after the signed anchor".to_string();
+        repo::save_to_path(fixture.repo.path(), &project).unwrap();
+
+        let checked = check_json_payload_with_home(
+            fixture.repo.path(),
+            false,
+            true,
+            Some(fixture.home.path()),
+        );
+        assert_eq!(checked.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            checked
+                .pointer("/repository_context/valid")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert!(
+            checked
+                .pointer("/repository_context/error")
+                .and_then(Value::as_str)
+                .is_some_and(|error| {
+                    error.contains(
+                        "introduced parity failures absent from the exact repository anchor",
+                    )
+                }),
+            "{checked}"
+        );
+        assert!(
+            checked
+                .get("diagnostics")
+                .and_then(Value::as_array)
+                .is_some_and(|diagnostics| diagnostics.iter().any(|diagnostic| {
+                    diagnostic.get("rule_id").and_then(Value::as_str)
+                        == Some("review_decision_parity")
+                        && diagnostic.get("severity").and_then(Value::as_str) == Some("error")
+                })),
+            "{checked}"
+        );
+        assert!(
+            checked
+                .pointer("/repository_context/legacy_proposal_identity_debt")
+                .is_none()
+        );
     }
 
     #[test]
