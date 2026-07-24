@@ -332,32 +332,7 @@ pub fn evaluate(policy: &AcceptancePolicy, ctx: &PolicyContext, now_rfc3339: &st
     };
 
     // (0) Policy integrity + lifecycle: structural DENY.
-    if !matches!(
-        policy.schema.as_str(),
-        ACCEPTANCE_POLICY_V0_1_SCHEMA
-            | ACCEPTANCE_POLICY_V0_2_SCHEMA
-            | ACCEPTANCE_POLICY_V0_3_SCHEMA
-    ) {
-        return mk(
-            Outcome::Deny,
-            vec![],
-            vec!["policy_schema_unsupported".into()],
-        );
-    }
-    if !policy.id_is_valid() {
-        return mk(Outcome::Deny, vec![], vec!["policy_id_mismatch".into()]);
-    }
-    if policy.is_expired(now_rfc3339) {
-        return mk(Outcome::Deny, vec![], vec!["policy_expired".into()]);
-    }
-    if policy.revocation_ref.is_some() {
-        return mk(Outcome::Deny, vec![], vec!["policy_revoked".into()]);
-    }
-    if !matches!(policy.default, Outcome::Defer | Outcome::Deny) {
-        // A permit default is rejected at evaluation time, defense in depth.
-        return mk(Outcome::Deny, vec![], vec!["illegal_permit_default".into()]);
-    }
-    if let Some(reason) = binding_policy_error(policy) {
+    if let Some(reason) = structural_denial_reason(policy, now_rfc3339) {
         return mk(Outcome::Deny, vec![], vec![reason]);
     }
 
@@ -500,6 +475,38 @@ pub fn evaluate(policy: &AcceptancePolicy, ctx: &PolicyContext, now_rfc3339: &st
         vec![],
         vec![format!("default_{}", policy.default.as_str())],
     )
+}
+
+/// Return the exact structural reason that prevents this policy from
+/// participating in routing.
+///
+/// This is public only for the read-only Era-0-to-Era-1 shadow translator. The
+/// live evaluator remains the authority during the migration and calls this
+/// same helper, so the shadow path cannot maintain a second approximation of
+/// policy lifecycle or binding validation.
+#[must_use]
+pub fn structural_denial_reason(policy: &AcceptancePolicy, now_rfc3339: &str) -> Option<String> {
+    if !matches!(
+        policy.schema.as_str(),
+        ACCEPTANCE_POLICY_V0_1_SCHEMA
+            | ACCEPTANCE_POLICY_V0_2_SCHEMA
+            | ACCEPTANCE_POLICY_V0_3_SCHEMA
+    ) {
+        return Some("policy_schema_unsupported".into());
+    }
+    if !policy.id_is_valid() {
+        return Some("policy_id_mismatch".into());
+    }
+    if policy.is_expired(now_rfc3339) {
+        return Some("policy_expired".into());
+    }
+    if policy.revocation_ref.is_some() {
+        return Some("policy_revoked".into());
+    }
+    if !matches!(policy.default, Outcome::Defer | Outcome::Deny) {
+        return Some("illegal_permit_default".into());
+    }
+    binding_policy_error(policy)
 }
 
 fn binding_policy_error(policy: &AcceptancePolicy) -> Option<String> {

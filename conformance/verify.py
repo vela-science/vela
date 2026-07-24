@@ -300,6 +300,12 @@ def main() -> int:
         return 1
     print("vela conformance: ok  [policy-scoped-credential v0.2/v0.3]")
 
+    legacy_shadow_rc = _run_legacy_policy_shadow_corpus(repo_root)
+    if legacy_shadow_rc != 0:
+        print("vela conformance: FAIL  [legacy-policy-shadow-corpus]")
+        return 1
+    print("vela conformance: ok  [legacy-policy-shadow corpus metadata]")
+
     floor_rc = _run_exact_witness_floor(repo_root)
     if floor_rc != 0:
         print("vela conformance: FAIL  [exact-witness-floor]")
@@ -595,6 +601,59 @@ def _run_policy_scoped_credential(repo_root: Path) -> int:
     if _evaluate_permit_shadow(duplicate, fixture["context"]) != "deny":
         print("  duplicate producer credentials did not fail closed", file=sys.stderr)
         return 1
+    return 0
+
+
+def _run_legacy_policy_shadow_corpus(repo_root: Path) -> int:
+    path = (
+        repo_root
+        / "conformance"
+        / "fixtures"
+        / "legacy-policy-shadow-corpus-v1.json"
+    )
+    try:
+        raw = path.read_bytes()
+        corpus = json.loads(raw)
+    except (OSError, json.JSONDecodeError) as error:
+        print(f"  legacy policy shadow corpus load failed: {error}", file=sys.stderr)
+        return 1
+    if corpus.get("schema") != "vela.legacy-policy-shadow-corpus.v1":
+        print("  legacy policy shadow corpus schema mismatch", file=sys.stderr)
+        return 1
+    canonical_root = "sha256:" + hashlib.sha256(_canonical_bytes(corpus)).hexdigest()
+    if canonical_root != "sha256:9bf9c5a770d427221b68e088492b243041440e7e05408b0ae0af0a65d37c45d9":
+        print("  legacy policy shadow corpus root drift", file=sys.stderr)
+        return 1
+    if not _full_root(corpus.get("tests_root")):
+        print("  legacy policy shadow tests root is invalid", file=sys.stderr)
+        return 1
+    cases = corpus.get("cases")
+    if not isinstance(cases, list) or len(cases) != 4:
+        print("  legacy policy shadow corpus must contain four cases", file=sys.stderr)
+        return 1
+    case_ids = [case.get("id") for case in cases]
+    if any(not isinstance(case_id, str) or not case_id for case_id in case_ids):
+        print("  legacy policy shadow case ID is missing", file=sys.stderr)
+        return 1
+    if len(case_ids) != len(set(case_ids)):
+        print("  legacy policy shadow case IDs are duplicated", file=sys.stderr)
+        return 1
+    source_pattern = re.compile(
+        r"^vela-science/[a-z0-9-]+@[0-9a-f]{40}:"
+        r"[^#]+#sha256:[0-9a-f]{64}$"
+    )
+    for case in cases:
+        if not source_pattern.fullmatch(case.get("source", "")):
+            print(f"  {case.get('id')}: source binding is invalid", file=sys.stderr)
+            return 1
+        observed = _evaluate_permit_shadow(case["policy"], case["context"])
+        expected = case.get("expected_legacy_outcome")
+        if observed != expected:
+            print(
+                f"  {case.get('id')}: expected legacy {expected}, observed {observed}",
+                file=sys.stderr,
+            )
+            return 1
     return 0
 
 

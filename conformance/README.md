@@ -64,6 +64,11 @@ missing parent, a fork, and anchor-count rollback. Only after that validation su
   Receipt identity binding and its full credential root. Rust and Python retain
   v0.2 registry semantics, require v0.3 to match the exact scoped credential,
   and prove that global registration cannot bypass a v0.3 allowlist.
+- `fixtures/legacy-policy-shadow-corpus-v1.json` freezes the three retained
+  AcceptancePolicy objects from exact Erdős and Sidon commits, expanded into
+  one case per live Permit rule for deterministic Cedar shadow comparison.
+  The ADR 0013 and ADR 0014 hostile substitutions remain in their original
+  fixtures and are consumed directly by the same Rust shadow tests.
 - `fixtures/exact-witness-floor-v1.json` freezes the retained Vela-native
   witness, full byte root, exact lower-bound claim, claim-substitution cases,
   and corrupted-witness case used by AcceptancePolicy v0.2. Rust and Python

@@ -513,6 +513,31 @@ The full deterministic release union runs once at the actual `v0.930.0`
 boundary. External Lean, Diderot, and live-network suites remain excluded
 unless a selected migration fixture directly requires them.
 
+### Implementation evidence, 2026-07-24
+
+The read-only candidate now implements the closed bridge payload and dual
+history verifier. It preserves the ordinary Era-0 event-log commitment through
+authority-record sequence 1. Subsequent mixed-history commitments use
+`vela.authority-event-log.v1`, binding that frozen legacy root and the sorted
+full roots of covered Era-1 events.
+
+Focused fixtures prove:
+
+- byte-identical legacy-only replay remains valid;
+- the bridge requires an exact unrevoked actor-registry key and legacy event
+  signature;
+- sequence 1 covers only the bridge and binds the new keyset, policy bundle,
+  principal, semantic approval, and event object root;
+- later transactions have exact unique event coverage and attribution;
+- extra legacy events, missing or duplicate coverage, transaction
+  substitution, wrong roots, chain forks, registry drift, signature
+  tampering, policy substitution, and unknown bridge fields fail closed; and
+- the reducer treats the bridge as non-scientific.
+
+This evidence does not accept the ADR, enable an Era-1 writer, or migrate a
+Frontier. A cross-implementation migration vector and network-disabled
+clean-clone replay remain before the Phase 1 gate closes.
+
 ## Alternatives rejected
 
 ### Preserve or improve the current helper

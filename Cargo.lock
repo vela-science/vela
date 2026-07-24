@@ -3883,8 +3883,10 @@ name = "vela-authority"
 version = "0.915.1"
 dependencies = [
  "cedar-policy",
+ "hex",
  "serde",
  "serde_json",
+ "sha2",
  "vela-protocol",
 ]
 

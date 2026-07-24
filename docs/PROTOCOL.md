@@ -367,6 +367,50 @@ The relevant current implementations are:
 - [`crates/vela-protocol/src/policy/acceptance_policy.rs`](../crates/vela-protocol/src/policy/acceptance_policy.rs)
 - [`crates/vela-protocol/src/proposals/policy_accept.rs`](../crates/vela-protocol/src/proposals/policy_accept.rs)
 
+#### Proposed Era-1 read contract
+
+[ADR 0020](adr/0020-attributed-repository-authority-and-standard-delegation.md)
+remains Proposed and changes no released writer. Its read-only candidate adds
+closed `vela.authority-keyset.v1`, `vela.policy-bundle.v1`,
+`vela.authority-record.v1`, and `vela.event.v1` objects plus one legacy-signed
+continuity event:
+
+```text
+authority.model_migrated
+  payload: vela.authority-model-migration.v1
+```
+
+The bridge binds the exact pre-migration event-log, actor-registry,
+active-policy-head, policy-store-manifest, new keyset, and new Cedar-bundle
+roots, plus the new principal and minimum writer version. It is
+non-scientific, uses null before/after scientific roots, and must be signed by
+an unrevoked registered Era-0 human key. Authority-record sequence 1, signed
+by the new repository authority, covers that same event.
+
+The candidate dual verifier accepts unchanged Era-0-only history and, after a
+bridge, requires every Era-1 event to be covered exactly once by a contiguous
+DSSE authority-record chain. It rejects a changed legacy prefix, any added
+legacy event, gaps, overlaps, transaction substitution, wrong event-log or
+object roots, chain forks, keyset or policy substitution, invalid legacy
+signatures, and Cedar diagnostics or denial. Exact registry bytes are bound;
+no network or live identity provider is needed for replay.
+
+For mixed histories, the first authority record ends at the ordinary legacy
+event-log root containing the bridge. Later roots use
+`vela.authority-event-log.v1`, which commits to that fixed legacy root and the
+sorted full roots of all covered `vela.event.v1` objects. This preserves every
+Era-0 byte while giving Era-1 one deterministic append-only commitment.
+
+The candidate implementation is read/verify-only:
+
+- [`crates/vela-protocol/src/kernel/authority.rs`](../crates/vela-protocol/src/kernel/authority.rs)
+- [`crates/vela-protocol/src/kernel/authority_history.rs`](../crates/vela-protocol/src/kernel/authority_history.rs)
+- [`crates/vela-authority/src/legacy_translation.rs`](../crates/vela-authority/src/legacy_translation.rs)
+
+No Frontier may emit these objects or delete Era-0 verification until the
+remaining ADR 0020 writer, migration, clean-clone, and active-Frontier gates
+pass.
+
 ### 4.6 Verifier attachment
 
 A verifier attachment (`vela.verifier_attachment.v0.1`, `vva_`) binds a method,

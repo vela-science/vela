@@ -9,6 +9,11 @@
 > explicit migration boundary, the released behavior below remains the only
 > live writer and historical verification remains unchanged.
 
+The candidate read side now recognizes the closed
+`vela.authority-model-migration.v1` bridge and verifies contiguous DSSE
+authority-record coverage after it. That verifier exposes no signing command,
+does not read a key, and does not make the proposed Era-1 path a live writer.
+
 Vela uses signatures to attribute exact authority-bearing actions. A
 signature proves control of one registered key over one canonical input; it
 does not prove scientific truth. Git publication and verifier success are
@@ -137,3 +142,7 @@ uncommitted.
 - Profile v1 actor-registry rotation and administrator recovery are not hidden
   behind a generic command; until a separately governed contract exists,
   registry drift fails closed.
+- A candidate Era-1 history without one exact legacy-signed migration bridge,
+  or with any later legacy write, coverage gap, duplicate coverage,
+  transaction substitution, root drift, authority fork, keyset substitution,
+  or policy substitution, fails closed and never falls back to Era-0.

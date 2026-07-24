@@ -13,6 +13,8 @@ use cedar_policy::{
 };
 use serde_json::Value;
 
+pub mod legacy_translation;
+
 pub use vela_protocol::authority::{
     CEDAR_ENGINE, CEDAR_ENGINE_VERSION, CEDAR_PROFILE_V1, CedarDecision, CedarEvaluation,
     PrincipalClass,

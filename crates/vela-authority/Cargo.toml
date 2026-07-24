@@ -17,8 +17,10 @@ path = "src/lib.rs"
 
 [dependencies]
 cedar-policy.workspace = true
+hex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
 vela-protocol.workspace = true
 
 [lints]

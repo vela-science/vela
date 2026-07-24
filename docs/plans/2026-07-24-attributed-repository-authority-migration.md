@@ -103,6 +103,16 @@ enter `main`.
 Exit: authority-record verification is complete, old fixtures replay
 byte-identically, and malformed Era-1 inputs fail closed.
 
+Progress evidence, 2026-07-24: the pure dual-history verifier now accepts
+unchanged Era-0-only history and validates one closed legacy-signed
+`vela.authority-model-migration.v1` bridge into a contiguous DSSE
+authority-record chain. Seven focused adversarial tests reject a later legacy
+write, actor-registry or signature tampering, missing or duplicate coverage,
+transaction substitution, wrong roots, authority forks, policy substitution,
+and malformed bridge payloads. The bridge is reducer-neutral and no writer or
+Frontier migration exists. The remaining Phase 1 work is a committed
+cross-implementation migration vector plus network-disabled clean-clone replay.
+
 ## Phase 2: policy translation and shadow evaluation
 
 1. Translate each AcceptancePolicy version mechanically into one Cedar bundle.
@@ -126,6 +136,18 @@ byte-identically, and malformed Era-1 inputs fail closed.
 
 Exit: the translated Cedar path is identical or stricter over the complete
 frozen corpus.
+
+Progress evidence, 2026-07-24: the complete retained policy-object corpus
+contains two historical Erdős v0.1 policies and one active Sidon v0.2 policy,
+with four Permit rules total. No retained event records an automatic
+policy-delegation admission. The four source-bound rule cases plus the ADR 0013
+and ADR 0014 hostile fixtures are equivalent under the translated Cedar path:
+zero narrower routes, zero broader routes, and zero new Permits. The
+content-addressed report root is
+`sha256:92f4c7568d74a87844d9b306a2dd64c95456dc867d3f8b3e9a0c6ad30c810504`.
+This completes the current Phase 2 corpus gate. It does not migrate a writer
+or by itself satisfy the remaining Phase 1 cross-implementation and
+clean-clone exit.
 
 ## Phase 3: principal and capability model
 

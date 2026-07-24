@@ -3,6 +3,7 @@
 
 pub mod actor_registration;
 pub mod authority;
+pub mod authority_history;
 pub mod bundle;
 pub mod canonical;
 pub mod detached;
