@@ -462,6 +462,18 @@ Only after this gate may a separate public semantic-package repository and
 - Demonstrate that the bridge improves a measured reuse task without
   transporting standing or authority.
 
+Evidence result on 2026-07-24: PASS for one exact
+mathematics-to-quantum-information slice. The source-local `vela.math`,
+`vela.quantum`, and `vela.mapping.math-quantum` packages bind the clean
+`quantum:[[10,1,4]]` witness and five retained source roots. A dependency-free
+test rederives commutation, rank, encoded dimension, and the complete 3,675
+error bounded check. Eight label, embedding, identity, premise, verifier,
+measurement-context, root, and standing substitutions fail closed. The
+retained Receipt remains `not_assessed`; the proposal remains
+`pending_review`. No physics package is created without a selected measurement
+fixture. No release or extraction is authorized, and this ADR remains
+Proposed.
+
 ### Gate E: workbench adapter
 
 - Select one stable, licensed, source-local export from an external workbench.
