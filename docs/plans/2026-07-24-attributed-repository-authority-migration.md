@@ -116,8 +116,8 @@ is now independently rederived through OpenSSL Ed25519 and DSSE verification.
 Ten hostile mutations fail, including four authentication-observation
 substitutions. The exact detached Git commit replays from a clean clone with
 network access denied. Phase 1 and the stable Phase 3 read contracts are
-complete; the runtime authentication adapter and zero-write authority
-transaction gate are next.
+complete. The source-level runtime authentication preflight now passes; the
+disposable zero-write authority transaction writer is next.
 
 The vector was deliberately regenerated during the later authentication gate:
 the provisional arbitrary `method`/`provider`/`session_id` claim was replaced
@@ -195,9 +195,22 @@ parent substitution, bearer retention, and revocation. Phase 3's stable claim
 contract is complete. The authority-history vector now also retains a closed
 `vela.authentication-observation.v1`, independently rejecting bearer
 retention, identity substitution, validity beyond 24 hours, and revoked
-sessions. Runtime local-session authentication, live revocation-set input,
-logout/recovery handling, and the writer remain later gates; no token format or
-identity provider has been added.
+sessions.
+
+The source-level runtime preflight is now implemented behind an injectable
+adapter. It consumes only public facts from an already-established provider
+session, validates exact principal, time, expiry, and a passed live revocation
+set, and derives the reserved Cedar authentication context. Principal or
+reserved-context substitution fails before the adapter is invoked.
+Cancellation, identity mismatch, expiry, revocation, invalid Cedar input,
+policy denial, and recovery-sensitive denial produce no retainable observation
+and change no test sentinel byte.
+
+This closes only the source-level Phase 3 preflight contract. No OS prompt,
+provider session, logout integration, repository signer, transaction journal,
+authority writer, ADR acceptance, or Frontier migration exists. The next gate
+is the disposable authority-transaction writer over the existing recoverable
+barrier; no token format or identity provider has been added.
 
 ## Phase 4: authority transaction writer
 

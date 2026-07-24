@@ -18,8 +18,11 @@ The candidate also recognizes stable issuer-subject principals and retained,
 short-lived capability claims for agents and workloads. Those objects contain
 no bearer credential and cannot express human review, policy, membership,
 recovery, quorum, bulk-correction, destructive, migration, rotation, or
-revocation authority. Runtime local-session, OIDC, GitHub App, or SciTokens
-authentication remains an adapter and is not yet a released writer.
+revocation authority. The candidate now has an injectable, filesystem-free
+runtime preflight that validates a provider observation, live revocation
+input, exact principal, and derived Cedar context. Platform local-session,
+passkey, OIDC, GitHub App, or SciTokens integration remains a replaceable
+adapter and none is a released writer.
 
 The authority record retains only a closed
 `vela.authentication-observation.v1`: exact principal and issuer-subject,

@@ -604,9 +604,18 @@ hours, delegation broadening, parent substitution, bearer-token retention,
 and revocation. The application-level human-action forbid now consumes the
 same protocol-owned list used by the capability contract.
 
-This evidence freezes only the principal and capability read contract. It does
-not authenticate a live session, issue a runtime token, enable an authority
-writer, accept this ADR, or migrate a Frontier.
+The candidate now also implements a source-level runtime preflight behind an
+injectable authentication adapter. It validates exact principal, observation
+time, expiry, and a passed live revocation set; derives the reserved Cedar
+authentication context; and exposes no filesystem or signer capability.
+Caller principal or reserved-context substitution fails before adapter
+invocation. Seven focused tests prove bearer-free local observation,
+cancellation, identity/expiry/revocation failure, recovery-visible policy,
+derived context, fail-closed Cedar behavior, and zero-write sentinels.
+
+This evidence does not implement an OS or identity-provider session, issue a
+runtime token, enable an authority writer, accept this ADR, or migrate a
+Frontier.
 
 ## Alternatives rejected
 

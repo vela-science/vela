@@ -23,5 +23,8 @@ serde_json.workspace = true
 sha2.workspace = true
 vela-protocol.workspace = true
 
+[dev-dependencies]
+tempfile.workspace = true
+
 [lints]
 workspace = true

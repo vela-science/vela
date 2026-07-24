@@ -141,11 +141,11 @@ impl AuthenticationObservationV1 {
 
     pub fn validate_at(
         &self,
-        observed_at: &str,
+        transaction_at: &str,
         revoked_session_roots: &BTreeSet<String>,
     ) -> Result<(), String> {
         self.validate()?;
-        if observed_at != self.observed_at {
+        if transaction_at != self.observed_at {
             return Err("authentication observation time differs from the authority record".into());
         }
         if revoked_session_roots.contains(&self.session_root) {

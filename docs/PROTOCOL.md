@@ -433,11 +433,15 @@ adapters.
 The candidate implementation is:
 
 - [`crates/vela-protocol/src/kernel/principal_capability.rs`](../crates/vela-protocol/src/kernel/principal_capability.rs)
+- [`crates/vela-protocol/src/kernel/authentication.rs`](../crates/vela-protocol/src/kernel/authentication.rs)
+- [`crates/vela-authority/src/runtime_authentication.rs`](../crates/vela-authority/src/runtime_authentication.rs)
 - [`conformance/fixtures/principal-capability-v1.json`](../conformance/fixtures/principal-capability-v1.json)
 - [`conformance/verify_principal_capability.py`](../conformance/verify_principal_capability.py)
 
-This contract is verify-only while ADR 0020 is Proposed. It issues no
-credential and enables no writer.
+The runtime module is preflight-only while ADR 0020 is Proposed. It consumes
+an adapter observation, validates expiry and a passed revocation set, derives
+reserved Cedar context, and exposes no filesystem or signer capability. The
+candidate issues no credential and enables no writer.
 
 `vela.authentication-observation.v1` replaces the provisional arbitrary
 authentication strings inside the candidate authority record. It binds:
