@@ -4137,7 +4137,7 @@ mod tests {
 
         std::fs::remove_file(&target).unwrap();
         let mut absent_plan = plan;
-        absent_plan.index.generated_by.version = "0.914.2".to_string();
+        absent_plan.index.generated_by.version = "0.915.0".to_string();
         absent_plan.index.index_root = absent_plan.index.computed_index_root().unwrap();
         absent_plan.index_root = absent_plan.index.index_root.clone();
         absent_plan.canonical_json =

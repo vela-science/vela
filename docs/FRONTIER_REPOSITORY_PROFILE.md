@@ -112,7 +112,7 @@ or acceptance without a separately retained class-specific object and the
 ordinary authority path.
 
 Vela `0.914.0` migration resolves only the signed dependency-boundary anchor.
-The Proposed ADR 0018 candidate additionally permits one exact historical
+Accepted ADR 0018 additionally permits one exact historical
 commit when it is rederived as a byte-retained ancestor of the independently
 pinned first temporalization anchor. That candidate changes no wire record and
 currently requires the historical and temporalization states to have the
@@ -298,6 +298,6 @@ Never relabel a v0.1 checkout, hand-edit its generated views, or copy a v1
 profile over it. Preview the exact migration, review its candidate profile,
 dependency resolutions, target-index candidate, touched paths, and root
 families, then apply the matching protected plan. A historical dependency
-selection is eligible only through the Proposed ADR 0018 ancestor proof;
+selection is eligible only through the accepted ADR 0018 ancestor proof;
 branch names, tags, timestamps, short IDs, current-state substitution, and Git
 ancestry without retained Vela-byte verification remain invalid.

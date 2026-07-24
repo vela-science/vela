@@ -1,9 +1,9 @@
 # ADR 0018: Authenticated historical dependency states
 
-- Status: Proposed
+- Status: Accepted
 - Protocol effect: no new event kind, reducer transition, canonical dependency
   object, signature algorithm, or authority rule
-- Candidate release: Vela `v0.915.0`
+- Release: Vela `v0.915.0`
 - Scientific authority effect: None
 - Entry gate: reproduced Erdős to Formal migration failure under Vela `0.914`
 
@@ -279,7 +279,7 @@ retired_carina_field_is_readable_only_in_legacy_manifests              implement
 exact_dependency_pin_is_derived_from_the_boundary_anchor               existing 0.914 compatibility
 migration_frontier_repo_v1_injected_signer_applies_one_exact_transaction existing transaction rederivation
 migration_cancellation_zero_writes_and_crash_recovers                  existing zero-write recovery
-erdos_formal_historical_dependency_read_only_regression                pre-ceremony branch passed; post-boundary branch is release gate
+erdos_formal_historical_dependency_read_only_regression                pre-ceremony and post-boundary branches passed
 ```
 
 The focused synthetic tests mutate the expected Git tree and consumer trust
@@ -287,9 +287,11 @@ anchor and require both failures before any source write. The existing
 migration transaction tests continue to cover late rederivation, cancellation,
 drift, and recovery for the same plan executor.
 
-The real ignored vector is bound to Erdős `main` commit
-`e79feaeddf2d4c68ce395d2e7daec1e7fae41702`, all 1,217 target packets, both
-canonical `.vela` stores, and external candidate files under
+The preserved pre-ceremony vector is bound to Erdős `main` commit
+`e79feaeddf2d4c68ce395d2e7daec1e7fae41702`. The post-boundary positive vector
+uses the later audited commit
+`6bcc3f478fdeaaed03579f2463f278035f389fd0`, all 1,217 target packets, both
+canonical `.vela` stores, and separately hashed external candidate files under
 `~/Desktop/Constellate/Archives/vela-0.914-migration-previews-2026-07-23/`.
 Before a Formal ceremony it now passes by requiring the anticipated all-zero
 boundary root to resolve to zero events, independently sealing the complete
@@ -297,16 +299,18 @@ boundary root to resolve to zero events, independently sealing the complete
 unchanged Erdős roots and the exact 1,511/81 strict-blocker distribution. The
 post-ceremony branch requires exactly one Formal repository boundary, selects
 that event by its full content root, and checks that its signed payload names
-the reviewed `4e6f040a…` commit, `5b001592…` tree, and
+the actual `6056124b…` commit, `dddc0325…` tree, and
 `sha256:45fa712b…` snapshot before the historical dependency preview may pass.
 
-ADR acceptance and Vela `0.915.0` remain blocked. After the human creates
-Formal's first protected temporalization boundary, the same external
-dependency file must replace only its two boundary-root fields with the real
-content root. The unchanged test must then take its positive branch and prove
-that the signed later boundary authenticates the retained historical state
-without changing the pin, creating a competing Formal boundary, or rewriting
-history.
+The human-approved Formal temporalization boundary now exists at content root
+`sha256:ad0158ceebb1906ac054f0ea372ceefb95289db3c681652738c1bf7d632aba58`.
+The preserved pre-ceremony input still fails closed. A separately hashed
+post-boundary input binds that exact boundary and rederives the actual
+boundary-authenticated identity and historical scientific-state roots. The
+same regression then takes its positive branch and proves that the signed
+later boundary authenticates the retained historical state without changing
+the historical commit, tree, or snapshot pin; creating a competing Formal
+boundary; or rewriting either repository.
 
 ## Alternatives rejected
 

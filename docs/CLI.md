@@ -401,7 +401,7 @@ When the legacy profile has dependencies, add
 `--dependency-input ../dependency-migration.json` to either command.
 
 Vela `0.914.0` requires each entry's exact state to equal the verified signed
-dependency-boundary anchor. The Proposed ADR 0018 candidate keeps the same
+dependency-boundary anchor. Accepted ADR 0018 keeps the same
 closed input and exact dependency record but may rederive a named historical
 commit as a retained ancestor of the independently pinned first
 temporalization anchor. It never accepts a branch, tag, timestamp, short ID,

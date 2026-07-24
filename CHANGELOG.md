@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.915.0 — 2026-07-24 — Authenticate exact historical dependency states
+
+- Accept ADR 0018 and allow an existing
+  `vela.exact-frontier-dependency.v1` record to identify one exact retained
+  ancestor of the first independently pinned repository temporalization
+  boundary.
+- Rederive hardened Git ancestry, the historical tree and replay, stable
+  repository identity, event and proposal retention, every canonical retained
+  byte, the empty dependency context, and Scientific State Root v2 before
+  returning the existing dependency record.
+- Continue to fail closed for forks, descendants, missing or shallow history,
+  Git replacement or configuration attacks, altered retained objects,
+  non-empty dependency contexts, ambiguous or invalid boundaries, wrong trust
+  pins, and any expected-root mismatch.
+- Pass the real read-only Erdős-to-Formal vector: the later signed Formal
+  boundary authenticates Erdős's unchanged historical Formal commit, tree,
+  and snapshot pin while preserving all 1,217 producer targets and the exact
+  1,511-condition plus 81-actor Erdős strict debt.
+- Add no event, object, signature, reducer transition, dependency schema, or
+  scientific authority rule. Vela `0.914` histories replay unchanged.
+
 ## v0.914.2 — 2026-07-24 — Preserve exact legacy proposal identity debt
 
 - Make `vela check --strict` agree with the Profile v1 repository write gate:
