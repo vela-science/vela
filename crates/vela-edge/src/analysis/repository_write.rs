@@ -1283,14 +1283,13 @@ pub fn verify_repository_for_write(
         ));
     }
 
-    let mut proposal_conflicts = vela_protocol::proposals::verify_proposal_decision_parity(project);
-    proposal_conflicts.extend(vela_protocol::proposals::verify_proposal_withdrawals(
-        repo_path, project,
-    ));
-    if !proposal_conflicts.is_empty() {
+    let proposal_conflicts = vela_protocol::proposals::verify_proposal_decision_parity(project);
+    let withdrawal_conflicts =
+        vela_protocol::proposals::verify_proposal_withdrawals(repo_path, project);
+    if !withdrawal_conflicts.is_empty() {
         return Err(RepositoryWriteGateError::new(
             RepositoryWriteGateCode::ProposalParityFailed,
-            proposal_conflicts.join(" | "),
+            withdrawal_conflicts.join(" | "),
         ));
     }
 
@@ -1300,6 +1299,12 @@ pub fn verify_repository_for_write(
         .filter(|event| event.kind.as_str() == EVENT_KIND_FRONTIER_REPOSITORY_BOUND)
         .collect::<Vec<_>>();
     let identity = if boundaries.is_empty() {
+        if !proposal_conflicts.is_empty() {
+            return Err(RepositoryWriteGateError::new(
+                RepositoryWriteGateCode::ProposalParityFailed,
+                proposal_conflicts.join(" | "),
+            ));
+        }
         verify_native_finding_projection(project)?;
         verify_native_unreplayed_sidecars(project)?;
         verify_genesis_artifact_projection(project)?;

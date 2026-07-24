@@ -1335,30 +1335,42 @@ fn verify_event_membership(current: &Project, anchored: &Project) -> Result<(), 
             ));
         }
         if anchored_event.signature.is_some() || current_event.signature.is_some() {
-            let expected_key = if anchored_event.kind.as_str()
-                == vela_protocol::events::EVENT_KIND_FRONTIER_REPOSITORY_BOUND
-            {
-                repository_boundary_payload_from_event_shape(anchored_event)?
-                    .administrator_public_key
-            } else {
-                anchored
-                    .actors
-                    .iter()
-                    .find(|actor| actor.id == anchored_event.actor.id)
-                    .map(|actor| actor.public_key.clone())
-                    .ok_or_else(|| {
-                        format!(
-                            "anchored event {} carries or acquired a signature but its actor {} has no anchored public key",
-                            anchored_event.id, anchored_event.actor.id
-                        )
-                    })?
-            };
             if anchored_event.signature.is_some() && current_event.signature.is_none() {
                 return Err(format!(
                     "anchored event {} lost its historical signature",
                     anchored_event.id
                 ));
             }
+            let expected_key = if anchored_event.kind.as_str()
+                == vela_protocol::events::EVENT_KIND_FRONTIER_REPOSITORY_BOUND
+            {
+                Some(
+                    repository_boundary_payload_from_event_shape(anchored_event)?
+                        .administrator_public_key,
+                )
+            } else {
+                anchored
+                    .actors
+                    .iter()
+                    .find(|actor| actor.id == anchored_event.actor.id)
+                    .map(|actor| actor.public_key.clone())
+            };
+            let Some(expected_key) = expected_key else {
+                if anchored_event.signature.is_some()
+                    && anchored_event.signature == current_event.signature
+                {
+                    // Legacy frontiers may contain signatures from display
+                    // identities that were never registered. Repository
+                    // temporalization preserves those exact bytes but grants
+                    // them no authentication or authority. Adding, stripping,
+                    // or replacing such a signature remains forbidden.
+                    continue;
+                }
+                return Err(format!(
+                    "anchored event {} carries or acquired a signature but its actor {} has no anchored public key and the exact historical signature is not preserved",
+                    anchored_event.id, anchored_event.actor.id
+                ));
+            };
             if !vela_protocol::sign::verify_event_signature(current_event, &expected_key)? {
                 return Err(format!(
                     "anchored event {} current signature does not verify",
@@ -1658,11 +1670,20 @@ fn immutable_proposal_root(
 /// including timestamps and agent-run traces that are deliberately excluded
 /// from the retry-stable proposal id, remain byte-semantically immutable.
 fn verify_anchored_proposal_history(frontier: &Project, anchored: &Project) -> Result<(), String> {
-    let parity_conflicts = proposals::verify_proposal_decision_parity(frontier);
-    if !parity_conflicts.is_empty() {
+    let anchored_parity_conflicts = proposals::verify_proposal_decision_parity(anchored)
+        .into_iter()
+        .collect::<BTreeSet<_>>();
+    let current_parity_conflicts = proposals::verify_proposal_decision_parity(frontier)
+        .into_iter()
+        .collect::<BTreeSet<_>>();
+    let new_parity_conflicts = current_parity_conflicts
+        .difference(&anchored_parity_conflicts)
+        .cloned()
+        .collect::<Vec<_>>();
+    if !new_parity_conflicts.is_empty() {
         return Err(format!(
-            "current proposal standing is not an event-backed projection: {}",
-            parity_conflicts.join(" | ")
+            "current proposal standing introduced parity failures absent from the exact repository anchor: {}",
+            new_parity_conflicts.join(" | ")
         ));
     }
 
@@ -1683,6 +1704,16 @@ fn verify_anchored_proposal_history(frontier: &Project, anchored: &Project) -> R
         if observed_root != expected_root {
             return Err(format!(
                 "anchored proposal {} changed immutable identity or producer provenance: expected {expected_root}, observed {observed_root}",
+                proposal.id
+            ));
+        }
+        if anchored_parity_conflicts
+            .iter()
+            .any(|conflict| conflict.contains(proposal.id.as_str()))
+            && canonical_root(observed)? != canonical_root(proposal)?
+        {
+            return Err(format!(
+                "anchored proposal {} carries legacy parity debt and therefore must remain byte-semantically unchanged",
                 proposal.id
             ));
         }
@@ -2941,6 +2972,45 @@ mod tests {
     }
 
     #[test]
+    fn temporalization_preserves_unregistered_legacy_signature_without_authenticating_it() {
+        let mut fixture = fixture();
+        fixture.project.events.pop();
+        let legacy_key = SigningKey::from_bytes(&[73; 32]);
+        let historical = &mut fixture.project.events[0];
+        historical.actor.id = "reviewer:legacy-display-name".to_string();
+        historical.id = events::compute_event_id(historical);
+        historical.signature = Some(sign_event(historical, &legacy_key).unwrap());
+
+        let anchor = commit_project(
+            fixture.directory.path(),
+            &fixture.project,
+            "anchor unregistered legacy signature",
+        );
+        replace_anchor(&mut fixture.boundary, &anchor, &fixture.key);
+        fixture.project.events.push(fixture.boundary.clone());
+
+        verify_with_boundary_anchor(
+            &fixture.project,
+            fixture.directory.path(),
+            &fixture.boundary,
+        )
+        .expect("exact legacy signature bytes remain retainable but unauthenticated");
+
+        fixture.project.events[0].signature =
+            Some(sign_event(&fixture.project.events[0], &fixture.key).unwrap());
+        let error = verify_with_boundary_anchor(
+            &fixture.project,
+            fixture.directory.path(),
+            &fixture.boundary,
+        )
+        .unwrap_err();
+        assert!(
+            error.contains("exact historical signature is not preserved"),
+            "{error}"
+        );
+    }
+
+    #[test]
     fn authenticated_ancestor_dependency_rejects_nonempty_dependency_context() {
         let mut fixture = fixture();
         fixture.project.events.pop();
@@ -3118,6 +3188,56 @@ mod tests {
 
         verify_with_boundary_anchor(&reloaded, fixture.directory.path(), &fixture.boundary)
             .unwrap();
+    }
+
+    #[test]
+    fn temporalization_preserves_but_cannot_expand_legacy_proposal_parity_debt() {
+        let mut fixture = fixture();
+        fixture.project.events.pop();
+        let mut proposal = vela_protocol::proposals::new_proposal_at(
+            "finding.note",
+            StateTarget {
+                r#type: "finding".to_string(),
+                id: "vf_legacy_proposal".to_string(),
+            },
+            "agent:legacy",
+            "agent",
+            "retain exact legacy proposal",
+            json!({"note": "legacy proposal identity"}),
+            vec!["src:legacy".to_string()],
+            vec!["review remains required".to_string()],
+            "2026-07-22T00:00:30Z",
+        );
+        proposal.id = "vpr_legacy000000001".to_string();
+        fixture.project.proposals.push(proposal);
+        let anchor = commit_project(
+            fixture.directory.path(),
+            &fixture.project,
+            "anchor legacy proposal parity debt",
+        );
+        replace_anchor(&mut fixture.boundary, &anchor, &fixture.key);
+        fixture.project.events.push(fixture.boundary.clone());
+
+        verify_with_boundary_anchor(
+            &fixture.project,
+            fixture.directory.path(),
+            &fixture.boundary,
+        )
+        .expect("unchanged legacy proposal debt remains retainable");
+
+        fixture.project.proposals[0].status = "rejected".to_string();
+        fixture.project.proposals[0].reviewed_by = Some("reviewer:administrator".to_string());
+        let error = verify_with_boundary_anchor(
+            &fixture.project,
+            fixture.directory.path(),
+            &fixture.boundary,
+        )
+        .unwrap_err();
+        assert!(
+            error.contains("introduced parity failures absent from the exact repository anchor")
+                || error.contains("must remain byte-semantically unchanged"),
+            "{error}"
+        );
     }
 
     #[test]

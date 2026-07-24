@@ -1421,6 +1421,19 @@ where
     if resulting_event_ids.len() != after.events.len() {
         return Err("migration would create a duplicate event identifier".to_string());
     }
+    let external_anchor = vela_edge::frontier_repository::RepositoryTrustAnchor {
+        boundary_content_root: preview.plan.boundary_event_content_root.clone(),
+        administrator_public_key: preview.plan.signer_public_key.clone(),
+    };
+    // All repository-boundary facts are available before the transaction
+    // marker is written. Validate them here so an invalid legacy anchor cannot
+    // become a completed migration that only reports failure afterward.
+    vela_edge::frontier_repository::verify_repository_boundary_context_with_trust_anchor(
+        &after,
+        &frontier,
+        &signed_event,
+        Some(&external_anchor),
+    )?;
     let layout = vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
         "schema": "vela.frontier-layout.internal.v1",
         "frontier_id": preview.plan.frontier_id,
@@ -1523,10 +1536,6 @@ where
         .ok_or_else(|| {
             "migration committed but the signed boundary event is missing".to_string()
         })?;
-    let external_anchor = vela_edge::frontier_repository::RepositoryTrustAnchor {
-        boundary_content_root: preview.plan.boundary_event_content_root.clone(),
-        administrator_public_key: preview.plan.signer_public_key.clone(),
-    };
     vela_edge::frontier_repository::verify_repository_boundary_context_with_trust_anchor(
         &migrated,
         &frontier,
