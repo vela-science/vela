@@ -30,6 +30,7 @@ path = "src/bin/vela-signer.rs"
 [dependencies]
 vela-protocol = { workspace = true }
 vela-protocol-core = { workspace = true }
+vela-authority = { workspace = true }
 vela-edge.workspace = true
 vela-verify = { workspace = true }
 vela-signer = { workspace = true }
@@ -69,6 +70,9 @@ rustix = { version = "1", features = ["process"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { workspace = true, features = ["Win32_System_Com", "Win32_UI_Shell"] }
+
+[dev-dependencies]
+base64 = { workspace = true }
 
 [lints]
 workspace = true

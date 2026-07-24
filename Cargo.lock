@@ -3896,6 +3896,7 @@ name = "vela-cli"
 version = "0.915.1"
 dependencies = [
  "axum",
+ "base64",
  "chrono",
  "clap",
  "clap_complete",
@@ -3919,6 +3920,7 @@ dependencies = [
  "tower-http",
  "unicode-normalization",
  "urlencoding",
+ "vela-authority",
  "vela-edge",
  "vela-protocol",
  "vela-protocol-core",

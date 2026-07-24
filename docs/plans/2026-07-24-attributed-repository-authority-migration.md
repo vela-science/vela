@@ -111,7 +111,7 @@ write, actor-registry or signature tampering, missing or duplicate coverage,
 transaction substitution, wrong roots, authority forks, policy substitution,
 and malformed bridge payloads. The bridge is reducer-neutral and no writer or
 Frontier migration exists. A committed cross-implementation vector at
-`sha256:0291c61b49cac7ecae345b8288c35b48620b7ff013a1d4e1f6788a150b8af1e7`
+`sha256:d0f09ebfa3025bb453346b1cb02989ae75c772748180995c052ee62a50bdb16e`
 is now independently rederived through OpenSSL Ed25519 and DSSE verification.
 Ten hostile mutations fail, including four authentication-observation
 substitutions. The exact detached Git commit replays from a clean clone with
@@ -206,11 +206,30 @@ Cancellation, identity mismatch, expiry, revocation, invalid Cedar input,
 policy denial, and recovery-sensitive denial produce no retainable observation
 and change no test sentinel byte.
 
-This closes only the source-level Phase 3 preflight contract. No OS prompt,
-provider session, logout integration, repository signer, transaction journal,
-authority writer, ADR acceptance, or Frontier migration exists. The next gate
-is the disposable authority-transaction writer over the existing recoverable
-barrier; no token format or identity provider has been added.
+The source-level Phase 3 preflight did not add an OS prompt, provider session,
+logout integration, repository signer, live authority writer, ADR acceptance,
+or Frontier migration. It also added no token format or identity provider. Its
+next gate was a disposable authority-transaction writer over the existing
+recoverable barrier.
+
+Progress evidence, 2026-07-24: the disposable writer core now verifies the
+complete dual-history snapshot, runs runtime authentication and Cedar
+preflight, derives exact transaction/read/write commitments, constructs the
+complete Era-1 event set and authority record, verifies its DSSE envelope, and
+installs the new event and record through the existing recoverable transaction
+barrier. The semantic write-set root excludes the covering envelope to avoid a
+hash cycle; the recoverable journal independently commits to and verifies the
+exact file postimages.
+
+Six hostile and recovery tests prove one exact offline-replayable transaction,
+transaction identity binding to read-set and binary-pin changes, zero journal
+or canonical bytes after cancellation or signer failure, history and policy
+substitution rejection before signing, stale-read failure before the commit
+marker, and partial-install recovery without a second authentication or
+signature. The core has no CLI route or production signer provider and uses
+only deterministic fixture keys. Phase 4 therefore remains open at the
+provider, broader object-delta, disposable-frontier, and idempotency/fork
+gates.
 
 ## Phase 4: authority transaction writer
 

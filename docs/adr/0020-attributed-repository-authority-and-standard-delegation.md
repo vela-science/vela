@@ -392,10 +392,24 @@ builds and signs the authority record covering those event IDs and roots.
 Events, retained objects, the authority record, and required policy/key
 snapshots install atomically.
 
+The one legacy migration bridge remains under `.vela/events/`. Every
+post-migration `vela.event.v1` is stored separately under
+`.vela/authority/events/`, with its covering DSSE envelope under
+`.vela/authority/records/`. The separation is load-bearing: the legacy event
+loader continues to accept only `StateEvent` bytes, while dual-history replay
+reads the Era-1 event and record stores explicitly.
+
 Strict replay requires every post-migration canonical mutation to be covered
 exactly once by a valid authority record. Gaps, overlaps, duplicate coverage,
 sequence reuse, wrong transaction IDs, wrong before/after roots, or authority
 forks fail closed.
+
+The record's execution write-set root commits to the semantic transition:
+transaction ID, before and after authority-event-log roots, sorted event IDs,
+and exact object deltas. The covering DSSE envelope is excluded from that
+semantic root to avoid a self-referential hash cycle. The existing recoverable
+repository transaction still commits to and verifies every exact event and
+envelope postimage before installation.
 
 ### 10. Preserve two verification eras and one live writer
 
@@ -567,12 +581,15 @@ Focused fixtures prove:
   tampering, policy substitution, and unknown bridge fields fail closed; and
 - the reducer treats the bridge as non-scientific.
 
-This evidence does not accept the ADR, enable an Era-1 writer, or migrate a
-Frontier.
+This evidence does not accept the ADR, enable a live Era-1 writer, or migrate
+a Frontier.
 
 Phase 1 now also has a committed
 `vela.authority-history-conformance.v1` vector at
-`sha256:0291c61b49cac7ecae345b8288c35b48620b7ff013a1d4e1f6788a150b8af1e7`.
+`sha256:d0f09ebfa3025bb453346b1cb02989ae75c772748180995c052ee62a50bdb16e`.
+The fixture was deliberately regenerated before any Era-1 writer release to
+place post-migration events under `.vela/authority/events/` rather than the
+legacy `StateEvent` directory.
 An independent Python path rederives both event forms, legacy and mixed roots,
 the actor-registry and policy inputs, the legacy Ed25519 signature, both DSSE
 authority-record signatures, sequence and threshold rules, clean pinned Cedar
@@ -614,8 +631,24 @@ cancellation, identity/expiry/revocation failure, recovery-visible policy,
 derived context, fail-closed Cedar behavior, and zero-write sentinels.
 
 This evidence does not implement an OS or identity-provider session, issue a
-runtime token, enable an authority writer, accept this ADR, or migrate a
+runtime token, enable a live authority writer, accept this ADR, or migrate a
 Frontier.
+
+The disposable Phase 4 writer core now composes the verified dual-history
+snapshot, runtime authentication preflight, Cedar result, semantic approval,
+event construction, authority-record signing, DSSE verification, and the
+existing recoverable frontier transaction. It has no CLI route or production
+signer provider. Six focused tests prove one exact offline-replayable Era-1
+transaction, transaction identity binding to read-set and binary-pin changes,
+zero journal or canonical bytes after authentication cancellation or signer
+failure, history and policy substitution rejection before signing, stale-read
+rejection before the commit marker, and committed partial-install recovery
+without reauthentication or resigning. The test signer uses only a
+deterministic fixture key.
+
+This advances Phase 4 to the provider and broader object-delta gates. It does
+not authorize a live writer, accept the ADR, migrate a Frontier, or access any
+human signing key.
 
 ## Alternatives rejected
 

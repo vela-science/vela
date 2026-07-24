@@ -446,7 +446,11 @@ fn verify_event_object_delta(
     event_id: &str,
     event_root: &str,
 ) -> Result<(), String> {
-    let expected_path = format!(".vela/events/{event_id}.json");
+    let expected_path = if verified.record.content.sequence == 1 {
+        format!(".vela/events/{event_id}.json")
+    } else {
+        format!(".vela/authority/events/{event_id}.json")
+    };
     let matches = verified
         .record
         .content
@@ -664,6 +668,7 @@ mod tests {
             &legacy_root_with_bridge,
             vec![migration.id.clone()],
             vec![event_delta(
+                1,
                 &migration.id,
                 &canonical_object_root(&migration).unwrap(),
             )],
@@ -709,7 +714,7 @@ mod tests {
             &legacy_root_with_bridge,
             &final_root,
             vec![era_one.id.clone()],
-            vec![event_delta(&era_one.id, &era_one.root().unwrap())],
+            vec![event_delta(2, &era_one.id, &era_one.root().unwrap())],
             &keyset,
             &bundle,
             Vec::new(),
@@ -810,9 +815,13 @@ mod tests {
         .unwrap()
     }
 
-    fn event_delta(event_id: &str, event_root: &str) -> ObjectDeltaV1 {
+    fn event_delta(sequence: u64, event_id: &str, event_root: &str) -> ObjectDeltaV1 {
         ObjectDeltaV1 {
-            path: format!(".vela/events/{event_id}.json"),
+            path: if sequence == 1 {
+                format!(".vela/events/{event_id}.json")
+            } else {
+                format!(".vela/authority/events/{event_id}.json")
+            },
             before_root: None,
             after_root: Some(event_root.into()),
             object_kind: "event".into(),

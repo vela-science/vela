@@ -40,7 +40,7 @@ from pathlib import Path
 
 
 AUTHORITY_HISTORY_FIXTURE_ROOT = (
-    "sha256:0291c61b49cac7ecae345b8288c35b48620b7ff013a1d4e1f6788a150b8af1e7"
+    "sha256:d0f09ebfa3025bb453346b1cb02989ae75c772748180995c052ee62a50bdb16e"
 )
 AUTHORITY_RECORD_PAYLOAD_TYPE = "application/vnd.vela.authority-record.v1+json"
 EVENT_PAYLOAD_TYPE = "application/vnd.vela.event+json"
@@ -1017,7 +1017,11 @@ def _verify_authority_history_fixture(fixture: dict) -> dict:
             raise ValueError("authority record object delta has unexpected entries")
         for event_id, event_root in expected_objects.items():
             expected_delta = {
-                "path": f".vela/events/{event_id}.json",
+                "path": (
+                    f".vela/events/{event_id}.json"
+                    if sequence == 1
+                    else f".vela/authority/events/{event_id}.json"
+                ),
                 "before_root": None,
                 "after_root": event_root,
                 "object_kind": "event",

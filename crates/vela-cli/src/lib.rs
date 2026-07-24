@@ -12,6 +12,10 @@ use vela_protocol::cli_style as style;
 // `vela_protocol::*`.
 mod atlas;
 pub(crate) use atlas::decl_graph;
+// Era-1 writer core. It is deliberately not wired to a CLI command until the
+// disposable-frontier and migration gates in ADR 0020 pass.
+#[allow(dead_code)]
+pub(crate) mod authority_transaction;
 mod bounded_file;
 #[allow(dead_code)]
 pub(crate) mod decision_plan;

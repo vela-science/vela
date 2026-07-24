@@ -395,6 +395,21 @@ object roots, chain forks, keyset or policy substitution, invalid legacy
 signatures, and Cedar diagnostics or denial. Exact registry bytes are bound;
 no network or live identity provider is needed for replay.
 
+Storage is deliberately split at that boundary. The one migration bridge
+remains an ordinary Era-0 file at `.vela/events/<id>.json`. Post-migration
+`vela.event.v1` files live at `.vela/authority/events/<id>.json`, and their
+covering DSSE envelopes live at
+`.vela/authority/records/<record-id>.dsse.json`. The legacy `StateEvent` loader
+therefore never has to interpret Era-1 bytes.
+
+The authority record's `transaction_write_set_root` is a domain-separated
+commitment over the transaction ID, before and after authority-event-log
+roots, sorted event IDs, and exact object deltas. It deliberately excludes the
+covering authority-record envelope: including the signature over the record
+inside the record's own committed write set would create a hash cycle. The
+recoverable repository transaction separately binds and validates the exact
+event and envelope file postimages before installation.
+
 For mixed histories, the first authority record ends at the ordinary legacy
 event-log root containing the bridge. Later roots use
 `vela.authority-event-log.v1`, which commits to that fixed legacy root and the
