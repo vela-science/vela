@@ -65,6 +65,10 @@ pub const CODE_OUTPUT_NOT_TRACKED: &str = "target_index_output_not_tracked";
 pub const CODE_DUPLICATE_TARGET: &str = "target_index_duplicate_target";
 pub const CODE_INVALID_PATH: &str = "target_index_invalid_path";
 pub const CODE_INVALID_TARGET: &str = "target_index_invalid_target";
+pub const CODE_PROFILE_UPGRADE_REQUIRED: &str = "target_index_profile_upgrade_required";
+
+const TARGET_INDEX_REGENERATION_INSTRUCTION: &str = "Regenerate the closed domain-owned candidate and its packet outputs before running the seal check; Vela will not invent or repin target semantics.";
+const TARGET_INDEX_MIGRATION_INSTRUCTION: &str = "Generate a Profile v1 candidate and the closed domain-owned target-index candidate, then preview the protected frontier-repo-v1 migration; historical Target Index v1 remains inspectable but cannot become producer work.";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -3061,6 +3065,21 @@ pub fn target_index_repair_command(frontier_arg: &str) -> String {
     )
 }
 
+fn assessment_codes(assessment: &TargetIndexAssessment) -> Vec<&'static str> {
+    let mut codes = assessment.all_codes().into_iter().collect::<BTreeSet<_>>();
+    if assessment.is_historical_v1() {
+        codes.insert(CODE_PROFILE_UPGRADE_REQUIRED);
+    }
+    codes.into_iter().collect()
+}
+
+fn target_index_profile_migration_command(frontier_arg: &str) -> String {
+    format!(
+        "vela migrate {} --to frontier-repo-v1 --check --profile ../frontier-profile-v1.yaml --target-candidate ../target-index-candidate.json --as reviewer:ADMINISTRATOR --reason 'Bind exact legacy repository' --json",
+        shell_word(frontier_arg)
+    )
+}
+
 fn changed_declared_paths(assessment: &TargetIndexAssessment, repo_path: &Path) -> Vec<String> {
     let mut changed = BTreeSet::new();
     let TargetIndexDocument::V2(index) = &assessment.document else {
@@ -3108,21 +3127,34 @@ pub fn target_index_repair_report_with_trust_anchor(
     else {
         return Ok(None);
     };
-    let candidate_path = ".vela/tmp/target-index-candidate.json";
+    let historical_only = assessment.is_historical_v1();
+    let candidate_path = if historical_only {
+        "../target-index-candidate.json"
+    } else {
+        ".vela/tmp/target-index-candidate.json"
+    };
     Ok(Some(TargetIndexRepairReport {
         schema: "vela.target-index-repair.v1",
         frontier_id: project.frontier_id(),
         index_schema: assessment.index_schema().to_string(),
         index_root: assessment.index_root().to_string(),
-        historical_only: assessment.is_historical_v1(),
-        codes: assessment.all_codes(),
+        historical_only,
+        codes: assessment_codes(&assessment),
         changed_declared_paths: changed_declared_paths(&assessment, repo_path),
         candidate_path,
-        generator_instruction: "Regenerate the closed domain-owned candidate and its packet outputs before running the seal check; Vela will not invent or repin target semantics.",
-        repair_command: format!(
-            "vela target-index seal {} --candidate {candidate_path} --check --json",
-            shell_word(frontier_arg)
-        ),
+        generator_instruction: if historical_only {
+            TARGET_INDEX_MIGRATION_INSTRUCTION
+        } else {
+            TARGET_INDEX_REGENERATION_INSTRUCTION
+        },
+        repair_command: if historical_only {
+            target_index_profile_migration_command(frontier_arg)
+        } else {
+            format!(
+                "vela target-index seal {} --candidate {candidate_path} --check --json",
+                shell_word(frontier_arg)
+            )
+        },
     }))
 }
 
@@ -3153,7 +3185,7 @@ pub fn target_index_inspection_summary_with_trust_anchor(
         historical_only: assessment.is_historical_v1(),
         configured_open: assessment.configured_open(),
         stale_open: assessment.stale_open(),
-        codes: assessment.all_codes(),
+        codes: assessment_codes(&assessment),
         repair_command: target_index_repair_command(frontier_arg),
     }))
 }
@@ -3184,6 +3216,9 @@ pub fn inspect_target_index_target_with_trust_anchor(
         .iter()
         .map(|issue| issue.code)
         .collect::<BTreeSet<_>>();
+    if assessment.is_historical_v1() {
+        codes.insert(CODE_PROFILE_UPGRADE_REQUIRED);
+    }
     if let Some(issues) = assessment.target_issues.get(target_id) {
         codes.extend(issues.iter().map(|issue| issue.code));
     }

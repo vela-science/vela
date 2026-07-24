@@ -576,12 +576,46 @@ fn historical_v1_is_inspectable_but_never_actionable() {
         &fixture.path().join("targets.json"),
         serde_json::to_vec(&legacy).unwrap(),
     );
+    let summary = success_json(&fixture.command(&["target-index", "inspect", ".", "--json"]));
+    assert_eq!(summary["summary"]["historical_only"], true);
+    assert_eq!(summary["summary"]["configured_open"], 1);
+    assert_eq!(summary["summary"]["stale_open"], 1);
+    assert_eq!(
+        summary["summary"]["codes"],
+        json!(["target_index_profile_upgrade_required"])
+    );
+
+    let repair = success_json(&fixture.command(&["target-index", "repair", ".", "--json"]));
+    assert_eq!(repair["report"]["historical_only"], true);
+    assert_eq!(
+        repair["report"]["codes"],
+        json!(["target_index_profile_upgrade_required"])
+    );
+    assert!(
+        repair["report"]["generator_instruction"]
+            .as_str()
+            .unwrap()
+            .contains("protected frontier-repo-v1 migration")
+    );
+    assert_eq!(
+        repair["report"]["repair_command"],
+        "vela migrate . --to frontier-repo-v1 --check --profile ../frontier-profile-v1.yaml --target-candidate ../target-index-candidate.json --as reviewer:ADMINISTRATOR --reason 'Bind exact legacy repository' --json"
+    );
+    assert_eq!(
+        repair["report"]["candidate_path"],
+        "../target-index-candidate.json"
+    );
+
     let output =
         success_json(&fixture.command(&["target-index", "inspect", ".", "erdos:1056", "--json"]));
     assert_eq!(output["target"]["index_schema"], "vela.target-index.v1");
     assert_eq!(output["target"]["historical_only"], true);
     assert_eq!(output["target"]["actionable"], false);
     assert_eq!(output["target"]["packet"]["problem"], 1056);
+    assert_eq!(
+        output["target"]["codes"],
+        json!(["target_index_profile_upgrade_required"])
+    );
 }
 
 #[test]
