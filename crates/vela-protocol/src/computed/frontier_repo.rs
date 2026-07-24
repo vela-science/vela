@@ -912,6 +912,8 @@ Agents may:
   --as agent:<name> --json`
 - run the verifiers: `vela reproduce .`, `vela check . --strict`
 - rebuild derived views: `vela frontier materialize .`
+- inspect a supplied proposal first with `vela review show . <vpr_id> --json`;
+  rejected proposal findings are absent from accepted finding views by design
 
 Agents may not:
 
@@ -930,6 +932,7 @@ vela land --work <target> --claim <claim> \
   --artifact <path>:<kind> --caveat <limit> \
   --as agent:<name> --json                       # Receipt v1 + policy route
 vela status . --json                             # accepted and pending state
+vela review show . <vpr_id> --json               # pending or terminal record
 vela check . --strict                            # replay and parity gate
 vela frontier materialize .                      # rebuild derived views
 git push                                         # publication; no authority

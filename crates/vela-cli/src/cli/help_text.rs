@@ -88,7 +88,13 @@ EXAMPLES
     --confirm-root sha256:… --confirm-at 2026-07-17T12:00:00Z
                                         one exact protected decision card
   vela review withdraw . vpr_8b49… --as agent:producer --reason \"superseded\"
-                                        close your own Receipt-bound proposal";
+                                        close your own Receipt-bound proposal
+
+KNOWN PROPOSAL
+  When a full vpr_ ID is supplied, start with `vela review show`. It returns
+  either the pending Decision Brief or the signed terminal decision record.
+  A rejected proposal's candidate finding is intentionally absent from
+  accepted `finding show` and `log` views; that is not deletion.";
 
 pub const MIGRATE: &str = "\
 EXAMPLES

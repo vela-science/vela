@@ -45,7 +45,11 @@ next -> work -> land
   pending; only the human ceremony may remove its active proof-readiness weight.
 - `vela review list . --json` — the pending queue, newest first. Each compact
   row includes `created_at`; use `vela review show . <vpr_id> --json` for one
-  exact Decision Brief.
+  exact pending Decision Brief or signed terminal decision record.
+- When a task supplies a full `vpr_` ID, start with `vela review show`; it
+  returns the pending brief or signed terminal decision. Rejected proposal
+  findings are intentionally absent from accepted `finding show` and `log`
+  views. That absence is not deletion.
 - `vela review decide . <vpr_id> --accept|--reject --reason <text> --json` — a
   key-free exact Decision Plan. An agent may prepare and invoke the protected
   request, but only the registered human may approve its decision card.

@@ -92,7 +92,11 @@ vela review show . <vpr_id> --json
 ```
 
 Review reads do not resolve or read a key. The full Decision Brief appears only
-for one selected proposal.
+for one selected proposal. When a task supplies a full `vpr_` ID, make
+`review show` the first read; it returns either the pending Decision Brief or
+the signed terminal decision record. A rejected proposal's candidate finding
+is intentionally absent from accepted `finding show` and `log` views. That
+absence is not deletion and does not require searching those surfaces first.
 
 ## Verification
 

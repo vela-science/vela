@@ -171,6 +171,20 @@ fn folded_spellings_dispatch() {
     }
 }
 
+#[test]
+fn review_help_directs_known_proposals_to_the_terminal_read_surface() {
+    let out = vela(&["review", "--help"]);
+    assert!(out.status.success(), "{}", combined(&out));
+    let text = combined(&out);
+    assert!(text.contains("KNOWN PROPOSAL"), "{text}");
+    assert!(text.contains("start with `vela review show`"), "{text}");
+    assert!(text.contains("intentionally absent from"), "{text}");
+    assert!(
+        text.contains("accepted `finding show` and `log` views"),
+        "{text}"
+    );
+}
+
 /// Protected decisions intentionally have no legacy batch, key-path, or
 /// non-interactive approval inputs. Clap must reject those spellings before
 /// frontier or identity resolution, so saved sign-session state cannot enter

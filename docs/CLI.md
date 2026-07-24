@@ -276,6 +276,11 @@ vela review preview . <vpr_id> --json
 vela review decide . <vpr_id> --reject --reason <text> --json
 ```
 
+If a task already supplies the full `vpr_` ID, begin with `review show`.
+It returns the pending Decision Brief or signed terminal decision record in one
+read. Rejected proposal findings are intentionally absent from accepted
+`finding show` and `log` views; that absence is not deletion.
+
 The first `review decide` call is key-free and returns a
 `vela.review-decision.v1` preview. Codex may invoke the second call with the
 matching `--confirm-root` and `--confirm-at`; only the registered human's exact
