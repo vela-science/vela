@@ -3452,7 +3452,7 @@ mod tests {
             actor.into(),
             "2026-07-13T12:34:56Z".into(),
             event_log_root.into(),
-            env!("CARGO_MANIFEST_DIR").into(),
+            "fixtures/receipt-v1".into(),
             operation_id.into(),
             policy_ref.into(),
         )
@@ -3663,8 +3663,12 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
+            receipt.as_value()["environment"]["vela:producer_context"]["base_path"],
+            "fixtures/receipt-v1"
+        );
+        assert_eq!(
             receipt.canonical_root().unwrap(),
-            "sha256:5c5787b602ea3dc19668165fd5b88b9a4f1179e4fbfd24292454ef3a4b5d657b"
+            "sha256:a60641c5d5b0ca03e258316f4c92137a99a71b37f7ad37dce24384b32e6f5154"
         );
         let parsed = ReceiptV1::parse(&receipt.canonical_bytes().unwrap()).unwrap();
         assert_eq!(

@@ -1200,30 +1200,42 @@ fn verify_event_membership(current: &Project, anchored: &Project) -> Result<(), 
             ));
         }
         if anchored_event.signature.is_some() || current_event.signature.is_some() {
-            let expected_key = if anchored_event.kind.as_str()
-                == vela_protocol::events::EVENT_KIND_FRONTIER_REPOSITORY_BOUND
-            {
-                repository_boundary_payload_from_event_shape(anchored_event)?
-                    .administrator_public_key
-            } else {
-                anchored
-                    .actors
-                    .iter()
-                    .find(|actor| actor.id == anchored_event.actor.id)
-                    .map(|actor| actor.public_key.clone())
-                    .ok_or_else(|| {
-                        format!(
-                            "anchored event {} carries or acquired a signature but its actor {} has no anchored public key",
-                            anchored_event.id, anchored_event.actor.id
-                        )
-                    })?
-            };
             if anchored_event.signature.is_some() && current_event.signature.is_none() {
                 return Err(format!(
                     "anchored event {} lost its historical signature",
                     anchored_event.id
                 ));
             }
+            let expected_key = if anchored_event.kind.as_str()
+                == vela_protocol::events::EVENT_KIND_FRONTIER_REPOSITORY_BOUND
+            {
+                Some(
+                    repository_boundary_payload_from_event_shape(anchored_event)?
+                        .administrator_public_key,
+                )
+            } else {
+                anchored
+                    .actors
+                    .iter()
+                    .find(|actor| actor.id == anchored_event.actor.id)
+                    .map(|actor| actor.public_key.clone())
+            };
+            let Some(expected_key) = expected_key else {
+                if anchored_event.signature.is_some()
+                    && anchored_event.signature == current_event.signature
+                {
+                    // A temporalized legacy frontier may contain signature
+                    // bytes from a display identity that was never registered.
+                    // Preserve those exact bytes without authenticating them.
+                    // Adding, stripping, or replacing the signature remains
+                    // forbidden.
+                    continue;
+                }
+                return Err(format!(
+                    "anchored event {} carries or acquired a signature but its actor {} has no anchored public key and the exact historical signature is not preserved",
+                    anchored_event.id, anchored_event.actor.id
+                ));
+            };
             if !vela_protocol::sign::verify_event_signature(current_event, &expected_key)? {
                 return Err(format!(
                     "anchored event {} current signature does not verify",
@@ -2519,6 +2531,54 @@ mod tests {
 
         verify_with_boundary_anchor(&reloaded, fixture.directory.path(), &fixture.boundary)
             .unwrap();
+    }
+
+    #[test]
+    fn temporalization_preserves_unregistered_legacy_signature_without_authenticating_it() {
+        let mut fixture = fixture();
+        fixture.project.events.pop();
+        let legacy_key = SigningKey::from_bytes(&[73; 32]);
+        let historical = &mut fixture.project.events[0];
+        historical.actor.id = "agent:legacy-history-import".to_string();
+        historical.id = events::compute_event_id(historical);
+        historical.signature = Some(sign_event(historical, &legacy_key).unwrap());
+
+        let anchor = commit_project(
+            fixture.directory.path(),
+            &fixture.project,
+            "anchor unregistered legacy signature",
+        );
+        replace_anchor(&mut fixture.boundary, &anchor, &fixture.key);
+        fixture.project.events.push(fixture.boundary.clone());
+
+        verify_with_boundary_anchor(
+            &fixture.project,
+            fixture.directory.path(),
+            &fixture.boundary,
+        )
+        .expect("exact legacy signature bytes remain retainable but unauthenticated");
+
+        fixture.project.events[0].signature =
+            Some(sign_event(&fixture.project.events[0], &fixture.key).unwrap());
+        let error = verify_with_boundary_anchor(
+            &fixture.project,
+            fixture.directory.path(),
+            &fixture.boundary,
+        )
+        .unwrap_err();
+        assert!(
+            error.contains("exact historical signature is not preserved"),
+            "{error}"
+        );
+
+        fixture.project.events[0].signature = None;
+        let error = verify_with_boundary_anchor(
+            &fixture.project,
+            fixture.directory.path(),
+            &fixture.boundary,
+        )
+        .unwrap_err();
+        assert!(error.contains("lost its historical signature"), "{error}");
     }
 
     #[test]
