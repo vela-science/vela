@@ -73,6 +73,26 @@ missing parent, a fork, and anchor-count rollback. Only after that validation su
   witness, full byte root, exact lower-bound claim, claim-substitution cases,
   and corrupted-witness case used by AcceptancePolicy v0.2. Rust and Python
   independently rederive the same verifier and claim-fidelity outcomes.
+- `fixtures/authority-history-migration-v1.json` freezes one complete
+  Era-0-to-Era-1 bridge, one post-migration event, two DSSE authority records,
+  the exact retained actor-registry bytes, and the expected mixed-history
+  roots. Rust generates the vector. The Python verifier independently
+  rederives event IDs, legacy and mixed log roots, keyset and policy roots,
+  Ed25519 event signatures, DSSE signatures and threshold, record chaining,
+  transaction coverage, object deltas, principal attribution, and clean pinned
+  Cedar authorization. It also rejects post-migration legacy writes, missing
+  coverage, transaction and policy substitution, signature tampering, and
+  Cedar diagnostics. Run only this contract with:
+
+  ```bash
+  python3 conformance/verify.py --authority-history-only
+  ```
+
+  `scripts/check-authority-history-clean-clone.sh` clones the exact current Git
+  commit without local hardlinks and runs the same verifier with network access
+  denied. It requires `sandbox-exec` on macOS, or Bubblewrap/a usable network
+  namespace on Linux. OpenSSL 3 supplies the independent RFC 8410 Ed25519
+  verification path; the script neither builds Rust nor reads a Vela key.
 - `pre-adr-0003-replay.json` freezes every canonical `.vela` byte from one
   pre-ADR 0003 frontier plus its strict replay roots and counts. The focused
   CLI integration test replays a temporary copy; it performs no signing,

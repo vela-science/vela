@@ -431,6 +431,7 @@ fn verify_record_authorization(
         || evaluation.engine != crate::authority::CEDAR_ENGINE
         || evaluation.engine_version != crate::authority::CEDAR_ENGINE_VERSION
         || evaluation.profile != crate::authority::CEDAR_PROFILE_V1
+        || !evaluation.diagnostics.is_empty()
     {
         return Err(format!(
             "authority record {} lacks a valid pinned Cedar authorization",
@@ -1003,6 +1004,36 @@ mod tests {
         let mut substituted = fixture();
         substituted.bundle.policies_root = root('1');
         assert!(verify_authority_history(substituted.input()).is_err());
+
+        let mut diagnostics = fixture();
+        let mut second = verify_authority_envelope(
+            &diagnostics.envelopes[1],
+            &diagnostics.keyset,
+            FRONTIER_ID,
+            2,
+            Some(
+                &verify_authority_envelope(
+                    &diagnostics.envelopes[0],
+                    &diagnostics.keyset,
+                    FRONTIER_ID,
+                    1,
+                    None,
+                )
+                .unwrap()
+                .record_root,
+            ),
+        )
+        .unwrap()
+        .record;
+        second
+            .content
+            .authorization
+            .evaluation
+            .diagnostics
+            .push("fixture diagnostic".into());
+        second.record_id = second.derive_id().unwrap();
+        diagnostics.resign_record(1, second);
+        assert!(verify_authority_history(diagnostics.input()).is_err());
     }
 
     #[test]
@@ -1016,5 +1047,50 @@ mod tests {
         event.payload["minimum_writer_version"] = json!("");
         event.id = compute_event_id(&event);
         assert!(migration_payload_from_event(&event).is_err());
+    }
+
+    fn conformance_fixture_value(fixture: &Fixture) -> serde_json::Value {
+        let expected = verify_authority_history(fixture.input()).unwrap();
+        let mut value = json!({
+            "schema": "vela.authority-history-conformance.v1",
+            "frontier_id": FRONTIER_ID,
+            "legacy_events": fixture.legacy_events,
+            "legacy_actor_registry_base64": BASE64_STANDARD.encode(&fixture.actor_registry_bytes),
+            "legacy_active_policy_head_root": fixture.legacy_active_policy_head_root,
+            "legacy_policy_store_manifest_root": fixture.legacy_policy_store_manifest_root,
+            "authority_keyset": fixture.keyset,
+            "policy_bundle": fixture.bundle,
+            "authority_events": fixture.authority_events,
+            "authority_envelopes": fixture.envelopes,
+            "expected": expected,
+        });
+        let fixture_root = format!("sha256:{}", sha256_canonical(&value).unwrap());
+        value
+            .as_object_mut()
+            .unwrap()
+            .insert("fixture_root".into(), json!(fixture_root));
+        value
+    }
+
+    #[test]
+    fn authority_history_cross_implementation_fixture_is_exact() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../conformance/fixtures/authority-history-migration-v1.json");
+        let mut generated =
+            serde_json::to_string_pretty(&conformance_fixture_value(&fixture())).unwrap();
+        generated.push('\n');
+        if std::env::var_os("VELA_UPDATE_AUTHORITY_HISTORY_FIXTURE").is_some() {
+            std::fs::write(&path, generated.as_bytes()).unwrap();
+        }
+        let committed = std::fs::read_to_string(&path).unwrap_or_else(|error| {
+            panic!(
+                "read committed authority-history fixture {}: {error}",
+                path.display()
+            )
+        });
+        assert_eq!(
+            committed, generated,
+            "authority-history fixture drifted; inspect the protocol change, then rerun with VELA_UPDATE_AUTHORITY_HISTORY_FIXTURE=1"
+        );
     }
 }

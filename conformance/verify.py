@@ -27,13 +27,22 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import base64
 import copy
 import hashlib
 import json
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
+
+
+AUTHORITY_HISTORY_FIXTURE_ROOT = (
+    "sha256:11ced5de2441214b3325bb4368f900d111c944b878088b04966194353aa175f8"
+)
+AUTHORITY_RECORD_PAYLOAD_TYPE = "application/vnd.vela.authority-record.v1+json"
+EVENT_PAYLOAD_TYPE = "application/vnd.vela.event+json"
 
 
 def _check_manifest(fixtures_dir: Path) -> int:
@@ -212,12 +221,25 @@ def main() -> int:
         default=str(here / "fixtures"),
         help="directory containing cascade-fixture-*.json",
     )
+    parser.add_argument(
+        "--authority-history-only",
+        action="store_true",
+        help="verify only the authority migration cross-implementation fixture",
+    )
     args = parser.parse_args()
 
     fixtures_dir = Path(args.fixtures_dir)
     if not fixtures_dir.is_dir():
         print(f"fixtures dir not found: {fixtures_dir}", file=sys.stderr)
         return 2
+
+    if args.authority_history_only:
+        authority_rc = _run_authority_history_migration(repo_root)
+        if authority_rc != 0:
+            print("vela conformance: FAIL  [authority-history migration]")
+            return authority_rc
+        print("vela conformance: ok  [authority-history migration]")
+        return 0
 
     reducer_script = Path(args.reducer_script)
     if not reducer_script.exists():
@@ -306,6 +328,12 @@ def main() -> int:
         return 1
     print("vela conformance: ok  [legacy-policy-shadow corpus metadata]")
 
+    authority_rc = _run_authority_history_migration(repo_root)
+    if authority_rc != 0:
+        print("vela conformance: FAIL  [authority-history migration]")
+        return 1
+    print("vela conformance: ok  [authority-history migration]")
+
     floor_rc = _run_exact_witness_floor(repo_root)
     if floor_rc != 0:
         print("vela conformance: FAIL  [exact-witness-floor]")
@@ -348,6 +376,681 @@ def _canonical_bytes(value: object) -> bytes:
     return json.dumps(
         value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode("utf-8")
+
+
+def _sha256_bytes(value: bytes) -> str:
+    return "sha256:" + hashlib.sha256(value).hexdigest()
+
+
+def _sha256_canonical(value: object) -> str:
+    return _sha256_bytes(_canonical_bytes(value))
+
+
+def _require_exact_keys(value: dict, expected: set[str], subject: str) -> None:
+    if set(value) != expected:
+        raise ValueError(
+            f"{subject} keys differ: expected {sorted(expected)}, got {sorted(value)}"
+        )
+
+
+def _require_root(value: object, subject: str) -> str:
+    if not isinstance(value, str) or re.fullmatch(r"sha256:[0-9a-f]{64}", value) is None:
+        raise ValueError(f"{subject} is not a full lowercase SHA-256 root")
+    return value
+
+
+def _dsse_pae(payload_type: str, payload: bytes) -> bytes:
+    encoded_type = payload_type.encode("utf-8")
+    return (
+        b"DSSEv1 "
+        + str(len(encoded_type)).encode("ascii")
+        + b" "
+        + encoded_type
+        + b" "
+        + str(len(payload)).encode("ascii")
+        + b" "
+        + payload
+    )
+
+
+def _verify_ed25519(
+    public_key_hex: str, message: bytes, signature: bytes, subject: str
+) -> None:
+    if re.fullmatch(r"[0-9a-f]{64}", public_key_hex) is None:
+        raise ValueError(f"{subject} public key is not 32-byte lowercase hex")
+    if len(signature) != 64:
+        raise ValueError(f"{subject} signature is not exactly 64 bytes")
+
+    # RFC 8410 SubjectPublicKeyInfo prefix for a raw Ed25519 public key.
+    public_der = bytes.fromhex("302a300506032b6570032100") + bytes.fromhex(
+        public_key_hex
+    )
+    with tempfile.TemporaryDirectory(prefix="vela-ed25519-") as temporary:
+        directory = Path(temporary)
+        key_path = directory / "key.der"
+        message_path = directory / "message.bin"
+        signature_path = directory / "signature.bin"
+        key_path.write_bytes(public_der)
+        message_path.write_bytes(message)
+        signature_path.write_bytes(signature)
+        try:
+            result = subprocess.run(
+                [
+                    "openssl",
+                    "pkeyutl",
+                    "-verify",
+                    "-pubin",
+                    "-keyform",
+                    "DER",
+                    "-inkey",
+                    str(key_path),
+                    "-rawin",
+                    "-in",
+                    str(message_path),
+                    "-sigfile",
+                    str(signature_path),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise ValueError(f"{subject} could not invoke OpenSSL: {error}") from error
+        if result.returncode != 0:
+            detail = result.stderr.strip() or result.stdout.strip() or "verification failed"
+            raise ValueError(f"{subject} Ed25519 verification failed: {detail}")
+
+
+def _legacy_event_id(event: dict) -> str:
+    content = {
+        field: event[field]
+        for field in (
+            "schema",
+            "kind",
+            "target",
+            "actor",
+            "timestamp",
+            "reason",
+            "before_hash",
+            "after_hash",
+            "payload",
+            "caveats",
+        )
+    }
+    return "vev_" + hashlib.sha256(_canonical_bytes(content)).hexdigest()[:16]
+
+
+def _legacy_event_log_root(events: list[dict]) -> str:
+    stripped = []
+    for event in sorted(events, key=lambda item: item["id"]):
+        content = copy.deepcopy(event)
+        content.pop("signature", None)
+        stripped.append(content)
+    return _sha256_canonical(stripped)
+
+
+def _verify_legacy_bridge(
+    event: dict, registry_bytes: bytes, migration: dict, frontier_id: str
+) -> None:
+    required_event = {
+        "schema",
+        "id",
+        "kind",
+        "target",
+        "actor",
+        "timestamp",
+        "reason",
+        "before_hash",
+        "after_hash",
+        "payload",
+        "caveats",
+        "signature",
+    }
+    _require_exact_keys(event, required_event, "migration event")
+    if (
+        event["id"] != _legacy_event_id(event)
+        or event["kind"] != "authority.model_migrated"
+        or event["target"] != {"type": "frontier", "id": frontier_id}
+        or event["actor"].get("type") != "human"
+        or event["before_hash"] != "sha256:null"
+        or event["after_hash"] != "sha256:null"
+        or event["reason"] != migration["reason"]
+    ):
+        raise ValueError("migration event shape or content address is invalid")
+
+    migration_keys = {
+        "schema",
+        "frontier_id",
+        "legacy_event_log_root",
+        "legacy_actor_registry_root",
+        "legacy_active_policy_head_root",
+        "legacy_policy_store_manifest_root",
+        "new_authority_keyset_root",
+        "new_policy_bundle_root",
+        "new_principal_id",
+        "minimum_writer_version",
+        "reason",
+    }
+    _require_exact_keys(migration, migration_keys, "migration payload")
+    if (
+        migration["schema"] != "vela.authority-model-migration.v1"
+        or migration["frontier_id"] != frontier_id
+        or not migration["new_principal_id"]
+        or not migration["minimum_writer_version"]
+        or not migration["reason"]
+    ):
+        raise ValueError("migration payload identity is invalid")
+    for field in migration_keys - {
+        "schema",
+        "frontier_id",
+        "new_principal_id",
+        "minimum_writer_version",
+        "reason",
+    }:
+        _require_root(migration[field], f"migration {field}")
+    if migration["legacy_actor_registry_root"] != _sha256_bytes(registry_bytes):
+        raise ValueError("migration actor-registry root does not match exact bytes")
+
+    try:
+        registry = json.loads(registry_bytes)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"legacy actor registry is invalid: {error}") from error
+    if not isinstance(registry, list):
+        raise ValueError("legacy actor registry must be an array")
+    matching = [actor for actor in registry if actor.get("id") == event["actor"]["id"]]
+    if len(matching) != 1:
+        raise ValueError("migration signer is not unique in the actor registry")
+    actor = matching[0]
+    if actor.get("algorithm") != "ed25519":
+        raise ValueError("migration signer algorithm is not Ed25519")
+    revoked_at = actor.get("revoked_at")
+    if revoked_at is not None and revoked_at <= event["timestamp"]:
+        raise ValueError("migration signer was revoked at the bridge time")
+
+    signature_text = event["signature"]
+    if not isinstance(signature_text, str) or re.fullmatch(
+        r"v1:[0-9a-f]{128}", signature_text
+    ) is None:
+        raise ValueError("migration signature is not a v1 Ed25519 signature")
+    signing_content = {
+        field: event[field]
+        for field in (
+            "schema",
+            "id",
+            "kind",
+            "target",
+            "actor",
+            "timestamp",
+            "reason",
+            "before_hash",
+            "after_hash",
+            "payload",
+            "caveats",
+        )
+    }
+    _verify_ed25519(
+        actor["public_key"],
+        _dsse_pae(EVENT_PAYLOAD_TYPE, _canonical_bytes(signing_content)),
+        bytes.fromhex(signature_text.removeprefix("v1:")),
+        "migration bridge",
+    )
+
+
+def _authority_event_root(event: dict) -> str:
+    _require_exact_keys(event, {"schema", "id", "content"}, "Era-1 event")
+    if (
+        event["schema"] != "vela.event.v1"
+        or event["id"]
+        != "vev_" + hashlib.sha256(_canonical_bytes(event["content"])).hexdigest()[:16]
+    ):
+        raise ValueError("Era-1 event schema or content address is invalid")
+    content = event["content"]
+    if (
+        not content.get("transaction_id")
+        or not content.get("principal_id")
+        or content.get("authority_mode") != "repository_authority"
+        or content.get("actor", {}).get("id") != content.get("principal_id")
+    ):
+        raise ValueError("Era-1 event attribution or transaction is invalid")
+    _require_root(content.get("before_hash"), "Era-1 before_hash")
+    _require_root(content.get("after_hash"), "Era-1 after_hash")
+    return _sha256_canonical(event)
+
+
+def _authority_event_log_root(
+    legacy_root_with_bridge: str, authority_events: list[dict]
+) -> str:
+    roots = sorted(
+        ((event["id"], _authority_event_root(event)) for event in authority_events),
+        key=lambda item: item[0],
+    )
+    return _sha256_canonical(
+        {
+            "schema": "vela.authority-event-log.v1",
+            "legacy_event_log_root": legacy_root_with_bridge,
+            "authority_event_roots": [root for _, root in roots],
+        }
+    )
+
+
+def _decode_and_verify_authority_envelope(
+    envelope: dict,
+    keyset: dict,
+    frontier_id: str,
+    sequence: int,
+    previous_root: str | None,
+) -> tuple[dict, str]:
+    _require_exact_keys(
+        envelope, {"payloadType", "payload", "signatures"}, "authority envelope"
+    )
+    if envelope["payloadType"] != AUTHORITY_RECORD_PAYLOAD_TYPE:
+        raise ValueError("authority envelope payload type is invalid")
+    try:
+        payload = base64.b64decode(envelope["payload"], validate=True)
+        record = json.loads(payload)
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"authority envelope payload is invalid: {error}") from error
+    if _canonical_bytes(record) != payload:
+        raise ValueError("authority record payload is not canonical JSON")
+    _require_exact_keys(record, {"schema", "record_id", "content"}, "authority record")
+    content = record["content"]
+    if (
+        record["schema"] != "vela.authority-record.v1"
+        or record["record_id"]
+        != "var_" + hashlib.sha256(_canonical_bytes(content)).hexdigest()[:16]
+        or content.get("frontier_id") != frontier_id
+        or content.get("sequence") != sequence
+        or content.get("previous_authority_record_root") != previous_root
+        or content.get("authority_keyset_root") != _sha256_canonical(keyset)
+    ):
+        raise ValueError("authority record identity or chain position is invalid")
+
+    signatures = envelope["signatures"]
+    if not isinstance(signatures, list) or not signatures:
+        raise ValueError("authority envelope has no signatures")
+    keys = {key["key_id"]: key for key in keyset["keys"]}
+    verified: set[str] = set()
+    pae = _dsse_pae(envelope["payloadType"], payload)
+    for signed in signatures:
+        _require_exact_keys(signed, {"keyid", "sig"}, "DSSE signature")
+        key_id = signed["keyid"]
+        if key_id in verified or key_id not in keys:
+            raise ValueError("authority envelope has duplicate or unknown signature key")
+        key = keys[key_id]
+        if (
+            key.get("algorithm") != "ed25519"
+            or key.get("purpose") != "repository_authority"
+            or sequence < key.get("valid_from_sequence", 0)
+            or (
+                key.get("valid_through_sequence") is not None
+                and sequence > key["valid_through_sequence"]
+            )
+        ):
+            raise ValueError("authority key is invalid or outside its sequence window")
+        try:
+            signature = base64.b64decode(signed["sig"], validate=True)
+        except ValueError as error:
+            raise ValueError("authority signature is not canonical base64") from error
+        _verify_ed25519(key["public_key"], pae, signature, f"authority record {sequence}")
+        verified.add(key_id)
+    if len(verified) < keyset["threshold"]:
+        raise ValueError("authority signature threshold was not met")
+    return record, _sha256_canonical(record)
+
+
+def _verify_pinned_authorization(authorization: dict, bundle_root: str) -> None:
+    evaluation = authorization["evaluation"]
+    if (
+        authorization["policy_bundle_root"] != bundle_root
+        or evaluation
+        != {
+            "engine": "cedar-policy",
+            "engine_version": "4.11.2",
+            "profile": "vela.cedar-restricted.v1",
+            "valid": True,
+            "decision": "allow",
+            "automatic_permit": False,
+            "determining_policies": ["permit_repository_admin"],
+            "diagnostics": [],
+        }
+    ):
+        raise ValueError("authority record lacks a clean pinned Cedar authorization")
+
+
+def _verify_authority_history_fixture(fixture: dict) -> dict:
+    fixture_keys = {
+        "schema",
+        "frontier_id",
+        "legacy_events",
+        "legacy_actor_registry_base64",
+        "legacy_active_policy_head_root",
+        "legacy_policy_store_manifest_root",
+        "authority_keyset",
+        "policy_bundle",
+        "authority_events",
+        "authority_envelopes",
+        "expected",
+        "fixture_root",
+    }
+    _require_exact_keys(fixture, fixture_keys, "authority-history fixture")
+    supplied_root = fixture["fixture_root"]
+    root_body = copy.deepcopy(fixture)
+    root_body.pop("fixture_root")
+    if supplied_root != _sha256_canonical(root_body):
+        raise ValueError("authority-history fixture root does not match its bytes")
+
+    frontier_id = fixture["frontier_id"]
+    if (
+        fixture["schema"] != "vela.authority-history-conformance.v1"
+        or not isinstance(frontier_id, str)
+        or not frontier_id.startswith("vfr_")
+    ):
+        raise ValueError("authority-history fixture identity is invalid")
+
+    legacy_events = fixture["legacy_events"]
+    if not isinstance(legacy_events, list) or not legacy_events:
+        raise ValueError("authority-history fixture has no legacy history")
+    seen_legacy = set()
+    for event in legacy_events:
+        if event["id"] != _legacy_event_id(event) or event["id"] in seen_legacy:
+            raise ValueError("legacy event has an invalid or duplicate content address")
+        seen_legacy.add(event["id"])
+    migrations = [
+        event for event in legacy_events if event["kind"] == "authority.model_migrated"
+    ]
+    if len(migrations) != 1:
+        raise ValueError("authority history must contain exactly one migration bridge")
+    migration_event = migrations[0]
+    migration = migration_event["payload"]
+    legacy_prefix = [event for event in legacy_events if event["id"] != migration_event["id"]]
+    legacy_prefix_root = _legacy_event_log_root(legacy_prefix)
+    if migration["legacy_event_log_root"] != legacy_prefix_root:
+        raise ValueError("migration does not bind the exact pre-migration history")
+    if (
+        migration["legacy_active_policy_head_root"]
+        != fixture["legacy_active_policy_head_root"]
+        or migration["legacy_policy_store_manifest_root"]
+        != fixture["legacy_policy_store_manifest_root"]
+    ):
+        raise ValueError("migration does not bind the supplied legacy policy state")
+    try:
+        registry_bytes = base64.b64decode(
+            fixture["legacy_actor_registry_base64"], validate=True
+        )
+    except ValueError as error:
+        raise ValueError("legacy actor registry is not canonical base64") from error
+    _verify_legacy_bridge(migration_event, registry_bytes, migration, frontier_id)
+
+    keyset = fixture["authority_keyset"]
+    bundle = fixture["policy_bundle"]
+    _require_exact_keys(
+        keyset,
+        {
+            "schema",
+            "frontier_id",
+            "generation",
+            "previous_keyset_root",
+            "activation_record_root",
+            "threshold",
+            "keys",
+        },
+        "authority keyset",
+    )
+    if (
+        keyset["schema"] != "vela.authority-keyset.v1"
+        or keyset["frontier_id"] != frontier_id
+        or not isinstance(keyset["threshold"], int)
+        or keyset["threshold"] < 1
+        or keyset["threshold"] > len(keyset["keys"])
+    ):
+        raise ValueError("authority keyset is invalid")
+    key_ids = [key["key_id"] for key in keyset["keys"]]
+    if len(key_ids) != len(set(key_ids)):
+        raise ValueError("authority keyset has duplicate key IDs")
+    _require_exact_keys(
+        bundle,
+        {
+            "schema",
+            "frontier_id",
+            "previous_bundle_root",
+            "engine",
+            "engine_version",
+            "restricted_profile",
+            "cedar_schema_root",
+            "policies_root",
+            "entities_root",
+            "tests_root",
+            "authority_summary",
+        },
+        "policy bundle",
+    )
+    if (
+        bundle["schema"] != "vela.policy-bundle.v1"
+        or bundle["frontier_id"] != frontier_id
+        or bundle["engine"] != "cedar-policy"
+        or bundle["engine_version"] != "4.11.2"
+        or bundle["restricted_profile"] != "vela.cedar-restricted.v1"
+    ):
+        raise ValueError("policy bundle identity is invalid")
+    for field in ("cedar_schema_root", "policies_root", "entities_root", "tests_root"):
+        _require_root(bundle[field], f"policy bundle {field}")
+    keyset_root = _sha256_canonical(keyset)
+    bundle_root = _sha256_canonical(bundle)
+    if (
+        migration["new_authority_keyset_root"] != keyset_root
+        or migration["new_policy_bundle_root"] != bundle_root
+    ):
+        raise ValueError("migration does not bind the supplied Era-1 authority inputs")
+
+    authority_events = fixture["authority_events"]
+    event_by_id: dict[str, dict] = {}
+    transaction_ids: dict[str, set[str]] = {}
+    for event in authority_events:
+        _authority_event_root(event)
+        if event["id"] in seen_legacy or event["id"] in event_by_id:
+            raise ValueError("authority event identity is duplicated")
+        event_by_id[event["id"]] = event
+        transaction_ids.setdefault(event["content"]["transaction_id"], set()).add(event["id"])
+
+    legacy_root_with_bridge = _legacy_event_log_root(legacy_events)
+    current_event_root = legacy_prefix_root
+    previous_record_root = None
+    cumulative_events: list[dict] = []
+    covered: set[str] = set()
+    final_record_root = None
+    for sequence, envelope in enumerate(fixture["authority_envelopes"], start=1):
+        record, record_root = _decode_and_verify_authority_envelope(
+            envelope, keyset, frontier_id, sequence, previous_record_root
+        )
+        content = record["content"]
+        authorization = content["authorization"]
+        _verify_pinned_authorization(authorization, bundle_root)
+        if content["before_event_log_root"] != current_event_root:
+            raise ValueError("authority record before-event root is invalid")
+        event_ids = content["event_ids"]
+        if len(event_ids) != len(set(event_ids)):
+            raise ValueError("authority record repeats an event ID")
+
+        if sequence == 1:
+            if (
+                content["transaction_id"] == ""
+                or event_ids != [migration_event["id"]]
+                or content["after_event_log_root"] != legacy_root_with_bridge
+                or content["principal"]["principal_id"] != migration["new_principal_id"]
+            ):
+                raise ValueError("authority record 1 does not exactly cover the migration")
+            approvals = content["semantic_approvals"]
+            if not any(
+                approval["principal_id"] == migration_event["actor"]["id"]
+                and approval["action"] == "authority_model_migrate"
+                and approval["reason"] == migration["reason"]
+                and approval["intent_digest"] == content["intent_digest"]
+                for approval in approvals
+            ):
+                raise ValueError("authority record 1 lacks the exact semantic approval")
+            expected_objects = {migration_event["id"]: _sha256_canonical(migration_event)}
+            current_event_root = legacy_root_with_bridge
+        else:
+            transaction_id = content["transaction_id"]
+            expected_ids = transaction_ids.get(transaction_id)
+            if expected_ids is None or set(event_ids) != expected_ids:
+                raise ValueError("authority record does not exactly cover its transaction")
+            if covered.intersection(event_ids):
+                raise ValueError("authority event is covered more than once")
+            for event_id in event_ids:
+                event = event_by_id[event_id]
+                if (
+                    event["content"]["principal_id"]
+                    != content["principal"]["principal_id"]
+                ):
+                    raise ValueError("authority event principal does not match its record")
+                cumulative_events.append(event)
+                covered.add(event_id)
+            expected_after = _authority_event_log_root(
+                legacy_root_with_bridge, cumulative_events
+            )
+            if content["after_event_log_root"] != expected_after:
+                raise ValueError("authority record after-event root is invalid")
+            expected_objects = {
+                event_id: _authority_event_root(event_by_id[event_id])
+                for event_id in event_ids
+            }
+            current_event_root = expected_after
+
+        deltas = content["object_delta"]
+        if len(deltas) != len(expected_objects):
+            raise ValueError("authority record object delta has unexpected entries")
+        for event_id, event_root in expected_objects.items():
+            expected_delta = {
+                "path": f".vela/events/{event_id}.json",
+                "before_root": None,
+                "after_root": event_root,
+                "object_kind": "event",
+            }
+            if deltas.count(expected_delta) != 1:
+                raise ValueError("authority record lacks one exact event object delta")
+        previous_record_root = record_root
+        final_record_root = record_root
+
+    if covered != set(event_by_id):
+        raise ValueError("Era-1 event history lacks unique authority-record coverage")
+    result = {
+        "era": "repository_authority",
+        "frontier_id": frontier_id,
+        "legacy_event_count": len(legacy_events),
+        "authority_event_count": len(authority_events),
+        "authority_record_count": len(fixture["authority_envelopes"]),
+        "migration_event_id": migration_event["id"],
+        "final_event_log_root": current_event_root,
+        "final_authority_record_root": final_record_root,
+    }
+    if result != fixture["expected"]:
+        raise ValueError("independently derived authority-history report differs")
+    return result
+
+
+def _reroot_authority_fixture(fixture: dict) -> None:
+    body = copy.deepcopy(fixture)
+    body.pop("fixture_root", None)
+    fixture["fixture_root"] = _sha256_canonical(body)
+
+
+def _run_authority_history_migration(repo_root: Path) -> int:
+    fixture_path = (
+        repo_root / "conformance" / "fixtures" / "authority-history-migration-v1.json"
+    )
+    try:
+        fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+        if fixture.get("fixture_root") != AUTHORITY_HISTORY_FIXTURE_ROOT:
+            raise ValueError(
+                "authority-history fixture root is not the independently pinned root"
+            )
+        result = _verify_authority_history_fixture(fixture)
+
+        hostile: list[tuple[str, dict]] = []
+        legacy_write = copy.deepcopy(fixture)
+        later = copy.deepcopy(legacy_write["legacy_events"][0])
+        later["timestamp"] = "2026-07-24T12:02:00Z"
+        later["reason"] = "Illegitimate legacy write after migration."
+        later["id"] = _legacy_event_id(later)
+        legacy_write["legacy_events"].append(later)
+        _reroot_authority_fixture(legacy_write)
+        hostile.append(("post-migration legacy write", legacy_write))
+
+        missing_record = copy.deepcopy(fixture)
+        missing_record["authority_envelopes"].pop()
+        _reroot_authority_fixture(missing_record)
+        hostile.append(("missing transaction coverage", missing_record))
+
+        transaction_substitution = copy.deepcopy(fixture)
+        transaction_substitution["authority_events"][0]["content"][
+            "transaction_id"
+        ] = "txn_substituted"
+        transaction_substitution["authority_events"][0]["id"] = (
+            "vev_"
+            + hashlib.sha256(
+                _canonical_bytes(transaction_substitution["authority_events"][0]["content"])
+            ).hexdigest()[:16]
+        )
+        _reroot_authority_fixture(transaction_substitution)
+        hostile.append(("transaction substitution", transaction_substitution))
+
+        signature_tamper = copy.deepcopy(fixture)
+        signature = signature_tamper["authority_envelopes"][1]["signatures"][0]["sig"]
+        signature_tamper["authority_envelopes"][1]["signatures"][0]["sig"] = (
+            ("A" if signature[0] != "A" else "B") + signature[1:]
+        )
+        _reroot_authority_fixture(signature_tamper)
+        hostile.append(("DSSE signature tamper", signature_tamper))
+
+        bundle_substitution = copy.deepcopy(fixture)
+        bundle_substitution["policy_bundle"]["policies_root"] = "sha256:" + "1" * 64
+        _reroot_authority_fixture(bundle_substitution)
+        hostile.append(("policy bundle substitution", bundle_substitution))
+
+        diagnostics = copy.deepcopy(fixture)
+        payload = base64.b64decode(diagnostics["authority_envelopes"][1]["payload"])
+        record = json.loads(payload)
+        record["content"]["authorization"]["evaluation"]["diagnostics"] = [
+            "hostile diagnostic"
+        ]
+        try:
+            _verify_pinned_authorization(
+                record["content"]["authorization"],
+                _sha256_canonical(diagnostics["policy_bundle"]),
+            )
+        except ValueError:
+            pass
+        else:
+            raise ValueError("Cedar diagnostics unexpectedly passed authorization")
+        record["record_id"] = (
+            "var_"
+            + hashlib.sha256(_canonical_bytes(record["content"])).hexdigest()[:16]
+        )
+        diagnostics["authority_envelopes"][1]["payload"] = base64.b64encode(
+            _canonical_bytes(record)
+        ).decode("ascii")
+        _reroot_authority_fixture(diagnostics)
+        hostile.append(("Cedar diagnostics", diagnostics))
+
+        for name, candidate in hostile:
+            try:
+                _verify_authority_history_fixture(candidate)
+            except ValueError:
+                continue
+            raise ValueError(f"hostile case unexpectedly verified: {name}")
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        print(f"  authority-history migration check failed: {error}", file=sys.stderr)
+        return 1
+    print(
+        "  ok: authority-history fixture "
+        f"{fixture['fixture_root']} "
+        f"({result['legacy_event_count']} legacy, "
+        f"{result['authority_event_count']} Era-1, "
+        f"{result['authority_record_count']} records; "
+        f"{len(hostile)} hostile cases)"
+    )
+    return 0
 
 
 def _policy_id(policy: dict) -> str:

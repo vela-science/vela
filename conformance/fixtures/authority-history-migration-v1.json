@@ -1,0 +1,154 @@
+{
+  "authority_envelopes": [
+    {
+      "payload": "eyJjb250ZW50Ijp7ImFmdGVyX2V2ZW50X2xvZ19yb290Ijoic2hhMjU2OjljYzI0ZjgwOTBjYWYxNDRlZDRkM2Q2MDk3ZDMzNGExOWJmMjBiMTkxZmJjMjRiMmU1ZmY1MDc2OWYzNjE5NGUiLCJhdXRoZW50aWNhdGlvbiI6eyJhc3N1cmFuY2UiOiJwcm9vZl9vZl9wb3NzZXNzaW9uIiwiYXV0aGVudGljYXRlZF9hdCI6IjIwMjYtMDctMjRUMTI6MDA6MDBaIiwibWV0aG9kIjoic3NoX2FnZW50IiwicHJvdmlkZXIiOiJvcGVuc3NoIiwic2Vzc2lvbl9pZCI6InNlc3Npb24tMSJ9LCJhdXRob3JpdHlfa2V5c2V0X3Jvb3QiOiJzaGEyNTY6YTNmODg0NWE4NWMyMWZkMWM4YTQ1YjM0NjQ2YjU5MmM3ZjUzZGI1ODkxODVkZWM3YTRhMmRhYjFiNDM5OGFiNCIsImF1dGhvcml6YXRpb24iOnsiZW50aXR5X3NuYXBzaG90X3Jvb3QiOiJzaGEyNTY6Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3NyIsImV2YWx1YXRpb24iOnsiYXV0b21hdGljX3Blcm1pdCI6ZmFsc2UsImRlY2lzaW9uIjoiYWxsb3ciLCJkZXRlcm1pbmluZ19wb2xpY2llcyI6WyJwZXJtaXRfcmVwb3NpdG9yeV9hZG1pbiJdLCJkaWFnbm9zdGljcyI6W10sImVuZ2luZSI6ImNlZGFyLXBvbGljeSIsImVuZ2luZV92ZXJzaW9uIjoiNC4xMS4yIiwicHJvZmlsZSI6InZlbGEuY2VkYXItcmVzdHJpY3RlZC52MSIsInZhbGlkIjp0cnVlfSwicG9saWN5X2J1bmRsZV9yb290Ijoic2hhMjU2OjczMjE4MWRiY2U0N2EwZGM3MjYzZTY2ZjUzNGQxZmUxNGU0MTRjYjVlYjFkMDQ2MjNmNTAyMDEzMThmOTljM2QiLCJyZXF1ZXN0X3Jvb3QiOiJzaGEyNTY6NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NiJ9LCJiZWZvcmVfZXZlbnRfbG9nX3Jvb3QiOiJzaGEyNTY6MDYwNmM5NjQ1YWI4M2Y5NGJlMDQwYTVkZWU2YTQ1YmY5Y2I0Njg0MmQ0MGYxNTU2MDVkZWZjNmFkNTIwYWIyOCIsImRlbGVnYXRpb24iOm51bGwsImV2ZW50X2lkcyI6WyJ2ZXZfM2JkNTQ5MGI4MmY3NDY2MyJdLCJleGVjdXRpb24iOnsiYmluYXJ5X3NoYTI1NiI6InNoYTI1Njo4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4IiwiY29tcGxldGVkX2F0IjoiMjAyNi0wNy0yNFQxMjowMDowMVoiLCJ0cmFuc2FjdGlvbl9yZWFkX3NldF9yb290Ijoic2hhMjU2Ojk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTkiLCJ0cmFuc2FjdGlvbl93cml0ZV9zZXRfcm9vdCI6InNoYTI1NjowMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIiwidmVsYV92ZXJzaW9uIjoiMC45MzAuMC1yYy4xIn0sImZyb250aWVyX2lkIjoidmZyXzAxMjM0NTY3ODlhYmNkZWYiLCJpbnRlbnRfZGlnZXN0Ijoic2hhMjU2OmVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWUiLCJvYmplY3RfZGVsdGEiOlt7ImFmdGVyX3Jvb3QiOiJzaGEyNTY6M2QwNDc1ZjU0OGIzNDZkMDI0ZjE2M2Q1Yzc0YzQ0YzcwNGIyOTFlNjczMTgyODdjZWQ4ZGVlNTVmMzNiNWFhZCIsImJlZm9yZV9yb290IjpudWxsLCJvYmplY3Rfa2luZCI6ImV2ZW50IiwicGF0aCI6Ii52ZWxhL2V2ZW50cy92ZXZfM2JkNTQ5MGI4MmY3NDY2My5qc29uIn1dLCJvcGVyYXRpb25faWQiOiJ2b3BfMSIsInByZXZpb3VzX2F1dGhvcml0eV9yZWNvcmRfcm9vdCI6bnVsbCwicHJpbmNpcGFsIjp7ImFjY291bnRfbGlua3MiOlsiZ2l0aHViOmZpeHR1cmUiXSwiYWZmaWxpYXRpb24iOm51bGwsImRpc3BsYXlfbmFtZSI6IlJlcG9zaXRvcnkgYWRtaW5pc3RyYXRvciIsInByaW5jaXBhbF9jbGFzcyI6Imh1bWFuIiwicHJpbmNpcGFsX2lkIjoicHJpbmNpcGFsOnJlcG9zaXRvcnktYWRtaW4ifSwicmVjb3JkZWRfYXQiOiIyMDI2LTA3LTI0VDEyOjAwOjAxWiIsInNlbWFudGljX2FwcHJvdmFscyI6W3siYWN0aW9uIjoiYXV0aG9yaXR5X21vZGVsX21pZ3JhdGUiLCJhcHByb3ZlZF9hdCI6IjIwMjYtMDctMjRUMTI6MDA6MDBaIiwiaW50ZW50X2RpZ2VzdCI6InNoYTI1NjplZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlIiwicHJpbmNpcGFsX2lkIjoicmV2aWV3ZXI6bGVnYWN5IiwicmVhc29uIjoiTW92ZSB0aGlzIGZpeHR1cmUgdG8gYXR0cmlidXRlZCByZXBvc2l0b3J5IGF1dGhvcml0eS4iLCJyb2xlIjoiZnJvbnRpZXJfYWRtaW5pc3RyYXRvciJ9XSwic2VxdWVuY2UiOjEsInRyYW5zYWN0aW9uX2lkIjoidHhuX21pZ3JhdGlvbiJ9LCJyZWNvcmRfaWQiOiJ2YXJfMTk2ODMzOTk4NDM0MTEzZSIsInNjaGVtYSI6InZlbGEuYXV0aG9yaXR5LXJlY29yZC52MSJ9",
+      "payloadType": "application/vnd.vela.authority-record.v1+json",
+      "signatures": [
+        {
+          "keyid": "repository-key-1",
+          "sig": "HMmj7KOHzKfzvmOxZVrYMdU3mOyyXAlvwTk94jBC1Yy424i8XeXrSodYePhyEDjwv0gkHeuORJugokCAk21rBA=="
+        }
+      ]
+    },
+    {
+      "payload": "eyJjb250ZW50Ijp7ImFmdGVyX2V2ZW50X2xvZ19yb290Ijoic2hhMjU2OmUyOTE2MmI1MDNkYWU4MzEzNTkwN2JkZjU2NDBjNWQ1NzJiZWRjOTNjZjcyMzU2YmM4ODY4YjQ1NjllMTczNjgiLCJhdXRoZW50aWNhdGlvbiI6eyJhc3N1cmFuY2UiOiJwcm9vZl9vZl9wb3NzZXNzaW9uIiwiYXV0aGVudGljYXRlZF9hdCI6IjIwMjYtMDctMjRUMTI6MDA6MDBaIiwibWV0aG9kIjoic3NoX2FnZW50IiwicHJvdmlkZXIiOiJvcGVuc3NoIiwic2Vzc2lvbl9pZCI6InNlc3Npb24tMiJ9LCJhdXRob3JpdHlfa2V5c2V0X3Jvb3QiOiJzaGEyNTY6YTNmODg0NWE4NWMyMWZkMWM4YTQ1YjM0NjQ2YjU5MmM3ZjUzZGI1ODkxODVkZWM3YTRhMmRhYjFiNDM5OGFiNCIsImF1dGhvcml6YXRpb24iOnsiZW50aXR5X3NuYXBzaG90X3Jvb3QiOiJzaGEyNTY6Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3NyIsImV2YWx1YXRpb24iOnsiYXV0b21hdGljX3Blcm1pdCI6ZmFsc2UsImRlY2lzaW9uIjoiYWxsb3ciLCJkZXRlcm1pbmluZ19wb2xpY2llcyI6WyJwZXJtaXRfcmVwb3NpdG9yeV9hZG1pbiJdLCJkaWFnbm9zdGljcyI6W10sImVuZ2luZSI6ImNlZGFyLXBvbGljeSIsImVuZ2luZV92ZXJzaW9uIjoiNC4xMS4yIiwicHJvZmlsZSI6InZlbGEuY2VkYXItcmVzdHJpY3RlZC52MSIsInZhbGlkIjp0cnVlfSwicG9saWN5X2J1bmRsZV9yb290Ijoic2hhMjU2OjczMjE4MWRiY2U0N2EwZGM3MjYzZTY2ZjUzNGQxZmUxNGU0MTRjYjVlYjFkMDQ2MjNmNTAyMDEzMThmOTljM2QiLCJyZXF1ZXN0X3Jvb3QiOiJzaGEyNTY6NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NiJ9LCJiZWZvcmVfZXZlbnRfbG9nX3Jvb3QiOiJzaGEyNTY6OWNjMjRmODA5MGNhZjE0NGVkNGQzZDYwOTdkMzM0YTE5YmYyMGIxOTFmYmMyNGIyZTVmZjUwNzY5ZjM2MTk0ZSIsImRlbGVnYXRpb24iOm51bGwsImV2ZW50X2lkcyI6WyJ2ZXZfODVjYmM4OTc4NmZjYzMxNiJdLCJleGVjdXRpb24iOnsiYmluYXJ5X3NoYTI1NiI6InNoYTI1Njo4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4IiwiY29tcGxldGVkX2F0IjoiMjAyNi0wNy0yNFQxMjowMDowMVoiLCJ0cmFuc2FjdGlvbl9yZWFkX3NldF9yb290Ijoic2hhMjU2Ojk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTkiLCJ0cmFuc2FjdGlvbl93cml0ZV9zZXRfcm9vdCI6InNoYTI1NjowMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIiwidmVsYV92ZXJzaW9uIjoiMC45MzAuMC1yYy4xIn0sImZyb250aWVyX2lkIjoidmZyXzAxMjM0NTY3ODlhYmNkZWYiLCJpbnRlbnRfZGlnZXN0Ijoic2hhMjU2OmVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWUiLCJvYmplY3RfZGVsdGEiOlt7ImFmdGVyX3Jvb3QiOiJzaGEyNTY6NzkxMjAyOGEzNWM1NzY2MjlkYjAyZmUyZjRlMGJlNTIyNTYyMDM4NGIzZGI2OGIxNWIyZDNjZDUyYzg5MWI2OCIsImJlZm9yZV9yb290IjpudWxsLCJvYmplY3Rfa2luZCI6ImV2ZW50IiwicGF0aCI6Ii52ZWxhL2V2ZW50cy92ZXZfODVjYmM4OTc4NmZjYzMxNi5qc29uIn1dLCJvcGVyYXRpb25faWQiOiJ2b3BfMiIsInByZXZpb3VzX2F1dGhvcml0eV9yZWNvcmRfcm9vdCI6InNoYTI1Njo2NDE0YmQzODVlYjc3ZjkyNGY4MTFhZjRiNDBlM2ViYTAyNmEyZDVlODU4ODU3OTE2OTg3ZTFhZWE3ZmUwMzZlIiwicHJpbmNpcGFsIjp7ImFjY291bnRfbGlua3MiOlsiZ2l0aHViOmZpeHR1cmUiXSwiYWZmaWxpYXRpb24iOm51bGwsImRpc3BsYXlfbmFtZSI6IlJlcG9zaXRvcnkgYWRtaW5pc3RyYXRvciIsInByaW5jaXBhbF9jbGFzcyI6Imh1bWFuIiwicHJpbmNpcGFsX2lkIjoicHJpbmNpcGFsOnJlcG9zaXRvcnktYWRtaW4ifSwicmVjb3JkZWRfYXQiOiIyMDI2LTA3LTI0VDEyOjAwOjAxWiIsInNlbWFudGljX2FwcHJvdmFscyI6W10sInNlcXVlbmNlIjoyLCJ0cmFuc2FjdGlvbl9pZCI6InR4bl9lcmFfb25lIn0sInJlY29yZF9pZCI6InZhcl9iMzhjYjg2MDk2NjQzMTQyIiwic2NoZW1hIjoidmVsYS5hdXRob3JpdHktcmVjb3JkLnYxIn0=",
+      "payloadType": "application/vnd.vela.authority-record.v1+json",
+      "signatures": [
+        {
+          "keyid": "repository-key-1",
+          "sig": "88tDrlFeyK1KwotyajN6a17Zo6h1V+2BP8hcoWjWdutOfjiNztYiDRhcPGvhrMY2DkBIIHnjTd2NXAlHSpAgBA=="
+        }
+      ]
+    }
+  ],
+  "authority_events": [
+    {
+      "content": {
+        "actor": {
+          "id": "principal:repository-admin",
+          "type": "human"
+        },
+        "after_hash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "authority_mode": "repository_authority",
+        "before_hash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "caveats": [],
+        "kind": "review.rejected",
+        "payload": {
+          "proposal_id": "vpr_0123456789abcdef"
+        },
+        "principal_id": "principal:repository-admin",
+        "reason": "Reject the fixture proposal.",
+        "target": {
+          "id": "vpr_0123456789abcdef",
+          "type": "proposal"
+        },
+        "timestamp": "2026-07-24T12:01:00Z",
+        "transaction_id": "txn_era_one"
+      },
+      "id": "vev_85cbc89786fcc316",
+      "schema": "vela.event.v1"
+    }
+  ],
+  "authority_keyset": {
+    "activation_record_root": null,
+    "frontier_id": "vfr_0123456789abcdef",
+    "generation": 1,
+    "keys": [
+      {
+        "algorithm": "ed25519",
+        "key_id": "repository-key-1",
+        "public_key": "0b513ad9b4924015ca0902ed079044d3ac5dbec2306f06948c10da8eb6e39f2d",
+        "purpose": "repository_authority",
+        "valid_from_sequence": 1,
+        "valid_through_sequence": null
+      }
+    ],
+    "previous_keyset_root": null,
+    "schema": "vela.authority-keyset.v1",
+    "threshold": 1
+  },
+  "expected": {
+    "authority_event_count": 1,
+    "authority_record_count": 2,
+    "era": "repository_authority",
+    "final_authority_record_root": "sha256:118c9171061c281fafba3176451b5a54cd60e182ed9ef8ae077dd660b9780e6e",
+    "final_event_log_root": "sha256:e29162b503dae83135907bdf5640c5d572bedc93cf72356bc8868b4569e17368",
+    "frontier_id": "vfr_0123456789abcdef",
+    "legacy_event_count": 2,
+    "migration_event_id": "vev_3bd5490b82f74663"
+  },
+  "fixture_root": "sha256:11ced5de2441214b3325bb4368f900d111c944b878088b04966194353aa175f8",
+  "frontier_id": "vfr_0123456789abcdef",
+  "legacy_active_policy_head_root": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+  "legacy_actor_registry_base64": "WwogIHsKICAgICJpZCI6ICJyZXZpZXdlcjpsZWdhY3kiLAogICAgInB1YmxpY19rZXkiOiAiNjZiZTdlMzMyYzdhNDUzMzMyYmQ5ZDBhN2Y3ZGIwNTVmNWM1ZWYxYTA2YWRhNjZkOThiMzlmYjY4MTBjNDczYSIsCiAgICAiYWxnb3JpdGhtIjogImVkMjU1MTkiLAogICAgImNyZWF0ZWRfYXQiOiAiMjAyNi0wNy0wMVQwMDowMDowMFoiCiAgfQpd",
+  "legacy_events": [
+    {
+      "actor": {
+        "id": "vela:init",
+        "type": "system"
+      },
+      "after_hash": "sha256:null",
+      "before_hash": "sha256:null",
+      "caveats": [],
+      "id": "vev_c90f8de0d326de5f",
+      "kind": "frontier.created",
+      "payload": {},
+      "reason": "Create the fixture frontier.",
+      "schema": "vela.event.v0.1",
+      "target": {
+        "id": "vfr_0123456789abcdef",
+        "type": "frontier"
+      },
+      "timestamp": "2026-07-01T00:00:00Z"
+    },
+    {
+      "actor": {
+        "id": "reviewer:legacy",
+        "type": "human"
+      },
+      "after_hash": "sha256:null",
+      "before_hash": "sha256:null",
+      "caveats": [
+        "Historical events remain byte-identical."
+      ],
+      "id": "vev_3bd5490b82f74663",
+      "kind": "authority.model_migrated",
+      "payload": {
+        "frontier_id": "vfr_0123456789abcdef",
+        "legacy_active_policy_head_root": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "legacy_actor_registry_root": "sha256:b19bc980ea31e5c83a85e5aaf16d5d1409b34afdd8dbd145645b86bfaf2b2cce",
+        "legacy_event_log_root": "sha256:0606c9645ab83f94be040a5dee6a45bf9cb46842d40f155605defc6ad520ab28",
+        "legacy_policy_store_manifest_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "minimum_writer_version": "0.930.0",
+        "new_authority_keyset_root": "sha256:a3f8845a85c21fd1c8a45b34646b592c7f53db589185dec7a4a2dab1b4398ab4",
+        "new_policy_bundle_root": "sha256:732181dbce47a0dc7263e66f534d1fe14e414cb5eb1d04623f50201318f99c3d",
+        "new_principal_id": "principal:repository-admin",
+        "reason": "Move this fixture to attributed repository authority.",
+        "schema": "vela.authority-model-migration.v1"
+      },
+      "reason": "Move this fixture to attributed repository authority.",
+      "schema": "vela.event.v0.1",
+      "signature": "v1:9c0ab536f18f1cd65794878e7c6599b28da39a4df6b3e4f44871633785008ac95f495a8abe17371ae8a9a1b1d7dc879fe3e4add466af751067ccbabe68c73509",
+      "target": {
+        "id": "vfr_0123456789abcdef",
+        "type": "frontier"
+      },
+      "timestamp": "2026-07-24T12:00:00Z"
+    }
+  ],
+  "legacy_policy_store_manifest_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+  "policy_bundle": {
+    "authority_summary": "Repository authority may record this exact migration.",
+    "cedar_schema_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "engine": "cedar-policy",
+    "engine_version": "4.11.2",
+    "entities_root": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "frontier_id": "vfr_0123456789abcdef",
+    "policies_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "previous_bundle_root": null,
+    "restricted_profile": "vela.cedar-restricted.v1",
+    "schema": "vela.policy-bundle.v1",
+    "tests_root": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  "schema": "vela.authority-history-conformance.v1"
+}
