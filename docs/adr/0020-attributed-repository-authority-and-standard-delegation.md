@@ -535,8 +535,20 @@ Focused fixtures prove:
 - the reducer treats the bridge as non-scientific.
 
 This evidence does not accept the ADR, enable an Era-1 writer, or migrate a
-Frontier. A cross-implementation migration vector and network-disabled
-clean-clone replay remain before the Phase 1 gate closes.
+Frontier.
+
+Phase 1 now also has a committed
+`vela.authority-history-conformance.v1` vector at
+`sha256:11ced5de2441214b3325bb4368f900d111c944b878088b04966194353aa175f8`.
+An independent Python path rederives both event forms, legacy and mixed roots,
+the actor-registry and policy inputs, the legacy Ed25519 signature, both DSSE
+authority-record signatures, sequence and threshold rules, clean pinned Cedar
+authorization, transaction coverage, attribution, and object deltas. Six
+hostile vectors fail closed. The same vector passes from the exact detached Git
+commit in a clean clone with network access denied. Phase 1 is therefore
+complete. This advances the candidate only to the principal and capability
+model; it does not authorize a writer or substitute for the deterministic
+release union at an actual release boundary.
 
 ## Alternatives rejected
 

@@ -110,8 +110,12 @@ authority-record chain. Seven focused adversarial tests reject a later legacy
 write, actor-registry or signature tampering, missing or duplicate coverage,
 transaction substitution, wrong roots, authority forks, policy substitution,
 and malformed bridge payloads. The bridge is reducer-neutral and no writer or
-Frontier migration exists. The remaining Phase 1 work is a committed
-cross-implementation migration vector plus network-disabled clean-clone replay.
+Frontier migration exists. A committed cross-implementation vector at
+`sha256:11ced5de2441214b3325bb4368f900d111c944b878088b04966194353aa175f8`
+is now independently rederived through OpenSSL Ed25519 and DSSE verification.
+Six hostile mutations fail. The exact detached Git commit replays from a clean
+clone with network access denied. Phase 1 is complete; Phase 3 is the next
+implementation gate.
 
 ## Phase 2: policy translation and shadow evaluation
 
@@ -145,9 +149,9 @@ and ADR 0014 hostile fixtures are equivalent under the translated Cedar path:
 zero narrower routes, zero broader routes, and zero new Permits. The
 content-addressed report root is
 `sha256:92f4c7568d74a87844d9b306a2dd64c95456dc867d3f8b3e9a0c6ad30c810504`.
-This completes the current Phase 2 corpus gate. It does not migrate a writer
-or by itself satisfy the remaining Phase 1 cross-implementation and
-clean-clone exit.
+This completes the current Phase 2 corpus gate. It does not migrate a writer.
+The separately completed Phase 1 cross-implementation and clean-clone gate
+permits work on Phase 3; neither gate accepts ADR 0020.
 
 ## Phase 3: principal and capability model
 
