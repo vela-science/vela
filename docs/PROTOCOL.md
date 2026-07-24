@@ -439,6 +439,28 @@ The candidate implementation is:
 This contract is verify-only while ADR 0020 is Proposed. It issues no
 credential and enables no writer.
 
+`vela.authentication-observation.v1` replaces the provisional arbitrary
+authentication strings inside the candidate authority record. It binds:
+
+```text
+principal ID and class
+issuer and subject
+closed method and assurance
+full non-secret session root
+authenticated, observed, and expiry times
+user-presence and user-verification facts
+recent-recovery context
+optional revocation reference
+```
+
+Human observations must match the exact retained local/OIDC/ORCID
+issuer-subject. Passkeys require user presence, user verification, and
+phishing-resistant assurance. Workload observations use only closed workload
+methods and never claim human presence. Observation must occur within a
+maximum 24-hour window; expiry and revocation fail closed. Cookies, bearer
+tokens, refresh tokens, assertions, and raw session identifiers remain with
+the authentication provider and never enter canonical history.
+
 ### 4.6 Verifier attachment
 
 A verifier attachment (`vela.verifier_attachment.v0.1`, `vva_`) binds a method,

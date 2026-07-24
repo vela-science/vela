@@ -21,6 +21,12 @@ recovery, quorum, bulk-correction, destructive, migration, rotation, or
 revocation authority. Runtime local-session, OIDC, GitHub App, or SciTokens
 authentication remains an adapter and is not yet a released writer.
 
+The authority record retains only a closed
+`vela.authentication-observation.v1`: exact principal and issuer-subject,
+method, assurance, non-secret session root, bounded times, presence and
+verification facts, recovery context, and revocation reference. It never
+retains a cookie, bearer token, provider assertion, or raw session ID.
+
 Vela uses signatures to attribute exact authority-bearing actions. A
 signature proves control of one registered key over one canonical input; it
 does not prove scientific truth. Git publication and verifier success are

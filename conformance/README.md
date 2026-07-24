@@ -103,6 +103,14 @@ missing parent, a fork, and anchor-count rollback. Only after that validation su
   The capability is an immutable claim profile, not a new token format:
   OAuth/OIDC, SciTokens, GitHub App, or local credentials remain replaceable
   runtime adapters.
+- Authority-history records retain
+  `vela.authentication-observation.v1`, not a cookie, bearer token, provider
+  assertion, or raw session ID. The observation binds the exact principal and
+  issuer-subject, closed method and assurance, a full non-secret session root,
+  authentication/observation/expiry times, presence and verification facts,
+  recent-recovery context, and an optional revocation reference. Independent
+  checks reject bearer retention, identity substitution, validity beyond 24
+  hours, and revoked sessions.
 - `pre-adr-0003-replay.json` freezes every canonical `.vela` byte from one
   pre-ADR 0003 frontier plus its strict replay roots and counts. The focused
   CLI integration test replays a temporary copy; it performs no signing,

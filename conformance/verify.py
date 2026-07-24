@@ -35,11 +35,12 @@ import re
 import subprocess
 import sys
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 
 AUTHORITY_HISTORY_FIXTURE_ROOT = (
-    "sha256:11ced5de2441214b3325bb4368f900d111c944b878088b04966194353aa175f8"
+    "sha256:0291c61b49cac7ecae345b8288c35b48620b7ff013a1d4e1f6788a150b8af1e7"
 )
 AUTHORITY_RECORD_PAYLOAD_TYPE = "application/vnd.vela.authority-record.v1+json"
 EVENT_PAYLOAD_TYPE = "application/vnd.vela.event+json"
@@ -736,6 +737,78 @@ def _verify_pinned_authorization(authorization: dict, bundle_root: str) -> None:
         raise ValueError("authority record lacks a clean pinned Cedar authorization")
 
 
+def _verify_authentication_observation(
+    authentication: dict,
+    principal: dict,
+    *,
+    revoked_session_roots: set[str] | None = None,
+) -> None:
+    _require_exact_keys(
+        authentication,
+        {
+            "schema",
+            "principal_id",
+            "principal_class",
+            "issuer",
+            "subject",
+            "method",
+            "assurance",
+            "session_root",
+            "authenticated_at",
+            "observed_at",
+            "expires_at",
+            "user_presence",
+            "user_verification",
+            "recovery_recent",
+            "revocation_ref",
+        },
+        "authentication observation",
+    )
+    if (
+        authentication["schema"] != "vela.authentication-observation.v1"
+        or authentication["principal_id"] != principal["principal_id"]
+        or authentication["principal_class"] != principal["principal_class"]
+        or authentication["principal_id"]
+        not in {
+            f"local:{authentication['issuer']}|{authentication['subject']}",
+            f"oidc:{authentication['issuer']}|{authentication['subject']}",
+            f"orcid:{authentication['issuer']}|{authentication['subject']}",
+        }
+        or authentication["principal_id"] not in principal["account_links"]
+        or authentication["method"] not in {"local_os_session", "passkey", "oidc"}
+    ):
+        raise ValueError("authentication observation does not bind its human principal")
+    _require_root(authentication["session_root"], "authentication session root")
+    if authentication["revocation_ref"] is not None:
+        _require_root(authentication["revocation_ref"], "authentication revocation ref")
+    if authentication["method"] == "passkey" and (
+        authentication["assurance"] != "phishing_resistant"
+        or authentication["user_presence"] is not True
+        or authentication["user_verification"] is not True
+    ):
+        raise ValueError("passkey observation lacks verified user presence")
+    try:
+        authenticated_at = datetime.fromisoformat(
+            authentication["authenticated_at"].removesuffix("Z") + "+00:00"
+        )
+        observed_at = datetime.fromisoformat(
+            authentication["observed_at"].removesuffix("Z") + "+00:00"
+        )
+        expires_at = datetime.fromisoformat(
+            authentication["expires_at"].removesuffix("Z") + "+00:00"
+        )
+    except (AttributeError, ValueError) as error:
+        raise ValueError("authentication time is invalid") from error
+    if (
+        observed_at < authenticated_at
+        or observed_at >= expires_at
+        or (expires_at - authenticated_at).total_seconds() > 24 * 60 * 60
+    ):
+        raise ValueError("authentication observation is stale or exceeds 24 hours")
+    if authentication["session_root"] in (revoked_session_roots or set()):
+        raise ValueError("authentication session was revoked before use")
+
+
 def _verify_authority_history_fixture(fixture: dict) -> dict:
     fixture_keys = {
         "schema",
@@ -882,6 +955,9 @@ def _verify_authority_history_fixture(fixture: dict) -> dict:
             envelope, keyset, frontier_id, sequence, previous_record_root
         )
         content = record["content"]
+        _verify_authentication_observation(
+            content["authentication"], content["principal"]
+        )
         authorization = content["authorization"]
         _verify_pinned_authorization(authorization, bundle_root)
         if content["before_event_log_root"] != current_event_root:
@@ -986,6 +1062,40 @@ def _run_authority_history_migration(repo_root: Path) -> int:
             )
         result = _verify_authority_history_fixture(fixture)
 
+        retained_authentication = json.loads(
+            base64.b64decode(fixture["authority_envelopes"][0]["payload"])
+        )["content"]
+        authentication_hostiles = []
+        bearer = copy.deepcopy(retained_authentication)
+        bearer["authentication"]["bearer_token"] = "must-not-enter-history"
+        authentication_hostiles.append(("bearer authentication retention", bearer))
+        identity = copy.deepcopy(retained_authentication)
+        identity["authentication"]["principal_id"] = "fixture@example.com"
+        authentication_hostiles.append(("authentication identity substitution", identity))
+        stale = copy.deepcopy(retained_authentication)
+        stale["authentication"]["expires_at"] = "2026-07-26T12:00:00Z"
+        authentication_hostiles.append(("stale authentication", stale))
+        for name, content in authentication_hostiles:
+            try:
+                _verify_authentication_observation(
+                    content["authentication"], content["principal"]
+                )
+            except ValueError:
+                continue
+            raise ValueError(f"hostile case unexpectedly verified: {name}")
+        try:
+            _verify_authentication_observation(
+                retained_authentication["authentication"],
+                retained_authentication["principal"],
+                revoked_session_roots={
+                    retained_authentication["authentication"]["session_root"]
+                },
+            )
+        except ValueError:
+            pass
+        else:
+            raise ValueError("revoked authentication unexpectedly verified")
+
         hostile: list[tuple[str, dict]] = []
         legacy_write = copy.deepcopy(fixture)
         later = copy.deepcopy(legacy_write["legacy_events"][0])
@@ -1067,7 +1177,7 @@ def _run_authority_history_migration(repo_root: Path) -> int:
         f"({result['legacy_event_count']} legacy, "
         f"{result['authority_event_count']} Era-1, "
         f"{result['authority_record_count']} records; "
-        f"{len(hostile)} hostile cases)"
+        f"{len(hostile) + 4} hostile cases)"
     )
     return 0
 

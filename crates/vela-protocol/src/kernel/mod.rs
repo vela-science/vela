@@ -2,6 +2,7 @@
 //! Re-exported flat at the crate root; this grouping is file organization only.
 
 pub mod actor_registration;
+pub mod authentication;
 pub mod authority;
 pub mod authority_history;
 pub mod bundle;

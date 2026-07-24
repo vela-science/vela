@@ -12,6 +12,9 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+pub use crate::authentication::{
+    AuthenticationAssurance, AuthenticationMethod, AuthenticationObservationV1,
+};
 use crate::canonical::{sha256_canonical, to_canonical_bytes};
 use crate::events::{EventKind, StateActor, StateTarget};
 pub use crate::principal_capability::PrincipalClass;
@@ -262,15 +265,7 @@ pub struct PrincipalSnapshotV1 {
     pub account_links: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct AuthenticationClaimV1 {
-    pub method: String,
-    pub session_id: String,
-    pub authenticated_at: String,
-    pub assurance: String,
-    pub provider: String,
-}
+pub type AuthenticationClaimV1 = AuthenticationObservationV1;
 
 pub type DelegationClaimV1 = VerifiedCapabilityClaimV1;
 
@@ -456,9 +451,14 @@ impl AuthorityRecordV1 {
                 return Err(format!("object delta {} changes no bytes", delta.path));
             }
         }
+        content.authentication.validate()?;
         if content.principal.principal_id.trim().is_empty()
-            || content.authentication.method.trim().is_empty()
-            || content.authentication.session_id.trim().is_empty()
+            || content.principal.principal_id != content.authentication.principal_id
+            || content.principal.principal_class != content.authentication.principal_class
+            || !content
+                .principal
+                .account_links
+                .contains(&content.principal.principal_id)
         {
             return Err("authority attribution and authentication must be explicit".into());
         }
@@ -648,7 +648,7 @@ mod tests {
     fn era_one_event_is_transaction_bound_and_content_addressed() {
         let event = AuthorityEventV1::new(AuthorityEventContentV1 {
             transaction_id: "txn_fixture".into(),
-            principal_id: "principal:alice".into(),
+            principal_id: "local:device-1|uid:501".into(),
             authority_mode: AUTHORITY_MODE.into(),
             kind: EventKind::ReviewRejected,
             target: StateTarget {
@@ -656,7 +656,7 @@ mod tests {
                 id: "vpr_0123456789abcdef".into(),
             },
             actor: StateActor {
-                id: "principal:alice".into(),
+                id: "local:device-1|uid:501".into(),
                 r#type: "human".into(),
             },
             timestamp: "2026-07-24T12:00:00Z".into(),
@@ -710,18 +710,28 @@ mod tests {
                 object_kind: "event".into(),
             }],
             principal: PrincipalSnapshotV1 {
-                principal_id: "principal:alice".into(),
+                principal_id: "local:device-1|uid:501".into(),
                 principal_class: PrincipalClass::Human,
                 display_name: Some("Alice".into()),
                 affiliation: None,
-                account_links: vec!["local:device|uid:501".into()],
+                account_links: vec!["local:device-1|uid:501".into()],
             },
             authentication: AuthenticationClaimV1 {
-                method: "local_os_session".into(),
-                session_id: "session-1".into(),
+                schema: crate::authentication::AUTHENTICATION_OBSERVATION_SCHEMA_V1.into(),
+                principal_id: "local:device-1|uid:501".into(),
+                principal_class: PrincipalClass::Human,
+                issuer: "device-1".into(),
+                subject: "uid:501".into(),
+                method: AuthenticationMethod::LocalOsSession,
+                assurance: AuthenticationAssurance::LocalSession,
+                session_root: root('9'),
                 authenticated_at: "2026-07-24T12:00:00Z".into(),
-                assurance: "local_user_session".into(),
-                provider: "macos".into(),
+                observed_at: "2026-07-24T12:00:00Z".into(),
+                expires_at: "2026-07-24T13:00:00Z".into(),
+                user_presence: false,
+                user_verification: false,
+                recovery_recent: false,
+                revocation_ref: None,
             },
             delegation: None,
             authorization: AuthorizationClaimV1 {
@@ -740,7 +750,7 @@ mod tests {
                 },
             },
             semantic_approvals: vec![SemanticApprovalV1 {
-                principal_id: "principal:alice".into(),
+                principal_id: "local:device-1|uid:501".into(),
                 role: "reviewer".into(),
                 action: "review_reject".into(),
                 reason: "Evidence does not satisfy the claim.".into(),
@@ -802,6 +812,19 @@ mod tests {
         value["content"]["after_event_log_root"] = serde_json::json!(root('9'));
         envelope.payload = BASE64_STANDARD.encode(to_canonical_bytes(&value).unwrap());
         assert!(verify_authority_envelope(&envelope, &keyset, "vfr_fixture", 1, None).is_err());
+    }
+
+    #[test]
+    fn authority_record_rejects_authentication_identity_and_bearer_material() {
+        let (record, _, _) = fixture();
+        let mut mismatched = record.content.clone();
+        mismatched.authentication.principal_id = "local:other-device|uid:501".into();
+        assert!(AuthorityRecordV1::new(mismatched).is_err());
+
+        let mut value = serde_json::to_value(&record).unwrap();
+        value["content"]["authentication"]["bearer_token"] =
+            serde_json::json!("must-not-enter-history");
+        assert!(serde_json::from_value::<AuthorityRecordV1>(value).is_err());
     }
 
     #[test]

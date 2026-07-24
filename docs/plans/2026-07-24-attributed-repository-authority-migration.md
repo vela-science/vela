@@ -111,11 +111,20 @@ write, actor-registry or signature tampering, missing or duplicate coverage,
 transaction substitution, wrong roots, authority forks, policy substitution,
 and malformed bridge payloads. The bridge is reducer-neutral and no writer or
 Frontier migration exists. A committed cross-implementation vector at
-`sha256:11ced5de2441214b3325bb4368f900d111c944b878088b04966194353aa175f8`
+`sha256:0291c61b49cac7ecae345b8288c35b48620b7ff013a1d4e1f6788a150b8af1e7`
 is now independently rederived through OpenSSL Ed25519 and DSSE verification.
-Six hostile mutations fail. The exact detached Git commit replays from a clean
-clone with network access denied. Phase 1 is complete; Phase 3 is the next
-implementation gate.
+Ten hostile mutations fail, including four authentication-observation
+substitutions. The exact detached Git commit replays from a clean clone with
+network access denied. Phase 1 and the stable Phase 3 read contracts are
+complete; the runtime authentication adapter and zero-write authority
+transaction gate are next.
+
+The vector was deliberately regenerated during the later authentication gate:
+the provisional arbitrary `method`/`provider`/`session_id` claim was replaced
+by `vela.authentication-observation.v1`. The root above now binds exact
+issuer-subject attribution, assurance, a non-secret session root, observation
+and expiry, presence/verification facts, recovery context, and revocation
+reference. Historical Era-0 bytes remain unchanged.
 
 ## Phase 2: policy translation and shadow evaluation
 
@@ -183,9 +192,12 @@ The cross-implementation fixture root is
 An independent Python verifier rederives all roots and rejects eight hostile
 cases, including identity inference, authority escalation, time widening,
 parent substitution, bearer retention, and revocation. Phase 3's stable claim
-contract is complete. Runtime local-session authentication, logout/recovery
-context, and the writer remain later gates; no token format or identity
-provider has been added.
+contract is complete. The authority-history vector now also retains a closed
+`vela.authentication-observation.v1`, independently rejecting bearer
+retention, identity substitution, validity beyond 24 hours, and revoked
+sessions. Runtime local-session authentication, live revocation-set input,
+logout/recovery handling, and the writer remain later gates; no token format or
+identity provider has been added.
 
 ## Phase 4: authority transaction writer
 

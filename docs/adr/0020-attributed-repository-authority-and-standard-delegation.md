@@ -572,16 +572,26 @@ Frontier.
 
 Phase 1 now also has a committed
 `vela.authority-history-conformance.v1` vector at
-`sha256:11ced5de2441214b3325bb4368f900d111c944b878088b04966194353aa175f8`.
+`sha256:0291c61b49cac7ecae345b8288c35b48620b7ff013a1d4e1f6788a150b8af1e7`.
 An independent Python path rederives both event forms, legacy and mixed roots,
 the actor-registry and policy inputs, the legacy Ed25519 signature, both DSSE
 authority-record signatures, sequence and threshold rules, clean pinned Cedar
 authorization, transaction coverage, attribution, and object deltas. Six
-hostile vectors fail closed. The same vector passes from the exact detached Git
-commit in a clean clone with network access denied. Phase 1 is therefore
-complete. This advances the candidate only to the principal and capability
-model; it does not authorize a writer or substitute for the deterministic
-release union at an actual release boundary.
+historical/DSSE hostile vectors and four authentication-observation hostile
+vectors fail closed. The same vector passes from the exact detached Git commit
+in a clean clone with network access denied. Phase 1 is therefore complete.
+This advances the candidate only to the runtime authentication and
+authority-transaction gates; it does not authorize a writer or substitute for
+the deterministic release union at an actual release boundary.
+
+The vector was deliberately regenerated before any writer release when the
+provisional arbitrary authentication strings were replaced by the closed
+`vela.authentication-observation.v1` contract. The observation binds exact
+principal class and issuer-subject, closed method and assurance, a full
+non-secret session root, authentication/observation/expiry times,
+presence/verification facts, recovery context, and revocation reference.
+Runtime cookies, bearer tokens, assertions, and raw session identifiers remain
+outside canonical history.
 
 Phase 3 now has a committed `vela.principal-capability-conformance.v1` vector
 at

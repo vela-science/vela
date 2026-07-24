@@ -501,16 +501,17 @@ mod tests {
     use super::*;
     use crate::authority::{
         AUTHORITY_KEY_ALGORITHM, AUTHORITY_KEY_PURPOSE, AUTHORITY_KEYSET_SCHEMA_V1,
-        AUTHORITY_PAYLOAD_TYPE_V1, AuthenticationClaimV1, AuthorityEventContentV1, AuthorityKeyV1,
-        AuthorityRecordContentV1, AuthorityRecordV1, AuthorizationClaimV1, CedarEvaluation,
-        DelegationClaimV1, DsseSignatureV1, ExecutionClaimV1, ObjectDeltaV1,
-        POLICY_BUNDLE_SCHEMA_V1, PrincipalClass, PrincipalSnapshotV1, SemanticApprovalV1, dsse_pae,
+        AUTHORITY_PAYLOAD_TYPE_V1, AuthenticationAssurance, AuthenticationClaimV1,
+        AuthenticationMethod, AuthorityEventContentV1, AuthorityKeyV1, AuthorityRecordContentV1,
+        AuthorityRecordV1, AuthorizationClaimV1, CedarEvaluation, DelegationClaimV1,
+        DsseSignatureV1, ExecutionClaimV1, ObjectDeltaV1, POLICY_BUNDLE_SCHEMA_V1, PrincipalClass,
+        PrincipalSnapshotV1, SemanticApprovalV1, dsse_pae,
     };
     use crate::events::{EVENT_SCHEMA, EventKind, StateActor, StateTarget, compute_event_id};
 
     const FRONTIER_ID: &str = "vfr_0123456789abcdef";
     const LEGACY_ACTOR: &str = "reviewer:legacy";
-    const REPOSITORY_PRINCIPAL: &str = "principal:repository-admin";
+    const REPOSITORY_PRINCIPAL: &str = "oidc:https://github.com|1234567";
 
     fn root(character: char) -> String {
         format!("sha256:{}", character.to_string().repeat(64))
@@ -760,14 +761,24 @@ mod tests {
                 principal_class: PrincipalClass::Human,
                 display_name: Some("Repository administrator".into()),
                 affiliation: None,
-                account_links: vec!["github:fixture".into()],
+                account_links: vec![REPOSITORY_PRINCIPAL.into()],
             },
             authentication: AuthenticationClaimV1 {
-                method: "ssh_agent".into(),
-                session_id: format!("session-{sequence}"),
+                schema: crate::authentication::AUTHENTICATION_OBSERVATION_SCHEMA_V1.into(),
+                principal_id: REPOSITORY_PRINCIPAL.into(),
+                principal_class: PrincipalClass::Human,
+                issuer: "https://github.com".into(),
+                subject: "1234567".into(),
+                method: AuthenticationMethod::Passkey,
+                assurance: AuthenticationAssurance::PhishingResistant,
+                session_root: root(if sequence == 1 { '8' } else { '9' }),
                 authenticated_at: "2026-07-24T12:00:00Z".into(),
-                assurance: "proof_of_possession".into(),
-                provider: "openssh".into(),
+                observed_at: "2026-07-24T12:00:00Z".into(),
+                expires_at: "2026-07-24T13:00:00Z".into(),
+                user_presence: true,
+                user_verification: true,
+                recovery_recent: false,
+                revocation_ref: None,
             },
             delegation: None::<DelegationClaimV1>,
             authorization: AuthorizationClaimV1 {
