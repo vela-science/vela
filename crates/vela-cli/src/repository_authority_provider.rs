@@ -281,7 +281,7 @@ impl SshAgentRepositoryAuthoritySigner {
         expected_public_key_hex: &str,
     ) -> Result<Self, String> {
         let socket = env::var_os("SSH_AUTH_SOCK")
-            .or_else(|| {
+            .or({
                 #[cfg(windows)]
                 {
                     Some(r"\\.\pipe\openssh-ssh-agent".into())
