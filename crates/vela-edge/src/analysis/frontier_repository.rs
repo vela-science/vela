@@ -3256,6 +3256,15 @@ mod tests {
             error.contains("exact historical signature is not preserved"),
             "{error}"
         );
+
+        fixture.project.events[0].signature = None;
+        let error = verify_with_boundary_anchor(
+            &fixture.project,
+            fixture.directory.path(),
+            &fixture.boundary,
+        )
+        .unwrap_err();
+        assert!(error.contains("lost its historical signature"), "{error}");
     }
 
     #[test]

@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.914.1 — 2026-07-24 — Preserve exact legacy signature debt
+
+- Let a signed repository temporalization retain signature bytes already
+  present at its exact Git/Vela anchor when the legacy display actor has no
+  anchored public key. The bytes remain unauthenticated and confer no
+  identity, standing, or authority.
+- Continue to fail closed if such a signature is added, removed, replaced, or
+  otherwise differs from the immutable anchor. Registered actors and
+  repository-boundary events still require ordinary signature verification.
+- Make the target-task Receipt fixture use a stable logical base path so the
+  same release source passes from any clean checkout directory.
+- Restore exact replay of the released Erdős Profile v1 repository without
+  changing any event, proposal, Receipt, artifact, registry, policy, reducer,
+  accepted-state, or scientific-state byte.
+
 ## v0.914.0 — 2026-07-23 — Bind portable frontier repositories
 
 - Replace the permissive v0.1 repository manifest with closed Profile v1 and
