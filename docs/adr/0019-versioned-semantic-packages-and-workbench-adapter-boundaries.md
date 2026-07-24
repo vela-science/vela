@@ -483,10 +483,27 @@ Proposed.
   the already authorized policy result.
 - Show that removing the adapter leaves the Frontier and Vela replay intact.
 
+Evidence result on 2026-07-24: PIVOT. Entire CLI `v0.8.42` provides one real
+MIT-licensed, metadata-only checkpoint export from a public release commit. A
+dependency-free source-local adapter binds the released binary, source commit
+and tree, checkpoint ref/commit/tree, 704 source bytes, result, and complete
+loss report. It rejects mutations, partial exports, count drift, unsafe paths,
+network access, and Vela mutation edges.
+
+The adapter correctly classifies the export as process provenance with no
+scientific or authority effect. It emits no Receipt because the source has no
+scientific claim, retained artifact, verifier execution, statement-fidelity
+record, proposal, or decision. The translation half of Gate E passes; the
+scientific Receipt/proposal half remains NO-GO. OpenScience `v1.3.4` fails the
+released-binary and explicit-export-version criteria, and OpenResearch
+`v0.1.77` has no license at the exact tag. No protocol, package, adapter
+release, or authority change follows, and this ADR remains Proposed.
+
 Focused checks for the candidate implementation are:
 
 ```bash
 bun test research/semantic-packages
+bun test research/workbench-adapters
 python3 -m unittest discover -s research/frontier-calculus/tests -p 'test_*.py'
 cargo test -p vela-protocol --test cross_impl_reducer_fixtures
 python3 conformance/verify.py
