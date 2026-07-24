@@ -2790,21 +2790,21 @@ mod tests {
     #[test]
     #[ignore = "requires exact canonical Erdős/Formal checkouts and external migration inputs"]
     fn erdos_formal_historical_dependency_read_only_regression() {
-        const ERDOS_COMMIT: &str = "e79feaeddf2d4c68ce395d2e7daec1e7fae41702";
+        const ERDOS_COMMIT: &str = "6bcc3f478fdeaaed03579f2463f278035f389fd0";
         const HISTORICAL_FORMAL_COMMIT: &str = "a143c351f8488e0c621598307e248373d9dc3374";
         const HISTORICAL_FORMAL_TREE: &str = "093e84c03a722e5367812a6e6240b1c28042f969";
         const HISTORICAL_FORMAL_SNAPSHOT: &str =
             "sha256:48ec4e84bb4640fa54023db58d7eabc6a713a46b053b6ccc3050414ab18520ec";
         const FORMAL_TEMPORALIZATION_ANCHOR_COMMIT: &str =
-            "4e6f040aa204f0dcdf26b4b5c39779cef03fbefc";
-        const FORMAL_TEMPORALIZATION_ANCHOR_TREE: &str = "5b001592ce7e3d56ac039872b2dfcf9bb5a27e65";
+            "6056124b436bfefd76f02f6836d951c947189fe6";
+        const FORMAL_TEMPORALIZATION_ANCHOR_TREE: &str = "dddc0325ca52ddf56a7a51049cc5f90dd7071d23";
         const FORMAL_TEMPORALIZATION_ANCHOR_SNAPSHOT: &str =
             "sha256:45fa712bd6d9a8d4c8514a7cba107e7f814f2c1368805abd577e762ccb6123a4";
         const FORMAL_FRONTIER_ID: &str = "vfr_97d7d25957384f80";
         const FORMAL_IDENTITY_ROOT: &str =
-            "sha256:1832b08fb8a4a9afcbdfcd0b7d9743e7949efa795cc3133ce33087a7ed8b08c0";
+            "sha256:841f38525cf2f4862c5fdc2217247a189ab8a0414418b8b782a88c9dd0206731";
         const HISTORICAL_FORMAL_SCIENTIFIC_STATE_ROOT: &str =
-            "sha256:f772058f55dcaaa9f2f2bda39b7a6d5a43fefac9987b3b98b797dbe2047aac03";
+            "sha256:4924adbbea6dfe288d14af03cf3d544f73c511df6b6ef8b938c8291685101444";
         const FORMAL_ADMINISTRATOR_PUBLIC_KEY: &str =
             "4892f93877e637b5f59af31d9ec6704814842fb278cacb0eb94704baef99455e";
         const ERDOS_EVENT_ROOT: &str =
