@@ -2,8 +2,8 @@
 
 use crate::cli::{
     active_policy_pair_snapshot, check_json_payload, fail_usage, frontier_dir_for_source,
-    load_frontier_or_fail, print_json, print_signal_summary, repository_context_check,
-    scan_for_sensitive_paths,
+    load_frontier_or_fail, print_json, print_signal_summary, proposal_parity_blocks,
+    proposal_parity_summary, repository_context_check, scan_for_sensitive_paths,
 };
 use serde_json::Value;
 use std::path::Path;
@@ -182,11 +182,10 @@ pub(crate) fn cmd_check(
         let parity_conflicts = vela_protocol::proposals::verify_proposal_decision_parity(&frontier);
         println!(
             "review-decision parity: {}",
-            if parity_conflicts.is_empty() {
-                "ok".to_string()
-            } else {
-                format!("{} conflict(s)", parity_conflicts.len())
-            }
+            repository_context.as_ref().map_or_else(
+                || format!("{} conflict(s)", parity_conflicts.len()),
+                |context| proposal_parity_summary(context, parity_conflicts.len()),
+            )
         );
         for conflict in parity_conflicts.iter().take(20) {
             println!("  - {conflict}");
@@ -295,7 +294,11 @@ pub(crate) fn cmd_check(
         print_signal_summary(&signal_report, strict);
         if !replay_report.ok
             || !replay_verification.ok
-            || !parity_conflicts.is_empty()
+            || repository_context
+                .as_ref()
+                .map_or(!parity_conflicts.is_empty(), |context| {
+                    proposal_parity_blocks(context, parity_conflicts.len())
+                })
             || active_policy_error.is_some()
             || !policy_lane_errors.is_empty()
             || !activity_leaks.is_empty()

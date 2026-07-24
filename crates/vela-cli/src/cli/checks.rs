@@ -77,6 +77,42 @@ pub(crate) fn frontier_dir_for_source(source: &Path) -> &Path {
     }
 }
 
+pub(crate) fn preserves_anchored_legacy_proposal_parity(
+    repository_context: &Value,
+    parity_conflict_count: usize,
+) -> bool {
+    parity_conflict_count > 0
+        && repository_context.get("valid").and_then(Value::as_bool) == Some(true)
+        && repository_context.get("generation").and_then(Value::as_str) == Some("profile_v1")
+        && repository_context
+            .get("identity_mode")
+            .and_then(Value::as_str)
+            == Some("pinned_boundary")
+}
+
+pub(crate) fn proposal_parity_blocks(
+    repository_context: &Value,
+    parity_conflict_count: usize,
+) -> bool {
+    parity_conflict_count > 0
+        && !preserves_anchored_legacy_proposal_parity(repository_context, parity_conflict_count)
+}
+
+pub(crate) fn proposal_parity_summary(
+    repository_context: &Value,
+    parity_conflict_count: usize,
+) -> String {
+    if parity_conflict_count == 0 {
+        "ok".to_string()
+    } else if preserves_anchored_legacy_proposal_parity(repository_context, parity_conflict_count) {
+        format!(
+            "{parity_conflict_count} anchored immutable legacy identity record(s) (unauthenticated)"
+        )
+    } else {
+        format!("{parity_conflict_count} conflict(s)")
+    }
+}
+
 pub(crate) fn active_policy_pair_snapshot(
     source: &Path,
 ) -> Result<vela_protocol::acceptance_policy::ActivePolicySnapshot, String> {
@@ -438,13 +474,8 @@ fn check_json_payload_with_home(
     // context-free parity rule a second time and misclassify it as current
     // tampering. Native Profile v1, legacy v0.1, and every invalid boundary
     // retain the ordinary blocking behavior.
-    let preserved_legacy_parity = !parity_conflicts.is_empty()
-        && repository_context.get("valid").and_then(Value::as_bool) == Some(true)
-        && repository_context.get("generation").and_then(Value::as_str) == Some("profile_v1")
-        && repository_context
-            .get("identity_mode")
-            .and_then(Value::as_str)
-            == Some("pinned_boundary");
+    let preserved_legacy_parity =
+        preserves_anchored_legacy_proposal_parity(&repository_context, parity_conflicts.len());
     if preserved_legacy_parity {
         repository_context["legacy_proposal_identity_debt"] = json!({
             "classification": "anchored_immutable_unauthenticated",
@@ -644,7 +675,10 @@ fn check_json_payload_with_home(
     let event_errors = replay_report
         .as_ref()
         .map_or(0, |replay| usize::from(!replay.ok))
-        + usize::from(!parity_conflicts.is_empty() && !preserved_legacy_parity)
+        + usize::from(proposal_parity_blocks(
+            &repository_context,
+            parity_conflicts.len(),
+        ))
         + policy_lane_errors.len();
     let state_integrity_errors = state_integrity_report
         .as_ref()
@@ -1621,6 +1655,15 @@ mod repository_context_tests {
                 .pointer("/repository_context/legacy_proposal_identity_debt/count")
                 .and_then(Value::as_u64),
             Some(1)
+        );
+        assert!(preserves_anchored_legacy_proposal_parity(
+            &checked["repository_context"],
+            1,
+        ));
+        assert!(!proposal_parity_blocks(&checked["repository_context"], 1,));
+        assert_eq!(
+            proposal_parity_summary(&checked["repository_context"], 1),
+            "1 anchored immutable legacy identity record(s) (unauthenticated)"
         );
         assert!(
             checked

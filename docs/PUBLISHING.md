@@ -55,10 +55,10 @@ content root:
 
 ```yaml
 - uses: actions/checkout@v5
-- uses: vela-science/vela@v0.915.0
+- uses: vela-science/vela@v0.915.1
   with:
     frontier: .
-    vela-version: v0.915.0
+    vela-version: v0.915.1
     repository-boundary-root: ${{ vars.VELA_REPOSITORY_BOUNDARY_ROOT }}
 ```
 

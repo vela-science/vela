@@ -3199,7 +3199,7 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "vela-cli"
-version = "0.915.0"
+version = "0.915.1"
 dependencies = [
  "axum",
  "chrono",
@@ -3236,7 +3236,7 @@ dependencies = [
 
 [[package]]
 name = "vela-edge"
-version = "0.915.0"
+version = "0.915.1"
 dependencies = [
  "chrono",
  "colored",
@@ -3263,7 +3263,7 @@ dependencies = [
 
 [[package]]
 name = "vela-hub"
-version = "0.915.0"
+version = "0.915.1"
 dependencies = [
  "async-stream",
  "axum",
@@ -3288,7 +3288,7 @@ dependencies = [
 
 [[package]]
 name = "vela-protocol"
-version = "0.915.0"
+version = "0.915.1"
 dependencies = [
  "base64",
  "chrono",
@@ -3312,7 +3312,7 @@ dependencies = [
 
 [[package]]
 name = "vela-protocol-core"
-version = "0.915.0"
+version = "0.915.1"
 dependencies = [
  "ed25519-dalek",
  "hex",
@@ -3323,7 +3323,7 @@ dependencies = [
 
 [[package]]
 name = "vela-signer"
-version = "0.915.0"
+version = "0.915.1"
 dependencies = [
  "block2",
  "chrono",
@@ -3351,7 +3351,7 @@ dependencies = [
 
 [[package]]
 name = "vela-verify"
-version = "0.915.0"
+version = "0.915.1"
 dependencies = [
  "serde",
  "serde_json",

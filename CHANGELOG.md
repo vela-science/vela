@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.915.1 — 2026-07-24 — Align human and JSON strict-check verdicts
+
+- Make the ordinary `vela check --strict` renderer use the same verified
+  repository-context classification as `--json`.
+- Report exact Profile v1 proposal identities retained at an independently
+  pinned signed boundary as `anchored_immutable_unauthenticated` audit facts
+  in both output modes.
+- Continue to fail closed for every unanchored, added, altered, native
+  Profile v1, legacy v0.1, or invalid-boundary proposal-ID conflict.
+- Fix the real Formal Conjectures CI path without changing any event,
+  proposal, reducer, scientific root, or authority rule.
+
 ## v0.915.0 — 2026-07-24 — Authenticate exact historical dependency states
 
 - Accept ADR 0018 and allow an existing
