@@ -5,11 +5,11 @@
 //! become producer offers; it does not rank domain work or grant authority.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::Read;
+use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Component, Path, PathBuf};
 #[cfg(test)]
 use std::process::Command;
-use std::process::Output;
+use std::process::{Output, Stdio};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -46,6 +46,8 @@ pub const TARGET_INDEX_MAX_TARGETS: usize = 16_384;
 pub const TARGET_INDEX_MAX_LABELS: usize = 64;
 pub const EXTERNAL_TARGET_ID_MAX_BYTES: usize = 256;
 const JSON_SAFE_INTEGER_MAX: u64 = 9_007_199_254_740_991;
+const SOURCE_VIEW_BLOB_MAX_BYTES: u64 = 64 * 1024 * 1024;
+const SOURCE_VIEW_TOTAL_MAX_BYTES: u64 = 1024 * 1024 * 1024;
 
 pub const CODE_SCHEMA_INVALID: &str = "target_index_schema_invalid";
 pub const CODE_FRONTIER_MISMATCH: &str = "target_index_frontier_mismatch";
@@ -1557,6 +1559,147 @@ fn blob(repo: &Path, entry: &GitTreeEntry) -> Result<Vec<u8>, String> {
         .map_err(|error| format!("read Git blob {}: {error}", entry.path))
 }
 
+/// Read an ordered set of exact Git blobs through one hardened `cat-file`
+/// process.
+///
+/// Source-frontier materialization previously spawned one Git process per
+/// `.vela` file. A real 2,189-event frontier therefore took minutes merely to
+/// reconstruct one anchored view. `--batch` preserves the same exact object-ID
+/// boundary while keeping process count constant.
+fn batch_blobs(repo: &Path, entries: &[&GitTreeEntry]) -> Result<Vec<Vec<u8>>, String> {
+    if entries.is_empty() {
+        return Ok(Vec::new());
+    }
+    for entry in entries {
+        if entry.kind != "blob"
+            || !matches!(entry.object.len(), 40 | 64)
+            || !entry
+                .object
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        {
+            return Err(format!(
+                "tracked path {} does not name an exact regular Git blob",
+                entry.path
+            ));
+        }
+    }
+
+    let mut child = super::git_read::hardened_command(repo, "target-index Git repository")?
+        .args(["cat-file", "--batch"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| format!("start batched Git blob reader: {error}"))?;
+    let mut stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| "batched Git blob reader has no stdin".to_string())?;
+    let requests = entries
+        .iter()
+        .map(|entry| (entry.object.clone(), entry.path.clone()))
+        .collect::<Vec<_>>();
+    let writer = std::thread::spawn(move || {
+        for (object, path) in requests {
+            writeln!(stdin, "{object}")
+                .map_err(|error| format!("request Git blob {path}: {error}"))?;
+        }
+        Ok::<_, String>(())
+    });
+
+    let stdout = match child.stdout.take() {
+        Some(stdout) => stdout,
+        None => {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err("batched Git blob reader has no stdout".to_string());
+        }
+    };
+    let mut reader = BufReader::new(stdout);
+    let mut parsed = (|| {
+        let mut blobs = Vec::with_capacity(entries.len());
+        let mut total = 0_u64;
+        for entry in entries {
+            let mut header = String::new();
+            reader
+                .read_line(&mut header)
+                .map_err(|error| format!("read Git blob header for {}: {error}", entry.path))?;
+            let fields = header.split_whitespace().collect::<Vec<_>>();
+            if fields.len() != 3 || fields[0] != entry.object || fields[1] != "blob" {
+                return Err(format!(
+                    "Git blob header for {} did not match the requested object",
+                    entry.path
+                ));
+            }
+            let size = fields[2]
+                .parse::<u64>()
+                .map_err(|error| format!("parse Git blob size for {}: {error}", entry.path))?;
+            if size > SOURCE_VIEW_BLOB_MAX_BYTES {
+                return Err(format!(
+                    "source Git blob {} is {size} bytes; limit is {SOURCE_VIEW_BLOB_MAX_BYTES}",
+                    entry.path
+                ));
+            }
+            total = total
+                .checked_add(size)
+                .ok_or_else(|| "source Git blob bytes overflowed u64".to_string())?;
+            if total > SOURCE_VIEW_TOTAL_MAX_BYTES {
+                return Err(format!(
+                    "source Frontier view exceeds {SOURCE_VIEW_TOTAL_MAX_BYTES} bytes"
+                ));
+            }
+            let length = usize::try_from(size)
+                .map_err(|_| format!("Git blob {} does not fit in memory", entry.path))?;
+            let mut bytes = vec![0_u8; length];
+            reader
+                .read_exact(&mut bytes)
+                .map_err(|error| format!("read Git blob {}: {error}", entry.path))?;
+            let mut terminator = [0_u8; 1];
+            reader
+                .read_exact(&mut terminator)
+                .map_err(|error| format!("read Git blob terminator for {}: {error}", entry.path))?;
+            if terminator[0] != b'\n' {
+                return Err(format!(
+                    "Git blob {} has an invalid batch terminator",
+                    entry.path
+                ));
+            }
+            blobs.push(bytes);
+        }
+        Ok(blobs)
+    })();
+    if parsed.is_err() {
+        let _ = child.kill();
+    }
+    let writer_result = writer
+        .join()
+        .map_err(|_| "batched Git blob request writer panicked".to_string())?;
+    if let Err(error) = writer_result {
+        if parsed.is_ok() {
+            parsed = Err(error);
+        }
+        let _ = child.kill();
+    }
+    let mut stderr = String::new();
+    if let Some(mut stream) = child.stderr.take() {
+        stream
+            .read_to_string(&mut stderr)
+            .map_err(|error| format!("read batched Git blob error output: {error}"))?;
+    }
+    let status = child
+        .wait()
+        .map_err(|error| format!("wait for batched Git blob reader: {error}"))?;
+    if !status.success() {
+        return Err(if stderr.trim().is_empty() {
+            format!("batched Git blob reader failed with {status}")
+        } else {
+            stderr.trim().to_string()
+        });
+    }
+    parsed
+}
+
 fn repository_object_format(repo: &Path) -> Result<GitObjectFormat, String> {
     match git_text(repo, &["rev-parse", "--show-object-format"])?.as_str() {
         "sha1" => Ok(GitObjectFormat::Sha1),
@@ -1799,12 +1942,14 @@ fn materialize_project_only_at_commit(
     commit: &str,
 ) -> Result<(tempfile::TempDir, Project), String> {
     let entries = tree_entries(repo_path, commit)?;
-    let temporary =
-        tempfile::tempdir().map_err(|error| format!("create target-index source view: {error}"))?;
-    for entry in entries
+    let project_entries = entries
         .iter()
         .filter(|entry| entry.path == "frontier.yaml" || entry.path.starts_with(".vela/"))
-    {
+        .collect::<Vec<_>>();
+    let blobs = batch_blobs(repo_path, &project_entries)?;
+    let temporary =
+        tempfile::tempdir().map_err(|error| format!("create target-index source view: {error}"))?;
+    for (entry, bytes) in project_entries.into_iter().zip(blobs) {
         if !matches!(entry.mode.as_str(), "100644" | "100755") || entry.kind != "blob" {
             return Err(format!(
                 "source project input {} must be a tracked regular file",
@@ -1817,7 +1962,7 @@ fn materialize_project_only_at_commit(
             .ok_or_else(|| format!("source path {} has no parent", entry.path))?;
         std::fs::create_dir_all(parent)
             .map_err(|error| format!("create source path {}: {error}", parent.display()))?;
-        std::fs::write(&target, blob(repo_path, entry)?)
+        std::fs::write(&target, bytes)
             .map_err(|error| format!("write source path {}: {error}", target.display()))?;
     }
     let project = repo::load_from_path(temporary.path())
@@ -3881,6 +4026,45 @@ mod tests {
             project,
             index,
         }
+    }
+
+    #[test]
+    fn source_materialization_batches_exact_git_blobs() {
+        let fixture = git_fixture();
+        let entries =
+            tree_entries(fixture.directory.path(), &fixture.index.source.git_commit).unwrap();
+        let project_entries = entries
+            .iter()
+            .filter(|entry| entry.path == "frontier.yaml" || entry.path.starts_with(".vela/"))
+            .collect::<Vec<_>>();
+        let batched = batch_blobs(fixture.directory.path(), &project_entries).unwrap();
+        assert_eq!(batched.len(), project_entries.len());
+        for (entry, bytes) in project_entries.iter().zip(&batched) {
+            assert_eq!(*bytes, blob(fixture.directory.path(), entry).unwrap());
+        }
+        let repeated = vec![project_entries[0]; 4_096];
+        let repeated_bytes = batch_blobs(fixture.directory.path(), &repeated).unwrap();
+        assert_eq!(repeated_bytes.len(), repeated.len());
+        assert!(
+            repeated_bytes
+                .iter()
+                .all(|bytes| bytes == &repeated_bytes[0])
+        );
+
+        let (_view, materialized) = materialize_project_only_at_commit(
+            fixture.directory.path(),
+            &fixture.index.source.git_commit,
+        )
+        .unwrap();
+        assert_eq!(materialized.frontier_id(), fixture.project.frontier_id());
+        assert_eq!(
+            events::event_log_hash(&materialized.events),
+            events::event_log_hash(&fixture.project.events)
+        );
+        assert_eq!(
+            proposals::proposal_state_hash(&materialized.proposals),
+            proposals::proposal_state_hash(&fixture.project.proposals)
+        );
     }
 
     fn replacement_seal_plan(fixture: &GitFixture) -> TargetIndexSealPlan {
