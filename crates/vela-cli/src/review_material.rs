@@ -119,6 +119,54 @@ pub(crate) struct ReviewPage {
     pub(crate) receipts_opened: usize,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) enum ReviewInspection {
+    Pending(vela_edge::decision_brief::ReviewSnapshot),
+    Terminal(TerminalReviewRecord),
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct TerminalReviewRecord {
+    pub(crate) record_type: &'static str,
+    pub(crate) standing: String,
+    pub(crate) proposal: TerminalProposalRecord,
+    pub(crate) decision: TerminalDecisionRecord,
+    pub(crate) event_log_root: String,
+    pub(crate) proposal_state_root: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct TerminalProposalRecord {
+    pub(crate) id: String,
+    pub(crate) decision_bound_root: String,
+    pub(crate) current_record_root: String,
+    pub(crate) kind: String,
+    pub(crate) target_type: String,
+    pub(crate) target_id: String,
+    pub(crate) actor: String,
+    pub(crate) created_at: String,
+    pub(crate) claim: Option<String>,
+    pub(crate) receipt_root: Option<String>,
+    pub(crate) artifact_roots: Vec<String>,
+    pub(crate) caveats: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct TerminalDecisionRecord {
+    pub(crate) event_id: String,
+    pub(crate) event_root: String,
+    pub(crate) kind: String,
+    pub(crate) actor: String,
+    pub(crate) recorded_at: String,
+    pub(crate) reason: String,
+    pub(crate) before_scientific_root: String,
+    pub(crate) after_scientific_root: String,
+    pub(crate) scientific_state_changed: bool,
+    pub(crate) signature: &'static str,
+    pub(crate) applied_event_id: Option<String>,
+    pub(crate) decision_input_refs: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub(crate) enum ReviewPressureProjection {
@@ -263,6 +311,52 @@ impl LoadedReceipt {
 pub(crate) struct ReviewProjection;
 
 impl ReviewProjection {
+    /// Inspect one proposal without widening the decision seam.
+    ///
+    /// Pending proposals retain the exact Decision Brief projection used by
+    /// `review preview` and protected decisions. Terminal proposals instead
+    /// return a compact, read-only record reconstructed from the canonical
+    /// proposal and its exact signed decision event.
+    pub(crate) fn inspect(
+        frontier: &Path,
+        proposal_id: &str,
+    ) -> Result<ReviewInspection, ReviewProjectionError> {
+        let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier)
+            .map_err(|error| ReviewProjectionError::new("frontier_unavailable", error))?;
+        crate::frontier_txn::FrontierTxn::verify_recovery_barrier_read_only(frontier, &journal_dir)
+            .map_err(review_barrier_error)?;
+        let project = vela_protocol::repo::load_from_path(frontier)
+            .map_err(|error| ReviewProjectionError::new("frontier_invalid", error))?;
+        let proposal = project
+            .proposals
+            .iter()
+            .find(|proposal| proposal.id == proposal_id)
+            .ok_or_else(|| {
+                ReviewProjectionError::new(
+                    "proposal_not_found",
+                    format!("proposal {proposal_id} was not found"),
+                )
+            })?;
+        let expected_id = vela_protocol::proposals::proposal_id(proposal);
+        if proposal.id != expected_id {
+            return Err(ReviewProjectionError::new(
+                "proposal_id_mismatch",
+                format!("stored proposal {} rederives as {expected_id}", proposal.id),
+            ));
+        }
+
+        let inspection = if proposal.status == "pending_review"
+            && proposal.applied_event_id.is_none()
+        {
+            ReviewInspection::Pending(Self::one(frontier, proposal_id)?)
+        } else {
+            ReviewInspection::Terminal(build_terminal_review_record(frontier, &project, proposal)?)
+        };
+        crate::frontier_txn::FrontierTxn::verify_recovery_barrier_read_only(frontier, &journal_dir)
+            .map_err(review_barrier_error)?;
+        Ok(inspection)
+    }
+
     pub(crate) fn page(
         frontier: &Path,
         request: ReviewRequest,
@@ -613,6 +707,218 @@ impl ReviewProjection {
             items,
         })
     }
+}
+
+fn build_terminal_review_record(
+    frontier: &Path,
+    project: &Project,
+    proposal: &StateProposal,
+) -> Result<TerminalReviewRecord, ReviewProjectionError> {
+    let parity = vela_protocol::proposals::verify_proposal_decision_parity(project);
+    if !parity.is_empty() {
+        return Err(ReviewProjectionError::new(
+            "decision_parity_invalid",
+            parity.join("; "),
+        ));
+    }
+    let derived = vela_protocol::proposals::proposal_status_from_log(
+        project,
+        &proposal.id,
+        proposal.applied_event_id.as_deref(),
+    )
+    .ok_or_else(|| {
+        ReviewProjectionError::new(
+            "terminal_decision_missing",
+            format!(
+                "terminal proposal {} has no canonical decision event",
+                proposal.id
+            ),
+        )
+    })?;
+    if derived.status != proposal.status {
+        return Err(ReviewProjectionError::new(
+            "decision_standing_mismatch",
+            format!(
+                "proposal {} is stored {} but the event log derives {}",
+                proposal.id, proposal.status, derived.status
+            ),
+        ));
+    }
+    let decision_event_id = derived
+        .review_event_id
+        .as_deref()
+        .or(derived.applied_event_id.as_deref())
+        .ok_or_else(|| {
+            ReviewProjectionError::new(
+                "terminal_decision_missing",
+                format!("proposal {} has no exact terminal event id", proposal.id),
+            )
+        })?;
+    let mut matches = project
+        .events
+        .iter()
+        .filter(|event| event.id == decision_event_id);
+    let event = matches.next().ok_or_else(|| {
+        ReviewProjectionError::new(
+            "terminal_decision_missing",
+            format!("decision event {decision_event_id} was not found"),
+        )
+    })?;
+    if matches.next().is_some() {
+        return Err(ReviewProjectionError::new(
+            "terminal_decision_ambiguous",
+            format!("decision event {decision_event_id} occurs more than once"),
+        ));
+    }
+    if vela_protocol::events::compute_event_id(event) != event.id {
+        return Err(ReviewProjectionError::new(
+            "decision_event_id_mismatch",
+            format!("decision event {} does not rederive", event.id),
+        ));
+    }
+
+    match event.kind.as_str() {
+        vela_protocol::events::EVENT_KIND_REVIEW_ACCEPTED
+        | vela_protocol::events::EVENT_KIND_REVIEW_REJECTED
+        | vela_protocol::events::EVENT_KIND_REVIEW_REVISION_REQUESTED => {
+            let actor = vela_protocol::proposals::validate_human_reviewer_authority_at(
+                project,
+                &event.actor.id,
+                &event.timestamp,
+            )
+            .map_err(|error| ReviewProjectionError::new("decision_authority_invalid", error))?;
+            let valid = vela_protocol::sign::verify_event_signature(event, &actor.public_key)
+                .map_err(|error| ReviewProjectionError::new("decision_signature_invalid", error))?;
+            if !valid {
+                return Err(ReviewProjectionError::new(
+                    "decision_signature_invalid",
+                    format!("decision event {} signature does not verify", event.id),
+                ));
+            }
+        }
+        vela_protocol::events::EVENT_KIND_PROPOSAL_WITHDRAWN => {
+            vela_protocol::proposals::verify_proposal_withdrawal_event(frontier, project, event)
+                .map_err(|error| {
+                    ReviewProjectionError::new("withdrawal_signature_invalid", error)
+                })?;
+        }
+        _ if derived.review_event_id.is_none()
+            && derived.applied_event_id.as_deref() == Some(event.id.as_str()) => {}
+        other => {
+            return Err(ReviewProjectionError::new(
+                "terminal_decision_kind_invalid",
+                format!("event {} has unsupported terminal kind {other}", event.id),
+            ));
+        }
+    }
+
+    let current_record_root = format!(
+        "sha256:{}",
+        vela_protocol::canonical::sha256_canonical(proposal)
+            .map_err(|error| ReviewProjectionError::new("proposal_root_failed", error))?
+    );
+    let mut pending_proposal = proposal.clone();
+    pending_proposal.status = "pending_review".to_string();
+    pending_proposal.reviewed_by = None;
+    pending_proposal.reviewed_at = None;
+    pending_proposal.decision_reason = None;
+    pending_proposal.applied_event_id = None;
+    let decision_bound_root = format!(
+        "sha256:{}",
+        vela_protocol::canonical::sha256_canonical(&pending_proposal)
+            .map_err(|error| ReviewProjectionError::new("proposal_root_failed", error))?
+    );
+    let event_root = format!(
+        "sha256:{}",
+        vela_protocol::canonical::sha256_canonical(event)
+            .map_err(|error| ReviewProjectionError::new("decision_root_failed", error))?
+    );
+    let claim = proposal
+        .payload
+        .pointer("/finding/assertion/text")
+        .or_else(|| proposal.payload.pointer("/claim/text"))
+        .or_else(|| proposal.payload.get("claim"))
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_string);
+    let receipt_root = proposal
+        .payload
+        .pointer("/vela_submission/receipt_root")
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_string);
+    let mut artifact_roots = proposal
+        .payload
+        .pointer("/finding/evidence/evidence_spans")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|span| {
+            span.get("artifact_sha256")
+                .and_then(serde_json::Value::as_str)
+        })
+        .map(|root| {
+            if root.starts_with("sha256:") {
+                root.to_string()
+            } else {
+                format!("sha256:{root}")
+            }
+        })
+        .collect::<Vec<_>>();
+    artifact_roots.sort();
+    artifact_roots.dedup();
+    let decision_input_refs = event
+        .payload
+        .pointer("/provenance/input_refs")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(serde_json::Value::as_str)
+        .map(str::to_string)
+        .collect();
+
+    Ok(TerminalReviewRecord {
+        record_type: "terminal_decision",
+        standing: proposal.status.clone(),
+        proposal: TerminalProposalRecord {
+            id: proposal.id.clone(),
+            decision_bound_root,
+            current_record_root,
+            kind: proposal.kind.clone(),
+            target_type: proposal.target.r#type.clone(),
+            target_id: proposal.target.id.clone(),
+            actor: proposal.actor.id.clone(),
+            created_at: proposal.created_at.clone(),
+            claim,
+            receipt_root,
+            artifact_roots,
+            caveats: proposal.caveats.clone(),
+        },
+        decision: TerminalDecisionRecord {
+            event_id: event.id.clone(),
+            event_root,
+            kind: event.kind.as_str().to_string(),
+            actor: event.actor.id.clone(),
+            recorded_at: event.timestamp.clone(),
+            reason: event.reason.clone(),
+            before_scientific_root: event.before_hash.clone(),
+            after_scientific_root: event.after_hash.clone(),
+            scientific_state_changed: event.before_hash != event.after_hash,
+            signature: if event.signature.is_some() {
+                "verified"
+            } else {
+                "historical_unavailable"
+            },
+            applied_event_id: derived.applied_event_id,
+            decision_input_refs,
+        },
+        event_log_root: format!(
+            "sha256:{}",
+            vela_protocol::events::event_log_hash(&project.events)
+        ),
+        proposal_state_root: format!(
+            "sha256:{}",
+            vela_protocol::proposals::proposal_state_hash(&project.proposals)
+        ),
+    })
 }
 
 /// Build the complete pending proposal catalog without touching retained
@@ -1418,6 +1724,74 @@ mod tests {
             .and_then(|entry| entry["eligibility"].as_str())
             .unwrap()
             .to_string()
+    }
+
+    #[test]
+    fn terminal_review_inspection_binds_signed_decision_and_zero_scientific_delta() {
+        let temp = initialized_review_frontier();
+        let mut project = vela_protocol::repo::load_from_path(temp.path()).unwrap();
+        let proposal = pending_with_missing_receipt(7);
+        let proposal_id = proposal.id.clone();
+        project.proposals.push(proposal);
+
+        let key = SigningKey::from_bytes(&[0x51; 32]);
+        let reviewer = "reviewer:terminal-inspection";
+        project.actors.push(ActorRecord {
+            id: reviewer.to_string(),
+            public_key: vela_protocol::sign::pubkey_hex(&key),
+            algorithm: "ed25519".to_string(),
+            created_at: "2026-07-12T00:00:00Z".to_string(),
+            tier: None,
+            orcid: None,
+            access_clearance: None,
+            revoked_at: None,
+            revoked_reason: None,
+        });
+        vela_protocol::proposals::prepare_proposal_reject_in_memory_at(
+            &mut project,
+            &proposal_id,
+            reviewer,
+            "Verifier success is evidence, not scientific acceptance.",
+            None,
+            "2026-07-13T01:00:00Z",
+        )
+        .unwrap();
+        let decision = project.events.last_mut().unwrap();
+        decision.signature = Some(vela_protocol::sign::sign_event(decision, &key).unwrap());
+        let decision_id = decision.id.clone();
+        vela_protocol::repo::save_to_path(temp.path(), &project).unwrap();
+
+        let inspection = ReviewProjection::inspect(temp.path(), &proposal_id).unwrap();
+        let ReviewInspection::Terminal(record) = inspection else {
+            panic!("rejected proposal must render as a terminal review record");
+        };
+        assert_eq!(record.standing, "rejected");
+        assert_eq!(record.proposal.id, proposal_id);
+        assert_eq!(record.decision.event_id, decision_id);
+        assert_eq!(record.decision.kind, "review.rejected");
+        assert_eq!(record.decision.signature, "verified");
+        assert!(!record.decision.scientific_state_changed);
+        assert_eq!(record.decision.before_scientific_root, "sha256:null");
+        assert_eq!(record.decision.after_scientific_root, "sha256:null");
+        assert!(record.proposal.receipt_root.is_some());
+        assert!(record.proposal.decision_bound_root.starts_with("sha256:"));
+        assert!(record.proposal.current_record_root.starts_with("sha256:"));
+        assert_ne!(
+            record.proposal.decision_bound_root,
+            record.proposal.current_record_root
+        );
+        assert!(record.decision.event_root.starts_with("sha256:"));
+
+        let mut tampered = vela_protocol::repo::load_from_path(temp.path()).unwrap();
+        tampered
+            .events
+            .iter_mut()
+            .find(|event| event.id == decision_id)
+            .unwrap()
+            .signature = Some(format!("v1:{}", "0".repeat(128)));
+        vela_protocol::repo::save_to_path(temp.path(), &tampered).unwrap();
+        let error = ReviewProjection::inspect(temp.path(), &proposal_id).unwrap_err();
+        assert_eq!(error.code, "decision_signature_invalid");
     }
 
     #[test]

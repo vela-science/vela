@@ -69,7 +69,8 @@ The echoed time is valid for 15 minutes (with 60 seconds of future clock skew);
 after that, render a fresh preview.
 
 SEE ALSO
-  vela review preview · show    inspect pending proposal bytes";
+  vela review preview           inspect pending proposal decision material
+  vela review show              inspect a pending or terminal proposal";
 
 pub const STATUS: &str = "\
 EXAMPLES
@@ -79,7 +80,7 @@ EXAMPLES
 pub const REVIEW: &str = "\
 EXAMPLES
   vela review list . --json           compact pending queue
-  vela review show . vpr_8b49… --json one exact Decision Brief
+  vela review show . vpr_8b49… --json one pending brief or terminal decision
   vela review preview . vpr_8b49…     read-only Decision Brief
   vela review decide . vpr_8b49… --reject --reason \"insufficient evidence\" --json
                                         key-free exact Decision Plan preview

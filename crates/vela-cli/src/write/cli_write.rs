@@ -194,28 +194,67 @@ pub(crate) fn cmd_review(action: ReviewAction) {
             proposal_id,
             json,
         } => {
-            let review = crate::review_material::ReviewProjection::one(&frontier, &proposal_id)
-                .unwrap_or_else(|error| fail_return(&error.to_string()));
-            let next_actions = proposal_next_actions(&frontier, &proposal_id);
-            let payload = json!({
-                "ok": true,
-                "command": "review.show",
-                "schema": "vela.review.v1",
-                "frontier": frontier.display().to_string(),
-                "proposal_id": proposal_id,
-                "review": review,
-                "next_actions": next_actions,
-            });
-            if json {
-                print_json(&payload);
-            } else {
-                println!("review · {proposal_id}");
-                for line in crate::cli::sign_session::render_decision_brief_lines(&review.brief) {
-                    println!("  {line}");
+            let inspection =
+                crate::review_material::ReviewProjection::inspect(&frontier, &proposal_id)
+                    .unwrap_or_else(|error| fail_return(&error.to_string()));
+            match inspection {
+                crate::review_material::ReviewInspection::Pending(review) => {
+                    let next_actions = proposal_next_actions(&frontier, &proposal_id);
+                    let payload = json!({
+                        "ok": true,
+                        "command": "review.show",
+                        "schema": "vela.review.v1",
+                        "frontier": frontier.display().to_string(),
+                        "proposal_id": proposal_id,
+                        "record_type": "decision_brief",
+                        "review": review,
+                        "next_actions": next_actions,
+                    });
+                    if json {
+                        print_json(&payload);
+                    } else {
+                        println!("review · {proposal_id} · pending");
+                        for line in
+                            crate::cli::sign_session::render_decision_brief_lines(&review.brief)
+                        {
+                            println!("  {line}");
+                        }
+                        println!("  next actions:");
+                        for action in &next_actions {
+                            println!("    {}", action["command"].as_str().unwrap_or(""));
+                        }
+                    }
                 }
-                println!("  next actions:");
-                for action in &next_actions {
-                    println!("    {}", action["command"].as_str().unwrap_or(""));
+                crate::review_material::ReviewInspection::Terminal(review) => {
+                    let payload = json!({
+                        "ok": true,
+                        "command": "review.show",
+                        "schema": "vela.review.v1",
+                        "frontier": frontier.display().to_string(),
+                        "proposal_id": proposal_id,
+                        "record_type": "terminal_decision",
+                        "review": review,
+                        "next_actions": [],
+                    });
+                    if json {
+                        print_json(&payload);
+                    } else {
+                        println!("review · {proposal_id} · {}", review.standing);
+                        if let Some(claim) = &review.proposal.claim {
+                            println!("  claim: {claim}");
+                        }
+                        println!(
+                            "  decision: {} · {} · {}",
+                            review.decision.kind,
+                            review.decision.event_id,
+                            review.decision.signature
+                        );
+                        println!("  reason: {}", review.decision.reason);
+                        println!(
+                            "  scientific state changed: {}",
+                            review.decision.scientific_state_changed
+                        );
+                    }
                 }
             }
         }

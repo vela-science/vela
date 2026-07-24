@@ -1172,7 +1172,7 @@ pub(crate) enum ReviewAction {
         #[arg(long)]
         json: bool,
     },
-    /// Show one exact Decision Brief.
+    /// Show one pending Decision Brief or one exact terminal decision record.
     Show {
         frontier: PathBuf,
         proposal_id: String,
