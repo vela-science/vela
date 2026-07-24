@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Add a source-local, non-normative task-authority hostile experiment over the
+  released Canopus `0.6.3`, Vela `0.915.1`, and Codex `0.145.0` composition.
+  The current Mission v1 boundary detects three of eight frozen hostiles; an
+  additional operational packet detects all eight while retaining zero
+  scientific, authority, or standing effect. The experiment is intentionally
+  excluded from the npm package and promotes no Vela protocol object.
+
 ## 0.6.3 - 2026-07-24
 
 - Restore exact composition with released Vela `0.914.1` after Canopus

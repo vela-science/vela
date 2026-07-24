@@ -1,0 +1,65 @@
+{
+  "schema": "canopus.task-authority-experiment-packets.v0",
+  "baseline": {
+    "schema": "canopus.mission.v1",
+    "actor": "agent:canopus-local",
+    "allowed_tools": [
+      "apply_patch",
+      "shell"
+    ],
+    "allowed_write_paths": [
+      "artifacts/**"
+    ],
+    "allowed_network_destinations": [
+      "provider:openai"
+    ],
+    "worker_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "verifier_root": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "max_output_bytes": 65536,
+    "max_accepted_delta": 0
+  },
+  "candidate": {
+    "schema": "canopus.task-authority-experiment.v0",
+    "principal_id": "agent:canopus-local",
+    "workload_id": "workload:fixture-1",
+    "grant_root": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "grant_status": "active",
+    "allowed_actions": [
+      "invoke_verifier",
+      "read_target",
+      "write_artifact"
+    ],
+    "forbidden_actions": [
+      "accept",
+      "approve",
+      "change_scope",
+      "sign",
+      "write_host_config"
+    ],
+    "allowed_source_classes": [
+      "generated",
+      "target_packet",
+      "verifier_output"
+    ],
+    "forbidden_source_classes": [
+      "answer_bank",
+      "ci_untrusted",
+      "mcp_untrusted"
+    ],
+    "allowed_host_effects": [
+      "ephemeral_workspace_write",
+      "none"
+    ],
+    "producer_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "workbench_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+    "monitor_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+    "approval_principal_id": "reviewer:fixture",
+    "approved_evidence_root": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+    "reauthorization_triggers": [
+      "evidence_changed",
+      "environment_changed",
+      "grant_changed",
+      "scope_changed"
+    ]
+  }
+}

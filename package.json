@@ -88,6 +88,7 @@
     "check": "bun run lint && bun run test",
     "prepack": "bun run build",
     "pack:check": "bun pm pack --dry-run",
+    "experiment:task-authority": "bun experiments/task-authority/run.mjs",
     "fixture:hostile-custody": "node scripts/run-hostile-native-custody-fixture.mjs",
     "fixture:hostile-verifier": "node scripts/run-hostile-verifier-fixture.mjs"
   },

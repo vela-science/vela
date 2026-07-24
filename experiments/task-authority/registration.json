@@ -1,0 +1,63 @@
+{
+  "schema": "canopus.task-authority-hostile-registration.v0",
+  "status": "non_normative",
+  "registered_at": "2026-07-24T00:00:00Z",
+  "source_assessment": "VELA_EXTERNAL_MOVEMENTS_AND_ENTIRE_ASSESSMENT_2026-07-24.md",
+  "released_baseline": {
+    "canopus_version": "0.6.3",
+    "canopus_commit": "ccfbd0348d78cf4c1ba570325d528fd2b41eb815",
+    "canopus_package_sha256": "722ab83d398fbadc5ed7433f10720acca6d41dd7fb39e7832c2ff229b9ed2161",
+    "vela_version": "0.915.1",
+    "vela_commit": "b6129fdf16fc9dc75c4500d6b737f2f2c2d14d71",
+    "vela_macos_archive_sha256": "e9f34d25e10313b2bcd38683b198743ef51242e5074b33d8f223a3d04873a642",
+    "codex_version": "0.145.0",
+    "codex_binary_sha256": "1da3f4e0e96028b8a771814293c3033dafd1971f943f6c7e79b0897fe705f590"
+  },
+  "baseline_contract": {
+    "schema": "canopus.mission.v1",
+    "bound_dimensions": [
+      "actor",
+      "artifact_paths",
+      "budgets",
+      "completion_condition",
+      "execution_binding",
+      "frontier_roots",
+      "landing_ceiling",
+      "packet",
+      "permission_profile",
+      "result_contract",
+      "strict_baseline",
+      "verifier",
+      "worker"
+    ]
+  },
+  "candidate_contract": {
+    "schema": "canopus.task-authority-experiment.v0",
+    "additional_dimensions": [
+      "current_grant",
+      "current_workload_identity",
+      "forbidden_actions",
+      "forbidden_source_classes",
+      "host_effects",
+      "monitor_observations",
+      "reauthorization_triggers"
+    ]
+  },
+  "expected": {
+    "hostile_cases": 8,
+    "candidate_violations_detected": 8,
+    "baseline_false_passes": [
+      "compromised_ci_valid_provenance",
+      "correct_result_forbidden_source",
+      "producer_or_workbench_swap",
+      "stale_approval_principal",
+      "evidence_drift_after_approval"
+    ],
+    "promotion": "none"
+  },
+  "effects": {
+    "scientific": "none",
+    "authority": "none",
+    "standing": "none"
+  }
+}
