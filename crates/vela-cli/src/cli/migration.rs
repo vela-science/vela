@@ -2327,6 +2327,15 @@ mod tests {
                 .writes
                 .contains_key(&format!(".vela/events/{}.json", event.id))
         );
+        let frontier_projection: serde_json::Value =
+            serde_json::from_slice(&delta.writes["frontier.json"]).unwrap();
+        assert_eq!(
+            frontier_projection["_meta"]["schema"],
+            "vela.frontier_state_meta.v1"
+        );
+        let proof_projection: serde_json::Value =
+            serde_json::from_slice(&delta.writes["proof/latest.json"]).unwrap();
+        assert_eq!(proof_projection["schema"], "vela.frontier_repo_proof.v1");
         assert_eq!(delta.deletes, vec![".vela/config.toml"]);
         assert!(delta.signed_canonical_store_root.starts_with("sha256:"));
 

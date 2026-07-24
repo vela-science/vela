@@ -1091,7 +1091,12 @@ fn render_visible_repo_files_inner(
     let mut files = VisibleRepoFiles::new();
     files.insert(
         "frontier.json".to_string(),
-        render_visible_state(path, project, &generated_at)?,
+        render_visible_state(
+            path,
+            project,
+            &generated_at,
+            migration_profile.map(|(profile, _)| profile),
+        )?,
     );
     let manifest = match migration_profile {
         Some((_, bytes)) => bytes.to_vec(),
@@ -1111,7 +1116,12 @@ fn render_visible_repo_files_inner(
     };
     files.insert("frontier.yaml".to_string(), manifest);
 
-    let rendered_proof = render_proof(path, project, &generated_at)?;
+    let rendered_proof = render_proof(
+        path,
+        project,
+        &generated_at,
+        migration_profile.map(|(profile, _)| profile),
+    )?;
     files.extend(
         rendered_proof
             .files
@@ -1673,8 +1683,12 @@ fn validate_v1_layout(
         ));
         return;
     }
-    let expected_visible =
-        render_visible_state(path, project, &materialization_generated_at(path, project));
+    let expected_visible = render_visible_state(
+        path,
+        project,
+        &materialization_generated_at(path, project),
+        None,
+    );
     match (fs::read(&visible_path), expected_visible) {
         (Ok(actual), Ok(expected)) if actual == expected => {}
         (Ok(_), Ok(_)) => issues.push(issue(
@@ -1842,7 +1856,7 @@ fn empty_project(name: &str, description: &str, compiled_at: &str) -> Project {
 }
 
 fn write_visible_state(path: &Path, project: &Project, generated_at: &str) -> Result<(), String> {
-    let bytes = render_visible_state(path, project, generated_at)?;
+    let bytes = render_visible_state(path, project, generated_at, None)?;
     fs::write(path.join("frontier.json"), bytes)
         .map_err(|e| format!("Failed to write frontier.json: {e}"))
 }
@@ -1851,6 +1865,7 @@ fn render_visible_state(
     path: &Path,
     project: &Project,
     generated_at: &str,
+    profile_override: Option<&FrontierProfileV1>,
 ) -> Result<Vec<u8>, String> {
     let visible = project_with_frontier_id(project)?;
     let snapshot_hash = prefixed(events::snapshot_hash(&visible));
@@ -1865,8 +1880,15 @@ fn render_visible_state(
                     .to_string(),
             ),
         );
-        let metadata = match read_repository_profile(path)? {
-            Some(FrontierProfileFile::V1(profile)) => {
+        let profile = match profile_override {
+            Some(profile) => Some(profile.clone()),
+            None => match read_repository_profile(path)? {
+                Some(FrontierProfileFile::V1(profile)) => Some(profile),
+                _ => None,
+            },
+        };
+        let metadata = match profile {
+            Some(profile) => {
                 let projection = profile.project(&visible)?;
                 json!({
                     "schema": "vela.frontier_state_meta.v1",
@@ -2249,7 +2271,7 @@ fn write_scope_v1(path: &Path, scope: &str) -> Result<(), String> {
 }
 
 fn write_proof(path: &Path, project: &Project, generated_at: &str) -> Result<ProofWrite, String> {
-    let rendered = render_proof(path, project, generated_at)?;
+    let rendered = render_proof(path, project, generated_at, None)?;
     let proof_dir = path.join("proof");
     fs::create_dir_all(&proof_dir).map_err(|e| format!("Failed to create proof/: {e}"))?;
     for (relative_path, bytes) in &rendered.files {
@@ -2263,6 +2285,7 @@ fn render_proof(
     path: &Path,
     project: &Project,
     generated_at: &str,
+    profile_override: Option<&FrontierProfileV1>,
 ) -> Result<RenderedProof, String> {
     let locked = project_with_frontier_id(project)?;
     let proof_dir = path.join("proof");
@@ -2277,9 +2300,12 @@ fn render_proof(
     // materialize after a real change still regenerates in full.
     let event_log_hash = prefixed(events::event_log_hash(&locked.events));
     let snapshot_hash = prefixed(events::snapshot_hash(&locked));
-    let profile_projection = match read_repository_profile(path)? {
-        Some(FrontierProfileFile::V1(profile)) => Some(profile.project(&locked)?),
-        _ => None,
+    let profile_projection = match profile_override {
+        Some(profile) => Some(profile.project(&locked)?),
+        None => match read_repository_profile(path)? {
+            Some(FrontierProfileFile::V1(profile)) => Some(profile.project(&locked)?),
+            _ => None,
+        },
     };
     let (event_root_field, state_root_field, state_root) = match &profile_projection {
         Some(projection) => (
