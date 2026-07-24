@@ -16,6 +16,10 @@ pub(crate) use atlas::decl_graph;
 // disposable-frontier and migration gates in ADR 0020 pass.
 #[allow(dead_code)]
 pub(crate) mod authority_transaction;
+// One CLI-unreachable sequence-1 bridge installs the exact migration event,
+// initial keyset, policy bundle, and covering repository-authority record.
+#[allow(dead_code)]
+pub(crate) mod authority_migration;
 mod bounded_file;
 #[allow(dead_code)]
 pub(crate) mod decision_plan;

@@ -40,7 +40,7 @@ from pathlib import Path
 
 
 AUTHORITY_HISTORY_FIXTURE_ROOT = (
-    "sha256:d0f09ebfa3025bb453346b1cb02989ae75c772748180995c052ee62a50bdb16e"
+    "sha256:0ea499907d6d54a9183bd2be177b639e9244ebeb1265beb23387b4c1aa043c3e"
 )
 AUTHORITY_RECORD_PAYLOAD_TYPE = "application/vnd.vela.authority-record.v1+json"
 EVENT_PAYLOAD_TYPE = "application/vnd.vela.event+json"
@@ -967,11 +967,13 @@ def _verify_authority_history_fixture(fixture: dict) -> dict:
             raise ValueError("authority record repeats an event ID")
 
         if sequence == 1:
+            migration_intent = _sha256_canonical(migration_event)
             if (
                 content["transaction_id"] == ""
                 or event_ids != [migration_event["id"]]
                 or content["after_event_log_root"] != legacy_root_with_bridge
                 or content["principal"]["principal_id"] != migration["new_principal_id"]
+                or content["intent_digest"] != migration_intent
             ):
                 raise ValueError("authority record 1 does not exactly cover the migration")
             approvals = content["semantic_approvals"]
@@ -983,7 +985,32 @@ def _verify_authority_history_fixture(fixture: dict) -> dict:
                 for approval in approvals
             ):
                 raise ValueError("authority record 1 lacks the exact semantic approval")
-            expected_objects = {migration_event["id"]: _sha256_canonical(migration_event)}
+            expected_deltas = [
+                {
+                    "path": f".vela/events/{migration_event['id']}.json",
+                    "before_root": None,
+                    "after_root": migration_intent,
+                    "object_kind": "event",
+                },
+                {
+                    "path": (
+                        ".vela/authority/keysets/"
+                        f"{keyset_root.removeprefix('sha256:')}.json"
+                    ),
+                    "before_root": None,
+                    "after_root": keyset_root,
+                    "object_kind": "authority_keyset",
+                },
+                {
+                    "path": (
+                        ".vela/authority/policies/"
+                        f"{bundle_root.removeprefix('sha256:')}.json"
+                    ),
+                    "before_root": None,
+                    "after_root": bundle_root,
+                    "object_kind": "policy_bundle",
+                },
+            ]
             current_event_root = legacy_root_with_bridge
         else:
             transaction_id = content["transaction_id"]
@@ -1006,28 +1033,23 @@ def _verify_authority_history_fixture(fixture: dict) -> dict:
             )
             if content["after_event_log_root"] != expected_after:
                 raise ValueError("authority record after-event root is invalid")
-            expected_objects = {
-                event_id: _authority_event_root(event_by_id[event_id])
+            expected_deltas = [
+                {
+                    "path": f".vela/authority/events/{event_id}.json",
+                    "before_root": None,
+                    "after_root": _authority_event_root(event_by_id[event_id]),
+                    "object_kind": "event",
+                }
                 for event_id in event_ids
-            }
+            ]
             current_event_root = expected_after
 
         deltas = content["object_delta"]
-        if len(deltas) != len(expected_objects):
+        if len(deltas) != len(expected_deltas):
             raise ValueError("authority record object delta has unexpected entries")
-        for event_id, event_root in expected_objects.items():
-            expected_delta = {
-                "path": (
-                    f".vela/events/{event_id}.json"
-                    if sequence == 1
-                    else f".vela/authority/events/{event_id}.json"
-                ),
-                "before_root": None,
-                "after_root": event_root,
-                "object_kind": "event",
-            }
+        for expected_delta in expected_deltas:
             if deltas.count(expected_delta) != 1:
-                raise ValueError("authority record lacks one exact event object delta")
+                raise ValueError("authority record lacks one exact object delta")
         previous_record_root = record_root
         final_record_root = record_root
 

@@ -584,9 +584,28 @@ Focused fixtures prove:
 This evidence does not accept the ADR, enable a live Era-1 writer, or migrate
 a Frontier.
 
+The CLI-unreachable sequence-1 candidate now implements the corresponding
+writer boundary. It verifies the already legacy-signed bridge against the
+exact held Era-0 history and initial manifests before runtime authentication
+or repository signing. It then prepares one recoverable transaction covering
+the bridge, initial full-root keyset, initial full-root policy bundle, and
+sequence-1 DSSE record. Cancellation, signer refusal, legacy-signature drift,
+runtime-policy byte substitution, and marker-time membership drift install no
+canonical postimage. A committed partial install recovers and exact retry
+requires neither another authentication nor another signature. The
+application-level machine-authority forbid list explicitly includes
+`authority_model_migrate`.
+
+This completes only the sequence-1 installation sub-gate. Rotation, emergency
+close, the full disposable Frontier drill, active migration, CLI exposure, and
+ADR acceptance remain open.
+
 Phase 1 now also has a committed
 `vela.authority-history-conformance.v1` vector at
-`sha256:d0f09ebfa3025bb453346b1cb02989ae75c772748180995c052ee62a50bdb16e`.
+`sha256:0ea499907d6d54a9183bd2be177b639e9244ebeb1265beb23387b4c1aa043c3e`.
+Sequence 1 binds the full canonical signed migration-event root as its semantic
+intent and contains exactly three initial object deltas: the bridge event, the
+initial authority keyset snapshot, and the initial restricted policy snapshot.
 The fixture was deliberately regenerated before any Era-1 writer release to
 place post-migration events under `.vela/authority/events/` rather than the
 legacy `StateEvent` directory.

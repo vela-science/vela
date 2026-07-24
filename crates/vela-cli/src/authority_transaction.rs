@@ -1171,22 +1171,22 @@ fn domain_root(domain: &[u8], value: &impl Serialize) -> Result<String, Authorit
     Ok(ContentDigest::hash(preimage).as_str().to_string())
 }
 
-fn authority_event_path(event_id: &str) -> String {
+pub(crate) fn authority_event_path(event_id: &str) -> String {
     format!(".vela/authority/events/{event_id}.json")
 }
 
-fn authority_record_path(record_id: &str) -> String {
+pub(crate) fn authority_record_path(record_id: &str) -> String {
     format!(".vela/authority/records/{record_id}.dsse.json")
 }
 
-fn authority_keyset_path(root: &str) -> Result<String, AuthorityTransactionError> {
+pub(crate) fn authority_keyset_path(root: &str) -> Result<String, AuthorityTransactionError> {
     Ok(format!(
         ".vela/authority/keysets/{}.json",
         authority_snapshot_stem(root)?
     ))
 }
 
-fn authority_policy_path(root: &str) -> Result<String, AuthorityTransactionError> {
+pub(crate) fn authority_policy_path(root: &str) -> Result<String, AuthorityTransactionError> {
     Ok(format!(
         ".vela/authority/policies/{}.json",
         authority_snapshot_stem(root)?
@@ -1547,6 +1547,9 @@ mod tests {
         };
         migration.id = compute_event_id(&migration);
         migration.signature = Some(sign_event(&migration, &legacy_key).unwrap());
+        let migration_intent = canonical_root(&migration);
+        let keyset_root = keyset.root().unwrap();
+        let policy_bundle_root = policy_bundle.root().unwrap();
         let legacy_events = vec![genesis, migration.clone()];
         for event in &legacy_events {
             fs::write(
@@ -1565,16 +1568,30 @@ mod tests {
             previous_authority_record_root: None,
             operation_id: "vop_migration".into(),
             transaction_id: "vtx_migration".into(),
-            intent_digest: root('e'),
+            intent_digest: migration_intent.clone(),
             before_event_log_root: legacy_root,
             after_event_log_root: legacy_root_with_bridge,
             event_ids: vec![migration.id.clone()],
-            object_delta: vec![ObjectDeltaV1 {
-                path: format!(".vela/events/{}.json", migration.id),
-                before_root: None,
-                after_root: Some(canonical_root(&migration)),
-                object_kind: "event".into(),
-            }],
+            object_delta: vec![
+                ObjectDeltaV1 {
+                    path: format!(".vela/events/{}.json", migration.id),
+                    before_root: None,
+                    after_root: Some(migration_intent.clone()),
+                    object_kind: "event".into(),
+                },
+                ObjectDeltaV1 {
+                    path: authority_keyset_path(&keyset_root).unwrap(),
+                    before_root: None,
+                    after_root: Some(keyset_root.clone()),
+                    object_kind: "authority_keyset".into(),
+                },
+                ObjectDeltaV1 {
+                    path: authority_policy_path(&policy_bundle_root).unwrap(),
+                    before_root: None,
+                    after_root: Some(policy_bundle_root.clone()),
+                    object_kind: "policy_bundle".into(),
+                },
+            ],
             principal: PrincipalSnapshotV1 {
                 principal_id: REPOSITORY_PRINCIPAL.into(),
                 principal_class: PrincipalClass::Human,
@@ -1621,7 +1638,7 @@ mod tests {
                 action: AUTHORITY_MIGRATION_ACTION.into(),
                 reason: migration_payload.reason,
                 approved_at: "2026-07-24T12:00:00Z".into(),
-                intent_digest: root('e'),
+                intent_digest: migration_intent,
             }],
             execution: ExecutionClaimV1 {
                 vela_version: "0.930.0-rc.1".into(),
@@ -1630,7 +1647,7 @@ mod tests {
                 transaction_write_set_root: root('0'),
                 completed_at: "2026-07-24T12:00:01Z".into(),
             },
-            authority_keyset_root: keyset.root().unwrap(),
+            authority_keyset_root: keyset_root.clone(),
             recorded_at: "2026-07-24T12:00:01Z".into(),
         })
         .unwrap();
@@ -1651,6 +1668,32 @@ mod tests {
         fs::write(
             root_path.join(authority_record_path(&first_record.record_id)),
             to_canonical_bytes(&first_envelope).unwrap(),
+        )
+        .unwrap();
+        let keyset_path = authority_keyset_path(&keyset_root).unwrap();
+        let policy_path = authority_policy_path(&policy_bundle_root).unwrap();
+        fs::create_dir_all(
+            root_path
+                .join(&keyset_path)
+                .parent()
+                .expect("keyset snapshot parent"),
+        )
+        .unwrap();
+        fs::create_dir_all(
+            root_path
+                .join(&policy_path)
+                .parent()
+                .expect("policy snapshot parent"),
+        )
+        .unwrap();
+        fs::write(
+            root_path.join(keyset_path),
+            to_canonical_bytes(&keyset).unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            root_path.join(policy_path),
+            to_canonical_bytes(&policy_bundle).unwrap(),
         )
         .unwrap();
 
@@ -1762,17 +1805,20 @@ mod tests {
         let record_count = fs::read_dir(fixture.temporary.path().join(".vela/authority/records"))
             .unwrap()
             .count();
-        let keysets_absent = !fixture
-            .temporary
-            .path()
-            .join(".vela/authority/keysets")
-            .exists();
-        let policies_absent = !fixture
-            .temporary
-            .path()
-            .join(".vela/authority/policies")
-            .exists();
-        events_absent && record_count == 1 && keysets_absent && policies_absent
+        let keyset_path =
+            authority_keyset_path(&fixture.request.history.authority_keyset.root().unwrap())
+                .unwrap();
+        let policy_path =
+            authority_policy_path(&fixture.request.history.policy_bundle.root().unwrap()).unwrap();
+        let keyset_unchanged =
+            fs::read(fixture.temporary.path().join(keyset_path)).is_ok_and(|bytes| {
+                bytes == to_canonical_bytes(&fixture.request.history.authority_keyset).unwrap()
+            });
+        let policy_unchanged =
+            fs::read(fixture.temporary.path().join(policy_path)).is_ok_and(|bytes| {
+                bytes == to_canonical_bytes(&fixture.request.history.policy_bundle).unwrap()
+            });
+        events_absent && record_count == 1 && keyset_unchanged && policy_unchanged
     }
 
     fn prepared_journal_absent(fixture: &Fixture) -> bool {
@@ -1955,12 +2001,11 @@ mod tests {
                 .count(),
             1
         );
-        assert!(
-            !fixture
-                .temporary
-                .path()
-                .join(".vela/authority/policies")
-                .exists()
+        let policy_path =
+            authority_policy_path(&fixture.request.history.policy_bundle.root().unwrap()).unwrap();
+        assert_eq!(
+            fs::read(fixture.temporary.path().join(policy_path)).unwrap(),
+            to_canonical_bytes(&fixture.request.history.policy_bundle).unwrap()
         );
     }
 
@@ -2292,20 +2337,9 @@ mod tests {
         .unwrap();
         let payload = BASE64_STANDARD.decode(&prepared.envelope.payload).unwrap();
         let record: AuthorityRecordV1 = serde_json::from_slice(&payload).unwrap();
-        assert_eq!(record.content.object_delta.len(), 7);
-        assert!(record.content.object_delta.iter().any(|delta| {
-            delta.path
-                == authority_keyset_path(&fixture.request.history.authority_keyset.root().unwrap())
-                    .unwrap()
-                && delta.before_root.is_none()
-                && delta.object_kind == "authority_keyset"
-        }));
-        assert!(record.content.object_delta.iter().any(|delta| {
-            delta.path
-                == authority_policy_path(&fixture.request.history.policy_bundle.root().unwrap())
-                    .unwrap()
-                && delta.before_root.is_none()
-                && delta.object_kind == "policy_bundle"
+        assert_eq!(record.content.object_delta.len(), 5);
+        assert!(!record.content.object_delta.iter().any(|delta| {
+            delta.object_kind == "authority_keyset" || delta.object_kind == "policy_bundle"
         }));
         assert!(record.content.object_delta.iter().any(|delta| {
             delta.path == ".vela/evidence/update.json"

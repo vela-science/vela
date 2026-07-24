@@ -367,7 +367,7 @@ The relevant current implementations are:
 - [`crates/vela-protocol/src/policy/acceptance_policy.rs`](../crates/vela-protocol/src/policy/acceptance_policy.rs)
 - [`crates/vela-protocol/src/proposals/policy_accept.rs`](../crates/vela-protocol/src/proposals/policy_accept.rs)
 
-#### Proposed Era-1 read contract
+#### Proposed Era-1 candidate contract
 
 [ADR 0020](adr/0020-attributed-repository-authority-and-standard-delegation.md)
 remains Proposed and changes no released writer. Its read-only candidate adds
@@ -426,15 +426,22 @@ event-log root containing the bridge. Later roots use
 sorted full roots of all covered `vela.event.v1` objects. This preserves every
 Era-0 byte while giving Era-1 one deterministic append-only commitment.
 
-The candidate implementation is read/verify-only:
+The candidate now includes pure verification plus CLI-unreachable disposable
+writers:
 
 - [`crates/vela-protocol/src/kernel/authority.rs`](../crates/vela-protocol/src/kernel/authority.rs)
 - [`crates/vela-protocol/src/kernel/authority_history.rs`](../crates/vela-protocol/src/kernel/authority_history.rs)
 - [`crates/vela-authority/src/legacy_translation.rs`](../crates/vela-authority/src/legacy_translation.rs)
+- [`crates/vela-cli/src/authority_transaction.rs`](../crates/vela-cli/src/authority_transaction.rs)
+- [`crates/vela-cli/src/authority_migration.rs`](../crates/vela-cli/src/authority_migration.rs)
 
-No Frontier may emit these objects or delete Era-0 verification until the
-remaining ADR 0020 writer, migration, clean-clone, and active-Frontier gates
-pass.
+The sequence-1 writer verifies one already legacy-signed bridge before
+authentication or repository signing, then prepares one recoverable
+transaction containing the bridge, initial full-root keyset and policy
+manifests, and covering DSSE record. It has no CLI route and no production
+human-credential path. No active Frontier may emit these objects or delete
+Era-0 verification until the remaining ADR 0020 rotation, emergency-close,
+disposable drill, release, and active-Frontier gates pass.
 
 The same candidate read contract defines `vela.principal.v1` and
 `vela.capability-grant.v1`. A human principal is an exact retained

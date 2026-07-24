@@ -158,44 +158,22 @@ pub fn verify_authority_history(
     }
 
     let migration_event = migrations[0];
-    let migration = migration_payload_from_event(migration_event)?;
-    if migration.frontier_id != input.frontier_id {
-        return Err("migration bridge targets a different frontier".into());
-    }
-
     let legacy_prefix: Vec<StateEvent> = input
         .legacy_events
         .iter()
         .filter(|event| event.id != migration_event.id)
         .cloned()
         .collect();
-    if migration.legacy_event_log_root != prefixed_legacy_root(&legacy_prefix) {
-        return Err(
-            "legacy event-log root does not match the exact pre-migration history; a legacy write may have occurred after migration"
-                .into(),
-        );
-    }
-    if migration.legacy_active_policy_head_root != input.legacy_active_policy_head_root
-        || migration.legacy_policy_store_manifest_root != input.legacy_policy_store_manifest_root
-    {
-        return Err("migration bridge does not bind the supplied legacy policy state".into());
-    }
-
-    verify_legacy_migration_signature(
-        migration_event,
+    let migration = verify_authority_migration_bridge(
+        input.frontier_id,
+        &legacy_prefix,
         input.legacy_actor_registry_bytes,
-        &migration,
+        input.legacy_active_policy_head_root,
+        input.legacy_policy_store_manifest_root,
+        input.authority_keyset,
+        input.policy_bundle,
+        migration_event,
     )?;
-
-    input.authority_keyset.validate()?;
-    input.policy_bundle.validate()?;
-    if input.authority_keyset.frontier_id != input.frontier_id
-        || input.policy_bundle.frontier_id != input.frontier_id
-        || migration.new_authority_keyset_root != input.authority_keyset.root()?
-        || migration.new_policy_bundle_root != input.policy_bundle.root()?
-    {
-        return Err("migration bridge does not bind the supplied Era-1 authority inputs".into());
-    }
 
     let mut legacy_ids = BTreeSet::new();
     for event in input.legacy_events {
@@ -323,6 +301,72 @@ pub fn verify_authority_history(
     })
 }
 
+/// Verify the one legacy-signed bridge before a sequence-1 writer may access
+/// the repository-authority signer.
+///
+/// The candidate is checked against the exact retained Era-0 prefix, actor
+/// registry, legacy policy state, and proposed Era-1 keyset and policy bundle.
+/// This function performs no write and requires no live identity provider.
+pub fn verify_authority_migration_bridge(
+    frontier_id: &str,
+    legacy_prefix: &[StateEvent],
+    legacy_actor_registry_bytes: &[u8],
+    legacy_active_policy_head_root: &str,
+    legacy_policy_store_manifest_root: &str,
+    authority_keyset: &AuthorityKeysetV1,
+    policy_bundle: &PolicyBundleV1,
+    migration_event: &StateEvent,
+) -> Result<AuthorityModelMigrationV1, String> {
+    require_frontier(frontier_id)?;
+    if legacy_prefix
+        .iter()
+        .any(|event| event.kind.as_str() == EVENT_KIND_AUTHORITY_MODEL_MIGRATED)
+    {
+        return Err("pre-migration history already contains a migration bridge".into());
+    }
+    let mut legacy_ids = BTreeSet::new();
+    for event in legacy_prefix {
+        if event.id != compute_event_id(event) || !legacy_ids.insert(event.id.as_str()) {
+            return Err(format!(
+                "legacy event {} has an invalid or duplicate content address",
+                event.id
+            ));
+        }
+    }
+
+    let migration = migration_payload_from_event(migration_event)?;
+    if legacy_ids.contains(migration_event.id.as_str()) {
+        return Err("migration bridge duplicates an Era-0 event identity".into());
+    }
+    if migration.frontier_id != frontier_id {
+        return Err("migration bridge targets a different frontier".into());
+    }
+    if migration.legacy_event_log_root != prefixed_legacy_root(legacy_prefix) {
+        return Err(
+            "legacy event-log root does not match the exact pre-migration history; a legacy write may have occurred after migration"
+                .into(),
+        );
+    }
+    if migration.legacy_active_policy_head_root != legacy_active_policy_head_root
+        || migration.legacy_policy_store_manifest_root != legacy_policy_store_manifest_root
+    {
+        return Err("migration bridge does not bind the supplied legacy policy state".into());
+    }
+
+    verify_legacy_migration_signature(migration_event, legacy_actor_registry_bytes, &migration)?;
+
+    authority_keyset.validate()?;
+    policy_bundle.validate()?;
+    if authority_keyset.frontier_id != frontier_id
+        || policy_bundle.frontier_id != frontier_id
+        || migration.new_authority_keyset_root != authority_keyset.root()?
+        || migration.new_policy_bundle_root != policy_bundle.root()?
+    {
+        return Err("migration bridge does not bind the supplied Era-1 authority inputs".into());
+    }
+    Ok(migration)
+}
+
 pub fn migration_payload_from_event(
     event: &StateEvent,
 ) -> Result<AuthorityModelMigrationV1, String> {
@@ -397,9 +441,11 @@ fn verify_first_record(
     legacy_root_with_bridge: &str,
 ) -> Result<(), String> {
     let record = &verified.record;
+    let migration_event_root = canonical_object_root(migration_event)?;
     if record.content.event_ids != [migration_event.id.clone()]
         || record.content.after_event_log_root != legacy_root_with_bridge
         || record.content.principal.principal_id != migration.new_principal_id
+        || record.content.intent_digest != migration_event_root
     {
         return Err("authority record 1 does not exactly cover the migration bridge".into());
     }
@@ -412,11 +458,68 @@ fn verify_first_record(
     if approval.is_none() {
         return Err("authority record 1 lacks the exact legacy semantic approval".into());
     }
-    verify_event_object_delta(
+    verify_initial_migration_object_delta(
         verified,
-        &migration_event.id,
-        &canonical_object_root(migration_event)?,
+        migration_event,
+        &migration_event_root,
+        &migration.new_authority_keyset_root,
+        &migration.new_policy_bundle_root,
     )
+}
+
+fn verify_initial_migration_object_delta(
+    verified: &VerifiedAuthorityRecord,
+    migration_event: &StateEvent,
+    migration_event_root: &str,
+    authority_keyset_root: &str,
+    policy_bundle_root: &str,
+) -> Result<(), String> {
+    if verified.record.content.object_delta.len() != 3 {
+        return Err("authority record 1 must contain exactly three initial object deltas".into());
+    }
+    let keyset_stem = authority_keyset_root
+        .strip_prefix("sha256:")
+        .ok_or_else(|| "initial authority keyset root lacks sha256 tag".to_string())?;
+    let policy_stem = policy_bundle_root
+        .strip_prefix("sha256:")
+        .ok_or_else(|| "initial policy bundle root lacks sha256 tag".to_string())?;
+    let expected = [
+        (
+            format!(".vela/events/{}.json", migration_event.id),
+            migration_event_root,
+            "event",
+        ),
+        (
+            format!(".vela/authority/keysets/{keyset_stem}.json"),
+            authority_keyset_root,
+            "authority_keyset",
+        ),
+        (
+            format!(".vela/authority/policies/{policy_stem}.json"),
+            policy_bundle_root,
+            "policy_bundle",
+        ),
+    ];
+    for (path, root, kind) in expected {
+        let matches = verified
+            .record
+            .content
+            .object_delta
+            .iter()
+            .filter(|delta| {
+                delta.path == path
+                    && delta.before_root.is_none()
+                    && delta.after_root.as_deref() == Some(root)
+                    && delta.object_kind == kind
+            })
+            .count();
+        if matches != 1 {
+            return Err(format!(
+                "authority record 1 lacks one exact initial object delta for {path}"
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn verify_record_authorization(
@@ -659,19 +762,23 @@ mod tests {
         migration.signature = Some(crate::sign::sign_event(&migration, &legacy_key).unwrap());
         let legacy_events = vec![genesis, migration.clone()];
         let legacy_root_with_bridge = prefixed_legacy_root(&legacy_events);
+        let migration_event_root = canonical_object_root(&migration).unwrap();
+        let keyset_root = keyset.root().unwrap();
+        let bundle_root = bundle.root().unwrap();
 
         let first = record(
             1,
             None,
             "txn_migration",
+            &migration_event_root,
             &legacy_root,
             &legacy_root_with_bridge,
             vec![migration.id.clone()],
-            vec![event_delta(
-                1,
-                &migration.id,
-                &canonical_object_root(&migration).unwrap(),
-            )],
+            vec![
+                event_delta(1, &migration.id, &migration_event_root),
+                snapshot_delta(".vela/authority/keysets", &keyset_root, "authority_keyset"),
+                snapshot_delta(".vela/authority/policies", &bundle_root, "policy_bundle"),
+            ],
             &keyset,
             &bundle,
             vec![SemanticApprovalV1 {
@@ -680,7 +787,7 @@ mod tests {
                 action: AUTHORITY_MIGRATION_ACTION.into(),
                 reason: migration_payload.reason,
                 approved_at: "2026-07-24T12:00:00Z".into(),
-                intent_digest: root('e'),
+                intent_digest: migration_event_root.clone(),
             }],
         );
         let first_root = first.root().unwrap();
@@ -711,6 +818,7 @@ mod tests {
             2,
             Some(first_root),
             "txn_era_one",
+            &root('e'),
             &legacy_root_with_bridge,
             &final_root,
             vec![era_one.id.clone()],
@@ -742,6 +850,7 @@ mod tests {
         sequence: u64,
         previous: Option<String>,
         transaction_id: &str,
+        intent_digest: &str,
         before_root: &str,
         after_root: &str,
         event_ids: Vec<String>,
@@ -756,7 +865,7 @@ mod tests {
             previous_authority_record_root: previous,
             operation_id: format!("vop_{sequence}"),
             transaction_id: transaction_id.into(),
-            intent_digest: root('e'),
+            intent_digest: intent_digest.into(),
             before_event_log_root: before_root.into(),
             after_event_log_root: after_root.into(),
             event_ids,
@@ -828,6 +937,15 @@ mod tests {
         }
     }
 
+    fn snapshot_delta(directory: &str, root: &str, object_kind: &str) -> ObjectDeltaV1 {
+        ObjectDeltaV1 {
+            path: format!("{directory}/{}.json", root.strip_prefix("sha256:").unwrap()),
+            before_root: None,
+            after_root: Some(root.into()),
+            object_kind: object_kind.into(),
+        }
+    }
+
     fn signed_envelope(record: &AuthorityRecordV1, key: &SigningKey) -> AuthorityEnvelopeV1 {
         let payload = to_canonical_bytes(record).unwrap();
         let signature = key.sign(&dsse_pae(AUTHORITY_PAYLOAD_TYPE_V1, &payload));
@@ -886,6 +1004,51 @@ mod tests {
                 .unwrap()
                 .record_root
             )
+        );
+    }
+
+    #[test]
+    fn sequence_one_intent_and_initial_snapshot_delta_are_exact() {
+        let mut wrong_intent = fixture();
+        let mut first = verify_authority_envelope(
+            &wrong_intent.envelopes[0],
+            &wrong_intent.keyset,
+            FRONTIER_ID,
+            1,
+            None,
+        )
+        .unwrap()
+        .record;
+        first.content.intent_digest = root('e');
+        first.content.semantic_approvals[0].intent_digest = root('e');
+        first.record_id = first.derive_id().unwrap();
+        wrong_intent.resign_record(0, first);
+        assert!(
+            verify_authority_history(wrong_intent.input())
+                .unwrap_err()
+                .contains("does not exactly cover")
+        );
+
+        let mut missing_snapshot = fixture();
+        let mut first = verify_authority_envelope(
+            &missing_snapshot.envelopes[0],
+            &missing_snapshot.keyset,
+            FRONTIER_ID,
+            1,
+            None,
+        )
+        .unwrap()
+        .record;
+        first
+            .content
+            .object_delta
+            .retain(|delta| delta.object_kind != "policy_bundle");
+        first.record_id = first.derive_id().unwrap();
+        missing_snapshot.resign_record(0, first);
+        assert!(
+            verify_authority_history(missing_snapshot.input())
+                .unwrap_err()
+                .contains("exactly three")
         );
     }
 

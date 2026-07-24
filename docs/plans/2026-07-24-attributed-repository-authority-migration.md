@@ -111,7 +111,7 @@ write, actor-registry or signature tampering, missing or duplicate coverage,
 transaction substitution, wrong roots, authority forks, policy substitution,
 and malformed bridge payloads. The bridge is reducer-neutral and no writer or
 Frontier migration exists. A committed cross-implementation vector at
-`sha256:d0f09ebfa3025bb453346b1cb02989ae75c772748180995c052ee62a50bdb16e`
+`sha256:0ea499907d6d54a9183bd2be177b639e9244ebeb1265beb23387b4c1aa043c3e`
 is now independently rederived through OpenSSL Ed25519 and DSSE verification.
 Ten hostile mutations fail, including four authentication-observation
 substitutions. The exact detached Git commit replays from a clean clone with
@@ -119,12 +119,15 @@ network access denied. Phase 1 and the stable Phase 3 read contracts are
 complete. The source-level runtime authentication preflight now passes; the
 disposable zero-write authority transaction writer is next.
 
-The vector was deliberately regenerated during the later authentication gate:
+The vector was deliberately regenerated during the later authentication gate
+and tightened again before sequence-1 writer qualification:
 the provisional arbitrary `method`/`provider`/`session_id` claim was replaced
 by `vela.authentication-observation.v1`. The root above now binds exact
 issuer-subject attribution, assurance, a non-secret session root, observation
-and expiry, presence/verification facts, recovery context, and revocation
-reference. Historical Era-0 bytes remain unchanged.
+and expiry, presence/verification facts, recovery context, revocation
+reference, the full canonical migration-event root as semantic intent, and
+exactly the bridge, initial keyset, and initial policy object deltas.
+Historical Era-0 bytes remain unchanged.
 
 ## Phase 2: policy translation and shadow evaluation
 
@@ -267,8 +270,28 @@ marker, and the runtime Cedar schema, policies, and entities must rederive the
 roots in the retained bundle. A completed operation can be retried without an
 authentication or signing interface only when its full retained result
 matches. Thirteen focused tests pass. The disposable migration exercise must
-still prove that sequence 1 installs the initial snapshots; rotation and
-emergency close remain open.
+still integrate the now-proved sequence-1 installer; rotation and emergency
+close remain open.
+
+The sequence-1 installer is now implemented behind the same CLI-unreachable
+boundary. It verifies the already legacy-signed bridge against the exact
+Era-0 event set, actor-registry bytes, legacy policy roots, initial keyset,
+initial Cedar bundle, and new principal before authentication or repository
+signing. One recoverable transaction then installs the bridge, full-root
+keyset and policy snapshots, and covering authority record. The ordinary
+legacy event-log root advances only by the bridge.
+
+Four focused tests prove exact offline replay, legacy-signature and runtime
+Cedar substitution refusal before repository signing, cancellation and signer
+failure with no canonical delta, marker-time event-membership refusal,
+post-marker recovery without reauthentication or resigning, and exact
+completed retry. The shared application forbid list now names
+`authority_model_migrate` explicitly, so agent and workload principals cannot
+request the bridge action.
+
+Phase 4 remains open for rotation, emergency close, and the complete
+disposable Frontier drill. No live writer, CLI route, active Frontier, human
+key, or ADR acceptance is involved.
 
 ## Phase 4: authority transaction writer
 
