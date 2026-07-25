@@ -31,6 +31,20 @@ test("published Canopus is one self-contained inert tarball", async () => {
   ]) {
     assert.equal(manifest.files?.includes(capsule), true, `${capsule} must ship in the tarball`);
   }
+  for (const historical of [
+    "BUILD_WEEK.md",
+    "docs/RELEASES.md",
+    "advisories",
+    "evidence/build-week",
+    "evidence/erdos",
+    "scripts/run-claim-fidelity-advisory.mjs",
+  ]) {
+    assert.equal(
+      manifest.files?.includes(historical),
+      false,
+      `${historical} belongs to Git history, not the installed product`,
+    );
+  }
 
   const compiled = await readdir(new URL("../src/", import.meta.url), { recursive: true });
   assert.equal(

@@ -78,7 +78,7 @@ test("release binds tag, GitHub attestation, and npm trusted provenance", async 
   );
 });
 
-test("published package carries the exact Build Week judge path", async () => {
+test("source retains Build Week evidence while the package stays product-only", async () => {
   const [packageText, readme, buildWeek] = await Promise.all([
     readFile(new URL("../../package.json", import.meta.url), "utf8"),
     readFile(new URL("../../README.md", import.meta.url), "utf8"),
@@ -92,12 +92,25 @@ test("published package carries the exact Build Week judge path", async () => {
   assert.equal(packageJson.version, "0.6.5");
   for (const file of [
     "README.md",
-    "BUILD_WEEK.md",
     "THIRD_PARTY.md",
-    "docs/RELEASES.md",
-    "evidence/erdos",
+    "docs/MISSIONS.md",
+    "docs/RUN_RECORD.md",
   ]) {
     assert.ok(packageJson.files?.includes(file), `${file} must ship in the npm package`);
+  }
+  for (const historical of [
+    "BUILD_WEEK.md",
+    "docs/RELEASES.md",
+    "advisories",
+    "evidence/build-week",
+    "evidence/erdos",
+    "scripts/run-claim-fidelity-advisory.mjs",
+  ]) {
+    assert.equal(
+      packageJson.files?.includes(historical),
+      false,
+      `${historical} must remain source evidence only`,
+    );
   }
   for (const document of [readme, buildWeek]) {
     assert.match(document, new RegExp(velaRelease.replaceAll(".", "\\."), "u"));
@@ -112,5 +125,9 @@ test("published package carries the exact Build Week judge path", async () => {
   assert.match(
     readme,
     /For new missions, use Vela `0\.915\.1`, the version composed with Canopus\s+`0\.6\.5`/u,
+  );
+  assert.match(
+    readme,
+    /github\.com\/vela-science\/vela-research-harness\/blob\/v0\.6\.5\/BUILD_WEEK\.md/u,
   );
 });

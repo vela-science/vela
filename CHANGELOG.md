@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Narrow the npm package to the active Canopus product boundary. Historical
+  Build Week records, release ledgers, advisories, and retained Erdős evidence
+  remain immutable in Git and tagged source archives but no longer inflate the
+  installed runtime. Stable README links point to the exact `v0.6.5` archive,
+  while missions, profiles, verifier capsules, schemas, runtime custody
+  fixtures, and current product guidance continue to ship.
+
 ## 0.6.5 - 2026-07-25
 
 - Advance the sole runnable Erdős 1056 profile to the adjacent,

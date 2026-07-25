@@ -16,7 +16,7 @@
 
 <p align="center">
   <a href="https://app.vela.space/frontiers/sidon-sets/runs/run_f68e4cfc-e5c7-4c73-86cb-d79807c47ec4">Retained Sidon run</a> ·
-  <a href="BUILD_WEEK.md">Build Week record</a> ·
+  <a href="https://github.com/vela-science/vela-research-harness/blob/v0.6.5/BUILD_WEEK.md">Build Week archive</a> ·
   <a href="docs/MISSIONS.md">Missions</a> ·
   <a href="docs/RUN_RECORD.md">Run records</a> ·
   <a href="https://github.com/vela-science/vela">Vela</a>
@@ -154,7 +154,8 @@ types, worker, verifier, replay command, budgets, and landing ceiling.
 Inspect the retained Mission → worker → artifact → verifier → Receipt → Defer
 chain on the [exact Sidon run](https://app.vela.space/frontiers/sidon-sets/runs/run_f68e4cfc-e5c7-4c73-86cb-d79807c47ec4).
 Exact commits, run roots, audit evidence, and nonclaims live in
-[`BUILD_WEEK.md`](BUILD_WEEK.md).
+the retained
+[`v0.6.5` Build Week archive](https://github.com/vela-science/vela-research-harness/blob/v0.6.5/BUILD_WEEK.md).
 
 ## Development
 
@@ -172,7 +173,7 @@ bun run pack:check
 
 - [Missions and profiles](docs/MISSIONS.md)
 - [Run records and publication](docs/RUN_RECORD.md)
-- [Release evidence](docs/RELEASES.md)
+- [Historical release evidence](https://github.com/vela-science/vela-research-harness/blob/v0.6.5/docs/RELEASES.md)
 - [Why the harness stays removable](docs/adr/0001-harness-boundary-and-name.md)
 
 ## License
