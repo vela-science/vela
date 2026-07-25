@@ -58,8 +58,8 @@ For a frozen-verifier witness, run `vela reproduce <witness>` first, then land
 the result through the active work session with `vela land --work <target>
 --artifact <witness>:witness --as agent:<you> --json`. A producer outside the
 frontier can instead emit the same portable Receipt v1 and call `vela land
-receipt.json`. Both paths cross the one Receipt/land write edge; the frontier's
-Action may separately run `vela ci verdict` for merge policy.
+receipt.json`. Both paths cross the one Receipt/land write edge. Retired CI
+auto-verdicts are not an authority path.
 
 Every verb takes `--json` and returns one object with `ok` and `command`; no
 prose leaks into a JSON stream. Exit codes: 0 ok, 1 domain failure, 2 usage,
@@ -91,10 +91,10 @@ state and save the next session the respend.
 
 ## Landing routes
 
-Landing routes by the frontier's signed policy:
+Era-0 landing routes by a retained signed policy:
 
 - **Permit** — admitted canonically with no key ceremony. The human's
-  authority arrived earlier, once, as the policy signature; the event carries
+  authority arrived earlier, once, as the retained policy signature; the event carries
   the certificate and replay verifies it.
 - **Defer** — parked for an exact protected human `review decide` decision.
 - **Deny** — refuses canonical admission. The returned structured result states

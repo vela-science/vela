@@ -242,7 +242,7 @@ EXAMPLES
                                     submit new work as Receipt v1
 
 Finding is read-only. Receipt v1 plus `vela land` is the only producer write
-path; policy routes it, and deferred work reaches `vela review decide`.";
+path; current authority routes it, and deferred work reaches `vela review decide`.";
 
 pub const ARTIFACT: &str = "\
 EXAMPLES
@@ -253,23 +253,17 @@ proposal and never an accepted event; `vela review decide` is the human decision
 
 pub const POLICY: &str = "\
 EXAMPLES
-  vela policy draft lean-rederivation projects/formal-conjectures-lean
-  vela policy test  projects/formal-conjectures-lean   dry-run, mutates nothing
-  vela policy decide . --activate vap_… --reason \"bounded verifier lane\"
-                                                        key-free exact plan
-  vela policy decide . --revoke --reason \"close this lane\"
-                                                        key-free exact plan
-`policy decide` previews one root-bound action without reading a key; its exact
-confirmation requests one protected human card. Everything outside the signed
-policy defers to human review, while exact matching agent work needs no prompt.
-`policy sign` and key flags are advanced
-historical compatibility surfaces.";
+  vela policy show .                  inspect the frozen Era-0 policy
+  vela policy test .                  replay it over retained pending proposals
+  vela policy evaluate-proposal . vpr_…
+                                      inspect one retained admission
+  vela policy log .                   list retained policy-lane events
+
+Policy authoring, activation, rotation, revocation, and CI auto-merge porcelain
+are retired. Existing signed policies and policy-lane events remain permanently
+replayable; new authority is established through repository migration.";
 
 pub const AGENTS: &str = "\
 EXAMPLES
   vela agents sync .     regenerate CLAUDE.md/AGENTS.md/.cursor from VELA.md
   vela agents doctor .   assert the adapters are in sync (no drift)";
-
-pub const CI: &str = "\
-EXAMPLES
-  vela ci verdict --frontier .   is the claimed beat real?";

@@ -4304,8 +4304,7 @@ fn doctor_names_the_supported_missing_policy_head_recovery() {
     assert!(
         policy["next"]
             .as_str()
-            .is_some_and(|fix| fix.contains("policy draft <template> --replace")
-                && fix.contains("policy decide . --rotate")),
+            .is_some_and(|fix| fix.contains("repository-authority migration")),
         "{doctor}"
     );
 }

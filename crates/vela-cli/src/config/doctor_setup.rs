@@ -265,39 +265,7 @@ fn policy_check(dir: &Path) -> SetupCheck {
             "inspect the active policy pair and policy-head chain; invalid governance never fails open",
         ),
         vela_protocol::proposals::policy_accept::PermitReadiness::HumanOnly => {
-            let repair = if assessment.reason_codes().iter().any(|code| {
-                matches!(
-                    code.as_str(),
-                    "policy_wall_clock_expiry_unanchored" | "policy_expired"
-                )
-            }) {
-                "draft and sign a replacement policy with causal Permit authority; re-signing unchanged bytes does not renew them"
-            } else if assessment.reason_codes().iter().any(|code| {
-                matches!(
-                    code.as_str(),
-                    "policy_head_missing"
-                        | "policy_head_mismatch"
-                        | "policy_head_revoked"
-                        | "policy_revoked"
-                        | "policy_authority_invalid"
-                )
-            }) {
-                "vela policy draft <template> --replace, then preview `vela policy decide . --rotate <vap_id> --reason <why>`"
-            } else if assessment
-                .reason_codes()
-                .iter()
-                .any(|code| code == "policy_unsigned")
-            {
-                "preview `vela policy decide . --activate <vap_id> --reason <why>`"
-            } else if assessment
-                .reason_codes()
-                .iter()
-                .any(|code| code == "policy_absent")
-            {
-                "vela policy suggest ."
-            } else {
-                "inspect `vela policy show --json` and complete the required human policy-head or authority ceremony"
-            };
+            let repair = "inspect `vela policy show --json`; frozen Era-0 policy bytes remain replayable, while new authority requires the repository-authority migration";
             warn("policy", summary, repair)
         }
     }

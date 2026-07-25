@@ -103,7 +103,7 @@ Nouns and setup:
   finding       record, standing, evidence, and attribution views
   artifact      content-addressed evidence lifecycle
   frontier      materialize, compare, recover publication, release, audit
-  policy        standing authority rules and their human ceremonies
+  policy        frozen Era-0 policy inspection and admission history
   actor         governed frontier identities
   id            local identity and key custody setup
   agents        regenerate agent adapters from VELA.md
@@ -112,7 +112,6 @@ Nouns and setup:
 Advanced verification and integration:
   gate          claim-level verification projections
   proof         proof packet export, verify, and explain
-  ci            deterministic CI verdicts
   serve         read-only or nonfinalizing draft MCP/HTTP surface
   sign          historical batch and detached-file signing compatibility
 

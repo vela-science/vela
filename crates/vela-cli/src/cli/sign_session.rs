@@ -1308,13 +1308,6 @@ pub(crate) fn cmd_sign_session(
         "  · next {}",
         safe_inline(publication_recovery_command(&publication))
     );
-
-    if let Some(hint) = crate::config::cli_policy::suggest_hint(&queue.dir) {
-        println!(
-            "  {}",
-            vela_protocol::cli_style::dim(&crate::cli::safe_text::inline(&hint))
-        );
-    }
 }
 
 /// The clear-signing binary gate every ceremony runs first.

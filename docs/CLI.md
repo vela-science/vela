@@ -306,39 +306,22 @@ decision-card action authorizes the helper to use the protected key. The command
 path, `--yes`, batch, wildcard, or saved-session input. `vela sign` remains in
 advanced help for historical batch sessions and detached files.
 
-Policy administration uses the same exact-request flow:
+AcceptancePolicy is now a frozen Era-0 compatibility format. Its retained
+bytes, signatures, policy heads, and admissions remain inspectable:
 
 ```bash
-vela policy draft search-witness . \
-  --from-proposal <vpr_id> \
-  --replace \
-  --json
-# Run the returned policy-only Git commit command.
-vela policy decide . --activate <vap_id> --reason <text> --json
-vela policy decide . --rotate <vap_id> --reason <text> --json
-vela policy decide . --revoke --reason <text> --json
+vela policy show . --json
+vela policy test . --json
+vela policy evaluate-proposal . <vpr_id> --json
+vela policy log . --json
 ```
 
-`--from-proposal` derives the packet, profile, verifier-capsule,
-result-contract, and producer-credential roots from one retained pending
-Receipt. It seals the narrower AcceptancePolicy v0.3 contract: even a globally
-registered producer must match the exact credential root named by the rule.
-The four execution-root flags plus `--producer-credential-root` remain an
-advanced, all-or-nothing authoring path. Omitting the producer credential seals
-the registry-backed v0.2 contract. The draft remains unsigned and carries no
-authority until protected activation or rotation. Draft output separates the
-required policy-only Git commit from the subsequent Decision Plan request so
-the protected path never encounters an unexpectedly dirty checkout. Negative
-results and mismatched roots Defer.
-
-The first call returns a key-free `vela.policy-decision.v1` plan. A second call
-with its exact `--confirm-root` and `--confirm-at` rechecks Git and frontier
-identity, event and actor-registry roots, the full policy bytes, rule summary,
-reviewer authority, current policy head, binary pin, and transaction read set
-before showing one protected policy card. Cancellation writes no policy
-signature, event, journal commit marker, or Git commit. Historical `policy
-sign`, `policy revoke --key`, and `--yes` remain advanced compatibility paths;
-ordinary documentation does not teach them.
+`show`, `test`, `evaluate-proposal`, and `log` are read-only compatibility
+operations. Policy suggestion, drafting, activation, rotation, revocation,
+legacy-pair preparation, hidden signing aliases, and CI auto-merge verdicts
+are retired. Existing Era-0 frontiers replay unchanged; new authority is
+established through the attributed repository-authority migration and
+restricted Cedar policy.
 
 A human identity moves its seed into the local OS credential store through the
 one-shot helper. Enrollment authenticates once before reading the source:

@@ -242,7 +242,7 @@ fn review_decide_has_no_batch_key_yes_or_wildcard_surface() {
 }
 
 #[test]
-fn legacy_policy_retirement_is_prepare_only_and_boundary_gated() {
+fn legacy_policy_retirement_writer_is_retired_without_touching_retained_bytes() {
     const POLICY_ID: &str = "vap_e0abc750544408e637bd90e0661bac15";
     let frontier = TempDir::new().unwrap();
     let initialized = vela(&[
@@ -282,7 +282,7 @@ fn legacy_policy_retirement_is_prepare_only_and_boundary_gated() {
         "--json",
     ]);
     assert!(!out.status.success(), "{}", combined(&out));
-    assert!(combined(&out).contains("signed repository boundary"));
+    assert!(combined(&out).contains("unrecognized subcommand 'retire-legacy'"));
     let project = vela_protocol::repo::load_from_path(frontier.path()).unwrap();
     assert_eq!(project.proposals.len(), before_proposal_count);
     assert_eq!(
@@ -292,33 +292,6 @@ fn legacy_policy_retirement_is_prepare_only_and_boundary_gated() {
     );
     assert!(policies.join("active.json").exists());
     assert!(policies.join("active.sig.json").exists());
-
-    let keyed = vela(&[
-        "policy",
-        "retire-legacy",
-        frontier.path().to_str().unwrap(),
-        "--reason",
-        "retire unsupported prelaunch bytes",
-        "--as",
-        "agent:test",
-        "--key",
-        "/tmp/never-read",
-    ]);
-    assert_eq!(keyed.status.code(), Some(2));
-    assert!(combined(&keyed).contains("unexpected argument '--key'"));
-
-    let bare_key = vela(&[
-        "policy",
-        "retire-legacy",
-        frontier.path().to_str().unwrap(),
-        "--reason",
-        "retire unsupported prelaunch bytes",
-        "--as",
-        "agent:test",
-        "--key",
-    ]);
-    assert_eq!(bare_key.status.code(), Some(2));
-    assert!(combined(&bare_key).contains("unexpected argument '--key'"));
 }
 
 /// Sanity: a genuinely-unknown flag is rejected (so the checks above mean
@@ -390,23 +363,31 @@ fn ordinary_identity_and_policy_help_hide_legacy_key_ceremonies() {
     }
 
     let policy = combined(&vela(&["policy", "--help"]));
-    for hidden in ["  sign", "  revoke", "retire-legacy"] {
+    for hidden in [
+        "  suggest",
+        "  draft",
+        "  decide",
+        "  sign",
+        "  revoke",
+        "retire-legacy",
+    ] {
         assert!(
             !policy.contains(hidden),
             "policy help leaked {hidden}: {policy}"
         );
     }
-    for visible in ["show", "suggest", "draft", "test", "decide", "log"] {
+    for visible in ["show", "test", "evaluate-proposal", "log"] {
         assert!(
             policy.contains(visible),
             "policy help omitted {visible}: {policy}"
         );
     }
 
-    // Hidden compatibility commands remain directly addressable for old
-    // frontiers and recovery instructions.
+    // Local historical identity recovery remains available until every
+    // selected frontier completes repository-authority migration. Policy
+    // writers are retired rather than hidden aliases.
     assert!(vela(&["id", "keygen", "--help"]).status.success());
-    assert!(vela(&["policy", "sign", "--help"]).status.success());
+    assert!(!vela(&["policy", "sign", "--help"]).status.success());
 }
 
 #[test]
@@ -717,10 +698,8 @@ fn prompts_refuse_piped_stdin() {
     );
 }
 
-/// The `docs/CLI.md` promise — every porcelain verb takes `--json` — was
-/// false for `config unset` and `policy sign/revoke`. Pin the two fixes:
-/// `--json` parses, and a signing verb under `--json` is non-interactive
-/// (requires `--yes`), never leaking a prompt into the stream.
+/// JSON porcelain remains available on active commands. Retired policy
+/// writers stay unreachable rather than accepting hidden compatibility flags.
 #[test]
 fn json_is_offered_where_the_contract_promises() {
     let unset = vela(&["config", "unset", "some.unknown.key", "--json"]);
@@ -731,13 +710,9 @@ fn json_is_offered_where_the_contract_promises() {
     );
     let sign = vela(&["policy", "sign", "examples/erdos-formalization", "--json"]);
     assert!(
-        combined(&sign).contains("requires --yes"),
-        "`policy sign --json` must require --yes (JSON is non-interactive), got: {}",
+        combined(&sign).contains("unrecognized subcommand 'sign'"),
+        "`policy sign` must remain retired, got: {}",
         combined(&sign)
     );
-    assert_eq!(
-        sign.status.code(),
-        Some(2),
-        "the requires-yes refusal is a usage error"
-    );
+    assert_eq!(sign.status.code(), Some(2));
 }

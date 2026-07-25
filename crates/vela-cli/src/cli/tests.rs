@@ -96,36 +96,10 @@ mod surface_tests {
     }
 
     #[test]
-    fn policy_has_one_typed_parser_for_every_released_verb() {
+    fn policy_parser_exposes_only_frozen_era0_read_verbs() {
         on_big_stack(|| {
             for args in [
                 vec!["vela", "policy", "show", ".", "--json"],
-                vec!["vela", "policy", "suggest", ".", "--json"],
-                vec![
-                    "vela",
-                    "policy",
-                    "draft",
-                    "witness-rederivation",
-                    ".",
-                    "--json",
-                ],
-                vec!["vela", "policy", "draft", ".", "--from-suggest", "--json"],
-                vec![
-                    "vela",
-                    "policy",
-                    "draft",
-                    "search-witness",
-                    ".",
-                    "--packet-root",
-                    "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-                    "--profile-root",
-                    "sha256:2222222222222222222222222222222222222222222222222222222222222222",
-                    "--verifier-capsule-root",
-                    "sha256:3333333333333333333333333333333333333333333333333333333333333333",
-                    "--result-contract-root",
-                    "sha256:4444444444444444444444444444444444444444444444444444444444444444",
-                    "--json",
-                ],
                 vec!["vela", "policy", "test", ".", "--json"],
                 vec![
                     "vela",
@@ -135,63 +109,25 @@ mod surface_tests {
                     "vpr_example",
                     "--json",
                 ],
-                vec![
-                    "vela",
-                    "policy",
-                    "decide",
-                    ".",
-                    "--activate",
-                    "vap_example",
-                    "--reason",
-                    "bounded rules",
-                    "--json",
-                ],
-                vec!["vela", "policy", "sign", ".", "--yes", "--json"],
-                vec![
-                    "vela", "policy", "revoke", ".", "--reason", "rotate", "--yes", "--json",
-                ],
-                vec![
-                    "vela",
-                    "policy",
-                    "retire-legacy",
-                    ".",
-                    "--reason",
-                    "retire",
-                    "--as",
-                    "agent:test",
-                    "--json",
-                ],
                 vec!["vela", "policy", "log", ".", "--json"],
             ] {
                 Cli::try_parse_from(&args).unwrap_or_else(|error| {
                     panic!("typed policy parse failed for {args:?}: {error}")
                 });
             }
-            assert!(
-                Cli::try_parse_from([
-                    "vela",
-                    "policy",
-                    "draft",
-                    "witness-rederivation",
-                    ".",
-                    "unexpected-third-operand",
-                ])
-                .is_err(),
-                "draft must not accept more than its typed operand budget"
-            );
-            assert!(
-                Cli::try_parse_from([
-                    "vela",
-                    "policy",
-                    "draft",
-                    "search-witness",
-                    ".",
-                    "--packet-root",
-                    "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-                ])
-                .is_err(),
-                "an incomplete exact binding must fail in the typed parser"
-            );
+            for retired in [
+                "suggest",
+                "draft",
+                "decide",
+                "sign",
+                "revoke",
+                "retire-legacy",
+            ] {
+                assert!(
+                    Cli::try_parse_from(["vela", "policy", retired, "."]).is_err(),
+                    "retired policy writer {retired} must not parse"
+                );
+            }
         });
     }
 
@@ -304,7 +240,6 @@ mod surface_tests {
         "artifact",
         "authority",
         "check",
-        "ci",
         "config",
         "doctor",
         "finding",

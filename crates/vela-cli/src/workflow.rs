@@ -20,10 +20,9 @@
 //! }
 //! ```
 //!
-//! Landing routes by the frontier's signed policy: **Permit** admits
-//! canonically through the policy lane (no key ceremony — the human's
-//! authority arrived earlier, once, as the policy signature); **Defer**
-//! leaves the proposal pending, where it becomes a `vela sign` item;
+//! Landing routes by the frontier's active authority: **Permit** admits
+//! canonically through the applicable retained or current authority lane;
+//! **Defer** leaves the proposal pending for an exact `vela review decide`;
 //! **Deny** or a gate block refuses canonical admission. Landing is idempotent:
 //! content addressing collapses byte-identical records, and an
 //! already-applied proposal is the caller's exit 5.

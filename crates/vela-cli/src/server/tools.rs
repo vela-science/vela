@@ -1787,7 +1787,7 @@ pub(crate) fn build_task_packet(
         "attempts": {"count": attempts.len(), "items": attempts},
         "submission": {
             "witness": "write the artifact as <frontier>/witnesses/<name>.witness.json and run `vela reproduce <frontier>` — the frozen verifier must pass",
-            "finding": "encode the claim and evidence in Receipt v1, then use `vela land`; policy routes it and deferred work reaches `vela sign`",
+            "finding": "encode the claim and evidence in Receipt v1, then use `vela land`; current authority routes it and deferred work reaches `vela review decide`",
             "attempt": "land a negative or partial Receipt v1; failed passes are evidence when they carry an artifact and caveat",
         },
         "caveat": "Allowed outputs are the only state-changing submissions; strategy prose without an artifact does not move the frontier.",

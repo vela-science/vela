@@ -1,33 +1,39 @@
-//! Prepare-only recovery for prelaunch policy bytes.
+//! Read-only verification for retained prelaunch policy-retirement proposals.
 //!
-//! This module never accepts a proposal and never receives a private key. It
-//! fingerprints one bounded legacy active pair, proves it has no authority
-//! history, and inserts a closed pending governance proposal. The ordinary
-//! isolated `vela sign` Decision Plan is the sole accepting ceremony.
+//! The writer that created these proposals is retired. Historical pending or
+//! decided proposals still recheck their exact bounded active pair, admission
+//! absence, and replay state so Era-0 history remains fail-closed.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use chrono::Utc;
+#[cfg(test)]
 use serde::Serialize;
+#[cfg(test)]
 use serde_json::json;
+#[cfg(test)]
+use std::path::PathBuf;
 use vela_protocol::acceptance_policy::{
     LegacyPolicyPairObservation, POLICY_JSON_MAX_BYTES, POLICY_SIGNATURE_JSON_MAX_BYTES,
     observe_legacy_policy_pair_bytes,
 };
 use vela_protocol::project::Project;
 use vela_protocol::proposals::StateProposal;
+#[cfg(test)]
+use vela_protocol::proposals::policy_accept::LEGACY_POLICY_RETIREMENT_SCHEMA;
 use vela_protocol::proposals::policy_accept::{
-    LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND, LEGACY_POLICY_RETIREMENT_SCHEMA,
-    LegacyPolicyRetirementPayload, current_policy_head, ensure_legacy_policy_has_no_admissions,
-    parse_legacy_policy_retirement_payload, validate_legacy_policy_retirement_proposal,
+    LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND, LegacyPolicyRetirementPayload, current_policy_head,
+    ensure_legacy_policy_has_no_admissions, parse_legacy_policy_retirement_payload,
+    validate_legacy_policy_retirement_proposal,
 };
 
+#[cfg(test)]
 use crate::frontier_txn::{
     CanonicalWriteBarrier, ContentDigest, DeltaDraft, FrontierBinding, FrontierTxn,
     FrontierTxnError, FrontierTxnPlan, FrontierTxnPlanSpec, InputBinding, OperationId,
     OperationKind, PlannedWrite, RecoveryOutcome, RepoPath,
 };
 
+#[cfg(test)]
 const PREPARE_RESULT_SCHEMA: &str = "vela.policy-legacy-retirement-prepare.internal.v1";
 const ACTIVE_POLICY_PATH: &str = ".vela/policies/active.json";
 const ACTIVE_SIGNATURE_PATH: &str = ".vela/policies/active.sig.json";
@@ -44,6 +50,7 @@ pub(crate) struct LegacyRetirementAudit {
     pub(crate) paths: LegacyRetirementPaths,
 }
 
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub(crate) struct LegacyRetirementPrepareOutcome {
     pub(crate) schema: &'static str,
@@ -54,35 +61,6 @@ pub(crate) struct LegacyRetirementPrepareOutcome {
     pub(crate) signature_bytes_root: String,
     pub(crate) identical_snapshot_pair: bool,
     pub(crate) next: &'static str,
-}
-
-pub(crate) fn cmd_policy_retire_legacy(
-    frontier: &Path,
-    reason: &str,
-    actor: &str,
-    json_output: bool,
-) {
-    match prepare_legacy_policy_retirement_at(
-        frontier,
-        reason,
-        actor,
-        &Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
-    ) {
-        Ok(outcome) if json_output => crate::cli::print_json(&outcome),
-        Ok(outcome) => {
-            println!("prepared {}", outcome.proposal_id);
-            println!("  legacy policy: {}", outcome.policy_id);
-            println!("  status: {}", outcome.status);
-            println!("  next: {}", outcome.next);
-        }
-        Err(error) => crate::ui::fail_with(
-            crate::ui::ErrorKind::Domain,
-            &error,
-            Some(
-                "repair the reported legacy-state inconsistency; do not delete policy files by hand",
-            ),
-        ),
-    }
 }
 
 pub(crate) fn is_legacy_policy_retirement(proposal: &StateProposal) -> bool {
@@ -191,6 +169,7 @@ pub(crate) fn audit_legacy_policy_retirement(
     Ok(LegacyRetirementAudit { payload, paths })
 }
 
+#[cfg(test)]
 pub(crate) fn prepare_legacy_policy_retirement_at(
     frontier: &Path,
     reason: &str,
@@ -373,6 +352,7 @@ pub(crate) fn prepare_legacy_policy_retirement_at(
     Ok(outcome(proposal, &audit.payload))
 }
 
+#[cfg(test)]
 fn outcome(
     proposal: &StateProposal,
     payload: &LegacyPolicyRetirementPayload,
@@ -410,6 +390,7 @@ fn read_active_pair(
     Ok((policy, signature, observation))
 }
 
+#[cfg(test)]
 fn discover_snapshot_pair(
     frontier: &Path,
     policy_id: &str,
@@ -457,6 +438,7 @@ fn read_optional(
     }
 }
 
+#[cfg(test)]
 fn acquire_barrier_with_recovery(
     frontier: &Path,
     journal_dir: &Path,

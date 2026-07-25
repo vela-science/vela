@@ -22,12 +22,11 @@ One module speaks for every porcelain verb. A dispatch arm calls
 ## `--json` universality
 
 Every porcelain verb takes `--json` and emits `{ok, command, …}`. No prose
-ever leaks into a `--json` stream. JSON mode is non-interactive: a historical
-compatibility verb that would prompt (`policy sign`, `policy revoke`) requires
-`--yes` under `--json`. The ordinary `policy decide` preview is key-free;
-execution requires an exact root/time confirmation and a protected OS card,
-never `--yes`. Off-menu utilities (`completions`, `serve`, `init`, `doctor`) are
-the documented exceptions. Pinned by `every_visible_command_offers_json`.
+ever leaks into a `--json` stream. JSON mode is non-interactive. Era-0 policy
+writers and CI auto-verdicts are retired rather than retained as hidden,
+prompting aliases. Off-menu utilities (`completions`, `serve`, `init`,
+`doctor`) are the documented exceptions. Pinned by
+`every_visible_command_offers_json`.
 
 ## Color (`cli_style.rs`)
 
@@ -45,9 +44,9 @@ the documented exceptions. Pinned by `every_visible_command_offers_json`.
   with exit 2 rather than hang or assume "no". Pinned by
   `prompts_refuse_piped_stdin`.
 - Shared input lives in `cli/prompt.rs` (`read_line`, `confirm`). Scriptable
-  alternatives exist for ordinary non-authority prompts. Protected review and
-  policy decisions deliberately accept no `--yes`, batch, wildcard, or saved
-  session approval.
+  alternatives exist for ordinary non-authority prompts. Protected review
+  decisions deliberately accept no `--yes`, batch, wildcard, or saved-session
+  approval.
 - **No TUI.** `docs/CLI.md`: "the interactivity of this era belongs to the
   agent, and the pen belongs to you." No raw-mode arrow-key selectors,
   especially not in the signing path. A picker, if ever needed outside the
@@ -68,9 +67,9 @@ The surface is a deliberate hybrid, not drift:
   review · check · reproduce · log · doctor · migrate`.
 - **Noun-verb** for everything else: `finding <verb>`, `frontier <verb>`,
   `policy <verb>`, `config <verb>`, `id <verb>`, …
-- **One exact human decision entry per authority scope** (`review decide` and
-  `policy decide`). Producers cross the boundary through Receipt v1 and
-  `land`; legacy `sign` and `policy sign` are advanced compatibility surfaces.
+- **One exact Era-0 scientific decision entry** (`review decide`) until each
+  frontier crosses its attributed repository-authority boundary. Producers
+  cross through Receipt v1 and `land`; frozen policy state is read-only.
 - No new top-level verb without a deliberate `V0738_VISIBLE` edit. Growth
   is a decision, not a drift (pinned both directions).
 

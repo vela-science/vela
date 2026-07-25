@@ -12,7 +12,6 @@ use sha2::{Digest, Sha256};
 use vela_protocol::acceptance_policy::PolicyContext;
 use vela_protocol::project::Project;
 use vela_protocol::proposals::StateProposal;
-pub(crate) use vela_protocol::proposals::policy_accept::proposal_claim_class;
 #[cfg(test)]
 use vela_protocol::proposals::policy_accept::{
     PolicyContextInputs, derive_policy_context, receipt_producer_credential_valid,

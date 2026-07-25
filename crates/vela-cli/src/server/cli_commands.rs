@@ -66,58 +66,13 @@ pub enum ConfigAction {
 
 #[derive(Subcommand, Debug)]
 pub enum PolicyAction {
-    /// The active policy: rules, signature state, what it admitted lately.
+    /// Inspect a frozen Era-0 policy and its historical admissions.
     Show {
         frontier: Option<PathBuf>,
         #[arg(long)]
         json: bool,
     },
-    /// Summarize recent deferred asks and the smallest policy template that
-    /// would cover them. This command is read-only and grants no authority.
-    Suggest {
-        frontier: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Seal a policy from a template (witness-rederivation,
-    /// statement-drafts, notes-threshold). Sealed carries NO authority
-    /// until a protected `vela policy decide` activation or rotation.
-    Draft {
-        /// Template followed by an optional frontier, or only the frontier
-        /// with --from-suggest.
-        #[arg(num_args = 0..=2)]
-        operands: Vec<String>,
-        /// Seal the exact rules returned by `vela policy suggest`.
-        #[arg(long)]
-        from_suggest: bool,
-        /// Replace an existing SIGNED active policy (deliberate act).
-        #[arg(long)]
-        replace: bool,
-        /// Derive all four execution roots and the full producer credential
-        /// root from one exact retained pending proposal.
-        #[arg(long, conflicts_with_all = ["from_suggest", "packet_root", "profile_root", "verifier_capsule_root", "result_contract_root", "producer_credential_root"])]
-        from_proposal: Option<String>,
-        /// Full root of the exact target packet eligible for Permit.
-        #[arg(long, conflicts_with = "from_suggest", requires_all = ["profile_root", "verifier_capsule_root", "result_contract_root"])]
-        packet_root: Option<String>,
-        /// Full root of the exact producer profile eligible for Permit.
-        #[arg(long, conflicts_with = "from_suggest", requires_all = ["packet_root", "verifier_capsule_root", "result_contract_root"])]
-        profile_root: Option<String>,
-        /// Full root of the exact frozen verifier capsule eligible for Permit.
-        #[arg(long, conflicts_with = "from_suggest", requires_all = ["packet_root", "profile_root", "result_contract_root"])]
-        verifier_capsule_root: Option<String>,
-        /// Full root of the exact positive result contract eligible for Permit.
-        #[arg(long, conflicts_with = "from_suggest", requires_all = ["packet_root", "profile_root", "verifier_capsule_root"])]
-        result_contract_root: Option<String>,
-        /// Full root of the exact self-signed producer credential eligible for
-        /// this Permit lane. Supplying it selects policy v0.3 and narrows every
-        /// producer, including registered actors, to this allowlist.
-        #[arg(long, conflicts_with = "from_suggest", requires_all = ["packet_root", "profile_root", "verifier_capsule_root", "result_contract_root"])]
-        producer_credential_root: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Dry-run the active/sealed policy over every pending proposal.
+    /// Re-evaluate frozen Era-0 policy outcomes without granting authority.
     Test {
         frontier: Option<PathBuf>,
         #[arg(long)]
@@ -132,74 +87,7 @@ pub enum PolicyAction {
         #[arg(long)]
         json: bool,
     },
-    /// Prepare or execute one protected, exact policy-head decision. Without
-    /// --confirm-root/--confirm-at this command is key-free and read-only.
-    Decide {
-        frontier: Option<PathBuf>,
-        /// Activate the first signed policy head for this exact policy id.
-        #[arg(long, conflicts_with_all = ["rotate", "revoke"])]
-        activate: Option<String>,
-        /// Rotate the signed policy head to this exact policy id.
-        #[arg(long, conflicts_with_all = ["activate", "revoke"])]
-        rotate: Option<String>,
-        /// Revoke the current signed policy head.
-        #[arg(long, conflicts_with_all = ["activate", "rotate"])]
-        revoke: bool,
-        /// Human-readable rationale bound into the Decision Plan and event.
-        #[arg(long)]
-        reason: String,
-        /// Exact root returned by the key-free preview.
-        #[arg(long, requires = "confirm_at")]
-        confirm_root: Option<String>,
-        /// Exact observation time returned by the key-free preview.
-        #[arg(long, requires = "confirm_root")]
-        confirm_at: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// THE ceremony: review the sealed policy, one confirm, one key
-    /// read — standing policy authority is reassessed. Humans only.
-    #[command(hide = true)]
-    Sign {
-        frontier: Option<PathBuf>,
-        #[arg(long, help = HELP_KEY)]
-        key: Option<PathBuf>,
-        /// Skip the confirm prompt (the policy is still shown).
-        #[arg(long)]
-        yes: bool,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Close the lane with one signed causal review; the active signature
-    /// loses authority while snapshots retain past admissions.
-    #[command(hide = true)]
-    Revoke {
-        /// Why (recorded next to the revocation).
-        #[arg(long)]
-        reason: String,
-        frontier: Option<PathBuf>,
-        #[arg(long, help = HELP_KEY)]
-        key: Option<PathBuf>,
-        #[arg(long)]
-        yes: bool,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Prepare a pending human-governance proposal that retires an unused
-    /// prelaunch policy byte pair which current policy parsing rejects. This
-    /// command is keyless; only the existing `vela sign` ceremony can accept.
-    #[command(hide = true)]
-    RetireLegacy {
-        frontier: Option<PathBuf>,
-        /// Why these unsupported prelaunch bytes should be retired.
-        #[arg(long)]
-        reason: String,
-        #[arg(long = "as", help = HELP_REQUIRED_AS)]
-        actor: String,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Every policy-lane admission, grouped by policy.
+    /// Inspect historical policy-lane admissions, grouped by frozen policy.
     Log {
         frontier: Option<PathBuf>,
         #[arg(long)]
@@ -665,13 +553,6 @@ pub(crate) enum Commands {
         json: bool,
     },
 
-    /// Continuous-integration verbs for a frontier's GitHub Action.
-    #[command(after_long_help = crate::cli::help_text::CI)]
-    Ci {
-        #[command(subcommand)]
-        action: CiAction,
-    },
-
     /// Plain configuration: how YOUR tools behave — never what enters
     /// the record (that is `vela policy`) or who you are (`vela id`).
     /// A closed, validated key set with visible origins; frontier scope
@@ -682,11 +563,8 @@ pub(crate) enum Commands {
         action: ConfigAction,
     },
 
-    /// Standing rules: the ceremony that pays compound interest. A
-    /// policy you sign ONCE lets agents land whole classes of gated
-    /// work with no per-item key ceremony; everything outside policy
-    /// waits for exact human review. Use `policy decide` for protected
-    /// activation, rotation, and revocation.
+    /// Read-only inspection of frozen Era-0 policy inputs and admissions.
+    /// Repository authority and restricted Cedar own all new writes.
     #[command(after_long_help = crate::cli::help_text::POLICY)]
     Policy {
         #[command(subcommand)]
@@ -848,24 +726,6 @@ pub(crate) enum AgentsAction {
     Diff {
         #[arg(default_value = ".")]
         root: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-}
-
-#[derive(Subcommand)]
-pub(crate) enum CiAction {
-    /// The whole auto-merge decision in one call: which proposals a PR adds,
-    /// whether each is `machine_verified` and a genuine beat, and whether the PR
-    /// only touched the append-only store. Exit 0 iff the PR may auto-merge, so
-    /// an Action is `vela ci verdict … && gh pr merge`.
-    Verdict {
-        #[arg(long, default_value = ".")]
-        frontier: PathBuf,
-        /// The base ref the PR merges into (e.g. `origin/main`). CI must fetch
-        /// it (actions/checkout with fetch-depth: 0).
-        #[arg(long)]
-        base: String,
         #[arg(long)]
         json: bool,
     },

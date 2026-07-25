@@ -71,27 +71,25 @@ session without changing a Frontier or deleting the protected identity.
 
 ## Exact protected decisions
 
-Review and policy decisions are two phase:
+Era-0 review decisions remain two phase while selected frontiers complete
+repository-authority migration:
 
 ```bash
 vela review decide . <vpr_id> --reject --reason "<reason>" --json
 vela review decide . <vpr_id> --reject --reason "<reason>" \
   --confirm-root <sha256:...> --confirm-at <RFC3339> --json
 
-vela policy decide . --activate <vap_id> --reason "<reason>" --json
-vela policy decide . --activate <vap_id> --reason "<reason>" \
-  --confirm-root <sha256:...> --confirm-at <RFC3339> --json
 ```
 
-Preview reads no key. Matching execution rederives the proposal or policy,
-action, reason, roots, authority, pinned binary/helper, and transaction read
-set before showing one exact OS card. Action, reason, target, timestamp, or
-root drift invalidates confirmation. Cancellation, timeout, or authentication
-failure writes no event, signature, committed journal marker, or Git commit.
+Preview reads no key. Matching execution rederives the proposal, action,
+reason, roots, authority, pinned binary/helper, and transaction read set before
+showing one exact OS card. Action, reason, target, timestamp, or root drift
+invalidates confirmation. Cancellation, timeout, or authentication failure
+writes no event, signature, committed journal marker, or Git commit.
 
 The protected path accepts no key path, batch, wildcard, persistent approval,
-saved session answer, or `--yes`. Legacy `vela sign` and `policy sign` remain
-advanced compatibility surfaces and are not the ordinary workflow.
+saved session answer, or `--yes`. AcceptancePolicy authoring and policy signing
+porcelain are retired; only read-only Era-0 policy verification remains.
 
 ## First repository administrator
 
