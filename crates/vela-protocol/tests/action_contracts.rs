@@ -211,9 +211,17 @@ fn reviewed_tags_publish_provenance_labeled_cross_platform_bundles() {
     assert!(RELEASE_WORKFLOW.contains("test -f \"dist/$asset.trust.json\""));
     assert!(RELEASE_WORKFLOW.contains("science.vela.signer.policy"));
     assert!(RELEASE_WORKFLOW.contains("gh release create \"$GITHUB_REF_NAME\" dist/*"));
-    assert!(RELEASE_WORKFLOW.contains("needs: [build, smoke, registry-smoke]"));
+    assert!(RELEASE_WORKFLOW.contains("prerelease: ${{ steps.version.outputs.prerelease }}"));
+    assert!(RELEASE_WORKFLOW.contains("echo \"prerelease=$prerelease\""));
+    assert!(RELEASE_WORKFLOW.contains(
+        "if: github.event_name == 'push' && needs.metadata.outputs.prerelease != 'true'"
+    ));
+    assert!(RELEASE_WORKFLOW.contains("needs: [metadata, build, smoke, registry-smoke]"));
+    assert!(RELEASE_WORKFLOW.contains("needs.registry-smoke.result == 'success'"));
+    assert!(RELEASE_WORKFLOW.contains("needs.registry-smoke.result == 'skipped'"));
+    assert!(RELEASE_WORKFLOW.contains("needs.metadata.outputs.prerelease == 'true'"));
     assert!(RELEASE_WORKFLOW.contains("cargo install --locked vela-cli --version \"$VERSION\""));
-    assert!(RELEASE_WORKFLOW.contains("if: github.event_name == 'push'"));
+    assert!(RELEASE_WORKFLOW.contains("github.event_name == 'push'"));
     assert!(RELEASE_WORKFLOW.contains("--verify-tag"));
     assert!(RELEASE_WORKFLOW.contains("permissions:\n  contents: read"));
     assert!(RELEASE_WORKFLOW.contains("permissions:\n      contents: write"));

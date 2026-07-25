@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Bind the candidate or release identity
@@ -32,6 +33,10 @@ jobs:
               print(tomllib.load(source)["workspace"]["package"]["version"])
           PY
           )"
+          case "$version" in
+            *-*) prerelease=true ;;
+            *) prerelease=false ;;
+          esac
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then
             test "v$version" = "$GITHUB_REF_NAME" || {
               echo "release tag $GITHUB_REF_NAME does not match Vela workspace version v$version" >&2
@@ -53,6 +58,7 @@ jobs:
             esac
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
 
   build:
     needs: metadata
@@ -248,7 +254,7 @@ jobs:
         run: scripts/smoke-release-bundle.ps1 -Archive "dist/$env:ASSET" -ExpectedVersion $env:EXPECTED_VERSION -RequirePlatformSignature ($env:REQUIRE_PLATFORM_SIGNATURE -eq "true")
 
   registry-smoke:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && needs.metadata.outputs.prerelease != 'true'
     needs: metadata
     name: registry-smoke-${{ matrix.os }}
     strategy:
@@ -269,8 +275,22 @@ jobs:
           "$root/bin/vela-signer" --version | grep -F "vela-signer $VERSION"
 
   publish:
-    if: github.event_name == 'push'
-    needs: [build, smoke, registry-smoke]
+    if: >-
+      ${{
+        always() &&
+        github.event_name == 'push' &&
+        needs.metadata.result == 'success' &&
+        needs.build.result == 'success' &&
+        needs.smoke.result == 'success' &&
+        (
+          needs.registry-smoke.result == 'success' ||
+          (
+            needs.metadata.outputs.prerelease == 'true' &&
+            needs.registry-smoke.result == 'skipped'
+          )
+        )
+      }}
+    needs: [metadata, build, smoke, registry-smoke]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
