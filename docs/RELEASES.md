@@ -9,6 +9,28 @@ Receipt, policy, proposal, or authority contract.
 
 - Repository: [`vela-science/vela-research-harness`](https://github.com/vela-science/vela-research-harness)
 - Release: [`v0.6.5`](https://github.com/vela-science/vela-research-harness/releases/tag/v0.6.5)
+- Tag commit: `940cbd8ef99075e2ec3e99fee49ef1728140d79c`
+- Trusted release:
+  [run 30154538770](https://github.com/vela-science/vela-research-harness/actions/runs/30154538770),
+  verified the GitHub attestation, published through npm trusted publishing,
+  verified npm provenance, and created the matching GitHub release.
+- npm integrity:
+  `sha512-Ii1rlrSmBrbPCLRWnqd2QdsUJh1RNqak2NAi2obpHjZconu3doIckN6FGSKanX6nFO06iG7kSGIy+1TCwONYIw==`
+- npm shasum: `415740b6be98e32c27b69416dfeb6047a4caa9b5`
+- Package SHA-256:
+  `75278507e2892455b3c13db1096d652c0380c04585f1d9118bb979c9ca52f81e`
+
+The immutable tag's initial cross-platform CI
+[run 30154538809](https://github.com/vela-science/vela-research-harness/actions/runs/30154538809)
+correctly failed because the installed-package smoke still named the
+superseded `10428601..10428800` profile, which the current package intentionally
+does not ship. Commit `4dc640cc1efa34cd1d270320519bcd2498bcf33c`
+rebound both Unix and Windows smoke checks to the packaged profile and added a
+release-contract regression. Main
+[run 30154661325](https://github.com/vela-science/vela-research-harness/actions/runs/30154661325)
+then passed on macOS, Ubuntu, and Windows. The tag was not moved, and no
+replacement package was published: the defect was in repository CI
+orchestration, not the attested `0.6.5` artifact.
 
 The mission completed without semantic hints:
 
