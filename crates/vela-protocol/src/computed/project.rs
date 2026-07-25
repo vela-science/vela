@@ -1,6 +1,6 @@
 //! Stage 5: ASSEMBLE — build the project with stats and metadata.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -206,8 +206,8 @@ pub struct ProjectStats {
     pub gaps: usize,
     pub negative_space: usize,
     pub contested: usize,
-    pub categories: HashMap<String, usize>,
-    pub link_types: HashMap<String, usize>,
+    pub categories: BTreeMap<String, usize>,
+    pub link_types: BTreeMap<String, usize>,
     pub human_reviewed: usize,
     /// Findings whose review came from an agent/bot actor, counted
     /// separately so `human_reviewed` never overstates human review.
@@ -807,14 +807,14 @@ pub(crate) mod reverse_dep_index_tests {
 pub fn recompute_stats(project: &mut Project) {
     let total_links: usize = project.findings.iter().map(|b| b.links.len()).sum();
 
-    let mut link_types: HashMap<String, usize> = HashMap::new();
+    let mut link_types: BTreeMap<String, usize> = BTreeMap::new();
     for b in &project.findings {
         for l in &b.links {
             *link_types.entry(l.link_type.clone()).or_default() += 1;
         }
     }
 
-    let mut categories: HashMap<String, usize> = HashMap::new();
+    let mut categories: BTreeMap<String, usize> = BTreeMap::new();
     for b in &project.findings {
         *categories
             .entry(b.assertion.assertion_type.clone())
@@ -1071,6 +1071,24 @@ mod tests {
         let c = assemble("test", bundles, 3, 0, "desc");
         assert_eq!(*c.stats.categories.get("mechanism").unwrap(), 2);
         assert_eq!(*c.stats.categories.get("therapeutic").unwrap(), 1);
+    }
+
+    #[test]
+    fn serialized_stats_maps_are_key_ordered() {
+        let mut first = make_finding("f1", 0.8, "zeta", false, false);
+        first.add_link("f2", "zeta", "later lexical key inserted first");
+        first.add_link("f3", "alpha", "earlier lexical key inserted second");
+        let second = make_finding("f2", 0.7, "alpha", false, false);
+        let project = assemble("test", vec![first, second], 2, 0, "desc");
+
+        assert_eq!(
+            serde_json::to_string(&project.stats.categories).unwrap(),
+            r#"{"alpha":1,"zeta":1}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&project.stats.link_types).unwrap(),
+            r#"{"alpha":1,"zeta":1}"#
+        );
     }
 
     #[test]

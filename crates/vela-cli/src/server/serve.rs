@@ -2,7 +2,7 @@
 
 #![allow(clippy::too_many_lines)]
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -138,8 +138,8 @@ pub fn load_projects(source: &ProjectSource) -> (Project, Vec<ProjectInfo>) {
 
 fn merge_projects(frontiers: Vec<(String, Project)>) -> Project {
     let mut findings = Vec::<FindingBundle>::new();
-    let mut categories = HashMap::<String, usize>::new();
-    let mut link_types = HashMap::<String, usize>::new();
+    let mut categories = BTreeMap::<String, usize>::new();
+    let mut link_types = BTreeMap::<String, usize>::new();
     let mut names = Vec::new();
     let mut papers_processed = 0usize;
     let mut errors = 0usize;

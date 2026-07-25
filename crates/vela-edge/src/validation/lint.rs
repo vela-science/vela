@@ -654,7 +654,7 @@ mod tests {
     }
 
     fn make_frontier(findings: Vec<FindingBundle>) -> Project {
-        use std::collections::HashMap;
+        use std::collections::BTreeMap;
         use vela_protocol::project::*;
         Project {
             vela_version: "0.1.0".into(),
@@ -678,8 +678,8 @@ mod tests {
                 gaps: 0,
                 negative_space: 0,
                 contested: 0,
-                categories: HashMap::new(),
-                link_types: HashMap::new(),
+                categories: BTreeMap::new(),
+                link_types: BTreeMap::new(),
                 human_reviewed: 0,
                 agent_reviewed: 0,
                 review_event_count: 0,
