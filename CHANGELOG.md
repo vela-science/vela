@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Advance the sole runnable Erdős 1056 profile to the adjacent,
+  non-overlapping range `10428801..10429000`. The registration freezes one
+  bounded Mission v1 draft and independently built static Linux ARM64 and
+  x86-64 verifier capsules before any model call. The completed
+  `10428601..10428800` profile remains reproducible from Canopus `0.6.3`, its
+  retained run evidence, and immutable Git history; its binaries are removed
+  from the active package rather than accumulated indefinitely.
 - Compose exactly with released Vela `0.915.1`. The maintenance release changes
   no mission, Receipt, verifier, policy, proposal, or authority contract.
   GitHub CI pins the released macOS, Linux, and Windows archives and binaries by
