@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.5 - 2026-07-25
 
 - Advance the sole runnable Erdős 1056 profile to the adjacent,
   non-overlapping range `10428801..10429000`. The registration freezes one
@@ -9,6 +9,17 @@
   `10428601..10428800` profile remains reproducible from Canopus `0.6.3`, its
   retained run evidence, and immutable Git history; its binaries are removed
   from the active package rather than accumulated indefinitely.
+- Complete that registered mission in 73,083 observed tokens. The frozen
+  verifier independently confirms the exhaustive bounded-negative result over
+  all 15 primes in `10428801..10429000`; Vela lands Receipt
+  `sha256:7a7c728516e79da3f25ac1f6c10c30908949b6aba118dc9752f61b90b4a96435`
+  as proposal `vpr_4a9068064a0c441c` through Defer with accepted-event delta
+  zero, and clean-clone reproduction matches. The result is not a universal
+  nonexistence claim and is not scientific acceptance.
+- Publish only the sanitized read-only run projection at
+  `evidence/erdos/run_b3b0cf07-b149-4d53-8258-76ba0e1fc0a5`; the raw worker
+  directory, credentials, unrestricted logs, and withdrawal capability remain
+  outside the package.
 - Compose exactly with released Vela `0.915.1`. The maintenance release changes
   no mission, Receipt, verifier, policy, proposal, or authority contract.
   GitHub CI pins the released macOS, Linux, and Windows archives and binaries by

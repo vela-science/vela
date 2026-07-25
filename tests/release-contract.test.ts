@@ -69,7 +69,7 @@ test("published package carries the exact Build Week judge path", async () => {
   const auditCommit = "825657d7e87618c0aa6fc9af7e3182e05f324750";
   const velaRelease = "https://github.com/vela-science/vela/releases/tag/v0.912.0";
 
-  assert.equal(packageJson.version, "0.6.4");
+  assert.equal(packageJson.version, "0.6.5");
   for (const file of [
     "README.md",
     "BUILD_WEEK.md",
@@ -91,6 +91,6 @@ test("published package carries the exact Build Week judge path", async () => {
   );
   assert.match(
     readme,
-    /For new missions, use Vela `0\.915\.1`, the version composed with Canopus\s+`0\.6\.4`/u,
+    /For new missions, use Vela `0\.915\.1`, the version composed with Canopus\s+`0\.6\.5`/u,
   );
 });

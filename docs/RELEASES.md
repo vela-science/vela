@@ -1,5 +1,49 @@
 # Release evidence
 
+## Canopus v0.6.5
+
+Version `0.6.5` packages the preregistered
+`erdos1056-k15-10428801-10429000` profile and the sanitized record of its
+completed non-overlapping bounded search. It changes no runtime, protocol,
+Receipt, policy, proposal, or authority contract.
+
+- Repository: [`vela-science/vela-research-harness`](https://github.com/vela-science/vela-research-harness)
+- Release: [`v0.6.5`](https://github.com/vela-science/vela-research-harness/releases/tag/v0.6.5)
+
+The mission completed without semantic hints:
+
+- Run: `run_b3b0cf07-b149-4d53-8258-76ba0e1fc0a5`
+- Model/runtime: `gpt-5.4` / Codex CLI `0.145.0`
+- Scope: every prime in the exact inclusive range `10428801..10429000`
+- Result: 15 primes checked; no factorial-residue fiber reached size 16; the
+  maximum was 11 at `p=10428809`, residue `2766139`
+- Observed usage: 73,083 tokens, below the registered 160,000-token ceiling
+- Artifact:
+  `sha256:ce808e3f27edf7571b8d4f4a5c7a1ffc4041642568a4aa409bfda8c8801bb4e0`
+- Frozen ARM64 verifier executable:
+  `sha256:c9533a8650ca2a76f37c4d482e5467849eb6df4e11d18759207abd94739293f3`
+- Verifier output:
+  `sha256:82c9d62b67f0909f1e080a9e150e3940ad03a9fa2f6b7a43f44802761fb36fc8`
+- Receipt:
+  `sha256:7a7c728516e79da3f25ac1f6c10c30908949b6aba118dc9752f61b90b4a96435`
+- Proposal: `vpr_4a9068064a0c441c`
+- Route and authority effect: Defer; accepted-event delta zero
+- Clean-clone reproduction: matched
+- Sanitized public projection:
+  `sha256:9e2ed0a19ff8f9f52c2efcecb59865cea4f69ca25f67db5fe0e09dd2b54826e8`
+- Publication bundle:
+  `sha256:33637f6164518cf4e5974d5a9f8a4af3dfbd004705a22d73f45fbe1db828f6bb`
+- Canonical frontier landing commit:
+  `d663166996c1522fe1c3257588c2ba0bcd58677f`
+
+The bounded negative result is evidence only. It does not prove universal
+nonexistence or settle Erdős 1056, and verifier passage is not scientific
+acceptance. The exact proposal remains pending human review; its acceptance
+path is blocked by the durable Engine gate because it lacks two independent
+retained attachments and one surviving adversarial probe. The raw run remains
+local. Only the sanitized projection and its content-addressed manifest enter
+this repository.
+
 ## Canopus v0.6.4
 
 Version `0.6.4` restores exact composition with released Vela `0.915.1`.
