@@ -61,11 +61,12 @@ bunx @vela-science/canopus@0.6.4 --version
 bunx @vela-science/canopus@0.6.4 profile validate sidon-a24-at-least-7194-gpt56-v3
 ```
 
-**Full workflow — reproduce without rebuilding Canopus:**
+**Retained historical result — reproduce without rebuilding Canopus:**
 
+This Sidon artifact remains bound to the Vela version recorded when it landed.
 Install the provenance-checked prebuilt
 [Vela 0.912.0 release](https://github.com/vela-science/vela/releases/tag/v0.912.0)
-for your platform, then:
+for this replay only, then:
 
 ```sh
 git clone https://github.com/vela-science/sidon-frontier.git
@@ -79,6 +80,9 @@ node verification/verify-sidon-a24-7194.mjs \
 The first command selects the pending artifact explicitly and runs Vela's
 frozen Sidon verifier. The second is an independent base-3 implementation that
 also rejects a bound collision injection. Neither command accepts the proposal.
+
+For new missions, use Vela `0.915.1`, the version composed with Canopus
+`0.6.4` and enforced by `canopus doctor`.
 
 ## Quickstart
 

@@ -85,4 +85,12 @@ test("published package carries the exact Build Week judge path", async () => {
     assert.match(document, new RegExp(`vela reproduce ${artifact.replaceAll(".", "\\.")}`, "u"));
     assert.match(document, /node verification\/verify-sidon-a24-7194\.mjs/u);
   }
+  assert.match(
+    readme,
+    /This Sidon artifact remains bound to the Vela version recorded when it landed\./u,
+  );
+  assert.match(
+    readme,
+    /For new missions, use Vela `0\.915\.1`, the version composed with Canopus\s+`0\.6\.4`/u,
+  );
 });
