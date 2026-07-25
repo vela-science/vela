@@ -113,6 +113,16 @@ pub(crate) fn proposal_parity_summary(
     }
 }
 
+fn proposal_parity_suggestion(repository_context: &Value, conflict: &str) -> &'static str {
+    if repository_context.get("generation").and_then(Value::as_str) == Some("legacy_v0_1")
+        && conflict.contains("logical content derives id")
+    {
+        "Do not rewrite or re-issue this immutable proposal. Preview the exact `frontier-repo-v1` migration with a Profile v1 and Target Index v2 candidate; a valid pinned boundary may retain the frozen conflict as anchored, unauthenticated legacy identity debt."
+    } else {
+        "Every decided proposal must have a signed review.* event (or, for accepts, its domain event). Re-issue the decision through `vela sign`."
+    }
+}
+
 pub(crate) fn active_policy_pair_snapshot(
     source: &Path,
 ) -> Result<vela_protocol::acceptance_policy::ActivePolicySnapshot, String> {
@@ -504,7 +514,7 @@ pub(crate) fn check_json_payload_with_home(
                     "finding_id": null,
                     "field_path": null,
                     "message": conflict,
-                    "suggestion": "Every decided proposal must have a signed review.* event (or, for accepts, its domain event). Re-issue the decision through `vela sign`.",
+                    "suggestion": proposal_parity_suggestion(&repository_context, conflict),
                     "fixable": false,
                     "normalize_action": null,
                 })
@@ -1690,6 +1700,25 @@ mod repository_context_tests {
         );
         assert_eq!(snapshot_without_git(fixture.repo.path()), repository_before);
         assert_eq!(snapshot_without_git(fixture.home.path()), trust_before);
+    }
+
+    #[test]
+    fn legacy_logical_id_conflict_points_to_boundary_migration_not_reissue() {
+        let legacy_context = json!({"generation": "legacy_v0_1"});
+        let suggestion = proposal_parity_suggestion(
+            &legacy_context,
+            "proposal vpr_legacy logical content derives id vpr_current",
+        );
+        assert!(suggestion.contains("Do not rewrite or re-issue"));
+        assert!(suggestion.contains("frontier-repo-v1"));
+        assert!(!suggestion.contains("vela sign"));
+
+        let native_context = json!({"generation": "profile_v1"});
+        let native_suggestion = proposal_parity_suggestion(
+            &native_context,
+            "proposal vpr_native logical content derives id vpr_other",
+        );
+        assert!(native_suggestion.contains("vela sign"));
     }
 
     #[test]
