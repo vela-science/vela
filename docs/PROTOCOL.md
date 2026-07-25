@@ -315,6 +315,16 @@ operational field cannot silently change scientific identity. Its pure
 implementation and fixed empty-state vector live in
 [`crates/vela-protocol/src/computed/scientific_state.rs`](../crates/vela-protocol/src/computed/scientific_state.rs).
 
+The Profile v1 lock separately pins the Vela reducer and verifier packages
+that produced `frontier.json`, `proof/`, and the compatibility-only
+`legacy_snapshot_root`. Compatible later readers validate those derived bytes
+using the lock-pinned materializer version rather than their own package
+version. The reducer and verifier package names must agree exactly with the
+lock's Vela version. This preserves exact historical derived views without
+turning display metadata into scientific identity; explicit materialization
+may advance the derived version while leaving canonical history and
+`scientific_state_root` unchanged.
+
 ### 4.5 Actor and policy
 
 The frontier actor registry maps a namespaced actor ID to an Ed25519 public key
@@ -748,7 +758,10 @@ A frontier is an ordinary Git repository. The current owned paths are:
 
 `vela frontier materialize <frontier>` rebuilds visible state and lock/proof
 views from committed inputs. Generated views and indexes are not authority and
-must be safe to delete and recreate.
+must be safe to delete and recreate. Read-only verification of an older
+Profile v1 checkout uses the reducer and verifier versions pinned by that
+checkout's lock when validating these non-scientific bytes; merely upgrading
+the reader does not require a derived-view commit.
 
 Git publication uses an isolated, exact-path candidate tree and compare-and-swap
 ref movement. It must not consume unrelated caller staging. A Git commit proves

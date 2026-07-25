@@ -154,6 +154,14 @@ For a read-only Profile v0.1 replay, `scientific_state_root` is `null`,
 `frontier.profile_generation` is `legacy_v0_1`; the command never relabels the
 legacy snapshot as the current scientific root.
 
+Profile v1 lockfiles also pin the exact Vela and verifier versions that
+produced their non-scientific derived views. A newer compatible reader
+validates `frontier.json` and `legacy_snapshot_root` against those pinned
+materializer identities; it does not substitute its own version and falsely
+report an untouched checkout as stale. Running `frontier materialize`
+explicitly advances the derived-view metadata to the current binary. Neither
+path changes the closed scientific-state root or grants authority.
+
 Compact status runs the same complete Profile v1 repository-context gate as a
 canonical write: profile and settings, reducer and proposal parity, exact Git
 boundary, retained bytes, and the independently installed consumer trust pin.

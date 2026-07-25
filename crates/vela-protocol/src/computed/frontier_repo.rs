@@ -1099,6 +1099,7 @@ fn render_visible_repo_files_inner(
             project,
             &generated_at,
             migration_profile.map(|(profile, _)| profile),
+            None,
         )?,
     );
     let manifest = match migration_profile {
@@ -1565,15 +1566,49 @@ fn validate_v1_layout(
     lock: &FrontierLockV1,
     issues: &mut Vec<RepoLayoutIssue>,
 ) {
-    let projection = match profile.project(project) {
+    let expected_reducer_package = format!("vela@{}", lock.vela_version);
+    if lock.reducer.package != expected_reducer_package {
+        issues.push(issue(
+            "frontier_lock_mismatch",
+            format!(
+                "vela.lock reducer package does not match its pinned Vela version: package={}, version={}",
+                lock.reducer.package, lock.vela_version
+            ),
+        ));
+    }
+    let expected_verifier_package = format!("vela-verify@{}", lock.vela_version);
+    if !lock.verifiers.package.is_empty() && lock.verifiers.package != expected_verifier_package {
+        issues.push(issue(
+            "frontier_lock_mismatch",
+            format!(
+                "vela.lock verifier package does not match its pinned Vela version: package={}, version={}",
+                lock.verifiers.package, lock.vela_version
+            ),
+        ));
+    }
+
+    // Profile v1 deliberately keeps the compiler and reducer package as
+    // non-scientific materialization metadata. Validate an older checkout
+    // against the version pinned by its own lock, rather than silently
+    // substituting the version of the binary performing the read. Otherwise
+    // every compatible Vela upgrade makes an untouched strict-clean Frontier
+    // appear stale before it can even be audited.
+    let pinned_project = match project_for_profile_lock(project, &lock.vela_version) {
+        Ok(project) => project,
+        Err(error) => {
+            issues.push(issue("invalid_materialized_frontier", error));
+            return;
+        }
+    };
+    let projection = match profile.project(&pinned_project) {
         Ok(projection) => projection,
         Err(error) => {
             issues.push(issue("invalid_frontier_profile", error));
             return;
         }
     };
-    let visible = project_with_frontier_id(project);
-    let hash_project = visible.as_ref().unwrap_or(project);
+    let visible = project_with_frontier_id(&pinned_project);
+    let hash_project = visible.as_ref().unwrap_or(&pinned_project);
     let expected_legacy_snapshot = prefixed(events::snapshot_hash(hash_project));
     let expected_event_log = prefixed(events::event_log_hash(&project.events));
     let expected_proposals = proposal_state_hash(&project.proposals);
@@ -1688,9 +1723,10 @@ fn validate_v1_layout(
     }
     let expected_visible = render_visible_state(
         path,
-        project,
-        &materialization_generated_at(path, project),
-        None,
+        &pinned_project,
+        &materialization_generated_at(path, &pinned_project),
+        Some(profile),
+        Some(&expected_reducer_package),
     );
     match (fs::read(&visible_path), expected_visible) {
         (Ok(actual), Ok(expected)) if actual == expected => {}
@@ -1701,6 +1737,19 @@ fn validate_v1_layout(
         (Err(error), _) => issues.push(issue("invalid_materialized_frontier", error.to_string())),
         (_, Err(error)) => issues.push(issue("invalid_materialized_frontier", error)),
     }
+}
+
+fn project_for_profile_lock(project: &Project, vela_version: &str) -> Result<Project, String> {
+    if vela_version.trim().is_empty() {
+        return Err("vela.lock has an empty pinned Vela version".to_string());
+    }
+    let mut value = serde_json::to_value(project)
+        .map_err(|error| format!("clone Profile v1 projection: {error}"))?;
+    let compiler = value
+        .pointer_mut("/frontier/compiler")
+        .ok_or_else(|| "Profile v1 projection has no compiler field".to_string())?;
+    *compiler = serde_json::Value::String(format!("vela/{vela_version}"));
+    serde_json::from_value(value).map_err(|error| format!("restore Profile v1 projection: {error}"))
 }
 
 pub fn manifest_overrides(path: &Path) -> Result<Option<FrontierManifest>, String> {
@@ -1859,7 +1908,7 @@ fn empty_project(name: &str, description: &str, compiled_at: &str) -> Project {
 }
 
 fn write_visible_state(path: &Path, project: &Project, generated_at: &str) -> Result<(), String> {
-    let bytes = render_visible_state(path, project, generated_at, None)?;
+    let bytes = render_visible_state(path, project, generated_at, None, None)?;
     fs::write(path.join("frontier.json"), bytes)
         .map_err(|e| format!("Failed to write frontier.json: {e}"))
 }
@@ -1869,6 +1918,7 @@ fn render_visible_state(
     project: &Project,
     generated_at: &str,
     profile_override: Option<&FrontierProfileV1>,
+    reducer_package_override: Option<&str>,
 ) -> Result<Vec<u8>, String> {
     let visible = project_with_frontier_id(project)?;
     let snapshot_hash = prefixed(events::snapshot_hash(&visible));
@@ -1907,7 +1957,9 @@ fn render_visible_state(
                     "scientific_state_root": projection.scientific_state_root,
                     "legacy_snapshot_root": snapshot_hash,
                     "event_log_root": event_log_hash,
-                    "vela_reducer": format!("vela@{}", env!("CARGO_PKG_VERSION")),
+                    "vela_reducer": reducer_package_override
+                        .map(str::to_string)
+                        .unwrap_or_else(|| format!("vela@{}", env!("CARGO_PKG_VERSION"))),
                 })
             }
             _ => json!({
@@ -1920,7 +1972,9 @@ fn render_visible_state(
                 "replay_trace": "proof/replay.trace.jsonl",
                 "snapshot_hash": snapshot_hash,
                 "event_log_hash": event_log_hash,
-                "vela_reducer": format!("vela@{}", env!("CARGO_PKG_VERSION")),
+                "vela_reducer": reducer_package_override
+                    .map(str::to_string)
+                    .unwrap_or_else(|| format!("vela@{}", env!("CARGO_PKG_VERSION"))),
             }),
         };
         object.insert("_meta".to_string(), metadata);
@@ -2633,6 +2687,89 @@ fn default_visibility() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn profile_v1_strict_layout_replays_its_pinned_materializer_version() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        initialize_profile_v1_minimal(
+            tmp.path(),
+            ProfileV1InitOptions {
+                name: "Pinned materializer fixture",
+                scope: "Can a later compatible reader verify this exact older derived view?",
+                initialize_git: false,
+            },
+        )
+        .expect("initialize Profile v1 fixture");
+
+        let project = crate::repo::load_from_path(tmp.path()).expect("load fixture");
+        let Some(FrontierProfileFile::V1(profile)) =
+            read_repository_profile(tmp.path()).expect("read profile")
+        else {
+            panic!("expected Profile v1");
+        };
+        let Some(FrontierLockFile::V1(mut lock)) =
+            read_repository_lock(tmp.path()).expect("read lock")
+        else {
+            panic!("expected Profile v1 lock");
+        };
+
+        let pinned_version = "0.929.0";
+        let pinned_reducer = format!("vela@{pinned_version}");
+        let pinned_verifier = format!("vela-verify@{pinned_version}");
+        let pinned_project =
+            project_for_profile_lock(&project, pinned_version).expect("pin project metadata");
+        let pinned_project =
+            project_with_frontier_id(&pinned_project).expect("pin frontier identity");
+        lock.vela_version = pinned_version.to_string();
+        lock.reducer.package = pinned_reducer.clone();
+        lock.reducer.digest = identity_digest(&pinned_reducer);
+        lock.verifiers.package = pinned_verifier.clone();
+        lock.verifiers.digest = identity_digest(&pinned_verifier);
+        lock.legacy_snapshot_root = prefixed(events::snapshot_hash(&pinned_project));
+
+        let generated_at = materialization_generated_at(tmp.path(), &pinned_project);
+        let visible = render_visible_state(
+            tmp.path(),
+            &pinned_project,
+            &generated_at,
+            Some(&profile),
+            Some(&pinned_reducer),
+        )
+        .expect("render pinned view");
+        fs::write(tmp.path().join("frontier.json"), visible).expect("write pinned view");
+        fs::write(
+            tmp.path().join("vela.lock"),
+            serde_yaml::to_string(&lock).expect("serialize pinned lock"),
+        )
+        .expect("write pinned lock");
+
+        let current_project =
+            crate::repo::load_from_path(tmp.path()).expect("load under current reader");
+        assert_ne!(
+            current_project.project.compiler, pinned_project.project.compiler,
+            "the regression requires a different current reader version"
+        );
+        let issues = layout_issues(tmp.path(), &current_project);
+        assert!(
+            issues.is_empty(),
+            "a compatible reader must validate the exact lock-pinned derived view: {issues:?}"
+        );
+
+        lock.reducer.package = "vela@0.928.0".to_string();
+        fs::write(
+            tmp.path().join("vela.lock"),
+            serde_yaml::to_string(&lock).expect("serialize mismatched lock"),
+        )
+        .expect("write mismatched lock");
+        let issues = layout_issues(tmp.path(), &current_project);
+        assert!(
+            issues.iter().any(|issue| {
+                issue.rule_id == "frontier_lock_mismatch"
+                    && issue.message.contains("reducer package")
+            }),
+            "package/version substitution must fail closed: {issues:?}"
+        );
+    }
 
     #[test]
     fn retired_carina_field_is_readable_only_in_legacy_manifests() {
