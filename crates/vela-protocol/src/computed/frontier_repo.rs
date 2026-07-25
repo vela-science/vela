@@ -1771,14 +1771,30 @@ fn validate_v1_layout(
         Some(&expected_reducer_package),
     );
     match (fs::read(&visible_path), expected_visible) {
-        (Ok(actual), Ok(expected)) if actual == expected => {}
+        (Ok(actual), Ok(expected))
+            if equivalent_json_projection(&actual, &expected).unwrap_or(false) => {}
         (Ok(_), Ok(_)) => issues.push(issue(
             "frontier_lock_mismatch",
-            "frontier.json does not match the exact Profile v1 read projection.",
+            "frontier.json does not match the lock-pinned Profile v1 read projection.",
         )),
         (Err(error), _) => issues.push(issue("invalid_materialized_frontier", error.to_string())),
         (_, Err(error)) => issues.push(issue("invalid_materialized_frontier", error)),
     }
+}
+
+/// Derived JSON projections are not protocol objects. Their object-key order
+/// can change when Cargo feature unification enables serde_json's
+/// `preserve_order`, even though every projected field remains identical.
+/// Compare their canonical JSON values so a compatible reader accepts an
+/// untouched older projection while still failing closed on any semantic
+/// field change.
+fn equivalent_json_projection(actual: &[u8], expected: &[u8]) -> Result<bool, String> {
+    let actual: serde_json::Value = serde_json::from_slice(actual)
+        .map_err(|error| format!("parse materialized frontier.json: {error}"))?;
+    let expected: serde_json::Value = serde_json::from_slice(expected)
+        .map_err(|error| format!("parse expected frontier.json: {error}"))?;
+    Ok(crate::kernel::canonical::to_canonical_bytes(&actual)?
+        == crate::kernel::canonical::to_canonical_bytes(&expected)?)
 }
 
 fn project_for_profile_lock(project: &Project, vela_version: &str) -> Result<Project, String> {
@@ -2778,7 +2794,19 @@ mod tests {
             Some(&pinned_reducer),
         )
         .expect("render pinned view");
-        fs::write(tmp.path().join("frontier.json"), visible).expect("write pinned view");
+        let mut visible_value: serde_json::Value =
+            serde_json::from_slice(&visible).expect("parse pinned view");
+        let visible_object = visible_value.as_object_mut().expect("pinned view object");
+        let mut reversed = serde_json::Map::with_capacity(visible_object.len());
+        for (key, value) in std::mem::take(visible_object).into_iter().rev() {
+            reversed.insert(key, value);
+        }
+        *visible_object = reversed;
+        fs::write(
+            tmp.path().join("frontier.json"),
+            serde_json::to_vec_pretty(&visible_value).expect("serialize reordered pinned view"),
+        )
+        .expect("write reordered pinned view");
         fs::write(
             tmp.path().join("vela.lock"),
             serde_yaml::to_string(&lock).expect("serialize pinned lock"),
@@ -2797,6 +2825,29 @@ mod tests {
             "a compatible reader must validate the exact lock-pinned derived view: {issues:?}"
         );
 
+        let mut changed: serde_json::Value = serde_json::from_slice(
+            &fs::read(tmp.path().join("frontier.json")).expect("read reordered pinned view"),
+        )
+        .expect("parse reordered pinned view");
+        changed["frontier"]["description"] =
+            serde_json::Value::String("tampered derived description".to_string());
+        fs::write(
+            tmp.path().join("frontier.json"),
+            serde_json::to_vec_pretty(&changed).expect("serialize tampered pinned view"),
+        )
+        .expect("write tampered pinned view");
+        let issues = layout_issues(tmp.path(), &current_project);
+        assert!(
+            issues.iter().any(|issue| {
+                issue.rule_id == "frontier_lock_mismatch"
+                    && issue
+                        .message
+                        .contains("lock-pinned Profile v1 read projection")
+            }),
+            "a semantic projection change must fail closed: {issues:?}"
+        );
+
+        fs::write(tmp.path().join("frontier.json"), visible).expect("restore exact pinned view");
         lock.reducer.package = "vela@0.928.0".to_string();
         fs::write(
             tmp.path().join("vela.lock"),
