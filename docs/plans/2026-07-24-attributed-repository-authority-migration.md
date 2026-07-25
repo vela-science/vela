@@ -353,6 +353,26 @@ clean-clone sequence-1 replay. This closes Phase 4 and the disposable portion
 of Phase 5. It does not approve an OS card, access a human key, migrate an
 active Frontier, accept ADR 0020, or remove any Era-0 path.
 
+Progress evidence, 2026-07-25: the operator approved the exact protected
+Formal Conjectures migration under a dedicated OpenSSH repository-authority
+identity. The resulting commit
+`25f3ff2d1dd43fd9ec560f78d96f2aa9c602a16c` appends the single
+`authority.model_migrated` event `vev_3c7f62b37e029006` and covering authority
+record `var_240fd06d7de19a00`. Strict replay passes all 14 findings and 36
+events with event root
+`sha256:3514fbe88560719ebc4f5c7e63522f99373cd4e457ab586f839597122c8fc8e3`.
+The scientific-state root remains exactly
+`sha256:4924adbbea6dfe288d14af03cf3d544f73c511df6b6ef8b938c8291685101444`.
+No historical byte or scientific standing changed.
+
+The first post-ceremony ecosystem replay then exposed nondeterministic
+serialization of derived statistic maps in Sidon. The source repair uses
+ordered maps and is qualified in
+`docs/reports/VELA_0_930_0_RC_7_DERIVED_STATS_DETERMINISM_QUALIFICATION_2026-07-25.md`.
+Repeated fresh-clone materialization is now byte-identical, Formal and Sidon
+are strict-clean, and the exact Erdős and Quantum fail-closed debt remains
+visible. No additional active migration is authorized by that qualification.
+
 ## Phase 4: authority transaction writer
 
 1. Adapt the existing recoverable transaction barrier rather than creating a
@@ -382,11 +402,19 @@ Migration order:
 
 ```text
 fixture
-quantum-codes
+formal-conjectures (complete)
 sidon-sets
-formal-conjectures
+quantum-codes
 erdos
 ```
+
+Formal moved ahead of the other live Frontiers because it was the first
+strict-clean repository with a complete Profile v1 trust boundary and no
+accepted-state mutation in the migration write set. Sidon is next only after
+the deterministic derived-view repair is available as a qualified candidate.
+Quantum remains behind its immutable proposal-identity migration gate. Erdős
+remains last because its historical unsigned-actor and condition debt must stay
+fail-closed throughout the authority transition.
 
 For each Frontier:
 
