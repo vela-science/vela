@@ -40,7 +40,7 @@ from pathlib import Path
 
 
 AUTHORITY_HISTORY_FIXTURE_ROOT = (
-    "sha256:0ea499907d6d54a9183bd2be177b639e9244ebeb1265beb23387b4c1aa043c3e"
+    "sha256:5a609f00f97f9bda79ffceb77f34edfdc4b1ad3c1252f28b844b45b0d1f23806"
 )
 AUTHORITY_RECORD_PAYLOAD_TYPE = "application/vnd.vela.authority-record.v1+json"
 EVENT_PAYLOAD_TYPE = "application/vnd.vela.event+json"
@@ -899,6 +899,14 @@ def _verify_authority_history_fixture(fixture: dict) -> dict:
     key_ids = [key["key_id"] for key in keyset["keys"]]
     if len(key_ids) != len(set(key_ids)):
         raise ValueError("authority keyset has duplicate key IDs")
+    try:
+        public_keys = [bytes.fromhex(key["public_key"]) for key in keyset["keys"]]
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("authority keyset has an invalid public key") from error
+    if any(len(public_key) != 32 for public_key in public_keys):
+        raise ValueError("authority keyset public keys must be 32 bytes")
+    if len(public_keys) != len(set(public_keys)):
+        raise ValueError("authority keyset aliases public-key material")
     _require_exact_keys(
         bundle,
         {
@@ -1064,6 +1072,8 @@ def _verify_authority_history_fixture(fixture: dict) -> dict:
         "migration_event_id": migration_event["id"],
         "final_event_log_root": current_event_root,
         "final_authority_record_root": final_record_root,
+        "final_authority_keyset_root": keyset_root,
+        "final_policy_bundle_root": bundle_root,
     }
     if result != fixture["expected"]:
         raise ValueError("independently derived authority-history report differs")

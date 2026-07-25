@@ -226,8 +226,8 @@ where
         legacy_actor_registry_bytes: &request.history.legacy_actor_registry_bytes,
         legacy_active_policy_head_root: &request.history.legacy_active_policy_head_root,
         legacy_policy_store_manifest_root: &request.history.legacy_policy_store_manifest_root,
-        authority_keyset: &request.history.authority_keyset,
-        policy_bundle: &request.history.policy_bundle,
+        authority_keysets: std::slice::from_ref(&request.history.authority_keyset),
+        policy_bundles: std::slice::from_ref(&request.history.policy_bundle),
         authority_events: &request.history.authority_events,
         authority_envelopes: &request.history.authority_envelopes,
     })
@@ -1786,8 +1786,8 @@ mod tests {
                 .request
                 .history
                 .legacy_policy_store_manifest_root,
-            authority_keyset: &fixture.request.history.authority_keyset,
-            policy_bundle: &fixture.request.history.policy_bundle,
+            authority_keysets: std::slice::from_ref(&fixture.request.history.authority_keyset),
+            policy_bundles: std::slice::from_ref(&fixture.request.history.policy_bundle),
             authority_events: events,
             authority_envelopes: &envelopes,
         })

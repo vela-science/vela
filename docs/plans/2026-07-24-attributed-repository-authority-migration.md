@@ -111,7 +111,7 @@ write, actor-registry or signature tampering, missing or duplicate coverage,
 transaction substitution, wrong roots, authority forks, policy substitution,
 and malformed bridge payloads. The bridge is reducer-neutral and no writer or
 Frontier migration exists. A committed cross-implementation vector at
-`sha256:0ea499907d6d54a9183bd2be177b639e9244ebeb1265beb23387b4c1aa043c3e`
+`sha256:5a609f00f97f9bda79ffceb77f34edfdc4b1ad3c1252f28b844b45b0d1f23806`
 is now independently rederived through OpenSSL Ed25519 and DSSE verification.
 Ten hostile mutations fail, including four authentication-observation
 substitutions. The exact detached Git commit replays from a clean clone with
@@ -289,9 +289,14 @@ completed retry. The shared application forbid list now names
 `authority_model_migrate` explicitly, so agent and workload principals cannot
 request the bridge action.
 
-Phase 4 remains open for rotation, emergency close, and the complete
-disposable Frontier drill. No live writer, CLI route, active Frontier, human
-key, or ADR acceptance is involved.
+The read-side rotation law is now closed: the current authority covers the new
+full-root snapshots, the next keyset links the exact prior keyset and
+pre-transaction chain head, the next policy links the exact prior policy, and
+both activate only for the following record. Missing approvals, path/root
+substitution, old-key reuse, unactivated retained generations, and duplicate
+public-key aliases fail closed. Phase 4 remains open for the rotation writer,
+emergency close, and the complete disposable Frontier drill. No live writer,
+CLI route, active Frontier, human key, or ADR acceptance is involved.
 
 ## Phase 4: authority transaction writer
 

@@ -412,6 +412,19 @@ deltas; existing manifests must match exactly. Direct store membership is a
 transaction input, so an added, replaced, deleted, or symlinked snapshot
 aborts before the commit marker.
 
+The read-side rotation law is also closed. A new keyset must name the exact
+prior keyset root, advance generation by one, and bind the authority-record
+chain head that existed immediately before the covering rotation transaction.
+That transaction is signed and authorized under the old keyset and policy,
+covers the new full-root snapshots, and must contain the exact
+`authority_rotate` and/or `policy_rotate` semantic approval. The new keyset
+and policy become active only for the following authority-record sequence.
+This avoids a self-hash cycle while preserving one unambiguous activation
+point. Duplicate public-key material is forbidden even under different key
+IDs, so aliases cannot satisfy a threshold. Wrong snapshot paths, missing
+approvals, old-key use after activation, skipped generations, and retained
+but unactivated snapshots fail closed.
+
 The authority record's `transaction_write_set_root` is a domain-separated
 commitment over the transaction ID, before and after authority-event-log
 roots, sorted event IDs, and exact object deltas. It deliberately excludes the

@@ -12,7 +12,8 @@ use sha2::{Digest, Sha256};
 use crate::actor_registration::require_sha256_root;
 use crate::authority::{
     AuthorityEnvelopeV1, AuthorityEventV1, AuthorityKeysetV1, CedarDecision, PolicyBundleV1,
-    VerifiedAuthorityRecord, verify_authority_envelope,
+    VerifiedAuthorityRecord, verify_authority_envelope, verify_authority_keyset_transition,
+    verify_policy_bundle_transition,
 };
 use crate::canonical::{sha256_canonical, to_canonical_bytes};
 use crate::events::{
@@ -23,6 +24,8 @@ use crate::sign::{ActorRecord, verify_event_signature};
 pub const AUTHORITY_MODEL_MIGRATION_SCHEMA_V1: &str = "vela.authority-model-migration.v1";
 pub const AUTHORITY_EVENT_LOG_SCHEMA_V1: &str = "vela.authority-event-log.v1";
 pub const AUTHORITY_MIGRATION_ACTION: &str = "authority_model_migrate";
+pub const AUTHORITY_ROTATE_ACTION: &str = "authority_rotate";
+pub const POLICY_ROTATE_ACTION: &str = "policy_rotate";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -105,6 +108,8 @@ pub struct AuthorityHistoryVerification {
     pub migration_event_id: Option<String>,
     pub final_event_log_root: String,
     pub final_authority_record_root: Option<String>,
+    pub final_authority_keyset_root: Option<String>,
+    pub final_policy_bundle_root: Option<String>,
 }
 
 /// Complete read-side inputs. Registry bytes are the exact retained
@@ -116,8 +121,8 @@ pub struct AuthorityHistoryInput<'a> {
     pub legacy_actor_registry_bytes: &'a [u8],
     pub legacy_active_policy_head_root: &'a str,
     pub legacy_policy_store_manifest_root: &'a str,
-    pub authority_keyset: &'a AuthorityKeysetV1,
-    pub policy_bundle: &'a PolicyBundleV1,
+    pub authority_keysets: &'a [AuthorityKeysetV1],
+    pub policy_bundles: &'a [PolicyBundleV1],
     pub authority_events: &'a [AuthorityEventV1],
     pub authority_envelopes: &'a [AuthorityEnvelopeV1],
 }
@@ -148,6 +153,8 @@ pub fn verify_authority_history(
             migration_event_id: None,
             final_event_log_root: prefixed_legacy_root(input.legacy_events),
             final_authority_record_root: None,
+            final_authority_keyset_root: None,
+            final_policy_bundle_root: None,
         });
     }
     if migrations.len() != 1 {
@@ -164,16 +171,38 @@ pub fn verify_authority_history(
         .filter(|event| event.id != migration_event.id)
         .cloned()
         .collect();
+    let authority_keysets = index_authority_keysets(input.frontier_id, input.authority_keysets)?;
+    let policy_bundles = index_policy_bundles(input.frontier_id, input.policy_bundles)?;
+    let migration_payload = migration_payload_from_event(migration_event)?;
+    let mut active_keyset_root = migration_payload.new_authority_keyset_root.clone();
+    let mut active_policy_root = migration_payload.new_policy_bundle_root.clone();
+    let mut active_keyset = authority_keysets
+        .get(&active_keyset_root)
+        .copied()
+        .ok_or_else(|| "migration bridge initial authority keyset is not retained".to_string())?;
+    let mut active_policy = policy_bundles
+        .get(&active_policy_root)
+        .copied()
+        .ok_or_else(|| "migration bridge initial policy bundle is not retained".to_string())?;
     let migration = verify_authority_migration_bridge(
         input.frontier_id,
         &legacy_prefix,
         input.legacy_actor_registry_bytes,
         input.legacy_active_policy_head_root,
         input.legacy_policy_store_manifest_root,
-        input.authority_keyset,
-        input.policy_bundle,
+        active_keyset,
+        active_policy,
         migration_event,
     )?;
+    if active_keyset.generation != 1
+        || active_keyset.previous_keyset_root.is_some()
+        || active_keyset.activation_record_root.is_some()
+        || active_policy.previous_bundle_root.is_some()
+    {
+        return Err("migration bridge must activate initial keyset and policy generations".into());
+    }
+    let mut activated_keysets = BTreeSet::from([active_keyset_root.clone()]);
+    let mut activated_policies = BTreeSet::from([active_policy_root.clone()]);
 
     let mut legacy_ids = BTreeSet::new();
     for event in input.legacy_events {
@@ -212,12 +241,12 @@ pub fn verify_authority_history(
             .map_err(|_| "authority record sequence exceeds u64".to_string())?;
         let verified = verify_authority_envelope(
             envelope,
-            input.authority_keyset,
+            active_keyset,
             input.frontier_id,
             sequence,
             previous_record_root.as_deref(),
         )?;
-        verify_record_authorization(&verified, input.policy_bundle)?;
+        verify_record_authorization(&verified, active_policy)?;
         if verified.record.content.before_event_log_root != current_event_root {
             return Err(format!(
                 "authority record {sequence} has the wrong before-event root"
@@ -272,6 +301,30 @@ pub fn verify_authority_history(
                 ));
             }
             current_event_root = expected_after;
+
+            if let Some(next) = keyset_transition_for_record(
+                &verified,
+                active_keyset,
+                &authority_keysets,
+                sequence
+                    .checked_add(1)
+                    .ok_or_else(|| "authority keyset activation sequence overflows".to_string())?,
+            )? {
+                active_keyset_root = next.root()?;
+                if !activated_keysets.insert(active_keyset_root.clone()) {
+                    return Err("authority keyset generation was activated more than once".into());
+                }
+                active_keyset = next;
+            }
+            if let Some(next) =
+                policy_transition_for_record(&verified, active_policy, &policy_bundles)?
+            {
+                active_policy_root = next.root()?;
+                if !activated_policies.insert(active_policy_root.clone()) {
+                    return Err("policy bundle generation was activated more than once".into());
+                }
+                active_policy = next;
+            }
         }
         previous_record_root = Some(verified.record_root.clone());
         verified_records.push(verified);
@@ -288,6 +341,17 @@ pub fn verify_authority_history(
             missing.join(", ")
         ));
     }
+    if activated_keysets
+        != authority_keysets
+            .keys()
+            .cloned()
+            .collect::<BTreeSet<String>>()
+    {
+        return Err("retained authority keyset store contains an unactivated generation".into());
+    }
+    if activated_policies != policy_bundles.keys().cloned().collect::<BTreeSet<String>>() {
+        return Err("retained policy store contains an unactivated generation".into());
+    }
 
     Ok(AuthorityHistoryVerification {
         era: AuthorityHistoryEra::RepositoryAuthority,
@@ -298,7 +362,150 @@ pub fn verify_authority_history(
         migration_event_id: Some(migration_event.id.clone()),
         final_event_log_root: current_event_root,
         final_authority_record_root: previous_record_root,
+        final_authority_keyset_root: Some(active_keyset_root),
+        final_policy_bundle_root: Some(active_policy_root),
     })
+}
+
+fn index_authority_keysets<'a>(
+    frontier_id: &str,
+    keysets: &'a [AuthorityKeysetV1],
+) -> Result<BTreeMap<String, &'a AuthorityKeysetV1>, String> {
+    let mut indexed = BTreeMap::new();
+    for keyset in keysets {
+        keyset.validate()?;
+        if keyset.frontier_id != frontier_id {
+            return Err("retained authority keyset names a different Frontier".into());
+        }
+        let root = keyset.root()?;
+        if indexed.insert(root, keyset).is_some() {
+            return Err("retained authority keyset store contains a duplicate root".into());
+        }
+    }
+    Ok(indexed)
+}
+
+fn index_policy_bundles<'a>(
+    frontier_id: &str,
+    bundles: &'a [PolicyBundleV1],
+) -> Result<BTreeMap<String, &'a PolicyBundleV1>, String> {
+    let mut indexed = BTreeMap::new();
+    for bundle in bundles {
+        bundle.validate()?;
+        if bundle.frontier_id != frontier_id {
+            return Err("retained policy bundle names a different Frontier".into());
+        }
+        let root = bundle.root()?;
+        if indexed.insert(root, bundle).is_some() {
+            return Err("retained policy store contains a duplicate root".into());
+        }
+    }
+    Ok(indexed)
+}
+
+fn keyset_transition_for_record<'a>(
+    verified: &VerifiedAuthorityRecord,
+    current: &AuthorityKeysetV1,
+    retained: &BTreeMap<String, &'a AuthorityKeysetV1>,
+    activation_sequence: u64,
+) -> Result<Option<&'a AuthorityKeysetV1>, String> {
+    let deltas = verified
+        .record
+        .content
+        .object_delta
+        .iter()
+        .filter(|delta| delta.object_kind == "authority_keyset")
+        .collect::<Vec<_>>();
+    if deltas.is_empty() {
+        return Ok(None);
+    }
+    if deltas.len() != 1 {
+        return Err("one authority record cannot activate multiple keysets".into());
+    }
+    if !verified
+        .record
+        .content
+        .semantic_approvals
+        .iter()
+        .any(|approval| approval.action == AUTHORITY_ROTATE_ACTION)
+    {
+        return Err("authority keyset transition lacks authority_rotate approval".into());
+    }
+    let delta = deltas[0];
+    if delta.before_root.is_some() {
+        return Err("authority keyset snapshots are immutable and content addressed".into());
+    }
+    let root = delta
+        .after_root
+        .as_ref()
+        .ok_or_else(|| "authority keyset transition cannot delete its snapshot".to_string())?;
+    let stem = root
+        .strip_prefix("sha256:")
+        .ok_or_else(|| "authority keyset transition root lacks sha256 tag".to_string())?;
+    if delta.path != format!(".vela/authority/keysets/{stem}.json") {
+        return Err("authority keyset transition path does not match its full root".into());
+    }
+    let next = retained
+        .get(root)
+        .copied()
+        .ok_or_else(|| "authority keyset transition snapshot is not retained".to_string())?;
+    let previous_record_root = verified
+        .record
+        .content
+        .previous_authority_record_root
+        .as_deref()
+        .ok_or_else(|| "authority keyset transition lacks its prior chain head".to_string())?;
+    verify_authority_keyset_transition(current, next, activation_sequence, previous_record_root)?;
+    Ok(Some(next))
+}
+
+fn policy_transition_for_record<'a>(
+    verified: &VerifiedAuthorityRecord,
+    current: &PolicyBundleV1,
+    retained: &BTreeMap<String, &'a PolicyBundleV1>,
+) -> Result<Option<&'a PolicyBundleV1>, String> {
+    let deltas = verified
+        .record
+        .content
+        .object_delta
+        .iter()
+        .filter(|delta| delta.object_kind == "policy_bundle")
+        .collect::<Vec<_>>();
+    if deltas.is_empty() {
+        return Ok(None);
+    }
+    if deltas.len() != 1 {
+        return Err("one authority record cannot activate multiple policy bundles".into());
+    }
+    if !verified
+        .record
+        .content
+        .semantic_approvals
+        .iter()
+        .any(|approval| approval.action == POLICY_ROTATE_ACTION)
+    {
+        return Err("policy bundle transition lacks policy_rotate approval".into());
+    }
+    let delta = deltas[0];
+    if delta.before_root.is_some() {
+        return Err("policy bundle snapshots are immutable and content addressed".into());
+    }
+    let root = delta
+        .after_root
+        .as_ref()
+        .ok_or_else(|| "policy bundle transition cannot delete its snapshot".to_string())?;
+    let stem = root
+        .strip_prefix("sha256:")
+        .ok_or_else(|| "policy bundle transition root lacks sha256 tag".to_string())?;
+    if delta.path != format!(".vela/authority/policies/{stem}.json") {
+        return Err("policy bundle transition path does not match its full root".into());
+    }
+    let next = retained
+        .get(root)
+        .copied()
+        .ok_or_else(|| "policy bundle transition snapshot is not retained".to_string())?;
+    verify_policy_bundle_transition(current, next)?;
+    Ok(Some(next))
 }
 
 /// Verify the one legacy-signed bridge before a sequence-1 writer may access
@@ -638,14 +845,25 @@ mod tests {
 
     impl Fixture {
         fn input(&self) -> AuthorityHistoryInput<'_> {
+            self.input_with_stores(
+                std::slice::from_ref(&self.keyset),
+                std::slice::from_ref(&self.bundle),
+            )
+        }
+
+        fn input_with_stores<'a>(
+            &'a self,
+            authority_keysets: &'a [AuthorityKeysetV1],
+            policy_bundles: &'a [PolicyBundleV1],
+        ) -> AuthorityHistoryInput<'a> {
             AuthorityHistoryInput {
                 frontier_id: FRONTIER_ID,
                 legacy_events: &self.legacy_events,
                 legacy_actor_registry_bytes: &self.actor_registry_bytes,
                 legacy_active_policy_head_root: &self.legacy_active_policy_head_root,
                 legacy_policy_store_manifest_root: &self.legacy_policy_store_manifest_root,
-                authority_keyset: &self.keyset,
-                policy_bundle: &self.bundle,
+                authority_keysets,
+                policy_bundles,
                 authority_events: &self.authority_events,
                 authority_envelopes: &self.envelopes,
             }
@@ -947,13 +1165,21 @@ mod tests {
     }
 
     fn signed_envelope(record: &AuthorityRecordV1, key: &SigningKey) -> AuthorityEnvelopeV1 {
+        signed_envelope_with_key_id(record, key, "repository-key-1")
+    }
+
+    fn signed_envelope_with_key_id(
+        record: &AuthorityRecordV1,
+        key: &SigningKey,
+        key_id: &str,
+    ) -> AuthorityEnvelopeV1 {
         let payload = to_canonical_bytes(record).unwrap();
         let signature = key.sign(&dsse_pae(AUTHORITY_PAYLOAD_TYPE_V1, &payload));
         AuthorityEnvelopeV1 {
             payload_type: AUTHORITY_PAYLOAD_TYPE_V1.into(),
             payload: BASE64_STANDARD.encode(payload),
             signatures: vec![DsseSignatureV1 {
-                keyid: "repository-key-1".into(),
+                keyid: key_id.into(),
                 sig: BASE64_STANDARD.encode(signature.to_bytes()),
             }],
         }
@@ -1005,6 +1231,277 @@ mod tests {
                 .record_root
             )
         );
+    }
+
+    #[test]
+    fn keyset_and_policy_rotation_activate_on_the_following_record() {
+        let mut fixture = fixture();
+        let initial_keyset = fixture.keyset.clone();
+        let initial_bundle = fixture.bundle.clone();
+        let first =
+            verify_authority_envelope(&fixture.envelopes[0], &initial_keyset, FRONTIER_ID, 1, None)
+                .unwrap();
+        let second = verify_authority_envelope(
+            &fixture.envelopes[1],
+            &initial_keyset,
+            FRONTIER_ID,
+            2,
+            Some(&first.record_root),
+        )
+        .unwrap();
+        let next_key = SigningKey::from_bytes(&[13; 32]);
+        let next_keyset = AuthorityKeysetV1 {
+            schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
+            frontier_id: FRONTIER_ID.into(),
+            generation: 2,
+            threshold: 1,
+            keys: vec![AuthorityKeyV1 {
+                key_id: "repository-key-2".into(),
+                algorithm: AUTHORITY_KEY_ALGORITHM.into(),
+                public_key: hex::encode(next_key.verifying_key().to_bytes()),
+                valid_from_sequence: 4,
+                valid_through_sequence: None,
+                purpose: AUTHORITY_KEY_PURPOSE.into(),
+            }],
+            previous_keyset_root: Some(initial_keyset.root().unwrap()),
+            activation_record_root: Some(second.record_root.clone()),
+        };
+        let next_bundle = PolicyBundleV1 {
+            policies_root: root('5'),
+            tests_root: root('6'),
+            previous_bundle_root: Some(initial_bundle.root().unwrap()),
+            authority_summary: "Rotated repository authority.".into(),
+            ..initial_bundle.clone()
+        };
+        let rotation_event = AuthorityEventV1::new(AuthorityEventContentV1 {
+            transaction_id: "txn_rotate".into(),
+            principal_id: REPOSITORY_PRINCIPAL.into(),
+            authority_mode: crate::authority::AUTHORITY_MODE.into(),
+            kind: EventKind::Other("authority.rotated".into()),
+            target: StateTarget {
+                r#type: "frontier".into(),
+                id: FRONTIER_ID.into(),
+            },
+            actor: StateActor {
+                r#type: "human".into(),
+                id: REPOSITORY_PRINCIPAL.into(),
+            },
+            timestamp: "2026-07-24T12:02:00Z".into(),
+            reason: "Rotate repository authority and policy.".into(),
+            before_hash: root('f'),
+            after_hash: root('f'),
+            payload: json!({
+                "authority_keyset_root": next_keyset.root().unwrap(),
+                "policy_bundle_root": next_bundle.root().unwrap()
+            }),
+            caveats: Vec::new(),
+        })
+        .unwrap();
+        let legacy_root_with_bridge = prefixed_legacy_root(&fixture.legacy_events);
+        let current_root = verify_authority_history(fixture.input())
+            .unwrap()
+            .final_event_log_root;
+        let rotation_root = authority_event_log_root(
+            &legacy_root_with_bridge,
+            &[&fixture.authority_events[0], &rotation_event],
+        )
+        .unwrap();
+        let rotation_intent = root('5');
+        let third = record(
+            3,
+            Some(second.record_root),
+            "txn_rotate",
+            &rotation_intent,
+            &current_root,
+            &rotation_root,
+            vec![rotation_event.id.clone()],
+            vec![
+                event_delta(3, &rotation_event.id, &rotation_event.root().unwrap()),
+                snapshot_delta(
+                    ".vela/authority/keysets",
+                    &next_keyset.root().unwrap(),
+                    "authority_keyset",
+                ),
+                snapshot_delta(
+                    ".vela/authority/policies",
+                    &next_bundle.root().unwrap(),
+                    "policy_bundle",
+                ),
+            ],
+            &initial_keyset,
+            &initial_bundle,
+            vec![
+                SemanticApprovalV1 {
+                    principal_id: REPOSITORY_PRINCIPAL.into(),
+                    role: "frontier_administrator".into(),
+                    action: AUTHORITY_ROTATE_ACTION.into(),
+                    reason: "Rotate the repository keyset.".into(),
+                    approved_at: "2026-07-24T12:02:00Z".into(),
+                    intent_digest: rotation_intent.clone(),
+                },
+                SemanticApprovalV1 {
+                    principal_id: REPOSITORY_PRINCIPAL.into(),
+                    role: "frontier_administrator".into(),
+                    action: POLICY_ROTATE_ACTION.into(),
+                    reason: "Rotate the repository policy.".into(),
+                    approved_at: "2026-07-24T12:02:00Z".into(),
+                    intent_digest: rotation_intent.clone(),
+                },
+            ],
+        );
+        let third_root = third.root().unwrap();
+        let post_rotation_event = AuthorityEventV1::new(AuthorityEventContentV1 {
+            transaction_id: "txn_after_rotate".into(),
+            principal_id: REPOSITORY_PRINCIPAL.into(),
+            authority_mode: crate::authority::AUTHORITY_MODE.into(),
+            kind: EventKind::ReviewRejected,
+            target: StateTarget {
+                r#type: "proposal".into(),
+                id: "vpr_after_rotation".into(),
+            },
+            actor: StateActor {
+                r#type: "human".into(),
+                id: REPOSITORY_PRINCIPAL.into(),
+            },
+            timestamp: "2026-07-24T12:03:00Z".into(),
+            reason: "Use the rotated repository authority.".into(),
+            before_hash: root('f'),
+            after_hash: root('f'),
+            payload: json!({"proposal_id": "vpr_after_rotation"}),
+            caveats: Vec::new(),
+        })
+        .unwrap();
+        let final_root = authority_event_log_root(
+            &legacy_root_with_bridge,
+            &[
+                &fixture.authority_events[0],
+                &rotation_event,
+                &post_rotation_event,
+            ],
+        )
+        .unwrap();
+        let fourth = record(
+            4,
+            Some(third_root),
+            "txn_after_rotate",
+            &root('6'),
+            &rotation_root,
+            &final_root,
+            vec![post_rotation_event.id.clone()],
+            vec![event_delta(
+                4,
+                &post_rotation_event.id,
+                &post_rotation_event.root().unwrap(),
+            )],
+            &next_keyset,
+            &next_bundle,
+            Vec::new(),
+        );
+
+        fixture.authority_events.push(rotation_event);
+        fixture.authority_events.push(post_rotation_event);
+        fixture
+            .envelopes
+            .push(signed_envelope(&third, &fixture.repository_key));
+        fixture.envelopes.push(signed_envelope_with_key_id(
+            &fourth,
+            &next_key,
+            "repository-key-2",
+        ));
+        let keysets = [initial_keyset, next_keyset.clone()];
+        let bundles = [initial_bundle, next_bundle.clone()];
+        let mut missing_approval = third.clone();
+        missing_approval
+            .content
+            .semantic_approvals
+            .retain(|approval| approval.action != AUTHORITY_ROTATE_ACTION);
+        missing_approval.record_id = missing_approval.derive_id().unwrap();
+        let mut hostile_envelopes = fixture.envelopes.clone();
+        hostile_envelopes[2] = signed_envelope(&missing_approval, &fixture.repository_key);
+        let original_envelopes = std::mem::replace(&mut fixture.envelopes, hostile_envelopes);
+        let error =
+            verify_authority_history(fixture.input_with_stores(&keysets, &bundles)).unwrap_err();
+        assert!(error.contains("lacks authority_rotate approval"), "{error}");
+        fixture.envelopes = original_envelopes;
+
+        let mut wrong_path = third.clone();
+        wrong_path
+            .content
+            .object_delta
+            .iter_mut()
+            .find(|delta| delta.object_kind == "authority_keyset")
+            .unwrap()
+            .path = ".vela/authority/keysets/substituted.json".into();
+        wrong_path.record_id = wrong_path.derive_id().unwrap();
+        let mut hostile_envelopes = fixture.envelopes.clone();
+        hostile_envelopes[2] = signed_envelope(&wrong_path, &fixture.repository_key);
+        let original_envelopes = std::mem::replace(&mut fixture.envelopes, hostile_envelopes);
+        let error =
+            verify_authority_history(fixture.input_with_stores(&keysets, &bundles)).unwrap_err();
+        assert!(
+            error.contains("path does not match its full root"),
+            "{error}"
+        );
+        fixture.envelopes = original_envelopes;
+
+        let mut hostile_envelopes = fixture.envelopes.clone();
+        hostile_envelopes[3] = signed_envelope(&fourth, &fixture.repository_key);
+        let original_envelopes = std::mem::replace(&mut fixture.envelopes, hostile_envelopes);
+        assert!(verify_authority_history(fixture.input_with_stores(&keysets, &bundles)).is_err());
+        fixture.envelopes = original_envelopes;
+
+        let result =
+            verify_authority_history(fixture.input_with_stores(&keysets, &bundles)).unwrap();
+        assert_eq!(result.authority_record_count, 4);
+        assert_eq!(
+            result.final_authority_keyset_root,
+            Some(next_keyset.root().unwrap())
+        );
+        assert_eq!(
+            result.final_policy_bundle_root,
+            Some(next_bundle.root().unwrap())
+        );
+    }
+
+    #[test]
+    fn unactivated_retained_keyset_and_policy_generations_fail_closed() {
+        let fixture = fixture();
+        let next_key = SigningKey::from_bytes(&[14; 32]);
+        let extra_keyset = AuthorityKeysetV1 {
+            schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
+            frontier_id: FRONTIER_ID.into(),
+            generation: 2,
+            threshold: 1,
+            keys: vec![AuthorityKeyV1 {
+                key_id: "unactivated-repository-key".into(),
+                algorithm: AUTHORITY_KEY_ALGORITHM.into(),
+                public_key: hex::encode(next_key.verifying_key().to_bytes()),
+                valid_from_sequence: 3,
+                valid_through_sequence: None,
+                purpose: AUTHORITY_KEY_PURPOSE.into(),
+            }],
+            previous_keyset_root: Some(fixture.keyset.root().unwrap()),
+            activation_record_root: Some(root('a')),
+        };
+        let keysets = [fixture.keyset.clone(), extra_keyset];
+        let error = verify_authority_history(
+            fixture.input_with_stores(&keysets, std::slice::from_ref(&fixture.bundle)),
+        )
+        .unwrap_err();
+        assert!(error.contains("unactivated generation"), "{error}");
+
+        let extra_bundle = PolicyBundleV1 {
+            policies_root: root('7'),
+            previous_bundle_root: Some(fixture.bundle.root().unwrap()),
+            authority_summary: "Unactivated retained policy.".into(),
+            ..fixture.bundle.clone()
+        };
+        let bundles = [fixture.bundle.clone(), extra_bundle];
+        let error = verify_authority_history(
+            fixture.input_with_stores(std::slice::from_ref(&fixture.keyset), &bundles),
+        )
+        .unwrap_err();
+        assert!(error.contains("unactivated generation"), "{error}");
     }
 
     #[test]

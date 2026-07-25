@@ -208,8 +208,8 @@ keys[]
   valid_from_sequence
   valid_through_sequence
   purpose
-previous_keyset_digest
-activation_record
+previous_keyset_root
+activation_record_root
 ```
 
 The repository authority is not a person and never appears as the scientific
@@ -596,13 +596,14 @@ requires neither another authentication nor another signature. The
 application-level machine-authority forbid list explicitly includes
 `authority_model_migrate`.
 
-This completes only the sequence-1 installation sub-gate. Rotation, emergency
-close, the full disposable Frontier drill, active migration, CLI exposure, and
-ADR acceptance remain open.
+This completes only the sequence-1 installation sub-gate. The read-side
+rotation law is now implemented and adversarially tested, but its writer,
+emergency close, the full disposable Frontier drill, active migration, CLI
+exposure, and ADR acceptance remain open.
 
 Phase 1 now also has a committed
 `vela.authority-history-conformance.v1` vector at
-`sha256:0ea499907d6d54a9183bd2be177b639e9244ebeb1265beb23387b4c1aa043c3e`.
+`sha256:5a609f00f97f9bda79ffceb77f34edfdc4b1ad3c1252f28b844b45b0d1f23806`.
 Sequence 1 binds the full canonical signed migration-event root as its semantic
 intent and contains exactly three initial object deltas: the bridge event, the
 initial authority keyset snapshot, and the initial restricted policy snapshot.
@@ -717,10 +718,29 @@ This path has no authentication adapter or signer argument. A changed
 transaction ID, record root, event set, read-set root, or write-set root is not
 a retry.
 
-Thirteen writer tests now cover these additions. Phase 4 remains open for
-sequence-1 installation in the disposable migration exercise, rotation,
-emergency close, and the full offline Frontier drill. No live writer, CLI
-route, active Frontier, or human key is involved.
+Thirteen writer tests now cover these additions. The later sequence-1 slice
+closes the initial installation sub-gate. Phase 4 remains open for a rotation
+writer, emergency close, and the full offline Frontier drill. No live writer,
+CLI route, active Frontier, or human key is involved.
+
+The next read-side slice defines rotation without a hash cycle. A rotation
+record is verified under the currently active keyset and policy, covers one
+new immutable full-root keyset and/or policy snapshot, and carries the exact
+`authority_rotate` and/or `policy_rotate` semantic approval. The next keyset
+must advance generation by one, link the exact current keyset root, and bind
+the authority-record root immediately preceding the rotation transaction.
+The next policy bundle must link the exact current policy root. Both become
+active only on the following record.
+
+The verifier indexes the retained stores by full root and rejects duplicate
+roots, wrong Frontiers, unactivated retained generations, snapshot path/root
+substitution, missing rotation approval, skipped generation, wrong prior
+chain head, policy substitution, and use of the old key after activation.
+Keysets also reject duplicate public-key material under different key IDs,
+preventing one Ed25519 key from satisfying a multi-key threshold through
+aliases. A four-record test proves old-authority rotation followed by a
+new-authority transaction. This completes the rotation replay law only; it
+does not implement the rotation writer.
 
 ## Alternatives rejected
 

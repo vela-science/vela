@@ -217,9 +217,17 @@ impl AuthorityKeysetV1 {
             return Err("authority keyset threshold must be within the key count".into());
         }
         let mut key_ids = BTreeSet::new();
+        let mut public_keys = BTreeSet::new();
         for key in &self.keys {
             if !key_ids.insert(key.key_id.as_str()) {
                 return Err(format!("duplicate authority key ID {}", key.key_id));
+            }
+            let public_key = decode_fixed_hex::<32>("authority public key", &key.public_key)?;
+            if !public_keys.insert(public_key) {
+                return Err(format!(
+                    "authority key {} duplicates public-key material",
+                    key.key_id
+                ));
             }
             if key.algorithm != AUTHORITY_KEY_ALGORITHM
                 || key.purpose != AUTHORITY_KEY_PURPOSE
@@ -238,7 +246,6 @@ impl AuthorityKeysetV1 {
                     key.key_id
                 ));
             }
-            decode_fixed_hex::<32>("authority public key", &key.public_key)?;
         }
         if let Some(root) = &self.previous_keyset_root {
             require_sha256("previous_keyset_root", root)?;
@@ -253,6 +260,73 @@ impl AuthorityKeysetV1 {
         self.validate()?;
         Ok(format!("sha256:{}", sha256_canonical(self)?))
     }
+}
+
+/// Verify a non-cyclic repository-authority keyset rotation.
+///
+/// The new keyset links the prior keyset root and the authority-record root
+/// that existed immediately before the rotation transaction. The rotation
+/// record can then cover the new keyset root without requiring either object
+/// to contain the other's root. The new keyset becomes usable only on the
+/// following authority-record sequence.
+pub fn verify_authority_keyset_transition(
+    current: &AuthorityKeysetV1,
+    next: &AuthorityKeysetV1,
+    activation_sequence: u64,
+    previous_authority_record_root: &str,
+) -> Result<(), String> {
+    current.validate()?;
+    next.validate()?;
+    require_sha256(
+        "previous_authority_record_root",
+        previous_authority_record_root,
+    )?;
+    if activation_sequence <= 1 {
+        return Err("rotated authority keyset cannot activate at sequence 1".into());
+    }
+    if current.frontier_id != next.frontier_id
+        || next.generation != current.generation.saturating_add(1)
+        || next.previous_keyset_root.as_deref() != Some(current.root()?.as_str())
+        || next.activation_record_root.as_deref() != Some(previous_authority_record_root)
+    {
+        return Err(
+            "rotated authority keyset does not extend the exact prior generation and chain head"
+                .into(),
+        );
+    }
+    let active_keys = next
+        .keys
+        .iter()
+        .filter(|key| {
+            key.valid_from_sequence <= activation_sequence
+                && key
+                    .valid_through_sequence
+                    .is_none_or(|through| activation_sequence <= through)
+        })
+        .count();
+    if active_keys < usize::try_from(next.threshold).unwrap_or(usize::MAX) {
+        return Err("rotated authority keyset cannot meet threshold at activation".into());
+    }
+    Ok(())
+}
+
+/// Verify a content-addressed policy-bundle rotation.
+///
+/// Activation is recorded by the covering authority transaction, so the
+/// bundle needs only the exact prior bundle root and introduces no record-root
+/// hash cycle.
+pub fn verify_policy_bundle_transition(
+    current: &PolicyBundleV1,
+    next: &PolicyBundleV1,
+) -> Result<(), String> {
+    current.validate()?;
+    next.validate()?;
+    if current.frontier_id != next.frontier_id
+        || next.previous_bundle_root.as_deref() != Some(current.root()?.as_str())
+    {
+        return Err("rotated policy bundle does not extend the exact prior bundle".into());
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -899,6 +973,108 @@ mod tests {
         let (_, mut keyset, _) = fixture();
         keyset.threshold = 2;
         assert!(keyset.validate().is_err());
+    }
+
+    #[test]
+    fn authority_keyset_rejects_duplicate_public_key_material() {
+        let (_, mut keyset, _) = fixture();
+        let duplicate = AuthorityKeyV1 {
+            key_id: "repo-key-alias".into(),
+            ..keyset.keys[0].clone()
+        };
+        keyset.keys.push(duplicate);
+        keyset.threshold = 2;
+        assert!(
+            keyset
+                .validate()
+                .unwrap_err()
+                .contains("duplicates public-key material")
+        );
+
+        keyset.keys[1].public_key = keyset.keys[1].public_key.to_uppercase();
+        assert!(
+            keyset
+                .validate()
+                .unwrap_err()
+                .contains("duplicates public-key material")
+        );
+    }
+
+    #[test]
+    fn keyset_rotation_is_non_cyclic_and_exact() {
+        let (_, current, _) = fixture();
+        let next_key = SigningKey::from_bytes(&[9; 32]);
+        let previous_record_root = root('9');
+        let mut next = AuthorityKeysetV1 {
+            schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
+            frontier_id: current.frontier_id.clone(),
+            generation: 2,
+            threshold: 1,
+            keys: vec![AuthorityKeyV1 {
+                key_id: "repo-key-2".into(),
+                algorithm: AUTHORITY_KEY_ALGORITHM.into(),
+                public_key: hex::encode(next_key.verifying_key().to_bytes()),
+                valid_from_sequence: 3,
+                valid_through_sequence: None,
+                purpose: AUTHORITY_KEY_PURPOSE.into(),
+            }],
+            previous_keyset_root: Some(current.root().unwrap()),
+            activation_record_root: Some(previous_record_root.clone()),
+        };
+        verify_authority_keyset_transition(&current, &next, 3, &previous_record_root).unwrap();
+
+        next.generation = 3;
+        assert!(
+            verify_authority_keyset_transition(&current, &next, 3, &previous_record_root)
+                .unwrap_err()
+                .contains("exact prior generation")
+        );
+        next.generation = 2;
+        next.keys[0].valid_from_sequence = 4;
+        assert!(
+            verify_authority_keyset_transition(&current, &next, 3, &previous_record_root)
+                .unwrap_err()
+                .contains("cannot meet threshold")
+        );
+        next.keys[0].valid_from_sequence = 3;
+        next.activation_record_root = Some(root('8'));
+        assert!(
+            verify_authority_keyset_transition(&current, &next, 3, &previous_record_root)
+                .unwrap_err()
+                .contains("chain head")
+        );
+    }
+
+    #[test]
+    fn policy_bundle_rotation_extends_one_exact_root() {
+        let current = PolicyBundleV1 {
+            schema: POLICY_BUNDLE_SCHEMA_V1.into(),
+            frontier_id: "vfr_fixture".into(),
+            cedar_schema_root: root('1'),
+            policies_root: root('2'),
+            entities_root: root('3'),
+            tests_root: root('4'),
+            engine: CEDAR_ENGINE.into(),
+            engine_version: CEDAR_ENGINE_VERSION.into(),
+            restricted_profile: CEDAR_PROFILE_V1.into(),
+            previous_bundle_root: None,
+            authority_summary: "Initial repository authority.".into(),
+        };
+        let mut next = PolicyBundleV1 {
+            policies_root: root('5'),
+            tests_root: root('6'),
+            previous_bundle_root: Some(current.root().unwrap()),
+            authority_summary: "Rotated repository authority.".into(),
+            ..current.clone()
+        };
+        verify_policy_bundle_transition(&current, &next).unwrap();
+
+        next.previous_bundle_root = Some(root('7'));
+        assert!(
+            verify_policy_bundle_transition(&current, &next)
+                .unwrap_err()
+                .contains("exact prior bundle")
+        );
     }
 
     #[test]
