@@ -306,6 +306,19 @@ fails before signer access and replay rejects every later authority record.
 Close cannot reopen the lineage or create recovery authority. No live writer,
 CLI route, active Frontier, human key, or ADR acceptance is involved.
 
+The complete disposable Phase 4 exercise now passes. One fixture Frontier
+crosses the signed bridge, records an ordinary Era-1 decision, rotates its
+repository key, records another decision under the new key, appends the
+terminal close, commits only canonical authority bytes to Git, clones with
+local object reuse disabled, and replays five authority records and four
+Era-1 events from the clean clone. Replay uses no signer or authentication
+provider, and the old key is not used after activation.
+
+This closes the writer-composition gate. The plan remains pre-release and
+pre-migration: no CLI route, active Frontier, human credential, or legacy
+writer removal is authorized until the deterministic release and staged
+active-Frontier gates pass.
+
 ## Phase 4: authority transaction writer
 
 1. Adapt the existing recoverable transaction barrier rather than creating a

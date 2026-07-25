@@ -789,6 +789,7 @@ struct MigrationLayoutCommitment<'a> {
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::process::Command;
 
     use base64::Engine as _;
     use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
@@ -798,12 +799,14 @@ mod tests {
     use vela_authority::runtime_authentication::{AuthenticationFailure, LocalOsSession};
     use vela_protocol::authentication::AuthenticationObservationV1;
     use vela_protocol::authority::{
-        AUTHORITY_KEY_ALGORITHM, AUTHORITY_KEY_PURPOSE, AUTHORITY_KEYSET_SCHEMA_V1, AuthorityKeyV1,
-        CEDAR_ENGINE, CEDAR_ENGINE_VERSION, CEDAR_PROFILE_V1, DsseSignatureV1,
-        POLICY_BUNDLE_SCHEMA_V1, dsse_pae,
+        AUTHORITY_KEY_ALGORITHM, AUTHORITY_KEY_PURPOSE, AUTHORITY_KEYSET_SCHEMA_V1,
+        AuthorityEventV1, AuthorityKeyV1, CEDAR_ENGINE, CEDAR_ENGINE_VERSION, CEDAR_PROFILE_V1,
+        DsseSignatureV1, POLICY_BUNDLE_SCHEMA_V1, SemanticApprovalV1, dsse_pae,
     };
     use vela_protocol::authority_history::{
-        AUTHORITY_MODEL_MIGRATION_SCHEMA_V1, AuthorityHistoryEra, AuthorityModelMigrationV1,
+        AUTHORITY_CLOSE_ACTION, AUTHORITY_CLOSE_SCHEMA_V1, AUTHORITY_CLOSED_EVENT_KIND,
+        AUTHORITY_MODEL_MIGRATION_SCHEMA_V1, AUTHORITY_ROTATE_ACTION, AuthorityCloseV1,
+        AuthorityHistoryEra, AuthorityModelMigrationV1,
     };
     use vela_protocol::events::{
         EVENT_SCHEMA, EventKind, NULL_HASH, StateActor, StateTarget, compute_event_id,
@@ -812,7 +815,10 @@ mod tests {
     use vela_protocol::sign::{ActorRecord, sign_event};
 
     use super::*;
-    use crate::authority_transaction::retry_completed_authority_transaction;
+    use crate::authority_transaction::{
+        AuthorityEventDraft, AuthorityHistorySnapshot, AuthorityTransactionRequest,
+        authority_event_path, execute_authority_transaction, retry_completed_authority_transaction,
+    };
     use crate::frontier_txn::{FrontierTxnStep, RecoveryOutcome};
 
     const FRONTIER_ID: &str = "vfr_0123456789abcdef";
@@ -824,14 +830,79 @@ mod tests {
         format!("sha256:{}", character.to_string().repeat(64))
     }
 
+    fn run_git(cwd: &Path, args: &[&str]) {
+        let output = Command::new("git")
+            .current_dir(cwd)
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "git {args:?} failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
     fn authorization_input() -> CedarEvaluationInput {
         CedarEvaluationInput {
             schema: r#"
                 entity Human;
                 entity Frontier;
+                entity Proposal;
                 action "authority_model_migrate" appliesTo {
                     principal: Human,
                     resource: Frontier,
+                    context: {
+                        exact: Bool,
+                        authentication: {
+                            method: String,
+                            assurance: String,
+                            authenticated_at: String,
+                            observed_at: String,
+                            expires_at: String,
+                            user_presence: Bool,
+                            user_verification: Bool,
+                            recovery_recent: Bool
+                        }
+                    }
+                };
+                action "authority_rotate" appliesTo {
+                    principal: Human,
+                    resource: Frontier,
+                    context: {
+                        exact: Bool,
+                        authentication: {
+                            method: String,
+                            assurance: String,
+                            authenticated_at: String,
+                            observed_at: String,
+                            expires_at: String,
+                            user_presence: Bool,
+                            user_verification: Bool,
+                            recovery_recent: Bool
+                        }
+                    }
+                };
+                action "authority_close" appliesTo {
+                    principal: Human,
+                    resource: Frontier,
+                    context: {
+                        exact: Bool,
+                        authentication: {
+                            method: String,
+                            assurance: String,
+                            authenticated_at: String,
+                            observed_at: String,
+                            expires_at: String,
+                            user_presence: Bool,
+                            user_verification: Bool,
+                            recovery_recent: Bool
+                        }
+                    }
+                };
+                action "review_reject" appliesTo {
+                    principal: Human,
+                    resource: Proposal,
                     context: {
                         exact: Bool,
                         authentication: {
@@ -863,6 +934,11 @@ mod tests {
                     "uid": {"type": "Frontier", "id": FRONTIER_ID},
                     "attrs": {},
                     "parents": []
+                },
+                {
+                    "uid": {"type": "Proposal", "id": "vpr_0123456789abcdef"},
+                    "attrs": {},
+                    "parents": []
                 }
             ]),
             principal: format!(r#"Human::"{REPOSITORY_PRINCIPAL}""#),
@@ -875,6 +951,7 @@ mod tests {
 
     struct TestSigner {
         key: SigningKey,
+        key_id: String,
         calls: usize,
         fail: bool,
     }
@@ -890,7 +967,7 @@ mod tests {
                 return Err("injected signer refusal".into());
             }
             Ok(vec![DsseSignatureV1 {
-                keyid: "repository-key-1".into(),
+                keyid: self.key_id.clone(),
                 sig: BASE64_STANDARD.encode(
                     self.key
                         .sign(&dsse_pae(payload_type, canonical_payload))
@@ -945,6 +1022,7 @@ mod tests {
         fn signer(&self) -> TestSigner {
             TestSigner {
                 key: self.repository_key.clone(),
+                key_id: "repository-key-1".into(),
                 calls: 0,
                 fail: false,
             }
@@ -1158,6 +1236,79 @@ mod tests {
         }
     }
 
+    fn transaction_request(
+        fixture: &Fixture,
+        history: AuthorityHistorySnapshot,
+        action: &str,
+        resource: String,
+        intent_digest: String,
+        recorded_at: &str,
+        event: AuthorityEventDraft,
+        next_authority_keyset: Option<AuthorityKeysetV1>,
+    ) -> AuthorityTransactionRequest {
+        let mut authorization = authorization_input();
+        authorization.action = action.into();
+        authorization.resource = resource;
+        let reason = event.reason.clone();
+        AuthorityTransactionRequest {
+            history,
+            intent_digest: intent_digest.clone(),
+            principal: fixture.request.principal.clone(),
+            authentication_request: AuthenticationRequest {
+                principal_id: REPOSITORY_PRINCIPAL.into(),
+                principal_class: PrincipalClass::Human,
+                transaction_at: recorded_at.into(),
+            },
+            runtime_session_state: RuntimeSessionState::default(),
+            authorization_input: authorization,
+            delegation: None,
+            semantic_approvals: vec![SemanticApprovalV1 {
+                principal_id: REPOSITORY_PRINCIPAL.into(),
+                role: "frontier_administrator".into(),
+                action: action.into(),
+                reason,
+                approved_at: recorded_at.into(),
+                intent_digest,
+            }],
+            event_drafts: vec![event],
+            object_drafts: Vec::new(),
+            next_authority_keyset,
+            next_policy_bundle: None,
+            read_set: fixture.request.read_set.clone(),
+            vela_version: fixture.request.vela_version.clone(),
+            binary_sha256: fixture.request.binary_sha256.clone(),
+            recorded_at: recorded_at.into(),
+        }
+    }
+
+    fn append_installed_transaction(
+        fixture: &Fixture,
+        history: &mut AuthorityHistorySnapshot,
+        result: &AuthorityTransactionResult,
+    ) {
+        assert_eq!(result.event_ids.len(), 1);
+        let event: AuthorityEventV1 = serde_json::from_slice(
+            &fs::read(
+                fixture
+                    .root()
+                    .join(authority_event_path(&result.event_ids[0])),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let envelope: AuthorityEnvelopeV1 = serde_json::from_slice(
+            &fs::read(
+                fixture
+                    .root()
+                    .join(authority_record_path(&result.authority_record_id)),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        history.authority_events.push(event);
+        history.authority_envelopes.push(envelope);
+    }
+
     #[test]
     fn sequence_one_installs_exact_bridge_snapshots_and_covering_record() {
         let fixture = fixture();
@@ -1215,6 +1366,411 @@ mod tests {
         assert_eq!(
             verified.final_authority_record_root,
             Some(result.authority_record_root)
+        );
+    }
+
+    #[test]
+    fn disposable_frontier_migrates_rotates_writes_closes_and_replays_from_bytes() {
+        let fixture = fixture();
+        let migration_request = fixture.request.clone();
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let migration = execute_authority_migration(
+            fixture.barrier(),
+            fixture.root(),
+            migration_request.clone(),
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap();
+        assert_eq!(signer.calls, 1);
+
+        let migration_envelope: AuthorityEnvelopeV1 = serde_json::from_slice(
+            &fs::read(
+                fixture
+                    .root()
+                    .join(authority_record_path(&migration.authority_record_id)),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let mut legacy_events = migration_request.history.legacy_events.clone();
+        legacy_events.push(migration_request.migration_event.clone());
+        let mut history = AuthorityHistorySnapshot {
+            frontier_id: FRONTIER_ID.into(),
+            legacy_events,
+            legacy_actor_registry_bytes: migration_request
+                .history
+                .legacy_actor_registry_bytes
+                .clone(),
+            legacy_active_policy_head_root: migration_request
+                .history
+                .legacy_active_policy_head_root
+                .clone(),
+            legacy_policy_store_manifest_root: migration_request
+                .history
+                .legacy_policy_store_manifest_root
+                .clone(),
+            authority_keyset: migration_request.authority_keyset.clone(),
+            policy_bundle: migration_request.policy_bundle.clone(),
+            retained_authority_keysets: vec![migration_request.authority_keyset.clone()],
+            retained_policy_bundles: vec![migration_request.policy_bundle.clone()],
+            authority_events: Vec::new(),
+            authority_envelopes: vec![migration_envelope],
+        };
+
+        let ordinary_reason = "Reject the first disposable Era-1 proposal.";
+        let ordinary_request = transaction_request(
+            &fixture,
+            history.clone(),
+            "review_reject",
+            r#"Proposal::"vpr_0123456789abcdef""#.into(),
+            root('a'),
+            "2026-07-24T12:06:00Z",
+            AuthorityEventDraft {
+                kind: EventKind::ReviewRejected,
+                target: StateTarget {
+                    r#type: "proposal".into(),
+                    id: "vpr_0123456789abcdef".into(),
+                },
+                actor: StateActor {
+                    r#type: "human".into(),
+                    id: REPOSITORY_PRINCIPAL.into(),
+                },
+                timestamp: "2026-07-24T12:06:00Z".into(),
+                reason: ordinary_reason.into(),
+                before_hash: root('f'),
+                after_hash: root('f'),
+                payload: json!({"proposal_id": "vpr_0123456789abcdef"}),
+                caveats: Vec::new(),
+            },
+            None,
+        );
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let ordinary = execute_authority_transaction(
+            fixture.barrier(),
+            fixture.root(),
+            ordinary_request,
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap();
+        append_installed_transaction(&fixture, &mut history, &ordinary);
+
+        let next_key = SigningKey::from_bytes(&[24; 32]);
+        let next_keyset = AuthorityKeysetV1 {
+            schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
+            frontier_id: FRONTIER_ID.into(),
+            generation: 2,
+            threshold: 1,
+            keys: vec![AuthorityKeyV1 {
+                key_id: "repository-key-2".into(),
+                algorithm: AUTHORITY_KEY_ALGORITHM.into(),
+                public_key: hex::encode(next_key.verifying_key().to_bytes()),
+                valid_from_sequence: 4,
+                valid_through_sequence: None,
+                purpose: AUTHORITY_KEY_PURPOSE.into(),
+            }],
+            previous_keyset_root: Some(history.authority_keyset.root().unwrap()),
+            activation_record_root: Some(ordinary.authority_record_root.clone()),
+            closed: false,
+        };
+        let rotate_reason = "Rotate the disposable Frontier repository key.";
+        let rotation_request = transaction_request(
+            &fixture,
+            history.clone(),
+            AUTHORITY_ROTATE_ACTION,
+            format!(r#"Frontier::"{FRONTIER_ID}""#),
+            root('b'),
+            "2026-07-24T12:07:00Z",
+            AuthorityEventDraft {
+                kind: EventKind::Other("authority.rotated".into()),
+                target: StateTarget {
+                    r#type: "frontier".into(),
+                    id: FRONTIER_ID.into(),
+                },
+                actor: StateActor {
+                    r#type: "human".into(),
+                    id: REPOSITORY_PRINCIPAL.into(),
+                },
+                timestamp: "2026-07-24T12:07:00Z".into(),
+                reason: rotate_reason.into(),
+                before_hash: root('f'),
+                after_hash: root('f'),
+                payload: json!({"authority_keyset_root": next_keyset.root().unwrap()}),
+                caveats: Vec::new(),
+            },
+            Some(next_keyset.clone()),
+        );
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let rotation = execute_authority_transaction(
+            fixture.barrier(),
+            fixture.root(),
+            rotation_request,
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap();
+        append_installed_transaction(&fixture, &mut history, &rotation);
+        history.authority_keyset = next_keyset.clone();
+        history.retained_authority_keysets.push(next_keyset.clone());
+
+        let later_reason = "Reject a later proposal under the rotated repository key.";
+        let later_request = transaction_request(
+            &fixture,
+            history.clone(),
+            "review_reject",
+            r#"Proposal::"vpr_0123456789abcdef""#.into(),
+            root('c'),
+            "2026-07-24T12:08:00Z",
+            AuthorityEventDraft {
+                kind: EventKind::ReviewRejected,
+                target: StateTarget {
+                    r#type: "proposal".into(),
+                    id: "vpr_0123456789abcdef".into(),
+                },
+                actor: StateActor {
+                    r#type: "human".into(),
+                    id: REPOSITORY_PRINCIPAL.into(),
+                },
+                timestamp: "2026-07-24T12:08:00Z".into(),
+                reason: later_reason.into(),
+                before_hash: root('f'),
+                after_hash: root('f'),
+                payload: json!({"proposal_id": "vpr_0123456789abcdef"}),
+                caveats: Vec::new(),
+            },
+            None,
+        );
+        let mut adapter = fixture.adapter();
+        let mut next_signer = TestSigner {
+            key: next_key.clone(),
+            key_id: "repository-key-2".into(),
+            calls: 0,
+            fail: false,
+        };
+        let later = execute_authority_transaction(
+            fixture.barrier(),
+            fixture.root(),
+            later_request,
+            &mut adapter,
+            &mut next_signer,
+        )
+        .unwrap();
+        assert_eq!(next_signer.calls, 1);
+        append_installed_transaction(&fixture, &mut history, &later);
+
+        let closed_keyset = AuthorityKeysetV1 {
+            schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
+            frontier_id: FRONTIER_ID.into(),
+            generation: 3,
+            threshold: 0,
+            keys: Vec::new(),
+            previous_keyset_root: Some(next_keyset.root().unwrap()),
+            activation_record_root: Some(later.authority_record_root.clone()),
+            closed: true,
+        };
+        let close_reason = "Close future authority after the disposable lifecycle drill.";
+        let close_payload = AuthorityCloseV1 {
+            schema: AUTHORITY_CLOSE_SCHEMA_V1.into(),
+            frontier_id: FRONTIER_ID.into(),
+            last_trusted_sequence: 4,
+            last_trusted_authority_record_root: later.authority_record_root.clone(),
+            previous_authority_keyset_root: next_keyset.root().unwrap(),
+            closed_authority_keyset_root: closed_keyset.root().unwrap(),
+            policy_bundle_root: history.policy_bundle.root().unwrap(),
+            incident_id: "incident:disposable-lifecycle-close".into(),
+            reason: close_reason.into(),
+        };
+        let close_request = transaction_request(
+            &fixture,
+            history.clone(),
+            AUTHORITY_CLOSE_ACTION,
+            format!(r#"Frontier::"{FRONTIER_ID}""#),
+            root('e'),
+            "2026-07-24T12:09:00Z",
+            AuthorityEventDraft {
+                kind: EventKind::Other(AUTHORITY_CLOSED_EVENT_KIND.into()),
+                target: StateTarget {
+                    r#type: "frontier".into(),
+                    id: FRONTIER_ID.into(),
+                },
+                actor: StateActor {
+                    r#type: "human".into(),
+                    id: REPOSITORY_PRINCIPAL.into(),
+                },
+                timestamp: "2026-07-24T12:09:00Z".into(),
+                reason: close_reason.into(),
+                before_hash: root('0'),
+                after_hash: root('0'),
+                payload: serde_json::to_value(close_payload).unwrap(),
+                caveats: Vec::new(),
+            },
+            Some(closed_keyset.clone()),
+        );
+        let mut adapter = fixture.adapter();
+        let mut next_signer = TestSigner {
+            key: next_key,
+            key_id: "repository-key-2".into(),
+            calls: 0,
+            fail: false,
+        };
+        let close = execute_authority_transaction(
+            fixture.barrier(),
+            fixture.root(),
+            close_request,
+            &mut adapter,
+            &mut next_signer,
+        )
+        .unwrap();
+        append_installed_transaction(&fixture, &mut history, &close);
+        history.authority_keyset = closed_keyset.clone();
+        history
+            .retained_authority_keysets
+            .push(closed_keyset.clone());
+
+        run_git(fixture.root(), &["init", "-q", "-b", "main"]);
+        run_git(
+            fixture.root(),
+            &[
+                "-c",
+                "core.hooksPath=/dev/null",
+                "add",
+                ".vela/events",
+                ".vela/authority",
+                ".vela/actors.json",
+            ],
+        );
+        run_git(
+            fixture.root(),
+            &[
+                "-c",
+                "core.hooksPath=/dev/null",
+                "-c",
+                "commit.gpgsign=false",
+                "-c",
+                "user.name=Vela fixture",
+                "-c",
+                "user.email=fixture@invalid",
+                "commit",
+                "-q",
+                "-m",
+                "disposable authority lifecycle",
+            ],
+        );
+        let clone_parent = TempDir::new().unwrap();
+        let clone_root = clone_parent.path().join("frontier");
+        let clone_output = Command::new("git")
+            .args(["clone", "-q", "--no-local", "--no-hardlinks"])
+            .arg(fixture.root())
+            .arg(&clone_root)
+            .output()
+            .unwrap();
+        assert!(
+            clone_output.status.success(),
+            "clean clone failed: {}",
+            String::from_utf8_lossy(&clone_output.stderr)
+        );
+        let status = Command::new("git")
+            .current_dir(&clone_root)
+            .args(["status", "--porcelain"])
+            .output()
+            .unwrap();
+        assert!(status.status.success());
+        assert!(status.stdout.is_empty());
+
+        let installed_events = history
+            .authority_events
+            .iter()
+            .map(|event| {
+                serde_json::from_slice::<AuthorityEventV1>(
+                    &fs::read(clone_root.join(authority_event_path(&event.id))).unwrap(),
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let installed_envelopes = [
+            migration.authority_record_id.as_str(),
+            ordinary.authority_record_id.as_str(),
+            rotation.authority_record_id.as_str(),
+            later.authority_record_id.as_str(),
+            close.authority_record_id.as_str(),
+        ]
+        .into_iter()
+        .map(|record_id| {
+            serde_json::from_slice::<AuthorityEnvelopeV1>(
+                &fs::read(clone_root.join(authority_record_path(record_id))).unwrap(),
+            )
+            .unwrap()
+        })
+        .collect::<Vec<_>>();
+        let installed_keysets = [
+            migration_request.authority_keyset.root().unwrap(),
+            next_keyset.root().unwrap(),
+            closed_keyset.root().unwrap(),
+        ]
+        .into_iter()
+        .map(|keyset_root| {
+            serde_json::from_slice::<AuthorityKeysetV1>(
+                &fs::read(clone_root.join(authority_keyset_path(&keyset_root).unwrap())).unwrap(),
+            )
+            .unwrap()
+        })
+        .collect::<Vec<_>>();
+        let installed_policy: PolicyBundleV1 = serde_json::from_slice(
+            &fs::read(clone_root.join(
+                authority_policy_path(&migration_request.policy_bundle.root().unwrap()).unwrap(),
+            ))
+            .unwrap(),
+        )
+        .unwrap();
+        let installed_legacy_events = history
+            .legacy_events
+            .iter()
+            .map(|event| {
+                serde_json::from_slice::<StateEvent>(
+                    &fs::read(
+                        clone_root
+                            .join(".vela/events")
+                            .join(format!("{}.json", event.id)),
+                    )
+                    .unwrap(),
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let replay = verify_authority_history(AuthorityHistoryInput {
+            frontier_id: FRONTIER_ID,
+            legacy_events: &installed_legacy_events,
+            legacy_actor_registry_bytes: &fs::read(clone_root.join(".vela/actors.json")).unwrap(),
+            legacy_active_policy_head_root: &migration_request
+                .history
+                .legacy_active_policy_head_root,
+            legacy_policy_store_manifest_root: &migration_request
+                .history
+                .legacy_policy_store_manifest_root,
+            authority_keysets: &installed_keysets,
+            policy_bundles: std::slice::from_ref(&installed_policy),
+            authority_events: &installed_events,
+            authority_envelopes: &installed_envelopes,
+        })
+        .unwrap();
+        assert_eq!(replay.authority_record_count, 5);
+        assert_eq!(replay.authority_event_count, 4);
+        assert!(replay.closed);
+        assert_eq!(
+            replay.final_authority_record_root,
+            Some(close.authority_record_root)
+        );
+        assert_eq!(
+            replay.final_authority_keyset_root,
+            Some(closed_keyset.root().unwrap())
+        );
+        assert_eq!(
+            replay.final_policy_bundle_root,
+            Some(installed_policy.root().unwrap())
         );
     }
 

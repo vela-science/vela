@@ -776,6 +776,24 @@ break-glass signer or let a compromised or lost key silently manufacture
 continuity. A future lineage after total authority loss is a trust reset
 requiring a new out-of-band anchor, not recovery of this history.
 
+The final CLI-unreachable Phase 4 drill composes all writer paths in one
+disposable Frontier:
+
+1. install the exact legacy-signed bridge and sequence-1 record;
+2. append one ordinary Era-1 decision;
+3. rotate to generation 2 under the old repository key;
+4. append one ordinary decision under the new key;
+5. append the terminal close under the new key;
+6. commit only canonical authority bytes to a local Git repository;
+7. clone with local object reuse disabled; and
+8. replay all retained events, snapshots, and five records from that clean
+   clone without any signer or authentication provider.
+
+The final replay reports four Era-1 events, the terminal keyset, unchanged
+policy, and closed authority. This closes the disposable Frontier writer gate.
+It does not accept this ADR, expose a CLI route, migrate an active Frontier, or
+remove Era-0 replay.
+
 ## Alternatives rejected
 
 ### Preserve or improve the current helper

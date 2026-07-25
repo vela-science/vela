@@ -481,8 +481,17 @@ authentication or repository signing, then prepares one recoverable
 transaction containing the bridge, initial full-root keyset and policy
 manifests, and covering DSSE record. It has no CLI route and no production
 human-credential path. No active Frontier may emit these objects or delete
-Era-0 verification until the remaining ADR 0020 disposable-drill, release,
-and active-Frontier gates pass.
+Era-0 verification until the remaining ADR 0020 release and active-Frontier
+gates pass.
+
+The complete CLI-unreachable lifecycle drill now uses one disposable Frontier
+to install the legacy bridge, perform an ordinary Era-1 decision, rotate the
+repository key, perform another decision under the new key, close authority,
+commit the canonical bytes to Git, clone them without local object reuse, and
+replay the five-record history from the clean clone. The old key is not used
+after activation and replay requires no signer or provider. This proves the
+writer composition and provider-exit seam; it does not expose a live command
+or authorize an active-Frontier migration.
 
 The same candidate read contract defines `vela.principal.v1` and
 `vela.capability-grant.v1`. A human principal is an exact retained
