@@ -373,7 +373,7 @@ pub(crate) fn check_json_payload(src: &Path, schema_only: bool, strict: bool) ->
     check_json_payload_with_home(src, schema_only, strict, None)
 }
 
-fn check_json_payload_with_home(
+pub(crate) fn check_json_payload_with_home(
     src: &Path,
     schema_only: bool,
     strict: bool,
@@ -1874,6 +1874,58 @@ mod repository_context_tests {
             valid.pointer("/counts/open_work").and_then(Value::as_u64),
             Some(1),
             "the exact external pin must reach the Target Index projection"
+        );
+    }
+
+    #[test]
+    fn compact_status_cannot_pass_when_strict_check_rejects_stale_derived_state() {
+        let fixture = bound_repository(AnchorCase::Valid);
+        let valid_home = tempfile::tempdir().unwrap();
+        install_repository_trust_anchor_from_home(valid_home.path(), &fixture.anchor).unwrap();
+        let observed_at = "2026-07-23T00:02:00Z";
+
+        let frontier_path = fixture.repo.path().join("frontier.json");
+        let mut frontier: Value =
+            serde_json::from_slice(&std::fs::read(&frontier_path).unwrap()).unwrap();
+        frontier["project"]["name"] = Value::String("stale derived name".into());
+        std::fs::write(
+            &frontier_path,
+            serde_json::to_vec_pretty(&frontier).unwrap(),
+        )
+        .unwrap();
+
+        let checked =
+            check_json_payload_with_home(fixture.repo.path(), false, true, Some(valid_home.path()));
+        assert_eq!(checked.get("ok").and_then(Value::as_bool), Some(false));
+        assert!(
+            checked
+                .pointer("/state_integrity/structural_errors")
+                .and_then(Value::as_array)
+                .is_some_and(|errors| !errors.is_empty()),
+            "{checked}"
+        );
+
+        let status = crate::cli_read::compact_status_payload_with_home(
+            fixture.repo.path(),
+            observed_at,
+            Some(valid_home.path()),
+        )
+        .unwrap();
+        assert_eq!(status.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            status.pointer("/integrity/strict").and_then(Value::as_str),
+            Some("blocked")
+        );
+        assert!(
+            status
+                .pointer("/integrity/blockers_by_code/state_integrity")
+                .and_then(Value::as_u64)
+                .is_some_and(|count| count >= 1),
+            "{status}"
+        );
+        assert_eq!(
+            status.pointer("/next_action").and_then(Value::as_str),
+            Some("vela check . --strict")
         );
     }
 

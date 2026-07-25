@@ -53,6 +53,13 @@ pub(crate) fn compact_status_payload_with_home(
     );
     let policy_ok = policy.permit_readiness()
         != vela_protocol::proposals::policy_accept::PermitReadiness::Blocked;
+    // `status` is the compact product projection of the same fail-closed bar
+    // as `check --strict`. Do not independently approximate that bar here:
+    // doing so previously let stale derived state report `strict: pass` even
+    // while the canonical strict checker rejected the Frontier.
+    let strict_check =
+        crate::cli::check_json_payload_with_home(frontier_dir, false, true, trusted_home);
+    let strict_check_ok = strict_check.get("ok").and_then(serde_json::Value::as_bool) == Some(true);
     let signals = vela_edge::signals::analyze_at(&project, &[], Some(frontier_dir));
     let mut blockers_by_code = std::collections::BTreeMap::<String, usize>::new();
     for signal in &signals.signals {
@@ -77,6 +84,49 @@ pub(crate) fn compact_status_payload_with_home(
             .and_then(serde_json::Value::as_str)
             .unwrap_or("repository_context_invalid");
         *blockers_by_code.entry(code.to_string()).or_default() += 1;
+    }
+    if let Some(checks) = strict_check
+        .get("checks")
+        .and_then(serde_json::Value::as_array)
+    {
+        for check in checks {
+            let id = check
+                .get("id")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("strict_check");
+            let failed = check
+                .get("failed")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or_default() as usize;
+            let warnings = check
+                .get("warnings")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or_default() as usize;
+            // These categories already retain their more useful product-level
+            // codes above. Avoid double-counting them while still deriving the
+            // pass/fail result from the canonical strict checker.
+            if failed > 0
+                && !matches!(
+                    id,
+                    "signals"
+                        | "events"
+                        | "active_policy"
+                        | "policy_readiness"
+                        | "repository_context"
+                )
+            {
+                *blockers_by_code.entry(id.to_string()).or_default() += failed;
+            }
+            if warnings > 0 {
+                *blockers_by_code.entry(format!("{id}_warning")).or_default() += warnings;
+            }
+        }
+    }
+    if !strict_check_ok && blockers_by_code.is_empty() {
+        // Defensive fallback for any future strict-check category that has
+        // not yet gained a compact status code. Never turn an unknown strict
+        // failure into a pass.
+        blockers_by_code.insert("strict_check_failed".into(), 1);
     }
 
     let pending_review = project
@@ -155,8 +205,12 @@ pub(crate) fn compact_status_payload_with_home(
         };
 
     let blocker_count = blockers_by_code.values().sum::<usize>();
-    let status_ok = replay.ok && policy_ok && repository_acceptable && target_index_error.is_none();
-    let next_action = if !replay.ok || !repository_acceptable {
+    let status_ok = strict_check_ok
+        && replay.ok
+        && policy_ok
+        && repository_acceptable
+        && target_index_error.is_none();
+    let next_action = if !strict_check_ok || !replay.ok || !repository_acceptable {
         "vela check . --strict"
     } else if !policy_ok {
         "vela doctor . --all --json"
@@ -195,9 +249,10 @@ pub(crate) fn compact_status_payload_with_home(
         "integrity": {
             "replay": if replay.ok { "reproduced" } else { "diverged" },
             "replay_diffs": replay.diffs.len(),
-            "strict": if blocker_count == 0 { "pass" } else { "blocked" },
+            "strict": if strict_check_ok { "pass" } else { "blocked" },
             "blocker_count": blocker_count,
             "blockers_by_code": blockers_by_code,
+            "strict_check": strict_check.get("summary").cloned().unwrap_or(serde_json::Value::Null),
             "repository_context": repository_context.payload,
             "target_index_error": target_index_error,
         },

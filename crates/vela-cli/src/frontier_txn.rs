@@ -571,7 +571,19 @@ pub(crate) fn execute_no_event_transaction(
             "non-event transaction refuses duplicate event identifiers".to_string(),
         ));
     }
-    let operation_id = OperationId::derive(operation_domain, request_root.as_str().as_bytes());
+    // A no-event request such as materialization can retain the same
+    // frontier/event identity while its derived preimage or renderer output
+    // changes. Binding the operation id to `request_root` alone therefore
+    // collided with a valid completed journal from an earlier materialization.
+    // Include the complete transition identity and fixed planning time: exact
+    // retries still share an id, while a later maintenance pass cannot be
+    // mistaken for the prior completed plan.
+    let operation_id = no_event_operation_id(
+        operation_domain,
+        &request_root,
+        draft.delta.root(),
+        fixed_time,
+    )?;
     let plan = FrontierTxnPlan::new(
         FrontierTxnPlanSpec {
             kind: OperationKind::Maintenance,
@@ -597,6 +609,22 @@ pub(crate) fn execute_no_event_transaction(
     transaction.install()?;
     transaction.complete()?;
     Ok(Some(completed))
+}
+
+fn no_event_operation_id(
+    operation_domain: &str,
+    request_root: &ContentDigest,
+    canonical_delta_root: &ContentDigest,
+    fixed_time: &str,
+) -> Result<OperationId, FrontierTxnError> {
+    let operation_identity = vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
+        "schema": "vela.no-event-operation-identity.internal.v1",
+        "request_root": request_root,
+        "canonical_delta_root": canonical_delta_root,
+        "fixed_time": fixed_time,
+    }))
+    .map_err(FrontierTxnError::Canonicalize)?;
+    Ok(OperationId::derive(operation_domain, &operation_identity))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -4515,6 +4543,50 @@ mod tests {
     use super::*;
     use ed25519_dalek::SigningKey;
     use serde_json::json;
+
+    #[test]
+    fn no_event_operation_identity_binds_delta_and_planning_time() {
+        let request = ContentDigest::hash(b"same logical maintenance request");
+        let first_delta = ContentDigest::hash(b"first derived transition");
+        let second_delta = ContentDigest::hash(b"second derived transition");
+        let first = no_event_operation_id(
+            "frontier-materialize",
+            &request,
+            &first_delta,
+            "2026-07-25T00:00:00Z",
+        )
+        .unwrap();
+        assert_eq!(
+            first,
+            no_event_operation_id(
+                "frontier-materialize",
+                &request,
+                &first_delta,
+                "2026-07-25T00:00:00Z",
+            )
+            .unwrap()
+        );
+        assert_ne!(
+            first,
+            no_event_operation_id(
+                "frontier-materialize",
+                &request,
+                &second_delta,
+                "2026-07-25T00:00:00Z",
+            )
+            .unwrap()
+        );
+        assert_ne!(
+            first,
+            no_event_operation_id(
+                "frontier-materialize",
+                &request,
+                &first_delta,
+                "2026-07-25T00:00:01Z",
+            )
+            .unwrap()
+        );
+    }
 
     fn fixture_plan(root: &Path, draft: &DeltaDraft, identity: &[u8]) -> FrontierTxnPlan {
         let operation_id = OperationId::derive("submission", identity);
