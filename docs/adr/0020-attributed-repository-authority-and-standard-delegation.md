@@ -597,9 +597,9 @@ application-level machine-authority forbid list explicitly includes
 `authority_model_migrate`.
 
 This completes only the sequence-1 installation sub-gate. The read-side
-rotation law is now implemented and adversarially tested, but its writer,
-emergency close, the full disposable Frontier drill, active migration, CLI
-exposure, and ADR acceptance remain open.
+rotation law and its CLI-unreachable writer are now implemented and
+adversarially tested. Emergency close, the full disposable Frontier drill,
+active migration, CLI exposure, and ADR acceptance remain open.
 
 Phase 1 now also has a committed
 `vela.authority-history-conformance.v1` vector at
@@ -696,11 +696,12 @@ object drift; broader partial-install recovery; missing history; extra history;
 and stale-history fork refusal. Authority-record validation also rejects any
 object delta whose two roots are equal.
 
-This evidence completes the provider and broader object-delta sub-gates. Phase
-4 remains open for canonical keyset and policy-snapshot installation, rotation,
-emergency close, exact retry semantics, and a CLI-unreachable disposable
-Frontier exercise. It does not authorize a live writer, accept this ADR,
-migrate an active Frontier, or access any human signing key.
+This evidence completes the provider and broader object-delta sub-gates. The
+following installation and rotation slices close canonical keyset and
+policy-snapshot installation, exact retry, and non-cyclic rotation. Phase 4
+remains open for emergency close and a CLI-unreachable disposable Frontier
+exercise. It does not authorize a live writer, accept this ADR, migrate an
+active Frontier, or access any human signing key.
 
 The following bounded writer slice now derives content-addressed keyset and
 policy-manifest paths from the verified history. Missing snapshots are covered
@@ -718,10 +719,10 @@ This path has no authentication adapter or signer argument. A changed
 transaction ID, record root, event set, read-set root, or write-set root is not
 a retry.
 
-Thirteen writer tests now cover these additions. The later sequence-1 slice
-closes the initial installation sub-gate. Phase 4 remains open for a rotation
-writer, emergency close, and the full offline Frontier drill. No live writer,
-CLI route, active Frontier, or human key is involved.
+Thirteen writer tests now cover these additions. The later sequence-1 and
+rotation slices close initial installation and rotation. Phase 4 remains open
+for emergency close and the full offline Frontier drill. No live writer, CLI
+route, active Frontier, or human key is involved.
 
 The next read-side slice defines rotation without a hash cycle. A rotation
 record is verified under the currently active keyset and policy, covers one
@@ -738,9 +739,18 @@ substitution, missing rotation approval, skipped generation, wrong prior
 chain head, policy substitution, and use of the old key after activation.
 Keysets also reject duplicate public-key material under different key IDs,
 preventing one Ed25519 key from satisfying a multi-key threshold through
-aliases. A four-record test proves old-authority rotation followed by a
-new-authority transaction. This completes the rotation replay law only; it
-does not implement the rotation writer.
+aliases. A four-record protocol test proves old-authority rotation followed by
+a new-authority transaction.
+
+The CLI-unreachable writer now installs one exact keyset or policy transition
+through the same recoverable transaction barrier. It refuses a combined
+keyset-and-policy transition so every write has one semantic action. Wrong
+transition links, missing rotation approval, and an active-snapshot/history
+mismatch fail before authentication or signing. The completed candidate is
+replayed against the retained stores before any journal is prepared. Focused
+writer tests prove exact full-root installation, policy rotation, zero-sign
+refusal, offline replay, and an ordinary post-rotation decision signed by the
+new key. This closes the rotation writer sub-gate only.
 
 ## Alternatives rejected
 

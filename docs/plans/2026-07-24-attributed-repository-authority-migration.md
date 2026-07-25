@@ -289,14 +289,17 @@ completed retry. The shared application forbid list now names
 `authority_model_migrate` explicitly, so agent and workload principals cannot
 request the bridge action.
 
-The read-side rotation law is now closed: the current authority covers the new
+The rotation law and CLI-unreachable writer are now closed: the current authority covers the new
 full-root snapshots, the next keyset links the exact prior keyset and
 pre-transaction chain head, the next policy links the exact prior policy, and
 both activate only for the following record. Missing approvals, path/root
 substitution, old-key reuse, unactivated retained generations, and duplicate
-public-key aliases fail closed. Phase 4 remains open for the rotation writer,
-emergency close, and the complete disposable Frontier drill. No live writer,
-CLI route, active Frontier, human key, or ADR acceptance is involved.
+public-key aliases fail closed. The writer accepts one keyset or policy
+rotation per transaction, validates it before signer access, installs the
+snapshot atomically, replays the candidate history before journaling, and
+proves a later ordinary transaction under the rotated key. Phase 4 remains
+open for emergency close and the complete disposable Frontier drill. No live
+writer, CLI route, active Frontier, human key, or ADR acceptance is involved.
 
 ## Phase 4: authority transaction writer
 

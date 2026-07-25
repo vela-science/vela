@@ -412,7 +412,7 @@ deltas; existing manifests must match exactly. Direct store membership is a
 transaction input, so an added, replaced, deleted, or symlinked snapshot
 aborts before the commit marker.
 
-The read-side rotation law is also closed. A new keyset must name the exact
+The rotation law and CLI-unreachable writer are also closed. A new keyset must name the exact
 prior keyset root, advance generation by one, and bind the authority-record
 chain head that existed immediately before the covering rotation transaction.
 That transaction is signed and authorized under the old keyset and policy,
@@ -424,6 +424,16 @@ point. Duplicate public-key material is forbidden even under different key
 IDs, so aliases cannot satisfy a threshold. Wrong snapshot paths, missing
 approvals, old-key use after activation, skipped generations, and retained
 but unactivated snapshots fail closed.
+
+The candidate writer permits one authority transition per transaction: either
+one keyset rotation or one policy rotation. It verifies the exact transition
+and required semantic approval before authentication or signing, installs the
+new full-root snapshot through the existing recoverable transaction, and
+replays the complete candidate history before preparing the journal. A
+keyset-rotation fixture then performs an ordinary later authority transaction
+under the new key and replays all retained objects offline. Combining keyset
+and policy rotation in one record is deliberately unsupported by the writer;
+the read verifier remains capable of validating such retained history.
 
 The authority record's `transaction_write_set_root` is a domain-separated
 commitment over the transaction ID, before and after authority-event-log
@@ -453,8 +463,8 @@ authentication or repository signing, then prepares one recoverable
 transaction containing the bridge, initial full-root keyset and policy
 manifests, and covering DSSE record. It has no CLI route and no production
 human-credential path. No active Frontier may emit these objects or delete
-Era-0 verification until the remaining ADR 0020 rotation, emergency-close,
-disposable drill, release, and active-Frontier gates pass.
+Era-0 verification until the remaining ADR 0020 emergency-close,
+disposable-drill, release, and active-Frontier gates pass.
 
 The same candidate read contract defines `vela.principal.v1` and
 `vela.capability-grant.v1`. A human principal is an exact retained
