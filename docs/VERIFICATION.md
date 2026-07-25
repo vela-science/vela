@@ -53,15 +53,20 @@ not a compatibility bypass: an invalid boundary grants no identity,
 dependency, signature, or historical exemption, and canonical writers still
 fail before transaction journaling.
 
-To reproduce only immutable verifier-tagged artifacts bound to one pending
-proposal, use:
+When a pending proposal retains a frontier-local frozen witness, `review show`
+advertises proposal-scoped reproduction:
 
 ```bash
 vela reproduce . --proposal <vpr_id> --json
 ```
 
 The output names its scope `pending_proposal` rather than
-`accepted_frontier`, and reports `authority_effect: none`.
+`accepted_frontier`, and reports `authority_effect: none`. Vela does not
+advertise this command for a proposal that retains only artifact bytes and a
+producer-side verifier observation. Such a proposal remains inspectable, but
+re-running its external verifier requires the producer's exact replay bundle;
+an integrity digest or historical pass record is not silently treated as a
+locally executable verifier.
 
 ## Verifier evidence
 

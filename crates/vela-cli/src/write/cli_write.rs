@@ -35,12 +35,17 @@ fn proposal_next_actions(frontier: &std::path::Path, proposal_id: &str) -> Vec<V
         &vela_protocol::verifier_attachment::claim_digest(&finding.assertion.text),
         &attachments,
     );
-    let mut actions = vec![json!({
-        "kind": "reproduce_pending_artifact",
-        "authority": "read_only",
-        "command": format!("vela reproduce {} --proposal {proposal_id}", frontier.display()),
-        "reason": "Re-run only the immutable artifacts bound to this pending proposal."
-    })];
+    let mut actions = Vec::new();
+    if crate::cli_engine::proposal_reproduction_files(frontier, proposal_id)
+        .is_ok_and(|files| !files.is_empty())
+    {
+        actions.push(json!({
+            "kind": "reproduce_pending_artifact",
+            "authority": "read_only",
+            "command": format!("vela reproduce {} --proposal {proposal_id}", frontier.display()),
+            "reason": "Re-run only the immutable artifacts bound to this pending proposal."
+        }));
+    }
     if gate.status != vela_protocol::verifier_attachment::GateStatus::Verified {
         actions.push(json!({
             "kind": "add_verifier_evidence",

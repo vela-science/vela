@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Advertise proposal-scoped reproduction only when the pending proposal retains
+  a valid frontier-local frozen witness. Proposals backed by an external
+  producer replay bundle remain fully inspectable, but no longer receive a
+  broken `vela reproduce --proposal` next action.
+- Constrain retained Receipt and witness reads to regular, non-symlink files
+  inside the Frontier and verify their exact roots before use.
+
 ## v0.930.0-rc.2 — 2026-07-24 — Restore feature-independent historical replay
 
 - Canonicalize synthetic source commitment preimages before hashing them.

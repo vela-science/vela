@@ -2622,6 +2622,31 @@ batches:
         git_stdout(&clone, &["ls-tree", "-r", "--name-only", "HEAD"])
     );
 
+    let review_show = run(&clone, &["review", "show", ".", proposal_id, "--json"]);
+    assert_success(&review_show, "show reproducible pending proposal");
+    let review_show = one_json_object(&review_show);
+    assert!(
+        review_show["next_actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|action| action["kind"] == "reproduce_pending_artifact"),
+        "a pending proposal with a retained witness must advertise scoped reproduction: {review_show}"
+    );
+    let proposal_reproduced = run(
+        &clone,
+        &["reproduce", ".", "--proposal", proposal_id, "--json"],
+    );
+    assert_success(
+        &proposal_reproduced,
+        "reproduce only the pending proposal witness",
+    );
+    let proposal_reproduced = one_json_object(&proposal_reproduced);
+    assert_eq!(proposal_reproduced["scope"], "pending_proposal");
+    assert_eq!(proposal_reproduced["proposal_id"], proposal_id);
+    assert_eq!(proposal_reproduced["passed"], 1, "{proposal_reproduced}");
+    assert_eq!(proposal_reproduced["failed"], 0, "{proposal_reproduced}");
+
     let strict = run(&clone, &["check", ".", "--strict", "--json"]);
     assert_success(&strict, "strict replay in clean clone");
     let cloned_frontier = vela_protocol::repo::load_from_path(&clone).unwrap();
@@ -4794,6 +4819,14 @@ fn decision_brief_read_surfaces_share_the_same_review_contract() {
     assert_success(&review_show, "decision_brief review show");
     let review_show = one_json_object(&review_show);
     assert_eq!(review_show["proposal_id"], proposal_id);
+    assert!(
+        review_show["next_actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|action| action["kind"] != "reproduce_pending_artifact"),
+        "a proposal with no frontier-local replay input must not advertise a broken reproduce command: {review_show}"
+    );
 
     let review_preview = run(
         tmp.path(),

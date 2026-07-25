@@ -584,6 +584,150 @@ fn reproduction_result_path(frontier: &Path, file: &Path, proposal_scoped: bool)
     )
 }
 
+pub(crate) fn proposal_reproduction_files(
+    path: &Path,
+    proposal_id: &str,
+) -> Result<Vec<PathBuf>, String> {
+    let project =
+        repo::load_from_path(path).map_err(|error| format!("load proposal frontier: {error}"))?;
+    let proposal = project
+        .proposals
+        .iter()
+        .find(|proposal| proposal.id == proposal_id)
+        .ok_or_else(|| format!("proposal {proposal_id} does not exist"))?;
+    if proposal.status != "pending_review" {
+        return Err(format!(
+            "proposal {proposal_id} is {}, not pending_review",
+            proposal.status
+        ));
+    }
+    if proposal.kind != "finding.add" {
+        return Err(format!(
+            "proposal-scoped reproduction requires finding.add, got {}",
+            proposal.kind
+        ));
+    }
+    let finding_id = proposal.target.id.as_str();
+    let retained = project
+        .artifacts
+        .iter()
+        .filter(|artifact| {
+            artifact.media_type.as_deref() == Some("application/json")
+                && artifact.metadata.contains_key("verifier")
+                && artifact
+                    .target_findings
+                    .iter()
+                    .any(|target| target == finding_id)
+        })
+        .collect::<Vec<_>>();
+    if !retained.is_empty() {
+        return retained
+            .into_iter()
+            .map(|artifact| {
+                let file = verified_local_artifact(path, artifact)?;
+                let raw = std::fs::read_to_string(&file).map_err(|error| {
+                    format!("read proposal verifier artifact {}: {error}", artifact.id)
+                })?;
+                parse_witness(&raw).map_err(|error| {
+                    format!(
+                        "proposal verifier artifact {} is not a frozen witness: {error}",
+                        artifact.id
+                    )
+                })?;
+                Ok(file)
+            })
+            .collect::<Result<Vec<_>, _>>();
+    }
+
+    let submission = proposal
+        .payload
+        .get("vela_submission")
+        .and_then(Value::as_object)
+        .ok_or_else(|| "pending proposal has no Receipt binding".to_string())?;
+    let receipt_path = submission
+        .get("receipt_path")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "proposal Receipt path is unavailable".to_string())?;
+    let expected_root = submission
+        .get("receipt_root")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "proposal Receipt root is unavailable".to_string())?;
+    let receipt_file = verified_frontier_relative_file(path, "proposal Receipt", receipt_path)?;
+    let receipt_bytes = std::fs::read(&receipt_file)
+        .map_err(|error| format!("read proposal Receipt {receipt_path}: {error}"))?;
+    let receipt = vela_protocol::receipt_v1::ReceiptV1::parse(&receipt_bytes)
+        .map_err(|error| format!("parse proposal Receipt: {error}"))?;
+    let observed_root = receipt
+        .canonical_root()
+        .map_err(|error| format!("root proposal Receipt: {error}"))?;
+    if observed_root != expected_root {
+        return Err("proposal Receipt root does not match its retained bytes".to_string());
+    }
+
+    receipt
+        .as_value()
+        .get("artifacts")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|artifact| {
+            artifact
+                .get("kind")
+                .and_then(Value::as_str)
+                .is_some_and(|kind| kind.contains("witness"))
+                || artifact
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .is_some_and(|path| path.ends_with(".witness.json"))
+        })
+        .filter_map(|artifact| artifact.get("sha256").and_then(Value::as_str))
+        .map(|digest| {
+            use sha2::{Digest, Sha256};
+            let relative = format!("records/artifacts/sha256/{digest}");
+            let file = verified_frontier_relative_file(path, "proposal artifact", &relative)?;
+            let bytes = std::fs::read(&file)
+                .map_err(|error| format!("read proposal artifact {}: {error}", file.display()))?;
+            let observed = hex::encode(Sha256::digest(&bytes));
+            if observed != digest {
+                return Err("proposal artifact digest does not match retained bytes".to_string());
+            }
+            Ok(file)
+        })
+        .collect::<Result<Vec<_>, String>>()
+}
+
+fn verified_frontier_relative_file(
+    frontier: &Path,
+    label: &str,
+    locator: &str,
+) -> Result<PathBuf, String> {
+    let relative = Path::new(locator);
+    if relative.is_absolute()
+        || relative.components().any(|component| {
+            matches!(
+                component,
+                Component::ParentDir | Component::RootDir | Component::Prefix(_)
+            )
+        })
+    {
+        return Err(format!("{label} path must remain frontier-relative"));
+    }
+    let frontier_root = std::fs::canonicalize(frontier)
+        .map_err(|error| format!("resolve frontier root: {error}"))?;
+    let file = frontier.join(relative);
+    let metadata =
+        std::fs::symlink_metadata(&file).map_err(|error| format!("inspect {label}: {error}"))?;
+    if !metadata.file_type().is_file() || metadata.file_type().is_symlink() {
+        return Err(format!("{label} must be a regular non-symlink file"));
+    }
+    let resolved =
+        std::fs::canonicalize(&file).map_err(|error| format!("resolve {label}: {error}"))?;
+    if !resolved.starts_with(&frontier_root) {
+        return Err(format!("{label} resolves outside the frontier"));
+    }
+    Ok(resolved)
+}
+
 pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output: bool) {
     crate::ui::set_mode("reproduce", json_output);
     let mut scope = if path.is_file() {
@@ -596,103 +740,7 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
     }
     let mut files = if let Some(proposal_id) = proposal_id {
         scope = "pending_proposal";
-        let project = repo::load_from_path(path)
-            .unwrap_or_else(|error| fail_return(&format!("load proposal frontier: {error}")));
-        let proposal = project
-            .proposals
-            .iter()
-            .find(|proposal| proposal.id == proposal_id)
-            .unwrap_or_else(|| fail_return(&format!("proposal {proposal_id} does not exist")));
-        if proposal.status != "pending_review" {
-            fail_return::<()>(&format!(
-                "proposal {proposal_id} is {}, not pending_review",
-                proposal.status
-            ));
-        }
-        if proposal.kind != "finding.add" {
-            fail_return::<()>(&format!(
-                "proposal-scoped reproduction requires finding.add, got {}",
-                proposal.kind
-            ));
-        }
-        let finding_id = proposal.target.id.as_str();
-        let retained = project
-            .artifacts
-            .iter()
-            .filter(|artifact| {
-                artifact.media_type.as_deref() == Some("application/json")
-                    && artifact.metadata.contains_key("verifier")
-                    && artifact
-                        .target_findings
-                        .iter()
-                        .any(|target| target == finding_id)
-            })
-            .collect::<Vec<_>>();
-        if !retained.is_empty() {
-            retained
-                .into_iter()
-                .map(|artifact| verified_local_artifact(path, artifact))
-                .collect::<Result<Vec<_>, _>>()
-                .unwrap_or_else(|error| fail_return(&error))
-        } else {
-            let submission = proposal
-                .payload
-                .get("vela_submission")
-                .and_then(Value::as_object)
-                .unwrap_or_else(|| fail_return("pending proposal has no Receipt binding"));
-            let receipt_path = submission
-                .get("receipt_path")
-                .and_then(Value::as_str)
-                .unwrap_or_else(|| fail_return("proposal Receipt path is unavailable"));
-            let expected_root = submission
-                .get("receipt_root")
-                .and_then(Value::as_str)
-                .unwrap_or_else(|| fail_return("proposal Receipt root is unavailable"));
-            let receipt_bytes = std::fs::read(path.join(receipt_path)).unwrap_or_else(|error| {
-                fail_return(&format!("read proposal Receipt {receipt_path}: {error}"))
-            });
-            let receipt = vela_protocol::receipt_v1::ReceiptV1::parse(&receipt_bytes)
-                .unwrap_or_else(|error| fail_return(&format!("parse proposal Receipt: {error}")));
-            let observed_root = receipt
-                .canonical_root()
-                .unwrap_or_else(|error| fail_return(&format!("root proposal Receipt: {error}")));
-            if observed_root != expected_root {
-                fail_return::<()>("proposal Receipt root does not match its retained bytes");
-            }
-            receipt
-                .as_value()
-                .get("artifacts")
-                .and_then(Value::as_array)
-                .into_iter()
-                .flatten()
-                .filter(|artifact| {
-                    artifact
-                        .get("kind")
-                        .and_then(Value::as_str)
-                        .is_some_and(|kind| kind.contains("witness"))
-                        || artifact
-                            .get("path")
-                            .and_then(Value::as_str)
-                            .is_some_and(|path| path.ends_with(".witness.json"))
-                })
-                .filter_map(|artifact| artifact.get("sha256").and_then(Value::as_str))
-                .map(|digest| {
-                    use sha2::{Digest, Sha256};
-                    let file = path.join(format!("records/artifacts/sha256/{digest}"));
-                    let bytes = std::fs::read(&file).unwrap_or_else(|error| {
-                        fail_return(&format!(
-                            "read proposal artifact {}: {error}",
-                            file.display()
-                        ))
-                    });
-                    let observed = hex::encode(Sha256::digest(&bytes));
-                    if observed != digest {
-                        fail_return::<()>("proposal artifact digest does not match retained bytes");
-                    }
-                    file
-                })
-                .collect::<Vec<_>>()
-        }
+        proposal_reproduction_files(path, proposal_id).unwrap_or_else(|error| fail_return(&error))
     } else {
         collect_witness_files(path)
     };
@@ -728,6 +776,11 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
         }
     }
     if files.is_empty() {
+        if let Some(proposal_id) = proposal_id {
+            fail(&format!(
+                "proposal {proposal_id} has no frontier-local frozen witness to reproduce; inspect its retained artifacts and verifier evidence, or use the producer's exact replay bundle"
+            ));
+        }
         fail(&format!(
             "no witnesses found at {} (expected a `*.witness.json` file, or a directory containing them / a `witnesses/` subdir)",
             path.display()
