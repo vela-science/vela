@@ -224,6 +224,21 @@ test("Vela client proves Git, replay, and proof roots", async () => {
   assert.equal(fake.environments.every((env) => env.VELA_NO_KEY_ACCESS === "1"), true);
 });
 
+test("Vela 0.915 uses strict replay roots for a minimal frontier without proof/latest", async () => {
+  const fake = fakeRunner({ version: "0.915.1" });
+  const vela = new VelaClient({
+    binary: process.execPath,
+    expectedVersion: "0.915.1",
+    expectedSha256: velaBinaryDigest,
+    home: "/tmp/canopus-home",
+    runner: fake.runner,
+  });
+  const inspection = await vela.assertRoots("/repo", "frontier", mission().roots);
+  assert.deepEqual(inspection.roots, mission().roots);
+  assert.equal(inspection.proof.command, "status_root_projection");
+  assert.equal(fake.calls.some((argv) => argv[1] === "proof"), false);
+});
+
 test("Vela client serializes strict check before proof verification", async () => {
   const fake = fakeRunner();
   let checkFinished = false;

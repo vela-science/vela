@@ -136,7 +136,7 @@ function usesCompactStatusProjection(version: string): boolean {
   const match = /^0\.(\d+)\.(\d+)$/u.exec(version);
   if (match === null) return false;
   const minor = Number(match[1]);
-  return Number.isSafeInteger(minor) && minor >= 900 && minor <= 914;
+  return Number.isSafeInteger(minor) && minor >= 900 && minor <= 915;
 }
 
 function safeFailureMessage(value: unknown): string | undefined {

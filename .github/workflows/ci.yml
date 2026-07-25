@@ -15,12 +15,12 @@ jobs:
         include:
           - runner: macos-15
             archive: vela-macos-aarch64.zip
-            archive_sha256: 4325cf2c5cd3e574394c8576edc7f616a72d5187a115f923732336c3f9a13e42
-            binary_sha256: 729a4a52e159037d3b7d453b6adb5556a98660aeb13ba81ebef7dd7376320da1
+            archive_sha256: e9f34d25e10313b2bcd38683b198743ef51242e5074b33d8f223a3d04873a642
+            binary_sha256: 826861ac137e4607bdaa363702d2779f2639b8fffb088a70f8be7d0be6540fed
           - runner: ubuntu-24.04
             archive: vela-linux-x86_64.tar.gz
-            archive_sha256: b0886a25ea22eb0bd1be957e3a997a527ff21b265dc4dbdb3a948f9432dc2d52
-            binary_sha256: d8bf9c6e708cff8837601b4cd675085dcaedc08d37368eeb4077d0219462d754
+            archive_sha256: 6d78bf5f47b51baf3610cd40a33524ea36e3f5f231bf2616ef306dacb4a4edf3
+            binary_sha256: b9acf197e26a75decf37219ba681f78878dffe1c11d4e1351bba18246c77d8aa
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     steps:
@@ -54,7 +54,7 @@ jobs:
           VELA_SHA256: ${{ matrix.binary_sha256 }}
         run: |
           curl --fail --location --silent --show-error \
-            "https://github.com/vela-science/vela/releases/download/v0.914.1/$VELA_ARCHIVE" \
+            "https://github.com/vela-science/vela/releases/download/v0.915.1/$VELA_ARCHIVE" \
             --output "$RUNNER_TEMP/$VELA_ARCHIVE"
           printf '%s  %s\n' "$VELA_ARCHIVE_SHA256" "$RUNNER_TEMP/$VELA_ARCHIVE" \
             | shasum -a 256 -c -
@@ -171,13 +171,17 @@ jobs:
         run: |
           $archive = "$env:RUNNER_TEMP\vela-windows-x86_64.zip"
           Invoke-WebRequest `
-            -Uri "https://github.com/vela-science/vela/releases/download/v0.914.1/vela-windows-x86_64.zip" `
+            -Uri "https://github.com/vela-science/vela/releases/download/v0.915.1/vela-windows-x86_64.zip" `
             -OutFile $archive
           if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLower() -ne `
-              "02e9d4345b461291c1d84d67923284125dee235bfc5757a796df10dd6423bd65") {
+              "dae503dc0a83679e0f244ab12ea3fffd105bae1e0217d4d01c5b8a24adf508bd") {
             throw "Vela archive checksum mismatch"
           }
           Expand-Archive $archive "$env:RUNNER_TEMP\vela"
+          if ((Get-FileHash "$env:RUNNER_TEMP\vela\vela.exe" -Algorithm SHA256).Hash.ToLower() -ne `
+              "a2dba32fe9354355a3cd0b3665a9da706dcd6bf15bdbb0c87c1cec25756d1ba4") {
+            throw "Vela binary checksum mismatch"
+          }
           & "$env:RUNNER_TEMP\vela\vela.exe" --version
           bun pm pack --destination $env:RUNNER_TEMP
           $package = Get-ChildItem "$env:RUNNER_TEMP\vela-science-canopus-*.tgz" | Select-Object -First 1

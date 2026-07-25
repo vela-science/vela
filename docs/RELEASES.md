@@ -1,5 +1,33 @@
 # Release evidence
 
+## Canopus v0.6.4
+
+Version `0.6.4` restores exact composition with released Vela `0.915.1`.
+The change advances only the tested Vela binary boundary and its platform
+archive and executable digests. It changes no mission, Receipt, verifier,
+policy, proposal, or authority contract. Historical missions remain bound to
+their own recorded Vela versions and SHA-256 digests.
+
+Vela `0.915.1` preserves the 0.9 minimal-init contract: a fresh frontier has no
+`proof/latest.json`. Canopus therefore reads the event and scientific-state
+roots from the strict replay projection, cross-checks every available replay
+root, and does not create or require a derived proof packet.
+
+The release gate requires the exact Vela `0.915.1` binary to pass initialization,
+work, authored Defer landing, accepted-event delta zero, retained-artifact
+binding, and clean-clone replay. CI pins these release bytes:
+
+| Platform | Archive SHA-256 | Vela executable SHA-256 |
+| --- | --- | --- |
+| macOS arm64 | `e9f34d25e10313b2bcd38683b198743ef51242e5074b33d8f223a3d04873a642` | `826861ac137e4607bdaa363702d2779f2639b8fffb088a70f8be7d0be6540fed` |
+| Linux x86-64 | `6d78bf5f47b51baf3610cd40a33524ea36e3f5f231bf2616ef306dacb4a4edf3` | `b9acf197e26a75decf37219ba681f78878dffe1c11d4e1351bba18246c77d8aa` |
+| Windows x86-64 | `dae503dc0a83679e0f244ab12ea3fffd105bae1e0217d4d01c5b8a24adf508bd` | `a2dba32fe9354355a3cd0b3665a9da706dcd6bf15bdbb0c87c1cec25756d1ba4` |
+
+The source-local task-authority live-shadow experiment still binds separate
+private-parent evidence. A standalone Canopus clone now reports that fixture
+as unavailable rather than copying it or making a non-normative experiment a
+false product failure.
+
 ## Canopus v0.6.3
 
 Version `0.6.3` is a narrow composition repair for released Vela `0.914.1`.

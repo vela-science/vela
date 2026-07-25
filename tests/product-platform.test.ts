@@ -74,7 +74,7 @@ test("native Windows doctor remains read-only and does not probe worker runtimes
         const executable = path.basename(options.argv[0] ?? "");
         observed.push(`${executable} ${options.argv.slice(1).join(" ")}`);
         if (options.argv[1] === "--version") {
-          return commandResult(options, executable === "vela" ? "vela 0.914.1\n" : "git version 2.50.0\n");
+          return commandResult(options, executable === "vela" ? "vela 0.915.1\n" : "git version 2.50.0\n");
         }
         if (executable === "vela" && options.argv[1] === "status") {
           return commandResult(options, JSON.stringify({

@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Compose exactly with released Vela `0.915.1`. The maintenance release changes
+  no mission, Receipt, verifier, policy, proposal, or authority contract.
+  GitHub CI pins the released macOS, Linux, and Windows archives and binaries by
+  SHA-256, and the released-binary integration test retains Defer,
+  accepted-event delta zero, retained-artifact binding, and clean-clone replay.
+- Extend the bounded Vela 0.9 compact-root reader through `0.915.1`. Fresh
+  minimal frontiers intentionally omit `proof/latest.json`; Canopus continues
+  to bind the strict replay event and scientific-state roots instead of
+  inventing or requiring a derived proof packet.
+- Keep the non-normative cross-repository task-authority shadow test explicit:
+  it runs when its separately pinned ecosystem checkout is available and reports
+  a named skip in a standalone Canopus clone instead of copying private
+  experiment inputs or failing the product release suite.
 - Add a source-local, non-normative task-authority hostile experiment over the
   released Canopus `0.6.3`, Vela `0.915.1`, and Codex `0.145.0` composition.
   The current Mission v1 boundary detects three of eight frozen hostiles; an

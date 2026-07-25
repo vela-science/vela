@@ -5,7 +5,7 @@ are in `LICENSE-APACHE` and `LICENSE-MIT`.
 
 ## Shipped npm package
 
-`@vela-science/canopus@0.6.3` has no runtime npm dependencies. Its packaged
+`@vela-science/canopus@0.6.4` has no runtime npm dependencies. Its packaged
 JavaScript uses only Node.js built-ins. The package also contains frozen
 mission data and verifier capsules produced for the bounded profiles described
 in `docs/MISSIONS.md`; their source and executable identities are bound by the

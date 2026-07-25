@@ -13,16 +13,16 @@ test("current product release pins the tested Vela and Codex boundaries", async 
     "utf8",
   );
 
-  assert.equal(SUPPORTED_VELA_VERSION, "0.914.1");
+  assert.equal(SUPPORTED_VELA_VERSION, "0.915.1");
   assert.equal(SUPPORTED_CODEX_VERSION, "0.145.0");
-  assert.match(workflow, /releases\/download\/v0\.914\.1/u);
+  assert.match(workflow, /releases\/download\/v0\.915\.1/u);
   assert.match(workflow, /codex-0\.145\.0-linux-x64\.tgz/u);
   assert.match(
     workflow,
     /actions\/checkout@[^\n]+\n\s+with:\n\s+fetch-depth: 0/u,
     "historical registration checks require full Git history",
   );
-  assert.doesNotMatch(workflow, /releases\/download\/v0\.914\.0/u);
+  assert.doesNotMatch(workflow, /releases\/download\/v0\.914\.1/u);
   assert.doesNotMatch(workflow, /codex-0\.144\.6-linux-x64\.tgz/u);
 });
 
@@ -69,7 +69,7 @@ test("published package carries the exact Build Week judge path", async () => {
   const auditCommit = "825657d7e87618c0aa6fc9af7e3182e05f324750";
   const velaRelease = "https://github.com/vela-science/vela/releases/tag/v0.912.0";
 
-  assert.equal(packageJson.version, "0.6.3");
+  assert.equal(packageJson.version, "0.6.4");
   for (const file of [
     "README.md",
     "BUILD_WEEK.md",

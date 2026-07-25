@@ -127,7 +127,7 @@ test(
 
     const vela = new VelaClient({
       binary: velaBinary,
-      expectedVersion: "0.914.1",
+      expectedVersion: "0.915.1",
       expectedSha256: registeredVelaDigest,
       home: path.join(runRoot, "vela-home"),
     });
@@ -136,7 +136,7 @@ test(
       schema: "canopus.mission.v0",
       id: "mission_released_vela_smoke",
       target: "seed:canopus-smoke",
-      vela_version: "0.914.1",
+      vela_version: "0.915.1",
       vela_sha256: registeredVelaDigest,
       frontier: ".",
       actor: "agent:canopus-smoke",
