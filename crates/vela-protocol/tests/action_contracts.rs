@@ -204,7 +204,9 @@ fn reviewed_tags_publish_provenance_labeled_cross_platform_bundles() {
     assert!(RELEASE_WORKFLOW.contains("test -f \"dist/$asset.sha256\""));
     assert!(RELEASE_WORKFLOW.contains("shasum -a 256 \"$ASSET\""));
     assert!(RELEASE_WORKFLOW.contains("Get-FileHash -Algorithm SHA256 $name"));
-    assert!(RELEASE_WORKFLOW.contains("-Path \"$name.sha256\" -Value \"$digest  $name\""));
+    assert!(RELEASE_WORKFLOW.contains("[System.Text.UTF8Encoding]::new($false)"));
+    assert!(RELEASE_WORKFLOW.contains("[System.IO.File]::WriteAllText("));
+    assert!(RELEASE_WORKFLOW.contains(r#""$digest  $name`n""#));
     assert!(RELEASE_WORKFLOW.contains("vela.release-trust.v1"));
     assert!(RELEASE_WORKFLOW.contains("\"artifact_class\": \"portable\""));
     assert!(RELEASE_WORKFLOW.contains("\"platform_signature\": \"absent\""));
