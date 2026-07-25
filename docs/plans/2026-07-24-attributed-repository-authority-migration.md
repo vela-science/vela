@@ -60,6 +60,7 @@ rebinds, or agent self-approval.
 | Vela `v0.930.0-rc.4` | attested prerelease artifacts, lock-pinned derived-view replay, and one low-risk active Frontier | installable candidate, key-free preview, single-new-writer proof, and recovery exercise |
 | Vela `v0.930.0-rc.5` | historical Target Index v1 compatibility and exact Quantum migration-path replay | preserve legacy bytes, keep v2 sealing strict, and expose the protected migration command |
 | Vela `v0.930.0-rc.6` | live protected approval timestamp compatibility | canonicalize the helper's authenticated nanosecond observation before the whole-second authority preflight, with zero-write failure preserved |
+| Vela `v0.930.0-rc.7` | deterministic derived Profile views | stabilize generated statistic-map bytes across processes before any later materialization or migration |
 | Vela `v0.930.0` | every active Frontier migrated; legacy writers and helper deleted | breaking pre-1.0 authority simplification |
 | Canopus `v0.7.0` | released Vela capability profile and zero-prompt producer run | replace long-lived producer keys with short-lived grants |
 | Vela Web `v0.430.0` | exact new authority history available read-only | render attribution, authorization, verification, and standing separately |

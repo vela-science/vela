@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## v0.930.0-rc.7 — 2026-07-25 — Stabilize generated statistics
+
+- Serialize derived category and link-type counts through ordered maps so
+  `frontier.json` is byte-identical across processes.
+- Reproduce the defect against the exact Sidon Profile v1 checkout, then prove
+  three-process materialization, strict replay, and unchanged canonical roots.
+- Preserve the rc.6 protected migration behavior and the completed Formal
+  authority history without adding a protocol or authority primitive.
+
 ## v0.930.0-rc.6 — 2026-07-25 — Canonicalize protected migration approval time
 
 - Canonicalize the protected helper's authenticated approval observation to

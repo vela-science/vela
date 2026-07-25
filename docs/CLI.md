@@ -92,7 +92,7 @@ Setup and noun-oriented commands remain available:
 finding artifact frontier policy actor id authority agents config
 ```
 
-`authority migrate` is temporary `0.930.0-rc.6` migration scaffolding, not a
+`authority migrate` is temporary `0.930.0-rc.7` migration scaffolding, not a
 daily signing surface. Its key-free preview and exact protected apply contract
 are documented in [SIGNING.md](SIGNING.md#authority-model-migration-candidate).
 
