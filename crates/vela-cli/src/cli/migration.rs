@@ -987,6 +987,11 @@ fn prepare_migration(
         serde_json::from_value(serde_json::to_value(&project).map_err(|error| error.to_string())?)
             .map_err(|error| error.to_string())?;
     after_project.events.push(boundary_event.clone());
+    let after_profile_project =
+        vela_protocol::frontier_repo::project_for_profile_migration_materialization(
+            &after_project,
+            &profile,
+        )?;
     let roots_before = MigrationRootFamily {
         event_log_root: anchor.event_log_root.clone(),
         event_count: anchor.event_count,
@@ -1004,7 +1009,7 @@ fn prepare_migration(
         event_count: anchor.event_count + 1,
         legacy_snapshot_root: format!(
             "sha256:{}",
-            vela_protocol::events::snapshot_hash(&after_project)
+            vela_protocol::events::snapshot_hash(&after_profile_project)
         ),
         proposal_root: anchor.proposal_root.clone(),
         actor_registry_root: anchor.actor_registry_root.clone(),
@@ -1013,7 +1018,7 @@ fn prepare_migration(
         identity_root: identity_root.clone(),
         dependency_root: dependency_root.clone(),
         scientific_state_root: vela_protocol::scientific_state::scientific_state_root_v2(
-            &after_project,
+            &after_profile_project,
             &identity_root,
             &dependency_root,
         )?,
@@ -2451,6 +2456,11 @@ mod tests {
         assert_eq!(
             migrated.events.len() as u64,
             preview.plan.roots_before.event_count + 1
+        );
+        assert!(
+            vela_protocol::frontier_repo::layout_issues(fixture.frontier.path(), &migrated,)
+                .is_empty(),
+            "a completed migration must install strict-clean derived Profile v1 postimages"
         );
         assert_eq!(
             migrated

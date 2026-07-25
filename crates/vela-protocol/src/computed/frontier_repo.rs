@@ -1059,7 +1059,49 @@ pub fn render_visible_repo_files_for_profile_migration(
             "candidate Profile v1 bytes do not match the parsed migration profile".to_string(),
         );
     }
-    render_visible_repo_files_inner(path, project, Some((profile, profile_bytes)))
+    let project = project_for_profile_migration_materialization(project, profile)?;
+    render_visible_repo_files_inner(path, &project, Some((profile, profile_bytes)))
+}
+
+/// Normalize the in-memory legacy project exactly as a clean Profile v1 load
+/// will before rendering migration postimages.
+///
+/// A migration prepares its complete transaction while the legacy config is
+/// still present and the candidate Profile has not yet been installed. The
+/// legacy loader therefore carries display/compiler seed metadata that the
+/// Profile v1 loader intentionally discards. Rendering those legacy values
+/// into `frontier.json` and `vela.lock` makes the completed transaction stale
+/// immediately after installation. Keep this normalization in the protocol
+/// layer so the migration plan roots and its staged derived files use the same
+/// project a clean post-migration checkout will load.
+pub fn project_for_profile_migration_materialization(
+    project: &Project,
+    profile: &FrontierProfileV1,
+) -> Result<Project, String> {
+    profile.validate()?;
+    profile.assert_frontier_id(&project.frontier_id())?;
+    let mut normalized: Project = serde_json::from_value(
+        serde_json::to_value(project)
+            .map_err(|error| format!("clone Profile v1 migration projection: {error}"))?,
+    )
+    .map_err(|error| format!("restore Profile v1 migration projection: {error}"))?;
+    normalized.vela_version = project::VELA_SCHEMA_VERSION.to_string();
+    normalized.schema = project::VELA_SCHEMA_URL.to_string();
+    normalized.project.name = profile.name.clone();
+    normalized.project.description = profile.summary.clone();
+    normalized.project.compiled_at = normalized
+        .events
+        .iter()
+        .map(|event| event.timestamp.as_str())
+        .min()
+        .unwrap_or("")
+        .to_string();
+    normalized.project.compiler = project::VELA_COMPILER_VERSION.to_string();
+    normalized.project.papers_processed = 0;
+    normalized.project.errors = 0;
+    normalized.project.dependencies.clear();
+    project::recompute_stats(&mut normalized);
+    Ok(normalized)
 }
 
 fn render_visible_repo_files_inner(
