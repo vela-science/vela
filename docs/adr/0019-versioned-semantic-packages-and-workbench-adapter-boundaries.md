@@ -6,6 +6,14 @@
 - Scientific authority effect: None
 - Entry gate: one exact Erdős package used by two maintained consumers without
   duplicating canonical state or weakening replay
+- Current disposition: Gates A, B, and D pass as source-local evidence; Gate C
+  is NO-GO because extraction deletes no maintained implementation; Gate E is
+  PIVOT because the qualified workbench export contains process provenance,
+  not scientific evidence. No package, adapter, registry, or Vela release is
+  authorized.
+- Reopen promotion only when extraction deletes maintained duplication or a
+  stable licensed workbench export carries an honest bounded scientific result
+  through the ordinary Receipt path.
 
 ## Context
 
