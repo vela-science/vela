@@ -28,6 +28,25 @@ private-parent evidence. A standalone Canopus clone now reports that fixture
 as unavailable rather than copying it or making a non-normative experiment a
 false product failure.
 
+- Repository: [`vela-science/vela-research-harness`](https://github.com/vela-science/vela-research-harness)
+- Release: [`v0.6.4`](https://github.com/vela-science/vela-research-harness/releases/tag/v0.6.4)
+- Tag commit: `2a132e69ad2611ab6b9d04b03320cd5b6a76a405`
+- Main CI:
+  [run 30149356518](https://github.com/vela-science/vela-research-harness/actions/runs/30149356518),
+  passed on macOS, Ubuntu, Windows, and the exact released-Vela composition
+- CodeQL:
+  [run 30149355908](https://github.com/vela-science/vela-research-harness/actions/runs/30149355908),
+  passed for Actions, JavaScript/TypeScript, Python, and C/C++
+- Trusted release:
+  [run 30149415459](https://github.com/vela-science/vela-research-harness/actions/runs/30149415459),
+  verified the GitHub attestation, published through npm trusted publishing,
+  verified npm provenance, and created the matching GitHub release
+- npm integrity:
+  `sha512-GdPY05aw4uLJ/sYRaZ8OmpcvnuNAHB/NHnRAg7N68oemJpjWwr4mvF0PJEXJxcd9Jp+jfDabUgr+v6gWnUeyrQ==`
+- npm shasum: `de4f5b4874656cdff91a1cb1c721e0274a5c6c30`
+- Package SHA-256:
+  `bda10adaac4f73fdfce8dee5da0946b63c5128b3654866d434c871feb2c2a041`
+
 ## Canopus v0.6.3
 
 Version `0.6.3` is a narrow composition repair for released Vela `0.914.1`.
