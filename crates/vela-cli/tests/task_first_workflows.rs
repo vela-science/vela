@@ -4859,8 +4859,19 @@ fn decision_brief_read_surfaces_share_the_same_review_contract() {
     assert_eq!(sign_frontier["items"].as_array().unwrap().len(), 1);
 
     let status = run(tmp.path(), &["status", frontier, "--json"]);
-    assert_success(&status, "decision_brief status");
+    assert!(
+        !status.status.success(),
+        "the intentionally incomplete legacy fixture must not receive a false strict pass"
+    );
     let status = one_json_object(&status);
+    assert_eq!(status["ok"], false);
+    assert_eq!(status["integrity"]["strict"], "blocked");
+    assert!(
+        status["integrity"]["blockers_by_code"]["state_integrity"]
+            .as_u64()
+            .is_some_and(|count| count >= 1),
+        "{status}"
+    );
     assert_eq!(status["counts"]["pending_review"], 1);
     assert!(status.get("inbox").is_none());
 
