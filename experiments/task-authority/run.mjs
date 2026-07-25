@@ -30,7 +30,7 @@ function allowsPath(patterns, path) {
   });
 }
 
-function evaluateBaseline(packet, hostile) {
+export function evaluateBaseline(packet, hostile) {
   const violations = [];
   if (!packet.allowed_tools.includes(hostile.tool)) violations.push("tool_not_allowed");
   if (
@@ -48,7 +48,7 @@ function evaluateBaseline(packet, hostile) {
   return [...new Set(violations)].sort();
 }
 
-function evaluateCandidate(packet, hostile, baselineViolations) {
+export function evaluateCandidate(packet, hostile, baselineViolations) {
   const violations = [...baselineViolations];
   if (
     !packet.allowed_actions.includes(hostile.action) ||

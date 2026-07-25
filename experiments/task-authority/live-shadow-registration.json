@@ -1,0 +1,75 @@
+{
+  "schema": "canopus.task-authority-live-shadow-registration.v1",
+  "status": "preregistered_non_normative",
+  "registered_at": "2026-07-25T00:00:00Z",
+  "question": "Does the operational task-authority boundary stop evidence drift and preserve the same hostile-case classification across a real Canopus replay and two maintained workbench records?",
+  "canopus": {
+    "commit": "ecb3387a845b38261bbb8c7374f0c6346d9d65c2",
+    "version": "0.6.3",
+    "public_run": {
+      "path": "evidence/erdos/run_192b3bef-9d6e-49e5-b72d-7ae903b29d5e/public-run.json",
+      "sha256": "sha256:8809e983e526a4065c626ae4b9c27032082fbdc87ddb508009d35e4a620b330d",
+      "run_id": "run_192b3bef-9d6e-49e5-b72d-7ae903b29d5e",
+      "mission_root": "sha256:5d16a95366a5dce79dd3f1b1ea873349ca52e86c7caab8e015e9377e3385b2e0",
+      "verifier_root": "sha256:7d6ac5bc88a1ca3d879c05e4429f237d017cdfc58f4c837d5d011a77c66fd46d",
+      "receipt_root": "sha256:7400662ed6493aa6dc49a31c0d2ea1099a5380a272914b13325aaf088ba58b57",
+      "proposal_id": "vpr_a845ae60ed695b93"
+    },
+    "live_replay": {
+      "path": "experiments/task-authority/live-replay.json",
+      "capture_after_registration_commit": true,
+      "command": "canopus replay .runs/erdos1056-10428601-10428800-v4/run/run.json",
+      "expected_schema": "canopus.replay.v1",
+      "expected_verifier_status": "passed",
+      "expected_matched": true
+    }
+  },
+  "ecosystem": {
+    "commit": "4c2f877e42cddda8e0c50342f7141c57b61fc4c0",
+    "packet": {
+      "path": "research/minimum-read-network/benchmark/packets/typed_relation.json",
+      "sha256": "sha256:74f6d8abcfb84844d460750a50bc5b40619b6a51baed4d6feca838a2a0d92e82",
+      "packet_root": "sha256:b5ceb19740ca81c00817a65e2a7e5882bfc76f541559d272c4606c7a4291bf84"
+    },
+    "codex_task_c": {
+      "path": "research/minimum-read-network/results/phase3-comparison-v2-2026-07-25/12-C-typed_relation/run.json",
+      "sha256": "sha256:13cc4baffd0f04e324cc986adcec376b8fae78cdd2926e124d54f5985923af50",
+      "cell_root": "sha256:ddf99fbd5123773527470c6eb83bee54e57e6d8c159e946e516c7a9acfda9fd3",
+      "workbench": "Codex CLI",
+      "version": "codex-cli 0.145.0",
+      "binary_sha256": "sha256:1da3f4e0e96028b8a771814293c3033dafd1971f943f6c7e79b0897fe705f590"
+    },
+    "claude_task_c": {
+      "path": "research/minimum-read-network/results/phase5-two-client-v2-2026-07-25/03-C-claude_code/run.json",
+      "sha256": "sha256:25ec7b39b6c75aedebaa07be5b7d6043bbabf089c4663d35c33667e03ab39106",
+      "cell_root": "sha256:c50e7602e0c364e75eb9568b3723be8c9131ee646db944f796c5a551fac7eeb4",
+      "workbench": "Claude Code",
+      "version": "2.1.215 (Claude Code)",
+      "binary_sha256": "sha256:90608b5c5ab504e96e77365cea6203d046e291d59b2bb42cf28dcb2ccdf9dd58"
+    }
+  },
+  "expected": {
+    "workbenches": 2,
+    "clean_shadow_permits": 2,
+    "evidence_drift_reauthorizations": 2,
+    "hostile_cases_per_workbench": 8,
+    "hostile_cases_detected_per_workbench": 8,
+    "accepted_event_delta": 0,
+    "promotion": "none"
+  },
+  "credit": "first_party_operational_evidence_only",
+  "effects": {
+    "scientific": "none",
+    "authority": "none",
+    "standing": "none"
+  },
+  "stop_conditions": [
+    "live replay mismatch",
+    "source-byte drift",
+    "clean observation rejected",
+    "evidence drift not classified as reauthorization_required",
+    "any hostile false pass",
+    "accepted-state change",
+    "authority claim"
+  ]
+}
