@@ -192,7 +192,8 @@ pub(crate) fn compact_status_payload_with_home(
     };
     let artifact_root = vela_protocol::canonical::to_canonical_bytes(&project.artifacts)
         .map(|bytes| format!("sha256:{}", hex::encode(sha2::Sha256::digest(bytes))))?;
-    let legacy_snapshot_root = format!("sha256:{}", vela_protocol::events::snapshot_hash(&project));
+    let legacy_snapshot_root =
+        status_legacy_snapshot_root(frontier_dir, &project, repository_generation)?;
     let scientific_state_root =
         if repository_generation == Some("profile_v1") && repository_context_valid {
             repository_context
@@ -273,6 +274,28 @@ pub(crate) fn compact_status_payload_with_home(
         },
         "next_action": next_action,
     }))
+}
+
+fn status_legacy_snapshot_root(
+    frontier_dir: &Path,
+    project: &vela_protocol::project::Project,
+    repository_generation: Option<&str>,
+) -> Result<String, String> {
+    if repository_generation == Some("profile_v1")
+        && let Some(vela_protocol::frontier_repo::FrontierLockFile::V1(lock)) =
+            vela_protocol::frontier_repo::read_repository_lock(frontier_dir)?
+    {
+        // This is the exact compatibility projection tracked by the checkout.
+        // A compatible newer reader may derive a different broad Project hash
+        // from its own display-only compiler metadata while still validating
+        // the lock-pinned historical view. Report the retained root that
+        // `check --strict` actually verified, not the reader-local derivative.
+        return Ok(lock.legacy_snapshot_root);
+    }
+    Ok(format!(
+        "sha256:{}",
+        vela_protocol::events::snapshot_hash(project)
+    ))
 }
 
 /// Stable compact status contract for the 0.9 product surface.
@@ -640,5 +663,40 @@ pub(crate) async fn cmd_doctor(frontier: Option<&Path>, port: u16, all: bool, js
     }
     if !blockers.is_empty() {
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn compact_status_reports_the_profile_lock_legacy_snapshot_root() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        vela_protocol::frontier_repo::initialize_profile_v1_minimal(
+            directory.path(),
+            vela_protocol::frontier_repo::ProfileV1InitOptions {
+                name: "Status root fixture",
+                scope: "Does status report the exact compatibility root retained by this checkout?",
+                initialize_git: false,
+            },
+        )
+        .expect("initialize fixture");
+        let Some(vela_protocol::frontier_repo::FrontierLockFile::V1(lock)) =
+            vela_protocol::frontier_repo::read_repository_lock(directory.path())
+                .expect("read lock")
+        else {
+            panic!("expected Profile v1 lock");
+        };
+        let mut project =
+            vela_protocol::repo::load_from_path(directory.path()).expect("load fixture");
+        project.project.compiler = "vela/a-different-compatible-reader".to_string();
+        let reader_local_root =
+            format!("sha256:{}", vela_protocol::events::snapshot_hash(&project));
+        assert_ne!(reader_local_root, lock.legacy_snapshot_root);
+
+        let observed = status_legacy_snapshot_root(directory.path(), &project, Some("profile_v1"))
+            .expect("derive status root");
+        assert_eq!(observed, lock.legacy_snapshot_root);
     }
 }
