@@ -179,9 +179,9 @@ The prerelease registry job was intentionally skipped.
 | macOS arm64 | `3d85eba5e1d0568eafe0dcd8d7f1c530ebbcb7a7d05405850f896a3d826dc0a9` |
 | Windows x86-64 | `4cccffc60494e2cf6c4ec2ad188fe998afac6138f59e64f8c05d5c713cdec95f` |
 
-All 18 release assets passed their published SHA-256 sidecars. GitHub build
-provenance verification passed for all nine archives, SBOMs, and portable
-trust records. Each trust record binds:
+All nine archive, SBOM, and trust-record subjects matched their nine published
+SHA-256 sidecars. GitHub build provenance verification passed for all nine
+subjects. Each trust record binds:
 
 ```text
 schema: vela.release-trust.v1
