@@ -8,6 +8,11 @@ use crate::actor_contract::{
     actor_bootstrap_request_root, actor_bootstrap_response_signing_bytes,
     validate_actor_bootstrap_request, validate_actor_bootstrap_request_fresh,
 };
+use crate::authority_migration_contract::{
+    AUTHORITY_MIGRATION_RESPONSE_SCHEMA, AuthorityMigrationSignerRequest,
+    AuthorityMigrationSignerResponse, authority_migration_request_root,
+    validate_authority_migration_request, validate_authority_migration_request_fresh,
+};
 use crate::contract::{
     ENROLLMENT_RESPONSE_SCHEMA, EnrollmentRequest, EnrollmentResponse, EventSignature,
     ProtectionMode, REBIND_RESPONSE_SCHEMA, RESPONSE_SCHEMA, RebindRequest, RebindResponse,
@@ -50,6 +55,12 @@ pub trait Approval {
         _request: &RepositoryBoundarySignerRequest,
     ) -> Result<(), String> {
         Err("repository-boundary approvals are unsupported by this approval provider".to_string())
+    }
+    fn reauthenticate_authority_migration(
+        &self,
+        _request: &AuthorityMigrationSignerRequest,
+    ) -> Result<(), String> {
+        Err("authority-migration approvals are unsupported by this approval provider".to_string())
     }
     fn reauthenticate_actor_bootstrap(
         &self,
@@ -494,6 +505,65 @@ pub fn approve_and_sign_repository_boundary<A: Approval, C: Custody>(
     })
 }
 
+/// Obtain fresh platform user presence and sign the one legacy continuity
+/// event that crosses a Frontier into repository authority.
+///
+/// There is no session reuse or generic event-signing fallback. The helper
+/// validates the complete closed request both before and after user presence,
+/// reads the protected continuity seed once, zeroizes it, signs exactly the
+/// migration event, and exits.
+pub fn approve_and_sign_authority_migration<A: Approval, C: Custody>(
+    request: &AuthorityMigrationSignerRequest,
+    approval: &A,
+    custody: &C,
+    helper_path: &std::path::Path,
+    now: chrono::DateTime<Utc>,
+) -> Result<AuthorityMigrationSignerResponse, String> {
+    validate_authority_migration_request(request, now)?;
+    let helper_sha256 = file_sha256(helper_path)?;
+    if helper_sha256 != request.helper_sha256 {
+        return Err("running helper digest does not match authority-migration request".to_string());
+    }
+    if custody.provider() != request.provider
+        || custody.protection_grade() != request.protection_grade
+    {
+        return Err(
+            "authority-migration custody provider or protection grade does not match request"
+                .to_string(),
+        );
+    }
+    approval.reauthenticate_authority_migration(request)?;
+    let approved_at = approval.now();
+    validate_authority_migration_request(request, approved_at)?;
+    validate_authority_migration_request_fresh(request, approved_at)?;
+
+    let mut seed = custody.load_seed(&request.legacy_actor, &request.legacy_public_key)?;
+    let key = SigningKey::from_bytes(&seed);
+    seed.zeroize();
+    let public_key = hex::encode(key.verifying_key().to_bytes());
+    if public_key != request.legacy_public_key {
+        return Err(
+            "custody seed does not match the authority-migration continuity key".to_string(),
+        );
+    }
+    let event_signature = vela_protocol::sign::sign_event(&request.event, &key)?;
+    drop(key);
+
+    Ok(AuthorityMigrationSignerResponse {
+        schema: AUTHORITY_MIGRATION_RESPONSE_SCHEMA.to_string(),
+        request_root: authority_migration_request_root(request)?,
+        legacy_public_key: public_key,
+        helper_version: env!("CARGO_PKG_VERSION").to_string(),
+        helper_sha256,
+        provider: custody.provider().to_string(),
+        protection_grade: custody.protection_grade().to_string(),
+        approved_at: approved_at.to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
+        protection_mode: request.protection_mode,
+        event_id: request.event.id.clone(),
+        event_signature,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -536,6 +606,14 @@ mod tests {
         fn reauthenticate_actor_bootstrap(
             &self,
             _request: &ActorBootstrapProofRequest,
+        ) -> Result<(), String> {
+            self.reauths.set(self.reauths.get() + 1);
+            Ok(())
+        }
+
+        fn reauthenticate_authority_migration(
+            &self,
+            _request: &AuthorityMigrationSignerRequest,
         ) -> Result<(), String> {
             self.reauths.set(self.reauths.get() + 1);
             Ok(())
@@ -792,6 +870,86 @@ mod tests {
         (vela, helper, request, seed)
     }
 
+    fn authority_migration_fixture() -> (
+        tempfile::NamedTempFile,
+        tempfile::NamedTempFile,
+        AuthorityMigrationSignerRequest,
+        [u8; 32],
+    ) {
+        use vela_protocol::authority_history::{
+            AUTHORITY_MODEL_MIGRATION_SCHEMA_V1, AuthorityModelMigrationV1,
+        };
+        use vela_protocol::events::{
+            EVENT_SCHEMA, EventKind, NULL_HASH, StateActor, StateEvent, StateTarget,
+            compute_event_id,
+        };
+
+        let mut vela = tempfile::NamedTempFile::new().unwrap();
+        vela.write_all(b"vela").unwrap();
+        let mut helper = tempfile::NamedTempFile::new().unwrap();
+        helper.write_all(b"helper").unwrap();
+        let seed = [31_u8; 32];
+        let public_key = hex::encode(SigningKey::from_bytes(&seed).verifying_key().to_bytes());
+        let payload = AuthorityModelMigrationV1 {
+            schema: AUTHORITY_MODEL_MIGRATION_SCHEMA_V1.into(),
+            frontier_id: "vfr_fixture".into(),
+            legacy_event_log_root: format!("sha256:{}", "1".repeat(64)),
+            legacy_actor_registry_root: format!("sha256:{}", "2".repeat(64)),
+            legacy_active_policy_head_root: format!("sha256:{}", "3".repeat(64)),
+            legacy_policy_store_manifest_root: format!("sha256:{}", "4".repeat(64)),
+            new_authority_keyset_root: format!("sha256:{}", "5".repeat(64)),
+            new_policy_bundle_root: format!("sha256:{}", "6".repeat(64)),
+            new_principal_id: "local:device|uid:501".into(),
+            minimum_writer_version: "0.930.0".into(),
+            reason: "Move this disposable fixture to repository authority.".into(),
+        };
+        let mut event = StateEvent {
+            schema: EVENT_SCHEMA.into(),
+            id: String::new(),
+            kind: EventKind::AuthorityModelMigrated,
+            target: StateTarget {
+                r#type: "frontier".into(),
+                id: "vfr_fixture".into(),
+            },
+            actor: StateActor {
+                r#type: "human".into(),
+                id: "reviewer:fixture".into(),
+            },
+            timestamp: "2026-07-24T12:00:00Z".into(),
+            reason: payload.reason.clone(),
+            before_hash: NULL_HASH.into(),
+            after_hash: NULL_HASH.into(),
+            payload: serde_json::to_value(payload).unwrap(),
+            caveats: vec!["Historical events remain byte-identical.".into()],
+            signature: None,
+        };
+        event.id = compute_event_id(&event);
+        let request = AuthorityMigrationSignerRequest {
+            schema: crate::AUTHORITY_MIGRATION_REQUEST_SCHEMA.into(),
+            nonce: "a".repeat(64),
+            expires_at: "2026-07-24T12:10:00Z".into(),
+            vela_binary_path: vela.path().display().to_string(),
+            vela_binary_sha256: file_sha256(vela.path()).unwrap(),
+            helper_sha256: file_sha256(helper.path()).unwrap(),
+            frontier_id: "vfr_fixture".into(),
+            frontier_path: "/tmp/frontier".into(),
+            frontier_name: "Fixture Frontier".into(),
+            reason: "Move this disposable fixture to repository authority.".into(),
+            legacy_actor: "reviewer:fixture".into(),
+            legacy_public_key: public_key,
+            observed_at: "2026-07-24T12:00:00Z".into(),
+            migration_plan_root: format!("sha256:{}", "7".repeat(64)),
+            new_principal_id: "local:device|uid:501".into(),
+            new_authority_keyset_root: format!("sha256:{}", "5".repeat(64)),
+            new_policy_bundle_root: format!("sha256:{}", "6".repeat(64)),
+            provider: "test".into(),
+            protection_grade: "user_session".into(),
+            protection_mode: ProtectionMode::Always,
+            event,
+        };
+        (vela, helper, request, seed)
+    }
+
     #[test]
     fn protected_actor_bootstrap_returns_a_verifiable_key_possession_proof() {
         let (_vela, helper, request, seed) = actor_bootstrap_fixture();
@@ -811,6 +969,171 @@ mod tests {
         crate::validate_actor_bootstrap_response(&request, &response).unwrap();
         assert_eq!(approval.reauths.get(), 1);
         assert_eq!(approval.recorded_sessions.get(), 0);
+    }
+
+    #[test]
+    fn authority_migration_uses_one_fresh_approval_and_returns_one_exact_signature() {
+        struct MigrationApproval {
+            reauths: Cell<usize>,
+        }
+        impl Approval for MigrationApproval {
+            fn now(&self) -> chrono::DateTime<Utc> {
+                "2026-07-24T12:00:30Z".parse().unwrap()
+            }
+            fn ensure_session(&self, _request: &SignerRequest) -> Result<(), String> {
+                panic!("authority migration must not open a reusable session")
+            }
+            fn approve(&self, _request: &SignerRequest) -> Result<bool, String> {
+                panic!("authority migration must not use the review approval path")
+            }
+            fn record_session_use(
+                &self,
+                _request: &SignerRequest,
+                _key: &SigningKey,
+            ) -> Result<(), String> {
+                panic!("authority migration must not record a reusable session")
+            }
+            fn reauthenticate(&self, _request: &SignerRequest) -> Result<(), String> {
+                panic!("authority migration must not use generic reauthentication")
+            }
+            fn reauthenticate_authority_migration(
+                &self,
+                _request: &AuthorityMigrationSignerRequest,
+            ) -> Result<(), String> {
+                self.reauths.set(self.reauths.get() + 1);
+                Ok(())
+            }
+            fn reauthenticate_enrollment(
+                &self,
+                _request: &EnrollmentRequest,
+            ) -> Result<(), String> {
+                panic!("authority migration must not enter enrollment")
+            }
+            fn reauthenticate_rebind(&self, _request: &RebindRequest) -> Result<(), String> {
+                panic!("authority migration must not enter rebind")
+            }
+            fn record_enrollment_session(
+                &self,
+                _request: &EnrollmentRequest,
+                _key: &SigningKey,
+            ) -> Result<(), String> {
+                panic!("authority migration must not record enrollment")
+            }
+            fn record_rebind_session(
+                &self,
+                _request: &RebindRequest,
+                _key: &SigningKey,
+            ) -> Result<(), String> {
+                panic!("authority migration must not record rebind")
+            }
+        }
+
+        let (_vela, helper, request, seed) = authority_migration_fixture();
+        let approval = MigrationApproval {
+            reauths: Cell::new(0),
+        };
+        let response = approve_and_sign_authority_migration(
+            &request,
+            &approval,
+            &FakeCustody { seed },
+            helper.path(),
+            "2026-07-24T12:00:00Z".parse().unwrap(),
+        )
+        .unwrap();
+        crate::validate_authority_migration_response(&request, &response).unwrap();
+        assert_eq!(approval.reauths.get(), 1);
+    }
+
+    #[test]
+    fn authority_migration_cancellation_reads_no_key() {
+        struct CancelApproval;
+        impl Approval for CancelApproval {
+            fn now(&self) -> chrono::DateTime<Utc> {
+                "2026-07-24T12:00:30Z".parse().unwrap()
+            }
+            fn ensure_session(&self, _request: &SignerRequest) -> Result<(), String> {
+                panic!("migration cancellation must not open a reusable session")
+            }
+            fn approve(&self, _request: &SignerRequest) -> Result<bool, String> {
+                panic!("migration cancellation must not use the review approval path")
+            }
+            fn record_session_use(
+                &self,
+                _request: &SignerRequest,
+                _key: &SigningKey,
+            ) -> Result<(), String> {
+                panic!("migration cancellation must not record a reusable session")
+            }
+            fn reauthenticate(&self, _request: &SignerRequest) -> Result<(), String> {
+                panic!("migration cancellation must not use generic reauthentication")
+            }
+            fn reauthenticate_authority_migration(
+                &self,
+                _request: &AuthorityMigrationSignerRequest,
+            ) -> Result<(), String> {
+                Err("user cancelled authority migration".into())
+            }
+            fn reauthenticate_enrollment(
+                &self,
+                _request: &EnrollmentRequest,
+            ) -> Result<(), String> {
+                panic!("migration cancellation must not enter enrollment")
+            }
+            fn reauthenticate_rebind(&self, _request: &RebindRequest) -> Result<(), String> {
+                panic!("migration cancellation must not enter rebind")
+            }
+            fn record_enrollment_session(
+                &self,
+                _request: &EnrollmentRequest,
+                _key: &SigningKey,
+            ) -> Result<(), String> {
+                panic!("migration cancellation must not record enrollment")
+            }
+            fn record_rebind_session(
+                &self,
+                _request: &RebindRequest,
+                _key: &SigningKey,
+            ) -> Result<(), String> {
+                panic!("migration cancellation must not record rebind")
+            }
+        }
+        struct PanicCustody;
+        impl Custody for PanicCustody {
+            fn provider(&self) -> &str {
+                "test"
+            }
+            fn provider_session(&self) -> Result<String, String> {
+                panic!("migration cancellation must not inspect a custody session")
+            }
+            fn protection_grade(&self) -> &str {
+                "user_session"
+            }
+            fn load_seed(&self, _actor: &str, _public_key: &str) -> Result<[u8; 32], String> {
+                panic!("migration cancellation must not read the continuity key")
+            }
+            fn store_seed(
+                &self,
+                _actor: &str,
+                _public_key: &str,
+                _seed: &[u8; 32],
+            ) -> Result<(), String> {
+                panic!("migration cancellation must not store a key")
+            }
+            fn delete_seed(&self, _actor: &str, _public_key: &str) -> Result<(), String> {
+                panic!("migration cancellation must not delete a key")
+            }
+        }
+
+        let (_vela, helper, request, _seed) = authority_migration_fixture();
+        let error = approve_and_sign_authority_migration(
+            &request,
+            &CancelApproval,
+            &PanicCustody,
+            helper.path(),
+            "2026-07-24T12:00:00Z".parse().unwrap(),
+        )
+        .unwrap_err();
+        assert!(error.contains("cancelled authority migration"));
     }
 
     #[test]

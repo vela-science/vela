@@ -1,4 +1,4 @@
-//! CLI-unreachable sequence-1 repository-authority migration writer.
+//! Sequence-1 repository-authority migration writer.
 //!
 //! The writer accepts one already legacy-signed continuity event, verifies it
 //! against the exact held Era-0 history, authenticates and authorizes the new
@@ -35,8 +35,8 @@ use crate::authority_transaction::{
 };
 use crate::frontier_txn::{
     CanonicalWriteBarrier, ContentDigest, DeltaDraft, FileState, FrontierBinding, FrontierTxn,
-    FrontierTxnPlan, FrontierTxnPlanSpec, InputBinding, OperationId, OperationKind, PlannedWrite,
-    RepoPath, WriteClass,
+    FrontierTxnError, FrontierTxnPlan, FrontierTxnPlanSpec, InputBinding, OperationId,
+    OperationKind, PlannedWrite, RepoPath, WriteClass,
 };
 
 const MIGRATION_TRANSACTION_SCHEMA: &str = "vela.authority-migration-transaction.internal.v1";
@@ -497,7 +497,29 @@ fn bind_pre_migration_repository(
     for event in &request.history.legacy_events {
         let path = RepoPath::parse(format!(".vela/events/{}.json", event.id))
             .map_err(AuthorityTransactionError::Transaction)?;
-        let bytes = to_canonical_bytes(event).map_err(AuthorityTransactionError::Invalid)?;
+        let absolute = frontier_root.join(path.as_str());
+        let bytes = std::fs::read(&absolute).map_err(|error| {
+            AuthorityTransactionError::Transaction(FrontierTxnError::Io(format!(
+                "read retained legacy event {}: {error}",
+                absolute.display()
+            )))
+        })?;
+        let held: StateEvent = serde_json::from_slice(&bytes).map_err(|error| {
+            AuthorityTransactionError::Invalid(format!(
+                "retained legacy event {} is invalid: {error}",
+                path.as_str()
+            ))
+        })?;
+        let held_canonical =
+            to_canonical_bytes(&held).map_err(AuthorityTransactionError::Invalid)?;
+        let expected_canonical =
+            to_canonical_bytes(event).map_err(AuthorityTransactionError::Invalid)?;
+        if held_canonical != expected_canonical {
+            return Err(AuthorityTransactionError::Invalid(format!(
+                "retained legacy event {} differs from the held history",
+                event.id
+            )));
+        }
         merge_input(
             &mut request.read_set,
             InputBinding::exact_file(frontier_root, path.clone(), &bytes)

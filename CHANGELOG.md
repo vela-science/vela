@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.930.0-rc.1 — 2026-07-24 — Qualify the repository-authority migration seam
+
+- Add the proposed ADR 0020 dual-history verifier, restricted Cedar runtime,
+  closed principals and capabilities, DSSE authority records, repository
+  keysets, policy bundles, rotation, and terminal close.
+- Add `vela authority migrate` as one temporary two-phase migration command:
+  preview is key-free and write-free; apply rederives the exact plan under the
+  recovery barrier, requests one final protected legacy continuity signature,
+  authenticates the local operating-system principal, and records sequence 1
+  through a standard OpenSSH-agent repository key.
+- Bind the initial Cedar policy to one exact local administrator. Human review
+  actions target proposals; an unbound human principal is denied.
+- Preserve non-canonical historical event file bytes exactly while comparing
+  their typed event content. Migration appends new canonical bytes and never
+  normalizes or rewrites retained Era-0 history.
+- Prove the composed command seam on a disposable Git Frontier, including
+  cancellation before custody access, exact helper response validation,
+  recoverable installation, a separate repository signature, and network-free
+  clean-clone replay.
+- Keep ADR 0020 Proposed. This candidate migrates no active Frontier, removes
+  no Era-0 verifier, and is not the public `v0.930.0` release.
+
 ## v0.915.1 — 2026-07-24 — Align human and JSON strict-check verdicts
 
 - Make the ordinary `vela check --strict` renderer use the same verified

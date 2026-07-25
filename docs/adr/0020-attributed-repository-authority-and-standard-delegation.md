@@ -791,8 +791,30 @@ disposable Frontier:
 
 The final replay reports four Era-1 events, the terminal keyset, unchanged
 policy, and closed authority. This closes the disposable Frontier writer gate.
-It does not accept this ADR, expose a CLI route, migrate an active Frontier, or
-remove Era-0 replay.
+It does not accept this ADR, migrate an active Frontier, or remove Era-0
+replay.
+
+The subsequent `0.930.0-rc.1` source slice exposes only sequence 1 through
+`vela authority migrate`. The preview is key-free and write-free. Apply
+rederives the exact plan under the recovery barrier, asks the closed helper to
+sign only the legacy continuity event after fresh user presence, authenticates
+one exact local issuer-subject principal, and asks a matching Ed25519 identity
+in the standard OpenSSH agent to sign the covering repository record.
+
+The first composed Git fixture found two defects that isolated canonical
+fixtures did not:
+
+- historical event files may have valid non-canonical JSON formatting, so the
+  migration now compares typed content while binding and preserving exact
+  existing file bytes; and
+- the initial human Cedar rule must name the one migrated principal and type
+  review actions against proposals rather than the Frontier.
+
+The corrected fixture proves stable plan derivation, substitution sensitivity,
+dirty and pre-existing-authority refusal, cancellation before custody access,
+one exact protected signature, recoverable installation, and clean-clone
+sequence-1 replay. No active Frontier or human credential was used. ADR 0020
+remains Proposed.
 
 ## Alternatives rejected
 

@@ -1,10 +1,11 @@
 use std::io::Read;
 
 use crate::{
-    ActorBootstrapProofRequest, Approval, Custody, EnrollmentRequest, PolicySignerRequest,
-    ProtectionMode, RebindRequest, RepositoryBoundarySignerRequest, SessionRecord, SessionState,
-    SignerRequest, approve_and_sign, approve_and_sign_policy, approve_and_sign_repository_boundary,
-    enroll, prove_actor_bootstrap, rebind,
+    ActorBootstrapProofRequest, Approval, AuthorityMigrationSignerRequest, Custody,
+    EnrollmentRequest, PolicySignerRequest, ProtectionMode, RebindRequest,
+    RepositoryBoundarySignerRequest, SessionRecord, SessionState, SignerRequest, approve_and_sign,
+    approve_and_sign_authority_migration, approve_and_sign_policy,
+    approve_and_sign_repository_boundary, enroll, prove_actor_bootstrap, rebind,
 };
 use clap::{Parser, Subcommand};
 use rfd::{MessageButtons, MessageDialog, MessageDialogResult, MessageLevel};
@@ -32,6 +33,8 @@ enum Command {
     ApprovePolicy,
     /// Read one closed repository-boundary request, authenticate once, sign, exit.
     ApproveRepositoryBoundary,
+    /// Sign the one closed legacy continuity event for repository authority.
+    ApproveAuthorityMigration,
     /// Prove possession of one exact protected actor-bootstrap key, then exit.
     ProveActorBootstrap,
     /// Read one closed enrollment request from stdin, install and verify custody.
@@ -159,6 +162,17 @@ impl Approval for SystemApproval {
         require_user_interaction("authenticate a repository boundary")?;
         platform_reauthenticate_with_timeout(
             &repository_boundary_prompt(request),
+            REPOSITORY_REAUTHENTICATION_TIMEOUT_SECONDS,
+        )
+    }
+
+    fn reauthenticate_authority_migration(
+        &self,
+        request: &AuthorityMigrationSignerRequest,
+    ) -> Result<(), String> {
+        require_user_interaction("authenticate an authority-model migration")?;
+        platform_reauthenticate_with_timeout(
+            &crate::authority_migration_prompt(request),
             REPOSITORY_REAUTHENTICATION_TIMEOUT_SECONDS,
         )
     }
@@ -634,10 +648,33 @@ fn run() -> Result<(), String> {
         Command::Approve => approve_once(),
         Command::ApprovePolicy => approve_policy_once(),
         Command::ApproveRepositoryBoundary => approve_repository_boundary_once(),
+        Command::ApproveAuthorityMigration => approve_authority_migration_once(),
         Command::ProveActorBootstrap => prove_actor_bootstrap_once(),
         Command::Enroll => enroll_once(),
         Command::Rebind => rebind_once(),
     }
+}
+
+fn approve_authority_migration_once() -> Result<(), String> {
+    let mut bytes = read_request_bytes()?;
+    let request: AuthorityMigrationSignerRequest = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("parse closed authority-migration signer request: {error}"))?;
+    bytes.zeroize();
+    let helper_path =
+        std::env::current_exe().map_err(|error| format!("resolve running helper path: {error}"))?;
+    let response = approve_and_sign_authority_migration(
+        &request,
+        &SystemApproval,
+        &SystemCustody::new(request.protection_mode),
+        &helper_path,
+        chrono::Utc::now(),
+    )?;
+    println!(
+        "{}",
+        serde_json::to_string(&response)
+            .map_err(|error| format!("serialize authority-migration signer response: {error}"))?
+    );
+    Ok(())
 }
 
 fn prove_actor_bootstrap_once() -> Result<(), String> {

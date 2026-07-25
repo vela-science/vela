@@ -314,10 +314,31 @@ local object reuse disabled, and replays five authority records and four
 Era-1 events from the clean clone. Replay uses no signer or authentication
 provider, and the old key is not used after activation.
 
-This closes the writer-composition gate. The plan remains pre-release and
-pre-migration: no CLI route, active Frontier, human credential, or legacy
-writer removal is authorized until the deterministic release and staged
-active-Frontier gates pass.
+This closes the writer-composition gate.
+
+Progress evidence, 2026-07-24: the `0.930.0-rc.1` source candidate now exposes
+one temporary migration-only product seam. `vela authority migrate` derives a
+write-free plan from clean `main`, exact Git and Vela history, the retained
+legacy policy store, one issuer-subject local principal, a single exact
+administrator Cedar rule, and an Ed25519 key held by the standard OpenSSH
+agent. Apply rederives under the recovery barrier, accepts only one closed
+protected helper response for the legacy bridge, and installs sequence 1
+through the already-qualified writer.
+
+The composed Git fixture found and closed two defects before active use:
+
+- the initial Cedar policy now authorizes only the exact migrated local
+  principal and types review actions against proposals; and
+- valid historical JSON event files are compared by typed canonical meaning
+  while their exact existing bytes are bound and retained, so migration never
+  normalizes old history.
+
+Focused tests prove stable key-free planning, reason and repository-key
+binding, dirty and pre-existing-authority refusal, cancellation before custody
+access, one exact protected signature, recoverable installation, and
+clean-clone sequence-1 replay. This closes Phase 4 and the disposable portion
+of Phase 5. It does not approve an OS card, access a human key, migrate an
+active Frontier, accept ADR 0020, or remove any Era-0 path.
 
 ## Phase 4: authority transaction writer
 

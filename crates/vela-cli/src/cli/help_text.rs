@@ -198,6 +198,25 @@ EXAMPLES
 Activation is a human-key terminal ceremony. The preview reads no key.
 Unsigned anchor members remain legacy and unauthenticated.";
 
+pub const AUTHORITY: &str = "\
+EXAMPLES
+  vela authority migrate . \
+    --repository-key-id ssh:repository-admin \
+    --repository-public-key <64hex> \
+    --reason \"Move this frontier to attributed repository authority\" --json
+      render one key-free migration plan; read no human or repository key
+
+  vela authority migrate . \
+    --repository-key-id ssh:repository-admin \
+    --repository-public-key <64hex> \
+    --reason \"Move this frontier to attributed repository authority\" \
+    --apply --confirm-root sha256:<64hex> --confirm-at <RFC3339> --json
+      revalidate the exact plan, then request one protected human approval
+
+Migration preserves every legacy event byte and closes the legacy policy
+surface. The protected card is the final use of the legacy human key. The
+repository key signs only later attributed repository-authority events.";
+
 pub const FRONTIER: &str = "\
 EXAMPLES
   vela frontier bind . --reason \"establish the first administrator\" --json

@@ -45,6 +45,7 @@ pub(crate) use crate::cli_proof::*;
 pub(crate) use crate::cli_read::*;
 pub(crate) use crate::cli_write::*;
 
+mod authority;
 mod checks;
 mod frontier_audit;
 pub(crate) mod help_text;
@@ -64,6 +65,7 @@ mod surface;
 pub(crate) mod table;
 #[cfg(test)]
 mod tests;
+pub(crate) use authority::*;
 pub(crate) use checks::*;
 pub(crate) use frontier_audit::*;
 pub(crate) use identity::*;
@@ -254,6 +256,27 @@ pub async fn run_command() {
         },
         Commands::Id { action } => cmd_id(action),
         Commands::Actor { action } => cmd_actor(action),
+        Commands::Authority { action } => match action {
+            AuthorityAction::Migrate {
+                frontier,
+                repository_key_id,
+                repository_public_key,
+                reason,
+                apply,
+                confirm_root,
+                confirm_at,
+                json,
+            } => cmd_authority_migrate(
+                &frontier,
+                &repository_key_id,
+                &repository_public_key,
+                &reason,
+                apply,
+                confirm_root.as_deref(),
+                confirm_at.as_deref(),
+                json,
+            ),
+        },
         Commands::Frontier { action } => cmd_frontier(action),
         Commands::Init {
             path,

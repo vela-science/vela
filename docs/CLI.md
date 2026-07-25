@@ -89,8 +89,12 @@ A valid construction with a substituted or inflated claim exits nonzero.
 Setup and noun-oriented commands remain available:
 
 ```text
-finding artifact frontier policy actor id agents config
+finding artifact frontier policy actor id authority agents config
 ```
+
+`authority migrate` is temporary `0.930.0-rc.1` migration scaffolding, not a
+daily signing surface. Its key-free preview and exact protected apply contract
+are documented in [SIGNING.md](SIGNING.md#authority-model-migration-candidate).
 
 Advanced help contains:
 

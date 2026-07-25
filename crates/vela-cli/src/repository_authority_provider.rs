@@ -1,11 +1,12 @@
 //! Standard repository-authority signer providers.
 //!
-//! This module is intentionally unreachable from the CLI while ADR 0020 is
-//! Proposed. The first provider uses only the standard OpenSSH agent
+//! The first provider uses only the standard OpenSSH agent
 //! request-identities and sign-request messages. It never reads a private-key
 //! file and receives only the canonical authority-record payload after the
 //! writer has completed every authentication, authorization, and semantic
-//! check.
+//! check. The proposed ADR 0020 migration command is its only current public
+//! caller; ordinary Era-1 administration remains gated until the release
+//! candidate qualifies.
 
 use std::env;
 use std::io::{Read, Write};

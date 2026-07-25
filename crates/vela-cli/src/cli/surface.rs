@@ -117,6 +117,7 @@ Advanced verification and integration:
   sign          historical batch and detached-file signing compatibility
 
 Advanced setup:
+  authority     one-time repository-authority migration candidate
   target-index  inspect, diagnose, or seal derived producer targets
 
 Hidden utility:

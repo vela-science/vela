@@ -296,12 +296,13 @@ mod surface_tests {
         });
     }
 
-    /// The v0.912 product surface, guarded in both directions. A dropped
+    /// The v0.930 product surface, guarded in both directions. A dropped
     /// command and an unreviewed addition both fail this test.
-    const V0912_VISIBLE: &[&str] = &[
+    const V0930_VISIBLE: &[&str] = &[
         "actor",
         "agents",
         "artifact",
+        "authority",
         "check",
         "ci",
         "config",
@@ -328,7 +329,7 @@ mod surface_tests {
     const V0900_HIDDEN: &[&str] = &["completions", "target-index"];
 
     #[test]
-    fn v0900_surface_is_exact_both_directions() {
+    fn v0930_surface_is_exact_both_directions() {
         on_big_stack(|| {
             let cmd = Cli::command();
             let mut visible: Vec<String> = Vec::new();
@@ -342,7 +343,7 @@ mod surface_tests {
             }
             visible.sort();
             hidden.sort();
-            let want_visible: Vec<String> = V0912_VISIBLE.iter().map(|s| s.to_string()).collect();
+            let want_visible: Vec<String> = V0930_VISIBLE.iter().map(|s| s.to_string()).collect();
             let want_hidden: Vec<String> = V0900_HIDDEN.iter().map(|s| s.to_string()).collect();
             assert_eq!(
                 visible, want_visible,

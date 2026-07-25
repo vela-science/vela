@@ -404,6 +404,15 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         action: ActorAction,
     },
+    /// Inspect or cross the one-time repository-authority migration boundary.
+    ///
+    /// Preview is key-free. Apply requires the exact preview root and one
+    /// protected approval by the registered legacy administrator.
+    #[command(after_long_help = crate::cli::help_text::AUTHORITY)]
+    Authority {
+        #[command(subcommand)]
+        action: AuthorityAction,
+    },
     /// Inspect and materialize frontier-level state, including read-only
     /// cross-frontier dependency projections.
     #[command(after_long_help = crate::cli::help_text::FRONTIER)]
@@ -964,6 +973,35 @@ pub(crate) enum ActorAction {
         /// Exact root returned by a prior preview. Required with --yes.
         #[arg(long, requires = "yes")]
         confirm_root: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub(crate) enum AuthorityAction {
+    /// Preview or apply the one-time Era-0 to Era-1 authority migration.
+    Migrate {
+        /// Frontier repository directory.
+        frontier: PathBuf,
+        /// Stable identifier for the repository-authority key in the SSH agent.
+        #[arg(long)]
+        repository_key_id: String,
+        /// Raw Ed25519 repository-authority public key as 64 lowercase hex characters.
+        #[arg(long)]
+        repository_public_key: String,
+        /// Why this Frontier is crossing to repository authority.
+        #[arg(long)]
+        reason: String,
+        /// Apply the exact preview. Omit for the key-free preview.
+        #[arg(long)]
+        apply: bool,
+        /// Exact root returned by the key-free preview.
+        #[arg(long, requires = "confirm_at")]
+        confirm_root: Option<String>,
+        /// Exact observation time returned by the key-free preview.
+        #[arg(long, requires = "confirm_root")]
+        confirm_at: Option<String>,
         #[arg(long)]
         json: bool,
     },

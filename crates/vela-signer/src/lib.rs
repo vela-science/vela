@@ -5,6 +5,7 @@
 //! request's validated event cores, returns one response, and exits.
 
 pub mod actor_contract;
+pub mod authority_migration_contract;
 pub mod contract;
 pub mod helper;
 pub mod policy_contract;
@@ -19,6 +20,13 @@ pub use actor_contract::{
     actor_registry_file_root, validate_actor_bootstrap_request,
     validate_actor_bootstrap_request_fresh, validate_actor_bootstrap_response,
 };
+pub use authority_migration_contract::{
+    AUTHORITY_MIGRATION_REQUEST_LIFETIME_SECONDS, AUTHORITY_MIGRATION_REQUEST_SCHEMA,
+    AUTHORITY_MIGRATION_RESPONSE_SCHEMA, AuthorityMigrationSignerRequest,
+    AuthorityMigrationSignerResponse, authority_migration_prompt, authority_migration_request_root,
+    validate_authority_migration_request, validate_authority_migration_request_fresh,
+    validate_authority_migration_response,
+};
 pub use contract::{
     EnrollmentRequest, EnrollmentResponse, EventSignature, ProtectionMode, RebindPurpose,
     RebindRequest, RebindResponse, SignerDisplay, SignerEvent, SignerRequest, SignerResponse,
@@ -26,8 +34,9 @@ pub use contract::{
     validate_request, validate_response,
 };
 pub use helper::{
-    Approval, Custody, approve_and_sign, approve_and_sign_policy,
-    approve_and_sign_repository_boundary, enroll, prove_actor_bootstrap, rebind,
+    Approval, Custody, approve_and_sign, approve_and_sign_authority_migration,
+    approve_and_sign_policy, approve_and_sign_repository_boundary, enroll, prove_actor_bootstrap,
+    rebind,
 };
 pub use policy_contract::{
     POLICY_REQUEST_SCHEMA, POLICY_RESPONSE_SCHEMA, PolicyAuthorityDiff, PolicyDecisionAction,

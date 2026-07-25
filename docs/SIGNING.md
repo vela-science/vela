@@ -1,7 +1,7 @@
 # Signing and protected administration
 
-> **Era-0 release behavior.** This document describes the writer shipped in
-> Vela `0.915.1`. Proposed
+> **Migration-candidate behavior.** Vela `0.915.1` remains the released Era-0
+> writer. The `0.930.0-rc.1` source candidate implements Proposed
 > [ADR 0020](adr/0020-attributed-repository-authority-and-standard-delegation.md)
 > replaces the personal-key helper, copied root/time confirmation, and custom
 > AcceptancePolicy writer with attributed repository authority, restricted
@@ -10,12 +10,12 @@
 > live writer and historical verification remains unchanged.
 
 The candidate recognizes the closed `vela.authority-model-migration.v1`
-bridge and verifies contiguous DSSE authority-record coverage after it. A
-CLI-unreachable disposable writer now proves initial installation, ordinary
-transactions, exact keyset and policy rotation, and terminal emergency close
-through the existing recoverable journal. It exposes no signing command,
-does not make the proposed Era-1 path live, and has not migrated an active
-Frontier.
+bridge and verifies contiguous DSSE authority-record coverage after it. Its
+writer cores prove initial installation, ordinary transactions, exact keyset
+and policy rotation, and terminal emergency close through the existing
+recoverable journal. One temporary `vela authority migrate` command exposes
+only the initial transition. It has not migrated an active Frontier and does
+not expose ordinary Era-1 administration.
 
 Emergency close is a current-authority transaction, not a recovery bypass. It
 requires the human-only `authority_close` action, installs an empty terminal
@@ -153,6 +153,54 @@ The operation preserves all pre-boundary event, proposal, Receipt,
 registration, policy, finding, artifact, evidence, and signature bytes. It
 appends one non-scientific signed boundary and leaves the exact delta
 uncommitted.
+
+## Authority-model migration candidate
+
+The proposed `0.930.0-rc.1` transition is deliberately separate from the
+older repository-profile migration:
+
+```bash
+vela authority migrate <frontier> \
+  --repository-key-id <stable-key-id> \
+  --repository-public-key <64-lowercase-ed25519-hex> \
+  --reason "<semantic reason>" \
+  --json
+```
+
+Preview reads public identity metadata but never asks the protected store for
+the legacy seed and writes no Frontier byte. It binds the clean `main` commit
+and tree, exact legacy event and registry roots, retained legacy policy bytes,
+one local issuer-subject principal, the initial restricted Cedar bundle, the
+repository keyset, binary digest, reason, observation time, and complete
+candidate event.
+
+The agent or operator may then invoke the returned exact plan:
+
+```bash
+vela authority migrate <frontier> \
+  --repository-key-id <stable-key-id> \
+  --repository-public-key <64-lowercase-ed25519-hex> \
+  --reason "<same semantic reason>" \
+  --apply \
+  --confirm-root <plan-root> \
+  --confirm-at <observed-at> \
+  --json
+```
+
+The human action is the one semantic OS approval card; they do not sign a
+file or reveal a seed. The helper accepts only the unsigned
+`authority.model_migrated` event in that exact plan, performs fresh user
+presence, reads the protected continuity seed once, signs, zeroizes, and
+exits. The repository record is separately signed through the standard
+OpenSSH agent. The resulting canonical delta remains unstaged for inspection.
+
+This is temporary migration scaffolding, not the new everyday approval model.
+It disappears with the old helper after every active Frontier has crossed the
+boundary. Cancellation, helper refusal, wrong key, stale Git or policy state,
+non-`main` or dirty worktrees, an existing authority history, binary/helper
+drift, or transaction drift produces no canonical delta. Historical event
+files retain their exact bytes even when their JSON formatting predates
+canonical output.
 
 ## Fail-closed rules
 

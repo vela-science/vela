@@ -1,6 +1,7 @@
 # Vela protocol: current contract
 
-Status: current public-beta contract for Vela `0.915.1`.
+Status: proposed Vela `0.930.0-rc.1` repository-authority candidate. Vela
+`0.915.1` remains the released Era-0 replay baseline.
 
 This document defines the small protocol surface that Vela ships now. Git
 stores and transports immutable bytes. Vela gives a scientific meaning to a
@@ -412,9 +413,10 @@ deltas; existing manifests must match exactly. Direct store membership is a
 transaction input, so an added, replaced, deleted, or symlinked snapshot
 aborts before the commit marker.
 
-The rotation law and CLI-unreachable writer are also closed. A new keyset must name the exact
-prior keyset root, advance generation by one, and bind the authority-record
-chain head that existed immediately before the covering rotation transaction.
+The rotation law and internal writer are also closed. A new keyset must name
+the exact prior keyset root, advance generation by one, and bind the
+authority-record chain head that existed immediately before the covering
+rotation transaction.
 That transaction is signed and authorized under the old keyset and policy,
 covers the new full-root snapshots, and must contain the exact
 `authority_rotate` and/or `policy_rotate` semantic approval. The new keyset
@@ -467,31 +469,39 @@ event-log root containing the bridge. Later roots use
 sorted full roots of all covered `vela.event.v1` objects. This preserves every
 Era-0 byte while giving Era-1 one deterministic append-only commitment.
 
-The candidate now includes pure verification plus CLI-unreachable disposable
-writers:
+The candidate now includes pure verification, reusable writer cores, and one
+temporary migration-only CLI seam:
 
 - [`crates/vela-protocol/src/kernel/authority.rs`](../crates/vela-protocol/src/kernel/authority.rs)
 - [`crates/vela-protocol/src/kernel/authority_history.rs`](../crates/vela-protocol/src/kernel/authority_history.rs)
 - [`crates/vela-authority/src/legacy_translation.rs`](../crates/vela-authority/src/legacy_translation.rs)
 - [`crates/vela-cli/src/authority_transaction.rs`](../crates/vela-cli/src/authority_transaction.rs)
 - [`crates/vela-cli/src/authority_migration.rs`](../crates/vela-cli/src/authority_migration.rs)
+- [`crates/vela-cli/src/cli/authority.rs`](../crates/vela-cli/src/cli/authority.rs)
+- [`crates/vela-signer/src/authority_migration_contract.rs`](../crates/vela-signer/src/authority_migration_contract.rs)
 
 The sequence-1 writer verifies one already legacy-signed bridge before
 authentication or repository signing, then prepares one recoverable
 transaction containing the bridge, initial full-root keyset and policy
-manifests, and covering DSSE record. It has no CLI route and no production
-human-credential path. No active Frontier may emit these objects or delete
-Era-0 verification until the remaining ADR 0020 release and active-Frontier
-gates pass.
+manifests, and covering DSSE record. `vela authority migrate` now exposes only
+this one transition: preview is key-free; apply requires the exact preview,
+one fresh protected approval over the legacy continuity event, an exact local
+OS principal, and a matching Ed25519 key in the standard OpenSSH agent.
+Historical event files are bound as their retained bytes and are not
+normalized. No active Frontier may emit these objects or delete Era-0
+verification until the remaining ADR 0020 release and active-Frontier gates
+pass.
 
-The complete CLI-unreachable lifecycle drill now uses one disposable Frontier
+The complete core lifecycle drill now uses one disposable Frontier
 to install the legacy bridge, perform an ordinary Era-1 decision, rotate the
 repository key, perform another decision under the new key, close authority,
 commit the canonical bytes to Git, clone them without local object reuse, and
 replay the five-record history from the clean clone. The old key is not used
 after activation and replay requires no signer or provider. This proves the
-writer composition and provider-exit seam; it does not expose a live command
-or authorize an active-Frontier migration.
+writer composition and provider-exit seam but does not authorize an
+active-Frontier migration. A second composed fixture exercises the public
+migration command internals over an exact Git Frontier and replays sequence 1
+from a clean clone without a signer.
 
 The same candidate read contract defines `vela.principal.v1` and
 `vela.capability-grant.v1`. A human principal is an exact retained
@@ -520,10 +530,11 @@ The candidate implementation is:
 - [`conformance/fixtures/principal-capability-v1.json`](../conformance/fixtures/principal-capability-v1.json)
 - [`conformance/verify_principal_capability.py`](../conformance/verify_principal_capability.py)
 
-The runtime module is preflight-only while ADR 0020 is Proposed. It consumes
-an adapter observation, validates expiry and a passed revocation set, derives
+The runtime module remains adapter-only while ADR 0020 is Proposed. It
+consumes an observation, validates expiry and a passed revocation set, derives
 reserved Cedar context, and exposes no filesystem or signer capability. The
-candidate issues no credential and enables no writer.
+candidate migration seam uses the local OS-session adapter; it issues no
+credential and enables no ordinary Era-1 writer.
 
 `vela.authentication-observation.v1` replaces the provisional arbitrary
 authentication strings inside the candidate authority record. It binds:
