@@ -1,7 +1,7 @@
 # Signing and protected administration
 
 > **Migration-candidate behavior.** Vela `0.915.1` remains the released Era-0
-> writer. The `0.930.0-rc.4` source candidate implements Proposed
+> writer. The `0.930.0-rc.5` source candidate implements Proposed
 > [ADR 0020](adr/0020-attributed-repository-authority-and-standard-delegation.md).
 > It replaces the personal-key helper, copied root/time confirmation, and custom
 > AcceptancePolicy writer with attributed repository authority, restricted
@@ -156,7 +156,7 @@ uncommitted.
 
 ## Authority-model migration candidate
 
-The proposed `0.930.0-rc.4` transition is deliberately separate from the
+The proposed `0.930.0-rc.5` transition is deliberately separate from the
 older repository-profile migration:
 
 ```bash

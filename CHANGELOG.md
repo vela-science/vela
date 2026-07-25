@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## v0.930.0-rc.5 — 2026-07-25 — Restore historical Target Index inspection
+
+- Preserve bounded, unique Target Index v1 labels in their historical byte
+  order during read-only inspection and migration planning. Target Index v2
+  remains strictly sorted and canonical. This restores Quantum Codes' exact
+  protected Profile v1 migration path without rewriting its derived v1 index
+  or weakening producer-work sealing.
 - Remove the unpublished, unconsumed `vela-hub` compatibility crate, its
   database/server dependency graph, deployment files, and active service
   documentation. Historical tags retain the complete implementation; local
@@ -14,6 +21,9 @@
   broken `vela reproduce --proposal` next action.
 - Constrain retained Receipt and witness reads to regular, non-symlink files
   inside the Frontier and verify their exact roots before use.
+- Reproduce the real Quantum Codes v1 index at its unchanged Git commit and
+  roots with zero writes while rejecting duplicate, oversized, invalid, or
+  otherwise ambiguous legacy labels.
 
 ## v0.930.0-rc.2 — 2026-07-24 — Restore feature-independent historical replay
 

@@ -613,14 +613,29 @@ fn validate_labels(labels: &[String], field: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_target_common(
+fn validate_historical_labels(labels: &[String], field: &str) -> Result<(), String> {
+    if labels.len() > TARGET_INDEX_MAX_LABELS {
+        return Err(format!(
+            "{field} has more than {TARGET_INDEX_MAX_LABELS} labels"
+        ));
+    }
+    let mut seen = BTreeSet::new();
+    for label in labels {
+        bounded_text(label, field, 128)?;
+        if !seen.insert(label) {
+            return Err(format!("{field} contains duplicate label {label:?}"));
+        }
+    }
+    Ok(())
+}
+
+fn validate_target_fields(
     id: &str,
     title: &str,
     why: &str,
     state: &str,
     rank: u64,
     objective: &str,
-    labels: &[String],
 ) -> Result<(), String> {
     validate_target_id(id)?;
     bounded_text(title, "target.title", 512)?;
@@ -631,7 +646,19 @@ fn validate_target_common(
             "target.rank must be at most {JSON_SAFE_INTEGER_MAX}"
         ));
     }
-    bounded_text(objective, "target.objective", 4_096)?;
+    bounded_text(objective, "target.objective", 4_096)
+}
+
+fn validate_target_common(
+    id: &str,
+    title: &str,
+    why: &str,
+    state: &str,
+    rank: u64,
+    objective: &str,
+    labels: &[String],
+) -> Result<(), String> {
+    validate_target_fields(id, title, why, state, rank, objective)?;
     validate_labels(labels, "target.labels")
 }
 
@@ -1390,15 +1417,18 @@ impl TargetIndexV1 {
             ));
         }
         for target in &self.targets {
-            validate_target_common(
+            validate_target_fields(
                 &target.id,
                 &target.title,
                 &target.why,
                 &target.state,
                 target.rank,
                 &target.objective,
-                &target.labels,
             )?;
+            // Target Index v1 predated the v2 canonical ordering rule. Keep
+            // historical bytes bounded and unambiguous without requiring a
+            // rewrite merely to inspect or preview their protected migration.
+            validate_historical_labels(&target.labels, "target.labels")?;
             bounded_text(&target.packet.schema, "packet.schema", 256)?;
             validate_repository_path(&target.packet.path, "packet.path", 1_024)?;
             require_sha256_root("packet.sha256", &target.packet.sha256)?;

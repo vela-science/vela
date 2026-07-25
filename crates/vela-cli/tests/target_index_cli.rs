@@ -564,7 +564,7 @@ fn historical_v1_is_inspectable_but_never_actionable() {
             "state": "open",
             "rank": 1,
             "objective": "Inspect only.",
-            "labels": ["erdos"],
+            "labels": ["upstream-open", "erdos"],
             "packet": {
                 "path": "site/problems/1056.json",
                 "sha256": format!("sha256:{}", hex::encode(Sha256::digest(&packet))),
@@ -615,6 +615,49 @@ fn historical_v1_is_inspectable_but_never_actionable() {
     assert_eq!(
         output["target"]["codes"],
         json!(["target_index_profile_upgrade_required"])
+    );
+}
+
+#[test]
+fn historical_v1_still_rejects_duplicate_labels() {
+    let fixture = Fixture::new();
+    let project = vela_protocol::repo::load_from_path(fixture.path()).unwrap();
+    let packet = std::fs::read(fixture.path().join("site/problems/1056.json")).unwrap();
+    let legacy = json!({
+        "schema": "vela.target-index.v1",
+        "frontier_id": project.frontier_id(),
+        "as_of": {
+            "snapshot_hash": format!("sha256:{}", vela_protocol::events::snapshot_hash(&project)),
+            "event_log_hash": format!("sha256:{}", vela_protocol::events::event_log_hash(&project.events)),
+            "proposal_state_hash": format!("sha256:{}", vela_protocol::proposals::proposal_state_hash(&project.proposals))
+        },
+        "targets": [{
+            "id": "erdos:1056",
+            "title": "Erdős 1056",
+            "why": "Historical target.",
+            "state": "open",
+            "rank": 1,
+            "objective": "Inspect only.",
+            "labels": ["erdos", "erdos"],
+            "packet": {
+                "path": "site/problems/1056.json",
+                "sha256": format!("sha256:{}", hex::encode(Sha256::digest(&packet))),
+                "schema": "erdos-frontier.problem-work.v1"
+            }
+        }]
+    });
+    write(
+        &fixture.path().join("targets.json"),
+        serde_json::to_vec(&legacy).unwrap(),
+    );
+
+    let output = fixture.command(&["target-index", "inspect", ".", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        failure_json(&output)["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("duplicate label")
     );
 }
 
