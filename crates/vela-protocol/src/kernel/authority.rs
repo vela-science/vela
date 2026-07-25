@@ -32,6 +32,10 @@ pub const CEDAR_ENGINE_VERSION: &str = "4.11.2";
 pub const CEDAR_PROFILE_V1: &str = "vela.cedar-restricted.v1";
 pub const POLICY_BUNDLE_SCHEMA_V1: &str = "vela.policy-bundle.v1";
 
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CedarDecision {
@@ -198,6 +202,11 @@ pub struct AuthorityKeysetV1 {
     pub keys: Vec<AuthorityKeyV1>,
     pub previous_keyset_root: Option<String>,
     pub activation_record_root: Option<String>,
+    /// A terminal successor keyset closes future repository authority. The
+    /// field is omitted for every historical/open v1 keyset, preserving its
+    /// canonical bytes and root.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub closed: bool,
 }
 
 impl AuthorityKeysetV1 {
@@ -210,7 +219,17 @@ impl AuthorityKeysetV1 {
         if self.frontier_id.trim().is_empty() || self.generation == 0 {
             return Err("authority keyset frontier and generation must be set".into());
         }
-        if self.keys.is_empty()
+        if self.closed {
+            if !self.keys.is_empty()
+                || self.threshold != 0
+                || self.previous_keyset_root.is_none()
+                || self.activation_record_root.is_none()
+            {
+                return Err(
+                    "closed authority keyset must be an empty terminal successor generation".into(),
+                );
+            }
+        } else if self.keys.is_empty()
             || self.threshold == 0
             || usize::try_from(self.threshold).unwrap_or(usize::MAX) > self.keys.len()
         {
@@ -281,6 +300,9 @@ pub fn verify_authority_keyset_transition(
         "previous_authority_record_root",
         previous_authority_record_root,
     )?;
+    if current.closed {
+        return Err("closed repository authority cannot transition again".into());
+    }
     if activation_sequence <= 1 {
         return Err("rotated authority keyset cannot activate at sequence 1".into());
     }
@@ -294,18 +316,20 @@ pub fn verify_authority_keyset_transition(
                 .into(),
         );
     }
-    let active_keys = next
-        .keys
-        .iter()
-        .filter(|key| {
-            key.valid_from_sequence <= activation_sequence
-                && key
-                    .valid_through_sequence
-                    .is_none_or(|through| activation_sequence <= through)
-        })
-        .count();
-    if active_keys < usize::try_from(next.threshold).unwrap_or(usize::MAX) {
-        return Err("rotated authority keyset cannot meet threshold at activation".into());
+    if !next.closed {
+        let active_keys = next
+            .keys
+            .iter()
+            .filter(|key| {
+                key.valid_from_sequence <= activation_sequence
+                    && key
+                        .valid_through_sequence
+                        .is_none_or(|through| activation_sequence <= through)
+            })
+            .count();
+        if active_keys < usize::try_from(next.threshold).unwrap_or(usize::MAX) {
+            return Err("rotated authority keyset cannot meet threshold at activation".into());
+        }
     }
     Ok(())
 }
@@ -766,6 +790,7 @@ mod tests {
             }],
             previous_keyset_root: None,
             activation_record_root: None,
+            closed: false,
         };
         let content = AuthorityRecordContentV1 {
             frontier_id: "vfr_fixture".into(),
@@ -1020,6 +1045,7 @@ mod tests {
             }],
             previous_keyset_root: Some(current.root().unwrap()),
             activation_record_root: Some(previous_record_root.clone()),
+            closed: false,
         };
         verify_authority_keyset_transition(&current, &next, 3, &previous_record_root).unwrap();
 
@@ -1042,6 +1068,32 @@ mod tests {
             verify_authority_keyset_transition(&current, &next, 3, &previous_record_root)
                 .unwrap_err()
                 .contains("chain head")
+        );
+
+        let closed = AuthorityKeysetV1 {
+            schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
+            frontier_id: current.frontier_id.clone(),
+            generation: 2,
+            threshold: 0,
+            keys: Vec::new(),
+            previous_keyset_root: Some(current.root().unwrap()),
+            activation_record_root: Some(previous_record_root.clone()),
+            closed: true,
+        };
+        verify_authority_keyset_transition(&current, &closed, 3, &previous_record_root).unwrap();
+
+        let mut invalid_closed = closed.clone();
+        invalid_closed.threshold = 1;
+        assert!(
+            invalid_closed
+                .validate()
+                .unwrap_err()
+                .contains("empty terminal successor")
+        );
+        assert!(
+            verify_authority_keyset_transition(&closed, &next, 4, &previous_record_root)
+                .unwrap_err()
+                .contains("cannot transition again")
         );
     }
 

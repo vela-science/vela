@@ -270,8 +270,8 @@ marker, and the runtime Cedar schema, policies, and entities must rederive the
 roots in the retained bundle. A completed operation can be retried without an
 authentication or signing interface only when its full retained result
 matches. Thirteen focused tests pass. The disposable migration exercise must
-still integrate the now-proved sequence-1 installer; rotation and emergency
-close remain open.
+still integrate the now-proved sequence-1 installer. The following rotation
+and terminal-close slices close those isolated writer laws.
 
 The sequence-1 installer is now implemented behind the same CLI-unreachable
 boundary. It verifies the already legacy-signed bridge against the exact
@@ -298,8 +298,13 @@ public-key aliases fail closed. The writer accepts one keyset or policy
 rotation per transaction, validates it before signer access, installs the
 snapshot atomically, replays the candidate history before journaling, and
 proves a later ordinary transaction under the rotated key. Phase 4 remains
-open for emergency close and the complete disposable Frontier drill. No live
-writer, CLI route, active Frontier, human key, or ADR acceptance is involved.
+open for the complete disposable Frontier drill. The emergency-close slice
+now installs a terminal zero-key successor generation and one exact
+`authority.closed` event under the current authority. Its payload binds the
+last trusted head, current policy, incident, and reason; missing approval
+fails before signer access and replay rejects every later authority record.
+Close cannot reopen the lineage or create recovery authority. No live writer,
+CLI route, active Frontier, human key, or ADR acceptance is involved.
 
 ## Phase 4: authority transaction writer
 

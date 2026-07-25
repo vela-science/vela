@@ -25,7 +25,60 @@ pub const AUTHORITY_MODEL_MIGRATION_SCHEMA_V1: &str = "vela.authority-model-migr
 pub const AUTHORITY_EVENT_LOG_SCHEMA_V1: &str = "vela.authority-event-log.v1";
 pub const AUTHORITY_MIGRATION_ACTION: &str = "authority_model_migrate";
 pub const AUTHORITY_ROTATE_ACTION: &str = "authority_rotate";
+pub const AUTHORITY_CLOSE_ACTION: &str = "authority_close";
 pub const POLICY_ROTATE_ACTION: &str = "policy_rotate";
+pub const AUTHORITY_CLOSE_SCHEMA_V1: &str = "vela.authority-close.v1";
+pub const AUTHORITY_CLOSED_EVENT_KIND: &str = "authority.closed";
+
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AuthorityCloseV1 {
+    pub schema: String,
+    pub frontier_id: String,
+    pub last_trusted_sequence: u64,
+    pub last_trusted_authority_record_root: String,
+    pub previous_authority_keyset_root: String,
+    pub closed_authority_keyset_root: String,
+    pub policy_bundle_root: String,
+    pub incident_id: String,
+    pub reason: String,
+}
+
+impl AuthorityCloseV1 {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.schema != AUTHORITY_CLOSE_SCHEMA_V1 {
+            return Err(format!(
+                "authority close schema must be {AUTHORITY_CLOSE_SCHEMA_V1}"
+            ));
+        }
+        require_frontier(&self.frontier_id)?;
+        for (name, root) in [
+            (
+                "last_trusted_authority_record_root",
+                self.last_trusted_authority_record_root.as_str(),
+            ),
+            (
+                "previous_authority_keyset_root",
+                self.previous_authority_keyset_root.as_str(),
+            ),
+            (
+                "closed_authority_keyset_root",
+                self.closed_authority_keyset_root.as_str(),
+            ),
+            ("policy_bundle_root", self.policy_bundle_root.as_str()),
+        ] {
+            require_sha256_root(name, root)?;
+        }
+        if self.incident_id.trim().is_empty() || self.reason.trim().is_empty() {
+            return Err("authority close incident and reason must be non-empty".into());
+        }
+        Ok(())
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -110,6 +163,10 @@ pub struct AuthorityHistoryVerification {
     pub final_authority_record_root: Option<String>,
     pub final_authority_keyset_root: Option<String>,
     pub final_policy_bundle_root: Option<String>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub closed: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub closure_event_id: Option<String>,
 }
 
 /// Complete read-side inputs. Registry bytes are the exact retained
@@ -155,6 +212,8 @@ pub fn verify_authority_history(
             final_authority_record_root: None,
             final_authority_keyset_root: None,
             final_policy_bundle_root: None,
+            closed: false,
+            closure_event_id: None,
         });
     }
     if migrations.len() != 1 {
@@ -235,8 +294,13 @@ pub fn verify_authority_history(
     let mut covered_era_one: BTreeSet<String> = BTreeSet::new();
     let mut cumulative_era_one = Vec::new();
     let mut verified_records = Vec::new();
+    let mut closed = false;
+    let mut closure_event_id = None;
 
     for (offset, envelope) in input.authority_envelopes.iter().enumerate() {
+        if closed {
+            return Err("authority history continues after its terminal close".into());
+        }
         let sequence = u64::try_from(offset + 1)
             .map_err(|_| "authority record sequence exceeds u64".to_string())?;
         let verified = verify_authority_envelope(
@@ -278,6 +342,7 @@ pub fn verify_authority_history(
                     "authority record {sequence} does not exactly cover its transaction events"
                 ));
             }
+            let mut transaction_events = Vec::new();
             for event_id in actual_ids {
                 if !covered_era_one.insert(event_id.to_string()) {
                     return Err(format!("Era-1 event {event_id} is covered more than once"));
@@ -292,6 +357,7 @@ pub fn verify_authority_history(
                 }
                 verify_event_object_delta(&verified, event_id, &event.root()?)?;
                 cumulative_era_one.push(event);
+                transaction_events.push(event);
             }
             let expected_after =
                 authority_event_log_root(&legacy_root_with_bridge, &cumulative_era_one)?;
@@ -302,28 +368,46 @@ pub fn verify_authority_history(
             }
             current_event_root = expected_after;
 
-            if let Some(next) = keyset_transition_for_record(
+            let previous_keyset_root = active_keyset_root.clone();
+            let previous_policy_root = active_policy_root.clone();
+            let next_keyset = keyset_transition_for_record(
                 &verified,
                 active_keyset,
                 &authority_keysets,
                 sequence
                     .checked_add(1)
                     .ok_or_else(|| "authority keyset activation sequence overflows".to_string())?,
-            )? {
+            )?;
+            let next_policy =
+                policy_transition_for_record(&verified, active_policy, &policy_bundles)?;
+            if next_keyset.is_some_and(|next| next.closed) && next_policy.is_some() {
+                return Err("terminal authority close cannot also activate a policy bundle".into());
+            }
+            if let Some(next) = next_keyset {
                 active_keyset_root = next.root()?;
                 if !activated_keysets.insert(active_keyset_root.clone()) {
                     return Err("authority keyset generation was activated more than once".into());
                 }
                 active_keyset = next;
             }
-            if let Some(next) =
-                policy_transition_for_record(&verified, active_policy, &policy_bundles)?
-            {
+            if let Some(next) = next_policy {
                 active_policy_root = next.root()?;
                 if !activated_policies.insert(active_policy_root.clone()) {
                     return Err("policy bundle generation was activated more than once".into());
                 }
                 active_policy = next;
+            }
+            if active_keyset.closed {
+                let event_id = verify_authority_close_record(
+                    &verified,
+                    &transaction_events,
+                    sequence,
+                    &previous_keyset_root,
+                    &active_keyset_root,
+                    &previous_policy_root,
+                )?;
+                closed = true;
+                closure_event_id = Some(event_id);
             }
         }
         previous_record_root = Some(verified.record_root.clone());
@@ -364,6 +448,8 @@ pub fn verify_authority_history(
         final_authority_record_root: previous_record_root,
         final_authority_keyset_root: Some(active_keyset_root),
         final_policy_bundle_root: Some(active_policy_root),
+        closed,
+        closure_event_id,
     })
 }
 
@@ -422,15 +508,6 @@ fn keyset_transition_for_record<'a>(
     if deltas.len() != 1 {
         return Err("one authority record cannot activate multiple keysets".into());
     }
-    if !verified
-        .record
-        .content
-        .semantic_approvals
-        .iter()
-        .any(|approval| approval.action == AUTHORITY_ROTATE_ACTION)
-    {
-        return Err("authority keyset transition lacks authority_rotate approval".into());
-    }
     let delta = deltas[0];
     if delta.before_root.is_some() {
         return Err("authority keyset snapshots are immutable and content addressed".into());
@@ -449,6 +526,22 @@ fn keyset_transition_for_record<'a>(
         .get(root)
         .copied()
         .ok_or_else(|| "authority keyset transition snapshot is not retained".to_string())?;
+    let required_action = if next.closed {
+        AUTHORITY_CLOSE_ACTION
+    } else {
+        AUTHORITY_ROTATE_ACTION
+    };
+    if !verified
+        .record
+        .content
+        .semantic_approvals
+        .iter()
+        .any(|approval| approval.action == required_action)
+    {
+        return Err(format!(
+            "authority keyset transition lacks {required_action} approval"
+        ));
+    }
     let previous_record_root = verified
         .record
         .content
@@ -506,6 +599,50 @@ fn policy_transition_for_record<'a>(
         .ok_or_else(|| "policy bundle transition snapshot is not retained".to_string())?;
     verify_policy_bundle_transition(current, next)?;
     Ok(Some(next))
+}
+
+fn verify_authority_close_record(
+    verified: &VerifiedAuthorityRecord,
+    transaction_events: &[&AuthorityEventV1],
+    sequence: u64,
+    previous_keyset_root: &str,
+    closed_keyset_root: &str,
+    policy_bundle_root: &str,
+) -> Result<String, String> {
+    if transaction_events.len() != 1 || verified.record.content.object_delta.len() != 2 {
+        return Err(
+            "terminal authority close must cover exactly one event and one closed keyset".into(),
+        );
+    }
+    let event = transaction_events[0];
+    if event.content.kind.as_str() != AUTHORITY_CLOSED_EVENT_KIND
+        || event.content.target.r#type != "frontier"
+        || event.content.target.id != verified.record.content.frontier_id
+        || event.content.actor.r#type != "human"
+        || event.content.before_hash != event.content.after_hash
+    {
+        return Err("authority close event shape is invalid".into());
+    }
+    let payload: AuthorityCloseV1 = serde_json::from_value(event.content.payload.clone())
+        .map_err(|error| format!("authority close payload is invalid: {error}"))?;
+    payload.validate()?;
+    let previous_record_root = verified
+        .record
+        .content
+        .previous_authority_record_root
+        .as_deref()
+        .ok_or_else(|| "authority close lacks its prior chain head".to_string())?;
+    if payload.frontier_id != verified.record.content.frontier_id
+        || payload.last_trusted_sequence != sequence.saturating_sub(1)
+        || payload.last_trusted_authority_record_root != previous_record_root
+        || payload.previous_authority_keyset_root != previous_keyset_root
+        || payload.closed_authority_keyset_root != closed_keyset_root
+        || payload.policy_bundle_root != policy_bundle_root
+        || payload.reason != event.content.reason
+    {
+        return Err("authority close payload does not match its exact terminal transition".into());
+    }
+    Ok(event.id.clone())
 }
 
 /// Verify the one legacy-signed bridge before a sequence-1 writer may access
@@ -905,6 +1042,7 @@ mod tests {
             }],
             previous_keyset_root: None,
             activation_record_root: None,
+            closed: false,
         };
         let bundle = PolicyBundleV1 {
             schema: POLICY_BUNDLE_SCHEMA_V1.into(),
@@ -1265,6 +1403,7 @@ mod tests {
             }],
             previous_keyset_root: Some(initial_keyset.root().unwrap()),
             activation_record_root: Some(second.record_root.clone()),
+            closed: false,
         };
         let next_bundle = PolicyBundleV1 {
             policies_root: root('5'),
@@ -1482,6 +1621,7 @@ mod tests {
             }],
             previous_keyset_root: Some(fixture.keyset.root().unwrap()),
             activation_record_root: Some(root('a')),
+            closed: false,
         };
         let keysets = [fixture.keyset.clone(), extra_keyset];
         let error = verify_authority_history(

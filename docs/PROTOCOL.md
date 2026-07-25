@@ -435,6 +435,24 @@ under the new key and replays all retained objects offline. Combining keyset
 and policy rotation in one record is deliberately unsupported by the writer;
 the read verifier remains capable of validating such retained history.
 
+Emergency close is the sole exception to an open keyset. It installs one
+terminal successor `vela.authority-keyset.v1` with `closed: true`, threshold
+zero, and no keys. The field is absent from every open or historical keyset,
+so their canonical bytes and roots do not change. The terminal keyset still
+advances generation by one and links the exact prior keyset and
+pre-transaction authority-record root.
+
+The covering transaction is authorized under the current authority, requires
+the human-only `authority_close` semantic approval, and contains exactly one
+`authority.closed` event plus the terminal keyset snapshot. Its
+`vela.authority-close.v1` payload binds the Frontier, last trusted sequence and
+record root, previous and terminal keyset roots, current policy root, incident
+identifier, and reason. No later authority record is valid. Close never
+rewrites history and cannot reopen or recover authority; continuation after a
+loss of continuity requires an explicit new lineage and out-of-band trust
+anchor. Older binaries reject the terminal keyset's new field, which is the
+intentional `0.930` protocol boundary.
+
 The authority record's `transaction_write_set_root` is a domain-separated
 commitment over the transaction ID, before and after authority-event-log
 roots, sorted event IDs, and exact object deltas. It deliberately excludes the
@@ -463,8 +481,8 @@ authentication or repository signing, then prepares one recoverable
 transaction containing the bridge, initial full-root keyset and policy
 manifests, and covering DSSE record. It has no CLI route and no production
 human-credential path. No active Frontier may emit these objects or delete
-Era-0 verification until the remaining ADR 0020 emergency-close,
-disposable-drill, release, and active-Frontier gates pass.
+Era-0 verification until the remaining ADR 0020 disposable-drill, release,
+and active-Frontier gates pass.
 
 The same candidate read contract defines `vela.principal.v1` and
 `vela.capability-grant.v1`. A human principal is an exact retained

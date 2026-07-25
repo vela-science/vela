@@ -699,9 +699,10 @@ object delta whose two roots are equal.
 This evidence completes the provider and broader object-delta sub-gates. The
 following installation and rotation slices close canonical keyset and
 policy-snapshot installation, exact retry, and non-cyclic rotation. Phase 4
-remains open for emergency close and a CLI-unreachable disposable Frontier
-exercise. It does not authorize a live writer, accept this ADR, migrate an
-active Frontier, or access any human signing key.
+remains open for a CLI-unreachable disposable Frontier exercise; the later
+terminal-close slice closes emergency revocation. It does not authorize a live
+writer, accept this ADR, migrate an active Frontier, or access any human
+signing key.
 
 The following bounded writer slice now derives content-addressed keyset and
 policy-manifest paths from the verified history. Missing snapshots are covered
@@ -721,8 +722,9 @@ a retry.
 
 Thirteen writer tests now cover these additions. The later sequence-1 and
 rotation slices close initial installation and rotation. Phase 4 remains open
-for emergency close and the full offline Frontier drill. No live writer, CLI
-route, active Frontier, or human key is involved.
+for the full offline Frontier drill; the later terminal-close slice closes
+emergency revocation. No live writer, CLI route, active Frontier, or human key
+is involved.
 
 The next read-side slice defines rotation without a hash cycle. A rotation
 record is verified under the currently active keyset and policy, covers one
@@ -751,6 +753,28 @@ replayed against the retained stores before any journal is prepared. Focused
 writer tests prove exact full-root installation, policy rotation, zero-sign
 refusal, offline replay, and an ordinary post-rotation decision signed by the
 new key. This closes the rotation writer sub-gate only.
+
+The following emergency-close slice adds no recovery authority. A terminal
+successor keyset is represented by the optional `closed: true` field, zero
+threshold, and no keys. Open and historical v1 keysets omit the field, so
+their bytes and roots remain unchanged; older binaries fail closed on the new
+terminal object. The covering record is signed under the current authority,
+requires `authority_close`, and covers exactly one `authority.closed` event
+and the terminal snapshot. The event's closed payload binds the exact last
+trusted record, keyset, policy, incident, and reason. Replay rejects any later
+record.
+
+The writer validates the close shape before authentication or signing, replays
+the terminal candidate before journaling, and installs it through the existing
+recoverable barrier. A focused fixture proves missing approval has zero signer
+access, exact terminal installation, retained offline replay, unchanged
+historical roots, and fail-closed attempted continuation. Agents and workloads
+are structurally forbidden from `authority_close`.
+
+This closes emergency revocation only. It deliberately does not invent a
+break-glass signer or let a compromised or lost key silently manufacture
+continuity. A future lineage after total authority loss is a trust reset
+requiring a new out-of-band anchor, not recovery of this history.
 
 ## Alternatives rejected
 

@@ -1051,6 +1051,7 @@ mod tests {
             }],
             previous_keyset_root: None,
             activation_record_root: None,
+            closed: false,
         };
         let policy_bundle = PolicyBundleV1 {
             schema: POLICY_BUNDLE_SCHEMA_V1.into(),

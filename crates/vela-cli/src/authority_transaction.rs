@@ -30,9 +30,9 @@ use vela_protocol::authority::{
     verify_authority_keyset_transition, verify_policy_bundle_transition,
 };
 use vela_protocol::authority_history::{
-    AUTHORITY_ROTATE_ACTION, AuthorityHistoryEra, AuthorityHistoryInput,
-    AuthorityHistoryVerification, POLICY_ROTATE_ACTION, authority_event_log_root,
-    verify_authority_history,
+    AUTHORITY_CLOSE_ACTION, AUTHORITY_CLOSED_EVENT_KIND, AUTHORITY_ROTATE_ACTION, AuthorityCloseV1,
+    AuthorityHistoryEra, AuthorityHistoryInput, AuthorityHistoryVerification, POLICY_ROTATE_ACTION,
+    authority_event_log_root, verify_authority_history,
 };
 use vela_protocol::canonical::to_canonical_bytes;
 use vela_protocol::events::{EventKind, StateActor, StateEvent, StateTarget, event_log_hash};
@@ -224,6 +224,16 @@ where
     A: AuthenticationAdapter,
     S: RepositoryAuthoritySigner,
 {
+    if request
+        .next_authority_keyset
+        .as_ref()
+        .is_some_and(|keyset| keyset.closed)
+        && !request.object_drafts.is_empty()
+    {
+        return Err(AuthorityTransactionError::Invalid(
+            "authority close cannot include additional object drafts".into(),
+        ));
+    }
     normalize_authority_snapshots(frontier_root, &mut request)?;
     normalize_object_drafts(frontier_root, &mut request)?;
     validate_request_shape(&request)?;
@@ -698,14 +708,27 @@ fn validate_requested_rotation(
             previous_authority_record_root,
         )
         .map_err(AuthorityTransactionError::Invalid)?;
+        let required_action = if next.closed {
+            AUTHORITY_CLOSE_ACTION
+        } else {
+            AUTHORITY_ROTATE_ACTION
+        };
         if !request
             .semantic_approvals
             .iter()
-            .any(|approval| approval.action == AUTHORITY_ROTATE_ACTION)
+            .any(|approval| approval.action == required_action)
         {
-            return Err(AuthorityTransactionError::Invalid(
-                "authority rotation lacks authority_rotate semantic approval".into(),
-            ));
+            return Err(AuthorityTransactionError::Invalid(format!(
+                "authority transition lacks {required_action} semantic approval"
+            )));
+        }
+        if next.closed {
+            validate_requested_close(
+                request,
+                next,
+                record_sequence,
+                previous_authority_record_root,
+            )?;
         }
     }
     if let Some(next) = &request.next_policy_bundle {
@@ -720,6 +743,65 @@ fn validate_requested_rotation(
                 "policy rotation lacks policy_rotate semantic approval".into(),
             ));
         }
+    }
+    Ok(())
+}
+
+fn validate_requested_close(
+    request: &AuthorityTransactionRequest,
+    closed_keyset: &AuthorityKeysetV1,
+    record_sequence: u64,
+    previous_authority_record_root: &str,
+) -> Result<(), AuthorityTransactionError> {
+    if request.event_drafts.len() != 1 {
+        return Err(AuthorityTransactionError::Invalid(
+            "authority close must contain exactly one event".into(),
+        ));
+    }
+    let draft = &request.event_drafts[0];
+    if draft.kind.as_str() != AUTHORITY_CLOSED_EVENT_KIND
+        || draft.target.r#type != "frontier"
+        || draft.target.id != request.history.frontier_id
+        || draft.actor.r#type != "human"
+        || draft.before_hash != draft.after_hash
+    {
+        return Err(AuthorityTransactionError::Invalid(
+            "authority close event shape is invalid".into(),
+        ));
+    }
+    let payload: AuthorityCloseV1 =
+        serde_json::from_value(draft.payload.clone()).map_err(|error| {
+            AuthorityTransactionError::Invalid(format!(
+                "authority close payload is invalid: {error}"
+            ))
+        })?;
+    payload
+        .validate()
+        .map_err(AuthorityTransactionError::Invalid)?;
+    let closed_root = closed_keyset
+        .root()
+        .map_err(AuthorityTransactionError::Invalid)?;
+    let current_keyset_root = request
+        .history
+        .authority_keyset
+        .root()
+        .map_err(AuthorityTransactionError::Invalid)?;
+    let current_policy_root = request
+        .history
+        .policy_bundle
+        .root()
+        .map_err(AuthorityTransactionError::Invalid)?;
+    if payload.frontier_id != request.history.frontier_id
+        || payload.last_trusted_sequence != record_sequence.saturating_sub(1)
+        || payload.last_trusted_authority_record_root != previous_authority_record_root
+        || payload.previous_authority_keyset_root != current_keyset_root
+        || payload.closed_authority_keyset_root != closed_root
+        || payload.policy_bundle_root != current_policy_root
+        || payload.reason != draft.reason
+    {
+        return Err(AuthorityTransactionError::Invalid(
+            "authority close payload does not match the exact terminal transition".into(),
+        ));
     }
     Ok(())
 }
@@ -1481,6 +1563,23 @@ mod tests {
                         }
                     }
                 };
+                action "authority_close" appliesTo {
+                    principal: Human,
+                    resource: Frontier,
+                    context: {
+                        exact: Bool,
+                        authentication: {
+                            method: String,
+                            assurance: String,
+                            authenticated_at: String,
+                            observed_at: String,
+                            expires_at: String,
+                            user_presence: Bool,
+                            user_verification: Bool,
+                            recovery_recent: Bool
+                        }
+                    }
+                };
                 action "policy_rotate" appliesTo {
                     principal: Human,
                     resource: Frontier,
@@ -1643,6 +1742,7 @@ mod tests {
             }],
             previous_keyset_root: None,
             activation_record_root: None,
+            closed: false,
         };
         let policy_bundle = PolicyBundleV1 {
             schema: POLICY_BUNDLE_SCHEMA_V1.into(),
@@ -2095,6 +2195,7 @@ mod tests {
             }],
             previous_keyset_root: Some(fixture.request.history.authority_keyset.root().unwrap()),
             activation_record_root: current.final_authority_record_root.clone(),
+            closed: false,
         };
         let intent = root('a');
         let reason = "Rotate the disposable repository authority.";
@@ -2378,6 +2479,7 @@ mod tests {
             }],
             previous_keyset_root: Some(fixture.request.history.authority_keyset.root().unwrap()),
             activation_record_root: current.final_authority_record_root,
+            closed: false,
         });
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
@@ -2461,6 +2563,167 @@ mod tests {
         assert_eq!(
             replay.final_policy_bundle_root,
             Some(next_policy.root().unwrap())
+        );
+    }
+
+    #[test]
+    fn emergency_close_installs_one_terminal_keyset_and_refuses_continuation() {
+        let fixture = fixture();
+        let current = verified_fixture_history(&fixture);
+        let current_record_root = current.final_authority_record_root.clone().unwrap();
+        let current_keyset_root = fixture.request.history.authority_keyset.root().unwrap();
+        let current_policy_root = fixture.request.history.policy_bundle.root().unwrap();
+        let closed_keyset = AuthorityKeysetV1 {
+            schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
+            frontier_id: FRONTIER_ID.into(),
+            generation: 2,
+            threshold: 0,
+            keys: Vec::new(),
+            previous_keyset_root: Some(current_keyset_root.clone()),
+            activation_record_root: Some(current_record_root.clone()),
+            closed: true,
+        };
+        let reason = "Close future authority after the disposable compromise drill.";
+        let payload = AuthorityCloseV1 {
+            schema: vela_protocol::authority_history::AUTHORITY_CLOSE_SCHEMA_V1.into(),
+            frontier_id: FRONTIER_ID.into(),
+            last_trusted_sequence: 1,
+            last_trusted_authority_record_root: current_record_root,
+            previous_authority_keyset_root: current_keyset_root,
+            closed_authority_keyset_root: closed_keyset.root().unwrap(),
+            policy_bundle_root: current_policy_root.clone(),
+            incident_id: "incident:disposable-close-1".into(),
+            reason: reason.into(),
+        };
+        let intent = root('d');
+        let mut request = fixture.request.clone();
+        request.intent_digest = intent.clone();
+        request.authorization_input.action = AUTHORITY_CLOSE_ACTION.into();
+        request.authorization_input.resource = format!(r#"Frontier::"{FRONTIER_ID}""#);
+        request.semantic_approvals = vec![SemanticApprovalV1 {
+            principal_id: REPOSITORY_PRINCIPAL.into(),
+            role: "frontier_administrator".into(),
+            action: AUTHORITY_CLOSE_ACTION.into(),
+            reason: reason.into(),
+            approved_at: RECORDED_AT.into(),
+            intent_digest: intent,
+        }];
+        request.event_drafts = vec![AuthorityEventDraft {
+            kind: EventKind::Other(AUTHORITY_CLOSED_EVENT_KIND.into()),
+            target: StateTarget {
+                r#type: "frontier".into(),
+                id: FRONTIER_ID.into(),
+            },
+            actor: StateActor {
+                r#type: "human".into(),
+                id: REPOSITORY_PRINCIPAL.into(),
+            },
+            timestamp: RECORDED_AT.into(),
+            reason: reason.into(),
+            before_hash: root('0'),
+            after_hash: root('0'),
+            payload: serde_json::to_value(payload).unwrap(),
+            caveats: Vec::new(),
+        }];
+        request.next_authority_keyset = Some(closed_keyset.clone());
+
+        let mut missing_approval = request.clone();
+        missing_approval.semantic_approvals.clear();
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let error = prepare_authority_transaction(
+            fixture.barrier(),
+            fixture.temporary.path(),
+            missing_approval,
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap_err();
+        assert!(
+            error.to_string().contains("lacks authority_close"),
+            "{error}"
+        );
+        assert_eq!(signer.calls, 0);
+        assert!(prepared_journal_absent(&fixture));
+
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let result = execute_authority_transaction(
+            fixture.barrier(),
+            fixture.temporary.path(),
+            request,
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap();
+        assert_eq!(signer.calls, 1);
+
+        let event: AuthorityEventV1 = serde_json::from_slice(
+            &fs::read(
+                fixture
+                    .temporary
+                    .path()
+                    .join(authority_event_path(&result.event_ids[0])),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let envelope: AuthorityEnvelopeV1 = serde_json::from_slice(
+            &fs::read(
+                fixture
+                    .temporary
+                    .path()
+                    .join(authority_record_path(&result.authority_record_id)),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let mut keysets = fixture.request.history.retained_authority_keysets.clone();
+        keysets.push(closed_keyset.clone());
+        let mut envelopes = fixture.request.history.authority_envelopes.clone();
+        envelopes.push(envelope.clone());
+        let replay = verify_authority_history(AuthorityHistoryInput {
+            frontier_id: FRONTIER_ID,
+            legacy_events: &fixture.request.history.legacy_events,
+            legacy_actor_registry_bytes: &fixture.actor_registry_bytes,
+            legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
+            legacy_policy_store_manifest_root: &fixture
+                .request
+                .history
+                .legacy_policy_store_manifest_root,
+            authority_keysets: &keysets,
+            policy_bundles: &fixture.request.history.retained_policy_bundles,
+            authority_events: std::slice::from_ref(&event),
+            authority_envelopes: &envelopes,
+        })
+        .unwrap();
+        assert!(replay.closed);
+        assert_eq!(replay.closure_event_id, Some(event.id.clone()));
+        assert_eq!(
+            replay.final_authority_keyset_root,
+            Some(closed_keyset.root().unwrap())
+        );
+        assert_eq!(replay.final_policy_bundle_root, Some(current_policy_root));
+
+        envelopes.push(envelope);
+        let error = verify_authority_history(AuthorityHistoryInput {
+            frontier_id: FRONTIER_ID,
+            legacy_events: &fixture.request.history.legacy_events,
+            legacy_actor_registry_bytes: &fixture.actor_registry_bytes,
+            legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
+            legacy_policy_store_manifest_root: &fixture
+                .request
+                .history
+                .legacy_policy_store_manifest_root,
+            authority_keysets: &keysets,
+            policy_bundles: &fixture.request.history.retained_policy_bundles,
+            authority_events: std::slice::from_ref(&event),
+            authority_envelopes: &envelopes,
+        })
+        .unwrap_err();
+        assert!(
+            error.contains("continues after its terminal close"),
+            "{error}"
         );
     }
 

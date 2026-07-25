@@ -9,10 +9,19 @@
 > explicit migration boundary, the released behavior below remains the only
 > live writer and historical verification remains unchanged.
 
-The candidate read side now recognizes the closed
-`vela.authority-model-migration.v1` bridge and verifies contiguous DSSE
-authority-record coverage after it. That verifier exposes no signing command,
-does not read a key, and does not make the proposed Era-1 path a live writer.
+The candidate recognizes the closed `vela.authority-model-migration.v1`
+bridge and verifies contiguous DSSE authority-record coverage after it. A
+CLI-unreachable disposable writer now proves initial installation, ordinary
+transactions, exact keyset and policy rotation, and terminal emergency close
+through the existing recoverable journal. It exposes no signing command,
+does not make the proposed Era-1 path live, and has not migrated an active
+Frontier.
+
+Emergency close is a current-authority transaction, not a recovery bypass. It
+requires the human-only `authority_close` action, installs an empty terminal
+successor keyset, records the exact incident boundary, and makes all later
+authority records invalid. It preserves historical verification and cannot
+reopen the lineage.
 
 The candidate also recognizes stable issuer-subject principals and retained,
 short-lived capability claims for agents and workloads. Those objects contain
