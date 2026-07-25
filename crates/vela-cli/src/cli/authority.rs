@@ -341,7 +341,9 @@ pub(crate) fn cmd_authority_migrate(
             build_protected_request(&locked, &profile).unwrap_or_else(|error| fail_return(&error));
         let response =
             request_legacy_signature(&signer_request).unwrap_or_else(|error| fail_return(&error));
-        let recorded_at = response.approved_at;
+        let recorded_at =
+            canonical_whole_second_time("authority-migration approval", &response.approved_at)
+                .unwrap_or_else(|error| fail_return(&error));
         let mut local_session =
             local_session(&recorded_at).unwrap_or_else(|error| fail_return(&error));
         if local_session.principal_id != locked.plan.new_principal_id {
@@ -1062,6 +1064,16 @@ fn request_legacy_signature(
     Ok(response)
 }
 
+fn canonical_whole_second_time(name: &str, value: &str) -> Result<String, String> {
+    DateTime::parse_from_rfc3339(value)
+        .map(|value| {
+            value
+                .with_timezone(&Utc)
+                .to_rfc3339_opts(SecondsFormat::Secs, true)
+        })
+        .map_err(|error| format!("{name} is not RFC3339: {error}"))
+}
+
 fn local_session(observed_at: &str) -> Result<LocalOsSession, String> {
     let observed = DateTime::parse_from_rfc3339(observed_at)
         .map_err(|error| format!("local session observation time is invalid: {error}"))?
@@ -1383,6 +1395,40 @@ mod tests {
         )
         .unwrap();
         assert_ne!(first.plan.plan_root, changed_key.plan.plan_root);
+    }
+
+    #[test]
+    fn helper_approval_time_is_canonicalized_for_authority_observation() {
+        let recorded_at = canonical_whole_second_time(
+            "authority-migration approval",
+            "2026-07-25T15:42:06.768282000Z",
+        )
+        .unwrap();
+        assert_eq!(recorded_at, "2026-07-25T15:42:06Z");
+        assert_eq!(
+            canonical_whole_second_time(
+                "authority-migration approval",
+                "2026-07-25T11:42:06.768282000-04:00",
+            )
+            .unwrap(),
+            "2026-07-25T15:42:06Z"
+        );
+        assert!(canonical_whole_second_time("authority-migration approval", "not-a-time").is_err());
+
+        let mut session = local_session(&recorded_at).unwrap();
+        let request = AuthenticationRequest {
+            principal_id: session.principal_id.clone(),
+            principal_class: PrincipalClass::Human,
+            transaction_at: recorded_at.clone(),
+        };
+        let observation = vela_authority::runtime_authentication::authenticate_for_transaction(
+            &mut session,
+            &request,
+            &Default::default(),
+        )
+        .unwrap();
+        assert_eq!(observation.authenticated_at, recorded_at);
+        assert_eq!(observation.observed_at, recorded_at);
     }
 
     #[test]

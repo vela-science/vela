@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## v0.930.0-rc.6 — 2026-07-25 — Canonicalize protected migration approval time
+
+- Canonicalize the protected helper's authenticated approval observation to
+  whole-second UTC before authority preflight, matching the closed
+  `vela.authentication-observation.v1` contract.
+- Add a regression for the nanosecond timestamp returned by the macOS helper
+  and prove that the resulting local authentication observation validates
+  without weakening the fail-closed transaction boundary.
+- Preserve the rc.5 Target Index compatibility and all pre-migration history.
+
 ## v0.930.0-rc.5 — 2026-07-25 — Restore historical Target Index inspection
 
 - Preserve bounded, unique Target Index v1 labels in their historical byte
