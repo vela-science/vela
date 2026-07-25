@@ -200,7 +200,7 @@ pub(crate) struct PreparedDecision {
     /// honest CLI/publication identity for the decision itself.
     pub(crate) appended_event_ids: Vec<String>,
     candidate: Project,
-    mutations: Vec<DecisionMutation>,
+    mutations: Vec<vela_protocol::proposals::PreparedDecisionMutation>,
     saved_answers: Vec<SavedAnswer>,
     reviewer_id: String,
     reviewer_public_key: String,
@@ -217,28 +217,6 @@ pub(crate) struct PreparedSignatureSet {
     pub(crate) reviewer_id: String,
     pub(crate) reviewer_public_key: String,
     pub(crate) events: Vec<vela_protocol::events::StateEvent>,
-}
-
-/// One exact mutation prepared by this private, recoverable Decision Plan.
-///
-/// Ordinary proposal mutations remain protocol-owned. Legacy policy
-/// retirement is intentionally CLI-local: its accepted review event and the
-/// fixed Authority-file deletions must never be separable through a public
-/// protocol preparation API.
-#[derive(Debug)]
-enum DecisionMutation {
-    Protocol(vela_protocol::proposals::PreparedDecisionMutation),
-    LegacyRetirement(LegacyRetirementMutation),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct LegacyRetirementMutation {
-    proposal_id: String,
-    reviewer: String,
-    decision_event_id: String,
-    first_event: usize,
-    event_count_after: usize,
-    decision_root: Option<String>,
 }
 
 #[derive(Debug)]
@@ -695,10 +673,6 @@ where
     )
     .map_err(DecisionPlanError::transaction)?;
     writes.push(canonical_decision_evidence_write(&prepared.plan)?);
-    writes.extend(legacy_retirement_delete_writes(
-        &prepared.candidate,
-        &prepared.plan.ordered_answers,
-    )?);
     let draft = DeltaDraft::prepare(frontier, writes).map_err(DecisionPlanError::transaction)?;
     let layout = vela_protocol::canonical::to_canonical_bytes(&json!({
         "schema": "vela.frontier-layout.internal.v1",
@@ -1083,57 +1057,21 @@ fn build_from_snapshot(
                     format!("proposal {} disappeared", answer.proposal_id),
                 )
             })?;
-        if answer.action == DecisionAction::Accept
-            && proposal_kind
-                == vela_protocol::proposals::policy_accept::LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND
-        {
-            let proposal = candidate
-                .proposals
-                .iter()
-                .find(|proposal| proposal.id == answer.proposal_id)
-                .expect("proposal kind came from the same candidate");
-            crate::config::policy_legacy_retirement::audit_legacy_policy_retirement(
-                frontier, &candidate, proposal,
-            )
-            .map_err(|error| DecisionPlanError::new("legacy_retirement_unavailable", error))?;
-        }
         let first_event = candidate.events.len();
         let mutation = match answer.action {
             DecisionAction::Accept => {
                 accepted_kinds.push(proposal_kind.clone());
-                if proposal_kind
-                    == vela_protocol::proposals::policy_accept::LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND
-                {
-                    DecisionMutation::LegacyRetirement(
-                        prepare_legacy_retirement_mutation(
-                            &mut candidate,
-                            &answer.proposal_id,
-                            reviewer,
-                            &answer.reason,
-                            provenance,
-                            decided_at,
-                        )
-                        .map_err(|error| {
-                            DecisionPlanError::new("proposal_prepare_failed", error)
-                        })?,
-                    )
-                } else {
-                    DecisionMutation::Protocol(
-                        vela_protocol::proposals::prepare_proposal_accept_in_memory_at(
-                            &mut candidate,
-                            &answer.proposal_id,
-                            reviewer,
-                            &answer.reason,
-                            provenance,
-                            decided_at,
-                        )
-                        .map_err(|error| {
-                            DecisionPlanError::new("proposal_prepare_failed", error)
-                        })?,
-                    )
-                }
+                vela_protocol::proposals::prepare_proposal_accept_in_memory_at(
+                    &mut candidate,
+                    &answer.proposal_id,
+                    reviewer,
+                    &answer.reason,
+                    provenance,
+                    decided_at,
+                )
+                .map_err(|error| DecisionPlanError::new("proposal_prepare_failed", error))?
             }
-            DecisionAction::Reject => DecisionMutation::Protocol(
+            DecisionAction::Reject => {
                 vela_protocol::proposals::prepare_proposal_reject_in_memory_at(
                     &mut candidate,
                     &answer.proposal_id,
@@ -1142,8 +1080,8 @@ fn build_from_snapshot(
                     provenance,
                     decided_at,
                 )
-                .map_err(|error| DecisionPlanError::new("proposal_prepare_failed", error))?,
-            ),
+                .map_err(|error| DecisionPlanError::new("proposal_prepare_failed", error))?
+            }
         };
         let appended = candidate.events.get(first_event..).ok_or_else(|| {
             DecisionPlanError::new("proposal_prepare_failed", "invalid appended event range")
@@ -1231,20 +1169,12 @@ fn build_from_snapshot(
     };
     plan.decision_root = decision_plan_root(&plan)?;
     for mutation in &mut mutations {
-        match mutation {
-            DecisionMutation::Protocol(mutation) => {
-                vela_protocol::proposals::bind_decision_root_to_prepared(
-                    &mut candidate,
-                    mutation,
-                    &plan.decision_root,
-                )
-                .map_err(|error| DecisionPlanError::new("decision_bind_failed", error))?;
-            }
-            DecisionMutation::LegacyRetirement(mutation) => {
-                bind_legacy_retirement_mutation(&mut candidate, mutation, &plan.decision_root)
-                    .map_err(|error| DecisionPlanError::new("decision_bind_failed", error))?;
-            }
-        }
+        vela_protocol::proposals::bind_decision_root_to_prepared(
+            &mut candidate,
+            mutation,
+            &plan.decision_root,
+        )
+        .map_err(|error| DecisionPlanError::new("decision_bind_failed", error))?;
     }
     let appended_event_ids = candidate.events[project.events.len()..]
         .iter()
@@ -1468,211 +1398,20 @@ fn normalize_event_core(event: &vela_protocol::events::StateEvent) -> serde_json
     event
 }
 
-/// Prepare the only accepted-state mutation that also requires deleting
-/// fixed governance files. Keeping this helper private to `decision_plan`
-/// prevents protocol consumers from separating the signed review event from
-/// the recoverable Authority-file transaction.
-fn prepare_legacy_retirement_mutation(
-    project: &mut Project,
-    proposal_id: &str,
-    reviewer: &str,
-    reason: &str,
-    provenance: Option<&vela_protocol::provenance::Provenance>,
-    decided_at: &str,
-) -> Result<LegacyRetirementMutation, String> {
-    if reason.trim().is_empty() {
-        return Err("legacy-policy retirement requires a non-empty decision reason".to_string());
-    }
-    if !(reviewer.starts_with("reviewer:") || reviewer.starts_with("steward:")) {
-        return Err("legacy-policy retirement requires a reviewer:/steward: actor".to_string());
-    }
-    vela_protocol::proposals::validate_human_reviewer_authority_at(project, reviewer, decided_at)?;
-
-    let mut candidate = clone_project_for_legacy_mutation(project)?;
-    let matches = candidate
-        .proposals
-        .iter()
-        .enumerate()
-        .filter(|(_, proposal)| proposal.id == proposal_id)
-        .collect::<Vec<_>>();
-    if matches.len() != 1 {
-        return Err(format!(
-            "legacy-policy retirement proposal {proposal_id} is missing or duplicated"
-        ));
-    }
-    let index = matches[0].0;
-    let proposal = candidate.proposals[index].clone();
-    vela_protocol::proposals::policy_accept::validate_legacy_policy_retirement_proposal(
-        &candidate, &proposal,
-    )?;
-    if proposal.status != "pending_review" || proposal.applied_event_id.is_some() {
-        return Err(format!(
-            "legacy-policy retirement proposal {proposal_id} must be pending_review and unapplied"
-        ));
-    }
-
-    let first_event = candidate.events.len();
-    let mut event = vela_protocol::events::new_review_decision_event(
-        &proposal.id,
-        &proposal.kind,
-        "accepted",
-        None,
-        reviewer,
-        reason,
-        Some(decided_at),
-    )?;
-    if let Some(provenance) = provenance
-        && !provenance.is_empty()
-    {
-        vela_protocol::provenance::attach_to_payload(&mut event.payload, provenance)?;
-        event.id = vela_protocol::events::compute_event_id(&event);
-    }
-    let decision_event_id = event.id.clone();
-    candidate.events.push(event);
-    candidate.proposals[index].status = "applied".to_string();
-    candidate.proposals[index].reviewed_by = Some(reviewer.to_string());
-    candidate.proposals[index].reviewed_at = Some(decided_at.to_string());
-    candidate.proposals[index].decision_reason = Some(reason.to_string());
-    candidate.proposals[index].applied_event_id = Some(decision_event_id.clone());
-    vela_protocol::proposals::mark_proof_stale(
-        &mut candidate,
-        format!("Accepted legacy-policy retirement proposal {proposal_id}"),
-    );
-    // This governance-only review event changes no scientific source,
-    // evidence, or condition projection. Re-materializing those projections
-    // here is not a no-op for older frontiers whose persisted source records
-    // predate current source merging: it can silently coalesce source
-    // associations in the in-memory candidate, while a clean reload derives
-    // the pre-existing associations from findings. The transaction would then
-    // write a frontier/lock snapshot that immediately fails parity after the
-    // policy bytes are removed. Preserve every scientific projection byte and
-    // update only the aggregate counters affected by the appended review event.
-    vela_protocol::project::recompute_stats(&mut candidate);
-
-    let mutation = LegacyRetirementMutation {
-        proposal_id: proposal_id.to_string(),
-        reviewer: reviewer.to_string(),
-        decision_event_id,
-        first_event,
-        event_count_after: candidate.events.len(),
-        decision_root: None,
-    };
-    validate_legacy_retirement_mutation(&candidate, &mutation, true)?;
-    *project = candidate;
-    Ok(mutation)
-}
-
-fn bind_legacy_retirement_mutation(
-    project: &mut Project,
-    mutation: &mut LegacyRetirementMutation,
-    decision_root: &str,
-) -> Result<(), String> {
-    vela_protocol::provenance::decision_root_input_ref(decision_root)?;
-    match mutation.decision_root.as_deref() {
-        Some(existing) if existing == decision_root => {
-            return validate_legacy_retirement_mutation(project, mutation, true);
-        }
-        Some(_) => {
-            return Err(
-                "legacy retirement mutation is already bound; rebuild before changing the root"
-                    .to_string(),
-            );
-        }
-        None => {}
-    }
-
-    let mut candidate = clone_project_for_legacy_mutation(project)?;
-    let mut candidate_mutation = mutation.clone();
-    validate_legacy_retirement_mutation(&candidate, &candidate_mutation, true)?;
-    let event = candidate
-        .events
-        .get_mut(candidate_mutation.first_event)
-        .ok_or_else(|| "legacy retirement decision event range is invalid".to_string())?;
-    let old_event_id = event.id.clone();
-    let mut bound_provenance = event
-        .payload
-        .get("provenance")
-        .cloned()
-        .map(serde_json::from_value::<vela_protocol::provenance::Provenance>)
-        .transpose()
-        .map_err(|error| format!("legacy retirement provenance is invalid: {error}"))?
-        .unwrap_or_default();
-    bound_provenance.bind_decision_root(decision_root)?;
-    vela_protocol::provenance::attach_to_payload(&mut event.payload, &bound_provenance)?;
-    event.id = vela_protocol::events::compute_event_id(event);
-    let new_event_id = event.id.clone();
-    if candidate
-        .events
-        .iter()
-        .enumerate()
-        .any(|(index, other)| index != candidate_mutation.first_event && other.id == new_event_id)
-    {
-        return Err(format!(
-            "legacy retirement decision-root binding collides with event {new_event_id}"
-        ));
-    }
-    let proposal = candidate
-        .proposals
-        .iter_mut()
-        .find(|proposal| proposal.id == candidate_mutation.proposal_id)
-        .ok_or_else(|| {
-            format!(
-                "legacy-policy retirement proposal {} disappeared",
-                candidate_mutation.proposal_id
-            )
-        })?;
-    if proposal.applied_event_id.as_deref() != Some(old_event_id.as_str()) {
-        return Err(
-            "legacy retirement proposal no longer points at its prepared event".to_string(),
-        );
-    }
-    proposal.applied_event_id = Some(new_event_id.clone());
-    candidate_mutation.decision_event_id = new_event_id;
-    candidate_mutation.decision_root = Some(decision_root.to_string());
-    validate_legacy_retirement_mutation(&candidate, &candidate_mutation, true)?;
-    *project = candidate;
-    *mutation = candidate_mutation;
-    Ok(())
-}
-
 fn prepared_external_signing_events(
     prepared: &PreparedDecision,
 ) -> Result<Vec<vela_protocol::events::StateEvent>, DecisionPlanError> {
     let mut events = Vec::new();
     for mutation in &prepared.mutations {
-        match mutation {
-            DecisionMutation::Protocol(mutation) => events.extend(
-                vela_protocol::proposals::validate_prepared_decision_for_external_signing(
-                    &prepared.candidate,
-                    mutation,
-                    &prepared.reviewer_id,
-                    true,
-                )
-                .map_err(|error| DecisionPlanError::new("signing_failed", error))?,
-            ),
-            DecisionMutation::LegacyRetirement(mutation) => {
-                if mutation.reviewer != prepared.reviewer_id || mutation.decision_root.is_none() {
-                    return Err(DecisionPlanError::new(
-                        "signing_failed",
-                        "legacy retirement signing material is unbound or has the wrong reviewer",
-                    ));
-                }
-                validate_legacy_retirement_mutation(&prepared.candidate, mutation, true)
-                    .map_err(|error| DecisionPlanError::new("signing_failed", error))?;
-                let event = prepared
-                    .candidate
-                    .events
-                    .get(mutation.first_event)
-                    .expect("legacy mutation invariant validates its event range");
-                vela_protocol::proposals::validate_human_reviewer_authority_at(
-                    &prepared.candidate,
-                    &prepared.reviewer_id,
-                    &event.timestamp,
-                )
-                .map_err(|error| DecisionPlanError::new("reviewer_unauthorized", error))?;
-                events.push(event.clone());
-            }
-        }
+        events.extend(
+            vela_protocol::proposals::validate_prepared_decision_for_external_signing(
+                &prepared.candidate,
+                mutation,
+                &prepared.reviewer_id,
+                true,
+            )
+            .map_err(|error| DecisionPlanError::new("signing_failed", error))?,
+        );
     }
     let event_ids = events
         .iter()
@@ -1696,161 +1435,15 @@ fn validate_prepared_external_signatures(
     prepared: &PreparedDecision,
 ) -> Result<(), DecisionPlanError> {
     for mutation in &prepared.mutations {
-        match mutation {
-            DecisionMutation::Protocol(mutation) => {
-                vela_protocol::proposals::validate_prepared_decision_for_external_signing(
-                    &prepared.candidate,
-                    mutation,
-                    &prepared.reviewer_id,
-                    false,
-                )
-                .map_err(|error| DecisionPlanError::new("signing_failed", error))?;
-            }
-            DecisionMutation::LegacyRetirement(mutation) => {
-                validate_legacy_retirement_mutation(&prepared.candidate, mutation, false)
-                    .map_err(|error| DecisionPlanError::new("signing_failed", error))?;
-            }
-        }
+        vela_protocol::proposals::validate_prepared_decision_for_external_signing(
+            &prepared.candidate,
+            mutation,
+            &prepared.reviewer_id,
+            false,
+        )
+        .map_err(|error| DecisionPlanError::new("signing_failed", error))?;
     }
     Ok(())
-}
-
-fn clone_project_for_legacy_mutation(project: &Project) -> Result<Project, String> {
-    serde_json::from_value(serde_json::to_value(project).map_err(|error| error.to_string())?)
-        .map_err(|error| error.to_string())
-}
-
-fn validate_legacy_retirement_mutation(
-    project: &Project,
-    mutation: &LegacyRetirementMutation,
-    require_unsigned: bool,
-) -> Result<(), String> {
-    if mutation.event_count_after != mutation.first_event + 1
-        || mutation.event_count_after > project.events.len()
-    {
-        return Err("legacy retirement decision event range is not exact".to_string());
-    }
-    let event = &project.events[mutation.first_event];
-    if event.id != mutation.decision_event_id
-        || event.id != vela_protocol::events::compute_event_id(event)
-    {
-        return Err("legacy retirement decision event id does not rederive".to_string());
-    }
-    if project
-        .events
-        .iter()
-        .filter(|candidate| candidate.id == event.id)
-        .count()
-        != 1
-    {
-        return Err("legacy retirement decision event id is not globally unique".to_string());
-    }
-    if require_unsigned && event.signature.is_some() {
-        return Err("legacy retirement decision event is already signed".to_string());
-    }
-    if event.kind != vela_protocol::events::EVENT_KIND_REVIEW_ACCEPTED
-        || event.target.r#type != "proposal"
-        || event.target.id != mutation.proposal_id
-        || event.actor.id != mutation.reviewer
-        || event.actor.r#type != vela_protocol::events::actor_kind(&mutation.reviewer)
-    {
-        return Err("legacy retirement decision event identity is inconsistent".to_string());
-    }
-    if event
-        .payload
-        .get("proposal_id")
-        .and_then(serde_json::Value::as_str)
-        != Some(mutation.proposal_id.as_str())
-        || event
-            .payload
-            .get("proposal_kind")
-            .and_then(serde_json::Value::as_str)
-            != Some(vela_protocol::proposals::policy_accept::LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND)
-        || event
-            .payload
-            .get("verdict")
-            .and_then(serde_json::Value::as_str)
-            != Some("accepted")
-    {
-        return Err("legacy retirement decision event payload is inconsistent".to_string());
-    }
-
-    let root_refs = legacy_retirement_decision_root_refs(event)?;
-    match mutation.decision_root.as_deref() {
-        None if root_refs.is_empty() => {}
-        None => {
-            return Err(
-                "unbound legacy retirement decision carries a decision-root reference".to_string(),
-            );
-        }
-        Some(root) => {
-            let expected = vela_protocol::provenance::decision_root_input_ref(root)?;
-            if root_refs != [expected] {
-                return Err(
-                    "bound legacy retirement decision must carry one exact decision-root reference"
-                        .to_string(),
-                );
-            }
-        }
-    }
-
-    let proposals = project
-        .proposals
-        .iter()
-        .filter(|proposal| proposal.id == mutation.proposal_id)
-        .collect::<Vec<_>>();
-    if proposals.len() != 1 {
-        return Err(format!(
-            "legacy-policy retirement proposal {} is missing or duplicated",
-            mutation.proposal_id
-        ));
-    }
-    let proposal = proposals[0];
-    if proposal.kind
-        != vela_protocol::proposals::policy_accept::LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND
-        || proposal.status != "applied"
-        || proposal.applied_event_id.as_deref() != Some(event.id.as_str())
-        || proposal.reviewed_by.as_deref() != Some(mutation.reviewer.as_str())
-        || proposal.reviewed_at.as_deref() != Some(event.timestamp.as_str())
-    {
-        return Err("legacy retirement proposal state is inconsistent".to_string());
-    }
-    Ok(())
-}
-
-fn legacy_retirement_decision_root_refs(
-    event: &vela_protocol::events::StateEvent,
-) -> Result<Vec<String>, String> {
-    let Some(provenance) = event.payload.get("provenance") else {
-        return Ok(Vec::new());
-    };
-    let object = provenance
-        .as_object()
-        .ok_or_else(|| "legacy retirement event provenance must be an object".to_string())?;
-    let Some(input_refs) = object.get("input_refs") else {
-        return Ok(Vec::new());
-    };
-    let input_refs = input_refs
-        .as_array()
-        .ok_or_else(|| "legacy retirement provenance input_refs must be an array".to_string())?;
-    input_refs
-        .iter()
-        .map(|reference| {
-            reference
-                .as_str()
-                .ok_or_else(|| {
-                    "legacy retirement provenance input_refs must contain strings".to_string()
-                })
-                .map(ToString::to_string)
-        })
-        .collect::<Result<Vec<_>, _>>()
-        .map(|refs| {
-            refs.into_iter()
-                .filter(|reference| {
-                    reference.starts_with(vela_protocol::provenance::DECISION_ROOT_INPUT_REF_PREFIX)
-                })
-                .collect()
-        })
 }
 
 fn decision_plan_root(plan: &DecisionPlan) -> Result<String, DecisionPlanError> {
@@ -2021,20 +1614,6 @@ fn decision_read_set(
                     format!("proposal {} disappeared", answer.proposal_id),
                 )
             })?;
-        if crate::config::policy_legacy_retirement::is_legacy_policy_retirement(proposal) {
-            for path in crate::config::policy_legacy_retirement::legacy_retirement_paths(proposal)
-                .map_err(|error| DecisionPlanError::new("legacy_retirement_invalid", error))?
-                .observed_paths
-            {
-                read_set.push(
-                    InputBinding::current_file(
-                        frontier,
-                        RepoPath::parse(path).map_err(DecisionPlanError::transaction)?,
-                    )
-                    .map_err(DecisionPlanError::transaction)?,
-                );
-            }
-        }
         let Some(path) = proposal
             .payload
             .pointer("/vela_submission/receipt_path")
@@ -2059,46 +1638,6 @@ fn decision_read_set(
     read_set.sort_by(|left, right| left.name.cmp(&right.name));
     read_set.dedup_by(|left, right| left.name == right.name && left.digest == right.digest);
     Ok(read_set)
-}
-
-fn legacy_retirement_delete_writes(
-    project: &Project,
-    answers: &[DecisionAnswer],
-) -> Result<Vec<PlannedWrite>, DecisionPlanError> {
-    let mut paths = BTreeSet::new();
-    for answer in answers
-        .iter()
-        .filter(|answer| answer.action == DecisionAction::Accept)
-    {
-        let proposal = project
-            .proposals
-            .iter()
-            .find(|proposal| proposal.id == answer.proposal_id)
-            .ok_or_else(|| {
-                DecisionPlanError::new(
-                    "decision_stale",
-                    format!("proposal {} disappeared", answer.proposal_id),
-                )
-            })?;
-        if !crate::config::policy_legacy_retirement::is_legacy_policy_retirement(proposal) {
-            continue;
-        }
-        for path in crate::config::policy_legacy_retirement::legacy_retirement_paths(proposal)
-            .map_err(|error| DecisionPlanError::new("legacy_retirement_invalid", error))?
-            .delete_paths
-        {
-            paths.insert(path);
-        }
-    }
-    paths
-        .into_iter()
-        .map(|path| {
-            Ok(PlannedWrite::delete(
-                RepoPath::parse(path).map_err(DecisionPlanError::transaction)?,
-                WriteClass::Authority,
-            ))
-        })
-        .collect()
 }
 
 fn safe_receipt_path(path: &str) -> bool {
@@ -2649,7 +2188,6 @@ mod tests {
             revoked_at: None,
             revoked_reason: None,
         });
-        vela_protocol::repo::save_to_path(temp.path(), &project).unwrap();
         let policy = format!(
             "{{\"schema\":\"vela.acceptance_policy.prelaunch\",\"id\":\"{POLICY_ID}\",\"legacy\":true}}\n"
         );
@@ -2666,97 +2204,74 @@ mod tests {
         ] {
             std::fs::write(policies.join(name), bytes).unwrap();
         }
-        let prepared =
-            crate::config::policy_legacy_retirement::prepare_legacy_policy_retirement_at(
-                temp.path(),
-                "retire unsupported prelaunch bytes",
-                "agent:test",
-                "2026-07-14T10:00:00Z",
+        let observed = vela_protocol::acceptance_policy::observe_legacy_policy_pair_bytes(
+            policy.as_bytes(),
+            signature.as_bytes(),
+        )
+        .unwrap();
+        let proposal = vela_protocol::proposals::new_proposal_at(
+            vela_protocol::proposals::policy_accept::LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND,
+            vela_protocol::events::StateTarget {
+                r#type: "governance".to_string(),
+                id: project.frontier_id().to_string(),
+            },
+            "agent:test",
+            "agent",
+            "retained prelaunch retirement compatibility fixture",
+            serde_json::to_value(
+                vela_protocol::proposals::policy_accept::LegacyPolicyRetirementPayload {
+                    schema:
+                        vela_protocol::proposals::policy_accept::LEGACY_POLICY_RETIREMENT_SCHEMA
+                            .to_string(),
+                    policy_id: observed.stored_policy_id,
+                    policy_bytes_root: observed.policy_bytes_root,
+                    signature_bytes_root: observed.signature_bytes_root,
+                    retire_identical_snapshot_pair: true,
+                },
             )
-            .unwrap();
-        let snapshot =
-            ReviewProjection::one_at(temp.path(), &prepared.proposal_id, DECIDED_AT).unwrap();
-        assert!(snapshot.brief.accept_ready(), "{:#?}", snapshot.brief);
+            .unwrap(),
+            Vec::new(),
+            vec!["Historical compatibility fixture; acceptance is retired.".to_string()],
+            "2026-07-14T10:00:00Z",
+        );
+        let proposal_id = proposal.id.clone();
+        vela_protocol::proposals::insert_pending_in_frontier(&mut project, proposal).unwrap();
+        vela_protocol::repo::save_to_path(temp.path(), &project).unwrap();
+        let snapshot = ReviewProjection::one_at(temp.path(), &proposal_id, DECIDED_AT).unwrap();
+        assert!(!snapshot.brief.accept_ready(), "{:#?}", snapshot.brief);
+        assert!(snapshot.brief.reject_ready(), "{:#?}", snapshot.brief);
         let answer = SavedAnswer {
-            proposal_id: prepared.proposal_id,
+            proposal_id,
             proposal_root: snapshot.decision_bindings.proposal_root,
             seen_decision_facts_root: snapshot.brief.audit.decision_facts_root,
             action: DecisionAction::Accept,
-            reason: "The legacy pair is unused and blocks current policy parsing".to_string(),
+            reason: "Attempting a retired legacy acceptance path".to_string(),
         };
         (temp, key, answer)
     }
 
     #[test]
-    fn isolated_human_decision_atomically_retires_only_the_bound_legacy_pair() {
-        let (temp, key, answer) = legacy_retirement_decision_fixture();
-        let proposal_id = answer.proposal_id.clone();
-        let confirmed =
-            build_unlocked(temp.path(), &[answer], "reviewer:test", DECIDED_AT, None).unwrap();
-        let expected_candidate = clone_project_for_legacy_mutation(&confirmed.candidate).unwrap();
+    fn legacy_retirement_acceptance_is_retired_before_key_access() {
+        let (temp, _key, answer) = legacy_retirement_decision_fixture();
         let key_reads = Cell::new(0usize);
-        execute_with_key_loader(temp.path(), &confirmed, || {
-            key_reads.set(key_reads.get() + 1);
-            Ok(key.clone())
-        })
-        .unwrap();
-        assert_eq!(key_reads.get(), 1);
+        let error =
+            build_unlocked(temp.path(), &[answer], "reviewer:test", DECIDED_AT, None).unwrap_err();
+        assert_eq!(error.code, "action_unavailable");
+        assert_eq!(key_reads.get(), 0);
         for path in [
             ".vela/policies/active.json",
             ".vela/policies/active.sig.json",
             ".vela/policies/vap_e0abc750544408e637bd90e0661bac15.json",
             ".vela/policies/vap_e0abc750544408e637bd90e0661bac15.sig.json",
         ] {
-            assert!(!temp.path().join(path).exists(), "{path} should be retired");
+            assert!(
+                temp.path().join(path).exists(),
+                "{path} must remain untouched"
+            );
         }
         let project = vela_protocol::repo::load_from_path(temp.path()).unwrap();
-        let proposal = project
-            .proposals
-            .iter()
-            .find(|proposal| proposal.id == proposal_id)
-            .unwrap();
-        assert_eq!(proposal.status, "applied");
-        let decision = project
-            .events
-            .iter()
-            .find(|event| proposal.applied_event_id.as_deref() == Some(event.id.as_str()))
-            .unwrap();
-        assert_eq!(
-            decision.kind.as_str(),
-            vela_protocol::events::EVENT_KIND_REVIEW_ACCEPTED
-        );
-        assert!(decision.signature.is_some());
-        assert!(vela_protocol::proposals::verify_proposal_decision_parity(&project).is_empty());
-        assert!(
-            vela_protocol::proposals::policy_accept::current_policy_head(&project)
-                .unwrap()
-                .is_none()
-        );
-        assert_eq!(
-            vela_protocol::acceptance_policy::load_active_policy_snapshot(temp.path())
-                .unwrap()
-                .mode,
-            vela_protocol::acceptance_policy::ActivePolicyMode::Absent
-        );
-        let expected = serde_json::to_value(expected_candidate).unwrap();
-        let actual = serde_json::to_value(&project).unwrap();
-        let differing_keys = expected
-            .as_object()
-            .unwrap()
-            .iter()
-            .filter_map(|(key, expected_value)| {
-                (actual.get(key) != Some(expected_value)).then_some(key.as_str())
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(
-            vela_protocol::events::snapshot_hash(&project),
-            vela_protocol::events::snapshot_hash(&confirmed.candidate),
-            "reloaded decision state differs in top-level fields: {differing_keys:?}"
-        );
-        assert!(
-            vela_protocol::frontier_repo::layout_issues(temp.path(), &project).is_empty(),
-            "signed retirement must leave visible state and lock materialized"
-        );
+        assert_eq!(project.proposals[0].status, "pending_review");
+        assert!(project.events.len() == 2);
     }
 
     #[test]
@@ -2780,38 +2295,6 @@ mod tests {
         let project = vela_protocol::repo::load_from_path(temp.path()).unwrap();
         assert_eq!(project.proposals[0].status, "rejected");
         assert!(vela_protocol::proposals::verify_proposal_decision_parity(&project).is_empty());
-    }
-
-    #[test]
-    fn legacy_byte_drift_aborts_before_key_access_and_deletes_nothing() {
-        let (temp, key, answer) = legacy_retirement_decision_fixture();
-        let confirmed =
-            build_unlocked(temp.path(), &[answer], "reviewer:test", DECIDED_AT, None).unwrap();
-        let snapshot = temp
-            .path()
-            .join(".vela/policies/vap_e0abc750544408e637bd90e0661bac15.sig.json");
-        std::fs::write(&snapshot, b"drift").unwrap();
-        let key_reads = Cell::new(0usize);
-        let error = execute_with_key_loader(temp.path(), &confirmed, || {
-            key_reads.set(key_reads.get() + 1);
-            Ok(key.clone())
-        })
-        .unwrap_err();
-        assert_eq!(key_reads.get(), 0, "drift must abort before key loading");
-        assert!(
-            matches!(
-                error.code,
-                "decision_stale"
-                    | "answer_invalidated"
-                    | "legacy_retirement_unavailable"
-                    | "decision_inputs_unstable"
-            ),
-            "{error}"
-        );
-        assert!(temp.path().join(".vela/policies/active.json").exists());
-        assert!(temp.path().join(".vela/policies/active.sig.json").exists());
-        let project = vela_protocol::repo::load_from_path(temp.path()).unwrap();
-        assert_eq!(project.proposals[0].status, "pending_review");
     }
 
     #[test]

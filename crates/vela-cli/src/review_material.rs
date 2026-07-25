@@ -1179,21 +1179,14 @@ fn build_review_item(
         .map_err(|error| ReviewProjectionError::new("decision_brief_invariant", error))
     };
 
-    if crate::config::policy_legacy_retirement::is_legacy_policy_retirement(proposal) {
-        return match crate::config::policy_legacy_retirement::audit_legacy_policy_retirement(
-            frontier, project, proposal,
-        ) {
-            Ok(_) => build(vela_edge::decision_brief::ReviewRoute::human_only(
-                policy_facts,
-                "legacy_policy_retirement",
-                "retiring unsupported prelaunch policy bytes requires an isolated explicit human decision",
-            )),
-            Err(error) => build(vela_edge::decision_brief::ReviewRoute::unavailable(
-                policy_facts,
-                "legacy_policy_retirement_broken",
-                &error,
-            )),
-        };
+    if proposal.kind
+        == vela_protocol::proposals::policy_accept::LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND
+    {
+        return build(vela_edge::decision_brief::ReviewRoute::unavailable(
+            policy_facts,
+            "legacy_policy_retirement_retired",
+            "prelaunch policy retirement is retained for replay only; acceptance is retired and rejection remains available",
+        ));
     }
 
     let Ok(snapshot) = policy_snapshot else {
