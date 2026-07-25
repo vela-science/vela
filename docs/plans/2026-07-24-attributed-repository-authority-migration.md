@@ -54,8 +54,9 @@ rebinds, or agent self-approval.
 
 | Release | Gate | Outcome |
 | --- | --- | --- |
-| Vela `v0.930.0-rc.1` | contract, dual verifier, Cedar shadow equivalence, fixture writer | first complete candidate; no active Frontier migration |
-| Vela `v0.930.0-rc.2` | one disposable and one low-risk active Frontier | single-new-writer proof and recovery exercise |
+| Vela `v0.930.0-rc.1` | contract, dual verifier, Cedar shadow equivalence, fixture writer | failed immutable candidate: live replay exposed a feature-dependent source commitment |
+| Vela `v0.930.0-rc.2` | canonical commitment fix, dual feature-graph regression, live read-only Frontier replay | corrected complete candidate; no active Frontier migration |
+| Vela `v0.930.0-rc.3` | one disposable and one low-risk active Frontier | single-new-writer proof and recovery exercise |
 | Vela `v0.930.0` | every active Frontier migrated; legacy writers and helper deleted | breaking pre-1.0 authority simplification |
 | Canopus `v0.7.0` | released Vela capability profile and zero-prompt producer run | replace long-lived producer keys with short-lived grants |
 | Vela Web `v0.430.0` | exact new authority history available read-only | render attribution, authorization, verification, and standing separately |
@@ -316,7 +317,7 @@ provider, and the old key is not used after activation.
 
 This closes the writer-composition gate.
 
-Progress evidence, 2026-07-24: the `0.930.0-rc.1` source candidate now exposes
+Progress evidence, 2026-07-24: the `0.930.0-rc.2` source candidate exposes
 one temporary migration-only product seam. `vela authority migrate` derives a
 write-free plan from clean `main`, exact Git and Vela history, the retained
 legacy policy store, one issuer-subject local principal, a single exact
@@ -332,6 +333,14 @@ The composed Git fixture found and closed two defects before active use:
 - valid historical JSON event files are compared by typed canonical meaning
   while their exact existing bytes are bound and retained, so migration never
   normalizes old history.
+
+The first published candidate was then exercised read-only against the active
+Frontiers. That audit found a third defect before any migration: one synthetic
+source commitment hashed ordinary `serde_json` object bytes, so Cargo feature
+unification in the full CLI changed historical source IDs and an anchored
+snapshot root. `rc.2` uses Vela canonical JSON for that identity preimage and
+pins the same commitment under both the narrow protocol crate and the full CLI
+feature graph. `rc.1` remains an immutable failed candidate.
 
 Focused tests prove stable key-free planning, reason and repository-key
 binding, dirty and pre-existing-authority refusal, cancellation before custody

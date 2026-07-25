@@ -11,6 +11,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 use crate::bundle::{FindingBundle, Provenance};
+use crate::canonical;
 use crate::project::Project;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -469,7 +470,13 @@ fn derived_local_source_hash(
         "extracted_at": finding.provenance.extraction.extracted_at,
         "extractor_version": finding.provenance.extraction.extractor_version,
     });
-    let bytes = serde_json::to_vec(&preimage).expect("source commitment is serializable");
+    // Source commitments are protocol identities. Ordinary `serde_json`
+    // object bytes vary when another dependency enables its `preserve_order`
+    // feature, so the same finding could acquire a different source ID in the
+    // product CLI than in a reusable-library consumer. Canonical JSON makes
+    // the preimage independent of Cargo feature unification and map order.
+    let bytes = canonical::to_canonical_bytes(&preimage)
+        .expect("source commitment is canonically serializable");
     Some(format!("sha256:{}", hex::encode(Sha256::digest(bytes))))
 }
 
@@ -1122,13 +1129,11 @@ mod tests {
         let record = source_record_for_finding(&finding);
 
         assert_eq!(record.source_type, "synthetic_report");
-        assert!(
-            record
-                .content_hash
-                .as_deref()
-                .is_some_and(|hash| hash.starts_with("sha256:") && hash.len() == 71)
+        assert_eq!(
+            record.content_hash.as_deref(),
+            Some("sha256:e19b1285f2e3757335079ff945e62f387b6edfa08b517b99402e9425eed97987")
         );
-        assert!(record.id.starts_with("vs_"));
+        assert_eq!(record.id, "vs_cf51972d2d6fe9d7");
     }
 
     #[test]

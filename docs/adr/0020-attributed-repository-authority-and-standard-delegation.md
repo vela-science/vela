@@ -794,7 +794,7 @@ policy, and closed authority. This closes the disposable Frontier writer gate.
 It does not accept this ADR, migrate an active Frontier, or remove Era-0
 replay.
 
-The subsequent `0.930.0-rc.1` source slice exposes only sequence 1 through
+The subsequent `0.930.0-rc.2` source slice exposes only sequence 1 through
 `vela authority migrate`. The preview is key-free and write-free. Apply
 rederives the exact plan under the recovery barrier, asks the closed helper to
 sign only the legacy continuity event after fresh user presence, authenticates

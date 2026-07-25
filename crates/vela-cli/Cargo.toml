@@ -72,5 +72,8 @@ rustix = { version = "1", features = ["process"] }
 [target.'cfg(windows)'.dependencies]
 windows-sys = { workspace = true, features = ["Win32_System_Com", "Win32_UI_Shell"] }
 
+[dev-dependencies]
+vela-protocol = { workspace = true, features = ["test-support"] }
+
 [lints]
 workspace = true
