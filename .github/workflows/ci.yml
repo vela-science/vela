@@ -146,7 +146,7 @@ jobs:
           canopus="$RUNNER_TEMP/canopus-install/bin/canopus"
           "$canopus" --help
           "$canopus" profile list
-          "$canopus" profile validate erdos1056-k15-10428601-10428800
+          "$canopus" profile validate erdos1056-k15-10428801-10429000
           "$canopus" profile validate formal-erdos-505-test-dim-one-gpt56
           "$canopus" profile validate quantum-10-1-4-stabilizer-retry
 
@@ -188,6 +188,6 @@ jobs:
           npm install --global --prefix "$env:RUNNER_TEMP\canopus" $package.FullName
           & "$env:RUNNER_TEMP\canopus\canopus.cmd" --help
           & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile list
-          & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile validate erdos1056-k15-10428601-10428800
+          & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile validate erdos1056-k15-10428801-10429000
           & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile validate formal-erdos-505-test-dim-one-gpt56
           & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile validate quantum-10-1-4-stabilizer-retry

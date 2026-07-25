@@ -26,6 +26,26 @@ test("current product release pins the tested Vela and Codex boundaries", async 
   assert.doesNotMatch(workflow, /codex-0\.144\.6-linux-x64\.tgz/u);
 });
 
+test("installed-package smoke validates the current packaged Erdős profile", async () => {
+  const workflow = await readFile(
+    new URL("../../.github/workflows/ci.yml", import.meta.url),
+    "utf8",
+  );
+  const currentProfile = "erdos1056-k15-10428801-10429000";
+  const supersededProfile = "erdos1056-k15-10428601-10428800";
+
+  assert.equal(
+    workflow.match(new RegExp(`profile validate ${currentProfile}`, "gu"))?.length,
+    2,
+    "Unix and Windows installed-package smoke must validate the current profile",
+  );
+  assert.doesNotMatch(
+    workflow,
+    new RegExp(`profile validate ${supersededProfile}`, "u"),
+    "CI must not validate a profile omitted from the current package",
+  );
+});
+
 test("release binds tag, GitHub attestation, and npm trusted provenance", async () => {
   const workflow = await readFile(
     new URL("../../.github/workflows/release.yml", import.meta.url),
