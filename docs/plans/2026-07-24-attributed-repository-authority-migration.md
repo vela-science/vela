@@ -371,7 +371,10 @@ ordered maps and is qualified in
 `docs/reports/VELA_0_930_0_RC_7_DERIVED_STATS_DETERMINISM_QUALIFICATION_2026-07-25.md`.
 Repeated fresh-clone materialization is now byte-identical, Formal and Sidon
 are strict-clean, and the exact Erdős and Quantum fail-closed debt remains
-visible. No additional active migration is authorized by that qualification.
+visible. The attested cross-platform candidate is recorded in
+`docs/reports/VELA_0_930_0_RC_7_HOSTED_CANDIDATE_RELEASE_2026-07-25.md`.
+No additional active migration is authorized by that qualification or
+publication.
 
 ## Phase 4: authority transaction writer
 
