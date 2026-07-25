@@ -232,7 +232,7 @@ edit is not a scientific correction.
 
 ### 3.7 Derived-state non-authority
 
-`frontier.json`, proof packets, indexes, graphs, Hub rows, wikis, rankings, and
+`frontier.json`, proof packets, indexes, graphs, reader rows, wikis, rankings, and
 AI summaries are functions of committed inputs. They may be deleted and rebuilt.
 An inferred relation enters accepted state only by returning through Receipt v1,
 proposal, and decision.
@@ -327,7 +327,7 @@ python3 conformance/verify.py
 
 The independent reader may require its documented local runtime. These are
 repository checks, not live partner tests. No Diderot service, external network,
-unrelated Lean campaign, public mirror, or Hub deployment is part of this
+unrelated Lean campaign, public mirror, or reader deployment is part of this
 formal boundary.
 
 For Lean itself:

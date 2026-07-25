@@ -1,7 +1,9 @@
 # Hub and derived-projection retirement plan
 
-> **Status:** Proposed implementation plan. Complete the consumer trace before
-> deleting a released surface.
+> **Status:** Completed on 2026-07-25. The hosted service was previously
+> sunset and archived; the unpublished compatibility crate is now removed
+> after a complete consumer trace. See
+> [`VELA_HUB_COMPATIBILITY_RETIREMENT_2026-07-25.md`](../reports/VELA_HUB_COMPATIBILITY_RETIREMENT_2026-07-25.md).
 
 ## Goal
 

@@ -1385,7 +1385,7 @@ pub fn run_from_args() {
                 ),
                 "credit" => Some("vela finding show <frontier> <vf_id> --view attribution"),
                 "publication" => Some("vela frontier recover-publication"),
-                "hub" => Some("the separate vela-hub binary"),
+                "hub" => Some("vela serve for a local read surface, or the optional Observatory"),
                 "foundry" | "reproduce-external" => {
                     Some("a Canopus verifier profile or parent campaign script")
                 }

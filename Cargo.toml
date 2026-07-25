@@ -6,7 +6,6 @@
 #   vela-edge           derived views and adapters over kernel state
 #   vela-cli            the `vela` product binary
 #   vela-signer         one-shot protected human signer
-#   vela-hub            the hub server (registry, event streams)
 #   vela-verify         frozen, dependency-light exact verifiers; the
 #                       reference registry `vela gate` / `vela reproduce`
 #                       build on
@@ -17,7 +16,6 @@ members = [
     "crates/vela-protocol-core",
     "crates/vela-cli",
     "crates/vela-signer",
-    "crates/vela-hub",
     "crates/vela-verify",
 ]
 resolver = "3"
@@ -32,7 +30,7 @@ license = "Apache-2.0 OR MIT"
 repository = "https://github.com/vela-science/vela"
 homepage = "https://github.com/vela-science/vela"
 # Per-crate `publish` is explicit. Reusable libraries and product binaries are
-# publishable; `vela-hub` remains an unpublished server deployment.
+# publishable; product binaries remain distributed through Vela releases.
 publish = false
 
 [workspace.dependencies]
@@ -48,7 +46,6 @@ serde_json = "1"
 serde_json_canonicalizer = "0.3.2"
 serde_yaml = "0.9"
 sha2 = "0.10"
-hmac = "0.12"
 tokio = { version = "1", features = ["full"] }
 chrono = { version = "0.4", features = ["serde"] }
 hex = "0.4"
@@ -56,11 +53,8 @@ regex = "1"
 urlencoding = "2"
 colored = "3"
 axum = "0.8"
-async-stream = "0.3"
 tower-http = { version = "0.6", features = ["cors", "fs"] }
-# Workspace default is sqlite-only (used by vela-protocol's index_db).
-# vela-hub re-adds the heavier `postgres` driver in its own manifest, so
-# the protocol library and its pure consumers don't build it.
+# Workspace SQL is sqlite-only and used by replaceable local derived indexes.
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "sqlite"] }
 ed25519-dalek = { version = "2", features = ["rand_core", "zeroize"] }
 zeroize = "1"

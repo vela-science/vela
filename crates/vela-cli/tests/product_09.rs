@@ -298,7 +298,7 @@ fn compact_contract_exposes_only_the_daily_surface_and_bounded_status() {
     for (retired, replacement) in [
         ("proposals", "vela review list"),
         ("state", "vela finding show"),
-        ("hub", "vela-hub"),
+        ("hub", "vela serve"),
         ("atlas", "Canopus"),
     ] {
         let output = run(temp.path(), temp.path(), &[retired]);

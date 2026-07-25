@@ -46,9 +46,8 @@ mod target_index;
 pub(crate) mod ui;
 pub(crate) mod workflow;
 pub(crate) use server::{cli_commands, cli_engine, serve};
-// The hosted MCP service: vela-hub embeds the serve dispatcher in-process
-// to run `/mcp` over its git-ingest checkouts. One dispatcher behind every
-// transport — stdio, `vela serve --http`, and the hub.
+// Read-only integrations embed one dispatcher behind the supported local
+// stdio and `vela serve --http` transports.
 pub use server::serve::McpService;
 
 pub mod cli;

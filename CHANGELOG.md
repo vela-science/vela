@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Remove the unpublished, unconsumed `vela-hub` compatibility crate, its
+  database/server dependency graph, deployment files, and active service
+  documentation. Historical tags retain the complete implementation; local
+  `vela serve` and the optional Observatory remain the supported read paths.
+- Include `vela-authority` in release-version checks and crates.io publication
+  order so the complete seven-crate `0.930` graph can be published.
 - Advertise proposal-scoped reproduction only when the pending proposal retains
   a valid frontier-local frozen witness. Proposals backed by an external
   producer replay bundle remain fully inspectable, but no longer receive a

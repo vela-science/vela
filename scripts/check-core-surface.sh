@@ -5,8 +5,9 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 # The routine contract exercises Vela's protocol, task-first writer boundary,
-# frozen exact verifiers, and read-only Hub. External Lean is an optional
-# integration lane and must never be pulled into this gate accidentally.
+# frozen exact verifiers, and read-only derived projections. External Lean is
+# an optional integration lane and must never be pulled into this gate
+# accidentally.
 ./scripts/check-prelaunch-surface.sh
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest conformance.test_verify_manifest
 PYTHONDONTWRITEBYTECODE=1 python3 conformance/verify.py --authority-history-only
@@ -33,7 +34,4 @@ cargo test --quiet -p vela-cli --lib \
   --test pre_adr_replay_golden \
   --test receipt_surface_parity \
   --test task_first_workflows
-cargo test --quiet -p vela-hub --lib --bin vela-hub \
-  --test event_kind_transparency
-
 printf 'core surface: ok (external Lean not selected)\n'

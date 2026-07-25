@@ -74,7 +74,7 @@ The core binary retires these surfaces:
 | `state` | `finding show --view record` or `--view standing` |
 | `credit` | `finding show --view evidence` or `--view attribution` |
 | `publication` | `frontier recover-publication` |
-| `hub` | the separate `vela-hub` binary |
+| `hub` | `vela serve` for local reads or an optional external reader |
 | `foundry` | parent scripts or Canopus profiles |
 | `atlas` | read-only projections outside the core CLI |
 | `reproduce-external` | a named Canopus verifier profile |
@@ -82,6 +82,11 @@ The core binary retires these surfaces:
 A retired command exits with usage status and one replacement. Vela does not
 execute a compatibility alias because an alias can preserve an obsolete
 contract after users believe they migrated.
+
+The unpublished `vela-hub` compatibility crate was subsequently removed from
+the breaking `0.930` source train after consumer tracing found no current
+client, deployment, release binary, published crate, or unique canonical
+state. Historical tags retain its implementation.
 
 ## Compact read contracts
 

@@ -41,7 +41,7 @@ The current interoperability contracts are:
 - stable CLI JSON for the documented producer and reviewer loop; and
 - the public conformance vectors under `conformance/`.
 
-Work sessions, Decision Plans, transaction journals, caches, indexes, Hub
+Work sessions, Decision Plans, transaction journals, caches, indexes, reader
 tables, adapter-private results, and Rust module boundaries are implementation
 details. They may change without becoming new protocol objects.
 
@@ -56,10 +56,10 @@ Vela separates capabilities that other systems often collapse.
 | Signed policy | permit only the bounded class and causal state named by a prior human ceremony | widen its own scope, treat model output as authority, or sign new policy |
 | Human key holder | approve one exact accept/reject through protected `review decide`; sign and revoke policy | delegate the private key or OS approval to an agent or unsigned service |
 | Git host | preserve and transport commits and refs | turn a commit, merge, or pull request into scientific acceptance |
-| Hub | clone configured Git sources, verify them, and serve read projections | register sources through a public write API, sign, accept, store canonical witness authority, or mutate a frontier |
+| Derived reader | clone configured Git sources, verify them, and serve read projections | register canonical state through a public write API, sign, accept, store witness authority, or mutate a frontier |
 
 Key custody is the trust boundary. A model may help prepare review material,
-but no model, browser, MCP tool, Hub process, or background worker belongs in
+but no model, browser, MCP tool, reader process, or background worker belongs in
 the human signing path. Human finalization is terminal-only.
 
 ## 3. Canonical bytes and identifiers
@@ -328,7 +328,7 @@ historical form. The historical `key.revoke` kind is audit-only: it can inform
 verification against an already governed registry, but it does not itself
 rewrite `.vela/actors.json`. Profile v1 therefore rejects any actor-registry
 change until a separate repository-local rotation and recovery contract is
-specified; it never delegates that authority to a Hub or other service.
+specified; it never delegates that authority to a reader or other service.
 
 An established actor may opt into temporal registration through one signed
 `actor.registration_activated` event carrying
@@ -758,17 +758,18 @@ certificates prove who authorized scientific state.
 The layout implementation is
 [`crates/vela-protocol/src/computed/frontier_repo.rs`](../crates/vela-protocol/src/computed/frontier_repo.rs).
 
-## 10. Hub and derived systems
+## 10. Derived readers and indexes
 
-The Hub is a disposable read index over repositories selected by an operator in
-a versioned source catalog. Ingest clones or fetches Git, runs strict
-verification, replays the event log, and replaces the projection only after the
-candidate snapshot passes.
+A reader or index is a disposable projection over exact Frontier repositories.
+It may clone or fetch Git, run strict verification, replay the event log, and
+replace its projection only after the candidate snapshot passes. Vela ships
+the local `vela serve` read surface; the optional Observatory is a separate
+replaceable product.
 
-The Hub has no public source-registration, source-deprecation, event-append,
-signing, acceptance, policy, peer-authority, or witness-object write API. Its
-database contains projection and ingest state only. A webhook may request a
-refresh; it cannot supply canonical scientific bytes.
+No reader owns source registration, event append, signing, acceptance, policy,
+peer authority, or witness authority. A database contains projection and
+refresh state only. A notification may request a refresh; it cannot supply
+canonical scientific bytes.
 
 Graphs, semantic indexes, wikis, packets, dashboards, and AI context are also
 derived systems. They should bind their output to the source Git commit and
@@ -776,7 +777,7 @@ Vela event-log root, label freshness and inference class, and remain safe to
 replace. An inferred edge or generated summary enters accepted state only by
 returning through Receipt v1.
 
-See [Interoperability](INTEROPERABILITY.md) and [Hub](HUB.md).
+See [Interoperability](INTEROPERABILITY.md).
 
 ## 11. Conformance
 
@@ -815,14 +816,14 @@ Current rules are:
 
 - mutable frontiers and fixtures use the current finding schema;
 - new events use the current event and signing form;
-- retired objects have no CLI, adapter, Hub route, or alternate writer;
+- retired objects have no CLI, adapter, reader route, or alternate writer;
 - historical events are never rewritten merely to modernize their names;
 - a retained replay arm does not make its old producer part of the protocol;
   and
 - history that cannot be verified fails closed rather than being promoted
   through a snapshot backfill.
 
-There is no second Carina kernel, public-mirror authority, or Hub federation
+There is no second Carina kernel, public-mirror authority, or reader federation
 write protocol. Early Diderot material is an inert exploratory evidence example,
 not a Vela partner, compatibility target, architectural validation, or release
 gate. Any future integration uses the generic Receipt boundary.

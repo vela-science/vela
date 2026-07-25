@@ -186,9 +186,9 @@ selected.
 
 `crates/vela-protocol/src/objects/merkle.rs` provides an optional RFC 6962-style Merkle
 construction for local event-log proofs. It is an offline protocol primitive,
-not a service dependency. The Hub does not issue signed tree heads, hold a
-transparency signing key, expose proof routes, or turn cross-Hub agreement into
-scientific authority.
+not a service dependency. A derived reader does not issue signed tree heads,
+hold a transparency signing key, expose proof authority, or turn agreement
+between readers into scientific authority.
 
 The decisive checks remain the exact Git bytes, event signatures and policy
 certificates, deterministic replay, and frozen verifier results.

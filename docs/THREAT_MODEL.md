@@ -124,16 +124,15 @@ If a Git host and every available copy are compromised, Vela cannot recover
 missing bytes. Durable replication remains an operator and community
 responsibility.
 
-### Hub compromise
+### Derived-reader compromise
 
-The Hub selects repositories through a versioned operator catalog, strictly
-replays them, and serves derived rows. It has no frontier-state, source-
-registration, deprecation, signing, transparency-proof, or peer-consensus
-write surface.
+A derived reader selects exact repositories, strictly replays them, and serves
+replaceable projections. It has no frontier-state, source-registration,
+deprecation, signing, transparency-proof, or peer-consensus write surface.
 
-A bad Hub can lie about discovery or freshness. Resolve the dispute from the
-configured Git URL and exact commit with `vela check . --strict` and the frozen
-verifier. Agreement between multiple Hub deployments is corroborative only; it
+A bad reader can lie about discovery or freshness. Resolve the dispute from
+the configured Git URL and exact commit with `vela check . --strict` and the
+frozen verifier. Agreement between multiple readers is corroborative only; it
 does not create authority.
 
 ### Repository-boundary substitution
@@ -175,8 +174,7 @@ semantic input or chose a scientifically valuable rank.
 
 ### Service resource abuse
 
-Local `vela serve` and the Hub cap request bodies; the Hub also rate-limits its
-public route classes. `vela serve --http` always binds loopback. Its HTTP
+Local `vela serve` caps request bodies and always binds loopback. Its HTTP
 reader has no authenticated request identity, ignores caller-asserted actor
 names, and returns public-tier data only. It exposes no signing or protected
 decision operation. A networked or authenticated deployment needs a separate

@@ -2,7 +2,7 @@
 
 One standalone Git repository owns each published frontier. Publication is an
 ordinary commit and push. Vela does not maintain a second registry transport,
-Hub write protocol, signed mirror, or special publication database.
+hosted-reader write protocol, signed mirror, or special publication database.
 
 ## Publish a reviewed frontier
 
@@ -26,7 +26,7 @@ accepted scientific state.
 Materialized files are committed only when the frontier contract calls for
 them. They remain derived views. The `.vela/events` log and the artifacts it
 binds are the replay source; do not repair a release by hand-editing
-`frontier.json`, a proof packet, or a Hub row.
+`frontier.json`, a proof packet, or a derived reader row.
 
 On Profile v1, the first strict check proves the complete repository context
 before materialization: closed profile/settings, boundary chain, Git anchor

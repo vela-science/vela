@@ -23,9 +23,11 @@ absent_paths=(
   crates/vela-cli/src/tools/cli_attempt.rs
   crates/vela-cli/src/write/cli_claim.rs
   crates/vela-edge/embedded
+  crates/vela-hub
   crates/vela-protocol/embedded/carina-schemas
   crates/vela-protocol/src/objects/frontier_template.rs
   docs/CARINA.md
+  docs/HUB.md
   examples/carina-kernel
   schema/carina.artifact-packet.v0.1.json
   scripts/seed-erdos-formalization.sh

@@ -491,7 +491,7 @@ repository-context gate regardless of how a prior diagnostic check was run.
 | `diff <left> <right>` | `frontier diff` |
 | `state` and `credit` | `finding show --view ...` |
 | `publication` | `frontier recover-publication` |
-| `hub` | the separate `vela-hub` binary |
+| `hub` | `vela serve` for a local read surface, or the optional Observatory |
 | `foundry`, `atlas`, `reproduce-external` | Canopus profiles or parent campaign scripts |
 
 Retired commands exit with one migration hint. Vela does not execute aliases.
