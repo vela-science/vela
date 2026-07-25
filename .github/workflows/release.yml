@@ -199,14 +199,13 @@ jobs:
           ASSET: ${{ matrix.asset }}
         run: |
           Set-Location dist
-          $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
           foreach ($name in @($env:ASSET, "$($env:ASSET).spdx.json", "$($env:ASSET).trust.json")) {
             $digest = (Get-FileHash -Algorithm SHA256 $name).Hash.ToLowerInvariant()
-            [System.IO.File]::WriteAllText(
-              "$name.sha256",
-              "$digest  $name`n",
-              $utf8NoBom
-            )
+            $checksum = "$($name).sha256"
+            Set-Content -Encoding ascii -NoNewline -LiteralPath $checksum -Value "$digest  $name"
+            if (-not (Test-Path -LiteralPath $checksum -PathType Leaf)) {
+              throw "checksum sidecar was not written: $checksum"
+            }
           }
       - name: Attest archive and SBOM provenance
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
