@@ -1,0 +1,10 @@
+{
+  "schema": "canopus.replay.v1",
+  "ok": true,
+  "run_id": "run_192b3bef-9d6e-49e5-b72d-7ae903b29d5e",
+  "mission_root": "sha256:5d16a95366a5dce79dd3f1b1ea873349ca52e86c7caab8e015e9377e3385b2e0",
+  "verifier_status": "passed",
+  "stdout_digest": "sha256:aa19c8c445b550161ee14a95da82e1edcc2882dbd0e2880710d5a34d53bca597",
+  "stderr_digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "matched": true
+}

@@ -173,7 +173,10 @@ export async function runLiveShadow() {
     publicRun.policy.accepted_state_delta !== registration.expected.accepted_event_delta ||
     publicRun.receipt_root !== registration.canopus.public_run.receipt_root ||
     publicRun.verifier_root !== registration.canopus.public_run.verifier_root ||
-    contentRoot(packet) !== registration.ecosystem.packet.packet_root
+    packet.packet_root !== registration.ecosystem.packet.packet_root ||
+    contentRoot(Object.fromEntries(
+      Object.entries(packet).filter(([key]) => key !== "packet_root"),
+    )) !== registration.ecosystem.packet.packet_root
   ) {
     throw new Error("registered public-run or packet identity drifted");
   }
