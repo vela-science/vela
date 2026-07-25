@@ -9,8 +9,10 @@
 - Current disposition: Gates A, B, and D pass as source-local evidence; Gate C
   is NO-GO because extraction deletes no maintained implementation; Gate E is
   PIVOT because the qualified workbench export contains process provenance,
-  not scientific evidence. No package, adapter, registry, or Vela release is
-  authorized.
+  not scientific evidence. A later complete 23-kind Erdős graph mapping also
+  passes source-locally, but production integration remains NO-GO because it
+  would add a runtime dependency while deleting no duplicate classifier. No
+  package, adapter, registry, or Vela release is authorized.
 - Reopen promotion only when extraction deletes maintained duplication or a
   stable licensed workbench export carries an honest bounded scientific result
   through the ordinary Receipt path.
