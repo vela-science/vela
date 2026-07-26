@@ -642,7 +642,8 @@ export function parseMission(value: unknown): Mission {
     vela_version: stringAt(object.vela_version, "mission.vela_version", {
       min: 5,
       max: 32,
-      pattern: /^0\.[0-9]+\.[0-9]+$/u,
+      pattern:
+        /^0\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u,
     }),
     vela_sha256: sha256At(object.vela_sha256, "mission.vela_sha256"),
     frontier: frontierPathAt(object.frontier),

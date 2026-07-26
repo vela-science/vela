@@ -167,6 +167,18 @@ test("mission v0 round-trips a bounded exact-root contract", () => {
   assert.deepEqual(parseMission(mission()), mission());
 });
 
+test("mission parser accepts an attested Vela prerelease identity", () => {
+  const input = mission();
+  input.vela_version = "0.930.0-rc.9";
+  assert.equal(parseMission(input).vela_version, "0.930.0-rc.9");
+});
+
+test("mission parser rejects an incomplete Vela prerelease identity", () => {
+  const input = mission();
+  input.vela_version = "0.930.0-";
+  assert.throws(() => parseMission(input), /vela_version has an invalid format/u);
+});
+
 test("mission v1 round-trips a zero-delta tool-worker contract", () => {
   assert.deepEqual(parseMission(missionV1()), missionV1());
 });

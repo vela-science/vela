@@ -34,7 +34,10 @@
     "schema": { "const": "canopus.mission.v1" },
     "id": { "type": "string", "pattern": "^mission_[a-z0-9][a-z0-9._-]{0,126}$" },
     "target": { "type": "string", "minLength": 1, "maxLength": 256 },
-    "vela_version": { "type": "string", "pattern": "^0\\.[0-9]+\\.[0-9]+$" },
+    "vela_version": {
+      "type": "string",
+      "pattern": "^0\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
     "vela_sha256": { "$ref": "#/$defs/sha256" },
     "frontier": { "anyOf": [{ "const": "." }, { "$ref": "#/$defs/relativePath" }] },
     "actor": { "type": "string", "pattern": "^agent:[a-z0-9][a-z0-9._-]{0,62}$" },
