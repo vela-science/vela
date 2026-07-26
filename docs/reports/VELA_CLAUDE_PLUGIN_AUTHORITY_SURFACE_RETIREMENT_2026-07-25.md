@@ -47,6 +47,13 @@ preserves diagnostic output when strict state is blocked.
 return of `vela sign`, `sign-session.json`, `id pin-binary`, or `sign-prep`
 inside the active Claude plugin.
 
+The same gate now rejects stale batch-signing guidance in active product and
+adapter code. Policy-lane refusals, integrity repair hints, artifact
+retirement help, MCP permission errors, and scientific-diff review summaries
+all point to one exact protected `vela review decide` operation. Historical
+parsers and replay fixtures may still name `vela sign`; current product
+guidance may not.
+
 The plugin metadata advances from its stale `0.760.1` declaration to the exact
 current `0.930.0-rc.7` candidate identity. This is source alignment, not a
 separate plugin release.
@@ -74,6 +81,8 @@ session hook shell syntax:           valid
 prelaunch surface:                   pass
 retired plugin authority patterns:   absent
 plugin command count:                4
+scientific-diff tests:               13 passed
+CLI integrity/repository tests:      13 passed
 git diff check:                       pass
 ```
 

@@ -1847,7 +1847,7 @@ pub fn apply_staged_policy_route_in_frontier(
     if !(executor.starts_with("agent:") || executor.starts_with("ci:")) {
         return Err(PolicyLaneRefusal::Error(format!(
             "policy-lane executor must be an agent:/ci: actor, got `{executor}` — humans accept \
-             with their key via `vela sign`"
+             one exact proposal through `vela review decide`"
         )));
     }
     if format!("sha256:{}", events::event_log_hash(&frontier.events)) != staged.state_root_before {

@@ -829,6 +829,13 @@ policy, or scientific-state byte changes. The helper and protected identity
 remain solely for the final sequence-1 continuity signature and are still
 deleted only after Erdős migrates.
 
+The same slice removes stale batch-signing instructions from active Rust
+product surfaces. Integrity repair, artifact retirement, MCP refusal,
+policy-lane, and scientific-diff output now identify the exact protected
+`vela review decide` path. A focused prelaunch regression prevents those
+surfaces from routing users back to batch `vela sign`, while historical
+parsers and immutable replay fixtures remain intact.
+
 ## Alternatives rejected
 
 ### Preserve or improve the current helper

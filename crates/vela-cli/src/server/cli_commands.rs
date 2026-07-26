@@ -640,8 +640,8 @@ pub(crate) enum IdAction {
     },
     /// Pin the current `vela` binary's hash (a human, confirm-gated act) so
     /// every ceremony verifies the binary first — the clear-signing invariant.
-    /// You rarely need this by hand: the interactive `vela sign` offers to pin
-    /// on first run and to re-pin in place when it sees the binary changed.
+    /// You rarely need this by hand: protected decision preparation reports
+    /// binary-binding drift before requesting user presence.
     /// Use `--status` to inspect the pin.
     #[command(hide = true)]
     PinBinary {
@@ -1038,7 +1038,7 @@ pub(crate) enum FindingCommands {
 #[derive(Subcommand)]
 pub(crate) enum ArtifactCommands {
     /// Propose retiring an accepted artifact. The proposal stays pending until
-    /// a human decides it through `vela sign`.
+    /// a human decides that exact proposal through `vela review decide`.
     Retract {
         /// Frontier JSON file or Vela repo
         frontier: PathBuf,

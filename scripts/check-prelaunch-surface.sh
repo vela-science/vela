@@ -266,6 +266,28 @@ do
   fi
 done
 
+# Active product and adapter guidance must never route a human back to the
+# retired batch-signing workflow. Historical parsers and replay fixtures remain.
+decision_guidance_files=(
+  crates/vela-protocol/src/proposals/policy_accept.rs
+  crates/vela-protocol/src/analysis/scientific_diff.rs
+  crates/vela-cli/src/cli/checks.rs
+  crates/vela-cli/src/server/cli_commands.rs
+  crates/vela-cli/src/server/serve.rs
+)
+for guidance in \
+  'vela sign --frontier <frontier>' \
+  'human decides it through `vela sign`' \
+  'terminal-only (`vela sign`)' \
+  'Re-issue the decision through `vela sign`' \
+  'with their key via `vela sign`'
+do
+  if grep -nF "$guidance" "${decision_guidance_files[@]}" >/dev/null; then
+    grep -nF "$guidance" "${decision_guidance_files[@]}" >&2
+    fail "retired batch-signing guidance remains in an active product surface: $guidance"
+  fi
+done
+
 # `work` has one exact task-first action set. A historical attempt event may
 # remain replayable, but no current MCP adapter or generated guidance may offer
 # the retired deposit writer.
