@@ -23,9 +23,10 @@ async function help(...args: string[]): Promise<string> {
 
 test("primary help presents only the compact product workflow", async () => {
   const output = await help("--help");
-  for (const command of ["doctor", "run", "inspect", "public-run", "publish-run", "replay", "withdraw"]) {
+  for (const command of ["doctor", "run", "inspect", "public-run", "publish-run", "replay"]) {
     assert.match(output, new RegExp(`canopus ${command}\\b`, "u"));
   }
+  assert.doesNotMatch(output, /canopus withdraw\b/u);
   assert.doesNotMatch(output, /^\s*canopus (?:benchmark|benchmark-composition|validate)\b/mu);
   assert.match(output, /Mission v1 prepare\/validate.+advanced help/su);
   assert.match(output, /cannot\s+sign, accept, or make a human scientific decision/su);
@@ -37,7 +38,7 @@ test("version is a stable single-line product identity", async () => {
 });
 
 test("every compact product subcommand has focused help", async () => {
-  for (const command of ["doctor", "run", "inspect", "public-run", "publish-run", "replay", "withdraw"]) {
+  for (const command of ["doctor", "run", "inspect", "public-run", "publish-run", "replay"]) {
     const output = await help(command, "--help");
     assert.match(output, new RegExp(`canopus ${command}\\b`, "u"));
     assert.doesNotMatch(output, /Primary workflow:/u);
@@ -112,9 +113,11 @@ test("inspect latest reports the newest safely stopped run", async () => {
   const output = JSON.parse(result.stdout) as {
     run_file: string;
     projection: { schema: string; run_id: string; landing_status: string };
+    withdrawal?: unknown;
   };
   assert.equal(output.run_file, path.join(run, "failure.json"));
   assert.equal(output.projection.schema, "canopus.failure-projection.v0");
   assert.equal(output.projection.run_id, "run_stopped");
   assert.equal(output.projection.landing_status, "not_attempted");
+  assert.equal("withdrawal" in output, false);
 });

@@ -21,7 +21,6 @@ import {
   packagedWorkerProfile,
   stageProfileCapsule,
 } from "./profile.js";
-import { retainWithdrawalCapability } from "../capability/withdrawal.js";
 
 export interface ProductRunResult {
   run: CanopusRunResult | CanopusDiagnosticRunResult;
@@ -281,18 +280,6 @@ export async function runProduct(options: {
       bundleRoot,
       dockerBinary: dockerRuntime.binary,
       verifierRunner: runner,
-      retainWithdrawalCapability: async (context: {
-        velaHome: string;
-        landingRepo: string;
-        mission: import("../contracts/mission.js").Mission;
-        landing: import("../vela/types.js").LandResult;
-        finalRoots: import("../contracts/mission.js").MissionRoots;
-      }) => {
-        await retainWithdrawalCapability({
-          ...context,
-          velaBinary: diagnosis.public.runtimes.vela.binary,
-        });
-      },
     };
     const run = options.noLand === true
       ? await runCanopus({ ...commonRun, noLand: true })

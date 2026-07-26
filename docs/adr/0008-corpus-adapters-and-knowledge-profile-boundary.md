@@ -58,8 +58,9 @@ The following remain candidate ideas, not approved interfaces:
 - `canopus adapter ...` and `canopus activity ...` commands; and
 - any new semantic repository, daemon, database, or hosted service.
 
-Mission v1, profile v1/v2, run records, withdrawal capabilities, and all
-released evidence remain unchanged.
+Mission v1, profile v1/v2, run records, and all released evidence remain
+unchanged. ADR 0009 separately retires new withdrawal-capability retention
+without changing these adapter boundaries.
 
 ## Why this boundary is simpler
 

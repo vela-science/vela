@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { ActivityStore, readActivity } from "../src/activity/store.js";
+import { canonicalJson, contentDigest } from "../src/util/canonical.js";
 
 test("activity store appends a content-addressed chain and replays it", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "canopus-activity-"));
@@ -42,3 +43,35 @@ test("activity replay rejects tamper, truncation, and unknown fields", async () 
   await assert.rejects(readActivity(file), /invalid field set/u);
 });
 
+test("historical withdrawal activity replays but cannot be newly emitted", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "canopus-activity-historical-"));
+  const file = path.join(root, "run.jsonl");
+  const body = {
+    schema: "canopus.activity.v0" as const,
+    run_id: "run_historical",
+    sequence: 0,
+    at: "2026-07-17T00:00:00Z",
+    type: "withdrawal_capability.retained" as const,
+    previous: null,
+    payload: {
+      proposal_id: "vpr_0123456789abcdef",
+      authority: "producer_withdrawal_only",
+    },
+  };
+  await writeFile(
+    file,
+    canonicalJson({ ...body, event_digest: contentDigest(body) }),
+  );
+  const events = await readActivity(file);
+  assert.equal(events.length, 1);
+  assert.equal(events[0]?.type, "withdrawal_capability.retained");
+
+  const active = await ActivityStore.open(path.join(root, "active.jsonl"), "run_active01");
+  await assert.rejects(
+    active.append(
+      "withdrawal_capability.retained" as never,
+      { proposal_id: "vpr_0123456789abcdef" },
+    ),
+    /retired or unknown activity type/u,
+  );
+});

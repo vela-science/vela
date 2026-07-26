@@ -112,6 +112,11 @@ test("source retains Build Week evidence while the package stays product-only", 
       `${historical} must remain source evidence only`,
     );
   }
+  assert.equal(
+    packageJson.files?.includes("dist/src/capability"),
+    false,
+    "the installed package must not ship the retired long-lived key store",
+  );
   for (const document of [readme, buildWeek]) {
     assert.match(document, new RegExp(velaRelease.replaceAll(".", "\\."), "u"));
     assert.match(document, new RegExp(`git checkout ${auditCommit}`, "u"));

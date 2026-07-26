@@ -5,8 +5,9 @@ Report vulnerabilities privately through GitHub Security Advisories for
 
 Canopus does not accept human signing keys. Do not place a human Vela key,
 provider credential, or unpublished scientific secret inside a run root.
-Successful runs scrub the isolated agent-key home, but operators remain
-responsible for deleting failed diagnostic runs and benchmark output.
+Successful runs scrub the isolated agent-key home and retain no producer
+private key or withdrawal capability. Operators remain responsible for
+deleting failed diagnostic runs and benchmark output.
 
 Agent-authored Git commits and tags must explicitly disable ambient signing
 (`commit.gpgSign=false`, `tag.gpgSign=false`) and verify that the resulting Git

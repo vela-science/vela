@@ -7,6 +7,9 @@
   GitHub Actions OIDC publisher bound to the public npm package
 - Target: Canopus `v0.4.3` (`v0.4.0` and `v0.4.1` stopped before publication;
   `v0.4.2` was the first provenance-backed public release)
+- Later simplification: ADR 0009 proposes removing `withdraw` and retained
+  producer keys from new Canopus runs; this ADR's released custody evidence
+  remains historical
 
 ## Context
 
@@ -29,8 +32,9 @@ change.
    capsule roots, verifier image index digest, replay argv, and landing ceiling.
    Profile v1 remains read-only replay input.
 3. Add advanced `profile list`, `profile show`, `profile validate`, and
-   `profile pack`. The ordinary interface remains `doctor`, `run`, `inspect`,
-   `replay`, and `withdraw`.
+   `profile pack`. The released ordinary interface was `doctor`, `run`,
+   `inspect`, `replay`, and `withdraw`; ADR 0009 removes the last command from
+   new versions.
 4. Keep the worker native: macOS uses the proven Seatbelt profile; Ubuntu and
    WSL2 use Codex Bubblewrap with read-only host defaults and explicit writable,
    user, PID, and network namespaces. Native Windows supports install,

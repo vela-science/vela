@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Retire long-lived proposal-withdrawal capabilities. Successful runs now
+  destroy the isolated producer key with the rest of the Vela home; `inspect`
+  reports only rooted run state, and the `withdraw` command and capability
+  store are removed. Historical activity records and Vela
+  `proposal.withdrawn` events remain readable, while pending proposals remain
+  canonical review records rather than reasons to retain a private key.
 - Narrow the npm package to the active Canopus product boundary. Historical
   Build Week records, release ledgers, advisories, and retained Erdős evidence
   remain immutable in Git and tagged source archives but no longer inflate the

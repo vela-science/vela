@@ -130,7 +130,7 @@ unregistered targets. It never silently skips the first ranked offer.
 | --- | --- | --- |
 | Codex worker | Use tools inside one bounded workspace | Reach the network, host home, human keys, or verifier |
 | Verifier | Read frozen candidate bytes and declared inputs | Write, use the network, or make an authority decision |
-| Canopus | Preserve evidence, replay, land a Receipt, withdraw its own proposal | Sign, accept, reject, or call verifier success acceptance |
+| Canopus | Preserve evidence, replay, and land a Receipt | Sign, accept, reject, retain producer keys, or call verifier success acceptance |
 
 The worker uses macOS Seatbelt or Codex's Bubblewrap sandbox on Linux and WSL2.
 The verifier runs in a separate pinned container with network and writes denied.
@@ -144,10 +144,15 @@ canopus inspect [run.json | latest]
 canopus replay <run.json>
 ```
 
-Advanced profile and withdrawal commands are documented in
-[Missions](docs/MISSIONS.md). Installed profiles are closed,
+Advanced profile commands are documented in [Missions](docs/MISSIONS.md).
+Installed profiles are closed,
 content-addressed contracts that bind the target, packet, objective, artifact
 types, worker, verifier, replay command, budgets, and landing ceiling.
+
+Producer identities are ephemeral. After a successful landing and clean-clone
+reproduction, Canopus destroys the isolated Vela home instead of retaining a
+proposal-scoped private key. A proposal may remain pending until Vela policy or
+a human reviewer decides it; Canopus does not need a second control channel.
 
 ## Retained Build Week evidence
 

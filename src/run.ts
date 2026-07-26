@@ -77,13 +77,6 @@ export interface CanopusRunOptions {
   bundleRoot?: string;
   dockerBinary?: string;
   verifierRunner?: CommandRunner;
-  retainWithdrawalCapability?: (context: {
-    velaHome: string;
-    landingRepo: string;
-    mission: Mission;
-    landing: LandResult;
-    finalRoots: MissionRoots;
-  }) => Promise<void>;
   noLand?: false;
 }
 
@@ -785,20 +778,6 @@ export async function runCanopus(
       roots: reproductionInspection.roots,
       verifier_status: reproductionVerifier.status,
     });
-    if (options.retainWithdrawalCapability !== undefined) {
-      phase = "withdrawal_capability";
-      await options.retainWithdrawalCapability({
-        velaHome: paths.velaHome,
-        landingRepo: paths.landing,
-        mission: options.mission,
-        landing,
-        finalRoots: final.roots,
-      });
-      await activity.append("withdrawal_capability.retained", {
-        proposal_id: landing.proposalId,
-        authority: "producer_withdrawal_only",
-      });
-    }
     await rm(paths.velaHome, { recursive: true, force: true });
     const record: RunRecord = {
       schema: RUN_RECORD_SCHEMA,
@@ -873,7 +852,6 @@ export async function runCanopus(
       phase.startsWith("landing_") ||
       phase === "receipt_binding" ||
       phase === "clean_clone_reproduction" ||
-      phase === "withdrawal_capability" ||
       phase === "record_finalization"
     ) {
       let observedRoots: MissionRoots | null = null;

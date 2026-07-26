@@ -7,9 +7,11 @@ import { readBoundedRegularFile } from "../util/files.js";
 import {
   ACTIVITY_SCHEMA,
   ACTIVITY_TYPES,
+  WRITABLE_ACTIVITY_TYPES,
   type ActivityEvent,
   type ActivityEventBody,
   type ActivityType,
+  type WritableActivityType,
 } from "./events.js";
 
 const MAX_ACTIVITY_BYTES = 64 * 1024 * 1024;
@@ -133,7 +135,10 @@ export class ActivityStore {
     return this.#events;
   }
 
-  public async append(type: ActivityType, payload: Record<string, unknown>): Promise<ActivityEvent> {
+  public async append(
+    type: WritableActivityType,
+    payload: Record<string, unknown>,
+  ): Promise<ActivityEvent> {
     let resolveEvent: (event: ActivityEvent) => void;
     let rejectEvent: (error: unknown) => void;
     const result = new Promise<ActivityEvent>((resolve, reject) => {
@@ -142,7 +147,9 @@ export class ActivityStore {
     });
     this.#queue = this.#queue.then(async () => {
       try {
-        if (!ACTIVITY_TYPES.includes(type)) throw new Error(`unknown activity type ${type}`);
+        if (!WRITABLE_ACTIVITY_TYPES.includes(type)) {
+          throw new Error(`retired or unknown activity type ${type}`);
+        }
         const body: ActivityEventBody = {
           schema: ACTIVITY_SCHEMA,
           run_id: this.#runId,
@@ -176,4 +183,3 @@ export class ActivityStore {
     return await result;
   }
 }
-

@@ -106,15 +106,6 @@ export interface VelaLandCommandObservation {
   stderr_digest: string;
 }
 
-export interface VelaWithdrawalResult {
-  proposal_id: string;
-  withdrawal_event_id: string;
-  withdrawn_at: string;
-  state_root_before: string;
-  state_root_after: string;
-  publication_commit: string;
-}
-
 function parseJsonObject(stdout: Buffer, command: string): Record<string, unknown> {
   let value: unknown;
   try {
@@ -756,81 +747,6 @@ export class VelaClient {
       throw new VelaClientError("command_failed", "vela work returned ok=false");
     }
     return { ok: true, value };
-  }
-
-  public async withdraw(
-    repoRoot: string,
-    frontier: string,
-    proposalId: string,
-    actor: string,
-    reason: string,
-  ): Promise<VelaWithdrawalResult> {
-    if (!/^vpr_[0-9a-f]{16}$/u.test(proposalId)) {
-      throw new VelaClientError("malformed_output", "withdrawal requires a full proposal id");
-    }
-    if (!actor.startsWith("agent:") || reason.trim().length === 0) {
-      throw new VelaClientError("malformed_output", "withdrawal requires an agent actor and reason");
-    }
-    const value = await this.#json(
-      ["review", "withdraw", frontierPath(frontier), proposalId, "--as", actor, "--reason", reason, "--json"],
-      repoRoot,
-      "vela review withdraw",
-    );
-    if (value.ok !== true || value.command !== "review.withdraw") {
-      throw new VelaClientError("malformed_output", "vela review withdraw returned an invalid envelope");
-    }
-    if (value.proposal_id !== proposalId || value.idempotent !== false || value.key_read !== true) {
-      throw new VelaClientError(
-        "malformed_output",
-        "vela review withdraw did not bind one new key-backed withdrawal",
-      );
-    }
-    const eventId = stringAt(value.withdrawal_event_id, "vela review withdraw.withdrawal_event_id", {
-      max: 20,
-      pattern: /^vev_[0-9a-f]{16}$/u,
-    });
-    const withdrawnAt = stringAt(value.withdrawn_at, "vela review withdraw.withdrawn_at", {
-      min: 20,
-      max: 64,
-    });
-    if (!Number.isFinite(Date.parse(withdrawnAt))) {
-      throw new VelaClientError("malformed_output", "vela review withdraw returned an invalid timestamp");
-    }
-    const stateRootBefore = normalizeSha256(
-      value.state_root_before,
-      "vela review withdraw.state_root_before",
-    );
-    const stateRootAfter = normalizeSha256(
-      value.state_root_after,
-      "vela review withdraw.state_root_after",
-    );
-    if (stateRootBefore === stateRootAfter) {
-      throw new VelaClientError("malformed_output", "new withdrawal did not change the event-log root");
-    }
-    const publication = fieldObject(value, "publication", "vela review withdraw");
-    const publicationState = stringAt(publication.state, "vela review withdraw.publication.state", {
-      min: 1,
-      max: 32,
-    });
-    if (publicationState !== "committed_local" && publicationState !== "pushed") {
-      throw new VelaClientError(
-        "command_failed",
-        `withdrawal publication is ${publicationState}, not committed`,
-      );
-    }
-    const publicationCommit = stringAt(
-      publication.commit,
-      "vela review withdraw.publication.commit",
-      { max: 64, pattern: GIT_OBJECT_RE },
-    );
-    return {
-      proposal_id: proposalId,
-      withdrawal_event_id: eventId,
-      withdrawn_at: withdrawnAt,
-      state_root_before: stateRootBefore,
-      state_root_after: stateRootAfter,
-      publication_commit: publicationCommit,
-    };
   }
 
   public async landAuthoredCommand(

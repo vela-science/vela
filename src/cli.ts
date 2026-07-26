@@ -18,7 +18,6 @@ import { buildPublicationBundle } from "./projection/publication.js";
 import { doctorProduct } from "./product/doctor.js";
 import { replayProduct } from "./product/replay.js";
 import { runProduct } from "./product/run.js";
-import { withdrawProduct } from "./product/withdraw.js";
 import { CANOPUS_VERSION } from "./product/version.js";
 import {
   listProductProfiles,
@@ -30,7 +29,6 @@ import { runCanopus } from "./run.js";
 import { readBoundedRegularFile } from "./util/files.js";
 import { canonicalJson, contentDigest } from "./util/canonical.js";
 import { VelaClient } from "./vela/cli.js";
-import { withdrawalCapabilityStatus } from "./capability/withdrawal.js";
 
 function usage(): string {
   return `Canopus — bounded Vela research harness
@@ -46,7 +44,6 @@ Primary workflow:
   canopus publish-run <run.json> --mission <mission.json> \
     --repository <public-url> --output <new-directory>
   canopus replay <run.json>
-  canopus withdraw [frontier] [--run <run.json|latest>] --reason <text>
 
 Mission v1 prepare/validate remains available under advanced help.
 
@@ -130,15 +127,6 @@ function publishRunUsage(): string {
 Creates a sanitized public projection, root manifest, proposal-scoped pending
 commands, and a read-only Vela Observatory import descriptor. It never lands,
 signs, accepts, pushes, or deploys.`;
-}
-
-function withdrawUsage(): string {
-  return `Usage:
-  canopus withdraw [frontier] [--run <run.json|latest>] --reason <text>
-
-Uses only the retained proposal-scoped producer capability. The operation runs
-in a disposable exact-head clone, verifies strict and clean-clone replay, then
-fast-forwards the clean source. It never mounts a worker or human key.`;
 }
 
 function isHelp(value: string | undefined): boolean {
@@ -484,10 +472,7 @@ async function inspectCommand(value: string | undefined, rest: string[]): Promis
     : schema === "canopus.failure.v0"
       ? projectFailure(parseFailureRecord(raw))
       : projectRun(parseRunRecord(raw));
-  const withdrawal = "proposal_id" in projection
-    ? await withdrawalCapabilityStatus(projection.proposal_id)
-    : { state: "not_applicable", available: false };
-  process.stdout.write(`${JSON.stringify({ ok: true, command: "inspect", run_file: file, projection, withdrawal })}\n`);
+  process.stdout.write(`${JSON.stringify({ ok: true, command: "inspect", run_file: file, projection })}\n`);
 }
 
 async function replayCommand(file: string | undefined, rest: string[]): Promise<void> {
@@ -553,21 +538,6 @@ async function publishRunCommand(file: string | undefined, rest: string[]): Prom
   })}\n`);
 }
 
-async function withdrawCommand(args: string[]): Promise<void> {
-  const parsed = productOptions(args, ["--run", "--reason"], []);
-  if (parsed.positional.length > 1) throw new Error("withdraw accepts at most one frontier");
-  const reason = parsed.values.get("--reason");
-  if (reason === undefined || reason.trim().length === 0) throw new Error("withdraw requires --reason");
-  const runValue = parsed.values.get("--run") ?? "latest";
-  const runFile = runValue === "latest" ? await latestRunFile() : path.resolve(runValue);
-  const result = await withdrawProduct({
-    frontier: path.resolve(parsed.positional[0] ?? "."),
-    runFile,
-    reason,
-  });
-  process.stdout.write(`${JSON.stringify(result)}\n`);
-}
-
 async function main(argv: string[]): Promise<void> {
   const [command, file, ...rest] = argv;
   if (command === undefined || isHelp(command)) {
@@ -595,7 +565,6 @@ async function main(argv: string[]): Promise<void> {
       : command === "replay" ? replayUsage()
       : command === "public-run" ? publicRunUsage()
       : command === "publish-run" ? publishRunUsage()
-      : command === "withdraw" ? withdrawUsage()
       : usage()
     }\n`);
     return;
@@ -614,10 +583,6 @@ async function main(argv: string[]): Promise<void> {
   }
   if (command === "publish-run") {
     await publishRunCommand(file, rest);
-    return;
-  }
-  if (command === "withdraw") {
-    await withdrawCommand(argv.slice(1));
     return;
   }
   if (command === "validate") {

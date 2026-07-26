@@ -31,7 +31,6 @@
     "dist/src/artifact",
     "dist/src/budget",
     "dist/src/candidate",
-    "dist/src/capability",
     "dist/src/contracts",
     "dist/src/engines",
     "dist/src/evidence",
