@@ -979,6 +979,14 @@ pub(crate) enum FrontierAction {
         #[arg(long)]
         json: bool,
     },
+    /// Compact verified completed private recovery journals.
+    #[command(hide = true)]
+    CompactRecovery {
+        /// Frontier repository directory.
+        frontier: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
     /// v0.158: tag the current frontier state as a versioned
     /// release. Writes a content-addressed `vfrr_*` record to
     /// `<frontier-dir>/.vela/releases/<vfrr_*>.json`. Releases

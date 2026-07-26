@@ -224,6 +224,11 @@ fn land_is_idempotent_on_the_claim() {
         first.status.success(),
         "first land should succeed: {first:?}"
     );
+    let compact = run_in(tmp.path(), &["frontier", "compact-recovery", ".", "--json"]);
+    assert!(
+        compact.status.success(),
+        "settled recovery compaction should succeed: {compact:?}"
+    );
     let second = run_in(tmp.path(), &["land", "r.json", "--as", "agent:t", "--json"]);
     assert!(
         second.status.success(),

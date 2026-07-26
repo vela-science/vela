@@ -1200,11 +1200,27 @@ pub(crate) enum RecoveryState {
     CommittedConflict { path: RepoPath },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum BlobRetention {
+    Retained,
+    Pruned,
+}
+
+fn retained_blob_journals() -> BlobRetention {
+    BlobRetention::Retained
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct FrontierTxnJournal {
     schema: String,
     plan: FrontierTxnPlan,
     recovery: RecoveryState,
+    /// Postimage bytes are required until installation is verified. Completed
+    /// transactions retain their exact plan, marker, file-state commitments,
+    /// and event membership after these private recovery copies are pruned.
+    #[serde(default = "retained_blob_journals")]
+    blob_retention: BlobRetention,
 }
 
 impl FrontierTxnJournal {
@@ -1213,6 +1229,14 @@ impl FrontierTxnJournal {
             return Err(FrontierTxnError::CorruptPlan(format!(
                 "unexpected frontier transaction journal schema {}",
                 self.schema
+            )));
+        }
+        if self.blob_retention == BlobRetention::Pruned
+            && !matches!(self.recovery, RecoveryState::Completed)
+        {
+            return Err(FrontierTxnError::CorruptPlan(format!(
+                "transaction {} pruned recovery blobs before completion",
+                self.plan.operation_id.as_str()
             )));
         }
         self.plan.verify()
@@ -2590,7 +2614,10 @@ fn verify_completed_marker_and_blobs(
         )));
     }
     read_commit_marker(paths, journal)?;
-    verify_journal_blobs(paths, journal)
+    if journal.blob_retention == BlobRetention::Retained {
+        verify_journal_blobs(paths, journal)?;
+    }
+    Ok(())
 }
 
 fn verify_aborted_without_marker(
@@ -2669,13 +2696,21 @@ fn verify_completed_history(
     let current_event_ids = event_ids(&current_events)?;
     let current_root = event_log_root(&current_events)?;
     let mut current_head = Vec::new();
+    let mut committed_root_cache = BTreeMap::<Vec<String>, Option<ContentDigest>>::new();
     for (paths, journal) in completed {
         // Event-log commitments are ID-sorted sets, not append-order chains.
         // Select the journal's exact committed membership from today's log so
         // a legitimate later event may sort anywhere without fabricating a
         // prefix relation.
-        let committed_root =
-            event_log_root_for_ids(&current_events, &journal.plan.resulting_event_ids)?;
+        let committed_root = match committed_root_cache.get(&journal.plan.resulting_event_ids) {
+            Some(root) => root.clone(),
+            None => {
+                let root =
+                    event_log_root_for_ids(&current_events, &journal.plan.resulting_event_ids)?;
+                committed_root_cache.insert(journal.plan.resulting_event_ids.clone(), root.clone());
+                root
+            }
+        };
         if committed_root.as_ref() != Some(&journal.plan.resulting_event_log_root) {
             return Err(FrontierTxnError::CompletedEventLogMismatch {
                 operation_id: journal.plan.operation_id.as_str().to_string(),
@@ -2716,6 +2751,140 @@ fn verify_completed_history(
         }
     }
     Ok(())
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub(crate) struct RecoveryCompactionReport {
+    pub(crate) completed_journals: usize,
+    pub(crate) newly_compacted_journals: usize,
+    pub(crate) removed_blobs: usize,
+    pub(crate) removed_bytes: u64,
+    pub(crate) retained_blobs: usize,
+}
+
+fn prune_unreferenced_blobs(
+    journal_dir: &Path,
+    journals: &[(FrontierTxnPaths, FrontierTxnJournal)],
+) -> Result<(usize, u64, usize), FrontierTxnError> {
+    let retained = journals
+        .iter()
+        .filter(|(_, journal)| journal.blob_retention == BlobRetention::Retained)
+        .flat_map(|(_, journal)| journal.plan.canonical_delta.writes())
+        .filter_map(|write| write.payload.as_ref())
+        .map(|blob| blob.digest.clone())
+        .collect::<BTreeSet<_>>();
+    let blob_dir = journal_dir.join("frontier").join("blobs");
+    let metadata = match fs::symlink_metadata(&blob_dir) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok((0, 0, retained.len()));
+        }
+        Err(error) => {
+            return Err(FrontierTxnError::Journal(format!(
+                "inspect frontier transaction blob directory {}: {error}",
+                blob_dir.display()
+            )));
+        }
+    };
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(FrontierTxnError::Journal(format!(
+            "frontier transaction blob directory is not a regular non-symlink directory: {}",
+            blob_dir.display()
+        )));
+    }
+
+    let mut entries = fs::read_dir(&blob_dir)
+        .map_err(|error| {
+            FrontierTxnError::Journal(format!(
+                "read frontier transaction blob directory {}: {error}",
+                blob_dir.display()
+            ))
+        })?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| {
+            FrontierTxnError::Journal(format!(
+                "enumerate frontier transaction blob directory {}: {error}",
+                blob_dir.display()
+            ))
+        })?;
+    entries.sort_by_key(|entry| entry.file_name());
+
+    let mut removed_blobs = 0;
+    let mut removed_bytes = 0_u64;
+    for entry in entries {
+        let path = entry.path();
+        let metadata = fs::symlink_metadata(&path).map_err(|error| {
+            FrontierTxnError::Journal(format!(
+                "inspect frontier transaction blob {}: {error}",
+                path.display()
+            ))
+        })?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            return Err(FrontierTxnError::Journal(format!(
+                "unexpected non-file frontier transaction blob: {}",
+                path.display()
+            )));
+        }
+        let digest = path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .and_then(|stem| ContentDigest::parse(format!("sha256:{stem}")).ok())
+            .ok_or_else(|| {
+                FrontierTxnError::Journal(format!(
+                    "unexpected frontier transaction blob name: {}",
+                    path.display()
+                ))
+            })?;
+        if retained.contains(&digest) {
+            continue;
+        }
+        removed_bytes = removed_bytes.saturating_add(metadata.len());
+        operation_journal::remove(&path).map_err(FrontierTxnError::Journal)?;
+        removed_blobs += 1;
+    }
+    Ok((removed_blobs, removed_bytes, retained.len()))
+}
+
+fn compact_completed_history_locked(
+    root: &Path,
+    journal_dir: &Path,
+) -> Result<RecoveryCompactionReport, FrontierTxnError> {
+    let mut journals = frontier_journals(root, journal_dir)?;
+    let mut completed = Vec::new();
+    for (paths, journal) in &journals {
+        match journal.recovery {
+            RecoveryState::Aborted => verify_aborted_without_marker(paths, journal)?,
+            RecoveryState::Completed => completed.push((paths.clone(), journal.clone())),
+            ref state => {
+                return Err(FrontierTxnError::RecoveryRequired {
+                    operation_id: journal.plan.operation_id.as_str().to_string(),
+                    state: state.clone(),
+                });
+            }
+        }
+    }
+    verify_completed_history(root, &completed)?;
+
+    let mut newly_compacted_journals = 0;
+    for (paths, journal) in &mut journals {
+        if matches!(journal.recovery, RecoveryState::Completed)
+            && journal.blob_retention == BlobRetention::Retained
+        {
+            journal.blob_retention = BlobRetention::Pruned;
+            operation_journal::write_json(&paths.plan, journal)
+                .map_err(FrontierTxnError::Journal)?;
+            newly_compacted_journals += 1;
+        }
+    }
+    let (removed_blobs, removed_bytes, retained_blobs) =
+        prune_unreferenced_blobs(journal_dir, &journals)?;
+    Ok(RecoveryCompactionReport {
+        completed_journals: completed.len(),
+        newly_compacted_journals,
+        removed_blobs,
+        removed_bytes,
+        retained_blobs,
+    })
 }
 
 fn ensure_recovery_barrier_locked(
@@ -2925,6 +3094,17 @@ impl FrontierTxn {
     ) -> Result<(), FrontierTxnError> {
         let root = canonical_frontier_root(frontier_root)?;
         ensure_recovery_barrier_locked(&root, journal_dir, None)
+    }
+
+    /// Compact verified completed recovery history without touching canonical
+    /// frontier bytes. Active or incomplete transactions still fail closed.
+    pub(crate) fn compact_completed_history(
+        frontier_root: &Path,
+        journal_dir: &Path,
+    ) -> Result<RecoveryCompactionReport, FrontierTxnError> {
+        let root = canonical_frontier_root(frontier_root)?;
+        let _lock = FrontierWriteLock::acquire(journal_dir, &root)?;
+        compact_completed_history_locked(&root, journal_dir)
     }
 
     /// Acquire the frontier-wide recovery barrier before loading mutable
@@ -3223,7 +3403,7 @@ impl FrontierTxn {
                         authorization: Some(authorization),
                         _lock: lock,
                     };
-                    txn.verify_blobs()?;
+                    txn.verify_recovery_blobs()?;
                     if matches!(txn.journal.recovery, RecoveryState::Completed) {
                         txn.verify_completed_state()?;
                     }
@@ -3255,6 +3435,7 @@ impl FrontierTxn {
             schema: FRONTIER_TXN_SCHEMA.to_string(),
             plan,
             recovery: RecoveryState::Prepared,
+            blob_retention: BlobRetention::Retained,
         };
         failpoints.check(FrontierTxnStep::BeforePreparedJournalWrite)?;
         operation_journal::write_json(&paths.plan, &journal).map_err(FrontierTxnError::Journal)?;
@@ -3357,7 +3538,7 @@ impl FrontierTxn {
                 verify_aborted_without_marker(&txn.paths, &txn.journal)?;
             }
             RecoveryState::Completed => {
-                txn.verify_blobs()?;
+                txn.verify_recovery_blobs()?;
                 txn.verify_completed_state()?;
             }
             _ => txn.verify_blobs()?,
@@ -3721,12 +3902,13 @@ impl FrontierTxn {
                 "cannot complete a transaction before all writes are installed".to_string(),
             ));
         }
+        if matches!(self.journal.recovery, RecoveryState::Completed) {
+            self.verify_completed_state()?;
+            return Ok(());
+        }
         failpoints.check(FrontierTxnStep::BeforeInstalledStateVerification)?;
         self.verify_installed_state()?;
         failpoints.check(FrontierTxnStep::AfterInstalledStateVerification)?;
-        if matches!(self.journal.recovery, RecoveryState::Completed) {
-            return Ok(());
-        }
         self.journal.recovery = RecoveryState::Completed;
         failpoints.check(FrontierTxnStep::BeforeCompletedJournalWrite)?;
         self.persist_journal()?;
@@ -3773,7 +3955,10 @@ impl FrontierTxn {
 
     pub(crate) fn resolved_public_writes(&self) -> Result<Vec<ResolvedWrite>, FrontierTxnError> {
         resolve_public_writes(&self.journal.plan.canonical_delta, |blob| {
-            self.read_blob(blob)
+            match self.journal.blob_retention {
+                BlobRetention::Retained => self.read_blob(blob),
+                BlobRetention::Pruned => self.read_pruned_blob_from_current(blob),
+            }
         })
     }
 
@@ -3810,6 +3995,19 @@ impl FrontierTxn {
 
     fn verify_blobs(&self) -> Result<(), FrontierTxnError> {
         verify_journal_blobs(&self.paths, &self.journal)
+    }
+
+    fn verify_recovery_blobs(&self) -> Result<(), FrontierTxnError> {
+        match self.journal.blob_retention {
+            BlobRetention::Retained => self.verify_blobs(),
+            BlobRetention::Pruned if matches!(self.journal.recovery, RecoveryState::Completed) => {
+                Ok(())
+            }
+            BlobRetention::Pruned => Err(FrontierTxnError::CorruptPlan(format!(
+                "transaction {} pruned recovery blobs before completion",
+                self.journal.plan.operation_id.as_str()
+            ))),
+        }
     }
 
     fn verify_resulting_event_commitment(
@@ -3891,6 +4089,45 @@ impl FrontierTxn {
 
     fn read_blob(&self, expected: &JournalBlobRef) -> Result<Vec<u8>, FrontierTxnError> {
         read_blob_at(&self.paths, expected)
+    }
+
+    fn read_pruned_blob_from_current(
+        &self,
+        expected: &JournalBlobRef,
+    ) -> Result<Vec<u8>, FrontierTxnError> {
+        for write in self.journal.plan.canonical_delta.writes() {
+            if write.payload.as_ref() != Some(expected) {
+                continue;
+            }
+            let target = validate_target(&self.root, &write.path)?;
+            let metadata = match fs::symlink_metadata(&target) {
+                Ok(metadata) => metadata,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => {
+                    return Err(FrontierTxnError::Io(format!(
+                        "inspect compacted transaction postimage {}: {error}",
+                        target.display()
+                    )));
+                }
+            };
+            if metadata.file_type().is_symlink() || !metadata.is_file() {
+                return Err(FrontierTxnError::UnsafeTarget {
+                    path: write.path.clone(),
+                    reason: "compacted transaction postimage is not a regular, non-symlink file"
+                        .to_string(),
+                });
+            }
+            let bytes = fs::read(&target).map_err(|error| {
+                FrontierTxnError::Io(format!(
+                    "read compacted transaction postimage {}: {error}",
+                    target.display()
+                ))
+            })?;
+            if validate_blob_bytes(expected, &bytes).is_ok() {
+                return Ok(bytes);
+            }
+        }
+        Err(FrontierTxnError::MissingBlob(expected.digest.clone()))
     }
 
     fn verify_installed_state(&self) -> Result<(), FrontierTxnError> {
@@ -6596,7 +6833,11 @@ mod tests {
         let mut txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
         txn.mark_committed().unwrap();
         txn.install().unwrap();
-        txn.complete().unwrap();
+        let completion_step = FrontierTxnStep::AfterCompletedJournalWrite;
+        assert!(matches!(
+            txn.complete_at_failpoint(completion_step),
+            Err(FrontierTxnError::InjectedFailure { step }) if step == completion_step
+        ));
         let marker_path = txn.paths.marker.clone();
         let blob_path = txn.paths.blob(
             &txn.plan()
@@ -6628,6 +6869,112 @@ mod tests {
             FrontierTxn::open(&root, &journals, &operation_id),
             Err(FrontierTxnError::CorruptBlob(_))
         ));
+    }
+
+    #[test]
+    fn completed_history_compacts_private_blobs_and_keeps_exact_replay_checks() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        let journals = temp.path().join("journals");
+        fs::create_dir_all(&root).unwrap();
+        let draft = DeltaDraft::prepare(
+            &root,
+            vec![PlannedWrite::write(
+                RepoPath::parse("records/receipt.json").unwrap(),
+                WriteClass::CanonicalEvidence,
+                vec![b'x'; 64 * 1024],
+            )],
+        )
+        .unwrap();
+        let plan = fixture_plan(&root, &draft, b"compact completed recovery");
+        let operation_id = plan.operation_id.clone();
+        let mut txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
+        let blob_path = txn.paths.blob(
+            &txn.plan()
+                .canonical_delta
+                .writes()
+                .first()
+                .unwrap()
+                .payload
+                .as_ref()
+                .unwrap()
+                .digest,
+        );
+        assert!(blob_path.is_file());
+        txn.mark_committed().unwrap();
+        txn.install().unwrap();
+        txn.complete().unwrap();
+        assert_eq!(txn.journal.blob_retention, BlobRetention::Retained);
+        assert!(blob_path.is_file());
+        drop(txn);
+
+        let report = FrontierTxn::compact_completed_history(&root, &journals).unwrap();
+        assert_eq!(report.completed_journals, 1);
+        assert_eq!(report.newly_compacted_journals, 1);
+        assert_eq!(report.removed_blobs, 1);
+        assert!(report.removed_bytes > 0);
+        assert_eq!(report.retained_blobs, 0);
+        assert!(!blob_path.exists());
+
+        let reopened = FrontierTxn::open(&root, &journals, &operation_id).unwrap();
+        assert_eq!(reopened.recovery_state(), &RecoveryState::Completed);
+        assert_eq!(reopened.journal.blob_retention, BlobRetention::Pruned);
+        let public = reopened.resolved_public_writes().unwrap();
+        assert_eq!(public.len(), 1);
+        assert_eq!(
+            public[0].postimage_bytes.as_deref(),
+            Some(vec![b'x'; 64 * 1024].as_slice())
+        );
+        drop(reopened);
+        FrontierTxn::verify_recovery_barrier_read_only(&root, &journals).unwrap();
+
+        fs::write(root.join("records/receipt.json"), b"corrupt").unwrap();
+        assert!(matches!(
+            FrontierTxn::verify_recovery_barrier_read_only(&root, &journals),
+            Err(FrontierTxnError::CompletedPostimageMismatch { .. })
+        ));
+    }
+
+    #[test]
+    fn recovery_compaction_refuses_incomplete_transactions_and_keeps_their_blobs() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        let journals = temp.path().join("journals");
+        fs::create_dir_all(&root).unwrap();
+        let draft = DeltaDraft::prepare(
+            &root,
+            vec![PlannedWrite::write(
+                RepoPath::parse("records/receipt.json").unwrap(),
+                WriteClass::CanonicalEvidence,
+                b"still needed for recovery".to_vec(),
+            )],
+        )
+        .unwrap();
+        let plan = fixture_plan(&root, &draft, b"incomplete recovery compaction");
+        let operation_id = plan.operation_id.clone();
+        let txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
+        let blob_path = txn.paths.blob(
+            &txn.plan()
+                .canonical_delta
+                .writes()
+                .first()
+                .unwrap()
+                .payload
+                .as_ref()
+                .unwrap()
+                .digest,
+        );
+        assert!(blob_path.is_file());
+        drop(txn);
+
+        assert!(matches!(
+            FrontierTxn::compact_completed_history(&root, &journals),
+            Err(FrontierTxnError::RecoveryRequired {
+                operation_id: blocked,
+                state: RecoveryState::Prepared,
+            }) if blocked == operation_id.as_str()
+        ));
+        assert!(blob_path.is_file());
     }
 
     #[test]

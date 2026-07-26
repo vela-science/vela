@@ -435,6 +435,21 @@ and signature byte. It appends one boundary event, so Git and event-log roots
 change intentionally. Scientific debt remains visible. Apply leaves an exact
 uncommitted delta for human inspection; it does not stage, commit, or push.
 
+### Private recovery compaction
+
+After an operation is settled and published, frontier transactions can discard
+verified postimage byte copies while retaining the exact plan, commit marker,
+file-state commitments, and event membership needed for idempotency and
+fail-closed checks. Compact this ignored, non-scientific recovery data with:
+
+```bash
+vela frontier compact-recovery . --json
+```
+
+The command first verifies every completed marker, retained blob, event-set
+root, and non-derived postimage. It refuses active or incomplete recovery and
+never changes tracked frontier bytes.
+
 ## Target-index maintenance
 
 The hidden advanced setup surface seals domain-owned candidates; it does not

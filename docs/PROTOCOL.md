@@ -832,6 +832,13 @@ Profile v1 checkout uses the reducer and verifier versions pinned by that
 checkout's lock when validating these non-scientific bytes; merely upgrading
 the reader does not require a derived-view commit.
 
+Completed frontier transactions retain their exact plan, commit marker,
+event-set commitment, and before/after file-state digests. After exact
+installation and completion verification, their private postimage byte copies
+may be pruned. Prepared, committed, installing, installed, or conflicted
+transactions retain every recovery blob and continue to block unrelated reads
+and writes until recovered.
+
 Git publication uses an isolated, exact-path candidate tree and compare-and-swap
 ref movement. It must not consume unrelated caller staging. A Git commit proves
 only that bytes entered a history; Vela event signatures and policy

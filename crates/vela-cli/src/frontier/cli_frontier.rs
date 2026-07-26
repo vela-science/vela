@@ -183,6 +183,31 @@ pub(crate) fn cmd_frontier(action: FrontierAction) {
                 std::process::exit(1);
             }
         }
+        FrontierAction::CompactRecovery { frontier, json } => {
+            let journal_dir = crate::workflow::frontier_transaction_journal_dir(&frontier)
+                .unwrap_or_else(|error| fail_return(&error));
+            let report = crate::frontier_txn::FrontierTxn::compact_completed_history(
+                &frontier,
+                &journal_dir,
+            )
+            .unwrap_or_else(|error| fail_return(&error.to_string()));
+            if json {
+                print_json(&json!({
+                    "schema": "vela.recovery-compaction.v1",
+                    "ok": true,
+                    "frontier": frontier.display().to_string(),
+                    "report": report,
+                }));
+            } else {
+                println!("frontier recovery compacted");
+                println!("  frontier:   {}", frontier.display());
+                println!("  completed:  {}", report.completed_journals);
+                println!("  compacted:  {}", report.newly_compacted_journals);
+                println!("  removed:    {} blobs", report.removed_blobs);
+                println!("  reclaimed:  {} bytes", report.removed_bytes);
+                println!("  retained:   {} blobs", report.retained_blobs);
+            }
+        }
         FrontierAction::Release {
             frontier,
             name,

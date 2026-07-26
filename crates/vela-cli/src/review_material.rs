@@ -347,7 +347,21 @@ impl ReviewProjection {
         let inspection = if proposal.status == "pending_review"
             && proposal.applied_event_id.is_none()
         {
-            ReviewInspection::Pending(Self::one(frontier, proposal_id)?)
+            let observed_at =
+                chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
+            let mut selection = Self::selected_from_locked_project_at(
+                frontier,
+                &project,
+                &[proposal_id.to_string()],
+                &observed_at,
+            )?;
+            let item = selection.items.pop().ok_or_else(|| {
+                ReviewProjectionError::new(
+                    "proposal_not_found",
+                    format!("pending proposal {proposal_id} was not found"),
+                )
+            })?;
+            ReviewInspection::Pending(item)
         } else {
             ReviewInspection::Terminal(build_terminal_review_record(frontier, &project, proposal)?)
         };
