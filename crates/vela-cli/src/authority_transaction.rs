@@ -1373,16 +1373,19 @@ fn validate_authority_object_path(
 
 fn validate_authority_derived_path(path: &RepoPath) -> Result<(), AuthorityTransactionError> {
     let value = path.as_str();
-    if value == "frontier.json"
-        || value == "vela.lock"
-        || value == ".vela/proof-state.json"
-        || value.starts_with("proof/")
-    {
+    if authority_derived_path(value) {
         return Ok(());
     }
     Err(AuthorityTransactionError::Invalid(format!(
         "authority transaction derived path {value} is not a Vela-owned materialized view"
     )))
+}
+
+pub(crate) fn authority_derived_path(value: &str) -> bool {
+    value == "frontier.json"
+        || value == "vela.lock"
+        || value == ".vela/proof-state.json"
+        || value.starts_with("proof/")
 }
 
 fn authority_object_planned_write(
@@ -3715,6 +3718,14 @@ mod tests {
 
     #[test]
     fn derived_postimages_share_recovery_without_entering_authority_delta() {
+        assert!(authority_derived_path("frontier.json"));
+        assert!(authority_derived_path("vela.lock"));
+        assert!(authority_derived_path(".vela/proof-state.json"));
+        assert!(authority_derived_path("proof/latest.json"));
+        assert!(
+            !authority_derived_path("frontier.yaml"),
+            "repository configuration is not a derived materialized view"
+        );
         let fixture = fixture();
         fs::write(fixture.temporary.path().join("frontier.json"), b"before\n").unwrap();
         let mut request = fixture.request.clone();

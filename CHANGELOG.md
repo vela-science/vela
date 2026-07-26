@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## v0.930.0-rc.12 — 2026-07-26 — Preserve repository configuration during landing
+
+- Keep `frontier.yaml` and every other repository-configuration surface out of
+  repository-authority derived drafts. Transactional landing rematerializes
+  only the closed Vela-owned view set (`frontier.json`, `vela.lock`,
+  `.vela/proof-state.json`, and `proof/**`), preserving migrated frontier
+  configuration byte-for-byte.
+- Render those views from canonical repository bytes plus the new pending
+  proposal, not from the workflow's effective in-memory lease overlay.
+  Detached repository-authority claims remain available for work-session
+  validation without leaking into `frontier.json` or `vela.lock`.
+- Add the migrated-frontier regression exposed by the retained Erdős landing;
+  the invalid rc.11 attempt failed before a transaction marker or proposal
+  mutation.
+
 ## v0.930.0-rc.11 — 2026-07-26 — Materialize repository-authority landings atomically
 
 - Install `frontier.json`, `vela.lock`, proof exports, and proof-state

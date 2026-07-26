@@ -1306,6 +1306,19 @@ fn repository_authority_nonlease_event_log_root(
     vela_protocol::authority_history::authority_event_log_root(&legacy_root, &events)
 }
 
+fn repository_land_materialization_candidate(
+    frontier: &Path,
+    proposal: vela_protocol::proposals::StateProposal,
+) -> Result<vela_protocol::project::Project, String> {
+    // Reload from canonical repository bytes rather than accepting the
+    // effective workflow Project. The latter may contain detached
+    // repository-authority lease overlays used only to validate the active
+    // work session; those overlays must never enter ordinary derived views.
+    let mut candidate = repo::load_from_path(frontier)?;
+    vela_protocol::proposals::insert_pending_in_frontier(&mut candidate, proposal)?;
+    Ok(candidate)
+}
+
 fn apply_repository_authority_leases(
     project: &mut vela_protocol::project::Project,
     authority: &crate::cli::LoadedRepositoryAuthority,
@@ -3214,8 +3227,25 @@ pub(crate) fn land(
         let WorkWriteBarrier::Repository(recovery_barrier) = write_barrier else {
             return Err("repository-authority landing lost its write barrier".to_string());
         };
-        let mut managed = repo::render_vela_repo_files(frontier, &candidate)?;
-        preserve_existing_event_bytes(frontier, &original, &candidate, &mut managed, "land")?;
+        // `original` includes detached repository-authority lease events so
+        // work-session validation can observe the active claim. Those events
+        // deliberately do not belong to the ordinary scientific Project
+        // materialized by `vela frontier materialize`. Rendering from that
+        // effective in-memory view would therefore pin transient lease state
+        // into frontier.json and vela.lock, and a fresh official reload would
+        // immediately reject both files. Rebuild the derived-view candidate
+        // from the canonical repository bytes and add only the pending
+        // proposal owned by this landing.
+        let materialization_candidate =
+            repository_land_materialization_candidate(frontier, proposal.clone())?;
+        let mut managed = repo::render_vela_repo_files(frontier, &materialization_candidate)?;
+        preserve_existing_event_bytes(
+            frontier,
+            &materialization_candidate,
+            &materialization_candidate,
+            &mut managed,
+            "land",
+        )?;
         let mut derived_drafts = Vec::new();
         for write in PlannedWrite::from_managed_files(managed).map_err(|error| error.to_string())? {
             if write.class() != WriteClass::Derived {
@@ -3228,6 +3258,9 @@ pub(crate) fn land(
                 return Err(format!(
                     "repository-authority derived materialization changed class for {path}"
                 ));
+            }
+            if !crate::authority_transaction::authority_derived_path(&path) {
+                continue;
             }
             derived_drafts
                 .push(crate::authority_transaction::AuthorityDerivedDraft { path, postimage });
@@ -4245,6 +4278,74 @@ mod workflow_transaction_tests {
         )
         .unwrap_err();
         assert!(error.contains("does not yet permit signed-agent Receipt landing"));
+    }
+
+    #[test]
+    fn repository_land_materialization_excludes_detached_workflow_lease_overlays() {
+        let temp = tempfile::tempdir().unwrap();
+        let canonical =
+            vela_protocol::project::assemble("materialization-source", Vec::new(), 0, 0, "test");
+        vela_protocol::repo::init_repo(temp.path(), &canonical).unwrap();
+
+        // Model the effective workflow view: repository-authority loading may
+        // overlay an active detached lease so landing can validate the work
+        // session. This state must not be the source for frontier.json or
+        // vela.lock.
+        let mut effective = vela_protocol::repo::load_from_path(temp.path()).unwrap();
+        effective.events.push(vela_protocol::events::StateEvent {
+            schema: vela_protocol::events::EVENT_SCHEMA.to_string(),
+            id: "vev_detached_lease_overlay".to_string(),
+            kind: vela_protocol::events::EVENT_KIND_ATTEMPT_CLAIMED.into(),
+            target: vela_protocol::events::StateTarget {
+                r#type: "attempt".to_string(),
+                id: "seed:target".to_string(),
+            },
+            actor: vela_protocol::events::StateActor {
+                id: "agent:fixture".to_string(),
+                r#type: "agent".to_string(),
+            },
+            timestamp: "2026-07-26T00:00:00Z".to_string(),
+            reason: "detached repository-authority lease overlay".to_string(),
+            before_hash: vela_protocol::events::NULL_HASH.to_string(),
+            after_hash: vela_protocol::events::NULL_HASH.to_string(),
+            payload: json!({}),
+            caveats: Vec::new(),
+            signature: None,
+        });
+        assert_eq!(effective.events.len(), canonical.events.len() + 1);
+
+        let pending_finding = finding();
+        let proposal = vela_protocol::proposals::new_proposal_at(
+            "finding.add",
+            vela_protocol::events::StateTarget {
+                r#type: "finding".to_string(),
+                id: pending_finding.id.clone(),
+            },
+            "agent:fixture",
+            "agent",
+            "retain verified work for review",
+            json!({ "finding": pending_finding }),
+            Vec::new(),
+            Vec::new(),
+            "2026-07-26T00:00:01Z",
+        );
+        let proposal_id = proposal.id.clone();
+
+        let materialized =
+            repository_land_materialization_candidate(temp.path(), proposal).unwrap();
+        assert_eq!(materialized.events.len(), canonical.events.len());
+        assert!(
+            materialized
+                .events
+                .iter()
+                .all(|event| event.id != "vev_detached_lease_overlay")
+        );
+        assert!(
+            materialized
+                .proposals
+                .iter()
+                .any(|proposal| proposal.id == proposal_id)
+        );
     }
 
     fn review_withdraw_fixture() -> (tempfile::TempDir, SigningKey, String) {
