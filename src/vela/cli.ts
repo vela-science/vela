@@ -28,12 +28,12 @@ import type { LandResult, VelaCommandResponse, VelaInspection } from "./types.js
 
 export type { CommandRunner } from "../util/command.js";
 
-// Real large frontiers can spend tens of seconds in Vela's recoverable
-// transaction preparation and derived-view materialization. Keep this well
-// below mission wall-time budgets while allowing the measured 38.6-second
-// Erdős work operation to reach its atomic commit instead of being killed in
-// Prepared state.
-export const DEFAULT_VELA_COMMAND_TIMEOUT_MS = 120_000;
+// Large frontiers can spend several minutes in Vela's recoverable transaction
+// preparation, exact replay, and derived-view materialization. This ceiling is
+// bounded independently from model, verifier, and mission budgets: it prevents
+// Canopus from killing a healthy authority transaction while still stopping a
+// stalled Vela subprocess.
+export const DEFAULT_VELA_COMMAND_TIMEOUT_MS = 600_000;
 
 export function retainedArtifactPath(
   repoRoot: string,

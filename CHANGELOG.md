@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Begin Canopus `0.8.0-rc.1` as an exact candidate composition with attested
-  Vela `0.930.0-rc.9`. The older `0.7.0`/`0.915.1` composition remains
+  Vela `0.930.0-rc.12`. The older `0.7.0`/`0.915.1` composition remains
   available only from immutable release history; it is no longer an active
   operating path.
 - Register the next non-overlapping Erdős 1056 k=15 range
@@ -21,6 +21,18 @@
   root and mismatch reason. The repair reuses the same frozen capsule and
   range, supplies no verifier answer, and forbids reuse of the rejected
   numeric result.
+- Pin Vela rc.12 after the repository-authority landing regression proved that
+  repository authorization must not occupy Receipt v1's scientific
+  `acceptance.policyRef`, signed agent observations require canonical
+  whole-second timestamps, and repository-authority landing must materialize
+  derived views inside the same recoverable transaction without adding those
+  views to the signed scientific delta. The released macOS binary is
+  `sha256:2e6c4f5aadf0d3e6e7102d71f8fa0a46d31567cc847c25914706183248167471`.
+- Raise only the bounded Vela subprocess ceiling from two to ten minutes after
+  a real Erdős landing reached its frozen verifier and atomic authority
+  transaction but was killed during large-frontier materialization at exactly
+  120 seconds. Model, verifier, workspace, and mission budgets remain
+  independently bounded.
 
 ## 0.7.0 - 2026-07-25
 

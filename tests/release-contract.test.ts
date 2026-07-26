@@ -13,9 +13,9 @@ test("current product release pins the tested Vela and Codex boundaries", async 
     "utf8",
   );
 
-  assert.equal(SUPPORTED_VELA_VERSION, "0.930.0-rc.9");
+  assert.equal(SUPPORTED_VELA_VERSION, "0.930.0-rc.12");
   assert.equal(SUPPORTED_CODEX_VERSION, "0.145.0");
-  assert.match(workflow, /releases\/download\/v0\.930\.0-rc\.9/u);
+  assert.match(workflow, /releases\/download\/v0\.930\.0-rc\.12/u);
   assert.match(workflow, /codex-0\.145\.0-linux-x64\.tgz/u);
   assert.match(
     workflow,
@@ -129,7 +129,7 @@ test("source retains Build Week evidence while the package stays product-only", 
   );
   assert.match(
     readme,
-    /Current source is Canopus `0\.8\.0-rc\.1`, composed only with attested Vela[\s\S]+`0\.930\.0-rc\.9`[\s\S]+not active writer or producer paths/u,
+    /Current source is Canopus `0\.8\.0-rc\.1`, composed only with attested Vela[\s\S]+`0\.930\.0-rc\.12`[\s\S]+not active writer or producer paths/u,
   );
   assert.match(
     readme,

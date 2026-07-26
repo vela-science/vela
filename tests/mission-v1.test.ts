@@ -15,7 +15,7 @@ const digest = `sha256:${"a".repeat(64)}`;
 
 test("mission preparation accepts the exact stable and prerelease Vela identities", () => {
   assert.equal(parseVelaVersionOutput("vela 0.930.0"), "0.930.0");
-  assert.equal(parseVelaVersionOutput("vela 0.930.0-rc.9"), "0.930.0-rc.9");
+  assert.equal(parseVelaVersionOutput("vela 0.930.0-rc.12"), "0.930.0-rc.12");
   assert.throws(() => parseVelaVersionOutput("vela latest"), /invalid version/u);
   assert.throws(() => parseVelaVersionOutput("vela 0.930.0 rc.9"), /invalid version/u);
 });

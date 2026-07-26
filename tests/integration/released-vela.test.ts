@@ -105,7 +105,7 @@ test(
 
     const vela = new VelaClient({
       binary: velaBinary,
-      expectedVersion: "0.930.0-rc.9",
+      expectedVersion: "0.930.0-rc.12",
       expectedSha256: registeredVelaDigest,
       home: path.join(runRoot, "vela-home"),
     });
@@ -114,7 +114,7 @@ test(
       schema: "canopus.mission.v0",
       id: "mission_released_vela_smoke",
       target: "seed:canopus-smoke",
-      vela_version: "0.930.0-rc.9",
+      vela_version: "0.930.0-rc.12",
       vela_sha256: registeredVelaDigest,
       frontier: ".",
       actor: "agent:canopus-smoke",
@@ -175,6 +175,10 @@ test(
     assert.equal(result.record.landing.publication_state, "committed_local");
     assert.equal(result.record.reproduction.matched, true);
     assert.equal(result.record.external_gate_credit, false);
+    const activity = await readFile(path.join(result.paths.root, "activity.jsonl"), "utf8");
+    assert.match(activity, /\.vela\/events\/vev_[0-9a-f]{16}\.json/u);
+    assert.match(activity, /"frontier\.json"/u);
+    assert.match(activity, /"vela\.lock"/u);
     const witness = result.record.candidate.artifacts.find(
       (artifact) => artifact.path === "result.json",
     );

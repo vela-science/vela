@@ -84,7 +84,7 @@ frozen Sidon verifier. The second is an independent base-3 implementation that
 also rejects a bound collision injection. Neither command accepts the proposal.
 
 Current source is Canopus `0.8.0-rc.1`, composed only with attested Vela
-`0.930.0-rc.9`. Older Canopus and Vela binaries remain available from immutable
+`0.930.0-rc.12`. Older Canopus and Vela binaries remain available from immutable
 release history for replay, but they are not active writer or producer paths.
 
 ## Quickstart
@@ -169,7 +169,7 @@ the retained
 
 ## Development
 
-Current-source development requires Bun 1.3.12, Vela `0.930.0-rc.9`, Codex CLI
+Current-source development requires Bun 1.3.12, Vela `0.930.0-rc.12`, Codex CLI
 0.145.0, and Docker. The built
 package also runs under Node 22 or 24; unsupported odd-numbered Node releases
 are rejected rather than silently treated as supported.
@@ -184,6 +184,7 @@ bun run pack:check
 
 - [Missions and profiles](docs/MISSIONS.md)
 - [Run records and publication](docs/RUN_RECORD.md)
+- [Evaluation claims, gates, and simplification rules](docs/EVALUATION.md)
 - [Historical release evidence](https://github.com/vela-science/vela-research-harness/blob/v0.7.0/docs/RELEASES.md)
 - [Why the harness stays removable](docs/adr/0001-harness-boundary-and-name.md)
 

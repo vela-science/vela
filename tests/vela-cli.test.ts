@@ -19,7 +19,7 @@ const root = `sha256:${"a".repeat(64)}`;
 const velaBinaryDigest = sha256Bytes(readFileSync(process.execPath));
 
 test("large-frontier Vela operations retain a bounded transaction-safe timeout", () => {
-  assert.equal(DEFAULT_VELA_COMMAND_TIMEOUT_MS, 120_000);
+  assert.equal(DEFAULT_VELA_COMMAND_TIMEOUT_MS, 600_000);
 });
 
 function result(argv: readonly string[], stdout: unknown, exitCode = 0): Awaited<ReturnType<CommandRunner>> {
@@ -276,10 +276,10 @@ test("Vela 0.915 uses strict replay roots for a minimal frontier without proof/l
 });
 
 test("Vela 0.930 prereleases use compact roots without requiring a retired proof bundle", async () => {
-  const fake = fakeRunner({ version: "0.930.0-rc.9" });
+  const fake = fakeRunner({ version: "0.930.0-rc.12" });
   const vela = new VelaClient({
     binary: process.execPath,
-    expectedVersion: "0.930.0-rc.9",
+    expectedVersion: "0.930.0-rc.12",
     expectedSha256: velaBinaryDigest,
     home: "/tmp/canopus-home",
     runner: fake.runner,

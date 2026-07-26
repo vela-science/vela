@@ -169,8 +169,8 @@ test("mission v0 round-trips a bounded exact-root contract", () => {
 
 test("mission parser accepts an attested Vela prerelease identity", () => {
   const input = mission();
-  input.vela_version = "0.930.0-rc.9";
-  assert.equal(parseMission(input).vela_version, "0.930.0-rc.9");
+  input.vela_version = "0.930.0-rc.12";
+  assert.equal(parseMission(input).vela_version, "0.930.0-rc.12");
 });
 
 test("mission parser rejects an incomplete Vela prerelease identity", () => {

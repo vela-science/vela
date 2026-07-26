@@ -183,16 +183,10 @@ function assertWorkBinding(
     ) {
       throw new Error("vela work did not publish an exact lease delta");
     }
-    exactText(
-      postWork.roots.vela_event_log,
-      mission.roots.vela_event_log,
-      "vela work scientific event root",
-    );
-    exactText(
-      postWork.roots.vela_snapshot,
-      mission.roots.vela_snapshot,
-      "vela work scientific snapshot root",
-    );
+    // Repository profiles may include the signed attempt in the ordinary event
+    // root or keep it in a non-scientific lease lane. The exact committed event
+    // and the derived-path ceiling are validated by
+    // publishRepositoryAuthorityLease; neither root behavior is inferred here.
     return;
   }
   const claim = recordField(response.value, "claim", "vela work");
@@ -249,31 +243,80 @@ async function publishRepositoryAuthorityLease(options: {
     .split("\0")
     .filter((entry) => entry.length > 0)
     .sort();
-  const paths = status.map((entry) => {
-    if (!entry.startsWith("?? ")) {
-      throw new Error("repository-authority work lease modified a tracked path");
+  const entries = status.map((entry) => {
+    if (entry.length < 4 || entry[2] !== " ") {
+      throw new Error("repository-authority work lease produced an unsupported Git status");
     }
-    return entry.slice(3);
+    return { status: entry.slice(0, 2), path: entry.slice(3) };
   });
-  const eventPaths = paths.filter((entry) =>
+  const committed = entries.length === 0;
+  const commit = (await git(["rev-parse", "--verify", "HEAD^{commit}"])).toString("utf8").trim();
+  const tree = (await git(["rev-parse", "--verify", "HEAD^{tree}"])).toString("utf8").trim();
+  const paths = committed
+    ? (await git([
+        "diff",
+        "--name-only",
+        "-z",
+        options.mission.roots.git_commit,
+        commit,
+        "--",
+      ]))
+        .toString("utf8")
+        .split("\0")
+        .filter((entry) => entry.length > 0)
+        .sort()
+    : entries.map((entry) => entry.path);
+  const authorityEventPaths = paths.filter((entry) =>
     /^\.vela\/authority\/events\/vev_[0-9a-f]{16}\.json$/u.test(entry)
   );
   const recordPaths = paths.filter((entry) =>
     /^\.vela\/authority\/records\/var_[0-9a-f]{16}\.dsse\.json$/u.test(entry)
   );
+  const canonicalEventPaths = paths.filter((entry) =>
+    /^\.vela\/events\/vev_[0-9a-f]{16}\.json$/u.test(entry)
+  );
+  const derivedPaths = paths.filter((entry) =>
+    entry === "frontier.json" ||
+    entry === "vela.lock" ||
+    entry === ".vela/proof-state.json" ||
+    entry.startsWith("proof/")
+  );
+  const authorityPaths = new Set([
+    ...authorityEventPaths,
+    ...recordPaths,
+    ...canonicalEventPaths,
+  ]);
+  const derivedPathSet = new Set(derivedPaths);
+  const detachedAuthorityDelta =
+    authorityEventPaths.length === 1 &&
+    recordPaths.length === 1 &&
+    canonicalEventPaths.length === 0;
+  const canonicalAuthorityDelta =
+    authorityEventPaths.length === 0 &&
+    recordPaths.length === 0 &&
+    canonicalEventPaths.length === 1;
   if (
-    paths.length !== 2 ||
-    eventPaths.length !== 1 ||
-    recordPaths.length !== 1
+    (committed && commit === options.mission.roots.git_commit) ||
+    (!detachedAuthorityDelta && !canonicalAuthorityDelta) ||
+    paths.some((entry) => !authorityPaths.has(entry) && !derivedPathSet.has(entry)) ||
+    entries.some((entry) => {
+      if (authorityPaths.has(entry.path)) return entry.status !== "??";
+      if (derivedPathSet.has(entry.path)) return entry.status === "??";
+      return true;
+    })
   ) {
     throw new Error(
-      "repository-authority work lease must create exactly one event and one authority record",
+      "repository-authority work lease must create one exact signed attempt event and may rematerialize only tracked Vela-derived views: " +
+      canonicalJson({ entries, paths }),
     );
   }
+  const eventPath = (canonicalEventPaths[0] ?? authorityEventPaths[0])!;
   const event = JSON.parse(
-    await readFile(path.join(options.repoRoot, eventPaths[0]!), "utf8"),
+    await readFile(path.join(options.repoRoot, eventPath), "utf8"),
   ) as Record<string, unknown>;
-  const content = recordField(event, "content", "repository-authority work event");
+  const content = canonicalAuthorityDelta
+    ? event
+    : recordField(event, "content", "repository-authority work event");
   const actor = recordField(content, "actor", "repository-authority work event.content");
   const target = recordField(content, "target", "repository-authority work event.content");
   exactText(content.kind, "attempt.claimed", "repository-authority work event kind");
@@ -281,9 +324,10 @@ async function publishRepositoryAuthorityLease(options: {
   exactText(target.id, options.mission.target, "repository-authority work event target");
   exactText(
     event.id,
-    path.basename(eventPaths[0]!, ".json"),
+    path.basename(eventPath, ".json"),
     "repository-authority work event ID",
   );
+  if (committed) return { commit, tree, paths };
   await git(["add", "--", ...paths]);
   const staged = (await git(["diff", "--cached", "--name-only", "-z"]))
     .toString("utf8")
@@ -303,9 +347,9 @@ async function publishRepositoryAuthorityLease(options: {
     "-m",
     `canopus: claim ${options.mission.target}`,
   ]);
-  const commit = (await git(["rev-parse", "--verify", "HEAD^{commit}"])).toString("utf8").trim();
-  const tree = (await git(["rev-parse", "--verify", "HEAD^{tree}"])).toString("utf8").trim();
-  return { commit, tree, paths };
+  const finalCommit = (await git(["rev-parse", "--verify", "HEAD^{commit}"])).toString("utf8").trim();
+  const finalTree = (await git(["rev-parse", "--verify", "HEAD^{tree}"])).toString("utf8").trim();
+  return { commit: finalCommit, tree: finalTree, paths };
 }
 
 export function validateTargetOffer(
