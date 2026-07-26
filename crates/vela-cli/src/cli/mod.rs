@@ -591,6 +591,10 @@ pub async fn run_command() {
                     Some("remove --reason or add --drop"),
                 );
             }
+            let project = vela_protocol::repo::load_from_path(&dir)
+                .unwrap_or_else(|error| fail_return(&error));
+            authority::ensure_routine_producer_ready(&dir, &project)
+                .unwrap_or_else(|error| fail_return(&error));
             let ttl = ttl.unwrap_or_else(|| {
                 crate::config::settings::try_resolve("work.lease_ttl_seconds", Some(&dir))
                     .unwrap_or_else(|error| fail_return(&error))

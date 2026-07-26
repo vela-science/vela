@@ -1592,6 +1592,61 @@ pub(crate) struct LoadedRepositoryAuthority {
     pub(crate) verification: AuthorityHistoryVerification,
 }
 
+/// Assess whether an offered target can enter the routine producer path.
+///
+/// Target freshness and lease availability do not imply authorization. Early
+/// Era-1 Frontiers intentionally migrated before the narrow signed-agent work
+/// policy existed. Name the one required policy rotation before a producer
+/// reads a key or acquires a write barrier.
+pub(crate) fn ensure_routine_producer_ready(
+    frontier: &Path,
+    project: &Project,
+) -> Result<(), String> {
+    let Some(authority) = load_repository_authority(frontier, project)? else {
+        return Ok(());
+    };
+    ensure_routine_producer_material_ready(&authority.policy_material, project)
+}
+
+fn ensure_routine_producer_material_ready(
+    material: &CedarPolicyMaterial,
+    project: &Project,
+) -> Result<(), String> {
+    let has_work_claim = material.schema.contains("action \"work_claim\"");
+    let has_receipt_land = material.schema.contains("action \"receipt_land\"");
+    match (has_work_claim, has_receipt_land) {
+        (false, false) => {
+            return Err(
+                "signed-agent routine producer work is not enabled; run `vela authority enable-work . --reason <bounded-reason> --json`, inspect the exact plan, and request its protected approval"
+                    .into(),
+            );
+        }
+        (true, true) => {}
+        _ => {
+            return Err(
+                "repository-authority routine producer schema is incomplete; work_claim and receipt_land must be introduced together"
+                    .into(),
+            );
+        }
+    }
+    let verification_input = CedarEvaluationInput {
+        schema: material.schema.clone(),
+        policies: material.policies.clone(),
+        entities: material.entities.clone(),
+        principal: r#"Human::"verification-only""#.into(),
+        principal_class: PrincipalClass::Human,
+        action: POLICY_ROTATE_ACTION.into(),
+        resource: format!(
+            "Frontier::{}",
+            serde_json::to_string(&project.frontier_id())
+                .expect("serializing a frontier ID cannot fail")
+        ),
+        context: json!({"exact": true}),
+    };
+    verify_routine_work_policy(&verification_input, project)?;
+    Ok(())
+}
+
 impl LoadedRepositoryAuthority {
     /// Return Era-1 events in covering-record sequence.
     ///
@@ -2428,6 +2483,50 @@ mod tests {
         .unwrap();
         assert_eq!(observation.authenticated_at, recorded_at);
         assert_eq!(observation.observed_at, recorded_at);
+    }
+
+    #[test]
+    fn routine_producer_readiness_distinguishes_early_and_current_era_one_policy() {
+        let fixture = fixture();
+        let project = vela_protocol::repo::load_from_path(fixture.root()).unwrap();
+        let (_, early_authorization) = initial_policy_bundle_at_with_routine_work(
+            fixture.root(),
+            &project,
+            PRINCIPAL_ID,
+            OBSERVED_AT,
+            false,
+        )
+        .unwrap();
+        assert!(
+            ensure_routine_producer_material_ready(
+                &CedarPolicyMaterial::from_evaluation(&early_authorization),
+                &project,
+            )
+            .unwrap_err()
+            .contains("vela authority enable-work")
+        );
+
+        let (_, current_authorization) = initial_policy_bundle_at_with_routine_work(
+            fixture.root(),
+            &project,
+            PRINCIPAL_ID,
+            OBSERVED_AT,
+            true,
+        )
+        .unwrap();
+        ensure_routine_producer_material_ready(
+            &CedarPolicyMaterial::from_evaluation(&current_authorization),
+            &project,
+        )
+        .unwrap();
+
+        let mut incomplete = CedarPolicyMaterial::from_evaluation(&current_authorization);
+        incomplete.schema = incomplete.schema.replace(ROUTINE_LANDING_SCHEMA.trim(), "");
+        assert!(
+            ensure_routine_producer_material_ready(&incomplete, &project)
+                .unwrap_err()
+                .contains("must be introduced together")
+        );
     }
 
     #[test]
