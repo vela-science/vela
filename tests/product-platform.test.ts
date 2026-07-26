@@ -40,10 +40,14 @@ test("active Windows executable discovery resolves a PATHEXT command", {
   );
 });
 
-function commandResult(options: CommandOptions, stdout: string): CommandResult {
+function commandResult(
+  options: CommandOptions,
+  stdout: string,
+  exitCode = 0,
+): CommandResult {
   return {
     argv: [...options.argv],
-    exitCode: 0,
+    exitCode,
     signal: null,
     stdout: Buffer.from(stdout),
     stderr: Buffer.alloc(0),
@@ -69,23 +73,27 @@ test("native Windows doctor remains read-only and does not probe worker runtimes
     const result = await doctorProduct({
       frontier,
       platform: "win32",
-      profileName: "erdos1056-k15-10428801-10429000",
+      profileName: "erdos1056-k15-10429001-10429200",
       runner: async (options) => {
         const executable = path.basename(options.argv[0] ?? "");
         observed.push(`${executable} ${options.argv.slice(1).join(" ")}`);
         if (options.argv[1] === "--version") {
-          return commandResult(options, executable === "vela" ? "vela 0.915.1\n" : "git version 2.50.0\n");
+          return commandResult(
+            options,
+            executable === "vela" ? "vela 0.930.0-rc.9\n" : "git version 2.50.0\n",
+          );
         }
         if (executable === "vela" && options.argv[1] === "status") {
           return commandResult(options, JSON.stringify({
+            ok: false,
             schema: "vela.status.v1",
             roots: {
               event_log: `sha256:${"a".repeat(64)}`,
               scientific_state_root: `sha256:${"b".repeat(64)}`,
             },
             git: { commit: "c".repeat(40), tree: "d".repeat(40) },
-            integrity: { blocker_count: 0 },
-          }));
+            integrity: { blocker_count: 81 },
+          }), 1);
         }
         if (executable === "vela" && options.argv[1] === "next") {
           return commandResult(options, JSON.stringify({
@@ -106,6 +114,7 @@ test("native Windows doctor remains read-only and does not probe worker runtimes
       result.public.frontier.scientific_state_root,
       `sha256:${"b".repeat(64)}`,
     );
+    assert.equal(result.public.frontier.strict_blockers, 81);
     assert.equal(result.public.runtimes.codex, null);
     assert.equal(result.public.runtimes.docker, null);
     assert.match(result.public.next_action, /Open WSL2.+rerun canopus doctor/su);

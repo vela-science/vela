@@ -15,12 +15,12 @@ jobs:
         include:
           - runner: macos-15
             archive: vela-macos-aarch64.zip
-            archive_sha256: e9f34d25e10313b2bcd38683b198743ef51242e5074b33d8f223a3d04873a642
-            binary_sha256: 826861ac137e4607bdaa363702d2779f2639b8fffb088a70f8be7d0be6540fed
+            archive_sha256: feaeb4a95aa64a3056200856cb021e35d1d9e3c27e4db9db4b69aa6c24a652a0
+            binary_sha256: d0bb36921b78a63ce220a5941ff3369fbc73824d0083c3c7f66b7695638fb9f9
           - runner: ubuntu-24.04
             archive: vela-linux-x86_64.tar.gz
-            archive_sha256: 6d78bf5f47b51baf3610cd40a33524ea36e3f5f231bf2616ef306dacb4a4edf3
-            binary_sha256: b9acf197e26a75decf37219ba681f78878dffe1c11d4e1351bba18246c77d8aa
+            archive_sha256: 3ad8fcaf28acc8d6398c97eaf0d265238c6745f0bdac92dbd1a3823916630b3f
+            binary_sha256: cb7491cd579beda60e1616fde31ab29605744aeef84f8426e49a9b0f6e8b1cfa
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     steps:
@@ -54,7 +54,7 @@ jobs:
           VELA_SHA256: ${{ matrix.binary_sha256 }}
         run: |
           curl --fail --location --silent --show-error \
-            "https://github.com/vela-science/vela/releases/download/v0.915.1/$VELA_ARCHIVE" \
+            "https://github.com/vela-science/vela/releases/download/v0.930.0-rc.9/$VELA_ARCHIVE" \
             --output "$RUNNER_TEMP/$VELA_ARCHIVE"
           printf '%s  %s\n' "$VELA_ARCHIVE_SHA256" "$RUNNER_TEMP/$VELA_ARCHIVE" \
             | shasum -a 256 -c -
@@ -146,7 +146,7 @@ jobs:
           canopus="$RUNNER_TEMP/canopus-install/bin/canopus"
           "$canopus" --help
           "$canopus" profile list
-          "$canopus" profile validate erdos1056-k15-10428801-10429000
+          "$canopus" profile validate erdos1056-k15-10429001-10429200
           "$canopus" profile validate formal-erdos-505-test-dim-one-gpt56
           "$canopus" profile validate quantum-10-1-4-stabilizer-retry
 
@@ -171,15 +171,15 @@ jobs:
         run: |
           $archive = "$env:RUNNER_TEMP\vela-windows-x86_64.zip"
           Invoke-WebRequest `
-            -Uri "https://github.com/vela-science/vela/releases/download/v0.915.1/vela-windows-x86_64.zip" `
+            -Uri "https://github.com/vela-science/vela/releases/download/v0.930.0-rc.9/vela-windows-x86_64.zip" `
             -OutFile $archive
           if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLower() -ne `
-              "dae503dc0a83679e0f244ab12ea3fffd105bae1e0217d4d01c5b8a24adf508bd") {
+              "8eeb03277b7acdc907145ba7e34d6f7b93b2828a6d8c8d676152abd50931e735") {
             throw "Vela archive checksum mismatch"
           }
           Expand-Archive $archive "$env:RUNNER_TEMP\vela"
           if ((Get-FileHash "$env:RUNNER_TEMP\vela\vela.exe" -Algorithm SHA256).Hash.ToLower() -ne `
-              "a2dba32fe9354355a3cd0b3665a9da706dcd6bf15bdbb0c87c1cec25756d1ba4") {
+              "03c8c095ca663e97c98bfd4a104c836ef10ee096ff5f5ab7b382e857d2d272ef") {
             throw "Vela binary checksum mismatch"
           }
           & "$env:RUNNER_TEMP\vela\vela.exe" --version
@@ -188,6 +188,6 @@ jobs:
           npm install --global --prefix "$env:RUNNER_TEMP\canopus" $package.FullName
           & "$env:RUNNER_TEMP\canopus\canopus.cmd" --help
           & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile list
-          & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile validate erdos1056-k15-10428801-10429000
+          & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile validate erdos1056-k15-10429001-10429200
           & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile validate formal-erdos-505-test-dim-one-gpt56
           & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile validate quantum-10-1-4-stabilizer-retry

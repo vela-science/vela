@@ -239,6 +239,21 @@ test("Vela 0.915 uses strict replay roots for a minimal frontier without proof/l
   assert.equal(fake.calls.some((argv) => argv[1] === "proof"), false);
 });
 
+test("Vela 0.930 prereleases use compact roots without requiring a retired proof bundle", async () => {
+  const fake = fakeRunner({ version: "0.930.0-rc.9" });
+  const vela = new VelaClient({
+    binary: process.execPath,
+    expectedVersion: "0.930.0-rc.9",
+    expectedSha256: velaBinaryDigest,
+    home: "/tmp/canopus-home",
+    runner: fake.runner,
+  });
+  const inspection = await vela.assertRoots("/repo", "frontier", mission().roots);
+  assert.deepEqual(inspection.roots, mission().roots);
+  assert.equal(inspection.proof.command, "status_root_projection");
+  assert.equal(fake.calls.some((argv) => argv[1] === "proof"), false);
+});
+
 test("Vela client serializes strict check before proof verification", async () => {
   const fake = fakeRunner();
   let checkFinished = false;

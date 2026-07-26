@@ -54,11 +54,13 @@ store, verifier authority, or scientific workbench platform.
 and follow
 Mission → GPT-5.6 → artifact → verifier → Receipt → Defer.
 
-**90 seconds — inspect the shipped product:**
+**90 seconds — inspect the current product candidate:**
 
 ```sh
-bunx @vela-science/canopus@0.7.0 --version
-bunx @vela-science/canopus@0.7.0 profile validate sidon-a24-at-least-7194-gpt56-v3
+bun install --frozen-lockfile
+bun run build
+node dist/src/cli.js --version
+node dist/src/cli.js profile validate erdos1056-k15-10429001-10429200
 ```
 
 **Retained historical result — reproduce without rebuilding Canopus:**
@@ -81,24 +83,27 @@ The first command selects the pending artifact explicitly and runs Vela's
 frozen Sidon verifier. The second is an independent base-3 implementation that
 also rejects a bound collision injection. Neither command accepts the proposal.
 
-For new missions, use Vela `0.915.1`, the version composed with Canopus
-`0.7.0` and enforced by `canopus doctor`.
+Current source is Canopus `0.8.0-rc.1`, composed only with attested Vela
+`0.930.0-rc.9`. Older Canopus and Vela binaries remain available from immutable
+release history for replay, but they are not active writer or producer paths.
 
 ## Quickstart
 
-Run the provenance-backed public package with Bun:
+Build the current exact candidate:
 
 ```sh
-bunx @vela-science/canopus@0.7.0 --version
+bun install --frozen-lockfile
+bun run build
+node dist/src/cli.js --version
 ```
 
 Inspect a clean frontier, then run its first ranked producer offer:
 
 ```sh
-bunx @vela-science/canopus@0.7.0 doctor /path/to/frontier
-bunx @vela-science/canopus@0.7.0 run /path/to/frontier --first
-bunx @vela-science/canopus@0.7.0 inspect latest
-bunx @vela-science/canopus@0.7.0 replay /path/to/run.json
+node dist/src/cli.js doctor /path/to/frontier
+node dist/src/cli.js run /path/to/frontier --first
+node dist/src/cli.js inspect latest
+node dist/src/cli.js replay /path/to/run.json
 ```
 
 Export a completed Defer run without publishing or mutating anything:
@@ -117,7 +122,7 @@ standing after verification; historical run v0 records remain inspectable.
 Use `--no-land` for a diagnostic mission that cannot change the source frontier:
 
 ```sh
-bunx @vela-science/canopus@0.7.0 run /path/to/frontier --first --no-land
+node dist/src/cli.js run /path/to/frontier --first --no-land
 ```
 
 `doctor` binds the exact Vela, Codex, Git, frontier, packet, profile, and verifier
@@ -164,7 +169,8 @@ the retained
 
 ## Development
 
-Requires Bun 1.3.12, Vela 0.915.1, Codex CLI 0.145.0, and Docker. The built
+Current-source development requires Bun 1.3.12, Vela `0.930.0-rc.9`, Codex CLI
+0.145.0, and Docker. The built
 package also runs under Node 22 or 24; unsupported odd-numbered Node releases
 are rejected rather than silently treated as supported.
 

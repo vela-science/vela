@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Begin Canopus `0.8.0-rc.1` as an exact candidate composition with attested
+  Vela `0.930.0-rc.9`. The older `0.7.0`/`0.915.1` composition remains
+  available only from immutable release history; it is no longer an active
+  operating path.
+- Register the next non-overlapping Erdős 1056 k=15 range
+  `10429001..10429200` before any model call. The closed profile root is
+  `sha256:1bb9ef800e61f095845756058c001289ea57225c3067279c2771f97611492ba6`;
+  its static Linux ARM64 and x86-64 verifier roots are
+  `sha256:0bf0a8ae62313904be8bbbd7c662301bb78516c5f2c97a0da79dc43298165c44`
+  and
+  `sha256:4dbc19b0528675f54133299133543e1d1191665db0a781f519dfea036ecd2f15`.
+  The completed `10428801..10429000` registration remains reproducible from
+  Canopus `0.7.0` and immutable Git history but is removed from default
+  discovery and the package payload.
+
 ## 0.7.0 - 2026-07-25
 
 - Retire long-lived proposal-withdrawal capabilities. Successful runs now

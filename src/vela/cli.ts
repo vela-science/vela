@@ -124,10 +124,10 @@ function parseJsonObject(stdout: Buffer, command: string): Record<string, unknow
 }
 
 function usesCompactStatusProjection(version: string): boolean {
-  const match = /^0\.(\d+)\.(\d+)$/u.exec(version);
+  const match = /^0\.(\d+)\.(\d+)(?:-[0-9A-Za-z.-]+)?$/u.exec(version);
   if (match === null) return false;
   const minor = Number(match[1]);
-  return Number.isSafeInteger(minor) && minor >= 900 && minor <= 915;
+  return Number.isSafeInteger(minor) && minor >= 900 && minor <= 930;
 }
 
 function safeFailureMessage(value: unknown): string | undefined {

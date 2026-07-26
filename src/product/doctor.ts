@@ -62,6 +62,7 @@ async function jsonCommand(options: {
   cwd: string;
   home: string;
   label: string;
+  acceptedExitCodes?: readonly number[];
 }): Promise<Record<string, unknown>> {
   const result = await options.runner({
     argv: options.argv,
@@ -70,7 +71,7 @@ async function jsonCommand(options: {
     timeoutMs: 120_000,
     maxOutputBytes: 16 * 1024 * 1024,
   });
-  if (result.exitCode !== 0) {
+  if (!(options.acceptedExitCodes ?? [0]).includes(result.exitCode)) {
     throw new Error(
       `${options.label} failed: stdout_sha256=${sha256Bytes(result.stdout)}; ` +
       `stderr_sha256=${sha256Bytes(result.stderr)}`,
@@ -207,7 +208,16 @@ export async function doctorProduct(options: {
       );
     }
     const [status, offer, gitStatus] = await Promise.all([
-      jsonCommand({ runner, argv: [vela.binary, "status", ".", "--json"], cwd: frontier, home: runtime, label: "vela status" }),
+      jsonCommand({
+        runner,
+        argv: [vela.binary, "status", ".", "--json"],
+        cwd: frontier,
+        home: runtime,
+        label: "vela status",
+        // Vela deliberately returns domain failure when strict debt exists,
+        // while still emitting the complete read-only compact projection.
+        acceptedExitCodes: [0, 1],
+      }),
       jsonCommand({ runner, argv: [vela.binary, "next", ".", "--limit", "128", "--json"], cwd: frontier, home: runtime, label: "vela next" }),
       runner({ argv: [git.binary, "status", "--porcelain=v1", "--untracked-files=all"], cwd: frontier, env: isolatedEnvironment(runtime), timeoutMs: 30_000, maxOutputBytes: 8 * 1024 * 1024 }),
     ]);

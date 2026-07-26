@@ -13,16 +13,16 @@ test("current product release pins the tested Vela and Codex boundaries", async 
     "utf8",
   );
 
-  assert.equal(SUPPORTED_VELA_VERSION, "0.915.1");
+  assert.equal(SUPPORTED_VELA_VERSION, "0.930.0-rc.9");
   assert.equal(SUPPORTED_CODEX_VERSION, "0.145.0");
-  assert.match(workflow, /releases\/download\/v0\.915\.1/u);
+  assert.match(workflow, /releases\/download\/v0\.930\.0-rc\.9/u);
   assert.match(workflow, /codex-0\.145\.0-linux-x64\.tgz/u);
   assert.match(
     workflow,
     /actions\/checkout@[^\n]+\n\s+with:\n\s+fetch-depth: 0/u,
     "historical registration checks require full Git history",
   );
-  assert.doesNotMatch(workflow, /releases\/download\/v0\.914\.1/u);
+  assert.doesNotMatch(workflow, /releases\/download\/v0\.915\.1/u);
   assert.doesNotMatch(workflow, /codex-0\.144\.6-linux-x64\.tgz/u);
 });
 
@@ -31,8 +31,8 @@ test("installed-package smoke validates the current packaged Erdős profile", as
     new URL("../../.github/workflows/ci.yml", import.meta.url),
     "utf8",
   );
-  const currentProfile = "erdos1056-k15-10428801-10429000";
-  const supersededProfile = "erdos1056-k15-10428601-10428800";
+  const currentProfile = "erdos1056-k15-10429001-10429200";
+  const supersededProfile = "erdos1056-k15-10428801-10429000";
 
   assert.equal(
     workflow.match(new RegExp(`profile validate ${currentProfile}`, "gu"))?.length,
@@ -89,7 +89,7 @@ test("source retains Build Week evidence while the package stays product-only", 
   const auditCommit = "825657d7e87618c0aa6fc9af7e3182e05f324750";
   const velaRelease = "https://github.com/vela-science/vela/releases/tag/v0.912.0";
 
-  assert.equal(packageJson.version, "0.7.0");
+  assert.equal(packageJson.version, "0.8.0-rc.1");
   for (const file of [
     "README.md",
     "THIRD_PARTY.md",
@@ -129,10 +129,7 @@ test("source retains Build Week evidence while the package stays product-only", 
   );
   assert.match(
     readme,
-    new RegExp(
-      `For new missions, use Vela \`0\\.915\\.1\`, the version composed with Canopus\\s+\`${packageJson.version}\``,
-      "u",
-    ),
+    /Current source is Canopus `0\.8\.0-rc\.1`, composed only with attested Vela[\s\S]+`0\.930\.0-rc\.9`[\s\S]+not active writer or producer paths/u,
   );
   assert.match(
     readme,
