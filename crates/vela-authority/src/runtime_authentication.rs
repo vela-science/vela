@@ -12,12 +12,15 @@
 use std::collections::BTreeSet;
 use std::fmt;
 
+use chrono::{DateTime, Duration, SecondsFormat, Utc};
 use serde_json::{Value, json};
 use vela_protocol::authentication::{
     AUTHENTICATION_OBSERVATION_SCHEMA_V1, AuthenticationAssurance, AuthenticationMethod,
     AuthenticationObservationV1,
 };
 use vela_protocol::authority::{CedarDecision, CedarEvaluation};
+use vela_protocol::canonical::sha256_canonical;
+use vela_protocol::events::StateEvent;
 use vela_protocol::principal_capability::PrincipalClass;
 
 use crate::{CedarEvaluationInput, evaluate};
@@ -224,6 +227,44 @@ pub struct LocalOsSession {
     pub recovery_recent: bool,
 }
 
+/// One closed platform-owned user-presence ceremony over an exact authority
+/// intent. The provider credential stays inside LocalAuthentication, Windows
+/// Hello, or polkit; the adapter retains only a bearer-free observation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlatformUserPresenceSession {
+    pub principal_id: String,
+    pub issuer: String,
+    pub subject: String,
+    pub session_root: String,
+    pub authenticated_at: String,
+    pub expires_at: String,
+}
+
+impl AuthenticationAdapter for PlatformUserPresenceSession {
+    fn observe(
+        &mut self,
+        request: &AuthenticationRequest,
+    ) -> Result<AuthenticationObservationV1, AuthenticationFailure> {
+        Ok(AuthenticationObservationV1 {
+            schema: AUTHENTICATION_OBSERVATION_SCHEMA_V1.into(),
+            principal_id: self.principal_id.clone(),
+            principal_class: PrincipalClass::Human,
+            issuer: self.issuer.clone(),
+            subject: self.subject.clone(),
+            method: AuthenticationMethod::PlatformUserPresence,
+            assurance: AuthenticationAssurance::MultiFactor,
+            session_root: self.session_root.clone(),
+            authenticated_at: self.authenticated_at.clone(),
+            observed_at: request.transaction_at.clone(),
+            expires_at: self.expires_at.clone(),
+            user_presence: true,
+            user_verification: true,
+            recovery_recent: false,
+            revocation_ref: None,
+        })
+    }
+}
+
 impl AuthenticationAdapter for LocalOsSession {
     fn observe(
         &mut self,
@@ -249,11 +290,71 @@ impl AuthenticationAdapter for LocalOsSession {
     }
 }
 
+/// A short-lived local agent session proven by the exact signed event that a
+/// producer already constructs for legacy-compatible workflow semantics.
+///
+/// The signature is verified once at the adapter boundary. The authority
+/// record retains only its full event root and bearer-free observation; it
+/// never stores the agent seed or turns the agent signature into scientific
+/// authority.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SignedAgentEventSession {
+    observation: AuthenticationObservationV1,
+}
+
+impl SignedAgentEventSession {
+    pub fn from_event(event: &StateEvent, public_key: &str) -> Result<Self, String> {
+        if !event.actor.id.starts_with("agent:") {
+            return Err("signed agent-event authentication requires an agent: actor".into());
+        }
+        if !vela_protocol::sign::verify_event_signature(event, public_key)? {
+            return Err("agent event signature does not match the supplied public key".into());
+        }
+        let authenticated_at = DateTime::parse_from_rfc3339(&event.timestamp)
+            .map_err(|error| format!("agent event timestamp is invalid: {error}"))?
+            .with_timezone(&Utc);
+        let expires_at =
+            (authenticated_at + Duration::minutes(5)).to_rfc3339_opts(SecondsFormat::Secs, true);
+        Ok(Self {
+            observation: AuthenticationObservationV1 {
+                schema: AUTHENTICATION_OBSERVATION_SCHEMA_V1.into(),
+                principal_id: event.actor.id.clone(),
+                principal_class: PrincipalClass::Agent,
+                issuer: "vela.agent-event.v1".into(),
+                subject: event.actor.id.clone(),
+                method: AuthenticationMethod::AgentEventSignature,
+                assurance: AuthenticationAssurance::SingleFactor,
+                session_root: format!("sha256:{}", sha256_canonical(event)?),
+                authenticated_at: event.timestamp.clone(),
+                observed_at: event.timestamp.clone(),
+                expires_at,
+                user_presence: false,
+                user_verification: false,
+                recovery_recent: false,
+                revocation_ref: None,
+            },
+        })
+    }
+}
+
+impl AuthenticationAdapter for SignedAgentEventSession {
+    fn observe(
+        &mut self,
+        request: &AuthenticationRequest,
+    ) -> Result<AuthenticationObservationV1, AuthenticationFailure> {
+        let mut observation = self.observation.clone();
+        observation.observed_at = request.transaction_at.clone();
+        Ok(observation)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
 
+    use ed25519_dalek::SigningKey;
     use tempfile::TempDir;
+    use vela_protocol::events::{FindingEventInput, new_finding_event};
 
     use super::*;
 
@@ -355,6 +456,79 @@ mod tests {
         assert!(!encoded.contains("bearer"));
         assert!(!encoded.contains("cookie"));
         assert!(!encoded.contains("session_id"));
+    }
+
+    #[test]
+    fn platform_presence_yields_verified_bearer_free_human_observation() {
+        let local = local_session();
+        let mut protected = PlatformUserPresenceSession {
+            principal_id: local.principal_id,
+            issuer: local.issuer,
+            subject: local.subject,
+            session_root: local.session_root,
+            authenticated_at: "2026-07-24T12:00:00Z".into(),
+            expires_at: "2026-07-24T12:10:00Z".into(),
+        };
+        let observation = authenticate_for_transaction(
+            &mut protected,
+            &request(),
+            &RuntimeSessionState::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            observation.method,
+            AuthenticationMethod::PlatformUserPresence
+        );
+        assert_eq!(observation.assurance, AuthenticationAssurance::MultiFactor);
+        assert!(observation.user_presence);
+        assert!(observation.user_verification);
+        let encoded = serde_json::to_string(&observation).unwrap();
+        assert!(!encoded.contains("bearer"));
+        assert!(!encoded.contains("cookie"));
+    }
+
+    #[test]
+    fn signed_agent_event_yields_a_short_lived_bearer_free_observation() {
+        let key = SigningKey::from_bytes(&[31; 32]);
+        let mut event = new_finding_event(FindingEventInput {
+            kind: "attempt.claimed",
+            finding_id: "erdos:1056",
+            actor_id: "agent:fixture",
+            actor_type: "agent",
+            reason: "claim one bounded target",
+            before_hash: "sha256:null",
+            after_hash: "sha256:null",
+            payload: json!({"obligation_id": "erdos:1056"}),
+            caveats: Vec::new(),
+            timestamp: Some("2026-07-24T12:05:00Z"),
+        });
+        event.signature = Some(vela_protocol::sign::sign_event(&event, &key).unwrap());
+        let mut session = SignedAgentEventSession::from_event(
+            &event,
+            &hex::encode(key.verifying_key().to_bytes()),
+        )
+        .unwrap();
+        let request = AuthenticationRequest {
+            principal_id: "agent:fixture".into(),
+            principal_class: PrincipalClass::Agent,
+            transaction_at: event.timestamp.clone(),
+        };
+        let observation =
+            authenticate_for_transaction(&mut session, &request, &RuntimeSessionState::default())
+                .unwrap();
+        assert_eq!(
+            observation.method,
+            AuthenticationMethod::AgentEventSignature
+        );
+        assert_eq!(observation.assurance, AuthenticationAssurance::SingleFactor);
+        assert!(
+            !serde_json::to_string(&observation)
+                .unwrap()
+                .contains("private")
+        );
+
+        let wrong = SignedAgentEventSession::from_event(&event, &"00".repeat(32)).unwrap_err();
+        assert!(wrong.contains("signature"));
     }
 
     #[test]

@@ -16,7 +16,7 @@ pub use crate::authentication::{
     AuthenticationAssurance, AuthenticationMethod, AuthenticationObservationV1,
 };
 use crate::canonical::{sha256_canonical, to_canonical_bytes};
-use crate::events::{EventKind, StateActor, StateTarget};
+use crate::events::{EventKind, NULL_HASH, StateActor, StateTarget};
 pub use crate::principal_capability::PrincipalClass;
 use crate::principal_capability::VerifiedCapabilityClaimV1;
 
@@ -175,8 +175,8 @@ impl AuthorityEventV1 {
         {
             return Err("Era-1 event attribution and transaction fields must be explicit".into());
         }
-        require_sha256("before_hash", &self.content.before_hash)?;
-        require_sha256("after_hash", &self.content.after_hash)?;
+        require_state_root("before_hash", &self.content.before_hash)?;
+        require_state_root("after_hash", &self.content.after_hash)?;
         Ok(())
     }
 }
@@ -726,6 +726,13 @@ fn require_sha256(name: &str, value: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn require_state_root(name: &str, value: &str) -> Result<(), String> {
+    if value == NULL_HASH {
+        return Ok(());
+    }
+    require_sha256(name, value)
+}
+
 fn decode_fixed_hex<const N: usize>(name: &str, value: &str) -> Result<[u8; N], String> {
     hex::decode(value)
         .map_err(|error| format!("{name} is not hexadecimal: {error}"))?
@@ -771,6 +778,33 @@ mod tests {
         let mut tampered = event.clone();
         tampered.content.transaction_id = "txn_other".into();
         assert!(tampered.validate().is_err());
+    }
+
+    #[test]
+    fn era_one_non_scientific_event_accepts_the_protocol_null_root() {
+        let event = AuthorityEventV1::new(AuthorityEventContentV1 {
+            transaction_id: "txn_lease_fixture".into(),
+            principal_id: "agent:fixture".into(),
+            authority_mode: AUTHORITY_MODE.into(),
+            kind: EventKind::Other("work.claimed".into()),
+            target: StateTarget {
+                r#type: "target".into(),
+                id: "erdos:124".into(),
+            },
+            actor: StateActor {
+                id: "agent:fixture".into(),
+                r#type: "agent".into(),
+            },
+            timestamp: "2026-07-24T12:00:00Z".into(),
+            reason: "Claim one exact bounded work target.".into(),
+            before_hash: NULL_HASH.into(),
+            after_hash: NULL_HASH.into(),
+            payload: serde_json::json!({"target_id": "erdos:124"}),
+            caveats: Vec::new(),
+        })
+        .unwrap();
+        assert_eq!(event.content.before_hash, NULL_HASH);
+        assert_eq!(event.content.after_hash, NULL_HASH);
     }
 
     fn fixture() -> (AuthorityRecordV1, AuthorityKeysetV1, SigningKey) {

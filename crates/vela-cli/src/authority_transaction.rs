@@ -1,10 +1,9 @@
-//! Disposable Era-1 repository-authority transaction writer.
+//! Era-1 repository-authority transaction writer.
 //!
-//! This module is a production-shaped writer core with no CLI route. It proves
-//! that the proposed authority record, runtime authentication preflight, and
-//! existing recoverable frontier transaction can compose without introducing
-//! a second journal or a live writer. A later migration slice may expose it
-//! only after the ADR 0020 gates pass.
+//! The writer composes authority records, runtime authentication, retained
+//! Cedar material, and the existing recoverable Frontier transaction without
+//! introducing a second journal. Routine work leases and the narrow governed
+//! work-policy rotation use this same core.
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -16,11 +15,11 @@ use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use vela_authority::CedarEvaluationInput;
 use vela_authority::runtime_authentication::{
     AuthenticationAdapter, AuthenticationRequest, AuthorityPreflightFailure, RuntimeSessionState,
     preflight_authority_action,
 };
+use vela_authority::{CedarEvaluationInput, CedarPolicyMaterial};
 use vela_protocol::authentication::AuthenticationObservationV1;
 use vela_protocol::authority::{
     AUTHORITY_MODE, AUTHORITY_PAYLOAD_TYPE_V1, AuthorityEnvelopeV1, AuthorityEventContentV1,
@@ -112,6 +111,7 @@ pub(crate) struct AuthorityTransactionRequest {
     pub(crate) object_drafts: Vec<AuthorityObjectDraft>,
     pub(crate) next_authority_keyset: Option<AuthorityKeysetV1>,
     pub(crate) next_policy_bundle: Option<PolicyBundleV1>,
+    pub(crate) next_policy_material: Option<CedarPolicyMaterial>,
     pub(crate) read_set: Vec<InputBinding>,
     pub(crate) vela_version: String,
     pub(crate) binary_sha256: String,
@@ -813,9 +813,16 @@ fn normalize_authority_snapshots(
     if request.object_drafts.iter().any(|draft| {
         draft.path.starts_with(".vela/authority/keysets/")
             || draft.path.starts_with(".vela/authority/policies/")
+            || draft.path.starts_with(".vela/authority/policy-material/")
     }) {
         return Err(AuthorityTransactionError::Invalid(
-            "authority keyset and policy snapshots are derived from the verified history, not caller object drafts"
+            "authority keyset, policy, and policy-material snapshots are derived from the verified history, not caller object drafts"
+                .into(),
+        ));
+    }
+    if request.next_policy_bundle.is_some() != request.next_policy_material.is_some() {
+        return Err(AuthorityTransactionError::Invalid(
+            "a policy rotation requires both the next bundle manifest and its exact Cedar material"
                 .into(),
         ));
     }
@@ -851,8 +858,43 @@ fn normalize_authority_snapshots(
             ),
         );
     }
+    let current_material = CedarPolicyMaterial::from_evaluation(&request.authorization_input);
+    current_material
+        .validate_against(&request.history.policy_bundle)
+        .map_err(AuthorityTransactionError::Invalid)?;
+    let terminal_close = request
+        .next_authority_keyset
+        .as_ref()
+        .is_some_and(|keyset| keyset.closed);
+    // The terminal close contract intentionally permits only the close event
+    // and closed-keyset snapshot. A closed repository needs no later policy
+    // execution, so do not opportunistically backfill policy material there.
+    if !terminal_close {
+        for (path, object_kind, bytes) in
+            authority_policy_material_snapshots(&request.history.policy_bundle, &current_material)?
+        {
+            insert_authority_snapshot(&mut snapshots, path, object_kind, bytes)?;
+        }
+    }
+    if let (Some(bundle), Some(material)) = (
+        request.next_policy_bundle.as_ref(),
+        request.next_policy_material.as_ref(),
+    ) {
+        material
+            .validate_against(bundle)
+            .map_err(AuthorityTransactionError::Invalid)?;
+        for (path, object_kind, bytes) in authority_policy_material_snapshots(bundle, material)? {
+            insert_authority_snapshot(&mut snapshots, path, object_kind, bytes)?;
+        }
+    }
 
-    for directory in [".vela/authority/keysets", ".vela/authority/policies"] {
+    for directory in [
+        ".vela/authority/keysets",
+        ".vela/authority/policies",
+        ".vela/authority/policy-material/schema",
+        ".vela/authority/policy-material/policies",
+        ".vela/authority/policy-material/entities",
+    ] {
         let binding = InputBinding::current_directory(
             frontier_root,
             RepoPath::parse(directory.to_string())
@@ -873,6 +915,11 @@ fn normalize_authority_snapshots(
                 merge_input_binding(&mut request.read_set, binding)?;
             }
             Err(error) if error.kind() == ErrorKind::NotFound => {
+                if authority_history_retains_path(&request.history, &path_text)? {
+                    return Err(AuthorityTransactionError::History(format!(
+                        "retained authority policy material {path_text} is missing"
+                    )));
+                }
                 let binding = InputBinding::absent_file(frontier_root, path)
                     .map_err(AuthorityTransactionError::Transaction)?;
                 merge_input_binding(&mut request.read_set, binding)?;
@@ -893,6 +940,52 @@ fn normalize_authority_snapshots(
             }
         }
     }
+    Ok(())
+}
+
+fn authority_history_retains_path(
+    history: &AuthorityHistorySnapshot,
+    path: &str,
+) -> Result<bool, AuthorityTransactionError> {
+    let mut retained = false;
+    for envelope in &history.authority_envelopes {
+        let payload = BASE64_STANDARD.decode(&envelope.payload).map_err(|error| {
+            AuthorityTransactionError::History(format!(
+                "authority envelope payload is not base64: {error}"
+            ))
+        })?;
+        let record = serde_json::from_slice::<AuthorityRecordV1>(&payload).map_err(|error| {
+            AuthorityTransactionError::History(format!(
+                "authority envelope record JSON is invalid: {error}"
+            ))
+        })?;
+        if let Some(delta) = record
+            .content
+            .object_delta
+            .iter()
+            .find(|delta| delta.path == path)
+        {
+            retained = delta.after_root.is_some();
+        }
+    }
+    Ok(retained)
+}
+
+fn insert_authority_snapshot(
+    snapshots: &mut BTreeMap<String, (&'static str, Vec<u8>)>,
+    path: String,
+    object_kind: &'static str,
+    bytes: Vec<u8>,
+) -> Result<(), AuthorityTransactionError> {
+    if let Some((existing_kind, existing_bytes)) = snapshots.get(&path) {
+        if *existing_kind != object_kind || *existing_bytes != bytes {
+            return Err(AuthorityTransactionError::Invalid(format!(
+                "authority snapshot path {path} has conflicting canonical bytes"
+            )));
+        }
+        return Ok(());
+    }
+    snapshots.insert(path, (object_kind, bytes));
     Ok(())
 }
 
@@ -960,22 +1053,14 @@ fn bind_repository_authority_history(
     for event in &request.history.legacy_events {
         let path = RepoPath::parse(format!(".vela/events/{}.json", event.id))
             .map_err(AuthorityTransactionError::Transaction)?;
-        let bytes = to_canonical_bytes(event).map_err(AuthorityTransactionError::Invalid)?;
-        bindings.push(
-            InputBinding::exact_file(frontier_root, path.clone(), &bytes)
-                .map_err(AuthorityTransactionError::Transaction)?,
-        );
+        bindings.push(exact_verified_json_input(frontier_root, &path, event)?);
         legacy_event_paths.push(path);
     }
     let mut authority_event_paths = Vec::new();
     for event in &request.history.authority_events {
         let path = RepoPath::parse(authority_event_path(&event.id))
             .map_err(AuthorityTransactionError::Transaction)?;
-        let bytes = to_canonical_bytes(event).map_err(AuthorityTransactionError::Invalid)?;
-        bindings.push(
-            InputBinding::exact_file(frontier_root, path.clone(), &bytes)
-                .map_err(AuthorityTransactionError::Transaction)?,
-        );
+        bindings.push(exact_verified_json_input(frontier_root, &path, event)?);
         authority_event_paths.push(path);
     }
     let mut authority_record_paths = Vec::new();
@@ -992,11 +1077,7 @@ fn bind_repository_authority_history(
         })?;
         let path = RepoPath::parse(authority_record_path(&record.record_id))
             .map_err(AuthorityTransactionError::Transaction)?;
-        let bytes = to_canonical_bytes(envelope).map_err(AuthorityTransactionError::Invalid)?;
-        bindings.push(
-            InputBinding::exact_file(frontier_root, path.clone(), &bytes)
-                .map_err(AuthorityTransactionError::Transaction)?,
-        );
+        bindings.push(exact_verified_json_input(frontier_root, &path, envelope)?);
         authority_record_paths.push(path);
     }
     bindings.push(
@@ -1027,6 +1108,47 @@ fn bind_repository_authority_history(
         merge_input_binding(&mut request.read_set, binding)?;
     }
     Ok(())
+}
+
+fn exact_verified_json_input<T>(
+    frontier_root: &Path,
+    path: &RepoPath,
+    expected: &T,
+) -> Result<InputBinding, AuthorityTransactionError>
+where
+    T: Serialize + serde::de::DeserializeOwned,
+{
+    const MAX_AUTHORITY_MEMBER_BYTES: u64 = 16 * 1024 * 1024;
+    let bytes = crate::bounded_file::read_bounded_frontier_file(
+        frontier_root,
+        Path::new(path.as_str()),
+        MAX_AUTHORITY_MEMBER_BYTES,
+        path.as_str(),
+    )
+    .map_err(|error| {
+        AuthorityTransactionError::History(format!(
+            "read retained authority-history member {}: {error}",
+            path.as_str()
+        ))
+    })?;
+    let decoded: T = serde_json::from_slice(&bytes).map_err(|error| {
+        AuthorityTransactionError::History(format!(
+            "decode retained authority-history member {}: {error}",
+            path.as_str()
+        ))
+    })?;
+    let expected_canonical =
+        to_canonical_bytes(expected).map_err(AuthorityTransactionError::Invalid)?;
+    let decoded_canonical =
+        to_canonical_bytes(&decoded).map_err(AuthorityTransactionError::Invalid)?;
+    if decoded_canonical != expected_canonical {
+        return Err(AuthorityTransactionError::History(format!(
+            "retained authority-history member {} differs from the verified object",
+            path.as_str()
+        )));
+    }
+    InputBinding::exact_file(frontier_root, path.clone(), &bytes)
+        .map_err(AuthorityTransactionError::Transaction)
 }
 
 fn merge_input_binding(
@@ -1407,6 +1529,51 @@ pub(crate) fn authority_policy_path(root: &str) -> Result<String, AuthorityTrans
         ".vela/authority/policies/{}.json",
         authority_snapshot_stem(root)?
     ))
+}
+
+pub(crate) fn authority_policy_material_snapshots(
+    bundle: &PolicyBundleV1,
+    material: &CedarPolicyMaterial,
+) -> Result<Vec<(String, &'static str, Vec<u8>)>, AuthorityTransactionError> {
+    material
+        .validate_against(bundle)
+        .map_err(AuthorityTransactionError::Invalid)?;
+    let entities = material
+        .canonical_entities()
+        .map_err(AuthorityTransactionError::Invalid)?;
+    let [schema_path, policies_path, entities_path] = authority_policy_material_paths(bundle)?;
+    Ok(vec![
+        (
+            schema_path,
+            "cedar_schema",
+            material.schema.as_bytes().to_vec(),
+        ),
+        (
+            policies_path,
+            "cedar_policies",
+            material.policies.as_bytes().to_vec(),
+        ),
+        (entities_path, "cedar_entities", entities),
+    ])
+}
+
+pub(crate) fn authority_policy_material_paths(
+    bundle: &PolicyBundleV1,
+) -> Result<[String; 3], AuthorityTransactionError> {
+    Ok([
+        format!(
+            ".vela/authority/policy-material/schema/{}.cedarschema",
+            authority_snapshot_stem(&bundle.cedar_schema_root)?
+        ),
+        format!(
+            ".vela/authority/policy-material/policies/{}.cedar",
+            authority_snapshot_stem(&bundle.policies_root)?
+        ),
+        format!(
+            ".vela/authority/policy-material/entities/{}.json",
+            authority_snapshot_stem(&bundle.entities_root)?
+        ),
+    ])
 }
 
 fn authority_snapshot_stem(root: &str) -> Result<&str, AuthorityTransactionError> {
@@ -2036,6 +2203,7 @@ mod tests {
             object_drafts: Vec::new(),
             next_authority_keyset: None,
             next_policy_bundle: None,
+            next_policy_material: None,
             read_set: vec![fixture_input],
             vela_version: "0.930.0-rc.1".into(),
             binary_sha256: root('1'),
@@ -2171,8 +2339,102 @@ mod tests {
             fs::read(fixture.temporary.path().join(policy_path)).unwrap(),
             to_canonical_bytes(&fixture.request.history.policy_bundle).unwrap()
         );
+        let material = CedarPolicyMaterial::from_evaluation(&fixture.request.authorization_input);
+        for (path, _, expected) in
+            authority_policy_material_snapshots(&fixture.request.history.policy_bundle, &material)
+                .unwrap()
+        {
+            assert_eq!(
+                fs::read(fixture.temporary.path().join(path)).unwrap(),
+                expected
+            );
+        }
 
         verify_installed_history(&fixture, &[event], &envelope);
+    }
+
+    #[test]
+    fn retained_policy_material_cannot_disappear_or_change_after_backfill() {
+        for mutation in ["delete", "alter"] {
+            let fixture = fixture();
+            let mut adapter = fixture.adapter();
+            let mut signer = fixture.signer();
+            let result = execute_authority_transaction(
+                fixture.barrier(),
+                fixture.temporary.path(),
+                fixture.request.clone(),
+                &mut adapter,
+                &mut signer,
+            )
+            .unwrap();
+            assert_eq!(signer.calls, 1);
+            // Completed journals are ignored operational state and are absent
+            // in a clean clone. The signed authority record must therefore
+            // independently make retained material loss fail closed.
+            fs::remove_dir_all(fixture.journal_dir()).unwrap();
+
+            let event: AuthorityEventV1 = serde_json::from_slice(
+                &fs::read(
+                    fixture
+                        .temporary
+                        .path()
+                        .join(authority_event_path(&result.event_ids[0])),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+            let envelope: AuthorityEnvelopeV1 = serde_json::from_slice(
+                &fs::read(
+                    fixture
+                        .temporary
+                        .path()
+                        .join(authority_record_path(&result.authority_record_id)),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+            let mut request = fixture.request.clone();
+            request.history.authority_events.push(event);
+            request.history.authority_envelopes.push(envelope);
+            let material = CedarPolicyMaterial::from_evaluation(&request.authorization_input);
+            let material_path =
+                authority_policy_material_snapshots(&request.history.policy_bundle, &material)
+                    .unwrap()
+                    .remove(0)
+                    .0;
+            let absolute = fixture.temporary.path().join(&material_path);
+            if mutation == "delete" {
+                fs::remove_file(&absolute).unwrap();
+            } else {
+                fs::write(&absolute, b"tampered Cedar schema").unwrap();
+            }
+
+            let mut adapter = fixture.adapter();
+            let mut signer = fixture.signer();
+            let error = prepare_authority_transaction(
+                fixture.barrier(),
+                fixture.temporary.path(),
+                request,
+                &mut adapter,
+                &mut signer,
+            )
+            .unwrap_err();
+            if mutation == "delete" {
+                assert!(
+                    matches!(error, AuthorityTransactionError::History(_)),
+                    "{error:?}"
+                );
+            } else {
+                assert!(
+                    matches!(
+                        error,
+                        AuthorityTransactionError::Transaction(FrontierTxnError::StaleInput { .. })
+                    ),
+                    "{error:?}"
+                );
+            }
+            assert_eq!(signer.calls, 0);
+        }
     }
 
     #[test]
@@ -2460,6 +2722,9 @@ mod tests {
             caveats: Vec::new(),
         }];
         request.next_policy_bundle = Some(next_policy.clone());
+        request.next_policy_material = Some(CedarPolicyMaterial::from_evaluation(
+            &request.authorization_input,
+        ));
 
         let mut both = request.clone();
         let current = verified_fixture_history(&fixture);
@@ -3091,10 +3356,10 @@ mod tests {
             &mut signer,
         )
         .unwrap_err();
-        assert!(matches!(
-            error,
-            AuthorityTransactionError::Transaction(FrontierTxnError::StaleInput { .. })
-        ));
+        assert!(
+            matches!(error, AuthorityTransactionError::History(_)),
+            "{error}"
+        );
         assert_eq!(signer.calls, 0);
         assert!(authority_transaction_postimages_absent(&fixture));
         assert!(prepared_journal_absent(&fixture));
@@ -3121,12 +3386,40 @@ mod tests {
             &mut signer,
         )
         .unwrap_err();
-        assert!(matches!(
-            error,
-            AuthorityTransactionError::Transaction(FrontierTxnError::StaleInput { .. })
-        ));
+        assert!(
+            matches!(error, AuthorityTransactionError::History(_)),
+            "{error}"
+        );
         assert_eq!(signer.calls, 0);
         assert!(prepared_journal_absent(&missing));
+    }
+
+    #[test]
+    fn immutable_legacy_event_formatting_is_bound_without_rewriting_history() {
+        let fixture = fixture();
+        let event = &fixture.request.history.legacy_events[0];
+        let path = fixture
+            .temporary
+            .path()
+            .join(format!(".vela/events/{}.json", event.id));
+        let mut historical_bytes = serde_json::to_vec_pretty(event).unwrap();
+        historical_bytes.push(b'\n');
+        fs::write(&path, &historical_bytes).unwrap();
+
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let result = execute_authority_transaction(
+            fixture.barrier(),
+            fixture.temporary.path(),
+            fixture.request.clone(),
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap();
+
+        assert_eq!(signer.calls, 1);
+        assert_eq!(fs::read(path).unwrap(), historical_bytes);
+        assert_eq!(result.event_ids.len(), 1);
     }
 
     #[test]
@@ -3187,10 +3480,24 @@ mod tests {
         .unwrap();
         let payload = BASE64_STANDARD.decode(&prepared.envelope.payload).unwrap();
         let record: AuthorityRecordV1 = serde_json::from_slice(&payload).unwrap();
-        assert_eq!(record.content.object_delta.len(), 5);
+        assert_eq!(record.content.object_delta.len(), 8);
         assert!(!record.content.object_delta.iter().any(|delta| {
             delta.object_kind == "authority_keyset" || delta.object_kind == "policy_bundle"
         }));
+        assert_eq!(
+            record
+                .content
+                .object_delta
+                .iter()
+                .filter(|delta| {
+                    matches!(
+                        delta.object_kind.as_str(),
+                        "cedar_schema" | "cedar_policies" | "cedar_entities"
+                    )
+                })
+                .count(),
+            3
+        );
         assert!(record.content.object_delta.iter().any(|delta| {
             delta.path == ".vela/evidence/update.json"
                 && delta.before_root == Some(ContentDigest::hash(&old_update).as_str().to_string())

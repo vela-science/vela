@@ -17,6 +17,7 @@ path = "src/lib.rs"
 
 [dependencies]
 cedar-policy.workspace = true
+chrono.workspace = true
 hex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -24,6 +25,7 @@ sha2.workspace = true
 vela-protocol.workspace = true
 
 [dev-dependencies]
+ed25519-dalek.workspace = true
 tempfile.workspace = true
 
 [lints]

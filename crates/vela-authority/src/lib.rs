@@ -11,7 +11,11 @@ use cedar_policy::{
     Authorizer, Context, Decision, Entities, EntityUid, PolicySet, Request, Schema, ValidationMode,
     Validator,
 };
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
+use vela_protocol::authority::PolicyBundleV1;
+use vela_protocol::canonical::to_canonical_bytes;
 
 pub mod legacy_translation;
 pub mod runtime_authentication;
@@ -33,6 +37,66 @@ pub struct CedarEvaluationInput {
     pub action: String,
     pub resource: String,
     pub context: Value,
+}
+
+/// Exact Cedar source bytes retained beside a [`PolicyBundleV1`].
+///
+/// The protocol manifest already binds these members by full digest. This
+/// carrier does not introduce another policy object or authority primitive; it
+/// makes the bound schema, policy, and entity bytes replayable by later
+/// repository-authority transactions.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CedarPolicyMaterial {
+    pub schema: String,
+    pub policies: String,
+    pub entities: Value,
+}
+
+impl CedarPolicyMaterial {
+    pub fn from_evaluation(input: &CedarEvaluationInput) -> Self {
+        Self {
+            schema: input.schema.clone(),
+            policies: input.policies.clone(),
+            entities: input.entities.clone(),
+        }
+    }
+
+    pub fn validate_against(&self, bundle: &PolicyBundleV1) -> Result<(), String> {
+        bundle.validate()?;
+        let entities = to_canonical_bytes(&self.entities)?;
+        let actual = [
+            (
+                "cedar schema",
+                sha256_root(self.schema.as_bytes()),
+                &bundle.cedar_schema_root,
+            ),
+            (
+                "policies",
+                sha256_root(self.policies.as_bytes()),
+                &bundle.policies_root,
+            ),
+            ("entities", sha256_root(&entities), &bundle.entities_root),
+        ];
+        if let Some((name, _, _)) = actual
+            .iter()
+            .find(|(_, observed, expected)| observed != *expected)
+        {
+            return Err(format!(
+                "retained Cedar {name} bytes differ from policy bundle {}",
+                bundle.root()?
+            ));
+        }
+        Ok(())
+    }
+
+    pub fn canonical_entities(&self) -> Result<Vec<u8>, String> {
+        to_canonical_bytes(&self.entities)
+    }
+}
+
+fn sha256_root(bytes: &[u8]) -> String {
+    format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
 }
 
 fn denied(diagnostics: Vec<String>) -> CedarEvaluation {
@@ -383,6 +447,39 @@ mod tests {
                 r#"{"schema":"vela.policy-bundle.v1","extra":true}"#
             )
             .is_err()
+        );
+    }
+
+    #[test]
+    fn retained_policy_material_matches_only_its_exact_bundle_members() {
+        use vela_protocol::authority::{POLICY_BUNDLE_SCHEMA_V1, PolicyBundleV1};
+
+        let input = input("permit(principal, action, resource);");
+        let material = CedarPolicyMaterial::from_evaluation(&input);
+        let bundle = PolicyBundleV1 {
+            schema: POLICY_BUNDLE_SCHEMA_V1.into(),
+            frontier_id: "vfr_fixture".into(),
+            cedar_schema_root: sha256_root(material.schema.as_bytes()),
+            policies_root: sha256_root(material.policies.as_bytes()),
+            entities_root: sha256_root(&material.canonical_entities().unwrap()),
+            tests_root: format!("sha256:{}", "a".repeat(64)),
+            engine: CEDAR_ENGINE.into(),
+            engine_version: CEDAR_ENGINE_VERSION.into(),
+            restricted_profile: CEDAR_PROFILE_V1.into(),
+            previous_bundle_root: None,
+            authority_summary: "Retain exact Cedar source for offline replay.".into(),
+        };
+        material.validate_against(&bundle).unwrap();
+
+        let mut altered = material.clone();
+        altered
+            .policies
+            .push_str("\nforbid(principal, action, resource);");
+        assert!(
+            altered
+                .validate_against(&bundle)
+                .unwrap_err()
+                .contains("policies")
         );
     }
 }

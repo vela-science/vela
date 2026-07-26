@@ -1,0 +1,56 @@
+{
+  "schema": "vela.routine-work-policy-tests.v1",
+  "legacy_shadow_tests_root": "sha256:20edc3cef4390127a3f49daf36583f5ac7fa1fd24d2ebd5f7cc75ca1c6e4e41b",
+  "cases": [
+    {
+      "id": "signed-agent-exact-work-claim",
+      "principal_class": "agent",
+      "action": "work_claim",
+      "resource": "frontier",
+      "authentication_method": "agent_event_signature",
+      "authentication_assurance": "single_factor",
+      "exact": true,
+      "expected": "allow"
+    },
+    {
+      "id": "unsigned-agent-work-claim",
+      "principal_class": "agent",
+      "action": "work_claim",
+      "resource": "frontier",
+      "authentication_method": "none",
+      "authentication_assurance": "single_factor",
+      "exact": true,
+      "expected": "deny"
+    },
+    {
+      "id": "wrong-resource",
+      "principal_class": "agent",
+      "action": "work_claim",
+      "resource": "proposal",
+      "authentication_method": "agent_event_signature",
+      "authentication_assurance": "single_factor",
+      "exact": true,
+      "expected": "invalid"
+    },
+    {
+      "id": "inexact-request",
+      "principal_class": "agent",
+      "action": "work_claim",
+      "resource": "frontier",
+      "authentication_method": "agent_event_signature",
+      "authentication_assurance": "single_factor",
+      "exact": false,
+      "expected": "deny"
+    },
+    {
+      "id": "agent-review-accept",
+      "principal_class": "agent",
+      "action": "review_accept",
+      "resource": "proposal",
+      "authentication_method": "agent_event_signature",
+      "authentication_assurance": "single_factor",
+      "exact": true,
+      "expected": "deny"
+    }
+  ]
+}

@@ -267,6 +267,21 @@ pub async fn run_command() {
                 confirm_at.as_deref(),
                 json,
             ),
+            AuthorityAction::EnableWork {
+                frontier,
+                reason,
+                apply,
+                confirm_root,
+                confirm_at,
+                json,
+            } => cmd_authority_enable_work(
+                &frontier,
+                &reason,
+                apply,
+                confirm_root.as_deref(),
+                confirm_at.as_deref(),
+                json,
+            ),
         },
         Commands::Frontier { action } => cmd_frontier(action),
         Commands::Init {

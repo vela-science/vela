@@ -1296,6 +1296,7 @@ mod tests {
             object_drafts: Vec::new(),
             next_authority_keyset,
             next_policy_bundle: None,
+            next_policy_material: None,
             read_set: fixture.request.read_set.clone(),
             vela_version: fixture.request.vela_version.clone(),
             binary_sha256: fixture.request.binary_sha256.clone(),

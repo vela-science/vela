@@ -865,6 +865,25 @@ pub(crate) enum AuthorityAction {
         #[arg(long)]
         json: bool,
     },
+    /// Enable exact signed-agent work leases under repository authority.
+    EnableWork {
+        /// Migrated Frontier repository directory.
+        frontier: PathBuf,
+        /// Why routine signed-agent lease coordination is being enabled.
+        #[arg(long)]
+        reason: String,
+        /// Apply the exact preview. Omit for a key-free preview.
+        #[arg(long)]
+        apply: bool,
+        /// Exact root returned by the key-free preview.
+        #[arg(long, requires = "confirm_at")]
+        confirm_root: Option<String>,
+        /// Exact observation time returned by the key-free preview.
+        #[arg(long, requires = "confirm_root")]
+        confirm_at: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand)]

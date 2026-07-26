@@ -495,6 +495,7 @@ pub fn apply_claim_task_to_project(
     if ttl == 0 {
         payload["release_reason"] = serde_json::json!(event_reason);
     }
+    let timestamp = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     let mut event =
         vela_protocol::events::new_finding_event(vela_protocol::events::FindingEventInput {
             kind: "attempt.claimed",
@@ -506,7 +507,7 @@ pub fn apply_claim_task_to_project(
             after_hash: "sha256:null",
             payload,
             caveats: Vec::new(),
-            timestamp: None,
+            timestamp: Some(&timestamp),
         });
     // Sign before reducer application so every persisted event has already
     // crossed the exact signed-byte boundary. The reducer's lease checks are

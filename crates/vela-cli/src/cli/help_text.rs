@@ -215,7 +215,16 @@ EXAMPLES
 
 Migration preserves every legacy event byte and closes the legacy policy
 surface. The protected card is the final use of the legacy human key. The
-repository key signs only later attributed repository-authority events.";
+repository key signs only later attributed repository-authority events.
+
+  vela authority enable-work . \
+    --reason \"Allow signed agents to coordinate exact work leases\" --json
+      preview the narrow post-migration policy rotation
+
+  vela authority enable-work . \
+    --reason \"Allow signed agents to coordinate exact work leases\" \
+    --apply --confirm-root sha256:<64hex> --confirm-at <RFC3339> --json
+      request one platform-owned approval, then rotate and replay";
 
 pub const FRONTIER: &str = "\
 EXAMPLES

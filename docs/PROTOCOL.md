@@ -381,7 +381,7 @@ The relevant current implementations are:
 #### Proposed Era-1 candidate contract
 
 [ADR 0020](adr/0020-attributed-repository-authority-and-standard-delegation.md)
-remains Proposed and changes no released writer. Its read-only candidate adds
+remains Proposed. Its candidate adds
 closed `vela.authority-keyset.v1`, `vela.policy-bundle.v1`,
 `vela.authority-record.v1`, and `vela.event.v1` objects plus one legacy-signed
 continuity event:
@@ -422,6 +422,29 @@ retained policy manifest. Missing manifests are installed as covered object
 deltas; existing manifests must match exactly. Direct store membership is a
 transaction input, so an added, replaced, deleted, or symlinked snapshot
 aborts before the commit marker.
+
+The exact Cedar source behind each manifest is retained separately by full
+digest:
+
+```text
+.vela/authority/policy-material/schema/<digest>.cedarschema
+.vela/authority/policy-material/policies/<digest>.cedar
+.vela/authority/policy-material/entities/<digest>.json
+```
+
+These are authority-class, history-retained objects. An initial bundle emitted
+before this storage rule may be reconstructed only when its exact bundle root
+matches the deterministic sequence-1 translator. Any other missing or partial
+material fails closed.
+
+Routine work coordination uses the existing agent-signed lease event as a
+short-lived authentication proof. Cedar must allow `work_claim` for the exact
+agent and Frontier under `agent_event_signature`; the resulting Era-1 lease
+event and authority record use null scientific before/after roots and cannot
+change accepted state. `vela authority enable-work` rotates an older migrated
+Frontier to this narrow bundle after fresh platform-owned user presence. The
+approval helper reads no human Vela key, and the repository authority remains
+the sole transaction signer.
 
 The rotation law and internal writer are also closed. A new keyset must name
 the exact prior keyset root, advance generation by one, and bind the

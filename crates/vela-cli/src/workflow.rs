@@ -33,7 +33,13 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
+use vela_authority::CedarEvaluationInput;
+use vela_authority::runtime_authentication::{
+    AuthenticationRequest, RuntimeSessionState, SignedAgentEventSession,
+};
+use vela_protocol::authority::PrincipalSnapshotV1;
 use vela_protocol::bundle::{ArtifactAvailability, ArtifactDisclosure, LocatorIntegrity};
+use vela_protocol::principal_capability::PrincipalClass;
 use vela_protocol::proposals::policy_accept::{self, PolicyLaneRefusal};
 use vela_protocol::receipt_v1::ReceiptV1;
 use vela_protocol::repo;
@@ -587,6 +593,166 @@ where
     )
 }
 
+fn active_repository_signing_key(
+    authority: &crate::cli::LoadedRepositoryAuthority,
+) -> Result<(String, String), String> {
+    let sequence = u64::try_from(authority.verification.authority_record_count + 1)
+        .map_err(|_| "repository-authority sequence exceeds u64".to_string())?;
+    if authority.history.authority_keyset.threshold != 1 {
+        return Err(
+            "routine local repository-authority writes currently require a one-key threshold"
+                .into(),
+        );
+    }
+    let active = authority
+        .history
+        .authority_keyset
+        .keys
+        .iter()
+        .filter(|key| {
+            key.valid_from_sequence <= sequence
+                && key
+                    .valid_through_sequence
+                    .is_none_or(|through| sequence <= through)
+        })
+        .collect::<Vec<_>>();
+    let [key] = active.as_slice() else {
+        return Err(format!(
+            "routine local repository-authority writes require exactly one active key at sequence {sequence}; found {}",
+            active.len()
+        ));
+    };
+    Ok((key.key_id.clone(), key.public_key.clone()))
+}
+
+fn transact_repository_authority_lease(
+    frontier: &Path,
+    barrier: crate::frontier_txn::CanonicalWriteBarrier,
+    authority: crate::cli::LoadedRepositoryAuthority,
+    signed_candidate_event: &vela_protocol::events::StateEvent,
+    mut claim: Value,
+) -> Result<Value, String> {
+    let claimant_pubkey = claim
+        .get("claimant_pubkey")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "lease claim did not return its claimant key".to_string())?;
+    let mut authentication =
+        SignedAgentEventSession::from_event(signed_candidate_event, claimant_pubkey)?;
+    let intent_digest = crate::frontier_txn::ContentDigest::hash(
+        vela_protocol::canonical::to_canonical_bytes(signed_candidate_event)?,
+    )
+    .as_str()
+    .to_string();
+    let recorded_at = signed_candidate_event.timestamp.clone();
+    let authorization_input = CedarEvaluationInput {
+        schema: authority.policy_material.schema.clone(),
+        policies: authority.policy_material.policies.clone(),
+        entities: authority.policy_material.entities.clone(),
+        principal: format!(
+            "Agent::{}",
+            serde_json::to_string(&signed_candidate_event.actor.id)
+                .expect("serializing an actor ID cannot fail")
+        ),
+        principal_class: PrincipalClass::Agent,
+        action: "work_claim".into(),
+        resource: format!(
+            "Frontier::{}",
+            serde_json::to_string(&authority.history.frontier_id)
+                .expect("serializing a frontier ID cannot fail")
+        ),
+        context: json!({"exact": true}),
+    };
+    let event_draft = crate::authority_transaction::AuthorityEventDraft {
+        kind: signed_candidate_event.kind.clone(),
+        target: signed_candidate_event.target.clone(),
+        actor: signed_candidate_event.actor.clone(),
+        timestamp: signed_candidate_event.timestamp.clone(),
+        reason: signed_candidate_event.reason.clone(),
+        before_hash: signed_candidate_event.before_hash.clone(),
+        after_hash: signed_candidate_event.after_hash.clone(),
+        payload: signed_candidate_event.payload.clone(),
+        caveats: signed_candidate_event.caveats.clone(),
+    };
+    let (key_id, public_key) = active_repository_signing_key(&authority)?;
+    let mut signer =
+        crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner::from_environment(
+            key_id,
+            &public_key,
+        )?;
+    let executable =
+        std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
+    let binary_sha256 = vela_signer::contract::file_sha256(&executable)?;
+    let result = crate::authority_transaction::execute_authority_transaction(
+        barrier,
+        frontier,
+        crate::authority_transaction::AuthorityTransactionRequest {
+            history: authority.history,
+            intent_digest,
+            principal: PrincipalSnapshotV1 {
+                principal_id: signed_candidate_event.actor.id.clone(),
+                principal_class: PrincipalClass::Agent,
+                display_name: None,
+                affiliation: None,
+                account_links: vec![signed_candidate_event.actor.id.clone()],
+            },
+            authentication_request: AuthenticationRequest {
+                principal_id: signed_candidate_event.actor.id.clone(),
+                principal_class: PrincipalClass::Agent,
+                transaction_at: recorded_at.clone(),
+            },
+            runtime_session_state: RuntimeSessionState::default(),
+            authorization_input,
+            delegation: None,
+            semantic_approvals: Vec::new(),
+            event_drafts: vec![event_draft],
+            object_drafts: Vec::new(),
+            next_authority_keyset: None,
+            next_policy_bundle: None,
+            next_policy_material: None,
+            read_set: Vec::new(),
+            vela_version: env!("CARGO_PKG_VERSION").into(),
+            binary_sha256,
+            recorded_at,
+        },
+        &mut authentication,
+        &mut signer,
+    )
+    .map_err(|error| error.to_string())?;
+    let [event_id] = result.event_ids.as_slice() else {
+        return Err(
+            "repository-authority lease transaction did not produce exactly one event".to_string(),
+        );
+    };
+    let object = claim
+        .as_object_mut()
+        .ok_or_else(|| "lease claim result is not an object".to_string())?;
+    object.insert("claim_event_id".into(), json!(event_id));
+    object.insert(
+        "state_root_before".into(),
+        json!(result.before_event_log_root),
+    );
+    object.insert(
+        "state_root_after".into(),
+        json!(result.after_event_log_root),
+    );
+    object.insert(
+        "authority_record_id".into(),
+        json!(result.authority_record_id),
+    );
+    object.insert(
+        "publication".into(),
+        json!({
+            "state": {
+                "kind": "uncommitted",
+                "candidate": null,
+                "reason": "repository-authority lease installed; commit the exact canonical delta"
+            },
+            "recovery_command": null
+        }),
+    );
+    Ok(claim)
+}
+
 pub(crate) fn transact_actor_registration<F>(frontier: &Path, build: F) -> Result<Value, String>
 where
     F: FnOnce(
@@ -956,6 +1122,13 @@ pub(crate) struct WorkSession {
     pub frontier_id: String,
     pub base_event_log_root: String,
     pub base_nonlease_event_log_root: String,
+    /// Era-1 non-lease commitment present when this private session opened.
+    ///
+    /// Legacy sessions omit it. Repository-authority sessions bind it into
+    /// their session identity so unrelated leases may coexist while any
+    /// scientific or authority change still invalidates landing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_authority_nonlease_event_log_root: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_git_commit_oid: Option<String>,
     pub source_git_state: String,
@@ -1084,6 +1257,7 @@ fn work_session_id(
     claim_event_id: &str,
     task_contract_root: &str,
     target_task_binding_root: Option<&str>,
+    authority_nonlease_event_log_root: Option<&str>,
 ) -> Result<String, String> {
     let mut preimage = json!({
         "schema": WORK_SESSION_SCHEMA,
@@ -1096,6 +1270,9 @@ fn work_session_id(
     if let Some(binding_root) = target_task_binding_root {
         preimage["target_task_binding_root"] = json!(binding_root);
     }
+    if let Some(authority_root) = authority_nonlease_event_log_root {
+        preimage["authority_nonlease_event_log_root"] = json!(authority_root);
+    }
     Ok(format!(
         "vws_{}",
         vela_protocol::canonical::sha256_canonical(&preimage)?
@@ -1107,6 +1284,68 @@ fn nonlease_event_log_root(events: &[vela_protocol::events::StateEvent]) -> Stri
         "sha256:{}",
         vela_protocol::events::nonlease_event_log_hash(events)
     )
+}
+
+fn repository_authority_nonlease_event_log_root(
+    project: &vela_protocol::project::Project,
+    authority: &crate::cli::LoadedRepositoryAuthority,
+) -> Result<String, String> {
+    let legacy_root = format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&project.events)
+    );
+    let events = authority
+        .history
+        .authority_events
+        .iter()
+        .filter(|event| event.content.kind != vela_protocol::events::EventKind::AttemptClaimed)
+        .collect::<Vec<_>>();
+    vela_protocol::authority_history::authority_event_log_root(&legacy_root, &events)
+}
+
+fn apply_repository_authority_leases(
+    project: &mut vela_protocol::project::Project,
+    authority: &crate::cli::LoadedRepositoryAuthority,
+) -> Result<(), String> {
+    for event in authority.ordered_events()? {
+        if event.content.kind != vela_protocol::events::EventKind::AttemptClaimed {
+            continue;
+        }
+        let reducer_event = vela_protocol::events::StateEvent {
+            schema: vela_protocol::events::EVENT_SCHEMA.into(),
+            id: event.id.clone(),
+            kind: event.content.kind.clone(),
+            target: event.content.target.clone(),
+            actor: event.content.actor.clone(),
+            timestamp: event.content.timestamp.clone(),
+            reason: event.content.reason.clone(),
+            before_hash: event.content.before_hash.clone(),
+            after_hash: event.content.after_hash.clone(),
+            payload: event.content.payload.clone(),
+            caveats: event.content.caveats.clone(),
+            signature: None,
+        };
+        vela_protocol::reducer::apply_event(project, &reducer_event)?;
+    }
+    vela_protocol::project::recompute_stats(project);
+    Ok(())
+}
+
+fn load_project_with_repository_authority(
+    frontier: &Path,
+) -> Result<
+    (
+        vela_protocol::project::Project,
+        Option<crate::cli::LoadedRepositoryAuthority>,
+    ),
+    String,
+> {
+    let mut project = repo::load_from_path(frontier)?;
+    let authority = crate::cli::load_repository_authority(frontier, &project)?;
+    if let Some(loaded) = &authority {
+        apply_repository_authority_leases(&mut project, loaded)?;
+    }
+    Ok((project, authority))
 }
 
 fn source_git_commit(frontier: &Path) -> (Option<String>, String) {
@@ -1147,6 +1386,7 @@ fn preflight_work_session_size(
     frontier_id: &str,
     base_event_log_root: &str,
     base_nonlease_event_log_root: &str,
+    base_authority_nonlease_event_log_root: Option<String>,
     source_git_commit_oid: Option<String>,
     source_git_state: &str,
     actor: &str,
@@ -1167,6 +1407,7 @@ fn preflight_work_session_size(
         frontier_id: frontier_id.to_string(),
         base_event_log_root: base_event_log_root.to_string(),
         base_nonlease_event_log_root: base_nonlease_event_log_root.to_string(),
+        base_authority_nonlease_event_log_root,
         source_git_commit_oid,
         source_git_state: source_git_state.to_string(),
         actor: actor.to_string(),
@@ -1333,6 +1574,7 @@ fn validate_work_session_record(session: &WorkSession) -> Result<(), String> {
             .target_task_binding
             .as_ref()
             .map(|binding| binding.binding_root.as_str()),
+        session.base_authority_nonlease_event_log_root.as_deref(),
     )?;
     if session.session_id != expected_session_id {
         return Err("work-session identity does not match its closed root preimage".to_string());
@@ -1373,12 +1615,38 @@ fn validate_active_session(
             session.target, session.actor
         ));
     }
-    let project = repo::load_from_path(frontier)?;
+    let (project, authority) = load_project_with_repository_authority(frontier)?;
     if session.frontier_id != project.frontier_id() {
         return Err(format!(
             "work session {} belongs to a different frontier",
             session.target
         ));
+    }
+    match (
+        session.base_authority_nonlease_event_log_root.as_deref(),
+        authority.as_ref(),
+    ) {
+        (Some(expected), Some(authority)) => {
+            let actual = repository_authority_nonlease_event_log_root(&project, authority)?;
+            if actual != expected {
+                return Err(format!(
+                    "work session {} has repository-authority changes from its pinned state",
+                    session.target
+                ));
+            }
+        }
+        (Some(_), None) => {
+            return Err(
+                "repository-authority work session lost its migrated authority history".to_string(),
+            );
+        }
+        (None, Some(_)) => {
+            return Err(
+                "legacy work session cannot cross the repository-authority migration boundary; remove it and rerun `vela work`"
+                    .to_string(),
+            );
+        }
+        (None, None) => {}
     }
     revalidate_work_session_target_binding(frontier, &project, session)?;
     let current = project
@@ -1510,6 +1778,58 @@ fn work_session_landing_event_root(
     ))
 }
 
+fn work_session_landing_event_root_at(
+    frontier: &Path,
+    project: &vela_protocol::project::Project,
+    session: &WorkSession,
+) -> Result<String, String> {
+    let Some(expected_nonlease_root) = session.base_authority_nonlease_event_log_root.as_deref()
+    else {
+        return work_session_landing_event_root(project, session);
+    };
+    let authority = crate::cli::load_repository_authority(frontier, project)?
+        .ok_or_else(|| "repository-authority work session has no authority history".to_string())?;
+    let matching = authority
+        .history
+        .authority_events
+        .iter()
+        .filter(|event| event.id == session.lease.claim_event_id)
+        .collect::<Vec<_>>();
+    let [claim] = matching.as_slice() else {
+        return Err(
+            "work session must resolve to exactly one repository-authority lease event".into(),
+        );
+    };
+    if claim.content.kind != vela_protocol::events::EventKind::AttemptClaimed
+        || claim.content.actor.id != session.actor
+        || claim
+            .content
+            .payload
+            .get("obligation_id")
+            .and_then(Value::as_str)
+            != Some(session.target.as_str())
+        || claim
+            .content
+            .payload
+            .get("claimant_pubkey")
+            .and_then(Value::as_str)
+            != Some(session.lease.claimant_pubkey.as_str())
+    {
+        return Err(
+            "work session repository-authority lease does not match its signed session facts"
+                .into(),
+        );
+    }
+    let actual_nonlease_root = repository_authority_nonlease_event_log_root(project, &authority)?;
+    if actual_nonlease_root != expected_nonlease_root {
+        return Err(format!(
+            "work session frontier has non-lease authority changes from its pinned state; remove the private session and rerun `vela work {} --as {}`",
+            session.target, session.actor
+        ));
+    }
+    Ok(authority.verification.final_event_log_root)
+}
+
 /// Resolve an explicit target or infer the one active session owned by this
 /// actor. Other actors' sessions never create ambiguity.
 pub(crate) fn resolve_work_session(
@@ -1585,6 +1905,37 @@ pub(crate) fn resolve_work_session(
 
 /// Claim/refresh a lease and install the single typed ignored session record.
 /// CLI and MCP both call this function.
+enum WorkWriteBarrier {
+    Legacy(crate::frontier_txn::CanonicalWriteBarrier),
+    Repository(crate::frontier_txn::CanonicalWriteBarrier),
+}
+
+fn acquire_work_write_barrier(
+    frontier: &Path,
+    journal_dir: &Path,
+) -> Result<(bool, WorkWriteBarrier), String> {
+    let preliminary = repo::load_from_path(frontier)?;
+    let migrated = preliminary
+        .events
+        .iter()
+        .any(|event| event.kind == vela_protocol::events::EventKind::AuthorityModelMigrated);
+    let barrier = if migrated {
+        WorkWriteBarrier::Repository(
+            crate::frontier_txn::FrontierTxn::acquire_repository_authority_write_barrier(
+                frontier,
+                journal_dir,
+            )
+            .map_err(|error| error.to_string())?,
+        )
+    } else {
+        WorkWriteBarrier::Legacy(
+            acquire_canonical_write_barrier(frontier, journal_dir)
+                .map_err(|error| error.to_string())?,
+        )
+    };
+    Ok((migrated, barrier))
+}
+
 pub(crate) fn open_session(
     frontier: &Path,
     target: &str,
@@ -1611,14 +1962,16 @@ where
         ));
     }
     let journal_dir = frontier_transaction_journal_dir(frontier)?;
-    let barrier = acquire_canonical_write_barrier(frontier, &journal_dir)
-        .map_err(|error| error.to_string())?;
+    let (migrated, barrier) = acquire_work_write_barrier(frontier, &journal_dir)?;
     after_barrier()?;
     // Pin the producer's scientific base before the coordination lease adds
     // its own event. The claim remains the exact live-lease identity, while
     // the session and optional campaign task describe what state the producer
     // actually started from.
-    let base_project = repo::load_from_path(frontier)?;
+    let (base_project, repository_authority) = load_project_with_repository_authority(frontier)?;
+    if migrated != repository_authority.is_some() {
+        return Err("repository authority changed while acquiring the work barrier".into());
+    }
     if let Some(current) = base_project
         .attempt_claims
         .iter()
@@ -1669,6 +2022,10 @@ where
         vela_protocol::events::event_log_hash(&base_project.events)
     );
     let base_nonlease_event_log_root = nonlease_event_log_root(&base_project.events);
+    let base_authority_nonlease_event_log_root = repository_authority
+        .as_ref()
+        .map(|authority| repository_authority_nonlease_event_log_root(&base_project, authority))
+        .transpose()?;
     let (source_git_commit_oid, source_git_state) = source_git_commit(frontier);
     let contract = task_contract(&briefing, target);
     let task_contract_root = sha256_root(&contract)?;
@@ -1677,6 +2034,7 @@ where
         &base_project.frontier_id(),
         &base_event_log_root,
         &base_nonlease_event_log_root,
+        base_authority_nonlease_event_log_root.clone(),
         source_git_commit_oid.clone(),
         &source_git_state,
         actor,
@@ -1700,6 +2058,34 @@ where
             .unwrap_or("another actor");
         return Err(format!("work target {target} is already leased by {owner}"));
     }
+    if candidate.events.len() != base_project.events.len() + 1 {
+        return Err("work claim candidate did not append exactly one signed event".into());
+    }
+    let signed_candidate_event = candidate
+        .events
+        .last()
+        .cloned()
+        .ok_or_else(|| "work claim candidate has no signed event".to_string())?;
+    let claim = match (barrier, repository_authority) {
+        (WorkWriteBarrier::Legacy(barrier), None) => transact_lease_candidate_with_barrier(
+            frontier,
+            barrier,
+            &base_project,
+            &candidate,
+            claim,
+            || Ok(()),
+        )?,
+        (WorkWriteBarrier::Repository(barrier), Some(authority)) => {
+            transact_repository_authority_lease(
+                frontier,
+                barrier,
+                authority,
+                &signed_candidate_event,
+                claim,
+            )?
+        }
+        _ => return Err("work writer authority changed during planning".into()),
+    };
     let claim_event_id = claim
         .get("claim_event_id")
         .and_then(Value::as_str)
@@ -1726,6 +2112,7 @@ where
         target_task_binding
             .as_ref()
             .map(|binding| binding.binding_root.as_str()),
+        base_authority_nonlease_event_log_root.as_deref(),
     )?;
     let session = WorkSession {
         schema: WORK_SESSION_SCHEMA.to_string(),
@@ -1734,6 +2121,7 @@ where
         frontier_id: base_project.frontier_id().to_string(),
         base_event_log_root,
         base_nonlease_event_log_root,
+        base_authority_nonlease_event_log_root,
         source_git_commit_oid,
         source_git_state,
         actor: actor.to_string(),
@@ -1751,18 +2139,10 @@ where
         target_task_binding,
         briefing: briefing.clone(),
     };
-    // Measure the exact record, including the signed event identity and
-    // timestamp, before crossing the transaction commit marker.
+    // The conservative preflight happened before either writer crossed its
+    // marker. Recheck the exact private record before installing it.
     validate_work_session_record(&session)?;
     encoded_work_session(&session)?;
-    let claim = transact_lease_candidate_with_barrier(
-        frontier,
-        barrier,
-        &base_project,
-        &candidate,
-        claim,
-        || Ok(()),
-    )?;
     let path = write_work_session(frontier, &session)?;
     Ok(json!({
         "ok": true,
@@ -1788,9 +2168,11 @@ pub(crate) fn release_session(
         return Err("work --drop requires a non-empty release reason".to_string());
     }
     let journal_dir = frontier_transaction_journal_dir(frontier)?;
-    let barrier = acquire_canonical_write_barrier(frontier, &journal_dir)
-        .map_err(|error| error.to_string())?;
-    let project = repo::load_from_path(frontier)?;
+    let (migrated, barrier) = acquire_work_write_barrier(frontier, &journal_dir)?;
+    let (project, repository_authority) = load_project_with_repository_authority(frontier)?;
+    if migrated != repository_authority.is_some() {
+        return Err("repository authority changed while acquiring the work barrier".into());
+    }
     let lease = project
         .attempt_claims
         .iter()
@@ -1819,14 +2201,34 @@ pub(crate) fn release_session(
     if release.get("ok").and_then(Value::as_bool) != Some(true) {
         return Err(format!("work target {target} lease was not released"));
     }
-    let release = transact_lease_candidate_with_barrier(
-        frontier,
-        barrier,
-        &project,
-        &candidate,
-        release,
-        || Ok(()),
-    )?;
+    if candidate.events.len() != project.events.len() + 1 {
+        return Err("work release candidate did not append exactly one signed event".into());
+    }
+    let signed_candidate_event = candidate
+        .events
+        .last()
+        .cloned()
+        .ok_or_else(|| "work release candidate has no signed event".to_string())?;
+    let release = match (barrier, repository_authority) {
+        (WorkWriteBarrier::Legacy(barrier), None) => transact_lease_candidate_with_barrier(
+            frontier,
+            barrier,
+            &project,
+            &candidate,
+            release,
+            || Ok(()),
+        )?,
+        (WorkWriteBarrier::Repository(barrier), Some(authority)) => {
+            transact_repository_authority_lease(
+                frontier,
+                barrier,
+                authority,
+                &signed_candidate_event,
+                release,
+            )?
+        }
+        _ => return Err("work writer authority changed during release planning".into()),
+    };
     let directory = session_dir(frontier, target);
     let session_dir_removed = match std::fs::symlink_metadata(&directory) {
         Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => false,
@@ -1927,7 +2329,7 @@ pub(crate) fn author_receipt(
     }
     let project = repo::load_from_path(frontier)?;
     revalidate_work_session_target_binding(frontier, &project, &work.record)?;
-    let event_root = work_session_landing_event_root(&project, &work.record)?;
+    let event_root = work_session_landing_event_root_at(frontier, &project, &work.record)?;
     let policy_ref = vela_protocol::acceptance_policy::load_active_policy(frontier)?
         .map(|policy| policy.policy.id)
         .unwrap_or_else(|| "urn:vela:policy:none".to_string());
@@ -2131,7 +2533,7 @@ fn active_work_session_close(
         .get("event_log_root")
         .and_then(Value::as_str)
         .ok_or_else(|| "work session receipt has no event log root".to_string())?;
-    let landing_event_root = work_session_landing_event_root(project, &session)?;
+    let landing_event_root = work_session_landing_event_root_at(frontier, project, &session)?;
     if receipt_event_root != landing_event_root {
         return Err("work session receipt is not bound through its exact lease event".to_string());
     }
@@ -3694,6 +4096,7 @@ mod workflow_transaction_tests {
             frontier_id: "vfr_size_fixture".to_string(),
             base_event_log_root: format!("sha256:{}", "0".repeat(64)),
             base_nonlease_event_log_root: format!("sha256:{}", "0".repeat(64)),
+            base_authority_nonlease_event_log_root: None,
             source_git_commit_oid: Some("0".repeat(40)),
             source_git_state: "pinned".to_string(),
             actor: "agent:size-fixture".to_string(),
@@ -3725,6 +4128,7 @@ mod workflow_transaction_tests {
             &format!("vev_{}", "1".repeat(64)),
             &format!("sha256:{}", "2".repeat(64)),
             None,
+            None,
         )
         .unwrap();
         assert_eq!(
@@ -3739,6 +4143,7 @@ mod workflow_transaction_tests {
             &format!("vev_{}", "1".repeat(64)),
             &format!("sha256:{}", "2".repeat(64)),
             Some(&format!("sha256:{}", "3".repeat(64))),
+            None,
         )
         .unwrap();
         assert_eq!(

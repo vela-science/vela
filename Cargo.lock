@@ -3660,6 +3660,8 @@ name = "vela-authority"
 version = "0.930.0-rc.7"
 dependencies = [
  "cedar-policy",
+ "chrono",
+ "ed25519-dalek",
  "hex",
  "serde",
  "serde_json",

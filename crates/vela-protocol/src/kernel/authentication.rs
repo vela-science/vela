@@ -18,6 +18,8 @@ pub const MAX_AUTHENTICATION_AGE_SECONDS: i64 = 24 * 60 * 60;
 #[serde(rename_all = "snake_case")]
 pub enum AuthenticationMethod {
     LocalOsSession,
+    PlatformUserPresence,
+    AgentEventSignature,
     Passkey,
     Oidc,
     WorkloadOidc,
@@ -99,6 +101,7 @@ impl AuthenticationObservationV1 {
                 if !matches!(
                     self.method,
                     AuthenticationMethod::LocalOsSession
+                        | AuthenticationMethod::PlatformUserPresence
                         | AuthenticationMethod::Passkey
                         | AuthenticationMethod::Oidc
                 ) {
@@ -114,8 +117,36 @@ impl AuthenticationObservationV1 {
                             .into(),
                     );
                 }
+                if self.method == AuthenticationMethod::PlatformUserPresence
+                    && (!self.user_presence
+                        || !self.user_verification
+                        || self.assurance < AuthenticationAssurance::MultiFactor)
+                {
+                    return Err(
+                        "platform user-presence authentication requires presence and verification"
+                            .into(),
+                    );
+                }
             }
-            PrincipalClass::Agent | PrincipalClass::Workload => {
+            PrincipalClass::Agent => {
+                let locally_signed = self.method == AuthenticationMethod::AgentEventSignature
+                    && self.assurance == AuthenticationAssurance::SingleFactor;
+                let externally_attested = matches!(
+                    self.method,
+                    AuthenticationMethod::WorkloadOidc
+                        | AuthenticationMethod::GithubApp
+                        | AuthenticationMethod::SciTokens
+                        | AuthenticationMethod::Spiffe
+                ) && self.assurance
+                    == AuthenticationAssurance::WorkloadAttested;
+                if (!locally_signed && !externally_attested)
+                    || self.user_presence
+                    || self.user_verification
+                {
+                    return Err("agent authentication facts are invalid".into());
+                }
+            }
+            PrincipalClass::Workload => {
                 if !matches!(
                     self.method,
                     AuthenticationMethod::WorkloadOidc

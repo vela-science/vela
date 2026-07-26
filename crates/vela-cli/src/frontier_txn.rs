@@ -1503,6 +1503,13 @@ pub(crate) struct MigrationWriteBarrier {
     authorization: FrontierTxnAuthorization,
 }
 
+#[derive(Debug)]
+struct RepositoryAuthorityWriteAuthorization {
+    frontier_id: String,
+    migration_event_id: String,
+    migration_event_root: ContentDigest,
+}
+
 /// The exact repository authority required by one canonical write attempt.
 ///
 /// This value is deliberately part of the in-memory capability rather than a
@@ -1670,10 +1677,44 @@ fn verify_legacy_writer_era(
     }) {
         return Err(FrontierTxnError::RepositoryWriteIntentDenied {
             intent: intent.as_str(),
-            reason: "legacy canonical writers are disabled after authority.model_migrated; this candidate exposes no ordinary repository-authority writer, so use read-only inspection until that edge is released".to_string(),
+            reason: "legacy canonical writers are disabled after authority.model_migrated; use the corresponding repository-authority workflow when this operation is supported".to_string(),
         });
     }
     Ok(())
+}
+
+fn verify_repository_authority_write_era(
+    root: &Path,
+) -> Result<RepositoryAuthorityWriteAuthorization, FrontierTxnError> {
+    let project = vela_protocol::repo::load_from_path(root).map_err(|error| {
+        FrontierTxnError::Io(format!(
+            "load repository for repository-authority gate: {error}"
+        ))
+    })?;
+    let migrations = project
+        .events
+        .iter()
+        .filter(|event| {
+            event.kind == vela_protocol::events::EventKind::AuthorityModelMigrated
+                || event.kind.as_str() == vela_protocol::events::EVENT_KIND_AUTHORITY_MODEL_MIGRATED
+        })
+        .collect::<Vec<_>>();
+    let [migration] = migrations.as_slice() else {
+        return Err(FrontierTxnError::RepositoryWriteIntentDenied {
+            intent: "repository_authority",
+            reason: format!(
+                "repository-authority writes require exactly one authority.model_migrated event; found {}",
+                migrations.len()
+            ),
+        });
+    };
+    let bytes = vela_protocol::canonical::to_canonical_bytes(migration)
+        .map_err(FrontierTxnError::Canonicalize)?;
+    Ok(RepositoryAuthorityWriteAuthorization {
+        frontier_id: project.frontier_id(),
+        migration_event_id: migration.id.clone(),
+        migration_event_root: ContentDigest::hash(bytes),
+    })
 }
 
 fn repository_derived_path(path: &str) -> bool {
@@ -2211,6 +2252,16 @@ impl FrontierRecoveryBarrier {
         self.authorize_for_intent(CanonicalWriteIntent::FirstAdministratorBoundary)
     }
 
+    pub(crate) fn authorize_for_repository_authority(
+        self,
+    ) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
+        let authorization = verify_repository_authority_write_era(&self.root)?;
+        Ok(CanonicalWriteBarrier {
+            recovery: self,
+            authorization: FrontierTxnAuthorization::RepositoryAuthority(authorization),
+        })
+    }
+
     fn authorize_for_intent(
         self,
         intent: CanonicalWriteIntent,
@@ -2274,6 +2325,19 @@ fn reverify_transaction_authorization(
                 return Err(FrontierTxnError::StaleWriteAuthorization {
                     expected: expected.context_root.clone(),
                     actual: actual.context_root,
+                });
+            }
+            Ok(())
+        }
+        FrontierTxnAuthorization::RepositoryAuthority(expected) => {
+            let actual = verify_repository_authority_write_era(root)?;
+            if actual.frontier_id != expected.frontier_id
+                || actual.migration_event_id != expected.migration_event_id
+                || actual.migration_event_root != expected.migration_event_root
+            {
+                return Err(FrontierTxnError::StaleWriteAuthorization {
+                    expected: expected.migration_event_root.clone(),
+                    actual: actual.migration_event_root,
                 });
             }
             Ok(())
@@ -2719,6 +2783,7 @@ pub(crate) struct FrontierTxn {
 enum FrontierTxnAuthorization {
     Verified(CanonicalWriteAuthorization),
     Migration(MigrationWriteAuthorization),
+    RepositoryAuthority(RepositoryAuthorityWriteAuthorization),
     #[cfg(test)]
     TestHarness,
 }
@@ -2728,6 +2793,7 @@ impl FrontierTxnAuthorization {
         match self {
             Self::Verified(authorization) => Some(&authorization.frontier_id),
             Self::Migration(authorization) => Some(&authorization.spec.ceremony.frontier_id),
+            Self::RepositoryAuthority(authorization) => Some(&authorization.frontier_id),
             #[cfg(test)]
             Self::TestHarness => None,
         }
@@ -2866,6 +2932,16 @@ impl FrontierTxn {
             journal_dir,
             CanonicalWriteIntent::Producer,
         )
+    }
+
+    pub(crate) fn acquire_repository_authority_write_barrier(
+        frontier_root: &Path,
+        journal_dir: &Path,
+    ) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
+        let root = canonical_frontier_root(frontier_root)?;
+        // Fail an Era-0 repository before creating even the ignored lock.
+        verify_repository_authority_write_era(&root)?;
+        Self::acquire_recovery_barrier(&root, journal_dir)?.authorize_for_repository_authority()
     }
 
     pub(crate) fn acquire_administrator_write_barrier(

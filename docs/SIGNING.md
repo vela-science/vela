@@ -11,11 +11,10 @@
 
 The candidate recognizes the closed `vela.authority-model-migration.v1`
 bridge and verifies contiguous DSSE authority-record coverage after it. Its
-writer cores prove initial installation, ordinary transactions, exact keyset
-and policy rotation, and terminal emergency close through the existing
-recoverable journal. One temporary `vela authority migrate` command exposes
-only the initial transition. It has not migrated an active Frontier and does
-not expose ordinary Era-1 administration.
+writer performs initial installation, ordinary work-lease transactions, exact
+keyset and policy rotation, and terminal emergency close through the existing
+recoverable journal. Erdős is an active migrated Frontier and has exercised
+the signed-agent claim/release lifecycle without changing scientific state.
 
 Emergency close is a current-authority transaction, not a recovery bypass. It
 requires the human-only `authority_close` action, installs an empty terminal
@@ -29,9 +28,11 @@ no bearer credential and cannot express human review, policy, membership,
 recovery, quorum, bulk-correction, destructive, migration, rotation, or
 revocation authority. The candidate now has an injectable, filesystem-free
 runtime preflight that validates a provider observation, live revocation
-input, exact principal, and derived Cedar context. Platform local-session,
-passkey, OIDC, GitHub App, or SciTokens integration remains a replaceable
-adapter and none is a released writer.
+input, exact principal, and derived Cedar context. Signed agent events cover
+routine local work. Fresh platform-owned user presence covers the narrow
+`authority enable-work` policy rotation without reading a human Vela key.
+Passkey, OIDC, GitHub App, or SciTokens integrations remain replaceable
+adapters.
 
 The authority record retains only a closed
 `vela.authentication-observation.v1`: exact principal and issuer-subject,
@@ -48,6 +49,25 @@ Human keys remain behind the protected operating-system signer. An agent may
 prepare and invoke an exact request, but it may not approve the OS card, read
 the seed, use a legacy file key autonomously, or claim the request itself
 changed standing.
+
+## Enable routine work after migration
+
+Frontiers migrated before the routine-work policy was added remain fail-closed
+until one exact policy rotation:
+
+```bash
+vela authority enable-work . \
+  --reason "Enable exact signed-agent work leases while preserving human decisions." --json
+vela authority enable-work . \
+  --reason "Enable exact signed-agent work leases while preserving human decisions." \
+  --apply --confirm-root <sha256:...> --confirm-at <RFC3339> --json
+```
+
+Preview is key-free. Apply obtains fresh platform user presence for the exact
+old and new policy roots, then asks the repository authority to sign the
+covering record. It never reads the legacy human key. The resulting Cedar rule
+permits only an exact agent-signed work claim; it cannot authorize review,
+acceptance, policy administration, membership, recovery, or key rotation.
 
 ## Protect a human identity
 

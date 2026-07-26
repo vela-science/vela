@@ -853,21 +853,54 @@ intents plus the preview path, and the real migrated Erdős checkout rejects
 both `review decide` and `work` with an unchanged Git tree and operation
 journal digest.
 
-This is a safety completion, not a usable Era-1 product. The ordinary
-repository-authority transaction core is still CLI-unreachable, and its
-`LocalOsSession` test adapter is not a trustworthy human authentication edge:
-an agent running as the same operating-system user could construct the same
-observation. The initial retained policy bundle also records content roots,
-not a durable source package suitable for later governed rotation. Therefore
-the migrated active Frontiers are intentionally read-only under this
-candidate. Final `vela-signer` and identity-custody deletion is blocked until:
+The next implementation slice makes routine Era-1 work usable without
+reopening personal signing. Exact Cedar source bytes are retained by content
+root under:
 
-1. routine producer and workload transactions enter through the
+```text
+.vela/authority/policy-material/schema/<digest>.cedarschema
+.vela/authority/policy-material/policies/<digest>.cedar
+.vela/authority/policy-material/entities/<digest>.json
+```
+
+The first ordinary Era-1 transaction backfills the sequence-1 material while
+retaining every historical bundle. Missing, altered, partial, symlinked, or
+unactivated source fails closed. Sequence-1 bundles emitted before source
+retention remain reconstructible byte-for-byte.
+
+`vela work` now enters the repository-authority writer. An agent proves its
+exact identity with the ordinary signed lease event it already creates; the
+record retains only a five-minute, bearer-free
+`agent_event_signature` observation. The active Cedar bundle must explicitly
+authorize `work_claim` for an exact Frontier and that authentication method.
+The lease event is stored in the Era-1 event log and covered by a DSSE
+authority record; no post-migration legacy event is appended.
+
+For a migrated Frontier whose sequence-1 bundle predates routine work,
+`vela authority enable-work` constructs one root-bound successor bundle. Its
+protected apply path obtains fresh platform-owned user presence through the
+pinned one-shot helper, reads no Vela human key, and records a
+`platform_user_presence` observation. The repository SSH-agent key signs only
+the already-authorized authority record. The narrow policy grants claim,
+refresh, and release coordination; agents still cannot obtain review,
+scientific acceptance, policy administration, membership, recovery, or key
+rotation.
+
+The real Erdős Frontier exercised this complete path on 2026-07-26. Policy
+rotation record `var_113bbaca428ac6b7` activated bundle
+`sha256:0031a413c696aa1a8a9ef8c6b4f33e7cd5536228002241fe6ed67e3de799b7de`.
+Agent `agent:codex` then claimed and released `erdos:124` through records
+`var_bbeeb59ea0ef0741` and `var_6595400d3fe4ee12`. A clean clone replayed the
+same available queue, the legacy event root remained unchanged, and no
+scientific state changed.
+
+Final `vela-signer` and identity-custody deletion remains blocked until:
+
+1. remaining routine producer landing transactions enter through the
    repository-authority writer with short-lived scoped authentication;
-2. exceptional human decisions use a standard provider assertion that binds
+2. exceptional human scientific decisions use a standard provider assertion that binds
    the exact semantic action and cannot be fabricated by an agent process;
-3. retained Cedar source material supports deterministic replay and governed
-   rotation; and
+3. every active Frontier has rotated to a retained Cedar source package; and
 4. the replacement paths pass clean-clone, cancellation, stale-session,
    substitution, and recovery tests.
 

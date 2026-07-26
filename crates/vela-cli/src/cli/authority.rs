@@ -1,31 +1,37 @@
-//! Product seam for the one-time Era-0 to Era-1 authority migration.
+//! Product seams for Era-0 migration and narrow Era-1 administration.
 //!
-//! Preview is key-free and write-free. Apply rederives the same plan while
-//! holding the Frontier recovery barrier, requests exactly one protected
-//! legacy continuity signature, authenticates the current operating-system
-//! principal, asks the configured OpenSSH agent to sign the covering
-//! repository-authority record, and installs the complete bridge atomically.
+//! Previews are key-free and write-free. Migration requests the one final
+//! protected legacy continuity signature. Post-migration work-policy rotation
+//! uses fresh platform-owned user presence without reading the human Vela key.
+//! Both ask the configured OpenSSH agent to sign only an already-authorized
+//! covering repository-authority record.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use chrono::{DateTime, Duration, SecondsFormat, Utc};
 use rand::RngCore;
 use serde::Serialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use vela_authority::CedarEvaluationInput;
 use vela_authority::legacy_translation::translate_legacy_policy;
 use vela_authority::runtime_authentication::{
-    AuthenticationAdapter, AuthenticationRequest, LocalOsSession, RuntimeSessionState,
+    AuthenticationAdapter, AuthenticationRequest, LocalOsSession, PlatformUserPresenceSession,
+    RuntimeSessionState,
 };
+use vela_authority::{CedarEvaluationInput, CedarPolicyMaterial};
 use vela_protocol::authority::{
-    AUTHORITY_KEY_ALGORITHM, AUTHORITY_KEY_PURPOSE, AUTHORITY_KEYSET_SCHEMA_V1, AuthorityKeyV1,
-    AuthorityKeysetV1, POLICY_BUNDLE_SCHEMA_V1, PolicyBundleV1, PrincipalSnapshotV1,
+    AUTHORITY_KEY_ALGORITHM, AUTHORITY_KEY_PURPOSE, AUTHORITY_KEYSET_SCHEMA_V1,
+    AuthorityEnvelopeV1, AuthorityEventV1, AuthorityKeyV1, AuthorityKeysetV1, AuthorityRecordV1,
+    POLICY_BUNDLE_SCHEMA_V1, PolicyBundleV1, PrincipalSnapshotV1, SemanticApprovalV1,
 };
 use vela_protocol::authority_history::{
-    AUTHORITY_MIGRATION_ACTION, AUTHORITY_MODEL_MIGRATION_SCHEMA_V1, AuthorityModelMigrationV1,
+    AUTHORITY_MIGRATION_ACTION, AUTHORITY_MODEL_MIGRATION_SCHEMA_V1, AuthorityHistoryInput,
+    AuthorityHistoryVerification, AuthorityModelMigrationV1, POLICY_ROTATE_ACTION,
+    verify_authority_history,
 };
 use vela_protocol::canonical::to_canonical_bytes;
 use vela_protocol::events::{
@@ -39,6 +45,10 @@ use crate::authority_migration::{
     AuthorityMigrationHistorySnapshot, AuthorityMigrationRequest, execute_authority_migration,
 };
 use crate::authority_transaction::RepositoryAuthoritySigner;
+use crate::authority_transaction::{
+    AuthorityEventDraft, AuthorityHistorySnapshot, AuthorityTransactionRequest,
+    authority_policy_material_paths, execute_authority_transaction,
+};
 use crate::frontier_txn::{ContentDigest, FrontierTxn, InputBinding, RepoPath};
 use crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner;
 
@@ -46,6 +56,8 @@ use super::{fail_return, print_json};
 
 const PLAN_SCHEMA: &str = "vela.authority-migration-plan.v1";
 const PLAN_DOMAIN: &[u8] = b"vela.authority-migration-plan.v1\0";
+const WORK_POLICY_PLAN_SCHEMA: &str = "vela.authority-work-policy-plan.v1";
+const WORK_POLICY_PLAN_DOMAIN: &[u8] = b"vela.authority-work-policy-plan.v1\0";
 const POLICY_HEAD_SCHEMA: &str = "vela.legacy-authority-policy-head.v1";
 const POLICY_STORE_SCHEMA: &str = "vela.legacy-authority-policy-store.v1";
 const POLICY_SHADOW_TESTS_ROOT: &str =
@@ -192,6 +204,37 @@ action "review_reject" appliesTo {
     }
 };"#;
 
+const ROUTINE_WORK_SCHEMA: &str = r#"
+entity Agent;
+action "work_claim" appliesTo {
+    principal: Agent,
+    resource: Frontier,
+    context: {
+        exact: Bool,
+        authentication: {
+            method: String,
+            assurance: String,
+            authenticated_at: String,
+            observed_at: String,
+            expires_at: String,
+            user_presence: Bool,
+            user_verification: Bool,
+            recovery_recent: Bool
+        }
+    }
+};"#;
+
+const ROUTINE_WORK_POLICY: &str = r#"
+permit(principal, action == Action::"work_claim", resource)
+when {
+    context.exact &&
+    context.authentication.method == "agent_event_signature" &&
+    context.authentication.assurance == "single_factor"
+};"#;
+
+const ROUTINE_WORK_POLICY_TESTS_ROOT: &str =
+    "sha256:f4457edafcf11613b0e6a51dd2f999b158af9e471cb8258e3a15b05bde837e1f";
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(deny_unknown_fields)]
 struct PolicyStoreEntry {
@@ -281,6 +324,28 @@ struct AuthorityMigrationExecution {
     operation_id: String,
     transaction_id: String,
     git_publication: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(deny_unknown_fields)]
+struct WorkPolicyPlan {
+    schema: String,
+    ok: bool,
+    command: String,
+    frontier: String,
+    frontier_id: String,
+    frontier_name: String,
+    git_commit: String,
+    git_tree: String,
+    observed_at: String,
+    principal_id: String,
+    current_policy_bundle_root: String,
+    next_policy_bundle: PolicyBundleV1,
+    next_policy_bundle_root: String,
+    reason: String,
+    writes_now: bool,
+    requires_user_presence: bool,
+    plan_root: String,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -411,6 +476,452 @@ pub(crate) fn cmd_authority_migrate(
         println!("  writes now: none");
         println!("  apply requests one final protected legacy approval");
     }
+}
+
+pub(crate) fn cmd_authority_enable_work(
+    frontier: &Path,
+    reason: &str,
+    apply: bool,
+    confirm_root: Option<&str>,
+    confirm_at: Option<&str>,
+    json_out: bool,
+) {
+    crate::ui::set_mode("authority enable-work", json_out);
+    if apply {
+        let confirm_root = confirm_root.unwrap_or_else(|| {
+            fail_return("authority enable-work --apply requires --confirm-root and --confirm-at")
+        });
+        let confirm_at = confirm_at.unwrap_or_else(|| {
+            fail_return("authority enable-work --apply requires --confirm-root and --confirm-at")
+        });
+        crate::decision_plan::validate_scripted_confirmation_time(confirm_at)
+            .unwrap_or_else(|error| fail_return(&format!("{}: {}", error.code, error.message)));
+        let initial = prepare_work_policy_plan(frontier, reason, confirm_at)
+            .unwrap_or_else(|error| fail_return(&error));
+        if initial.0.plan_root != confirm_root {
+            fail_return::<()>(&format!(
+                "authority work-policy confirmation root mismatch: supplied {confirm_root}, current {}",
+                initial.0.plan_root
+            ));
+        }
+        let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier)
+            .unwrap_or_else(|error| fail_return(&error));
+        let barrier =
+            FrontierTxn::acquire_repository_authority_write_barrier(frontier, &journal_dir)
+                .unwrap_or_else(|error| fail_return(&error.to_string()));
+        let (plan, project, authority, next_material) =
+            prepare_work_policy_plan(frontier, reason, confirm_at)
+                .unwrap_or_else(|error| fail_return(&error));
+        if plan.plan_root != initial.0.plan_root {
+            fail_return::<()>(
+                "authority work-policy inputs changed while acquiring the recovery barrier",
+            );
+        }
+        let request =
+            build_authority_intent_request(&plan).unwrap_or_else(|error| fail_return(&error));
+        let response =
+            request_authority_intent(&request).unwrap_or_else(|error| fail_return(&error));
+        let recorded_at =
+            canonical_whole_second_time("authority-intent approval", &response.approved_at)
+                .unwrap_or_else(|error| fail_return(&error));
+        let local = local_session(&recorded_at).unwrap_or_else(|error| fail_return(&error));
+        if local.principal_id != plan.principal_id {
+            fail_return::<()>(
+                "local operating-system principal changed after protected policy approval",
+            );
+        }
+        let mut authentication = PlatformUserPresenceSession {
+            principal_id: plan.principal_id.clone(),
+            issuer: local.issuer,
+            subject: local.subject,
+            session_root: response.session_root,
+            authenticated_at: recorded_at.clone(),
+            expires_at: (DateTime::parse_from_rfc3339(&recorded_at)
+                .expect("canonical approval time parses")
+                .with_timezone(&Utc)
+                + Duration::minutes(5))
+            .to_rfc3339_opts(SecondsFormat::Secs, true),
+        };
+        let next_policy = plan.next_policy_bundle.clone();
+        let current_policy_root = plan.current_policy_bundle_root.clone();
+        let next_policy_root = plan.next_policy_bundle_root.clone();
+        let authorization = CedarEvaluationInput {
+            schema: authority.policy_material.schema.clone(),
+            policies: authority.policy_material.policies.clone(),
+            entities: authority.policy_material.entities.clone(),
+            principal: format!(
+                "Human::{}",
+                serde_json::to_string(&plan.principal_id)
+                    .expect("serializing the principal cannot fail")
+            ),
+            principal_class: PrincipalClass::Human,
+            action: POLICY_ROTATE_ACTION.into(),
+            resource: format!(
+                "Frontier::{}",
+                serde_json::to_string(&plan.frontier_id)
+                    .expect("serializing the frontier cannot fail")
+            ),
+            context: json!({"exact": true}),
+        };
+        let (key_id, public_key) =
+            active_repository_key(&authority).unwrap_or_else(|error| fail_return(&error));
+        let mut signer = SshAgentRepositoryAuthoritySigner::from_environment(key_id, &public_key)
+            .unwrap_or_else(|error| fail_return(&error));
+        let executable =
+            std::env::current_exe().unwrap_or_else(|error| fail_return(&error.to_string()));
+        let binary_sha256 = vela_signer::contract::file_sha256(&executable)
+            .unwrap_or_else(|error| fail_return(&error));
+        let result = execute_authority_transaction(
+            barrier,
+            frontier,
+            AuthorityTransactionRequest {
+                history: authority.history,
+                intent_digest: plan.plan_root.clone(),
+                principal: PrincipalSnapshotV1 {
+                    principal_id: plan.principal_id.clone(),
+                    principal_class: PrincipalClass::Human,
+                    display_name: Some("Repository administrator".into()),
+                    affiliation: None,
+                    account_links: vec![plan.principal_id.clone()],
+                },
+                authentication_request: AuthenticationRequest {
+                    principal_id: plan.principal_id.clone(),
+                    principal_class: PrincipalClass::Human,
+                    transaction_at: recorded_at.clone(),
+                },
+                runtime_session_state: RuntimeSessionState::default(),
+                authorization_input: authorization,
+                delegation: None,
+                semantic_approvals: vec![SemanticApprovalV1 {
+                    principal_id: plan.principal_id.clone(),
+                    role: "frontier_administrator".into(),
+                    action: POLICY_ROTATE_ACTION.into(),
+                    reason: reason.into(),
+                    approved_at: recorded_at.clone(),
+                    intent_digest: plan.plan_root.clone(),
+                }],
+                event_drafts: vec![AuthorityEventDraft {
+                    kind: EventKind::Other("policy.rotated".into()),
+                    target: StateTarget {
+                        r#type: "frontier".into(),
+                        id: plan.frontier_id.clone(),
+                    },
+                    actor: StateActor {
+                        r#type: "human".into(),
+                        id: plan.principal_id.clone(),
+                    },
+                    timestamp: recorded_at.clone(),
+                    reason: reason.into(),
+                    before_hash: current_policy_root,
+                    after_hash: next_policy_root.clone(),
+                    payload: json!({
+                        "policy_bundle_root": next_policy_root,
+                        "change": "enable_signed_agent_work_leases"
+                    }),
+                    caveats: vec![
+                        "This policy grants no review, scientific acceptance, or policy-administration authority to agents.".into(),
+                    ],
+                }],
+                object_drafts: Vec::new(),
+                next_authority_keyset: None,
+                next_policy_bundle: Some(next_policy),
+                next_policy_material: Some(next_material),
+                read_set: Vec::new(),
+                vela_version: env!("CARGO_PKG_VERSION").into(),
+                binary_sha256,
+                recorded_at,
+            },
+            &mut authentication,
+            &mut signer,
+        )
+        .unwrap_or_else(|error| fail_return(&error.to_string()));
+        let reloaded = vela_protocol::repo::load_from_path(frontier)
+            .unwrap_or_else(|error| fail_return(&error));
+        let replayed = load_repository_authority(frontier, &reloaded)
+            .unwrap_or_else(|error| fail_return(&error))
+            .unwrap_or_else(|| {
+                fail_return("repository authority disappeared after policy rotation")
+            });
+        if replayed
+            .history
+            .policy_bundle
+            .root()
+            .map_or(true, |root| root != plan.next_policy_bundle_root)
+        {
+            fail_return::<()>("policy rotation replay did not activate the exact next bundle");
+        }
+        if json_out {
+            print_json(&json!({
+                "ok": true,
+                "command": "authority enable-work",
+                "frontier": plan.frontier,
+                "event_ids": result.event_ids,
+                "authority_record_id": result.authority_record_id,
+                "authority_record_root": result.authority_record_root,
+                "policy_bundle_root": plan.next_policy_bundle_root,
+                "after_event_log_root": result.after_event_log_root,
+                "writes_now": true
+            }));
+        } else {
+            println!("signed-agent work leases enabled");
+            println!("  policy: {}", plan.next_policy_bundle_root);
+            println!("  authority record: {}", result.authority_record_id);
+            println!("  next: inspect and commit the exact canonical delta");
+        }
+        let _ = project;
+        return;
+    }
+
+    if confirm_root.is_some() || confirm_at.is_some() {
+        fail_return::<()>(
+            "--confirm-root/--confirm-at are valid only with --apply; preview is key-free",
+        );
+    }
+    let observed_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
+    let (plan, _, _, _) = prepare_work_policy_plan(frontier, reason, &observed_at)
+        .unwrap_or_else(|error| fail_return(&error));
+    if json_out {
+        print_json(&plan);
+    } else {
+        println!(
+            "authority work policy · key-free preview · {}",
+            plan.frontier_name
+        );
+        println!("  current policy: {}", plan.current_policy_bundle_root);
+        println!("  next policy: {}", plan.next_policy_bundle_root);
+        println!("  plan root: {}", plan.plan_root);
+        println!("  confirm at: {}", plan.observed_at);
+        println!("  permits: exact work leases signed by the agent");
+        println!("  does not permit: review, acceptance, policy administration, or key rotation");
+    }
+}
+
+fn prepare_work_policy_plan(
+    frontier: &Path,
+    reason: &str,
+    observed_at: &str,
+) -> Result<
+    (
+        WorkPolicyPlan,
+        Project,
+        LoadedRepositoryAuthority,
+        CedarPolicyMaterial,
+    ),
+    String,
+> {
+    if reason.trim().is_empty() || reason != reason.trim() {
+        return Err("authority work-policy reason must be non-empty and trimmed".into());
+    }
+    let frontier = frontier
+        .canonicalize()
+        .map_err(|error| format!("resolve frontier path: {error}"))?;
+    let (git_commit, git_tree) = require_clean_main(&frontier)?;
+    let project = vela_protocol::repo::load_from_path(&frontier)?;
+    let authority = load_repository_authority(&frontier, &project)?
+        .ok_or_else(|| "frontier has not crossed to repository authority".to_string())?;
+    if authority
+        .policy_material
+        .schema
+        .contains("action \"work_claim\"")
+    {
+        return Err("signed-agent work leases are already enabled".into());
+    }
+    let migration = migration_payload(&authority)?;
+    let current_root = authority.history.policy_bundle.root()?;
+    let schema = format!(
+        "{}\n{}\n",
+        authority.policy_material.schema, ROUTINE_WORK_SCHEMA
+    );
+    let policies = format!(
+        "{}\n{}\n",
+        authority.policy_material.policies, ROUTINE_WORK_POLICY
+    );
+    let next_material = CedarPolicyMaterial {
+        schema,
+        policies,
+        entities: authority.policy_material.entities.clone(),
+    };
+    let next_bundle = PolicyBundleV1 {
+        schema: POLICY_BUNDLE_SCHEMA_V1.into(),
+        frontier_id: project.frontier_id(),
+        cedar_schema_root: ContentDigest::hash(next_material.schema.as_bytes())
+            .as_str()
+            .into(),
+        policies_root: ContentDigest::hash(next_material.policies.as_bytes())
+            .as_str()
+            .into(),
+        entities_root: ContentDigest::hash(to_canonical_bytes(&next_material.entities)?)
+            .as_str()
+            .into(),
+        tests_root: ROUTINE_WORK_POLICY_TESTS_ROOT.into(),
+        engine: authority.history.policy_bundle.engine.clone(),
+        engine_version: authority.history.policy_bundle.engine_version.clone(),
+        restricted_profile: authority.history.policy_bundle.restricted_profile.clone(),
+        previous_bundle_root: Some(current_root.clone()),
+        authority_summary: "Preserve the exact scientific and human-authority lanes; signed agents may coordinate exact work leases and gain no scientific or governance authority.".into(),
+    };
+    next_material.validate_against(&next_bundle)?;
+    let verification_input = CedarEvaluationInput {
+        schema: next_material.schema.clone(),
+        policies: next_material.policies.clone(),
+        entities: next_material.entities.clone(),
+        principal: r#"Human::"verification-only""#.into(),
+        principal_class: PrincipalClass::Human,
+        action: POLICY_ROTATE_ACTION.into(),
+        resource: format!(
+            "Frontier::{}",
+            serde_json::to_string(&project.frontier_id()).unwrap()
+        ),
+        context: json!({"exact": true}),
+    };
+    verify_routine_work_policy(&verification_input, &project)?;
+    let next_root = next_bundle.root()?;
+    let mut plan = WorkPolicyPlan {
+        schema: WORK_POLICY_PLAN_SCHEMA.into(),
+        ok: true,
+        command: "authority enable-work".into(),
+        frontier: frontier.display().to_string(),
+        frontier_id: project.frontier_id(),
+        frontier_name: project.project.name.clone(),
+        git_commit,
+        git_tree,
+        observed_at: canonical_whole_second_time("work-policy observation", observed_at)?,
+        principal_id: migration.new_principal_id,
+        current_policy_bundle_root: current_root,
+        next_policy_bundle: next_bundle,
+        next_policy_bundle_root: next_root,
+        reason: reason.into(),
+        writes_now: false,
+        requires_user_presence: true,
+        plan_root: String::new(),
+    };
+    plan.plan_root = work_policy_plan_root(&plan)?;
+    Ok((plan, project, authority, next_material))
+}
+
+fn migration_payload(
+    authority: &LoadedRepositoryAuthority,
+) -> Result<AuthorityModelMigrationV1, String> {
+    authority
+        .history
+        .legacy_events
+        .iter()
+        .find(|event| event.kind == EventKind::AuthorityModelMigrated)
+        .ok_or_else(|| "verified authority history lacks its migration bridge".to_string())
+        .and_then(|event| {
+            serde_json::from_value(event.payload.clone())
+                .map_err(|error| format!("decode migration payload: {error}"))
+        })
+}
+
+fn active_repository_key(
+    authority: &LoadedRepositoryAuthority,
+) -> Result<(String, String), String> {
+    let sequence = u64::try_from(authority.verification.authority_record_count + 1)
+        .map_err(|_| "authority sequence exceeds u64")?;
+    let active = authority
+        .history
+        .authority_keyset
+        .keys
+        .iter()
+        .filter(|key| {
+            key.valid_from_sequence <= sequence
+                && key
+                    .valid_through_sequence
+                    .is_none_or(|through| sequence <= through)
+        })
+        .collect::<Vec<_>>();
+    if authority.history.authority_keyset.threshold != 1 || active.len() != 1 {
+        return Err(format!(
+            "routine local repository-authority writes require threshold one and exactly one active key; found {}",
+            active.len()
+        ));
+    }
+    Ok((active[0].key_id.clone(), active[0].public_key.clone()))
+}
+
+fn work_policy_plan_root(plan: &WorkPolicyPlan) -> Result<String, String> {
+    let mut value = serde_json::to_value(plan).map_err(|error| error.to_string())?;
+    value
+        .as_object_mut()
+        .ok_or_else(|| "work-policy plan must be an object".to_string())?
+        .insert("plan_root".into(), Value::String(String::new()));
+    let mut digest = Sha256::new();
+    digest.update(WORK_POLICY_PLAN_DOMAIN);
+    digest.update(to_canonical_bytes(&value)?);
+    Ok(format!("sha256:{}", hex::encode(digest.finalize())))
+}
+
+fn build_authority_intent_request(
+    plan: &WorkPolicyPlan,
+) -> Result<vela_signer::AuthorityIntentRequest, String> {
+    let executable =
+        std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
+    let helper = crate::cli_identity::signer_helper_path(&executable)?;
+    let helper_sha256 = vela_signer::contract::file_sha256(&helper)?;
+    let mut nonce = [0_u8; 32];
+    rand::rngs::OsRng.fill_bytes(&mut nonce);
+    let request = vela_signer::AuthorityIntentRequest {
+        schema: vela_signer::AUTHORITY_INTENT_REQUEST_SCHEMA.into(),
+        nonce: hex::encode(nonce),
+        expires_at: (Utc::now()
+            + Duration::seconds(vela_signer::AUTHORITY_INTENT_REQUEST_LIFETIME_SECONDS))
+        .to_rfc3339_opts(SecondsFormat::Secs, true),
+        vela_binary_path: executable.display().to_string(),
+        vela_binary_sha256: vela_signer::contract::file_sha256(&executable)?,
+        helper_sha256,
+        frontier_id: plan.frontier_id.clone(),
+        frontier_name: plan.frontier_name.clone(),
+        principal_id: plan.principal_id.clone(),
+        action: POLICY_ROTATE_ACTION.into(),
+        reason: plan.reason.clone(),
+        intent_digest: plan.plan_root.clone(),
+        current_policy_bundle_root: plan.current_policy_bundle_root.clone(),
+        next_policy_bundle_root: plan.next_policy_bundle_root.clone(),
+    };
+    vela_signer::validate_authority_intent_request(&request, Utc::now())?;
+    Ok(request)
+}
+
+fn request_authority_intent(
+    request: &vela_signer::AuthorityIntentRequest,
+) -> Result<vela_signer::AuthorityIntentResponse, String> {
+    let helper = PathBuf::from(&request.vela_binary_path)
+        .parent()
+        .ok_or_else(|| "running Vela binary has no parent directory".to_string())?
+        .join(if cfg!(target_os = "windows") {
+            "vela-signer.exe"
+        } else {
+            "vela-signer"
+        });
+    let bytes = serde_json::to_vec(request)
+        .map_err(|error| format!("encode authority-intent request: {error}"))?;
+    let mut child = Command::new(&helper)
+        .arg("authenticate-authority-intent")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| format!("start pinned authority-intent helper: {error}"))?;
+    child
+        .stdin
+        .take()
+        .ok_or_else(|| "authority-intent helper stdin is unavailable".to_string())?
+        .write_all(&bytes)
+        .map_err(|error| format!("write authority-intent request: {error}"))?;
+    let output = child
+        .wait_with_output()
+        .map_err(|error| format!("wait for authority-intent helper: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "authority-intent helper declined or failed: {}",
+            super::safe_text::inline(String::from_utf8_lossy(&output.stderr).trim())
+        ));
+    }
+    let response: vela_signer::AuthorityIntentResponse = serde_json::from_slice(&output.stdout)
+        .map_err(|error| format!("decode authority-intent response: {error}"))?;
+    vela_signer::validate_authority_intent_response(request, &response)?;
+    Ok(response)
 }
 
 fn execute_signed_migration<A, S>(
@@ -710,11 +1221,21 @@ fn prepare_plan_with_context(
     })
 }
 
-fn initial_policy_bundle_at(
+pub(crate) fn initial_policy_bundle_at(
     frontier: &Path,
     project: &Project,
     principal_id: &str,
     observed_at: &str,
+) -> Result<(PolicyBundleV1, CedarEvaluationInput), String> {
+    initial_policy_bundle_at_with_routine_work(frontier, project, principal_id, observed_at, true)
+}
+
+fn initial_policy_bundle_at_with_routine_work(
+    frontier: &Path,
+    project: &Project,
+    principal_id: &str,
+    observed_at: &str,
+    include_routine_work: bool,
 ) -> Result<(PolicyBundleV1, CedarEvaluationInput), String> {
     let snapshot = vela_protocol::acceptance_policy::load_active_policy_snapshot(frontier)?;
     if let Some(verified) = &snapshot.verified {
@@ -759,11 +1280,19 @@ fn initial_policy_bundle_at(
         "parents": []
     }));
     let entities = Value::Array(entities);
-    let schema = format!("{automatic_schema}\n{HUMAN_AUTHORITY_SCHEMA}\n");
-    let policies = format!(
-        "{automatic_policies}\n{}\n",
-        human_authority_policy(principal_id)?
-    );
+    let schema = if include_routine_work {
+        format!("{automatic_schema}\n{HUMAN_AUTHORITY_SCHEMA}\n{ROUTINE_WORK_SCHEMA}\n")
+    } else {
+        // Preserve the exact sequence-1 bytes emitted by Vela 0.930.0-rc.7.
+        format!("{automatic_schema}\n{HUMAN_AUTHORITY_SCHEMA}\n")
+    };
+    let human_policy = human_authority_policy(principal_id)?;
+    let policies = if include_routine_work {
+        format!("{automatic_policies}\n{human_policy}\n{ROUTINE_WORK_POLICY}\n")
+    } else {
+        // Preserve the exact sequence-1 bytes emitted by Vela 0.930.0-rc.7.
+        format!("{automatic_policies}\n{human_policy}\n")
+    };
     let bundle = PolicyBundleV1 {
         schema: POLICY_BUNDLE_SCHEMA_V1.into(),
         frontier_id: project.frontier_id(),
@@ -772,15 +1301,28 @@ fn initial_policy_bundle_at(
         entities_root: ContentDigest::hash(to_canonical_bytes(&entities)?)
             .as_str()
             .into(),
-        tests_root: POLICY_SHADOW_TESTS_ROOT.into(),
+        tests_root: if include_routine_work {
+            ROUTINE_WORK_POLICY_TESTS_ROOT
+        } else {
+            POLICY_SHADOW_TESTS_ROOT
+        }
+        .into(),
         engine: vela_protocol::authority::CEDAR_ENGINE.into(),
         engine_version: vela_protocol::authority::CEDAR_ENGINE_VERSION.into(),
         restricted_profile: vela_protocol::authority::CEDAR_PROFILE_V1.into(),
         previous_bundle_root: None,
         authority_summary: if snapshot.verified.is_some() {
-            "Preserve the exact translated automatic lane; one local human principal may decide reviews and administer repository authority.".into()
+            if include_routine_work {
+                "Preserve the exact translated automatic lane; signed agents may coordinate exact work leases; one local human principal may decide reviews and administer repository authority.".into()
+            } else {
+                "Preserve the exact translated automatic lane; one local human principal may decide reviews and administer repository authority.".into()
+            }
         } else {
-            "No automatic scientific admission; one local human principal may decide reviews and administer repository authority.".into()
+            if include_routine_work {
+                "No automatic scientific admission; signed agents may coordinate exact work leases; one local human principal may decide reviews and administer repository authority.".into()
+            } else {
+                "No automatic scientific admission; one local human principal may decide reviews and administer repository authority.".into()
+            }
         },
     };
     let authorization = CedarEvaluationInput {
@@ -844,7 +1386,357 @@ fn initial_policy_bundle_at(
     {
         return Err("initial authority policy does not deny an unbound human principal".into());
     }
+    if include_routine_work {
+        verify_routine_work_policy(&authorization, project)?;
+    }
     Ok((bundle, authorization))
+}
+
+fn verify_routine_work_policy(
+    authorization: &CedarEvaluationInput,
+    project: &Project,
+) -> Result<(), String> {
+    let agent_input = CedarEvaluationInput {
+        principal: r#"Agent::"agent:policy-fixture""#.into(),
+        principal_class: PrincipalClass::Agent,
+        action: "work_claim".into(),
+        resource: format!(
+            "Frontier::{}",
+            serde_json::to_string(&project.frontier_id()).unwrap()
+        ),
+        context: json!({
+            "exact": true,
+            "authentication": {
+                "method": "agent_event_signature",
+                "assurance": "single_factor",
+                "authenticated_at": "2026-07-24T00:00:00Z",
+                "observed_at": "2026-07-24T00:00:00Z",
+                "expires_at": "2026-07-24T00:05:00Z",
+                "user_presence": false,
+                "user_verification": false,
+                "recovery_recent": false
+            }
+        }),
+        ..authorization.clone()
+    };
+    let allowed = vela_authority::evaluate(&agent_input);
+    if !allowed.valid
+        || !allowed.diagnostics.is_empty()
+        || allowed.decision != vela_protocol::authority::CedarDecision::Allow
+    {
+        return Err(format!(
+            "routine work policy does not authorize one exact signed-agent lease: {:?}",
+            allowed.diagnostics
+        ));
+    }
+    for hostile in [
+        CedarEvaluationInput {
+            context: json!({
+                "exact": false,
+                "authentication": {
+                    "method": "agent_event_signature",
+                    "assurance": "single_factor",
+                    "authenticated_at": "2026-07-24T00:00:00Z",
+                    "observed_at": "2026-07-24T00:00:00Z",
+                    "expires_at": "2026-07-24T00:05:00Z",
+                    "user_presence": false,
+                    "user_verification": false,
+                    "recovery_recent": false
+                }
+            }),
+            ..agent_input.clone()
+        },
+        CedarEvaluationInput {
+            context: json!({
+                "exact": true,
+                "authentication": {
+                    "method": "none",
+                    "assurance": "single_factor",
+                    "authenticated_at": "2026-07-24T00:00:00Z",
+                    "observed_at": "2026-07-24T00:00:00Z",
+                    "expires_at": "2026-07-24T00:05:00Z",
+                    "user_presence": false,
+                    "user_verification": false,
+                    "recovery_recent": false
+                }
+            }),
+            ..agent_input.clone()
+        },
+    ] {
+        let denied = vela_authority::evaluate(&hostile);
+        if !denied.valid
+            || !denied.diagnostics.is_empty()
+            || denied.decision != vela_protocol::authority::CedarDecision::Deny
+        {
+            return Err(format!(
+                "routine work policy does not fail closed for a hostile lease: {:?}",
+                denied.diagnostics
+            ));
+        }
+    }
+    Ok(())
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct LoadedRepositoryAuthority {
+    pub(crate) history: AuthorityHistorySnapshot,
+    pub(crate) policy_material: CedarPolicyMaterial,
+    pub(crate) verification: AuthorityHistoryVerification,
+}
+
+impl LoadedRepositoryAuthority {
+    /// Return Era-1 events in covering-record sequence.
+    ///
+    /// Event-log commitments are set based, but reducers for coordination
+    /// records such as lease refresh/release require causal transaction
+    /// order. The already-verified envelopes are the sole ordering source.
+    pub(crate) fn ordered_events(&self) -> Result<Vec<&AuthorityEventV1>, String> {
+        let by_id = self
+            .history
+            .authority_events
+            .iter()
+            .map(|event| (event.id.as_str(), event))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        let mut ordered = Vec::with_capacity(by_id.len());
+        for envelope in &self.history.authority_envelopes {
+            let payload = BASE64_STANDARD
+                .decode(&envelope.payload)
+                .map_err(|error| format!("authority envelope payload is not base64: {error}"))?;
+            let record: AuthorityRecordV1 = serde_json::from_slice(&payload)
+                .map_err(|error| format!("authority envelope record JSON is invalid: {error}"))?;
+            for event_id in &record.content.event_ids {
+                if let Some(event) = by_id.get(event_id.as_str()) {
+                    ordered.push(*event);
+                } else if record.content.sequence != 1 {
+                    return Err(format!(
+                        "authority record {} references missing Era-1 event {event_id}",
+                        record.content.sequence
+                    ));
+                }
+            }
+        }
+        if ordered.len() != by_id.len() {
+            return Err("verified authority history did not order every Era-1 event".into());
+        }
+        Ok(ordered)
+    }
+}
+
+pub(crate) fn load_repository_authority(
+    frontier: &Path,
+    project: &Project,
+) -> Result<Option<LoadedRepositoryAuthority>, String> {
+    let migrations = project
+        .events
+        .iter()
+        .filter(|event| event.kind == EventKind::AuthorityModelMigrated)
+        .collect::<Vec<_>>();
+    if migrations.is_empty() {
+        return Ok(None);
+    }
+    let [migration_event] = migrations.as_slice() else {
+        return Err("frontier contains multiple authority.model_migrated events".into());
+    };
+    let migration: AuthorityModelMigrationV1 =
+        serde_json::from_value(migration_event.payload.clone())
+            .map_err(|error| format!("decode authority migration payload: {error}"))?;
+    migration.validate()?;
+
+    let authority_root = frontier.join(".vela/authority");
+    let retained_authority_keysets =
+        read_authority_json_directory::<AuthorityKeysetV1>(&authority_root.join("keysets"))?;
+    let retained_policy_bundles =
+        read_authority_json_directory::<PolicyBundleV1>(&authority_root.join("policies"))?;
+    let authority_events =
+        read_authority_json_directory::<AuthorityEventV1>(&authority_root.join("events"))?;
+    let authority_envelopes =
+        read_authority_json_directory::<AuthorityEnvelopeV1>(&authority_root.join("records"))?;
+    let mut authority_envelopes = authority_envelopes
+        .into_iter()
+        .map(|envelope| Ok((authority_envelope_sequence(&envelope)?, envelope)))
+        .collect::<Result<Vec<_>, String>>()?;
+    authority_envelopes.sort_by_key(|(sequence, _)| *sequence);
+    let authority_envelopes = authority_envelopes
+        .into_iter()
+        .map(|(_, envelope)| envelope)
+        .collect::<Vec<_>>();
+    let actors_path = frontier.join(".vela/actors.json");
+    let legacy_actor_registry_bytes = std::fs::read(&actors_path)
+        .map_err(|error| format!("read {}: {error}", actors_path.display()))?;
+    let verification = verify_authority_history(AuthorityHistoryInput {
+        frontier_id: &migration.frontier_id,
+        legacy_events: &project.events,
+        legacy_actor_registry_bytes: &legacy_actor_registry_bytes,
+        legacy_active_policy_head_root: &migration.legacy_active_policy_head_root,
+        legacy_policy_store_manifest_root: &migration.legacy_policy_store_manifest_root,
+        authority_keysets: &retained_authority_keysets,
+        policy_bundles: &retained_policy_bundles,
+        authority_events: &authority_events,
+        authority_envelopes: &authority_envelopes,
+    })?;
+    let active_keyset_root = verification
+        .final_authority_keyset_root
+        .as_deref()
+        .ok_or_else(|| "repository authority has no active keyset root".to_string())?;
+    let active_policy_root = verification
+        .final_policy_bundle_root
+        .as_deref()
+        .ok_or_else(|| "repository authority has no active policy root".to_string())?;
+    let authority_keyset = retained_authority_keysets
+        .iter()
+        .find(|keyset| keyset.root().is_ok_and(|root| root == active_keyset_root))
+        .cloned()
+        .ok_or_else(|| "active repository-authority keyset snapshot is missing".to_string())?;
+    let policy_bundle = retained_policy_bundles
+        .iter()
+        .find(|bundle| bundle.root().is_ok_and(|root| root == active_policy_root))
+        .cloned()
+        .ok_or_else(|| "active repository policy bundle snapshot is missing".to_string())?;
+    let policy_material = load_or_reconstruct_policy_material(
+        frontier,
+        project,
+        migration_event,
+        &migration,
+        &policy_bundle,
+        verification.authority_record_count,
+    )?;
+    Ok(Some(LoadedRepositoryAuthority {
+        history: AuthorityHistorySnapshot {
+            frontier_id: migration.frontier_id,
+            legacy_events: project.events.clone(),
+            legacy_actor_registry_bytes,
+            legacy_active_policy_head_root: migration.legacy_active_policy_head_root,
+            legacy_policy_store_manifest_root: migration.legacy_policy_store_manifest_root,
+            authority_keyset,
+            policy_bundle,
+            retained_authority_keysets,
+            retained_policy_bundles,
+            authority_events,
+            authority_envelopes,
+        },
+        policy_material,
+        verification,
+    }))
+}
+
+fn authority_envelope_sequence(envelope: &AuthorityEnvelopeV1) -> Result<u64, String> {
+    let payload = BASE64_STANDARD
+        .decode(&envelope.payload)
+        .map_err(|error| format!("authority envelope payload is not base64: {error}"))?;
+    let record: AuthorityRecordV1 = serde_json::from_slice(&payload)
+        .map_err(|error| format!("authority envelope record JSON is invalid: {error}"))?;
+    Ok(record.content.sequence)
+}
+
+fn load_or_reconstruct_policy_material(
+    frontier: &Path,
+    project: &Project,
+    migration_event: &StateEvent,
+    migration: &AuthorityModelMigrationV1,
+    bundle: &PolicyBundleV1,
+    authority_record_count: usize,
+) -> Result<CedarPolicyMaterial, String> {
+    let paths = authority_policy_material_paths(bundle).map_err(|error| error.to_string())?;
+    let present = paths
+        .iter()
+        .map(|path| frontier.join(path).is_file())
+        .collect::<Vec<_>>();
+    if present.iter().all(|present| *present) {
+        let material = CedarPolicyMaterial {
+            schema: std::fs::read_to_string(frontier.join(&paths[0]))
+                .map_err(|error| format!("read retained Cedar schema: {error}"))?,
+            policies: std::fs::read_to_string(frontier.join(&paths[1]))
+                .map_err(|error| format!("read retained Cedar policies: {error}"))?,
+            entities: serde_json::from_slice(
+                &std::fs::read(frontier.join(&paths[2]))
+                    .map_err(|error| format!("read retained Cedar entities: {error}"))?,
+            )
+            .map_err(|error| format!("decode retained Cedar entities: {error}"))?,
+        };
+        material.validate_against(bundle)?;
+        return Ok(material);
+    }
+    if present.iter().any(|present| *present) {
+        return Err("retained Cedar policy material is incomplete".into());
+    }
+    if authority_record_count != 1 || bundle.previous_bundle_root.is_some() {
+        return Err(
+            "retained Cedar policy material is missing after the initial authority record".into(),
+        );
+    }
+    let expected_root = bundle.root()?;
+    let candidates = [true, false]
+        .into_iter()
+        .map(|include_routine_work| {
+            initial_policy_bundle_at_with_routine_work(
+                frontier,
+                project,
+                &migration.new_principal_id,
+                &migration_event.timestamp,
+                include_routine_work,
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let candidate_roots = candidates
+        .iter()
+        .map(|(candidate, _)| candidate.root())
+        .collect::<Result<Vec<_>, _>>()?;
+    let (_, authorization) = candidates
+        .into_iter()
+        .find(|(candidate, _)| candidate.root().is_ok_and(|root| root == expected_root))
+        .ok_or_else(|| {
+            format!(
+                "initial Cedar policy material cannot be reconstructed to the retained bundle root {expected_root}; candidate roots: {}",
+                candidate_roots
+                    .iter()
+                    .map(String::as_str)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        })?;
+    let material = CedarPolicyMaterial::from_evaluation(&authorization);
+    material.validate_against(bundle)?;
+    Ok(material)
+}
+
+fn read_authority_json_directory<T>(directory: &Path) -> Result<Vec<T>, String>
+where
+    T: serde::de::DeserializeOwned,
+{
+    if !directory.exists() {
+        return Ok(Vec::new());
+    }
+    let metadata = std::fs::symlink_metadata(directory)
+        .map_err(|error| format!("inspect {}: {error}", directory.display()))?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(format!(
+            "authority store {} must be a real directory",
+            directory.display()
+        ));
+    }
+    let mut paths = std::fs::read_dir(directory)
+        .map_err(|error| format!("read {}: {error}", directory.display()))?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("enumerate {}: {error}", directory.display()))?;
+    paths.sort();
+    paths
+        .into_iter()
+        .map(|path| {
+            let metadata = std::fs::symlink_metadata(&path)
+                .map_err(|error| format!("inspect {}: {error}", path.display()))?;
+            if metadata.file_type().is_symlink() || !metadata.is_file() {
+                return Err(format!(
+                    "authority store member {} must be a regular file",
+                    path.display()
+                ));
+            }
+            let bytes = std::fs::read(&path)
+                .map_err(|error| format!("read {}: {error}", path.display()))?;
+            serde_json::from_slice(&bytes)
+                .map_err(|error| format!("decode {}: {error}", path.display()))
+        })
+        .collect()
 }
 
 fn human_authority_policy(principal_id: &str) -> Result<String, String> {
@@ -1228,7 +2120,6 @@ fn plan_root(plan: &AuthorityMigrationPlan) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use base64::Engine as _;
     use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
     use ed25519_dalek::Signer as _;
     use ed25519_dalek::SigningKey;

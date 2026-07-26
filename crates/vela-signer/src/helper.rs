@@ -8,6 +8,11 @@ use crate::actor_contract::{
     actor_bootstrap_request_root, actor_bootstrap_response_signing_bytes,
     validate_actor_bootstrap_request, validate_actor_bootstrap_request_fresh,
 };
+use crate::authority_intent_contract::{
+    AUTHORITY_INTENT_RESPONSE_SCHEMA, AuthorityIntentRequest, AuthorityIntentResponse,
+    authority_intent_request_root, canonical_approved_at, session_root,
+    validate_authority_intent_request,
+};
 use crate::authority_migration_contract::{
     AUTHORITY_MIGRATION_RESPONSE_SCHEMA, AuthorityMigrationSignerRequest,
     AuthorityMigrationSignerResponse, authority_migration_request_root,
@@ -62,6 +67,12 @@ pub trait Approval {
     ) -> Result<(), String> {
         Err("authority-migration approvals are unsupported by this approval provider".to_string())
     }
+    fn reauthenticate_authority_intent(
+        &self,
+        _request: &AuthorityIntentRequest,
+    ) -> Result<(), String> {
+        Err("authority-intent approvals are unsupported by this approval provider".to_string())
+    }
     fn reauthenticate_actor_bootstrap(
         &self,
         _request: &ActorBootstrapProofRequest,
@@ -80,6 +91,38 @@ pub trait Approval {
         request: &RebindRequest,
         key: &SigningKey,
     ) -> Result<(), String>;
+}
+
+/// Obtain fresh platform user presence for one exact Era-1 policy intent.
+///
+/// This approval-only path reads no scientific key and produces no authority
+/// signature. The repository authority validates the response and signs the
+/// resulting transaction separately.
+pub fn approve_and_authenticate_authority_intent<A: Approval>(
+    request: &AuthorityIntentRequest,
+    approval: &A,
+    helper_path: &std::path::Path,
+    now: chrono::DateTime<Utc>,
+) -> Result<AuthorityIntentResponse, String> {
+    validate_authority_intent_request(request, now)?;
+    let helper_sha256 = file_sha256(helper_path)?;
+    if helper_sha256 != request.helper_sha256 {
+        return Err("running helper digest does not match authority intent".into());
+    }
+    approval.reauthenticate_authority_intent(request)?;
+    let approved_at = approval.now();
+    validate_authority_intent_request(request, approved_at)?;
+    let approved_at = canonical_approved_at(approved_at);
+    Ok(AuthorityIntentResponse {
+        schema: AUTHORITY_INTENT_RESPONSE_SCHEMA.into(),
+        request_root: authority_intent_request_root(request)?,
+        helper_version: env!("CARGO_PKG_VERSION").into(),
+        helper_sha256,
+        principal_id: request.principal_id.clone(),
+        action: request.action.clone(),
+        session_root: session_root(request, &approved_at)?,
+        approved_at,
+    })
 }
 
 /// Obtain fresh platform user presence and prove possession of the exact
