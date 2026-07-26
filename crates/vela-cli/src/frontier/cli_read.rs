@@ -22,8 +22,11 @@ pub(crate) fn compact_status_payload_with_home(
 ) -> Result<serde_json::Value, String> {
     let frontier_dir = frontier_dir_for_source(path);
     let project = vela_protocol::repo::load_from_path(frontier_dir)?;
-    let repository_context =
-        crate::cli::repository_context_assessment_with_home(frontier_dir, trusted_home);
+    let repository_context = crate::cli::repository_context_assessment_with_project_and_home(
+        frontier_dir,
+        Some(&project),
+        trusted_home,
+    );
     let repository_context_valid = repository_context
         .payload
         .get("valid")
@@ -57,15 +60,44 @@ pub(crate) fn compact_status_payload_with_home(
     // as `check --strict`. Do not independently approximate that bar here:
     // doing so previously let stale derived state report `strict: pass` even
     // while the canonical strict checker rejected the Frontier.
-    let strict_check =
-        crate::cli::check_json_payload_with_home(frontier_dir, false, true, trusted_home);
+    let strict_check = crate::cli::check_json_payload_with_preloaded(
+        frontier_dir,
+        false,
+        true,
+        Some(&project),
+        repository_context.payload.clone(),
+    );
     let strict_check_ok = strict_check.get("ok").and_then(serde_json::Value::as_bool) == Some(true);
-    let signals = vela_edge::signals::analyze_at(&project, &[], Some(frontier_dir));
+    // Compact status counts the intrinsic signals already produced by the
+    // canonical check and adds check categories below. Diagnostic-derived
+    // signals have a reserved id prefix and are excluded here so repository,
+    // schema, and replay failures are not double-counted.
     let mut blockers_by_code = std::collections::BTreeMap::<String, usize>::new();
-    for signal in &signals.signals {
-        if signal.blocks.iter().any(|block| block == "strict_check") {
-            *blockers_by_code.entry(signal.kind.clone()).or_default() += 1;
-        }
+    for signal in strict_check
+        .get("signals")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|signal| {
+            !signal
+                .get("id")
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|id| id.starts_with("sig_diagnostic_"))
+                && signal
+                    .get("blocks")
+                    .and_then(serde_json::Value::as_array)
+                    .is_some_and(|blocks| {
+                        blocks
+                            .iter()
+                            .any(|block| block.as_str() == Some("strict_check"))
+                    })
+        })
+    {
+        let kind = signal
+            .get("kind")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("strict_signal");
+        *blockers_by_code.entry(kind.to_string()).or_default() += 1;
     }
     if !replay.ok {
         *blockers_by_code

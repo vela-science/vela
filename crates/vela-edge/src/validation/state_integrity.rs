@@ -41,15 +41,26 @@ pub struct StateIntegrityReport {
 
 pub fn analyze_path(path: &Path) -> Result<StateIntegrityReport, String> {
     let frontier = repo::load_from_path(path)?;
-    let mut report = analyze(&frontier);
-    for layout_issue in vela_protocol::frontier_repo::layout_issues(path, &frontier) {
+    Ok(analyze_loaded_path(path, &frontier))
+}
+
+/// Run the complete path-aware integrity contract over an already verified
+/// project load.
+///
+/// Read projections such as `vela status` already hold the exact project in
+/// memory. Reusing it avoids a second parse and signature-verification pass
+/// without dropping the layout or accounting checks that distinguish this
+/// function from [`analyze`].
+pub fn analyze_loaded_path(path: &Path, frontier: &Project) -> StateIntegrityReport {
+    let mut report = analyze(frontier);
+    for layout_issue in vela_protocol::frontier_repo::layout_issues(path, frontier) {
         report.structural_errors.push(IntegrityIssue {
             rule_id: layout_issue.rule_id,
             message: layout_issue.message,
             object_id: None,
         });
     }
-    for issue in accounting_divergence_issues(path, &frontier) {
+    for issue in accounting_divergence_issues(path, frontier) {
         report.structural_errors.push(issue);
     }
     if !report.structural_errors.is_empty() {
@@ -66,7 +77,7 @@ pub fn analyze_path(path: &Path) -> Result<StateIntegrityReport, String> {
     report
         .summary
         .insert("warnings".to_string(), report.warnings.len());
-    Ok(report)
+    report
 }
 
 pub fn analyze(frontier: &Project) -> StateIntegrityReport {

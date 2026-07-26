@@ -16,6 +16,7 @@ use vela_protocol::bundle::{
     FindingBundle, VALID_ASSERTION_TYPES, VALID_EVIDENCE_TYPES, VALID_LINK_TYPES,
     VALID_PROVENANCE_SOURCE_TYPES,
 };
+use vela_protocol::project::Project;
 use vela_protocol::repo;
 
 const VALID_EXTRACT_METHODS: &[&str] = &[
@@ -421,7 +422,6 @@ fn source_kind(source: &repo::VelaSource) -> &'static str {
 
 /// Validate all findings in a frontier against the schema.
 pub fn validate(source_path: &Path) -> ValidationReport {
-    let source_label = source_path.display().to_string();
     let frontier = match repo::load_from_path(source_path) {
         Ok(c) => c,
         Err(e) => {
@@ -436,7 +436,17 @@ pub fn validate(source_path: &Path) -> ValidationReport {
             };
         }
     };
+    validate_loaded(source_path, &frontier)
+}
 
+/// Validate an already loaded frontier against the schema while retaining the
+/// source-path checks used for packet and repository inputs.
+///
+/// Compound read projections may already hold the exact project in memory.
+/// Reusing it avoids another parse and signature-verification pass without
+/// weakening path-sensitive packet or metadata validation.
+pub fn validate_loaded(source_path: &Path, frontier: &Project) -> ValidationReport {
+    let source_label = source_path.display().to_string();
     let mut errors: Vec<ValidationError> = Vec::new();
     let mut seen_ids: HashSet<String> = HashSet::new();
     let all_ids: HashSet<String> = frontier.findings.iter().map(|f| f.id.clone()).collect();
@@ -458,7 +468,7 @@ pub fn validate(source_path: &Path) -> ValidationReport {
         });
     }
 
-    validate_project_metadata(&frontier, source_path, &mut errors);
+    validate_project_metadata(frontier, source_path, &mut errors);
 
     // v0.8: every cross-frontier dep must declare both a locator and
     // a pinned snapshot hash. Without those the dep can be neither
@@ -963,6 +973,21 @@ mod tests {
         assert_eq!(report.valid, 2);
         assert_eq!(report.invalid, 0);
         assert!(report.errors.is_empty());
+    }
+
+    #[test]
+    fn loaded_validation_preserves_the_complete_report() {
+        let tmp = TempDir::new().unwrap();
+        let path = write_frontier(
+            tmp.path(),
+            vec![
+                make_valid_finding("vf_0000000000000001"),
+                make_valid_finding("vf_0000000000000002"),
+            ],
+        );
+        let frontier = repo::load_from_path(&path).unwrap();
+
+        assert_eq!(validate_loaded(&path, &frontier), validate(&path));
     }
 
     #[test]

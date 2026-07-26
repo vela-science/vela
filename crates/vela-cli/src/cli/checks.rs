@@ -215,6 +215,20 @@ pub(crate) fn repository_context_assessment_with_home(
     source: &Path,
     trusted_home: Option<&Path>,
 ) -> RepositoryContextAssessment {
+    repository_context_assessment_with_project_and_home(source, None, trusted_home)
+}
+
+/// Verify repository context while reusing an exact project that the caller
+/// has already loaded.
+///
+/// The repository write verifier still checks Git ancestry, retained bytes,
+/// signatures, roots, and the independently stored trust anchor. This only
+/// removes a redundant parse/signature pass from compound read projections.
+pub(crate) fn repository_context_assessment_with_project_and_home(
+    source: &Path,
+    preloaded: Option<&project::Project>,
+    trusted_home: Option<&Path>,
+) -> RepositoryContextAssessment {
     use vela_edge::frontier_repository::RepositoryTrustAnchor;
     use vela_edge::repository_write::{
         RepositoryWriteGateCode, VerifiedRepositoryIdentity,
@@ -259,16 +273,25 @@ pub(crate) fn repository_context_assessment_with_home(
             target_index_trust_anchor: None,
         },
         FrontierProfileFile::V1(_) => {
-            let project = match repo::load_from_path(source) {
-                Ok(project) => project,
-                Err(error) => {
-                    return RepositoryContextAssessment {
-                        payload: repository_context_invalid(
-                            RepositoryWriteGateCode::RepositoryIdentityInvalid.as_str(),
-                            format!("load Profile v1 repository for context verification: {error}"),
-                        ),
-                        target_index_trust_anchor: None,
+            let loaded_project;
+            let project = match preloaded {
+                Some(project) => project,
+                None => {
+                    loaded_project = match repo::load_from_path(source) {
+                        Ok(project) => project,
+                        Err(error) => {
+                            return RepositoryContextAssessment {
+                                payload: repository_context_invalid(
+                                    RepositoryWriteGateCode::RepositoryIdentityInvalid.as_str(),
+                                    format!(
+                                        "load Profile v1 repository for context verification: {error}"
+                                    ),
+                                ),
+                                target_index_trust_anchor: None,
+                            };
+                        }
                     };
+                    &loaded_project
                 }
             };
             let has_administrator_boundary = project
@@ -319,7 +342,7 @@ pub(crate) fn repository_context_assessment_with_home(
             };
             match verify_repository_for_write(
                 repository,
-                &project,
+                project,
                 loaded_anchor.as_ref().map(|loaded| &loaded.anchor),
             ) {
                 Ok(context) => {
@@ -371,12 +394,8 @@ fn repository_context_check_with_home(source: &Path, trusted_home: Option<&Path>
     repository_context_assessment_with_home(source, trusted_home).payload
 }
 
-pub(crate) fn repository_context_assessment(source: &Path) -> RepositoryContextAssessment {
-    repository_context_assessment_with_home(source, None)
-}
-
 pub(crate) fn repository_context_check(source: &Path) -> Value {
-    repository_context_assessment(source).payload
+    repository_context_check_with_home(source, None)
 }
 
 pub(crate) fn check_json_payload(src: &Path, schema_only: bool, strict: bool) -> Value {
@@ -389,11 +408,42 @@ pub(crate) fn check_json_payload_with_home(
     strict: bool,
     trusted_home: Option<&Path>,
 ) -> Value {
-    let report = validate::validate(src);
     let loaded = repo::load_from_path(src).ok();
+    let repository_context = if schema_only {
+        repository_context_not_applicable()
+    } else {
+        repository_context_assessment_with_project_and_home(src, loaded.as_ref(), trusted_home)
+            .payload
+    };
+    check_json_payload_with_preloaded(
+        src,
+        schema_only,
+        strict,
+        loaded.as_ref(),
+        repository_context,
+    )
+}
+
+/// Assemble the canonical check payload from one already verified project and
+/// repository-context assessment.
+///
+/// This is an internal composition edge for read projections. It preserves the
+/// complete `check --strict` contract; callers may not synthesize the context
+/// and production entry points still derive it through the repository verifier.
+pub(crate) fn check_json_payload_with_preloaded(
+    src: &Path,
+    schema_only: bool,
+    strict: bool,
+    loaded: Option<&project::Project>,
+    mut repository_context: Value,
+) -> Value {
+    let report = loaded.map_or_else(
+        || validate::validate(src),
+        |frontier| validate::validate_loaded(src, frontier),
+    );
     let (method_report, graph_report) = if schema_only {
         (None, None)
-    } else if let Some(frontier) = loaded.as_ref() {
+    } else if let Some(frontier) = loaded {
         (
             Some(lint::lint(frontier, None, None)),
             Some(lint::lint_frontier(frontier)),
@@ -402,11 +452,6 @@ pub(crate) fn check_json_payload_with_home(
         (None, None)
     };
     let source_hash = hash_path(src).unwrap_or_else(|_| "unavailable".to_string());
-    let mut repository_context = if schema_only {
-        repository_context_not_applicable()
-    } else {
-        repository_context_check_with_home(src, trusted_home)
-    };
     let mut diagnostics = Vec::new();
     diagnostics.extend(report.errors.iter().map(|e| {
         json!({
@@ -447,12 +492,14 @@ pub(crate) fn check_json_payload_with_home(
     let graph_errors = graph_report.as_ref().map_or(0, |r| r.errors);
     let graph_warnings = graph_report.as_ref().map_or(0, |r| r.warnings);
     let graph_infos = graph_report.as_ref().map_or(0, |r| r.infos);
-    let replay_report = loaded.as_ref().map(events::replay_report);
-    let state_integrity_report = if schema_only {
-        loaded.as_ref().map(state_integrity::analyze)
-    } else {
-        state_integrity::analyze_path(src).ok()
-    };
+    let replay_report = loaded.map(events::replay_report);
+    let state_integrity_report = loaded.map(|frontier| {
+        if schema_only {
+            state_integrity::analyze(frontier)
+        } else {
+            state_integrity::analyze_loaded_path(src, frontier)
+        }
+    });
     if let Some(replay) = replay_report.as_ref()
         && !replay.ok
     {
@@ -590,7 +637,7 @@ pub(crate) fn check_json_payload_with_home(
     let active_policy_assessment =
         active_policy_result
             .as_ref()
-            .zip(loaded.as_ref())
+            .zip(loaded)
             .map(|(result, frontier)| {
                 vela_protocol::proposals::policy_accept::assess_policy_readiness(
                     frontier,
@@ -727,7 +774,7 @@ pub(crate) fn check_json_payload_with_home(
                 Value::Null,
             )
         });
-    if let Some(frontier) = loaded.as_ref()
+    if let Some(frontier) = loaded
         && !schema_only
     {
         let projection = sources::derive_projection(frontier);
@@ -950,7 +997,7 @@ pub(crate) fn check_json_payload_with_home(
             {
                 "id": "policy_lane",
                 "status": if policy_lane_errors.is_empty() { "pass" } else { "fail" },
-                "checked": loaded.as_ref().map_or(0, |frontier| frontier.events.iter()
+                "checked": loaded.map_or(0, |frontier| frontier.events.iter()
                     .filter(|event| event.payload.get(vela_protocol::proposals::policy_accept::POLICY_LANE_PAYLOAD_KEY).is_some())
                     .count()),
                 "failed": policy_lane_errors.len(),
@@ -1450,6 +1497,34 @@ mod repository_context_tests {
                     .find(|signal| signal.get("kind").and_then(Value::as_str) == Some(kind))
             })
             .cloned()
+    }
+
+    #[test]
+    fn preloaded_check_preserves_the_complete_strict_payload() {
+        let fixture = bound_repository(AnchorCase::Valid);
+        install_repository_trust_anchor_from_home(fixture.home.path(), &fixture.anchor).unwrap();
+        let project = repo::load_from_path(fixture.repo.path()).unwrap();
+        let context = repository_context_assessment_with_project_and_home(
+            fixture.repo.path(),
+            Some(&project),
+            Some(fixture.home.path()),
+        );
+
+        let preloaded = check_json_payload_with_preloaded(
+            fixture.repo.path(),
+            false,
+            true,
+            Some(&project),
+            context.payload,
+        );
+        let ordinary = check_json_payload_with_home(
+            fixture.repo.path(),
+            false,
+            true,
+            Some(fixture.home.path()),
+        );
+
+        assert_eq!(preloaded, ordinary);
     }
 
     #[test]
