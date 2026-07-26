@@ -2344,17 +2344,7 @@ pub(crate) fn author_receipt(
     let event_root = work_session_landing_event_root_at(frontier, &project, &work.record)?;
     let policy_ref = match repository_authority {
         Some(authority) => {
-            if !authority
-                .policy_material
-                .schema
-                .contains("action \"receipt_land\"")
-            {
-                return Err(
-                    "repository authority does not yet permit signed-agent Receipt landing; run the protected `vela authority enable-work` rotation"
-                        .to_string(),
-                );
-            }
-            authority.history.policy_bundle.root()?
+            repository_authority_receipt_policy_ref(authority.policy_material.schema.as_str())?
         }
         None => vela_protocol::acceptance_policy::load_active_policy(frontier)?
             .map(|policy| policy.policy.id)
@@ -2446,6 +2436,19 @@ pub(crate) fn author_receipt(
             .map_err(|error| error.to_string())?;
     }
     ReceiptBuilder::build(input, &identity).map_err(|error| error.to_string())
+}
+
+/// Repository authority authorizes the canonical write; it is not scientific
+/// acceptance policy. Receipt v1 therefore records the closed policy lane even
+/// when Cedar permits the repository transaction.
+fn repository_authority_receipt_policy_ref(policy_schema: &str) -> Result<String, String> {
+    if !policy_schema.contains("action \"receipt_land\"") {
+        return Err(
+            "repository authority does not yet permit signed-agent Receipt landing; run the protected `vela authority enable-work` rotation"
+                .to_string(),
+        );
+    }
+    Ok("urn:vela:policy:none".to_string())
 }
 
 /// Resolve the private coordination files that may be closed by this landing.
@@ -2957,10 +2960,16 @@ pub(crate) fn land(
     revalidate_receipt_target_task_binding(frontier, &original, receipt)?;
     let expected_event_hash = vela_protocol::events::event_log_hash(&original.events);
     let expected_event_root = format!("sha256:{expected_event_hash}");
-    // Policy decisions must be strictly later than every causal parent. Keep
-    // sub-second precision: fixtures and fast local workflows can append the
-    // parent and evaluate the policy within the same wall-clock second.
-    let fixed_time = chrono::Utc::now().to_rfc3339();
+    // Legacy policy decisions must be strictly later than every causal parent,
+    // so retain sub-second precision there. Repository-authority
+    // authentication has a closed whole-second contract and does not admit
+    // scientific state during Receipt landing.
+    let now = chrono::Utc::now();
+    let fixed_time = if repository_authority.is_some() {
+        now.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+    } else {
+        now.to_rfc3339()
+    };
     let PreparedArtifacts {
         records: record_artifacts,
         writes: artifact_writes,
@@ -4196,6 +4205,27 @@ mod workflow_transaction_tests {
     };
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::receipt_v1::{ArtifactInput, ReceiptBuilder, ReceiptInput};
+
+    #[test]
+    fn repository_authority_authorizes_land_without_claiming_scientific_acceptance() {
+        let schema = r#"
+            action "work_claim" appliesTo { principal: Agent, resource: Frontier };
+            action "receipt_land" appliesTo { principal: Agent, resource: Frontier };
+        "#;
+        assert_eq!(
+            repository_authority_receipt_policy_ref(schema).unwrap(),
+            "urn:vela:policy:none"
+        );
+    }
+
+    #[test]
+    fn repository_authority_receipt_authoring_fails_closed_without_land_permission() {
+        let error = repository_authority_receipt_policy_ref(
+            r#"action "work_claim" appliesTo { principal: Agent, resource: Frontier };"#,
+        )
+        .unwrap_err();
+        assert!(error.contains("does not yet permit signed-agent Receipt landing"));
+    }
 
     fn review_withdraw_fixture() -> (tempfile::TempDir, SigningKey, String) {
         let temp = tempfile::tempdir().unwrap();

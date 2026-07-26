@@ -1,6 +1,6 @@
 # Vela protocol: current contract
 
-Status: proposed Vela `0.930.0-rc.9` repository-authority candidate. Vela
+Status: proposed Vela `0.930.0-rc.10` repository-authority candidate. Vela
 `0.915.1` is retained only as the historical Era-0 replay baseline.
 
 This document defines the small protocol surface that Vela ships now. Git
@@ -8,7 +8,7 @@ stores and transports immutable bytes. Vela gives a scientific meaning to a
 bounded subset of those bytes, records who had authority to change accepted
 state, and deterministically rebuilds the current frontier from the event log.
 
-The workspace candidate (`0.930.0-rc.9`), finding-bundle schema (`0.10.0`), and wire
+The workspace candidate (`0.930.0-rc.10`), finding-bundle schema (`0.10.0`), and wire
 schema names such as `vela.event.v0.1` are separate identifiers. New work uses
 the current forms below. Older micro-version chronology belongs in Git history
 and `CHANGELOG.md`, not in the active protocol.

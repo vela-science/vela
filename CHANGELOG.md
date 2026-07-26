@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## v0.930.0-rc.10 — 2026-07-26 — Separate repository authorization from acceptance
+
+- Record `urn:vela:policy:none` in a repository-authorized Receipt. Repository
+  Cedar policy authorizes the exact canonical write; it does not constitute
+  scientific acceptance and cannot occupy Receipt v1's AcceptancePolicy field.
+- Keep the signed-agent `receipt_land` permission check fail-closed before
+  Receipt authoring.
+- Canonicalize signed agent event and activity-record authentication
+  observations to whole-second UTC while retaining the full signed object root.
+- Preserve every canonical Frontier byte and the independently verified Erdős
+  repair artifact while unblocking its deferred, pending-review landing.
+
 ## v0.930.0-rc.9 — 2026-07-26 — Repair migrated strict state and producer preflight
 
 - Count only strict blockers in compact status totals. Advisory migration and

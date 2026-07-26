@@ -314,6 +314,8 @@ impl SignedAgentEventSession {
         let authenticated_at = DateTime::parse_from_rfc3339(&event.timestamp)
             .map_err(|error| format!("agent event timestamp is invalid: {error}"))?
             .with_timezone(&Utc);
+        let canonical_authenticated_at =
+            authenticated_at.to_rfc3339_opts(SecondsFormat::Secs, true);
         let expires_at =
             (authenticated_at + Duration::minutes(5)).to_rfc3339_opts(SecondsFormat::Secs, true);
         Ok(Self {
@@ -326,8 +328,8 @@ impl SignedAgentEventSession {
                 method: AuthenticationMethod::AgentEventSignature,
                 assurance: AuthenticationAssurance::SingleFactor,
                 session_root: format!("sha256:{}", sha256_canonical(event)?),
-                authenticated_at: event.timestamp.clone(),
-                observed_at: event.timestamp.clone(),
+                authenticated_at: canonical_authenticated_at.clone(),
+                observed_at: canonical_authenticated_at,
                 expires_at,
                 user_presence: false,
                 user_verification: false,
@@ -374,6 +376,8 @@ impl SignedAgentRecordSession {
         let authenticated_at = DateTime::parse_from_rfc3339(&record.emitted_at)
             .map_err(|error| format!("agent record timestamp is invalid: {error}"))?
             .with_timezone(&Utc);
+        let canonical_authenticated_at =
+            authenticated_at.to_rfc3339_opts(SecondsFormat::Secs, true);
         let expires_at =
             (authenticated_at + Duration::minutes(5)).to_rfc3339_opts(SecondsFormat::Secs, true);
         Ok(Self {
@@ -386,8 +390,8 @@ impl SignedAgentRecordSession {
                 method: AuthenticationMethod::AgentRecordSignature,
                 assurance: AuthenticationAssurance::SingleFactor,
                 session_root: format!("sha256:{}", sha256_canonical(record)?),
-                authenticated_at: record.emitted_at.clone(),
-                observed_at: record.emitted_at.clone(),
+                authenticated_at: canonical_authenticated_at.clone(),
+                observed_at: canonical_authenticated_at,
                 expires_at,
                 user_presence: false,
                 user_verification: false,
@@ -563,7 +567,7 @@ mod tests {
             after_hash: "sha256:null",
             payload: json!({"obligation_id": "erdos:1056"}),
             caveats: Vec::new(),
-            timestamp: Some("2026-07-24T12:05:00Z"),
+            timestamp: Some("2026-07-24T12:05:00.456789Z"),
         });
         event.signature = Some(vela_protocol::sign::sign_event(&event, &key).unwrap());
         let mut session = SignedAgentEventSession::from_event(
@@ -574,7 +578,7 @@ mod tests {
         let request = AuthenticationRequest {
             principal_id: "agent:fixture".into(),
             principal_class: PrincipalClass::Agent,
-            transaction_at: event.timestamp.clone(),
+            transaction_at: "2026-07-24T12:05:00Z".into(),
         };
         let observation =
             authenticate_for_transaction(&mut session, &request, &RuntimeSessionState::default())
@@ -584,6 +588,7 @@ mod tests {
             AuthenticationMethod::AgentEventSignature
         );
         assert_eq!(observation.assurance, AuthenticationAssurance::SingleFactor);
+        assert_eq!(observation.authenticated_at, "2026-07-24T12:05:00Z");
         assert!(
             !serde_json::to_string(&observation)
                 .unwrap()
@@ -623,7 +628,7 @@ mod tests {
                 operation_id: format!("vop_{}", "1".repeat(64)),
                 lineage: None,
                 emitted_by: "agent:fixture".into(),
-                emitted_at: "2026-07-24T12:05:00Z".into(),
+                emitted_at: "2026-07-24T12:05:00.456789Z".into(),
             },
             Some(&key),
         )
@@ -632,7 +637,7 @@ mod tests {
         let request = AuthenticationRequest {
             principal_id: "agent:fixture".into(),
             principal_class: PrincipalClass::Agent,
-            transaction_at: record.emitted_at.clone(),
+            transaction_at: "2026-07-24T12:05:00Z".into(),
         };
         let observation =
             authenticate_for_transaction(&mut session, &request, &RuntimeSessionState::default())
@@ -642,6 +647,7 @@ mod tests {
             AuthenticationMethod::AgentRecordSignature
         );
         assert_eq!(observation.assurance, AuthenticationAssurance::SingleFactor);
+        assert_eq!(observation.authenticated_at, "2026-07-24T12:05:00Z");
         assert_eq!(
             observation.session_root,
             format!("sha256:{}", sha256_canonical(&record).unwrap())
