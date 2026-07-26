@@ -168,6 +168,9 @@ path changes the closed scientific-state root or grants authority.
 Compact status runs the same complete Profile v1 repository-context gate as a
 canonical write: profile and settings, reducer and proposal parity, exact Git
 boundary, retained bytes, and the independently installed consumer trust pin.
+`blocker_count` and `blockers_by_code` contain only conditions that fail that
+strict gate. Advisory check warnings remain visible under
+`integrity.strict_check`, but are never relabeled or counted as blockers.
 For a verified pinned legacy boundary, proposal logical-ID conflicts already
 present at the exact anchor are reported as
 `anchored_immutable_unauthenticated` audit debt rather than current tampering.

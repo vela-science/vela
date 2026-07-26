@@ -8,6 +8,76 @@ use vela_edge::packet;
 use vela_protocol::cli_style as style;
 use vela_protocol::repo;
 
+/// Derive only strict-blocking counts from the canonical strict-check payload.
+///
+/// The strict checker deliberately retains advisory warnings beside failures.
+/// Compact status must not relabel those warnings as blockers: readers use
+/// `blocker_count` and `blockers_by_code` as the machine contract for the
+/// fail-closed bar. The complete warning totals remain available in
+/// `integrity.strict_check`.
+fn strict_blocker_counts(
+    strict_check: &serde_json::Value,
+) -> std::collections::BTreeMap<String, usize> {
+    let mut blockers_by_code = std::collections::BTreeMap::<String, usize>::new();
+    for signal in strict_check
+        .get("signals")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|signal| {
+            !signal
+                .get("id")
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|id| id.starts_with("sig_diagnostic_"))
+                && signal
+                    .get("blocks")
+                    .and_then(serde_json::Value::as_array)
+                    .is_some_and(|blocks| {
+                        blocks
+                            .iter()
+                            .any(|block| block.as_str() == Some("strict_check"))
+                    })
+        })
+    {
+        let kind = signal
+            .get("kind")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("strict_signal");
+        *blockers_by_code.entry(kind.to_string()).or_default() += 1;
+    }
+    if let Some(checks) = strict_check
+        .get("checks")
+        .and_then(serde_json::Value::as_array)
+    {
+        for check in checks {
+            let id = check
+                .get("id")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("strict_check");
+            let failed = check
+                .get("failed")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or_default() as usize;
+            // These categories already retain their more useful product-level
+            // codes above. Avoid double-counting them while still deriving the
+            // pass/fail result from the canonical strict checker.
+            if failed > 0
+                && !matches!(
+                    id,
+                    "signals"
+                        | "events"
+                        | "active_policy"
+                        | "policy_readiness"
+                        | "repository_context"
+                )
+            {
+                *blockers_by_code.entry(id.to_string()).or_default() += failed;
+            }
+        }
+    }
+    blockers_by_code
+}
+
 /// Build the stable status projection without printing or mutating state.
 ///
 /// `trusted_home` exists only for deterministic tests. Production passes
@@ -72,33 +142,7 @@ pub(crate) fn compact_status_payload_with_home(
     // canonical check and adds check categories below. Diagnostic-derived
     // signals have a reserved id prefix and are excluded here so repository,
     // schema, and replay failures are not double-counted.
-    let mut blockers_by_code = std::collections::BTreeMap::<String, usize>::new();
-    for signal in strict_check
-        .get("signals")
-        .and_then(serde_json::Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter(|signal| {
-            !signal
-                .get("id")
-                .and_then(serde_json::Value::as_str)
-                .is_some_and(|id| id.starts_with("sig_diagnostic_"))
-                && signal
-                    .get("blocks")
-                    .and_then(serde_json::Value::as_array)
-                    .is_some_and(|blocks| {
-                        blocks
-                            .iter()
-                            .any(|block| block.as_str() == Some("strict_check"))
-                    })
-        })
-    {
-        let kind = signal
-            .get("kind")
-            .and_then(serde_json::Value::as_str)
-            .unwrap_or("strict_signal");
-        *blockers_by_code.entry(kind.to_string()).or_default() += 1;
-    }
+    let mut blockers_by_code = strict_blocker_counts(&strict_check);
     if !replay.ok {
         *blockers_by_code
             .entry("reducer_replay_failed".to_string())
@@ -116,43 +160,6 @@ pub(crate) fn compact_status_payload_with_home(
             .and_then(serde_json::Value::as_str)
             .unwrap_or("repository_context_invalid");
         *blockers_by_code.entry(code.to_string()).or_default() += 1;
-    }
-    if let Some(checks) = strict_check
-        .get("checks")
-        .and_then(serde_json::Value::as_array)
-    {
-        for check in checks {
-            let id = check
-                .get("id")
-                .and_then(serde_json::Value::as_str)
-                .unwrap_or("strict_check");
-            let failed = check
-                .get("failed")
-                .and_then(serde_json::Value::as_u64)
-                .unwrap_or_default() as usize;
-            let warnings = check
-                .get("warnings")
-                .and_then(serde_json::Value::as_u64)
-                .unwrap_or_default() as usize;
-            // These categories already retain their more useful product-level
-            // codes above. Avoid double-counting them while still deriving the
-            // pass/fail result from the canonical strict checker.
-            if failed > 0
-                && !matches!(
-                    id,
-                    "signals"
-                        | "events"
-                        | "active_policy"
-                        | "policy_readiness"
-                        | "repository_context"
-                )
-            {
-                *blockers_by_code.entry(id.to_string()).or_default() += failed;
-            }
-            if warnings > 0 {
-                *blockers_by_code.entry(format!("{id}_warning")).or_default() += warnings;
-            }
-        }
     }
     if !strict_check_ok && blockers_by_code.is_empty() {
         // Defensive fallback for any future strict-check category that has
@@ -702,6 +709,41 @@ pub(crate) async fn cmd_doctor(frontier: Option<&Path>, port: u16, all: bool, js
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn compact_status_never_relabels_strict_check_warnings_as_blockers() {
+        let strict_check = json!({
+            "signals": [
+                {
+                    "id": "sig_missing_condition",
+                    "kind": "missing_conditions",
+                    "blocks": ["strict_check"]
+                },
+                {
+                    "id": "sig_advisory",
+                    "kind": "signals_warning",
+                    "blocks": []
+                },
+                {
+                    "id": "sig_diagnostic_state_integrity",
+                    "kind": "state_integrity",
+                    "blocks": ["strict_check"]
+                }
+            ],
+            "checks": [
+                {"id": "signals", "failed": 1, "warnings": 3},
+                {"id": "state_integrity", "failed": 2, "warnings": 7},
+                {"id": "frontier_graph", "failed": 0, "warnings": 9}
+            ]
+        });
+
+        let blockers = strict_blocker_counts(&strict_check);
+        assert_eq!(blockers.get("missing_conditions"), Some(&1));
+        assert_eq!(blockers.get("state_integrity"), Some(&2));
+        assert_eq!(blockers.values().sum::<usize>(), 3);
+        assert!(!blockers.keys().any(|code| code.ends_with("_warning")));
+        assert!(!blockers.contains_key("signals_warning"));
+    }
 
     #[test]
     fn compact_status_reports_the_profile_lock_legacy_snapshot_root() {
