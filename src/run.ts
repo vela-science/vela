@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { ActivityStore } from "./activity/store.js";
@@ -179,11 +179,20 @@ function assertWorkBinding(
     }
     if (
       postWork.roots.git_commit === mission.roots.git_commit ||
-      postWork.roots.git_tree === mission.roots.git_tree ||
-      postWork.roots.vela_event_log === mission.roots.vela_event_log
+      postWork.roots.git_tree === mission.roots.git_tree
     ) {
       throw new Error("vela work did not publish an exact lease delta");
     }
+    exactText(
+      postWork.roots.vela_event_log,
+      mission.roots.vela_event_log,
+      "vela work scientific event root",
+    );
+    exactText(
+      postWork.roots.vela_snapshot,
+      mission.roots.vela_snapshot,
+      "vela work scientific snapshot root",
+    );
     return;
   }
   const claim = recordField(response.value, "claim", "vela work");
@@ -209,6 +218,94 @@ function assertWorkBinding(
   ) {
     throw new Error("vela work did not publish an exact lease delta");
   }
+}
+
+async function publishRepositoryAuthorityLease(options: {
+  repoRoot: string;
+  mission: Mission;
+  response: VelaCommandResponse;
+  home: string;
+}): Promise<{ commit: string; tree: string; paths: string[] } | null> {
+  if (options.response.value.schema !== "vela.work.v1") return null;
+  const environment = isolatedEnvironment(options.home);
+  const git = async (argv: string[]): Promise<Buffer> => {
+    const result = await runCommand({
+      argv: ["git", ...argv],
+      cwd: options.repoRoot,
+      env: environment,
+      timeoutMs: 30_000,
+      maxOutputBytes: 1_048_576,
+    });
+    if (result.exitCode !== 0 || result.stderr.length !== 0) {
+      throw new Error(
+        `work lease publication git command failed: exit=${result.exitCode}; ` +
+        `stdout=${sha256Bytes(result.stdout)}; stderr=${sha256Bytes(result.stderr)}`,
+      );
+    }
+    return result.stdout;
+  };
+  const status = (await git(["status", "--porcelain=v1", "-z", "--untracked-files=all"]))
+    .toString("utf8")
+    .split("\0")
+    .filter((entry) => entry.length > 0)
+    .sort();
+  const paths = status.map((entry) => {
+    if (!entry.startsWith("?? ")) {
+      throw new Error("repository-authority work lease modified a tracked path");
+    }
+    return entry.slice(3);
+  });
+  const eventPaths = paths.filter((entry) =>
+    /^\.vela\/authority\/events\/vev_[0-9a-f]{16}\.json$/u.test(entry)
+  );
+  const recordPaths = paths.filter((entry) =>
+    /^\.vela\/authority\/records\/var_[0-9a-f]{16}\.dsse\.json$/u.test(entry)
+  );
+  if (
+    paths.length !== 2 ||
+    eventPaths.length !== 1 ||
+    recordPaths.length !== 1
+  ) {
+    throw new Error(
+      "repository-authority work lease must create exactly one event and one authority record",
+    );
+  }
+  const event = JSON.parse(
+    await readFile(path.join(options.repoRoot, eventPaths[0]!), "utf8"),
+  ) as Record<string, unknown>;
+  const content = recordField(event, "content", "repository-authority work event");
+  const actor = recordField(content, "actor", "repository-authority work event.content");
+  const target = recordField(content, "target", "repository-authority work event.content");
+  exactText(content.kind, "attempt.claimed", "repository-authority work event kind");
+  exactText(actor.id, options.mission.actor, "repository-authority work event actor");
+  exactText(target.id, options.mission.target, "repository-authority work event target");
+  exactText(
+    event.id,
+    path.basename(eventPaths[0]!, ".json"),
+    "repository-authority work event ID",
+  );
+  await git(["add", "--", ...paths]);
+  const staged = (await git(["diff", "--cached", "--name-only", "-z"]))
+    .toString("utf8")
+    .split("\0")
+    .filter((entry) => entry.length > 0)
+    .sort();
+  if (canonicalJson(staged) !== canonicalJson(paths)) {
+    throw new Error("work lease publication staged a path outside the exact authority delta");
+  }
+  await git([
+    "-c",
+    "user.name=Canopus Agent",
+    "-c",
+    "user.email=canopus-agent@invalid.example",
+    "commit",
+    "--no-gpg-sign",
+    "-m",
+    `canopus: claim ${options.mission.target}`,
+  ]);
+  const commit = (await git(["rev-parse", "--verify", "HEAD^{commit}"])).toString("utf8").trim();
+  const tree = (await git(["rev-parse", "--verify", "HEAD^{tree}"])).toString("utf8").trim();
+  return { commit, tree, paths };
 }
 
 export function validateTargetOffer(
@@ -411,6 +508,12 @@ export async function runCanopus(
         options.mission.target,
         options.mission.roots,
       );
+      const leasePublication = await publishRepositoryAuthorityLease({
+        repoRoot: paths.landing,
+        mission: options.mission,
+        response: work,
+        home: paths.velaHome,
+      });
       postWork = await options.vela.inspect(
         paths.landing,
         options.mission.frontier,
@@ -421,6 +524,7 @@ export async function runCanopus(
       await activity.append("work.claimed", {
         target: options.mission.target,
         roots: postWork.roots,
+        ...(leasePublication === null ? {} : { publication: leasePublication }),
       });
     }
 
