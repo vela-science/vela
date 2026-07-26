@@ -7,8 +7,9 @@ argument-hint: "[target id | foreign receipt path]"
 
 Cross one selected result from private work into the shared frontier. The
 agent authors producer evidence. A signed policy may admit a narrow class;
-otherwise the result waits for a human decision. Do not run `vela sign`, ask
-for a human key, or present receipt authoring as a human trust ceremony.
+otherwise the result waits for an accountable authority transition. Do not
+sign, decide, ask for a human key, or present receipt authoring as a trust
+ceremony.
 
 1. Select the work session.
 
@@ -69,9 +70,9 @@ for a human key, or present receipt authoring as a human trust ceremony.
    - `policy_admitted`: the named signed policy authorized admission. Report
      its policy and event ids. The installed transaction closes only the typed
      `session.json`; unrelated scratch remains.
-   - `deferred`: the proposal is in the human sign queue. The installed
-     transaction closes only `session.json`. `/vela:review` may prepare the
-     queue; `vela sign` belongs to the human.
+   - `deferred`: the proposal is in the review queue. The installed transaction
+     closes only `session.json`. `/vela:review` may inspect the exact proposal;
+     authority remains outside the plugin.
    - `exact_retry`: Vela reused the recorded durable result. Report the original
      route and publication status.
    - Deny or error: report the exact message and repair action. The session and

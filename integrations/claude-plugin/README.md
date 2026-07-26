@@ -1,10 +1,11 @@
 # The Vela plugin for Claude Code
 
 Trusted scientific state, driven from your agent. The plugin puts the Vela
-loop — `next → work → land` — inside Claude Code. Human keys remain outside
-the agent: a signed policy may authorize a narrow Permit class, while every
-other result waits for the human's `vela sign` ceremony. No plugin command runs
-that ceremony, touches a human key, or suggests a verdict.
+loop — `next → work → land` — inside Claude Code. Authority remains outside
+the agent: a retained Era-0 policy may authorize a narrow Permit class, while
+other results wait for an exact human or repository-authority transition. No
+plugin command signs, approves, stores verdicts, touches a human key, or
+suggests a decision.
 
 Requires the `vela` binary on PATH (https://github.com/vela-science/vela)
 and a repository with a `.vela/` directory.
@@ -21,18 +22,16 @@ Marketplace, later: once published, `claude plugin install vela`.
 
 ## Commands
 
-- `/vela:status` — one-screen dashboard: frontier state, sign-queue depth and
-  headlines, top next targets, autonomy ratio, unpublished-state warnings.
+- `/vela:status` — one-screen dashboard: frontier integrity, pending-review
+  records, top next targets, and unpublished-state warnings.
 - `/vela:next` — the offer. Ranked targets rendered conversationally; pick one
   and it opens one typed private work session, reports its exact lease and
   task contract, and summarizes the briefing. The agent never edits or stages
   `session.json`.
-- `/vela:review` — the triage room. Walks the sign queue one item at a time,
-  shows each claim with its evidence, prior, and caveats, records the verdicts
-  you dictate into `.vela/sign-session.json` (resume-safe), and ends by handing
-  you exactly one command: `vela sign`.
-- `/vela:sign-prep` — pre-flight: queue depth, how many answers are already
-  saved, binary-pin status. Ends the same way: `vela sign`, yours to run.
+- `/vela:review` — read-only proposal inspection. Lists compact pending
+  records, opens one exact Decision Brief at a time, and keeps proposal,
+  verifier evidence, and terminal authority distinct. It writes no answer or
+  session file and never enters an authority path.
 - `/vela:land` — receipt authoring. Builds Receipt v1 from claim, type,
   replayability, artifact, and caveat flags bound to the exact work session,
   lands it as the agent identity, and reports the route. It does not ask a
@@ -100,24 +99,25 @@ deprecated upstream in favor of skills.
 nonfinalizing `work` tool (claim, land Receipt v1, or signed drop).
 The plugin's session-built default uses the CLI flag surface above. Both paths
 call the same landing service and signed policy evaluator. Permit carries the
-human-signed policy certificate; Defer parks the proposal in the human sign
-queue; Deny commits no landing. Nothing on MCP finalizes a human decision. The
-`decide` tool is absent from the registry and every profile.
+retained policy certificate; Defer parks the proposal in the review queue;
+Deny commits no landing. Nothing on MCP finalizes a human or
+repository-authority decision. The `decide` tool is absent from the registry
+and every profile.
 
 ## Session brief
 
 `hooks/hooks.json` runs `scripts/session-brief.sh` on SessionStart. Inside a
 frontier (a `.vela/` directory at or above the cwd, discovered the way git
 finds `.git`), it emits a few lines of session context: the frontier name, a
-one-line state summary, the sign-queue depth, and the top `next` target.
+one-line state summary, the pending-review count, and the top `next` target.
 Anywhere else — or on any error — it exits silently; a broken hook must never
 break a session. `/vela:status` is the full render when you want the whole
 picture.
 
 ## The custody line
 
-Agents draft; verifiers check; human keys authorize. A prior signed policy can
-authorize a bounded Permit; a direct judgment uses the terminal ceremony. The
-plugin records verdicts only after a human gives them, and the ceremony
-re-renders the exact decision before one confirmation and one key read. No
-model sits in that trust path. Report any command that offers a shortcut.
+Agents draft; verifiers check; accountable principals authorize. A retained
+Era-0 policy can authorize a bounded Permit; later authority is recorded by
+Vela's exact repository-authority transition. The plugin only reads proposals
+and producer state. It never records a verdict or sits in the trust path.
+Report any command that offers a shortcut.

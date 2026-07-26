@@ -29,6 +29,7 @@ absent_paths=(
   docs/CARINA.md
   docs/HUB.md
   examples/carina-kernel
+  integrations/claude-plugin/commands/sign-prep.md
   schema/carina.artifact-packet.v0.1.json
   scripts/seed-erdos-formalization.sh
   templates/frontier
@@ -43,6 +44,20 @@ for path in "${absent_paths[@]}"; do
     fail "retired path returned: $path"
   fi
 done
+
+# Active agent integrations are read/produce surfaces, never a second authority
+# ceremony. Historical ADRs and protocol replay retain the old batch-signing
+# vocabulary, but the installed Claude plugin must not recreate it.
+claude_plugin_surfaces=(
+  integrations/claude-plugin/README.md
+  integrations/claude-plugin/commands
+  integrations/claude-plugin/scripts
+)
+retired_claude_authority_pattern='vela sign|sign-session\.json|id pin-binary|sign-prep'
+if grep -RInE "$retired_claude_authority_pattern" "${claude_plugin_surfaces[@]}" >/dev/null; then
+  grep -RInE "$retired_claude_authority_pattern" "${claude_plugin_surfaces[@]}" >&2
+  fail "retired Claude authority workflow returned"
+fi
 
 # Generated first-run guidance is executable product surface. It must not
 # resurrect commands removed by the prelaunch hard cut.

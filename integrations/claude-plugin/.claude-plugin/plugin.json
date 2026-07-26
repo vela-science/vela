@@ -1,7 +1,7 @@
 {
   "name": "vela",
-  "version": "0.760.1",
-  "description": "Trusted scientific state for agent-driven frontiers with human-held judgment keys.",
+  "version": "0.930.0-rc.7",
+  "description": "Bounded scientific work and read-only review over Vela frontiers.",
   "author": {
     "name": "Vela",
     "url": "https://github.com/vela-science/vela"
