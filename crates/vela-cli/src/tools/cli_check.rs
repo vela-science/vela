@@ -161,12 +161,22 @@ pub(crate) fn cmd_check(
                 println!("  - {conflict}");
             }
         }
+        let authority_events =
+            crate::cli::load_repository_authority(frontier_dir_for_source(src), &frontier)
+                .ok()
+                .flatten()
+                .map(|authority| authority.history.authority_events)
+                .unwrap_or_default();
         // Loader = reducer: the materialized state must be reproducible
-        // from its own event log (genesis seeded from the proposal
+        // from its verified dual log (genesis seeded from the proposal
         // payload store, then one full reducer replay). A divergence
         // here means the loader and the reducer disagree — the bug
         // class that silently dropped side tables four times.
-        let replay_verification = vela_protocol::reducer::verify_replay(&frontier);
+        let replay_verification = if authority_events.is_empty() {
+            vela_protocol::reducer::verify_replay(&frontier)
+        } else {
+            vela_protocol::reducer::verify_replay_with_authority(&frontier, &authority_events)
+        };
         println!("replay verification: {}", replay_verification.note);
         if !replay_verification.ok {
             for diff in replay_verification.diffs.iter().take(20) {
@@ -179,12 +189,6 @@ pub(crate) fn cmd_check(
         // proposal with no `review.rejected` event behind it is a
         // decision with no tamper-evident record — the silent-drop vector.
         // This makes the mutable `status` field a verified projection.
-        let authority_events =
-            crate::cli::load_repository_authority(frontier_dir_for_source(src), &frontier)
-                .ok()
-                .flatten()
-                .map(|authority| authority.history.authority_events)
-                .unwrap_or_default();
         let parity_conflicts =
             vela_protocol::proposals::verify_proposal_decision_parity_with_authority(
                 &frontier,

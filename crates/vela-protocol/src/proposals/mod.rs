@@ -2233,6 +2233,12 @@ pub fn validate_human_reviewer_authority_at(
 enum DecisionAuthority<'a> {
     LocalKey(&'a ed25519_dalek::SigningKey),
     PlanPreparation,
+    /// Pure candidate preparation for an Era-1 repository-authority
+    /// transaction. This grants no authority and performs no write: the CLI
+    /// must authenticate the named principal, authorize the exact action, and
+    /// install the resulting event/object set under one verified covering
+    /// authority record.
+    RepositoryPreparation,
     Preview,
 }
 
@@ -2271,6 +2277,11 @@ fn enforce_decision_authority(
         }
         DecisionAuthority::PlanPreparation => {
             validate_human_reviewer_authority_at(frontier, reviewer, decided_at).map(|_| ())
+        }
+        DecisionAuthority::RepositoryPreparation => {
+            chrono::DateTime::parse_from_rfc3339(decided_at)
+                .map_err(|error| format!("repository decision time is invalid: {error}"))?;
+            validate_reviewer_identity(reviewer)
         }
         DecisionAuthority::Preview => validate_reviewer_identity(reviewer),
     }
@@ -2959,6 +2970,59 @@ pub fn prepare_proposal_accept_candidate_at(
         reason,
         provenance,
         decided_at,
+    )?;
+    Ok((candidate, prepared))
+}
+
+/// Build an ordinary scientific acceptance candidate for an Era-1
+/// repository-authority transaction.
+///
+/// The returned project and events are unsigned semantic postimages only.
+/// This function deliberately cannot activate policy heads or legacy-policy
+/// retirement. It confers no authority: callers must bind the exact candidate
+/// to authenticated principal, Cedar authorization, semantic approval,
+/// repository-authority event coverage, and one recoverable transaction.
+pub fn prepare_repository_authority_accept_candidate_at(
+    frontier: &Project,
+    proposal_id: &str,
+    principal_id: &str,
+    reason: &str,
+    provenance: Option<&crate::provenance::Provenance>,
+    decided_at: &str,
+) -> Result<(Project, PreparedDecisionMutation), String> {
+    let proposal = frontier
+        .proposals
+        .iter()
+        .find(|proposal| proposal.id == proposal_id)
+        .ok_or_else(|| format!("Proposal not found: {proposal_id}"))?;
+    if matches!(
+        proposal.kind.as_str(),
+        policy_accept::POLICY_HEAD_PROPOSAL_KIND
+            | policy_accept::LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND
+    ) {
+        return Err(
+            "repository-authority scientific acceptance cannot administer legacy policy".into(),
+        );
+    }
+    let mut candidate = clone_project(frontier)?;
+    let first_event = candidate.events.len();
+    let primary_event_id = accept_proposal_in_frontier_with_authority_at(
+        &mut candidate,
+        proposal_id,
+        principal_id,
+        reason,
+        DecisionAuthority::RepositoryPreparation,
+        provenance,
+        Some(decided_at),
+        true,
+    )?;
+    crate::sources::materialize_project(&mut candidate);
+    let prepared = prepared_decision_mutation(
+        &candidate,
+        first_event,
+        primary_event_id,
+        proposal_id,
+        principal_id,
     )?;
     Ok((candidate, prepared))
 }
@@ -4638,8 +4702,38 @@ pub fn proposal_status_from_logs(
             },
             review_event_id: Some(authority_event.id.clone()),
         });
+        continue;
     }
-    decisions.sort_by(|a, b| a.decided_at.cmp(&b.decided_at));
+    for authority_event in authority_events {
+        let Some(applied) = applied_event_id else {
+            break;
+        };
+        let Ok(semantic_event_id) = authority_event.semantic_event_id() else {
+            continue;
+        };
+        if semantic_event_id == applied {
+            decisions.push(DerivedDecision {
+                status: "applied".to_string(),
+                reviewer: authority_event.content.actor.id.clone(),
+                decided_at: authority_event.content.timestamp.clone(),
+                reason: authority_event.content.reason.clone(),
+                applied_event_id: Some(semantic_event_id),
+                review_event_id: None,
+            });
+        }
+    }
+    decisions.sort_by(|a, b| {
+        a.decided_at
+            .cmp(&b.decided_at)
+            // At one decision instant the explicit review event is the
+            // authoritative proposal projection; its linked domain event is
+            // the scientific transition. Keep the review record last.
+            .then_with(|| {
+                a.review_event_id
+                    .is_some()
+                    .cmp(&b.review_event_id.is_some())
+            })
+    });
     decisions.pop()
 }
 
@@ -4785,6 +4879,40 @@ pub fn verify_proposal_decision_parity_with_authority(
                 "repository-authority review event {} targets proposal {} which does not exist in the frontier",
                 event.id, event.content.target.id
             ));
+        }
+        if event.content.kind == events::EVENT_KIND_REVIEW_ACCEPTED {
+            let applied = event
+                .content
+                .payload
+                .get("applied_event_id")
+                .and_then(Value::as_str);
+            let Some(applied) = applied else {
+                conflicts.push(format!(
+                    "repository-authority review event {} lacks payload.applied_event_id",
+                    event.id
+                ));
+                continue;
+            };
+            let legacy_match = frontier
+                .events
+                .iter()
+                .any(|candidate| candidate.id == applied);
+            let authority_matches = authority_events
+                .iter()
+                .filter_map(|candidate| candidate.semantic_event_id().ok())
+                .filter(|semantic_id| semantic_id == applied)
+                .count();
+            if !legacy_match && authority_matches == 0 {
+                conflicts.push(format!(
+                    "repository-authority review event {} references missing applied semantic event {}",
+                    event.id, applied
+                ));
+            } else if usize::from(legacy_match) + authority_matches != 1 {
+                conflicts.push(format!(
+                    "repository-authority review event {} resolves applied semantic event {} ambiguously",
+                    event.id, applied
+                ));
+            }
         }
     }
 

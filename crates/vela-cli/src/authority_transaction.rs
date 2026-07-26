@@ -358,6 +358,7 @@ where
             "transaction derives duplicate Era-1 event IDs".into(),
         ));
     }
+    validate_semantic_event_links(&request.history, &events)?;
 
     let mut cumulative_events = request.history.authority_events.iter().collect::<Vec<_>>();
     cumulative_events.extend(events.iter());
@@ -686,6 +687,82 @@ pub(crate) fn retry_completed_authority_transaction(
         ));
     }
     Ok(durable.result)
+}
+
+fn validate_semantic_event_links(
+    history: &AuthorityHistorySnapshot,
+    events: &[AuthorityEventV1],
+) -> Result<(), AuthorityTransactionError> {
+    let mut semantic_ids = history
+        .legacy_events
+        .iter()
+        .map(|event| (event.id.clone(), event.kind.clone()))
+        .collect::<BTreeMap<_, _>>();
+    for event in history.authority_events.iter().chain(events) {
+        if matches!(event.content.kind, EventKind::Other(_)) {
+            continue;
+        }
+        let semantic_id = if event.content.kind == EventKind::AttemptClaimed {
+            event.id.clone()
+        } else {
+            event
+                .semantic_event_id()
+                .map_err(AuthorityTransactionError::Invalid)?
+        };
+        if semantic_ids
+            .insert(semantic_id.clone(), event.content.kind.clone())
+            .is_some()
+        {
+            return Err(AuthorityTransactionError::Invalid(format!(
+                "semantic event identity {semantic_id} occurs more than once across the dual log"
+            )));
+        }
+    }
+    for review in events
+        .iter()
+        .filter(|event| event.content.kind == EventKind::ReviewAccepted)
+    {
+        let applied = review
+            .content
+            .payload
+            .get("applied_event_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                AuthorityTransactionError::Invalid(format!(
+                    "review.accepted event {} lacks payload.applied_event_id",
+                    review.id
+                ))
+            })?;
+        let matching_current = events
+            .iter()
+            .filter(|candidate| {
+                candidate.content.kind != EventKind::ReviewAccepted
+                    && candidate
+                        .semantic_event_id()
+                        .is_ok_and(|semantic_id| semantic_id == applied)
+            })
+            .count();
+        if matching_current != 1 {
+            return Err(AuthorityTransactionError::Invalid(format!(
+                "review.accepted event {} must link exactly one scientific event in the same authority transaction",
+                review.id
+            )));
+        }
+        if semantic_ids.get(applied).is_none_or(|kind| {
+            matches!(
+                kind,
+                EventKind::ReviewAccepted
+                    | EventKind::ReviewRejected
+                    | EventKind::ReviewRevisionRequested
+            )
+        }) {
+            return Err(AuthorityTransactionError::Invalid(format!(
+                "review.accepted event {} does not link a scientific domain event",
+                review.id
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn validate_active_authority_snapshots(
@@ -1743,6 +1820,23 @@ mod tests {
                         }
                     }
                 };
+                action "review_accept" appliesTo {
+                    principal: Human,
+                    resource: Proposal,
+                    context: {
+                        exact: Bool,
+                        authentication: {
+                            method: String,
+                            assurance: String,
+                            authenticated_at: String,
+                            observed_at: String,
+                            expires_at: String,
+                            user_presence: Bool,
+                            user_verification: Bool,
+                            recovery_recent: Bool
+                        }
+                    }
+                };
                 action "authority_rotate" appliesTo {
                     principal: Human,
                     resource: Frontier,
@@ -2381,6 +2475,229 @@ mod tests {
         }
 
         verify_installed_history(&fixture, &[event], &envelope);
+    }
+
+    fn acceptance_request(fixture: &Fixture) -> (AuthorityTransactionRequest, StateEvent, Vec<u8>) {
+        let proposal_id = "vpr_0123456789abcdef";
+        let reason = "Accept the exact bounded scientific transition.";
+        let mut semantic_domain = StateEvent {
+            schema: EVENT_SCHEMA.into(),
+            id: String::new(),
+            kind: EventKind::FindingNoted,
+            target: StateTarget {
+                r#type: "finding".into(),
+                id: "vf_0123456789abcdef".into(),
+            },
+            actor: StateActor {
+                r#type: "human".into(),
+                id: REPOSITORY_PRINCIPAL.into(),
+            },
+            timestamp: RECORDED_AT.into(),
+            reason: reason.into(),
+            before_hash: root('a'),
+            after_hash: root('b'),
+            payload: json!({"annotation": "exact bounded result"}),
+            caveats: Vec::new(),
+            signature: None,
+        };
+        semantic_domain.id = compute_event_id(&semantic_domain);
+        let proposal_postimage = to_canonical_bytes(&json!({
+            "schema": "fixture.proposal.v1",
+            "id": proposal_id,
+            "status": "applied",
+            "applied_event_id": semantic_domain.id.clone(),
+        }))
+        .unwrap();
+
+        let mut request = fixture.request.clone();
+        request.intent_digest = root('e');
+        request.authorization_input.action = "review_accept".into();
+        request.semantic_approvals[0].action = "review_accept".into();
+        request.semantic_approvals[0].reason = reason.into();
+        request.semantic_approvals[0].intent_digest = root('e');
+        request.event_drafts = vec![
+            AuthorityEventDraft {
+                kind: semantic_domain.kind.clone(),
+                target: semantic_domain.target.clone(),
+                actor: semantic_domain.actor.clone(),
+                timestamp: semantic_domain.timestamp.clone(),
+                reason: semantic_domain.reason.clone(),
+                before_hash: semantic_domain.before_hash.clone(),
+                after_hash: semantic_domain.after_hash.clone(),
+                payload: semantic_domain.payload.clone(),
+                caveats: semantic_domain.caveats.clone(),
+            },
+            AuthorityEventDraft {
+                kind: EventKind::ReviewAccepted,
+                target: StateTarget {
+                    r#type: "proposal".into(),
+                    id: proposal_id.into(),
+                },
+                actor: semantic_domain.actor.clone(),
+                timestamp: RECORDED_AT.into(),
+                reason: reason.into(),
+                before_hash: NULL_HASH.into(),
+                after_hash: NULL_HASH.into(),
+                payload: json!({
+                    "proposal_id": proposal_id,
+                    "proposal_kind": "finding.note",
+                    "verdict": "accepted",
+                    "applied_event_id": semantic_domain.id.clone(),
+                }),
+                caveats: Vec::new(),
+            },
+        ];
+        request.object_drafts = vec![AuthorityObjectDraft {
+            path: format!(".vela/proposals/{proposal_id}.json"),
+            object_kind: "proposal".into(),
+            class: WriteClass::PublicReview,
+            postimage: Some(proposal_postimage.clone()),
+        }];
+        (request, semantic_domain, proposal_postimage)
+    }
+
+    #[test]
+    fn acceptance_transaction_covers_domain_review_and_proposal_postimage() {
+        let fixture = self::fixture();
+        let proposal_id = "vpr_0123456789abcdef";
+        let (request, semantic_domain, proposal_postimage) = acceptance_request(&fixture);
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let result = execute_authority_transaction(
+            fixture.barrier(),
+            fixture.temporary.path(),
+            request,
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap();
+        assert_eq!(result.event_ids.len(), 2);
+        let events = result
+            .event_ids
+            .iter()
+            .map(|event_id| {
+                serde_json::from_slice::<AuthorityEventV1>(
+                    &fs::read(
+                        fixture
+                            .temporary
+                            .path()
+                            .join(authority_event_path(event_id)),
+                    )
+                    .unwrap(),
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let domain = events
+            .iter()
+            .find(|event| event.content.kind == EventKind::FindingNoted)
+            .unwrap();
+        let review = events
+            .iter()
+            .find(|event| event.content.kind == EventKind::ReviewAccepted)
+            .unwrap();
+        assert_eq!(domain.semantic_event_id().unwrap(), semantic_domain.id);
+        assert_eq!(
+            review.content.payload["applied_event_id"],
+            json!(semantic_domain.id)
+        );
+        assert_eq!(
+            fs::read(
+                fixture
+                    .temporary
+                    .path()
+                    .join(format!(".vela/proposals/{proposal_id}.json"))
+            )
+            .unwrap(),
+            proposal_postimage
+        );
+        let envelope: AuthorityEnvelopeV1 = serde_json::from_slice(
+            &fs::read(
+                fixture
+                    .temporary
+                    .path()
+                    .join(authority_record_path(&result.authority_record_id)),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        verify_installed_history(&fixture, &events, &envelope);
+    }
+
+    #[test]
+    fn acceptance_transaction_rejects_missing_or_cross_transaction_domain_link_before_signing() {
+        for mutation in ["missing", "cross_transaction"] {
+            let fixture = self::fixture();
+            let (mut request, _, _) = acceptance_request(&fixture);
+            let review = request
+                .event_drafts
+                .iter_mut()
+                .find(|event| event.kind == EventKind::ReviewAccepted)
+                .unwrap();
+            if mutation == "missing" {
+                review
+                    .payload
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("applied_event_id");
+            } else {
+                review.payload["applied_event_id"] = json!(root('9'));
+            }
+
+            let mut adapter = fixture.adapter();
+            let mut signer = fixture.signer();
+            let error = prepare_authority_transaction(
+                fixture.barrier(),
+                fixture.temporary.path(),
+                request,
+                &mut adapter,
+                &mut signer,
+            )
+            .unwrap_err();
+            assert!(
+                error.to_string().contains(if mutation == "missing" {
+                    "lacks payload.applied_event_id"
+                } else {
+                    "must link exactly one scientific event"
+                }),
+                "{mutation}: {error}"
+            );
+            assert_eq!(signer.calls, 0);
+            assert!(prepared_journal_absent(&fixture));
+        }
+    }
+
+    #[test]
+    fn dual_log_rejects_duplicate_semantic_event_identity() {
+        let fixture = self::fixture();
+        let (_, semantic_domain, _) = acceptance_request(&fixture);
+        let authority_event = |transaction_id: &str| {
+            AuthorityEventV1::new(AuthorityEventContentV1 {
+                transaction_id: transaction_id.into(),
+                principal_id: REPOSITORY_PRINCIPAL.into(),
+                authority_mode: AUTHORITY_MODE.into(),
+                kind: semantic_domain.kind.clone(),
+                target: semantic_domain.target.clone(),
+                actor: semantic_domain.actor.clone(),
+                timestamp: semantic_domain.timestamp.clone(),
+                reason: semantic_domain.reason.clone(),
+                before_hash: semantic_domain.before_hash.clone(),
+                after_hash: semantic_domain.after_hash.clone(),
+                payload: semantic_domain.payload.clone(),
+                caveats: semantic_domain.caveats.clone(),
+            })
+            .unwrap()
+        };
+        let mut history = fixture.request.history.clone();
+        history.authority_events.push(authority_event("vtx_prior"));
+        let error =
+            validate_semantic_event_links(&history, &[authority_event("vtx_current")]).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("occurs more than once across the dual log"),
+            "{error}"
+        );
     }
 
     #[test]

@@ -113,7 +113,7 @@ pub(crate) enum DecisionAction {
 }
 
 impl DecisionAction {
-    fn as_str(self) -> &'static str {
+    pub(crate) fn as_str(self) -> &'static str {
         match self {
             Self::Accept => "accept",
             Self::Reject => "reject",

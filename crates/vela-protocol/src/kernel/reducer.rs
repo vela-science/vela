@@ -542,7 +542,73 @@ fn findings_digest(findings: &[crate::bundle::FindingBundle]) -> String {
 /// verifiable invariant — the loader and the reducer can no longer
 /// drift apart silently.
 pub fn verify_replay(state: &Project) -> ReplayVerification {
-    if state.events.is_empty() {
+    verify_replay_events(state, state.events.clone())
+}
+
+/// Verify the materialized scientific projection against the union of the
+/// immutable Era-0 event log and an already-verified Era-1 authority log.
+///
+/// Authority verification deliberately remains outside the reducer. Each
+/// supplied event is converted to its transaction-independent semantic event
+/// identity before ordinary replay. Duplicate semantic identities across or
+/// within eras fail closed.
+pub fn verify_replay_with_authority(
+    state: &Project,
+    authority_events: &[crate::authority::AuthorityEventV1],
+) -> ReplayVerification {
+    let mut events = state.events.clone();
+    let mut ids = events
+        .iter()
+        .map(|event| event.id.clone())
+        .collect::<std::collections::BTreeSet<_>>();
+    for authority_event in authority_events {
+        // Era-1 `Other` records are authority/workflow audit events such as
+        // policy rotation and Receipt landing. The scientific reducer
+        // deliberately rejects `Other`; these records are replayed by the
+        // authority-history verifier and their own projections instead.
+        if matches!(authority_event.content.kind, EventKind::Other(_)) {
+            continue;
+        }
+        let mut event = match authority_event.semantic_state_event() {
+            Ok(event) => event,
+            Err(error) => {
+                return ReplayVerification {
+                    ok: false,
+                    replayed_snapshot_hash: String::new(),
+                    materialized_snapshot_hash: findings_digest(&state.findings),
+                    diffs: vec![format!(
+                        "repository-authority event {} has no valid semantic replay form: {error}",
+                        authority_event.id
+                    )],
+                    note: "dual-log event history does not replay through the reducer".to_string(),
+                };
+            }
+        };
+        // Lease release/refresh payloads name the stored authority-event ID of
+        // the prior claim. Coordination replay therefore retains that ID.
+        // Scientific domain links use the semantic ID above.
+        if authority_event.content.kind == EventKind::AttemptClaimed {
+            event.id = authority_event.id.clone();
+        }
+        if !ids.insert(event.id.clone()) {
+            return ReplayVerification {
+                ok: false,
+                replayed_snapshot_hash: String::new(),
+                materialized_snapshot_hash: findings_digest(&state.findings),
+                diffs: vec![format!(
+                    "semantic event {} occurs more than once across the dual log",
+                    event.id
+                )],
+                note: "dual-log event history does not replay through the reducer".to_string(),
+            };
+        }
+        events.push(event);
+    }
+    verify_replay_events(state, events)
+}
+
+fn verify_replay_events(state: &Project, events: Vec<StateEvent>) -> ReplayVerification {
+    if events.is_empty() {
         let d = findings_digest(&state.findings);
         return ReplayVerification {
             ok: true,
@@ -552,7 +618,7 @@ pub fn verify_replay(state: &Project) -> ReplayVerification {
             note: "no events; replay is identity".to_string(),
         };
     }
-    let sorted = sorted_for_replay(&state.events);
+    let sorted = sorted_for_replay(&events);
     let (genesis, mut diffs, remnants) = seed_genesis_with_remnants(state, &sorted);
     let replayed = match replay_from_genesis(
         genesis,
@@ -613,7 +679,7 @@ pub fn verify_replay(state: &Project) -> ReplayVerification {
         note: if ok {
             format!(
                 "replayed {} event(s) over {} seeded finding(s) ({} genesis remnant(s)); materialized state reproduced",
-                state.events.len(),
+                events.len(),
                 replayed.findings.len(),
                 remnants
             )

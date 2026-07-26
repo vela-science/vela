@@ -415,6 +415,16 @@ covering DSSE envelopes live at
 `.vela/authority/records/<record-id>.dsse.json`. The legacy `StateEvent` loader
 therefore never has to interpret Era-1 bytes.
 
+An Era-1 event has two deliberately different identities. Its stored `id`
+content-addresses repository attribution, including `transaction_id`. Its
+semantic reducer identity is the ordinary unsigned `StateEvent` ID recomputed
+from the shared kind, target, actor, time, reason, before/after roots, payload,
+and caveats. `review.accepted.payload.applied_event_id` names that semantic
+identity. This lets the review decision link the scientific transition before
+the covering transaction ID exists, without weakening the authority record:
+the DSSE record still covers every stored Era-1 event ID, full event byte
+root, event-log root, and object postimage.
+
 The proposed writer also retains the exact active manifests at
 `.vela/authority/keysets/<sha256>.json` and
 `.vela/authority/policies/<sha256>.json`. These paths use the full canonical
@@ -541,12 +551,15 @@ sequence-1 boundary without changing their scientific roots. Once
 actor-registry, first-boundary, decision-preview, and historical-sign writer
 fails before a journal, prompt, or key read. The candidate now exposes bounded
 Era-1 writers for exact signed-agent leases, Receipt-bound pending submissions,
-and human `review_reject`. The last path obtains one bearer-free platform
-user-presence observation, evaluates restricted Cedar, and uses the repository
-authority as the sole transaction signer; it reads no personal Vela key and
-changes no scientific root. Repository-authority acceptance remains
-fail-closed until accepted-state replay spans both event logs. Era-0
-verification remains required throughout.
+and human `review_accept` / `review_reject`. Both decision paths obtain one
+bearer-free platform user-presence observation, evaluate restricted Cedar, and
+use the repository authority as the sole transaction signer; neither reads a
+personal Vela key. Rejection changes no scientific root. Acceptance is exposed
+only when the ordinary Decision Brief and strict aggregate Engine gate permit
+it, then atomically installs the scientific domain event, explicit
+`review.accepted` event, and exact canonical postimages. Dual-log replay uses
+the semantic event identities and fails on a missing, duplicate, or ambiguous
+applied transition. Era-0 verification remains required throughout.
 
 The complete core lifecycle drill now uses one disposable Frontier
 to install the legacy bridge, perform an ordinary Era-1 decision, rotate the
@@ -714,9 +727,11 @@ and proposal postimage. Cancellation and drift write nothing. The protected
 path has no key-path, batch, wildcard, saved-answer, `--yes`, or persistent
 approval input.
 
-Repository-authority acceptance is not enabled by analogy. It must install and
-replay both the accepted scientific domain event and the review decision across
-the dual history before the command becomes available.
+Repository-authority acceptance is not inferred from verifier success or
+enabled by analogy. The command is available only when it can install and
+replay both the accepted scientific domain event and the review decision
+across the dual history. A blocked Decision Brief still fails before the
+provider prompt.
 
 A signed policy uses the same causal discipline. It can permit a predeclared
 class without a per-item human ceremony, but only while its ID, signature,

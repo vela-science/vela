@@ -1447,23 +1447,21 @@ pub(crate) fn cmd_review_decide(
                     ),
                 );
             }
-            if action == DecisionAction::Accept {
-                ui::fail_with(
-                    ErrorKind::Domain,
-                    "repository-authority acceptance is not enabled until the accepted-state dual-log replay gate lands",
-                    Some(
-                        "reject remains available through one protected provider approval; leave an acceptable proposal pending",
-                    ),
-                );
-            }
             let observed_at =
                 chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
-            let prepared =
-                crate::repository_decision::prepare_reject(&frontier, id, &reason, &observed_at)
-                    .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
+            let prepared = match action {
+                DecisionAction::Accept => {
+                    crate::repository_decision::prepare_accept(&frontier, id, &reason, &observed_at)
+                }
+                DecisionAction::Reject => {
+                    crate::repository_decision::prepare_reject(&frontier, id, &reason, &observed_at)
+                }
+            }
+            .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
             if !json {
                 println!(
-                    "review decision · reject · {}",
+                    "review decision · {} · {}",
+                    action.as_str(),
                     safe_inline(&prepared.plan.proposal_id)
                 );
                 println!("  frontier: {}", safe_inline(&prepared.plan.frontier_name));
@@ -1473,11 +1471,25 @@ pub(crate) fn cmd_review_decide(
                 );
                 println!("  reason: {}", safe_inline(&prepared.plan.reason));
                 println!("  authority: platform user presence → repository authority");
-                println!("  scientific state change: none");
+                println!(
+                    "  scientific state change: {}",
+                    if action == DecisionAction::Accept {
+                        "exact accepted transition"
+                    } else {
+                        "none"
+                    }
+                );
                 println!("  requesting one exact operating-system approval");
             }
-            let result = crate::repository_decision::execute_reject(&frontier, &prepared.plan)
-                .unwrap_or_else(|error| ui::fail_with(ErrorKind::Custody, &error, None));
+            let result = match action {
+                DecisionAction::Accept => {
+                    crate::repository_decision::execute_accept(&frontier, &prepared.plan)
+                }
+                DecisionAction::Reject => {
+                    crate::repository_decision::execute_reject(&frontier, &prepared.plan)
+                }
+            }
+            .unwrap_or_else(|error| ui::fail_with(ErrorKind::Custody, &error, None));
             let payload = serde_json::json!({
                 "ok": true,
                 "command": "review.decide",
@@ -1486,7 +1498,7 @@ pub(crate) fn cmd_review_decide(
                 "proposal_id": prepared.plan.proposal_id,
                 "proposal_root": prepared.plan.proposal_root,
                 "principal_id": prepared.plan.principal_id,
-                "action": "reject",
+                "action": action.as_str(),
                 "reason": prepared.plan.reason,
                 "decision_plan_root": prepared.plan.plan_root,
                 "event_ids": result.event_ids,
@@ -1494,7 +1506,7 @@ pub(crate) fn cmd_review_decide(
                 "authority_record_root": result.authority_record_root,
                 "before_event_log_root": result.before_event_log_root,
                 "after_event_log_root": result.after_event_log_root,
-                "scientific_state_changed": false,
+                "scientific_state_changed": action == DecisionAction::Accept,
                 "authentication": "platform_user_presence",
                 "transaction_signer": "repository_authority",
                 "human_key_read": false,
@@ -1506,7 +1518,7 @@ pub(crate) fn cmd_review_decide(
                         .expect("repository decision result JSON")
                 );
             } else {
-                println!("  · rejected {}", safe_inline(id));
+                println!("  · {} {}", safe_inline(action.as_str()), safe_inline(id));
                 println!(
                     "  · authority record {}",
                     safe_inline(

@@ -938,12 +938,36 @@ review projection now consume already-verified repository-authority events.
 
 Focused tests prove exact proposal-root binding, policy non-rotation, response
 substitution refusal, dual-log rejection parity, and unchanged legacy terminal
-decisions. Two live attempts while the workstation was locked returned macOS
-`LAErrorSystemCancel`; both left the Erdős checkout and journal set unchanged.
-This is cancellation evidence, not the required active exceptional-decision
-qualification. Repository-authority acceptance remains deliberately disabled
-until its accepted domain event and review event replay together across both
-logs.
+decisions. Four live attempts returned macOS `LAErrorSystemCancel`; every
+attempt left the Erdős checkout and journal set unchanged. This is strong
+cancellation evidence, not the required active exceptional-decision
+qualification.
+
+The next slice closes the acceptance hash cycle without changing
+`vela.event.v1`. Every verified Era-1 event deterministically recovers the
+ordinary unsigned `StateEvent` identity of its shared semantic fields.
+Repository attribution and `transaction_id` remain covered by the stored
+Era-1 event ID, while `review.accepted.payload.applied_event_id` names that
+transaction-independent semantic identity. The authority record covers both
+stored events, their full roots, the dual-log root, and exact proposal and
+scientific-object postimages.
+
+Focused protocol and transaction fixtures now prove:
+
+- one repository-authority acceptance derives at least one scientific domain
+  event plus exactly one explicit `review.accepted`;
+- neither event is duplicated under `.vela/events/`;
+- the exact materialized finding and proposal projection replays from the
+  verified dual log;
+- a missing or ambiguous applied semantic event fails proposal parity;
+- a blocked Decision Brief fails before any provider prompt; and
+- the recoverable authority writer covers both events and the proposal
+  postimage in one DSSE transaction.
+
+This completes the implementation gate but not the live qualification gate.
+No active proposal has been accepted through this path, and the exact Erdős
+rejection still awaits a successful user-presence observation. ADR 0020
+therefore remains Proposed.
 
 Final `vela-signer` and identity-custody deletion remains blocked until:
 

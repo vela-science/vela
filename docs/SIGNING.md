@@ -100,9 +100,10 @@ session without changing a Frontier or deleting the protected identity.
 
 ## Exact protected decisions
 
-On a repository-authority Frontier, rejection is one exact request:
+On a repository-authority Frontier, each human decision is one exact request:
 
 ```bash
+vela review decide . <vpr_id> --accept --reason "<reason>" --json
 vela review decide . <vpr_id> --reject --reason "<reason>" --json
 ```
 
@@ -116,9 +117,14 @@ principal and proposal; the repository-authority DSSE record then covers the
 new `review.rejected` event and proposal postimage. Rejection changes no
 scientific root.
 
-Repository-authority acceptance remains fail-closed until its accepted-state
-domain event and review event both replay through the dual-log reducer. Leaving
-an acceptable proposal pending is correct until that gate closes.
+Repository-authority acceptance uses the same protected exact-intent request
+only after the Decision Brief and strict aggregate Engine gate permit the
+action. The authority transaction installs both the scientific domain event
+and `review.accepted`; the review payload points to the domain event's
+transaction-independent semantic ID, while the DSSE record covers the stored
+transaction-attributed event IDs and object postimages. Dual-log replay rejects
+a missing, duplicate, or ambiguous applied semantic event. Leaving an
+Engine-blocked proposal pending remains the correct outcome.
 
 Era-0 review decisions remain two phase while selected frontiers complete
 repository-authority migration:

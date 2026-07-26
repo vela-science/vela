@@ -16,7 +16,9 @@ pub use crate::authentication::{
     AuthenticationAssurance, AuthenticationMethod, AuthenticationObservationV1,
 };
 use crate::canonical::{sha256_canonical, to_canonical_bytes};
-use crate::events::{EventKind, NULL_HASH, StateActor, StateTarget};
+use crate::events::{
+    EVENT_SCHEMA, EventKind, NULL_HASH, StateActor, StateEvent, StateTarget, compute_event_id,
+};
 pub use crate::principal_capability::PrincipalClass;
 use crate::principal_capability::VerifiedCapabilityClaimV1;
 
@@ -160,6 +162,40 @@ impl AuthorityEventV1 {
     pub fn root(&self) -> Result<String, String> {
         self.validate()?;
         Ok(format!("sha256:{}", sha256_canonical(self)?))
+    }
+
+    /// Recover the transaction-independent semantic event consumed by the
+    /// scientific reducer.
+    ///
+    /// Era-1 authority event IDs cover repository attribution, including the
+    /// transaction ID. Scientific event links such as
+    /// `review.accepted.payload.applied_event_id` must not depend on that
+    /// transaction ID or they create a hash cycle. The reducer identity is
+    /// therefore the ordinary unsigned `StateEvent` identity derived from the
+    /// exact shared semantic fields. The covering authority record remains the
+    /// sole authority for the resulting event bytes.
+    pub fn semantic_state_event(&self) -> Result<StateEvent, String> {
+        self.validate()?;
+        let mut event = StateEvent {
+            schema: EVENT_SCHEMA.into(),
+            id: String::new(),
+            kind: self.content.kind.clone(),
+            target: self.content.target.clone(),
+            actor: self.content.actor.clone(),
+            timestamp: self.content.timestamp.clone(),
+            reason: self.content.reason.clone(),
+            before_hash: self.content.before_hash.clone(),
+            after_hash: self.content.after_hash.clone(),
+            payload: self.content.payload.clone(),
+            caveats: self.content.caveats.clone(),
+            signature: None,
+        };
+        event.id = compute_event_id(&event);
+        Ok(event)
+    }
+
+    pub fn semantic_event_id(&self) -> Result<String, String> {
+        Ok(self.semantic_state_event()?.id)
     }
 
     pub fn validate(&self) -> Result<(), String> {
@@ -778,6 +814,46 @@ mod tests {
         let mut tampered = event.clone();
         tampered.content.transaction_id = "txn_other".into();
         assert!(tampered.validate().is_err());
+    }
+
+    #[test]
+    fn era_one_event_recovers_transaction_independent_reducer_identity() {
+        let content = AuthorityEventContentV1 {
+            transaction_id: "vtx_first".into(),
+            principal_id: "local:device-1|uid:501".into(),
+            authority_mode: AUTHORITY_MODE.into(),
+            kind: EventKind::FindingNoted,
+            target: StateTarget {
+                r#type: "finding".into(),
+                id: "vf_0123456789abcdef".into(),
+            },
+            actor: StateActor {
+                id: "local:device-1|uid:501".into(),
+                r#type: "human".into(),
+            },
+            timestamp: "2026-07-24T12:00:00Z".into(),
+            reason: "Retain the exact scientific annotation.".into(),
+            before_hash: root('a'),
+            after_hash: root('b'),
+            payload: serde_json::json!({"annotation": "bounded"}),
+            caveats: vec!["scope remains exact".into()],
+        };
+        let first = AuthorityEventV1::new(content.clone()).unwrap();
+        let second = AuthorityEventV1::new(AuthorityEventContentV1 {
+            transaction_id: "vtx_second".into(),
+            ..content
+        })
+        .unwrap();
+
+        assert_ne!(first.id, second.id);
+        assert_eq!(
+            first.semantic_event_id().unwrap(),
+            second.semantic_event_id().unwrap()
+        );
+        let semantic = first.semantic_state_event().unwrap();
+        assert_eq!(semantic.id, first.semantic_event_id().unwrap());
+        assert_eq!(semantic.kind, first.content.kind);
+        assert!(semantic.signature.is_none());
     }
 
     #[test]

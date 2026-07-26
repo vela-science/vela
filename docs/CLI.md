@@ -307,15 +307,16 @@ On an Era-0 Frontier, the first `review decide` call is key-free and returns a
 matching `--confirm-root` and `--confirm-at`; only the registered human's exact
 decision-card action authorizes the helper to use the protected key.
 
-On a verified repository-authority Frontier, `review decide --reject` instead
-derives and locks one exact `vela.repository-review-decision.v1` plan, asks the
-platform for fresh user presence, evaluates restricted Cedar, and asks the
-repository authority to sign the covering transaction. It accepts no copied
-confirmation root or timestamp and reads no human Vela key. Cancellation,
-authentication failure, stale state, policy denial, or repository-signing
-failure writes nothing. Repository-authority acceptance is intentionally
-unavailable until accepted scientific-state replay is implemented across the
-dual event logs.
+On a verified repository-authority Frontier, `review decide --accept|--reject`
+instead derives and locks one exact `vela.repository-review-decision.v1` plan,
+asks the platform for fresh user presence, evaluates restricted Cedar, and
+asks the repository authority to sign the covering transaction. It accepts no
+copied confirmation root or timestamp and reads no human Vela key.
+Cancellation, authentication failure, stale state, policy denial, or
+repository-signing failure writes nothing. Accept remains unavailable whenever
+the Decision Brief or strict aggregate Engine gate blocks it; a permitted
+accept installs and replays both the scientific domain event and the explicit
+review event through the dual log.
 
 Neither path accepts a key path, `--yes`, batch, wildcard, or saved-session
 input. `vela sign` remains in advanced help for historical batch sessions and

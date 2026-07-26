@@ -2045,6 +2045,81 @@ fn repository_authority_rejection_drives_proposal_standing_without_legacy_event(
     );
 }
 
+#[test]
+fn repository_authority_acceptance_replays_domain_and_review_without_legacy_events() {
+    use crate::authority::{AUTHORITY_MODE, AuthorityEventContentV1, AuthorityEventV1};
+
+    let (base, proposal) = frontier_with_proposal(vec![]);
+    let decided_at = "2026-07-26T12:05:00Z";
+    let principal = "local:device-fixture|uid:501";
+    let reason = "The exact evidence and bounded caveats support this transition.";
+    let (mut candidate, mut prepared) = prepare_repository_authority_accept_candidate_at(
+        &base,
+        &proposal.id,
+        principal,
+        reason,
+        None,
+        decided_at,
+    )
+    .unwrap();
+    bind_decision_root_to_prepared(
+        &mut candidate,
+        &mut prepared,
+        &format!("sha256:{}", "d".repeat(64)),
+    )
+    .unwrap();
+    let semantic = candidate.events[base.events.len()..].to_vec();
+    assert_eq!(semantic.len(), 2);
+    assert_ne!(prepared.primary_event_id, prepared.decision_event_id);
+
+    let authority_events = semantic
+        .iter()
+        .map(|event| {
+            AuthorityEventV1::new(AuthorityEventContentV1 {
+                transaction_id: "vtx_repository_accept_fixture".into(),
+                principal_id: principal.into(),
+                authority_mode: AUTHORITY_MODE.into(),
+                kind: event.kind.clone(),
+                target: event.target.clone(),
+                actor: event.actor.clone(),
+                timestamp: event.timestamp.clone(),
+                reason: event.reason.clone(),
+                before_hash: event.before_hash.clone(),
+                after_hash: event.after_hash.clone(),
+                payload: event.payload.clone(),
+                caveats: event.caveats.clone(),
+            })
+            .unwrap()
+        })
+        .collect::<Vec<_>>();
+    for (authority, semantic) in authority_events.iter().zip(&semantic) {
+        assert_ne!(authority.id, semantic.id);
+        assert_eq!(authority.semantic_event_id().unwrap(), semantic.id);
+    }
+
+    // Era-1 persistence retains the semantic postimages but never duplicates
+    // the accepted events into the legacy event directory.
+    candidate.events.truncate(base.events.len());
+    assert!(
+        verify_proposal_decision_parity_with_authority(&candidate, &authority_events).is_empty()
+    );
+    let replay = crate::reducer::verify_replay_with_authority(&candidate, &authority_events);
+    assert!(replay.ok, "{:?}", replay.diffs);
+
+    let review_only = authority_events
+        .iter()
+        .filter(|event| event.content.kind == events::EVENT_KIND_REVIEW_ACCEPTED)
+        .cloned()
+        .collect::<Vec<_>>();
+    let conflicts = verify_proposal_decision_parity_with_authority(&candidate, &review_only);
+    assert!(
+        conflicts
+            .iter()
+            .any(|conflict| conflict.contains("missing applied semantic event")),
+        "{conflicts:?}"
+    );
+}
+
 // -- ADR 0003 Slice 4: exact decision binding -----------------------------
 
 fn fixed_decision_fixture() -> (Project, StateProposal, SigningKey) {

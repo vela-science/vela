@@ -138,12 +138,14 @@ writer.
 `vela review decide` is the ordinary human decision ceremony. On Era-0
 Frontiers its key-free preview and matching second phase retain the protected
 personal-key compatibility path. On repository-authority Frontiers,
-`--reject` binds one proposal, action, reason, observation, policy, read set,
-and exact roots, then obtains fresh platform user presence without retrieving
-a human Vela key. Restricted Cedar authorizes the action; the repository
-authority signs the covering transaction. Any drift forces a new plan, and
-cancellation writes nothing. Repository-authority acceptance remains
-unavailable until accepted-state replay is proven across both event logs.
+`--accept|--reject` binds one proposal, action, reason, observation, policy,
+read set, and exact roots, then obtains fresh platform user presence without
+retrieving a human Vela key. Restricted Cedar authorizes the action; the
+repository authority signs the covering transaction. Any drift forces a new
+plan, and cancellation writes nothing. Acceptance additionally requires a
+permitted Decision Brief and strict aggregate Engine gate, then verifies that
+the covered scientific domain event and explicit review event replay together
+across both logs.
 `vela sign` remains advanced-only historical compatibility.
 
 Human acceptance is a statement of scoped judgment, not a claim that every
