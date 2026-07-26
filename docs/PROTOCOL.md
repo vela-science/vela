@@ -1,6 +1,6 @@
 # Vela protocol: current contract
 
-Status: proposed Vela `0.930.0-rc.7` repository-authority candidate. Vela
+Status: proposed Vela `0.930.0-rc.8` repository-authority candidate. Vela
 `0.915.1` remains the released Era-0 replay baseline.
 
 This document defines the small protocol surface that Vela ships now. Git
