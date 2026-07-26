@@ -8,7 +8,7 @@
   operating path.
 - Register the next non-overlapping Erdős 1056 k=15 range
   `10429001..10429200` before any model call. The closed profile root is
-  `sha256:1bb9ef800e61f095845756058c001289ea57225c3067279c2771f97611492ba6`;
+  `sha256:dd04e8fae9fb2ebe6fd58f817551038353f0e6bdfc0dcf956ae815016fa62cb4`;
   its static Linux ARM64 and x86-64 verifier roots are
   `sha256:0bf0a8ae62313904be8bbbd7c662301bb78516c5f2c97a0da79dc43298165c44`
   and
@@ -16,6 +16,11 @@
   The completed `10428801..10429000` registration remains reproducible from
   Canopus `0.7.0` and immutable Git history but is removed from default
   discovery and the package payload.
+- Preserve the first candidate artifact for this range as a verifier-rejected
+  bounded failure, then bind one exact repair attempt to its full artifact
+  root and mismatch reason. The repair reuses the same frozen capsule and
+  range, supplies no verifier answer, and forbids reuse of the rejected
+  numeric result.
 
 ## 0.7.0 - 2026-07-25
 

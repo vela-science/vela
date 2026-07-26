@@ -1,5 +1,5 @@
 {
-  "id": "mission_erdos1056_k15_range_10429001_10429200_repository_authority",
+  "id": "mission_erdos1056_k15_range_10429001_10429200_repair_1",
   "target": "auto",
   "frontier": ".",
   "actor": "agent:canopus-local",
@@ -36,5 +36,7 @@
   "scientific_chain": {
     "predicted_observable": "The frozen verifier independently obtains the same first witness or complete bounded-negative result for all primes in 10429001..10429200 and exits zero on the exact candidate bytes.",
     "performed_test": "capsule/verifier artifacts/erdos1056-k15-range-10429001-10429200.txt"
-  }
+  },
+  "parent_candidate": "sha256:ebbb32d550a774d3afa05261873987a1c8d7e4839b0eebe641a718228d70a2de",
+  "repair_reason": "The first bounded artifact reported primes_tested=11, max_multiplicity=5, best_p=10429021, best_residue=1, but the separately frozen verifier rejected those bytes. Recompute the registered range from scratch, do not reuse any prior numeric result, and add an independent in-workspace cross-check of the selected prime, residue, multiplicity, and cut list before emitting the one allowed artifact."
 }

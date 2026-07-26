@@ -4,7 +4,7 @@
   "target": "erdos:1056",
   "target_packet_schema": "erdos-frontier.problem-work.v1",
   "draft": "missions/erdos1056-k15-next/mission.draft.json",
-  "draft_sha256": "sha256:e009af0337b4eb5133e79558cc67ef1f38ed126cb9f709cf5e89d35028c698d7",
+  "draft_sha256": "sha256:c93a8821e474ef6c5fceabd3265d99d761969c685a4225fce9e36d4ea7ec3164",
   "objective_sha256": "sha256:731f7fcb8fb13bf930bc072ca575f2cb1e95d971fd7835c0b4edae1ff90a5d01",
   "completion_condition_sha256": "sha256:4a4a06e2c867867a191af27900e96c23e677db2775783f1829c31e4867a7f270",
   "allowed_artifacts_sha256": "sha256:535725cf7f7be68fcea4ff0bdcdb84bd330bf6cca70f781412e9c7895981da21",
