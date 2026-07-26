@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## v0.930.0-rc.9 — 2026-07-26 — Repair migrated strict state and producer preflight
+
+- Count only strict blockers in compact status totals. Advisory migration and
+  audit signals remain visible, but they no longer inflate the blocker count
+  or make a migrated Frontier appear more broken than its exact strict state.
+- Preflight repository-authorized producer work before any write. A missing
+  routine producer policy now returns the exact protected administrator repair
+  command while preserving the closed `vela.offer.v1` machine contract.
+- Preserve all canonical Frontier bytes, scientific roots, authority records,
+  and the rc.8 migration boundary. This candidate exists to prove the first
+  useful repository-authority Receipt landing before the stable `0.930.0` cut.
+
 ## v0.930.0-rc.7 — 2026-07-25 — Stabilize generated statistics
 
 - Serialize derived category and link-type counts through ordered maps so
