@@ -857,7 +857,7 @@ fn migration_payload(
         })
 }
 
-fn active_repository_key(
+pub(crate) fn active_repository_key(
     authority: &LoadedRepositoryAuthority,
 ) -> Result<(String, String), String> {
     let sequence = u64::try_from(authority.verification.authority_record_count + 1)
@@ -921,12 +921,14 @@ fn build_authority_intent_request(
         intent_digest: plan.plan_root.clone(),
         current_policy_bundle_root: plan.current_policy_bundle_root.clone(),
         next_policy_bundle_root: plan.next_policy_bundle_root.clone(),
+        resource_id: None,
+        resource_root: None,
     };
     vela_signer::validate_authority_intent_request(&request, Utc::now())?;
     Ok(request)
 }
 
-fn request_authority_intent(
+pub(crate) fn request_authority_intent(
     request: &vela_signer::AuthorityIntentRequest,
 ) -> Result<vela_signer::AuthorityIntentResponse, String> {
     let helper = PathBuf::from(&request.vela_binary_path)
@@ -2062,7 +2064,7 @@ fn request_legacy_signature(
     Ok(response)
 }
 
-fn canonical_whole_second_time(name: &str, value: &str) -> Result<String, String> {
+pub(crate) fn canonical_whole_second_time(name: &str, value: &str) -> Result<String, String> {
     DateTime::parse_from_rfc3339(value)
         .map(|value| {
             value
@@ -2072,7 +2074,7 @@ fn canonical_whole_second_time(name: &str, value: &str) -> Result<String, String
         .map_err(|error| format!("{name} is not RFC3339: {error}"))
 }
 
-fn local_session(observed_at: &str) -> Result<LocalOsSession, String> {
+pub(crate) fn local_session(observed_at: &str) -> Result<LocalOsSession, String> {
     let observed = DateTime::parse_from_rfc3339(observed_at)
         .map_err(|error| format!("local session observation time is invalid: {error}"))?
         .with_timezone(&Utc);

@@ -924,6 +924,27 @@ the scientific root remained
 the private work session was removed, and all pre-existing strict debt
 remained visible.
 
+The next bounded implementation slice replaces migrated rejection's dead
+legacy-key route with one exact provider-authenticated repository transaction.
+The Decision Plan binds the proposal ID and full root, Decision Brief and typed
+binding roots, action, reason, principal, authority head, policy root, and
+binary identity. The platform helper displays that semantic request and returns
+only a bearer-free user-presence observation; it reads no Vela key and signs
+nothing. Restricted Cedar authorizes `review_reject`, and the SSH-agent-backed
+repository authority signs the covering record. The transaction installs one
+`review.rejected` Era-1 event and the matching proposal postimage while using
+null before/after scientific roots. Dual-log proposal parity and terminal
+review projection now consume already-verified repository-authority events.
+
+Focused tests prove exact proposal-root binding, policy non-rotation, response
+substitution refusal, dual-log rejection parity, and unchanged legacy terminal
+decisions. Two live attempts while the workstation was locked returned macOS
+`LAErrorSystemCancel`; both left the Erdős checkout and journal set unchanged.
+This is cancellation evidence, not the required active exceptional-decision
+qualification. Repository-authority acceptance remains deliberately disabled
+until its accepted domain event and review event replay together across both
+logs.
+
 Final `vela-signer` and identity-custody deletion remains blocked until:
 
 1. remaining routine producer landing transactions enter through the

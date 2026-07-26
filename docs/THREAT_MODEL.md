@@ -88,15 +88,19 @@ drifts, confirmation fails and the plan must be rebuilt. The cross-platform
 signer card names the exact action, proposal, frontier, reason, and Decision
 Plan root, so a later caller cannot silently replace the reviewed bytes.
 
-`vela review decide` never retrieves the protected key. After every key-free
-check passes, it starts a pinned one-shot helper over inherited pipes. The
-helper authenticates a bounded signer session, displays the exact card, and
-uses the OS-protected key only after approval. `always` mode adds per-use
-LocalAuthentication, Windows Hello, or non-cached polkit authentication. Agent
-identities are refused. The local trust record pins Vela. Every request binds
-the current sibling helper digest, the helper verifies its own executable, and
-the CLI verifies the response. A process that can rewrite binaries and their
-local trust records remains outside this `user_session` profile.
+On Era-0 Frontiers, `vela review decide` starts the pinned one-shot helper only
+after every key-free check passes; the helper controls use of the protected
+personal key.
+
+On repository-authority Frontiers, the helper is an authentication adapter
+only. It displays the exact action, proposal ID/root, reason, policy root, and
+intent root, obtains fresh platform user presence, and returns a bounded
+bearer-free observation. It reads no Vela key and creates no signature.
+Restricted Cedar authorizes the exact human action, and the repository
+authority signs the complete DSSE transaction after the final read-set check.
+Agent identities are structurally refused for human review. A process that can
+rewrite both the binaries and their local execution environment remains
+outside the local-user-session threat profile.
 
 ### Duplicate or concurrent publication
 

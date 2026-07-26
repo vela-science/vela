@@ -1436,6 +1436,93 @@ pub(crate) fn cmd_review_decide(
     if reason.trim().is_empty() {
         ui::fail_with(ErrorKind::Usage, "--reason must not be empty", None);
     }
+    match crate::repository_decision::is_repository_authority_frontier(&frontier) {
+        Ok(true) => {
+            if confirm_root.is_some() || confirm_at.is_some() {
+                ui::fail_with(
+                    ErrorKind::Usage,
+                    "repository-authority decisions do not accept copied confirmation roots or timestamps",
+                    Some(
+                        "rerun the same exact proposal, action, and reason without --confirm-root or --confirm-at",
+                    ),
+                );
+            }
+            if action == DecisionAction::Accept {
+                ui::fail_with(
+                    ErrorKind::Domain,
+                    "repository-authority acceptance is not enabled until the accepted-state dual-log replay gate lands",
+                    Some(
+                        "reject remains available through one protected provider approval; leave an acceptable proposal pending",
+                    ),
+                );
+            }
+            let observed_at =
+                chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
+            let prepared =
+                crate::repository_decision::prepare_reject(&frontier, id, &reason, &observed_at)
+                    .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
+            if !json {
+                println!(
+                    "review decision · reject · {}",
+                    safe_inline(&prepared.plan.proposal_id)
+                );
+                println!("  frontier: {}", safe_inline(&prepared.plan.frontier_name));
+                println!(
+                    "  claim: {}",
+                    safe_inline(&prepared.review.brief.change.claim)
+                );
+                println!("  reason: {}", safe_inline(&prepared.plan.reason));
+                println!("  authority: platform user presence → repository authority");
+                println!("  scientific state change: none");
+                println!("  requesting one exact operating-system approval");
+            }
+            let result = crate::repository_decision::execute_reject(&frontier, &prepared.plan)
+                .unwrap_or_else(|error| ui::fail_with(ErrorKind::Custody, &error, None));
+            let payload = serde_json::json!({
+                "ok": true,
+                "command": "review.decide",
+                "schema": "vela.review-decision.v2",
+                "frontier": frontier.display().to_string(),
+                "proposal_id": prepared.plan.proposal_id,
+                "proposal_root": prepared.plan.proposal_root,
+                "principal_id": prepared.plan.principal_id,
+                "action": "reject",
+                "reason": prepared.plan.reason,
+                "decision_plan_root": prepared.plan.plan_root,
+                "event_ids": result.event_ids,
+                "authority_record_id": result.authority_record_id,
+                "authority_record_root": result.authority_record_root,
+                "before_event_log_root": result.before_event_log_root,
+                "after_event_log_root": result.after_event_log_root,
+                "scientific_state_changed": false,
+                "authentication": "platform_user_presence",
+                "transaction_signer": "repository_authority",
+                "human_key_read": false,
+            });
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&payload)
+                        .expect("repository decision result JSON")
+                );
+            } else {
+                println!("  · rejected {}", safe_inline(id));
+                println!(
+                    "  · authority record {}",
+                    safe_inline(
+                        payload
+                            .get("authority_record_id")
+                            .and_then(serde_json::Value::as_str)
+                            .unwrap_or("unknown")
+                    )
+                );
+                println!("  · inspect and commit the exact canonical delta");
+            }
+            return;
+        }
+        Ok(false) => {}
+        Err(error) => ui::fail_with(ErrorKind::Domain, &error, None),
+    }
     if confirm_root.is_some() != confirm_at.is_some() {
         ui::fail_with(
             ErrorKind::Usage,

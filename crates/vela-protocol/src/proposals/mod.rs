@@ -4535,6 +4535,21 @@ pub fn proposal_status_from_log(
     proposal_id: &str,
     applied_event_id: Option<&str>,
 ) -> Option<DerivedDecision> {
+    proposal_status_from_logs(frontier, &[], proposal_id, applied_event_id)
+}
+
+/// Derive proposal standing across the immutable legacy event log and the
+/// verified repository-authority event log.
+///
+/// Callers must pass only Authority events whose covering DSSE history has
+/// already verified. Keeping that verification outside this pure reducer
+/// avoids turning a proposal projection into a filesystem or key loader.
+pub fn proposal_status_from_logs(
+    frontier: &Project,
+    authority_events: &[crate::authority::AuthorityEventV1],
+    proposal_id: &str,
+    applied_event_id: Option<&str>,
+) -> Option<DerivedDecision> {
     let mut decisions: Vec<DerivedDecision> = Vec::new();
     for event in &frontier.events {
         let is_review_for_this = event.target.r#type == "proposal"
@@ -4589,6 +4604,41 @@ pub fn proposal_status_from_log(
             });
         }
     }
+    for authority_event in authority_events {
+        let event = &authority_event.content;
+        let is_review_for_this = event.target.r#type == "proposal"
+            && event.target.id == proposal_id
+            && matches!(
+                event.kind.as_str(),
+                events::EVENT_KIND_REVIEW_ACCEPTED
+                    | events::EVENT_KIND_REVIEW_REJECTED
+                    | events::EVENT_KIND_REVIEW_REVISION_REQUESTED
+            );
+        if !is_review_for_this {
+            continue;
+        }
+        let status = match event.kind.as_str() {
+            events::EVENT_KIND_REVIEW_ACCEPTED => "applied",
+            events::EVENT_KIND_REVIEW_REJECTED => "rejected",
+            _ => "needs_revision",
+        };
+        decisions.push(DerivedDecision {
+            status: status.to_string(),
+            reviewer: event.actor.id.clone(),
+            decided_at: event.timestamp.clone(),
+            reason: event.reason.clone(),
+            applied_event_id: if status == "applied" {
+                event
+                    .payload
+                    .get("applied_event_id")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+            } else {
+                None
+            },
+            review_event_id: Some(authority_event.id.clone()),
+        });
+    }
     decisions.sort_by(|a, b| a.decided_at.cmp(&b.decided_at));
     decisions.pop()
 }
@@ -4608,6 +4658,15 @@ pub fn proposal_status_from_log(
 /// And globally:
 ///   - every `review.*` event MUST reference a proposal that exists.
 pub fn verify_proposal_decision_parity(frontier: &Project) -> Vec<String> {
+    verify_proposal_decision_parity_with_authority(frontier, &[])
+}
+
+/// Verify proposal standing against both legacy events and an already
+/// verified repository-authority event history.
+pub fn verify_proposal_decision_parity_with_authority(
+    frontier: &Project,
+    authority_events: &[crate::authority::AuthorityEventV1],
+) -> Vec<String> {
     let mut conflicts = Vec::new();
     let mut proposal_ids = BTreeSet::new();
 
@@ -4623,8 +4682,12 @@ pub fn verify_proposal_decision_parity(frontier: &Project) -> Vec<String> {
             conflicts.push(format!("proposal {} occurs more than once", proposal.id));
         }
 
-        let derived =
-            proposal_status_from_log(frontier, &proposal.id, proposal.applied_event_id.as_deref());
+        let derived = proposal_status_from_logs(
+            frontier,
+            authority_events,
+            &proposal.id,
+            proposal.applied_event_id.as_deref(),
+        );
         match proposal.status.as_str() {
             "pending_review" => {
                 if let Some(d) = derived {
@@ -4707,6 +4770,20 @@ pub fn verify_proposal_decision_parity(frontier: &Project) -> Vec<String> {
             conflicts.push(format!(
                 "review event {} targets proposal {} which does not exist in the frontier",
                 event.id, event.target.id
+            ));
+        }
+    }
+    for event in authority_events {
+        if matches!(
+            event.content.kind.as_str(),
+            events::EVENT_KIND_REVIEW_ACCEPTED
+                | events::EVENT_KIND_REVIEW_REJECTED
+                | events::EVENT_KIND_REVIEW_REVISION_REQUESTED
+        ) && !proposal_ids.contains(event.content.target.id.as_str())
+        {
+            conflicts.push(format!(
+                "repository-authority review event {} targets proposal {} which does not exist in the frontier",
+                event.id, event.content.target.id
             ));
         }
     }

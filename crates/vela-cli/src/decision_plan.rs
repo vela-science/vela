@@ -1585,7 +1585,7 @@ fn acquire_barrier_with_recovery(
     ))
 }
 
-fn decision_read_set(
+pub(crate) fn decision_read_set(
     frontier: &Path,
     project: &Project,
     review: &LockedReviewSelection,

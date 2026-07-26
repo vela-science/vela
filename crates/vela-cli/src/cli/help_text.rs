@@ -47,7 +47,7 @@ The four exact roots are all-or-nothing whole-Receipt-bound evidence. They do
 not grant authority; only a matching signed v0.2 policy can Permit that result.
 
 SEE ALSO
-  vela review decide   approve one exact deferred proposal";
+  vela review decide   decide one exact deferred proposal";
 
 pub const SIGN: &str = "\
 EXAMPLES

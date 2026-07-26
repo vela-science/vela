@@ -135,13 +135,16 @@ writer.
 
 ## Human decision
 
-`vela review decide` is the ordinary human decision ceremony. Its key-free
-phase renders one exact Decision Brief and binds one proposal, action, reason,
-observation time, accepted base, and policy. Its matching second phase rechecks
-all inputs before starting the one-shot signer helper on macOS, Windows, or
-Linux. The human authorizes the exact card; a short platform-authenticated
-session only controls key use. Any drift forces a new plan. `vela sign` remains
-advanced-only historical compatibility.
+`vela review decide` is the ordinary human decision ceremony. On Era-0
+Frontiers its key-free preview and matching second phase retain the protected
+personal-key compatibility path. On repository-authority Frontiers,
+`--reject` binds one proposal, action, reason, observation, policy, read set,
+and exact roots, then obtains fresh platform user presence without retrieving
+a human Vela key. Restricted Cedar authorizes the action; the repository
+authority signs the covering transaction. Any drift forces a new plan, and
+cancellation writes nothing. Repository-authority acceptance remains
+unavailable until accepted-state replay is proven across both event logs.
+`vela sign` remains advanced-only historical compatibility.
 
 Human acceptance is a statement of scoped judgment, not a claim that every
 possible property was verified. The decision record should retain the relevant

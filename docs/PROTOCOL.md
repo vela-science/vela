@@ -54,13 +54,15 @@ Vela separates capabilities that other systems often collapse.
 | Producer or agent | inspect state, claim a work lease, run tools, emit a Receipt, land evidence, draft a correction | accept, reject, revise, sign as a human, or invent a policy certificate |
 | Verifier | evaluate exact bytes under a named method and emit a bound result | decide significance, acceptance, or authorship |
 | Signed policy | permit only the bounded class and causal state named by a prior human ceremony | widen its own scope, treat model output as authority, or sign new policy |
-| Human key holder | approve one exact accept/reject through protected `review decide`; sign and revoke policy | delegate the private key or OS approval to an agent or unsigned service |
+| Human principal | approve one exact exceptional decision through protected `review decide`; administer repository policy when authorized | delegate OS approval to an agent, turn authentication into a verdict, or bypass repository authorization |
 | Git host | preserve and transport commits and refs | turn a commit, merge, or pull request into scientific acceptance |
 | Derived reader | clone configured Git sources, verify them, and serve read projections | register canonical state through a public write API, sign, accept, store witness authority, or mutate a frontier |
 
-Key custody is the trust boundary. A model may help prepare review material,
-but no model, browser, MCP tool, reader process, or background worker belongs in
-the human signing path. Human finalization is terminal-only.
+Authority custody and authenticated human intent are separate trust
+boundaries. A model may help prepare review material and invoke an exact
+request, but no model, browser, MCP tool, reader process, or background worker
+may approve the human action or hold repository authority. Human finalization
+is terminal-only.
 
 ## 3. Canonical bytes and identifiers
 
@@ -537,10 +539,14 @@ normalized. Formal, Sidon, Quantum, and Erdős have now installed this
 sequence-1 boundary without changing their scientific roots. Once
 `authority.model_migrated` is present, every legacy producer, administrator,
 actor-registry, first-boundary, decision-preview, and historical-sign writer
-fails before a journal, prompt, or key read. The candidate intentionally
-exposes no ordinary Era-1 writer yet, so migrated Frontiers remain readable
-but not writable until the remaining ADR 0020 authentication, policy-source,
-and product gates pass. Era-0 verification remains required throughout.
+fails before a journal, prompt, or key read. The candidate now exposes bounded
+Era-1 writers for exact signed-agent leases, Receipt-bound pending submissions,
+and human `review_reject`. The last path obtains one bearer-free platform
+user-presence observation, evaluates restricted Cedar, and uses the repository
+authority as the sole transaction signer; it reads no personal Vela key and
+changes no scientific root. Repository-authority acceptance remains
+fail-closed until accepted-state replay spans both event logs. Era-0
+verification remains required throughout.
 
 The complete core lifecycle drill now uses one disposable Frontier
 to install the legacy bridge, perform an ordinary Era-1 decision, rotate the
@@ -685,28 +691,32 @@ vela review decide <frontier> <vpr_id> --accept|--reject --reason <text>
 
 The ceremony renders a Decision Brief from canonical frontier state. Internally
 it prepares a content-addressed Decision Plan that binds the proposal, current
-event-log root, evidence roots, policy facts, semantic effect, actor key, and
-ordered event intents. The Decision Plan is private process plumbing, not a new
-authority object.
+event-log roots, evidence roots, policy facts, semantic effect, authenticated
+principal, and ordered event intents. The Decision Plan is private process
+plumbing, not a new authority object.
 
 Any change to the proposal, frontier head, evidence, policy, actor registry, or
-semantic effect invalidates the prepared decision. The first invocation is
-key-free and returns `vela.review-decision.v1` with the exact brief, action,
-reason, observation time, and Decision Plan root. A second invocation must echo
-the matching `--confirm-root` and `--confirm-at`. Only after the plan is
-rederived under the frontier transaction barrier and the installed binary pin
-matches does Vela start the pinned one-shot signer helper. The helper uses the
-platform store on macOS, Windows, or Linux and displays one exact decision
-card. The card names the claim, decisive facts, rationale, consequence, and
-requester with action-specific buttons; full custody and root data remain in
-the machine request. Its short authentication session never approves proposal
-semantics. Identity v2 pins the exact CLI/helper pair; moving either pin or
-changing authentication mode requires one authenticated, key-signed local
-rebind. Interrupted enrollment can resume only with its recorded pair. The
-protected path has no key-path, batch, wildcard, saved-answer, `--yes`, or
-persistent-approval input. Acceptance, rejection, and revision requests leave signed
-append-only decision events. Acceptance also installs the corresponding domain
-event in the same transaction.
+semantic effect invalidates the prepared decision.
+
+Era-0 remains the historical two-phase path: a key-free preview returns
+`vela.review-decision.v1`, and execution echoes its root and observation time
+before the protected personal key may sign.
+
+After repository-authority migration, rejection is a single semantic request
+with no copied root or timestamp. Vela rederives the plan under the authority
+barrier, verifies the binary/helper pair, and asks the platform for fresh user
+presence over the exact action, proposal ID/root, reason, policy root, and
+intent root. The response is bearer-free and cannot authorize a different
+request. Restricted Cedar must permit the local human principal's
+`review_reject` action. The repository authority—not the human identity—then
+signs the DSSE transaction covering the append-only `review.rejected` event
+and proposal postimage. Cancellation and drift write nothing. The protected
+path has no key-path, batch, wildcard, saved-answer, `--yes`, or persistent
+approval input.
+
+Repository-authority acceptance is not enabled by analogy. It must install and
+replay both the accepted scientific domain event and the review decision across
+the dual history before the command becomes available.
 
 A signed policy uses the same causal discipline. It can permit a predeclared
 class without a per-item human ceremony, but only while its ID, signature,

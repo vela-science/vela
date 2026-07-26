@@ -1973,6 +1973,78 @@ fn parity_flags_hand_edited_terminal_decision_fields() {
     );
 }
 
+#[test]
+fn repository_authority_rejection_drives_proposal_standing_without_legacy_event() {
+    use crate::authority::{AUTHORITY_MODE, AuthorityEventContentV1, AuthorityEventV1};
+
+    let (mut project, proposal) = frontier_with_proposal(vec![]);
+    let decided_at = "2026-07-26T12:00:00Z";
+    let reason = "The retained evidence is insufficient for scientific acceptance.";
+    let event = AuthorityEventV1::new(AuthorityEventContentV1 {
+        transaction_id: "vat_fixture_review_reject".into(),
+        principal_id: "local:device-fixture|uid:501".into(),
+        authority_mode: AUTHORITY_MODE.into(),
+        kind: crate::events::EventKind::ReviewRejected,
+        target: StateTarget {
+            r#type: "proposal".into(),
+            id: proposal.id.clone(),
+        },
+        actor: StateActor {
+            r#type: "human".into(),
+            id: "local:device-fixture|uid:501".into(),
+        },
+        timestamp: decided_at.into(),
+        reason: reason.into(),
+        before_hash: events::NULL_HASH.into(),
+        after_hash: events::NULL_HASH.into(),
+        payload: json!({
+            "proposal_id": proposal.id,
+            "proposal_kind": proposal.kind,
+            "verdict": "rejected",
+        }),
+        caveats: Vec::new(),
+    })
+    .unwrap();
+    let stored = project
+        .proposals
+        .iter_mut()
+        .find(|candidate| candidate.id == proposal.id)
+        .unwrap();
+    stored.status = "rejected".into();
+    stored.reviewed_by = Some("local:device-fixture|uid:501".into());
+    stored.reviewed_at = Some(decided_at.into());
+    stored.decision_reason = Some(reason.into());
+
+    assert!(
+        project.events.iter().all(|event| !matches!(
+            event.kind.as_str(),
+            events::EVENT_KIND_REVIEW_ACCEPTED
+                | events::EVENT_KIND_REVIEW_REJECTED
+                | events::EVENT_KIND_REVIEW_REVISION_REQUESTED
+        )),
+        "the repository-authority decision must not require a duplicate legacy review event"
+    );
+    assert!(
+        verify_proposal_decision_parity_with_authority(&project, std::slice::from_ref(&event))
+            .is_empty()
+    );
+    let derived =
+        proposal_status_from_logs(&project, std::slice::from_ref(&event), &proposal.id, None)
+            .unwrap();
+    assert_eq!(derived.status, "rejected");
+    assert_eq!(derived.review_event_id.as_deref(), Some(event.id.as_str()));
+
+    project.proposals[0].status = "pending_review".into();
+    let conflicts =
+        verify_proposal_decision_parity_with_authority(&project, std::slice::from_ref(&event));
+    assert!(
+        conflicts
+            .iter()
+            .any(|conflict| conflict.contains("stored pending_review")),
+        "{conflicts:?}"
+    );
+}
+
 // -- ADR 0003 Slice 4: exact decision binding -----------------------------
 
 fn fixed_decision_fixture() -> (Project, StateProposal, SigningKey) {

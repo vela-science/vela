@@ -47,10 +47,14 @@ signature proves control of one registered key over one canonical input; it
 does not prove scientific truth. Git publication and verifier success are
 also not acceptance.
 
-Human keys remain behind the protected operating-system signer. An agent may
-prepare and invoke an exact request, but it may not approve the OS card, read
-the seed, use a legacy file key autonomously, or claim the request itself
-changed standing.
+Before repository-authority migration, human keys remain behind the protected
+operating-system signer for historical Era-0 writes. An agent may prepare and
+invoke an exact request, but it may not approve the OS card, read the seed, use
+a legacy file key autonomously, or claim the request itself changed standing.
+After migration, exceptional review uses platform user presence only: the
+provider returns a bearer-free authentication observation, Cedar authorizes the
+exact action, and the repository authority signs the covering transaction.
+The provider never retrieves or signs with a personal Vela key.
 
 ## Enable routine producer work after migration
 
@@ -95,6 +99,26 @@ not the scientific identity. `vela id lock` closes the bounded local approval
 session without changing a Frontier or deleting the protected identity.
 
 ## Exact protected decisions
+
+On a repository-authority Frontier, rejection is one exact request:
+
+```bash
+vela review decide . <vpr_id> --reject --reason "<reason>" --json
+```
+
+Vela derives and locks the proposal, reason, Decision Brief, policy, local
+issuer-subject principal, binary/helper pair, read set, and Decision Plan
+before asking the platform for one user-presence approval. The approval request
+names the action, proposal, proposal root, policy root, reason, and intent
+root. A successful provider response contains no credential and grants no
+reusable approval. Cedar must separately permit `review_reject` for that
+principal and proposal; the repository-authority DSSE record then covers the
+new `review.rejected` event and proposal postimage. Rejection changes no
+scientific root.
+
+Repository-authority acceptance remains fail-closed until its accepted-state
+domain event and review event both replay through the dual-log reducer. Leaving
+an acceptable proposal pending is correct until that gate closes.
 
 Era-0 review decisions remain two phase while selected frontiers complete
 repository-authority migration:

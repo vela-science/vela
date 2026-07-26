@@ -179,7 +179,17 @@ pub(crate) fn cmd_check(
         // proposal with no `review.rejected` event behind it is a
         // decision with no tamper-evident record — the silent-drop vector.
         // This makes the mutable `status` field a verified projection.
-        let parity_conflicts = vela_protocol::proposals::verify_proposal_decision_parity(&frontier);
+        let authority_events =
+            crate::cli::load_repository_authority(frontier_dir_for_source(src), &frontier)
+                .ok()
+                .flatten()
+                .map(|authority| authority.history.authority_events)
+                .unwrap_or_default();
+        let parity_conflicts =
+            vela_protocol::proposals::verify_proposal_decision_parity_with_authority(
+                &frontier,
+                &authority_events,
+            );
         println!(
             "review-decision parity: {}",
             repository_context.as_ref().map_or_else(

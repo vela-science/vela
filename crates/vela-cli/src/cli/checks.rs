@@ -472,9 +472,23 @@ pub(crate) fn check_json_payload_with_home(
     }
     // Review-decision parity: a stored proposal status with no signed,
     // replayable decision event behind it is a tamper-evidence failure.
+    let authority_events = loaded
+        .as_ref()
+        .and_then(|frontier| {
+            crate::cli::load_repository_authority(frontier_dir_for_source(src), frontier)
+                .ok()
+                .flatten()
+        })
+        .map(|authority| authority.history.authority_events)
+        .unwrap_or_default();
     let parity_conflicts: Vec<String> = loaded
         .as_ref()
-        .map(vela_protocol::proposals::verify_proposal_decision_parity)
+        .map(|frontier| {
+            vela_protocol::proposals::verify_proposal_decision_parity_with_authority(
+                frontier,
+                &authority_events,
+            )
+        })
         .unwrap_or_default();
     // A verified pinned boundary may retain proposal IDs created under an
     // older logical-ID preimage. The repository write gate has already proved

@@ -35,6 +35,10 @@ pub struct AuthorityIntentRequest {
     pub intent_digest: String,
     pub current_policy_bundle_root: String,
     pub next_policy_bundle_root: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource_root: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,11 +98,36 @@ pub fn validate_authority_intent_request(
     ] {
         require_text(name, value)?;
     }
-    if request.action != vela_protocol::authority_history::POLICY_ROTATE_ACTION {
-        return Err("authority intent helper accepts only policy_rotate".into());
-    }
-    if request.current_policy_bundle_root == request.next_policy_bundle_root {
-        return Err("authority intent must change the policy bundle".into());
+    match request.action.as_str() {
+        vela_protocol::authority_history::POLICY_ROTATE_ACTION => {
+            if request.current_policy_bundle_root == request.next_policy_bundle_root {
+                return Err("policy rotation intent must change the policy bundle".into());
+            }
+            if request.resource_id.is_some() || request.resource_root.is_some() {
+                return Err("policy rotation intent cannot carry a proposal resource".into());
+            }
+        }
+        "review_accept" | "review_reject" => {
+            if request.current_policy_bundle_root != request.next_policy_bundle_root {
+                return Err("review intent cannot rotate the policy bundle".into());
+            }
+            let resource_id = request
+                .resource_id
+                .as_deref()
+                .ok_or_else(|| "review intent requires an exact proposal id".to_string())?;
+            let resource_root = request
+                .resource_root
+                .as_deref()
+                .ok_or_else(|| "review intent requires an exact proposal root".to_string())?;
+            require_text("resource_id", resource_id)?;
+            require_sha256("resource_root", resource_root)?;
+        }
+        _ => {
+            return Err(
+                "authority intent helper accepts only policy_rotate, review_accept, or review_reject"
+                    .into(),
+            );
+        }
     }
     if file_sha256(Path::new(&request.vela_binary_path))? != request.vela_binary_sha256 {
         return Err("pinned Vela binary digest does not match authority intent".into());
@@ -130,6 +159,23 @@ pub fn validate_authority_intent_response(
 }
 
 pub fn authority_intent_prompt(request: &AuthorityIntentRequest) -> String {
+    if matches!(request.action.as_str(), "review_accept" | "review_reject") {
+        let action = if request.action == "review_accept" {
+            "Accept"
+        } else {
+            "Reject"
+        };
+        return format!(
+            "Authorize Vela review decision for {}?\n\nAction\n{} proposal {}\n\nReason\n{}\n\nProposal root {}\nPolicy {}\nIntent {}",
+            request.frontier_name,
+            action,
+            request.resource_id.as_deref().unwrap_or("invalid"),
+            request.reason,
+            short_root(request.resource_root.as_deref().unwrap_or("invalid")),
+            short_root(&request.current_policy_bundle_root),
+            short_root(&request.intent_digest),
+        );
+    }
     format!(
         "Authorize Vela policy change for {}?\n\nAction\nEnable signed-agent work leases\n\nWhat this permits\nAgents may claim, refresh, and release exact work leases after signing their own event.\n\nWhat this does not permit\nScientific acceptance, review decisions, policy administration, key rotation, or historical rewrites.\n\nReason\n{}\n\nCurrent policy {}\nNext policy {}\nIntent {}",
         request.frontier_name,
@@ -223,6 +269,8 @@ mod tests {
             intent_digest: format!("sha256:{}", "b".repeat(64)),
             current_policy_bundle_root: format!("sha256:{}", "c".repeat(64)),
             next_policy_bundle_root: format!("sha256:{}", "d".repeat(64)),
+            resource_id: None,
+            resource_root: None,
         }
     }
 
@@ -250,5 +298,25 @@ mod tests {
         let mut drifted = response;
         drifted.principal_id = "local:other|uid:501".into();
         assert!(validate_authority_intent_response(&request, &drifted).is_err());
+    }
+
+    #[test]
+    fn exact_review_intent_binds_proposal_without_rotating_policy() {
+        let now = Utc::now();
+        let mut request = request(now);
+        request.action = "review_reject".into();
+        request.next_policy_bundle_root = request.current_policy_bundle_root.clone();
+        request.resource_id = Some("vpr_0123456789abcdef".into());
+        request.resource_root = Some(format!("sha256:{}", "e".repeat(64)));
+        validate_authority_intent_request(&request, now).unwrap();
+        let prompt = authority_intent_prompt(&request);
+        assert!(prompt.contains("Reject proposal vpr_0123456789abcdef"));
+        assert!(prompt.contains(&format!(
+            "Proposal root {}",
+            short_root(request.resource_root.as_deref().unwrap())
+        )));
+
+        request.resource_root = None;
+        assert!(validate_authority_intent_request(&request, now).is_err());
     }
 }

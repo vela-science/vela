@@ -713,15 +713,25 @@ fn build_terminal_review_record(
     project: &Project,
     proposal: &StateProposal,
 ) -> Result<TerminalReviewRecord, ReviewProjectionError> {
-    let parity = vela_protocol::proposals::verify_proposal_decision_parity(project);
+    let repository_authority = crate::cli::load_repository_authority(frontier, project)
+        .map_err(|error| ReviewProjectionError::new("repository_authority_invalid", error))?;
+    let authority_events = repository_authority
+        .as_ref()
+        .map(|authority| authority.history.authority_events.as_slice())
+        .unwrap_or_default();
+    let parity = vela_protocol::proposals::verify_proposal_decision_parity_with_authority(
+        project,
+        authority_events,
+    );
     if !parity.is_empty() {
         return Err(ReviewProjectionError::new(
             "decision_parity_invalid",
             parity.join("; "),
         ));
     }
-    let derived = vela_protocol::proposals::proposal_status_from_log(
+    let derived = vela_protocol::proposals::proposal_status_from_logs(
         project,
+        authority_events,
         &proposal.id,
         proposal.applied_event_id.as_deref(),
     )
@@ -753,63 +763,132 @@ fn build_terminal_review_record(
                 format!("proposal {} has no exact terminal event id", proposal.id),
             )
         })?;
-    let mut matches = project
+    let legacy_matches = project
         .events
         .iter()
-        .filter(|event| event.id == decision_event_id);
-    let event = matches.next().ok_or_else(|| {
-        ReviewProjectionError::new(
-            "terminal_decision_missing",
-            format!("decision event {decision_event_id} was not found"),
-        )
-    })?;
-    if matches.next().is_some() {
+        .filter(|event| event.id == decision_event_id)
+        .collect::<Vec<_>>();
+    let authority_matches = authority_events
+        .iter()
+        .filter(|event| event.id == decision_event_id)
+        .collect::<Vec<_>>();
+    if legacy_matches.len() + authority_matches.len() != 1 {
         return Err(ReviewProjectionError::new(
             "terminal_decision_ambiguous",
-            format!("decision event {decision_event_id} occurs more than once"),
+            format!(
+                "decision event {decision_event_id} occurs {} times across verified logs",
+                legacy_matches.len() + authority_matches.len()
+            ),
         ));
     }
-    if vela_protocol::events::compute_event_id(event) != event.id {
-        return Err(ReviewProjectionError::new(
-            "decision_event_id_mismatch",
-            format!("decision event {} does not rederive", event.id),
-        ));
-    }
-
-    match event.kind.as_str() {
-        vela_protocol::events::EVENT_KIND_REVIEW_ACCEPTED
-        | vela_protocol::events::EVENT_KIND_REVIEW_REJECTED
-        | vela_protocol::events::EVENT_KIND_REVIEW_REVISION_REQUESTED => {
-            let actor = vela_protocol::proposals::validate_human_reviewer_authority_at(
-                project,
-                &event.actor.id,
-                &event.timestamp,
-            )
-            .map_err(|error| ReviewProjectionError::new("decision_authority_invalid", error))?;
-            let valid = vela_protocol::sign::verify_event_signature(event, &actor.public_key)
-                .map_err(|error| ReviewProjectionError::new("decision_signature_invalid", error))?;
-            if !valid {
-                return Err(ReviewProjectionError::new(
-                    "decision_signature_invalid",
-                    format!("decision event {} signature does not verify", event.id),
-                ));
-            }
+    let (
+        event_id,
+        event_root,
+        event_kind,
+        event_actor,
+        event_timestamp,
+        event_reason,
+        event_before_hash,
+        event_after_hash,
+        event_payload,
+        signature_status,
+    ) = if let Some(event) = legacy_matches.first() {
+        if vela_protocol::events::compute_event_id(event) != event.id {
+            return Err(ReviewProjectionError::new(
+                "decision_event_id_mismatch",
+                format!("decision event {} does not rederive", event.id),
+            ));
         }
-        vela_protocol::events::EVENT_KIND_PROPOSAL_WITHDRAWN => {
-            vela_protocol::proposals::verify_proposal_withdrawal_event(frontier, project, event)
+        match event.kind.as_str() {
+            vela_protocol::events::EVENT_KIND_REVIEW_ACCEPTED
+            | vela_protocol::events::EVENT_KIND_REVIEW_REJECTED
+            | vela_protocol::events::EVENT_KIND_REVIEW_REVISION_REQUESTED => {
+                let actor = vela_protocol::proposals::validate_human_reviewer_authority_at(
+                    project,
+                    &event.actor.id,
+                    &event.timestamp,
+                )
+                .map_err(|error| ReviewProjectionError::new("decision_authority_invalid", error))?;
+                let valid = vela_protocol::sign::verify_event_signature(event, &actor.public_key)
+                    .map_err(|error| {
+                    ReviewProjectionError::new("decision_signature_invalid", error)
+                })?;
+                if !valid {
+                    return Err(ReviewProjectionError::new(
+                        "decision_signature_invalid",
+                        format!("decision event {} signature does not verify", event.id),
+                    ));
+                }
+            }
+            vela_protocol::events::EVENT_KIND_PROPOSAL_WITHDRAWN => {
+                vela_protocol::proposals::verify_proposal_withdrawal_event(
+                    frontier, project, event,
+                )
                 .map_err(|error| {
                     ReviewProjectionError::new("withdrawal_signature_invalid", error)
                 })?;
+            }
+            _ if derived.review_event_id.is_none()
+                && derived.applied_event_id.as_deref() == Some(event.id.as_str()) => {}
+            other => {
+                return Err(ReviewProjectionError::new(
+                    "terminal_decision_kind_invalid",
+                    format!("event {} has unsupported terminal kind {other}", event.id),
+                ));
+            }
         }
-        _ if derived.review_event_id.is_none()
-            && derived.applied_event_id.as_deref() == Some(event.id.as_str()) => {}
-        other => {
+        (
+            event.id.clone(),
+            format!(
+                "sha256:{}",
+                vela_protocol::canonical::sha256_canonical(event)
+                    .map_err(|error| ReviewProjectionError::new("decision_root_failed", error))?
+            ),
+            event.kind.as_str().to_string(),
+            event.actor.id.clone(),
+            event.timestamp.clone(),
+            event.reason.clone(),
+            event.before_hash.clone(),
+            event.after_hash.clone(),
+            event.payload.clone(),
+            if event.signature.is_some() {
+                "verified"
+            } else {
+                "historical_unavailable"
+            },
+        )
+    } else {
+        let event = authority_matches[0];
+        if !matches!(
+            event.content.kind,
+            vela_protocol::events::EventKind::ReviewAccepted
+                | vela_protocol::events::EventKind::ReviewRejected
+                | vela_protocol::events::EventKind::ReviewRevisionRequested
+        ) {
             return Err(ReviewProjectionError::new(
                 "terminal_decision_kind_invalid",
-                format!("event {} has unsupported terminal kind {other}", event.id),
+                format!(
+                    "repository-authority event {} has unsupported terminal kind {}",
+                    event.id,
+                    event.content.kind.as_str()
+                ),
             ));
         }
-    }
+        (
+            event.id.clone(),
+            event
+                .root()
+                .map_err(|error| ReviewProjectionError::new("decision_root_failed", error))?,
+            event.content.kind.as_str().to_string(),
+            event.content.actor.id.clone(),
+            event.content.timestamp.clone(),
+            event.content.reason.clone(),
+            event.content.before_hash.clone(),
+            event.content.after_hash.clone(),
+            event.content.payload.clone(),
+            "repository_authority_verified",
+        )
+    };
 
     let current_record_root = format!(
         "sha256:{}",
@@ -826,11 +905,6 @@ fn build_terminal_review_record(
         "sha256:{}",
         vela_protocol::canonical::sha256_canonical(&pending_proposal)
             .map_err(|error| ReviewProjectionError::new("proposal_root_failed", error))?
-    );
-    let event_root = format!(
-        "sha256:{}",
-        vela_protocol::canonical::sha256_canonical(event)
-            .map_err(|error| ReviewProjectionError::new("decision_root_failed", error))?
     );
     let claim = proposal
         .payload
@@ -864,8 +938,7 @@ fn build_terminal_review_record(
         .collect::<Vec<_>>();
     artifact_roots.sort();
     artifact_roots.dedup();
-    let decision_input_refs = event
-        .payload
+    let decision_input_refs = event_payload
         .pointer("/provenance/input_refs")
         .and_then(serde_json::Value::as_array)
         .into_iter()
@@ -892,20 +965,16 @@ fn build_terminal_review_record(
             caveats: proposal.caveats.clone(),
         },
         decision: TerminalDecisionRecord {
-            event_id: event.id.clone(),
+            event_id,
             event_root,
-            kind: event.kind.as_str().to_string(),
-            actor: event.actor.id.clone(),
-            recorded_at: event.timestamp.clone(),
-            reason: event.reason.clone(),
-            before_scientific_root: event.before_hash.clone(),
-            after_scientific_root: event.after_hash.clone(),
-            scientific_state_changed: event.before_hash != event.after_hash,
-            signature: if event.signature.is_some() {
-                "verified"
-            } else {
-                "historical_unavailable"
-            },
+            kind: event_kind,
+            actor: event_actor,
+            recorded_at: event_timestamp,
+            reason: event_reason,
+            before_scientific_root: event_before_hash.clone(),
+            after_scientific_root: event_after_hash.clone(),
+            scientific_state_changed: event_before_hash != event_after_hash,
+            signature: signature_status,
             applied_event_id: derived.applied_event_id,
             decision_input_refs,
         },

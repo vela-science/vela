@@ -302,12 +302,24 @@ It returns the pending Decision Brief or signed terminal decision record in one
 read. Rejected proposal findings are intentionally absent from accepted
 `finding show` and `log` views; that absence is not deletion.
 
-The first `review decide` call is key-free and returns a
+On an Era-0 Frontier, the first `review decide` call is key-free and returns a
 `vela.review-decision.v1` preview. Codex may invoke the second call with the
 matching `--confirm-root` and `--confirm-at`; only the registered human's exact
-decision-card action authorizes the helper to use the protected key. The command accepts no key
-path, `--yes`, batch, wildcard, or saved-session input. `vela sign` remains in
-advanced help for historical batch sessions and detached files.
+decision-card action authorizes the helper to use the protected key.
+
+On a verified repository-authority Frontier, `review decide --reject` instead
+derives and locks one exact `vela.repository-review-decision.v1` plan, asks the
+platform for fresh user presence, evaluates restricted Cedar, and asks the
+repository authority to sign the covering transaction. It accepts no copied
+confirmation root or timestamp and reads no human Vela key. Cancellation,
+authentication failure, stale state, policy denial, or repository-signing
+failure writes nothing. Repository-authority acceptance is intentionally
+unavailable until accepted scientific-state replay is implemented across the
+dual event logs.
+
+Neither path accepts a key path, `--yes`, batch, wildcard, or saved-session
+input. `vela sign` remains in advanced help for historical batch sessions and
+detached files.
 
 AcceptancePolicy is now a frozen Era-0 compatibility format. Its retained
 bytes, signatures, policy heads, and admissions remain inspectable:
