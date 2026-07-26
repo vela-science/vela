@@ -1364,12 +1364,10 @@ fn initial_policy_bundle_at_with_routine_work(
             } else {
                 "Preserve the exact translated automatic lane; one local human principal may decide reviews and administer repository authority.".into()
             }
+        } else if include_routine_work {
+            "No automatic scientific admission; signed agents may coordinate exact work leases; one local human principal may decide reviews and administer repository authority.".into()
         } else {
-            if include_routine_work {
-                "No automatic scientific admission; signed agents may coordinate exact work leases; one local human principal may decide reviews and administer repository authority.".into()
-            } else {
-                "No automatic scientific admission; one local human principal may decide reviews and administer repository authority.".into()
-            }
+            "No automatic scientific admission; one local human principal may decide reviews and administer repository authority.".into()
         },
     };
     let authorization = CedarEvaluationInput {

@@ -2944,7 +2944,10 @@ pub(crate) fn land(
     revalidate_receipt_target_task_binding(frontier, &original, receipt)?;
     let expected_event_hash = vela_protocol::events::event_log_hash(&original.events);
     let expected_event_root = format!("sha256:{expected_event_hash}");
-    let fixed_time = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    // Policy decisions must be strictly later than every causal parent. Keep
+    // sub-second precision: fixtures and fast local workflows can append the
+    // parent and evaluate the policy within the same wall-clock second.
+    let fixed_time = chrono::Utc::now().to_rfc3339();
     let PreparedArtifacts {
         records: record_artifacts,
         writes: artifact_writes,

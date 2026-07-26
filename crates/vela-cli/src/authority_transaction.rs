@@ -1559,10 +1559,12 @@ pub(crate) fn authority_policy_path(root: &str) -> Result<String, AuthorityTrans
     ))
 }
 
+pub(crate) type AuthorityPolicyMaterialSnapshot = (String, &'static str, Vec<u8>);
+
 pub(crate) fn authority_policy_material_snapshots(
     bundle: &PolicyBundleV1,
     material: &CedarPolicyMaterial,
-) -> Result<Vec<(String, &'static str, Vec<u8>)>, AuthorityTransactionError> {
+) -> Result<Vec<AuthorityPolicyMaterialSnapshot>, AuthorityTransactionError> {
     material
         .validate_against(bundle)
         .map_err(AuthorityTransactionError::Invalid)?;
