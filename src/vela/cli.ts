@@ -76,6 +76,7 @@ export interface VelaClientOptions {
   expectedVersion: string;
   expectedSha256: string;
   home: string;
+  repositoryAuthorityAgentSocket?: string;
   maxOutputBytes?: number;
   timeoutMs?: number;
   runner?: CommandRunner;
@@ -472,11 +473,28 @@ export class VelaClient {
     this.#home = options.home;
     this.#maxOutputBytes = options.maxOutputBytes ?? 16 * 1024 * 1024;
     this.#timeoutMs = options.timeoutMs ?? DEFAULT_VELA_COMMAND_TIMEOUT_MS;
-    // Deliberately do not accept caller-supplied environment entries. In
-    // particular, this prevents a harness integration from forwarding human
-    // key variables into the Vela control lane. Agent actors auto-mint only an
-    // agent session key beneath this isolated HOME.
-    this.#env = isolatedEnvironment(options.home);
+    // The control lane accepts only the standard repository-authority agent
+    // socket. It never accepts caller-supplied environment entries or key
+    // bytes, and this environment is not reused by the Codex worker or
+    // verifier.
+    const baseEnvironment = isolatedEnvironment(options.home);
+    if (options.repositoryAuthorityAgentSocket === undefined) {
+      this.#env = baseEnvironment;
+    } else {
+      if (
+        !path.isAbsolute(options.repositoryAuthorityAgentSocket) ||
+        options.repositoryAuthorityAgentSocket.includes("\0")
+      ) {
+        throw new VelaClientError(
+          "malformed_output",
+          "repository authority agent socket must be one absolute path",
+        );
+      }
+      this.#env = {
+        ...baseEnvironment,
+        SSH_AUTH_SOCK: options.repositoryAuthorityAgentSocket,
+      };
+    }
     this.#runner = options.runner ?? runCommand;
   }
 

@@ -224,6 +224,42 @@ test("Vela client proves Git, replay, and proof roots", async () => {
   assert.equal(fake.environments.every((env) => env.VELA_NO_KEY_ACCESS === "1"), true);
 });
 
+test("Vela client forwards only the repository-authority agent socket", async () => {
+  const fake = fakeRunner();
+  const vela = new VelaClient({
+    binary: process.execPath,
+    expectedVersion: "0.800.19",
+    expectedSha256: velaBinaryDigest,
+    home: "/tmp/canopus-home",
+    repositoryAuthorityAgentSocket: "/private/tmp/ssh-agent.sock",
+    runner: fake.runner,
+  });
+  await vela.assertRoots("/repo", "frontier", mission().roots);
+  assert.equal(
+    fake.environments.every(
+      (environment) => environment.SSH_AUTH_SOCK === "/private/tmp/ssh-agent.sock",
+    ),
+    true,
+  );
+  assert.equal(fake.environments.some((environment) => environment.VELA_AGENT_KEY_HEX !== undefined), false);
+});
+
+test("Vela client rejects a relative repository-authority agent socket", () => {
+  const fake = fakeRunner();
+  assert.throws(
+    () =>
+      new VelaClient({
+        binary: process.execPath,
+        expectedVersion: "0.800.19",
+        expectedSha256: velaBinaryDigest,
+        home: "/tmp/canopus-home",
+        repositoryAuthorityAgentSocket: "agent.sock",
+        runner: fake.runner,
+      }),
+    /must be one absolute path/u,
+  );
+});
+
 test("Vela 0.915 uses strict replay roots for a minimal frontier without proof/latest", async () => {
   const fake = fakeRunner({ version: "0.915.1" });
   const vela = new VelaClient({
