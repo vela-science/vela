@@ -343,6 +343,11 @@ pub(crate) fn build_read_only_preview(
     provenance: Option<vela_protocol::provenance::Provenance>,
 ) -> Result<PreparedDecision, DecisionPlanError> {
     ensure_transactional_frontier(frontier)?;
+    FrontierTxn::preflight_legacy_writer_era(
+        frontier,
+        crate::frontier_txn::CanonicalWriteIntent::Administrator,
+    )
+    .map_err(DecisionPlanError::transaction)?;
     let proposal_ids = answers
         .iter()
         .map(|answer| answer.proposal_id.clone())
@@ -1766,6 +1771,55 @@ mod tests {
             reason: "Reject malformed retained material".to_string(),
         };
         (temp, signing_key, answer)
+    }
+
+    fn append_authority_model_migration_marker(frontier: &Path) {
+        let mut project = vela_protocol::repo::load_from_path(frontier).unwrap();
+        let mut event = vela_protocol::events::StateEvent {
+            schema: vela_protocol::events::EVENT_SCHEMA.to_string(),
+            id: String::new(),
+            kind: vela_protocol::events::EventKind::AuthorityModelMigrated,
+            target: vela_protocol::events::StateTarget {
+                r#type: "frontier".to_string(),
+                id: project.frontier_id(),
+            },
+            actor: vela_protocol::events::StateActor {
+                r#type: "human".to_string(),
+                id: "reviewer:test".to_string(),
+            },
+            timestamp: "2026-07-25T00:00:00Z".to_string(),
+            reason: "move the fixture to repository authority".to_string(),
+            before_hash: vela_protocol::events::NULL_HASH.to_string(),
+            after_hash: vela_protocol::events::NULL_HASH.to_string(),
+            payload: json!({
+                "schema": vela_protocol::authority_history::AUTHORITY_MODEL_MIGRATION_SCHEMA_V1,
+            }),
+            caveats: vec!["Historical events remain byte-identical.".to_string()],
+            signature: None,
+        };
+        event.id = vela_protocol::events::compute_event_id(&event);
+        project.events.push(event);
+        vela_protocol::repo::save_to_path(frontier, &project).unwrap();
+    }
+
+    #[test]
+    fn migrated_frontier_rejects_legacy_decision_preview_without_writes() {
+        let (temp, _key, answer) = decision_fixture();
+        append_authority_model_migration_marker(temp.path());
+        let before = snapshot_file_tree(temp.path());
+
+        let error =
+            build_read_only_preview(temp.path(), &[answer], "reviewer:test", DECIDED_AT, None)
+                .unwrap_err();
+
+        assert_eq!(error.code, "transaction_failed");
+        assert!(error.message.contains("authority.model_migrated"));
+        assert_eq!(snapshot_file_tree(temp.path()), before);
+        assert!(
+            !crate::workflow::frontier_transaction_journal_dir(temp.path())
+                .unwrap()
+                .exists()
+        );
     }
 
     fn coherence_batch_fixture() -> (

@@ -836,6 +836,45 @@ policy-lane, and scientific-diff output now identify the exact protected
 surfaces from routing users back to batch `vela sign`, while historical
 parsers and immutable replay fixtures remain intact.
 
+The four active migration ceremonies then completed without rewriting their
+pre-boundary histories or scientific roots. A post-migration Erdős writer
+audit found a critical product gap before final deletion: the key-free legacy
+`review decide` preview still advertised a second-phase legacy signature even
+though `authority.model_migrated` had made that writer invalid. The same
+generation of producer, administrator, actor-registry, and first-boundary
+writers would have reached the repository write gate only when mutation began.
+
+The repaired boundary now rejects every legacy canonical write intent as soon
+as the migration marker is present. Decision and historical `sign` previews
+run the same read-only era preflight, so they fail before a lock, journal,
+helper, authentication prompt, or key read. The production write gate repeats
+the check under its normal barrier. Focused fixtures cover all four legacy
+intents plus the preview path, and the real migrated Erdős checkout rejects
+both `review decide` and `work` with an unchanged Git tree and operation
+journal digest.
+
+This is a safety completion, not a usable Era-1 product. The ordinary
+repository-authority transaction core is still CLI-unreachable, and its
+`LocalOsSession` test adapter is not a trustworthy human authentication edge:
+an agent running as the same operating-system user could construct the same
+observation. The initial retained policy bundle also records content roots,
+not a durable source package suitable for later governed rotation. Therefore
+the migrated active Frontiers are intentionally read-only under this
+candidate. Final `vela-signer` and identity-custody deletion is blocked until:
+
+1. routine producer and workload transactions enter through the
+   repository-authority writer with short-lived scoped authentication;
+2. exceptional human decisions use a standard provider assertion that binds
+   the exact semantic action and cannot be fabricated by an agent process;
+3. retained Cedar source material supports deterministic replay and governed
+   rotation; and
+4. the replacement paths pass clean-clone, cancellation, stale-session,
+   substitution, and recovery tests.
+
+Deleting the old surface before those gates would remove a bad product by
+leaving no product. Keeping its source temporarily does not make it live on a
+migrated Frontier: the era guard is the fail-closed boundary.
+
 ## Alternatives rejected
 
 ### Preserve or improve the current helper

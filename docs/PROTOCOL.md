@@ -498,9 +498,14 @@ this one transition: preview is key-free; apply requires the exact preview,
 one fresh protected approval over the legacy continuity event, an exact local
 OS principal, and a matching Ed25519 key in the standard OpenSSH agent.
 Historical event files are bound as their retained bytes and are not
-normalized. No active Frontier may emit these objects or delete Era-0
-verification until the remaining ADR 0020 release and active-Frontier gates
-pass.
+normalized. Formal, Sidon, Quantum, and Erdős have now installed this
+sequence-1 boundary without changing their scientific roots. Once
+`authority.model_migrated` is present, every legacy producer, administrator,
+actor-registry, first-boundary, decision-preview, and historical-sign writer
+fails before a journal, prompt, or key read. The candidate intentionally
+exposes no ordinary Era-1 writer yet, so migrated Frontiers remain readable
+but not writable until the remaining ADR 0020 authentication, policy-source,
+and product gates pass. Era-0 verification remains required throughout.
 
 The complete core lifecycle drill now uses one disposable Frontier
 to install the legacy bridge, perform an ordinary Era-1 decision, rotate the

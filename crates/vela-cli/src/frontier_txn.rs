@@ -1639,6 +1639,7 @@ fn verify_repository_write_authorization(
     let project = vela_protocol::repo::load_from_path(root).map_err(|error| {
         FrontierTxnError::Io(format!("load repository for write gate: {error}"))
     })?;
+    verify_legacy_writer_era(&project, intent)?;
     let loaded_anchor =
         load_repository_trust_anchor_from_home(&trusted_user_home, &project.frontier_id())
             .map_err(FrontierTxnError::RepositoryTrustAnchor)?;
@@ -1657,6 +1658,22 @@ fn verify_repository_write_authorization(
         intent,
         delta_root: None,
     })
+}
+
+fn verify_legacy_writer_era(
+    project: &vela_protocol::project::Project,
+    intent: CanonicalWriteIntent,
+) -> Result<(), FrontierTxnError> {
+    if project.events.iter().any(|event| {
+        event.kind == vela_protocol::events::EventKind::AuthorityModelMigrated
+            || event.kind.as_str() == vela_protocol::events::EVENT_KIND_AUTHORITY_MODEL_MIGRATED
+    }) {
+        return Err(FrontierTxnError::RepositoryWriteIntentDenied {
+            intent: intent.as_str(),
+            reason: "legacy canonical writers are disabled after authority.model_migrated; this candidate exposes no ordinary repository-authority writer, so use read-only inspection until that edge is released".to_string(),
+        });
+    }
+    Ok(())
 }
 
 fn repository_derived_path(path: &str) -> bool {
@@ -2787,6 +2804,26 @@ impl FrontierTxnFailpoints for FailAtFrontierTxnStep {
 }
 
 impl FrontierTxn {
+    /// Fail closed before rendering a legacy writer preview on a frontier
+    /// whose authority history has crossed into Era 1.
+    ///
+    /// Read-only inspection remains available after migration, but a legacy
+    /// decision or policy preview would otherwise advertise an apply path that
+    /// cannot produce a valid repository-authority record. The production
+    /// write gate repeats this check under the canonical recovery barrier.
+    pub(crate) fn preflight_legacy_writer_era(
+        frontier_root: &Path,
+        intent: CanonicalWriteIntent,
+    ) -> Result<(), FrontierTxnError> {
+        let root = canonical_frontier_root(frontier_root)?;
+        let project = vela_protocol::repo::load_from_path(&root).map_err(|error| {
+            FrontierTxnError::Io(format!(
+                "load repository for legacy writer preflight: {error}"
+            ))
+        })?;
+        verify_legacy_writer_era(&project, intent)
+    }
+
     /// Verify recovery state without creating a frontier lock or any other
     /// file. Read projections call this before and after loading their inputs.
     /// An overlapping writer is therefore observed as either an active journal
@@ -4630,6 +4667,62 @@ mod tests {
             },
         )
         .unwrap();
+    }
+
+    fn append_authority_model_migration_marker(root: &Path) {
+        let mut project = vela_protocol::repo::load_from_path(root).unwrap();
+        let mut event = project.events[0].clone();
+        event.kind = vela_protocol::events::EventKind::AuthorityModelMigrated;
+        event.timestamp = "2026-07-25T00:00:00Z".to_string();
+        event.reason = "move the fixture to repository authority".to_string();
+        event.payload = json!({
+            "schema": vela_protocol::authority_history::AUTHORITY_MODEL_MIGRATION_SCHEMA_V1,
+        });
+        event.caveats = vec!["Historical events remain byte-identical.".to_string()];
+        event.signature = None;
+        event.id = vela_protocol::events::compute_event_id(&event);
+        project.events.push(event);
+        vela_protocol::repo::save_to_path(root, &project).unwrap();
+    }
+
+    #[test]
+    fn authority_model_migration_blocks_every_legacy_write_intent_before_journal() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        let journals = temp.path().join("journals");
+        initialize_profile_v1_frontier(&root);
+        append_authority_model_migration_marker(&root);
+        let before = snapshot_files(&root);
+
+        for intent in [
+            CanonicalWriteIntent::Producer,
+            CanonicalWriteIntent::ActorRegistry,
+            CanonicalWriteIntent::FirstAdministratorBoundary,
+            CanonicalWriteIntent::Administrator,
+        ] {
+            let error = FrontierTxn::preflight_legacy_writer_era(&root, intent).unwrap_err();
+            assert!(matches!(
+                error,
+                FrontierTxnError::RepositoryWriteIntentDenied { reason, .. }
+                    if reason.contains("authority.model_migrated")
+            ));
+        }
+
+        for result in [
+            FrontierTxn::acquire_write_barrier(&root, &journals),
+            FrontierTxn::acquire_actor_registry_write_barrier(&root, &journals),
+            FrontierTxn::acquire_first_administrator_boundary_barrier(&root, &journals),
+            FrontierTxn::acquire_administrator_write_barrier(&root, &journals),
+        ] {
+            assert!(matches!(
+                result,
+                Err(FrontierTxnError::RepositoryWriteIntentDenied { reason, .. })
+                    if reason.contains("authority.model_migrated")
+            ));
+        }
+
+        assert_eq!(snapshot_files(&root), before);
+        assert!(!journals.exists());
     }
 
     #[test]
