@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## v0.930.0-rc.11 — 2026-07-26 — Materialize repository-authority landings atomically
+
+- Install `frontier.json`, `vela.lock`, proof exports, and proof-state
+  bookkeeping through the same recoverable transaction as a
+  repository-authorized Receipt landing.
+- Bind the exact derived postimages to the transaction journal and active
+  recovery checks without adding them to the signed authority object delta or
+  scientific write-set root.
+- Reject derived-only authority attempts, unsupported derived paths,
+  post-signing derived drift, and canonical/derived path overlap before a
+  commit marker can authorize writes.
+- Preserve completed-journal rematerialization behavior and every canonical
+  event, Receipt, proposal, artifact, authority, and scientific-state
+  commitment.
+
 ## v0.930.0-rc.10 — 2026-07-26 — Separate repository authorization from acceptance
 
 - Record `urn:vela:policy:none` in a repository-authorized Receipt. Repository

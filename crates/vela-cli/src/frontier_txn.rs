@@ -358,6 +358,10 @@ pub(crate) struct PlannedWrite {
 }
 
 impl PlannedWrite {
+    pub(crate) fn class(&self) -> WriteClass {
+        self.class
+    }
+
     pub(crate) fn write(path: RepoPath, class: WriteClass, bytes: Vec<u8>) -> Self {
         Self {
             path,

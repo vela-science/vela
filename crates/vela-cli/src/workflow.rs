@@ -706,6 +706,7 @@ fn transact_repository_authority_lease(
             semantic_approvals: Vec::new(),
             event_drafts: vec![event_draft],
             object_drafts: Vec::new(),
+            derived_drafts: Vec::new(),
             next_authority_keyset: None,
             next_policy_bundle: None,
             next_policy_material: None,
@@ -3213,6 +3214,24 @@ pub(crate) fn land(
         let WorkWriteBarrier::Repository(recovery_barrier) = write_barrier else {
             return Err("repository-authority landing lost its write barrier".to_string());
         };
+        let mut managed = repo::render_vela_repo_files(frontier, &candidate)?;
+        preserve_existing_event_bytes(frontier, &original, &candidate, &mut managed, "land")?;
+        let mut derived_drafts = Vec::new();
+        for write in PlannedWrite::from_managed_files(managed).map_err(|error| error.to_string())? {
+            if write.class() != WriteClass::Derived {
+                continue;
+            }
+            let (path, class, postimage) = write
+                .into_authority_object_parts()
+                .map_err(|error| error.to_string())?;
+            if class != WriteClass::Derived {
+                return Err(format!(
+                    "repository-authority derived materialization changed class for {path}"
+                ));
+            }
+            derived_drafts
+                .push(crate::authority_transaction::AuthorityDerivedDraft { path, postimage });
+        }
         let mut object_drafts = vec![
             crate::authority_transaction::AuthorityObjectDraft {
                 path: format!(".vela/proposals/{proposal_id}.json"),
@@ -3302,6 +3321,7 @@ pub(crate) fn land(
                 semantic_approvals: Vec::new(),
                 event_drafts: Vec::new(),
                 object_drafts,
+                derived_drafts,
                 next_authority_keyset: None,
                 next_policy_bundle: None,
                 next_policy_material: None,

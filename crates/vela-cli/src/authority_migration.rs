@@ -1294,6 +1294,7 @@ mod tests {
             }],
             event_drafts: vec![event],
             object_drafts: Vec::new(),
+            derived_drafts: Vec::new(),
             next_authority_keyset,
             next_policy_bundle: None,
             next_policy_material: None,

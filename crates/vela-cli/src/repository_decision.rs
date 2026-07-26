@@ -370,6 +370,7 @@ fn execute_decision(
             }],
             event_drafts,
             object_drafts,
+            derived_drafts: Vec::new(),
             next_authority_keyset: None,
             next_policy_bundle: None,
             next_policy_material: None,

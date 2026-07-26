@@ -650,6 +650,7 @@ pub(crate) fn cmd_authority_enable_work(
                     ],
                 }],
                 object_drafts: Vec::new(),
+                derived_drafts: Vec::new(),
                 next_authority_keyset: None,
                 next_policy_bundle: Some(next_policy),
                 next_policy_material: Some(next_material),
