@@ -155,8 +155,29 @@ pub fn target_index_selection_for_target_with_trust_anchor(
     target_id: &str,
     trust_anchor: Option<&super::frontier_repository::RepositoryTrustAnchor>,
 ) -> Result<Option<TargetIndexSelection>, String> {
+    target_index_selection_for_target_with_trust_anchor_and_authority(
+        project,
+        dir,
+        target_id,
+        trust_anchor,
+        &[],
+    )
+}
+
+pub fn target_index_selection_for_target_with_trust_anchor_and_authority(
+    project: &Project,
+    dir: &Path,
+    target_id: &str,
+    trust_anchor: Option<&super::frontier_repository::RepositoryTrustAnchor>,
+    authority_events: &[vela_protocol::authority::AuthorityEventV1],
+) -> Result<Option<TargetIndexSelection>, String> {
     let Some(assessment) =
-        super::target_index::assess_target_index_with_trust_anchor(project, dir, trust_anchor)?
+        super::target_index::assess_target_index_with_trust_anchor_and_authority(
+            project,
+            dir,
+            trust_anchor,
+            authority_events,
+        )?
     else {
         return Ok(None);
     };
@@ -672,6 +693,27 @@ pub fn try_frontier_next_projection_with_trust_anchor(
     limit: usize,
     trust_anchor: Option<&super::frontier_repository::RepositoryTrustAnchor>,
 ) -> Result<FrontierNextProjection, String> {
+    try_frontier_next_projection_with_trust_anchor_and_authority(
+        project,
+        frontier_dir,
+        observed_at,
+        limit,
+        trust_anchor,
+        &[],
+    )
+}
+
+/// Build the read-only work projection from a repository context whose
+/// Authority v2 history has already verified. Authority events are consulted
+/// only for proposal projection parity; they never create or rank work.
+pub fn try_frontier_next_projection_with_trust_anchor_and_authority(
+    project: &Project,
+    frontier_dir: Option<&Path>,
+    observed_at: &str,
+    limit: usize,
+    trust_anchor: Option<&super::frontier_repository::RepositoryTrustAnchor>,
+    authority_events: &[vela_protocol::authority::AuthorityEventV1],
+) -> Result<FrontierNextProjection, String> {
     let observed_at = chrono::DateTime::parse_from_rfc3339(observed_at)
         .ok()
         .map(|time| time.to_utc());
@@ -696,7 +738,12 @@ pub fn try_frontier_next_projection_with_trust_anchor(
                 .collect();
         let mut indexed_ids = std::collections::BTreeSet::new();
         if let Some(assessment) =
-            super::target_index::assess_target_index_with_trust_anchor(project, dir, trust_anchor)?
+            super::target_index::assess_target_index_with_trust_anchor_and_authority(
+                project,
+                dir,
+                trust_anchor,
+                authority_events,
+            )?
         {
             indexed_ids.extend(assessment.indexed_ids().into_iter().map(str::to_string));
             producer_work.configured_open += assessment.configured_open();

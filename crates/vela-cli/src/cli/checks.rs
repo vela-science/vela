@@ -139,6 +139,10 @@ pub(crate) struct RepositoryContextAssessment {
     /// repository-controlled bytes can never manufacture it.
     pub(crate) target_index_trust_anchor:
         Option<vela_edge::frontier_repository::RepositoryTrustAnchor>,
+    /// Repository Authority v2 events returned only after the complete
+    /// authority history and repository context verify. Read projections may
+    /// use these events for proposal parity, never as an authority grant.
+    pub(crate) authority_events: Vec<vela_protocol::authority::AuthorityEventV1>,
 }
 
 fn repository_context_not_applicable() -> Value {
@@ -232,7 +236,7 @@ pub(crate) fn repository_context_assessment_with_project_and_home(
     use vela_edge::frontier_repository::RepositoryTrustAnchor;
     use vela_edge::repository_write::{
         RepositoryWriteGateCode, VerifiedRepositoryIdentity,
-        load_repository_trust_anchor_from_home, verify_repository_for_write,
+        load_repository_trust_anchor_from_home, verify_repository_for_write_with_authority_events,
     };
     use vela_protocol::events::EVENT_KIND_FRONTIER_REPOSITORY_BOUND;
     use vela_protocol::frontier_repo::{FrontierProfileFile, read_repository_profile};
@@ -242,6 +246,7 @@ pub(crate) fn repository_context_assessment_with_project_and_home(
         return RepositoryContextAssessment {
             payload: repository_context_not_applicable(),
             target_index_trust_anchor: None,
+            authority_events: Vec::new(),
         };
     }
 
@@ -254,6 +259,7 @@ pub(crate) fn repository_context_assessment_with_project_and_home(
                     "frontier.yaml is missing; repository generation and identity context are unknown",
                 ),
                 target_index_trust_anchor: None,
+                authority_events: Vec::new(),
             };
         }
         Err(error) => {
@@ -263,6 +269,7 @@ pub(crate) fn repository_context_assessment_with_project_and_home(
                     error,
                 ),
                 target_index_trust_anchor: None,
+                authority_events: Vec::new(),
             };
         }
     };
@@ -271,6 +278,7 @@ pub(crate) fn repository_context_assessment_with_project_and_home(
         FrontierProfileFile::LegacyV0_1(_) => RepositoryContextAssessment {
             payload: repository_context_legacy("legacy_v0_1"),
             target_index_trust_anchor: None,
+            authority_events: Vec::new(),
         },
         FrontierProfileFile::V1(_) => {
             let loaded_project;
@@ -288,6 +296,7 @@ pub(crate) fn repository_context_assessment_with_project_and_home(
                                     ),
                                 ),
                                 target_index_trust_anchor: None,
+                                authority_events: Vec::new(),
                             };
                         }
                     };
@@ -322,6 +331,7 @@ pub(crate) fn repository_context_assessment_with_project_and_home(
                                 error,
                             ),
                             target_index_trust_anchor: None,
+                            authority_events: Vec::new(),
                         };
                     }
                 };
@@ -334,16 +344,33 @@ pub(crate) fn repository_context_assessment_with_project_and_home(
                                 error,
                             ),
                             target_index_trust_anchor: None,
+                            authority_events: Vec::new(),
                         };
                     }
                 }
             } else {
                 None
             };
-            match verify_repository_for_write(
+            let authority_events = match crate::cli::load_repository_authority(repository, project)
+            {
+                Ok(Some(authority)) => authority.history.authority_events,
+                Ok(None) => Vec::new(),
+                Err(error) => {
+                    return RepositoryContextAssessment {
+                        payload: repository_context_invalid(
+                            RepositoryWriteGateCode::RepositoryBoundaryInvalid.as_str(),
+                            format!("verify repository-authority history for context: {error}"),
+                        ),
+                        target_index_trust_anchor: None,
+                        authority_events: Vec::new(),
+                    };
+                }
+            };
+            match verify_repository_for_write_with_authority_events(
                 repository,
                 project,
                 loaded_anchor.as_ref().map(|loaded| &loaded.anchor),
+                &authority_events,
             ) {
                 Ok(context) => {
                     let target_index_trust_anchor =
@@ -379,11 +406,13 @@ pub(crate) fn repository_context_assessment_with_project_and_home(
                             "trust_anchor_root": trust_anchor_root,
                         }),
                         target_index_trust_anchor,
+                        authority_events,
                     }
                 }
                 Err(error) => RepositoryContextAssessment {
                     payload: repository_context_invalid(error.code.as_str(), error.message),
                     target_index_trust_anchor: None,
+                    authority_events: Vec::new(),
                 },
             }
         }

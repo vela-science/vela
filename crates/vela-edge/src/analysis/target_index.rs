@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
+use vela_protocol::authority::AuthorityEventV1;
 use vela_protocol::events::{
     self, EVENT_KIND_FRONTIER_REPOSITORY_BOUND, StateEvent, event_content_preimage_bytes,
 };
@@ -29,7 +30,7 @@ use vela_protocol::project::Project;
 use vela_protocol::{canonical, proposals, repo};
 
 use super::frontier_repository::{
-    RepositoryTrustAnchor, verify_repository_boundary_context_with_trust_anchor,
+    RepositoryTrustAnchor, verify_repository_boundary_context_with_trust_anchor_and_authority,
 };
 use super::repository_write::{PreparedRepositoryFileReplacement, RepositoryFileReplacementMode};
 
@@ -1291,6 +1292,22 @@ pub fn revalidate_target_task_binding(
     binding: &TargetTaskBindingV1,
     trust_anchor: Option<&RepositoryTrustAnchor>,
 ) -> Result<(), String> {
+    revalidate_target_task_binding_with_authority_events(
+        project,
+        repo_path,
+        binding,
+        trust_anchor,
+        &[],
+    )
+}
+
+pub fn revalidate_target_task_binding_with_authority_events(
+    project: &Project,
+    repo_path: &Path,
+    binding: &TargetTaskBindingV1,
+    trust_anchor: Option<&RepositoryTrustAnchor>,
+    authority_events: &[AuthorityEventV1],
+) -> Result<(), String> {
     binding.validate()?;
     if binding.frontier_id != project.frontier_id() {
         return Err("target task binding belongs to a different Frontier".to_string());
@@ -1356,8 +1373,13 @@ pub fn revalidate_target_task_binding(
         return Err("target task binding claim read set does not match its Git commit".to_string());
     }
 
-    let assessment = assess_target_index_with_trust_anchor(project, repo_path, trust_anchor)?
-        .ok_or_else(|| "target task binding requires targets.json at landing".to_string())?;
+    let assessment = assess_target_index_with_trust_anchor_and_authority(
+        project,
+        repo_path,
+        trust_anchor,
+        authority_events,
+    )?
+    .ok_or_else(|| "target task binding requires targets.json at landing".to_string())?;
     if !assessment.global_issues.is_empty()
         || assessment
             .target_issues
@@ -1888,31 +1910,49 @@ fn latest_boundary(events: &[StateEvent]) -> Result<Option<&StateEvent>, String>
     }
 }
 
+#[cfg(test)]
 fn derive_effective_roots(
     project: &Project,
     repo_path: &Path,
     trust_anchor: Option<&RepositoryTrustAnchor>,
 ) -> Result<EffectiveRepositoryRoots, String> {
-    let profile = profile_at_path(&repo_path.join("frontier.yaml"))?;
-    derive_effective_roots_with_profile(project, repo_path, &profile, trust_anchor)
+    derive_effective_roots_with_authority(project, repo_path, trust_anchor, &[])
 }
 
-fn derive_effective_roots_with_profile(
+fn derive_effective_roots_with_authority(
+    project: &Project,
+    repo_path: &Path,
+    trust_anchor: Option<&RepositoryTrustAnchor>,
+    authority_events: &[AuthorityEventV1],
+) -> Result<EffectiveRepositoryRoots, String> {
+    let profile = profile_at_path(&repo_path.join("frontier.yaml"))?;
+    derive_effective_roots_with_profile_and_authority(
+        project,
+        repo_path,
+        &profile,
+        trust_anchor,
+        authority_events,
+    )
+}
+
+fn derive_effective_roots_with_profile_and_authority(
     project: &Project,
     git_repo_path: &Path,
     profile: &FrontierProfileV1,
     trust_anchor: Option<&RepositoryTrustAnchor>,
+    authority_events: &[AuthorityEventV1],
 ) -> Result<EffectiveRepositoryRoots, String> {
     profile.assert_frontier_id(&project.frontier_id())?;
     let profile_root = profile.profile_root()?;
 
     let (identity_root, dependency_root) = if let Some(boundary) = latest_boundary(&project.events)?
     {
-        verify_repository_boundary_context_with_trust_anchor(
+        verify_repository_boundary_context_with_trust_anchor_and_authority(
             project,
             git_repo_path,
             boundary,
             trust_anchor,
+            authority_events,
         )?;
         let payload: FrontierRepositoryBoundaryPayloadV1 =
             repository_boundary_payload_from_event_shape(boundary)?;
@@ -2083,6 +2123,7 @@ fn source_input_entry(
 enum TargetIndexSealContext<'a> {
     Current {
         trust_anchor: Option<&'a RepositoryTrustAnchor>,
+        authority_events: &'a [AuthorityEventV1],
     },
     LegacyMigration(&'a TargetIndexMigrationContextV1),
 }
@@ -2206,11 +2247,30 @@ pub fn prepare_target_index_seal(
     binary_version: &str,
     trust_anchor: Option<&RepositoryTrustAnchor>,
 ) -> Result<TargetIndexSealPlan, String> {
+    prepare_target_index_seal_with_authority_events(
+        repo_path,
+        candidate_path,
+        binary_version,
+        trust_anchor,
+        &[],
+    )
+}
+
+pub fn prepare_target_index_seal_with_authority_events(
+    repo_path: &Path,
+    candidate_path: &Path,
+    binary_version: &str,
+    trust_anchor: Option<&RepositoryTrustAnchor>,
+    authority_events: &[AuthorityEventV1],
+) -> Result<TargetIndexSealPlan, String> {
     prepare_target_index_seal_with_context(
         repo_path,
         candidate_path,
         binary_version,
-        TargetIndexSealContext::Current { trust_anchor },
+        TargetIndexSealContext::Current {
+            trust_anchor,
+            authority_events,
+        },
     )
 }
 
@@ -2329,7 +2389,10 @@ fn prepare_target_index_seal_with_context(
     };
 
     let effective = match seal_context {
-        TargetIndexSealContext::Current { trust_anchor } => {
+        TargetIndexSealContext::Current {
+            trust_anchor,
+            authority_events,
+        } => {
             let (_source_view, source_project, source_profile) =
                 materialize_project_at_commit(repo_path, &source.git_commit)?;
             if source_project.frontier_id() != candidate.frontier_id {
@@ -2339,18 +2402,24 @@ fn prepare_target_index_seal_with_context(
                     candidate.frontier_id
                 ));
             }
-            let effective = derive_effective_roots_with_profile(
+            let effective = derive_effective_roots_with_profile_and_authority(
                 &source_project,
                 repo_path,
                 &source_profile,
                 trust_anchor,
+                authority_events,
             )?;
             if !source_events_are_retained(&source_project, &current)? {
                 return Err(format!(
                     "{CODE_EVENT_ROOT_MISMATCH}: source event set is not retained byte-for-byte in the current Frontier"
                 ));
             }
-            let current_effective = derive_effective_roots(&current, repo_path, trust_anchor)?;
+            let current_effective = derive_effective_roots_with_authority(
+                &current,
+                repo_path,
+                trust_anchor,
+                authority_events,
+            )?;
             for (code, label, source_value, current_value) in [
                 (
                     CODE_EVENT_ROOT_MISMATCH,
@@ -2759,6 +2828,7 @@ fn assess_v2(
     bytes: &[u8],
     index: TargetIndexV2,
     trust_anchor: Option<&RepositoryTrustAnchor>,
+    authority_events: &[AuthorityEventV1],
 ) -> Result<TargetIndexAssessment, String> {
     index.validate()?;
     let canonical_bytes =
@@ -2784,7 +2854,8 @@ fn assess_v2(
         ));
     }
 
-    let effective = derive_effective_roots(project, repo_path, trust_anchor)?;
+    let effective =
+        derive_effective_roots_with_authority(project, repo_path, trust_anchor, authority_events)?;
     if index.roots.identity_root != effective.identity_root {
         global_issues.push(issue(
             CODE_IDENTITY_ROOT_MISMATCH,
@@ -3088,6 +3159,19 @@ pub fn assess_target_index_with_trust_anchor(
     repo_path: &Path,
     trust_anchor: Option<&RepositoryTrustAnchor>,
 ) -> Result<Option<TargetIndexAssessment>, String> {
+    assess_target_index_with_trust_anchor_and_authority(project, repo_path, trust_anchor, &[])
+}
+
+/// Assess `targets.json` against a repository context whose Authority v2
+/// history has already been verified. The authority events are used only to
+/// prove proposal projection parity at repository boundaries; they grant no
+/// target eligibility or scientific authority.
+pub fn assess_target_index_with_trust_anchor_and_authority(
+    project: &Project,
+    repo_path: &Path,
+    trust_anchor: Option<&RepositoryTrustAnchor>,
+    authority_events: &[AuthorityEventV1],
+) -> Result<Option<TargetIndexAssessment>, String> {
     let path = repo_path.join("targets.json");
     let metadata = match std::fs::symlink_metadata(&path) {
         Ok(metadata) => metadata,
@@ -3115,7 +3199,15 @@ pub fn assess_target_index_with_trust_anchor(
         TARGET_INDEX_SCHEMA_V2 => {
             let index: TargetIndexV2 = serde_json::from_value(envelope)
                 .map_err(|error| format!("{CODE_SCHEMA_INVALID}: parse v2 index: {error}"))?;
-            assess_v2(project, repo_path, &bytes, index, trust_anchor).map(Some)
+            assess_v2(
+                project,
+                repo_path,
+                &bytes,
+                index,
+                trust_anchor,
+                authority_events,
+            )
+            .map(Some)
         }
         other => Err(format!(
             "{CODE_SCHEMA_INVALID}: unsupported target index schema {other:?}"
@@ -3298,7 +3390,28 @@ pub fn target_index_repair_report_with_trust_anchor(
     frontier_arg: &str,
     trust_anchor: Option<&RepositoryTrustAnchor>,
 ) -> Result<Option<TargetIndexRepairReport>, String> {
-    let Some(assessment) = assess_target_index_with_trust_anchor(project, repo_path, trust_anchor)?
+    target_index_repair_report_with_trust_anchor_and_authority(
+        project,
+        repo_path,
+        frontier_arg,
+        trust_anchor,
+        &[],
+    )
+}
+
+pub fn target_index_repair_report_with_trust_anchor_and_authority(
+    project: &Project,
+    repo_path: &Path,
+    frontier_arg: &str,
+    trust_anchor: Option<&RepositoryTrustAnchor>,
+    authority_events: &[AuthorityEventV1],
+) -> Result<Option<TargetIndexRepairReport>, String> {
+    let Some(assessment) = assess_target_index_with_trust_anchor_and_authority(
+        project,
+        repo_path,
+        trust_anchor,
+        authority_events,
+    )?
     else {
         return Ok(None);
     };
@@ -3348,7 +3461,28 @@ pub fn target_index_inspection_summary_with_trust_anchor(
     frontier_arg: &str,
     trust_anchor: Option<&RepositoryTrustAnchor>,
 ) -> Result<Option<TargetIndexInspectionSummary>, String> {
-    let Some(assessment) = assess_target_index_with_trust_anchor(project, repo_path, trust_anchor)?
+    target_index_inspection_summary_with_trust_anchor_and_authority(
+        project,
+        repo_path,
+        frontier_arg,
+        trust_anchor,
+        &[],
+    )
+}
+
+pub fn target_index_inspection_summary_with_trust_anchor_and_authority(
+    project: &Project,
+    repo_path: &Path,
+    frontier_arg: &str,
+    trust_anchor: Option<&RepositoryTrustAnchor>,
+    authority_events: &[AuthorityEventV1],
+) -> Result<Option<TargetIndexInspectionSummary>, String> {
+    let Some(assessment) = assess_target_index_with_trust_anchor_and_authority(
+        project,
+        repo_path,
+        trust_anchor,
+        authority_events,
+    )?
     else {
         return Ok(None);
     };
@@ -3382,7 +3516,28 @@ pub fn inspect_target_index_target_with_trust_anchor(
     target_id: &str,
     trust_anchor: Option<&RepositoryTrustAnchor>,
 ) -> Result<Option<TargetIndexTargetInspection>, String> {
-    let Some(assessment) = assess_target_index_with_trust_anchor(project, repo_path, trust_anchor)?
+    inspect_target_index_target_with_trust_anchor_and_authority(
+        project,
+        repo_path,
+        target_id,
+        trust_anchor,
+        &[],
+    )
+}
+
+pub fn inspect_target_index_target_with_trust_anchor_and_authority(
+    project: &Project,
+    repo_path: &Path,
+    target_id: &str,
+    trust_anchor: Option<&RepositoryTrustAnchor>,
+    authority_events: &[AuthorityEventV1],
+) -> Result<Option<TargetIndexTargetInspection>, String> {
+    let Some(assessment) = assess_target_index_with_trust_anchor_and_authority(
+        project,
+        repo_path,
+        trust_anchor,
+        authority_events,
+    )?
     else {
         return Ok(None);
     };

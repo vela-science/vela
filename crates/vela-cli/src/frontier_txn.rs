@@ -18,7 +18,7 @@ use sha2::{Digest as ShaDigest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 use vela_edge::repository_write::{
     RepositoryWriteGateError, VerifiedRepositoryIdentity, VerifiedRepositoryWriteContext,
-    load_repository_trust_anchor_from_home, verify_repository_for_write,
+    load_repository_trust_anchor_from_home, verify_repository_for_write_with_authority_events,
 };
 
 use crate::operation_journal;
@@ -1567,6 +1567,8 @@ struct RepositoryAuthorityWriteAuthorization {
 pub(crate) enum CanonicalWriteIntent {
     /// Producer evidence, leases, verifier attachments, and derived views.
     Producer,
+    /// Rebuild only deletable read projections from already verified history.
+    Derived,
     /// Add the first proof-of-possession actor at structural genesis. Any
     /// established-registry mutation is rejected in this release.
     ActorRegistry,
@@ -1582,6 +1584,7 @@ impl CanonicalWriteIntent {
     const fn as_str(self) -> &'static str {
         match self {
             Self::Producer => "producer",
+            Self::Derived => "derived",
             Self::ActorRegistry => "actor_registry",
             Self::FirstAdministratorBoundary => "first_administrator_boundary",
             Self::Administrator => "administrator",
@@ -1698,10 +1701,14 @@ fn verify_repository_write_authorization(
     let loaded_anchor =
         load_repository_trust_anchor_from_home(&trusted_user_home, &project.frontier_id())
             .map_err(FrontierTxnError::RepositoryTrustAnchor)?;
-    let context = verify_repository_for_write(
+    let authority_events = crate::cli::load_repository_authority(root, &project)
+        .map_err(FrontierTxnError::RepositoryTrustAnchor)?
+        .map_or_else(Vec::new, |authority| authority.history.authority_events);
+    let context = verify_repository_for_write_with_authority_events(
         root,
         &project,
         loaded_anchor.as_ref().map(|loaded| &loaded.anchor),
+        &authority_events,
     )
     .map_err(FrontierTxnError::RepositoryWriteGate)?;
     verify_write_intent(intent, &project, &context)?;
@@ -1719,10 +1726,12 @@ fn verify_legacy_writer_era(
     project: &vela_protocol::project::Project,
     intent: CanonicalWriteIntent,
 ) -> Result<(), FrontierTxnError> {
-    if project.events.iter().any(|event| {
-        event.kind == vela_protocol::events::EventKind::AuthorityModelMigrated
-            || event.kind.as_str() == vela_protocol::events::EVENT_KIND_AUTHORITY_MODEL_MIGRATED
-    }) {
+    if intent != CanonicalWriteIntent::Derived
+        && project.events.iter().any(|event| {
+            event.kind == vela_protocol::events::EventKind::AuthorityModelMigrated
+                || event.kind.as_str() == vela_protocol::events::EVENT_KIND_AUTHORITY_MODEL_MIGRATED
+        })
+    {
         return Err(FrontierTxnError::RepositoryWriteIntentDenied {
             intent: intent.as_str(),
             reason: "legacy canonical writers are disabled after authority.model_migrated; use the corresponding repository-authority workflow when this operation is supported".to_string(),
@@ -1875,6 +1884,18 @@ fn verify_write_intent_delta(
                     )));
                 }
             }
+            CanonicalWriteIntent::Derived => {
+                if write.class != WriteClass::Derived || !repository_derived_path(path) {
+                    return Err(deny(format!(
+                        "derived maintenance can only rebuild recognized derived paths; found {path}"
+                    )));
+                }
+                if event.is_some() {
+                    return Err(deny(
+                        "derived maintenance cannot append an event".to_string(),
+                    ));
+                }
+            }
             CanonicalWriteIntent::ActorRegistry => {
                 if path == ".vela/actors.json" {
                     actor_registry_writes += 1;
@@ -1975,6 +1996,7 @@ fn verify_write_intent(
     );
     match intent {
         CanonicalWriteIntent::Producer => Ok(()),
+        CanonicalWriteIntent::Derived => Ok(()),
         CanonicalWriteIntent::Administrator if pinned => Ok(()),
         CanonicalWriteIntent::Administrator => Err(
             FrontierTxnError::RepositoryWriteIntentDenied {
@@ -2280,6 +2302,12 @@ impl FrontierRecoveryBarrier {
     /// trust-pin read.
     pub(crate) fn authorize_for_write(self) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
         self.authorize_for_intent(CanonicalWriteIntent::Producer)
+    }
+
+    pub(crate) fn authorize_for_derived_write(
+        self,
+    ) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
+        self.authorize_for_intent(CanonicalWriteIntent::Derived)
     }
 
     pub(crate) fn authorize_for_administrator_write(
@@ -3135,6 +3163,17 @@ impl FrontierTxn {
             frontier_root,
             journal_dir,
             CanonicalWriteIntent::Producer,
+        )
+    }
+
+    pub(crate) fn acquire_derived_write_barrier(
+        frontier_root: &Path,
+        journal_dir: &Path,
+    ) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
+        Self::acquire_write_barrier_for_intent(
+            frontier_root,
+            journal_dir,
+            CanonicalWriteIntent::Derived,
         )
     }
 
@@ -6075,6 +6114,60 @@ mod tests {
             "intent rejection must precede journal creation"
         );
         assert_eq!(fs::read(root.join(".vela/actors.json")).unwrap(), b"[]\n");
+    }
+
+    #[test]
+    fn derived_write_intent_allows_only_recognized_non_authoritative_views() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        fs::create_dir_all(root.join(".vela/events")).unwrap();
+
+        for path in [
+            "frontier.json",
+            "vela.lock",
+            ".vela/proof-state.json",
+            "proof/summary.json",
+        ] {
+            let draft = DeltaDraft::prepare(
+                &root,
+                vec![PlannedWrite::write(
+                    RepoPath::parse(path).unwrap(),
+                    WriteClass::Derived,
+                    b"derived\n".to_vec(),
+                )],
+            )
+            .unwrap();
+            verify_draft_intent(CanonicalWriteIntent::Derived, &draft).unwrap();
+        }
+
+        let canonical = DeltaDraft::prepare(
+            &root,
+            vec![PlannedWrite::write(
+                RepoPath::parse("records/vf_forged.json").unwrap(),
+                WriteClass::CanonicalEvidence,
+                b"{}\n".to_vec(),
+            )],
+        )
+        .unwrap();
+        assert!(matches!(
+            verify_draft_intent(CanonicalWriteIntent::Derived, &canonical),
+            Err(FrontierTxnError::RepositoryWriteIntentDenied { .. })
+        ));
+
+        let review = intent_test_event(vela_protocol::events::EVENT_KIND_REVIEW_REJECTED);
+        let event = DeltaDraft::prepare(
+            &root,
+            vec![PlannedWrite::write(
+                RepoPath::parse(format!(".vela/events/{}.json", review.id)).unwrap(),
+                WriteClass::Authority,
+                serde_json::to_vec_pretty(&review).unwrap(),
+            )],
+        )
+        .unwrap();
+        assert!(matches!(
+            verify_draft_intent(CanonicalWriteIntent::Derived, &event),
+            Err(FrontierTxnError::RepositoryWriteIntentDenied { .. })
+        ));
     }
 
     #[test]

@@ -410,14 +410,18 @@ pub async fn run_command() {
             let repository_anchor = loaded_anchor
                 .as_ref()
                 .map(|loaded| crate::target_index::boundary_anchor(&loaded.anchor));
+            let authority_events =
+                crate::target_index::load_verified_authority_events(&dir, &project)
+                    .unwrap_or_else(|error| fail_return(&error));
             let observed_at = chrono::Utc::now().to_rfc3339();
-            let projection =
-                vela_edge::frontier_next::try_frontier_next_projection_with_trust_anchor(
+            let projection = vela_edge::frontier_next::
+                try_frontier_next_projection_with_trust_anchor_and_authority(
                     &project,
                     Some(&dir),
                     &observed_at,
                     limit,
                     repository_anchor.as_ref(),
+                    &authority_events,
                 )
                 .unwrap_or_else(|error| fail_return(&error));
             let targets = &projection.targets;

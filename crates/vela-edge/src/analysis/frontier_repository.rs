@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
+use vela_protocol::authority::AuthorityEventV1;
 use vela_protocol::events::{self, EVENT_KIND_KEY_REVOKE, StateEvent};
 use vela_protocol::frontier_repository::{
     ExactFrontierDependencyV1, FrontierRepositoryBoundaryPayloadV1, GitObjectFormat,
@@ -188,7 +189,7 @@ pub fn derive_exact_dependency_at_temporalized_ancestor(
     }
     verify_event_membership(&boundary_anchor.project, &historical.project)
         .map_err(|error| format!("historical dependency event history is not retained: {error}"))?;
-    verify_anchored_proposal_history(&boundary_anchor.project, &historical.project).map_err(
+    verify_anchored_proposal_history(&boundary_anchor.project, &historical.project, &[]).map_err(
         |error| format!("historical dependency proposal history is not retained: {error}"),
     )?;
     verify_retained_manifest_membership(
@@ -1917,13 +1918,18 @@ fn immutable_proposal_root(
 /// those fields to change. All proposal identity and producer provenance,
 /// including timestamps and agent-run traces that are deliberately excluded
 /// from the retry-stable proposal id, remain byte-semantically immutable.
-fn verify_anchored_proposal_history(frontier: &Project, anchored: &Project) -> Result<(), String> {
+fn verify_anchored_proposal_history(
+    frontier: &Project,
+    anchored: &Project,
+    authority_events: &[AuthorityEventV1],
+) -> Result<(), String> {
     let anchored_parity_conflicts = proposals::verify_proposal_decision_parity(anchored)
         .into_iter()
         .collect::<BTreeSet<_>>();
-    let current_parity_conflicts = proposals::verify_proposal_decision_parity(frontier)
-        .into_iter()
-        .collect::<BTreeSet<_>>();
+    let current_parity_conflicts =
+        proposals::verify_proposal_decision_parity_with_authority(frontier, authority_events)
+            .into_iter()
+            .collect::<BTreeSet<_>>();
     let new_parity_conflicts = current_parity_conflicts
         .difference(&anchored_parity_conflicts)
         .cloned()
@@ -2000,6 +2006,7 @@ fn verify_boundary_anchor_context(
     frontier: &Project,
     repo_path: &Path,
     entry: &BoundaryChainEntry<'_>,
+    authority_events: &[AuthorityEventV1],
 ) -> Result<AnchoredRepository, String> {
     if frontier.frontier_id() != entry.payload.frontier_id {
         return Err(format!(
@@ -2016,7 +2023,7 @@ fn verify_boundary_anchor_context(
     let anchored = anchored_repository(repo_path, &entry.payload.anchor_git_commit)?;
     compare_anchor(&entry.payload, &anchored.facts)?;
     verify_event_membership(frontier, &anchored.project)?;
-    verify_anchored_proposal_history(frontier, &anchored.project)?;
+    verify_anchored_proposal_history(frontier, &anchored.project, authority_events)?;
     verify_identity_parent_membership(&entry.payload, &anchored.project)?;
     verify_active_administrator(&entry.payload, &anchored.project)?;
     anchored
@@ -2124,6 +2131,29 @@ pub fn verify_repository_boundary_context_with_trust_anchor(
     boundary: &StateEvent,
     trust_anchor: Option<&RepositoryTrustAnchor>,
 ) -> Result<RepositoryBoundaryContext, String> {
+    verify_repository_boundary_context_with_trust_anchor_and_authority(
+        frontier,
+        repo_path,
+        boundary,
+        trust_anchor,
+        &[],
+    )
+}
+
+/// Verify one repository boundary while deriving mutable proposal standing
+/// across both the legacy event log and an already verified repository-
+/// authority history.
+///
+/// Authority-event verification remains the caller's responsibility. This
+/// function consumes only the closed event bytes after their covering DSSE
+/// chain has passed; it grants no authority and relaxes no anchored-byte rule.
+pub fn verify_repository_boundary_context_with_trust_anchor_and_authority(
+    frontier: &Project,
+    repo_path: &Path,
+    boundary: &StateEvent,
+    trust_anchor: Option<&RepositoryTrustAnchor>,
+    authority_events: &[AuthorityEventV1],
+) -> Result<RepositoryBoundaryContext, String> {
     let event_set_errors = validate_repository_boundary_event_set(&frontier.events);
     if !event_set_errors.is_empty() {
         return Err(format!(
@@ -2136,8 +2166,8 @@ pub fn verify_repository_boundary_context_with_trust_anchor(
     let mut previous: Option<(&BoundaryChainEntry<'_>, AnchoredRepository)> = None;
     let mut selected_anchor = None;
     for entry in &chain.entries {
-        let anchored =
-            verify_boundary_anchor_context(frontier, repo_path, entry).map_err(|error| {
+        let anchored = verify_boundary_anchor_context(frontier, repo_path, entry, authority_events)
+            .map_err(|error| {
                 format!(
                     "repository boundary {} context invalid: {error}",
                     entry.root
@@ -2399,6 +2429,7 @@ mod tests {
     };
     use ed25519_dalek::SigningKey;
     use serde_json::json;
+    use vela_protocol::authority::AuthorityEventContentV1;
     use vela_protocol::bundle::{ConfidenceUpdate, ReviewAction, ReviewEvent};
     use vela_protocol::events::{EVENT_SCHEMA, NULL_HASH, StateActor, StateTarget};
     use vela_protocol::frontier_profile::{
@@ -3445,6 +3476,68 @@ mod tests {
 
         verify_with_boundary_anchor(&reloaded, fixture.directory.path(), &fixture.boundary)
             .unwrap();
+    }
+
+    #[test]
+    fn anchored_proposal_may_follow_a_verified_authority_terminal_event_projection() {
+        let mut fixture = fixture_with_anchored_proposal();
+        let proposal = fixture.project.proposals[0].clone();
+        let decided_at = "2026-07-22T00:03:00Z";
+        let decision_reason = "the retained evidence does not establish the claim";
+        let decision = events::new_review_decision_event(
+            &proposal.id,
+            &proposal.kind,
+            "rejected",
+            None,
+            "reviewer:administrator",
+            decision_reason,
+            Some(decided_at),
+        )
+        .unwrap();
+        let authority_event = AuthorityEventV1::new(AuthorityEventContentV1 {
+            transaction_id: format!("vtx_{}", "1".repeat(64)),
+            principal_id: decision.actor.id.clone(),
+            authority_mode: "repository_authority".to_string(),
+            kind: decision.kind.clone(),
+            target: decision.target.clone(),
+            actor: decision.actor.clone(),
+            timestamp: decision.timestamp.clone(),
+            reason: decision.reason.clone(),
+            before_hash: decision.before_hash.clone(),
+            after_hash: decision.after_hash.clone(),
+            payload: decision.payload.clone(),
+            caveats: decision.caveats.clone(),
+        })
+        .unwrap();
+        let stored = &mut fixture.project.proposals[0];
+        stored.status = "rejected".to_string();
+        stored.reviewed_by = Some("reviewer:administrator".to_string());
+        stored.reviewed_at = Some(decided_at.to_string());
+        stored.decision_reason = Some(decision_reason.to_string());
+        repo::save_to_path(fixture.directory.path(), &fixture.project).unwrap();
+        let reloaded = repo::load_from_path(fixture.directory.path()).unwrap();
+        let trust = trust_anchor(&fixture.boundary);
+
+        let legacy_only = verify_repository_boundary_context_with_trust_anchor(
+            &reloaded,
+            fixture.directory.path(),
+            &fixture.boundary,
+            Some(&trust),
+        )
+        .unwrap_err();
+        assert!(
+            legacy_only
+                .contains("introduced parity failures absent from the exact repository anchor"),
+            "{legacy_only}"
+        );
+        verify_repository_boundary_context_with_trust_anchor_and_authority(
+            &reloaded,
+            fixture.directory.path(),
+            &fixture.boundary,
+            Some(&trust),
+            std::slice::from_ref(&authority_event),
+        )
+        .unwrap();
     }
 
     #[test]

@@ -10,14 +10,15 @@ use std::path::Path;
 use serde::Serialize;
 use vela_edge::frontier_repository::RepositoryTrustAnchor;
 use vela_edge::repository_write::{
-    RepositoryTrustAnchorV1, load_repository_trust_anchor_from_home, verify_repository_for_write,
+    RepositoryTrustAnchorV1, load_repository_trust_anchor_from_home,
+    verify_repository_for_write_with_authority_events,
 };
 use vela_edge::target_index::{
     TargetIndexInspectionSummary, TargetIndexRepairReport, TargetIndexSealPlan,
-    TargetIndexTargetInspection, inspect_target_index_target_with_trust_anchor,
-    prepare_target_index_seal, prepare_target_index_seal_install,
-    target_index_inspection_summary_with_trust_anchor,
-    target_index_repair_report_with_trust_anchor, validate_target_id,
+    TargetIndexTargetInspection, inspect_target_index_target_with_trust_anchor_and_authority,
+    prepare_target_index_seal_install, prepare_target_index_seal_with_authority_events,
+    target_index_inspection_summary_with_trust_anchor_and_authority,
+    target_index_repair_report_with_trust_anchor_and_authority, validate_target_id,
 };
 
 use crate::cli_commands::TargetIndexAction;
@@ -97,6 +98,15 @@ pub(crate) fn boundary_anchor(anchor: &RepositoryTrustAnchorV1) -> RepositoryTru
     }
 }
 
+pub(crate) fn load_verified_authority_events(
+    frontier: &Path,
+    project: &vela_protocol::project::Project,
+) -> Result<Vec<vela_protocol::authority::AuthorityEventV1>, String> {
+    crate::cli::load_repository_authority(frontier, project)
+        .map_err(|error| format!("verify repository-authority history: {error}"))
+        .map(|authority| authority.map_or_else(Vec::new, |value| value.history.authority_events))
+}
+
 fn cmd_seal(frontier: &Path, candidate: &Path, apply: bool, json: bool) {
     ui::set_mode("target-index.seal", json);
     let project = load(frontier);
@@ -105,11 +115,14 @@ fn cmd_seal(frontier: &Path, candidate: &Path, apply: bool, json: bool) {
     let repository_anchor = loaded_anchor
         .as_ref()
         .map(|loaded| boundary_anchor(&loaded.anchor));
-    let plan = prepare_target_index_seal(
+    let authority_events = load_verified_authority_events(frontier, &project)
+        .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
+    let plan = prepare_target_index_seal_with_authority_events(
         frontier,
         candidate,
         env!("CARGO_PKG_VERSION"),
         repository_anchor.as_ref(),
+        &authority_events,
     )
     .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
     let changed = if apply {
@@ -119,10 +132,11 @@ fn cmd_seal(frontier: &Path, candidate: &Path, apply: bool, json: bool) {
         let prepared_install = prepare_target_index_seal_install(frontier, &plan)
             .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
         let write_project = load(frontier);
-        verify_repository_for_write(
+        verify_repository_for_write_with_authority_events(
             frontier,
             &write_project,
             loaded_anchor.as_ref().map(|loaded| &loaded.anchor),
+            &authority_events,
         )
         .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error.to_string(), None));
         prepared_install
@@ -189,11 +203,14 @@ fn cmd_repair(frontier: &Path, json: bool) {
     let repository_anchor = loaded_anchor
         .as_ref()
         .map(|loaded| boundary_anchor(&loaded.anchor));
-    let report = target_index_repair_report_with_trust_anchor(
+    let authority_events = load_verified_authority_events(frontier, &project)
+        .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
+    let report = target_index_repair_report_with_trust_anchor_and_authority(
         &project,
         frontier,
         &frontier_display(frontier),
         repository_anchor.as_ref(),
+        &authority_events,
     )
     .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None))
     .unwrap_or_else(|| {
@@ -241,11 +258,14 @@ fn cmd_inspect(frontier: &Path, target_id: Option<&str>, json: bool) {
     let (summary, target) = if let Some(target_id) = target_id {
         validate_target_id(target_id)
             .unwrap_or_else(|error| ui::fail_with(ErrorKind::Usage, &error, None));
-        let target = inspect_target_index_target_with_trust_anchor(
+        let authority_events = load_verified_authority_events(frontier, &project)
+            .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
+        let target = inspect_target_index_target_with_trust_anchor_and_authority(
             &project,
             frontier,
             target_id,
             repository_anchor.as_ref(),
+            &authority_events,
         )
         .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None))
         .unwrap_or_else(|| {
@@ -257,11 +277,14 @@ fn cmd_inspect(frontier: &Path, target_id: Option<&str>, json: bool) {
         });
         (None, Some(target))
     } else {
-        let summary = target_index_inspection_summary_with_trust_anchor(
+        let authority_events = load_verified_authority_events(frontier, &project)
+            .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
+        let summary = target_index_inspection_summary_with_trust_anchor_and_authority(
             &project,
             frontier,
             &frontier_display(frontier),
             repository_anchor.as_ref(),
+            &authority_events,
         )
         .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None))
         .unwrap_or_else(|| {

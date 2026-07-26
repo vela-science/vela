@@ -173,12 +173,13 @@ pub(crate) fn compact_status_payload_with_home(
     // or any other repository-controlled bytes.
     let mut target_index_error = None;
     let work_projection = if repository_acceptable {
-        match vela_edge::frontier_next::try_frontier_next_projection_with_trust_anchor(
+        match vela_edge::frontier_next::try_frontier_next_projection_with_trust_anchor_and_authority(
             &project,
             Some(frontier_dir),
             observed_at,
             1,
             repository_context.target_index_trust_anchor.as_ref(),
+            &repository_context.authority_events,
         ) {
             Ok(projection) => Some(projection),
             Err(error) => {

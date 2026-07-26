@@ -1040,17 +1040,19 @@ fn briefing_from_project(
     target: &str,
     project: &vela_protocol::project::Project,
     trust_anchor: Option<&vela_edge::frontier_repository::RepositoryTrustAnchor>,
+    authority_events: &[vela_protocol::authority::AuthorityEventV1],
 ) -> Result<PreparedWorkBriefing, String> {
     let head = vela_protocol::events::event_log_hash(&project.events);
     let finding_target = project.findings.iter().any(|finding| finding.id == target);
     let indexed = if finding_target {
         None
     } else {
-        vela_edge::frontier_next::target_index_selection_for_target_with_trust_anchor(
+        vela_edge::frontier_next::target_index_selection_for_target_with_trust_anchor_and_authority(
             project,
             frontier,
             target,
             trust_anchor,
+            authority_events,
         )?
     };
     let packet = indexed.as_ref().map_or_else(
@@ -1685,11 +1687,13 @@ fn revalidate_work_session_target_binding(
     let repository_anchor = loaded_anchor
         .as_ref()
         .map(|loaded| crate::target_index::boundary_anchor(&loaded.anchor));
-    vela_edge::target_index::revalidate_target_task_binding(
+    let authority_events = crate::target_index::load_verified_authority_events(frontier, project)?;
+    vela_edge::target_index::revalidate_target_task_binding_with_authority_events(
         project,
         frontier,
         binding,
         repository_anchor.as_ref(),
+        &authority_events,
     )
 }
 
@@ -1724,11 +1728,13 @@ fn revalidate_receipt_target_task_binding(
     let repository_anchor = loaded_anchor
         .as_ref()
         .map(|loaded| crate::target_index::boundary_anchor(&loaded.anchor));
-    vela_edge::target_index::revalidate_target_task_binding(
+    let authority_events = crate::target_index::load_verified_authority_events(frontier, project)?;
+    vela_edge::target_index::revalidate_target_task_binding_with_authority_events(
         project,
         frontier,
         &binding,
         repository_anchor.as_ref(),
+        &authority_events,
     )?;
     Ok(Some(binding))
 }
@@ -2013,8 +2019,15 @@ where
     let repository_anchor = loaded_anchor
         .as_ref()
         .map(|loaded| crate::target_index::boundary_anchor(&loaded.anchor));
-    let prepared =
-        briefing_from_project(frontier, target, &base_project, repository_anchor.as_ref())?;
+    let authority_events =
+        crate::target_index::load_verified_authority_events(frontier, &base_project)?;
+    let prepared = briefing_from_project(
+        frontier,
+        target,
+        &base_project,
+        repository_anchor.as_ref(),
+        &authority_events,
+    )?;
     let briefing = prepared.value;
     let target_task_binding = prepared.target_task_binding;
     let base_event_log_root = format!(
@@ -4516,7 +4529,7 @@ mod workflow_transaction_tests {
             vela_protocol::project::assemble("finding-briefing", vec![finding], 0, 0, "fixture");
         vela_protocol::repo::init_repo(temp.path(), &project).unwrap();
         std::fs::write(temp.path().join("campaign.yaml"), "not: [valid").unwrap();
-        let briefing = briefing_from_project(temp.path(), &target, &project, None).unwrap();
+        let briefing = briefing_from_project(temp.path(), &target, &project, None, &[]).unwrap();
         assert_eq!(briefing.value["target"], target);
         assert!(briefing.value.get("task").is_none());
         assert!(briefing.target_task_binding.is_none());
@@ -4567,7 +4580,8 @@ mod workflow_transaction_tests {
         )
         .unwrap();
 
-        let error = briefing_from_project(temp.path(), "erdos:1056", &project, None).unwrap_err();
+        let error =
+            briefing_from_project(temp.path(), "erdos:1056", &project, None, &[]).unwrap_err();
         assert!(error.contains("historical v1 inspection only"), "{error}");
     }
 

@@ -20,6 +20,7 @@ use std::path::{Path, PathBuf};
 use rustix::fd::OwnedFd;
 
 use serde::{Deserialize, Serialize};
+use vela_protocol::authority::AuthorityEventV1;
 use vela_protocol::events::EVENT_KIND_FRONTIER_REPOSITORY_BOUND;
 use vela_protocol::frontier_profile::{EffectiveFrontierAuthorityV1, FrontierProfileProjectionV1};
 use vela_protocol::frontier_repo::{
@@ -35,8 +36,8 @@ use vela_protocol::{canonical, reducer};
 
 use super::frontier_repository::{
     RepositoryBoundaryContext, RepositoryTrustAnchor, verify_repository_artifact_projection,
-    verify_repository_boundary_context_with_trust_anchor, verify_repository_finding_projection,
-    verify_repository_unreplayed_sidecars,
+    verify_repository_boundary_context_with_trust_anchor_and_authority,
+    verify_repository_finding_projection, verify_repository_unreplayed_sidecars,
 };
 
 pub const REPOSITORY_TRUST_ANCHOR_SCHEMA_V1: &str = "vela.repository-trust-anchor.v1";
@@ -1220,6 +1221,21 @@ pub fn verify_repository_for_write(
     project: &Project,
     trust_anchor: Option<&RepositoryTrustAnchorV1>,
 ) -> Result<VerifiedRepositoryWriteContext, RepositoryWriteGateError> {
+    verify_repository_for_write_with_authority_events(repo_path, project, trust_anchor, &[])
+}
+
+/// Verify repository state while deriving proposal decisions across an
+/// already verified repository-authority event history.
+///
+/// The compatibility entry point above intentionally supplies an empty
+/// history. Callers that load Era-1 records must first verify the complete
+/// DSSE chain, then pass only those closed authority events here.
+pub fn verify_repository_for_write_with_authority_events(
+    repo_path: &Path,
+    project: &Project,
+    trust_anchor: Option<&RepositoryTrustAnchorV1>,
+    authority_events: &[AuthorityEventV1],
+) -> Result<VerifiedRepositoryWriteContext, RepositoryWriteGateError> {
     let profile = match read_repository_profile(repo_path) {
         Ok(Some(FrontierProfileFile::V1(profile))) => profile,
         Ok(Some(FrontierProfileFile::LegacyV0_1(_))) | Ok(None) => {
@@ -1283,7 +1299,11 @@ pub fn verify_repository_for_write(
         ));
     }
 
-    let proposal_conflicts = vela_protocol::proposals::verify_proposal_decision_parity(project);
+    let proposal_conflicts =
+        vela_protocol::proposals::verify_proposal_decision_parity_with_authority(
+            project,
+            authority_events,
+        );
     let withdrawal_conflicts =
         vela_protocol::proposals::verify_proposal_withdrawals(repo_path, project);
     if !withdrawal_conflicts.is_empty() {
@@ -1345,11 +1365,12 @@ pub fn verify_repository_for_write(
             ));
         }
         verify_trust_anchor_against_events(anchor, &projection, project)?;
-        let boundary_context = verify_repository_boundary_context_with_trust_anchor(
+        let boundary_context = verify_repository_boundary_context_with_trust_anchor_and_authority(
             project,
             repo_path,
             boundary,
             Some(&anchor.boundary_anchor()),
+            authority_events,
         )
         .map_err(|error| {
             RepositoryWriteGateError::new(RepositoryWriteGateCode::RepositoryBoundaryInvalid, error)

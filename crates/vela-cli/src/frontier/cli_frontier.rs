@@ -228,7 +228,7 @@ pub(crate) fn cmd_frontier(action: FrontierAction) {
 fn materialize_with_write_gate(frontier: &std::path::Path) -> Result<serde_json::Value, String> {
     let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier)?;
     let write_barrier =
-        crate::frontier_txn::FrontierTxn::acquire_write_barrier(frontier, &journal_dir)
+        crate::frontier_txn::FrontierTxn::acquire_derived_write_barrier(frontier, &journal_dir)
             .map_err(|error| error.to_string())?;
     let project = vela_protocol::repo::load_from_path(frontier)?;
     let visible = frontier_repo::render_visible_repo_files(frontier, &project)?;
