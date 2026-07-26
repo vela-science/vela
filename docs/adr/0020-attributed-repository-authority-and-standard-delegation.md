@@ -876,23 +876,53 @@ authorize `work_claim` for an exact Frontier and that authentication method.
 The lease event is stored in the Era-1 event log and covered by a DSSE
 authority record; no post-migration legacy event is appended.
 
+`vela land` uses the same writer without pretending that verifier success is
+scientific authority. Vela builds the existing signed activity record, verifies that its
+actor and public key match the Receipt identity binding and active lease, and
+retains a five-minute, bearer-free `agent_record_signature` observation.
+The Cedar action is `receipt_land`. The authority record covers the exact
+pending proposal, Receipt, activity record, review material, and retained
+artifacts as an object-only transaction. It appends no scientific event and
+leaves the accepted event root unchanged. The proposal therefore remains
+pending until a separate authorized scientific decision.
+
+The object-only transaction path is covered independently of the landing
+workflow. A no-op caller intent fails before authentication, repository
+signing, or journaling even when retained policy material needs backfill. A
+committed partial install recovers from its journal without reauthentication
+or another signature. Offline history verification proves the authority
+sequence advances while the event root does not, and rejects a re-signed
+record whose after-event root was changed.
+
 For a migrated Frontier whose sequence-1 bundle predates routine work,
 `vela authority enable-work` constructs one root-bound successor bundle. Its
 protected apply path obtains fresh platform-owned user presence through the
 pinned one-shot helper, reads no Vela human key, and records a
 `platform_user_presence` observation. The repository SSH-agent key signs only
 the already-authorized authority record. The narrow policy grants claim,
-refresh, and release coordination; agents still cannot obtain review,
-scientific acceptance, policy administration, membership, recovery, or key
-rotation.
+refresh, release, and Receipt-bound pending submission. Agents still cannot
+obtain review, scientific acceptance, policy administration, membership,
+recovery, or key rotation.
 
-The real Erdős Frontier exercised this complete path on 2026-07-26. Policy
-rotation record `var_113bbaca428ac6b7` activated bundle
-`sha256:0031a413c696aa1a8a9ef8c6b4f33e7cd5536228002241fe6ed67e3de799b7de`.
-Agent `agent:codex` then claimed and released `erdos:124` through records
-`var_bbeeb59ea0ef0741` and `var_6595400d3fe4ee12`. A clean clone replayed the
-same available queue, the legacy event root remained unchanged, and no
-scientific state changed.
+The real Erdős Frontier exercised the routine-work activation and coordination
+path on 2026-07-26. One protected semantic approval produced policy record
+`var_5d26ad19af679006` and activated bundle
+`sha256:298e66a4c72b9504f12794eed63fa6f5f9e783c3abde2760d6bd8da494eca521`
+at Git commit `9f7c7540e76404985ddb19ebcfbeb5589e7e7b8a`. The retained Cedar source
+permits only exact `work_claim` with `agent_event_signature` and exact
+`receipt_land` with `agent_record_signature`.
+
+Without another human prompt, existing producer `agent:canopus-local` claimed
+and released the first available ranked target, `erdos:124`, through authority
+records `var_336bfaa0c37b35d7` and `var_6846d617407a052c`. The qualification is
+published at commit `678f8436edf5db7656093fd8e091ae59c34b53a4`.
+A fresh clone replayed all seven authority records. The legacy event root
+remained
+`sha256:d35b11555988458d28a971b0c882c6f42c27e0d4ca47df3080bc9872d51c7096`,
+the scientific root remained
+`sha256:540d4967071425f77c693e61f62053208b07d67667490dcb9eeef62ec3f1d316`,
+the private work session was removed, and all pre-existing strict debt
+remained visible.
 
 Final `vela-signer` and identity-custody deletion remains blocked until:
 

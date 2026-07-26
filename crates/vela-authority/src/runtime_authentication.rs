@@ -22,6 +22,7 @@ use vela_protocol::authority::{CedarDecision, CedarEvaluation};
 use vela_protocol::canonical::sha256_canonical;
 use vela_protocol::events::StateEvent;
 use vela_protocol::principal_capability::PrincipalClass;
+use vela_protocol::record::ActivityRecord;
 
 use crate::{CedarEvaluationInput, evaluate};
 
@@ -348,13 +349,75 @@ impl AuthenticationAdapter for SignedAgentEventSession {
     }
 }
 
+/// A short-lived local agent session proven by the signed activity record
+/// Vela constructs for one exact Receipt landing.
+///
+/// The record signature binds the actor, Receipt root, operation, claim,
+/// artifacts, caveats, and frontier head. The repository authority retains
+/// only the full record root as a bearer-free observation; it never stores or
+/// receives the agent seed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SignedAgentRecordSession {
+    observation: AuthenticationObservationV1,
+}
+
+impl SignedAgentRecordSession {
+    pub fn from_record(record: &ActivityRecord) -> Result<Self, String> {
+        if !(record.emitted_by.starts_with("agent:") || record.emitted_by.starts_with("ci:")) {
+            return Err(
+                "signed agent-record authentication requires an agent: or ci: actor".into(),
+            );
+        }
+        if !record.verify()? {
+            return Err("signed agent-record authentication requires a record signature".into());
+        }
+        let authenticated_at = DateTime::parse_from_rfc3339(&record.emitted_at)
+            .map_err(|error| format!("agent record timestamp is invalid: {error}"))?
+            .with_timezone(&Utc);
+        let expires_at =
+            (authenticated_at + Duration::minutes(5)).to_rfc3339_opts(SecondsFormat::Secs, true);
+        Ok(Self {
+            observation: AuthenticationObservationV1 {
+                schema: AUTHENTICATION_OBSERVATION_SCHEMA_V1.into(),
+                principal_id: record.emitted_by.clone(),
+                principal_class: PrincipalClass::Agent,
+                issuer: "vela.activity-record.v1".into(),
+                subject: record.emitted_by.clone(),
+                method: AuthenticationMethod::AgentRecordSignature,
+                assurance: AuthenticationAssurance::SingleFactor,
+                session_root: format!("sha256:{}", sha256_canonical(record)?),
+                authenticated_at: record.emitted_at.clone(),
+                observed_at: record.emitted_at.clone(),
+                expires_at,
+                user_presence: false,
+                user_verification: false,
+                recovery_recent: false,
+                revocation_ref: None,
+            },
+        })
+    }
+}
+
+impl AuthenticationAdapter for SignedAgentRecordSession {
+    fn observe(
+        &mut self,
+        request: &AuthenticationRequest,
+    ) -> Result<AuthenticationObservationV1, AuthenticationFailure> {
+        let mut observation = self.observation.clone();
+        observation.observed_at = request.transaction_at.clone();
+        Ok(observation)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
 
     use ed25519_dalek::SigningKey;
     use tempfile::TempDir;
+    use vela_protocol::bundle::{ArtifactAvailability, ArtifactDisclosure, LocatorIntegrity};
     use vela_protocol::events::{FindingEventInput, new_finding_event};
+    use vela_protocol::record::{ActivityRecordDraft, RecordArtifact};
 
     use super::*;
 
@@ -529,6 +592,96 @@ mod tests {
 
         let wrong = SignedAgentEventSession::from_event(&event, &"00".repeat(32)).unwrap_err();
         assert!(wrong.contains("signature"));
+    }
+
+    #[test]
+    fn signed_agent_record_yields_a_short_lived_bearer_free_observation() {
+        let key = SigningKey::from_bytes(&[37; 32]);
+        let record = ActivityRecord::build(
+            ActivityRecordDraft {
+                frontier_id: "vfr_0123456789abcdef".into(),
+                against_head: root('d'),
+                assertion: "bounded result".into(),
+                assertion_type: "computational".into(),
+                artifacts: vec![RecordArtifact {
+                    kind: "witness".into(),
+                    locator: "artifacts/witness.json".into(),
+                    sha256: "ab".repeat(32),
+                    size_bytes: Some(2),
+                    media_type: Some("application/json".into()),
+                    disclosure: ArtifactDisclosure::Public,
+                    locator_integrity: LocatorIntegrity::Immutable,
+                    availability: ArtifactAvailability::Available,
+                    note: String::new(),
+                }],
+                verifier_runs: Vec::new(),
+                caveats: vec!["bounded scope only".into()],
+                source: None,
+                source_refs: Vec::new(),
+                receipt_digest: root('e'),
+                receipt_path: ".vela/receipts/fixture.json".into(),
+                operation_id: format!("vop_{}", "1".repeat(64)),
+                lineage: None,
+                emitted_by: "agent:fixture".into(),
+                emitted_at: "2026-07-24T12:05:00Z".into(),
+            },
+            Some(&key),
+        )
+        .unwrap();
+        let mut session = SignedAgentRecordSession::from_record(&record).unwrap();
+        let request = AuthenticationRequest {
+            principal_id: "agent:fixture".into(),
+            principal_class: PrincipalClass::Agent,
+            transaction_at: record.emitted_at.clone(),
+        };
+        let observation =
+            authenticate_for_transaction(&mut session, &request, &RuntimeSessionState::default())
+                .unwrap();
+        assert_eq!(
+            observation.method,
+            AuthenticationMethod::AgentRecordSignature
+        );
+        assert_eq!(observation.assurance, AuthenticationAssurance::SingleFactor);
+        assert_eq!(
+            observation.session_root,
+            format!("sha256:{}", sha256_canonical(&record).unwrap())
+        );
+        let encoded = serde_json::to_string(&observation).unwrap();
+        assert!(!encoded.contains("private"));
+        assert!(!encoded.contains("bearer"));
+
+        let unsigned = ActivityRecord::build(
+            ActivityRecordDraft {
+                frontier_id: "vfr_0123456789abcdef".into(),
+                against_head: root('d'),
+                assertion: "bounded result".into(),
+                assertion_type: "computational".into(),
+                artifacts: vec![RecordArtifact {
+                    kind: "witness".into(),
+                    locator: "artifacts/witness.json".into(),
+                    sha256: "ab".repeat(32),
+                    size_bytes: Some(2),
+                    media_type: Some("application/json".into()),
+                    disclosure: ArtifactDisclosure::Public,
+                    locator_integrity: LocatorIntegrity::Immutable,
+                    availability: ArtifactAvailability::Available,
+                    note: String::new(),
+                }],
+                verifier_runs: Vec::new(),
+                caveats: vec!["bounded scope only".into()],
+                source: None,
+                source_refs: Vec::new(),
+                receipt_digest: root('e'),
+                receipt_path: ".vela/receipts/fixture.json".into(),
+                operation_id: format!("vop_{}", "1".repeat(64)),
+                lineage: None,
+                emitted_by: "agent:fixture".into(),
+                emitted_at: "2026-07-24T12:05:00Z".into(),
+            },
+            None,
+        )
+        .unwrap();
+        assert!(SignedAgentRecordSession::from_record(&unsigned).is_err());
     }
 
     #[test]

@@ -51,6 +51,36 @@
       "authentication_assurance": "single_factor",
       "exact": true,
       "expected": "deny"
+    },
+    {
+      "id": "signed-agent-exact-receipt-land",
+      "principal_class": "agent",
+      "action": "receipt_land",
+      "resource": "frontier",
+      "authentication_method": "agent_record_signature",
+      "authentication_assurance": "single_factor",
+      "exact": true,
+      "expected": "allow"
+    },
+    {
+      "id": "event-signature-cannot-land-receipt",
+      "principal_class": "agent",
+      "action": "receipt_land",
+      "resource": "frontier",
+      "authentication_method": "agent_event_signature",
+      "authentication_assurance": "single_factor",
+      "exact": true,
+      "expected": "deny"
+    },
+    {
+      "id": "inexact-receipt-land",
+      "principal_class": "agent",
+      "action": "receipt_land",
+      "resource": "frontier",
+      "authentication_method": "agent_record_signature",
+      "authentication_assurance": "single_factor",
+      "exact": false,
+      "expected": "deny"
     }
   ]
 }

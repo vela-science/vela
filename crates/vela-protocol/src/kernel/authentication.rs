@@ -20,6 +20,7 @@ pub enum AuthenticationMethod {
     LocalOsSession,
     PlatformUserPresence,
     AgentEventSignature,
+    AgentRecordSignature,
     Passkey,
     Oidc,
     WorkloadOidc,
@@ -129,8 +130,11 @@ impl AuthenticationObservationV1 {
                 }
             }
             PrincipalClass::Agent => {
-                let locally_signed = self.method == AuthenticationMethod::AgentEventSignature
-                    && self.assurance == AuthenticationAssurance::SingleFactor;
+                let locally_signed = matches!(
+                    self.method,
+                    AuthenticationMethod::AgentEventSignature
+                        | AuthenticationMethod::AgentRecordSignature
+                ) && self.assurance == AuthenticationAssurance::SingleFactor;
                 let externally_attested = matches!(
                     self.method,
                     AuthenticationMethod::WorkloadOidc
@@ -272,6 +276,36 @@ mod tests {
         let mut no_verification = human();
         no_verification.user_verification = false;
         assert!(no_verification.validate().is_err());
+    }
+
+    #[test]
+    fn signed_agent_record_is_a_single_factor_agent_observation() {
+        let observation = AuthenticationObservationV1 {
+            schema: AUTHENTICATION_OBSERVATION_SCHEMA_V1.into(),
+            principal_id: "agent:fixture".into(),
+            principal_class: PrincipalClass::Agent,
+            issuer: "vela.activity-record.v1".into(),
+            subject: "agent:fixture".into(),
+            method: AuthenticationMethod::AgentRecordSignature,
+            assurance: AuthenticationAssurance::SingleFactor,
+            session_root: root('c'),
+            authenticated_at: "2026-07-24T12:00:00Z".into(),
+            observed_at: "2026-07-24T12:01:00Z".into(),
+            expires_at: "2026-07-24T12:05:00Z".into(),
+            user_presence: false,
+            user_verification: false,
+            recovery_recent: false,
+            revocation_ref: None,
+        };
+        observation.validate().unwrap();
+
+        let mut wrong_assurance = observation.clone();
+        wrong_assurance.assurance = AuthenticationAssurance::MultiFactor;
+        assert!(wrong_assurance.validate().is_err());
+
+        let mut fabricated_presence = observation;
+        fabricated_presence.user_presence = true;
+        assert!(fabricated_presence.validate().is_err());
     }
 
     #[test]

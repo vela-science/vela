@@ -35,7 +35,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vela_authority::CedarEvaluationInput;
 use vela_authority::runtime_authentication::{
-    AuthenticationRequest, RuntimeSessionState, SignedAgentEventSession,
+    AuthenticationRequest, RuntimeSessionState, SignedAgentEventSession, SignedAgentRecordSession,
 };
 use vela_protocol::authority::PrincipalSnapshotV1;
 use vela_protocol::bundle::{ArtifactAvailability, ArtifactDisclosure, LocatorIntegrity};
@@ -2285,8 +2285,7 @@ pub(crate) fn author_receipt(
     // transaction, so repository drift between the two operations fails
     // closed rather than reusing stale authority.
     let journal_dir = frontier_transaction_journal_dir(frontier)?;
-    let _write_authorization = acquire_canonical_write_barrier(frontier, &journal_dir)
-        .map_err(|error| error.to_string())?;
+    let (_migrated, _write_authorization) = acquire_work_write_barrier(frontier, &journal_dir)?;
     let work = resolve_work_session(frontier, actor, requested_work)?;
     let work_target = work.record.target.clone();
     let work_started_at = work.record.created_at.clone();
@@ -2327,12 +2326,27 @@ pub(crate) fn author_receipt(
         );
         normalized_artifacts.push(json!({"path": path, "kind": kind, "sha256": digest}));
     }
-    let project = repo::load_from_path(frontier)?;
+    let (project, repository_authority) = load_project_with_repository_authority(frontier)?;
     revalidate_work_session_target_binding(frontier, &project, &work.record)?;
     let event_root = work_session_landing_event_root_at(frontier, &project, &work.record)?;
-    let policy_ref = vela_protocol::acceptance_policy::load_active_policy(frontier)?
-        .map(|policy| policy.policy.id)
-        .unwrap_or_else(|| "urn:vela:policy:none".to_string());
+    let policy_ref = match repository_authority {
+        Some(authority) => {
+            if !authority
+                .policy_material
+                .schema
+                .contains("action \"receipt_land\"")
+            {
+                return Err(
+                    "repository authority does not yet permit signed-agent Receipt landing; run the protected `vela authority enable-work` rotation"
+                        .to_string(),
+                );
+            }
+            authority.history.policy_bundle.root()?
+        }
+        None => vela_protocol::acceptance_policy::load_active_policy(frontier)?
+            .map(|policy| policy.policy.id)
+            .unwrap_or_else(|| "urn:vela:policy:none".to_string()),
+    };
     let scientific_chain_requested = predicted_observable.is_some()
         || not_applicable
         || performed_test.is_some()
@@ -2918,22 +2932,35 @@ pub(crate) fn land(
         ));
     }
 
-    let recovery_barrier = acquire_canonical_write_barrier(frontier, &journal_dir)
-        .map_err(|error| error.to_string())?;
+    let (migrated, write_barrier) = acquire_work_write_barrier(frontier, &journal_dir)?;
     let policy_snapshot = vela_protocol::acceptance_policy::load_active_policy_snapshot(frontier)?;
-    let original = repo::load_from_path(frontier)?;
+    let (original, repository_authority) = load_project_with_repository_authority(frontier)?;
+    if migrated != repository_authority.is_some() {
+        return Err("landing writer authority changed while acquiring the barrier".to_string());
+    }
     if original.frontier_id() != frontier_id {
         return Err("frontier identity changed while acquiring the write barrier".to_string());
     }
     revalidate_receipt_target_task_binding(frontier, &original, receipt)?;
     let expected_event_hash = vela_protocol::events::event_log_hash(&original.events);
     let expected_event_root = format!("sha256:{expected_event_hash}");
-    let fixed_time = chrono::Utc::now().to_rfc3339();
+    let fixed_time = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     let PreparedArtifacts {
         records: record_artifacts,
         writes: artifact_writes,
         mut read_set,
     } = prepare_receipt_artifacts(frontier, receipt)?;
+    if let Some(authority) = repository_authority.as_ref()
+        && !authority
+            .policy_material
+            .schema
+            .contains("action \"receipt_land\"")
+    {
+        return Err(
+            "repository authority does not yet permit signed-agent Receipt landing; run the protected `vela authority enable-work` rotation"
+                .to_string(),
+        );
+    }
     read_set.push(InputBinding {
         name: "receipt".to_string(),
         digest: ContentDigest::parse(receipt_root.clone()).map_err(|error| error.to_string())?,
@@ -2958,6 +2985,24 @@ pub(crate) fn land(
         record_artifacts,
         signing_key.as_ref(),
     )?;
+    if migrated {
+        let binding = receipt
+            .producer_identity_binding()
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| {
+                "repository-authority landing requires the Receipt's embedded producer identity binding"
+                    .to_string()
+            })?;
+        if binding.actor_id != executor
+            || record.emitted_by != executor
+            || record.signer_pubkey_hex != binding.public_key_hex
+        {
+            return Err(
+                "signed landing record does not match the Receipt producer identity binding"
+                    .to_string(),
+            );
+        }
+    }
     let record_path = format!("records/{}.json", record.id);
     let mut proposal = crate::cli::records::proposal_for_record_land(&record, &fixed_time)?;
     let claim = receipt
@@ -3068,7 +3113,14 @@ pub(crate) fn land(
         engine_gate: staged_policy_route.engine_gate().clone(),
     };
     let mut snapshot_files = Vec::new();
-    let route = if executor.starts_with("agent:") || executor.starts_with("ci:") {
+    let route = if migrated {
+        LandRoute::Deferred {
+            reasons: vec![
+                "repository authority retained the signed Receipt as a pending proposal; verification does not accept scientific state"
+                    .to_string(),
+            ],
+        }
+    } else if executor.starts_with("agent:") || executor.starts_with("ci:") {
         match policy_accept::apply_staged_policy_route_in_frontier(
             &mut candidate,
             staged_policy_route,
@@ -3132,6 +3184,202 @@ pub(crate) fn land(
         executor,
         operation_id.as_str(),
     )?;
+    if let Some(authority) = repository_authority {
+        let WorkWriteBarrier::Repository(recovery_barrier) = write_barrier else {
+            return Err("repository-authority landing lost its write barrier".to_string());
+        };
+        let mut object_drafts = vec![
+            crate::authority_transaction::AuthorityObjectDraft {
+                path: format!(".vela/proposals/{proposal_id}.json"),
+                object_kind: "proposal".into(),
+                class: WriteClass::PublicReview,
+                postimage: Some(vela_protocol::canonical::to_canonical_bytes(&proposal)?),
+            },
+            crate::authority_transaction::AuthorityObjectDraft {
+                path: receipt_path.clone(),
+                object_kind: "receipt".into(),
+                class: WriteClass::PublicReview,
+                postimage: Some(receipt_bytes),
+            },
+            crate::authority_transaction::AuthorityObjectDraft {
+                path: record_path.clone(),
+                object_kind: "activity_record".into(),
+                class: WriteClass::PublicReview,
+                postimage: Some(vela_protocol::canonical::to_canonical_bytes(&record)?),
+            },
+            crate::authority_transaction::AuthorityObjectDraft {
+                path: review_material_path.clone(),
+                object_kind: "review_material".into(),
+                class: WriteClass::PublicReview,
+                postimage: Some(vela_protocol::canonical::to_canonical_bytes(
+                    &review_material,
+                )?),
+            },
+        ];
+        for write in artifact_writes {
+            let (path, class, postimage) = write
+                .into_authority_object_parts()
+                .map_err(|error| error.to_string())?;
+            object_drafts.push(crate::authority_transaction::AuthorityObjectDraft {
+                path,
+                object_kind: "receipt_artifact".into(),
+                class,
+                postimage,
+            });
+        }
+        let mut authentication = SignedAgentRecordSession::from_record(&record)?;
+        let authorization_input = CedarEvaluationInput {
+            schema: authority.policy_material.schema.clone(),
+            policies: authority.policy_material.policies.clone(),
+            entities: authority.policy_material.entities.clone(),
+            principal: format!(
+                "Agent::{}",
+                serde_json::to_string(executor).expect("serializing an actor ID cannot fail")
+            ),
+            principal_class: PrincipalClass::Agent,
+            action: "receipt_land".into(),
+            resource: format!(
+                "Frontier::{}",
+                serde_json::to_string(&frontier_id).expect("serializing a frontier ID cannot fail")
+            ),
+            context: json!({"exact": true}),
+        };
+        let (key_id, public_key) = active_repository_signing_key(&authority)?;
+        let mut repository_signer =
+            crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner::from_environment(
+                key_id,
+                &public_key,
+            )?;
+        let executable = std::env::current_exe()
+            .map_err(|error| format!("resolve running Vela binary: {error}"))?;
+        let binary_sha256 = vela_signer::contract::file_sha256(&executable)?;
+        let mut prepared = crate::authority_transaction::prepare_authority_transaction(
+            recovery_barrier,
+            frontier,
+            crate::authority_transaction::AuthorityTransactionRequest {
+                history: authority.history,
+                intent_digest: request_root.as_str().to_string(),
+                principal: PrincipalSnapshotV1 {
+                    principal_id: executor.to_string(),
+                    principal_class: PrincipalClass::Agent,
+                    display_name: None,
+                    affiliation: None,
+                    account_links: vec![executor.to_string()],
+                },
+                authentication_request: AuthenticationRequest {
+                    principal_id: executor.to_string(),
+                    principal_class: PrincipalClass::Agent,
+                    transaction_at: fixed_time.clone(),
+                },
+                runtime_session_state: RuntimeSessionState::default(),
+                authorization_input,
+                delegation: None,
+                semantic_approvals: Vec::new(),
+                event_drafts: Vec::new(),
+                object_drafts,
+                next_authority_keyset: None,
+                next_policy_bundle: None,
+                next_policy_material: None,
+                read_set,
+                vela_version: env!("CARGO_PKG_VERSION").into(),
+                binary_sha256,
+                recorded_at: fixed_time.clone(),
+            },
+            &mut authentication,
+            &mut repository_signer,
+        )
+        .map_err(|error| error.to_string())?;
+        let public = prepared
+            .resolved_public_writes()
+            .map_err(|error| error.to_string())?;
+        let delta_root = prepared.canonical_delta_root().to_string();
+        let publication_delta = if publication_disabled.is_some() {
+            None
+        } else {
+            publication_delta(frontier, &delta_root, public)?
+        };
+        let publication_preflight = publication_delta
+            .as_ref()
+            .map(|delta| exact_publication_preflight(frontier, delta, &publish_opts))
+            .transpose();
+        let publication_preflight = match publication_preflight {
+            Ok(value) => value,
+            Err(outcome) if publication_is_busy(&outcome) => {
+                return Err(
+                    "another Vela write/publication owns this repository; scientific state was not changed"
+                        .to_string(),
+                );
+            }
+            Err(outcome) => {
+                prepared
+                    .mark_committed()
+                    .map_err(|error| error.to_string())?;
+                prepared.install().map_err(|error| error.to_string())?;
+                prepared.complete().map_err(|error| error.to_string())?;
+                if let Some(path) = work_session_close {
+                    let target = frontier.join(path.as_str());
+                    match std::fs::remove_file(&target) {
+                        Ok(()) => {}
+                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                        Err(error) => {
+                            return Err(format!(
+                                "submission landed but private work-session cleanup failed at {}: {error}",
+                                target.display()
+                            ));
+                        }
+                    }
+                }
+                return Ok(outcome_from_durable(durable, route, outcome));
+            }
+        };
+        prepared
+            .mark_committed()
+            .map_err(|error| error.to_string())?;
+        prepared.install().map_err(|error| error.to_string())?;
+        prepared.complete().map_err(|error| error.to_string())?;
+        if let Some(path) = work_session_close {
+            let target = frontier.join(path.as_str());
+            match std::fs::remove_file(&target) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => {
+                    return Err(format!(
+                        "submission landed but private work-session cleanup failed at {}: {error}",
+                        target.display()
+                    ));
+                }
+            }
+        }
+        let publication = match (publication_delta.as_ref(), publication_preflight) {
+            (Some(delta), Some(preflight)) => publish_exact_delta(
+                frontier,
+                "land",
+                std::slice::from_ref(&proposal_id),
+                delta,
+                preflight,
+                &publish_opts,
+            )
+            .unwrap_or_else(|error| PublicationOutcome {
+                state: PublicationState::Unknown {
+                    reason: error.to_string(),
+                },
+                recovery_command: None,
+            }),
+            _ => PublicationOutcome {
+                state: PublicationState::Uncommitted {
+                    candidate: None,
+                    reason: publication_disabled.unwrap_or_else(|| {
+                        "repository-authority transaction had no public Git delta".to_string()
+                    }),
+                },
+                recovery_command: None,
+            },
+        };
+        return Ok(outcome_from_durable(durable, route, publication));
+    }
+    let WorkWriteBarrier::Legacy(recovery_barrier) = write_barrier else {
+        return Err("legacy landing lost its write barrier".to_string());
+    };
     let mut managed = repo::render_vela_repo_files(frontier, &candidate)?;
     preserve_existing_event_bytes(frontier, &original, &candidate, &mut managed, "land")?;
     let mut writes =

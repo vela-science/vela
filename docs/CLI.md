@@ -33,8 +33,11 @@ vela land --work <target> \
 vela check . --strict --json
 ```
 
-`land` builds or imports Receipt v1 and routes the proposal through the active
-signed policy. An agent cannot accept or reject the result.
+`land` builds or imports Receipt v1. On an Era-0 Frontier it routes through
+the active signed AcceptancePolicy. On a repository-authority Frontier it
+authenticates one exact signed activity record and retains an object-only
+pending proposal under the active Cedar bundle. That transaction appends no
+accepted scientific event. An agent cannot accept or reject the result.
 
 On Profile v1, `vela check` validates the repository context as a read-side
 gate. A valid event log is necessary but not sufficient: Vela checks the
@@ -77,7 +80,7 @@ A valid construction with a substituted or inflated claim exits nonzero.
 | `status` | Report Git identity, full roots, replay, blockers, counts, policy readiness, and one next action. |
 | `next` | Rank producer targets. Review work never appears here. |
 | `work` | Claim one target and write a private, typed session. |
-| `land` | Build or import Receipt v1, run policy, and publish the resulting bytes when requested. |
+| `land` | Build or import Receipt v1, retain the exact pending or policy-routed result, and publish its covered bytes when requested. |
 | `review` | List proposal summaries or inspect one exact Decision Brief. |
 | `check` | Verify schemas, replay, signatures, roots, policy, and strict signals. |
 | `reproduce` | Run stored evidence through its frozen verifier. |

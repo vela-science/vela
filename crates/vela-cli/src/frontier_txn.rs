@@ -406,6 +406,30 @@ impl PlannedWrite {
         }
         Ok(writes)
     }
+
+    /// Consume one already-bounded planned write for inclusion in an Era-1
+    /// repository-authority object delta.
+    ///
+    /// Authority transactions own regular canonical/public object bytes.
+    /// Executable modes are intentionally rejected rather than silently
+    /// weakening the signed object commitment.
+    pub(crate) fn into_authority_object_parts(
+        self,
+    ) -> Result<(String, WriteClass, Option<Vec<u8>>), FrontierTxnError> {
+        let postimage = match self.postimage {
+            PlannedPostimage::Absent => None,
+            PlannedPostimage::File { bytes, mode } => {
+                if mode.is_some_and(|mode| mode != FileMode::Regular) {
+                    return Err(FrontierTxnError::CorruptPlan(format!(
+                        "authority object {} cannot install an executable mode",
+                        self.path.as_str()
+                    )));
+                }
+                Some(bytes)
+            }
+        };
+        Ok((self.path.as_str().to_string(), self.class, postimage))
+    }
 }
 
 fn managed_write_class(path: &RepoPath) -> WriteClass {
@@ -3751,6 +3775,10 @@ impl FrontierTxn {
         resolve_public_writes(&self.journal.plan.canonical_delta, |blob| {
             self.read_blob(blob)
         })
+    }
+
+    pub(crate) fn canonical_delta_root(&self) -> &str {
+        self.journal.plan.canonical_delta.root().as_str()
     }
 
     fn install_write(&self, write: &StagedWrite) -> Result<(), FrontierTxnError> {

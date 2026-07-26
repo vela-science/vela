@@ -158,6 +158,18 @@ pub(crate) struct PreparedAuthorityTransaction {
 }
 
 impl PreparedAuthorityTransaction {
+    pub(crate) fn resolved_public_writes(
+        &self,
+    ) -> Result<Vec<crate::frontier_txn::ResolvedWrite>, AuthorityTransactionError> {
+        self.transaction
+            .resolved_public_writes()
+            .map_err(AuthorityTransactionError::Transaction)
+    }
+
+    pub(crate) fn canonical_delta_root(&self) -> &str {
+        self.transaction.canonical_delta_root()
+    }
+
     pub(crate) fn mark_committed(&mut self) -> Result<(), AuthorityTransactionError> {
         self.transaction
             .mark_committed()
@@ -224,6 +236,16 @@ where
     A: AuthenticationAdapter,
     S: RepositoryAuthoritySigner,
 {
+    if request.event_drafts.is_empty()
+        && request.object_drafts.is_empty()
+        && request.next_authority_keyset.is_none()
+        && request.next_policy_bundle.is_none()
+    {
+        return Err(AuthorityTransactionError::Invalid(
+            "authority transaction intent changes no event, object, keyset, or policy bundle"
+                .into(),
+        ));
+    }
     if request
         .next_authority_keyset
         .as_ref()
@@ -341,9 +363,12 @@ where
     cumulative_events.extend(events.iter());
     let legacy_root_with_bridge =
         format!("sha256:{}", event_log_hash(&request.history.legacy_events));
-    let after_event_log_root =
+    let after_event_log_root = if events.is_empty() {
+        history.final_event_log_root.clone()
+    } else {
         authority_event_log_root(&legacy_root_with_bridge, &cumulative_events)
-            .map_err(AuthorityTransactionError::History)?;
+            .map_err(AuthorityTransactionError::History)?
+    };
 
     let event_ids = events
         .iter()
@@ -1183,11 +1208,14 @@ fn validate_authority_object_path(
     }
     let valid = match class {
         WriteClass::Authority => value.starts_with(".vela/authority/"),
-        WriteClass::PublicReview => value.starts_with(".vela/proposals/"),
+        WriteClass::PublicReview => {
+            value.starts_with(".vela/proposals/") || value.starts_with("records/")
+        }
         WriteClass::CanonicalEvidence => {
-            value.starts_with(".vela/")
+            (value.starts_with(".vela/")
                 && !value.starts_with(".vela/authority/")
-                && !value.starts_with(".vela/proposals/")
+                && !value.starts_with(".vela/proposals/"))
+                || value.starts_with("records/artifacts/")
         }
         WriteClass::Derived | WriteClass::PrivateCoordination => false,
     };
@@ -1311,13 +1339,13 @@ fn validate_request_shape(
         .map_err(AuthorityTransactionError::Transaction)?;
     ContentDigest::parse(request.binary_sha256.clone())
         .map_err(AuthorityTransactionError::Transaction)?;
-    if request.event_drafts.is_empty()
+    if (request.event_drafts.is_empty() && request.object_drafts.is_empty())
         || request.vela_version.trim().is_empty()
         || request.recorded_at.trim().is_empty()
         || request.authentication_request.transaction_at != request.recorded_at
     {
         return Err(AuthorityTransactionError::Invalid(
-            "event set, version, and exact transaction time are required".into(),
+            "a changed event or object, version, and exact transaction time are required".into(),
         ));
     }
     for draft in &request.event_drafts {
@@ -2240,7 +2268,7 @@ mod tests {
             authority_envelopes: &envelopes,
         })
         .unwrap();
-        assert_eq!(result.authority_event_count, 1);
+        assert_eq!(result.authority_event_count, events.len());
         assert_eq!(result.authority_record_count, 2);
     }
 
@@ -2293,7 +2321,7 @@ mod tests {
 
     #[test]
     fn disposable_writer_installs_one_exact_transaction_and_replays_offline() {
-        let fixture = fixture();
+        let fixture = self::fixture();
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
         let result = execute_authority_transaction(
@@ -3536,8 +3564,91 @@ mod tests {
     }
 
     #[test]
+    fn object_only_pending_submission_advances_authority_not_scientific_events() {
+        let fixture = fixture();
+        let mut request = fixture.request.clone();
+        request.event_drafts.clear();
+        request.object_drafts = vec![AuthorityObjectDraft {
+            path: ".vela/proposals/vpr_pending.json".into(),
+            object_kind: "proposal".into(),
+            class: WriteClass::PublicReview,
+            postimage: Some(to_canonical_bytes(&json!({"standing": "pending"})).unwrap()),
+        }];
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let result = execute_authority_transaction(
+            fixture.barrier(),
+            fixture.temporary.path(),
+            request,
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap();
+
+        assert!(result.event_ids.is_empty());
+        assert_eq!(result.before_event_log_root, result.after_event_log_root);
+        assert_eq!(
+            fs::read(
+                fixture
+                    .temporary
+                    .path()
+                    .join(".vela/proposals/vpr_pending.json")
+            )
+            .unwrap(),
+            to_canonical_bytes(&json!({"standing": "pending"})).unwrap()
+        );
+        let mut envelopes = fixture.request.history.authority_envelopes.clone();
+        let envelope: AuthorityEnvelopeV1 = serde_json::from_slice(
+            &fs::read(
+                fixture
+                    .temporary
+                    .path()
+                    .join(authority_record_path(&result.authority_record_id)),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        envelopes.push(envelope);
+        let verification = verify_authority_history(AuthorityHistoryInput {
+            frontier_id: FRONTIER_ID,
+            legacy_events: &fixture.request.history.legacy_events,
+            legacy_actor_registry_bytes: &fixture.actor_registry_bytes,
+            legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
+            legacy_policy_store_manifest_root: &fixture
+                .request
+                .history
+                .legacy_policy_store_manifest_root,
+            authority_keysets: &fixture.request.history.retained_authority_keysets,
+            policy_bundles: &fixture.request.history.retained_policy_bundles,
+            authority_events: &[],
+            authority_envelopes: &envelopes,
+        })
+        .unwrap();
+        assert_eq!(verification.authority_event_count, 0);
+        assert_eq!(verification.authority_record_count, 2);
+    }
+
+    #[test]
     fn invalid_or_noop_object_drafts_fail_before_repository_signing() {
         let fixture = fixture();
+        let mut request = fixture.request.clone();
+        request.event_drafts.clear();
+        request.object_drafts.clear();
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let error = prepare_authority_transaction(
+            fixture.barrier(),
+            fixture.temporary.path(),
+            request,
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap_err();
+        assert!(matches!(error, AuthorityTransactionError::Invalid(_)));
+        assert_eq!(signer.calls, 0);
+        assert!(prepared_journal_absent(&fixture));
+
+        let fixture = self::fixture();
         let mut request = fixture.request.clone();
         request.object_drafts = vec![AuthorityObjectDraft {
             path: ".vela/proposals/bad.json".into(),
@@ -3692,5 +3803,71 @@ mod tests {
             proposal_bytes
         );
         verify_installed_history(&fixture, &events, &envelope);
+    }
+
+    #[test]
+    fn committed_object_only_partial_install_recovers_without_resigning() {
+        let fixture = fixture();
+        let mut request = fixture.request.clone();
+        request.event_drafts.clear();
+        let proposal_bytes =
+            to_canonical_bytes(&json!({"proposal": "object-only-recovery"})).unwrap();
+        request.object_drafts = vec![AuthorityObjectDraft {
+            path: ".vela/proposals/vpr_object_recovery.json".into(),
+            object_kind: "proposal".into(),
+            class: WriteClass::PublicReview,
+            postimage: Some(proposal_bytes.clone()),
+        }];
+        let before_event_root = verified_fixture_history(&fixture).final_event_log_root;
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let mut prepared = prepare_authority_transaction(
+            fixture.barrier(),
+            fixture.temporary.path(),
+            request,
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap();
+        assert!(prepared.result.event_ids.is_empty());
+        assert_eq!(prepared.result.before_event_log_root, before_event_root);
+        assert_eq!(prepared.result.after_event_log_root, before_event_root);
+        let result = prepared.result.clone();
+        let envelope = prepared.envelope.clone();
+        prepared.mark_committed().unwrap();
+        let error = prepared
+            .transaction_mut()
+            .install_at_failpoint(FrontierTxnStep::BeforeInstallWrite { index: 1 })
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            FrontierTxnError::InjectedFailure {
+                step: FrontierTxnStep::BeforeInstallWrite { index: 1 }
+            }
+        ));
+        drop(prepared);
+
+        let operation_id = OperationId::parse(result.operation_id).unwrap();
+        assert_eq!(
+            FrontierTxn::recover(
+                fixture.temporary.path(),
+                &fixture.journal_dir(),
+                &operation_id,
+            )
+            .unwrap(),
+            RecoveryOutcome::Completed
+        );
+        assert_eq!(signer.calls, 1);
+        assert_eq!(
+            fs::read(
+                fixture
+                    .temporary
+                    .path()
+                    .join(".vela/proposals/vpr_object_recovery.json")
+            )
+            .unwrap(),
+            proposal_bytes
+        );
+        verify_installed_history(&fixture, &[], &envelope);
     }
 }

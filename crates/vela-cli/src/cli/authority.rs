@@ -232,8 +232,35 @@ when {
     context.authentication.assurance == "single_factor"
 };"#;
 
+const ROUTINE_LANDING_SCHEMA: &str = r#"
+action "receipt_land" appliesTo {
+    principal: Agent,
+    resource: Frontier,
+    context: {
+        exact: Bool,
+        authentication: {
+            method: String,
+            assurance: String,
+            authenticated_at: String,
+            observed_at: String,
+            expires_at: String,
+            user_presence: Bool,
+            user_verification: Bool,
+            recovery_recent: Bool
+        }
+    }
+};"#;
+
+const ROUTINE_LANDING_POLICY: &str = r#"
+permit(principal, action == Action::"receipt_land", resource)
+when {
+    context.exact &&
+    context.authentication.method == "agent_record_signature" &&
+    context.authentication.assurance == "single_factor"
+};"#;
+
 const ROUTINE_WORK_POLICY_TESTS_ROOT: &str =
-    "sha256:f4457edafcf11613b0e6a51dd2f999b158af9e471cb8258e3a15b05bde837e1f";
+    "sha256:9487bb848454d03b35d9f2623211bde8fc7616fbc4b4c503b0f1ad3d40a4ab2e";
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -616,7 +643,7 @@ pub(crate) fn cmd_authority_enable_work(
                     after_hash: next_policy_root.clone(),
                     payload: json!({
                         "policy_bundle_root": next_policy_root,
-                        "change": "enable_signed_agent_work_leases"
+                        "change": "enable_signed_agent_routine_producer_work"
                     }),
                     caveats: vec![
                         "This policy grants no review, scientific acceptance, or policy-administration authority to agents.".into(),
@@ -691,7 +718,9 @@ pub(crate) fn cmd_authority_enable_work(
         println!("  next policy: {}", plan.next_policy_bundle_root);
         println!("  plan root: {}", plan.plan_root);
         println!("  confirm at: {}", plan.observed_at);
-        println!("  permits: exact work leases signed by the agent");
+        println!(
+            "  permits: exact work leases and Receipt-bound pending submissions signed by the agent"
+        );
         println!("  does not permit: review, acceptance, policy administration, or key rotation");
     }
 }
@@ -719,23 +748,37 @@ fn prepare_work_policy_plan(
     let project = vela_protocol::repo::load_from_path(&frontier)?;
     let authority = load_repository_authority(&frontier, &project)?
         .ok_or_else(|| "frontier has not crossed to repository authority".to_string())?;
-    if authority
+    let has_work_claim = authority
         .policy_material
         .schema
-        .contains("action \"work_claim\"")
-    {
-        return Err("signed-agent work leases are already enabled".into());
+        .contains("action \"work_claim\"");
+    let has_receipt_land = authority
+        .policy_material
+        .schema
+        .contains("action \"receipt_land\"");
+    if has_work_claim && has_receipt_land {
+        return Err("signed-agent routine producer work is already enabled".into());
     }
     let migration = migration_payload(&authority)?;
     let current_root = authority.history.policy_bundle.root()?;
-    let schema = format!(
-        "{}\n{}\n",
-        authority.policy_material.schema, ROUTINE_WORK_SCHEMA
-    );
-    let policies = format!(
-        "{}\n{}\n",
-        authority.policy_material.policies, ROUTINE_WORK_POLICY
-    );
+    let mut schema = authority.policy_material.schema.clone();
+    let mut policies = authority.policy_material.policies.clone();
+    if !has_work_claim {
+        schema.push('\n');
+        schema.push_str(ROUTINE_WORK_SCHEMA);
+        schema.push('\n');
+        policies.push('\n');
+        policies.push_str(ROUTINE_WORK_POLICY);
+        policies.push('\n');
+    }
+    if !has_receipt_land {
+        schema.push('\n');
+        schema.push_str(ROUTINE_LANDING_SCHEMA);
+        schema.push('\n');
+        policies.push('\n');
+        policies.push_str(ROUTINE_LANDING_POLICY);
+        policies.push('\n');
+    }
     let next_material = CedarPolicyMaterial {
         schema,
         policies,
@@ -758,7 +801,7 @@ fn prepare_work_policy_plan(
         engine_version: authority.history.policy_bundle.engine_version.clone(),
         restricted_profile: authority.history.policy_bundle.restricted_profile.clone(),
         previous_bundle_root: Some(current_root.clone()),
-        authority_summary: "Preserve the exact scientific and human-authority lanes; signed agents may coordinate exact work leases and gain no scientific or governance authority.".into(),
+        authority_summary: "Preserve the exact scientific and human-authority lanes; signed agents may coordinate exact work leases and submit exact Receipt-bound work for pending review, gaining no scientific or governance authority.".into(),
     };
     next_material.validate_against(&next_bundle)?;
     let verification_input = CedarEvaluationInput {
@@ -1281,14 +1324,18 @@ fn initial_policy_bundle_at_with_routine_work(
     }));
     let entities = Value::Array(entities);
     let schema = if include_routine_work {
-        format!("{automatic_schema}\n{HUMAN_AUTHORITY_SCHEMA}\n{ROUTINE_WORK_SCHEMA}\n")
+        format!(
+            "{automatic_schema}\n{HUMAN_AUTHORITY_SCHEMA}\n{ROUTINE_WORK_SCHEMA}\n{ROUTINE_LANDING_SCHEMA}\n"
+        )
     } else {
         // Preserve the exact sequence-1 bytes emitted by Vela 0.930.0-rc.7.
         format!("{automatic_schema}\n{HUMAN_AUTHORITY_SCHEMA}\n")
     };
     let human_policy = human_authority_policy(principal_id)?;
     let policies = if include_routine_work {
-        format!("{automatic_policies}\n{human_policy}\n{ROUTINE_WORK_POLICY}\n")
+        format!(
+            "{automatic_policies}\n{human_policy}\n{ROUTINE_WORK_POLICY}\n{ROUTINE_LANDING_POLICY}\n"
+        )
     } else {
         // Preserve the exact sequence-1 bytes emitted by Vela 0.930.0-rc.7.
         format!("{automatic_policies}\n{human_policy}\n")
@@ -1429,6 +1476,33 @@ fn verify_routine_work_policy(
             allowed.diagnostics
         ));
     }
+    let landing_input = CedarEvaluationInput {
+        action: "receipt_land".into(),
+        context: json!({
+            "exact": true,
+            "authentication": {
+                "method": "agent_record_signature",
+                "assurance": "single_factor",
+                "authenticated_at": "2026-07-24T00:00:00Z",
+                "observed_at": "2026-07-24T00:00:00Z",
+                "expires_at": "2026-07-24T00:05:00Z",
+                "user_presence": false,
+                "user_verification": false,
+                "recovery_recent": false
+            }
+        }),
+        ..agent_input.clone()
+    };
+    let landing_allowed = vela_authority::evaluate(&landing_input);
+    if !landing_allowed.valid
+        || !landing_allowed.diagnostics.is_empty()
+        || landing_allowed.decision != vela_protocol::authority::CedarDecision::Allow
+    {
+        return Err(format!(
+            "routine work policy does not authorize one exact signed-agent Receipt landing: {:?}",
+            landing_allowed.diagnostics
+        ));
+    }
     for hostile in [
         CedarEvaluationInput {
             context: json!({
@@ -1461,6 +1535,40 @@ fn verify_routine_work_policy(
                 }
             }),
             ..agent_input.clone()
+        },
+        CedarEvaluationInput {
+            action: "receipt_land".into(),
+            context: json!({
+                "exact": true,
+                "authentication": {
+                    "method": "agent_event_signature",
+                    "assurance": "single_factor",
+                    "authenticated_at": "2026-07-24T00:00:00Z",
+                    "observed_at": "2026-07-24T00:00:00Z",
+                    "expires_at": "2026-07-24T00:05:00Z",
+                    "user_presence": false,
+                    "user_verification": false,
+                    "recovery_recent": false
+                }
+            }),
+            ..landing_input.clone()
+        },
+        CedarEvaluationInput {
+            action: "receipt_land".into(),
+            context: json!({
+                "exact": false,
+                "authentication": {
+                    "method": "agent_record_signature",
+                    "assurance": "single_factor",
+                    "authenticated_at": "2026-07-24T00:00:00Z",
+                    "observed_at": "2026-07-24T00:00:00Z",
+                    "expires_at": "2026-07-24T00:05:00Z",
+                    "user_presence": false,
+                    "user_verification": false,
+                    "recovery_recent": false
+                }
+            }),
+            ..landing_input.clone()
         },
     ] {
         let denied = vela_authority::evaluate(&hostile);

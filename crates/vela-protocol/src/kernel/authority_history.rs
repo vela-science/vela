@@ -327,9 +327,6 @@ pub fn verify_authority_history(
             current_event_root = legacy_root_with_bridge.clone();
         } else {
             let transaction_id = verified.record.content.transaction_id.as_str();
-            let expected_ids = era_one_by_transaction.get(transaction_id).ok_or_else(|| {
-                format!("authority record {sequence} references an unknown or empty transaction")
-            })?;
             let actual_ids: BTreeSet<&str> = verified
                 .record
                 .content
@@ -337,10 +334,19 @@ pub fn verify_authority_history(
                 .iter()
                 .map(String::as_str)
                 .collect();
-            if &actual_ids != expected_ids {
-                return Err(format!(
-                    "authority record {sequence} does not exactly cover its transaction events"
-                ));
+            match era_one_by_transaction.get(transaction_id) {
+                Some(expected_ids) if &actual_ids == expected_ids => {}
+                None if actual_ids.is_empty() => {}
+                Some(_) => {
+                    return Err(format!(
+                        "authority record {sequence} does not exactly cover its transaction events"
+                    ));
+                }
+                None => {
+                    return Err(format!(
+                        "authority record {sequence} references an unknown transaction"
+                    ));
+                }
             }
             let mut transaction_events = Vec::new();
             for event_id in actual_ids {
@@ -359,8 +365,11 @@ pub fn verify_authority_history(
                 cumulative_era_one.push(event);
                 transaction_events.push(event);
             }
-            let expected_after =
-                authority_event_log_root(&legacy_root_with_bridge, &cumulative_era_one)?;
+            let expected_after = if transaction_events.is_empty() {
+                current_event_root.clone()
+            } else {
+                authority_event_log_root(&legacy_root_with_bridge, &cumulative_era_one)?
+            };
             if verified.record.content.after_event_log_root != expected_after {
                 return Err(format!(
                     "authority record {sequence} has the wrong after-event root"
@@ -1369,6 +1378,64 @@ mod tests {
                 .record_root
             )
         );
+    }
+
+    #[test]
+    fn object_only_record_advances_authority_without_advancing_event_history() {
+        let mut fixture = fixture();
+        let baseline = verify_authority_history(fixture.input()).unwrap();
+        let second = verify_authority_envelope(
+            &fixture.envelopes[1],
+            &fixture.keyset,
+            FRONTIER_ID,
+            2,
+            Some(
+                &verify_authority_envelope(
+                    &fixture.envelopes[0],
+                    &fixture.keyset,
+                    FRONTIER_ID,
+                    1,
+                    None,
+                )
+                .unwrap()
+                .record_root,
+            ),
+        )
+        .unwrap();
+        let proposal_root = root('d');
+        let third = record(
+            3,
+            Some(second.record_root),
+            "txn_pending_submission",
+            &root('c'),
+            &baseline.final_event_log_root,
+            &baseline.final_event_log_root,
+            Vec::new(),
+            vec![ObjectDeltaV1 {
+                path: ".vela/proposals/vpr_object_only.json".into(),
+                before_root: None,
+                after_root: Some(proposal_root),
+                object_kind: "proposal".into(),
+            }],
+            &fixture.keyset,
+            &fixture.bundle,
+            Vec::new(),
+        );
+        fixture
+            .envelopes
+            .push(signed_envelope(&third, &fixture.repository_key));
+
+        let verified = verify_authority_history(fixture.input()).unwrap();
+        assert_eq!(verified.authority_event_count, 1);
+        assert_eq!(verified.authority_record_count, 3);
+        assert_eq!(verified.final_event_log_root, baseline.final_event_log_root);
+
+        let mut wrong_after_root = third;
+        wrong_after_root.content.after_event_log_root = root('1');
+        wrong_after_root.record_id = wrong_after_root.derive_id().unwrap();
+        fixture.envelopes[2] = signed_envelope(&wrong_after_root, &fixture.repository_key);
+        let error = verify_authority_history(fixture.input()).unwrap_err();
+        assert!(error.contains("wrong after-event root"), "{error}");
     }
 
     #[test]

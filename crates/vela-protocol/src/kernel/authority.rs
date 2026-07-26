@@ -474,10 +474,10 @@ impl AuthorityRecordV1 {
         if content.frontier_id.trim().is_empty()
             || content.operation_id.trim().is_empty()
             || content.transaction_id.trim().is_empty()
-            || content.event_ids.is_empty()
+            || (content.event_ids.is_empty() && content.object_delta.is_empty())
         {
             return Err(
-                "authority record frontier, operation, transaction, and event set are required"
+                "authority record frontier, operation, transaction, and a changed event or object are required"
                     .into(),
             );
         }

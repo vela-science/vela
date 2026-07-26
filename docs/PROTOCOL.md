@@ -437,14 +437,26 @@ before this storage rule may be reconstructed only when its exact bundle root
 matches the deterministic sequence-1 translator. Any other missing or partial
 material fails closed.
 
-Routine work coordination uses the existing agent-signed lease event as a
-short-lived authentication proof. Cedar must allow `work_claim` for the exact
-agent and Frontier under `agent_event_signature`; the resulting Era-1 lease
-event and authority record use null scientific before/after roots and cannot
-change accepted state. `vela authority enable-work` rotates an older migrated
-Frontier to this narrow bundle after fresh platform-owned user presence. The
-approval helper reads no human Vela key, and the repository authority remains
-the sole transaction signer.
+Routine producer work uses two exact, short-lived authentication proofs:
+
+- the existing signed lease event authenticates `work_claim` under
+  `agent_event_signature`; and
+- the signed activity record authenticates `receipt_land` under
+  `agent_record_signature`.
+
+The activity-record signature binds the producer, Receipt root, operation,
+claim, artifacts, caveats, and Frontier head. The embedded Receipt identity
+binding, lease key, activity-record signer, and acting agent must match.
+Landing is an object-only authority transaction: it covers the pending
+proposal, Receipt, activity record, review material, and retained artifacts,
+while appending no scientific event. Its before/after event roots are
+identical. Verification therefore cannot be mistaken for acceptance.
+
+`vela authority enable-work` rotates an older migrated Frontier to this narrow
+producer bundle after fresh platform-owned user presence. The approval helper
+reads no human Vela key, and the repository authority remains the sole
+transaction signer. Neither action grants review, acceptance, policy,
+membership, recovery, or key-rotation authority.
 
 The rotation law and internal writer are also closed. A new keyset must name
 the exact prior keyset root, advance generation by one, and bind the
@@ -643,6 +655,10 @@ proposal, policy context, route, and materialized outputs before committing a
 delta. Each explicit Receipt artifact becomes a typed finding evidence span
 that points back into the retained Receipt; this makes the evidence locator
 reviewable without promoting a producer claim or verifier run to a verdict.
+After repository-authority migration, producer landing always takes the
+object-only **Defer** route in this writer generation. Any future automatic
+scientific admission must be separately specified and proven; it is not
+inferred from Cedar authorization to store a pending submission.
 The route is:
 
 - **Deny:** reject before the commit marker; leave no canonical or Git delta.
