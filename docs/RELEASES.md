@@ -26,10 +26,24 @@ Quantum Codes retained their exact Git, event, and scientific-state roots.
   [CI run 30180941454](https://github.com/vela-science/vela-research-harness/actions/runs/30180941454)
 - Security qualification:
   [CodeQL run 30180941364](https://github.com/vela-science/vela-research-harness/actions/runs/30180941364)
+- Tag commit: `0cc794f309a3e3aef62a40315ef8377aa82c353f`
+- Trusted release:
+  [run 30181194418](https://github.com/vela-science/vela-research-harness/actions/runs/30181194418),
+  verified the exact GitHub build attestation, published through npm trusted
+  publishing, verified the published npm signature and SLSA v1 provenance,
+  and created the matching GitHub release.
+- npm integrity:
+  `sha512-xZvb1NQZKC2mXEAl26PSjoHssGBMhQVVg7gl8yKRFFwlK3gphi9jv6SqR/Dtf+wExwoAPwh+p2yjf2zK+HbGUA==`
+- npm shasum: `3383b442e5990ee3b881e1e06ee47037303f5335`
+- Package SHA-256:
+  `6acce922c11012198b93c898c90659cc3cef922a44c7fe80b557ac07178bd273`
 
-The trusted tag workflow must still verify the exact package, GitHub build
-attestation, npm provenance, installed-product smoke, and matching GitHub
-release before this section is treated as released evidence.
+Independent post-publication verification downloaded the GitHub release and
+the npm tarball separately, confirmed byte identity, reverified the GitHub
+attestation against `refs/tags/v0.7.0` and the exact tag commit, and installed
+the package into an empty directory. The installed CLI reported
+`canopus 0.7.0`; ordinary help and the 129-file package contained no
+withdrawal command, capability store, or producer-key retention module.
 
 ## Canopus v0.6.5
 
