@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.7.0 - 2026-07-25
+
 - Retire long-lived proposal-withdrawal capabilities. Successful runs now
   destroy the isolated producer key with the rest of the Vela home; `inspect`
   reports only rooted run state, and the `withdraw` command and capability

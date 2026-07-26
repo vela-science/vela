@@ -1,7 +1,7 @@
 # ADR 0009: Ephemeral producer identities and withdrawal-capability retirement
 
-- Status: Proposed
-- Implementation candidate: Canopus `main` after `v0.6.5`
+- Status: Accepted
+- Release: Canopus `v0.7.0`
 - Protocol effect: None
 - Supersedes for new runs: ADR 0005
 - Vela compatibility: historical `proposal.withdrawn` events and direct

@@ -1,8 +1,8 @@
 # ADR 0005: Retained per-proposal withdrawal capabilities
 
 - Status: Accepted
-- Supersession: retained as historical `v0.3.0` behavior; ADR 0009 proposes
-  retiring the Canopus key-retention and withdrawal product surface
+- Supersession: retained as historical `v0.3.0` behavior; accepted ADR 0009
+  retires the Canopus key-retention and withdrawal product surface in `v0.7.0`
 - Release gate: satisfied 2026-07-17 by released Vela `v0.901.0`, the final
   protected-signer/root audit, focused capability tests, and package verification
 - Target release: Canopus `v0.3.0`

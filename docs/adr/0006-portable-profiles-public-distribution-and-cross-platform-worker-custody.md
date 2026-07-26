@@ -7,8 +7,8 @@
   GitHub Actions OIDC publisher bound to the public npm package
 - Target: Canopus `v0.4.3` (`v0.4.0` and `v0.4.1` stopped before publication;
   `v0.4.2` was the first provenance-backed public release)
-- Later simplification: ADR 0009 proposes removing `withdraw` and retained
-  producer keys from new Canopus runs; this ADR's released custody evidence
+- Later simplification: accepted ADR 0009 removes `withdraw` and retained
+  producer keys from Canopus `v0.7.0`; this ADR's released custody evidence
   remains historical
 
 ## Context

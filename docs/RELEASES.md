@@ -1,5 +1,36 @@
 # Release evidence
 
+## Canopus v0.7.0
+
+Version `0.7.0` returns Canopus to one responsibility: produce bounded,
+replayable evidence and hand it to Vela. It removes the public `withdraw`
+command, proposal-scoped key retention, withdrawal availability from
+`inspect`, and the capability-store implementation from the installed package.
+
+Successful runs destroy their isolated producer identity after verified
+landing and clean-clone reproduction. Historical
+`withdrawal_capability.retained` activity and Vela `proposal.withdrawn` events
+remain replayable. Existing proposals, Receipts, artifacts, verifier results,
+and scientific state are unchanged.
+
+Before release, five local capability manifests were inventoried by public byte
+root, their canonical proposal and Receipt references were verified, and the
+five non-canonical producer keys were deleted. Erdős, Formal, Sidon, and
+Quantum Codes retained their exact Git, event, and scientific-state roots.
+
+- Repository: [`vela-science/vela-research-harness`](https://github.com/vela-science/vela-research-harness)
+- Release: [`v0.7.0`](https://github.com/vela-science/vela-research-harness/releases/tag/v0.7.0)
+- Protocol and authority effect: none
+- Accepted decision: [ADR 0009](adr/0009-ephemeral-producer-identities-and-withdrawal-capability-retirement.md)
+- Main qualification:
+  [CI run 30180941454](https://github.com/vela-science/vela-research-harness/actions/runs/30180941454)
+- Security qualification:
+  [CodeQL run 30180941364](https://github.com/vela-science/vela-research-harness/actions/runs/30180941364)
+
+The trusted tag workflow must still verify the exact package, GitHub build
+attestation, npm provenance, installed-product smoke, and matching GitHub
+release before this section is treated as released evidence.
+
 ## Canopus v0.6.5
 
 Version `0.6.5` packages the preregistered
