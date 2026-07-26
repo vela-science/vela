@@ -5,10 +5,20 @@ import path from "node:path";
 import test from "node:test";
 
 import { parseMission, type MissionV1 } from "../src/contracts/mission.js";
-import { validateMissionBundle } from "../src/mission/prepare.js";
+import {
+  parseVelaVersionOutput,
+  validateMissionBundle,
+} from "../src/mission/prepare.js";
 import { canonicalJson, contentDigest, sha256Bytes } from "../src/util/canonical.js";
 
 const digest = `sha256:${"a".repeat(64)}`;
+
+test("mission preparation accepts the exact stable and prerelease Vela identities", () => {
+  assert.equal(parseVelaVersionOutput("vela 0.930.0"), "0.930.0");
+  assert.equal(parseVelaVersionOutput("vela 0.930.0-rc.9"), "0.930.0-rc.9");
+  assert.throws(() => parseVelaVersionOutput("vela latest"), /invalid version/u);
+  assert.throws(() => parseVelaVersionOutput("vela 0.930.0 rc.9"), /invalid version/u);
+});
 
 function mission(
   capsuleDigest: string,

@@ -59,6 +59,14 @@ export interface PreparedMission {
   manifestPath: string;
 }
 
+export function parseVelaVersionOutput(versionText: string): string {
+  const match = /^vela (0\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?)$/u.exec(
+    versionText,
+  );
+  if (match?.[1] === undefined) throw new Error("Vela returned an invalid version");
+  return match[1];
+}
+
 export async function assertVerifierWorkingDirectory(
   sourceRepo: string,
   declaredCwd: string,
@@ -310,9 +318,7 @@ export async function prepareMission(options: PrepareMissionOptions): Promise<Pr
       sourceRepo,
       runtimeHome,
     );
-    const versionMatch = /^vela (0\.[0-9]+\.[0-9]+)$/u.exec(versionText);
-    if (versionMatch?.[1] === undefined) throw new Error("Vela returned an invalid version");
-    const velaVersion = versionMatch[1];
+    const velaVersion = parseVelaVersionOutput(versionText);
     const vela = new VelaClient({
       binary: velaBinary,
       expectedVersion: velaVersion,
