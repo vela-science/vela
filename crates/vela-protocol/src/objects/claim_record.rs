@@ -23,6 +23,8 @@ pub struct ClaimAssertion {
 #[serde(deny_unknown_fields)]
 pub struct ClaimEvidenceRef {
     pub relation: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artifact_id: Option<String>,
     pub artifact_root: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artifact_path: Option<String>,
@@ -181,6 +183,9 @@ impl ClaimRecordV1 {
         }
         for evidence in &self.evidence {
             require_text("evidence.relation", &evidence.relation)?;
+            if let Some(artifact_id) = &evidence.artifact_id {
+                require_prefixed("evidence.artifact_id", artifact_id, "va_")?;
+            }
             require_sha256("evidence.artifact_root", &evidence.artifact_root)?;
             if let Some(path) = &evidence.artifact_path {
                 require_relative_path("evidence.artifact_path", path)?;
@@ -258,6 +263,14 @@ fn require_text(field: &str, value: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn require_prefixed(field: &str, value: &str, prefix: &str) -> Result<(), String> {
+    require_text(field, value)?;
+    if !value.starts_with(prefix) {
+        return Err(format!("Claim Record {field} must start with `{prefix}`"));
+    }
+    Ok(())
+}
+
 fn require_full_claim_id(field: &str, value: &str) -> Result<(), String> {
     let digest = value
         .strip_prefix("vcl_")
@@ -326,6 +339,7 @@ mod tests {
             vec!["Range 1..100 inclusive.".into()],
             vec![ClaimEvidenceRef {
                 relation: "supports".into(),
+                artifact_id: Some("va_fixture".into()),
                 artifact_root: root('a'),
                 artifact_path: Some(format!("records/artifacts/sha256/{}", "a".repeat(64))),
             }],

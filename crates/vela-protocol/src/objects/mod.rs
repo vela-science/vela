@@ -6,6 +6,7 @@ pub mod anchor;
 pub mod attempt;
 pub mod claim_record;
 pub mod cli_style;
+pub mod current_repository;
 pub mod identity;
 pub mod merkle;
 pub mod nanopub;

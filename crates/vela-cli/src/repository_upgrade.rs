@@ -7,14 +7,19 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use vela_protocol::bundle::FindingBundle;
+use vela_protocol::bundle::{Artifact, FindingBundle};
 use vela_protocol::claim_record::{
     ClaimAssertion, ClaimEvidenceRef, ClaimRecordV1, ClaimRelation, ClaimSource,
     ImportedClaimSource, LEGACY_FINDING_EXTENSION,
 };
+use vela_protocol::current_repository::{
+    CURRENT_ARTIFACT_RECORD_SCHEMA_V1, CURRENT_REPOSITORY_SCHEMA_V2, ClaimStandingRefV1,
+    CurrentArtifactRecordV1, CurrentFrontierProfileV2, CurrentRepositoryV2, RepositoryObjectRefV1,
+};
 use vela_protocol::proposal_v1::{
     ImportedProposalSource, ProposalProducerPackage, ProposalSubject, ProposalV1,
 };
+use vela_protocol::repository_epoch::{PredecessorRoots, RepositoryEpochV1};
 
 const PLAN_SCHEMA: &str = "vela.repository-upgrade-plan.v1";
 const OBJECT_MANIFEST_SCHEMA: &str = "vela.git-object-manifest.v1";
@@ -105,6 +110,18 @@ struct CandidateManifest {
     imported_claim_set_root: String,
     retained_current_object_set_root: String,
     equivalence_report_root: String,
+    epoch_id: String,
+    epoch_root: String,
+    repository_root: String,
+    profile_root: String,
+    authority_keyset_root: String,
+    authority_policy_root: String,
+}
+
+#[derive(Debug, Clone)]
+struct ConvertedArtifact {
+    reference: ObjectRef,
+    record: CurrentArtifactRecordV1,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -127,7 +144,14 @@ struct RepositoryUpgradePlan {
     predecessor_tag: String,
     predecessor_commit: String,
     predecessor_tree: String,
-    predecessor_roots: Value,
+    predecessor_roots: PredecessorRoots,
+    profile_root: String,
+    epoch_id: String,
+    epoch_root: String,
+    repository_root: String,
+    authority_keyset_root: String,
+    authority_policy_root: String,
+    authority_key_id: String,
     git_object_manifest_path: String,
     git_object_manifest_root: String,
     archive_bundle_path: String,
@@ -220,16 +244,43 @@ fn prepare_repository_upgrade(
         .final_authority_record_root
         .clone()
         .ok_or_else(|| "repository authority has no final record root".to_string())?;
+    let (authority_key_id, _) = crate::cli::active_repository_key(&authority)?;
+    let observed_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    let local = crate::cli::local_session(&observed_at)?;
+    let (authority_policy, authority_policy_input) =
+        crate::cli::fresh_authority_policy(&frontier, &project, &local.principal_id, &observed_at)?;
+    let authority_policy_material =
+        vela_authority::CedarPolicyMaterial::from_evaluation(&authority_policy_input);
+    authority_policy_material.validate_against(&authority_policy)?;
+    let authority_keyset = authority.history.authority_keyset.clone();
+    authority_keyset.validate()?;
+    let authority_keyset_root = authority_keyset.root()?;
+    let authority_policy_root = authority_policy.root()?;
+    let (profile_bytes, profile_root) = current_profile(&frontier)?;
 
     let object_manifest = git_object_manifest(&frontier, &commit, &tree)?;
     let object_manifest_bytes = vela_protocol::canonical::to_canonical_bytes(&object_manifest)?;
     let object_manifest_root = root_bytes(&object_manifest_bytes);
 
+    let converted_artifacts = convert_artifacts(&project.artifacts, &commit)?;
+    let artifact_evidence = artifact_evidence_by_finding(&project.artifacts, &converted_artifacts)?;
     let (claims, claim_records, semantic_root, source_relation_count) =
-        convert_accepted_claims(&project.findings, &commit)?;
+        convert_accepted_claims(&project.findings, &artifact_evidence, &commit)?;
     let (pending_claims, pending_claim_records, proposals, proposal_records) =
         convert_current_pending_proposals(&project.proposals, &commit)?;
-    let retained_current_objects = retained_current_objects(&frontier)?;
+    let mut retained_current_objects = retained_current_objects(&frontier)?;
+    retained_current_objects.extend(
+        converted_artifacts
+            .iter()
+            .map(|artifact| artifact.reference.clone()),
+    );
+    retained_current_objects.sort_by(|left, right| left.path.cmp(&right.path));
+    if retained_current_objects
+        .windows(2)
+        .any(|pair| pair[0].path == pair[1].path)
+    {
+        return Err("current object conversion produced a duplicate path".into());
+    }
 
     let imported_claim_set_root = root_canonical(&json!({
         "schema": "vela.claim-standing-set.v1",
@@ -285,21 +336,6 @@ fn prepare_repository_upgrade(
     let archive_index_bytes = vela_protocol::canonical::to_canonical_bytes(&archive_index)?;
     let archive_index_root = root_bytes(&archive_index_bytes);
 
-    let candidate = CandidateManifest {
-        schema: CANDIDATE_MANIFEST_SCHEMA,
-        frontier_id: project.frontier_id(),
-        predecessor_commit: commit.clone(),
-        claims,
-        pending_claims,
-        proposals,
-        retained_current_objects,
-        imported_claim_set_root: imported_claim_set_root.clone(),
-        retained_current_object_set_root: retained_current_object_set_root.clone(),
-        equivalence_report_root: equivalence_report_root.clone(),
-    };
-    let candidate_bytes = vela_protocol::canonical::to_canonical_bytes(&candidate)?;
-    let candidate_root = root_bytes(&candidate_bytes);
-
     fs::create_dir_all(archive_dir).map_err(|error| {
         format!(
             "create archive directory {}: {error}",
@@ -318,6 +354,81 @@ fn prepare_repository_upgrade(
     let candidate_path = archive_dir.join(format!("{stem}.candidate.json"));
     let archive_index_path = archive_dir.join(format!("{stem}.archived-objects.json"));
     let equivalence_path = archive_dir.join(format!("{stem}.equivalence.json"));
+    let bundle_path = archive_dir.join(format!("{stem}.bundle"));
+    create_or_verify_bundle(&frontier, &bundle_path)?;
+    let bundle_root = root_bytes(
+        &fs::read(&bundle_path)
+            .map_err(|error| format!("read archive bundle {}: {error}", bundle_path.display()))?,
+    );
+
+    let actor_registry_root = root_bytes(
+        &fs::read(frontier.join(".vela/actors.json"))
+            .map_err(|error| format!("read .vela/actors.json: {error}"))?,
+    );
+    let artifact_registry_root = root_canonical(&project.artifacts)?;
+    let predecessor_roots = PredecessorRoots {
+        event_log: lock.event_log_root.clone(),
+        scientific_state: lock.scientific_state_root.clone(),
+        compatibility_snapshot: lock.legacy_snapshot_root.clone(),
+        proposal_state: lock.proposal_root.clone(),
+        actor_registry: actor_registry_root,
+        artifact_registry: artifact_registry_root,
+        authority_head,
+        authority_event_log: authority.verification.final_event_log_root.clone(),
+    };
+    let epoch = RepositoryEpochV1::build(
+        project.frontier_id(),
+        1,
+        remote.clone(),
+        tag.clone(),
+        commit.clone(),
+        tree.clone(),
+        "vela.frontier-profile.v1".into(),
+        predecessor_roots.clone(),
+        object_manifest_root.clone(),
+        bundle_root.clone(),
+        imported_claim_set_root.clone(),
+        retained_current_object_set_root.clone(),
+        archive_index_root.clone(),
+        equivalence_report_root.clone(),
+        reason.into(),
+    )?;
+    let epoch_root = epoch.canonical_root()?;
+
+    let repository = current_repository(
+        &project.frontier_id(),
+        &profile_root,
+        &epoch,
+        &epoch_root,
+        &claims,
+        &pending_claims,
+        &proposals,
+        &retained_current_objects,
+        &authority_keyset_root,
+        &authority_policy_root,
+    )?;
+    let repository_root = repository.canonical_root()?;
+    let candidate = CandidateManifest {
+        schema: CANDIDATE_MANIFEST_SCHEMA,
+        frontier_id: project.frontier_id(),
+        predecessor_commit: commit.clone(),
+        claims,
+        pending_claims,
+        proposals,
+        retained_current_objects,
+        imported_claim_set_root: imported_claim_set_root.clone(),
+        retained_current_object_set_root: retained_current_object_set_root.clone(),
+        equivalence_report_root: equivalence_report_root.clone(),
+        epoch_id: epoch.epoch_id.clone(),
+        epoch_root: epoch_root.clone(),
+        repository_root: repository_root.clone(),
+        profile_root: profile_root.clone(),
+        authority_keyset_root: authority_keyset_root.clone(),
+        authority_policy_root: authority_policy_root.clone(),
+    };
+    let candidate_bytes = vela_protocol::canonical::to_canonical_bytes(&candidate)?;
+    let candidate_root = root_bytes(&candidate_bytes);
+
     write_exact(&object_manifest_path, &object_manifest_bytes)?;
     write_exact(&candidate_path, &candidate_bytes)?;
     write_exact(&archive_index_path, &archive_index_bytes)?;
@@ -325,36 +436,29 @@ fn prepare_repository_upgrade(
         &equivalence_path,
         &vela_protocol::canonical::to_canonical_bytes(&equivalence)?,
     )?;
-
-    let bundle_path = archive_dir.join(format!("{stem}.bundle"));
-    create_or_verify_bundle(&frontier, &bundle_path)?;
-    let bundle_root = root_bytes(
-        &fs::read(&bundle_path)
-            .map_err(|error| format!("read archive bundle {}: {error}", bundle_path.display()))?,
-    );
     let records_path = archive_dir.join(format!("{stem}.records"));
     write_candidate_records(
         &records_path,
         &claim_records,
         &pending_claim_records,
         &proposal_records,
+        &converted_artifacts,
     )?;
-
-    let actor_registry_root = root_bytes(
-        &fs::read(frontier.join(".vela/actors.json"))
-            .map_err(|error| format!("read .vela/actors.json: {error}"))?,
-    );
-    let artifact_registry_root = root_canonical(&project.artifacts)?;
-    let predecessor_roots = json!({
-        "event_log": lock.event_log_root,
-        "scientific_state": lock.scientific_state_root,
-        "compatibility_snapshot": lock.legacy_snapshot_root,
-        "proposal_state": lock.proposal_root,
-        "actor_registry": actor_registry_root,
-        "artifact_registry": artifact_registry_root,
-        "authority_head": authority_head,
-        "authority_event_log": authority.verification.final_event_log_root,
-    });
+    copy_retained_current_objects(
+        &frontier,
+        &records_path,
+        &candidate.retained_current_objects,
+    )?;
+    write_current_candidate(
+        &records_path,
+        &profile_bytes,
+        &epoch,
+        &repository,
+        &authority_keyset,
+        &authority_policy,
+        &authority_policy_material,
+    )?;
+    verify_current_repository_at(&records_path, false)?;
     let archived_count = archive_index.objects.len();
     let next = format!(
         "vela repository upgrade {} --to current --archive-dir {} --reason {} --confirm-root <plan-root> --json",
@@ -374,6 +478,13 @@ fn prepare_repository_upgrade(
         predecessor_commit: commit,
         predecessor_tree: tree,
         predecessor_roots,
+        profile_root,
+        epoch_id: epoch.epoch_id,
+        epoch_root,
+        repository_root,
+        authority_keyset_root,
+        authority_policy_root,
+        authority_key_id,
         git_object_manifest_path: object_manifest_path.display().to_string(),
         git_object_manifest_root: object_manifest_root,
         archive_bundle_path: bundle_path.display().to_string(),
@@ -407,12 +518,21 @@ fn prepare_repository_upgrade(
 
 fn convert_accepted_claims(
     findings: &[FindingBundle],
+    artifact_evidence: &BTreeMap<String, Vec<ClaimEvidenceRef>>,
     predecessor_commit: &str,
 ) -> Result<(Vec<ClaimMapping>, Vec<ClaimRecordV1>, String, usize), String> {
     let mut base = Vec::with_capacity(findings.len());
     let mut by_source = BTreeMap::new();
     for finding in findings {
-        let record = claim_from_finding(finding, predecessor_commit, Vec::new())?;
+        let record = claim_from_finding(
+            finding,
+            artifact_evidence
+                .get(&finding.id)
+                .cloned()
+                .unwrap_or_default(),
+            predecessor_commit,
+            Vec::new(),
+        )?;
         if by_source
             .insert(finding.id.clone(), record.claim_id.clone())
             .is_some()
@@ -442,7 +562,15 @@ fn convert_accepted_claims(
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
-        let record = claim_from_finding(finding, predecessor_commit, relations)?;
+        let record = claim_from_finding(
+            finding,
+            artifact_evidence
+                .get(&finding.id)
+                .cloned()
+                .unwrap_or_default(),
+            predecessor_commit,
+            relations,
+        )?;
         if record.claim_id != base_record.claim_id {
             return Err(format!(
                 "Finding {} relation metadata changed its Claim identity",
@@ -470,26 +598,375 @@ fn convert_accepted_claims(
     Ok((mappings, records, semantic_root, relation_count))
 }
 
+fn current_profile(frontier: &Path) -> Result<(Vec<u8>, String), String> {
+    let source = fs::read_to_string(frontier.join("frontier.yaml"))
+        .map_err(|error| format!("read frontier.yaml: {error}"))?;
+    let profile = vela_protocol::frontier_profile::FrontierProfileV1::from_yaml_str(&source)?;
+    let profile = CurrentFrontierProfileV2::from_v1(profile)?;
+    let profile_root = profile.profile_root()?;
+    let bytes = serde_yaml::to_string(&profile)
+        .map_err(|error| format!("serialize Frontier Profile v2: {error}"))?
+        .into_bytes();
+    Ok((bytes, profile_root))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn current_repository(
+    frontier_id: &str,
+    profile_root: &str,
+    epoch: &RepositoryEpochV1,
+    epoch_root: &str,
+    claims: &[ClaimMapping],
+    pending_claims: &[ObjectRef],
+    proposals: &[ProposalMapping],
+    objects: &[ObjectRef],
+    authority_keyset_root: &str,
+    authority_policy_root: &str,
+) -> Result<CurrentRepositoryV2, String> {
+    let mut accepted_claims = claims
+        .iter()
+        .map(|claim| ClaimStandingRefV1 {
+            claim_id: claim.claim_id.clone(),
+            claim_root: claim.claim_root.clone(),
+            standing: "accepted".into(),
+            path: claim.path.clone(),
+        })
+        .collect::<Vec<_>>();
+    accepted_claims.sort_by(|left, right| left.claim_id.cmp(&right.claim_id));
+    let mut pending_claims = pending_claims
+        .iter()
+        .map(|claim| ClaimStandingRefV1 {
+            claim_id: claim.id.clone(),
+            claim_root: claim.root.clone(),
+            standing: "pending_review".into(),
+            path: claim.path.clone(),
+        })
+        .collect::<Vec<_>>();
+    pending_claims.sort_by(|left, right| left.claim_id.cmp(&right.claim_id));
+    let mut proposal_refs = proposals
+        .iter()
+        .map(|proposal| RepositoryObjectRefV1 {
+            schema: "vela.proposal.v1".into(),
+            id: proposal.proposal_id.clone(),
+            root: proposal.proposal_root.clone(),
+            path: proposal.path.clone(),
+        })
+        .collect::<Vec<_>>();
+    proposal_refs.sort_by(|left, right| left.id.cmp(&right.id));
+
+    let group = |prefix: &str| {
+        let mut references = objects
+            .iter()
+            .filter(|object| object.path.starts_with(prefix))
+            .map(repository_object_ref)
+            .collect::<Vec<_>>();
+        references.sort_by(|left, right| left.id.cmp(&right.id));
+        references
+    };
+    let repository = CurrentRepositoryV2 {
+        schema: CURRENT_REPOSITORY_SCHEMA_V2.into(),
+        frontier_id: frontier_id.into(),
+        profile_root: profile_root.into(),
+        epoch_id: epoch.epoch_id.clone(),
+        epoch_root: epoch_root.into(),
+        accepted_claims,
+        pending_claims,
+        proposals: proposal_refs,
+        submissions: group("records/submissions/sha256/"),
+        registrations: group("records/registrations/sha256/"),
+        verifications: group("records/verifications/sha256/"),
+        artifacts: group("records/artifacts/sha256/"),
+        authority_keyset_root: authority_keyset_root.into(),
+        authority_policy_root: authority_policy_root.into(),
+    };
+    repository.verify()?;
+    Ok(repository)
+}
+
+fn repository_object_ref(object: &ObjectRef) -> RepositoryObjectRefV1 {
+    RepositoryObjectRefV1 {
+        schema: object.schema.clone(),
+        id: object.id.clone(),
+        root: object.root.clone(),
+        path: object.path.clone(),
+    }
+}
+
+fn write_current_candidate(
+    root: &Path,
+    profile_bytes: &[u8],
+    epoch: &RepositoryEpochV1,
+    repository: &CurrentRepositoryV2,
+    keyset: &vela_protocol::authority::AuthorityKeysetV1,
+    policy: &vela_protocol::authority::PolicyBundleV1,
+    material: &vela_authority::CedarPolicyMaterial,
+) -> Result<(), String> {
+    write_exact(&root.join("frontier.yaml"), profile_bytes)?;
+    write_exact(&root.join(".vela/epoch.json"), &epoch.canonical_bytes()?)?;
+    write_exact(
+        &root.join(".vela/repository.json"),
+        &repository.canonical_bytes()?,
+    )?;
+    let keyset_root = keyset.root()?;
+    write_exact(
+        &root.join(format!(
+            ".vela/authority/keysets/{}.json",
+            keyset_root.trim_start_matches("sha256:")
+        )),
+        &vela_protocol::canonical::to_canonical_bytes(keyset)?,
+    )?;
+    let policy_root = policy.root()?;
+    write_exact(
+        &root.join(format!(
+            ".vela/authority/policies/{}.json",
+            policy_root.trim_start_matches("sha256:")
+        )),
+        &vela_protocol::canonical::to_canonical_bytes(policy)?,
+    )?;
+    let paths = crate::authority_transaction::authority_policy_material_paths(policy)
+        .map_err(|error| error.to_string())?;
+    write_exact(&root.join(&paths[0]), material.schema.as_bytes())?;
+    write_exact(&root.join(&paths[1]), material.policies.as_bytes())?;
+    write_exact(
+        &root.join(&paths[2]),
+        &vela_protocol::canonical::to_canonical_bytes(&material.entities)?,
+    )?;
+    Ok(())
+}
+
+/// Verify a current-only repository without consulting Era-0 events, locks, or
+/// generated snapshots. The optional authority-record requirement is enabled
+/// for an applied epoch and disabled only for the key-free candidate preview.
+fn verify_current_repository_at(
+    root: &Path,
+    require_authority_record: bool,
+) -> Result<CurrentRepositoryV2, String> {
+    let profile_source = fs::read_to_string(root.join("frontier.yaml"))
+        .map_err(|error| format!("read current frontier.yaml: {error}"))?;
+    let profile = CurrentFrontierProfileV2::from_yaml_str(&profile_source)?;
+    let profile_root = profile.profile_root()?;
+
+    let epoch_bytes = fs::read(root.join(".vela/epoch.json"))
+        .map_err(|error| format!("read current repository epoch: {error}"))?;
+    let epoch = RepositoryEpochV1::parse(&epoch_bytes)?;
+    if epoch.canonical_bytes()? != epoch_bytes {
+        return Err("current repository epoch bytes are not canonical JSON".into());
+    }
+    let epoch_root = epoch.canonical_root()?;
+
+    let repository_bytes = fs::read(root.join(".vela/repository.json"))
+        .map_err(|error| format!("read current repository manifest: {error}"))?;
+    let repository = CurrentRepositoryV2::parse(&repository_bytes)?;
+    if repository.frontier_id != profile.frontier_id
+        || repository.frontier_id != epoch.frontier_id
+        || repository.profile_root != profile_root
+        || repository.epoch_id != epoch.epoch_id
+        || repository.epoch_root != epoch_root
+    {
+        return Err(
+            "current Profile, repository manifest, and epoch do not bind the same identity".into(),
+        );
+    }
+
+    for reference in &repository.accepted_claims {
+        let bytes = read_rooted_object(root, &reference.path, &reference.claim_root)?;
+        let claim = ClaimRecordV1::parse(&bytes)?;
+        if claim.canonical_bytes()? != bytes || claim.claim_id != reference.claim_id {
+            return Err(format!(
+                "{} does not contain the declared canonical Claim",
+                reference.path
+            ));
+        }
+    }
+    for reference in &repository.pending_claims {
+        let bytes = read_rooted_object(root, &reference.path, &reference.claim_root)?;
+        let claim = ClaimRecordV1::parse(&bytes)?;
+        if claim.canonical_bytes()? != bytes || claim.claim_id != reference.claim_id {
+            return Err(format!(
+                "{} does not contain the declared canonical pending Claim",
+                reference.path
+            ));
+        }
+    }
+    for reference in &repository.proposals {
+        let bytes = read_rooted_object(root, &reference.path, &reference.root)?;
+        let proposal = ProposalV1::parse(&bytes)?;
+        if proposal.canonical_bytes()? != bytes || proposal.proposal_id != reference.id {
+            return Err(format!(
+                "{} does not contain the declared canonical Proposal",
+                reference.path
+            ));
+        }
+    }
+    for reference in &repository.submissions {
+        let bytes = read_rooted_object(root, &reference.path, &reference.root)?;
+        let submission = vela_protocol::submission_v1::SubmissionV1::parse(&bytes)?;
+        if submission.canonical_bytes()? != bytes || submission.submission_id != reference.id {
+            return Err(format!(
+                "{} does not contain the declared canonical Submission",
+                reference.path
+            ));
+        }
+    }
+    for reference in &repository.registrations {
+        let bytes = read_rooted_object(root, &reference.path, &reference.root)?;
+        let registration = vela_protocol::registration_record::RegistrationRecordV1::parse(&bytes)?;
+        if registration.canonical_bytes()? != bytes
+            || registration.registration_record_id != reference.id
+        {
+            return Err(format!(
+                "{} does not contain the declared canonical Registration Record",
+                reference.path
+            ));
+        }
+    }
+    for reference in &repository.verifications {
+        let bytes = read_rooted_object(root, &reference.path, &reference.root)?;
+        let verification = vela_protocol::verification_record::VerificationRecordV1::parse(&bytes)?;
+        if verification.canonical_bytes()? != bytes
+            || verification.verification_record_id != reference.id
+        {
+            return Err(format!(
+                "{} does not contain the declared canonical Verification Record",
+                reference.path
+            ));
+        }
+    }
+    for reference in &repository.artifacts {
+        let bytes = read_rooted_object(root, &reference.path, &reference.root)?;
+        let value: Value = serde_json::from_slice(&bytes)
+            .map_err(|error| format!("{} is not JSON: {error}", reference.path))?;
+        if value.get("schema").and_then(Value::as_str) != Some(reference.schema.as_str()) {
+            return Err(format!("{} has the wrong Artifact schema", reference.path));
+        }
+        if reference.schema == CURRENT_ARTIFACT_RECORD_SCHEMA_V1 {
+            let artifact = CurrentArtifactRecordV1::parse(&bytes)?;
+            if artifact.artifact_id != reference.id {
+                return Err(format!(
+                    "{} does not contain the declared canonical Artifact",
+                    reference.path
+                ));
+            }
+        }
+    }
+
+    let keyset_path = root.join(format!(
+        ".vela/authority/keysets/{}.json",
+        repository
+            .authority_keyset_root
+            .trim_start_matches("sha256:")
+    ));
+    let keyset_bytes = fs::read(&keyset_path)
+        .map_err(|error| format!("read current authority keyset: {error}"))?;
+    let keyset: vela_protocol::authority::AuthorityKeysetV1 = serde_json::from_slice(&keyset_bytes)
+        .map_err(|error| format!("parse current authority keyset: {error}"))?;
+    keyset.validate()?;
+    if keyset.frontier_id != repository.frontier_id
+        || keyset.root()? != repository.authority_keyset_root
+        || vela_protocol::canonical::to_canonical_bytes(&keyset)? != keyset_bytes
+    {
+        return Err("current repository authority keyset binding is invalid".into());
+    }
+
+    let policy_path = root.join(format!(
+        ".vela/authority/policies/{}.json",
+        repository
+            .authority_policy_root
+            .trim_start_matches("sha256:")
+    ));
+    let policy_bytes = fs::read(&policy_path)
+        .map_err(|error| format!("read current authority policy: {error}"))?;
+    let policy: vela_protocol::authority::PolicyBundleV1 = serde_json::from_slice(&policy_bytes)
+        .map_err(|error| format!("parse current authority policy: {error}"))?;
+    policy.validate()?;
+    if policy.frontier_id != repository.frontier_id
+        || policy.root()? != repository.authority_policy_root
+        || vela_protocol::canonical::to_canonical_bytes(&policy)? != policy_bytes
+    {
+        return Err("current repository policy binding is invalid".into());
+    }
+    let material_paths = crate::authority_transaction::authority_policy_material_paths(&policy)
+        .map_err(|error| error.to_string())?;
+    let material = vela_authority::CedarPolicyMaterial {
+        schema: fs::read_to_string(root.join(&material_paths[0]))
+            .map_err(|error| format!("read current Cedar schema: {error}"))?,
+        policies: fs::read_to_string(root.join(&material_paths[1]))
+            .map_err(|error| format!("read current Cedar policies: {error}"))?,
+        entities: serde_json::from_slice(
+            &fs::read(root.join(&material_paths[2]))
+                .map_err(|error| format!("read current Cedar entities: {error}"))?,
+        )
+        .map_err(|error| format!("parse current Cedar entities: {error}"))?,
+    };
+    material.validate_against(&policy)?;
+
+    for path in files_recursive(root)? {
+        let relative = path
+            .strip_prefix(root)
+            .map_err(|_| "current repository path escaped its root".to_string())?
+            .to_string_lossy();
+        if is_legacy_protocol_path(&relative) {
+            return Err(format!(
+                "current repository retains retired protocol path {relative}"
+            ));
+        }
+    }
+    if require_authority_record {
+        verify_current_epoch_authority(root, &repository, &epoch, &keyset)?;
+    }
+    Ok(repository)
+}
+
+fn read_rooted_object(root: &Path, path: &str, expected_root: &str) -> Result<Vec<u8>, String> {
+    let bytes = fs::read(root.join(path))
+        .map_err(|error| format!("read current object {path}: {error}"))?;
+    if root_bytes(&bytes) != expected_root {
+        return Err(format!(
+            "current object {path} does not match its declared root"
+        ));
+    }
+    let expected_name = expected_root.trim_start_matches("sha256:");
+    if Path::new(path).file_stem().and_then(|value| value.to_str()) != Some(expected_name) {
+        return Err(format!(
+            "current object {path} filename does not match its declared root"
+        ));
+    }
+    Ok(bytes)
+}
+
+fn verify_current_epoch_authority(
+    _root: &Path,
+    _repository: &CurrentRepositoryV2,
+    _epoch: &RepositoryEpochV1,
+    _keyset: &vela_protocol::authority::AuthorityKeysetV1,
+) -> Result<(), String> {
+    Err("applied current repository is missing its sequence-1 epoch authority record".into())
+}
+
 fn claim_from_finding(
     finding: &FindingBundle,
+    mut evidence: Vec<ClaimEvidenceRef>,
     predecessor_commit: &str,
     relations: Vec<ClaimRelation>,
 ) -> Result<ClaimRecordV1, String> {
-    let evidence = finding
-        .evidence
-        .evidence_spans
-        .iter()
-        .filter_map(|span| {
-            Some(ClaimEvidenceRef {
-                relation: "supports".into(),
-                artifact_root: span.get("artifact_sha256")?.as_str()?.to_string(),
-                artifact_path: span
-                    .get("artifact_path")
-                    .and_then(Value::as_str)
-                    .map(str::to_string),
-            })
+    evidence.extend(finding.evidence.evidence_spans.iter().filter_map(|span| {
+        Some(ClaimEvidenceRef {
+            relation: "supports".into(),
+            artifact_id: None,
+            artifact_root: span.get("artifact_sha256")?.as_str()?.to_string(),
+            artifact_path: span
+                .get("artifact_path")
+                .and_then(Value::as_str)
+                .map(str::to_string),
         })
-        .collect::<Vec<_>>();
+    }));
+    evidence.sort_by(|left, right| {
+        left.artifact_root
+            .cmp(&right.artifact_root)
+            .then_with(|| left.artifact_id.cmp(&right.artifact_id))
+            .then_with(|| left.artifact_path.cmp(&right.artifact_path))
+    });
+    evidence.dedup();
     let mut conditions = Vec::new();
     if !finding.conditions.text.trim().is_empty() {
         conditions.push(finding.conditions.text.clone());
@@ -583,7 +1060,7 @@ fn convert_current_pending_proposals(
                 })?,
             )
             .map_err(|error| format!("{}: decode current pending Claim: {error}", proposal.id))?;
-        let claim = claim_from_finding(&finding, predecessor_commit, Vec::new())?;
+        let claim = claim_from_finding(&finding, Vec::new(), predecessor_commit, Vec::new())?;
         let claim_root = claim.canonical_root()?;
         claim_refs.push(ObjectRef {
             schema: "vela.claim-record.v1".into(),
@@ -645,6 +1122,78 @@ fn convert_current_pending_proposals(
         proposal_records.push(current);
     }
     Ok((claim_refs, claim_records, proposal_refs, proposal_records))
+}
+
+fn convert_artifacts(
+    artifacts: &[Artifact],
+    predecessor_commit: &str,
+) -> Result<Vec<ConvertedArtifact>, String> {
+    let mut converted = Vec::with_capacity(artifacts.len());
+    for artifact in artifacts {
+        artifact.validate_reference_axes()?;
+        let record = CurrentArtifactRecordV1::build(
+            artifact.clone(),
+            root_canonical(artifact)?,
+            predecessor_commit.into(),
+        )?;
+        let root = record.canonical_root()?;
+        converted.push(ConvertedArtifact {
+            reference: ObjectRef {
+                schema: CURRENT_ARTIFACT_RECORD_SCHEMA_V1.into(),
+                id: artifact.id.clone(),
+                root: root.clone(),
+                path: format!(
+                    "records/artifacts/sha256/{}.json",
+                    root.trim_start_matches("sha256:")
+                ),
+            },
+            record,
+        });
+    }
+    converted.sort_by(|left, right| left.reference.id.cmp(&right.reference.id));
+    if converted
+        .windows(2)
+        .any(|pair| pair[0].reference.id == pair[1].reference.id)
+    {
+        return Err("legacy Artifact conversion found a duplicate artifact id".into());
+    }
+    Ok(converted)
+}
+
+fn artifact_evidence_by_finding(
+    artifacts: &[Artifact],
+    converted: &[ConvertedArtifact],
+) -> Result<BTreeMap<String, Vec<ClaimEvidenceRef>>, String> {
+    let by_id = converted
+        .iter()
+        .map(|artifact| (artifact.reference.id.as_str(), &artifact.reference))
+        .collect::<BTreeMap<_, _>>();
+    let mut evidence = BTreeMap::<String, Vec<ClaimEvidenceRef>>::new();
+    for artifact in artifacts {
+        let reference = by_id
+            .get(artifact.id.as_str())
+            .ok_or_else(|| format!("missing converted Artifact {}", artifact.id))?;
+        for finding_id in &artifact.target_findings {
+            evidence
+                .entry(finding_id.clone())
+                .or_default()
+                .push(ClaimEvidenceRef {
+                    relation: "supports".into(),
+                    artifact_id: Some(reference.id.clone()),
+                    artifact_root: reference.root.clone(),
+                    artifact_path: Some(reference.path.clone()),
+                });
+        }
+    }
+    for references in evidence.values_mut() {
+        references.sort_by(|left, right| {
+            left.artifact_root
+                .cmp(&right.artifact_root)
+                .then_with(|| left.artifact_id.cmp(&right.artifact_id))
+        });
+        references.dedup();
+    }
+    Ok(evidence)
 }
 
 fn retained_current_objects(frontier: &Path) -> Result<Vec<ObjectRef>, String> {
@@ -844,6 +1393,8 @@ fn legacy_classification(path: &str) -> &'static str {
         "finding_record"
     } else if path.starts_with(".vela/proposals/") {
         "proposal_v0"
+    } else if path.starts_with(".vela/artifacts/") {
+        "artifact_v0"
     } else if path.starts_with(".vela/policies/") {
         "acceptance_policy"
     } else if path == ".vela/actors.json" {
@@ -863,6 +1414,7 @@ fn is_legacy_protocol_path(path: &str) -> bool {
         || path.starts_with(".vela/events/")
         || path.starts_with(".vela/findings/")
         || path.starts_with(".vela/proposals/")
+        || path.starts_with(".vela/artifacts/")
         || path.starts_with(".vela/policies/")
         || path.starts_with("records/receipts/")
         || path.starts_with("records/review/")
@@ -960,6 +1512,7 @@ fn write_candidate_records(
     claims: &[ClaimRecordV1],
     pending_claims: &[ClaimRecordV1],
     proposals: &[ProposalV1],
+    artifacts: &[ConvertedArtifact],
 ) -> Result<(), String> {
     for claim in claims.iter().chain(pending_claims) {
         let bytes = claim.canonical_bytes()?;
@@ -982,6 +1535,44 @@ fn write_candidate_records(
             )),
             &bytes,
         )?;
+    }
+    for artifact in artifacts {
+        let bytes = artifact.record.canonical_bytes()?;
+        write_exact(&root.join(&artifact.reference.path), &bytes)?;
+    }
+    Ok(())
+}
+
+fn copy_retained_current_objects(
+    frontier: &Path,
+    candidate_root: &Path,
+    objects: &[ObjectRef],
+) -> Result<(), String> {
+    for object in objects {
+        let destination = candidate_root.join(&object.path);
+        if destination.is_file() {
+            if root_bytes(
+                &fs::read(&destination)
+                    .map_err(|error| format!("read {}: {error}", destination.display()))?,
+            ) != object.root
+            {
+                return Err(format!(
+                    "candidate object {} does not match its declared root",
+                    object.path
+                ));
+            }
+            continue;
+        }
+        let source = frontier.join(&object.path);
+        let bytes = fs::read(&source)
+            .map_err(|error| format!("read retained object {}: {error}", source.display()))?;
+        if root_bytes(&bytes) != object.root {
+            return Err(format!(
+                "retained object {} changed after planning",
+                object.path
+            ));
+        }
+        write_exact(&destination, &bytes)?;
     }
     Ok(())
 }
@@ -1102,6 +1693,7 @@ mod tests {
     #[test]
     fn legacy_path_classification_is_explicit() {
         assert!(is_legacy_protocol_path(".vela/events/vev_x.json"));
+        assert!(is_legacy_protocol_path(".vela/artifacts/va_x.json"));
         assert!(is_legacy_protocol_path("records/receipts/sha256/x.json"));
         assert!(is_legacy_protocol_path("records/vrc_x.json"));
         assert!(!is_legacy_protocol_path(
