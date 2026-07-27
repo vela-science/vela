@@ -311,6 +311,23 @@ It selects a plain Ed25519 identity already loaded in the standard OpenSSH
 agent and establishes sequence-1 repository authority. It is not a migration,
 personal signer, policy editor, or scientific decision command.
 
+Frontiers that crossed the repository-authority boundary before Submission v1
+and Verification Record v1 use one direct administrative upgrade:
+
+```bash
+vela authority upgrade <frontier> \
+  --reason "Adopt the current Submission and Verification contract." \
+  --json
+```
+
+The exact command is the repository administrator's semantic approval. The
+local operating-system account supplies authentication and the loaded
+OpenSSH-agent repository key covers one recoverable `policy.rotated`
+transaction. The upgrade retains the preceding policy bundle for replay,
+changes no scientific Event or accepted state, and grants agents only exact
+work claims, Submission registration, and Verification Record import. It does
+not grant review, acceptance, policy administration, or key rotation.
+
 The initialization result exposes the full sequence-1 authority-record root.
 After obtaining that root through an independent channel, a consumer installs
 one public local pin:

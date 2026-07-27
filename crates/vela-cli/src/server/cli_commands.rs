@@ -692,6 +692,16 @@ pub(crate) enum AuthorityAction {
         #[arg(long)]
         json: bool,
     },
+    /// Upgrade an existing repository authority to Vela's current routine-work contract.
+    Upgrade {
+        #[arg(default_value = ".")]
+        frontier: PathBuf,
+        /// Why this repository is adopting the current Submission and Verification contract.
+        #[arg(long)]
+        reason: String,
+        #[arg(long)]
+        json: bool,
+    },
     /// Manage independently distributed repository-authority trust roots.
     Trust {
         #[command(subcommand)]

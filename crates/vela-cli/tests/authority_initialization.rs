@@ -284,6 +284,37 @@ fn fresh_frontier_initializes_standard_repository_authority_and_replays_strictly
             .count(),
         1
     );
+    let redundant_upgrade = vela()
+        .args(["authority", "upgrade"])
+        .arg(&frontier)
+        .args([
+            "--reason",
+            "Adopt the current Submission and Verification contract.",
+            "--json",
+        ])
+        .env("SSH_AUTH_SOCK", &agent.socket)
+        .output()
+        .unwrap();
+    assert!(!redundant_upgrade.status.success());
+    let redundant_upgrade_text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&redundant_upgrade.stdout),
+        String::from_utf8_lossy(&redundant_upgrade.stderr)
+    );
+    assert!(
+        redundant_upgrade_text.contains("already uses the current routine-work contract"),
+        "{redundant_upgrade_text}"
+    );
+    assert_eq!(
+        fs::read_dir(authority_root.join("events")).unwrap().count(),
+        1
+    );
+    assert_eq!(
+        fs::read_dir(authority_root.join("records"))
+            .unwrap()
+            .count(),
+        1
+    );
 
     let unpinned_strict = vela()
         .args(["check"])

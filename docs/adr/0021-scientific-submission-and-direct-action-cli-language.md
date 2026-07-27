@@ -438,6 +438,15 @@ acceptance, immutable historical Event checks, dual-log materialization, and
 strict replay. Claim Record, fresh-user comprehension evidence, and independent
 recurrence remain separately gated, so this ADR remains Proposed.
 
+Historical repository-authority policies remain immutable. A migrated Frontier
+that predates the current producer era adopts the missing intake permissions
+through the direct advanced command `vela authority upgrade`. That command
+retains the prior bundle, appends one root-linked successor containing the
+current `submission_register` and `verification_import` actions, and records
+one non-scientific `policy.rotated` authority event. It replaces the retired
+`authority enable-work` ceremony; it is neither policy authoring nor scientific
+review.
+
 ## Consequences
 
 The migration is intentionally breaking before 1.0. It removes semantic

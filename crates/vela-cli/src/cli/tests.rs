@@ -428,6 +428,18 @@ mod surface_tests {
             }
             assert!(Cli::try_parse_from(["vela", "actor", "list", "."]).is_ok());
             assert!(Cli::try_parse_from(["vela", "frontier", "materialize", "."]).is_ok());
+            assert!(
+                Cli::try_parse_from([
+                    "vela",
+                    "authority",
+                    "upgrade",
+                    ".",
+                    "--reason",
+                    "Adopt the current routine-work contract.",
+                    "--json",
+                ])
+                .is_ok()
+            );
         });
     }
 
