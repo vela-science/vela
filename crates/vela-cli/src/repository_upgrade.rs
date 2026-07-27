@@ -637,7 +637,14 @@ fn apply_repository_upgrade(plan: &RepositoryUpgradePlan) -> Result<Value, Strin
 
     git_success(
         &frontier,
-        &["pull", "--ff-only", "origin", "main"],
+        &[
+            "-c",
+            "credential.helper=!gh auth git-credential",
+            "pull",
+            "--ff-only",
+            "origin",
+            "main",
+        ],
         "fast-forward source Frontier after epoch push",
     )?;
     let clean_clone = archive_root.join("verification").join(format!(
@@ -656,6 +663,8 @@ fn apply_repository_upgrade(plan: &RepositoryUpgradePlan) -> Result<Value, Strin
     git_success(
         &archive_root,
         &[
+            "-c",
+            "credential.helper=!gh auth git-credential",
             "clone",
             "--no-local",
             &plan.predecessor_remote,
@@ -865,6 +874,10 @@ fn apply_repository_upgrade_in_worktree(
         &[
             "-c",
             "commit.gpgsign=false",
+            "-c",
+            "user.name=Vela Agent",
+            "-c",
+            "user.email=agent@vela.space",
             "commit",
             "-m",
             "Migrate to the current Vela repository epoch",
@@ -894,6 +907,8 @@ fn apply_repository_upgrade_in_worktree(
     git_success(
         worktree,
         &[
+            "-c",
+            "credential.helper=!gh auth git-credential",
             "push",
             "--atomic",
             "origin",
