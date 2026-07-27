@@ -1,5 +1,5 @@
 import { constants } from "node:fs";
-import { access, copyFile, mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
+import { access, mkdtemp, realpath, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -230,9 +230,6 @@ export async function submitBundle(options: {
       if (bytes.length !== artifact.bytes || sha256Bytes(bytes) !== artifact.digest) {
         throw new Error(`bundle Artifact ${artifact.digest} is missing or corrupt`);
       }
-      const target = path.join(clone, artifact.frontier_path);
-      await mkdir(path.dirname(target), { recursive: true });
-      await copyFile(source, target, constants.COPYFILE_EXCL);
     }
     const resultText = await command(
       runner,

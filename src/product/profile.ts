@@ -1,4 +1,4 @@
-import { constants } from "node:fs";
+import { constants, existsSync } from "node:fs";
 import { access, chmod, copyFile, mkdir, realpath } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
@@ -68,7 +68,12 @@ export interface LegacyProductProfile {
 }
 
 export function productPackageRoot(): string {
-  return fileURLToPath(new URL("../../../", import.meta.url));
+  const root = [
+    fileURLToPath(new URL("../../", import.meta.url)),
+    fileURLToPath(new URL("../../../", import.meta.url)),
+  ].find((candidate) => existsSync(path.join(candidate, "package.json")));
+  if (root === undefined) throw new Error("Canopus package root is missing");
+  return root;
 }
 
 export function currentProductPlatform(): ProductPlatform {

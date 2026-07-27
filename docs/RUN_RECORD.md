@@ -53,10 +53,12 @@ second key lifecycle.
 
 1. verifies the bundle, Submission signature, Artifacts, source Git roots, and
    exact Vela binary;
-2. performs the Vela registration in a disposable exact-head clone;
-3. requires `vela.submit-result.v1`, `pending_review`, and accepted-event delta
+2. keeps transport blobs outside the clone and lets Vela create their canonical
+   content-addressed paths inside the repository-authority transaction;
+3. performs the Vela registration in a disposable exact-head clone;
+4. requires `vela.submit-result.v1`, `pending_review`, and accepted-event delta
    zero;
-4. fast-forwards the clean source checkout only after the registration is
+5. fast-forwards the clean source checkout only after the registration is
    complete.
 
 Submit does not create a Verification Record, Decision, Event, or accepted
