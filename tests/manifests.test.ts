@@ -19,7 +19,7 @@ test("engine and verifier manifests coexist under their full content identities"
       caveats: [],
     },
     engine: {
-      name: "codex-exec",
+      name: "codex-tools-native",
       version: "codex-cli 0.139.0",
       binary_sha256: digest,
       model: "fixture",

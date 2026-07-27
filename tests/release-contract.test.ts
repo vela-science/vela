@@ -17,11 +17,6 @@ test("current product release pins the tested Vela and Codex boundaries", async 
   assert.equal(SUPPORTED_CODEX_VERSION, "0.145.0");
   assert.match(workflow, /releases\/download\/v0\.930\.0-rc\.12/u);
   assert.match(workflow, /codex-0\.145\.0-linux-x64\.tgz/u);
-  assert.match(
-    workflow,
-    /actions\/checkout@[^\n]+\n\s+with:\n\s+fetch-depth: 0/u,
-    "historical registration checks require full Git history",
-  );
   assert.doesNotMatch(workflow, /releases\/download\/v0\.915\.1/u);
   assert.doesNotMatch(workflow, /codex-0\.144\.6-linux-x64\.tgz/u);
 });
@@ -71,18 +66,12 @@ test("release binds tag, GitHub attestation, and npm trusted provenance", async 
   }
   assert.doesNotMatch(workflow, /NPM_TOKEN|NODE_AUTH_TOKEN/u);
   assert.doesNotMatch(workflow, /shasum -a 256 release\/\*\.tgz/u);
-  assert.match(
-    workflow,
-    /actions\/checkout@[^\n]+\n\s+with:\n\s+fetch-depth: 0/u,
-    "release validation must retain history for immutable registration replay",
-  );
 });
 
-test("source retains Build Week evidence while the package stays product-only", async () => {
-  const [packageText, readme, buildWeek] = await Promise.all([
+test("release-tagged evidence remains discoverable while current source stays product-only", async () => {
+  const [packageText, readme] = await Promise.all([
     readFile(new URL("../../package.json", import.meta.url), "utf8"),
     readFile(new URL("../../README.md", import.meta.url), "utf8"),
-    readFile(new URL("../../BUILD_WEEK.md", import.meta.url), "utf8"),
   ]);
   const packageJson = JSON.parse(packageText) as { files?: string[]; version?: string };
   const artifact = "artifacts/sidon-a24-gpt56-7194.witness.json";
@@ -117,12 +106,10 @@ test("source retains Build Week evidence while the package stays product-only", 
     false,
     "the installed package must not ship the retired long-lived key store",
   );
-  for (const document of [readme, buildWeek]) {
-    assert.match(document, new RegExp(velaRelease.replaceAll(".", "\\."), "u"));
-    assert.match(document, new RegExp(`git checkout ${auditCommit}`, "u"));
-    assert.match(document, new RegExp(`vela reproduce ${artifact.replaceAll(".", "\\.")}`, "u"));
-    assert.match(document, /node verification\/verify-sidon-a24-7194\.mjs/u);
-  }
+  assert.match(readme, new RegExp(velaRelease.replaceAll(".", "\\."), "u"));
+  assert.match(readme, new RegExp(`git checkout ${auditCommit}`, "u"));
+  assert.match(readme, new RegExp(`vela reproduce ${artifact.replaceAll(".", "\\.")}`, "u"));
+  assert.match(readme, /node verification\/verify-sidon-a24-7194\.mjs/u);
   assert.match(
     readme,
     /This Sidon artifact remains bound to the Vela version recorded when it landed\./u,

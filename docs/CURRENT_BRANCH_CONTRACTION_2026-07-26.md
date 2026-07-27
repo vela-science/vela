@@ -103,3 +103,31 @@ Historical benchmark, video, registration, experiment, advisory, and release
 evidence is still present in source at this checkpoint. Its current-branch
 removal is a separate auditable slice so the product contraction is not mixed
 with evidence-history cleanup.
+
+### Historical-evidence cleanup slice
+
+The second slice removes 332 tracked files and 40,127,689 bytes from the
+current branch. The pushed `1241d5bc` checkpoint, public release tags, and Git
+object history retain the exact deleted bytes. Removed current-branch surfaces
+include:
+
+- frozen benchmark registrations, fixtures, transcripts, and copied HTML;
+- the Build Week Remotion project, captures, narration, and generated assets;
+- stopped task-authority experiments and claim-fidelity advisory outputs;
+- copied public-run evidence and historical profile registrations;
+- superseded benchmark scripts, dated release reports, and completed plans;
+- the retired tool-free Codex execution adapter, repair helper, and role
+  wrapper; and
+- ADRs whose only live effect was the removed capability or stopped program.
+
+The remaining repository has 119 tracked files totaling 3,333,594 bytes,
+including 38 source files, 25 top-level test files, and ten current
+documentation files. Mission v0 remains readable for released-run inspection,
+but current source no longer ships its execution adapter or corpus.
+
+After this deletion, the complete suite passes 122 tests with two intentional
+platform/integration skips. The Vela rc.13 composition test passes separately.
+The package contains 103 files totaling 2.87 MB unpacked; the package decrease
+is intentionally small because historical evidence was already excluded from
+distribution, while source checkout and maintenance burden fall by more than
+40 MB.

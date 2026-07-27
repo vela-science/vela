@@ -33,7 +33,7 @@ test("workflow actions are immutable and Node tooling uses maintained runtimes",
   }
 });
 
-test("release validates macOS-only history before the portable OIDC publisher", async () => {
+test("release validates the complete macOS product before the portable OIDC publisher", async () => {
   const value = await readFile(new URL("release.yml", workflows), "utf8");
   const validateStart = value.indexOf("  validate:\n");
   const publishStart = value.indexOf("  publish:\n");

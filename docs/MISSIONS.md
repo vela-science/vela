@@ -87,8 +87,8 @@ replaceable orchestration over those primitives.
 
 ## Mission v0: historical replay only
 
-Mission v0 is retained solely so frozen benchmark registrations and historical
-run records remain reproducible. It used the same four roles with a tool-free
-worker and the older macOS Seatbelt verifier manifest. Do not prepare new
-product missions with v0; use Mission v1. Historical v0 bytes and results remain
-unchanged.
+Mission v0 remains readable so immutable historical run records can be
+inspected and replayed with their released Canopus version. The current branch
+does not ship its retired tool-free execution adapter or benchmark corpus. Do
+not prepare new product missions with v0; use Mission v1. Exact v0 source and
+results remain available from the release tags that created them.
