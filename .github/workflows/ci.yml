@@ -117,7 +117,7 @@ jobs:
           canopus="$RUNNER_TEMP/canopus-install/bin/canopus"
           "$canopus" --help
           "$canopus" profile list
-          "$canopus" profile validate erdos1056-k15-10429001-10429200
+          "$canopus" profile validate erdos1056-k15-10429201-10429400
 
   windows-read-only:
     runs-on: windows-2025
@@ -157,4 +157,4 @@ jobs:
           npm install --global --prefix "$env:RUNNER_TEMP\canopus" $package.FullName
           & "$env:RUNNER_TEMP\canopus\canopus.cmd" --help
           & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile list
-          & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile validate erdos1056-k15-10429001-10429200
+          & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile validate erdos1056-k15-10429201-10429400

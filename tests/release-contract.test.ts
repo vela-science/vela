@@ -27,7 +27,7 @@ test("installed-package smoke validates the current packaged Erdős profile", as
     new URL("../../.github/workflows/ci.yml", import.meta.url),
     "utf8",
   );
-  const currentProfile = "erdos1056-k15-10429001-10429200";
+  const currentProfile = "erdos1056-k15-10429201-10429400";
   const supersededProfile = "erdos1056-k15-10428801-10429000";
 
   assert.equal(

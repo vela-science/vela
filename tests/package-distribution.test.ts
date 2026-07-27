@@ -26,8 +26,8 @@ test("published Canopus is one self-contained inert tarball", async () => {
   assert.equal(manifest.bin?.canopus, "dist/src/cli.js");
   assert.equal(manifest.engines?.node, ">=22 <23 || >=24 <25");
   for (const capsule of [
-    "capsules/erdos1056-k15/bin/linux-arm64/10429001-10429200/verifier",
-    "capsules/erdos1056-k15/bin/linux-x86_64/10429001-10429200/verifier",
+    "capsules/erdos1056-k15/bin/linux-arm64/10429201-10429400/verifier",
+    "capsules/erdos1056-k15/bin/linux-x86_64/10429201-10429400/verifier",
   ]) {
     assert.equal(manifest.files?.includes(capsule), true, `${capsule} must ship in the tarball`);
   }

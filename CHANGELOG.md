@@ -6,21 +6,20 @@
   Vela `0.930.0-rc.12`. The older `0.7.0`/`0.915.1` composition remains
   available only from immutable release history; it is no longer an active
   operating path.
-- Register the next non-overlapping Erdős 1056 k=15 range
-  `10429001..10429200` before any model call. The closed profile root is
-  `sha256:dd04e8fae9fb2ebe6fd58f817551038353f0e6bdfc0dcf956ae815016fa62cb4`;
+- Advance the sole active Erdős 1056 k=15 profile to the next non-overlapping
+  range `10429201..10429400` before any model call. The closed profile root is
+  `sha256:2034d6b6a49ba1345518340ba74dfd75931035788924c53e629fb0260304ece1`;
   its static Linux ARM64 and x86-64 verifier roots are
-  `sha256:0bf0a8ae62313904be8bbbd7c662301bb78516c5f2c97a0da79dc43298165c44`
+  `sha256:6abe6125b5ed7cfeb256a1d86f3a66c6e7000a5542417d9dd04b2e5f9d3ffe81`
   and
-  `sha256:4dbc19b0528675f54133299133543e1d1191665db0a781f519dfea036ecd2f15`.
-  The completed `10428801..10429000` registration remains reproducible from
-  Canopus `0.7.0` and immutable Git history but is removed from default
-  discovery and the package payload.
-- Preserve the first candidate artifact for this range as a verifier-rejected
-  bounded failure, then bind one exact repair attempt to its full artifact
-  root and mismatch reason. The repair reuses the same frozen capsule and
-  range, supplies no verifier answer, and forbids reuse of the rejected
-  numeric result.
+  `sha256:ce73ca27d54a2ed31607a6d279d85ed36f28c2a830891b5d5d27b9cf50f0fcb4`.
+  The completed `10429001..10429200` run and pending Proposal remain
+  reproducible from immutable Git and Frontier history but are removed from
+  default discovery and the package payload.
+- Preserve the first candidate artifact for `10429001..10429200` as a
+  verifier-rejected bounded failure, then retain the exact successful repair
+  separately from the new active range. No prior numeric result is supplied
+  to the new worker.
 - Pin Vela rc.12 after the repository-authority landing regression proved that
   repository authorization must not occupy Receipt v1's scientific
   `acceptance.policyRef`, signed agent observations require canonical
