@@ -759,7 +759,8 @@ where
 /// aborted and still requires human reconfirmation.
 ///
 /// `Ok(None)` means the operation id is not a scientific Decision journal, so
-/// `vela publication recover` may continue with its ordinary Git-journal lane.
+/// `vela frontier recover-publication` may continue with its ordinary
+/// Git-journal lane.
 pub(crate) fn recover_decision_operation(
     frontier: &Path,
     operation_id: &str,

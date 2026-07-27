@@ -1303,7 +1303,8 @@ pub(crate) fn publish_exact_delta(
 }
 
 /// Resume one journaled Git publication. This is the idempotent service seam
-/// for the CLI's `vela publication recover --operation <vop_…>` command; it
+/// for the CLI's `vela frontier recover-publication --operation <vop_…>`
+/// command; it
 /// performs no rendering and refuses checkout, index, worktree, or ref drift.
 pub(crate) fn recover_publication(
     frontier: &Path,
@@ -1349,9 +1350,7 @@ fn recover_publication_inner(
                     candidate: None,
                     reason: PUBLICATION_BUSY_REASON.to_string(),
                 },
-                recovery_command: Some(format!(
-                    "vela publication recover --operation {operation_id}"
-                )),
+                recovery_command: Some(publication_recovery_command(operation_id, false)),
             });
         }
         Err(PublicationLockError::Failed(reason)) => return Err(reason),
@@ -2094,9 +2093,7 @@ fn publish_exact_inner(
                             "Git ref update could not be observed: {error}; inspect ref: {inspect_error}"
                         ),
                     },
-                    recovery_command: Some(format!(
-                        "vela publication recover --operation {operation_id}"
-                    )),
+                    recovery_command: Some(publication_recovery_command(&operation_id, false)),
                 });
             }
         },
@@ -2122,9 +2119,7 @@ fn publish_exact_inner(
                     state: PublicationState::Unknown {
                         reason: format!("compare-and-swap failed and ref is unreadable: {error}"),
                     },
-                    recovery_command: Some(format!(
-                        "vela publication recover --operation {operation_id}"
-                    )),
+                    recovery_command: Some(publication_recovery_command(&operation_id, false)),
                 });
             }
             Ok(_) => {}
@@ -4421,9 +4416,7 @@ fn operation_recovery_outcome(candidate: &GitOid, operation_id: &str) -> Publica
         state: PublicationState::CommittedLocal {
             commit: candidate.hex.clone(),
         },
-        recovery_command: Some(format!(
-            "vela publication recover --operation {operation_id}"
-        )),
+        recovery_command: Some(publication_recovery_command(operation_id, false)),
     }
 }
 
@@ -4437,9 +4430,7 @@ fn uncommitted_operation_outcome(
             candidate: candidate.map(|candidate| candidate.hex.clone()),
             reason: reason.into(),
         },
-        recovery_command: Some(format!(
-            "vela publication recover --operation {operation_id}"
-        )),
+        recovery_command: Some(publication_recovery_command(operation_id, false)),
     }
 }
 
@@ -4456,9 +4447,7 @@ fn complete_publication(
         // A newly queued local publication or an indeterminate push remains
         // resumable. A deliberately local recovery sets `complete_local` and
         // closes the repair operation while retaining its direct push command.
-        outcome.recovery_command = Some(format!(
-            "vela publication recover --operation {operation_id} --push"
-        ));
+        outcome.recovery_command = Some(publication_recovery_command(operation_id, true));
         return outcome;
     }
     let completed_path = crate::operation_journal::path(completed_dir, operation_id);
@@ -4493,6 +4482,13 @@ fn complete_publication(
 
 fn shell_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
+
+fn publication_recovery_command(operation_id: &str, push: bool) -> String {
+    format!(
+        "vela frontier recover-publication --operation {operation_id} --frontier .{}",
+        if push { " --push" } else { "" }
+    )
 }
 
 fn upstream_target(
@@ -6817,7 +6813,7 @@ mod tests {
         let operation = active_operation(path);
         assert_eq!(
             outcome.recovery_command.as_deref(),
-            Some(format!("vela publication recover --operation {operation} --push").as_str())
+            Some(publication_recovery_command(&operation, true).as_str())
         );
         sh(
             path,
