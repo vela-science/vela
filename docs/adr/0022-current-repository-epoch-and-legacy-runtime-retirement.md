@@ -30,8 +30,8 @@ representations:
    `finding-bundle/v0.10.0` snapshot;
 2. Proposal files use `vela.proposal.v0.1`, including terminal proposals whose
    producer package was a historical Receipt; and
-3. repository-authority replay begins by re-verifying the complete Era-0 event,
-   actor, policy, and signing history.
+3. repository-authority replay still requires the active repository to retain
+   and parse the complete Era-0 event, actor, policy, and signing history.
 
 Dual-read compatibility was correct while external users or unmigrated
 repositories could exist. There are currently no external users, all four
@@ -149,6 +149,17 @@ relations, and standing.
 The first authority-record root becomes the new independently distributed
 trust anchor. The predecessor authority head remains evidence, not a live
 writer.
+
+Current replay starts at that sequence-1 record. The verifier takes the exact
+predecessor event-log and actor-registry roots only from the canonical epoch
+object, requires the initialization event to bind both roots, then verifies
+every retained current authority event and contiguous DSSE record. Supplying
+retained Era-0 bytes together with archived predecessor roots is invalid.
+Wrong or partial roots, a second initialization, uncovered current events,
+record gaps, forks, or unactivated keyset/policy snapshots fail closed.
+Sequence 1 may retain an already content-addressed current keyset and policy
+without pretending the epoch created those bytes; its signed event, authority
+heads, and complete object delta still cover the exact epoch transition.
 
 ### 3. Migrate meaning, not signatures
 

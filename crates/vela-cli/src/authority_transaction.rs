@@ -31,8 +31,8 @@ use vela_protocol::authority::{
 };
 use vela_protocol::authority_history::{
     AUTHORITY_CLOSE_ACTION, AUTHORITY_CLOSED_EVENT_KIND, AUTHORITY_INITIALIZE_ACTION,
-    AUTHORITY_INITIALIZED_EVENT_KIND, AUTHORITY_ROTATE_ACTION, AuthorityCloseV1,
-    AuthorityHistoryEra, AuthorityHistoryInput, AuthorityHistoryVerification,
+    AUTHORITY_INITIALIZED_EVENT_KIND, AUTHORITY_ROTATE_ACTION, ArchivedAuthorityPredecessor,
+    AuthorityCloseV1, AuthorityHistoryEra, AuthorityHistoryInput, AuthorityHistoryVerification,
     AuthorityInitializationV1, POLICY_ROTATE_ACTION, authority_event_log_root,
     verify_authority_history,
 };
@@ -62,6 +62,8 @@ pub(crate) struct AuthorityHistorySnapshot {
     pub(crate) frontier_id: String,
     pub(crate) legacy_events: Vec<StateEvent>,
     pub(crate) legacy_actor_registry_bytes: Vec<u8>,
+    pub(crate) archived_predecessor_event_log_root: Option<String>,
+    pub(crate) archived_predecessor_actor_registry_root: Option<String>,
     pub(crate) legacy_active_policy_head_root: String,
     pub(crate) legacy_policy_store_manifest_root: String,
     pub(crate) authority_keyset: AuthorityKeysetV1,
@@ -70,6 +72,24 @@ pub(crate) struct AuthorityHistorySnapshot {
     pub(crate) retained_policy_bundles: Vec<PolicyBundleV1>,
     pub(crate) authority_events: Vec<AuthorityEventV1>,
     pub(crate) authority_envelopes: Vec<AuthorityEnvelopeV1>,
+}
+
+fn archived_predecessor(
+    history: &AuthorityHistorySnapshot,
+) -> Result<Option<ArchivedAuthorityPredecessor<'_>>, String> {
+    match (
+        history.archived_predecessor_event_log_root.as_deref(),
+        history.archived_predecessor_actor_registry_root.as_deref(),
+    ) {
+        (Some(event_log_root), Some(actor_registry_root)) => {
+            Ok(Some(ArchivedAuthorityPredecessor {
+                event_log_root,
+                actor_registry_root,
+            }))
+        }
+        (None, None) => Ok(None),
+        _ => Err("archived authority predecessor roots must be supplied together".to_string()),
+    }
 }
 
 /// Event fields whose transaction and principal attribution are derived by the
@@ -282,6 +302,8 @@ where
     normalize_object_drafts(frontier_root, &mut request)?;
     normalize_derived_drafts(frontier_root, &mut request)?;
     validate_request_shape(&request)?;
+    let archived_predecessor_before =
+        archived_predecessor(&request.history).map_err(AuthorityTransactionError::History)?;
     let history = if request.retire_legacy_history {
         verify_epoch_predecessor_history(&request)?
     } else {
@@ -289,6 +311,7 @@ where
             frontier_id: &request.history.frontier_id,
             legacy_events: &request.history.legacy_events,
             legacy_actor_registry_bytes: &request.history.legacy_actor_registry_bytes,
+            archived_predecessor: archived_predecessor_before,
             legacy_active_policy_head_root: &request.history.legacy_active_policy_head_root,
             legacy_policy_store_manifest_root: &request.history.legacy_policy_store_manifest_root,
             authority_keysets: &request.history.retained_authority_keysets,
@@ -407,8 +430,11 @@ where
 
     let mut cumulative_events = request.history.authority_events.iter().collect::<Vec<_>>();
     cumulative_events.extend(events.iter());
-    let legacy_root_with_bridge =
-        format!("sha256:{}", event_log_hash(&request.history.legacy_events));
+    let legacy_root_with_bridge = request
+        .history
+        .archived_predecessor_event_log_root
+        .clone()
+        .unwrap_or_else(|| format!("sha256:{}", event_log_hash(&request.history.legacy_events)));
     let after_event_log_root = if events.is_empty() {
         history.final_event_log_root.clone()
     } else {
@@ -528,6 +554,8 @@ where
     candidate_events.extend(events.iter().cloned());
     let mut candidate_envelopes = request.history.authority_envelopes.clone();
     candidate_envelopes.push(envelope.clone());
+    let archived_predecessor_after =
+        archived_predecessor(&request.history).map_err(AuthorityTransactionError::History)?;
     let candidate_history = if request.retire_legacy_history {
         AuthorityHistoryVerification {
             era: AuthorityHistoryEra::RepositoryAuthority,
@@ -550,6 +578,7 @@ where
             frontier_id: &request.history.frontier_id,
             legacy_events: &request.history.legacy_events,
             legacy_actor_registry_bytes: &request.history.legacy_actor_registry_bytes,
+            archived_predecessor: archived_predecessor_after,
             legacy_active_policy_head_root: &request.history.legacy_active_policy_head_root,
             legacy_policy_store_manifest_root: &request.history.legacy_policy_store_manifest_root,
             authority_keysets: &candidate_keysets,
@@ -1482,15 +1511,27 @@ fn bind_repository_authority_history(
         authority_record_paths.sort();
         authority_record_paths.dedup();
     }
-    bindings.push(
-        InputBinding::exact_file(
-            frontier_root,
-            RepoPath::parse(".vela/actors.json".to_string())
+    let actor_registry_path = RepoPath::parse(".vela/actors.json".to_string())
+        .map_err(AuthorityTransactionError::Transaction)?;
+    if request
+        .history
+        .archived_predecessor_actor_registry_root
+        .is_some()
+    {
+        bindings.push(
+            InputBinding::absent_file(frontier_root, actor_registry_path)
                 .map_err(AuthorityTransactionError::Transaction)?,
-            &request.history.legacy_actor_registry_bytes,
-        )
-        .map_err(AuthorityTransactionError::Transaction)?,
-    );
+        );
+    } else {
+        bindings.push(
+            InputBinding::exact_file(
+                frontier_root,
+                actor_registry_path,
+                &request.history.legacy_actor_registry_bytes,
+            )
+            .map_err(AuthorityTransactionError::Transaction)?,
+        );
+    }
     for (directory, paths) in [
         (".vela/events", legacy_event_paths),
         (".vela/authority/events", authority_event_paths),
@@ -2614,6 +2655,8 @@ mod tests {
                 frontier_id: FRONTIER_ID.into(),
                 legacy_events,
                 legacy_actor_registry_bytes: actor_registry_bytes.clone(),
+                archived_predecessor_event_log_root: None,
+                archived_predecessor_actor_registry_root: None,
                 legacy_active_policy_head_root: root('3'),
                 legacy_policy_store_manifest_root: root('4'),
                 authority_keyset: keyset.clone(),
@@ -2695,6 +2738,7 @@ mod tests {
             frontier_id: FRONTIER_ID,
             legacy_events: &fixture.request.history.legacy_events,
             legacy_actor_registry_bytes: &fixture.actor_registry_bytes,
+            archived_predecessor: None,
             legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
             legacy_policy_store_manifest_root: &fixture
                 .request
@@ -2715,6 +2759,7 @@ mod tests {
             frontier_id: FRONTIER_ID,
             legacy_events: &fixture.request.history.legacy_events,
             legacy_actor_registry_bytes: &fixture.actor_registry_bytes,
+            archived_predecessor: None,
             legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
             legacy_policy_store_manifest_root: &fixture
                 .request
@@ -3248,6 +3293,7 @@ mod tests {
             frontier_id: FRONTIER_ID,
             legacy_events: &fixture.request.history.legacy_events,
             legacy_actor_registry_bytes: &fixture.actor_registry_bytes,
+            archived_predecessor: None,
             legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
             legacy_policy_store_manifest_root: &fixture
                 .request
@@ -3351,6 +3397,7 @@ mod tests {
             frontier_id: FRONTIER_ID,
             legacy_events: &fixture.request.history.legacy_events,
             legacy_actor_registry_bytes: &fixture.actor_registry_bytes,
+            archived_predecessor: None,
             legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
             legacy_policy_store_manifest_root: &fixture
                 .request
@@ -3499,6 +3546,7 @@ mod tests {
             frontier_id: FRONTIER_ID,
             legacy_events: &fixture.request.history.legacy_events,
             legacy_actor_registry_bytes: &fixture.actor_registry_bytes,
+            archived_predecessor: None,
             legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
             legacy_policy_store_manifest_root: &fixture
                 .request
@@ -3640,6 +3688,7 @@ mod tests {
             frontier_id: FRONTIER_ID,
             legacy_events: &fixture.request.history.legacy_events,
             legacy_actor_registry_bytes: &fixture.actor_registry_bytes,
+            archived_predecessor: None,
             legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
             legacy_policy_store_manifest_root: &fixture
                 .request
@@ -3664,6 +3713,7 @@ mod tests {
             frontier_id: FRONTIER_ID,
             legacy_events: &fixture.request.history.legacy_events,
             legacy_actor_registry_bytes: &fixture.actor_registry_bytes,
+            archived_predecessor: None,
             legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
             legacy_policy_store_manifest_root: &fixture
                 .request
@@ -4257,13 +4307,14 @@ mod tests {
             "sha256:{}",
             event_log_hash(&fixture.request.history.legacy_events)
         );
+        let actor_registry_root = ContentDigest::hash(&fixture.actor_registry_bytes)
+            .as_str()
+            .to_string();
         let initialization = AuthorityInitializationV1 {
             schema: vela_protocol::authority_history::AUTHORITY_INITIALIZATION_SCHEMA_V1.into(),
             frontier_id: FRONTIER_ID.into(),
-            initial_event_log_root: event_root,
-            initial_actor_registry_root: ContentDigest::hash(&fixture.actor_registry_bytes)
-                .as_str()
-                .into(),
+            initial_event_log_root: event_root.clone(),
+            initial_actor_registry_root: actor_registry_root.clone(),
             new_authority_keyset_root: keyset.root().unwrap(),
             new_policy_bundle_root: policy_bundle.root().unwrap(),
             new_principal_id: REPOSITORY_PRINCIPAL.into(),
@@ -4271,6 +4322,9 @@ mod tests {
             reason: "Start one current repository epoch.".into(),
         };
         let intent = root('a');
+        let mut followup_authorization_input = authorization_input.clone();
+        followup_authorization_input.action = "review_reject".into();
+        followup_authorization_input.resource = r#"Proposal::"vpr_0123456789abcdef""#.into();
         let mut object_drafts = fixture
             .request
             .history
@@ -4337,6 +4391,8 @@ mod tests {
                 frontier_id: FRONTIER_ID.into(),
                 legacy_events: fixture.request.history.legacy_events.clone(),
                 legacy_actor_registry_bytes: fixture.actor_registry_bytes.clone(),
+                archived_predecessor_event_log_root: None,
+                archived_predecessor_actor_registry_root: None,
                 legacy_active_policy_head_root: NULL_HASH.into(),
                 legacy_policy_store_manifest_root: NULL_HASH.into(),
                 authority_keyset: keyset,
@@ -4398,6 +4454,8 @@ mod tests {
             binary_sha256: root('f'),
             recorded_at: RECORDED_AT.into(),
         };
+        let verification_keyset = request.history.authority_keyset.clone();
+        let verification_policy = request.history.policy_bundle.clone();
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
         let result = execute_authority_transaction(
@@ -4430,6 +4488,161 @@ mod tests {
                 .unwrap()
                 .count(),
             1
+        );
+        let event_path = fs::read_dir(root_path.join(".vela/authority/events"))
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
+        let current_event: AuthorityEventV1 =
+            serde_json::from_slice(&fs::read(event_path).unwrap()).unwrap();
+        let record_path = fs::read_dir(root_path.join(".vela/authority/records"))
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
+        let current_envelope: AuthorityEnvelopeV1 =
+            serde_json::from_slice(&fs::read(record_path).unwrap()).unwrap();
+        let current_events = [current_event];
+        let current_envelopes = [current_envelope];
+        let replay = verify_authority_history(AuthorityHistoryInput {
+            frontier_id: FRONTIER_ID,
+            legacy_events: &[],
+            legacy_actor_registry_bytes: &[],
+            archived_predecessor: Some(ArchivedAuthorityPredecessor {
+                event_log_root: &event_root,
+                actor_registry_root: &actor_registry_root,
+            }),
+            legacy_active_policy_head_root: NULL_HASH,
+            legacy_policy_store_manifest_root: NULL_HASH,
+            authority_keysets: std::slice::from_ref(&verification_keyset),
+            policy_bundles: std::slice::from_ref(&verification_policy),
+            authority_events: &current_events,
+            authority_envelopes: &current_envelopes,
+        })
+        .unwrap();
+        assert_eq!(replay.authority_record_count, 1);
+        assert_eq!(replay.final_event_log_root, result.after_event_log_root);
+
+        let wrong_predecessor = verify_authority_history(AuthorityHistoryInput {
+            frontier_id: FRONTIER_ID,
+            legacy_events: &[],
+            legacy_actor_registry_bytes: &[],
+            archived_predecessor: Some(ArchivedAuthorityPredecessor {
+                event_log_root: &root('0'),
+                actor_registry_root: &actor_registry_root,
+            }),
+            legacy_active_policy_head_root: NULL_HASH,
+            legacy_policy_store_manifest_root: NULL_HASH,
+            authority_keysets: std::slice::from_ref(&verification_keyset),
+            policy_bundles: std::slice::from_ref(&verification_policy),
+            authority_events: &current_events,
+            authority_envelopes: &current_envelopes,
+        })
+        .unwrap_err();
+        assert!(
+            wrong_predecessor.contains("does not bind the exact archived predecessor roots"),
+            "{wrong_predecessor}"
+        );
+
+        let mixed_history = verify_authority_history(AuthorityHistoryInput {
+            frontier_id: FRONTIER_ID,
+            legacy_events: &fixture.request.history.legacy_events,
+            legacy_actor_registry_bytes: &fixture.actor_registry_bytes,
+            archived_predecessor: Some(ArchivedAuthorityPredecessor {
+                event_log_root: &event_root,
+                actor_registry_root: &actor_registry_root,
+            }),
+            legacy_active_policy_head_root: NULL_HASH,
+            legacy_policy_store_manifest_root: NULL_HASH,
+            authority_keysets: std::slice::from_ref(&verification_keyset),
+            policy_bundles: std::slice::from_ref(&verification_policy),
+            authority_events: &current_events,
+            authority_envelopes: &current_envelopes,
+        })
+        .unwrap_err();
+        assert!(
+            mixed_history.contains(
+                "archived authority predecessor cannot be combined with retained Era-0 bytes"
+            ),
+            "{mixed_history}"
+        );
+
+        let mut followup_signer = fixture.signer();
+        let mut followup_adapter = fixture.adapter();
+        let followup = execute_authority_transaction(
+            fixture.barrier(),
+            root_path,
+            AuthorityTransactionRequest {
+                history: AuthorityHistorySnapshot {
+                    frontier_id: FRONTIER_ID.into(),
+                    legacy_events: Vec::new(),
+                    legacy_actor_registry_bytes: Vec::new(),
+                    archived_predecessor_event_log_root: Some(event_root.clone()),
+                    archived_predecessor_actor_registry_root: Some(actor_registry_root.clone()),
+                    legacy_active_policy_head_root: NULL_HASH.into(),
+                    legacy_policy_store_manifest_root: NULL_HASH.into(),
+                    authority_keyset: verification_keyset.clone(),
+                    policy_bundle: verification_policy.clone(),
+                    retained_authority_keysets: vec![verification_keyset],
+                    retained_policy_bundles: vec![verification_policy],
+                    authority_events: current_events.to_vec(),
+                    authority_envelopes: current_envelopes.to_vec(),
+                },
+                intent_digest: root('1'),
+                principal: PrincipalSnapshotV1 {
+                    principal_id: REPOSITORY_PRINCIPAL.into(),
+                    principal_class: PrincipalClass::Human,
+                    display_name: Some("Repository administrator".into()),
+                    affiliation: None,
+                    account_links: vec![REPOSITORY_PRINCIPAL.into()],
+                },
+                authentication_request: AuthenticationRequest {
+                    principal_id: REPOSITORY_PRINCIPAL.into(),
+                    principal_class: PrincipalClass::Human,
+                    transaction_at: RECORDED_AT.into(),
+                },
+                runtime_session_state: RuntimeSessionState::default(),
+                authorization_input: followup_authorization_input,
+                delegation: None,
+                semantic_approvals: vec![SemanticApprovalV1 {
+                    principal_id: REPOSITORY_PRINCIPAL.into(),
+                    role: "frontier_administrator".into(),
+                    action: "review_reject".into(),
+                    reason: "Cover one current repository object.".into(),
+                    approved_at: RECORDED_AT.into(),
+                    intent_digest: root('1'),
+                }],
+                event_drafts: Vec::new(),
+                object_drafts: vec![AuthorityObjectDraft {
+                    path: ".vela/current-object.json".into(),
+                    object_kind: "current_object".into(),
+                    class: WriteClass::CanonicalEvidence,
+                    postimage: Some(br#"{"current":true}"#.to_vec()),
+                }],
+                derived_drafts: Vec::new(),
+                retire_legacy_history: false,
+                next_authority_keyset: None,
+                next_policy_bundle: None,
+                next_policy_material: None,
+                read_set: Vec::new(),
+                vela_version: "0.930.0-rc.13".into(),
+                binary_sha256: root('f'),
+                recorded_at: RECORDED_AT.into(),
+            },
+            &mut followup_adapter,
+            &mut followup_signer,
+        )
+        .unwrap();
+        assert_eq!(followup_signer.calls, 1);
+        assert_eq!(followup.event_ids, Vec::<String>::new());
+        assert_eq!(followup.before_event_log_root, replay.final_event_log_root);
+        assert_eq!(followup.after_event_log_root, replay.final_event_log_root);
+        assert_eq!(
+            fs::read(root_path.join(".vela/current-object.json")).unwrap(),
+            br#"{"current":true}"#
         );
     }
 
@@ -4624,6 +4837,7 @@ mod tests {
             frontier_id: FRONTIER_ID,
             legacy_events: &fixture.request.history.legacy_events,
             legacy_actor_registry_bytes: &fixture.actor_registry_bytes,
+            archived_predecessor: None,
             legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
             legacy_policy_store_manifest_root: &fixture
                 .request

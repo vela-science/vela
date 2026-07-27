@@ -438,6 +438,19 @@ The fresh path cannot exempt, relabel, or authorize historical events and
 cannot run on an established or migrated Frontier. Missing, duplicate,
 backdated, substituted, or tampered initialization bytes fail closed.
 
+A Profile v2/current repository epoch uses the same
+`authority.initialized` shape for a narrower current-only replay boundary.
+The active repository retains no Era-0 events or actor registry. Instead,
+`.vela/epoch.json` binds their exact archived roots, and sequence 1 must bind
+those same roots plus the retained current keyset and Cedar bundle. The
+verifier rejects partial roots, root substitution, any mixture of archived
+roots with retained Era-0 bytes, and every gap, fork, uncovered event, or
+unactivated authority snapshot in the current chain. Subsequent object-only
+records advance the DSSE chain without changing the authority event-log root.
+Historical schemas remain replayable only from the pinned predecessor with
+the pinned historical binary; no old signature is interpreted as covering a
+current object.
+
 Storage is deliberately split at that boundary. The one migration bridge
 remains an ordinary Era-0 file at `.vela/events/<id>.json`. Post-migration
 `vela.event.v1` files live at `.vela/authority/events/<id>.json`, and their

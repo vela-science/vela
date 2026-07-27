@@ -1350,6 +1350,8 @@ fn apply_repository_upgrade_in_worktree(
                 frontier_id: plan.frontier_id.clone(),
                 legacy_events: project.events.clone(),
                 legacy_actor_registry_bytes: actor_registry_bytes,
+                archived_predecessor_event_log_root: None,
+                archived_predecessor_actor_registry_root: None,
                 legacy_active_policy_head_root: NULL_HASH.into(),
                 legacy_policy_store_manifest_root: NULL_HASH.into(),
                 authority_keyset,
@@ -2058,7 +2060,7 @@ pub(crate) fn verify_current_repository_at(
         }
     }
     if require_authority_record {
-        verify_current_epoch_authority(root, &repository, &epoch, &keyset)?;
+        verify_current_epoch_authority(root, &repository, &epoch)?;
     }
     Ok(repository)
 }
@@ -2084,26 +2086,21 @@ fn verify_current_epoch_authority(
     root: &Path,
     repository: &CurrentRepositoryV2,
     epoch: &RepositoryEpochV1,
-    keyset: &vela_protocol::authority::AuthorityKeysetV1,
 ) -> Result<(), String> {
-    let event_path = only_regular_file(&root.join(".vela/authority/events"), ".json")?;
-    let event_bytes = fs::read(&event_path)
-        .map_err(|error| format!("read current epoch authority event: {error}"))?;
-    let event: vela_protocol::authority::AuthorityEventV1 = serde_json::from_slice(&event_bytes)
-        .map_err(|error| format!("parse current epoch authority event: {error}"))?;
-    event.validate()?;
-    if vela_protocol::canonical::to_canonical_bytes(&event)? != event_bytes
-        || event_path.file_stem().and_then(|value| value.to_str()) != Some(event.id.as_str())
-        || event.content.kind.as_str() != AUTHORITY_INITIALIZED_EVENT_KIND
-        || event.content.target.r#type != "frontier"
-        || event.content.target.id != repository.frontier_id
-        || event.content.actor.r#type != "human"
-        || event.content.actor.id != event.content.principal_id
-        || event.content.before_hash != NULL_HASH
-        || event.content.after_hash != NULL_HASH
-    {
-        return Err("current epoch authority event has an invalid canonical shape".into());
-    }
+    let loaded = crate::cli::load_current_repository_authority(root, repository, epoch)?;
+    let initialization_event_id = loaded
+        .verification
+        .initialization_event_id
+        .as_deref()
+        .ok_or_else(|| "current repository authority lacks its initialization event".to_string())?;
+    let event = loaded
+        .history
+        .authority_events
+        .iter()
+        .find(|event| event.id == initialization_event_id)
+        .ok_or_else(|| {
+            "current repository authority initialization event is not retained".to_string()
+        })?;
     let initialization: AuthorityInitializationV1 =
         serde_json::from_value(event.content.payload.clone())
             .map_err(|error| format!("parse current epoch initialization payload: {error}"))?;
@@ -2122,29 +2119,57 @@ fn verify_current_epoch_authority(
         );
     }
 
-    let record_path = only_regular_file(&root.join(".vela/authority/records"), ".dsse.json")?;
-    let envelope_bytes = fs::read(&record_path)
-        .map_err(|error| format!("read current epoch authority record: {error}"))?;
-    let envelope: vela_protocol::authority::AuthorityEnvelopeV1 =
-        serde_json::from_slice(&envelope_bytes)
-            .map_err(|error| format!("parse current epoch authority envelope: {error}"))?;
-    if vela_protocol::canonical::to_canonical_bytes(&envelope)? != envelope_bytes {
-        return Err("current epoch authority envelope is not canonical JSON".into());
+    let event_paths = authority_store_files(&root.join(".vela/authority/events"), ".json")?;
+    if event_paths.len() != loaded.history.authority_events.len() {
+        return Err("current authority event store contains unverified objects".into());
     }
-    let verified = vela_protocol::authority::verify_authority_envelope(
-        &envelope,
-        keyset,
-        &repository.frontier_id,
-        1,
-        None,
-    )?;
-    let record = &verified.record;
-    if record_path.file_name().and_then(|value| value.to_str())
-        != Some(format!("{}.dsse.json", record.record_id).as_str())
-        || record.content.event_ids != vec![event.id.clone()]
-        || record.content.before_event_log_root != epoch.predecessor_roots.event_log
-        || record.content.principal.principal_id != event.content.principal_id
-        || record.content.authorization.policy_bundle_root != repository.authority_policy_root
+    for path in event_paths {
+        let bytes =
+            fs::read(&path).map_err(|error| format!("read current authority event: {error}"))?;
+        let stored: vela_protocol::authority::AuthorityEventV1 = serde_json::from_slice(&bytes)
+            .map_err(|error| format!("parse current authority event: {error}"))?;
+        stored.validate()?;
+        if vela_protocol::canonical::to_canonical_bytes(&stored)? != bytes
+            || path.file_name().and_then(|value| value.to_str())
+                != Some(format!("{}.json", stored.id).as_str())
+        {
+            return Err(
+                "current authority event store contains a non-canonical or misnamed object".into(),
+            );
+        }
+    }
+
+    let record_paths = authority_store_files(&root.join(".vela/authority/records"), ".dsse.json")?;
+    if record_paths.len() != loaded.history.authority_envelopes.len() {
+        return Err("current authority record store contains unverified objects".into());
+    }
+    for path in record_paths {
+        let bytes =
+            fs::read(&path).map_err(|error| format!("read current authority record: {error}"))?;
+        let envelope: vela_protocol::authority::AuthorityEnvelopeV1 =
+            serde_json::from_slice(&bytes)
+                .map_err(|error| format!("parse current authority envelope: {error}"))?;
+        if vela_protocol::canonical::to_canonical_bytes(&envelope)? != bytes {
+            return Err("current authority envelope is not canonical JSON".into());
+        }
+        let record = crate::cli::authority_record_from_envelope(&envelope)?;
+        if path.file_name().and_then(|value| value.to_str())
+            != Some(format!("{}.dsse.json", record.record_id).as_str())
+        {
+            return Err("current authority record filename does not match its identity".into());
+        }
+    }
+
+    let first_envelope =
+        loaded.history.authority_envelopes.first().ok_or_else(|| {
+            "current repository authority has no initialization record".to_string()
+        })?;
+    let first = crate::cli::authority_record_from_envelope(first_envelope)?;
+    if first.content.sequence != 1
+        || first.content.event_ids != vec![event.id.clone()]
+        || first.content.before_event_log_root != epoch.predecessor_roots.event_log
+        || first.content.principal.principal_id != event.content.principal_id
+        || first.content.authorization.policy_bundle_root != initialization.new_policy_bundle_root
     {
         return Err(
             "current epoch authority record does not bind its exact event and roots".into(),
@@ -2152,9 +2177,9 @@ fn verify_current_epoch_authority(
     }
     let expected_after = vela_protocol::authority_history::authority_event_log_root(
         &epoch.predecessor_roots.event_log,
-        &[&event],
+        &[event],
     )?;
-    if record.content.after_event_log_root != expected_after {
+    if first.content.after_event_log_root != expected_after {
         return Err("current epoch authority record has the wrong after-event root".into());
     }
     let required_delta = [
@@ -2166,7 +2191,7 @@ fn verify_current_epoch_authority(
         (".vela/repository.json".into(), repository.canonical_root()?),
     ];
     for (path, after_root) in required_delta {
-        let matching = record
+        let matching = first
             .content
             .object_delta
             .iter()
@@ -2181,7 +2206,7 @@ fn verify_current_epoch_authority(
     Ok(())
 }
 
-fn only_regular_file(directory: &Path, suffix: &str) -> Result<PathBuf, String> {
+fn authority_store_files(directory: &Path, suffix: &str) -> Result<Vec<PathBuf>, String> {
     let mut files = fs::read_dir(directory)
         .map_err(|error| format!("read {}: {error}", directory.display()))?
         .filter_map(|entry| entry.ok().map(|entry| entry.path()))
@@ -2194,14 +2219,7 @@ fn only_regular_file(directory: &Path, suffix: &str) -> Result<PathBuf, String> 
         })
         .collect::<Vec<_>>();
     files.sort();
-    let [path] = files.as_slice() else {
-        return Err(format!(
-            "{} must contain exactly one current epoch object ending in {suffix}; found {}",
-            directory.display(),
-            files.len()
-        ));
-    };
-    Ok(path.clone())
+    Ok(files)
 }
 
 fn claim_from_finding(
