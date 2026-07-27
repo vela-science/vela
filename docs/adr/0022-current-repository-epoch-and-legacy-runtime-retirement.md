@@ -248,6 +248,18 @@ The transaction covers the new repository root and rebinds the derived Target
 Index to it. A retained private Attempt is deleted only after the covered
 transaction installs and verifies.
 
+`vela verification import` follows the same object-only boundary. A new
+Verification Record must bind one exact current pending Proposal, its exact
+Submission and Claim, and only Artifact IDs already present in the current
+repository. Intake adds the Verification Record and next repository manifest,
+rebinds the derived Target Index, and changes no Claim standing or scientific
+Event. Byte-identical Verification Records imported before the epoch remain
+immutable predecessor-scoped observations: they are retained only when their
+old Proposal and Claim identities map uniquely through the current Proposal's
+and Claim Record's `imported_from` blocks. They do not become signatures over
+the replacement objects, and the live writer cannot use that migration-only
+mapping for a new record.
+
 ### 4. One fail-closed migration command
 
 The advanced command is:

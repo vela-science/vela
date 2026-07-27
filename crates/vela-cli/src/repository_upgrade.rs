@@ -1976,6 +1976,96 @@ pub(crate) fn verify_current_repository_at(
                 reference.path
             ));
         }
+        let mut matching_proposals = Vec::new();
+        for proposal_reference in &repository.proposals {
+            let proposal_bytes =
+                read_rooted_object(root, &proposal_reference.path, &proposal_reference.root)?;
+            let proposal = ProposalV1::parse(&proposal_bytes)?;
+            if proposal.proposal_id == verification.subject.proposal_id
+                || proposal
+                    .imported_from
+                    .as_ref()
+                    .is_some_and(|source| source.proposal_id == verification.subject.proposal_id)
+            {
+                matching_proposals.push((proposal_reference, proposal));
+            }
+        }
+        let [(proposal_reference, proposal)] = matching_proposals.as_slice() else {
+            return Err(format!(
+                "{} targets Proposal {} with {} current or imported matches",
+                reference.path,
+                verification.subject.proposal_id,
+                matching_proposals.len()
+            ));
+        };
+        let claim_matches = if proposal.proposal_id == verification.subject.proposal_id {
+            proposal.subject.id == verification.subject.claim_id
+        } else {
+            let pending_reference = repository
+                .pending_claims
+                .iter()
+                .find(|claim| {
+                    claim.claim_id == proposal.subject.id
+                        && claim.claim_root == proposal.subject.root
+                })
+                .ok_or_else(|| {
+                    format!(
+                        "{} imported Proposal has no exact pending Claim",
+                        proposal_reference.path
+                    )
+                })?;
+            let claim_bytes =
+                read_rooted_object(root, &pending_reference.path, &pending_reference.claim_root)?;
+            let claim = ClaimRecordV1::parse(&claim_bytes)?;
+            claim
+                .imported_from
+                .as_ref()
+                .is_some_and(|source| source.object_id == verification.subject.claim_id)
+        };
+        if !claim_matches
+            || proposal.producer_package.id != verification.subject.submission_id
+            || proposal.producer_package.root != verification.subject.submission_root
+        {
+            return Err(format!(
+                "{} does not bind its exact current/imported Proposal subject and producer package",
+                reference.path
+            ));
+        }
+        let submission_reference = repository
+            .submissions
+            .iter()
+            .find(|candidate| candidate.id == verification.subject.submission_id)
+            .ok_or_else(|| {
+                format!(
+                    "{} targets Submission {} outside the current repository",
+                    reference.path, verification.subject.submission_id
+                )
+            })?;
+        if submission_reference.root != verification.subject.submission_root
+            || submission_reference.path != proposal.producer_package.path
+        {
+            return Err(format!(
+                "{} does not bind the current Submission reference",
+                reference.path
+            ));
+        }
+        for artifact_id in verification
+            .subject
+            .artifact_ids
+            .iter()
+            .chain(&verification.output_artifact_ids)
+        {
+            if !repository
+                .artifacts
+                .iter()
+                .any(|artifact| artifact.id == *artifact_id)
+            {
+                return Err(format!(
+                    "{} names Artifact {} outside the current repository",
+                    reference.path, artifact_id
+                ));
+            }
+        }
     }
     for reference in &repository.artifacts {
         let bytes = read_rooted_object(root, &reference.path, &reference.root)?;

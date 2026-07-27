@@ -733,6 +733,16 @@ repository root, and the derived Target Index rebind. A private Attempt is
 removed only after that transaction installs and the current repository
 re-verifies.
 
+A current Verification import likewise writes one exact
+`vela.verification-record.v1` plus the next repository manifest under an
+object-only authority record. The record must bind the exact current pending
+Proposal, Submission root, Claim identity, and retained Artifact IDs. It
+changes no Standing or scientific Event. An immutable Verification Record
+retained across the repository epoch may refer to predecessor Proposal and
+Claim IDs only when the current Proposal and Claim Record provide a unique
+`imported_from` mapping. That mapping preserves the historical observation; it
+does not reinterpret the old signature as covering current object identities.
+
 The ordinary result is:
 
 ```text

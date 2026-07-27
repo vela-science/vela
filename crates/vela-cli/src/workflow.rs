@@ -2504,6 +2504,9 @@ pub(crate) fn import_verification(
     executor: &str,
     push: bool,
 ) -> Result<VerificationImportOutcome, String> {
+    if frontier.join(".vela/epoch.json").is_file() {
+        return crate::current_verification::import(frontier, record, executor, push);
+    }
     use crate::config::git_publish::{
         PublicationOutcome, PublicationState, PublishOptions, exact_publication_preflight,
         publication_disabled_reason, publication_is_busy, publish_exact_delta,

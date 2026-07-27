@@ -41,7 +41,7 @@ use crate::workflow::{
     prepare_submission_artifacts, publication_delta, submission_publication_inputs,
 };
 
-fn rooted_path(directory: &str, root: &str) -> Result<String, String> {
+pub(crate) fn rooted_path(directory: &str, root: &str) -> Result<String, String> {
     let digest = root
         .strip_prefix("sha256:")
         .ok_or_else(|| format!("{directory} object root is not sha256"))?;
@@ -58,7 +58,7 @@ fn proposal_set_root(proposals: &[RepositoryObjectRefV1]) -> Result<String, Stri
     ))
 }
 
-fn add_object_ref(
+pub(crate) fn add_object_ref(
     references: &mut Vec<RepositoryObjectRefV1>,
     reference: RepositoryObjectRefV1,
 ) -> Result<(), String> {
@@ -251,7 +251,7 @@ fn proposed_change(
     })
 }
 
-fn rebind_target_index(
+pub(crate) fn rebind_target_index(
     frontier: &Path,
     repository: &CurrentRepositoryV2,
 ) -> Result<Vec<AuthorityDerivedDraft>, String> {
