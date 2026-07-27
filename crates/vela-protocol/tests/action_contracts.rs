@@ -97,7 +97,7 @@ fn assert_immutable_action_pins(name: &str, workflow: &str) {
 }
 
 #[test]
-fn root_action_is_lock_pinned_strict_and_nonfinalizing() {
+fn root_action_is_consumer_pinned_strict_and_nonfinalizing() {
     let action = parse_action(ROOT_ACTION);
     assert!(action["inputs"].get("strict").is_none());
     assert_eq!(
@@ -109,34 +109,33 @@ fn root_action_is_lock_pinned_strict_and_nonfinalizing() {
         "the public action accepts only frontier, release, and one exact boundary root"
     );
     assert_eq!(action["inputs"]["vela-version"]["required"], true);
-    assert_eq!(
-        action["inputs"]["repository-boundary-root"]["required"],
-        false
-    );
+    assert_eq!(action["inputs"]["authority-record-root"]["required"], false);
 
     let install = script_named(
         &action,
         "Install vela (pinned release binary, no from-source build)",
     );
-    assert!(install.contains("lock_version=\"$(awk '/^vela_version:/{print $2}' \"$lock\")\""));
     assert!(install.contains("requested=\"${VELA_VERSION_INPUT#v}\""));
     assert!(install.contains("vela-version is required"));
-    assert!(install.contains("requested Vela $requested does not match $lock's vela_version"));
-    assert!(install.contains("release=\"v$lock_version\""));
+    assert!(install.contains("vela-version must be one stable exact release"));
+    assert!(install.contains("release=\"v$requested\""));
     assert!(
         install.contains("https://raw.githubusercontent.com/vela-science/vela/$release/install.sh")
     );
-    assert!(install.contains("install_root=\"${RUNNER_TEMP:?}/vela-action-$lock_version\""));
+    assert!(install.contains("install_root=\"${RUNNER_TEMP:?}/vela-action-$requested\""));
     assert!(install.contains("VELA_INSTALL_PREFIX=\"$install_root\""));
     assert!(install.contains("VELA_POLKIT_POLICY_DIR=\"$policy_root\""));
     assert!(install.contains("\"$install_root/bin/vela\" --version"));
     assert!(install.contains("echo \"$install_root/bin\" >> \"$GITHUB_PATH\""));
-    assert!(install.contains("installed Vela $installed does not match $lock's vela_version"));
+    assert!(install.contains("installed Vela $installed does not match requested Vela $requested"));
+    assert!(!install.contains("vela.lock"));
 
-    let trust = script_named(&action, "Install the exact consumer boundary pin");
-    assert!(trust.contains("REPOSITORY_BOUNDARY_ROOT"));
-    assert!(trust.contains("vela frontier trust pin \"$FRONTIER\""));
-    assert!(trust.contains("--confirm-root \"$plan_root\" --confirm-at \"$observed_at\""));
+    let trust = script_named(&action, "Install the exact consumer authority pin");
+    assert!(trust.contains("AUTHORITY_RECORD_ROOT"));
+    assert!(trust.contains("vela authority trust pin \"$FRONTIER\""));
+    assert!(trust.contains("--record-root \"$AUTHORITY_RECORD_ROOT\""));
+    assert!(!trust.contains("--confirm-root"));
+    assert!(!trust.contains("--confirm-at"));
 
     let strict = script_named(&action, "Strict read-only repository verification");
     assert!(strict.contains("vela check \"$FRONTIER\" --strict"));
@@ -145,7 +144,7 @@ fn root_action_is_lock_pinned_strict_and_nonfinalizing() {
     assert!(!strict.contains("::notice::"));
 
     for forbidden in [
-        "vela frontier materialize",
+        "vela frontier",
         "snapshot_hash",
         "event_log_hash",
         "hub.constellate.science",
@@ -157,7 +156,7 @@ fn root_action_is_lock_pinned_strict_and_nonfinalizing() {
             "root action retains obsolete or mutating contract `{forbidden}`"
         );
     }
-    assert!(ROOT_ACTION.contains("vars.VELA_REPOSITORY_BOUNDARY_ROOT"));
+    assert!(ROOT_ACTION.contains("vars.VELA_AUTHORITY_RECORD_ROOT"));
 
     assert!(!ROOT_ACTION.contains("constellate-science/vela"));
     assert!(!ROOT_ACTION.contains("/main/install.sh"));
@@ -309,6 +308,9 @@ fn installer_points_to_the_nonfinalizing_task_first_path() {
     assert!(WINDOWS_INSTALLER.contains("differs from the ecosystem-lock SHA-256"));
     assert!(INSTALLER.contains("vela check . --strict --json"));
     assert!(INSTALLER.contains("vela next . --json"));
+    assert!(INSTALLER.contains("vela start <target>"));
+    assert!(INSTALLER.contains("vela submit <attempt>"));
+    assert!(!INSTALLER.contains("vela work <target>"));
     assert!(INSTALLER.contains("docs/PRODUCER_QUICKSTART.md"));
     for forbidden in ["vela finding add", "--apply", "vela sign", "vela accept"] {
         assert!(

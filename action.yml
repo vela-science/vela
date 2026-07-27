@@ -3,17 +3,17 @@
 # Consume from a frontier repository:
 #
 #   - uses: actions/checkout@v5
-#   - uses: vela-science/vela@v0.915.1
+#   - uses: vela-science/vela@v0.940.0
 #     with:
 #       frontier: .
-#       vela-version: v0.915.1
-#       repository-boundary-root: ${{ vars.VELA_REPOSITORY_BOUNDARY_ROOT }}
+#       vela-version: v0.940.0
+#       authority-record-root: ${{ vars.VELA_AUTHORITY_RECORD_ROOT }}
 #
-# For an administrator-bound Profile v1 repository, the first boundary root
+# For a current Profile v2 repository, the sequence-1 authority-record root
 # must come from protected GitHub repository or organization configuration,
 # never from the proposed checkout. The action installs that public consumer
 # pin in the ephemeral runner account and runs the strict read-only verifier.
-# It never materializes, signs, or changes scientific state.
+# It never signs, decides, or changes Frontier state.
 
 name: vela-check
 description: >-
@@ -27,18 +27,16 @@ inputs:
     default: "."
   vela-version:
     description: >-
-      Required reviewed Vela release tag (e.g. v0.915.1). It must match the
-      `vela_version` recorded in the frontier's vela.lock, preventing the
-      proposed frontier bytes from selecting an older verifier.
+      Required reviewed Vela release tag (e.g. v0.940.0). The consumer chooses
+      this pin; proposed Frontier bytes cannot select or downgrade the verifier.
     required: true
-  repository-boundary-root:
+  authority-record-root:
     description: >-
-      Full sha256 content root of the first administrator boundary. Required
-      for an administrator-bound Profile v1 frontier. Supply it from a
+      Full sha256 content root of the sequence-1 authority record. Required
+      for a current Profile v2 repository. Supply it from a
       protected GitHub repository or organization variable, not from a file in
-      the proposed checkout. Omit it when the runner already has the exact pin,
-      or for legacy or structural-genesis repositories with no administrator
-      boundary.
+      the proposed checkout. Omit it only when the runner already has the exact
+      local pin.
     required: false
     default: ""
 
@@ -53,28 +51,17 @@ runs:
         ACTION_PATH: ${{ github.action_path }}
       run: |
         set -euo pipefail
-        lock="$FRONTIER/vela.lock"
-        if [ ! -f "$lock" ]; then
-          echo "::error::$lock not found — cannot select the lock-matching Vela release"
-          exit 1
-        fi
-        lock_version="$(awk '/^vela_version:/{print $2}' "$lock")"
-        lock_version="${lock_version#v}"
-        if [ -z "$lock_version" ]; then
-          echo "::error::$lock has no vela_version — regenerate it with a pinned Vela release"
-          exit 1
-        fi
         requested="${VELA_VERSION_INPUT#v}"
         if [ -z "$requested" ]; then
-          echo "::error::vela-version is required; proposed lock bytes cannot select the verifier"
+          echo "::error::vela-version is required; proposed Frontier bytes cannot select the verifier"
           exit 1
         fi
-        if [ "$requested" != "$lock_version" ]; then
-          echo "::error::requested Vela $requested does not match $lock's vela_version $lock_version"
+        if ! printf '%s' "$requested" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+          echo "::error::vela-version must be one stable exact release"
           exit 1
         fi
-        release="v$lock_version"
-        install_root="${RUNNER_TEMP:?}/vela-action-$lock_version"
+        release="v$requested"
+        install_root="${RUNNER_TEMP:?}/vela-action-$requested"
         policy_root="$install_root/share/polkit-1/actions"
         # install.sh ships with this exact action tag. It fetches the platform
         # asset from the matching GitHub release and verifies its SHA-256.
@@ -93,31 +80,26 @@ runs:
         version_output="$("$install_root/bin/vela" --version)"
         installed="${version_output##* }"
         installed="${installed#v}"
-        if [ "$installed" != "$lock_version" ]; then
-          echo "::error::installed Vela $installed does not match $lock's vela_version $lock_version"
+        if [ "$installed" != "$requested" ]; then
+          echo "::error::installed Vela $installed does not match requested Vela $requested"
           exit 1
         fi
         echo "$install_root/bin" >> "$GITHUB_PATH"
-        echo "$version_output (matches $lock)"
+        echo "$version_output (matches the consumer pin)"
 
-    - name: Install the exact consumer boundary pin
+    - name: Install the exact consumer authority pin
       shell: bash
       env:
         FRONTIER: ${{ inputs.frontier }}
-        REPOSITORY_BOUNDARY_ROOT: ${{ inputs.repository-boundary-root }}
+        AUTHORITY_RECORD_ROOT: ${{ inputs.authority-record-root }}
       run: |
         set -euo pipefail
-        if [ -z "$REPOSITORY_BOUNDARY_ROOT" ]; then
-          echo "No new administrator-boundary pin supplied; strict verification will use an existing exact pin or permit only a legacy or structural-genesis repository."
+        if [ -z "$AUTHORITY_RECORD_ROOT" ]; then
+          echo "No authority-record root supplied; strict verification will use an existing exact local pin or fail closed."
           exit 0
         fi
-        preview="$(vela frontier trust pin "$FRONTIER" \
-          --boundary-root "$REPOSITORY_BOUNDARY_ROOT" --json)"
-        plan_root="$(printf '%s' "$preview" | python3 -c 'import json,sys; print(json.load(sys.stdin)["plan_root"])')"
-        observed_at="$(printf '%s' "$preview" | python3 -c 'import json,sys; print(json.load(sys.stdin)["observed_at"])')"
-        vela frontier trust pin "$FRONTIER" \
-          --boundary-root "$REPOSITORY_BOUNDARY_ROOT" \
-          --confirm-root "$plan_root" --confirm-at "$observed_at" --json
+        vela authority trust pin "$FRONTIER" \
+          --record-root "$AUTHORITY_RECORD_ROOT" --json
 
     - name: Strict read-only repository verification
       shell: bash

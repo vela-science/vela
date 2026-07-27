@@ -134,5 +134,6 @@ echo
 echo "Quick start in a reviewed frontier clone:"
 echo "  1) verify:  vela check . --strict --json"
 echo "  2) inspect: vela next . --json"
-echo "  3) claim:   vela work <target> --frontier . --as agent:<you> --json"
+echo "  3) start:   vela start <target> --frontier . --as agent:<you> --json"
+echo "  4) submit:  vela submit <attempt> --frontier . --claim <claim> --json"
 echo "Producer guide: https://github.com/vela-science/vela/blob/${TAG}/docs/PRODUCER_QUICKSTART.md"
