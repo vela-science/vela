@@ -28,7 +28,7 @@ use vela_protocol::proposal_v1::{
 };
 use vela_protocol::repository_epoch::{PredecessorRoots, RepositoryEpochV1};
 use vela_protocol::{
-    events::{EventKind, NULL_HASH, StateActor, StateTarget},
+    events::{EventKind, NULL_HASH, StateActor, StateEvent, StateTarget},
     principal_capability::PrincipalClass,
 };
 
@@ -1191,7 +1191,13 @@ fn prepare_repository_upgrade(
     );
     let artifact_registry_root = root_canonical(&project.artifacts)?;
     let predecessor_roots = PredecessorRoots {
-        event_log: lock.event_log_root.clone(),
+        // Profile v1 locks may report the combined legacy-plus-authority
+        // commitment after an authority-model migration. A repository epoch
+        // archives those histories separately: `event_log` binds the exact
+        // Era-0 event files, while `authority_event_log` binds the verified
+        // repository-authority chain. Recompute the former from the loaded
+        // canonical events instead of copying the possibly combined lock root.
+        event_log: repository_epoch_predecessor_event_root(&project.events),
         scientific_state: lock.scientific_state_root.clone(),
         compatibility_snapshot: lock.legacy_snapshot_root.clone(),
         proposal_state: lock.proposal_root.clone(),
@@ -3339,6 +3345,10 @@ fn root_bytes(bytes: &[u8]) -> String {
     format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
 }
 
+fn repository_epoch_predecessor_event_root(events: &[StateEvent]) -> String {
+    format!("sha256:{}", vela_protocol::events::event_log_hash(events))
+}
+
 fn plan_root(plan: &RepositoryUpgradePlan) -> Result<String, String> {
     let mut value = serde_json::to_value(plan)
         .map_err(|error| format!("serialize repository upgrade plan: {error}"))?;
@@ -3377,11 +3387,35 @@ fn shell_quote(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use vela_protocol::authority::{AUTHORITY_MODE, AuthorityEventContentV1};
+    use vela_protocol::events::EVENT_SCHEMA;
 
     use super::*;
 
     fn root(byte: char) -> String {
         format!("sha256:{}", byte.to_string().repeat(64))
+    }
+
+    fn legacy_event(id: &str) -> StateEvent {
+        StateEvent {
+            schema: EVENT_SCHEMA.into(),
+            id: id.into(),
+            kind: EventKind::Other("note.added".into()),
+            target: StateTarget {
+                r#type: "finding".into(),
+                id: "vf_fixture".into(),
+            },
+            actor: StateActor {
+                r#type: "human".into(),
+                id: "reviewer:fixture".into(),
+            },
+            timestamp: "2026-07-27T00:00:00Z".into(),
+            reason: "Preserve one exact predecessor event.".into(),
+            before_hash: NULL_HASH.into(),
+            after_hash: NULL_HASH.into(),
+            payload: Value::Null,
+            caveats: Vec::new(),
+            signature: None,
+        }
     }
 
     fn review_event(
@@ -3494,6 +3528,25 @@ mod tests {
         assert!(is_epoch_derived_path("targets.json"));
         assert!(is_epoch_derived_path("vela.lock"));
         assert!(!is_epoch_derived_path(".vela/repository.json"));
+    }
+
+    #[test]
+    fn repository_epoch_separates_legacy_and_authority_event_roots() {
+        let legacy_events = vec![legacy_event("vev_legacy")];
+        let legacy_root = repository_epoch_predecessor_event_root(&legacy_events);
+        let combined_profile_lock_root = root('f');
+
+        assert_eq!(
+            legacy_root,
+            format!(
+                "sha256:{}",
+                vela_protocol::events::event_log_hash(&legacy_events)
+            )
+        );
+        assert_ne!(
+            legacy_root, combined_profile_lock_root,
+            "a post-authority Profile v1 lock must not redefine the archived Era-0 event root"
+        );
     }
 
     #[test]
