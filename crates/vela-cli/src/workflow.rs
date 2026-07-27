@@ -682,7 +682,7 @@ fn transact_repository_authority_lease(
     let executable =
         std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
     let binary_sha256 = crate::authority_transaction::execution_binary_sha256(&executable)?;
-    let result = crate::authority_transaction::execute_authority_transaction(
+    let mut transaction = crate::authority_transaction::prepare_authority_transaction(
         barrier,
         frontier,
         crate::authority_transaction::AuthorityTransactionRequest {
@@ -719,6 +719,16 @@ fn transact_repository_authority_lease(
         &mut signer,
     )
     .map_err(|error| error.to_string())?;
+    let public = transaction
+        .resolved_public_writes()
+        .map_err(|error| error.to_string())?;
+    let delta_root = transaction.canonical_delta_root().to_string();
+    let result = transaction.result.clone();
+    transaction
+        .mark_committed()
+        .map_err(|error| error.to_string())?;
+    transaction.install().map_err(|error| error.to_string())?;
+    transaction.complete().map_err(|error| error.to_string())?;
     let [event_id] = result.event_ids.as_slice() else {
         return Err(
             "repository-authority lease transaction did not produce exactly one event".to_string(),
@@ -742,14 +752,52 @@ fn transact_repository_authority_lease(
     );
     object.insert(
         "publication".into(),
-        json!({
-            "state": {
-                "kind": "uncommitted",
-                "candidate": null,
-                "reason": "repository-authority lease installed; commit the exact canonical delta"
-            },
-            "recovery_command": null
-        }),
+        serde_json::to_value({
+            use crate::config::git_publish::{
+                PublicationOutcome, PublicationState, PublishOptions,
+                exact_publication_resume_preflight, publication_disabled_reason,
+                publish_exact_delta,
+            };
+            let publish_opts = PublishOptions::new(false);
+            let disabled = publication_disabled_reason(frontier, &publish_opts);
+            let delta = if disabled.is_some() {
+                None
+            } else {
+                publication_delta(frontier, &delta_root, public)?
+            };
+            match delta.as_ref() {
+                Some(delta) => {
+                    match exact_publication_resume_preflight(frontier, delta, &publish_opts) {
+                        Ok(preflight) => publish_exact_delta(
+                            frontier,
+                            "work",
+                            std::slice::from_ref(event_id),
+                            delta,
+                            preflight,
+                            &publish_opts,
+                        )
+                        .unwrap_or_else(|error| PublicationOutcome {
+                            state: PublicationState::Unknown {
+                                reason: error.to_string(),
+                            },
+                            recovery_command: None,
+                        }),
+                        Err(outcome) => outcome,
+                    }
+                }
+                None => PublicationOutcome {
+                    state: PublicationState::Uncommitted {
+                        candidate: None,
+                        reason: disabled.unwrap_or_else(|| {
+                            "repository-authority lease transaction had no public Git delta"
+                                .to_string()
+                        }),
+                    },
+                    recovery_command: None,
+                },
+            }
+        })
+        .map_err(|error| error.to_string())?,
     );
     Ok(claim)
 }

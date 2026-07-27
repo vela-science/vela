@@ -517,6 +517,7 @@ pub async fn run_command() {
                                 "required_checks": session.pointer("/task_contract/required_checks"),
                                 "authority_ceiling": session.pointer("/task_contract/authority_ceiling"),
                             },
+                            "publication": opened.pointer("/claim/publication"),
                             "packet": packet,
                             "verifier_profile": task.and_then(|task| task.get("verifier_profile"))
                                 .or_else(|| packet.and_then(|packet| packet.get("schema"))),
