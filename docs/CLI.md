@@ -83,7 +83,7 @@ commands in the current candidate.
 - full event, scientific-state, proposal, actor-registry, and artifact roots;
 - repository-context and replay validity;
 - strict blocker totals by stable code;
-- event, finding, work, and review counts;
+- event, Claim, work, and review counts;
 - current policy readiness; and
 - one next action.
 

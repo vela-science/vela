@@ -146,9 +146,10 @@ Historical bytes are never renamed or rehashed:
 | Activity or landing record | `vrc_` | Historical intake/landing record; not a Registration Record |
 | VerifierAttachment | `vva_` | Historical verifier evidence; not a Verification Record |
 
-Current readers must expose source schema, identifier, root, projection
-version, and any semantic loss. Current writers emit only the current era after
-the ADR 0021 migration gate passes.
+Current readers expose source schema, identifier, root, projection version,
+and any semantic loss. Current writers emit only the current Submission,
+Registration, and Verification era. The separately gated Claim Record writer
+does not exist yet.
 
 ## Controlled verbs
 
