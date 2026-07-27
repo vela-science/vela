@@ -1,5 +1,11 @@
 # AI attribution: AI-drafted proposals, human-certified events
 
+> **Historical product-language record.** This document explains retained
+> Finding-era event kinds and early actor terminology. Current producers emit
+> authenticated Submissions; current verifiers emit scoped Verification
+> Records; repository authority records one authorized human Decision. See
+> [TERMINOLOGY.md](TERMINOLOGY.md).
+
 This doc names the doctrine Vela's substrate already enforces:
 **proposals can be drafted by anyone, including AI agents;
 canonical events are signed by named reviewers.** A human (or

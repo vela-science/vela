@@ -193,11 +193,12 @@ canonical delta.
 
 ### Key compromise
 
-A valid compromised key can make authority-bearing signatures within its
-current scope. Signed policy can narrow automatic Permit classes, and
-multi-party policies can require distinct eligible signers for sensitive
-transitions. Revocation and policy-head changes must themselves enter the
-accepted history through the authorized human path.
+A compromised repository-authority key can create signatures within the
+authorization context available to its operating-system principal. Restricted
+Cedar action policy and exact read-set binding limit accidental or substituted
+actions, but they cannot make a stolen key safe. Authority rotation or
+revocation must itself be an explicit authorized transition; the current
+candidate must not pretend that deleting local key material rewrites history.
 
 Historical signatures remain historical facts. Recovery cannot rewrite them.
 A fully compromised authority quorum requires an explicit social and key-
@@ -210,18 +211,10 @@ producer may also formalize a weaker statement than the prose claims. Vela
 therefore records verifier identity, environment, inputs, outcome, and caveats,
 and keeps statement faithfulness and significance separate from a kernel pass.
 
-For a deliberately delegated computational lane, AcceptancePolicy v0.2 can
-also bind Permit to the full roots of one packet, producer profile, verifier
-capsule, and positive result contract. This blocks same-class verifier and
-target substitution; it does not make the selected verifier scientifically
-adequate. That semantic judgment remains part of the human policy approval.
-
-Historical AcceptancePolicy v0.3 can further bind that exact lane to the full
-root of one retained Receipt identity binding. This avoids granting a replaceable producer
-frontier-wide registry meaning. It is not open self-enrollment: the protected
-policy plan rederives the full binding, the human-signed rule names it exactly,
-and even a globally registered actor cannot substitute another key or omit the
-v0.3 root.
+Historical AcceptancePolicy v0.2 and v0.3 records may bind a Permit to packet,
+producer, verifier, result-contract, or Receipt-era identity roots. They remain
+strict replay inputs for Frontiers that contain them. They are not current
+writer interfaces and do not authorize a new Submission by analogy.
 
 New verifiers need positive fixtures, meaningful negative controls, resource
 bounds, and independent review of what their result means. A verifier maintained

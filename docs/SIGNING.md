@@ -125,7 +125,7 @@ vela proposal withdraw . <vpr_id> \
   --json
 ```
 
-Withdrawal never deletes evidence or changes accepted findings.
+Withdrawal never deletes evidence or changes accepted Claim Standing.
 
 Fresh `vela init` repositories have structural identity but no configured
 repository authority. Establish the standard writer with one dedicated

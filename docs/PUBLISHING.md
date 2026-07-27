@@ -120,7 +120,7 @@ wire contracts.
 ## Citation
 
 Cite the frontier repository and exact commit or release tag. Include the
-frontier ID and relevant finding or artifact IDs so another reader can locate
+Frontier ID and relevant Claim or Artifact IDs so another reader can locate
 the accepted state and reproduce its checks. An Observatory URL may be included
 as a convenience link, but it should not be the only locator.
 

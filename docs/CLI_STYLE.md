@@ -65,7 +65,7 @@ The surface is a deliberate hybrid, not drift:
 
 - **Flat loop verbs** for daily cadence: `init · status · next · start · submit
   · show · why · review · check · reproduce · log · doctor`.
-- **Noun-verb** for everything else: `finding <verb>`, `frontier <verb>`,
+- **Noun-verb** for everything else: `claim <verb>`, `frontier <verb>`,
   `policy <verb>`, `config <verb>`, `id <verb>`, …
 - **Direct consequential verbs** say what they do: `review accept`,
   `review reject`, `proposal withdraw`, and `verification import`. Producers

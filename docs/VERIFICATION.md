@@ -10,8 +10,9 @@ and presentation. Conflating them is the central failure this gate prevents.
    bytes and inputs.
 3. **Claim binding:** the checked property matches the scoped claim recorded in
    Submission v1.
-4. **Admission:** a governed policy Permit or attributed human decision
-   authorized the exact state transition.
+4. **Admission:** an attributed, authorized human Decision admitted the exact
+   state transition. Historical signed-policy outcomes remain replay facts,
+   not a current writer.
 
 A signature alone does not prove correctness. A passing verifier alone does not
 prove novelty, significance, statement faithfulness, or acceptance. Admission
@@ -84,31 +85,20 @@ inconclusive check is useful negative state and must not be rewritten as a
 pass. A producer check remains `producer_reported`; it is not an independent
 Verification Record merely because it is deterministic.
 
-Vela may derive a gate status from matched verifier attachments:
-
-```bash
-vela gate check --claim <exact-claim> --attachments <attachments.json> --json
-```
-
-That status is computed, not set by a writer. The gate checks attachment
-well-formedness, claim matching, declared method independence, and surviving
-negative probes. It is one input to signed policy, never a separate acceptance
-command.
-
 Durable independent evidence is retained with:
 
 ```bash
-vela verify attach . attachment.json --proposal <vpr_id> \
-  --as verifier:<actor> --json
+vela verification import . verification-record.json --json
 ```
 
-This evidence event requires a content-addressed attachment, the proposal's
-exact full claim root, an explicit implementation, full execution-evidence
-roots, and a rooted record for every adversarial probe. It rejects stale claim
-bindings and declared independence across shared lineage couplings. The event
-may change the derived verification gate; it cannot accept, reject, or finalize
-the proposal. `vela review show` reports the exact next reproduction,
-attachment, and attributed human-decision commands as separate actions.
+The current Verification Record requires the exact Claim, Submission,
+Proposal, and Artifact bindings it bears on; a named method and implementation;
+full execution-evidence roots; an outcome; scope; and explicit nonclaims. It
+rejects stale or substituted inputs and cannot accept, reject, or finalize the
+Proposal. Historical VerifierAttachment and gate-status bytes remain
+replayable through their historical schemas but have no current writer.
+`vela review show` reports reproduction, verification, and attributed Decision
+state as separate facts.
 
 ## Submission and admission
 

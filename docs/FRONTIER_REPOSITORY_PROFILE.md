@@ -103,7 +103,7 @@ standing, or acceptance.
 Historical `frontier.repository_bound` events bind the exact identity,
 dependency set, Git anchor, event prefix, actor registry, proposal set,
 artifact registry, and retained canonical bytes. They cannot accept, reject,
-correct, supersede, or retract a finding.
+correct, supersede, or retract a Claim.
 
 The boundary chain must be linear. Vela rejects missing parents, forks, cycles,
 duplicate roots, rollback-shaped anchors, changed identity fields, invalid
