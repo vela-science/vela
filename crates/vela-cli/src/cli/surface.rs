@@ -96,14 +96,13 @@ Daily product:
   next          Ranked Target Offers
   start         Start one bounded Attempt against an exact Target
   submit        Register authenticated producer input for review
+  show          One exact object, its root, era, and authority effect
+  why           Root-bound explanation of one Claim's Standing
   review        Inspect or perform one exact authorized Proposal action
   check         Replay, signatures, parity, and strict signals
   reproduce     Re-run stored witnesses with frozen verifiers
-  verification  Retain non-authorizing scoped Verification Records
   log           Recent signed events or one finding's history
   doctor        Blockers plus one safe next action
-  show          One exact object, its root, era, and authority effect
-  why           Root-bound explanation of one Claim's Standing
 
 Nouns and setup:
   finding       record, standing, evidence, and attribution views
@@ -117,6 +116,7 @@ Nouns and setup:
   config        closed local/frontier configuration
 
 Advanced verification and integration:
+  verification  Retain non-authorizing scoped Verification Records
   gate          claim-level verification projections
   proof         proof packet export, verify, and explain
   serve         read-only or nonfinalizing draft MCP/HTTP surface

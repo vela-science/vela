@@ -168,8 +168,6 @@ forbidden_code=(
   'GateAction::AutoAdmit'
   'GateAction::(Backfill|Attach)'
   'FoundryAction::LeanRun'
-  'Commands::Submit'
-  'cmd_submit\('
   'publish_decision\('
   'create_or_apply\('
   '\bDEFAULT_CARINA_KERNEL\b'
@@ -236,7 +234,6 @@ current_finding_schemas=(schema/finding-bundle.v*.json)
 # ADRs and replay notes may still name retired surfaces as history.
 operational_docs=(README.md docs/CLI.md docs/AGENT_QUICKSTART.md)
 for command in \
-  'vela submit' \
   'vela gate auto-admit' \
   'vela proposals accept' \
   'vela proposals reject' \

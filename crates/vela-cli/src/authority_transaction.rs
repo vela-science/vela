@@ -1848,6 +1848,12 @@ struct LayoutCommitment<'a> {
     authority_record_path: &'a str,
 }
 
+pub(crate) fn execution_binary_sha256(path: &Path) -> Result<String, String> {
+    let bytes = std::fs::read(path)
+        .map_err(|error| format!("read execution binary {}: {error}", path.display()))?;
+    Ok(format!("sha256:{}", hex::encode(Sha256::digest(bytes))))
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -4425,9 +4431,4 @@ mod tests {
         );
         verify_installed_history(&fixture, &[], &envelope);
     }
-}
-pub(crate) fn execution_binary_sha256(path: &Path) -> Result<String, String> {
-    let bytes = std::fs::read(path)
-        .map_err(|error| format!("read execution binary {}: {error}", path.display()))?;
-    Ok(format!("sha256:{}", hex::encode(Sha256::digest(bytes))))
 }

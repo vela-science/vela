@@ -1290,7 +1290,7 @@ fn build_register_with_finding_edge_log(
 /// `proposal.withdrawn` is a signed audit/standing event. It deliberately
 /// leaves accepted scientific state untouched, so cross-implementation
 /// reducers must recognize it and treat it as a no-op on the finding and
-/// artifact effect digests. Signature and Receipt-binding validation are
+/// artifact effect digests. Signature and Submission-binding validation are
 /// covered by the proposal-withdrawal protocol tests.
 fn build_proposal_withdrawn_log(frontier_idx: usize) -> Vec<events::StateEvent> {
     vec![StateEvent {
@@ -1306,14 +1306,14 @@ fn build_proposal_withdrawn_log(frontier_idx: usize) -> Vec<events::StateEvent> 
             r#type: "agent".to_string(),
         },
         timestamp: fixture_timestamp(frontier_idx, 0),
-        reason: "fixture: producer withdrew a Receipt-bound pending proposal".to_string(),
+        reason: "fixture: producer withdrew a Submission-bound pending proposal".to_string(),
         before_hash: NULL_HASH.to_string(),
         after_hash: NULL_HASH.to_string(),
         payload: json!({
             "schema": events::PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA,
             "proposal_id": format!("vpr_{}", "a".repeat(64)),
             "proposal_root": format!("sha256:{}", "b".repeat(64)),
-            "receipt_root": format!("sha256:{}", "c".repeat(64)),
+            "submission_root": format!("sha256:{}", "c".repeat(64)),
             "identity_binding_id": format!("vib_{}", "d".repeat(64)),
         }),
         caveats: vec!["fixture only".to_string()],

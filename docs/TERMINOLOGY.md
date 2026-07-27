@@ -63,9 +63,8 @@ init status next start submit show why review check reproduce log doctor
 | `submit` | Validate and register a Submission, then route its Proposal |
 | `show` | Inspect one current or historical typed object |
 | `why` | Explain current standing from exact evidence, verification, Decisions, Events, and corrections |
-| `review accept` | Accept one exact Proposal through protected authority |
-| `review reject` | Reject one exact Proposal through protected authority |
-| `review retract` | Retract accepted standing through one exact Proposal and protected authority |
+| `review accept` | Accept one exact Proposal through repository authority |
+| `review reject` | Reject one exact Proposal through repository authority |
 | `check` | Validate schemas, roots, signatures, replay, and policy consistency |
 | `reproduce` | Rerun retained evidence or a verifier from exact or declared inputs |
 | `log` | Read canonical history |
@@ -93,8 +92,8 @@ Accepted scientific state changed: no.
 A passing Verification Record must name the exact property, method, inputs,
 scope, and nonclaims. It changes no standing by itself.
 
-An acceptance must name the exact Proposal, authorized principal or signed
-policy, Frontier authority, Event, and before/after state roots.
+An acceptance must name the exact Proposal, authorized human principal,
+Frontier repository authority, Event, and before/after state roots.
 
 ## Lifecycle vocabularies
 
@@ -140,12 +139,12 @@ locator: immutable | mutable | unavailable | opaque
 
 Historical bytes are never renamed or rehashed:
 
-| Historical object | Historical prefix | Current projected label |
+| Historical object | Historical prefix | Current relationship |
 | --- | --- | --- |
-| Finding | `vf_` | Claim Record, with source type disclosed |
-| Receipt v1 | receipt root | Submission, with source schema disclosed |
-| Activity or landing record | `vrc_` | Registration Record |
-| VerifierAttachment | `vva_` | Verification Record |
+| Finding | `vf_` | Historical Claim/Finding record; never rewritten as a Claim Record |
+| Receipt v1 | receipt root | Historical producer package; never relabeled as a Submission |
+| Activity or landing record | `vrc_` | Historical intake/landing record; not a Registration Record |
+| VerifierAttachment | `vva_` | Historical verifier evidence; not a Verification Record |
 
 Current readers must expose source schema, identifier, root, projection
 version, and any semantic loss. Current writers emit only the current era after

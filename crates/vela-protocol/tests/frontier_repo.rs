@@ -179,7 +179,7 @@ fn init_creates_canonical_frontier_repo_layout() {
     assert!(
         fs::read_to_string(frontier.join("VELA.md"))
             .unwrap()
-            .contains("next -> work -> land -> sign")
+            .contains("next -> start -> submit")
     );
     let sync = run_json(&["agents", "sync", frontier.to_str().unwrap(), "--json"]);
     assert_eq!(sync["command"], "agents sync");
@@ -228,7 +228,7 @@ fn init_creates_canonical_frontier_repo_layout() {
     let next = run_json(&["next", frontier.to_str().unwrap(), "--json"]);
     assert_eq!(next["schema"], "vela.offer.v1");
     assert_eq!(next["targets"][0]["target_id"], "seed:first");
-    assert_eq!(next["targets"][0]["next_command"], "vela work seed:first");
+    assert_eq!(next["targets"][0]["next_command"], "vela start seed:first");
 }
 
 #[test]
