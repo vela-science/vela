@@ -4,12 +4,12 @@ import test from "node:test";
 import {
   parseFailureRecord,
   projectFailure,
-  type FailureRecord,
+  type HistoricalFailureRecord,
 } from "../src/projection/failure.js";
 
 const digest = `sha256:${"a".repeat(64)}`;
 
-function record(): FailureRecord {
+function record(): HistoricalFailureRecord {
   return {
     schema: "canopus.failure.v0",
     run_id: "run_deadbeef",
@@ -22,18 +22,32 @@ function record(): FailureRecord {
   };
 }
 
-test("failed run projection is read-only and makes landing uncertainty explicit", () => {
+test("historical failed run projection is read-only and makes landing uncertainty explicit", () => {
   assert.deepEqual(parseFailureRecord(record()), record());
   const projection = projectFailure(record());
   assert.equal(projection.authority, "read_only_projection");
   assert.equal(projection.status, "failed");
-  assert.equal(projection.landing_status, "not_attempted");
+  assert.equal(projection.effect, "none");
 
   const observed = record();
   observed.phase = "receipt_binding";
   observed.landing_observed = true;
   observed.landing_recovery = "landing-recovery.json";
-  assert.equal(projectFailure(observed).landing_status, "observed_requires_recovery");
+  assert.equal(projectFailure(observed).effect, "historical_landing_observed");
+});
+
+test("current failed run records expose only a nonmutating effect", () => {
+  const current = {
+    schema: "canopus.failure.v1",
+    run_id: "run_current_failure",
+    error: "worker stopped",
+    phase: "worker",
+    effect: "none",
+    activity_tip: digest,
+    authority: "non_authoritative",
+  } as const;
+  assert.deepEqual(parseFailureRecord(current), current);
+  assert.equal(projectFailure(parseFailureRecord(current)).effect, "none");
 });
 
 test("failed run projection rejects drift and missing recovery evidence", () => {

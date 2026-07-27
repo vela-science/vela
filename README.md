@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="docs/assets/canopus-readme-hero.jpg" width="960" alt="Canopus carries one bounded target through an isolated Codex worker and separate verifier into a Receipt pending human review." />
+  <img src="docs/assets/canopus-readme-hero.jpg" width="960" alt="One bounded Canopus Run moves from a rooted target through an isolated worker and verifier to an optional Vela Submission." />
 </p>
 
 <p align="center"><strong>Bounded research for Codex.</strong></p>
 
 <p align="center">
-  Give Codex one finite mission. Verify the artifact independently. Keep humans in authority.
+  Run one exact mission. Reproduce the artifact. Submit only when you choose.
 </p>
 
 <p align="center">
@@ -14,155 +14,77 @@
   <a href="LICENSE-APACHE"><img alt="Apache-2.0 OR MIT" src="https://img.shields.io/badge/license-Apache--2.0%20OR%20MIT-4F8F8B?style=flat-square&labelColor=081224" /></a>
 </p>
 
-<p align="center">
-  <a href="https://app.vela.space/frontiers/sidon-sets/runs/run_f68e4cfc-e5c7-4c73-86cb-d79807c47ec4">Retained Sidon run</a> ·
-  <a href="https://github.com/vela-science/vela-research-harness/blob/v0.6.5/BUILD_WEEK.md">Build Week archive</a> ·
-  <a href="docs/MISSIONS.md">Missions</a> ·
-  <a href="docs/RUN_RECORD.md">Run records</a> ·
-  <a href="https://github.com/vela-science/vela">Vela</a>
-</p>
+Canopus is a removable research runner over Vela and Git. It gives Codex one
+rooted target, freezes the produced bytes, runs a separate verifier, and
+reproduces the result from a clean clone.
 
-Canopus is a removable producer over released Vela and Git. It gives Codex one
-exact work offer, freezes the result, runs a separate verifier, and can land a
-Receipt through `vela land`.
+A Run is nonmutating. It does not create a Proposal, Verification Record,
+Decision, Event, or scientific Standing. A successful Run may be exported as an
+authenticated `vela.submission.v1`; only the separate `submit` command registers
+that Submission as pending review.
 
-It cannot sign, accept a proposal, or make a scientific decision. Removing
-Canopus does not change accepted state or Vela replay.
+## The loop
 
-## Where Canopus fits
-
-The Vela product story has five steps:
-
-1. **Produce:** any suitable workbench may produce bounded work; Canopus is the
-   optional isolated producer for Codex.
-2. **Preserve:** the canonical frontier Git repository preserves the exact
-   source, artifacts, and history.
-3. **Check:** Vela replays the frontier and frozen verifiers fail closed.
-4. **Decide:** signed policy or one protected human decision determines
-   scientific standing.
-5. **Reuse:** the read-only Observatory and other replaceable readers help
-   people inspect, reproduce, and continue the work.
-
-Canopus owns **Produce** only. It reuses Git for preservation and Vela for
-checking, landing, replay, and authority; it does not become a second state
-store, Git publisher, verifier authority, or scientific workbench platform.
-
-## Inspect one retained example
-
-**20 seconds — inspect the real result:** open the anonymous
-[retained Sidon run](https://app.vela.space/frontiers/sidon-sets/runs/run_f68e4cfc-e5c7-4c73-86cb-d79807c47ec4)
-and follow
-Mission → GPT-5.6 → artifact → verifier → Receipt → Defer.
-
-**90 seconds — inspect the current product candidate:**
+```text
+doctor → run → show → replay → export → submit
+```
 
 ```sh
 bun install --frozen-lockfile
 bun run build
-node dist/src/cli.js --version
-node dist/src/cli.js profile validate erdos1056-k15-10429001-10429200
+
+canopus doctor /path/to/frontier
+canopus run /path/to/frontier --first
+canopus show latest
+canopus replay /path/to/run.json
+canopus export /path/to/run.json --output /path/to/submission-bundle
+canopus submit /path/to/submission-bundle /path/to/frontier
 ```
 
-**Retained historical result — reproduce without rebuilding Canopus:**
+- `doctor` binds the exact frontier, target, Vela, Codex, profile, packet, and
+  verifier identities.
+- `run` executes in disposable workspaces and leaves the frontier unchanged.
+- `show` inspects current and historical run records.
+- `replay` reruns the frozen verifier without a model call.
+- `export` creates a signed portable Submission and retains no producer key.
+- `submit` explicitly registers that Submission through Vela. The expected
+  result is `pending_review` with accepted-event delta zero.
 
-This Sidon artifact remains bound to the Vela version recorded when it landed.
-Install the provenance-checked prebuilt
-[Vela 0.912.0 release](https://github.com/vela-science/vela/releases/tag/v0.912.0)
-for this replay only, then:
+`inspect`, `--no-land`, Receipt authoring, and automatic landing are not current
+interfaces.
 
-```sh
-git clone https://github.com/vela-science/sidon-frontier.git
-cd sidon-frontier
-git checkout 825657d7e87618c0aa6fc9af7e3182e05f324750
-vela reproduce artifacts/sidon-a24-gpt56-7194.witness.json
-node verification/verify-sidon-a24-7194.mjs \
-  artifacts/sidon-a24-gpt56-7194.witness.json
-```
+## Authority boundary
 
-The first command selects the pending artifact explicitly and runs Vela's
-frozen Sidon verifier. The second is an independent base-3 implementation that
-also rejects a bound collision injection. Neither command accepts the proposal.
-
-Current source is Canopus `0.8.0-rc.1`. Its published composition contract remains
-the attested Vela `0.930.0-rc.12` release; the smaller Git-ownership path is
-focused-green against the unreleased Vela `0.930.0-rc.13` candidate. Older
-Canopus and Vela binaries remain available from immutable release history for
-replay, but they are not active writer or producer paths.
-
-## Quickstart
-
-Build the current exact candidate:
-
-```sh
-bun install --frozen-lockfile
-bun run build
-node dist/src/cli.js --version
-```
-
-Inspect a clean frontier, then run its first ranked producer offer:
-
-```sh
-node dist/src/cli.js doctor /path/to/frontier
-node dist/src/cli.js run /path/to/frontier --first
-node dist/src/cli.js inspect latest
-node dist/src/cli.js replay /path/to/run.json
-```
-
-Use `--no-land` for a diagnostic mission that cannot change the source frontier:
-
-```sh
-node dist/src/cli.js run /path/to/frontier --first --no-land
-```
-
-`doctor` binds the exact Vela, Codex, Git, frontier, packet, profile, and verifier
-roots. `run` refuses dirty frontiers, drifted roots, missing capsules, and
-unregistered targets. It never silently skips the first ranked offer.
-
-## Custody and authority
-
-| Surface | Can do | Cannot do |
+| Component | Owns | Does not own |
 | --- | --- | --- |
-| Codex worker | Use tools inside one bounded workspace | Reach the network, host home, human keys, or verifier |
-| Verifier | Read frozen candidate bytes and declared inputs | Write, use the network, or make an authority decision |
-| Canopus | Preserve evidence, replay, and land a Receipt | Sign, accept, reject, retain producer keys, or call verifier success acceptance |
+| Codex worker | One bounded attempt inside an isolated workspace | Host files, human keys, verifier, network tools |
+| Frozen verifier | A scoped mechanical result over exact bytes | Scientific acceptance |
+| Canopus | Run evidence, replay, Submission export | Verification Records, Decisions, Events, Standing |
+| Vela | Registration, review, decisions, replay, Standing | Model execution |
 
-The worker uses macOS Seatbelt or Codex's Bubblewrap sandbox on Linux and WSL2.
-The verifier runs in a separate pinned container with network and writes denied.
+The worker uses macOS Seatbelt or Codex Bubblewrap on Linux/WSL2. The verifier
+runs separately with network and writes denied. Canopus never reads a human key
+or interprets verifier success as acceptance.
 
-## Everyday commands
+## Exact product contract
+
+Current source is Canopus `0.8.0-rc.2`, composed with Vela
+`0.930.0-rc.13`, Codex CLI `0.145.0`, Bun `1.3.12`, Git, and a pinned verifier
+container. Historical releases remain available for exact replay; they are not
+current writers.
+
+Mission v1 and profile v2 remain the advanced portable interfaces:
 
 ```sh
-canopus doctor [frontier]
-canopus run [frontier] [--first | --target <id>] [--profile <name>] [--no-land]
-canopus inspect [run.json | latest]
-canopus replay <run.json>
+canopus mission prepare ...
+canopus mission validate bundle/mission.json
+canopus profile list
+canopus profile show <name>
+canopus profile validate <name>
+canopus profile pack <name> --output <directory>
 ```
-
-Advanced profile commands are documented in [Missions](docs/MISSIONS.md).
-Installed profiles are closed,
-content-addressed contracts that bind the target, packet, objective, artifact
-types, worker, verifier, replay command, budgets, and landing ceiling.
-
-Producer identities are ephemeral. After a successful landing and clean-clone
-reproduction, Canopus destroys the isolated Vela home instead of retaining a
-proposal-scoped private key. A proposal may remain pending until Vela policy or
-a human reviewer decides it; Canopus does not need a second control channel.
-
-## Retained Build Week evidence
-
-Inspect the retained Mission → worker → artifact → verifier → Receipt → Defer
-chain on the [exact Sidon run](https://app.vela.space/frontiers/sidon-sets/runs/run_f68e4cfc-e5c7-4c73-86cb-d79807c47ec4).
-Exact commits, run roots, audit evidence, and nonclaims live in
-the retained
-[`v0.6.5` Build Week archive](https://github.com/vela-science/vela-research-harness/blob/v0.6.5/BUILD_WEEK.md).
 
 ## Development
-
-Current-source development requires Bun 1.3.12, attested Vela `0.930.0-rc.12`,
-Codex CLI 0.145.0, and Docker. The next ownership-contract integration is also
-tested against the unreleased Vela `0.930.0-rc.13` candidate. The built
-package also runs under Node 22 or 24; unsupported odd-numbered Node releases
-are rejected rather than silently treated as supported.
 
 ```sh
 bun install --frozen-lockfile
@@ -170,19 +92,18 @@ bun run check
 bun run pack:check
 ```
 
+The installed package has no runtime npm dependencies.
+
 ## Documentation
 
 - [Missions and profiles](docs/MISSIONS.md)
-- [Run records and publication](docs/RUN_RECORD.md)
-- [Evaluation claims, gates, and simplification rules](docs/EVALUATION.md)
-- [Historical release evidence](https://github.com/vela-science/vela-research-harness/blob/v0.7.0/docs/RELEASES.md)
-- [Why the harness stays removable](docs/adr/0001-harness-boundary-and-name.md)
+- [Run, export, and submit records](docs/RUN_RECORD.md)
+- [Evaluation gates](docs/EVALUATION.md)
+- [Nonmutating Runs and explicit Submission](docs/adr/0010-nonmutating-runs-and-explicit-submission.md)
+- [Why Canopus stays removable](docs/adr/0001-harness-boundary-and-name.md)
+- [Historical Build Week evidence](https://github.com/vela-science/vela-research-harness/blob/v0.6.5/BUILD_WEEK.md)
 
 ## License
 
-Apache-2.0 OR MIT, at your option. Canopus is a replaceable producer; Vela
-remains the protocol and authority boundary.
-
-The published CLI has no runtime npm dependencies. See
-[Third-party components](THIRD_PARTY.md) for the bundled verifier and external
-toolchain boundary.
+Apache-2.0 OR MIT, at your option. Vela remains the protocol and authority
+boundary.

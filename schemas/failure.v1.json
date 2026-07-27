@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.science/schemas/canopus/failure.v1.json",
+  "title": "Canopus nonmutating failure v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "run_id", "error", "phase", "effect", "activity_tip", "authority"],
+  "properties": {
+    "schema": { "const": "canopus.failure.v1" },
+    "run_id": { "type": "string", "pattern": "^run_[A-Za-z0-9._-]+$" },
+    "error": { "type": "string", "minLength": 1, "maxLength": 16384 },
+    "phase": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "effect": { "const": "none" },
+    "activity_tip": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "authority": { "const": "non_authoritative" }
+  }
+}

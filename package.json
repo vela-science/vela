@@ -1,6 +1,6 @@
 {
   "name": "@vela-science/canopus",
-  "version": "0.8.0-rc.1",
+  "version": "0.8.0-rc.2",
   "description": "A bounded, replaceable research harness over released Vela interfaces",
   "type": "module",
   "private": false,
@@ -37,7 +37,6 @@
     "dist/src/mission",
     "dist/src/product",
     "dist/src/projection",
-    "dist/src/receipt",
     "dist/src/util",
     "dist/src/vela",
     "dist/src/verifier",
@@ -62,6 +61,7 @@
     "docs/MISSIONS.md",
     "docs/RUN_RECORD.md",
     "docs/EVALUATION.md",
+    "docs/adr/0010-nonmutating-runs-and-explicit-submission.md",
     "CHANGELOG.md",
     "SECURITY.md",
     "LICENSE-APACHE",

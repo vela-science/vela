@@ -11,7 +11,7 @@ import { FakeEngine } from "../../src/engines/fake.js";
 import { runCanopus } from "../../src/run.js";
 import { isolatedEnvironment } from "../../src/util/command.js";
 import { sha256Bytes } from "../../src/util/canonical.js";
-import { retainedArtifactPath, VelaClient } from "../../src/vela/cli.js";
+import { VelaClient } from "../../src/vela/cli.js";
 
 const exec = promisify(execFile);
 const velaBinary = process.env.CANOPUS_VELA_BIN;
@@ -54,7 +54,7 @@ async function removeSealedTree(root: string): Promise<void> {
 }
 
 test(
-  "released Vela work, Defer landing, record binding, and clean-clone verifier compose",
+  "released Vela offer, nonmutating Run, and clean-clone verifier compose",
   {
     skip: enabled
       ? false
@@ -179,9 +179,9 @@ test(
         caveats: ["This smoke establishes interface composition, not a scientific claim."],
       }),
     });
-    assert.equal(result.record.landing.route, "defer");
-    assert.equal(result.record.landing.accepted_event_delta, 0);
-    assert.equal(result.record.landing.publication_state, "committed_local");
+    assert.equal(result.record.schema, "canopus.run.v2");
+    assert.equal(result.record.effect, "none");
+    assert.equal(result.record.submission, null);
     assert.equal(result.record.reproduction.matched, true);
     assert.equal(result.record.external_gate_credit, false);
     const activity = await readFile(path.join(result.paths.root, "activity.jsonl"), "utf8");
@@ -192,48 +192,12 @@ test(
         type: string;
         payload: Record<string, unknown>;
       });
-    const workClaimed = activityEvents.find((event) => event.type === "work.claimed");
-    assert.ok(workClaimed !== undefined);
-    const workPublication = workClaimed.payload.publication as {
-      state: string;
-      commit: string;
-      recovery_command: string;
-    };
-    assert.equal(workPublication.state, "committed_local");
-    assert.equal(
-      workPublication.commit,
-      (workClaimed.payload.roots as { git_commit: string }).git_commit,
-    );
-    assert.match(
-      workPublication.recovery_command,
-      /^vela publication recover --operation vop_[0-9a-f]{64} --push$/u,
-    );
+    assert.equal(activityEvents.some((event) => event.type === "work.claimed"), false);
+    assert.equal(activityEvents.some((event) => event.type === "work.skipped"), true);
     assert.equal(activityEvents.some((event) => event.type === "artifacts.published"), false);
-    const subjects = await command(
-      "git",
-      [
-        "log",
-        "--format=%s",
-        `${initial.roots.git_commit}..${result.record.final_roots.git_commit}`,
-      ],
-      result.paths.landing,
-      setupHome,
-    );
-    assert.doesNotMatch(subjects, /^canopus:/mu);
     assert.equal(
       await command("git", ["rev-parse", "HEAD^{commit}"], source, setupHome),
       initial.roots.git_commit,
-    );
-    const witness = result.record.candidate.artifacts.find(
-      (artifact) => artifact.path === "result.json",
-    );
-    assert.ok(witness !== undefined);
-    assert.equal(
-      await readFile(
-        retainedArtifactPath(result.paths.landing, mission.frontier, witness.digest),
-        "utf8",
-      ),
-      "{\"value\":42}\n",
     );
     await assert.rejects(lstat(result.paths.velaHome), /ENOENT/u);
     await assert.rejects(lstat(path.join(parent, "capabilities")), /ENOENT/u);

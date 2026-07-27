@@ -1,4 +1,6 @@
-import type { DiagnosticRunRecord } from "../run.js";
+import type { MissionRoots } from "../contracts/mission.js";
+import type { FrozenArtifact } from "../contracts/candidate.js";
+import type { RunRecord } from "./run.js";
 import {
   arrayAt,
   enumAt,
@@ -8,6 +10,32 @@ import {
   sha256At,
   stringAt,
 } from "../contracts/validation.js";
+
+export interface DiagnosticRunRecord {
+  schema: "canopus.diagnostic-run.v1";
+  run_id: string;
+  status: "completed";
+  mode: "no_land";
+  authority: "non_authoritative";
+  external_gate_credit: false;
+  mission: {
+    id: string;
+    target: string;
+    digest: string;
+    starting_roots: MissionRoots;
+  };
+  candidate: {
+    digest: string;
+    status: "success" | "null" | "failed";
+    claim: string;
+    artifacts: FrozenArtifact[];
+    caveats: string[];
+  };
+  verifier: RunRecord["verifier"];
+  landing: null;
+  reproduction: RunRecord["reproduction"];
+  budget: RunRecord["budget"];
+}
 
 function literal<const T extends string | boolean | null>(value: unknown, expected: T, at: string): T {
   if (value !== expected) throw new Error(`${at} must be ${String(expected)}`);

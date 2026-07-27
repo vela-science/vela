@@ -7,8 +7,7 @@ import { CodexToolsNativeEngine } from "../engines/codex-tools-native.js";
 import { prepareMission } from "../mission/prepare.js";
 import {
   runCanopus,
-  type CanopusDiagnosticRunResult,
-  type CanopusRunResult,
+  type CanopusCurrentRunResult,
 } from "../run.js";
 import { canonicalJson, contentDigest, sha256Bytes } from "../util/canonical.js";
 import { runCommand, type CommandRunner } from "../util/command.js";
@@ -23,7 +22,7 @@ import {
 } from "./profile.js";
 
 export interface ProductRunResult {
-  run: CanopusRunResult | CanopusDiagnosticRunResult;
+  run: CanopusCurrentRunResult;
   doctor: ProductDoctorResult;
   output_root: string;
   bundle_root: string;
@@ -34,14 +33,7 @@ export interface ProductRunResult {
     commit: string;
     tree: string;
   };
-  landing_candidate:
-    | {
-        state: "verified_local_candidate";
-        repository: string;
-        commit: string;
-        tree: string;
-      }
-    | null;
+  submission: null;
 }
 
 function packageFile(relative: string): string {
@@ -74,7 +66,7 @@ async function assertFreshOutput(outputRoot: string, sourceRoot: string): Promis
 }
 
 async function writeEvidenceManifest(
-  run: CanopusRunResult | CanopusDiagnosticRunResult,
+  run: CanopusCurrentRunResult,
   missionDigest: string,
 ): Promise<{ file: string; root: string }> {
   const root = run.paths.root;
@@ -100,10 +92,8 @@ async function writeEvidenceManifest(
     files: digests,
     artifact_roots: run.record.candidate.artifacts.map((artifact) => artifact.digest).sort(),
     verifier_root: contentDigest(run.record.verifier),
-    receipt_root: run.record.landing?.receipt_root ?? null,
-    final_roots: "final_roots" in run.record
-      ? run.record.final_roots
-      : run.record.mission.starting_roots,
+    submission_root: null,
+    final_roots: run.record.mission.starting_roots,
   };
   const file = path.join(root, "evidence-manifest.json");
   await writeFile(file, canonicalJson(manifest), { flag: "wx", mode: 0o600 });
@@ -136,7 +126,6 @@ export async function runProduct(options: {
   requestedTarget?: string;
   outputRoot?: string;
   codexHome?: string;
-  noLand?: boolean;
   runner?: CommandRunner;
 }): Promise<ProductRunResult> {
   // Refuse unsupported custody before creating an output directory or probing
@@ -224,18 +213,8 @@ export async function runProduct(options: {
       dockerBinary: dockerRuntime.binary,
       verifierRunner: runner,
     };
-    const run = options.noLand === true
-      ? await runCanopus({ ...commonRun, noLand: true })
-      : await runCanopus(commonRun);
+    const run = await runCanopus(commonRun);
     const evidence = await writeEvidenceManifest(run, contentDigest(prepared.mission));
-    const landingCandidate = options.noLand === true
-      ? null
-      : {
-          state: "verified_local_candidate" as const,
-          repository: run.paths.landing,
-          commit: (run as CanopusRunResult).record.final_roots.git_commit,
-          tree: (run as CanopusRunResult).record.final_roots.git_tree,
-        };
     return {
       run,
       doctor: diagnosis.public,
@@ -248,7 +227,7 @@ export async function runProduct(options: {
         commit: prepared.mission.roots.git_commit,
         tree: prepared.mission.roots.git_tree,
       },
-      landing_candidate: landingCandidate,
+      submission: null,
     };
   } catch (error) {
     // Preserve bounded failure evidence and the exact diagnostic inputs.

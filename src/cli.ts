@@ -9,11 +9,14 @@ import { readdir, stat } from "node:fs/promises";
 import { parseMission } from "./contracts/mission.js";
 import { prepareMission, validateMissionBundle } from "./mission/prepare.js";
 import { parseDiagnosticRunRecord, projectDiagnosticRun } from "./projection/diagnostic.js";
+import { parseCurrentRunRecord, projectCurrentRun } from "./projection/current-run.js";
 import { parseFailureRecord, projectFailure } from "./projection/failure.js";
 import { parseRunRecord, projectRun } from "./projection/run.js";
 import { doctorProduct } from "./product/doctor.js";
 import { replayProduct } from "./product/replay.js";
 import { runProduct } from "./product/run.js";
+import { exportSubmission } from "./product/submission.js";
+import { submitBundle } from "./product/submit.js";
 import { CANOPUS_VERSION } from "./product/version.js";
 import {
   listProductProfiles,
@@ -27,17 +30,17 @@ function usage(): string {
   return `Canopus — bounded Vela research harness
 
 Primary workflow:
-  canopus --version
   canopus doctor [frontier] [--profile <name>]
-  canopus run [frontier] [--first | --target <id>] [--profile <name>] \\
-    [--output <dir>] [--no-land]
-  canopus inspect [run.json | latest]
+  canopus run [frontier] [--first | --target <id>] [--profile <name>] [--output <dir>]
+  canopus show [run.json | failure.json | latest]
   canopus replay <run.json>
+  canopus export <run.json | latest> [--output <new-directory>] [--as <agent:id>]
+  canopus submit <submission-bundle> [frontier] [--vela <binary>]
 
 Mission v1 prepare/validate remains available under advanced help.
 
-Canopus may land a Receipt v1 as an agent after verifier success. It cannot
-sign, accept, or make a human scientific decision.`;
+Run and export never mutate Vela. submit explicitly registers an authenticated
+Submission as pending review. Canopus cannot verify, decide, or change Standing.`;
 }
 
 function missionUsage(): string {
@@ -65,20 +68,19 @@ remain replay-only; new tool-using missions require a validated version 2 profil
 function runUsage(): string {
   return `Usage:
   canopus run [frontier] [--first | --target <id>] [--profile <name>] \\
-    [--output <dir>] [--no-land]
+    [--output <dir>]
 
 Discovers and binds Vela, Codex, Git, Docker, the exact frontier roots, and the
-registered verifier profile. --no-land runs the worker and verifier in disposable
-clones and leaves the source frontier unchanged.`;
+registered verifier profile. Runs the worker and verifier in disposable clones
+and always leaves the source frontier unchanged.`;
 }
 
-function inspectUsage(): string {
+function showUsage(): string {
   return `Usage:
-  canopus inspect [run.json | failure.json | latest]
+  canopus show [run.json | failure.json | latest]
 
-Projects the newest completed or safely stopped non-authoritative run record
-without mutating Vela. A failed run never implies that landing was unchanged;
-inspect reports whether retained landing-recovery evidence is required.`;
+Shows the newest completed or safely stopped non-authoritative Run without
+mutating Vela. Historical run formats remain readable.`;
 }
 
 function doctorUsage(): string {
@@ -96,6 +98,23 @@ function replayUsage(): string {
 
 Re-runs the frozen verifier over the content-addressed candidate without a
 model call, Vela mutation, network, or authority action.`;
+}
+
+function exportUsage(): string {
+  return `Usage:
+  canopus export <run.json | latest> [--output <new-directory>] [--as <agent:id>]
+
+Creates a signed portable vela.submission.v1 bundle from a successful Run.
+Export does not touch a frontier and does not create Verification or Standing.`;
+}
+
+function submitUsage(): string {
+  return `Usage:
+  canopus submit <submission-bundle> [frontier] [--vela <binary>]
+
+Explicitly registers one authenticated Submission through Vela in a disposable
+exact-head clone, then fast-forwards the clean source checkout. The result is
+pending review with zero accepted-event delta.`;
 }
 
 function isHelp(value: string | undefined): boolean {
@@ -279,7 +298,7 @@ async function productRunCommand(args: string[]): Promise<void> {
   const parsed = productOptions(
     args,
     ["--target", "--profile", "--output", "--codex-home"],
-    ["--first", "--no-land"],
+    ["--first"],
   );
   if (parsed.positional.length > 1) throw new Error("run accepts at most one frontier");
   if (parsed.flags.has("--first") && parsed.values.has("--target")) {
@@ -296,26 +315,20 @@ async function productRunCommand(args: string[]): Promise<void> {
     ...(requested === undefined ? {} : { requestedTarget: requested }),
     ...(outputRoot === undefined ? {} : { outputRoot: path.resolve(outputRoot) }),
     ...(codexHome === undefined ? {} : { codexHome: path.resolve(codexHome) }),
-    noLand: parsed.flags.has("--no-land"),
   });
-  const landing = result.run.record.landing;
   process.stdout.write(`${JSON.stringify({
     ok: true,
     command: "run",
-    mode: landing === null ? "no_land" : "land",
+    effect: "none",
     run_id: result.run.record.run_id,
     target: result.run.record.mission.target,
     candidate_digest: result.run.record.candidate.digest,
     verifier_status: result.run.record.verifier.status,
     observed_tokens: result.run.record.budget.observed_tokens,
-    receipt_root: landing?.receipt_root ?? null,
-    proposal_id: landing?.proposal_id ?? null,
-    route: landing?.route ?? null,
-    accepted_event_delta: landing?.accepted_event_delta ?? null,
+    submission: null,
     clean_clone_reproduced: result.run.record.reproduction.matched,
     evidence_root: result.evidence_root,
     source_state: result.source_state,
-    landing_candidate: result.landing_candidate,
     run_file: path.join(result.run.paths.root, "run.json"),
   })}\n`);
 }
@@ -355,8 +368,8 @@ async function latestInspectionFile(): Promise<string> {
   return ranked[0]?.file ?? (() => { throw new Error("no inspectable Canopus product run was found"); })();
 }
 
-async function inspectCommand(value: string | undefined, rest: string[]): Promise<void> {
-  if (rest.length !== 0) throw new Error("inspect accepts at most one run file");
+async function showCommand(value: string | undefined, rest: string[]): Promise<void> {
+  if (rest.length !== 0) throw new Error("show accepts at most one run file");
   const file = value === undefined || value === "latest"
     ? await latestInspectionFile()
     : path.resolve(value);
@@ -364,17 +377,46 @@ async function inspectCommand(value: string | undefined, rest: string[]): Promis
   const schema = typeof raw === "object" && raw !== null && !Array.isArray(raw)
     ? (raw as Record<string, unknown>).schema
     : undefined;
-  const projection = schema === "canopus.diagnostic-run.v1"
-    ? projectDiagnosticRun(parseDiagnosticRunRecord(raw))
-    : schema === "canopus.failure.v0"
-      ? projectFailure(parseFailureRecord(raw))
-      : projectRun(parseRunRecord(raw));
-  process.stdout.write(`${JSON.stringify({ ok: true, command: "inspect", run_file: file, projection })}\n`);
+  const projection = schema === "canopus.run.v2"
+    ? projectCurrentRun(parseCurrentRunRecord(raw))
+    : schema === "canopus.diagnostic-run.v1"
+      ? projectDiagnosticRun(parseDiagnosticRunRecord(raw))
+      : schema === "canopus.failure.v0" || schema === "canopus.failure.v1"
+        ? projectFailure(parseFailureRecord(raw))
+        : projectRun(parseRunRecord(raw));
+  process.stdout.write(`${JSON.stringify({ ok: true, command: "show", run_file: file, projection })}\n`);
 }
 
 async function replayCommand(file: string | undefined, rest: string[]): Promise<void> {
   if (file === undefined || rest.length !== 0) throw new Error("replay requires exactly one run file");
   process.stdout.write(`${JSON.stringify(await replayProduct(path.resolve(file)))}\n`);
+}
+
+async function exportCommand(file: string | undefined, rest: string[]): Promise<void> {
+  if (file === undefined) throw new Error("export requires a Run file or latest");
+  const parsed = productOptions(rest, ["--output", "--as"], []);
+  if (parsed.positional.length !== 0) throw new Error("export accepts one Run file");
+  const runFile = file === "latest" ? await latestRunFile() : path.resolve(file);
+  const output = parsed.values.get("--output") ??
+    path.join(path.dirname(path.dirname(runFile)), `submission-${Date.now()}`);
+  const actor = parsed.values.get("--as");
+  process.stdout.write(`${JSON.stringify(await exportSubmission({
+    runFile,
+    outputRoot: path.resolve(output),
+    ...(actor === undefined ? {} : { actor }),
+  }))}\n`);
+}
+
+async function submitCommand(bundle: string | undefined, rest: string[]): Promise<void> {
+  if (bundle === undefined) throw new Error("submit requires a Submission bundle");
+  const parsed = productOptions(rest, ["--vela"], []);
+  if (parsed.positional.length > 1) throw new Error("submit accepts at most one frontier");
+  const velaBinary = parsed.values.get("--vela");
+  process.stdout.write(`${JSON.stringify(await submitBundle({
+    bundle: path.resolve(bundle),
+    frontier: path.resolve(parsed.positional[0] ?? "."),
+    ...(velaBinary === undefined ? {} : { velaBinary }),
+  }))}\n`);
 }
 
 async function main(argv: string[]): Promise<void> {
@@ -399,9 +441,11 @@ async function main(argv: string[]): Promise<void> {
   if (isHelp(file)) {
     process.stdout.write(`${
       command === "run" ? runUsage()
-      : command === "inspect" ? inspectUsage()
+      : command === "show" ? showUsage()
       : command === "doctor" ? doctorUsage()
       : command === "replay" ? replayUsage()
+      : command === "export" ? exportUsage()
+      : command === "submit" ? submitUsage()
       : usage()
     }\n`);
     return;
@@ -419,12 +463,20 @@ async function main(argv: string[]): Promise<void> {
     await missionCommand(["validate", file, ...rest]);
     return;
   }
-  if (command === "inspect") {
-    await inspectCommand(file, rest);
+  if (command === "show") {
+    await showCommand(file, rest);
     return;
   }
   if (command === "run") {
     await productRunCommand(argv.slice(1));
+    return;
+  }
+  if (command === "export") {
+    await exportCommand(file, rest);
+    return;
+  }
+  if (command === "submit") {
+    await submitCommand(file, rest);
     return;
   }
   throw new Error(`unknown command ${command}`);

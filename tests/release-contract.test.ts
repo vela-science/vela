@@ -13,9 +13,10 @@ test("current product release pins the tested Vela and Codex boundaries", async 
     "utf8",
   );
 
-  assert.equal(SUPPORTED_VELA_VERSION, "0.930.0-rc.12");
+  assert.equal(SUPPORTED_VELA_VERSION, "0.930.0-rc.13");
   assert.equal(SUPPORTED_CODEX_VERSION, "0.145.0");
   assert.match(workflow, /releases\/download\/v0\.930\.0-rc\.12/u);
+  assert.match(workflow, /CANOPUS_VELA_VERSION="0\.930\.0-rc\.12"/u);
   assert.match(workflow, /codex-0\.145\.0-linux-x64\.tgz/u);
   assert.doesNotMatch(workflow, /releases\/download\/v0\.915\.1/u);
   assert.doesNotMatch(workflow, /codex-0\.144\.6-linux-x64\.tgz/u);
@@ -68,22 +69,19 @@ test("release binds tag, GitHub attestation, and npm trusted provenance", async 
   assert.doesNotMatch(workflow, /shasum -a 256 release\/\*\.tgz/u);
 });
 
-test("release-tagged evidence remains discoverable while current source stays product-only", async () => {
+test("current source stays product-only while historical release evidence remains linked", async () => {
   const [packageText, readme] = await Promise.all([
     readFile(new URL("../../package.json", import.meta.url), "utf8"),
     readFile(new URL("../../README.md", import.meta.url), "utf8"),
   ]);
   const packageJson = JSON.parse(packageText) as { files?: string[]; version?: string };
-  const artifact = "artifacts/sidon-a24-gpt56-7194.witness.json";
-  const auditCommit = "825657d7e87618c0aa6fc9af7e3182e05f324750";
-  const velaRelease = "https://github.com/vela-science/vela/releases/tag/v0.912.0";
-
-  assert.equal(packageJson.version, "0.8.0-rc.1");
+  assert.equal(packageJson.version, "0.8.0-rc.2");
   for (const file of [
     "README.md",
     "THIRD_PARTY.md",
     "docs/MISSIONS.md",
     "docs/RUN_RECORD.md",
+    "docs/adr/0010-nonmutating-runs-and-explicit-submission.md",
   ]) {
     assert.ok(packageJson.files?.includes(file), `${file} must ship in the npm package`);
   }
@@ -106,18 +104,13 @@ test("release-tagged evidence remains discoverable while current source stays pr
     false,
     "the installed package must not ship the retired long-lived key store",
   );
-  assert.match(readme, new RegExp(velaRelease.replaceAll(".", "\\."), "u"));
-  assert.match(readme, new RegExp(`git checkout ${auditCommit}`, "u"));
-  assert.match(readme, new RegExp(`vela reproduce ${artifact.replaceAll(".", "\\.")}`, "u"));
-  assert.match(readme, /node verification\/verify-sidon-a24-7194\.mjs/u);
   assert.match(
     readme,
-    /This Sidon artifact remains bound to the Vela version recorded when it landed\./u,
+    /Current source is Canopus `0\.8\.0-rc\.2`, composed with Vela[\s\S]+`0\.930\.0-rc\.13`/u,
   );
-  assert.match(
-    readme,
-    /Current source is Canopus `0\.8\.0-rc\.1`\.[\s\S]+published composition contract remains[\s\S]+Vela `0\.930\.0-rc\.12`[\s\S]+unreleased Vela `0\.930\.0-rc\.13` candidate[\s\S]+not active writer or producer paths/u,
-  );
+  assert.match(readme, /A Run is nonmutating/u);
+  assert.match(readme, /only the separate `submit` command registers/u);
+  assert.doesNotMatch(readme, /canopus land|canopus inspect|canopus withdraw/u);
   assert.match(
     readme,
     /github\.com\/vela-science\/vela-research-harness\/blob\/v0\.6\.5\/BUILD_WEEK\.md/u,

@@ -69,6 +69,7 @@ jobs:
           if [ "${{ runner.os }}" = macOS ]; then
             CANOPUS_VELA_BIN="$RUNNER_TEMP/vela-release/vela" \
               CANOPUS_VELA_SHA256="sha256:$VELA_SHA256" \
+              CANOPUS_VELA_VERSION="0.930.0-rc.12" \
               node --test dist/tests/integration/released-vela.test.js
           fi
       - name: Run real Linux sandbox custody preflight

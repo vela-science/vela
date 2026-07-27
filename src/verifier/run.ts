@@ -305,8 +305,8 @@ export async function runVerifier(options: {
   // still the same three bounded trees; it does not widen the readable set.
   const declaredReadRoots = [
     options.paths.input,
-    options.paths.artifacts,
     options.paths.verifierHome,
+    ...new Set(options.artifacts.map((artifact) => path.dirname(artifact.frozenPath))),
   ].map((entry) => path.resolve(entry));
   const readRoots = [
     ...new Set([

@@ -19,3 +19,10 @@ export {
   parseDiagnosticRunRecord,
   projectDiagnosticRun,
 } from "./projection/diagnostic.js";
+
+export {
+  parseCurrentRunRecord,
+  projectCurrentRun,
+} from "./projection/current-run.js";
+export { exportSubmission, verifySubmission } from "./product/submission.js";
+export { submitBundle } from "./product/submit.js";

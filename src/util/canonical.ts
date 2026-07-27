@@ -41,7 +41,7 @@ export function canonicalJson(value: unknown): string {
 }
 
 // RFC 8785 uses ECMAScript JSON serialization over recursively sorted object
-// keys and does not append a record newline. Vela Receipt v1 uses these bytes.
+// keys and does not append a record newline. Vela protocol objects use these bytes.
 export function canonicalJcs(value: unknown): string {
   return JSON.stringify(normalize(value, "$"));
 }

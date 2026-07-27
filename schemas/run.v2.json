@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.science/schemas/canopus/run.v2.json",
+  "title": "Canopus nonmutating Run v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "run_id",
+    "status",
+    "effect",
+    "authority",
+    "external_gate_credit",
+    "mission",
+    "candidate",
+    "verifier",
+    "submission",
+    "reproduction",
+    "budget"
+  ],
+  "properties": {
+    "schema": { "const": "canopus.run.v2" },
+    "run_id": { "type": "string", "minLength": 5, "maxLength": 128 },
+    "status": { "const": "completed" },
+    "effect": { "const": "none" },
+    "authority": { "const": "non_authoritative" },
+    "external_gate_credit": { "const": false },
+    "mission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "target", "digest", "starting_roots"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 134 },
+        "target": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "digest": { "$ref": "#/$defs/sha256" },
+        "starting_roots": { "$ref": "#/$defs/roots" }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest", "status", "claim", "artifacts", "caveats"],
+      "properties": {
+        "digest": { "$ref": "#/$defs/sha256" },
+        "status": { "enum": ["success", "null", "failed"] },
+        "claim": { "type": "string", "minLength": 1, "maxLength": 8192 },
+        "artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": { "$ref": "#/$defs/artifact" }
+        },
+        "caveats": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": { "type": "string", "minLength": 1, "maxLength": 4096 }
+        }
+      }
+    },
+    "verifier": { "$ref": "#/$defs/verifier" },
+    "submission": { "type": "null" },
+    "reproduction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["matched", "roots", "verifier_status", "stdout_digest", "stderr_digest"],
+      "properties": {
+        "matched": { "const": true },
+        "roots": { "$ref": "#/$defs/roots" },
+        "verifier_status": { "const": "passed" },
+        "stdout_digest": { "$ref": "#/$defs/sha256" },
+        "stderr_digest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "budget": { "$ref": "#/$defs/budget" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "gitObject": { "type": "string", "pattern": "^[0-9a-f]{40,64}$" },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+    },
+    "roots": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["git_commit", "git_tree", "vela_event_log", "vela_snapshot"],
+      "properties": {
+        "git_commit": { "$ref": "#/$defs/gitObject" },
+        "git_tree": { "$ref": "#/$defs/gitObject" },
+        "vela_event_log": { "$ref": "#/$defs/sha256" },
+        "vela_snapshot": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "kind", "digest", "bytes"],
+      "properties": {
+        "path": { "$ref": "#/$defs/relativePath" },
+        "kind": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "digest": { "$ref": "#/$defs/sha256" },
+        "bytes": { "type": "integer", "minimum": 1, "maximum": 1073741824 }
+      }
+    },
+    "verifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "sandbox", "record"],
+      "properties": {
+        "status": { "const": "passed" },
+        "sandbox": { "enum": ["macos_sandbox", "container_network_denied"] },
+        "record": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["argv", "executable_digest", "exit_code", "stdout_digest", "stderr_digest", "duration_ms"],
+          "properties": {
+            "argv": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 64,
+              "items": { "type": "string", "maxLength": 4096 }
+            },
+            "executable_digest": { "$ref": "#/$defs/sha256" },
+            "exit_code": { "const": 0 },
+            "stdout_digest": { "$ref": "#/$defs/sha256" },
+            "stderr_digest": { "$ref": "#/$defs/sha256" },
+            "duration_ms": { "type": "integer", "minimum": 0, "maximum": 3600000 }
+          }
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "research_elapsed_ms",
+        "research_processes",
+        "research_output_bytes",
+        "prompt_bytes",
+        "artifact_bytes",
+        "attempts",
+        "observed_tokens"
+      ],
+      "properties": {
+        "research_elapsed_ms": { "$ref": "#/$defs/nonnegativeInteger" },
+        "research_processes": { "$ref": "#/$defs/nonnegativeInteger" },
+        "research_output_bytes": { "$ref": "#/$defs/nonnegativeInteger" },
+        "prompt_bytes": { "$ref": "#/$defs/nonnegativeInteger" },
+        "artifact_bytes": { "$ref": "#/$defs/nonnegativeInteger" },
+        "attempts": { "$ref": "#/$defs/nonnegativeInteger" },
+        "observed_tokens": { "$ref": "#/$defs/nonnegativeInteger" }
+      }
+    },
+    "nonnegativeInteger": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    }
+  }
+}

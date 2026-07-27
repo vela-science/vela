@@ -1,87 +1,70 @@
-# Canopus run records
+# Run, export, and submit records
 
-A completed run writes these local records beneath its run root:
+## Run
 
-- `activity.jsonl`: append-only orchestration events linked by full SHA-256
-  digests, including the exact `vela next` offer digest and selected rank;
-- `candidate.json`: the frozen candidate and verifier facts;
-- `worker-events.jsonl`: the raw Codex event stream used as the tool trace;
-- `worker-final.json`: the exact final worker response;
-- `worker-stderr.bin`: the bounded raw worker stderr stream;
-- `engine-result.json`: the parsed worker outcome and usage;
-- `run.json`: the compact run record, exact roots, landing result, costs,
-  clean-clone reproduction result, and stage-typed observations;
-- `evidence-manifest.json`: content roots for the worker, run, candidate,
-  artifacts, verifier result, Receipt when present, and final frontier roots;
-- `projection.json`: a read-only view for another consumer;
-- `landing-command.json`: the exact argv, exit status, raw streams, and stream
-  digests observed at the potentially effectful `vela land` boundary;
-- `landing-observation.json`: the parsed raw Vela result, retained before any
-  Canopus interpretation.
+A completed current Run writes `canopus.run.v2` beneath its private run root.
+Its contract is deliberately nonmutating:
 
-If anything fails at or after that boundary, `landing-recovery.json` records
-the last command, raw result when available, parsed route when available, and
-freshly inspected roots. `failure.json` points to that recovery record. A
-command timeout may have changed external state even when no complete stdout
-was captured, so recovery roots are authoritative over assumptions.
+```json
+{
+  "schema": "canopus.run.v2",
+  "effect": "none",
+  "authority": "non_authoritative",
+  "submission": null
+}
+```
 
-These files are operational evidence, not Vela authority. The projection says
-so in its schema and can be rebuilt with `canopus inspect run.json`. Deleting
-the run-record files must not change Vela replay, a policy route, or accepted
-state.
+The run root retains:
 
-Completed runs now use `canopus.run.v1`. Its `observations` object separates
-three claims that must not be collapsed:
+- append-only orchestration activity;
+- exact worker events, final response, and bounded stderr;
+- candidate bytes and content-addressed Artifacts;
+- verifier identity and result;
+- clean-clone reproduction;
+- exact mission, source, runtime, budget, and evidence roots.
 
-- `worker_observations`: what the model reported or attempted;
-- `verifier_observations`: what the frozen mechanical verifier established;
-- `standing_caveats`: limitations that remain true after verification.
+`canopus show` projects these records. `canopus replay` reruns the frozen
+verifier. Deleting Canopus or its run directory cannot change Vela replay or
+Standing.
 
-Immutable `canopus.run.v0` records remain readable and replayable. Canopus does
-not rewrite them to manufacture the new evidence categories.
+## Export
 
-The installed package exposes the stable run-record parsers and projections for
-read-only consumers. Public evidence is assembled by the consuming repository
-from those rooted records; Canopus does not maintain a second publication
-bundle or Observatory-import format. Never publish a raw run directory,
-isolated homes, authentication, private paths, or unrestricted logs.
+`canopus export` creates `canopus.submission-bundle.v1`:
 
-The run root also contains isolated checkouts and content-addressed artifacts.
-The landing clone uses a disposable attached branch so Vela can publish exact
-deltas; the immutable input clone remains detached and read-only. Successful
-runs delete the isolated Vela home and its agent-only key. Failed runs may
-retain local diagnostic state until explicit cleanup. Never publish a run root
-or Codex credential directory wholesale. Canopus does not author Git commits.
-It supplies the frozen source artifacts to `vela land`; Vela alone commits the
-exact Receipt, activity record, proposal, source artifacts, and retained
-`records/artifacts/sha256/<digest>` copies. `activity.jsonl` records Vela's
-publication facts and the resulting roots.
+```text
+submission-bundle/
+  submission.json
+  manifest.json
+  artifacts/sha256/<full-digest>
+```
 
-A `--no-land` run writes `canopus.diagnostic-run.v1`, invokes the same frozen
-worker and verifier path, and leaves the source frontier at its starting commit
-and tree. It has no Receipt or proposal. A landed product run performs all work
-in isolated clones and returns a clean-clone-reproduced local candidate with its
-exact repository, commit, and tree. The source checkout remains unchanged.
-Publishing or otherwise integrating that candidate is an explicit Frontier
-operator action outside Canopus.
+`submission.json` is a whole-body Ed25519-signed `vela.submission.v1`.
+Independent verifier output is named only as a verification requirement; it is
+not mislabeled as producer authority or a Vela Verification Record.
 
-Product output must live outside the source frontier and outside known
-cloud-synced Desktop or cloud-storage roots. Docker bind mounts over cloud-backed
-paths can stall without producing a verifier verdict, so Canopus refuses that
-placement rather than weakening the verification timeout.
+The producer key is ephemeral. It is not placed in run evidence, the portable
+bundle, or a retained capability store. A producer that independently keeps its
+own key may use Vela's direct withdrawal interface; Canopus does not add a
+second key lifecycle.
 
-`route: defer` with `accepted_event_delta: 0` means the Receipt v1 record is
-pending human review. It is a successful producer handoff, not scientific
-acceptance. `route: permit` is valid only when an already signed Vela policy
-admits the exact proposal; Canopus still does not hold a human key.
+## Submit
 
-## Budget semantics
+`canopus submit`:
 
-The mission hard-bounds prompt bytes, artifact bytes, attempts, spawned
-research-lane processes, and captured research-lane output. The same ledger
-covers the first verifier and clean-clone verifier. `max_observed_tokens` is an
-honest postcondition over provider-reported usage; the Codex subscription
-surface does not expose a portable pre-call token cutoff. Git and Vela are the
-control plane and retain their own fixed command timeout/output bounds. The
-mission therefore does not advertise a hard end-to-end subprocess or billing
-budget it cannot enforce.
+1. verifies the bundle, Submission signature, Artifacts, source Git roots, and
+   exact Vela binary;
+2. performs the Vela registration in a disposable exact-head clone;
+3. requires `vela.submit-result.v1`, `pending_review`, and accepted-event delta
+   zero;
+4. fast-forwards the clean source checkout only after the registration is
+   complete.
+
+Submit does not create a Verification Record, Decision, Event, or accepted
+Standing.
+
+## Budgets
+
+Missions bound prompt bytes, Artifact bytes, attempts, processes, output, wall
+time, and observed provider tokens. The same verifier budget covers initial and
+clean-clone replay. Provider-reported token totals are verified post hoc; the
+subscription CLI does not expose a portable pre-call billing cutoff.

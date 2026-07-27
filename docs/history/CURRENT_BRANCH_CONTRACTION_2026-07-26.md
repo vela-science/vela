@@ -1,6 +1,9 @@
 # Canopus current-branch contraction
 
-**Status:** Active deletion record
+**Status:** Historical deletion record
+
+**Superseded current interface:** ADR 0010. The four-command surface described
+below was an intermediate contraction checkpoint, not the current product.
 
 **Baseline:** `6f08247b` on `main`
 

@@ -6,7 +6,6 @@ import type { Mission, MissionV1 } from "../src/contracts/mission.js";
 import {
   DEFAULT_VELA_COMMAND_TIMEOUT_MS,
   strictBaselineFromCheck,
-  validateLandResult,
   VelaClient,
   VelaClientError,
   type CommandRunner,
@@ -127,26 +126,8 @@ function fakeRunner(options: { version?: string; checkRoot?: string; proofRoot?:
         proof: { event_log_hash: root, frontier_hash: proofRoot },
       });
     }
-    if (argv[1] === "next" || argv[1] === "work") {
+    if (argv[1] === "next") {
       return result(argv, { ok: true, command: argv[1] });
-    }
-    if (argv[1] === "land") {
-      return result(argv, {
-        ok: true,
-        command: "land",
-        operation_id: "vop_test",
-        receipt_root: root,
-        record_id: "vrr_test",
-        proposal_id: "vpr_test",
-        finding_id: "vf_test",
-        accepted_event_count_before: 12,
-        accepted_event_count_after: 12,
-        accepted_event_delta: 0,
-        route: "deferred",
-        original_route: null,
-        detail: "human review required",
-        publication: { state: "committed_local", commit: gitCommit },
-      });
     }
     throw new Error(`unexpected command: ${argv.join(" ")}`);
   };
@@ -444,132 +425,6 @@ test("Vela client rejects check/proof root disagreement", async () => {
     client(fake.runner).inspect("/repo", "frontier"),
     (error: unknown) => error instanceof VelaClientError && error.code === "root_mismatch",
   );
-});
-
-test("Vela client rechecks roots before work", async () => {
-  const fake = fakeRunner({ checkRoot: `sha256:${"e".repeat(64)}` });
-  await assert.rejects(
-    client(fake.runner).work(mission(), "/repo", "task-1", mission().roots),
-    /check\/proof snapshot mismatch|Vela snapshot mismatch/u,
-  );
-  assert.equal(fake.calls.some((argv) => argv[1] === "work"), false);
-});
-
-test("Vela client delegates Receipt v1 authoring to the released CLI", async () => {
-  const fake = fakeRunner();
-  const vela = client(fake.runner);
-  const observation = await vela.landAuthoredCommand(
-    mission(),
-    "/repo",
-    {
-      claim: "The frozen result passed.",
-      claimType: "computational",
-      replayability: "exact",
-      artifacts: [{ path: "artifact.json", kind: "witness" }],
-      caveats: ["Human acceptance remains separate."],
-      predictedObservable: "The exact verifier exits zero.",
-      performedTest: "verify artifact.json",
-      result: "The declared verifier exited zero.",
-      evidence: [`artifact:${root}`],
-      counterevidence: [],
-      executionBinding: {
-        schema: "vela.execution-binding.v1",
-        packet_root: root,
-        profile_root: `sha256:${"b".repeat(64)}`,
-        verifier_capsule_root: `sha256:${"c".repeat(64)}`,
-        result_contract_root: `sha256:${"d".repeat(64)}`,
-      },
-      work: "task-1",
-    },
-    mission().roots,
-  );
-  const landed = vela.validateLandResult(mission(), vela.parseLandCommand(observation));
-  assert.equal(landed.route, "defer");
-  assert.equal(landed.acceptedEventDelta, 0);
-  const land = fake.calls.find((argv) => argv[1] === "land");
-  assert.ok(land?.includes("--predicted-observable"));
-  assert.ok(land?.includes("--performed-test"));
-  assert.ok(land?.includes("--evidence"));
-  assert.ok(land?.includes("--packet-root"));
-  assert.ok(land?.includes("--profile-root"));
-  assert.ok(land?.includes("--verifier-capsule-root"));
-  assert.ok(land?.includes("--result-contract-root"));
-  assert.equal(land?.includes("--push"), false);
-  assert.equal(land?.includes("sign"), false);
-});
-
-test("Vela client rejects an oversized authored argv before the effectful command", async () => {
-  const fake = fakeRunner();
-  await assert.rejects(
-    client(fake.runner).landAuthoredCommand(
-      mission(),
-      "/repo",
-      {
-        claim: "Bounded result.",
-        claimType: "computational",
-        replayability: "exact",
-        artifacts: [{ path: "artifact.json", kind: "witness" }],
-        caveats: Array.from({ length: 60 }, (_, index) => `caveat-${index}`),
-        predictedObservable: "The verifier exits zero.",
-        performedTest: "verify artifact.json",
-        result: "Passed.",
-        evidence: [],
-        counterevidence: [],
-      },
-      mission().roots,
-    ),
-    /maximum is 128/u,
-  );
-  assert.equal(fake.calls.some((argv) => argv[1] === "land"), false);
-});
-
-test("Vela client preserves policy-admitted exact-retry historical counts", async () => {
-  const raw = {
-      ok: true,
-      command: "land",
-      operation_id: "vop_retry",
-      receipt_root: root,
-      record_id: "vrr_retry",
-      proposal_id: "vpr_retry",
-      finding_id: "vf_retry",
-      accepted_event_count_before: 12,
-      accepted_event_count_after: 13,
-      accepted_event_delta: 1,
-      route: "exact_retry",
-      original_route: "policy_admitted",
-      detail: "reused durable policy_admitted result",
-      publication: { state: "committed_local" },
-  };
-  const activeMission = mission();
-  activeMission.landing = { expected_routes: ["permit"], max_accepted_delta: 1 };
-  const landed = validateLandResult(activeMission, raw);
-  assert.equal(landed.route, "exact_retry");
-  assert.equal(landed.originalRoute, "permit");
-  assert.equal(landed.acceptedEventDelta, 1);
-});
-
-test("Vela client preserves journal-free exact retry with unknown historical counts", async () => {
-  const raw = {
-      ok: true,
-      command: "land",
-      operation_id: "vop_retry",
-      receipt_root: root,
-      record_id: "vrr_retry",
-      proposal_id: "vpr_retry",
-      finding_id: "vf_retry",
-      accepted_event_count_before: null,
-      accepted_event_count_after: null,
-      accepted_event_delta: null,
-      route: "exact_retry",
-      original_route: "deferred",
-      detail: "reused durable deferred result",
-      publication: { state: "committed_local" },
-  };
-  const activeMission = mission();
-  const landed = validateLandResult(activeMission, raw);
-  assert.equal(landed.route, "exact_retry");
-  assert.equal(landed.originalRoute, "defer");
-  assert.equal(landed.acceptedEventDelta, null);
 });
 
 test("Vela client exposes no signer command", () => {
