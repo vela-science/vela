@@ -532,7 +532,15 @@ fn convert_accepted_claims(
                 .unwrap_or_default(),
             predecessor_commit,
             Vec::new(),
-        )?;
+        )
+        .map_err(|error| {
+            format!(
+                "Finding {} (assertion {}): {error}",
+                finding.id,
+                serde_json::to_string(&finding.assertion)
+                    .unwrap_or_else(|_| "<unserializable>".into())
+            )
+        })?;
         if by_source
             .insert(finding.id.clone(), record.claim_id.clone())
             .is_some()
@@ -570,7 +578,15 @@ fn convert_accepted_claims(
                 .unwrap_or_default(),
             predecessor_commit,
             relations,
-        )?;
+        )
+        .map_err(|error| {
+            format!(
+                "Finding {} (assertion {}): {error}",
+                finding.id,
+                serde_json::to_string(&finding.assertion)
+                    .unwrap_or_else(|_| "<unserializable>".into())
+            )
+        })?;
         if record.claim_id != base_record.claim_id {
             return Err(format!(
                 "Finding {} relation metadata changed its Claim identity",
@@ -834,6 +850,9 @@ fn verify_current_repository_at(
     }
     for reference in &repository.artifacts {
         let bytes = read_rooted_object(root, &reference.path, &reference.root)?;
+        if reference.schema == "content-addressed-artifact" {
+            continue;
+        }
         let value: Value = serde_json::from_slice(&bytes)
             .map_err(|error| format!("{} is not JSON: {error}", reference.path))?;
         if value.get("schema").and_then(Value::as_str) != Some(reference.schema.as_str()) {
@@ -969,10 +988,12 @@ fn claim_from_finding(
     evidence.dedup();
     let mut conditions = Vec::new();
     if !finding.conditions.text.trim().is_empty() {
-        conditions.push(finding.conditions.text.clone());
+        conditions.push(finding.conditions.text.trim().to_string());
     }
-    if let Some(duration) = &finding.conditions.duration {
-        conditions.push(format!("Duration: {duration}"));
+    if let Some(duration) = &finding.conditions.duration
+        && !duration.trim().is_empty()
+    {
+        conditions.push(format!("Duration: {}", duration.trim()));
     }
     let locator = finding
         .provenance
@@ -1001,20 +1022,22 @@ fn claim_from_finding(
     ClaimRecordV1::build(
         finding.version,
         ClaimAssertion {
-            text: finding.assertion.text.clone(),
-            kind: finding.assertion.assertion_type.clone(),
+            text: finding.assertion.text.trim().to_string(),
+            kind: finding.assertion.assertion_type.trim().to_string(),
         },
         conditions,
         evidence,
         vec![ClaimSource {
-            kind: finding.provenance.source_type.clone(),
-            title: finding.provenance.title.clone(),
+            kind: finding.provenance.source_type.trim().to_string(),
+            title: finding.provenance.title.trim().to_string(),
             locator,
             authors: finding
                 .provenance
                 .authors
                 .iter()
-                .map(|author| author.name.clone())
+                .map(|author| author.name.trim())
+                .filter(|author| !author.is_empty())
+                .map(str::to_string)
                 .collect(),
             year: finding.provenance.year,
         }],
@@ -1060,7 +1083,8 @@ fn convert_current_pending_proposals(
                 })?,
             )
             .map_err(|error| format!("{}: decode current pending Claim: {error}", proposal.id))?;
-        let claim = claim_from_finding(&finding, Vec::new(), predecessor_commit, Vec::new())?;
+        let claim = claim_from_finding(&finding, Vec::new(), predecessor_commit, Vec::new())
+            .map_err(|error| format!("Proposal {} Claim: {error}", proposal.id))?;
         let claim_root = claim.canonical_root()?;
         claim_refs.push(ObjectRef {
             schema: "vela.claim-record.v1".into(),
@@ -1293,8 +1317,8 @@ fn source_semantic_projection_root(
             Ok(json!({
                 "claim_id": claim_id,
                 "assertion": {
-                    "text": finding.assertion.text,
-                    "kind": finding.assertion.assertion_type,
+                    "text": finding.assertion.text.trim(),
+                    "kind": finding.assertion.assertion_type.trim(),
                 },
                 "conditions": finding.conditions,
                 "evidence": finding.evidence,

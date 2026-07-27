@@ -176,10 +176,10 @@ impl ClaimRecordV1 {
         if self.revision == 0 {
             return Err("Claim Record revision must be positive".into());
         }
-        require_text("assertion.text", &self.assertion.text)?;
+        require_scientific_text("assertion.text", &self.assertion.text)?;
         require_text("assertion.kind", &self.assertion.kind)?;
         for condition in &self.conditions {
-            require_text("conditions", condition)?;
+            require_scientific_text("conditions", condition)?;
         }
         for evidence in &self.evidence {
             require_text("evidence.relation", &evidence.relation)?;
@@ -258,6 +258,20 @@ fn require_text(field: &str, value: &str) -> Result<(), String> {
     if value.trim().is_empty() || value != value.trim() || value.chars().any(char::is_control) {
         return Err(format!(
             "Claim Record {field} must be non-empty, trimmed text"
+        ));
+    }
+    Ok(())
+}
+
+fn require_scientific_text(field: &str, value: &str) -> Result<(), String> {
+    if value.trim().is_empty()
+        || value != value.trim()
+        || value
+            .chars()
+            .any(|character| character.is_control() && character != '\n' && character != '\t')
+    {
+        return Err(format!(
+            "Claim Record {field} must be non-empty, trimmed scientific text"
         ));
     }
     Ok(())
@@ -392,5 +406,26 @@ mod tests {
         )
         .unwrap_err();
         assert!(error.contains("cannot carry authority field"));
+    }
+
+    #[test]
+    fn scientific_assertions_preserve_bounded_multiline_text() {
+        let record = ClaimRecordV1::build(
+            1,
+            ClaimAssertion {
+                text: "Let n be positive.\n\nThen the bounded conclusion follows.".into(),
+                kind: "theoretical".into(),
+            },
+            vec!["Assume the stated hypotheses.\nUse the exact pinned source.".into()],
+            vec![],
+            vec![],
+            vec![],
+            "2026-07-27T00:00:00Z".into(),
+            None,
+            BTreeMap::new(),
+        )
+        .unwrap();
+        assert!(record.assertion.text.contains("\n\n"));
+        ClaimRecordV1::parse(&record.canonical_bytes().unwrap()).unwrap();
     }
 }
