@@ -29,25 +29,6 @@ pub(crate) fn wrap_line(text: &str, max_chars: usize) -> String {
     out
 }
 
-// ── v0.42 daily-driver triad ────────────────────────────────────────
-
-pub(crate) fn print_signal_summary(report: &signals::SignalReport, strict: bool) {
-    println!();
-    println!("  {}", "SIGNALS".dimmed());
-    println!("  {}", style::tick_row(60));
-    println!("  total signals:   {}", report.signals.len());
-    println!("  proof readiness: {}", report.proof_readiness.status);
-    if !report.review_queue.is_empty() {
-        println!("  review queue:    {} items", report.review_queue.len());
-    }
-    if strict && report.proof_readiness.status != "ready" {
-        println!(
-            "  {} proof readiness has blocking signals.",
-            style::lost("strict check failed")
-        );
-    }
-}
-
 pub(crate) fn print_history(payload: &Value) {
     let finding = payload.get("finding").unwrap_or(&Value::Null);
     println!("state-transition history");
@@ -225,12 +206,6 @@ pub(crate) fn fail(message: &str) -> ! {
 /// A lookup that found nothing. Exit 3; the hint names the discovery verb.
 pub(crate) fn fail_not_found<T>(message: &str, hint: &str) -> T {
     crate::ui::fail_with(crate::ui::ErrorKind::NotFound, message, Some(hint))
-}
-
-/// A malformed invocation (missing/unknown operand). Exit 2 — the code an
-/// agent reads to mean "I called it wrong," distinct from a domain no (1).
-pub(crate) fn fail_usage(message: &str) -> ! {
-    crate::ui::fail_with(crate::ui::ErrorKind::Usage, message, None)
 }
 
 pub(crate) fn fail_return<T>(message: &str) -> T {

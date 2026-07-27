@@ -37,6 +37,23 @@ pub(crate) fn cmd_repository_verify(frontier: &Path, json_out: bool) {
             frontier.display()
         ))
     });
+    let sensitive = sensitive_paths(&frontier);
+    if !sensitive.is_empty() {
+        let listed = sensitive
+            .iter()
+            .take(10)
+            .map(|path| {
+                path.strip_prefix(&frontier)
+                    .unwrap_or(path)
+                    .display()
+                    .to_string()
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        crate::cli::fail_return::<()>(&format!(
+            "current repository contains sensitive-looking files: {listed}"
+        ));
+    }
     let repository = verify_current_repository_at(&frontier, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let epoch_bytes = fs::read(frontier.join(".vela/epoch.json")).unwrap_or_else(|error| {
@@ -80,6 +97,50 @@ pub(crate) fn cmd_repository_verify(frontier: &Path, json_out: bool) {
         println!("  claims: {}", payload["counts"]["accepted_claims"]);
         println!("  repository root: {}", payload["repository_root"]);
     }
+}
+
+fn sensitive_paths(root: &Path) -> Vec<PathBuf> {
+    let mut hits = Vec::new();
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(directory) = stack.pop() {
+        let Ok(entries) = fs::read_dir(directory) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+                continue;
+            };
+            if path.is_dir() {
+                if !matches!(name, ".git" | "target" | "node_modules" | "dist" | "build") {
+                    stack.push(path);
+                }
+                continue;
+            }
+            let lower = name.to_ascii_lowercase();
+            if lower == "public.key" || lower.ends_with(".pub") || lower.ends_with(".pubkey") {
+                continue;
+            }
+            let sensitive_extension = path
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| {
+                    matches!(
+                        extension.to_ascii_lowercase().as_str(),
+                        "key" | "pem" | "p12" | "pfx"
+                    )
+                });
+            if sensitive_extension
+                || ["private", "secret", "credential"]
+                    .iter()
+                    .any(|needle| lower.contains(needle))
+            {
+                hits.push(path);
+            }
+        }
+    }
+    hits.sort();
+    hits
 }
 
 pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {

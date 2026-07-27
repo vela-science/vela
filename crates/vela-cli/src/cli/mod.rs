@@ -1,24 +1,12 @@
-use vela_edge::lint;
-use vela_edge::signals;
-use vela_edge::state_integrity;
-use vela_edge::validate;
-use vela_protocol::events;
 use vela_protocol::frontier_repo;
-use vela_protocol::project;
-use vela_protocol::proposals;
-use vela_protocol::repo;
 use vela_protocol::sign;
-use vela_protocol::sources;
 use vela_protocol::state;
 
 use std::path::{Path, PathBuf};
 
 use clap::Parser;
-use colored::Colorize;
-
 use serde::Serialize;
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use vela_protocol::cli_style as style;
 
 #[derive(Parser)]
@@ -36,12 +24,11 @@ pub(crate) use crate::claim_view::*;
 pub(crate) use crate::cli_admin::*;
 pub(crate) use crate::cli_check::*;
 use crate::cli_commands::*;
-use crate::cli_engine::{cmd_evidence_ci, cmd_reproduce, cmd_verify_evidence};
+use crate::cli_engine::{cmd_reproduce, cmd_verify_evidence};
 pub(crate) use crate::cli_read::*;
 pub(crate) use crate::cli_write::*;
 
 mod authority;
-mod checks;
 pub(crate) mod help_text;
 mod identity;
 mod lifecycle;
@@ -52,15 +39,11 @@ pub(crate) mod review_decision;
 pub(crate) mod safe_text;
 mod surface;
 pub(crate) use authority::*;
-pub(crate) use checks::*;
 pub(crate) use identity::*;
 pub(crate) use lifecycle::*;
 pub(crate) use output::*;
 pub(crate) use records::*;
 pub(crate) use surface::*;
-// Preserve the crate-public paths these two had when they lived in mod.rs.
-pub use checks::scan_for_sensitive_paths;
-
 pub async fn run_command() {
     // Deliberately NO dotenv here. `dotenvy::dotenv()` walks the working
     // tree upward, and vela runs inside CLONED frontier repos — a
@@ -95,39 +78,9 @@ pub async fn run_command() {
         },
         Commands::Check {
             source,
-            schema,
-            stats,
-            evidence,
-            conformance,
-            conformance_dir,
-            all,
-            schema_only,
             strict,
-            fix,
             json,
-        } => {
-            if evidence {
-                // `check --evidence` folds in the standalone `evidence-ci` verb,
-                // routing to the same handler. A source/frontier is required.
-                let frontier = source.unwrap_or_else(|| {
-                    fail_return("check --evidence needs a frontier path (e.g. `vela check <frontier> --evidence`)")
-                });
-                cmd_evidence_ci(&frontier, json);
-            } else {
-                cmd_check(
-                    source.as_deref(),
-                    schema,
-                    stats,
-                    conformance,
-                    &conformance_dir,
-                    all,
-                    schema_only,
-                    strict,
-                    fix,
-                    json,
-                );
-            }
-        }
+        } => cmd_check(source.as_deref(), strict, json),
         Commands::Doctor {
             frontier,
             port,

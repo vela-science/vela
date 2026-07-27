@@ -1,12 +1,7 @@
-use crate::cli::{
-    active_policy_pair_snapshot, collect_witness_files, fail, fail_return, parse_witness,
-    print_json,
-};
+use crate::cli::{collect_witness_files, fail, fail_return, parse_witness, print_json};
 use crate::cli_commands::*;
 use serde_json::{Value, json};
 use std::path::{Component, Path, PathBuf};
-use vela_protocol::cli_style as style;
-use vela_protocol::evidence_ci;
 use vela_protocol::repo;
 
 pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
@@ -290,6 +285,18 @@ fn verified_frontier_relative_file(
 
 pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output: bool) {
     crate::ui::set_mode("reproduce", json_output);
+    if path.is_dir()
+        && path.join("frontier.yaml").is_file()
+        && !path.join(".vela/epoch.json").is_file()
+    {
+        crate::ui::fail_with(
+            crate::ui::ErrorKind::Domain,
+            "this Vela release reproduces only current repository epochs",
+            Some(
+                "inspect a predecessor with its pinned historical Vela release; current repositories contain `.vela/epoch.json`",
+            ),
+        );
+    }
     let mut scope = if path.is_file() {
         "standalone_artifact"
     } else {
@@ -309,6 +316,7 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
     // than stored as loose files. Cover any blob not already present as a loose
     // witness (deduped by content hash).
     if proposal_id.is_none()
+        && !path.join(".vela/epoch.json").is_file()
         && let Ok(source) = repo::detect(path)
         && let Ok(proj) = repo::load(&source)
     {
@@ -471,75 +479,6 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
     }
     if failed > 0 {
         std::process::exit(1);
-    }
-}
-
-pub(crate) fn cmd_evidence_ci(frontier: &Path, json: bool) {
-    let project = repo::load_from_path(frontier)
-        .unwrap_or_else(|error| fail_return(&format!("evidence-ci failed: {error}")));
-    let snapshot = active_policy_pair_snapshot(frontier);
-    let policy = vela_protocol::proposals::policy_accept::assess_policy_readiness(
-        &project,
-        snapshot.as_ref().map_err(String::as_str),
-        &chrono::Utc::now().to_rfc3339(),
-    );
-    if policy.permit_readiness()
-        == vela_protocol::proposals::policy_accept::PermitReadiness::Blocked
-    {
-        if json {
-            print_json(&json!({
-                "ok": false,
-                "command": "evidence-ci",
-                "policy": {
-                    "state": policy.state().as_str(),
-                    "permit_readiness": policy.permit_readiness().as_str(),
-                    "reason_codes": policy.reason_codes(),
-                    "error": policy.detail(),
-                },
-            }));
-            std::process::exit(1);
-        }
-        fail_return::<()>(&format!(
-            "evidence-ci failed: active policy {}",
-            policy.detail().unwrap_or("readiness assessment is blocked")
-        ));
-    }
-    let report = evidence_ci::run_frontier(frontier)
-        .unwrap_or_else(|e| fail_return(&format!("evidence-ci failed: {e}")));
-    if json {
-        print_json(&report);
-        return;
-    }
-    let status = if report.ok {
-        style::ok("evidence-ci")
-    } else {
-        style::lost("evidence-ci")
-    };
-    println!(
-        "{} {} · {} checks, {} warning(s), {} release-blocking failure(s)",
-        status,
-        report.frontier_id,
-        report.summary.total,
-        report.summary.warnings,
-        report.summary.release_blocking_failed
-    );
-    for check in report
-        .checks
-        .iter()
-        .filter(|check| check.status != evidence_ci::EvidenceCiStatus::Passed)
-        .take(40)
-    {
-        println!(
-            "  {} {} {}: {}",
-            match check.status {
-                evidence_ci::EvidenceCiStatus::Passed => style::ok("pass"),
-                evidence_ci::EvidenceCiStatus::Warning => style::warn("warn"),
-                evidence_ci::EvidenceCiStatus::Failed => style::lost("fail"),
-            },
-            check.id,
-            check.target_id,
-            check.message
-        );
     }
 }
 

@@ -76,36 +76,14 @@ pub(crate) enum Commands {
     /// the science — `vela reproduce` re-runs the verifiers themselves.
     #[command(after_long_help = crate::cli::help_text::CHECK)]
     Check {
-        /// Frontier JSON file, Vela repo, or proof packet
+        /// Current Frontier repository. Defaults to the current directory.
         source: Option<PathBuf>,
-        /// Run schema validation
-        #[arg(long)]
-        schema: bool,
-        /// Run frontier lint checks
-        #[arg(long)]
-        stats: bool,
-        /// Run the Evidence-CI readiness check (source, evidence, condition,
-        /// confidence, policy). Folds in the standalone `evidence-ci` verb.
-        #[arg(long)]
-        evidence: bool,
-        /// Run conformance vectors
-        #[arg(long)]
-        conformance: bool,
-        /// Conformance test directory
-        #[arg(long, default_value = "conformance")]
-        conformance_dir: PathBuf,
-        /// Run all checks
-        #[arg(long)]
-        all: bool,
-        /// Run only structural schema validation
-        #[arg(long)]
-        schema_only: bool,
-        /// Treat warnings and blocking signals as failures
+        /// Require the complete current repository verification gate.
+        ///
+        /// Current repositories always fail closed; this flag remains the
+        /// explicit publication spelling used by CI and documentation.
         #[arg(long)]
         strict: bool,
-        /// Show fix suggestions
-        #[arg(long)]
-        fix: bool,
         /// Output stable JSON
         #[arg(long)]
         json: bool,
