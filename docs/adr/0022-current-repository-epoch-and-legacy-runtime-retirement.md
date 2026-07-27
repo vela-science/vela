@@ -125,18 +125,25 @@ byte_length
 sha256
 ```
 
-The archive bundle is operational redundancy. Protocol identity comes from the
-remote, tag, commit, tree, canonical roots, and object-manifest root; a
-different but equivalent Git bundle encoding does not change the epoch.
+The archive bundle is operational redundancy whose exact bytes are also bound
+by `archive_bundle_sha256`. Protocol identity does not rely on a bundle parser:
+the remote, tag, commit, tree, canonical roots, and object-manifest root are
+sufficient to verify the predecessor, while the exact bundle is a convenient
+offline carrier.
 
-The transition uses a `repository.epoch_started` authority event and a fresh
-sequence-1 repository-authority record. The event binds the epoch object, the
-new Claim set, retained current objects, keyset, Cedar bundle, and exact
-transaction postimages. Its before-scientific root is the predecessor
-scientific-state root and its after-scientific root is the imported Claim-set
-standing root. The equivalence report must prove the two represent the same
-accepted assertions, conditions, provenance, evidence references,
-correction/supersession relations, and standing.
+The transition uses the existing non-scientific `authority.initialized` event
+and a fresh sequence-1 repository-authority record. No second epoch event kind
+is added. The initialization payload binds the predecessor event-log and actor
+roots plus the current keyset, Cedar bundle, principal, version floor, and
+reason. The covering record's intent digest binds the exact upgrade plan, and
+its object delta binds the epoch object, repository manifest, Profile v2, new
+Claim set, retained current objects, retired Era-0 paths, keyset, Cedar
+material, and exact transaction postimages. The authority event retains null
+scientific before/after hashes: repository authentication does not itself
+change scientific standing. The equivalence report separately proves that the
+predecessor and imported accepted sets represent the same assertions,
+conditions, provenance, evidence references, correction/supersession
+relations, and standing.
 
 The first authority-record root becomes the new independently distributed
 trust anchor. The predecessor authority head remains evidence, not a live
@@ -220,12 +227,16 @@ vela repository upgrade <frontier> \
   --json
 ```
 
-The executor rederives the plan, locks the Git and Vela read set, verifies the
-loaded OpenSSH repository-authority identity, creates and verifies the
-predecessor tag and source archive, requests exactly one repository-authority
-signature, installs the new epoch through the recoverable transaction barrier,
-commits, pushes the exact ref, and verifies a clean clone. Cancellation or any
-drift writes no canonical postimage.
+The executor rederives the plan, creates an isolated detached worktree at the
+predecessor, locks the Git and Vela read set, verifies the loaded OpenSSH
+repository-authority identity, creates and verifies the predecessor tag and
+source archive, requests exactly one repository-authority signature, installs
+the new epoch through the recoverable transaction barrier, makes one unsigned
+descendant commit, atomically pushes the exact branch and tag refs, and
+verifies a clean clone before advancing the operator checkout. Cancellation or
+any drift writes no canonical postimage to the source Frontier. A signed
+candidate that cannot be published is preserved as an isolated recovery
+worktree rather than silently discarded or partially copied.
 
 There is no `--yes`, wildcard, batch, source-key, compatibility alias, or
 in-place partial mode.

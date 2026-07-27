@@ -356,6 +356,7 @@ fn execute_decision(
             event_drafts: drafts.events,
             object_drafts: drafts.objects,
             derived_drafts: drafts.derived,
+            retire_legacy_history: false,
             next_authority_keyset: None,
             next_policy_bundle: None,
             next_policy_material: None,

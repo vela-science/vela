@@ -4,9 +4,16 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use serde::Serialize;
+use chrono::{SecondsFormat, Utc};
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
+use vela_authority::runtime_authentication::{AuthenticationRequest, RuntimeSessionState};
+use vela_protocol::authority::{PrincipalSnapshotV1, SemanticApprovalV1};
+use vela_protocol::authority_history::{
+    AUTHORITY_INITIALIZATION_SCHEMA_V1, AUTHORITY_INITIALIZE_ACTION,
+    AUTHORITY_INITIALIZED_EVENT_KIND, AuthorityInitializationV1,
+};
 use vela_protocol::bundle::{Artifact, FindingBundle};
 use vela_protocol::claim_record::{
     ClaimAssertion, ClaimEvidenceRef, ClaimRecordV1, ClaimRelation, ClaimSource,
@@ -20,6 +27,17 @@ use vela_protocol::proposal_v1::{
     ImportedProposalSource, ProposalProducerPackage, ProposalSubject, ProposalV1,
 };
 use vela_protocol::repository_epoch::{PredecessorRoots, RepositoryEpochV1};
+use vela_protocol::{
+    events::{EventKind, NULL_HASH, StateActor, StateTarget},
+    principal_capability::PrincipalClass,
+};
+
+use crate::authority_transaction::{
+    AuthorityDerivedDraft, AuthorityEventDraft, AuthorityHistorySnapshot, AuthorityObjectDraft,
+    AuthorityTransactionRequest, execute_authority_transaction, execution_binary_sha256,
+};
+use crate::frontier_txn::{FrontierTxn, WriteClass};
+use crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner;
 
 const PLAN_SCHEMA: &str = "vela.repository-upgrade-plan.v1";
 const OBJECT_MANIFEST_SCHEMA: &str = "vela.git-object-manifest.v1";
@@ -27,7 +45,7 @@ const CANDIDATE_MANIFEST_SCHEMA: &str = "vela.repository-upgrade-candidate.v1";
 const EQUIVALENCE_SCHEMA: &str = "vela.repository-equivalence.v1";
 const ARCHIVE_INDEX_SCHEMA: &str = "vela.archived-object-index.v1";
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct GitObjectEntry {
     path: String,
     git_mode: String,
@@ -37,9 +55,9 @@ struct GitObjectEntry {
     sha256: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct GitObjectManifest {
-    schema: &'static str,
+    schema: String,
     commit: String,
     tree: String,
     entries: Vec<GitObjectEntry>,
@@ -186,15 +204,29 @@ pub(crate) fn cmd_repository_upgrade(
             None,
         );
     }
-    if confirm_root.is_some() {
-        crate::ui::fail_with(
-            crate::ui::ErrorKind::Usage,
-            "repository epoch application is disabled until preview recovery tests pass",
-            Some("rerun without --confirm-root to inspect the exact key-free plan"),
-        );
-    }
     let plan = prepare_repository_upgrade(frontier, archive_dir, reason)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    if let Some(confirm_root) = confirm_root {
+        if confirm_root != plan.plan_root {
+            crate::ui::fail_with(
+                crate::ui::ErrorKind::Domain,
+                "repository upgrade confirmation root does not match the rederived plan",
+                Some("rerun without --confirm-root and inspect the new exact plan"),
+            );
+        }
+        let result =
+            apply_repository_upgrade(&plan).unwrap_or_else(|error| crate::cli::fail_return(&error));
+        if json_out {
+            crate::cli::print_json(&result);
+        } else {
+            println!("repository epoch applied");
+            println!("  frontier: {}", result["frontier_id"]);
+            println!("  commit: {}", result["commit"]);
+            println!("  authority record: {}", result["authority_record_root"]);
+            println!("  predecessor tag: {}", result["predecessor_tag"]);
+        }
+        return;
+    }
     if json_out {
         crate::cli::print_json(&plan);
     } else {
@@ -324,7 +356,7 @@ fn prepare_repository_upgrade(
     let legacy_paths = object_manifest
         .entries
         .iter()
-        .filter(|entry| is_legacy_protocol_path(&entry.path))
+        .filter(|entry| is_predecessor_archive_path(&entry.path))
         .map(|entry| archived_object(&frontier, entry))
         .collect::<Result<Vec<_>, String>>()?;
     let archive_index = ArchiveIndex {
@@ -437,6 +469,14 @@ fn prepare_repository_upgrade(
         &vela_protocol::canonical::to_canonical_bytes(&equivalence)?,
     )?;
     let records_path = archive_dir.join(format!("{stem}.records"));
+    if records_path.exists() {
+        fs::remove_dir_all(&records_path).map_err(|error| {
+            format!(
+                "replace current candidate directory {}: {error}",
+                records_path.display()
+            )
+        })?;
+    }
     write_candidate_records(
         &records_path,
         &claim_records,
@@ -514,6 +554,452 @@ fn prepare_repository_upgrade(
     verify_recovery_barrier(&frontier)?;
     require_clean_synced_main(&frontier)?;
     Ok(plan)
+}
+
+fn apply_repository_upgrade(plan: &RepositoryUpgradePlan) -> Result<Value, String> {
+    let frontier = PathBuf::from(&plan.frontier)
+        .canonicalize()
+        .map_err(|error| format!("resolve Frontier {}: {error}", plan.frontier))?;
+    require_clean_synced_main(&frontier)?;
+    if git_text(&frontier, &["rev-parse", "HEAD^{commit}"])? != plan.predecessor_commit {
+        return Err("repository upgrade predecessor changed after confirmation".into());
+    }
+
+    let object_manifest: GitObjectManifest =
+        serde_json::from_slice(&fs::read(&plan.git_object_manifest_path).map_err(|error| {
+            format!(
+                "read Git object manifest {}: {error}",
+                plan.git_object_manifest_path
+            )
+        })?)
+        .map_err(|error| format!("parse Git object manifest: {error}"))?;
+    if object_manifest.commit != plan.predecessor_commit
+        || object_manifest.tree != plan.predecessor_tree
+    {
+        return Err("Git object manifest no longer matches the confirmed predecessor".into());
+    }
+
+    let candidate_root = candidate_records_path(&plan.candidate_manifest_path)?;
+    verify_current_repository_at(&candidate_root, false)?;
+    let archive_root = PathBuf::from(&plan.candidate_manifest_path)
+        .parent()
+        .ok_or_else(|| "candidate manifest has no archive directory".to_string())?
+        .to_path_buf();
+    let worktree = archive_root.join("worktrees").join(format!(
+        "{}-{}",
+        frontier
+            .file_name()
+            .and_then(|value| value.to_str())
+            .unwrap_or("frontier"),
+        plan.plan_root
+            .trim_start_matches("sha256:")
+            .get(..16)
+            .unwrap_or("current-epoch")
+    ));
+    if worktree.exists() {
+        return Err(format!(
+            "preserved repository-upgrade worktree already exists at {}; inspect or remove it before retrying",
+            worktree.display()
+        ));
+    }
+    if let Some(parent) = worktree.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("create {}: {error}", parent.display()))?;
+    }
+    git_success(
+        &frontier,
+        &[
+            "worktree",
+            "add",
+            "--detach",
+            &worktree.display().to_string(),
+            &plan.predecessor_commit,
+        ],
+        "create isolated repository-upgrade worktree",
+    )?;
+
+    let application = apply_repository_upgrade_in_worktree(
+        plan,
+        &frontier,
+        &worktree,
+        &candidate_root,
+        &object_manifest,
+    );
+    let result = match application {
+        Ok(result) => result,
+        Err(error) => {
+            return Err(format!(
+                "{error}\nThe isolated worktree is preserved at {} for exact recovery.",
+                worktree.display()
+            ));
+        }
+    };
+
+    git_success(
+        &frontier,
+        &["pull", "--ff-only", "origin", "main"],
+        "fast-forward source Frontier after epoch push",
+    )?;
+    let clean_clone = archive_root.join("verification").join(format!(
+        "{}-{}",
+        plan.frontier_id,
+        result["commit"].as_str().unwrap_or("current")
+    ));
+    if clean_clone.exists() {
+        fs::remove_dir_all(&clean_clone)
+            .map_err(|error| format!("remove stale verification clone: {error}"))?;
+    }
+    if let Some(parent) = clean_clone.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("create {}: {error}", parent.display()))?;
+    }
+    git_success(
+        &archive_root,
+        &[
+            "clone",
+            "--no-local",
+            &plan.predecessor_remote,
+            &clean_clone.display().to_string(),
+        ],
+        "clone applied repository epoch",
+    )?;
+    verify_current_repository_at(&clean_clone, true)?;
+    require_git_clean(&clean_clone)?;
+    fs::remove_dir_all(&clean_clone)
+        .map_err(|error| format!("remove verified clean clone: {error}"))?;
+    git_success(
+        &frontier,
+        &[
+            "worktree",
+            "remove",
+            "--force",
+            &worktree.display().to_string(),
+        ],
+        "remove verified repository-upgrade worktree",
+    )?;
+    Ok(result)
+}
+
+fn apply_repository_upgrade_in_worktree(
+    plan: &RepositoryUpgradePlan,
+    source_frontier: &Path,
+    worktree: &Path,
+    candidate_root: &Path,
+    object_manifest: &GitObjectManifest,
+) -> Result<Value, String> {
+    let project = vela_protocol::repo::load_from_path(worktree)?;
+    if project.frontier_id() != plan.frontier_id {
+        return Err("isolated worktree names the wrong Frontier".into());
+    }
+    let authority = crate::cli::load_repository_authority(worktree, &project)?
+        .ok_or_else(|| "predecessor repository authority is missing".to_string())?;
+    let (_, public_key) = crate::cli::active_repository_key(&authority)?;
+    let authority_keyset = authority.history.authority_keyset.clone();
+    if authority_keyset.root()? != plan.authority_keyset_root {
+        return Err("confirmed authority keyset root changed".into());
+    }
+
+    let recorded_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
+    let mut authentication = crate::cli::local_session(&recorded_at)?;
+    let principal = PrincipalSnapshotV1 {
+        principal_id: authentication.principal_id.clone(),
+        principal_class: PrincipalClass::Human,
+        display_name: Some("Repository administrator".into()),
+        affiliation: None,
+        account_links: vec![authentication.principal_id.clone()],
+    };
+    let (policy_bundle, authorization_input) = crate::cli::fresh_authority_policy(
+        worktree,
+        &project,
+        &principal.principal_id,
+        &recorded_at,
+    )?;
+    if policy_bundle.root()? != plan.authority_policy_root {
+        return Err("confirmed authority policy root changed".into());
+    }
+
+    let candidate_files = candidate_file_map(candidate_root)?;
+    let mut object_drafts = Vec::new();
+    let mut derived_drafts = Vec::new();
+    for entry in object_manifest
+        .entries
+        .iter()
+        .filter(|entry| is_predecessor_archive_path(&entry.path))
+    {
+        if let Some(candidate) = candidate_files.get(&entry.path) {
+            let current = fs::read(worktree.join(&entry.path))
+                .map_err(|error| format!("read predecessor {}: {error}", entry.path))?;
+            if &current == candidate {
+                continue;
+            }
+        }
+        if entry.path == "frontier.json" || entry.path == "vela.lock" {
+            derived_drafts.push(AuthorityDerivedDraft {
+                path: entry.path.clone(),
+                postimage: None,
+            });
+        } else {
+            object_drafts.push(epoch_object_draft(&entry.path, None)?);
+        }
+    }
+    for (path, bytes) in &candidate_files {
+        if path.starts_with(".vela/authority/") {
+            continue;
+        }
+        let current = fs::read(worktree.join(path)).ok();
+        if current.as_deref() == Some(bytes.as_slice()) {
+            continue;
+        }
+        object_drafts.push(epoch_object_draft(path, Some(bytes.clone()))?);
+    }
+    object_drafts.sort_by(|left, right| left.path.cmp(&right.path));
+    if object_drafts
+        .windows(2)
+        .any(|pair| pair[0].path == pair[1].path)
+    {
+        return Err("repository epoch derives duplicate canonical object drafts".into());
+    }
+
+    let actor_registry_bytes = fs::read(worktree.join(".vela/actors.json"))
+        .map_err(|error| format!("read predecessor actor registry: {error}"))?;
+    let initialization = AuthorityInitializationV1 {
+        schema: AUTHORITY_INITIALIZATION_SCHEMA_V1.into(),
+        frontier_id: plan.frontier_id.clone(),
+        initial_event_log_root: plan.predecessor_roots.event_log.clone(),
+        initial_actor_registry_root: plan.predecessor_roots.actor_registry.clone(),
+        new_authority_keyset_root: plan.authority_keyset_root.clone(),
+        new_policy_bundle_root: plan.authority_policy_root.clone(),
+        new_principal_id: principal.principal_id.clone(),
+        minimum_writer_version: env!("CARGO_PKG_VERSION").into(),
+        reason: plan.reason.clone(),
+    };
+    initialization.validate()?;
+    let executable =
+        std::env::current_exe().map_err(|error| format!("resolve Vela executable: {error}"))?;
+    let binary_sha256 = execution_binary_sha256(&executable)?;
+    let journal_dir = crate::workflow::frontier_transaction_journal_dir(worktree)?;
+    let barrier = FrontierTxn::acquire_repository_authority_write_barrier(worktree, &journal_dir)
+        .map_err(|error| error.to_string())?;
+    let mut signer = SshAgentRepositoryAuthoritySigner::from_environment(
+        plan.authority_key_id.clone(),
+        &public_key,
+    )?;
+    let transaction = execute_authority_transaction(
+        barrier,
+        worktree,
+        AuthorityTransactionRequest {
+            history: AuthorityHistorySnapshot {
+                frontier_id: plan.frontier_id.clone(),
+                legacy_events: project.events.clone(),
+                legacy_actor_registry_bytes: actor_registry_bytes,
+                legacy_active_policy_head_root: NULL_HASH.into(),
+                legacy_policy_store_manifest_root: NULL_HASH.into(),
+                authority_keyset,
+                policy_bundle,
+                retained_authority_keysets: Vec::new(),
+                retained_policy_bundles: Vec::new(),
+                authority_events: Vec::new(),
+                authority_envelopes: Vec::new(),
+            },
+            intent_digest: plan.plan_root.clone(),
+            principal: principal.clone(),
+            authentication_request: AuthenticationRequest {
+                principal_id: principal.principal_id.clone(),
+                principal_class: PrincipalClass::Human,
+                transaction_at: recorded_at.clone(),
+            },
+            runtime_session_state: RuntimeSessionState::default(),
+            authorization_input,
+            delegation: None,
+            semantic_approvals: vec![SemanticApprovalV1 {
+                principal_id: principal.principal_id.clone(),
+                role: "frontier_administrator".into(),
+                action: AUTHORITY_INITIALIZE_ACTION.into(),
+                reason: plan.reason.clone(),
+                approved_at: recorded_at.clone(),
+                intent_digest: plan.plan_root.clone(),
+            }],
+            event_drafts: vec![AuthorityEventDraft {
+                kind: EventKind::Other(AUTHORITY_INITIALIZED_EVENT_KIND.into()),
+                target: StateTarget {
+                    r#type: "frontier".into(),
+                    id: plan.frontier_id.clone(),
+                },
+                actor: StateActor {
+                    r#type: "human".into(),
+                    id: principal.principal_id.clone(),
+                },
+                timestamp: recorded_at.clone(),
+                reason: plan.reason.clone(),
+                before_hash: NULL_HASH.into(),
+                after_hash: NULL_HASH.into(),
+                payload: serde_json::to_value(&initialization)
+                    .map_err(|error| format!("encode epoch initialization: {error}"))?,
+                caveats: vec![
+                    "Repository authority authenticates the epoch transition; it does not establish scientific truth."
+                        .into(),
+                    "Predecessor signatures authenticate only their exact archived schemas and bytes."
+                        .into(),
+                ],
+            }],
+            object_drafts,
+            derived_drafts,
+            retire_legacy_history: true,
+            next_authority_keyset: None,
+            next_policy_bundle: None,
+            next_policy_material: None,
+            read_set: Vec::new(),
+            vela_version: env!("CARGO_PKG_VERSION").into(),
+            binary_sha256,
+            recorded_at,
+        },
+        &mut authentication,
+        &mut signer,
+    )
+    .map_err(|error| error.to_string())?;
+    verify_current_repository_at(worktree, true)?;
+
+    git_success(worktree, &["add", "--all"], "stage repository epoch")?;
+    git_success(
+        worktree,
+        &[
+            "-c",
+            "commit.gpgsign=false",
+            "commit",
+            "-m",
+            "Migrate to the current Vela repository epoch",
+        ],
+        "commit repository epoch",
+    )?;
+    let commit = git_text(worktree, &["rev-parse", "HEAD^{commit}"])?;
+    if git_text(worktree, &["rev-parse", "HEAD^1^{commit}"])? != plan.predecessor_commit {
+        return Err("repository epoch commit is not the direct predecessor child".into());
+    }
+    match git_text(
+        source_frontier,
+        &["rev-parse", &format!("refs/tags/{}", plan.predecessor_tag)],
+    ) {
+        Ok(existing) if existing != plan.predecessor_commit => {
+            return Err("predecessor tag already names a different commit".into());
+        }
+        Ok(_) => {}
+        Err(_) => {
+            git_success(
+                worktree,
+                &["tag", &plan.predecessor_tag, &plan.predecessor_commit],
+                "create predecessor tag",
+            )?;
+        }
+    }
+    git_success(
+        worktree,
+        &[
+            "push",
+            "--atomic",
+            "origin",
+            "HEAD:refs/heads/main",
+            &format!("refs/tags/{}", plan.predecessor_tag),
+        ],
+        "publish repository epoch and predecessor tag",
+    )?;
+    require_git_clean(worktree)?;
+    Ok(json!({
+        "schema": "vela.repository-upgrade-result.v1",
+        "ok": true,
+        "command": "repository upgrade",
+        "frontier_id": plan.frontier_id,
+        "predecessor_commit": plan.predecessor_commit,
+        "predecessor_tag": plan.predecessor_tag,
+        "epoch_id": plan.epoch_id,
+        "epoch_root": plan.epoch_root,
+        "repository_root": plan.repository_root,
+        "plan_root": plan.plan_root,
+        "authority_event_ids": transaction.event_ids,
+        "authority_record_id": transaction.authority_record_id,
+        "authority_record_root": transaction.authority_record_root,
+        "commit": commit,
+        "writes_now": true
+    }))
+}
+
+fn candidate_records_path(candidate_manifest: &str) -> Result<PathBuf, String> {
+    let path = PathBuf::from(candidate_manifest);
+    let name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| "candidate manifest path has no UTF-8 filename".to_string())?;
+    let stem = name
+        .strip_suffix(".candidate.json")
+        .ok_or_else(|| "candidate manifest filename has the wrong suffix".to_string())?;
+    Ok(path.with_file_name(format!("{stem}.records")))
+}
+
+fn candidate_file_map(root: &Path) -> Result<BTreeMap<String, Vec<u8>>, String> {
+    let mut files = BTreeMap::new();
+    for path in files_recursive(root)? {
+        let relative = path
+            .strip_prefix(root)
+            .map_err(|_| "candidate file escaped its root".to_string())?
+            .to_string_lossy()
+            .replace('\\', "/");
+        files.insert(
+            relative,
+            fs::read(&path).map_err(|error| format!("read {}: {error}", path.display()))?,
+        );
+    }
+    Ok(files)
+}
+
+fn epoch_object_draft(
+    path: &str,
+    postimage: Option<Vec<u8>>,
+) -> Result<AuthorityObjectDraft, String> {
+    let (object_kind, class) = if path == "frontier.yaml" {
+        ("frontier_profile", WriteClass::CanonicalEvidence)
+    } else if path.starts_with(".vela/authority/") {
+        ("predecessor_authority", WriteClass::Authority)
+    } else if path.starts_with(".vela/proposals/")
+        || path.starts_with("records/receipts/")
+        || path.starts_with("records/review/")
+        || path.starts_with("records/decision-evidence/")
+        || is_root_receipt(path)
+        || (path.starts_with("records/") && !path.starts_with("records/artifacts/"))
+    {
+        ("repository_record", WriteClass::PublicReview)
+    } else if path.starts_with(".vela/") || path.starts_with("records/artifacts/") {
+        ("canonical_evidence", WriteClass::CanonicalEvidence)
+    } else {
+        return Err(format!(
+            "repository epoch does not recognize canonical object path {path}"
+        ));
+    };
+    Ok(AuthorityObjectDraft {
+        path: path.into(),
+        object_kind: object_kind.into(),
+        class,
+        postimage,
+    })
+}
+
+fn git_success(root: &Path, args: &[&str], action: &str) -> Result<(), String> {
+    let output = crate::git_hardened::output(root, args)?;
+    if !output.status.success() {
+        return Err(format!(
+            "{action}: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    Ok(())
+}
+
+fn require_git_clean(root: &Path) -> Result<(), String> {
+    if !git_text(root, &["status", "--porcelain=v1", "--untracked-files=all"])?.is_empty() {
+        return Err(format!(
+            "repository {} is not clean after migration",
+            root.display()
+        ));
+    }
+    Ok(())
 }
 
 fn convert_accepted_claims(
@@ -924,7 +1410,7 @@ fn verify_current_repository_at(
             .strip_prefix(root)
             .map_err(|_| "current repository path escaped its root".to_string())?
             .to_string_lossy();
-        if is_legacy_protocol_path(&relative) {
+        if is_retired_current_path(&relative) {
             return Err(format!(
                 "current repository retains retired protocol path {relative}"
             ));
@@ -954,12 +1440,127 @@ fn read_rooted_object(root: &Path, path: &str, expected_root: &str) -> Result<Ve
 }
 
 fn verify_current_epoch_authority(
-    _root: &Path,
-    _repository: &CurrentRepositoryV2,
-    _epoch: &RepositoryEpochV1,
-    _keyset: &vela_protocol::authority::AuthorityKeysetV1,
+    root: &Path,
+    repository: &CurrentRepositoryV2,
+    epoch: &RepositoryEpochV1,
+    keyset: &vela_protocol::authority::AuthorityKeysetV1,
 ) -> Result<(), String> {
-    Err("applied current repository is missing its sequence-1 epoch authority record".into())
+    let event_path = only_regular_file(&root.join(".vela/authority/events"), ".json")?;
+    let event_bytes = fs::read(&event_path)
+        .map_err(|error| format!("read current epoch authority event: {error}"))?;
+    let event: vela_protocol::authority::AuthorityEventV1 = serde_json::from_slice(&event_bytes)
+        .map_err(|error| format!("parse current epoch authority event: {error}"))?;
+    event.validate()?;
+    if vela_protocol::canonical::to_canonical_bytes(&event)? != event_bytes
+        || event_path.file_stem().and_then(|value| value.to_str()) != Some(event.id.as_str())
+        || event.content.kind.as_str() != AUTHORITY_INITIALIZED_EVENT_KIND
+        || event.content.target.r#type != "frontier"
+        || event.content.target.id != repository.frontier_id
+        || event.content.actor.r#type != "human"
+        || event.content.actor.id != event.content.principal_id
+        || event.content.before_hash != NULL_HASH
+        || event.content.after_hash != NULL_HASH
+    {
+        return Err("current epoch authority event has an invalid canonical shape".into());
+    }
+    let initialization: AuthorityInitializationV1 =
+        serde_json::from_value(event.content.payload.clone())
+            .map_err(|error| format!("parse current epoch initialization payload: {error}"))?;
+    initialization.validate()?;
+    if initialization.frontier_id != repository.frontier_id
+        || initialization.initial_event_log_root != epoch.predecessor_roots.event_log
+        || initialization.initial_actor_registry_root != epoch.predecessor_roots.actor_registry
+        || initialization.new_authority_keyset_root != repository.authority_keyset_root
+        || initialization.new_policy_bundle_root != repository.authority_policy_root
+        || initialization.new_principal_id != event.content.principal_id
+        || initialization.reason != epoch.reason
+    {
+        return Err(
+            "current epoch authority initialization does not bind the exact predecessor and current roots"
+                .into(),
+        );
+    }
+
+    let record_path = only_regular_file(&root.join(".vela/authority/records"), ".dsse.json")?;
+    let envelope_bytes = fs::read(&record_path)
+        .map_err(|error| format!("read current epoch authority record: {error}"))?;
+    let envelope: vela_protocol::authority::AuthorityEnvelopeV1 =
+        serde_json::from_slice(&envelope_bytes)
+            .map_err(|error| format!("parse current epoch authority envelope: {error}"))?;
+    if vela_protocol::canonical::to_canonical_bytes(&envelope)? != envelope_bytes {
+        return Err("current epoch authority envelope is not canonical JSON".into());
+    }
+    let verified = vela_protocol::authority::verify_authority_envelope(
+        &envelope,
+        keyset,
+        &repository.frontier_id,
+        1,
+        None,
+    )?;
+    let record = &verified.record;
+    if record_path.file_name().and_then(|value| value.to_str())
+        != Some(format!("{}.dsse.json", record.record_id).as_str())
+        || record.content.event_ids != vec![event.id.clone()]
+        || record.content.before_event_log_root != epoch.predecessor_roots.event_log
+        || record.content.principal.principal_id != event.content.principal_id
+        || record.content.authorization.policy_bundle_root != repository.authority_policy_root
+    {
+        return Err(
+            "current epoch authority record does not bind its exact event and roots".into(),
+        );
+    }
+    let expected_after = vela_protocol::authority_history::authority_event_log_root(
+        &epoch.predecessor_roots.event_log,
+        &[&event],
+    )?;
+    if record.content.after_event_log_root != expected_after {
+        return Err("current epoch authority record has the wrong after-event root".into());
+    }
+    let required_delta = [
+        (
+            crate::authority_transaction::authority_event_path(&event.id),
+            event.root()?,
+        ),
+        (".vela/epoch.json".into(), epoch.canonical_root()?),
+        (".vela/repository.json".into(), repository.canonical_root()?),
+    ];
+    for (path, after_root) in required_delta {
+        let matching = record
+            .content
+            .object_delta
+            .iter()
+            .filter(|delta| delta.path == path && delta.after_root.as_deref() == Some(&after_root))
+            .count();
+        if matching != 1 {
+            return Err(format!(
+                "current epoch authority record does not cover exact postimage {path}"
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn only_regular_file(directory: &Path, suffix: &str) -> Result<PathBuf, String> {
+    let mut files = fs::read_dir(directory)
+        .map_err(|error| format!("read {}: {error}", directory.display()))?
+        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+        .filter(|path| {
+            path.is_file()
+                && path
+                    .file_name()
+                    .and_then(|value| value.to_str())
+                    .is_some_and(|name| name.ends_with(suffix))
+        })
+        .collect::<Vec<_>>();
+    files.sort();
+    let [path] = files.as_slice() else {
+        return Err(format!(
+            "{} must contain exactly one current epoch object ending in {suffix}; found {}",
+            directory.display(),
+            files.len()
+        ));
+    };
+    Ok(path.clone())
 }
 
 fn claim_from_finding(
@@ -1380,7 +1981,7 @@ fn git_object_manifest(
     }
     entries.sort_by(|left, right| left.path.cmp(&right.path));
     Ok(GitObjectManifest {
-        schema: OBJECT_MANIFEST_SCHEMA,
+        schema: OBJECT_MANIFEST_SCHEMA.into(),
         commit: commit.into(),
         tree: tree.into(),
         entries,
@@ -1421,8 +2022,12 @@ fn legacy_classification(path: &str) -> &'static str {
         "artifact_v0"
     } else if path.starts_with(".vela/policies/") {
         "acceptance_policy"
+    } else if path.starts_with(".vela/authority/") {
+        "predecessor_authority"
     } else if path == ".vela/actors.json" {
         "actor_registry"
+    } else if path == "vela.lock" {
+        "legacy_profile_lock"
     } else if path.starts_with("records/receipts/") || is_root_receipt(path) {
         "receipt_v1"
     } else if path == "frontier.json" {
@@ -1432,7 +2037,11 @@ fn legacy_classification(path: &str) -> &'static str {
     }
 }
 
-fn is_legacy_protocol_path(path: &str) -> bool {
+fn is_predecessor_archive_path(path: &str) -> bool {
+    path == "vela.lock" || path.starts_with(".vela/authority/") || is_retired_current_path(path)
+}
+
+fn is_retired_current_path(path: &str) -> bool {
     path == ".vela/actors.json"
         || path == "frontier.json"
         || path.starts_with(".vela/events/")
@@ -1716,13 +2325,22 @@ mod tests {
 
     #[test]
     fn legacy_path_classification_is_explicit() {
-        assert!(is_legacy_protocol_path(".vela/events/vev_x.json"));
-        assert!(is_legacy_protocol_path(".vela/artifacts/va_x.json"));
-        assert!(is_legacy_protocol_path("records/receipts/sha256/x.json"));
-        assert!(is_legacy_protocol_path("records/vrc_x.json"));
-        assert!(!is_legacy_protocol_path(
+        assert!(is_predecessor_archive_path(".vela/events/vev_x.json"));
+        assert!(is_predecessor_archive_path(".vela/artifacts/va_x.json"));
+        assert!(is_predecessor_archive_path(
+            "records/receipts/sha256/x.json"
+        ));
+        assert!(is_predecessor_archive_path("records/vrc_x.json"));
+        assert!(is_predecessor_archive_path("vela.lock"));
+        assert!(is_predecessor_archive_path(
+            ".vela/authority/records/var_x.dsse.json"
+        ));
+        assert!(!is_retired_current_path(
+            ".vela/authority/records/var_x.dsse.json"
+        ));
+        assert!(!is_predecessor_archive_path(
             "records/submissions/sha256/x.json"
         ));
-        assert!(!is_legacy_protocol_path("graph/frontier-map.json"));
+        assert!(!is_predecessor_archive_path("graph/frontier-map.json"));
     }
 }
