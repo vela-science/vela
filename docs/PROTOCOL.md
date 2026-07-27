@@ -659,6 +659,13 @@ A foreign producer may instead pass one complete current Submission:
 vela submit submission.json --frontier <frontier> --as agent:<name> --json
 ```
 
+The transport directory contains `submission.json` and
+`artifacts/sha256/<digest>`. Artifact paths inside the signed Submission name
+their final `records/artifacts/sha256/<digest>` locations. Transport blobs stay
+outside the Frontier until Vela verifies and creates those canonical paths in
+the same repository-authority transaction. Pre-copying an untracked blob into
+its canonical path fails closed.
+
 Both paths converge on the same strict Submission verifier and recoverable
 repository-authority transaction. Successful intake retains exact Submission
 bytes, content-addressed Artifacts, one Registration Record, and one pending

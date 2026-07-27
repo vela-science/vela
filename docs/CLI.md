@@ -39,6 +39,12 @@ producer input, retain a Registration Record, and create a pending Proposal.
 The transaction appends no Verification Record, Decision, Event, or accepted
 scientific-state change. An agent cannot accept or reject a Proposal.
 
+For a portable Submission file, keep each declared content-addressed Artifact
+beside it at `artifacts/sha256/<digest>`. Do not pre-copy those blobs into the
+Frontier. Vela verifies the transport bytes and creates the canonical
+`records/artifacts/sha256/<digest>` paths inside the repository-authority
+transaction.
+
 ## Commands
 
 | Command | Contract |

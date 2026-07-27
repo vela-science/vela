@@ -28,11 +28,15 @@ Reference implementations:
 - Rust: `crates/vela-protocol/src/kernel/reducer.rs`
 - Python: `clients/python/vela_reducer.py`
 - TypeScript: `clients/typescript/vela_reducer.ts`
+- JavaScript current-object emitter:
+  `clients/javascript/vela_emit.mjs`
 
 Run the focused checks:
 
 ```bash
 cargo test -p vela-protocol --test cross_impl_reducer_fixtures
+cargo test -p vela-protocol --test current_object_interop
+python3 conformance/verify_current_objects.py
 python3 conformance/verify.py
 ```
 

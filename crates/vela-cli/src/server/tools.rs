@@ -670,8 +670,9 @@ pub(crate) fn tool_attempt(args: &Value, source_path: Option<&Path>) -> ToolOutp
                     .map_err(|e| ToolError::invalid(e.to_string()))?;
             let frontier = frontier_path;
             let attempt_id = args.get("attempt_id").and_then(Value::as_str);
-            let outcome = crate::workflow::submit(frontier, &submission, actor, attempt_id, false)
-                .map_err(ToolError::classify)?;
+            let outcome =
+                crate::workflow::submit(frontier, &submission, actor, attempt_id, None, false)
+                    .map_err(ToolError::classify)?;
             let wire = serde_json::to_value(outcome).map_err(|error| {
                 ToolError::internal(format!("serialize submit result: {error}"))
             })?;

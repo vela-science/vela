@@ -1,0 +1,39 @@
+{
+  "claim": {
+    "assertion": "The fixture computation returns 42 for the pinned input.",
+    "type": "computational",
+    "conditions": [
+      "Input bytes equal sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa."
+    ]
+  },
+  "artifacts": [
+    {
+      "kind": "witness",
+      "path": "records/artifacts/sha256/084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0",
+      "digest": "sha256:084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0"
+    }
+  ],
+  "caveats": [
+    "This bounded fixture does not establish behavior for any other input."
+  ],
+  "replayability": "exact",
+  "producer_checks": [
+    {
+      "method": "fixture arithmetic",
+      "outcome": "pass",
+      "authority": "producer_reported"
+    }
+  ],
+  "verification_requirements": [
+    "Recompute the result from the exact fixture bytes."
+  ],
+  "requested_change": {
+    "kind": "add_claim"
+  },
+  "provenance": {
+    "producer": "agent:independent-js",
+    "source_system": "stdlib-node-reference",
+    "source_run": "fixture-run-001",
+    "emitted_at": "2026-07-27T12:00:00Z"
+  }
+}

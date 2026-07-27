@@ -647,7 +647,7 @@ pub async fn run_command() {
             let fail_preflight = |kind, message: String| -> ! {
                 crate::ui::fail_unchanged(kind, &message, &preflight_id, "vela submit --help")
             };
-            let submission = if let Some(path) = submission {
+            let (submission, bundle_root) = if let Some(path) = submission {
                 let raw =
                     crate::bounded_file::read_bounded_file(&path, 8 * 1024 * 1024, "Submission v1")
                         .unwrap_or_else(|error| {
@@ -658,9 +658,12 @@ pub async fn run_command() {
                             };
                             fail_preflight(kind, error.to_string())
                         });
-                vela_protocol::submission_v1::SubmissionV1::parse(&raw).unwrap_or_else(|error| {
-                    fail_preflight(crate::ui::ErrorKind::Domain, error.to_string())
-                })
+                let parsed = vela_protocol::submission_v1::SubmissionV1::parse(&raw)
+                    .unwrap_or_else(|error| {
+                        fail_preflight(crate::ui::ErrorKind::Domain, error.to_string())
+                    });
+                let root = path.parent().map(std::path::Path::to_path_buf);
+                (parsed, root)
             } else {
                 let Some(claim) = claim else {
                     crate::ui::fail_unchanged(
@@ -715,7 +718,7 @@ pub async fn run_command() {
                         "exact execution binding requires all four full roots".to_string(),
                     ),
                 };
-                crate::workflow::author_submission(
+                let authored = crate::workflow::author_submission(
                     &dir,
                     &actor,
                     attempt.as_deref(),
@@ -734,9 +737,17 @@ pub async fn run_command() {
                         crate::ui::ErrorKind::Domain,
                         format!("Submission build: {error}"),
                     )
-                })
+                });
+                (authored, None)
             };
-            match crate::workflow::submit(&dir, &submission, &actor, attempt.as_deref(), push) {
+            match crate::workflow::submit(
+                &dir,
+                &submission,
+                &actor,
+                attempt.as_deref(),
+                bundle_root.as_deref(),
+                push,
+            ) {
                 Ok(outcome) => {
                     if json {
                         let mut payload = serde_json::to_value(&outcome)

@@ -1907,6 +1907,7 @@ pub(crate) struct VerificationImportOutcome {
     pub publication: crate::config::git_publish::PublicationOutcome,
 }
 
+#[derive(Debug)]
 struct PreparedSubmissionArtifacts {
     writes: Vec<crate::frontier_txn::PlannedWrite>,
     read_set: Vec<crate::frontier_txn::InputBinding>,
@@ -1915,6 +1916,7 @@ struct PreparedSubmissionArtifacts {
 fn prepare_submission_artifacts(
     frontier: &Path,
     submission: &SubmissionV1,
+    bundle_root: Option<&Path>,
 ) -> Result<PreparedSubmissionArtifacts, String> {
     use crate::frontier_txn::{ContentDigest, InputBinding, PlannedWrite, RepoPath, WriteClass};
 
@@ -1933,13 +1935,77 @@ fn prepare_submission_artifacts(
             ));
         }
         let limit = public_artifact_read_limit(total, index)?;
-        let bytes = crate::bounded_file::read_bounded_frontier_file(
-            frontier,
-            relative,
-            limit,
-            &format!("Submission artifact {index}"),
-        )
-        .map_err(|error| public_artifact_read_error(error, limit, index))?;
+        let declared_hex = artifact
+            .digest
+            .strip_prefix("sha256:")
+            .ok_or_else(|| format!("Submission artifact {index} digest is not sha256"))?;
+        let canonical_path = format!("records/artifacts/sha256/{declared_hex}");
+        let canonical_relative = Path::new(&canonical_path);
+        let canonical_target = frontier.join(canonical_relative);
+        let bytes = if canonical_target.exists() {
+            let bytes = crate::bounded_file::read_bounded_frontier_file(
+                frontier,
+                canonical_relative,
+                limit,
+                &format!("Submission artifact {index}"),
+            )
+            .map_err(|error| public_artifact_read_error(error, limit, index))?;
+            let tracked = std::process::Command::new("git")
+                .current_dir(frontier)
+                .args(["ls-files", "--error-unmatch", "--", &canonical_path])
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status()
+                .map_err(|error| format!("inspect canonical Artifact tracking: {error}"))?
+                .success();
+            if !tracked {
+                return Err(format!(
+                    "Submission artifact {index} already occupies its canonical path but is untracked; remove it and keep the transport blob beside submission.json under artifacts/sha256/{declared_hex}"
+                ));
+            }
+            bytes
+        } else if relative == canonical_relative {
+            let root = bundle_root.ok_or_else(|| {
+                format!(
+                    "Submission artifact {index} is absent; place its transport blob beside submission.json under artifacts/sha256/{declared_hex}"
+                )
+            })?;
+            let canonical_root = root
+                .canonicalize()
+                .map_err(|error| format!("canonicalize Submission transport root: {error}"))?;
+            let transport_directory = canonical_root.join("artifacts").join("sha256");
+            let source = transport_directory.join(declared_hex);
+            let metadata = std::fs::symlink_metadata(&source).map_err(|error| {
+                format!("inspect Submission transport artifact {index}: {error}")
+            })?;
+            if metadata.file_type().is_symlink() || !metadata.is_file() {
+                return Err(format!(
+                    "Submission transport artifact {index} must be a regular non-symlink file"
+                ));
+            }
+            let canonical_source = source.canonicalize().map_err(|error| {
+                format!("canonicalize Submission transport artifact {index}: {error}")
+            })?;
+            if canonical_source != source || !canonical_source.starts_with(&transport_directory) {
+                return Err(format!(
+                    "Submission transport artifact {index} escapes its canonical bundle directory"
+                ));
+            }
+            crate::bounded_file::read_bounded_file(
+                &source,
+                limit,
+                &format!("Submission transport artifact {index}"),
+            )
+            .map_err(|error| public_artifact_read_error(error, limit, index))?
+        } else {
+            crate::bounded_file::read_bounded_frontier_file(
+                frontier,
+                relative,
+                limit,
+                &format!("Submission artifact {index}"),
+            )
+            .map_err(|error| public_artifact_read_error(error, limit, index))?
+        };
         account_public_artifact_bytes(&mut total, bytes.len() as u64, index)?;
         let observed = format!("sha256:{}", hex::encode(Sha256::digest(&bytes)));
         if observed != artifact.digest {
@@ -1948,12 +2014,9 @@ fn prepare_submission_artifacts(
                 artifact.digest
             ));
         }
-        let hex = observed
-            .strip_prefix("sha256:")
-            .expect("constructed digest has sha256 prefix");
-        blobs
-            .entry(format!("records/artifacts/sha256/{hex}"))
-            .or_insert(bytes);
+        if !canonical_target.exists() {
+            blobs.entry(canonical_path).or_insert(bytes);
+        }
         read_set.push(InputBinding {
             name: format!("submission_artifact[{index}]"),
             digest: ContentDigest::parse(observed).map_err(|error| error.to_string())?,
@@ -2034,6 +2097,7 @@ pub(crate) fn submit(
     submission: &SubmissionV1,
     executor: &str,
     requested_attempt: Option<&str>,
+    bundle_root: Option<&Path>,
     push: bool,
 ) -> Result<SubmitOutcome, String> {
     use crate::config::git_publish::{
@@ -2105,7 +2169,7 @@ pub(crate) fn submit(
     let PreparedSubmissionArtifacts {
         writes: artifact_writes,
         mut read_set,
-    } = prepare_submission_artifacts(frontier, submission)?;
+    } = prepare_submission_artifacts(frontier, submission, bundle_root)?;
     read_set.push(InputBinding {
         name: "submission".to_string(),
         digest: ContentDigest::parse(submission_root.clone()).map_err(|error| error.to_string())?,
@@ -2809,7 +2873,11 @@ fn public_artifact_read_error(
 
 #[cfg(test)]
 mod public_artifact_budget_tests {
-    use super::{account_public_artifact_bytes, public_artifact_read_limit};
+    use std::path::PathBuf;
+
+    use super::{
+        account_public_artifact_bytes, prepare_submission_artifacts, public_artifact_read_limit,
+    };
     use crate::bounded_file::{PUBLIC_ARTIFACT_MAX_BYTES, PUBLIC_ARTIFACT_TOTAL_MAX_BYTES};
 
     #[test]
@@ -2859,6 +2927,59 @@ mod public_artifact_budget_tests {
                 .unwrap_err()
                 .contains("already exceed")
         );
+    }
+
+    #[test]
+    fn foreign_submission_reads_transport_blob_without_precopying_canonical_path() {
+        let fixtures =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../conformance/current-objects");
+        let submission = vela_protocol::submission_v1::SubmissionV1::parse(
+            &std::fs::read(fixtures.join("submission.json")).unwrap(),
+        )
+        .unwrap();
+        let frontier = tempfile::tempdir().unwrap();
+        let project =
+            vela_protocol::project::assemble("transport-fixture", Vec::new(), 0, 0, "fixture");
+        vela_protocol::repo::init_repo(frontier.path(), &project).unwrap();
+
+        let prepared =
+            prepare_submission_artifacts(frontier.path(), &submission, Some(&fixtures)).unwrap();
+        assert_eq!(prepared.writes.len(), 1);
+        assert_eq!(prepared.read_set.len(), 1);
+        let (path, class, postimage) = prepared.writes[0]
+            .clone()
+            .into_authority_object_parts()
+            .unwrap();
+        assert_eq!(
+            path,
+            "records/artifacts/sha256/084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0"
+        );
+        assert_eq!(class, crate::frontier_txn::WriteClass::CanonicalEvidence);
+        assert_eq!(postimage.unwrap(), b"42\n");
+        assert!(!frontier.path().join(path).exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn foreign_submission_rejects_symlinked_transport_ancestors() {
+        use std::os::unix::fs::symlink;
+
+        let fixtures =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../conformance/current-objects");
+        let submission = vela_protocol::submission_v1::SubmissionV1::parse(
+            &std::fs::read(fixtures.join("submission.json")).unwrap(),
+        )
+        .unwrap();
+        let frontier = tempfile::tempdir().unwrap();
+        let project =
+            vela_protocol::project::assemble("transport-hostile", Vec::new(), 0, 0, "fixture");
+        vela_protocol::repo::init_repo(frontier.path(), &project).unwrap();
+        let bundle = tempfile::tempdir().unwrap();
+        symlink(fixtures.join("artifacts"), bundle.path().join("artifacts")).unwrap();
+
+        let error = prepare_submission_artifacts(frontier.path(), &submission, Some(bundle.path()))
+            .unwrap_err();
+        assert!(error.contains("escapes its canonical bundle directory"));
     }
 }
 

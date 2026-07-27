@@ -347,6 +347,15 @@ def main() -> int:
         return 1
     print("vela conformance: ok  [exact-witness-floor v0.2]")
 
+    current_objects_rc = _run_current_objects(repo_root)
+    if current_objects_rc == 2:
+        print("  note: current-object emitter skipped (node not found)")
+    elif current_objects_rc != 0:
+        print("vela conformance: FAIL  [current-object interoperability]")
+        return 1
+    else:
+        print("vela conformance: ok  [current-object interoperability]")
+
     # Second implementation: the TypeScript reducer. Gating it here is
     # what keeps it from silently drifting — an unrun reducer rots (the
     # retired `vela_reducer.mjs` fell three fixture_versions behind
@@ -363,6 +372,20 @@ def main() -> int:
     print("vela conformance: ok  [typescript]")
     print("\nvela conformance: ok — python + typescript agree with the rust reference")
     return 0
+
+
+def _run_current_objects(repo_root: Path) -> int:
+    """Regenerate Submission and Verification Record with the JS reference client."""
+    script = repo_root / "conformance" / "verify_current_objects.py"
+    if not script.exists():
+        print(f"  note: current-object check not found at {script}")
+        return 0
+    try:
+        result = subprocess.run([sys.executable, str(script)], cwd=repo_root)
+    except Exception as error:
+        print(f"  current-object invocation failed: {error}", file=sys.stderr)
+        return 1
+    return result.returncode
 
 
 def _run_canonical_hashing(repo_root: Path) -> int:
