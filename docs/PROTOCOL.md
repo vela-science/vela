@@ -810,6 +810,15 @@ Index, and appends one scientific domain event plus one `review.accepted`
 event whose `applied_event_id` names the domain event. It invokes no Era-0
 Project reader, reducer, or Decision writer.
 
+Current review readers retain every Proposal as an immutable record and derive
+its standing from the covered current authority history. Exact terminal
+Decision and applied-event roots are returned with the Proposal. Rejected,
+withdrawn, and superseded Claim bytes remain inspectable by full root but are
+not active standing. Repository verification fails on duplicate terminal
+Decisions, unknown Proposal targets, missing or later applied events, the wrong
+scientific transition, or any mismatch between Decision standing and
+`accepted_claims` / `pending_claims`.
+
 A signed policy uses the same causal discipline. It can permit a predeclared
 class without a per-item human ceremony, but only while its ID, signature,
 frontier, scope, expiry or revocation state, verifier requirements, and causal

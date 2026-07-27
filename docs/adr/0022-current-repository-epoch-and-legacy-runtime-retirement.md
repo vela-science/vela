@@ -280,6 +280,15 @@ one `review.rejected` event or one scientific domain event plus a linked
 `review.accepted` event. No Era-0 reducer, Project snapshot, human Vela key,
 copied confirmation root, or legacy Decision object participates.
 
+Current `status`, `review list`, and `review show` derive Proposal standing
+from those covered current authority events. Proposal bytes remain retained
+after a terminal Decision; add/revision Claim files and withdrawn Claim files
+remain content-addressed audit evidence even when they are no longer indexed
+as active standing. More than one terminal Decision, a Decision over an
+unknown Proposal, a missing or later applied event, a mismatched scientific
+transition, or disagreement between Decision standing and the active Claim
+indexes blocks repository verification.
+
 ### 4. One fail-closed migration command
 
 The advanced command is:

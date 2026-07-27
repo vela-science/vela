@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vela_authority::runtime_authentication::{AuthenticationRequest, RuntimeSessionState};
-use vela_protocol::authority::{PrincipalSnapshotV1, SemanticApprovalV1};
+use vela_protocol::authority::{AuthorityEventV1, PrincipalSnapshotV1, SemanticApprovalV1};
 use vela_protocol::authority_history::{
     AUTHORITY_INITIALIZATION_SCHEMA_V1, AUTHORITY_INITIALIZE_ACTION,
     AUTHORITY_INITIALIZED_EVENT_KIND, AuthorityInitializationV1,
@@ -44,6 +44,17 @@ const OBJECT_MANIFEST_SCHEMA: &str = "vela.git-object-manifest.v1";
 const CANDIDATE_MANIFEST_SCHEMA: &str = "vela.repository-upgrade-candidate.v1";
 const EQUIVALENCE_SCHEMA: &str = "vela.repository-equivalence.v1";
 const ARCHIVE_INDEX_SCHEMA: &str = "vela.archived-object-index.v1";
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct CurrentProposalDecision {
+    standing: String,
+    event_id: String,
+    event_root: String,
+    decided_at: String,
+    actor: String,
+    reason: String,
+    applied_event_id: Option<String>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct GitObjectEntry {
@@ -320,8 +331,23 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let tree = git_text(&frontier, &["rev-parse", "HEAD^{tree}"])
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let pending_review = repository.proposals.len();
-    let next_action = if let Some(proposal) = repository.proposals.first() {
+    let decisions = load_current_proposal_decisions(&frontier, &repository)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let pending_proposals = repository
+        .proposals
+        .iter()
+        .filter(|proposal| !decisions.contains_key(&proposal.id))
+        .collect::<Vec<_>>();
+    let pending_review = pending_proposals.len();
+    let accepted_review = decisions
+        .values()
+        .filter(|decision| decision.standing == "accepted")
+        .count();
+    let rejected_review = decisions
+        .values()
+        .filter(|decision| decision.standing == "rejected")
+        .count();
+    let next_action = if let Some(proposal) = pending_proposals.first() {
         format!(
             "vela review show {} {} --json",
             frontier.display(),
@@ -360,6 +386,8 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             "accepted_claims": repository.accepted_claims.len(),
             "pending_claims": repository.pending_claims.len(),
             "pending_review": pending_review,
+            "accepted_review": accepted_review,
+            "rejected_review": rejected_review,
             "submissions": repository.submissions.len(),
             "registrations": repository.registrations.len(),
             "verifications": repository.verifications.len(),
@@ -507,6 +535,268 @@ pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
     }
 }
 
+fn authority_event_by_semantic_id<'a>(
+    events: &'a [AuthorityEventV1],
+    event_id: &str,
+) -> Result<Option<&'a AuthorityEventV1>, String> {
+    let mut matching = None;
+    for event in events {
+        if event.semantic_state_event()?.id == event_id {
+            if matching.is_some() {
+                return Err(format!(
+                    "current authority history repeats semantic event {event_id}"
+                ));
+            }
+            matching = Some(event);
+        }
+    }
+    Ok(matching)
+}
+
+fn current_proposal_decisions(
+    events: &[AuthorityEventV1],
+) -> Result<BTreeMap<String, CurrentProposalDecision>, String> {
+    let mut decisions = BTreeMap::new();
+    for (index, event) in events.iter().enumerate() {
+        let standing = match event.content.kind {
+            EventKind::ReviewAccepted => "accepted",
+            EventKind::ReviewRejected => "rejected",
+            EventKind::ReviewRevisionRequested => {
+                return Err(format!(
+                    "current authority event {} uses unsupported revision-request standing",
+                    event.id
+                ));
+            }
+            _ => continue,
+        };
+        if event.content.target.r#type != "proposal" {
+            return Err(format!(
+                "current review event {} does not target a Proposal",
+                event.id
+            ));
+        }
+        let proposal_id = event.content.target.id.clone();
+        if event
+            .content
+            .payload
+            .get("proposal_id")
+            .and_then(Value::as_str)
+            != Some(proposal_id.as_str())
+        {
+            return Err(format!(
+                "current review event {} does not bind its target Proposal",
+                event.id
+            ));
+        }
+        let expected_verdict = match event.content.kind {
+            EventKind::ReviewAccepted => Some("accepted"),
+            EventKind::ReviewRejected => Some("rejected"),
+            _ => unreachable!(),
+        };
+        if expected_verdict.is_some()
+            && event.content.payload.get("verdict").and_then(Value::as_str) != expected_verdict
+        {
+            return Err(format!(
+                "current review event {} carries the wrong verdict",
+                event.id
+            ));
+        }
+        let applied_event_id = if event.content.kind == EventKind::ReviewAccepted {
+            let applied = event
+                .content
+                .payload
+                .get("applied_event_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| {
+                    format!(
+                        "current accepted review event {} lacks applied_event_id",
+                        event.id
+                    )
+                })?;
+            let applied_event = authority_event_by_semantic_id(&events[..index], applied)?
+                .ok_or_else(|| {
+                    format!(
+                        "current accepted review event {} names a missing or later domain event",
+                        event.id
+                    )
+                })?;
+            if applied_event.content.target.r#type != "claim"
+                || !matches!(
+                    applied_event.content.kind,
+                    EventKind::FindingAsserted
+                        | EventKind::FindingSuperseded
+                        | EventKind::FindingRetracted
+                )
+            {
+                return Err(format!(
+                    "current accepted review event {} names a non-scientific transition",
+                    event.id
+                ));
+            }
+            Some(applied.to_string())
+        } else {
+            None
+        };
+        let decision = CurrentProposalDecision {
+            standing: standing.into(),
+            event_id: event.id.clone(),
+            event_root: event.root()?,
+            decided_at: event.content.timestamp.clone(),
+            actor: event.content.actor.id.clone(),
+            reason: event.content.reason.clone(),
+            applied_event_id,
+        };
+        if decisions.insert(proposal_id.clone(), decision).is_some() {
+            return Err(format!(
+                "current Proposal {proposal_id} has more than one terminal Decision"
+            ));
+        }
+    }
+    Ok(decisions)
+}
+
+fn load_current_proposal_decisions(
+    frontier: &Path,
+    repository: &CurrentRepositoryV2,
+) -> Result<BTreeMap<String, CurrentProposalDecision>, String> {
+    let epoch_bytes = fs::read(frontier.join(".vela/epoch.json"))
+        .map_err(|error| format!("read current repository epoch: {error}"))?;
+    let epoch = RepositoryEpochV1::parse(&epoch_bytes)?;
+    let authority = crate::cli::load_current_repository_authority(frontier, repository, &epoch)?;
+    current_proposal_decisions(&authority.history.authority_events)
+}
+
+fn validate_current_proposal_standing(
+    root: &Path,
+    repository: &CurrentRepositoryV2,
+    events: &[AuthorityEventV1],
+) -> Result<(), String> {
+    let decisions = current_proposal_decisions(events)?;
+    for proposal_id in decisions.keys() {
+        if !repository
+            .proposals
+            .iter()
+            .any(|proposal| proposal.id == *proposal_id)
+        {
+            return Err(format!(
+                "current Decision targets Proposal {proposal_id} outside the repository"
+            ));
+        }
+    }
+    for reference in &repository.proposals {
+        let bytes = read_rooted_object(root, &reference.path, &reference.root)?;
+        let proposal = ProposalV1::parse(&bytes)?;
+        let claim_path = crate::current_submission::rooted_path(
+            "records/claims/sha256",
+            &proposal.subject.root,
+        )?;
+        let claim_bytes = read_rooted_object(root, &claim_path, &proposal.subject.root)?;
+        let claim = ClaimRecordV1::parse(&claim_bytes)?;
+        if claim.claim_id != proposal.subject.id {
+            return Err(format!(
+                "current Proposal {} has the wrong Claim bytes",
+                proposal.proposal_id
+            ));
+        }
+        let pending = repository.pending_claims.iter().any(|candidate| {
+            candidate.claim_id == proposal.subject.id
+                && candidate.claim_root == proposal.subject.root
+        });
+        let accepted = repository.accepted_claims.iter().any(|candidate| {
+            candidate.claim_id == proposal.subject.id
+                && candidate.claim_root == proposal.subject.root
+        });
+        let decision = decisions.get(&proposal.proposal_id);
+        let standing = decision
+            .map(|decision| decision.standing.as_str())
+            .unwrap_or("pending_review");
+        let expected = match (proposal.action.as_str(), standing) {
+            ("claim.add" | "claim.revise", "pending_review") => (true, false),
+            ("claim.add" | "claim.revise", "accepted") => (false, true),
+            ("claim.add" | "claim.revise", "rejected") => (false, false),
+            ("claim.withdraw", "pending_review" | "rejected") => (false, true),
+            ("claim.withdraw", "accepted") => (false, false),
+            (action, standing) => {
+                return Err(format!(
+                    "current Proposal {} has unsupported action/standing {action}/{standing}",
+                    proposal.proposal_id
+                ));
+            }
+        };
+        if (pending, accepted) != expected {
+            return Err(format!(
+                "current Proposal {} standing disagrees with the repository Claim indexes",
+                proposal.proposal_id
+            ));
+        }
+        let Some(decision) = decision else {
+            continue;
+        };
+        if decision.standing != "accepted" {
+            continue;
+        }
+        let applied_id = decision
+            .applied_event_id
+            .as_deref()
+            .ok_or_else(|| "accepted Decision lacks its applied event".to_string())?;
+        let applied = authority_event_by_semantic_id(events, applied_id)?
+            .ok_or_else(|| "accepted Decision applied event is missing".to_string())?;
+        if applied.content.actor.id != decision.actor
+            || applied
+                .content
+                .payload
+                .get("proposal_id")
+                .and_then(Value::as_str)
+                != Some(proposal.proposal_id.as_str())
+            || applied
+                .content
+                .payload
+                .get("claim_id")
+                .and_then(Value::as_str)
+                != Some(proposal.subject.id.as_str())
+        {
+            return Err(format!(
+                "current Proposal {} applied event has the wrong actor or object binding",
+                proposal.proposal_id
+            ));
+        }
+        let transition_matches = match proposal.action.as_str() {
+            "claim.add" => {
+                applied.content.kind == EventKind::FindingAsserted
+                    && applied.content.target.id == proposal.subject.id
+                    && applied.content.before_hash == NULL_HASH
+                    && applied.content.after_hash == proposal.subject.root
+            }
+            "claim.revise" => {
+                let predecessors = claim
+                    .relations
+                    .iter()
+                    .filter(|relation| matches!(relation.kind.as_str(), "corrects" | "supersedes"))
+                    .collect::<Vec<_>>();
+                predecessors.len() == 1
+                    && applied.content.kind == EventKind::FindingSuperseded
+                    && applied.content.target.id == predecessors[0].target_claim_id
+                    && applied.content.before_hash != NULL_HASH
+                    && applied.content.after_hash == proposal.subject.root
+            }
+            "claim.withdraw" => {
+                applied.content.kind == EventKind::FindingRetracted
+                    && applied.content.target.id == proposal.subject.id
+                    && applied.content.before_hash == proposal.subject.root
+                    && applied.content.after_hash == NULL_HASH
+            }
+            _ => false,
+        };
+        if !transition_matches {
+            return Err(format!(
+                "current Proposal {} applied event does not match its exact transition",
+                proposal.proposal_id
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn cmd_current_review_list(
     frontier: &Path,
     status: Option<&str>,
@@ -516,24 +806,10 @@ pub(crate) fn cmd_current_review_list(
 ) {
     crate::ui::set_mode("review list", json_out);
     let status = status.unwrap_or("pending_review");
-    if status != "pending_review" {
-        let payload = json!({
-            "schema": "vela.review.v1",
-            "ok": true,
-            "command": "review.list",
-            "status": status,
-            "total": 0,
-            "returned": 0,
-            "next_cursor": null,
-            "items": [],
-            "legacy_runtime_used": false
-        });
-        if json_out {
-            crate::cli::print_json(&payload);
-        } else {
-            println!("review · 0 {status} proposal(s)");
-        }
-        return;
+    if !["pending_review", "accepted", "rejected", "all"].contains(&status) {
+        crate::cli::fail_return::<()>(
+            "current review status must be pending_review, accepted, rejected, or all",
+        );
     }
     let frontier = frontier.canonicalize().unwrap_or_else(|error| {
         crate::cli::fail_return(&format!(
@@ -543,30 +819,40 @@ pub(crate) fn cmd_current_review_list(
     });
     let repository = verify_current_repository_at(&frontier, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let decisions = load_current_proposal_decisions(&frontier, &repository)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let mut items = repository
         .proposals
         .iter()
-        .map(|reference| {
+        .filter_map(|reference| {
             let bytes = read_rooted_object(&frontier, &reference.path, &reference.root)
                 .unwrap_or_else(|error| crate::cli::fail_return(&error));
             let proposal =
                 ProposalV1::parse(&bytes).unwrap_or_else(|error| crate::cli::fail_return(&error));
-            (
+            let decision = decisions.get(&proposal.proposal_id);
+            let standing = decision
+                .map(|decision| decision.standing.as_str())
+                .unwrap_or("pending_review");
+            if status != "all" && standing != status {
+                return None;
+            }
+            Some((
                 proposal.created_at.clone(),
                 json!({
                     "proposal_id": proposal.proposal_id,
                     "proposal_root": reference.root,
                     "created_at": proposal.created_at,
                     "action": proposal.action,
-                    "status": "pending_review",
+                    "status": standing,
                     "claim_id": proposal.subject.id,
                     "claim_root": proposal.subject.root,
                     "actor": proposal.actor,
                     "submission_id": proposal.producer_package.id,
                     "reason": proposal.reason,
-                    "caveats": proposal.caveats
+                    "caveats": proposal.caveats,
+                    "decision": decision
                 }),
-            )
+            ))
         })
         .collect::<Vec<_>>();
     items.sort_by(|left, right| {
@@ -639,58 +925,66 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
     });
     let repository = verify_current_repository_at(&frontier, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let decisions = load_current_proposal_decisions(&frontier, &repository)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let reference = repository
         .proposals
         .iter()
         .find(|reference| reference.id == proposal_id)
         .unwrap_or_else(|| {
-            crate::cli::fail_return("current repository has no exact pending Proposal with that ID")
+            crate::cli::fail_return("current repository has no exact Proposal with that ID")
         });
     let proposal_bytes = read_rooted_object(&frontier, &reference.path, &reference.root)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let proposal =
         ProposalV1::parse(&proposal_bytes).unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let claim = repository
-        .pending_claims
-        .iter()
-        .find(|claim| {
-            claim.claim_id == proposal.subject.id && claim.claim_root == proposal.subject.root
-        })
-        .map(|claim| {
-            let bytes = read_rooted_object(&frontier, &claim.path, &claim.claim_root)
-                .unwrap_or_else(|error| crate::cli::fail_return(&error));
-            serde_json::from_slice::<Value>(&bytes).unwrap_or_else(|error| {
-                crate::cli::fail_return(&format!("parse pending Claim: {error}"))
-            })
-        });
-    let submission = repository
+    let standing = decisions
+        .get(proposal_id)
+        .map(|decision| decision.standing.as_str())
+        .unwrap_or("pending_review");
+    let claim_path =
+        crate::current_submission::rooted_path("records/claims/sha256", &proposal.subject.root)
+            .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let claim_bytes = read_rooted_object(&frontier, &claim_path, &proposal.subject.root)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let claim =
+        ClaimRecordV1::parse(&claim_bytes).unwrap_or_else(|error| crate::cli::fail_return(&error));
+    if claim.claim_id != proposal.subject.id {
+        crate::cli::fail_return::<()>("current Proposal Claim bytes have the wrong identity");
+    }
+    let submission_reference = repository
         .submissions
         .iter()
         .find(|submission| {
             submission.id == proposal.producer_package.id
                 && submission.root == proposal.producer_package.root
         })
-        .map(|submission| {
-            let bytes = read_rooted_object(&frontier, &submission.path, &submission.root)
-                .unwrap_or_else(|error| crate::cli::fail_return(&error));
-            serde_json::from_slice::<Value>(&bytes).unwrap_or_else(|error| {
-                crate::cli::fail_return(&format!("parse Submission: {error}"))
-            })
+        .unwrap_or_else(|| {
+            crate::cli::fail_return("current Proposal has no exact retained Submission")
         });
+    let submission_bytes = read_rooted_object(
+        &frontier,
+        &submission_reference.path,
+        &submission_reference.root,
+    )
+    .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let submission = vela_protocol::submission_v1::SubmissionV1::parse(&submission_bytes)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let verifications = repository
         .verifications
         .iter()
         .filter_map(|verification| {
-            let bytes =
-                read_rooted_object(&frontier, &verification.path, &verification.root).ok()?;
-            let value = serde_json::from_slice::<Value>(&bytes).ok()?;
-            (value
-                .pointer("/subject/proposal_id")
-                .and_then(Value::as_str)
-                == Some(proposal_id))
-            .then_some(value)
+            let bytes = read_rooted_object(&frontier, &verification.path, &verification.root)
+                .unwrap_or_else(|error| crate::cli::fail_return(&error));
+            let record = vela_protocol::verification_record::VerificationRecordV1::parse(&bytes)
+                .unwrap_or_else(|error| crate::cli::fail_return(&error));
+            (record.subject.proposal_id == proposal_id).then_some(json!({
+                "verification_record_root": verification.root,
+                "record": record
+            }))
         })
         .collect::<Vec<_>>();
+    let decision = decisions.get(proposal_id);
     let payload = json!({
         "schema": "vela.review.v1",
         "ok": true,
@@ -699,18 +993,19 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
         "repository_root": repository.canonical_root().unwrap_or_else(|error| crate::cli::fail_return(&error)),
         "proposal_id": proposal.proposal_id,
         "proposal_root": reference.root,
-        "standing": "pending_review",
+        "standing": standing,
         "proposal": proposal,
         "claim": claim,
         "submission": submission,
         "verification_records": verifications,
+        "decision": decision,
         "authority_boundary": "Verification records report bounded checks. Only a repository-authority Decision can change standing.",
         "legacy_runtime_used": false
     });
     if json_out {
         crate::cli::print_json(&payload);
     } else {
-        println!("review · {proposal_id} · pending");
+        println!("review · {proposal_id} · {standing}");
         println!(
             "  action: {}",
             payload["proposal"]["action"].as_str().unwrap_or("")
@@ -2196,6 +2491,7 @@ fn verify_current_epoch_authority(
     epoch: &RepositoryEpochV1,
 ) -> Result<(), String> {
     let loaded = crate::cli::load_current_repository_authority(root, repository, epoch)?;
+    validate_current_proposal_standing(root, repository, &loaded.history.authority_events)?;
     let initialization_event_id = loaded
         .verification
         .initialization_event_id
@@ -3080,7 +3376,87 @@ fn shell_quote(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use vela_protocol::authority::{AUTHORITY_MODE, AuthorityEventContentV1};
+
     use super::*;
+
+    fn root(byte: char) -> String {
+        format!("sha256:{}", byte.to_string().repeat(64))
+    }
+
+    fn review_event(
+        transaction_id: &str,
+        kind: EventKind,
+        proposal_id: &str,
+        applied_event_id: Option<&str>,
+    ) -> AuthorityEventV1 {
+        let verdict = match kind {
+            EventKind::ReviewAccepted => "accepted",
+            EventKind::ReviewRejected => "rejected",
+            _ => panic!("review fixture requires a terminal review kind"),
+        };
+        let mut payload = json!({
+            "proposal_id": proposal_id,
+            "proposal_kind": "claim.add",
+            "verdict": verdict,
+            "repository_before": root('1'),
+            "repository_after": root('2'),
+        });
+        if let Some(applied_event_id) = applied_event_id {
+            payload["applied_event_id"] = Value::String(applied_event_id.into());
+        }
+        AuthorityEventV1::new(AuthorityEventContentV1 {
+            transaction_id: transaction_id.into(),
+            principal_id: "local:fixture|uid:501".into(),
+            authority_mode: AUTHORITY_MODE.into(),
+            kind,
+            target: StateTarget {
+                r#type: "proposal".into(),
+                id: proposal_id.into(),
+            },
+            actor: StateActor {
+                r#type: "human".into(),
+                id: "local:fixture|uid:501".into(),
+            },
+            timestamp: "2026-07-27T00:00:01Z".into(),
+            reason: "Decide the exact fixture Proposal.".into(),
+            before_hash: NULL_HASH.into(),
+            after_hash: NULL_HASH.into(),
+            payload,
+            caveats: Vec::new(),
+        })
+        .unwrap()
+    }
+
+    fn applied_event(proposal_id: &str, claim_id: &str) -> AuthorityEventV1 {
+        AuthorityEventV1::new(AuthorityEventContentV1 {
+            transaction_id: "vtx_fixture_accept".into(),
+            principal_id: "local:fixture|uid:501".into(),
+            authority_mode: AUTHORITY_MODE.into(),
+            kind: EventKind::FindingAsserted,
+            target: StateTarget {
+                r#type: "claim".into(),
+                id: claim_id.into(),
+            },
+            actor: StateActor {
+                r#type: "human".into(),
+                id: "local:fixture|uid:501".into(),
+            },
+            timestamp: "2026-07-27T00:00:01Z".into(),
+            reason: "Accept the exact fixture Claim.".into(),
+            before_hash: NULL_HASH.into(),
+            after_hash: root('3'),
+            payload: json!({
+                "claim_id": claim_id,
+                "claim_root": root('3'),
+                "proposal_id": proposal_id,
+                "repository_before": root('1'),
+                "repository_after": root('2'),
+            }),
+            caveats: Vec::new(),
+        })
+        .unwrap()
+    }
 
     #[test]
     fn github_remote_normalization_is_closed() {
@@ -3118,5 +3494,51 @@ mod tests {
         assert!(is_epoch_derived_path("targets.json"));
         assert!(is_epoch_derived_path("vela.lock"));
         assert!(!is_epoch_derived_path(".vela/repository.json"));
+    }
+
+    #[test]
+    fn current_proposal_standing_uses_the_linked_semantic_event() {
+        let proposal_id = "vpr_0123456789abcdef";
+        let domain = applied_event(proposal_id, &format!("vcl_{}", "3".repeat(64)));
+        let applied_id = domain.semantic_event_id().unwrap();
+        let review = review_event(
+            "vtx_fixture_accept",
+            EventKind::ReviewAccepted,
+            proposal_id,
+            Some(&applied_id),
+        );
+        let decisions = current_proposal_decisions(&[domain, review]).unwrap();
+        let decision = decisions.get(proposal_id).unwrap();
+        assert_eq!(decision.standing, "accepted");
+        assert_eq!(
+            decision.applied_event_id.as_deref(),
+            Some(applied_id.as_str())
+        );
+    }
+
+    #[test]
+    fn current_proposal_standing_rejects_missing_and_duplicate_decisions() {
+        let proposal_id = "vpr_0123456789abcdef";
+        let missing = review_event(
+            "vtx_fixture_accept",
+            EventKind::ReviewAccepted,
+            proposal_id,
+            Some("vev_0000000000000000"),
+        );
+        assert!(current_proposal_decisions(&[missing]).is_err());
+
+        let first = review_event(
+            "vtx_fixture_reject_one",
+            EventKind::ReviewRejected,
+            proposal_id,
+            None,
+        );
+        let second = review_event(
+            "vtx_fixture_reject_two",
+            EventKind::ReviewRejected,
+            proposal_id,
+            None,
+        );
+        assert!(current_proposal_decisions(&[first, second]).is_err());
     }
 }
