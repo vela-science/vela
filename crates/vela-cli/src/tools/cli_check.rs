@@ -26,6 +26,17 @@ pub(crate) fn cmd_check(
     fix: bool,
     json_output: bool,
 ) {
+    if let Some(src) = source
+        && src.join(".vela/epoch.json").is_file()
+    {
+        if conformance_flag || fix {
+            fail_usage(
+                "current repository epochs support exact `vela check` verification; legacy evidence, conformance, and fix modes are retired",
+            );
+        }
+        crate::repository_upgrade::cmd_repository_verify(src, json_output);
+        return;
+    }
     if json_output {
         let Some(src) = source else {
             fail_usage("--json requires a frontier source");

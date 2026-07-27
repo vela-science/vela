@@ -731,6 +731,13 @@ pub(crate) enum AuthorityTrustAction {
 
 #[derive(Subcommand)]
 pub(crate) enum RepositoryAction {
+    /// Verify one current-only repository epoch and its sequence-1 authority boundary.
+    Verify {
+        #[arg(default_value = ".")]
+        frontier: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
     /// Preview or apply the fail-closed current repository epoch.
     Upgrade {
         #[arg(default_value = ".")]

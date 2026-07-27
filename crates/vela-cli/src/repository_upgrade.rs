@@ -241,6 +241,61 @@ pub(crate) fn cmd_repository_upgrade(
     }
 }
 
+pub(crate) fn cmd_repository_verify(frontier: &Path, json_out: bool) {
+    crate::ui::set_mode("repository verify", json_out);
+    let frontier = frontier.canonicalize().unwrap_or_else(|error| {
+        crate::cli::fail_return(&format!(
+            "resolve current Frontier {}: {error}",
+            frontier.display()
+        ))
+    });
+    let repository = verify_current_repository_at(&frontier, true)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let epoch_bytes = fs::read(frontier.join(".vela/epoch.json")).unwrap_or_else(|error| {
+        crate::cli::fail_return(&format!("read current repository epoch: {error}"))
+    });
+    let epoch = RepositoryEpochV1::parse(&epoch_bytes)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let commit = git_text(&frontier, &["rev-parse", "HEAD^{commit}"])
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let tree = git_text(&frontier, &["rev-parse", "HEAD^{tree}"])
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let payload = json!({
+        "schema": "vela.repository-verification.v1",
+        "ok": true,
+        "command": "repository verify",
+        "frontier": frontier.display().to_string(),
+        "frontier_id": repository.frontier_id,
+        "git_commit": commit,
+        "git_tree": tree,
+        "epoch_id": epoch.epoch_id,
+        "epoch_root": epoch.canonical_root().unwrap_or_else(|error| crate::cli::fail_return(&error)),
+        "repository_root": repository.canonical_root().unwrap_or_else(|error| crate::cli::fail_return(&error)),
+        "authority_keyset_root": repository.authority_keyset_root,
+        "authority_policy_root": repository.authority_policy_root,
+        "counts": {
+            "accepted_claims": repository.accepted_claims.len(),
+            "pending_claims": repository.pending_claims.len(),
+            "proposals": repository.proposals.len(),
+            "submissions": repository.submissions.len(),
+            "registrations": repository.registrations.len(),
+            "verifications": repository.verifications.len(),
+            "artifacts": repository.artifacts.len()
+        },
+        "legacy_runtime_used": false
+    });
+    if json_out {
+        crate::cli::print_json(&payload);
+    } else {
+        println!("current repository verified");
+        println!("  frontier: {}", payload["frontier_id"]);
+        println!("  epoch: {}", payload["epoch_id"]);
+        println!("  claims: {}", payload["counts"]["accepted_claims"]);
+        println!("  repository root: {}", payload["repository_root"]);
+        println!("  legacy runtime used: no");
+    }
+}
+
 fn prepare_repository_upgrade(
     frontier: &Path,
     archive_dir: &Path,

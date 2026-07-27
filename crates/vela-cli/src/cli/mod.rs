@@ -103,6 +103,9 @@ pub async fn run_command() {
     crate::ui::set_quiet(cli.quiet);
     match cli.command {
         Commands::Repository { action } => match action {
+            RepositoryAction::Verify { frontier, json } => {
+                crate::repository_upgrade::cmd_repository_verify(&frontier, json)
+            }
             RepositoryAction::Upgrade {
                 frontier,
                 to,
