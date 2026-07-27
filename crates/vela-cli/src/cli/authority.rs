@@ -1264,22 +1264,6 @@ fn upgrade_repository_authority(frontier: &Path, reason: &str) -> Result<Value, 
     }))
 }
 
-/// Assess whether an offered target can enter the routine producer path.
-///
-/// Target freshness and lease availability do not imply authorization. Early
-/// Era-1 Frontiers intentionally migrated before the narrow signed-agent work
-/// policy existed. Name the one required policy rotation before a producer
-/// reads a key or acquires a write barrier.
-pub(crate) fn ensure_routine_producer_ready(
-    frontier: &Path,
-    project: &Project,
-) -> Result<(), String> {
-    let Some(authority) = load_repository_authority(frontier, project)? else {
-        return Ok(());
-    };
-    ensure_routine_producer_material_ready(&authority.policy_material, project)
-}
-
 fn ensure_routine_producer_material_ready(
     material: &CedarPolicyMaterial,
     project: &Project,
