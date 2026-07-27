@@ -3124,7 +3124,7 @@ fn assess_v2(
     for target in index.targets.iter().filter(|target| target.state == "open") {
         match open_packet_bytes.get(&target.packet.path) {
             Some(Ok(packet_bytes)) => {
-                let digest = sha256_root(&packet_bytes);
+                let digest = sha256_root(packet_bytes);
                 if packet_bytes.len() as u64 != target.packet.size || digest != target.packet.sha256
                 {
                     push_target_issue(
@@ -3138,7 +3138,7 @@ fn assess_v2(
                     );
                     continue;
                 }
-                match serde_json::from_slice::<Value>(&packet_bytes) {
+                match serde_json::from_slice::<Value>(packet_bytes) {
                     Ok(packet)
                         if packet.is_object()
                             && packet.get("schema").and_then(Value::as_str)
