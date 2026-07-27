@@ -289,7 +289,7 @@ impl ReviewProjection {
     /// Inspect one proposal without widening the decision seam.
     ///
     /// Pending proposals retain the exact Decision Brief projection used by
-    /// `review preview` and protected decisions. Terminal proposals instead
+    /// `review diff` and protected decisions. Terminal proposals instead
     /// return a compact, read-only record reconstructed from the canonical
     /// proposal and its exact signed decision event.
     pub(crate) fn inspect(
@@ -383,7 +383,7 @@ impl ReviewProjection {
         Ok(page)
     }
 
-    /// Read the status project, policy pair, and review preview while holding
+    /// Read the status project, policy pair, and review diff while holding
     /// one recovery barrier. The returned policy assessment and review items
     /// therefore describe the same frontier transaction snapshot.
     #[allow(clippy::too_many_arguments)]

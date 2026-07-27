@@ -75,7 +75,7 @@ does not mean the result is universally true or scientifically accepted.
 ```sh
 vela status <frontier>
 vela next <frontier> --json
-vela work <target> --frontier <frontier> --as agent:<you> --json
+vela start <target> --frontier <frontier> --as agent:<you> --json
 
 vela land --frontier <frontier> --work <target> --claim <result> \
   --type computational --replayability exact --artifact <path>:<kind> \

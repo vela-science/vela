@@ -251,6 +251,7 @@ pub async fn run_command() {
             json,
         } => cmd_init(&path, name.as_deref(), scope.as_deref(), json),
         Commands::Review { action } => cmd_review(action),
+        Commands::Proposal { action } => cmd_proposal(action),
         Commands::TargetIndex { action } => crate::target_index::cmd_target_index(action),
         Commands::Finding {
             command:
@@ -405,7 +406,7 @@ pub async fn run_command() {
                 }
             }
         }
-        Commands::Work {
+        Commands::Start {
             target,
             frontier,
             ttl,
@@ -414,7 +415,7 @@ pub async fn run_command() {
             r#as,
             json,
         } => {
-            crate::ui::set_mode("work", json);
+            crate::ui::set_mode("start", json);
             let dir = crate::ui::resolve_frontier(frontier);
             let Some(target) = target else {
                 let root = dir.join(".vela/work");
@@ -434,7 +435,7 @@ pub async fn run_command() {
                 if json {
                     print_json(&serde_json::json!({
                         "ok": true,
-                        "command": "work",
+                        "command": "start",
                         "sessions": sessions.iter().map(|path| path.display().to_string()).collect::<Vec<_>>(),
                     }));
                 } else {
@@ -454,10 +455,10 @@ pub async fn run_command() {
                     .unwrap_or_else(|error| fail_return(&error));
                 if json {
                     let mut result = result;
-                    result["command"] = serde_json::json!("work.drop");
+                    result["command"] = serde_json::json!("start.abandon");
                     print_json(&result);
                 } else {
-                    crate::ui::header("WORK", &target, Some("lease released"));
+                    crate::ui::header("ATTEMPT", &target, Some("abandoned"));
                     println!("  reason        {}", safe_text::inline(reason));
                     render_work_publication(&result["release"]);
                     println!("  another agent may claim this target immediately");
@@ -467,7 +468,7 @@ pub async fn run_command() {
             if reason.is_some() {
                 crate::ui::fail_with(
                     crate::ui::ErrorKind::Usage,
-                    "--reason is valid only with work --drop",
+                    "--reason is valid only with start --drop",
                     Some("remove --reason or add --drop"),
                 );
             }
@@ -493,8 +494,8 @@ pub async fn run_command() {
                         let packet = task.and_then(|task| task.get("packet_ref"));
                         print_json(&serde_json::json!({
                             "ok": true,
-                            "command": "work",
-                            "schema": "vela.work.v1",
+                            "command": "start",
+                            "schema": "vela.attempt.v1",
                             "idempotent": opened.get("idempotent").and_then(serde_json::Value::as_bool).unwrap_or(false),
                             "frontier_id": session.get("frontier_id"),
                             "target_id": target,
@@ -524,7 +525,7 @@ pub async fn run_command() {
                             "next_command": format!("vela land --work {target} --claim <scoped-result> --type <type> --replayability <class> --artifact <path>:<kind> --caveat <limit> --as <agent> --json"),
                         }));
                     } else {
-                        crate::ui::header("WORK", &target, Some("lease claimed, briefing loaded"));
+                        crate::ui::header("ATTEMPT", &target, Some("started"));
                         let briefing = opened.get("briefing").unwrap_or(&opened);
                         let b = briefing.get("briefing").unwrap_or(briefing);
                         if let Some(s) = b.get("statement").and_then(|v| v.as_str()) {
@@ -562,7 +563,7 @@ pub async fn run_command() {
                         render_work_publication(&opened["claim"]);
                         println!(
                             "  {:<14} vela land --work {} --claim ...",
-                            vela_protocol::cli_style::dim("when done"),
+                            vela_protocol::cli_style::dim("current writer"),
                             safe_text::inline(&target),
                         );
                     }
@@ -1081,7 +1082,7 @@ pub fn run_from_args() {
                     "vela review list <frontier> --json, then vela review show <frontier> <vpr_id> --json",
                 ),
                 "diff" => Some(
-                    "vela review preview <frontier> <vpr_id>, or vela frontier diff <left> <right>",
+                    "vela review diff <frontier> <vpr_id>, or vela frontier diff <left> <right>",
                 ),
                 "credit" => Some("vela finding show <frontier> <vf_id> --view attribution"),
                 "publication" => Some("vela frontier recover-publication"),

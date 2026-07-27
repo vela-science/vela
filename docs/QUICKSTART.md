@@ -26,7 +26,7 @@ asserted by the checkout itself.
 
 ```bash
 vela next . --limit 1 --json
-vela work <target> --as agent:<name> --json
+vela start <target> --as agent:<name> --json
 
 # Run the exact verifier and retain its artifact.
 

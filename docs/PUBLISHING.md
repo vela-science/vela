@@ -41,7 +41,7 @@ A Git pull request is the collaboration and branch-review mechanism. Vela's
 scientific contribution path inside that repository remains:
 
 ```text
-next -> work -> land -> signed policy route -> Permit | Defer -> protected human decision
+next -> start -> land -> signed policy route -> Permit | Defer -> protected human decision
 ```
 
 `land` records the exact Receipt v1 contribution and its routed effect. The Git

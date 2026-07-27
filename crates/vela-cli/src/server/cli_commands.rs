@@ -311,11 +311,18 @@ pub(crate) enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// Inspect, decide, or producer-withdraw one exact proposal.
+    /// Inspect or perform one exact Proposal action.
     #[command(after_long_help = crate::cli::help_text::REVIEW)]
     Review {
         #[command(subcommand)]
         action: ReviewAction,
+    },
+    /// Manage the lifecycle of an exact Proposal without conflating producer
+    /// withdrawal with review authority.
+    #[command(after_long_help = crate::cli::help_text::PROPOSAL)]
+    Proposal {
+        #[command(subcommand)]
+        action: ProposalAction,
     },
     /// Seal, diagnose, or inspect the optional derived producer target index.
     /// These commands never grant scientific authority.
@@ -338,7 +345,7 @@ pub(crate) enum Commands {
     },
     /// THE offer: ranked open targets with the compounding payload
     /// pre-loaded (premises, banked routes, attempts, dead channels).
-    /// `--json` is the agent contract. Take one with `vela work`.
+    /// `--json` is the agent contract. Take one with `vela start`.
     #[command(after_long_help = crate::cli::help_text::NEXT)]
     Next {
         /// Frontier path. Optional: discovered upward.
@@ -349,10 +356,10 @@ pub(crate) enum Commands {
         json: bool,
     },
 
-    /// Open a work session on a target: claim the lease, print the
-    /// briefing, materialize the context bundle. Close with `vela land`.
-    #[command(after_long_help = crate::cli::help_text::WORK)]
-    Work {
+    /// Start one bounded Attempt on a target: claim the lease, print the
+    /// briefing, and bind the exact starting state.
+    #[command(after_long_help = crate::cli::help_text::START)]
+    Start {
         /// The target (obligation id, e.g. erdos:617). Omit to list
         /// open sessions.
         target: Option<String>,
@@ -364,7 +371,7 @@ pub(crate) enum Commands {
         /// Release the lease/session instead of opening one.
         #[arg(long)]
         drop: bool,
-        /// Why this lease is being released without landing. With --drop a
+        /// Why this Attempt is being abandoned. With --drop a
         /// truthful default is used when omitted.
         #[arg(long)]
         reason: Option<String>,
@@ -813,7 +820,7 @@ pub(crate) enum FindingCommands {
 #[derive(Subcommand)]
 pub(crate) enum ArtifactCommands {
     /// Propose retiring an accepted artifact. The proposal stays pending until
-    /// a human decides that exact proposal through `vela review decide`.
+    /// a human performs one direct action on that exact Proposal.
     Retract {
         /// Frontier JSON file or Vela repo
         frontier: PathBuf,
@@ -845,39 +852,34 @@ pub(crate) enum ReviewAction {
         #[arg(long)]
         json: bool,
     },
-    /// Show one pending Decision Brief or one exact terminal decision record.
+    /// Show one pending Review Packet or one exact terminal decision record.
     Show {
         frontier: PathBuf,
         proposal_id: String,
         #[arg(long)]
         json: bool,
     },
-    /// Preview one exact Decision Brief without entering the signing path.
-    Preview {
+    /// Diff one exact proposed scientific-state change without entering the
+    /// authority path.
+    Diff {
         frontier: PathBuf,
         proposal_id: String,
         #[arg(long)]
         json: bool,
     },
-    /// Execute exactly one repository-authority human decision.
-    Decide {
+    /// Accept exactly one Proposal through repository authority.
+    Accept {
         frontier: PathBuf,
         proposal_id: String,
-        #[arg(long, conflicts_with = "reject", required_unless_present = "reject")]
-        accept: bool,
-        #[arg(long, conflicts_with = "accept", required_unless_present = "accept")]
-        reject: bool,
         #[arg(long)]
         reason: String,
         #[arg(long)]
         json: bool,
     },
-    /// Withdraw one pending Receipt-bound proposal as its producer.
-    Withdraw {
+    /// Reject exactly one Proposal through repository authority.
+    Reject {
         frontier: PathBuf,
         proposal_id: String,
-        #[arg(long = "as", help = HELP_REQUIRED_AS)]
-        actor: String,
         #[arg(long)]
         reason: String,
         #[arg(long)]
@@ -889,6 +891,21 @@ pub(crate) enum ReviewAction {
         output: PathBuf,
         #[arg(long)]
         status: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum ProposalAction {
+    /// Withdraw the producer's own pending, producer-bound Proposal.
+    Withdraw {
+        frontier: PathBuf,
+        proposal_id: String,
+        #[arg(long = "as", help = HELP_REQUIRED_AS)]
+        actor: String,
+        #[arg(long)]
+        reason: String,
         #[arg(long)]
         json: bool,
     },

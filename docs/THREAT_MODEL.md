@@ -88,7 +88,8 @@ drifts, confirmation fails and the plan must be rebuilt. The cross-platform
 signer card names the exact action, proposal, frontier, reason, and Decision
 Plan root, so a later caller cannot silently replace the reviewed bytes.
 
-On Era-0 Frontiers, `vela review decide` starts the pinned one-shot helper only
+On Era-0 Frontiers, direct `vela review accept|reject` actions start the pinned
+one-shot helper only
 after every key-free check passes; the helper controls use of the protected
 personal key.
 

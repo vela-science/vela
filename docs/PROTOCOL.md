@@ -54,7 +54,7 @@ Vela separates capabilities that other systems often collapse.
 | Producer or agent | inspect state, claim a work lease, run tools, emit a Receipt, land evidence, draft a correction | accept, reject, revise, sign as a human, or invent a policy certificate |
 | Verifier | evaluate exact bytes under a named method and emit a bound result | decide significance, acceptance, or authorship |
 | Signed policy | permit only the bounded class and causal state named by a prior human ceremony | widen its own scope, treat model output as authority, or sign new policy |
-| Human principal | execute one exact exceptional decision through attributed `review decide`; administer repository policy when authorized | delegate the semantic action to an agent, turn authentication into a verdict, or bypass repository authorization |
+| Human principal | execute one exact exceptional action through attributed `review accept|reject|retract`; administer repository policy when authorized | delegate the semantic action to an agent, turn authentication into a verdict, or bypass repository authorization |
 | Git host | preserve and transport commits and refs | turn a commit, merge, or pull request into scientific acceptance |
 | Derived reader | clone configured Git sources, verify them, and serve read projections | register canonical state through a public write API, sign, accept, store witness authority, or mutate a frontier |
 
@@ -546,7 +546,7 @@ one exact command. Vela authenticates the local operating-system principal,
 evaluates restricted Cedar, and asks the standard OpenSSH agent repository
 authority to sign the covering record. It reads no personal Vela key and uses
 no custom helper. Rejection changes no scientific root. Acceptance is exposed
-only when the Decision Brief and strict aggregate Engine gate permit it, then
+only when the Review Packet and strict aggregate Engine gate permit it, then
 atomically installs the scientific domain event, explicit `review.accepted`
 event, and exact canonical postimages. Dual-log replay rejects missing,
 duplicate, or ambiguous applied transitions. Era-0 verification remains
@@ -644,7 +644,7 @@ The supported producer loop is:
 
 ```bash
 vela next <frontier> --json
-vela work <target> --frontier <frontier> --as agent:<name> --json
+vela start <target> --frontier <frontier> --as agent:<name> --json
 vela land --frontier <frontier> --work <target> \
   --claim <claim> --type computational --replayability exact \
   --artifact <path>:<kind> --caveat <limit> --as agent:<name> --json
@@ -690,10 +690,11 @@ not change the policy route or scientific authority.
 Deferred proposals enter the terminal-only ceremony:
 
 ```bash
-vela review decide <frontier> <vpr_id> --accept|--reject --reason <text>
+vela review accept <frontier> <vpr_id> --reason <text>
+vela review reject <frontier> <vpr_id> --reason <text>
 ```
 
-The ceremony renders a Decision Brief from canonical frontier state. Internally
+The ceremony renders a Review Packet from canonical frontier state. Internally
 it prepares a content-addressed Decision Plan that binds the proposal, current
 event-log roots, evidence roots, policy facts, semantic effect, authenticated
 principal, and ordered event intents. The Decision Plan is private process
@@ -717,7 +718,7 @@ batch, wildcard, saved answer, `--yes`, or persistent approval input.
 Repository-authority acceptance is not inferred from verifier success or
 enabled by analogy. The command is available only when it can install and
 replay both the accepted scientific domain event and the review decision
-across the dual history. A blocked Decision Brief still fails before the
+across the dual history. A blocked Review Packet still fails before the
 provider prompt.
 
 A signed policy uses the same causal discipline. It can permit a predeclared

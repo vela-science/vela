@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-pub(crate) fn cmd_review_withdraw(
+pub(crate) fn cmd_proposal_withdraw(
     frontier: PathBuf,
     proposal_id: &str,
     actor: &str,
@@ -10,7 +10,7 @@ pub(crate) fn cmd_review_withdraw(
     if !actor.starts_with("agent:") {
         crate::ui::fail_with(
             crate::ui::ErrorKind::Custody,
-            "producer withdrawal requires the exact Receipt-bound agent identity",
+            "producer withdrawal requires the exact producer identity bound to this Proposal",
             None,
         );
     }

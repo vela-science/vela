@@ -57,14 +57,17 @@ fn proposal_next_actions(frontier: &std::path::Path, proposal_id: &str) -> Vec<V
     actions.push(json!({
         "kind": "human_decision",
         "authority": "human_key_required",
-        "command": format!("vela review decide {} {proposal_id} --accept|--reject --reason <why> --json", frontier.display()),
+        "commands": {
+            "accept": format!("vela review accept {} {proposal_id} --reason <why> --json", frontier.display()),
+            "reject": format!("vela review reject {} {proposal_id} --reason <why> --json", frontier.display())
+        },
         "reason": "Verification evidence never accepts the proposal; a protected human decision remains separate."
     }));
     actions
 }
 
-/// Compact 0.9 review surface. Lists never embed Decision Briefs; callers use
-/// `review show` or `review preview` for one exact proposal.
+/// Compact review surface. Lists never embed Review Packets; callers use
+/// `review show` or `review diff` for one exact Proposal.
 fn compact_proposal_claim(kind: &str, value: &Value) -> String {
     let finding_assertion = || value.pointer("/payload/finding/assertion/text");
     let generic_claim = || {
@@ -263,7 +266,7 @@ pub(crate) fn cmd_review(action: ReviewAction) {
                 }
             }
         }
-        ReviewAction::Preview {
+        ReviewAction::Diff {
             frontier,
             proposal_id,
             json,
@@ -272,7 +275,7 @@ pub(crate) fn cmd_review(action: ReviewAction) {
                 .unwrap_or_else(|error| fail_return(&error.to_string()));
             let payload = json!({
                 "ok": true,
-                "command": "review.preview",
+                "command": "review.diff",
                 "schema": "vela.review.v1",
                 "frontier": frontier.display().to_string(),
                 "proposal_id": proposal_id,
@@ -281,40 +284,37 @@ pub(crate) fn cmd_review(action: ReviewAction) {
             if json {
                 print_json(&payload);
             } else {
-                println!("review preview · {proposal_id}");
+                println!("review diff · {proposal_id}");
                 for line in crate::cli::review_decision::render_decision_brief_lines(&review.brief)
                 {
                     println!("  {line}");
                 }
             }
         }
-        ReviewAction::Decide {
+        ReviewAction::Accept {
             frontier,
             proposal_id,
-            accept,
-            reject,
             reason,
             json,
         } => crate::cli::review_decision::cmd_review_decide(
             frontier,
             &proposal_id,
-            if accept {
-                crate::decision_plan::DecisionAction::Accept
-            } else if reject {
-                crate::decision_plan::DecisionAction::Reject
-            } else {
-                unreachable!("clap requires one decision action")
-            },
+            crate::decision_plan::DecisionAction::Accept,
             reason,
             json,
         ),
-        ReviewAction::Withdraw {
+        ReviewAction::Reject {
             frontier,
             proposal_id,
-            actor,
             reason,
             json,
-        } => crate::withdrawal::cmd_review_withdraw(frontier, &proposal_id, &actor, &reason, json),
+        } => crate::cli::review_decision::cmd_review_decide(
+            frontier,
+            &proposal_id,
+            crate::decision_plan::DecisionAction::Reject,
+            reason,
+            json,
+        ),
         ReviewAction::Export {
             frontier,
             output,
@@ -337,6 +337,20 @@ pub(crate) fn cmd_review(action: ReviewAction) {
             } else {
                 println!("exported · {count} proposal(s) · {}", output.display());
             }
+        }
+    }
+}
+
+pub(crate) fn cmd_proposal(action: ProposalAction) {
+    match action {
+        ProposalAction::Withdraw {
+            frontier,
+            proposal_id,
+            actor,
+            reason,
+            json,
+        } => {
+            crate::withdrawal::cmd_proposal_withdraw(frontier, &proposal_id, &actor, &reason, json)
         }
     }
 }

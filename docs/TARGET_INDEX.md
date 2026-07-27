@@ -117,7 +117,7 @@ available  = configured - stale - leased
 returned   = offers returned after the caller's limit
 ```
 
-`vela work` revalidates the index, selected packet, repository roots, and
+`vela start` revalidates the index, selected packet, repository roots, and
 transaction read set immediately before appending the lease. Failure writes no
 session, event, journal marker, or Git commit. There is no `--force`,
 non-strict bypass, or Profile v1 compatibility exception.

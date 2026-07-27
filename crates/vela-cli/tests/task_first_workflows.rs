@@ -226,7 +226,7 @@ fn work_lease_preserves_strict_freshness_of_a_recorded_proof() {
     let key = "64".repeat(32);
     let work = run_with_env(
         tmp.path(),
-        &["work", "seed:proof-freshness", "--as", "agent:t", "--json"],
+        &["start", "seed:proof-freshness", "--as", "agent:t", "--json"],
         &[("VELA_AGENT_KEY_HEX", key.as_str())],
     );
     assert_success(&work, "claim work without staling proof");
@@ -672,7 +672,7 @@ fn work_and_land_preserve_all_preexisting_event_bytes() {
     let work = run_with_env(
         tmp.path(),
         &[
-            "work",
+            "start",
             "erdos:byte-preservation",
             "--as",
             "agent:t",
@@ -1821,7 +1821,7 @@ fn flag_authored_artifact_read_is_bounded_and_preserves_work_session() {
     let work = run_with_env(
         tmp.path(),
         &[
-            "work",
+            "start",
             "erdos:bounded-artifact",
             "--as",
             "agent:t",
@@ -1944,7 +1944,7 @@ fn archive_artifact_is_retained_as_opaque_bytes_and_never_expanded() {
     let head_before = git_stdout(tmp.path(), &["rev-parse", "HEAD"]);
     let proposal_id = landed["proposal_id"].as_str().unwrap();
     let frontier = tmp.path().to_str().unwrap();
-    let preview = run(tmp.path(), &["review", "preview", frontier, proposal_id]);
+    let preview = run(tmp.path(), &["review", "diff", frontier, proposal_id]);
     assert_success(&preview, "preview opaque archive proposal");
     assert_eq!(snapshot_scientific_tree(tmp.path()), scientific_before);
     assert_eq!(git_stdout(tmp.path(), &["rev-parse", "HEAD"]), head_before);
@@ -2492,14 +2492,14 @@ batches:
         .iter()
         .find(|target| target["target_id"] == "seed:training-golomb")
         .expect("training target appears in the real next offer");
-    assert_eq!(offered["next_command"], "vela work seed:training-golomb");
+    assert_eq!(offered["next_command"], "vela start seed:training-golomb");
 
     let agent_key = "42".repeat(32);
     let env = [("VELA_AGENT_KEY_HEX", agent_key.as_str())];
     let work = run_with_env(
         &producer,
         &[
-            "work",
+            "start",
             "seed:training-golomb",
             "--as",
             "agent:training-fixture",
@@ -2728,7 +2728,7 @@ batches:
         .iter()
         .find(|target| target["target_id"] == "seed:prepared-target")
         .expect("rich target keeps its explicit id");
-    assert_eq!(prepared["next_command"], "vela work seed:prepared-target");
+    assert_eq!(prepared["next_command"], "vela start seed:prepared-target");
     assert!(prepared["objective"].as_str().is_some(), "{prepared}");
     assert!(
         prepared.get("task").is_none(),
@@ -2738,7 +2738,7 @@ batches:
     let agent_key = "42".repeat(32);
     let work = run_with_env(
         tmp.path(),
-        &["work", "seed:prepared-target", "--as", "agent:t", "--json"],
+        &["start", "seed:prepared-target", "--as", "agent:t", "--json"],
         &[("VELA_AGENT_KEY_HEX", agent_key.as_str())],
     );
     assert_success(&work, "open rich campaign work session");
@@ -2794,7 +2794,7 @@ fn repeated_work_claim_returns_the_exact_active_session_without_a_second_event()
     let agent_key = "42".repeat(32);
     let env = [("VELA_AGENT_KEY_HEX", agent_key.as_str())];
     let args = [
-        "work",
+        "start",
         "erdos:retry-safe",
         "--as",
         "agent:retry-safe",
@@ -2804,6 +2804,8 @@ fn repeated_work_claim_returns_the_exact_active_session_without_a_second_event()
     let first = run_with_env(tmp.path(), &args, &env);
     assert_success(&first, "open first retry-safe session");
     let first = one_json_object(&first);
+    assert_eq!(first["command"], "start", "{first}");
+    assert_eq!(first["schema"], "vela.attempt.v1", "{first}");
     assert_eq!(first["idempotent"], false, "{first}");
     let session_path = work_session_path(&first);
     let session_bytes = std::fs::read(&session_path).unwrap();
@@ -2863,7 +2865,7 @@ fn invalid_campaign_bytes_targets_and_duplicates_fail_before_lease() {
         let agent_key = "42".repeat(32);
         let work = run_with_env(
             tmp.path(),
-            &["work", "seed:probe", "--as", "agent:t", "--json"],
+            &["start", "seed:probe", "--as", "agent:t", "--json"],
             &[("VELA_AGENT_KEY_HEX", agent_key.as_str())],
         );
         assert!(
@@ -2902,7 +2904,7 @@ fn flag_authored_land_closes_only_its_exact_private_work_session() {
 
     let work = run_with_env(
         tmp.path(),
-        &["work", "erdos:session-close", "--as", "agent:t", "--json"],
+        &["start", "erdos:session-close", "--as", "agent:t", "--json"],
         &env,
     );
     assert_success(&work, "open work session");
@@ -3033,7 +3035,7 @@ fn flag_authoring_and_file_input_share_canonical_receipt_bytes() {
     let env = [("VELA_AGENT_KEY_HEX", agent_key.as_str())];
     let opened = run_with_env(
         &base,
-        &["work", "erdos:input-parity", "--as", "agent:t", "--json"],
+        &["start", "erdos:input-parity", "--as", "agent:t", "--json"],
         &env,
     );
     assert_success(&opened, "open parity work session");
@@ -3226,7 +3228,7 @@ fn receipt_with_a_different_key_cannot_close_an_agents_work_session() {
     let env = [("VELA_AGENT_KEY_HEX", lease_key.as_str())];
     let work = run_with_env(
         tmp.path(),
-        &["work", "erdos:session-owner", "--as", "agent:t", "--json"],
+        &["start", "erdos:session-owner", "--as", "agent:t", "--json"],
         &env,
     );
     assert_success(&work, "open protected work session");
@@ -3300,7 +3302,7 @@ fn drop_records_a_signed_exact_release_before_removing_private_scratch() {
 
     let opened = run_with_env(
         tmp.path(),
-        &["work", target, "--as", "agent:owner", "--json"],
+        &["start", target, "--as", "agent:owner", "--json"],
         &owner_env,
     );
     assert_success(&opened, "open lease for signed drop");
@@ -3328,7 +3330,7 @@ fn drop_records_a_signed_exact_release_before_removing_private_scratch() {
     let denied = run_with_env(
         tmp.path(),
         &[
-            "work",
+            "start",
             target,
             "--drop",
             "--reason",
@@ -3353,7 +3355,7 @@ fn drop_records_a_signed_exact_release_before_removing_private_scratch() {
     let released = run_with_env(
         tmp.path(),
         &[
-            "work",
+            "start",
             target,
             "--drop",
             "--reason",
@@ -3423,7 +3425,7 @@ fn drop_records_a_signed_exact_release_before_removing_private_scratch() {
 
     let reclaimed = run_with_env(
         tmp.path(),
-        &["work", target, "--as", "agent:other", "--json"],
+        &["start", target, "--as", "agent:other", "--json"],
         &other_env,
     );
     assert_success(&reclaimed, "immediate reclaim after signed release");
@@ -3458,7 +3460,7 @@ fn land_inference_filters_by_actor_and_requires_exactly_one_owned_session() {
     for target in ["erdos:owned-one", "erdos:owned-two"] {
         let opened = run_with_env(
             tmp.path(),
-            &["work", target, "--as", "agent:owner", "--json"],
+            &["start", target, "--as", "agent:owner", "--json"],
             &owner_env,
         );
         assert_success(&opened, "open owner session");
@@ -3466,7 +3468,13 @@ fn land_inference_filters_by_actor_and_requires_exactly_one_owned_session() {
     }
     let other = run_with_env(
         tmp.path(),
-        &["work", "erdos:other-actor", "--as", "agent:other", "--json"],
+        &[
+            "start",
+            "erdos:other-actor",
+            "--as",
+            "agent:other",
+            "--json",
+        ],
         &other_env,
     );
     assert_success(&other, "open other actor session");
@@ -3548,7 +3556,7 @@ fn denied_work_landing_preserves_the_exact_session_and_all_durable_state() {
     let env = [("VELA_AGENT_KEY_HEX", agent_key.as_str())];
     let opened = run_with_env(
         tmp.path(),
-        &["work", "erdos:deny-session", "--as", "agent:t", "--json"],
+        &["start", "erdos:deny-session", "--as", "agent:t", "--json"],
         &env,
     );
     assert_success(&opened, "open deny-route session");
@@ -4829,9 +4837,9 @@ fn decision_brief_read_surfaces_share_the_same_review_contract() {
 
     let review_preview = run(
         tmp.path(),
-        &["review", "preview", frontier, &proposal_id, "--json"],
+        &["review", "diff", frontier, &proposal_id, "--json"],
     );
-    assert_success(&review_preview, "decision_brief review preview");
+    assert_success(&review_preview, "decision_brief review diff");
     let review_preview = one_json_object(&review_preview);
 
     let review_list = run(tmp.path(), &["review", "list", frontier, "--json"]);
@@ -4966,7 +4974,7 @@ fn hostile_review_text_and_command_locator_stay_inert_and_bounded() {
 
     let json_preview = run(
         tmp.path(),
-        &["review", "preview", frontier, proposal_id, "--json"],
+        &["review", "diff", frontier, proposal_id, "--json"],
     );
     assert_success(&json_preview, "hostile_review JSON preview");
     assert!(!json_preview.stdout.contains(&0x1b));
@@ -4993,10 +5001,7 @@ fn hostile_review_text_and_command_locator_stay_inert_and_bounded() {
 
     let human_surfaces = [
         ("review show", vec!["review", "show", frontier, proposal_id]),
-        (
-            "review preview",
-            vec!["review", "preview", frontier, proposal_id],
-        ),
+        ("review diff", vec!["review", "diff", frontier, proposal_id]),
         (
             "sign preview",
             vec![

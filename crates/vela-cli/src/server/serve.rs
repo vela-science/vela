@@ -987,7 +987,7 @@ fn profile_gate(name: &str, profile: tool_registry::McpProfile) -> Option<ToolEr
         return None;
     }
     let hint = if tool_registry::McpProfile::Draft.allows(&tool) {
-        "restart `vela serve` with `--profile draft` for non-finalizing draft/work capabilities; human finalization is unavailable through MCP and remains an exact protected `vela review decide` operation"
+        "restart `vela serve` with `--profile draft` for non-finalizing draft/work capabilities; human finalization is unavailable through MCP and remains an exact protected `vela review accept` or `vela review reject` operation"
     } else {
         "this capability is unavailable through MCP"
     };

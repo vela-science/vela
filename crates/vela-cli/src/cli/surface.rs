@@ -80,7 +80,8 @@ pub(crate) fn strict_help_text() -> String {
     format!(
         r#"Vela {}
 Version control for scientific state.
-Agents land. Verifiers reproduce. Humans approve. Git publishes.
+Agents submit evidence. Verifiers establish scoped results. Authorized
+Decisions change Standing. Git preserves and publishes bytes.
 
 Usage:
   vela <COMMAND>
@@ -88,10 +89,10 @@ Usage:
 Daily product:
   init          Create a minimal Git-native frontier
   status        Compact frontier identity, roots, counts, and next action
-  next          Ranked producer work only
-  work          Claim one target and open a private typed session
+  next          Ranked Target Offers
+  start         Start one bounded Attempt against an exact Target
   land          Land Receipt v1; policy admits, defers, or denies
-  review        Inspect, decide, or producer-withdraw one exact proposal
+  review        Inspect or perform one exact authorized Proposal action
   check         Replay, signatures, parity, and strict signals
   reproduce     Re-run stored witnesses with frozen verifiers
   verify        Retain non-authorizing proposal-scoped verifier evidence
@@ -103,6 +104,7 @@ Nouns and setup:
   artifact      content-addressed evidence lifecycle
   frontier      materialize, compare, recover publication, release, audit
   policy        frozen Era-0 policy inspection and admission history
+  proposal      producer lifecycle for one exact pending Proposal
   actor         inspect the frozen Era-0 actor registry
   id            optional file-backed producer identity
   agents        regenerate agent adapters from VELA.md

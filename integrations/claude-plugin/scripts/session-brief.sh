@@ -73,7 +73,7 @@ if targets:
         lines.append("Top next target: " + tid + (f" — {title}" if title else ""))
 
 lines.append(
-    "Loop: next -> work -> land; accountable principals authorize. "
+    "Loop: next -> start -> land; accountable principals authorize. "
     "Full render: /vela:status."
 )
 print("\n".join(lines))

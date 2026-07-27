@@ -178,6 +178,81 @@ mod surface_tests {
     }
 
     #[test]
+    fn direct_review_actions_are_visible_and_flag_hidden_decide_is_retired() {
+        on_big_stack(|| {
+            for action in ["accept", "reject"] {
+                Cli::try_parse_from([
+                    "vela",
+                    "review",
+                    action,
+                    ".",
+                    "vpr_0123456789abcdef",
+                    "--reason",
+                    "exact scoped reason",
+                    "--json",
+                ])
+                .unwrap_or_else(|error| panic!("review {action} must parse: {error}"));
+            }
+            Cli::try_parse_from([
+                "vela",
+                "review",
+                "diff",
+                ".",
+                "vpr_0123456789abcdef",
+                "--json",
+            ])
+            .unwrap_or_else(|error| panic!("review diff must parse: {error}"));
+
+            assert!(
+                Cli::try_parse_from([
+                    "vela",
+                    "review",
+                    "decide",
+                    ".",
+                    "vpr_0123456789abcdef",
+                    "--accept",
+                    "--reason",
+                    "legacy path",
+                ])
+                .is_err(),
+                "flag-hidden review decide must not remain a writable alias"
+            );
+            assert!(
+                Cli::try_parse_from(["vela", "review", "preview", ".", "vpr_0123456789abcdef",])
+                    .is_err(),
+                "review preview must retire in favor of review diff"
+            );
+            Cli::try_parse_from([
+                "vela",
+                "proposal",
+                "withdraw",
+                ".",
+                "vpr_0123456789abcdef",
+                "--as",
+                "agent:producer",
+                "--reason",
+                "superseded",
+            ])
+            .unwrap_or_else(|error| panic!("proposal withdraw must parse: {error}"));
+            assert!(
+                Cli::try_parse_from([
+                    "vela",
+                    "review",
+                    "withdraw",
+                    ".",
+                    "vpr_0123456789abcdef",
+                    "--as",
+                    "agent:producer",
+                    "--reason",
+                    "legacy path",
+                ])
+                .is_err(),
+                "producer withdrawal must not remain under review"
+            );
+        });
+    }
+
+    #[test]
     fn retired_migration_is_absent_and_target_sealing_modes_are_exact() {
         on_big_stack(|| {
             let migrate = [
@@ -245,12 +320,13 @@ mod surface_tests {
         "next",
         "policy",
         "proof",
+        "proposal",
         "reproduce",
         "review",
         "serve",
+        "start",
         "status",
         "verify",
-        "work",
     ];
     const V0900_HIDDEN: &[&str] = &["completions", "target-index"];
 

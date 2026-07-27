@@ -119,7 +119,7 @@ fn proposal_parity_suggestion(repository_context: &Value, conflict: &str) -> &'s
     {
         "Do not rewrite or re-issue this immutable proposal. Preview the exact `frontier-repo-v1` migration with a Profile v1 and Target Index v2 candidate; a valid pinned boundary may retain the frozen conflict as anchored, unauthenticated legacy identity debt."
     } else {
-        "Every decided proposal must have a signed review.* event (or, for accepts, its domain event). Re-issue the exact decision through `vela review decide`."
+        "Every decided proposal must have a signed review.* event (or, for accepts, its domain event). Re-issue the exact action through `vela review accept` or `vela review reject`."
     }
 }
 
@@ -1836,7 +1836,7 @@ mod repository_context_tests {
             &native_context,
             "proposal vpr_native logical content derives id vpr_other",
         );
-        assert!(native_suggestion.contains("vela review decide"));
+        assert!(native_suggestion.contains("vela review accept"));
     }
 
     #[test]

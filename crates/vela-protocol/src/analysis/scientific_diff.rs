@@ -558,7 +558,7 @@ impl ScientificDiffPack {
         );
         cli_equivalents.insert(
             "decide".to_string(),
-            "vela review decide <frontier> <vpr_id> --accept|--reject --reason <text>".to_string(),
+            "vela review show <frontier> <vpr_id> --json".to_string(),
         );
         let review_session_scope = format!("diff_pack:{}", self.pack_id);
         let mut review_session_commands = BTreeMap::new();
@@ -568,7 +568,7 @@ impl ScientificDiffPack {
         );
         review_session_commands.insert(
             "decide".to_string(),
-            "vela review decide <frontier> <vpr_id> --accept|--reject --reason <text>".to_string(),
+            "vela review show <frontier> <vpr_id> --json".to_string(),
         );
 
         DiffPackReviewSummary {

@@ -16,18 +16,18 @@ EXAMPLES
   vela next . --json the agent contract
 
 SEE ALSO
-  vela work   claim one of these targets";
+  vela start  begin an Attempt against one of these targets";
 
-pub const WORK: &str = "\
+pub const START: &str = "\
 EXAMPLES
-  vela work erdos:443 --as agent:demo --json
-                                claim the lease and write one private session.json
-  vela work erdos:443 --drop --reason \"switching approaches\" --as agent:demo
-                                sign the exact lease release, then remove scratch
+  vela start erdos:443 --as agent:demo --json
+                                claim the lease and start one bounded Attempt
+  vela start erdos:443 --drop --reason \"switching approaches\" --as agent:demo
+                                abandon the Attempt and release its lease
 
 SEE ALSO
   vela next   the ranked offer this claims from
-  vela land   land the result; use --work when more than one is open";
+  vela land   compatibility writer until Submission v1 ships";
 
 pub const LAND: &str = "\
 EXAMPLES
@@ -47,7 +47,7 @@ The four exact roots are all-or-nothing whole-Receipt-bound evidence. They do
 not grant authority; only a matching signed v0.2 policy can Permit that result.
 
 SEE ALSO
-  vela review decide   decide one exact deferred proposal";
+  vela review show     inspect one exact deferred Proposal";
 
 pub const STATUS: &str = "\
 EXAMPLES
@@ -57,18 +57,25 @@ EXAMPLES
 pub const REVIEW: &str = "\
 EXAMPLES
   vela review list . --json           compact pending queue
-  vela review show . vpr_8b49… --json one pending brief or terminal decision
-  vela review preview . vpr_8b49…     read-only Decision Brief
-  vela review decide . vpr_8b49… --reject --reason \"insufficient evidence\" --json
-                                        execute one exact attributed decision
-  vela review withdraw . vpr_8b49… --as agent:producer --reason \"superseded\"
-                                        close your own Receipt-bound proposal
+  vela review show . vpr_8b49… --json one pending Review Packet or terminal Decision
+  vela review diff . vpr_8b49…        read-only proposed state change
+  vela review reject . vpr_8b49… --reason \"insufficient evidence\" --json
+                                        execute one exact attributed rejection
 
 KNOWN PROPOSAL
   When a full vpr_ ID is supplied, start with `vela review show`. It returns
-  either the pending Decision Brief or the signed terminal decision record.
+  either the pending Review Packet or the signed terminal Decision record.
   A rejected proposal's candidate finding is intentionally absent from
   accepted `finding show` and `log` views; that is not deletion.";
+
+pub const PROPOSAL: &str = "\
+EXAMPLES
+  vela proposal withdraw . vpr_8b49… --as agent:producer \\
+    --reason \"superseded by corrected evidence\"
+        withdraw the producer's own pending Proposal without deleting evidence
+
+Withdrawal is a producer lifecycle action, not a review Decision. A terminal
+Proposal cannot be withdrawn.";
 
 pub const LOG: &str = "\
 EXAMPLES
@@ -176,14 +183,16 @@ EXAMPLES
                                     submit new work as Receipt v1
 
 Finding is read-only. Receipt v1 plus `vela land` is the only producer write
-path; current authority routes it, and deferred work reaches `vela review decide`.";
+path; current authority routes it, and deferred work reaches one direct
+`vela review accept` or `vela review reject` action.";
 
 pub const ARTIFACT: &str = "\
 EXAMPLES
   vela artifact retract . va_417333a3e62df44a --reason \"legacy unpinned pointer\" --as agent:cleanup
 
 This is the sole direct draft-retirement exception. It creates only a pending
-proposal and never an accepted event; `vela review decide` is the human decision.";
+proposal and never an accepted event; direct `vela review accept|reject`
+actions are the human Decisions.";
 
 pub const POLICY: &str = "\
 EXAMPLES

@@ -78,6 +78,6 @@ ceremony.
    - Deny or error: report the exact message and repair action. The session and
      lease remain available for correction; do not delete or rewrite them.
 
-An abandoned session uses `vela work <target> --drop --reason "<why>"` under
+An abandoned session uses `vela start <target> --drop --reason "<why>"` under
 the owning agent identity. That command signs the exact lease release before
 removing private scratch.

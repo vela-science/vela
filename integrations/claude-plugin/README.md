@@ -1,7 +1,7 @@
 # The Vela plugin for Claude Code
 
 Trusted scientific state, driven from your agent. The plugin puts the Vela
-loop — `next → work → land` — inside Claude Code. Authority remains outside
+loop — `next → start → land` — inside Claude Code. Authority remains outside
 the agent: a retained Era-0 policy may authorize a narrow Permit class, while
 other results wait for an exact human or repository-authority transition. No
 plugin command signs, approves, stores verdicts, touches a human key, or
@@ -29,7 +29,7 @@ Marketplace, later: once published, `claude plugin install vela`.
   task contract, and summarizes the briefing. The agent never edits or stages
   `session.json`.
 - `/vela:review` — read-only proposal inspection. Lists compact pending
-  records, opens one exact Decision Brief at a time, and keeps proposal,
+  records, opens one exact Review Packet at a time, and keeps proposal,
   verifier evidence, and terminal authority distinct. It writes no answer or
   session file and never enters an authority path.
 - `/vela:land` — receipt authoring. Builds Receipt v1 from claim, type,
@@ -44,7 +44,7 @@ with no target, the CLI infers only when the current actor owns exactly one
 active session. The normal path is equivalent to:
 
 ```bash
-vela work <target> --as agent:<name> --json
+vela start <target> --as agent:<name> --json
 
 vela land --work <target> \
   --claim "<bounded result>" \
@@ -65,7 +65,7 @@ a foreign or stateless producer; plugin sessions do not hand-author it.
 Release abandoned work through the owner-checked command:
 
 ```bash
-vela work <target> --drop --reason "<why work stopped>" \
+vela start <target> --drop --reason "<why the attempt stopped>" \
   --as agent:<name> --json
 ```
 

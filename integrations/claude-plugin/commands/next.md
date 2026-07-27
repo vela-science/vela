@@ -1,11 +1,11 @@
 ---
-description: The offer — ranked frontier targets; pick one and open a work session
+description: The offer — ranked frontier targets; pick one and start an Attempt
 argument-hint: "[target id]"
 ---
 
 # /vela:next
 
-Present the frontier's offer and open a work session on the target the user picks.
+Present the frontier's offer and start an Attempt on the target the user picks.
 
 1. Run `vela next --json`. It returns
    `{targets: [{lane, id, title, why, next_command}]}`.
@@ -20,7 +20,7 @@ Present the frontier's offer and open a work session on the target the user pick
 4. On a pick, open the session:
 
    ```
-   vela work <target> --as agent:claude --json
+   vela start <target> --as agent:claude --json
    ```
 
    Use `$VELA_ACTOR_ID` as the identity if it is set; otherwise `agent:claude`.
@@ -37,7 +37,7 @@ Present the frontier's offer and open a work session on the target the user pick
    it. An owner who abandons work uses a signed release with a truthful reason:
 
    ```
-   vela work <target> --drop --reason "<why work stopped>" \
+   vela start <target> --drop --reason "<why the attempt stopped>" \
      --as agent:<name> --json
    ```
 

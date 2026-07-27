@@ -1080,7 +1080,7 @@ pub fn event_log_hash(events: &[StateEvent]) -> String {
 }
 
 /// Commit to every canonical event except the signed coordination leases used
-/// by `vela work`.
+/// by `vela start`.
 ///
 /// Proof exports describe scientific and authority state. A later
 /// `attempt.claimed` event changes who is coordinating work, but it does not

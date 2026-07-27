@@ -34,13 +34,13 @@ pub(crate) fn print_session_help() {
         env!("CARGO_PKG_VERSION")
     );
     println!();
-    println!("  Agents land. Verifiers reproduce. Humans approve. Git publishes.");
+    println!("  Submit evidence. Verify its scope. Decide through authority. Continue.");
     println!();
     println!("  USAGE");
     println!("    vela <command> [options]");
     println!();
     println!("  COMMANDS");
-    println!("    init       status     next       work");
+    println!("    init       status     next       start");
     println!("    land       review     check      reproduce");
     println!("    verify     log        doctor");
     println!();
@@ -90,7 +90,7 @@ pub(crate) fn print_session_dashboard(project: &vela_protocol::project::Project,
         println!("  {}   · {}", style::warn("pending"), parts.join("  "));
     }
     println!();
-    println!("  the loop: vela next · vela work <target> · vela land · vela sign");
+    println!("  the loop: vela next · vela start <target> · vela land · vela sign");
     println!();
 }
 

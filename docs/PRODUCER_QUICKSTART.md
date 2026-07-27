@@ -9,7 +9,7 @@ proposal for a key-holding human. You cannot decide, sign, accept, or reject.
 
 Read `vela_version` from the frontier's `vela.lock`. Install that release from
 the [Vela releases page](https://github.com/vela-science/vela/releases), then
-check the version before you open work.
+check the version before you start an Attempt.
 
 ```bash
 version="$(awk '/^vela_version:/{print $2}' vela.lock)"
@@ -37,21 +37,21 @@ agent-only identity.
 ```bash
 git switch -c producer/<short-result-name>
 vela next . --json
-vela work <target-id> --frontier . --as agent:<your-handle> --json
+vela start <target-id> --frontier . --as agent:<your-handle> --json
 ```
 
-The work response names the fixed base, completion condition, required
+The Attempt response names the fixed base, completion condition, required
 checks, constraints, and authority ceiling. Vela writes one private session
 under `.vela/work/`. Do not edit or stage that directory.
 
-Profile v1 `next` and `work` validate the complete Target Index v2 and selected
+Profile v1 `next` and `start` validate the complete Target Index v2 and selected
 packet against tracked Git bytes and current roots. A stale index grants no
-work. The resulting `vela.target-task-binding.v1` is retained in the session
+Attempt. The resulting `vela.target-task-binding.v1` is retained in the session
 and copied byte-for-byte into Receipt v1 at landing.
 
 ## Run the selected verifier
 
-Use the verifier profile from the work response. The profile must pin its
+Use the verifier profile from the Attempt response. The profile must pin its
 runtime, source, inputs, limits, and replay command. Vela 0.9 keeps
 target-specific producer adapters in Canopus profiles or checked-in parent
 scripts. The core binary runs stored evidence through `vela reproduce`.
@@ -123,7 +123,7 @@ Use Vela to release the exact lease. Deleting the private session does not
 release it.
 
 ```bash
-vela work <target-id> \
+vela start <target-id> \
   --frontier . \
   --drop \
   --reason "why this attempt stopped" \

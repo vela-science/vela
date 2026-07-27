@@ -135,7 +135,8 @@ writer.
 
 ## Human decision
 
-`vela review decide` is the ordinary human decision command on an Era-1
+Direct `vela review accept|reject` commands are the ordinary human decision
+surface on an Era-1
 Frontier. It binds one proposal, action, reason, principal, policy, authority
 head, read set, binary identity, and exact canonical delta. The command is the
 semantic human action. The local operating-system session authenticates the
@@ -145,7 +146,7 @@ human scientific key and accepts no copied root, timestamp, batch answer, or
 custom-helper response.
 
 Any drift aborts before the commit marker. Acceptance additionally requires an
-eligible Decision Brief and strict aggregate Engine gate, then verifies that
+eligible Review Packet and strict aggregate Engine gate, then verifies that
 the covered scientific domain event and explicit review event replay together
 across both histories. Rejection changes no accepted scientific state.
 

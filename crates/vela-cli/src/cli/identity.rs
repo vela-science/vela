@@ -25,7 +25,9 @@ pub(crate) fn print_identity_created(identity: &crate::cli_identity::Identity, j
     println!("Next: bootstrap a new frontier's empty actor registry with");
     println!("  vela actor add <frontier>");
     println!("Established registries change only through signed governance.");
-    println!("Then `vela land` needs no key flag; human decisions use `vela review decide`.");
+    println!(
+        "Then `vela land` needs no key flag; human Decisions use direct `vela review accept|reject` actions."
+    );
 }
 
 pub(crate) fn cmd_id_keygen(out: std::path::PathBuf, json: bool) {

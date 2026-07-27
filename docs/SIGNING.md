@@ -53,24 +53,22 @@ vela review show . <vpr_id> --json
 Then execute exactly one semantic action:
 
 ```bash
-vela review decide . <vpr_id> \
-  --reject \
+vela review reject . <vpr_id> \
   --reason "The retained evidence does not satisfy the stated acceptance conditions." \
   --json
 ```
 
-or, when the Decision Brief says acceptance is eligible:
+or, when the Review Packet says acceptance is eligible:
 
 ```bash
-vela review decide . <vpr_id> \
-  --accept \
+vela review accept . <vpr_id> \
   --reason "The exact claim, evidence, verifier record, and conditions support acceptance." \
   --json
 ```
 
 The command itself is the human semantic action. Vela:
 
-1. derives the exact Decision Brief and transaction plan;
+1. derives the exact Review Packet and transaction plan;
 2. binds the proposal, action, reason, principal, policy, authority head,
    binary identity, read set, and canonical delta;
 3. authenticates the current local operating-system principal;
@@ -110,7 +108,7 @@ Routine producer work uses already governed policy:
 
 ```bash
 vela next . --json
-vela work <target> --frontier . --as agent:<handle> --json
+vela start <target> --frontier . --as agent:<handle> --json
 vela land receipt.json --frontier . --as agent:<handle> --json
 ```
 
@@ -118,10 +116,10 @@ A policy-routed `Defer` creates a pending proposal. A `Permit` is valid only
 when the retained policy explicitly covers the exact claim class and evidence
 bindings. Neither route grants the producer human authority.
 
-Receipt-bound producers may withdraw their own pending proposal:
+Producers may withdraw their own pending Proposal:
 
 ```bash
-vela review withdraw . <vpr_id> \
+vela proposal withdraw . <vpr_id> \
   --as agent:<handle> \
   --reason "superseded by a corrected submission" \
   --json

@@ -184,55 +184,54 @@ fn review_help_directs_known_proposals_to_the_terminal_read_surface() {
     );
 }
 
-/// Repository-authority decisions intentionally have no copied confirmation,
-/// legacy batch, key-path, or non-interactive approval inputs. Clap must reject
-/// those spellings before frontier or identity resolution.
+/// Repository-authority decisions intentionally use direct action verbs and
+/// have no copied confirmation, legacy batch, key-path, or non-interactive
+/// approval inputs. Clap must reject those spellings before frontier or
+/// identity resolution.
 #[test]
-fn review_decide_has_no_batch_key_yes_or_wildcard_surface() {
-    let help = vela(&["review", "decide", "--help"]);
-    assert!(help.status.success(), "{}", combined(&help));
-    let help = combined(&help);
-    for required in ["--accept", "--reject", "--reason"] {
-        assert!(help.contains(required), "missing {required}: {help}");
-    }
-    for forbidden in [
-        "--confirm-root",
-        "--confirm-at",
-        "--key",
-        "--yes",
-        "--batch",
-        "--all",
-    ] {
-        assert!(!help.contains(forbidden), "leaked {forbidden}: {help}");
-        let out = vela(&[
-            "review",
-            "decide",
-            "/tmp/vela-nonexistent-frontier",
-            "vpr_0000000000000000",
-            "--reject",
-            "--reason",
-            "fixture",
-            forbidden,
-        ]);
-        assert_eq!(
-            out.status.code(),
-            Some(2),
-            "{forbidden}: {}",
-            combined(&out)
-        );
-        assert!(
-            combined(&out).contains("unexpected argument"),
-            "{forbidden}: {}",
-            combined(&out)
-        );
+fn direct_review_actions_have_no_batch_key_yes_or_wildcard_surface() {
+    for action in ["accept", "reject"] {
+        let help = vela(&["review", action, "--help"]);
+        assert!(help.status.success(), "{}", combined(&help));
+        let help = combined(&help);
+        assert!(help.contains("--reason"), "missing --reason: {help}");
+        for forbidden in [
+            "--confirm-root",
+            "--confirm-at",
+            "--key",
+            "--yes",
+            "--batch",
+            "--all",
+        ] {
+            assert!(!help.contains(forbidden), "leaked {forbidden}: {help}");
+            let out = vela(&[
+                "review",
+                action,
+                "/tmp/vela-nonexistent-frontier",
+                "vpr_0000000000000000",
+                "--reason",
+                "fixture",
+                forbidden,
+            ]);
+            assert_eq!(
+                out.status.code(),
+                Some(2),
+                "{forbidden}: {}",
+                combined(&out)
+            );
+            assert!(
+                combined(&out).contains("unexpected argument"),
+                "{forbidden}: {}",
+                combined(&out)
+            );
+        }
     }
 
     let wildcard = vela(&[
         "review",
-        "decide",
+        "reject",
         "/tmp/vela-nonexistent-frontier",
         "*",
-        "--reject",
         "--reason",
         "fixture",
     ]);

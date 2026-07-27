@@ -764,7 +764,7 @@ pub fn try_frontier_next_projection_with_trust_anchor_and_authority(
                     id: target.id.clone(),
                     title: target.title.clone(),
                     why: target.why.clone(),
-                    next_command: format!("vela work {}", shell_target_argument(&target.id)),
+                    next_command: format!("vela start {}", shell_target_argument(&target.id)),
                     task: Some(pinned_target_index_task(project, &assessment, target)),
                 });
             }
@@ -811,7 +811,7 @@ pub fn try_frontier_next_projection_with_trust_anchor_and_authority(
                 why: seed.why.unwrap_or_else(|| {
                     "open campaign seed: no live lease, no landed statement".into()
                 }),
-                next_command: format!("vela work {}", shell_target_argument(&obligation)),
+                next_command: format!("vela start {}", shell_target_argument(&obligation)),
                 task,
             });
         }
@@ -849,7 +849,7 @@ pub fn try_frontier_next_projection_with_trust_anchor_and_authority(
                 title,
                 why: "new frontier: land one scoped Receipt with an artifact and explicit caveat"
                     .into(),
-                next_command: "vela work seed:first".into(),
+                next_command: "vela start seed:first".into(),
                 task: None,
             });
         }
@@ -1082,7 +1082,7 @@ mod tests {
             id: "fixture:one".into(),
             title: "Fixture".into(),
             why: "Fixture".into(),
-            next_command: "vela work fixture:one".into(),
+            next_command: "vela start fixture:one".into(),
             task: None,
         };
         assert!(
@@ -1278,7 +1278,7 @@ mod tests {
         assert_eq!(targets.len(), 1);
         assert_eq!(targets[0].lane, "seed");
         assert_eq!(targets[0].id, "seed:first");
-        assert_eq!(targets[0].next_command, "vela work seed:first");
+        assert_eq!(targets[0].next_command, "vela start seed:first");
         assert!(targets[0].task.is_none());
     }
 

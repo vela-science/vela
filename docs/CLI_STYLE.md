@@ -67,7 +67,8 @@ The surface is a deliberate hybrid, not drift:
   review · check · reproduce · log · doctor · migrate`.
 - **Noun-verb** for everything else: `finding <verb>`, `frontier <verb>`,
   `policy <verb>`, `config <verb>`, `id <verb>`, …
-- **One exact Era-0 scientific decision entry** (`review decide`) until each
+- **Two direct Era-0 scientific decision entries** (`review accept` and
+  `review reject`) until each
   frontier crosses its attributed repository-authority boundary. Producers
   cross through Receipt v1 and `land`; frozen policy state is read-only.
 - No new top-level verb without a deliberate `V0738_VISIBLE` edit. Growth

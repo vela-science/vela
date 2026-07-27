@@ -11,7 +11,7 @@ Agents may:
 
 - read `status`, `next`, `log`, `finding`, and `review`;
 - run `check` and `reproduce`;
-- claim or release a target through `work`;
+- start or abandon an Attempt through `start`;
 - land a verifier-backed result through `land`; and
 - regenerate derived views with `frontier materialize`.
 
@@ -34,10 +34,10 @@ export VELA_ACTOR_ID=agent:demo
 ```bash
 vela status . --json
 vela next . --limit 1 --json
-vela work <target> --as agent:demo --json
+vela start <target> --as agent:demo --json
 ```
 
-The work response is `vela.work.v1`. It names the exact target, starting roots,
+The Attempt response is `vela.attempt.v1`. It names the exact target, starting roots,
 packet path and root, completion contract, verifier profile, and landing
 command. Read the tracked packet and satisfy the first unresolved checkable
 obligation.
@@ -76,7 +76,7 @@ class. Neither state lets the agent enter the key path.
 Release an abandoned lease through Vela:
 
 ```bash
-vela work <target> --drop \
+vela start <target> --drop \
   --reason "<why the attempt stopped>" \
   --as agent:demo \
   --json
@@ -91,9 +91,9 @@ vela review list . --json
 vela review show . <vpr_id> --json
 ```
 
-Review reads do not resolve or read a key. The full Decision Brief appears only
+Review reads do not resolve or read a key. The full Review Packet appears only
 for one selected proposal. When a task supplies a full `vpr_` ID, make
-`review show` the first read; it returns either the pending Decision Brief or
+`review show` the first read; it returns either the pending Review Packet or
 the signed terminal decision record. A rejected proposal's candidate finding
 is intentionally absent from accepted `finding show` and `log` views. That
 absence is not deletion and does not require searching those surfaces first.
@@ -118,9 +118,9 @@ while strict scientific debt remains; report both states.
 
 `vela init` creates no MCP configuration. A project may opt into `vela serve`
 after initialization. The draft profile can expose the nonfinalizing producer
-loop. An agent may invoke one exact protected `review decide` request, but only
-the registered human can approve the exact local decision card. MCP exposes no
-decision path.
+loop. An agent may invoke one exact protected `review accept` or
+`review reject` request, but only the registered human can authorize the exact
+local decision card. MCP exposes no decision path.
 
 `vela serve . --http 3741` is a loopback-only public reader. HTTP has no
 authenticated actor identity and cannot expose restricted data, protected
@@ -130,7 +130,7 @@ decisions, or signing.
 
 - `vela.status.v1`: exact identity, roots, blockers, counts, policy, next action.
 - `vela.offer.v1`: producer ranking only.
-- `vela.work.v1`: one root-bound private session.
+- `vela.attempt.v1`: one root-bound private Attempt.
 - `vela.review.v1`: compact proposal summaries or one selected brief.
 
 See [CLI.md](CLI.md) for command syntax and [PROTOCOL.md](PROTOCOL.md) for the

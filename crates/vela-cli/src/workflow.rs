@@ -22,7 +22,7 @@
 //!
 //! Landing routes by the frontier's active authority: **Permit** admits
 //! canonically through the applicable retained or current authority lane;
-//! **Defer** leaves the proposal pending for an exact `vela review decide`;
+//! **Defer** leaves the Proposal pending for an exact direct review action;
 //! **Deny** or a gate block refuses canonical admission. Landing is idempotent:
 //! content addressing collapses byte-identical records, and an
 //! already-applied proposal is the caller's exit 5.
@@ -827,7 +827,7 @@ where
         }
         return Ok(json!({
             "ok": true,
-            "command": "review.withdraw",
+            "command": "proposal.withdraw",
             "proposal_id": proposal_id,
             "withdrawal_event_id": event.id,
             "withdrawn_at": event.timestamp,
@@ -845,7 +845,7 @@ where
     let authorization =
         vela_protocol::proposals::proposal_withdrawal_authorization(frontier, proposal)?;
     if proposal.actor.id != actor_id || authorization.identity_binding.actor_id != actor_id {
-        return Err("withdrawal actor is not the Receipt-bound proposal producer".to_string());
+        return Err("withdrawal actor is not the producer bound to this Proposal".to_string());
     }
     let key = load_key()?;
     let withdrawn_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
@@ -871,7 +871,7 @@ where
     );
     let result = json!({
         "ok": true,
-        "command": "review.withdraw",
+        "command": "proposal.withdraw",
         "proposal_id": proposal_id,
         "withdrawal_event_id": event.id,
         "withdrawn_at": withdrawn_at,
@@ -892,7 +892,7 @@ where
             request_event_id_field: "withdrawal_event_id",
             result_event_id_field: "withdrawal_event_id",
             result_timestamp_field: "withdrawn_at",
-            publication_summary: "review withdraw",
+            publication_summary: "proposal withdraw",
             preserve_existing_event_bytes: true,
         },
         || Ok(()),
@@ -1549,7 +1549,7 @@ fn parse_work_session(path: &Path) -> Result<WorkSession, String> {
         .map_err(|error| format!("read work session {}: {error}", path.display()))?;
     let session: WorkSession = serde_json::from_slice(&bytes).map_err(|error| {
         format!(
-            "parse work session {}: {error}; remove this private stale session and rerun `vela work <target> --as <actor>`",
+            "parse work session {}: {error}; remove this private stale session and rerun `vela start <target> --as <actor>`",
             path.display()
         )
     })?;
@@ -1648,7 +1648,7 @@ fn validate_active_session(
         }
         (None, Some(_)) => {
             return Err(
-                "legacy work session cannot cross the repository-authority migration boundary; remove it and rerun `vela work`"
+                "legacy work session cannot cross the repository-authority migration boundary; remove it and rerun `vela start`"
                     .to_string(),
             );
         }
@@ -1778,7 +1778,7 @@ fn work_session_landing_event_root(
     }
     if nonlease_event_log_root(&project.events) != session.base_nonlease_event_log_root {
         return Err(format!(
-            "work session frontier has non-lease changes from its pinned state; remove the private session and rerun `vela work {} --as {}`",
+            "work session frontier has non-lease changes from its pinned state; remove the private session and rerun `vela start {} --as {}`",
             session.target, session.actor
         ));
     }
@@ -1833,7 +1833,7 @@ fn work_session_landing_event_root_at(
     let actual_nonlease_root = repository_authority_nonlease_event_log_root(project, &authority)?;
     if actual_nonlease_root != expected_nonlease_root {
         return Err(format!(
-            "work session frontier has non-lease authority changes from its pinned state; remove the private session and rerun `vela work {} --as {}`",
+            "work session frontier has non-lease authority changes from its pinned state; remove the private session and rerun `vela start {} --as {}`",
             session.target, session.actor
         ));
     }
@@ -1870,7 +1870,7 @@ pub(crate) fn resolve_work_session(
 
     let root = frontier.join(".vela").join("work");
     let entries = std::fs::read_dir(&root)
-        .map_err(|_| "no active work session; run `vela work <target>` first".to_string())?;
+        .map_err(|_| "no active work session; run `vela start <target>` first".to_string())?;
     let mut candidates = Vec::new();
     for entry in entries {
         let entry = entry.map_err(|error| format!("enumerate work sessions: {error}"))?;
@@ -1900,7 +1900,7 @@ pub(crate) fn resolve_work_session(
     match candidates.len() {
         1 => Ok(candidates.remove(0)),
         0 => Err(format!(
-            "no active work session for {actor}; run `vela work <target> --as {actor}` first"
+            "no active work session for {actor}; run `vela start <target> --as {actor}` first"
         )),
         count => Err(format!(
             "{actor} has {count} active work sessions ({}); select one with `vela land --work <target>`",
@@ -1997,7 +1997,7 @@ where
             let path = session_dir(frontier, target).join("session.json");
             let session = parse_work_session(&path).map_err(|error| {
                 format!(
-                    "work target {target} already has an active lease for {actor}, but its private session is unavailable: {error}; wait for the in-flight `vela work` command or release the lease with `vela work {target} --drop --as {actor}`"
+                    "work target {target} already has an active lease for {actor}, but its private session is unavailable: {error}; wait for the in-flight `vela start` command or release the lease with `vela start {target} --drop --as {actor}`"
                 )
             })?;
             validate_active_session(frontier, actor, &session)?;
@@ -4571,7 +4571,7 @@ mod workflow_transaction_tests {
 
         let error = parse_work_session(&path).unwrap_err();
         assert!(error.contains("base_nonlease_event_log_root"), "{error}");
-        assert!(error.contains("rerun `vela work"), "{error}");
+        assert!(error.contains("rerun `vela start"), "{error}");
     }
 
     #[test]

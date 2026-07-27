@@ -9,7 +9,7 @@ the exact bytes.
 Default help exposes eleven commands:
 
 ```text
-init status next work land review check reproduce verify log doctor
+init status next start land review check reproduce verify log doctor
 ```
 
 The ordinary producer loop is:
@@ -17,9 +17,9 @@ The ordinary producer loop is:
 ```bash
 vela status . --json
 vela next . --limit 1 --json
-vela work <target> --frontier . --as agent:<name> --json
+vela start <target> --frontier . --as agent:<name> --json
 
-# Run the verifier named by the work response.
+# Run the verifier named by the Attempt response.
 
 vela land --frontier . \
   --work <target> \
@@ -47,9 +47,9 @@ accept or reject a proposal.
 | `init` | Create a minimal Git frontier from a name and bounded scope. |
 | `status` | Report Git identity, full roots, replay, blockers, counts, policy readiness, and one next action. |
 | `next` | Rank producer targets. Review work never appears here. |
-| `work` | Claim one exact target and write a private typed session. |
+| `start` | Start one bounded Attempt against an exact Target. |
 | `land` | Build or import Receipt v1 and route its covered result. |
-| `review` | List, inspect, decide, withdraw, or export proposals. |
+| `review` | List, inspect, diff, accept, reject, or export Proposals. |
 | `check` | Verify schemas, replay, signatures, roots, policy, and strict signals. |
 | `reproduce` | Run retained evidence through its frozen verifier. |
 | `verify attach` | Retain proposal-scoped verifier evidence; never accept it. |
@@ -59,7 +59,7 @@ accept or reject a proposal.
 Setup and read-oriented nouns:
 
 ```text
-finding artifact frontier policy actor id agents config
+finding artifact proposal frontier policy actor id agents config
 ```
 
 Advanced verification and integration:
@@ -86,7 +86,7 @@ commands in the current candidate.
 - current policy readiness; and
 - one next action.
 
-It does not embed Decision Briefs, packet bodies, test telemetry, or private
+It does not embed Review Packets, packet bodies, test telemetry, or private
 coordination.
 
 ### Producer offer
@@ -100,14 +100,14 @@ produces no offer.
 
 ### Work session
 
-`vela work <target> --frontier . --json` emits `vela.work.v1`. It binds:
+`vela start <target> --frontier . --json` emits `vela.attempt.v1`. It binds:
 
 - the exact target and packet;
 - starting roots;
 - completion contract;
 - verifier profile;
 - lease state; and
-- landing command.
+- current producer submission command.
 
 Repeating an active claim by the same actor is idempotent.
 
@@ -116,17 +116,16 @@ Repeating an active claim by the same actor is idempotent.
 ```bash
 vela review list . --json
 vela review show . <vpr_id> --json
-vela review preview . <vpr_id> --json
+vela review diff . <vpr_id> --json
 ```
 
 `review list` emits compact paginated summaries. `review show` returns either
-one pending Decision Brief or one terminal decision record.
+one pending Review Packet or one terminal Decision record.
 
 An authorized person executes one exact decision:
 
 ```bash
-vela review decide . <vpr_id> \
-  --reject \
+vela review reject . <vpr_id> \
   --reason "insufficient independent evidence" \
   --json
 ```
@@ -135,10 +134,10 @@ The action and reason are bound into one repository-authority transaction.
 There are no copied confirmation roots, timestamps, Vela human keys, batch
 answers, or custom signer helpers. See [SIGNING.md](SIGNING.md).
 
-A Receipt-bound producer may withdraw only its own pending proposal:
+A producer may withdraw only its own pending Proposal:
 
 ```bash
-vela review withdraw . <vpr_id> \
+vela proposal withdraw . <vpr_id> \
   --as agent:<name> \
   --reason "superseded" \
   --json
@@ -231,7 +230,7 @@ vela target-index seal . --candidate <candidate.json> --apply --json
 vela target-index inspect . [<full-target-id>] --json
 ```
 
-`next` and `work` require a fresh tracked Target Index and exact packet bytes.
+`next` and `start` require a fresh tracked Target Index and exact packet bytes.
 
 ## Local serving
 
@@ -263,7 +262,7 @@ Frontier bytes.
 | Retired command | Current path |
 | --- | --- |
 | `proposals` | `review` |
-| `diff vpr_*` | `review preview` |
+| `diff vpr_*` | `review diff` |
 | `diff <left> <right>` | `frontier diff` |
 | `state` and `credit` | `finding show --view ...` |
 | `publication` | `frontier recover-publication` |

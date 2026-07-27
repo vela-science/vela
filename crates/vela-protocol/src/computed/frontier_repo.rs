@@ -905,7 +905,7 @@ this file — edit here, never there.
 Agents may:
 
 - inspect state: `vela status .`, `vela next .`, `vela check .`
-- claim one target: `vela work <target> --as agent:<name> --json`
+- claim one target: `vela start <target> --as agent:<name> --json`
 - land Receipt v1 work through that session: `vela land --work <target>
   --claim … --artifact … --caveat … --as agent:<name> --json`
 - import a foreign producer's canonical Receipt v1: `vela land receipt.json
@@ -926,7 +926,7 @@ Agents may not:
 
 ```bash
 vela next . --json                              # ranked offer
-vela work <target> --as agent:<name> --json     # lease + briefing
+vela start <target> --as agent:<name> --json     # lease + briefing
 vela land --work <target> --claim <claim> \
   --type computational --replayability exact \
   --artifact <path>:<kind> --caveat <limit> \

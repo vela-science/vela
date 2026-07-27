@@ -1,5 +1,5 @@
 ---
-description: Read-only proposal inspection — list compact records and open one exact Decision Brief
+description: Read-only proposal inspection — list compact records and open one exact Review Packet
 argument-hint: "[proposal id]"
 allowed-tools: Bash(vela review list:*), Bash(vela review show:*), Bash(vela review preview:*)
 ---
@@ -31,7 +31,7 @@ Steps:
    - caveats and Engine blockers;
    - proposal, Receipt, evidence, and terminal-decision roots when present; and
    - the route's stated next action.
-5. If the user asks to inspect the pending Decision Brief exactly as the
+5. If the user asks to inspect the pending Review Packet exactly as the
    decision planner sees it, run
    `vela review preview . <vpr_id> --json`.
 6. Stop after inspection. If the user explicitly gives a semantic decision,

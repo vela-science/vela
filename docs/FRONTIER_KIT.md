@@ -29,7 +29,7 @@ private work-session record.
 Record the event-log root shown at the pinned start commit and the Profile v1
 scientific-state, identity, dependency, and profile roots from `vela.lock`.
 Current `vela status . --json` exposes the event root at `roots.event_log`.
-`vela work` retains the exact Target Index v2, packet, repository roots, and
+`vela start` retains the exact Target Index v2, packet, repository roots, and
 claim-time read set in `vela.target-task-binding.v1`; landing copies the same
 binding into Receipt v1.
 
@@ -44,7 +44,7 @@ vela status . --json
 vela check . --strict
 vela next . --json
 
-vela work <target> --as agent:<name> --json
+vela start <target> --as agent:<name> --json
 
 # Run the selected, pinned verifier from the README.
 vela reproduce .
@@ -69,13 +69,13 @@ producers.
 
 A committed Permit or Defer closes the session record. Permit records the
 policy certificate that authorized admission. Defer leaves the proposal for
-protected `vela review decide`. Deny and invalid input leave the session intact and return a
+protected `vela review accept|reject`. Deny and invalid input leave the session intact and return a
 repair action.
 
 Release an abandoned lease through Vela:
 
 ```bash
-vela work <target> --drop \
+vela start <target> --drop \
   --reason "<why work stopped>" \
   --as agent:<name> \
   --json

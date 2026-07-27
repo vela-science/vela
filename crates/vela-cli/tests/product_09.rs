@@ -75,7 +75,7 @@ fn compact_contract_exposes_only_the_daily_surface_and_bounded_status() {
         "init",
         "status",
         "next",
-        "work",
+        "start",
         "land",
         "review",
         "check",
