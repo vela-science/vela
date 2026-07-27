@@ -466,7 +466,10 @@ where
     );
     let unsigned_draft = DeltaDraft::prepare(frontier_root, content_writes.clone())
         .map_err(AuthorityTransactionError::Transaction)?;
-    let object_delta = authority_object_delta(&unsigned_draft, &events, &request.object_drafts)?;
+    let full_object_delta =
+        authority_object_delta(&unsigned_draft, &events, &request.object_drafts)?;
+    let record_object_delta =
+        authority_record_object_delta(&full_object_delta, request.retire_legacy_history)?;
 
     let read_set_root = read_set_root(
         &request,
@@ -480,7 +483,7 @@ where
         &history.final_event_log_root,
         &after_event_log_root,
         &event_ids,
-        &object_delta,
+        &full_object_delta,
     )?;
     let operation_id = OperationId::derive(OPERATION_DOMAIN, transaction_id.as_bytes());
 
@@ -494,7 +497,7 @@ where
         before_event_log_root: history.final_event_log_root.clone(),
         after_event_log_root: after_event_log_root.clone(),
         event_ids: event_ids.clone(),
-        object_delta,
+        object_delta: record_object_delta.clone(),
         principal: request.principal.clone(),
         authentication: preflight.authentication,
         delegation: request.delegation.clone(),
@@ -648,9 +651,10 @@ where
             crate::frontier_txn::FileState::Absent
         )
         || content_delta != unsigned_draft.delta.writes()
+        || record.content.object_delta != record_object_delta
     {
         return Err(AuthorityTransactionError::Invalid(
-            "covering record must be new and the signed object delta must equal the journal delta"
+            "covering record must be new and its signed commitments must cover the exact journal delta"
                 .into(),
         ));
     }
@@ -1788,6 +1792,67 @@ fn authority_object_delta(
             })
         })
         .collect()
+}
+
+/// Select the object postimages that a human repository-authority signature
+/// must expose directly.
+///
+/// Ordinary transactions retain the complete per-object delta. A repository
+/// epoch can migrate thousands of predecessor paths, so repeating every path
+/// in the signed record would make the signature payload grow with historical
+/// repository size. The record instead exposes the initialization event and
+/// the two roots that define the current epoch. Its transaction ID still
+/// commits every exact object draft, and its transaction write-set root still
+/// commits the complete journal delta, including every retired predecessor
+/// path.
+fn authority_record_object_delta(
+    full_delta: &[ObjectDeltaV1],
+    retire_legacy_history: bool,
+) -> Result<Vec<ObjectDeltaV1>, AuthorityTransactionError> {
+    if !retire_legacy_history {
+        return Ok(full_delta.to_vec());
+    }
+
+    let mut selected = full_delta
+        .iter()
+        .filter(|delta| {
+            delta.object_kind == "event"
+                || matches!(
+                    delta.path.as_str(),
+                    ".vela/epoch.json" | ".vela/repository.json"
+                )
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    selected.sort_by(|left, right| left.path.cmp(&right.path));
+
+    let event_count = selected
+        .iter()
+        .filter(|delta| delta.object_kind == "event")
+        .count();
+    let exact_new_path = |path: &str| {
+        selected
+            .iter()
+            .filter(|delta| {
+                delta.path == path && delta.before_root.is_none() && delta.after_root.is_some()
+            })
+            .count()
+            == 1
+    };
+    if selected.len() != 3
+        || event_count != 1
+        || !exact_new_path(".vela/epoch.json")
+        || !exact_new_path(".vela/repository.json")
+        || selected
+            .iter()
+            .any(|delta| delta.before_root.is_some() || delta.after_root.is_none())
+    {
+        return Err(AuthorityTransactionError::Invalid(
+            "repository-epoch authority record must expose exactly one new initialization event, epoch manifest, and repository manifest"
+                .into(),
+        ));
+    }
+    Ok(selected)
 }
 
 fn file_state_root(state: &crate::frontier_txn::FileState) -> Option<String> {
@@ -4552,6 +4617,22 @@ mod tests {
             .path();
         let current_envelope: AuthorityEnvelopeV1 =
             serde_json::from_slice(&fs::read(record_path).unwrap()).unwrap();
+        let current_payload = BASE64_STANDARD.decode(&current_envelope.payload).unwrap();
+        let current_record: AuthorityRecordV1 = serde_json::from_slice(&current_payload).unwrap();
+        assert_eq!(current_record.content.object_delta.len(), 3);
+        assert_eq!(
+            current_record
+                .content
+                .object_delta
+                .iter()
+                .map(|delta| delta.path.clone())
+                .collect::<Vec<_>>(),
+            vec![
+                authority_event_path(&current_event.id),
+                ".vela/epoch.json".into(),
+                ".vela/repository.json".into(),
+            ]
+        );
         let current_events = [current_event];
         let current_envelopes = [current_envelope];
         let replay = verify_authority_history(AuthorityHistoryInput {
@@ -4690,6 +4771,64 @@ mod tests {
         assert_eq!(
             fs::read(root_path.join(".vela/current-object.json")).unwrap(),
             br#"{"current":true}"#
+        );
+    }
+
+    #[test]
+    fn repository_epoch_record_stays_bounded_while_full_delta_remains_committed() {
+        let mut full_delta = vec![
+            ObjectDeltaV1 {
+                path: ".vela/authority/events/vev_0123456789abcdef.json".into(),
+                before_root: None,
+                after_root: Some(root('1')),
+                object_kind: "event".into(),
+            },
+            ObjectDeltaV1 {
+                path: ".vela/epoch.json".into(),
+                before_root: None,
+                after_root: Some(root('2')),
+                object_kind: "repository_epoch".into(),
+            },
+            ObjectDeltaV1 {
+                path: ".vela/repository.json".into(),
+                before_root: None,
+                after_root: Some(root('3')),
+                object_kind: "repository_manifest".into(),
+            },
+        ];
+        full_delta.extend((0..6_000).map(|index| ObjectDeltaV1 {
+            path: format!(".vela/events/vev_{index:016x}.json"),
+            before_root: Some(root('a')),
+            after_root: None,
+            object_kind: "era0_event".into(),
+        }));
+
+        assert!(to_canonical_bytes(&full_delta).unwrap().len() > 1024 * 1024);
+        let record_delta = authority_record_object_delta(&full_delta, true).unwrap();
+        assert_eq!(record_delta.len(), 3);
+        assert!(to_canonical_bytes(&record_delta).unwrap().len() < 2_048);
+
+        let before = write_set_root(
+            "vtx_fixture",
+            &root('4'),
+            &root('5'),
+            &["vev_0123456789abcdef".into()],
+            &full_delta,
+        )
+        .unwrap();
+        full_delta[100].before_root = Some(root('b'));
+        let after = write_set_root(
+            "vtx_fixture",
+            &root('4'),
+            &root('5'),
+            &["vev_0123456789abcdef".into()],
+            &full_delta,
+        )
+        .unwrap();
+        assert_ne!(before, after);
+        assert_eq!(
+            authority_record_object_delta(&full_delta, true).unwrap(),
+            record_delta
         );
     }
 

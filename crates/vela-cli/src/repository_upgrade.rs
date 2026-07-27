@@ -9,6 +9,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vela_authority::runtime_authentication::{AuthenticationRequest, RuntimeSessionState};
+use vela_edge::repository_write::{
+    AUTHORITY_TRUST_ANCHOR_SCHEMA_V1, AuthorityTrustAnchorV1,
+    load_authority_trust_anchor_from_home, rebind_authority_trust_anchor_from_home,
+};
 use vela_protocol::authority::{AuthorityEventV1, PrincipalSnapshotV1, SemanticApprovalV1};
 use vela_protocol::authority_history::{
     AUTHORITY_INITIALIZATION_SCHEMA_V1, AUTHORITY_INITIALIZE_ACTION,
@@ -1384,6 +1388,13 @@ fn apply_repository_upgrade(plan: &RepositoryUpgradePlan) -> Result<Value, Strin
     if git_text(&frontier, &["rev-parse", "HEAD^{commit}"])? != plan.predecessor_commit {
         return Err("repository upgrade predecessor changed after confirmation".into());
     }
+    let user_home =
+        crate::frontier_txn::operating_system_account_home().map_err(|error| error.to_string())?;
+    let predecessor_anchor = load_authority_trust_anchor_from_home(&user_home, &plan.frontier_id)?
+        .ok_or_else(|| {
+            "repository upgrade requires the independently retained predecessor authority pin"
+                .to_string()
+        })?;
 
     let object_manifest: GitObjectManifest =
         serde_json::from_slice(&fs::read(&plan.git_object_manifest_path).map_err(|error| {
@@ -1521,6 +1532,26 @@ fn apply_repository_upgrade(plan: &RepositoryUpgradePlan) -> Result<Value, Strin
     require_git_clean(&clean_clone)?;
     fs::remove_dir_all(&clean_clone)
         .map_err(|error| format!("remove verified clean clone: {error}"))?;
+    let current_anchor = AuthorityTrustAnchorV1 {
+        schema: AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.into(),
+        frontier_id: plan.frontier_id.clone(),
+        first_authority_record_root: result["authority_record_root"]
+            .as_str()
+            .ok_or_else(|| {
+                "repository upgrade result has no sequence-one authority record root".to_string()
+            })?
+            .to_string(),
+    };
+    let rebound = rebind_authority_trust_anchor_from_home(
+        &user_home,
+        &predecessor_anchor.anchor,
+        &current_anchor,
+    )
+    .map_err(|error| {
+        format!(
+            "repository epoch is published and verified, but the local authority pin could not be rebound: {error}"
+        )
+    })?;
     git_success(
         &frontier,
         &[
@@ -1531,6 +1562,9 @@ fn apply_repository_upgrade(plan: &RepositoryUpgradePlan) -> Result<Value, Strin
         ],
         "remove verified repository-upgrade worktree",
     )?;
+    let mut result = result;
+    result["authority_trust_anchor_root"] = Value::String(rebound.root);
+    result["authority_trust_anchor_path"] = Value::String(rebound.path.display().to_string());
     Ok(result)
 }
 

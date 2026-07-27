@@ -1141,6 +1141,67 @@ pub fn install_authority_trust_anchor_from_home(
         .ok_or_else(|| "installed authority trust anchor could not be read back".to_string())
 }
 
+/// Atomically move one independently retained authority pin to the exact
+/// sequence-one record established by a verified repository-epoch
+/// transition.
+///
+/// This is not TOFU and does not derive trust from repository-controlled
+/// bytes. The caller must supply the exact already-installed anchor as the
+/// preimage and must have independently verified the signed transition before
+/// invoking this edge. A concurrent change, symlink substitution, or
+/// unexpected existing value fails closed.
+pub fn rebind_authority_trust_anchor_from_home(
+    user_home: &Path,
+    expected: &AuthorityTrustAnchorV1,
+    replacement: &AuthorityTrustAnchorV1,
+) -> Result<LoadedAuthorityTrustAnchorV1, String> {
+    expected.validate()?;
+    replacement.validate()?;
+    if expected.frontier_id != replacement.frontier_id {
+        return Err("authority trust-anchor rebind cannot change Frontier identity".to_string());
+    }
+    let loaded = load_authority_trust_anchor_from_home(user_home, &expected.frontier_id)?
+        .ok_or_else(|| {
+            "authority trust-anchor rebind requires an existing exact pin".to_string()
+        })?;
+    if loaded.anchor != *expected {
+        return Err(
+            "authority trust-anchor rebind preimage does not match the installed pin".into(),
+        );
+    }
+    if expected == replacement {
+        return Ok(loaded);
+    }
+
+    let mut expected_bytes = serde_json::to_vec_pretty(expected)
+        .map_err(|error| format!("serialize authority trust-anchor preimage: {error}"))?;
+    expected_bytes.push(b'\n');
+    let mut replacement_bytes = serde_json::to_vec_pretty(replacement)
+        .map_err(|error| format!("serialize authority trust-anchor replacement: {error}"))?;
+    replacement_bytes.push(b'\n');
+    let relative = PathBuf::from(".vela")
+        .join("trust")
+        .join("authorities")
+        .join(format!("{}.json", replacement.frontier_id));
+    PreparedRepositoryFileReplacement::prepare_exact(
+        user_home,
+        &relative,
+        Some(&expected_bytes),
+        &replacement_bytes,
+        RepositoryFileReplacementMode::PreserveExisting,
+        4 * 1024,
+    )?
+    .install()?;
+    let rebound = load_authority_trust_anchor_from_home(user_home, &replacement.frontier_id)?
+        .ok_or_else(|| "rebound authority trust anchor could not be read back".to_string())?;
+    if rebound.anchor != *replacement {
+        return Err(
+            "rebound authority trust anchor differs from the exact replacement".to_string(),
+        );
+    }
+    Ok(rebound)
+}
+
 fn load_private_trust_document<T: DeserializeOwned>(
     user_home: &Path,
     namespace: &str,
@@ -2344,6 +2405,29 @@ mod tests {
         let error =
             install_authority_trust_anchor_from_home(home.path(), &replacement).unwrap_err();
         assert!(error.contains("refusing to replace existing authority trust anchor"));
+    }
+
+    #[test]
+    fn authority_trust_anchor_rebind_requires_the_exact_installed_preimage() {
+        let home = tempfile::tempdir().unwrap();
+        let original = authority_trust_anchor();
+        install_authority_trust_anchor_from_home(home.path(), &original).unwrap();
+
+        let mut replacement = original.clone();
+        replacement.first_authority_record_root = format!("sha256:{}", "5".repeat(64));
+        let rebound =
+            rebind_authority_trust_anchor_from_home(home.path(), &original, &replacement).unwrap();
+        assert_eq!(rebound.anchor, replacement);
+
+        let mut wrong_preimage = original;
+        wrong_preimage.first_authority_record_root = format!("sha256:{}", "6".repeat(64));
+        let error = rebind_authority_trust_anchor_from_home(
+            home.path(),
+            &wrong_preimage,
+            &authority_trust_anchor(),
+        )
+        .unwrap_err();
+        assert!(error.contains("preimage does not match"));
     }
 
     #[test]

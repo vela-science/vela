@@ -97,6 +97,19 @@ fn trust_diagnostic(
         {
             ("pinned", "independent sequence-one root matches")
         }
+        Some(anchor)
+            if crate::frontier_txn::authority_anchor_selects_current_epoch(
+                &anchor.anchor,
+                &repository.frontier_id,
+                first_root,
+                &epoch.predecessor_roots.authority_head,
+            ) =>
+        {
+            (
+                "predecessor_pinned",
+                "the independently pinned predecessor sequence-one record is also the signed epoch authority head",
+            )
+        }
         Some(_) => ("blocked", "local trust anchor does not match sequence one"),
         None => (
             "unpinned",
@@ -157,7 +170,15 @@ fn current_doctor_payload(frontier: &Path, all: bool) -> Result<Value, String> {
     if target_index["status"] == "blocked" {
         blockers.push("target_index_invalid");
     }
-    let next_action = if !blockers.is_empty() {
+    let next_action = if blockers.contains(&"authority_trust_mismatch") {
+        format!(
+            "vela authority trust pin {} --record-root {} --json",
+            frontier.display(),
+            authority["sequence_one_record_root"]
+                .as_str()
+                .unwrap_or("<full-sequence-one-root>")
+        )
+    } else if !blockers.is_empty() {
         format!("vela check {} --json", frontier.display())
     } else if let Some(proposal) = pending.first() {
         format!(
@@ -178,7 +199,7 @@ fn current_doctor_payload(frontier: &Path, all: bool) -> Result<Value, String> {
         "binary": {
             "version": env!("CARGO_PKG_VERSION"),
             "path": executable,
-            "sha256": format!("sha256:{binary_sha256}"),
+            "sha256": binary_sha256,
         },
         "frontier": {
             "path": frontier,

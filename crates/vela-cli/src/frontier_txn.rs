@@ -1555,6 +1555,9 @@ fn verify_legacy_writer_era(
 fn verify_repository_authority_write_era(
     root: &Path,
 ) -> Result<RepositoryAuthorityWriteAuthorization, FrontierTxnError> {
+    if root.join(".vela/epoch.json").is_file() {
+        return verify_current_repository_authority_write_era(root);
+    }
     let project = vela_protocol::repo::load_from_path(root).map_err(|error| {
         FrontierTxnError::Io(format!(
             "load repository for repository-authority gate: {error}"
@@ -1656,6 +1659,116 @@ fn verify_repository_authority_write_era(
         frontier_id: project.frontier_id(),
         boundary_event_id,
         boundary_event_root,
+    })
+}
+
+pub(crate) fn authority_anchor_selects_current_epoch(
+    anchor: &vela_edge::repository_write::AuthorityTrustAnchorV1,
+    frontier_id: &str,
+    current_sequence_one_root: &str,
+    predecessor_authority_head: &str,
+) -> bool {
+    anchor
+        .verify_sequence_one(frontier_id, current_sequence_one_root)
+        .is_ok()
+        || (anchor.frontier_id == frontier_id
+            && anchor.first_authority_record_root == predecessor_authority_head)
+}
+
+fn verify_current_repository_authority_write_era(
+    root: &Path,
+) -> Result<RepositoryAuthorityWriteAuthorization, FrontierTxnError> {
+    let repository =
+        crate::repository_upgrade::verify_current_repository_at(root, true).map_err(|error| {
+            FrontierTxnError::RepositoryWriteIntentDenied {
+                intent: "repository_authority",
+                reason: format!("current repository epoch is invalid: {error}"),
+            }
+        })?;
+    let epoch_bytes = fs::read(root.join(".vela/epoch.json"))
+        .map_err(|error| FrontierTxnError::Io(format!("read current repository epoch: {error}")))?;
+    let epoch = vela_protocol::repository_epoch::RepositoryEpochV1::parse(&epoch_bytes).map_err(
+        |error| FrontierTxnError::RepositoryWriteIntentDenied {
+            intent: "repository_authority",
+            reason: format!("current repository epoch is invalid: {error}"),
+        },
+    )?;
+    let authority = crate::cli::load_current_repository_authority(root, &repository, &epoch)
+        .map_err(|error| FrontierTxnError::RepositoryWriteIntentDenied {
+            intent: "repository_authority",
+            reason: format!("current repository-authority history is invalid: {error}"),
+        })?;
+    if authority.verification.closed {
+        return Err(FrontierTxnError::RepositoryWriteIntentDenied {
+            intent: "repository_authority",
+            reason: "repository-authority history is closed".into(),
+        });
+    }
+    let first_root = authority
+        .verification
+        .first_authority_record_root
+        .as_deref()
+        .ok_or_else(|| FrontierTxnError::RepositoryWriteIntentDenied {
+            intent: "repository_authority",
+            reason: "current repository-authority history has no sequence-one root".into(),
+        })?;
+    let trusted_user_home = operating_system_account_home()?;
+    let anchor =
+        load_authority_trust_anchor_from_home(&trusted_user_home, &repository.frontier_id)
+            .map_err(|error| FrontierTxnError::RepositoryWriteIntentDenied {
+                intent: "repository_authority",
+                reason: format!("load local authority trust anchor: {error}"),
+            })?
+            .ok_or_else(|| FrontierTxnError::RepositoryWriteIntentDenied {
+                intent: "repository_authority",
+                reason: format!(
+                    "current repository-authority writes require an independent sequence-one pin; run `vela authority trust pin . --record-root {first_root} --json`"
+                ),
+            })?;
+    if !authority_anchor_selects_current_epoch(
+        &anchor.anchor,
+        &repository.frontier_id,
+        first_root,
+        &epoch.predecessor_roots.authority_head,
+    ) {
+        return Err(FrontierTxnError::RepositoryWriteIntentDenied {
+            intent: "repository_authority",
+            reason: format!(
+                "local authority trust anchor selects neither current sequence one {first_root} nor the signed one-record predecessor head {}",
+                epoch.predecessor_roots.authority_head
+            ),
+        });
+    }
+    let initialization_event_id = authority
+        .verification
+        .initialization_event_id
+        .as_deref()
+        .ok_or_else(|| FrontierTxnError::RepositoryWriteIntentDenied {
+            intent: "repository_authority",
+            reason: "current repository authority has no epoch initialization event".into(),
+        })?;
+    let event = authority
+        .history
+        .authority_events
+        .iter()
+        .find(|event| event.id == initialization_event_id)
+        .ok_or_else(|| FrontierTxnError::RepositoryWriteIntentDenied {
+            intent: "repository_authority",
+            reason: format!(
+                "current epoch initialization event {initialization_event_id} is missing"
+            ),
+        })?;
+    Ok(RepositoryAuthorityWriteAuthorization {
+        frontier_id: repository.frontier_id,
+        boundary_event_id: initialization_event_id.to_string(),
+        boundary_event_root: ContentDigest::parse(event.root().map_err(|error| {
+            FrontierTxnError::RepositoryWriteIntentDenied {
+                intent: "repository_authority",
+                reason: format!(
+                    "current epoch initialization event {initialization_event_id} has no valid root: {error}"
+                ),
+            }
+        })?)?,
     })
 }
 
@@ -4666,6 +4779,41 @@ fn sync_directory(path: &Path) -> Result<(), FrontierTxnError> {
 mod tests {
     use super::*;
     use serde_json::json;
+    use vela_edge::repository_write::{AUTHORITY_TRUST_ANCHOR_SCHEMA_V1, AuthorityTrustAnchorV1};
+
+    #[test]
+    fn current_epoch_trust_accepts_current_or_one_record_predecessor_only() {
+        let frontier_id = "vfr_0123456789abcdef";
+        let current = format!("sha256:{}", "1".repeat(64));
+        let predecessor = format!("sha256:{}", "2".repeat(64));
+        let mut anchor = AuthorityTrustAnchorV1 {
+            schema: AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.into(),
+            frontier_id: frontier_id.into(),
+            first_authority_record_root: current.clone(),
+        };
+        assert!(authority_anchor_selects_current_epoch(
+            &anchor,
+            frontier_id,
+            &current,
+            &predecessor
+        ));
+
+        anchor.first_authority_record_root = predecessor.clone();
+        assert!(authority_anchor_selects_current_epoch(
+            &anchor,
+            frontier_id,
+            &current,
+            &predecessor
+        ));
+
+        anchor.first_authority_record_root = format!("sha256:{}", "3".repeat(64));
+        assert!(!authority_anchor_selects_current_epoch(
+            &anchor,
+            frontier_id,
+            &current,
+            &predecessor
+        ));
+    }
 
     #[test]
     fn no_event_operation_identity_binds_delta_and_planning_time() {
