@@ -235,6 +235,19 @@ transaction, or key read. Local expiry and one target-scoped filesystem lock
 prevent two local producers from silently sharing the same private Attempt;
 they are coordination mechanics, not global authority or scientific state.
 
+`vela submit` in a current epoch is an object-only repository-authority
+transaction. It retains the exact authenticated Submission and
+content-addressed Artifact bytes, derives one current Claim Record when the
+request adds or revises a Claim, creates one pending Proposal and Registration
+Record, and advances `.vela/repository.json`. A retraction Proposal targets
+the exact accepted Claim without minting a replacement Claim. New Claims enter
+only `pending_claims`; `accepted_claims` and scientific Standing do not
+change. The Registration Record's event-log before/after fields bind the
+unchanged current authority-event root, not an Era-0 scientific event log.
+The transaction covers the new repository root and rebinds the derived Target
+Index to it. A retained private Attempt is deleted only after the covered
+transaction installs and verifies.
+
 ### 4. One fail-closed migration command
 
 The advanced command is:

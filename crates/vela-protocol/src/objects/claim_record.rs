@@ -1,7 +1,8 @@
 //! Current scientific assertion object: `vela.claim-record.v1`.
 //!
 //! Claim Records contain the assertion and its exact support identity. Standing
-//! is derived from repository Events; it is never stored in this object.
+//! is derived from the current repository and its covered Decisions; it is
+//! never stored in this object.
 
 use std::collections::BTreeMap;
 

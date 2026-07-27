@@ -30,6 +30,7 @@ mod tools;
 mod withdrawal;
 pub(crate) use tools::{cli_check, cli_proof};
 mod config;
+pub(crate) mod current_submission;
 pub(crate) mod current_work;
 pub(crate) mod git_hardened;
 pub(crate) use config::{cli_admin, cli_agents, cli_identity};

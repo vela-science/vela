@@ -723,6 +723,16 @@ bytes, content-addressed Artifacts, one Registration Record, and one pending
 Proposal. It writes no Verification Record, Decision, Event, or accepted-state
 mutation.
 
+In a current repository epoch, an add or revision request also creates one
+`vela.claim-record.v1` under `pending_claims`; a retraction targets the exact
+accepted Claim without creating another Claim body. The repository manifest,
+not an Era-0 reducer, carries this pending standing. The Registration Record's
+event-log before/after roots are the unchanged current authority-event root.
+The covering object-only authority record binds every new object, the next
+repository root, and the derived Target Index rebind. A private Attempt is
+removed only after that transaction installs and the current repository
+re-verifies.
+
 The ordinary result is:
 
 ```text

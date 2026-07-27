@@ -341,7 +341,7 @@ where
     )
 }
 
-fn active_repository_signing_key(
+pub(crate) fn active_repository_signing_key(
     authority: &crate::cli::LoadedRepositoryAuthority,
 ) -> Result<(String, String), String> {
     let sequence = u64::try_from(authority.verification.authority_record_count + 1)
@@ -1917,12 +1917,12 @@ pub(crate) struct VerificationImportOutcome {
 }
 
 #[derive(Debug)]
-struct PreparedSubmissionArtifacts {
-    writes: Vec<crate::frontier_txn::PlannedWrite>,
-    read_set: Vec<crate::frontier_txn::InputBinding>,
+pub(crate) struct PreparedSubmissionArtifacts {
+    pub(crate) writes: Vec<crate::frontier_txn::PlannedWrite>,
+    pub(crate) read_set: Vec<crate::frontier_txn::InputBinding>,
 }
 
-fn prepare_submission_artifacts(
+pub(crate) fn prepare_submission_artifacts(
     frontier: &Path,
     submission: &SubmissionV1,
     bundle_root: Option<&Path>,
@@ -2045,7 +2045,7 @@ fn prepare_submission_artifacts(
     Ok(PreparedSubmissionArtifacts { writes, read_set })
 }
 
-fn submission_publication_inputs(
+pub(crate) fn submission_publication_inputs(
     frontier: &Path,
     submission: &SubmissionV1,
 ) -> Result<Vec<PathBuf>, String> {
@@ -2109,6 +2109,16 @@ pub(crate) fn submit(
     bundle_root: Option<&Path>,
     push: bool,
 ) -> Result<SubmitOutcome, String> {
+    if frontier.join(".vela/epoch.json").is_file() {
+        return crate::current_submission::submit(
+            frontier,
+            submission,
+            executor,
+            requested_attempt,
+            bundle_root,
+            push,
+        );
+    }
     use crate::config::git_publish::{
         PublicationOutcome, PublicationState, PublishOptions, exact_publication_preflight,
         publication_disabled_reason, publication_is_busy, publish_exact_delta,
@@ -3008,7 +3018,7 @@ mod public_artifact_budget_tests {
     }
 }
 
-fn publication_delta(
+pub(crate) fn publication_delta(
     frontier: &Path,
     root: &str,
     writes: Vec<crate::frontier_txn::ResolvedWrite>,

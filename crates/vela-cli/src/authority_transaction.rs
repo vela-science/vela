@@ -1661,7 +1661,8 @@ fn validate_authority_derived_path(path: &RepoPath) -> Result<(), AuthorityTrans
 }
 
 pub(crate) fn authority_derived_path(value: &str) -> bool {
-    value == "frontier.json"
+    value == "targets.json"
+        || value == "frontier.json"
         || value == "vela.lock"
         || value == ".vela/proof-state.json"
         || value.starts_with("proof/")

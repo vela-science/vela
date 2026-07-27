@@ -34,18 +34,24 @@ struct CurrentTaskContract {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct CurrentAttempt {
-    schema: String,
-    attempt_id: String,
-    frontier_id: String,
-    target: String,
-    actor: String,
-    created_at: String,
-    expires_at: String,
+pub(crate) struct CurrentAttempt {
+    pub(crate) schema: String,
+    pub(crate) attempt_id: String,
+    pub(crate) frontier_id: String,
+    pub(crate) target: String,
+    pub(crate) actor: String,
+    pub(crate) created_at: String,
+    pub(crate) expires_at: String,
     task_contract: CurrentTaskContract,
-    task_contract_root: String,
-    target_task_binding: vela_edge::target_index::TargetTaskBindingV2,
+    pub(crate) task_contract_root: String,
+    pub(crate) target_task_binding: vela_edge::target_index::TargetTaskBindingV2,
     briefing: Value,
+}
+
+pub(crate) struct CurrentSubmissionAttempt {
+    pub(crate) attempt: CurrentAttempt,
+    pub(crate) path: PathBuf,
+    _lock: AttemptLock,
 }
 
 fn canonical_root(value: &impl Serialize) -> Result<String, String> {
@@ -212,6 +218,76 @@ fn read(path: &Path) -> Result<CurrentAttempt, String> {
         .map_err(|error| format!("parse current Attempt {}: {error}", path.display()))?;
     validate(&attempt)?;
     Ok(attempt)
+}
+
+pub(crate) fn resolve_submission_attempt(
+    frontier: &Path,
+    actor: &str,
+    requested_attempt: Option<&str>,
+) -> Result<Option<CurrentSubmissionAttempt>, String> {
+    let Some(requested_attempt) = requested_attempt else {
+        return Ok(None);
+    };
+    let work = frontier.join(".vela/work");
+    let mut matches = fs::read_dir(&work)
+        .map_err(|error| format!("read current Attempt root {}: {error}", work.display()))?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path().join("attempt.json"))
+        .filter(|path| path.is_file())
+        .map(|path| read(&path).map(|attempt| (path, attempt)))
+        .collect::<Result<Vec<_>, String>>()?
+        .into_iter()
+        .filter(|(_, attempt)| attempt.attempt_id == requested_attempt)
+        .collect::<Vec<_>>();
+    let [(path, attempt)] = matches.as_mut_slice() else {
+        return Err(format!(
+            "current Attempt {requested_attempt:?} must resolve to exactly one private record; found {}",
+            matches.len()
+        ));
+    };
+    if attempt.actor != actor {
+        return Err(format!(
+            "current Attempt {requested_attempt} belongs to {}, not {actor}",
+            attempt.actor
+        ));
+    }
+    let expires_at = chrono::DateTime::parse_from_rfc3339(&attempt.expires_at)
+        .map_err(|error| format!("current Attempt expires_at: {error}"))?;
+    if expires_at <= Utc::now() {
+        return Err(format!("current Attempt {requested_attempt} has expired"));
+    }
+    vela_edge::target_index::revalidate_current_target_task_binding(
+        frontier,
+        &attempt.target_task_binding,
+    )?;
+    let lock = lock_attempt(frontier, &attempt.target)?;
+    Ok(Some(CurrentSubmissionAttempt {
+        attempt: attempt.clone(),
+        path: path.clone(),
+        _lock: lock,
+    }))
+}
+
+pub(crate) fn close_submission_attempt(
+    resolved: Option<CurrentSubmissionAttempt>,
+) -> Result<(), String> {
+    let Some(resolved) = resolved else {
+        return Ok(());
+    };
+    match fs::remove_file(&resolved.path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(format!(
+                "Submission registered but Attempt cleanup failed at {}: {error}",
+                resolved.path.display()
+            ));
+        }
+    }
+    if let Some(directory) = resolved.path.parent() {
+        let _ = fs::remove_dir(directory);
+    }
+    Ok(())
 }
 
 fn ensure_private_directory(path: &Path, label: &str) -> Result<(), String> {

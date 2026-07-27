@@ -315,12 +315,21 @@ impl SubmissionV1 {
                 );
             }
             (_, Some(target)) => {
-                require_prefixed_hex(
-                    "requested_change.target.claim_id",
-                    &target.claim_id,
-                    "vf_",
-                    16,
-                )?;
+                if target.claim_id.starts_with("vcl_") {
+                    require_prefixed_hex(
+                        "requested_change.target.claim_id",
+                        &target.claim_id,
+                        "vcl_",
+                        64,
+                    )?;
+                } else {
+                    require_prefixed_hex(
+                        "requested_change.target.claim_id",
+                        &target.claim_id,
+                        "vf_",
+                        16,
+                    )?;
+                }
                 require_sha256("requested_change.target.claim_root", &target.claim_root)?;
             }
             (_, None) => {
