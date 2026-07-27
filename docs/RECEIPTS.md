@@ -191,14 +191,12 @@ python3 receipt_v1.py emit \
 python3 receipt_v1.py validate receipt.json
 ```
 
-The public conformance proof lives in
-[`crates/vela-cli/tests/task_first_workflows.rs`](../crates/vela-cli/tests/task_first_workflows.rs).
-It builds a signed Receipt v1 as an agent, lands it into an isolated Git
-frontier, and asserts that the route is deferred, the proposal remains
-`pending_review`, and every accepted-event byte is unchanged. The same suite
-also covers exact retries and clone portability. The proof therefore travels
-with the public protocol implementation instead of depending on a private
-workspace script or private frontier bytes.
+Receipt v1 is now a historical read-only interoperability object. Its parser,
+canonicalization, bounds, and cross-implementation vectors remain under
+`scripts/cross_impl_conformance.py` and the protocol Receipt tests. The retired
+`work -> land -> sign` integration harness remains recoverable from Git
+history but is not a current writer contract. Current producer intake uses
+Submission v1 and is qualified separately.
 
 ## Replayability - honesty about re-execution
 

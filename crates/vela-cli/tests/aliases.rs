@@ -2,7 +2,7 @@
 //! dev-only cleanup, each concept has exactly ONE spelling: the
 //! acting-identity flag is `--as` (no `--reviewer`/`--actor`/`--by`), the
 //! key flag is `--key` (no `--private-key`), and `finding` is read-only.
-//! Receipt v1 plus `land` is the producer write boundary. These
+//! Submission v1 plus `submit` is the producer write boundary. These
 //! run the built `vela` binary so they catch surface drift the clap-tree
 //! unit tests can't.
 
@@ -37,20 +37,20 @@ fn combined(out: &Output) -> String {
 #[test]
 fn identity_flag_is_canonical_as_only() {
     let ok = vela(&[
-        "land",
-        "/tmp/vela_nonexistent_receipt.json",
+        "submit",
+        "/tmp/vela_nonexistent_submission.json",
         "--as",
         "reviewer:w",
     ]);
     assert!(
         !stderr(&ok).contains("unexpected argument"),
-        "`land --as` should parse, got: {}",
+        "`submit --as` should parse, got: {}",
         stderr(&ok)
     );
     for retired in ["--reviewer", "--actor", "--by"] {
         let out = vela(&[
-            "land",
-            "/tmp/vela_nonexistent_receipt.json",
+            "submit",
+            "/tmp/vela_nonexistent_submission.json",
             retired,
             "reviewer:w",
         ]);
@@ -297,8 +297,8 @@ fn legacy_policy_retirement_writer_is_retired_without_touching_retained_bytes() 
 #[test]
 fn unknown_flag_is_rejected() {
     let out = vela(&[
-        "land",
-        "/tmp/vela_nonexistent_receipt.json",
+        "submit",
+        "/tmp/vela_nonexistent_submission.json",
         "--definitely-not-a-flag",
         "y",
     ]);
@@ -420,7 +420,7 @@ fn finding_is_read_only_and_legacy_writer_bypasses_are_absent() {
         );
     }
     let finding_help = combined(&vela(&["finding", "--help"]));
-    assert!(finding_help.contains("Receipt v1") && finding_help.contains("vela land"));
+    assert!(finding_help.contains("Submission v1") && finding_help.contains("vela submit"));
 
     for args in [
         vec!["proposals", "import", "--help"],

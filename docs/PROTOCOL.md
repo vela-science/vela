@@ -835,16 +835,19 @@ From the Vela release repository:
 
 ```bash
 cargo test -p vela-protocol --test cross_impl_reducer_fixtures
+cargo test -p vela-protocol submission_v1
+cargo test -p vela-cli --test submission_surface_parity
 python3 conformance/verify.py
-cargo test -p vela-cli --test task_first_workflows
 ```
 
 The first command checks the Rust reducer against the shipped replay vectors.
-The second runs the repository-local independent readers over the same fixture
-contract. The third exercises the public task-first Receipt, policy, and human
-boundary in isolated frontiers. Release automation may compose additional
-focused checks, but no external partner, live network, or unrelated Lean
-campaign is a prerequisite for these protocol checks.
+The next two check the current Submission object and its CLI/MCP raw-wire
+parity. The final command runs the repository-local independent readers over
+the replay fixture contract. Current end-to-end Submission and Decision
+qualification is a release evidence gate over a migrated repository-authority
+frontier, not a retained copy of the retired `work -> land -> sign` harness.
+No external partner, live network, or unrelated Lean campaign is a
+prerequisite for these protocol checks.
 
 A conformant implementation may claim only the surface it ran. Passing replay
 vectors does not prove scientific correctness, verifier soundness, human

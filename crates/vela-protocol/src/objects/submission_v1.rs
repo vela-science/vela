@@ -469,4 +469,18 @@ mod tests {
         raw["event"] = serde_json::json!({"id": "vev_forged"});
         assert!(SubmissionV1::parse(&serde_json::to_vec(&raw).unwrap()).is_err());
     }
+
+    #[test]
+    fn replayability_is_a_closed_submission_vocabulary() {
+        for replayability in ["exact", "bounded", "approximate", "unavailable", "unknown"] {
+            let (mut draft, identity, key) = fixture();
+            draft.replayability = replayability.into();
+            SubmissionV1::build(draft, identity, &key).unwrap();
+        }
+
+        let (mut draft, identity, key) = fixture();
+        draft.replayability = "totally-reproducible-trust-me".into();
+        let error = SubmissionV1::build(draft, identity, &key).unwrap_err();
+        assert!(error.contains("replayability"), "{error}");
+    }
 }

@@ -1,11 +1,11 @@
-//! Receipt-wire parity checks across the terminal and MCP landing surfaces.
+//! Submission-wire parity checks across the terminal and MCP intake surfaces.
 
 use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
 
-const DUPLICATE_KEY_RECEIPT: &str =
-    r#"{"schema":"vela.receipt.v1","claim":"first","cl\u0061im":"second"}"#;
+const DUPLICATE_KEY_SUBMISSION: &str =
+    r#"{"schema":"vela.submission.v1","claim":{"assertion":"first","assert\u0069on":"second"}}"#;
 
 fn vela_bin() -> &'static str {
     env!("CARGO_BIN_EXE_vela")
@@ -30,7 +30,7 @@ fn one_json_object(bytes: &[u8], context: &str) -> serde_json::Value {
 }
 
 #[test]
-fn cli_and_mcp_reject_the_same_raw_duplicate_key_receipt() {
+fn cli_and_mcp_reject_the_same_raw_duplicate_key_submission() {
     let temp = tempfile::tempdir().unwrap();
     let init = run(
         temp.path(),
@@ -38,9 +38,9 @@ fn cli_and_mcp_reject_the_same_raw_duplicate_key_receipt() {
             "init",
             ".",
             "--name",
-            "receipt-parity",
+            "submission-parity",
             "--scope",
-            "Exercise receipt parity.",
+            "Exercise Submission parity.",
             "--json",
         ],
     );
@@ -49,13 +49,13 @@ fn cli_and_mcp_reject_the_same_raw_duplicate_key_receipt() {
         "init failed: {}",
         String::from_utf8_lossy(&init.stderr)
     );
-    std::fs::write(temp.path().join("duplicate.json"), DUPLICATE_KEY_RECEIPT).unwrap();
+    std::fs::write(temp.path().join("duplicate.json"), DUPLICATE_KEY_SUBMISSION).unwrap();
     let before =
         serde_json::to_value(vela_protocol::repo::load_from_path(temp.path()).unwrap()).unwrap();
 
     let cli = run(
         temp.path(),
-        &["land", "duplicate.json", "--as", "agent:parity", "--json"],
+        &["submit", "duplicate.json", "--as", "agent:parity", "--json"],
     );
     assert!(
         !cli.status.success(),
@@ -65,7 +65,7 @@ fn cli_and_mcp_reject_the_same_raw_duplicate_key_receipt() {
     assert_eq!(cli_response["ok"], false);
     assert_eq!(cli_response["changed"], false);
     let cli_message = cli_response["error"]["message"].as_str().unwrap();
-    assert!(cli_message.contains("duplicate object name `claim`"));
+    assert!(cli_message.contains("duplicate field `assertion`"));
     let after_cli =
         serde_json::to_value(vela_protocol::repo::load_from_path(temp.path()).unwrap()).unwrap();
     assert_eq!(
@@ -78,12 +78,12 @@ fn cli_and_mcp_reject_the_same_raw_duplicate_key_receipt() {
         "id": 1,
         "method": "tools/call",
         "params": {
-            "name": "work",
+            "name": "attempt",
             "arguments": {
                 "frontier_path": ".",
-                "action": "land",
+                "action": "submit",
                 "agent_actor": "agent:parity",
-                "receipt": DUPLICATE_KEY_RECEIPT,
+                "submission": DUPLICATE_KEY_SUBMISSION,
             }
         }
     });
@@ -110,13 +110,13 @@ fn cli_and_mcp_reject_the_same_raw_duplicate_key_receipt() {
     assert_eq!(rpc["result"]["isError"], true);
     let envelope: serde_json::Value =
         serde_json::from_str(rpc["result"]["content"][0]["text"].as_str().unwrap()).unwrap();
-    assert_eq!(envelope["tool"], "work");
+    assert_eq!(envelope["tool"], "attempt");
     assert_eq!(envelope["ok"], false);
     assert_eq!(envelope["error"]["kind"], "INVALID_ARG");
     assert_eq!(
         envelope["error"]["message"].as_str().unwrap(),
         cli_message,
-        "CLI and MCP must feed the same raw bytes to ReceiptV1::parse"
+        "CLI and MCP must feed the same raw bytes to SubmissionV1::parse"
     );
     let after_mcp =
         serde_json::to_value(vela_protocol::repo::load_from_path(temp.path()).unwrap()).unwrap();

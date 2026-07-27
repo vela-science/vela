@@ -32,6 +32,5 @@ cargo test --quiet -p vela-cli --lib \
   --test env_isolation \
   --test finding_write_boundary \
   --test pre_adr_replay_golden \
-  --test receipt_surface_parity \
-  --test task_first_workflows
+  --test submission_surface_parity
 printf 'core surface: ok (external Lean not selected)\n'

@@ -1793,7 +1793,7 @@ pub(crate) fn build_task_packet(
         "submission": {
             "witness": "write the artifact as <frontier>/witnesses/<name>.witness.json and run `vela reproduce <frontier>` — the frozen verifier must pass",
             "finding": "encode the claim and evidence in Submission v1, then use `vela submit`; current authority registers it pending review",
-            "attempt": "land a negative or partial Receipt v1; failed passes are evidence when they carry an artifact and caveat",
+            "attempt": "submit a bounded negative or partial result; failed passes are evidence when they carry an artifact and caveat",
         },
         "caveat": "Allowed outputs are the only state-changing submissions; strategy prose without an artifact does not move the frontier.",
     }))

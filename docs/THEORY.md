@@ -304,7 +304,7 @@ surfaces include:
 - cross-language replay readers;
 - signature and proposal parity;
 - trust-boundary invariants; and
-- the task-first Receipt, policy, and human flow.
+- current Submission wire parity and repository-authority transaction laws.
 
 Relevant entry points are
 [`conformance/`](../conformance/),
@@ -312,7 +312,7 @@ Relevant entry points are
 [`cross_impl_reducer_fixtures.rs`](../crates/vela-protocol/tests/cross_impl_reducer_fixtures.rs),
 [`proposal_signature_parity.rs`](../crates/vela-protocol/tests/proposal_signature_parity.rs),
 [`trust_invariants.rs`](../crates/vela-protocol/tests/trust_invariants.rs), and
-[`task_first_workflows.rs`](../crates/vela-cli/tests/task_first_workflows.rs).
+[`submission_surface_parity.rs`](../crates/vela-cli/tests/submission_surface_parity.rs).
 
 Focused commands are:
 
@@ -321,7 +321,7 @@ cargo test -p vela-protocol --test canonical_hashing_conformance
 cargo test -p vela-protocol --test cross_impl_reducer_fixtures
 cargo test -p vela-protocol --test proposal_signature_parity
 cargo test -p vela-protocol --test trust_invariants
-cargo test -p vela-cli --test task_first_workflows
+cargo test -p vela-cli --test submission_surface_parity
 python3 conformance/verify.py
 ```
 
