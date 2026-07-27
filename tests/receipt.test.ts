@@ -12,7 +12,6 @@ import {
   installFrozenArtifacts,
   mapCandidateToReceipt,
 } from "../src/receipt/map.js";
-import { isPrivateWorkSessionStatus } from "../src/run.js";
 import type { EngineResult } from "../src/engines/engine.js";
 import type { VerifierOutcome } from "../src/verifier/run.js";
 import { contentDigest } from "../src/util/canonical.js";
@@ -272,21 +271,4 @@ test("frozen artifacts install into the separate landing clone", async () => {
     installFrozenArtifacts({ landingRepo: landing, frontier: "frontier", frozen: [item], maxBytes: 4096 }),
     /does not match frozen bytes/u,
   );
-});
-
-test("artifact publication recognizes only one exact private Vela work-session shape", () => {
-  assert.equal(
-    isPrivateWorkSessionStatus("?? .vela/work/sidon-a24-improve--0123abcdef/session.json"),
-    true,
-  );
-  for (const entry of [
-    "A  .vela/work/sidon-a24-improve--0123abcdef/session.json",
-    "?? .vela/work/session.json",
-    "?? .vela/work/session/extra.json",
-    "?? .vela/work/../escape/session.json",
-    "?? .vela/work/session/secrets.json",
-    "?? artifacts/unrelated.json",
-  ]) {
-    assert.equal(isPrivateWorkSessionStatus(entry), false, entry);
-  }
 });

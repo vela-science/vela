@@ -34,65 +34,17 @@ test("verifier cwd must exist below the sealed source before a model call", asyn
   );
 });
 
-test("registered product profiles stage exact distinct capsules and bounded Mission v1 drafts", async () => {
+test("the active product profile stages exact platform capsules and one bounded Mission v1 draft", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "canopus-product-profiles-"));
   const profiles = [
     await loadProductProfile("erdos1056-k15-10429001-10429200", { platform: "darwin-arm64" }),
     await loadProductProfile("erdos1056-k15-10429001-10429200", { platform: "linux-x86_64" }),
-    await loadProductProfile("formal-erdos-505-test-dim-one-gpt56", { platform: "darwin-arm64" }),
-    await loadProductProfile("formal-erdos-505-test-dim-one-gpt56", { platform: "linux-x86_64" }),
-    await loadProductProfile("quantum-10-1-4-stabilizer-retry", { platform: "darwin-arm64" }),
-    await loadProductProfile("quantum-10-1-4-stabilizer-retry", { platform: "linux-x86_64" }),
-    await loadProductProfile("sidon-a24-at-least-7194-gpt56", { platform: "darwin-arm64" }),
-    await loadProductProfile("sidon-a24-at-least-7194-gpt56", { platform: "linux-x86_64" }),
-    await loadProductProfile("sidon-a24-at-least-7194-gpt56-v2", { platform: "darwin-arm64" }),
-    await loadProductProfile("sidon-a24-at-least-7194-gpt56-v2", { platform: "linux-x86_64" }),
-    await loadProductProfile("sidon-a24-at-least-7194-gpt56-v3", { platform: "darwin-arm64" }),
-    await loadProductProfile("sidon-a24-at-least-7194-gpt56-v3", { platform: "linux-x86_64" }),
   ];
   assert.equal(profiles[0]?.target, "erdos:1056");
   assert.notEqual(profiles[0]?.capsule_sha256, profiles[1]?.capsule_sha256);
   assert.equal(
     contentDigest(await loadProfileDraft(profiles[0]!)),
     contentDigest(await loadProfileDraft(profiles[1]!)),
-  );
-  assert.equal(profiles[2]?.target, "formal:erdos-505-test-dim-one");
-  assert.equal(profiles[2]?.capsule_sha256, profiles[3]?.capsule_sha256);
-  assert.equal(profiles[2]?.verifier_platform, "linux/amd64");
-  assert.equal(profiles[3]?.verifier_platform, "linux/amd64");
-  assert.equal(
-    contentDigest(await loadProfileDraft(profiles[2]!)),
-    contentDigest(await loadProfileDraft(profiles[3]!)),
-  );
-  const formalDraft = await loadProfileDraft(profiles[2]!) as {
-    verifier: { cwd: string };
-  };
-  assert.equal(formalDraft.verifier.cwd, "targets");
-  assert.equal(profiles[4]?.target, "quantum:[[10,1,4]]");
-  assert.equal(profiles[4]?.capsule_sha256, profiles[5]?.capsule_sha256);
-  assert.equal(profiles[4]?.verifier_platform, "linux/arm64");
-  assert.equal(profiles[5]?.verifier_platform, "linux/amd64");
-  assert.equal(
-    contentDigest(await loadProfileDraft(profiles[4]!)),
-    contentDigest(await loadProfileDraft(profiles[5]!)),
-  );
-  assert.equal(profiles[6]?.target, "sidon:a24-improve");
-  assert.notEqual(profiles[6]?.capsule_sha256, profiles[7]?.capsule_sha256);
-  assert.equal(
-    contentDigest(await loadProfileDraft(profiles[6]!)),
-    contentDigest(await loadProfileDraft(profiles[7]!)),
-  );
-  assert.equal(profiles[8]?.target, "sidon:a24-improve");
-  assert.notEqual(profiles[8]?.capsule_sha256, profiles[9]?.capsule_sha256);
-  assert.equal(
-    contentDigest(await loadProfileDraft(profiles[8]!)),
-    contentDigest(await loadProfileDraft(profiles[9]!)),
-  );
-  assert.equal(profiles[10]?.target, "sidon:a24-improve");
-  assert.notEqual(profiles[10]?.capsule_sha256, profiles[11]?.capsule_sha256);
-  assert.equal(
-    contentDigest(await loadProfileDraft(profiles[10]!)),
-    contentDigest(await loadProfileDraft(profiles[11]!)),
   );
   for (const [index, profile] of profiles.entries()) {
     const staging = path.join(root, `${profile.name}-${index}`);
@@ -136,14 +88,7 @@ test("portable verifier images require a closed public repository and full diges
 test("profile v2 binds exact platform custody and packs only portable contract resources", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "canopus-profile-pack-parent-"));
   const name = "erdos1056-k15-10429001-10429200";
-  assert.deepEqual(await listProductProfiles(), [
-    name,
-    "formal-erdos-505-test-dim-one-gpt56",
-    "quantum-10-1-4-stabilizer-retry",
-    "sidon-a24-at-least-7194-gpt56",
-    "sidon-a24-at-least-7194-gpt56-v2",
-    "sidon-a24-at-least-7194-gpt56-v3",
-  ]);
+  assert.deepEqual(await listProductProfiles(), [name]);
   const mac = await loadProductProfile(name, { platform: "darwin-arm64" });
   const linux = await loadProductProfile(name, { platform: "linux-x86_64" });
   assert.equal(mac.target_packet_schema, "erdos-frontier.problem-work.v1");
@@ -170,48 +115,6 @@ test("profile v2 binds exact platform custody and packs only portable contract r
     "capsules/erdos1056-k15/bin/linux-arm64/10429001-10429200/verifier",
     "capsules/erdos1056-k15/bin/linux-x86_64/10429001-10429200/verifier",
     "missions/erdos1056-k15-next/mission.draft.json",
-    `profiles/${name}.json`,
-    "runtime/native-worker/config-linux.toml",
-    "runtime/native-worker/config.toml",
-  ]);
-});
-
-test("formal profile packs one shared capsule with exact amd64 emulation", async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), "canopus-formal-profile-pack-parent-"));
-  const name = "formal-erdos-505-test-dim-one-gpt56";
-  const validation = await validateProductProfile(name);
-  assert.equal(validation.platforms["darwin-arm64"].verifier_platform, "linux/amd64");
-  assert.equal(validation.platforms["linux-x86_64"].verifier_platform, "linux/amd64");
-
-  const packed = await packProductProfile(name, path.join(root, "bundle"));
-  const manifest = JSON.parse(await readFile(packed.manifest, "utf8")) as {
-    files: Array<{ path: string }>;
-  };
-  assert.equal(packed.files, 5);
-  assert.deepEqual(manifest.files.map((file) => file.path), [
-    "capsules/formal-erdos-505-test-dim-one/verifier",
-    "missions/formal-erdos-505-test-dim-one-gpt56/mission.draft.json",
-    `profiles/${name}.json`,
-    "runtime/native-worker/config-linux.toml",
-    "runtime/native-worker/config.toml",
-  ]);
-});
-
-test("quantum profile packs the frozen witness verifier and bounded retry", async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), "canopus-quantum-profile-pack-parent-"));
-  const name = "quantum-10-1-4-stabilizer-retry";
-  const validation = await validateProductProfile(name);
-  assert.equal(validation.platforms["darwin-arm64"].verifier_platform, "linux/arm64");
-  assert.equal(validation.platforms["linux-x86_64"].verifier_platform, "linux/amd64");
-
-  const packed = await packProductProfile(name, path.join(root, "bundle"));
-  const manifest = JSON.parse(await readFile(packed.manifest, "utf8")) as {
-    files: Array<{ path: string }>;
-  };
-  assert.equal(packed.files, 5);
-  assert.deepEqual(manifest.files.map((file) => file.path), [
-    "capsules/quantum-10-1-4/verifier.py",
-    "missions/quantum-10-1-4-retry/mission.draft.json",
     `profiles/${name}.json`,
     "runtime/native-worker/config-linux.toml",
     "runtime/native-worker/config.toml",
@@ -258,14 +161,6 @@ test("ordinary profile discovery selects the unique first-offer profile", async 
     targets: [{ rank: 1, target_id: "erdos:1056" }],
   });
   assert.equal(profile.name, "erdos1056-k15-10429001-10429200");
-  const formal = await resolveProductProfile({
-    targets: [{ rank: 1, target_id: "formal:erdos-505-test-dim-one" }],
-  });
-  assert.equal(formal.name, "formal-erdos-505-test-dim-one-gpt56");
-  const quantum = await resolveProductProfile({
-    targets: [{ rank: 1, target_id: "quantum:[[10,1,4]]" }],
-  });
-  assert.equal(quantum.name, "quantum-10-1-4-stabilizer-retry");
   await assert.rejects(
     resolveProductProfile({
       availability: { configured_open: 1, available: 0, leased: 1 },

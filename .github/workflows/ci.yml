@@ -108,34 +108,6 @@ jobs:
           docker pull "$VERIFIER_IMAGE"
           docker image inspect --format '{{json .RepoDigests}}' "$VERIFIER_IMAGE" \
             | grep -F 'ghcr.io/vela-science/canopus-verifier@sha256:a6f354862f2a3f7d72eb99244c65fa8583c98b74e17e3d5ce6e31ef48aa16536'
-      - name: Exercise formal verifier image and reject a type-invalid proof
-        if: runner.os == 'Linux'
-        run: |
-          image=$(node -e 'const p=require("./profiles/formal-erdos-505-test-dim-one-gpt56.json"); console.log(p.platforms["linux-x86_64"].verifier_image)')
-          platform=$(node -e 'const p=require("./profiles/formal-erdos-505-test-dim-one-gpt56.json"); console.log(p.platforms["linux-x86_64"].verifier_platform)')
-          export DOCKER_CONFIG="$RUNNER_TEMP/formal-anonymous-docker-config"
-          mkdir "$DOCKER_CONFIG"
-          docker pull --platform "$platform" "$image"
-          set +e
-          output=$(docker run \
-            --platform "$platform" \
-            --rm \
-            --read-only \
-            --network=none \
-            --cap-drop=ALL \
-            --security-opt=no-new-privileges \
-            --memory=1024m \
-            --cpus=1 \
-            --pids-limit=64 \
-            --env HOME=/nonexistent \
-            --mount "type=bind,src=$PWD/capsules/formal-erdos-505-test-dim-one/verifier,dst=/capsule/verifier,readonly" \
-            --mount "type=bind,src=$PWD/tests/fixtures/formal-verifier/type-mismatch.lean,dst=/candidate.lean,readonly" \
-            "$image" /capsule/verifier /candidate.lean 2>&1)
-          status=$?
-          set -e
-          printf '%s\n' "$output"
-          test "$status" -eq 1
-          printf '%s\n' "$output" | grep -Fiq 'type mismatch'
       - name: Install and smoke the packed product
         run: |
           mkdir "$RUNNER_TEMP/canopus-package"
@@ -147,8 +119,6 @@ jobs:
           "$canopus" --help
           "$canopus" profile list
           "$canopus" profile validate erdos1056-k15-10429001-10429200
-          "$canopus" profile validate formal-erdos-505-test-dim-one-gpt56
-          "$canopus" profile validate quantum-10-1-4-stabilizer-retry
 
   windows-read-only:
     runs-on: windows-2025
@@ -189,5 +159,3 @@ jobs:
           & "$env:RUNNER_TEMP\canopus\canopus.cmd" --help
           & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile list
           & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile validate erdos1056-k15-10429001-10429200
-          & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile validate formal-erdos-505-test-dim-one-gpt56
-          & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile validate quantum-10-1-4-stabilizer-retry

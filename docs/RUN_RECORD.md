@@ -40,25 +40,10 @@ three claims that must not be collapsed:
 Immutable `canopus.run.v0` records remain readable and replayable. Canopus does
 not rewrite them to manufacture the new evidence categories.
 
-For a public evidence surface, generate the publication bundle only after the
-successful run has reached Defer with zero accepted-state delta and matched
-clean-clone replay:
-
-```bash
-canopus publish-run /local/run/run.json \
-  --mission /local/run/mission/mission.json \
-  --repository https://github.com/vela-science/formal-conjectures-frontier \
-  --output ./public-evidence
-```
-
-The new directory contains the `canopus.public-run.v1` projection, an exact
-root manifest, read-only Observatory import data, and commands to reproduce or
-inspect the pending proposal and retain additional verifier evidence. The
-commands do not accept, publish, push, deploy, or cross a human authority
-boundary. The public projection contains only mission and model identity, a
-bounded activity summary, claim and caveats, artifact/verifier/Receipt roots,
-route, accepted delta, usage, source/final commits, and reproduction commands.
-It cannot export a failed or admitted run. Never publish the raw run directory,
+The installed package exposes the stable run-record parsers and projections for
+read-only consumers. Public evidence is assembled by the consuming repository
+from those rooted records; Canopus does not maintain a second publication
+bundle or Observatory-import format. Never publish a raw run directory,
 isolated homes, authentication, private paths, or unrestricted logs.
 
 The run root also contains isolated checkouts and content-addressed artifacts.

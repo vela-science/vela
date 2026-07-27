@@ -4,17 +4,13 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { mkdir, mkdtemp, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 
 import { parseMission } from "./contracts/mission.js";
-import { CodexExecEngine } from "./engines/codex-exec.js";
-import { CodexToolsNativeEngine } from "./engines/codex-tools-native.js";
 import { prepareMission, validateMissionBundle } from "./mission/prepare.js";
 import { parseDiagnosticRunRecord, projectDiagnosticRun } from "./projection/diagnostic.js";
 import { parseFailureRecord, projectFailure } from "./projection/failure.js";
 import { parseRunRecord, projectRun } from "./projection/run.js";
-import { projectPublicRun } from "./projection/public-run.js";
-import { buildPublicationBundle } from "./projection/publication.js";
 import { doctorProduct } from "./product/doctor.js";
 import { replayProduct } from "./product/replay.js";
 import { runProduct } from "./product/run.js";
@@ -25,10 +21,7 @@ import {
   validateProductProfile,
 } from "./product/profile-bundle.js";
 import { loadProductProfile } from "./product/profile.js";
-import { runCanopus } from "./run.js";
 import { readBoundedRegularFile } from "./util/files.js";
-import { canonicalJson, contentDigest } from "./util/canonical.js";
-import { VelaClient } from "./vela/cli.js";
 
 function usage(): string {
   return `Canopus — bounded Vela research harness
@@ -39,10 +32,6 @@ Primary workflow:
   canopus run [frontier] [--first | --target <id>] [--profile <name>] \\
     [--output <dir>] [--no-land]
   canopus inspect [run.json | latest]
-  canopus public-run <run.json> --mission <mission.json> \
-    --repository <public-url> --output <file>
-  canopus publish-run <run.json> --mission <mission.json> \
-    --repository <public-url> --output <new-directory>
   canopus replay <run.json>
 
 Mission v1 prepare/validate remains available under advanced help.
@@ -109,26 +98,6 @@ Re-runs the frozen verifier over the content-addressed candidate without a
 model call, Vela mutation, network, or authority action.`;
 }
 
-function publicRunUsage(): string {
-  return `Usage:
-  canopus public-run <run.json> --mission <mission.json> \\
-    --repository <public-url> --output <file>
-
-Generates one canonical, sanitized canopus.public-run.v1 projection from a
-submission-ready completed run. Raw worker logs, homes, credentials, private
-paths, and unrestricted transcripts are never copied.`;
-}
-
-function publishRunUsage(): string {
-  return `Usage:
-  canopus publish-run <run.json> --mission <mission.json> \\
-    --repository <public-url> --output <new-directory>
-
-Creates a sanitized public projection, root manifest, proposal-scoped pending
-commands, and a read-only Vela Observatory import descriptor. It never lands,
-signs, accepts, pushes, or deploys.`;
-}
-
 function isHelp(value: string | undefined): boolean {
   return value === "--help" || value === "-h" || value === "help";
 }
@@ -188,12 +157,6 @@ function required(values: Map<string, string>, key: string): string {
   const value = values.get(key);
   if (value === undefined || value === "") throw new Error(`${key} is required`);
   return value;
-}
-
-function authHome(values: Map<string, string>): string {
-  return path.resolve(
-    values.get("--codex-home") ?? process.env.CODEX_HOME ?? path.join(os.homedir(), ".codex"),
-  );
 }
 
 function packagedOutputSchema(): string {
@@ -299,73 +262,6 @@ async function profileCommand(args: string[]): Promise<void> {
     return;
   }
   throw new Error(`unknown profile command ${subcommand}`);
-}
-
-async function runMission(file: string, rest: string[]): Promise<void> {
-  const values = options(rest, [
-    "--source",
-    "--run-root",
-    "--vela",
-    "--docker",
-    "--codex",
-    "--codex-version",
-    "--codex-sha256",
-    "--model",
-    "--codex-home",
-  ]);
-  const mission = parseMission(await jsonFile(file));
-  const sourceRepo = path.resolve(required(values, "--source"));
-  const runRoot = path.resolve(required(values, "--run-root"));
-  const velaBinary = path.resolve(required(values, "--vela"));
-  const outputSchema = mission.schema === "canopus.mission.v1"
-    ? path.join(path.dirname(path.resolve(file)), "contract", "engine-output.v0.json")
-    : packagedOutputSchema();
-  const vela = new VelaClient({
-    binary: velaBinary,
-    expectedVersion: mission.vela_version,
-    expectedSha256: mission.vela_sha256,
-    home: path.join(runRoot, "vela-home"),
-  });
-  const engine = mission.schema === "canopus.mission.v1"
-    ? new CodexToolsNativeEngine({
-        binary: path.resolve(required(values, "--codex")),
-        authHome: authHome(values),
-        outputSchema,
-        permissionProfile: path.join(
-          path.dirname(path.resolve(file)),
-          mission.worker.permission_profile_path,
-        ),
-      })
-    : new CodexExecEngine({
-        binary: path.resolve(required(values, "--codex")),
-        expectedSha256: required(values, "--codex-sha256"),
-        expectedVersion: required(values, "--codex-version"),
-        model: required(values, "--model"),
-        authHome: authHome(values),
-        outputSchema,
-      });
-  const result = await runCanopus({
-    mission,
-    sourceRepo,
-    runRoot,
-    vela,
-    engine,
-    bundleRoot: path.dirname(path.resolve(file)),
-    dockerBinary: values.get("--docker") ?? "docker",
-  });
-  process.stdout.write(
-    `${JSON.stringify({
-      ok: true,
-      command: "run",
-      run_id: result.record.run_id,
-      candidate_digest: result.record.candidate.digest,
-      receipt_root: result.record.landing.receipt_root,
-      route: result.record.landing.route,
-      accepted_event_delta: result.record.landing.accepted_event_delta,
-      clean_clone_reproduced: result.record.reproduction.matched,
-      run_file: path.join(result.paths.root, "run.json"),
-    })}\n`,
-  );
 }
 
 async function doctorCommand(args: string[]): Promise<void> {
@@ -481,64 +377,6 @@ async function replayCommand(file: string | undefined, rest: string[]): Promise<
   process.stdout.write(`${JSON.stringify(await replayProduct(path.resolve(file)))}\n`);
 }
 
-async function publicRunCommand(file: string | undefined, rest: string[]): Promise<void> {
-  if (file === undefined) throw new Error("public-run requires one completed run file");
-  const values = options(rest, ["--mission", "--repository", "--output"]);
-  const record = parseRunRecord(await jsonFile(file));
-  const mission = parseMission(await jsonFile(required(values, "--mission")));
-  const projection = projectPublicRun({
-    record,
-    mission,
-    repository: required(values, "--repository"),
-  });
-  const output = path.resolve(required(values, "--output"));
-  await writeFile(output, canonicalJson(projection), { flag: "wx", mode: 0o644 });
-  process.stdout.write(`${JSON.stringify({
-    ok: true,
-    command: "public-run",
-    run_id: projection.run_id,
-    output,
-    projection_root: contentDigest(projection),
-  })}\n`);
-}
-
-async function publishRunCommand(file: string | undefined, rest: string[]): Promise<void> {
-  if (file === undefined) throw new Error("publish-run requires one completed run file");
-  const values = options(rest, ["--mission", "--repository", "--output"]);
-  const record = parseRunRecord(await jsonFile(file));
-  const mission = parseMission(await jsonFile(required(values, "--mission")));
-  const bundle = buildPublicationBundle({
-    record,
-    mission,
-    repository: required(values, "--repository"),
-  });
-  const output = path.resolve(required(values, "--output"));
-  const parent = path.dirname(output);
-  await mkdir(parent, { recursive: true, mode: 0o755 });
-  const temporary = await mkdtemp(path.join(parent, `.${path.basename(output)}.tmp-`));
-  try {
-    await Promise.all([
-      writeFile(path.join(temporary, "public-run.json"), canonicalJson(bundle.projection), { flag: "wx", mode: 0o644 }),
-      writeFile(path.join(temporary, "pending-commands.json"), canonicalJson(bundle.pendingCommands), { flag: "wx", mode: 0o644 }),
-      writeFile(path.join(temporary, "web-import.json"), canonicalJson(bundle.webImport), { flag: "wx", mode: 0o644 }),
-      writeFile(path.join(temporary, "root-manifest.json"), canonicalJson(bundle.manifest), { flag: "wx", mode: 0o644 }),
-    ]);
-    await rename(temporary, output);
-  } catch (error) {
-    await rm(temporary, { recursive: true, force: true });
-    throw error;
-  }
-  process.stdout.write(`${JSON.stringify({
-    ok: true,
-    command: "publish-run",
-    run_id: bundle.projection.run_id,
-    output,
-    projection_root: contentDigest(bundle.projection),
-    bundle_root: contentDigest(bundle.manifest),
-    authority_effect: "none",
-  })}\n`);
-}
-
 async function main(argv: string[]): Promise<void> {
   const [command, file, ...rest] = argv;
   if (command === undefined || isHelp(command)) {
@@ -564,8 +402,6 @@ async function main(argv: string[]): Promise<void> {
       : command === "inspect" ? inspectUsage()
       : command === "doctor" ? doctorUsage()
       : command === "replay" ? replayUsage()
-      : command === "public-run" ? publicRunUsage()
-      : command === "publish-run" ? publishRunUsage()
       : usage()
     }\n`);
     return;
@@ -578,14 +414,6 @@ async function main(argv: string[]): Promise<void> {
     await replayCommand(file, rest);
     return;
   }
-  if (command === "public-run") {
-    await publicRunCommand(file, rest);
-    return;
-  }
-  if (command === "publish-run") {
-    await publishRunCommand(file, rest);
-    return;
-  }
   if (command === "validate") {
     if (file === undefined) throw new Error("validate requires a mission file");
     await missionCommand(["validate", file, ...rest]);
@@ -596,11 +424,7 @@ async function main(argv: string[]): Promise<void> {
     return;
   }
   if (command === "run") {
-    if (file !== undefined && (file.endsWith(".json") || rest.includes("--source"))) {
-      await runMission(file, rest);
-    } else {
-      await productRunCommand(argv.slice(1));
-    }
+    await productRunCommand(argv.slice(1));
     return;
   }
   throw new Error(`unknown command ${command}`);

@@ -83,9 +83,11 @@ The first command selects the pending artifact explicitly and runs Vela's
 frozen Sidon verifier. The second is an independent base-3 implementation that
 also rejects a bound collision injection. Neither command accepts the proposal.
 
-Current source is Canopus `0.8.0-rc.1`, composed with the focused-green Vela
-`0.930.0-rc.13` candidate. Older Canopus and Vela binaries remain available from immutable
-release history for replay, but they are not active writer or producer paths.
+Current source is Canopus `0.8.0-rc.1`. Its published composition contract remains
+the attested Vela `0.930.0-rc.12` release; the smaller Git-ownership path is
+focused-green against the unreleased Vela `0.930.0-rc.13` candidate. Older
+Canopus and Vela binaries remain available from immutable release history for
+replay, but they are not active writer or producer paths.
 
 ## Quickstart
 
@@ -105,19 +107,6 @@ node dist/src/cli.js run /path/to/frontier --first
 node dist/src/cli.js inspect latest
 node dist/src/cli.js replay /path/to/run.json
 ```
-
-Export a completed Defer run without publishing or mutating anything:
-
-```sh
-canopus publish-run /path/to/run.json --mission /path/to/mission.json \
-  --repository https://github.com/vela-science/<frontier> \
-  --output ./public-evidence
-```
-
-The new directory contains `public-run.json`, `root-manifest.json`, exact
-pending-state commands, and a read-only Observatory import descriptor. Run v1
-separates worker observations, verifier observations, and caveats that remain
-standing after verification; historical run v0 records remain inspectable.
 
 Use `--no-land` for a diagnostic mission that cannot change the source frontier:
 
@@ -169,8 +158,9 @@ the retained
 
 ## Development
 
-Current-source development requires Bun 1.3.12, Vela `0.930.0-rc.13`, Codex CLI
-0.145.0, and Docker. The built
+Current-source development requires Bun 1.3.12, attested Vela `0.930.0-rc.12`,
+Codex CLI 0.145.0, and Docker. The next ownership-contract integration is also
+tested against the unreleased Vela `0.930.0-rc.13` candidate. The built
 package also runs under Node 22 or 24; unsupported odd-numbered Node releases
 are rejected rather than silently treated as supported.
 

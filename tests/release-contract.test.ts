@@ -129,7 +129,7 @@ test("source retains Build Week evidence while the package stays product-only", 
   );
   assert.match(
     readme,
-    /Current source is Canopus `0\.8\.0-rc\.1`, composed only with attested Vela[\s\S]+`0\.930\.0-rc\.12`[\s\S]+not active writer or producer paths/u,
+    /Current source is Canopus `0\.8\.0-rc\.1`\.[\s\S]+published composition contract remains[\s\S]+Vela `0\.930\.0-rc\.12`[\s\S]+unreleased Vela `0\.930\.0-rc\.13` candidate[\s\S]+not active writer or producer paths/u,
   );
   assert.match(
     readme,

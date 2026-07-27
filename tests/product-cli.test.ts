@@ -23,9 +23,10 @@ async function help(...args: string[]): Promise<string> {
 
 test("primary help presents only the compact product workflow", async () => {
   const output = await help("--help");
-  for (const command of ["doctor", "run", "inspect", "public-run", "publish-run", "replay"]) {
+  for (const command of ["doctor", "run", "inspect", "replay"]) {
     assert.match(output, new RegExp(`canopus ${command}\\b`, "u"));
   }
+  assert.doesNotMatch(output, /canopus (?:public-run|publish-run)\b/u);
   assert.doesNotMatch(output, /canopus withdraw\b/u);
   assert.doesNotMatch(output, /^\s*canopus (?:benchmark|benchmark-composition|validate)\b/mu);
   assert.match(output, /Mission v1 prepare\/validate.+advanced help/su);
@@ -38,7 +39,7 @@ test("version is a stable single-line product identity", async () => {
 });
 
 test("every compact product subcommand has focused help", async () => {
-  for (const command of ["doctor", "run", "inspect", "public-run", "publish-run", "replay"]) {
+  for (const command of ["doctor", "run", "inspect", "replay"]) {
     const output = await help(command, "--help");
     assert.match(output, new RegExp(`canopus ${command}\\b`, "u"));
     assert.doesNotMatch(output, /Primary workflow:/u);
@@ -58,34 +59,11 @@ test("profile help and validation retain the advanced closed interface", async (
   assert.match(output, /canopus profile pack/u);
 
   const list = JSON.parse(await help("profile", "list")) as { profiles: string[] };
-  assert.deepEqual(list.profiles, [
-    "erdos1056-k15-10429001-10429200",
-    "formal-erdos-505-test-dim-one-gpt56",
-    "quantum-10-1-4-stabilizer-retry",
-    "sidon-a24-at-least-7194-gpt56",
-    "sidon-a24-at-least-7194-gpt56-v2",
-    "sidon-a24-at-least-7194-gpt56-v3",
-  ]);
+  assert.deepEqual(list.profiles, ["erdos1056-k15-10429001-10429200"]);
   const validation = JSON.parse(
     await help("profile", "validate", "erdos1056-k15-10429001-10429200"),
   ) as { validation: { schema: string } };
   assert.equal(validation.validation.schema, "canopus.profile-validation.v1");
-  const formal = JSON.parse(
-    await help("profile", "validate", "formal-erdos-505-test-dim-one-gpt56"),
-  ) as { validation: { schema: string } };
-  assert.equal(formal.validation.schema, "canopus.profile-validation.v1");
-  const sidon = JSON.parse(
-    await help("profile", "validate", "sidon-a24-at-least-7194-gpt56"),
-  ) as { validation: { schema: string } };
-  assert.equal(sidon.validation.schema, "canopus.profile-validation.v1");
-  const sidonRepair = JSON.parse(
-    await help("profile", "validate", "sidon-a24-at-least-7194-gpt56-v2"),
-  ) as { validation: { schema: string } };
-  assert.equal(sidonRepair.validation.schema, "canopus.profile-validation.v1");
-  const sidonRetention = JSON.parse(
-    await help("profile", "validate", "sidon-a24-at-least-7194-gpt56-v3"),
-  ) as { validation: { schema: string } };
-  assert.equal(sidonRetention.validation.schema, "canopus.profile-validation.v1");
 });
 
 test("inspect latest reports the newest safely stopped run", async () => {

@@ -252,20 +252,6 @@ function publicationState(land: LandResult): string {
   return typeof value === "string" ? value : "unknown";
 }
 
-export function isPrivateWorkSessionStatus(entry: string): boolean {
-  if (!entry.startsWith("?? ")) return false;
-  const relative = entry.slice(3);
-  const parts = relative.split("/");
-  return (
-    parts.length === 4 &&
-    parts[0] === ".vela" &&
-    parts[1] === "work" &&
-    parts[2] !== undefined &&
-    /^[a-zA-Z0-9._-]+$/u.test(parts[2]) &&
-    parts[3] === "session.json"
-  );
-}
-
 async function writeExclusive(file: string, value: unknown): Promise<void> {
   await writeFile(file, canonicalJson(value), { flag: "wx", mode: 0o600 });
 }

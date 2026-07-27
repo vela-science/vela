@@ -1,34 +1,21 @@
-export * from "./contracts/candidate.js";
-export * from "./contracts/mission.js";
-export * from "./contracts/validation.js";
-export * from "./budget/enforce.js";
-export * from "./evidence/manifests.js";
-export * from "./artifact/freeze.js";
-export * from "./activity/events.js";
-export * from "./activity/store.js";
-export * from "./candidate/validate.js";
-export * from "./util/canonical.js";
-export * from "./projection/public-run.js";
-export * from "./projection/publication.js";
-export * from "./util/command.js";
-export * from "./util/files.js";
-export * from "./roles.js";
-export * from "./receipt/map.js";
-export * from "./repair/plan.js";
-export * from "./projection/run.js";
-export * from "./projection/diagnostic.js";
-export * from "./product/doctor.js";
-export * from "./product/profile.js";
-export * from "./product/profile-bundle.js";
-export * from "./product/replay.js";
-export * from "./product/run.js";
-export * from "./run.js";
-export * from "./engines/engine.js";
-export * from "./engines/fake.js";
-export * from "./engines/codex-events.js";
-export * from "./engines/codex-tool-free.js";
-export * from "./engines/codex-exec.js";
-export * from "./vela/cli.js";
-export * from "./vela/types.js";
-export * from "./workspace/prepare.js";
-export * from "./verifier/run.js";
+export {
+  LEGACY_RUN_RECORD_SCHEMA,
+  RUN_PROJECTION_SCHEMA,
+  RUN_RECORD_SCHEMA,
+  parseRunRecord,
+  projectRun,
+} from "./projection/run.js";
+export type { RunProjection, RunRecord } from "./projection/run.js";
+
+export {
+  FAILURE_PROJECTION_SCHEMA,
+  FAILURE_RECORD_SCHEMA,
+  parseFailureRecord,
+  projectFailure,
+} from "./projection/failure.js";
+export type { FailureProjection, FailureRecord } from "./projection/failure.js";
+
+export {
+  parseDiagnosticRunRecord,
+  projectDiagnosticRun,
+} from "./projection/diagnostic.js";
