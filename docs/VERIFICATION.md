@@ -119,6 +119,15 @@ Historical policy `Permit`, `Defer`, and `Deny` outcomes remain replayable, but
 the current writer registers a pending Proposal and leaves the consequential
 action to an authorized decision.
 
+For a current Submission, the Decision gate re-reads the exact retained
+Submission and Verification Record bytes. Each declared
+`verification_requirements` entry must equal the `scope.property` of an
+independent passing record bound to the same Claim, Submission, and Proposal.
+Producer-dependent passes do not count. A fail blocks the route; missing,
+invalid, inconclusive, error, unavailable, or not-run records cannot make
+acceptance available. These checks constrain an authorized Decision; they do
+not perform one.
+
 ## Human decision
 
 Direct `vela review accept|reject` commands are the ordinary human decision

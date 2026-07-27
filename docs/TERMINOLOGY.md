@@ -92,6 +92,10 @@ Accepted scientific state changed: no.
 A passing Verification Record must name the exact property, method, inputs,
 scope, and nonclaims. It changes no standing by itself.
 
+A current correction, supersession, or retraction is a new authenticated
+Submission whose requested change binds the exact historical Claim ID and full
+Finding root. It never edits the prior Submission, Event, Finding, or Decision.
+
 An acceptance must name the exact Proposal, authorized human principal,
 Frontier repository authority, Event, and before/after state roots.
 

@@ -1445,7 +1445,24 @@ pub fn verify_repository_for_write_with_authority_events(
         RepositoryWriteGateError::new(RepositoryWriteGateCode::RepositoryIdentityInvalid, error)
     })?;
 
-    let replay = reducer::verify_replay(project);
+    let semantic_events =
+        reducer::semantic_event_union(project, authority_events).map_err(|error| {
+            RepositoryWriteGateError::new(RepositoryWriteGateCode::ReducerReplayFailed, error)
+        })?;
+    let encoded = serde_json::to_value(project).map_err(|error| {
+        RepositoryWriteGateError::new(
+            RepositoryWriteGateCode::ReducerReplayFailed,
+            format!("clone repository projection for dual-log replay: {error}"),
+        )
+    })?;
+    let mut effective_project: Project = serde_json::from_value(encoded).map_err(|error| {
+        RepositoryWriteGateError::new(
+            RepositoryWriteGateCode::ReducerReplayFailed,
+            format!("restore repository projection for dual-log replay: {error}"),
+        )
+    })?;
+    effective_project.events = semantic_events;
+    let replay = reducer::verify_replay_with_authority(project, authority_events);
     if !replay.ok {
         return Err(RepositoryWriteGateError::new(
             RepositoryWriteGateCode::ReducerReplayFailed,
@@ -1483,9 +1500,9 @@ pub fn verify_repository_for_write_with_authority_events(
                 proposal_conflicts.join(" | "),
             ));
         }
-        verify_native_finding_projection(project)?;
-        verify_native_unreplayed_sidecars(project)?;
-        verify_genesis_artifact_projection(project)?;
+        verify_native_finding_projection(&effective_project)?;
+        verify_native_unreplayed_sidecars(&effective_project)?;
+        verify_genesis_artifact_projection(&effective_project)?;
         VerifiedRepositoryIdentity::Genesis {
             identity_event_root: projection.identity_event_root.clone(),
         }
@@ -1567,8 +1584,8 @@ pub fn verify_repository_for_write_with_authority_events(
                 },
             )?;
         } else {
-            verify_native_finding_projection(project)?;
-            verify_native_unreplayed_sidecars(project)?;
+            verify_native_finding_projection(&effective_project)?;
+            verify_native_unreplayed_sidecars(&effective_project)?;
         }
         VerifiedRepositoryIdentity::PinnedBoundary {
             origin: chain_origin.origin,

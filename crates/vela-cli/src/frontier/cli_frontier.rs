@@ -218,7 +218,22 @@ fn materialize_with_write_gate(frontier: &std::path::Path) -> Result<serde_json:
         crate::frontier_txn::FrontierTxn::acquire_derived_write_barrier(frontier, &journal_dir)
             .map_err(|error| error.to_string())?;
     let project = vela_protocol::repo::load_from_path(frontier)?;
-    let visible = frontier_repo::render_visible_repo_files(frontier, &project)?;
+    let authority = crate::cli::load_repository_authority(frontier, &project)?;
+    let mut materialized: vela_protocol::project::Project =
+        serde_json::from_value(serde_json::to_value(&project).map_err(|error| error.to_string())?)
+            .map_err(|error| error.to_string())?;
+    let authority_event_log_root = match authority {
+        Some(authority) => {
+            materialized.events = vela_protocol::reducer::semantic_event_union(
+                &project,
+                &authority.history.authority_events,
+            )?;
+            Some(authority.verification.final_event_log_root)
+        }
+        None => None,
+    };
+    vela_protocol::project::recompute_stats(&mut materialized);
+    let visible = frontier_repo::render_visible_repo_files(frontier, &materialized)?;
     let managed = vela_protocol::repo::ManagedFileSet {
         writes: visible,
         deletes: Default::default(),
@@ -228,7 +243,9 @@ fn materialize_with_write_gate(frontier: &std::path::Path) -> Result<serde_json:
     let request = vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
         "schema": "vela.frontier-materialize-request.internal.v1",
         "frontier_id": project.frontier_id(),
-        "event_log_root": format!("sha256:{}", vela_protocol::events::event_log_hash(&project.events)),
+        "legacy_event_log_root": format!("sha256:{}", vela_protocol::events::event_log_hash(&project.events)),
+        "authority_event_log_root": authority_event_log_root,
+        "semantic_event_log_root": format!("sha256:{}", vela_protocol::events::event_log_hash(&materialized.events)),
     }))?;
     crate::frontier_txn::execute_no_event_transaction(
         write_barrier,

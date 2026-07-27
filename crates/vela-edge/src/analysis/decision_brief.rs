@@ -21,6 +21,8 @@ use vela_protocol::proposals::policy_accept::{
 };
 use vela_protocol::proposals::{self, EngineVerdict, StateProposal};
 use vela_protocol::receipt_v1::{ReceiptV1, acceptance_scope_from_receipt, lineage_from_receipt};
+use vela_protocol::submission_v1::SubmissionV1;
+use vela_protocol::verification_record::VerificationRecordV1;
 use vela_protocol::verifier_attachment::{GateStatus, claim_digest, derive_gate_status};
 
 pub const DECISION_BRIEF_SCHEMA: &str = "vela.decision-brief.testing.v1";
@@ -89,6 +91,103 @@ impl<'a> ReceiptMaterial<'a> {
             ReceiptMaterialSource::Present(_) => false,
             ReceiptMaterialSource::Invalid { .. } => true,
             ReceiptMaterialSource::Missing { .. } => receipt_required,
+        }
+    }
+}
+
+/// Current Submission bytes available to the read projection.
+///
+/// A current Proposal carries only a content-addressed link. The authenticated
+/// Submission remains a distinct retained object and must be re-read and
+/// verified before a Decision Brief may make acceptance available.
+#[derive(Debug, Clone, Copy)]
+pub struct SubmissionMaterial<'a> {
+    source: SubmissionMaterialSource<'a>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum SubmissionMaterialSource<'a> {
+    Present(&'a SubmissionV1),
+    Missing { reason: &'a str },
+    Invalid { reason: &'a str },
+}
+
+impl<'a> SubmissionMaterial<'a> {
+    #[must_use]
+    pub fn from_submission(submission: &'a SubmissionV1) -> Self {
+        Self {
+            source: SubmissionMaterialSource::Present(submission),
+        }
+    }
+
+    #[must_use]
+    pub fn missing(reason: &'a str) -> Self {
+        Self {
+            source: SubmissionMaterialSource::Missing { reason },
+        }
+    }
+
+    #[must_use]
+    pub fn invalid(reason: &'a str) -> Self {
+        Self {
+            source: SubmissionMaterialSource::Invalid { reason },
+        }
+    }
+
+    fn submission(self) -> Option<&'a SubmissionV1> {
+        match self.source {
+            SubmissionMaterialSource::Present(submission) => Some(submission),
+            SubmissionMaterialSource::Missing { .. } | SubmissionMaterialSource::Invalid { .. } => {
+                None
+            }
+        }
+    }
+}
+
+/// Current Verification Records available to the read projection.
+///
+/// These records are authenticated observations. They may satisfy the exact
+/// verification contract of a Submission, but they never change Standing or
+/// authorize the Decision that consumes the brief.
+#[derive(Debug, Clone, Copy)]
+pub struct VerificationMaterial<'a> {
+    source: VerificationMaterialSource<'a>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum VerificationMaterialSource<'a> {
+    Present(&'a [VerificationRecordV1]),
+    Missing { reason: &'a str },
+    Invalid { reason: &'a str },
+}
+
+impl<'a> VerificationMaterial<'a> {
+    #[must_use]
+    pub fn from_records(records: &'a [VerificationRecordV1]) -> Self {
+        Self {
+            source: VerificationMaterialSource::Present(records),
+        }
+    }
+
+    #[must_use]
+    pub fn missing(reason: &'a str) -> Self {
+        Self {
+            source: VerificationMaterialSource::Missing { reason },
+        }
+    }
+
+    #[must_use]
+    pub fn invalid(reason: &'a str) -> Self {
+        Self {
+            source: VerificationMaterialSource::Invalid { reason },
+        }
+    }
+
+    fn records(self) -> Option<&'a [VerificationRecordV1]> {
+        match self.source {
+            VerificationMaterialSource::Present(records) => Some(records),
+            VerificationMaterialSource::Missing { .. }
+            | VerificationMaterialSource::Invalid { .. } => None,
         }
     }
 }
@@ -398,6 +497,8 @@ pub struct PublicationProjection<'a> {
 pub struct DecisionBriefInput<'a> {
     pub proposal_id: &'a str,
     pub receipt: ReceiptMaterial<'a>,
+    pub submission: SubmissionMaterial<'a>,
+    pub verifications: VerificationMaterial<'a>,
     pub route: ReviewRoute<'a>,
     pub observed_at: &'a str,
     pub replay_ok: bool,
@@ -801,6 +902,8 @@ impl DecisionFacts {
         let mut truncations = Vec::new();
         let submission = proposal.payload.get("vela_submission");
         let receipt_required = submission.is_some();
+        let current_submission_link = proposal.payload.get("submission");
+        let current_submission_required = current_submission_link.is_some();
         if matches!(input.route.source, ReviewRouteSource::HumanOnly { .. })
             && proposal.kind == "finding.add"
             && proposal.target.r#type == "finding"
@@ -871,6 +974,56 @@ impl DecisionFacts {
             );
         }
 
+        let current_submission = input.submission.submission();
+        let current_submission_root = current_submission
+            .map(SubmissionV1::canonical_root)
+            .transpose()?;
+        let declared_current_submission_id = current_submission_link
+            .and_then(|value| value.get("submission_id"))
+            .and_then(Value::as_str);
+        let declared_current_submission_root = current_submission_link
+            .and_then(|value| value.get("submission_root"))
+            .and_then(Value::as_str);
+        match input.submission.source {
+            SubmissionMaterialSource::Missing { reason } if current_submission_required => {
+                push_missing(&mut unknowns, "basis.submission", reason);
+            }
+            SubmissionMaterialSource::Invalid { reason } => {
+                push_missing(&mut unknowns, "basis.submission", reason);
+            }
+            SubmissionMaterialSource::Present(_) | SubmissionMaterialSource::Missing { .. } => {}
+        }
+        if current_submission_required && declared_current_submission_id.is_none() {
+            push_missing(
+                &mut unknowns,
+                "audit.declared_submission_id",
+                "proposal_submission_id_absent",
+            );
+        }
+        if current_submission_required && declared_current_submission_root.is_none() {
+            push_missing(
+                &mut unknowns,
+                "audit.declared_submission_root",
+                "proposal_submission_root_absent",
+            );
+        }
+        if let Some(current) = current_submission {
+            if declared_current_submission_id != Some(current.submission_id.as_str()) {
+                push_missing(
+                    &mut unknowns,
+                    "audit.submission_id",
+                    "proposal_submission_id_mismatch",
+                );
+            }
+            if declared_current_submission_root != current_submission_root.as_deref() {
+                push_missing(
+                    &mut unknowns,
+                    "audit.submission_root",
+                    "proposal_submission_root_mismatch",
+                );
+            }
+        }
+
         let proposal_root = typed_root(proposal)?;
         let event_log_root = format!(
             "sha256:{}",
@@ -929,6 +1082,42 @@ impl DecisionFacts {
                 "proposal_semantic_after_absent",
             );
         }
+        let current_submission_semantics_match = current_submission.is_none_or(|submission| {
+            let kind_matches = match submission.requested_change.kind.as_str() {
+                "add_claim" => {
+                    proposal.kind == "finding.add" && submission.requested_change.target.is_none()
+                }
+                "correct_claim" | "supersede_claim" => {
+                    proposal.kind == "finding.supersede"
+                        && submission
+                            .requested_change
+                            .target
+                            .as_ref()
+                            .is_some_and(|target| target.claim_id == proposal.target.id)
+                }
+                "retract_claim" => {
+                    proposal.kind == "finding.retract"
+                        && submission
+                            .requested_change
+                            .target
+                            .as_ref()
+                            .is_some_and(|target| target.claim_id == proposal.target.id)
+                }
+                _ => false,
+            };
+            let claim_matches = proposal.kind == "finding.retract"
+                || after_raw
+                    .as_ref()
+                    .is_some_and(|after| after.text == submission.claim.assertion);
+            kind_matches && claim_matches
+        });
+        if !current_submission_semantics_match {
+            push_missing(
+                &mut unknowns,
+                "change.submission_binding",
+                "proposal_submission_semantic_mismatch",
+            );
+        }
         let receipt_claim = receipt_value
             .and_then(|value| value.get("claim"))
             .and_then(Value::as_str);
@@ -974,6 +1163,11 @@ impl DecisionFacts {
             requested_action: proposal.kind.clone(),
         };
 
+        let current_verification = assess_current_verification_contract(
+            proposal,
+            current_submission,
+            input.verifications,
+        )?;
         let mut attachments = project
             .verifier_attachments
             .iter()
@@ -981,17 +1175,33 @@ impl DecisionFacts {
             .cloned()
             .collect::<Vec<_>>();
         attachments.sort_by(|left, right| left.id.cmp(&right.id));
-        let durable_verifier_snapshot_root = typed_root(&attachments)?;
-        let gate = derive_gate_status(&claim_digest(claim_raw), &attachments);
+        let historical_verifier_snapshot_root = typed_root(&attachments)?;
+        let historical_gate = derive_gate_status(&claim_digest(claim_raw), &attachments);
+        let (durable_verifier_snapshot_root, gate_status, gate_reasons, verifier_count) =
+            if current_submission_required {
+                (
+                    current_verification.snapshot_root.clone(),
+                    current_verification.status.clone(),
+                    current_verification.reasons.clone(),
+                    current_verification.record_count,
+                )
+            } else {
+                (
+                    historical_verifier_snapshot_root,
+                    gate_status_name(historical_gate.status).to_string(),
+                    historical_gate.reasons.clone(),
+                    attachments.len(),
+                )
+            };
         let producer_reported = receipt_value
             .map(|receipt| producer_reported_checks(receipt, &mut truncations))
             .unwrap_or_default();
         let engine_gate = input.route.engine_gate();
         let engine_gate_root = typed_root(&engine_gate)?;
         let check_state = DecisionCheckState {
-            gate_status: gate_status_name(gate.status).to_string(),
-            gate_reasons: gate.reasons,
-            durable_verifier_count: attachments.len(),
+            gate_status,
+            gate_reasons,
+            durable_verifier_count: verifier_count,
             durable_verifier_snapshot_root: durable_verifier_snapshot_root.clone(),
             engine_status: engine_gate.map(|gate| gate.status.clone()),
             engine_new_blocking: engine_gate
@@ -1024,6 +1234,12 @@ impl DecisionFacts {
             kind: "durable_verifier_snapshot".to_string(),
             root: durable_verifier_snapshot_root,
         });
+        if let Some(root) = &current_submission_root {
+            primary_evidence_roots.push(EvidenceRoot {
+                kind: "submission".to_string(),
+                root: root.clone(),
+            });
+        }
 
         let caveat_raw = receipt_value
             .and_then(|value| value.get("caveats"))
@@ -1106,6 +1322,25 @@ impl DecisionFacts {
         if input.receipt.blocks_accept(receipt_required) {
             accept_blockers.push("receipt_material_unavailable_or_invalid".to_string());
         }
+        if current_submission_required {
+            match input.submission.source {
+                SubmissionMaterialSource::Present(_) => {}
+                SubmissionMaterialSource::Missing { .. }
+                | SubmissionMaterialSource::Invalid { .. } => {
+                    accept_blockers.push("submission_material_unavailable_or_invalid".to_string());
+                }
+            }
+            if declared_current_submission_id
+                != current_submission.map(|submission| submission.submission_id.as_str())
+                || declared_current_submission_root != current_submission_root.as_deref()
+            {
+                accept_blockers.push("proposal_submission_binding_mismatch".to_string());
+            }
+            if !current_submission_semantics_match {
+                accept_blockers.push("proposal_submission_semantic_mismatch".to_string());
+            }
+            accept_blockers.extend(current_verification.accept_blockers.iter().cloned());
+        }
         if declared_receipt_root
             .as_deref()
             .zip(receipt_root.as_deref())
@@ -1180,7 +1415,23 @@ impl DecisionFacts {
         insert_optional_facet(&mut facets, "challenge", challenge);
         insert_optional_facet(&mut facets, "acceptance_authority", acceptance_authority);
         insert_optional_facet(&mut facets, "publication", publication);
+        if current_submission_required {
+            facets.insert(
+                "current_verification_contract".to_string(),
+                typed_facet(
+                    "vela.decision-brief.facet.current-verification-contract.testing.v1",
+                    !current_verification.accept_blockers.is_empty(),
+                    current_verification.facet.clone(),
+                )?,
+            );
+        }
 
+        let effective_gate_status =
+            if current_submission_required && current_verification.status == "refuted" {
+                GateStatus::Refuted
+            } else {
+                historical_gate.status
+            };
         let mut critical_warnings = critical_warnings(
             project,
             proposal,
@@ -1190,7 +1441,7 @@ impl DecisionFacts {
             declared_receipt_root.as_deref(),
             receipt_claim,
             claim_raw,
-            gate.status,
+            effective_gate_status,
             policy_decision.map(|decision| decision.outcome),
         );
         if facets.get("challenge").is_some_and(|facet| facet.critical) {
@@ -1840,8 +2091,177 @@ fn proposal_from_project<'a>(
     Ok(proposal)
 }
 
+#[derive(Debug)]
+struct CurrentVerificationAssessment {
+    status: String,
+    reasons: Vec<String>,
+    record_count: usize,
+    snapshot_root: String,
+    accept_blockers: Vec<String>,
+    facet: Value,
+}
+
+fn assess_current_verification_contract(
+    proposal: &StateProposal,
+    submission: Option<&SubmissionV1>,
+    material: VerificationMaterial<'_>,
+) -> Result<CurrentVerificationAssessment, String> {
+    let mut records = material.records().unwrap_or_default().to_vec();
+    records.sort_by(|left, right| {
+        left.verification_record_id
+            .cmp(&right.verification_record_id)
+    });
+    let snapshot_root = typed_root(&records)?;
+    let mut reasons = Vec::new();
+    let mut blockers = Vec::new();
+    let mut rows = Vec::new();
+    let mut seen_ids = std::collections::BTreeSet::new();
+    let mut passing_properties = std::collections::BTreeSet::new();
+    let mut passing_count = 0usize;
+    let mut failed = false;
+
+    match material.source {
+        VerificationMaterialSource::Missing { reason } => {
+            reasons.push(reason.to_string());
+            blockers.push("current_verification_contract_required".to_string());
+        }
+        VerificationMaterialSource::Invalid { reason } => {
+            reasons.push(reason.to_string());
+            blockers.push("current_verification_material_invalid".to_string());
+        }
+        VerificationMaterialSource::Present(_) => {}
+    }
+
+    let Some(submission) = submission else {
+        blockers.push("submission_material_unavailable_or_invalid".to_string());
+        blockers.sort();
+        blockers.dedup();
+        return Ok(CurrentVerificationAssessment {
+            status: "needs_verification".to_string(),
+            reasons,
+            record_count: records.len(),
+            snapshot_root,
+            accept_blockers: blockers,
+            facet: json!({
+                "status": "needs_verification",
+                "requirements": [],
+                "records": [],
+                "reason_codes": ["submission_material_unavailable_or_invalid"],
+            }),
+        });
+    };
+    submission.verify()?;
+    let submission_root = submission.canonical_root()?;
+
+    for record in &records {
+        let mut exact_binding = true;
+        let mut independent = false;
+        let mut record_root = None;
+        match record.verify() {
+            Ok(()) => {
+                record_root = Some(record.canonical_root()?);
+            }
+            Err(error) => {
+                exact_binding = false;
+                reasons.push(format!("{}: {error}", record.verification_record_id));
+                blockers.push("current_verification_record_invalid".to_string());
+            }
+        }
+        if !seen_ids.insert(record.verification_record_id.as_str()) {
+            exact_binding = false;
+            blockers.push("current_verification_record_duplicate".to_string());
+        }
+        if record.subject.claim_id != proposal.target.id
+            || record.subject.proposal_id != proposal.id
+            || record.subject.submission_id != submission.submission_id
+            || record.subject.submission_root != submission_root
+        {
+            exact_binding = false;
+            blockers.push("current_verification_subject_mismatch".to_string());
+        }
+        if exact_binding {
+            independent = record
+                .independence
+                .declared_independent_of
+                .iter()
+                .any(|actor| actor == &submission.provenance.producer);
+            if record.outcome == "pass" && independent {
+                passing_count = passing_count.saturating_add(1);
+                passing_properties.insert(record.scope.property.as_str());
+            } else if record.outcome == "pass" {
+                blockers.push("current_verification_independence_unmet".to_string());
+            } else if record.outcome == "fail" {
+                failed = true;
+                blockers.push("current_verification_failed".to_string());
+            }
+        }
+        rows.push(json!({
+            "id": record.verification_record_id,
+            "root": record_root,
+            "outcome": record.outcome,
+            "verifier": record.verifier,
+            "property": record.scope.property,
+            "method": {
+                "profile": record.method.profile,
+                "implementation": record.method.implementation,
+                "environment_root": record.method.environment_root,
+            },
+            "exact_subject_binding": exact_binding,
+            "declared_independent_of_producer": independent,
+            "limitations": record.scope.does_not_establish,
+        }));
+    }
+
+    if passing_count == 0 {
+        blockers.push("current_verification_contract_required".to_string());
+    }
+    let mut uncovered = Vec::new();
+    for requirement in &submission.verification_requirements {
+        if !passing_properties.contains(requirement.as_str()) {
+            uncovered.push(requirement.clone());
+        }
+    }
+    if !uncovered.is_empty() {
+        blockers.push("current_verification_requirements_unmet".to_string());
+    }
+    blockers.sort();
+    blockers.dedup();
+    reasons.extend(blockers.iter().cloned());
+    reasons.sort();
+    reasons.dedup();
+    let status = if failed {
+        "refuted"
+    } else if blockers.is_empty() {
+        "verified"
+    } else {
+        "needs_verification"
+    };
+    Ok(CurrentVerificationAssessment {
+        status: status.to_string(),
+        reasons: reasons.clone(),
+        record_count: records.len(),
+        snapshot_root,
+        accept_blockers: blockers.clone(),
+        facet: json!({
+            "status": status,
+            "submission_id": submission.submission_id,
+            "submission_root": submission_root,
+            "requirements": submission.verification_requirements,
+            "uncovered_requirements": uncovered,
+            "passing_independent_record_count": passing_count,
+            "records": rows,
+            "reason_codes": blockers,
+            "effect": "evidence_only",
+        }),
+    })
+}
+
 fn claim_state_from_proposal(proposal: &StateProposal) -> Option<ClaimState> {
-    let candidate = proposal.payload.get("finding").unwrap_or(&proposal.payload);
+    let candidate = proposal
+        .payload
+        .get("finding")
+        .or_else(|| proposal.payload.get("new_finding"))
+        .unwrap_or(&proposal.payload);
     let text = candidate
         .pointer("/assertion/text")
         .and_then(|value| value.as_str())
@@ -2415,6 +2835,8 @@ mod tests {
         DecisionBriefInput {
             proposal_id: &fixture.proposal_id,
             receipt,
+            submission: SubmissionMaterial::missing("submission_not_applicable"),
+            verifications: VerificationMaterial::missing("verification_not_applicable"),
             route,
             observed_at: "2026-07-13T12:36:00Z",
             replay_ok: true,
@@ -2454,6 +2876,8 @@ mod tests {
         let input = DecisionBriefInput {
             proposal_id: &fixture.proposal_id,
             receipt: ReceiptMaterial::from_receipt(&fixture.receipt),
+            submission: SubmissionMaterial::missing("submission_not_applicable"),
+            verifications: VerificationMaterial::missing("verification_not_applicable"),
             route: test_route(&fixture),
             observed_at: "2026-07-13T12:36:00Z",
             replay_ok: true,
@@ -2571,6 +2995,8 @@ mod tests {
             DecisionBriefInput {
                 proposal_id: &fixture.proposal_id,
                 receipt: ReceiptMaterial::from_receipt(&fixture.receipt),
+                submission: SubmissionMaterial::missing("submission_not_applicable"),
+                verifications: VerificationMaterial::missing("verification_not_applicable"),
                 route: test_route(&fixture),
                 observed_at: "2026-07-13T12:36:00Z",
                 replay_ok: true,
@@ -2586,6 +3012,8 @@ mod tests {
             DecisionBriefInput {
                 proposal_id: &fixture.proposal_id,
                 receipt: ReceiptMaterial::from_receipt(&fixture.receipt),
+                submission: SubmissionMaterial::missing("submission_not_applicable"),
+                verifications: VerificationMaterial::missing("verification_not_applicable"),
                 route: test_route(&fixture),
                 observed_at: "2026-07-13T12:36:00Z",
                 replay_ok: true,
@@ -2607,6 +3035,8 @@ mod tests {
             DecisionBriefInput {
                 proposal_id: &fixture.proposal_id,
                 receipt: ReceiptMaterial::from_receipt(&fixture.receipt),
+                submission: SubmissionMaterial::missing("submission_not_applicable"),
+                verifications: VerificationMaterial::missing("verification_not_applicable"),
                 route: test_route(&fixture),
                 observed_at: "2026-07-13T12:36:00Z",
                 replay_ok: true,

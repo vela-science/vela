@@ -12,8 +12,12 @@ use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
 use vela_protocol::submission_v1::{
-    RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
-    SubmissionV1,
+    RequestedChange, RequestedChangeTarget, SubmissionArtifact, SubmissionClaim, SubmissionDraft,
+    SubmissionProvenance, SubmissionV1,
+};
+use vela_protocol::verification_record::{
+    IndependenceDisclosure, VerificationMethod, VerificationRecordDraft, VerificationRecordV1,
+    VerificationScope, VerificationSubject,
 };
 
 struct Agent {
@@ -119,6 +123,86 @@ fn git(frontier: &Path, args: &[&str]) -> String {
         String::from_utf8_lossy(&output.stderr)
     );
     String::from_utf8_lossy(&output.stdout).trim().to_string()
+}
+
+fn verification_record(
+    submission: &SubmissionV1,
+    proposal_id: &str,
+    claim_id: &str,
+    requirement: &str,
+    key_byte: u8,
+    verifier: &str,
+    at: &str,
+) -> VerificationRecordV1 {
+    let key = SigningKey::from_bytes(&[key_byte; 32]);
+    let identity = IdentityBinding::build(
+        IdentityBindingDraft {
+            actor_id: verifier.to_string(),
+            actor_class: ActorClass::Agent,
+            created_at: at.to_string(),
+        },
+        &key,
+    )
+    .unwrap();
+    VerificationRecordV1::build(
+        VerificationRecordDraft {
+            subject: VerificationSubject {
+                claim_id: claim_id.to_string(),
+                artifact_ids: Vec::new(),
+                submission_id: submission.submission_id.clone(),
+                submission_root: submission.canonical_root().unwrap(),
+                proposal_id: proposal_id.to_string(),
+            },
+            method: VerificationMethod {
+                profile: "authority-lifecycle-fixture-v1".to_string(),
+                implementation: "independent-fixture-verifier".to_string(),
+                environment_root: format!("sha256:{}", "e".repeat(64)),
+            },
+            scope: VerificationScope {
+                property: requirement.to_string(),
+                does_not_establish: vec!["scientific acceptance".to_string()],
+            },
+            outcome: "pass".to_string(),
+            verifier: verifier.to_string(),
+            independence: IndependenceDisclosure {
+                declared_independent_of: vec![submission.provenance.producer.clone()],
+                shared_dependencies: Vec::new(),
+            },
+            output_artifact_ids: Vec::new(),
+            started_at: at.to_string(),
+            completed_at: at.to_string(),
+        },
+        identity,
+        &key,
+    )
+    .unwrap()
+}
+
+fn import_verification(
+    frontier: &Path,
+    record: &VerificationRecordV1,
+    verifier: &str,
+    agent: &Agent,
+    root: &Path,
+    name: &str,
+) -> Value {
+    let path = root.join(name);
+    fs::write(&path, record.canonical_bytes().unwrap()).unwrap();
+    let output = vela()
+        .args(["verification", "import"])
+        .arg(frontier)
+        .arg(&path)
+        .args(["--as", verifier, "--json"])
+        .env("SSH_AUTH_SOCK", &agent.socket)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).unwrap()
 }
 
 #[test]
@@ -243,7 +327,7 @@ fn fresh_frontier_initializes_standard_repository_authority_and_replays_strictly
         SubmissionDraft {
             claim: SubmissionClaim {
                 assertion: "The bounded authority fixture produced its declared artifact.".into(),
-                claim_type: "computational".into(),
+                claim_type: "theoretical".into(),
                 conditions: vec!["Only the retained fixture bytes are in scope.".into()],
             },
             artifacts: vec![SubmissionArtifact {
@@ -259,6 +343,7 @@ fn fresh_frontier_initializes_standard_repository_authority_and_replays_strictly
             ],
             requested_change: RequestedChange {
                 kind: "add_claim".into(),
+                target: None,
             },
             provenance: SubmissionProvenance {
                 producer: producer.into(),
@@ -367,28 +452,250 @@ fn fresh_frontier_initializes_standard_repository_authority_and_replays_strictly
         String::from_utf8_lossy(&strict.stderr)
     );
 
-    let rejected = vela()
-        .args(["review", "reject"])
+    let claim_id = submitted["claim_id"].as_str().unwrap();
+    let requirement = "Import one independent Verification Record before acceptance.";
+    let record = verification_record(
+        &submission,
+        proposal_id,
+        claim_id,
+        requirement,
+        0x43,
+        "agent:independent-verifier",
+        "2026-07-27T00:00:01Z",
+    );
+    let imported = import_verification(
+        &frontier,
+        &record,
+        "agent:independent-verifier",
+        &agent,
+        temporary.path(),
+        "verification.json",
+    );
+    assert_eq!(imported["accepted_event_delta"], 0);
+
+    let accepted = vela()
+        .args(["review", "accept"])
         .arg(&frontier)
         .arg(proposal_id)
         .args([
             "--reason",
-            "The fixture proves lifecycle integrity only; no scientific Claim should be accepted.",
+            "The exact independent fixture replay satisfies the declared bounded requirement.",
             "--json",
         ])
         .env("SSH_AUTH_SOCK", &agent.socket)
         .output()
         .unwrap();
     assert!(
-        rejected.status.success(),
+        accepted.status.success(),
         "{}\n{}",
-        String::from_utf8_lossy(&rejected.stdout),
-        String::from_utf8_lossy(&rejected.stderr)
+        String::from_utf8_lossy(&accepted.stdout),
+        String::from_utf8_lossy(&accepted.stderr)
     );
-    let rejected: Value = serde_json::from_slice(&rejected.stdout).unwrap();
-    assert_eq!(rejected["command"], "review.reject");
-    assert_eq!(rejected["action"], "reject");
-    assert_eq!(rejected["scientific_state_changed"], false);
+    let accepted: Value = serde_json::from_slice(&accepted.stdout).unwrap();
+    assert_eq!(accepted["command"], "review.accept");
+    assert_eq!(accepted["action"], "accept");
+    assert_eq!(accepted["scientific_state_changed"], true);
+
+    let accepted_project = vela_protocol::repo::load_from_path(&frontier).unwrap();
+    let original = accepted_project
+        .findings
+        .iter()
+        .find(|finding| finding.id == claim_id)
+        .unwrap()
+        .clone();
+    let original_root = vela_protocol::events::finding_hash(&original);
+    let retained_event_bytes = fs::read_dir(frontier.join(".vela/events"))
+        .unwrap()
+        .map(|entry| {
+            let path = entry.unwrap().path();
+            let relative = path.strip_prefix(&frontier).unwrap().to_path_buf();
+            (relative, fs::read(path).unwrap())
+        })
+        .collect::<Vec<_>>();
+
+    let corrected_artifact = br#"{"bounded_result":"corrected fixture"}"#;
+    fs::write(
+        frontier.join("artifacts/corrected-result.json"),
+        corrected_artifact,
+    )
+    .unwrap();
+    git(&frontier, &["add", "artifacts/corrected-result.json"]);
+    git(
+        &frontier,
+        &["commit", "-qm", "add corrected fixture artifact"],
+    );
+    let corrective_submission =
+        SubmissionV1::build(
+            SubmissionDraft {
+                claim: SubmissionClaim {
+                    assertion:
+                        "The corrected bounded authority fixture produced its declared artifact."
+                            .into(),
+                    claim_type: "theoretical".into(),
+                    conditions: vec![
+                        "Only the corrected retained fixture bytes are in scope.".into(),
+                    ],
+                },
+                artifacts: vec![SubmissionArtifact {
+                    kind: "fixture-result".into(),
+                    path: "artifacts/corrected-result.json".into(),
+                    digest: format!("sha256:{}", hex::encode(Sha256::digest(corrected_artifact))),
+                }],
+                caveats: vec!["This correction remains a bounded lifecycle fixture.".into()],
+                replayability: "exact".into(),
+                producer_checks: Vec::new(),
+                verification_requirements: vec![requirement.into()],
+                requested_change: RequestedChange {
+                    kind: "correct_claim".into(),
+                    target: Some(RequestedChangeTarget {
+                        claim_id: claim_id.into(),
+                        claim_root: original_root,
+                    }),
+                },
+                provenance: SubmissionProvenance {
+                    producer: producer.into(),
+                    source_system: "authority-initialization-fixture".into(),
+                    source_attempt: None,
+                    source_run: None,
+                    emitted_at: "2026-07-27T00:00:02Z".into(),
+                },
+                execution_binding: None,
+            },
+            IdentityBinding::build(
+                IdentityBindingDraft {
+                    actor_id: producer.into(),
+                    actor_class: ActorClass::Agent,
+                    created_at: "2026-07-27T00:00:02Z".into(),
+                },
+                &producer_key,
+            )
+            .unwrap(),
+            &producer_key,
+        )
+        .unwrap();
+    let corrective_path = temporary.path().join("corrective-submission.json");
+    fs::write(
+        &corrective_path,
+        corrective_submission.canonical_bytes().unwrap(),
+    )
+    .unwrap();
+    let corrected = vela()
+        .arg("submit")
+        .arg(&corrective_path)
+        .arg("--frontier")
+        .arg(&frontier)
+        .args(["--as", producer, "--json"])
+        .env("SSH_AUTH_SOCK", &agent.socket)
+        .output()
+        .unwrap();
+    assert!(
+        corrected.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&corrected.stdout),
+        String::from_utf8_lossy(&corrected.stderr)
+    );
+    let corrected: Value = serde_json::from_slice(&corrected.stdout).unwrap();
+    let correction_proposal_id = corrected["proposal_id"].as_str().unwrap();
+    assert_eq!(corrected["claim_id"], claim_id);
+    let correction_record = verification_record(
+        &corrective_submission,
+        correction_proposal_id,
+        claim_id,
+        requirement,
+        0x44,
+        "agent:correction-verifier",
+        "2026-07-27T00:00:03Z",
+    );
+    import_verification(
+        &frontier,
+        &correction_record,
+        "agent:correction-verifier",
+        &agent,
+        temporary.path(),
+        "correction-verification.json",
+    );
+    let correction_accepted = vela()
+        .args(["review", "accept"])
+        .arg(&frontier)
+        .arg(correction_proposal_id)
+        .args([
+            "--reason",
+            "The independent replay verifies the exact corrective Submission.",
+            "--json",
+        ])
+        .env("SSH_AUTH_SOCK", &agent.socket)
+        .output()
+        .unwrap();
+    assert!(
+        correction_accepted.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&correction_accepted.stdout),
+        String::from_utf8_lossy(&correction_accepted.stderr)
+    );
+    let replayed = vela_protocol::repo::load_from_path(&frontier).unwrap();
+    let superseded = replayed
+        .findings
+        .iter()
+        .find(|finding| finding.id == claim_id)
+        .unwrap();
+    assert!(superseded.flags.superseded);
+    assert!(replayed.findings.iter().any(|finding| {
+        finding.id != claim_id
+            && finding
+                .links
+                .iter()
+                .any(|link| link.link_type == "supersedes" && link.target == claim_id)
+    }));
+    for (relative, bytes) in &retained_event_bytes {
+        assert_eq!(
+            fs::read(frontier.join(relative)).unwrap(),
+            *bytes,
+            "correction must not rewrite a retained canonical Event"
+        );
+    }
+    let strict_after_correction = vela()
+        .args(["check"])
+        .arg(&frontier)
+        .args(["--strict", "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        strict_after_correction.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&strict_after_correction.stdout),
+        String::from_utf8_lossy(&strict_after_correction.stderr)
+    );
+    let rematerialized = vela()
+        .args(["frontier", "materialize"])
+        .arg(&frontier)
+        .arg("--json")
+        .output()
+        .unwrap();
+    assert!(
+        rematerialized.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&rematerialized.stdout),
+        String::from_utf8_lossy(&rematerialized.stderr)
+    );
+    for (relative, bytes) in &retained_event_bytes {
+        assert_eq!(
+            fs::read(frontier.join(relative)).unwrap(),
+            *bytes,
+            "dual-log materialization must not rewrite a retained canonical Event"
+        );
+    }
+    let strict_after_materialize = vela()
+        .args(["check"])
+        .arg(&frontier)
+        .args(["--strict", "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        strict_after_materialize.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&strict_after_materialize.stdout),
+        String::from_utf8_lossy(&strict_after_materialize.stderr)
+    );
 
     let event_path = fs::read_dir(authority_root.join("events"))
         .unwrap()

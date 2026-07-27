@@ -371,6 +371,7 @@ fn current_submission_withdrawal_fixture()
             verification_requirements: vec!["independent replay".to_string()],
             requested_change: RequestedChange {
                 kind: "add_claim".to_string(),
+                target: None,
             },
             provenance: SubmissionProvenance {
                 producer: identity.actor_id.clone(),

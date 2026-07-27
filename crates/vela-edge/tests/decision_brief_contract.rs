@@ -5,7 +5,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vela_edge::decision_brief::{
     DecisionBrief, DecisionBriefInput, PublicationProjection, ReceiptMaterial, ReviewPolicyFacts,
-    ReviewRoute, build_decision_brief,
+    ReviewRoute, SubmissionMaterial, VerificationMaterial, build_decision_brief,
 };
 use vela_protocol::acceptance_policy::{
     AcceptancePolicy, Constraints, Outcome, PolicyRule, PolicySignatureRecord, Quorum,
@@ -200,6 +200,8 @@ fn receipt_bound_brief_from_receipt(
         DecisionBriefInput {
             proposal_id: &proposal_id,
             receipt: ReceiptMaterial::from_receipt(&receipt),
+            submission: SubmissionMaterial::missing("submission_not_applicable"),
+            verifications: VerificationMaterial::missing("verification_not_applicable"),
             route: ReviewRoute::human_only(absent_policy_facts(), route_code, route_detail),
             observed_at: OBSERVED_AT,
             replay_ok: true,
@@ -228,6 +230,8 @@ fn ordinary_brief() -> DecisionBrief {
         DecisionBriefInput {
             proposal_id: &proposal_id,
             receipt: ReceiptMaterial::missing("receipt_not_applicable"),
+            submission: SubmissionMaterial::missing("submission_not_applicable"),
+            verifications: VerificationMaterial::missing("verification_not_applicable"),
             route: ReviewRoute::human_only(
                 absent_policy_facts(),
                 "proposal_kind_requires_human_review",
@@ -262,6 +266,8 @@ fn critical_warning_brief() -> DecisionBrief {
         DecisionBriefInput {
             proposal_id: &proposal_id,
             receipt: ReceiptMaterial::missing("receipt_not_applicable"),
+            submission: SubmissionMaterial::missing("submission_not_applicable"),
+            verifications: VerificationMaterial::missing("verification_not_applicable"),
             route: ReviewRoute::human_only(
                 absent_policy_facts(),
                 "active_challenge_requires_human_review",
@@ -304,6 +310,8 @@ fn missing_brief() -> DecisionBrief {
         DecisionBriefInput {
             proposal_id: &proposal_id,
             receipt: ReceiptMaterial::missing("receipt_not_found"),
+            submission: SubmissionMaterial::missing("submission_not_applicable"),
+            verifications: VerificationMaterial::missing("verification_not_applicable"),
             route: ReviewRoute::unavailable(
                 absent_policy_facts(),
                 "receipt_material_unavailable",
@@ -353,6 +361,8 @@ fn restricted_evidence_brief() -> DecisionBrief {
         DecisionBriefInput {
             proposal_id: &proposal_id,
             receipt: ReceiptMaterial::missing("restricted_evidence_not_available_to_reviewer"),
+            submission: SubmissionMaterial::missing("submission_not_applicable"),
+            verifications: VerificationMaterial::missing("verification_not_applicable"),
             route: ReviewRoute::human_only(
                 absent_policy_facts(),
                 "restricted_evidence_requires_authorized_human_review",
@@ -535,6 +545,8 @@ fn contradiction_blast_radius_brief() -> DecisionBrief {
         DecisionBriefInput {
             proposal_id: &proposal_id,
             receipt: ReceiptMaterial::missing("receipt_not_applicable"),
+            submission: SubmissionMaterial::missing("submission_not_applicable"),
+            verifications: VerificationMaterial::missing("verification_not_applicable"),
             route: ReviewRoute::human_only(
                 absent_policy_facts(),
                 "open_contradiction_requires_human_review",
@@ -760,6 +772,8 @@ fn all_facets_brief() -> DecisionBrief {
         DecisionBriefInput {
             proposal_id: &proposal_id,
             receipt: ReceiptMaterial::from_receipt(&receipt),
+            submission: SubmissionMaterial::missing("submission_not_applicable"),
+            verifications: VerificationMaterial::missing("verification_not_applicable"),
             route: ReviewRoute::from_staged(&staged),
             observed_at: OBSERVED_AT,
             replay_ok: true,

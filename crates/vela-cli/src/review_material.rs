@@ -17,6 +17,8 @@ use vela_protocol::proposals::policy_accept::{
     PolicyContextInputs, derive_policy_context, receipt_producer_credential_valid,
 };
 use vela_protocol::receipt_v1::ReceiptV1;
+use vela_protocol::submission_v1::SubmissionV1;
+use vela_protocol::verification_record::VerificationRecordV1;
 
 /// Derive the policy facts for a proposal already present in a frontier.
 ///
@@ -272,6 +274,46 @@ impl LoadedReceipt {
             }
             Self::Missing(reason) => vela_edge::decision_brief::ReceiptMaterial::missing(reason),
             Self::Invalid(reason) => vela_edge::decision_brief::ReceiptMaterial::invalid(reason),
+        }
+    }
+}
+
+enum LoadedSubmission {
+    Parsed(SubmissionV1),
+    Missing(String),
+    Invalid(String),
+}
+
+impl LoadedSubmission {
+    fn material(&self) -> vela_edge::decision_brief::SubmissionMaterial<'_> {
+        match self {
+            Self::Parsed(submission) => {
+                vela_edge::decision_brief::SubmissionMaterial::from_submission(submission)
+            }
+            Self::Missing(reason) => vela_edge::decision_brief::SubmissionMaterial::missing(reason),
+            Self::Invalid(reason) => vela_edge::decision_brief::SubmissionMaterial::invalid(reason),
+        }
+    }
+}
+
+enum LoadedVerifications {
+    Parsed(Vec<VerificationRecordV1>),
+    Missing(String),
+    Invalid(String),
+}
+
+impl LoadedVerifications {
+    fn material(&self) -> vela_edge::decision_brief::VerificationMaterial<'_> {
+        match self {
+            Self::Parsed(records) => {
+                vela_edge::decision_brief::VerificationMaterial::from_records(records)
+            }
+            Self::Missing(reason) => {
+                vela_edge::decision_brief::VerificationMaterial::missing(reason)
+            }
+            Self::Invalid(reason) => {
+                vela_edge::decision_brief::VerificationMaterial::invalid(reason)
+            }
         }
     }
 }
@@ -1207,6 +1249,10 @@ fn build_review_item(
     replay_ok: bool,
 ) -> Result<vela_edge::decision_brief::ReviewSnapshot, ReviewProjectionError> {
     let material = loaded.material();
+    let current_submission = load_current_submission_material(frontier, proposal);
+    let current_verifications = load_current_verifications(frontier, proposal);
+    let submission_material = current_submission.material();
+    let verification_material = current_verifications.material();
     let publication = None;
     let policy_assessment = vela_protocol::proposals::policy_accept::assess_policy_readiness(
         project,
@@ -1221,6 +1267,8 @@ fn build_review_item(
             vela_edge::decision_brief::DecisionBriefInput {
                 proposal_id: &proposal.id,
                 receipt: material,
+                submission: submission_material,
+                verifications: verification_material,
                 route,
                 observed_at,
                 replay_ok,
@@ -1231,10 +1279,10 @@ fn build_review_item(
     };
 
     if proposal.payload.get("submission").is_some() {
-        return build(vela_edge::decision_brief::ReviewRoute::unavailable(
+        return build(vela_edge::decision_brief::ReviewRoute::human_only(
             policy_facts,
-            "current_verification_contract_required",
-            "the current Submission is reviewable and rejectable, but acceptance remains blocked until its Verification Record contract is satisfied",
+            "repository_authority_decision_required",
+            "current Verification Records are evidence; only an explicit repository-authority Decision may change Standing",
         ));
     }
 
@@ -1305,6 +1353,83 @@ fn build_review_item(
             ))
         }
     }
+}
+
+fn load_current_submission_material(frontier: &Path, proposal: &StateProposal) -> LoadedSubmission {
+    let Some(link) = proposal.payload.get("submission") else {
+        return LoadedSubmission::Missing("submission_not_applicable".to_string());
+    };
+    let Some(path) = link
+        .get("submission_path")
+        .and_then(serde_json::Value::as_str)
+    else {
+        return LoadedSubmission::Missing("submission_path_absent".to_string());
+    };
+    let Some(declared_id) = link
+        .get("submission_id")
+        .and_then(serde_json::Value::as_str)
+    else {
+        return LoadedSubmission::Invalid("submission_id_absent".to_string());
+    };
+    let Some(declared_root) = link
+        .get("submission_root")
+        .and_then(serde_json::Value::as_str)
+    else {
+        return LoadedSubmission::Invalid("submission_root_absent".to_string());
+    };
+    if !safe_current_record_path(path, "records/submissions/sha256/") {
+        return LoadedSubmission::Invalid("submission_path_unsafe".to_string());
+    }
+    let bytes = match crate::bounded_file::read_bounded_frontier_file(
+        frontier,
+        Path::new(path),
+        8 * 1024 * 1024,
+        "Submission",
+    ) {
+        Ok(bytes) => bytes,
+        Err(error) if error.code == "missing" => {
+            return LoadedSubmission::Missing("submission_file_missing".to_string());
+        }
+        Err(error) => {
+            return LoadedSubmission::Invalid(format!("submission_file_{}", error.code));
+        }
+    };
+    let parsed = match SubmissionV1::parse(&bytes) {
+        Ok(parsed) => parsed,
+        Err(_) => return LoadedSubmission::Invalid("submission_parse_failed".to_string()),
+    };
+    let actual_root = match parsed.canonical_root() {
+        Ok(root) => root,
+        Err(_) => return LoadedSubmission::Invalid("submission_root_failed".to_string()),
+    };
+    if parsed.submission_id != declared_id {
+        return LoadedSubmission::Invalid("submission_id_mismatch".to_string());
+    }
+    if actual_root != declared_root {
+        return LoadedSubmission::Invalid("submission_root_mismatch".to_string());
+    }
+    LoadedSubmission::Parsed(parsed)
+}
+
+fn load_current_verifications(frontier: &Path, proposal: &StateProposal) -> LoadedVerifications {
+    if proposal.payload.get("submission").is_none() {
+        return LoadedVerifications::Missing("verification_not_applicable".to_string());
+    }
+    match crate::cli_object::verification_records_for_proposal(frontier, &proposal.id) {
+        Ok(records) => {
+            LoadedVerifications::Parsed(records.into_iter().map(|(_, record)| record).collect())
+        }
+        Err(error) => LoadedVerifications::Invalid(error),
+    }
+}
+
+fn safe_current_record_path(path: &str, prefix: &str) -> bool {
+    let path = Path::new(path);
+    path.to_str().is_some_and(|path| path.starts_with(prefix))
+        && !path.is_absolute()
+        && path
+            .components()
+            .all(|component| matches!(component, Component::Normal(_)))
 }
 
 fn load_receipt_material(
@@ -1544,6 +1669,14 @@ mod tests {
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::receipt_v1::{ArtifactInput, ReceiptBuilder, ReceiptInput};
     use vela_protocol::sign::ActorRecord;
+    use vela_protocol::submission_v1::{
+        ProducerCheck, RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft,
+        SubmissionProvenance, SubmissionV1,
+    };
+    use vela_protocol::verification_record::{
+        IndependenceDisclosure, VerificationMethod, VerificationRecordDraft, VerificationRecordV1,
+        VerificationScope, VerificationSubject,
+    };
 
     fn finding() -> FindingBundle {
         finding_with_text("A bounded result")
@@ -1775,6 +1908,147 @@ mod tests {
             .and_then(|entry| entry["eligibility"].as_str())
             .unwrap()
             .to_string()
+    }
+
+    #[test]
+    fn current_submission_acceptance_requires_exact_independent_verification() {
+        let temp = initialized_review_frontier();
+        let producer_key = SigningKey::from_bytes(&[0x51; 32]);
+        let producer = IdentityBinding::build(
+            IdentityBindingDraft {
+                actor_id: "agent:current-producer".to_string(),
+                actor_class: ActorClass::Agent,
+                created_at: "2026-07-26T00:00:00Z".to_string(),
+            },
+            &producer_key,
+        )
+        .unwrap();
+        let submission = SubmissionV1::build(
+            SubmissionDraft {
+                claim: SubmissionClaim {
+                    assertion: "The exact bounded fixture replays.".to_string(),
+                    claim_type: "computational".to_string(),
+                    conditions: vec!["Under the retained fixture inputs.".to_string()],
+                },
+                artifacts: vec![SubmissionArtifact {
+                    kind: "witness".to_string(),
+                    path: "artifacts/current-result.json".to_string(),
+                    digest: format!("sha256:{}", "a".repeat(64)),
+                }],
+                caveats: vec!["This establishes only the bounded fixture.".to_string()],
+                replayability: "exact".to_string(),
+                producer_checks: vec![
+                    ProducerCheck::new("producer replay".to_string(), "pass".to_string()).unwrap(),
+                ],
+                verification_requirements: vec!["independent replay".to_string()],
+                requested_change: RequestedChange {
+                    kind: "add_claim".to_string(),
+                    target: None,
+                },
+                provenance: SubmissionProvenance {
+                    producer: "agent:current-producer".to_string(),
+                    source_system: "review-material-test".to_string(),
+                    source_attempt: None,
+                    source_run: None,
+                    emitted_at: "2026-07-26T00:00:00Z".to_string(),
+                },
+                execution_binding: None,
+            },
+            producer,
+            &producer_key,
+        )
+        .unwrap();
+        let submission_root = submission.canonical_root().unwrap();
+        let submission_path = format!(
+            "records/submissions/sha256/{}.json",
+            submission_root.strip_prefix("sha256:").unwrap()
+        );
+        std::fs::create_dir_all(temp.path().join(&submission_path).parent().unwrap()).unwrap();
+        std::fs::write(
+            temp.path().join(&submission_path),
+            submission.canonical_bytes().unwrap(),
+        )
+        .unwrap();
+        let project = vela_protocol::repo::load_from_path(temp.path()).unwrap();
+        let proposal = crate::cli::records::proposal_for_submission(
+            &project,
+            &submission,
+            &submission_root,
+            &submission_path,
+            &format!("vop_{}", "b".repeat(64)),
+            "2026-07-26T00:00:01Z",
+        )
+        .unwrap();
+        let proposal_id = proposal.id.clone();
+        let claim_id = proposal.target.id.clone();
+        save_pending(temp.path(), vec![proposal]);
+
+        let before = ReviewProjection::one(temp.path(), &proposal_id).unwrap();
+        assert_eq!(action_eligibility(&before.brief, "accept"), "blocked");
+        assert_eq!(action_eligibility(&before.brief, "reject"), "available");
+
+        let verifier_key = SigningKey::from_bytes(&[0x52; 32]);
+        let verifier = IdentityBinding::build(
+            IdentityBindingDraft {
+                actor_id: "agent:independent-verifier".to_string(),
+                actor_class: ActorClass::Agent,
+                created_at: "2026-07-26T00:00:02Z".to_string(),
+            },
+            &verifier_key,
+        )
+        .unwrap();
+        let record = VerificationRecordV1::build(
+            VerificationRecordDraft {
+                subject: VerificationSubject {
+                    claim_id,
+                    artifact_ids: Vec::new(),
+                    submission_id: submission.submission_id.clone(),
+                    submission_root,
+                    proposal_id: proposal_id.clone(),
+                },
+                method: VerificationMethod {
+                    profile: "fixture-replay-v1".to_string(),
+                    implementation: "fixture-verifier".to_string(),
+                    environment_root: format!("sha256:{}", "c".repeat(64)),
+                },
+                scope: VerificationScope {
+                    property: "independent replay".to_string(),
+                    does_not_establish: vec!["scientific acceptance".to_string()],
+                },
+                outcome: "pass".to_string(),
+                verifier: "agent:independent-verifier".to_string(),
+                independence: IndependenceDisclosure {
+                    declared_independent_of: vec!["agent:current-producer".to_string()],
+                    shared_dependencies: Vec::new(),
+                },
+                output_artifact_ids: Vec::new(),
+                started_at: "2026-07-26T00:00:03Z".to_string(),
+                completed_at: "2026-07-26T00:00:04Z".to_string(),
+            },
+            verifier,
+            &verifier_key,
+        )
+        .unwrap();
+        let record_root = record.canonical_root().unwrap();
+        let record_path = temp.path().join(format!(
+            "records/verifications/sha256/{}.json",
+            record_root.strip_prefix("sha256:").unwrap()
+        ));
+        std::fs::create_dir_all(record_path.parent().unwrap()).unwrap();
+        std::fs::write(record_path, record.canonical_bytes().unwrap()).unwrap();
+
+        let after = ReviewProjection::one(temp.path(), &proposal_id).unwrap();
+        assert_eq!(action_eligibility(&after.brief, "accept"), "available");
+        assert_eq!(action_eligibility(&after.brief, "reject"), "available");
+        assert_eq!(after.brief.basis.check_state.gate_status, "verified");
+        assert_eq!(
+            after
+                .brief
+                .facet("current_verification_contract")
+                .unwrap()
+                .data["effect"],
+            "evidence_only"
+        );
     }
 
     #[test]

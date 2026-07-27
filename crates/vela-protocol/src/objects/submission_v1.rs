@@ -71,8 +71,17 @@ impl ProducerCheck {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct RequestedChangeTarget {
+    pub claim_id: String,
+    pub claim_root: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RequestedChange {
     pub kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target: Option<RequestedChangeTarget>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -295,6 +304,32 @@ impl SubmissionV1 {
                 "retract_claim",
             ],
         )?;
+        match (
+            self.requested_change.kind.as_str(),
+            self.requested_change.target.as_ref(),
+        ) {
+            ("add_claim", None) => {}
+            ("add_claim", Some(_)) => {
+                return Err(
+                    "Submission requested_change.target must be absent for add_claim".into(),
+                );
+            }
+            (_, Some(target)) => {
+                require_prefixed_hex(
+                    "requested_change.target.claim_id",
+                    &target.claim_id,
+                    "vf_",
+                    16,
+                )?;
+                require_sha256("requested_change.target.claim_root", &target.claim_root)?;
+            }
+            (_, None) => {
+                return Err(format!(
+                    "Submission requested_change.target is required for {}",
+                    self.requested_change.kind
+                ));
+            }
+        }
         require_actor("provenance.producer", &self.provenance.producer)?;
         require_text("provenance.source_system", &self.provenance.source_system)?;
         if let Some(source_attempt) = &self.provenance.source_attempt {
@@ -424,6 +459,7 @@ mod tests {
             verification_requirements: vec!["Run the frozen fixture verifier.".into()],
             requested_change: RequestedChange {
                 kind: "add_claim".into(),
+                target: None,
             },
             provenance: SubmissionProvenance {
                 producer: "agent:fixture".into(),
@@ -482,5 +518,47 @@ mod tests {
         draft.replayability = "totally-reproducible-trust-me".into();
         let error = SubmissionV1::build(draft, identity, &key).unwrap_err();
         assert!(error.contains("replayability"), "{error}");
+    }
+
+    #[test]
+    fn correction_requires_an_exact_historical_claim_target() {
+        let (mut draft, identity, key) = fixture();
+        draft.requested_change = RequestedChange {
+            kind: "correct_claim".into(),
+            target: None,
+        };
+        let error = SubmissionV1::build(draft.clone(), identity.clone(), &key).unwrap_err();
+        assert!(error.contains("target is required for correct_claim"));
+
+        draft.requested_change.target = Some(RequestedChangeTarget {
+            claim_id: "vf_not_hex".into(),
+            claim_root: format!("sha256:{}", "a".repeat(64)),
+        });
+        let error = SubmissionV1::build(draft.clone(), identity.clone(), &key).unwrap_err();
+        assert!(error.contains("requested_change.target.claim_id"));
+
+        draft.requested_change.target = Some(RequestedChangeTarget {
+            claim_id: format!("vf_{}", "b".repeat(16)),
+            claim_root: "sha256:not-a-root".into(),
+        });
+        let error = SubmissionV1::build(draft.clone(), identity.clone(), &key).unwrap_err();
+        assert!(error.contains("requested_change.target.claim_root"));
+
+        draft.requested_change.target = Some(RequestedChangeTarget {
+            claim_id: format!("vf_{}", "b".repeat(16)),
+            claim_root: format!("sha256:{}", "c".repeat(64)),
+        });
+        SubmissionV1::build(draft, identity, &key).unwrap();
+    }
+
+    #[test]
+    fn add_claim_refuses_a_target() {
+        let (mut draft, identity, key) = fixture();
+        draft.requested_change.target = Some(RequestedChangeTarget {
+            claim_id: format!("vf_{}", "b".repeat(16)),
+            claim_root: format!("sha256:{}", "c".repeat(64)),
+        });
+        let error = SubmissionV1::build(draft, identity, &key).unwrap_err();
+        assert!(error.contains("target must be absent for add_claim"));
     }
 }

@@ -80,8 +80,27 @@
       "additionalProperties": false,
       "required": ["kind"],
       "properties": {
-        "kind": { "enum": ["add_claim", "correct_claim", "supersede_claim", "retract_claim"] }
-      }
+        "kind": { "enum": ["add_claim", "correct_claim", "supersede_claim", "retract_claim"] },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["claim_id", "claim_root"],
+          "properties": {
+            "claim_id": { "type": "string", "pattern": "^vf_[0-9a-f]{16}$" },
+            "claim_root": { "$ref": "#/$defs/sha256" }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "kind": { "const": "add_claim" } },
+            "required": ["kind"]
+          },
+          "then": { "not": { "required": ["target"] } },
+          "else": { "required": ["target"] }
+        }
+      ]
     },
     "provenance": {
       "type": "object",

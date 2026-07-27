@@ -555,13 +555,31 @@ pub(crate) fn check_json_payload_with_preloaded(
     loaded: Option<&project::Project>,
     mut repository_context: Value,
 ) -> Value {
-    let report = loaded.map_or_else(
+    let authority_events = loaded
+        .and_then(|frontier| {
+            crate::cli::load_repository_authority(frontier_dir_for_source(src), frontier)
+                .ok()
+                .flatten()
+        })
+        .map(|authority| authority.history.authority_events)
+        .unwrap_or_default();
+    let effective_project = loaded.and_then(|frontier| {
+        let events =
+            vela_protocol::reducer::semantic_event_union(frontier, &authority_events).ok()?;
+        let encoded = serde_json::to_value(frontier).ok()?;
+        let mut effective: project::Project = serde_json::from_value(encoded).ok()?;
+        effective.events = events;
+        project::recompute_stats(&mut effective);
+        Some(effective)
+    });
+    let checked_project = effective_project.as_ref().or(loaded);
+    let report = checked_project.map_or_else(
         || validate::validate(src),
         |frontier| validate::validate_loaded(src, frontier),
     );
     let (method_report, graph_report) = if schema_only {
         (None, None)
-    } else if let Some(frontier) = loaded {
+    } else if let Some(frontier) = checked_project {
         (
             Some(lint::lint(frontier, None, None)),
             Some(lint::lint_frontier(frontier)),
@@ -578,7 +596,7 @@ pub(crate) fn check_json_payload_with_preloaded(
     //
     // Keep the filesystem fallback for malformed inputs that cannot be loaded:
     // their diagnostic payload still needs a best-effort source identity.
-    let source_hash = loaded
+    let source_hash = checked_project
         .and_then(canonical_project_hash)
         .unwrap_or_else(|| hash_path(src).unwrap_or_else(|_| "unavailable".to_string()));
     let mut diagnostics = Vec::new();
@@ -621,8 +639,8 @@ pub(crate) fn check_json_payload_with_preloaded(
     let graph_errors = graph_report.as_ref().map_or(0, |r| r.errors);
     let graph_warnings = graph_report.as_ref().map_or(0, |r| r.warnings);
     let graph_infos = graph_report.as_ref().map_or(0, |r| r.infos);
-    let replay_report = loaded.map(events::replay_report);
-    let state_integrity_report = loaded.map(|frontier| {
+    let replay_report = checked_project.map(events::replay_report);
+    let state_integrity_report = checked_project.map(|frontier| {
         if schema_only {
             state_integrity::analyze(frontier)
         } else {
@@ -648,17 +666,7 @@ pub(crate) fn check_json_payload_with_preloaded(
     }
     // Review-decision parity: a stored proposal status with no signed,
     // replayable decision event behind it is a tamper-evidence failure.
-    let authority_events = loaded
-        .as_ref()
-        .and_then(|frontier| {
-            crate::cli::load_repository_authority(frontier_dir_for_source(src), frontier)
-                .ok()
-                .flatten()
-        })
-        .map(|authority| authority.history.authority_events)
-        .unwrap_or_default();
     let parity_conflicts: Vec<String> = loaded
-        .as_ref()
         .map(|frontier| {
             vela_protocol::proposals::verify_proposal_decision_parity_with_authority(
                 frontier,

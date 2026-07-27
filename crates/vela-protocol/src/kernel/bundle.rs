@@ -92,6 +92,11 @@ pub const VALID_PROVENANCE_SOURCE_TYPES: &[&str] = &[
     // dated lab workbook entry with primary observations) and
     // `expert_assertion` (which implies a named expert's claim).
     "researcher_notes",
+    // Current authenticated producer input. The retained Finding remains the
+    // accepted scientific object; this value records that its provenance is a
+    // content-addressed vela.submission.v1 rather than a paper or free-form
+    // model transcript.
+    "vela_submission",
 ];
 
 /// Valid link types per protocol §5.
@@ -2053,6 +2058,7 @@ mod tests {
         assert!(VALID_ASSERTION_TYPES.contains(&"measurement"));
         assert!(VALID_ASSERTION_TYPES.contains(&"exclusion"));
         assert!(VALID_PROVENANCE_SOURCE_TYPES.contains(&"data_release"));
+        assert!(VALID_PROVENANCE_SOURCE_TYPES.contains(&"vela_submission"));
     }
 
     // ── Different fields change the ID ───────────────────────────────

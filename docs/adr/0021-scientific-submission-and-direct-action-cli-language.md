@@ -428,12 +428,15 @@ historical-era disclosure, and root-bound “Why this stands” presentation.
 Reader release identity and hosted projection verification remain separate
 release gates.
 
-Current Submission acceptance remains deliberately blocked with
-`current_verification_contract_required` until the Decision gate consumes
-root-bound Verification Records without weakening the existing evidence floor.
-Claim Record remains separately gated. The real current-object Decision,
-correction-aware vertical slice, fresh-user comprehension evidence, and
-independent recurrence are not yet complete, so this ADR remains Proposed.
+The current Decision gate now consumes exact retained Submission and
+Verification Record bytes. It requires every declared verification property to
+have an independent passing record bound to the same Claim, Submission, and
+Proposal; failing, missing, invalid, producer-dependent, or inconclusive records
+fail closed. A focused repository-authority fixture completes add, verification,
+authorized acceptance, exact-root correction, second verification and
+acceptance, immutable historical Event checks, dual-log materialization, and
+strict replay. Claim Record, fresh-user comprehension evidence, and independent
+recurrence remain separately gated, so this ADR remains Proposed.
 
 ## Consequences
 

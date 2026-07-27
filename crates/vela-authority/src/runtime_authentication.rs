@@ -603,6 +603,7 @@ mod tests {
                 verification_requirements: vec!["independent review".to_string()],
                 requested_change: RequestedChange {
                     kind: "add_claim".to_string(),
+                    target: None,
                 },
                 provenance: SubmissionProvenance {
                     producer: "agent:submission-auth".to_string(),

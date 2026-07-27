@@ -39,6 +39,12 @@ producer input, retain a Registration Record, and create a pending Proposal.
 The transaction appends no Verification Record, Decision, Event, or accepted
 scientific-state change. An agent cannot accept or reject a Proposal.
 
+An imported corrective Submission must use `requested_change.kind` of
+`correct_claim`, `supersede_claim`, or `retract_claim` and bind both the exact
+historical `vf_` Claim ID and its full Finding root. `add_claim` carries no
+target. Vela refuses a missing, stale, shortened, or mismatched target before
+registering the Submission.
+
 For a portable Submission file, keep each declared content-addressed Artifact
 beside it at `artifacts/sha256/<digest>`. Do not pre-copy those blobs into the
 Frontier. Vela verifies the transport bytes and creates the canonical
@@ -141,6 +147,12 @@ vela review reject . <vpr_id> \
 The action and reason are bound into one repository-authority transaction.
 There are no copied confirmation roots, timestamps, Vela human keys, batch
 answers, or custom signer helpers. See [SIGNING.md](SIGNING.md).
+
+For a current Submission-backed Proposal, `review accept` becomes available
+only when the retained Submission still matches the Proposal and every declared
+verification requirement has an exact independent passing Verification Record.
+A fail blocks; missing, invalid, dependent, or inconclusive records do not count.
+Verification still changes no standing—the authorized Decision does.
 
 A producer may withdraw only its own pending Proposal:
 

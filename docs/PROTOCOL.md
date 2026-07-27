@@ -101,6 +101,12 @@ producer-reported checks, independent verification requirements, requested
 change, and optional exact execution binding. A Submission cannot assert
 standing or contain a Vela Decision or Event.
 
+`requested_change.kind=add_claim` has no target. `correct_claim`,
+`supersede_claim`, and `retract_claim` require both the exact historical
+`vf_` Claim identifier and its full SHA-256 Finding root. The target is
+membership in retained canonical history, not a text match or mutable date.
+Changing either target field changes the authenticated Submission.
+
 `vela.registration-record.v1` is emitted by Vela after exact Submission bytes
 cross the repository-authority intake boundary. It binds the Submission root,
 Frontier, operation, registered Artifacts, resulting Proposal, route, and
@@ -110,7 +116,12 @@ acceptance.
 `vela.verification-record.v1` is a verifier's authenticated, scoped observation
 over exact Claim, Submission, Proposal, Artifact, method, implementation,
 environment, and property roots. A passing Verification Record changes no
-standing by itself.
+standing by itself. Before current acceptance is available, the Decision Brief
+revalidates the retained Submission bytes and requires every declared
+verification property to have an exact, independently produced passing record.
+A failing record refutes the route; missing, invalid, producer-dependent, or
+inconclusive records leave acceptance blocked. Repository authorization and a
+human Decision remain separately required.
 
 Implementations:
 
@@ -802,10 +813,11 @@ released vectors for the contract they claim.
 Accepted history is immutable; current scientific state is revisable.
 
 A correction is a new Submission or Proposal that names the affected object and
-the proposed semantic change. A human or applicable signed policy decides it
-through the same boundary as any other transition. Retraction, supersession,
-qualification, caveat, evidence repair, and review reversal append new events.
-They never edit or delete the event being corrected.
+the proposed semantic change. Current corrective Submissions bind the exact
+historical Claim ID and full Finding root. A human or applicable signed policy
+decides it through the same boundary as any other transition. Retraction,
+supersession, qualification, caveat, evidence repair, and review reversal append
+new events. They never edit or delete the event being corrected.
 
 Replay therefore preserves both facts:
 
@@ -821,7 +833,8 @@ A frontier is an ordinary Git repository. The current owned paths are:
 
 | Path | Role |
 | --- | --- |
-| `.vela/events/*.json` | canonical ordered authority events |
+| `.vela/events/*.json` | immutable Era-0 semantic Events |
+| `.vela/authority/events/*.json` | immutable Era-1 repository-authority Events; verified with their covering DSSE records |
 | `.vela/proposals/*.json` | durable proposals and their checked decision projection |
 | `.vela/actors.json` | actor-to-public-key registry and revocation state |
 | `.vela/policies/active.json`, `.vela/policies/active.sig.json` | mutable candidate policy bytes and signature input; never causal authority without a signed policy head |
@@ -838,9 +851,12 @@ A frontier is an ordinary Git repository. The current owned paths are:
 | `.vela/work/` | private, ignored Attempt state |
 | `.vela/operation-journals/`, `.git/vela/operation-journals/` | private recovery state; never published as scientific state |
 
-`vela frontier materialize <frontier>` rebuilds visible state and lock/proof
-views from committed inputs. Generated views and indexes are not authority and
-must be safe to delete and recreate. Read-only verification of an older
+`vela frontier materialize <frontier>` verifies repository authority, forms the
+transaction-independent semantic union of both retained Event eras, and
+rebuilds visible state and lock/proof views from that union. It never copies
+Era-1 Events into `.vela/events/` or rewrites either canonical history.
+Generated views and indexes are not authority and must be safe to delete and
+recreate. Read-only verification of an older
 Profile v1 checkout uses the reducer and verifier versions pinned by that
 checkout's lock when validating these non-scientific bytes; merely upgrading
 the reader does not require a derived-view commit.
@@ -891,15 +907,19 @@ From the Vela release repository:
 cargo test -p vela-protocol --test cross_impl_reducer_fixtures
 cargo test -p vela-protocol submission_v1
 cargo test -p vela-cli --test submission_surface_parity
+cargo test -p vela-cli --test authority_initialization
 python3 conformance/verify.py
 ```
 
 The first command checks the Rust reducer against the shipped replay vectors.
 The next two check the current Submission object and its CLI/MCP raw-wire
-parity. The final command runs the repository-local independent readers over
-the replay fixture contract. Current end-to-end Submission and Decision
-qualification is a release evidence gate over a migrated repository-authority
-frontier, not a retained copy of the retired `work -> land -> sign` harness.
+parity. The authority fixture proves add, independent verification, authorized
+acceptance, exact-root correction, second verification and acceptance,
+immutable historical Event bytes, dual-log materialization, and strict replay.
+The final command runs the repository-local independent readers over the replay
+fixture contract. This is the current end-to-end Submission and Decision
+qualification, not a retained copy of the retired `work -> land -> sign`
+harness.
 No external partner, live network, or unrelated Lean campaign is a
 prerequisite for these protocol checks.
 

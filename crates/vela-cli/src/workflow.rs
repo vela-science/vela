@@ -1860,6 +1860,7 @@ pub(crate) fn author_submission(
             verification_requirements,
             requested_change: RequestedChange {
                 kind: "add_claim".to_string(),
+                target: None,
             },
             provenance: SubmissionProvenance {
                 producer: actor.to_string(),
@@ -2174,7 +2175,15 @@ pub(crate) fn submit(
         name: "submission".to_string(),
         digest: ContentDigest::parse(submission_root.clone()).map_err(|error| error.to_string())?,
     });
+    if let Some(target) = submission.requested_change.target.as_ref() {
+        read_set.push(InputBinding {
+            name: format!("requested_change_target:{}", target.claim_id),
+            digest: ContentDigest::parse(target.claim_root.clone())
+                .map_err(|error| error.to_string())?,
+        });
+    }
     let proposal = crate::cli::records::proposal_for_submission(
+        &original,
         submission,
         &submission_root,
         &submission_path,

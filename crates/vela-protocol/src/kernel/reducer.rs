@@ -556,6 +556,31 @@ pub fn verify_replay_with_authority(
     state: &Project,
     authority_events: &[crate::authority::AuthorityEventV1],
 ) -> ReplayVerification {
+    let events = match semantic_event_union(state, authority_events) {
+        Ok(events) => events,
+        Err(error) => {
+            return ReplayVerification {
+                ok: false,
+                replayed_snapshot_hash: String::new(),
+                materialized_snapshot_hash: findings_digest(&state.findings),
+                diffs: vec![error],
+                note: "dual-log event history does not replay through the reducer".to_string(),
+            };
+        }
+    };
+    verify_replay_events(state, events)
+}
+
+/// Return the transaction-independent semantic event union of the retained
+/// Era-0 log and an already verified repository-authority log.
+///
+/// Authority verification remains the caller's responsibility. This helper is
+/// for read/check projections that need the same event identities as the
+/// reducer without mutating or relabeling either retained log.
+pub fn semantic_event_union(
+    state: &Project,
+    authority_events: &[crate::authority::AuthorityEventV1],
+) -> Result<Vec<StateEvent>, String> {
     let mut events = state.events.clone();
     let mut ids = events
         .iter()
@@ -572,16 +597,10 @@ pub fn verify_replay_with_authority(
         let mut event = match authority_event.semantic_state_event() {
             Ok(event) => event,
             Err(error) => {
-                return ReplayVerification {
-                    ok: false,
-                    replayed_snapshot_hash: String::new(),
-                    materialized_snapshot_hash: findings_digest(&state.findings),
-                    diffs: vec![format!(
-                        "repository-authority event {} has no valid semantic replay form: {error}",
-                        authority_event.id
-                    )],
-                    note: "dual-log event history does not replay through the reducer".to_string(),
-                };
+                return Err(format!(
+                    "repository-authority event {} has no valid semantic replay form: {error}",
+                    authority_event.id
+                ));
             }
         };
         // Lease release/refresh payloads name the stored authority-event ID of
@@ -591,20 +610,20 @@ pub fn verify_replay_with_authority(
             event.id = authority_event.id.clone();
         }
         if !ids.insert(event.id.clone()) {
-            return ReplayVerification {
-                ok: false,
-                replayed_snapshot_hash: String::new(),
-                materialized_snapshot_hash: findings_digest(&state.findings),
-                diffs: vec![format!(
-                    "semantic event {} occurs more than once across the dual log",
-                    event.id
-                )],
-                note: "dual-log event history does not replay through the reducer".to_string(),
-            };
+            return Err(format!(
+                "semantic event {} occurs more than once across the dual log",
+                event.id
+            ));
         }
         events.push(event);
     }
-    verify_replay_events(state, events)
+    // Split-repository objects load in filename order, and visible Profile v1
+    // materialization uses the same content-ID ordering. The virtual dual-log
+    // projection must therefore use semantic event-ID order too; otherwise an
+    // exact clean clone can replay correctly while deriving a different
+    // legacy snapshot solely from in-memory append order.
+    events.sort_by(|left, right| left.id.cmp(&right.id));
+    Ok(events)
 }
 
 fn verify_replay_events(state: &Project, events: Vec<StateEvent>) -> ReplayVerification {

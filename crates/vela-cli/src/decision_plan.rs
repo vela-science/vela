@@ -1619,6 +1619,28 @@ pub(crate) fn decision_read_set(
                     format!("proposal {} disappeared", answer.proposal_id),
                 )
             })?;
+        if proposal.payload.get("submission").is_some() {
+            let verification_records =
+                crate::cli_object::verification_records_for_proposal(frontier, &proposal.id)
+                    .map_err(|error| {
+                        DecisionPlanError::new("verification_material_invalid", error)
+                    })?;
+            for (path, _) in verification_records {
+                if !safe_verification_path(&path) {
+                    return Err(DecisionPlanError::new(
+                        "verification_path_invalid",
+                        format!("Verification Record path is not content-addressed: {path}"),
+                    ));
+                }
+                read_set.push(
+                    InputBinding::current_file(
+                        frontier,
+                        RepoPath::parse(&path).map_err(DecisionPlanError::transaction)?,
+                    )
+                    .map_err(DecisionPlanError::transaction)?,
+                );
+            }
+        }
         let source_path = proposal
             .payload
             .pointer("/submission/submission_path")
@@ -1664,6 +1686,10 @@ fn safe_submission_path(path: &str) -> bool {
 
 fn safe_receipt_path(path: &str) -> bool {
     safe_content_addressed_record_path(path, "records/receipts/sha256/")
+}
+
+fn safe_verification_path(path: &str) -> bool {
+    safe_content_addressed_record_path(path, "records/verifications/sha256/")
 }
 
 fn safe_content_addressed_record_path(path: &str, prefix: &str) -> bool {

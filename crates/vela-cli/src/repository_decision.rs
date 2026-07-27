@@ -22,7 +22,7 @@ use vela_protocol::principal_capability::PrincipalClass;
 use vela_protocol::proposals::StateProposal;
 
 use crate::authority_transaction::{
-    AuthorityEventDraft, AuthorityObjectDraft, AuthorityTransactionRequest,
+    AuthorityDerivedDraft, AuthorityEventDraft, AuthorityObjectDraft, AuthorityTransactionRequest,
     AuthorityTransactionResult, execute_authority_transaction,
 };
 use crate::decision_plan::{DecisionAction, SavedAnswer, decision_read_set};
@@ -170,9 +170,11 @@ fn prepare_decision(
         );
         if aggregate_engine.status == "blocked" {
             return Err(format!(
-                "strict aggregate Engine gate found {} new blocking failure(s) and {} new warning(s)",
+                "strict aggregate Engine gate found {} new blocking failure(s) and {} new warning(s): blocking={:?}; warnings={:?}",
                 aggregate_engine.new_blocking.len(),
-                aggregate_engine.new_warnings.len()
+                aggregate_engine.new_warnings.len(),
+                aggregate_engine.new_blocking,
+                aggregate_engine.new_warnings,
             ));
         }
     }
@@ -292,8 +294,8 @@ fn execute_decision(
         ),
         context: json!({"exact": true}),
     };
-    let (event_drafts, object_drafts) = match action {
-        DecisionAction::Reject => rejection_drafts(&locked, &recorded_at)?,
+    let (event_drafts, object_drafts, derived_drafts) = match action {
+        DecisionAction::Reject => rejection_drafts(frontier, &locked, &recorded_at)?,
         DecisionAction::Accept => acceptance_drafts(frontier, &locked, &recorded_at)?,
     };
     let answer = SavedAnswer {
@@ -353,7 +355,7 @@ fn execute_decision(
             }],
             event_drafts,
             object_drafts,
-            derived_drafts: Vec::new(),
+            derived_drafts,
             next_authority_keyset: None,
             next_policy_bundle: None,
             next_policy_material: None,
@@ -370,56 +372,85 @@ fn execute_decision(
 }
 
 fn rejection_drafts(
+    frontier: &Path,
     locked: &PreparedRepositoryReviewDecision,
     recorded_at: &str,
-) -> Result<(Vec<AuthorityEventDraft>, Vec<AuthorityObjectDraft>), String> {
+) -> Result<
+    (
+        Vec<AuthorityEventDraft>,
+        Vec<AuthorityObjectDraft>,
+        Vec<AuthorityDerivedDraft>,
+    ),
+    String,
+> {
     let mut rejected = locked.proposal.clone();
     rejected.status = "rejected".into();
     rejected.reviewed_by = Some(locked.plan.principal_id.clone());
     rejected.reviewed_at = Some(recorded_at.into());
     rejected.decision_reason = Some(locked.plan.reason.clone());
     rejected.applied_event_id = None;
-    Ok((
-        vec![AuthorityEventDraft {
-            kind: EventKind::ReviewRejected,
-            target: StateTarget {
-                r#type: "proposal".into(),
-                id: locked.plan.proposal_id.clone(),
-            },
-            actor: StateActor {
-                r#type: "human".into(),
-                id: locked.plan.principal_id.clone(),
-            },
-            timestamp: recorded_at.into(),
-            reason: locked.plan.reason.clone(),
-            before_hash: NULL_HASH.into(),
-            after_hash: NULL_HASH.into(),
-            payload: json!({
-                "proposal_id": locked.plan.proposal_id,
-                "proposal_kind": locked.proposal.kind,
-                "verdict": "rejected",
-                "provenance": {
-                    "input_refs": [
-                        format!("urn:vela:decision-root:{}", locked.plan.plan_root)
-                    ]
-                }
-            }),
-            caveats: Vec::new(),
-        }],
-        vec![AuthorityObjectDraft {
-            path: format!(".vela/proposals/{}.json", locked.plan.proposal_id),
-            object_kind: "proposal".into(),
-            class: WriteClass::PublicReview,
-            postimage: Some(to_canonical_bytes(&rejected)?),
-        }],
-    ))
+    let event_drafts = vec![AuthorityEventDraft {
+        kind: EventKind::ReviewRejected,
+        target: StateTarget {
+            r#type: "proposal".into(),
+            id: locked.plan.proposal_id.clone(),
+        },
+        actor: StateActor {
+            r#type: "human".into(),
+            id: locked.plan.principal_id.clone(),
+        },
+        timestamp: recorded_at.into(),
+        reason: locked.plan.reason.clone(),
+        before_hash: NULL_HASH.into(),
+        after_hash: NULL_HASH.into(),
+        payload: json!({
+            "proposal_id": locked.plan.proposal_id,
+            "proposal_kind": locked.proposal.kind,
+            "verdict": "rejected",
+            "provenance": {
+                "input_refs": [
+                    format!("urn:vela:decision-root:{}", locked.plan.plan_root)
+                ]
+            }
+        }),
+        caveats: Vec::new(),
+    }];
+    let encoded = serde_json::to_value(&locked.project).map_err(|error| error.to_string())?;
+    let mut candidate: vela_protocol::project::Project =
+        serde_json::from_value(encoded).map_err(|error| error.to_string())?;
+    let proposal = candidate
+        .proposals
+        .iter_mut()
+        .find(|proposal| proposal.id == locked.plan.proposal_id)
+        .ok_or_else(|| {
+            format!(
+                "proposal {} disappeared while preparing rejection",
+                locked.plan.proposal_id
+            )
+        })?;
+    *proposal = rejected;
+    let current = event_drafts
+        .iter()
+        .map(semantic_event_from_draft)
+        .collect::<Vec<_>>();
+    candidate.events = candidate_events_with_current_semantics(locked, &current)?;
+    vela_protocol::project::recompute_stats(&mut candidate);
+    let drafts = changed_candidate_drafts(frontier, &candidate)?;
+    Ok((event_drafts, drafts.objects, drafts.derived))
 }
 
 fn acceptance_drafts(
     frontier: &Path,
     locked: &PreparedRepositoryReviewDecision,
     recorded_at: &str,
-) -> Result<(Vec<AuthorityEventDraft>, Vec<AuthorityObjectDraft>), String> {
+) -> Result<
+    (
+        Vec<AuthorityEventDraft>,
+        Vec<AuthorityObjectDraft>,
+        Vec<AuthorityDerivedDraft>,
+    ),
+    String,
+> {
     let (mut candidate, mut prepared) =
         vela_protocol::proposals::prepare_repository_authority_accept_candidate_at(
             &locked.project,
@@ -465,14 +496,18 @@ fn acceptance_drafts(
         .iter()
         .map(authority_event_draft_from_semantic)
         .collect::<Result<Vec<_>, _>>()?;
-    let object_drafts = changed_candidate_object_drafts(frontier, &candidate)?;
+    let current = appended.to_vec();
+    candidate.events = candidate_events_with_current_semantics(locked, &current)?;
+    vela_protocol::project::recompute_stats(&mut candidate);
+    let drafts = changed_candidate_drafts(frontier, &candidate)?;
+    let object_drafts = drafts.objects;
     if !object_drafts.iter().any(|draft| {
         draft.path == format!(".vela/proposals/{}.json", locked.plan.proposal_id)
             && draft.class == WriteClass::PublicReview
     }) {
         return Err("repository acceptance lacks the exact proposal postimage".into());
     }
-    Ok((event_drafts, object_drafts))
+    Ok((event_drafts, object_drafts, drafts.derived))
 }
 
 fn authority_event_draft_from_semantic(event: &StateEvent) -> Result<AuthorityEventDraft, String> {
@@ -495,15 +530,64 @@ fn authority_event_draft_from_semantic(event: &StateEvent) -> Result<AuthorityEv
     })
 }
 
-fn changed_candidate_object_drafts(
+fn candidate_events_with_current_semantics(
+    locked: &PreparedRepositoryReviewDecision,
+    current: &[StateEvent],
+) -> Result<Vec<StateEvent>, String> {
+    let mut events = vela_protocol::reducer::semantic_event_union(
+        &locked.project,
+        &locked.authority.history.authority_events,
+    )?;
+    let mut ids = events
+        .iter()
+        .map(|event| event.id.clone())
+        .collect::<std::collections::BTreeSet<_>>();
+    for event in current {
+        if !ids.insert(event.id.clone()) {
+            return Err(format!(
+                "repository decision would duplicate semantic event {}",
+                event.id
+            ));
+        }
+        events.push(event.clone());
+    }
+    Ok(events)
+}
+
+fn semantic_event_from_draft(draft: &AuthorityEventDraft) -> StateEvent {
+    let mut event = StateEvent {
+        schema: vela_protocol::events::EVENT_SCHEMA.into(),
+        id: String::new(),
+        kind: draft.kind.clone(),
+        target: draft.target.clone(),
+        actor: draft.actor.clone(),
+        timestamp: draft.timestamp.clone(),
+        reason: draft.reason.clone(),
+        before_hash: draft.before_hash.clone(),
+        after_hash: draft.after_hash.clone(),
+        payload: draft.payload.clone(),
+        caveats: draft.caveats.clone(),
+        signature: None,
+    };
+    event.id = vela_protocol::events::compute_event_id(&event);
+    event
+}
+
+struct CandidateDrafts {
+    objects: Vec<AuthorityObjectDraft>,
+    derived: Vec<AuthorityDerivedDraft>,
+}
+
+fn changed_candidate_drafts(
     frontier: &Path,
     candidate: &vela_protocol::project::Project,
-) -> Result<Vec<AuthorityObjectDraft>, String> {
+) -> Result<CandidateDrafts, String> {
     let planned = PlannedWrite::from_managed_files(vela_protocol::repo::render_vela_repo_files(
         frontier, candidate,
     )?)
     .map_err(|error| error.to_string())?;
-    let mut drafts = Vec::new();
+    let mut objects = Vec::new();
+    let mut derived = Vec::new();
     for write in planned {
         let (path, class, postimage) = write
             .into_authority_object_parts()
@@ -511,7 +595,7 @@ fn changed_candidate_object_drafts(
         if path.starts_with(".vela/events/")
             || matches!(
                 class,
-                WriteClass::Authority | WriteClass::Derived | WriteClass::PrivateCoordination
+                WriteClass::Authority | WriteClass::PrivateCoordination
             )
         {
             continue;
@@ -530,22 +614,28 @@ fn changed_candidate_object_drafts(
         if semantically_equal_postimage(existing.as_deref(), postimage.as_deref(), &path)? {
             continue;
         }
-        let postimage = match postimage {
-            Some(bytes) if path.ends_with(".json") => {
-                let value: serde_json::Value = serde_json::from_slice(&bytes)
-                    .map_err(|error| format!("candidate object {path} is invalid JSON: {error}"))?;
-                Some(to_canonical_bytes(&value)?)
-            }
-            other => other,
-        };
-        drafts.push(AuthorityObjectDraft {
-            object_kind: authority_object_kind(&path).into(),
-            path,
-            class,
-            postimage,
-        });
+        if class == WriteClass::Derived {
+            derived.push(AuthorityDerivedDraft { path, postimage });
+        } else {
+            let postimage = match postimage {
+                Some(bytes) if path.ends_with(".json") => {
+                    let value: serde_json::Value =
+                        serde_json::from_slice(&bytes).map_err(|error| {
+                            format!("candidate object {path} is invalid JSON: {error}")
+                        })?;
+                    Some(to_canonical_bytes(&value)?)
+                }
+                other => other,
+            };
+            objects.push(AuthorityObjectDraft {
+                object_kind: authority_object_kind(&path).into(),
+                path,
+                class,
+                postimage,
+            });
+        }
     }
-    Ok(drafts)
+    Ok(CandidateDrafts { objects, derived })
 }
 
 fn semantically_equal_postimage(
