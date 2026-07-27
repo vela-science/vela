@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.science/schemas/vela.registration-record.v1.schema.json",
+  "title": "Vela Registration Record v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "registration_record_id",
+    "frontier_id",
+    "submission_id",
+    "submission_root",
+    "submission_path",
+    "registered_at",
+    "registered_by",
+    "producer_identity_binding_id",
+    "artifact_ids",
+    "claim_id",
+    "proposal_id",
+    "route",
+    "transaction_root",
+    "roots",
+    "accepted_state_changed"
+  ],
+  "properties": {
+    "schema": { "const": "vela.registration-record.v1" },
+    "registration_record_id": { "type": "string", "pattern": "^vrr_[0-9a-f]{16}$" },
+    "frontier_id": { "type": "string", "pattern": "^vfr_.+" },
+    "submission_id": { "type": "string", "pattern": "^vsb_.+" },
+    "submission_root": { "$ref": "#/$defs/sha256" },
+    "submission_path": {
+      "type": "string",
+      "pattern": "^records/submissions/sha256/[0-9a-f]{64}\\.json$"
+    },
+    "registered_at": { "type": "string", "format": "date-time" },
+    "registered_by": { "type": "string", "minLength": 1 },
+    "producer_identity_binding_id": { "type": "string", "pattern": "^vib_.+" },
+    "artifact_ids": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^va_.+" }
+    },
+    "claim_id": { "type": "string", "pattern": "^(vcl|vf)_.+" },
+    "proposal_id": { "type": "string", "pattern": "^vpr_.+" },
+    "route": { "enum": ["pending_review", "accepted_by_policy"] },
+    "transaction_root": { "$ref": "#/$defs/sha256" },
+    "roots": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_log_before", "event_log_after", "proposal_after"],
+      "properties": {
+        "event_log_before": { "$ref": "#/$defs/sha256" },
+        "event_log_after": { "$ref": "#/$defs/sha256" },
+        "proposal_after": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "accepted_state_changed": { "type": "boolean" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}

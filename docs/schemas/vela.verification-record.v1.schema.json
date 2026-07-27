@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.science/schemas/vela.verification-record.v1.schema.json",
+  "title": "Vela Verification Record v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "verification_record_id",
+    "subject",
+    "method",
+    "scope",
+    "outcome",
+    "verifier",
+    "independence",
+    "output_artifact_ids",
+    "started_at",
+    "completed_at",
+    "authentication"
+  ],
+  "properties": {
+    "schema": { "const": "vela.verification-record.v1" },
+    "verification_record_id": { "type": "string", "pattern": "^vvr_[0-9a-f]{16}$" },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim_id", "artifact_ids", "submission_id", "submission_root", "proposal_id"],
+      "properties": {
+        "claim_id": { "type": "string", "pattern": "^(vcl|vf)_.+" },
+        "artifact_ids": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^va_.+" }
+        },
+        "submission_id": { "type": "string", "pattern": "^vsb_.+" },
+        "submission_root": { "$ref": "#/$defs/sha256" },
+        "proposal_id": { "type": "string", "pattern": "^vpr_.+" }
+      }
+    },
+    "method": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile", "implementation", "environment_root"],
+      "properties": {
+        "profile": { "$ref": "#/$defs/nonempty" },
+        "implementation": { "$ref": "#/$defs/nonempty" },
+        "environment_root": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["property", "does_not_establish"],
+      "properties": {
+        "property": { "$ref": "#/$defs/nonempty" },
+        "does_not_establish": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/nonempty" }
+        }
+      }
+    },
+    "outcome": { "enum": ["pass", "fail", "error", "inconclusive"] },
+    "verifier": { "$ref": "#/$defs/nonempty" },
+    "independence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declared_independent_of", "shared_dependencies"],
+      "properties": {
+        "declared_independent_of": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonempty" }
+        },
+        "shared_dependencies": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonempty" }
+        }
+      }
+    },
+    "output_artifact_ids": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^va_.+" }
+    },
+    "started_at": { "type": "string", "format": "date-time" },
+    "completed_at": { "type": "string", "format": "date-time" },
+    "authentication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "identity_binding", "signature"],
+      "properties": {
+        "algorithm": { "const": "ed25519" },
+        "identity_binding": { "type": "object" },
+        "signature": { "type": "string", "pattern": "^[0-9a-f]{128}$" }
+      }
+    }
+  },
+  "$defs": {
+    "nonempty": { "type": "string", "minLength": 1, "maxLength": 16384 },
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}
