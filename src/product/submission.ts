@@ -57,7 +57,7 @@ export interface SubmissionV1 {
     source_run: string;
     emitted_at: string;
   };
-  execution_binding: {
+  execution_binding?: {
     schema: "vela.execution-binding.v1";
     packet_root: string;
     profile_root: string;
@@ -191,9 +191,6 @@ export async function exportSubmission(options: {
   if (mission.schema !== "canopus.mission.v1") {
     throw new Error("current export requires canopus.mission.v1");
   }
-  if (mission.execution_binding === undefined) {
-    throw new Error("run mission has no exact execution binding");
-  }
   if (record.mission.digest !== sha256Bytes(canonicalJson(mission))) {
     throw new Error("run and mission roots disagree");
   }
@@ -268,7 +265,7 @@ export async function exportSubmission(options: {
       replayability: mission.replayability,
       producer_checks: [],
       verification_requirements: [
-        `Replay Canopus Run ${record.run_id} with verifier capsule ${mission.execution_binding.verifier_capsule_root}.`,
+        `Replay Canopus Run ${record.run_id} with verifier capsule ${mission.verifier.capsule_sha256}.`,
       ],
       requested_change: { kind: "add_claim" },
       provenance: {
@@ -277,7 +274,9 @@ export async function exportSubmission(options: {
         source_run: record.run_id,
         emitted_at: emittedAt,
       },
-      execution_binding: mission.execution_binding,
+      ...(mission.execution_binding === undefined
+        ? {}
+        : { execution_binding: mission.execution_binding }),
       authentication: {
         algorithm: "ed25519",
         identity_binding: binding,

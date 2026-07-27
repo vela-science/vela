@@ -15,6 +15,7 @@ export async function writeCurrentRunFixture(options: {
   gitTree: string;
   roots: MissionRoots;
   actor?: string;
+  includeExecutionBinding?: boolean;
 }): Promise<{ runFile: string; mission: MissionV1 }> {
   const actor = options.actor ?? "agent:canopus-export-fixture";
   const artifactDigest = sha256Bytes(options.artifact);
@@ -97,14 +98,18 @@ export async function writeCurrentRunFixture(options: {
       capsule_sha256: capsuleRoot,
       image: digest,
     },
-    execution_binding: {
-      schema: "vela.execution-binding.v1",
-      packet_root: packetRoot,
-      profile_root: profileRoot,
-      verifier_capsule_root: capsuleRoot,
-      result_contract_root: contentDigest(resultContract),
-    },
-    result_contract: resultContract,
+    ...(options.includeExecutionBinding === false
+      ? {}
+      : {
+          execution_binding: {
+            schema: "vela.execution-binding.v1" as const,
+            packet_root: packetRoot,
+            profile_root: profileRoot,
+            verifier_capsule_root: capsuleRoot,
+            result_contract_root: contentDigest(resultContract),
+          },
+          result_contract: resultContract,
+        }),
   };
   const runRoot = path.join(options.root, "run");
   const missionRoot = path.join(options.root, "mission");

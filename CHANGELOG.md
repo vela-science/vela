@@ -20,6 +20,11 @@
   verifier-rejected bounded failure, then retain the exact successful repair
   separately from the new active range. No prior numeric result is supplied
   to the new worker.
+- Allow a verifier-passing review-only Run to export Submission v1 without an
+  optional `vela.execution-binding.v1`. The Submission still binds the exact
+  verifier capsule in its verification requirement and can only enter the
+  ordinary pending-review path; policy eligibility continues to require the
+  full execution binding and result contract.
 - Pin Vela rc.12 after the repository-authority landing regression proved that
   repository authorization must not occupy Receipt v1's scientific
   `acceptance.policyRef`, signed agent observations require canonical

@@ -78,6 +78,12 @@ Independent verifier output is named as a verification requirement. It is not
 placed in `producer_checks`, called a Verification Record, or treated as
 acceptance.
 
+`vela.execution-binding.v1` remains optional on Submission v1. A review-only
+Run without a positive result contract may export without it; the Submission's
+verification requirement still binds the exact capsule root. Such a Submission
+is not policy-eligible. Exact policy eligibility requires the full packet,
+profile, verifier-capsule, and result-contract binding.
+
 ### Submit
 
 `canopus submit <bundle> <frontier>` is the only current Canopus operation that

@@ -59,3 +59,38 @@ test("export creates an authenticated portable Submission without mutating Vela"
     /safe relative POSIX path/u,
   );
 });
+
+test("review-only export preserves an absent optional execution binding", async () => {
+  const home = await mkdtemp(path.join(os.tmpdir(), "canopus-export-unbound-"));
+  const artifact = Buffer.from("{\"bounded\":\"negative\"}\n");
+  const fixture = await writeCurrentRunFixture({
+    root: path.join(home, "product"),
+    artifact,
+    velaVersion: "0.930.0-rc.13",
+    velaSha256: sha256Bytes(artifact),
+    gitCommit: "e".repeat(40),
+    gitTree: "f".repeat(40),
+    roots: {
+      git_commit: "e".repeat(40),
+      git_tree: "f".repeat(40),
+      vela_event_log: `sha256:${"a".repeat(64)}`,
+      vela_snapshot: `sha256:${"a".repeat(64)}`,
+    },
+    includeExecutionBinding: false,
+  });
+  const output = path.join(home, "submission");
+  await exportSubmission({
+    runFile: fixture.runFile,
+    outputRoot: output,
+    now: new Date("2026-07-27T12:00:00Z"),
+  });
+  const submission = JSON.parse(
+    await readFile(path.join(output, "submission.json"), "utf8"),
+  ) as SubmissionV1;
+  verifySubmission(submission);
+  assert.equal(submission.execution_binding, undefined);
+  assert.match(
+    submission.verification_requirements[0] ?? "",
+    new RegExp(fixture.mission.verifier.capsule_sha256, "u"),
+  );
+});
