@@ -294,7 +294,7 @@ fn execute_decision(
         ),
         context: json!({"exact": true}),
     };
-    let (event_drafts, object_drafts, derived_drafts) = match action {
+    let drafts = match action {
         DecisionAction::Reject => rejection_drafts(frontier, &locked, &recorded_at)?,
         DecisionAction::Accept => acceptance_drafts(frontier, &locked, &recorded_at)?,
     };
@@ -353,9 +353,9 @@ fn execute_decision(
                 approved_at: recorded_at.clone(),
                 intent_digest: locked.plan.plan_root.clone(),
             }],
-            event_drafts,
-            object_drafts,
-            derived_drafts,
+            event_drafts: drafts.events,
+            object_drafts: drafts.objects,
+            derived_drafts: drafts.derived,
             next_authority_keyset: None,
             next_policy_bundle: None,
             next_policy_material: None,
@@ -375,14 +375,7 @@ fn rejection_drafts(
     frontier: &Path,
     locked: &PreparedRepositoryReviewDecision,
     recorded_at: &str,
-) -> Result<
-    (
-        Vec<AuthorityEventDraft>,
-        Vec<AuthorityObjectDraft>,
-        Vec<AuthorityDerivedDraft>,
-    ),
-    String,
-> {
+) -> Result<DecisionDrafts, String> {
     let mut rejected = locked.proposal.clone();
     rejected.status = "rejected".into();
     rejected.reviewed_by = Some(locked.plan.principal_id.clone());
@@ -436,21 +429,18 @@ fn rejection_drafts(
     candidate.events = candidate_events_with_current_semantics(locked, &current)?;
     vela_protocol::project::recompute_stats(&mut candidate);
     let drafts = changed_candidate_drafts(frontier, &candidate)?;
-    Ok((event_drafts, drafts.objects, drafts.derived))
+    Ok(DecisionDrafts {
+        events: event_drafts,
+        objects: drafts.objects,
+        derived: drafts.derived,
+    })
 }
 
 fn acceptance_drafts(
     frontier: &Path,
     locked: &PreparedRepositoryReviewDecision,
     recorded_at: &str,
-) -> Result<
-    (
-        Vec<AuthorityEventDraft>,
-        Vec<AuthorityObjectDraft>,
-        Vec<AuthorityDerivedDraft>,
-    ),
-    String,
-> {
+) -> Result<DecisionDrafts, String> {
     let (mut candidate, mut prepared) =
         vela_protocol::proposals::prepare_repository_authority_accept_candidate_at(
             &locked.project,
@@ -507,7 +497,11 @@ fn acceptance_drafts(
     }) {
         return Err("repository acceptance lacks the exact proposal postimage".into());
     }
-    Ok((event_drafts, object_drafts, drafts.derived))
+    Ok(DecisionDrafts {
+        events: event_drafts,
+        objects: object_drafts,
+        derived: drafts.derived,
+    })
 }
 
 fn authority_event_draft_from_semantic(event: &StateEvent) -> Result<AuthorityEventDraft, String> {
@@ -574,6 +568,12 @@ fn semantic_event_from_draft(draft: &AuthorityEventDraft) -> StateEvent {
 }
 
 struct CandidateDrafts {
+    objects: Vec<AuthorityObjectDraft>,
+    derived: Vec<AuthorityDerivedDraft>,
+}
+
+struct DecisionDrafts {
+    events: Vec<AuthorityEventDraft>,
     objects: Vec<AuthorityObjectDraft>,
     derived: Vec<AuthorityDerivedDraft>,
 }
