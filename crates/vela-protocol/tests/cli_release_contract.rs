@@ -60,10 +60,11 @@ fn check_missing_frontier_reports_error_without_panic() {
     let tmp = TempDir::new().unwrap();
     let missing = tmp.path().join("missing-frontier.json");
 
-    // `stats` was retired; `check` is the kept loader-error contract.
+    // `check` rejects anything that is not a current repository epoch through
+    // one bounded product error. It must not fall through to a legacy loader.
     let error = run_expect_failure(&["check", missing.to_str().unwrap()]);
 
-    assert!(error.contains(missing.to_str().unwrap()));
+    assert!(error.contains("verifies only current repository epochs"));
     assert!(!error.contains("panicked at"));
 }
 

@@ -274,7 +274,6 @@ done
 decision_guidance_files=(
   crates/vela-protocol/src/proposals/policy_accept.rs
   crates/vela-protocol/src/analysis/scientific_diff.rs
-  crates/vela-cli/src/cli/checks.rs
   crates/vela-cli/src/server/cli_commands.rs
 )
 for guidance in \
