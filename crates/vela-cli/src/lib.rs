@@ -37,6 +37,7 @@ pub(crate) use config::{cli_admin, cli_agents, cli_identity};
 #[allow(dead_code)]
 pub(crate) mod frontier_txn;
 mod operation_journal;
+pub(crate) mod repository_upgrade;
 pub(crate) mod review_material;
 mod server;
 mod target_index;

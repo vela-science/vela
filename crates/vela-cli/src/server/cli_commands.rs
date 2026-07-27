@@ -96,6 +96,12 @@ pub enum PolicyAction {
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
+    /// One-time repository format and epoch operations.
+    #[command(hide = true)]
+    Repository {
+        #[command(subcommand)]
+        action: RepositoryAction,
+    },
     /// Is the LOG intact: replay, signatures, hash parity (--strict is
     /// the bar CI and the hub hold a repo to). Checks the record, not
     /// the science — `vela reproduce` re-runs the verifiers themselves.
@@ -718,6 +724,26 @@ pub(crate) enum AuthorityTrustAction {
         /// Full sequence-1 authority-record root from an independent channel.
         #[arg(long)]
         record_root: String,
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum RepositoryAction {
+    /// Preview or apply the fail-closed current repository epoch.
+    Upgrade {
+        #[arg(default_value = ".")]
+        frontier: PathBuf,
+        #[arg(long, value_parser = ["current"])]
+        to: String,
+        #[arg(long)]
+        archive_dir: PathBuf,
+        #[arg(long)]
+        reason: String,
+        /// Exact root returned by the key-free preview.
+        #[arg(long)]
+        confirm_root: Option<String>,
         #[arg(long)]
         json: bool,
     },

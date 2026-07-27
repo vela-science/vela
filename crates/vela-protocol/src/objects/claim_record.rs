@@ -46,7 +46,6 @@ pub struct ClaimSource {
 pub struct ClaimRelation {
     pub kind: String,
     pub target_claim_id: String,
-    pub target_claim_root: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -146,10 +145,24 @@ impl ClaimRecordV1 {
     }
 
     fn derive_id(&self) -> Result<String, String> {
-        let mut body = self.clone();
-        body.claim_id.clear();
-        let bytes = crate::canonical::to_canonical_bytes(&body)?;
-        Ok(format!("vcl_{}", &hex::encode(Sha256::digest(bytes))[..16]))
+        #[derive(Serialize)]
+        struct ClaimIdentity<'a> {
+            schema: &'static str,
+            revision: u32,
+            assertion: &'a ClaimAssertion,
+            conditions: &'a [String],
+            evidence: &'a [ClaimEvidenceRef],
+            provenance: &'a [ClaimSource],
+        }
+        let bytes = crate::canonical::to_canonical_bytes(&ClaimIdentity {
+            schema: "vela.claim-identity.v1",
+            revision: self.revision,
+            assertion: &self.assertion,
+            conditions: &self.conditions,
+            evidence: &self.evidence,
+            provenance: &self.provenance,
+        })?;
+        Ok(format!("vcl_{}", hex::encode(Sha256::digest(bytes))))
     }
 
     fn validate_semantics(&self) -> Result<(), String> {
@@ -185,12 +198,7 @@ impl ClaimRecordV1 {
         }
         for relation in &self.relations {
             require_text("relations.kind", &relation.kind)?;
-            require_prefixed(
-                "relations.target_claim_id",
-                &relation.target_claim_id,
-                "vcl_",
-            )?;
-            require_sha256("relations.target_claim_root", &relation.target_claim_root)?;
+            require_full_claim_id("relations.target_claim_id", &relation.target_claim_id)?;
         }
         chrono::DateTime::parse_from_rfc3339(&self.created_at)
             .map_err(|_| "Claim Record created_at must be RFC 3339".to_string())?;
@@ -250,10 +258,16 @@ fn require_text(field: &str, value: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn require_prefixed(field: &str, value: &str, prefix: &str) -> Result<(), String> {
-    require_text(field, value)?;
-    if !value.starts_with(prefix) {
-        return Err(format!("Claim Record {field} must start with {prefix}"));
+fn require_full_claim_id(field: &str, value: &str) -> Result<(), String> {
+    let digest = value
+        .strip_prefix("vcl_")
+        .ok_or_else(|| format!("Claim Record {field} must be a full vcl_ digest"))?;
+    if digest.len() != 64
+        || !digest
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(format!("Claim Record {field} must be a full vcl_ digest"));
     }
     Ok(())
 }

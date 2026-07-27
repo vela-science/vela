@@ -167,9 +167,13 @@ The Claim Record receives a new content-derived identity. The source block
 preserves the old `vf_` identity and full object root. No historical signature
 is copied into a new authentication field.
 
-Corrections and supersessions are converted to full-root relations between the
-new Claim Records. A missing, ambiguous, cyclic, or standing-changing mapping
-blocks migration.
+Corrections and supersessions are converted to relations between full
+`vcl_<64hex>` Claim content identities. The Claim identity preimage contains
+the revision, assertion, conditions, Evidence references, and provenance;
+relation metadata and import provenance remain in the full canonical record
+root. This avoids recursive roots and remains unambiguous even when a
+scientific graph contains a cycle. A missing, ambiguous, dangling, or
+standing-changing mapping blocks migration.
 
 Current authenticated Submission, Registration Record, and Verification Record
 bytes are retained byte-identically. A current pending Proposal is rebuilt as
@@ -288,7 +292,7 @@ fixture imports a retired type.
 Focused tests must cover:
 
 - deterministic predecessor object-manifest and archive roots;
-- exact Claim Record conversion and stable `vf_` to `vcl_` mapping;
+- exact Claim Record conversion and stable `vf_` to full `vcl_<64hex>` mapping;
 - full assertion, condition, evidence, provenance, relation, and standing
   equivalence;
 - current Submission/Registration/Verification byte retention;
@@ -331,4 +335,3 @@ This is acceptable before external adoption because all active repositories
 are controlled and every predecessor remains immutable and independently
 retrievable. It would not be an acceptable silent upgrade after a public
 compatibility promise.
-

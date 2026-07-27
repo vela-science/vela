@@ -102,6 +102,23 @@ pub async fn run_command() {
     let cli = Cli::parse();
     crate::ui::set_quiet(cli.quiet);
     match cli.command {
+        Commands::Repository { action } => match action {
+            RepositoryAction::Upgrade {
+                frontier,
+                to,
+                archive_dir,
+                reason,
+                confirm_root,
+                json,
+            } => crate::repository_upgrade::cmd_repository_upgrade(
+                &frontier,
+                &to,
+                &archive_dir,
+                &reason,
+                confirm_root.as_deref(),
+                json,
+            ),
+        },
         Commands::Check {
             source,
             schema,
