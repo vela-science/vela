@@ -358,6 +358,10 @@ fn status_legacy_snapshot_root(
 
 /// Stable compact status contract for the 0.9 product surface.
 pub(crate) fn cmd_status_compact(path: &Path, json_out: bool) {
+    if path.join(".vela/epoch.json").is_file() {
+        crate::repository_upgrade::cmd_current_status(path, json_out);
+        return;
+    }
     crate::ui::set_mode("status", json_out);
     let frontier_dir = frontier_dir_for_source(path);
     let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier_dir)

@@ -143,6 +143,16 @@ pub(crate) fn cmd_review(action: ReviewAction) {
             cursor,
             json,
         } => {
+            if frontier.join(".vela/epoch.json").is_file() {
+                crate::repository_upgrade::cmd_current_review_list(
+                    &frontier,
+                    status.as_deref(),
+                    limit,
+                    cursor.as_deref(),
+                    json,
+                );
+                return;
+            }
             let project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
             let status = status.unwrap_or_else(|| "pending_review".to_string());
             let mut items = project
@@ -248,6 +258,10 @@ pub(crate) fn cmd_review(action: ReviewAction) {
             proposal_id,
             json,
         } => {
+            if frontier.join(".vela/epoch.json").is_file() {
+                crate::repository_upgrade::cmd_current_review_show(&frontier, &proposal_id, json);
+                return;
+            }
             let inspection =
                 crate::review_material::ReviewProjection::inspect(&frontier, &proposal_id)
                     .unwrap_or_else(|error| fail_return(&error.to_string()));

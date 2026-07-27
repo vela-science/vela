@@ -296,6 +296,332 @@ pub(crate) fn cmd_repository_verify(frontier: &Path, json_out: bool) {
     }
 }
 
+pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
+    crate::ui::set_mode("status", json_out);
+    let frontier = frontier.canonicalize().unwrap_or_else(|error| {
+        crate::cli::fail_return(&format!(
+            "resolve current Frontier {}: {error}",
+            frontier.display()
+        ))
+    });
+    let repository = verify_current_repository_at(&frontier, true)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let profile_source =
+        fs::read_to_string(frontier.join("frontier.yaml")).unwrap_or_else(|error| {
+            crate::cli::fail_return(&format!("read current Frontier Profile: {error}"))
+        });
+    let profile = CurrentFrontierProfileV2::from_yaml_str(&profile_source)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let commit = git_text(&frontier, &["rev-parse", "HEAD^{commit}"])
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let tree = git_text(&frontier, &["rev-parse", "HEAD^{tree}"])
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let pending_review = repository.proposals.len();
+    let next_action = if let Some(proposal) = repository.proposals.first() {
+        format!(
+            "vela review show {} {} --json",
+            frontier.display(),
+            proposal.id
+        )
+    } else {
+        format!("vela repository verify {} --json", frontier.display())
+    };
+    let payload = json!({
+        "schema": "vela.status.v1",
+        "ok": true,
+        "command": "status",
+        "frontier": {
+            "id": repository.frontier_id,
+            "name": profile.name,
+            "profile_root": repository.profile_root
+        },
+        "git": {
+            "commit": commit,
+            "tree": tree
+        },
+        "integrity": {
+            "replay": "verified",
+            "strict": "pass",
+            "blocker_count": 0,
+            "blockers_by_code": {}
+        },
+        "roots": {
+            "epoch": repository.epoch_root,
+            "repository": repository.canonical_root().unwrap_or_else(|error| crate::cli::fail_return(&error)),
+            "authority_keyset": repository.authority_keyset_root,
+            "authority_policy": repository.authority_policy_root
+        },
+        "counts": {
+            "claims": repository.accepted_claims.len() + repository.pending_claims.len(),
+            "accepted_claims": repository.accepted_claims.len(),
+            "pending_claims": repository.pending_claims.len(),
+            "pending_review": pending_review,
+            "submissions": repository.submissions.len(),
+            "registrations": repository.registrations.len(),
+            "verifications": repository.verifications.len(),
+            "artifacts": repository.artifacts.len()
+        },
+        "next_action": next_action,
+        "legacy_runtime_used": false
+    });
+    if json_out {
+        crate::cli::print_json(&payload);
+    } else {
+        println!(
+            "vela status · {}",
+            payload["frontier"]["name"].as_str().unwrap_or("frontier")
+        );
+        println!(
+            "  frontier  {}",
+            payload["frontier"]["id"].as_str().unwrap_or("unavailable")
+        );
+        println!(
+            "  commit    {}",
+            payload["git"]["commit"].as_str().unwrap_or("unavailable")
+        );
+        println!("  replay    verified");
+        println!("  strict    pass");
+        println!("  claims    {}", payload["counts"]["claims"]);
+        println!(
+            "  review    {} pending",
+            payload["counts"]["pending_review"]
+        );
+        println!(
+            "  next      {}",
+            payload["next_action"].as_str().unwrap_or("none")
+        );
+    }
+}
+
+pub(crate) fn cmd_current_review_list(
+    frontier: &Path,
+    status: Option<&str>,
+    limit: usize,
+    cursor: Option<&str>,
+    json_out: bool,
+) {
+    crate::ui::set_mode("review list", json_out);
+    let status = status.unwrap_or("pending_review");
+    if status != "pending_review" {
+        let payload = json!({
+            "schema": "vela.review.v1",
+            "ok": true,
+            "command": "review.list",
+            "status": status,
+            "total": 0,
+            "returned": 0,
+            "next_cursor": null,
+            "items": [],
+            "legacy_runtime_used": false
+        });
+        if json_out {
+            crate::cli::print_json(&payload);
+        } else {
+            println!("review · 0 {status} proposal(s)");
+        }
+        return;
+    }
+    let frontier = frontier.canonicalize().unwrap_or_else(|error| {
+        crate::cli::fail_return(&format!(
+            "resolve current Frontier {}: {error}",
+            frontier.display()
+        ))
+    });
+    let repository = verify_current_repository_at(&frontier, true)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let mut items = repository
+        .proposals
+        .iter()
+        .map(|reference| {
+            let bytes = read_rooted_object(&frontier, &reference.path, &reference.root)
+                .unwrap_or_else(|error| crate::cli::fail_return(&error));
+            let proposal =
+                ProposalV1::parse(&bytes).unwrap_or_else(|error| crate::cli::fail_return(&error));
+            (
+                proposal.created_at.clone(),
+                json!({
+                    "proposal_id": proposal.proposal_id,
+                    "proposal_root": reference.root,
+                    "created_at": proposal.created_at,
+                    "action": proposal.action,
+                    "status": "pending_review",
+                    "claim_id": proposal.subject.id,
+                    "claim_root": proposal.subject.root,
+                    "actor": proposal.actor,
+                    "submission_id": proposal.producer_package.id,
+                    "reason": proposal.reason,
+                    "caveats": proposal.caveats
+                }),
+            )
+        })
+        .collect::<Vec<_>>();
+    items.sort_by(|left, right| {
+        right.0.cmp(&left.0).then_with(|| {
+            left.1["proposal_id"]
+                .as_str()
+                .cmp(&right.1["proposal_id"].as_str())
+        })
+    });
+    let items = items.into_iter().map(|(_, item)| item).collect::<Vec<_>>();
+    let total = items.len();
+    let limit = limit.clamp(1, 100);
+    let start = match cursor {
+        None => 0,
+        Some(cursor) => items
+            .iter()
+            .position(|item| item["proposal_id"].as_str() == Some(cursor))
+            .map(|index| index + 1)
+            .unwrap_or_else(|| {
+                crate::cli::fail_return("review cursor does not name an exact current Proposal")
+            }),
+    };
+    let mut page = items
+        .into_iter()
+        .skip(start)
+        .take(limit + 1)
+        .collect::<Vec<_>>();
+    let has_more = page.len() > limit;
+    page.truncate(limit);
+    let next_cursor = has_more
+        .then(|| page.last().and_then(|item| item["proposal_id"].as_str()))
+        .flatten();
+    let payload = json!({
+        "schema": "vela.review.v1",
+        "ok": true,
+        "command": "review.list",
+        "frontier_id": repository.frontier_id,
+        "repository_root": repository.canonical_root().unwrap_or_else(|error| crate::cli::fail_return(&error)),
+        "status": status,
+        "order": "created_at_desc_then_proposal_id",
+        "total": total,
+        "returned": page.len(),
+        "next_cursor": next_cursor,
+        "items": page,
+        "legacy_runtime_used": false
+    });
+    if json_out {
+        crate::cli::print_json(&payload);
+    } else {
+        println!("review · {total} {status} proposal(s)");
+        for item in payload["items"].as_array().into_iter().flatten() {
+            println!(
+                "  {}  {}  {}  {}",
+                item["proposal_id"].as_str().unwrap_or(""),
+                item["created_at"].as_str().unwrap_or(""),
+                item["action"].as_str().unwrap_or(""),
+                item["reason"].as_str().unwrap_or("")
+            );
+        }
+    }
+}
+
+pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_out: bool) {
+    crate::ui::set_mode("review show", json_out);
+    let frontier = frontier.canonicalize().unwrap_or_else(|error| {
+        crate::cli::fail_return(&format!(
+            "resolve current Frontier {}: {error}",
+            frontier.display()
+        ))
+    });
+    let repository = verify_current_repository_at(&frontier, true)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let reference = repository
+        .proposals
+        .iter()
+        .find(|reference| reference.id == proposal_id)
+        .unwrap_or_else(|| {
+            crate::cli::fail_return("current repository has no exact pending Proposal with that ID")
+        });
+    let proposal_bytes = read_rooted_object(&frontier, &reference.path, &reference.root)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let proposal =
+        ProposalV1::parse(&proposal_bytes).unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let claim = repository
+        .pending_claims
+        .iter()
+        .find(|claim| {
+            claim.claim_id == proposal.subject.id && claim.claim_root == proposal.subject.root
+        })
+        .map(|claim| {
+            let bytes = read_rooted_object(&frontier, &claim.path, &claim.claim_root)
+                .unwrap_or_else(|error| crate::cli::fail_return(&error));
+            serde_json::from_slice::<Value>(&bytes).unwrap_or_else(|error| {
+                crate::cli::fail_return(&format!("parse pending Claim: {error}"))
+            })
+        });
+    let submission = repository
+        .submissions
+        .iter()
+        .find(|submission| {
+            submission.id == proposal.producer_package.id
+                && submission.root == proposal.producer_package.root
+        })
+        .map(|submission| {
+            let bytes = read_rooted_object(&frontier, &submission.path, &submission.root)
+                .unwrap_or_else(|error| crate::cli::fail_return(&error));
+            serde_json::from_slice::<Value>(&bytes).unwrap_or_else(|error| {
+                crate::cli::fail_return(&format!("parse Submission: {error}"))
+            })
+        });
+    let verifications = repository
+        .verifications
+        .iter()
+        .filter_map(|verification| {
+            let bytes =
+                read_rooted_object(&frontier, &verification.path, &verification.root).ok()?;
+            let value = serde_json::from_slice::<Value>(&bytes).ok()?;
+            (value
+                .pointer("/subject/proposal_id")
+                .and_then(Value::as_str)
+                == Some(proposal_id))
+            .then_some(value)
+        })
+        .collect::<Vec<_>>();
+    let payload = json!({
+        "schema": "vela.review.v1",
+        "ok": true,
+        "command": "review.show",
+        "frontier_id": repository.frontier_id,
+        "repository_root": repository.canonical_root().unwrap_or_else(|error| crate::cli::fail_return(&error)),
+        "proposal_id": proposal.proposal_id,
+        "proposal_root": reference.root,
+        "standing": "pending_review",
+        "proposal": proposal,
+        "claim": claim,
+        "submission": submission,
+        "verification_records": verifications,
+        "authority_boundary": "Verification records report bounded checks. Only a repository-authority Decision can change standing.",
+        "legacy_runtime_used": false
+    });
+    if json_out {
+        crate::cli::print_json(&payload);
+    } else {
+        println!("review · {proposal_id} · pending");
+        println!(
+            "  action: {}",
+            payload["proposal"]["action"].as_str().unwrap_or("")
+        );
+        println!(
+            "  claim: {}",
+            payload["proposal"]["subject"]["id"].as_str().unwrap_or("")
+        );
+        println!(
+            "  reason: {}",
+            payload["proposal"]["reason"].as_str().unwrap_or("")
+        );
+        println!(
+            "  verification records: {}",
+            payload["verification_records"]
+                .as_array()
+                .map_or(0, Vec::len)
+        );
+        println!(
+            "  authority: {}",
+            payload["authority_boundary"].as_str().unwrap_or("")
+        );
+    }
+}
+
 fn prepare_repository_upgrade(
     frontier: &Path,
     archive_dir: &Path,
