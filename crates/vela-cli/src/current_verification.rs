@@ -190,7 +190,7 @@ pub(crate) fn import(
         return Err("verification import actor must match the Verification Record verifier".into());
     }
 
-    let repository = crate::repository_upgrade::verify_current_repository_at(frontier, true)?;
+    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
     let (_proposal, proposal_root, _submission) = load_subject(frontier, &repository, record)?;
     let record_bytes = record.canonical_bytes()?;
@@ -223,7 +223,7 @@ pub(crate) fn import(
         &journal_dir,
     )
     .map_err(|error| error.to_string())?;
-    let held_repository = crate::repository_upgrade::verify_current_repository_at(frontier, true)?;
+    let held_repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
     if held_repository.canonical_root()? != repository_root {
         return Err(
             "current repository changed while acquiring the verification import barrier".into(),
@@ -331,7 +331,6 @@ pub(crate) fn import(
                 },
             ],
             derived_drafts,
-            retire_legacy_history: false,
             next_authority_keyset: None,
             next_policy_bundle: None,
             next_policy_material: None,
@@ -399,7 +398,7 @@ pub(crate) fn import(
                 .map_err(|error| error.to_string())?;
             prepared.install().map_err(|error| error.to_string())?;
             prepared.complete().map_err(|error| error.to_string())?;
-            crate::repository_upgrade::verify_current_repository_at(frontier, true)?;
+            crate::current_repository::verify_current_repository_at(frontier, true)?;
             return Ok(VerificationImportOutcome {
                 schema: "vela.verification-import-result.v1",
                 operation_id: operation_id.as_str().into(),
@@ -419,7 +418,7 @@ pub(crate) fn import(
         .map_err(|error| error.to_string())?;
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
-    crate::repository_upgrade::verify_current_repository_at(frontier, true)?;
+    crate::current_repository::verify_current_repository_at(frontier, true)?;
     let publication = match (delta.as_ref(), preflight) {
         (Some(delta), Some(preflight)) => publish_exact_delta(
             frontier,

@@ -149,7 +149,7 @@ fn uses_frontier_profile_v1(frontier: &Path) -> Result<bool, String> {
 
 fn missing_v1_settings_error(frontier: &Path) -> String {
     format!(
-        "Frontier Profile v1 repository '{}' is missing required .vela/settings.toml; restore the typed settings file or rerun the verified migration",
+        "Frontier Profile v1 repository '{}' is missing required .vela/settings.toml; restore the exact typed settings file from its current repository history",
         frontier.display()
     )
 }
@@ -757,7 +757,7 @@ profile = "draft"
         )
         .unwrap();
         // These legacy values must not leak through once the v1 boundary is
-        // present, even during a partially cleaned-up migration checkout.
+        // present, even while a repository checkout is incomplete.
         std::fs::write(
             frontier.join(".vela/config.toml"),
             "[work]\nlease_ttl_seconds = 5\n[mcp]\nprofile = \"draft\"\n",

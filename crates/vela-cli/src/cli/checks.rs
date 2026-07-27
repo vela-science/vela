@@ -117,7 +117,7 @@ fn proposal_parity_suggestion(repository_context: &Value, conflict: &str) -> &'s
     if repository_context.get("generation").and_then(Value::as_str) == Some("legacy_v0_1")
         && conflict.contains("logical content derives id")
     {
-        "Do not rewrite or re-issue this immutable proposal. Preview the exact `frontier-repo-v1` migration with a Profile v1 and Target Index v2 candidate; a valid pinned boundary may retain the frozen conflict as anchored, unauthenticated legacy identity debt."
+        "Do not rewrite or re-issue this immutable proposal. Inspect the predecessor repository with its pinned historical Vela release; the current binary does not convert predecessor repositories."
     } else {
         "Every decided proposal must have a signed review.* event (or, for accepts, its domain event). Re-issue the exact action through `vela review accept` or `vela review reject`."
     }
@@ -202,7 +202,7 @@ fn repository_context_suggestion(code: &str) -> &'static str {
             "Restore complete Git ancestry and the exact anchored repository bytes. Missing, forked, non-ancestor, or root-mismatched boundaries grant no exemption."
         }
         "frontier_profile_upgrade_required" => {
-            "Legacy v0.1 remains readable, but Profile v1 identity events require a valid closed frontier.yaml; use the reviewed migration flow instead of hand-editing it."
+            "Restore the exact current repository checkout. Use the pinned historical Vela release only to inspect a predecessor repository; the current binary does not convert it."
         }
         _ => {
             "Restore the exact Profile v1 repository, canonical event projection, and independently pinned boundary context before relying on repository identity."
@@ -1861,14 +1861,14 @@ mod repository_context_tests {
     }
 
     #[test]
-    fn legacy_logical_id_conflict_points_to_boundary_migration_not_reissue() {
+    fn predecessor_logical_id_conflict_points_to_historical_inspection_not_reissue() {
         let legacy_context = json!({"generation": "legacy_v0_1"});
         let suggestion = proposal_parity_suggestion(
             &legacy_context,
             "proposal vpr_legacy logical content derives id vpr_current",
         );
         assert!(suggestion.contains("Do not rewrite or re-issue"));
-        assert!(suggestion.contains("frontier-repo-v1"));
+        assert!(suggestion.contains("historical Vela release"));
         assert!(!suggestion.contains("vela sign"));
 
         let native_context = json!({"generation": "profile_v1"});

@@ -26,7 +26,6 @@ ALLOWED_ACTIONS = {
     "work_claim",
 }
 HUMAN_ONLY_ACTIONS = {
-    "authority_migrate",
     "authority_revoke",
     "authority_rotate",
     "bulk_correct",

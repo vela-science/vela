@@ -20,7 +20,7 @@ use vela_protocol::current_repository::{
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::repository_epoch::RepositoryEpochV1;
 
-use crate::repository_upgrade::CurrentProposalDecision;
+use crate::current_repository::CurrentProposalDecision;
 
 struct CurrentReadContext {
     repository: CurrentRepositoryV2,
@@ -62,14 +62,14 @@ fn read_value(frontier: &Path, reference: &RepositoryObjectRefV1) -> Result<Valu
 }
 
 fn load_context(frontier: &Path) -> Result<CurrentReadContext, String> {
-    let repository = crate::repository_upgrade::verify_current_repository_at(frontier, true)?;
+    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
     let epoch_bytes = fs::read(frontier.join(".vela/epoch.json"))
         .map_err(|error| format!("read current repository epoch: {error}"))?;
     let epoch = RepositoryEpochV1::parse(&epoch_bytes)?;
     let authority = crate::cli::load_current_repository_authority(frontier, &repository, &epoch)?;
     let decisions =
-        crate::repository_upgrade::load_current_proposal_decisions(frontier, &repository)?;
+        crate::current_repository::load_current_proposal_decisions(frontier, &repository)?;
     let proposals = repository
         .proposals
         .iter()
@@ -461,7 +461,6 @@ pub(crate) fn why_payload(frontier: &Path, claim_id: &str) -> Result<Value, Stri
             "submission_is_acceptance": false,
             "verification_is_acceptance": false,
             "standing_is_derived": true,
-            "legacy_runtime_used": false,
         },
     }))
 }
@@ -510,7 +509,6 @@ pub(crate) fn log_payload(
         "frontier_id": context.repository.frontier_id,
         "repository_root": context.repository_root,
         "source_era": "current",
-        "legacy_runtime_used": false,
         "events": events,
     }))
 }

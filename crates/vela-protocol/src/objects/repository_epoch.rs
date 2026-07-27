@@ -4,9 +4,6 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 pub const REPOSITORY_EPOCH_V1_SCHEMA: &str = "vela.repository-epoch.v1";
-pub const REPOSITORY_UPGRADE_PLAN_V1_SCHEMA: &str = "vela.repository-upgrade-plan.v1";
-pub const ARCHIVED_OBJECT_INDEX_V1_SCHEMA: &str = "vela.archived-object-index.v1";
-pub const EQUIVALENCE_REPORT_V1_SCHEMA: &str = "vela.repository-equivalence.v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

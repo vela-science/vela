@@ -20,8 +20,6 @@ pub const MAX_CAPABILITY_LIFETIME_SECONDS: i64 = 24 * 60 * 60;
 pub const MAX_CAPABILITY_DELEGATION_DEPTH: u8 = 1;
 pub const HUMAN_ONLY_AUTHORITY_ACTIONS_V1: &[&str] = &[
     "authority_initialize",
-    "authority_migrate",
-    "authority_model_migrate",
     "authority_close",
     "authority_revoke",
     "authority_rotate",

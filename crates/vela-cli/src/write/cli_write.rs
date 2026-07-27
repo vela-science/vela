@@ -8,7 +8,7 @@ pub(crate) fn cmd_review(action: ReviewAction) {
             limit,
             cursor,
             json,
-        } => crate::repository_upgrade::cmd_current_review_list(
+        } => crate::current_repository::cmd_current_review_list(
             &frontier,
             status.as_deref(),
             limit,
@@ -19,7 +19,7 @@ pub(crate) fn cmd_review(action: ReviewAction) {
             frontier,
             proposal_id,
             json,
-        } => crate::repository_upgrade::cmd_current_review_show(&frontier, &proposal_id, json),
+        } => crate::current_repository::cmd_current_review_show(&frontier, &proposal_id, json),
         ReviewAction::Accept {
             frontier,
             proposal_id,

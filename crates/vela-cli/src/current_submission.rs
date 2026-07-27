@@ -361,7 +361,7 @@ pub(crate) fn submit(
         );
     }
 
-    let repository = crate::repository_upgrade::verify_current_repository_at(frontier, true)?;
+    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
     let submission_root = submission.canonical_root()?;
     if let Some(outcome) = existing_outcome(frontier, &repository, submission, &submission_root)? {
@@ -379,7 +379,7 @@ pub(crate) fn submit(
         &journal_dir,
     )
     .map_err(|error| error.to_string())?;
-    let held_repository = crate::repository_upgrade::verify_current_repository_at(frontier, true)?;
+    let held_repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
     if held_repository.canonical_root()? != repository_root {
         return Err("current repository changed while acquiring the submit barrier".into());
     }
@@ -646,7 +646,6 @@ pub(crate) fn submit(
             event_drafts: Vec::new(),
             object_drafts,
             derived_drafts,
-            retire_legacy_history: false,
             next_authority_keyset: None,
             next_policy_bundle: None,
             next_policy_material: None,
@@ -697,7 +696,7 @@ pub(crate) fn submit(
                 .map_err(|error| error.to_string())?;
             prepared.install().map_err(|error| error.to_string())?;
             prepared.complete().map_err(|error| error.to_string())?;
-            crate::repository_upgrade::verify_current_repository_at(frontier, true)?;
+            crate::current_repository::verify_current_repository_at(frontier, true)?;
             crate::current_work::close_submission_attempt(resolved_attempt)?;
             return Ok(SubmitOutcome {
                 schema: "vela.submit-result.v1",
@@ -722,7 +721,7 @@ pub(crate) fn submit(
         .map_err(|error| error.to_string())?;
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
-    crate::repository_upgrade::verify_current_repository_at(frontier, true)?;
+    crate::current_repository::verify_current_repository_at(frontier, true)?;
     crate::current_work::close_submission_attempt(resolved_attempt)?;
     let publication = match (delta.as_ref(), preflight) {
         (Some(delta), Some(preflight)) => publish_exact_delta(

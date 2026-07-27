@@ -17,7 +17,6 @@ use sha2::{Digest, Sha256};
 use vela_protocol::authority::PolicyBundleV1;
 use vela_protocol::canonical::to_canonical_bytes;
 
-pub mod legacy_translation;
 pub mod runtime_authentication;
 
 pub use vela_protocol::authority::{

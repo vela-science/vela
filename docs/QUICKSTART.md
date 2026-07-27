@@ -91,9 +91,9 @@ vela authority trust pin ./frontier \
 ## Predecessor repositories
 
 Predecessor tags and archives retain the old source and executable needed to
-verify their bytes. Upgrade only through `vela repository upgrade`; never
-hand-edit or relabel an old checkout. The current CLI does not expose
-predecessor writer commands.
+verify their bytes. Never hand-edit or relabel an old checkout. The current CLI
+does not expose predecessor parsers, migration writers, or predecessor writer
+commands.
 
 ## What to read next
 

@@ -1,6 +1,6 @@
 # ADR 0022: Current repository epoch and legacy runtime retirement
 
-- Status: Proposed
+- Status: Accepted
 - Target release: Vela `v0.940.0`
 - Protocol effect: one current-only repository epoch, Claim Record v1,
   Proposal v1, and a signed predecessor boundary
@@ -11,8 +11,8 @@
 - Compatibility: historical bytes remain in an immutable Git predecessor and
   source archive; the current binary verifies the boundary but does not parse
   the retired protocol
-- Entry gate: all four active Frontiers replay at exact predecessor commits and
-  the migration tool proves semantic equivalence before requesting a signature
+- Entry gate: satisfied; Quantum Codes, Formal Conjectures, Sidon, and Erdős
+  replay as published current epochs with exact signed predecessor boundaries
 
 ## Context
 

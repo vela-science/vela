@@ -1,6 +1,6 @@
 //! Product diagnostic for Profile v2/current repository epochs.
 //!
-//! The historical doctor belongs to the Project snapshot runtime. A migrated
+//! The historical doctor belongs to the Project snapshot runtime. A current
 //! repository has no Project, frozen policy, proof snapshot, actor registry, or
 //! embedded workbench to diagnose. This module checks only current product
 //! boundaries and returns one useful next action.
@@ -130,7 +130,7 @@ fn current_doctor_payload(frontier: &Path, all: bool) -> Result<Value, String> {
     let frontier = frontier
         .canonicalize()
         .map_err(|error| format!("resolve current Frontier {}: {error}", frontier.display()))?;
-    let repository = crate::repository_upgrade::verify_current_repository_at(&frontier, true)?;
+    let repository = crate::current_repository::verify_current_repository_at(&frontier, true)?;
     let repository_root = repository.canonical_root()?;
     let epoch_bytes = std::fs::read(frontier.join(".vela/epoch.json"))
         .map_err(|error| format!("read current repository epoch: {error}"))?;
@@ -148,7 +148,7 @@ fn current_doctor_payload(frontier: &Path, all: bool) -> Result<Value, String> {
         "tracked_dirt"
     };
     let decisions =
-        crate::repository_upgrade::load_current_proposal_decisions(&frontier, &repository)?;
+        crate::current_repository::load_current_proposal_decisions(&frontier, &repository)?;
     let pending = repository
         .proposals
         .iter()
@@ -231,7 +231,6 @@ fn current_doctor_payload(frontier: &Path, all: bool) -> Result<Value, String> {
         },
         "blockers": blockers,
         "next_action": next_action,
-        "legacy_runtime_used": false,
     });
     if all {
         payload["details"] = json!({

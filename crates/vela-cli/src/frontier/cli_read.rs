@@ -2,7 +2,7 @@ use crate::cli::fail_return;
 use std::path::Path;
 
 pub(crate) fn cmd_status_compact(path: &Path, json_out: bool) {
-    crate::repository_upgrade::cmd_current_status(path, json_out);
+    crate::current_repository::cmd_current_status(path, json_out);
 }
 
 pub(crate) fn cmd_log(path: &Path, limit: usize, kind_filter: Option<&str>, _json: bool) {

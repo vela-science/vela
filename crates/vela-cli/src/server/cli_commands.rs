@@ -65,7 +65,7 @@ pub enum ConfigAction {
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
-    /// One-time repository format and epoch operations.
+    /// Verify the current repository epoch and authority boundary.
     #[command(hide = true)]
     Repository {
         #[command(subcommand)]
@@ -515,16 +515,6 @@ pub(crate) enum AuthorityAction {
         #[arg(long)]
         json: bool,
     },
-    /// Upgrade an existing repository authority to Vela's current routine-work contract.
-    Upgrade {
-        #[arg(default_value = ".")]
-        frontier: PathBuf,
-        /// Why this repository is adopting the current Submission and Verification contract.
-        #[arg(long)]
-        reason: String,
-        #[arg(long)]
-        json: bool,
-    },
     /// Manage independently distributed repository-authority trust roots.
     Trust {
         #[command(subcommand)]
@@ -552,22 +542,6 @@ pub(crate) enum RepositoryAction {
     Verify {
         #[arg(default_value = ".")]
         frontier: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Preview or apply the fail-closed current repository epoch.
-    Upgrade {
-        #[arg(default_value = ".")]
-        frontier: PathBuf,
-        #[arg(long, value_parser = ["current"])]
-        to: String,
-        #[arg(long)]
-        archive_dir: PathBuf,
-        #[arg(long)]
-        reason: String,
-        /// Exact root returned by the key-free preview.
-        #[arg(long)]
-        confirm_root: Option<String>,
         #[arg(long)]
         json: bool,
     },

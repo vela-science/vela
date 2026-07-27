@@ -276,7 +276,6 @@ decision_guidance_files=(
   crates/vela-protocol/src/analysis/scientific_diff.rs
   crates/vela-cli/src/cli/checks.rs
   crates/vela-cli/src/server/cli_commands.rs
-  crates/vela-cli/src/server/serve.rs
 )
 for guidance in \
   'vela sign --frontier <frontier>' \
@@ -295,7 +294,6 @@ done
 # remain replayable, but no current MCP adapter or generated guidance may offer
 # the retired deposit writer.
 work_surfaces=(
-  crates/vela-cli/src/server/tools.rs
   crates/vela-edge/src/registry/tool_registry.rs
   crates/vela-cli/src/config/cli_agents.rs
   integrations/claude-plugin/README.md
@@ -310,8 +308,6 @@ fi
 
 retired_mcp_propose_pattern='`propose`|"propose"'
 mcp_propose_surfaces=(
-  crates/vela-cli/src/server/tools.rs
-  crates/vela-cli/src/server/serve.rs
   crates/vela-cli/src/config/cli_agents.rs
   integrations/claude-plugin/README.md
   integrations/claude-plugin/skills/vela-frontier/SKILL.md

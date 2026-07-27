@@ -143,9 +143,8 @@ Current advanced surfaces:
 claim id agents config verification authority target-index repository
 ```
 
-Run `vela help advanced` for the grouped contract. The one-time
-`repository upgrade` command exists only while the public Frontiers move to
-the current repository epoch.
+Run `vela help advanced` for the grouped contract. `repository` is read-only:
+it verifies the signed current-epoch boundary and active repository.
 
 ## Repository model
 
@@ -202,11 +201,10 @@ once per actual release boundary.
 
 ## Project status
 
-Vela is pre-1.0 and the current repository epoch is still being completed
-across the public Frontiers. Expect breaking changes until the current loop has
-been exercised end to end and released. Historical Git revisions and
-predecessor tags preserve earlier contracts; the current binary does not keep
-their writer interfaces alive.
+Vela is pre-1.0. All controlled public Frontiers now use the current repository
+epoch. Historical Git revisions and predecessor tags preserve earlier
+contracts; the current binary does not keep their parsers or writer interfaces
+alive.
 
 ## License
 

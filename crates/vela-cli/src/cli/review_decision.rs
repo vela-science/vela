@@ -88,7 +88,6 @@ fn cmd_current_review_decide(
         "authentication": "local_os_session",
         "transaction_signer": "repository_authority",
         "human_key_read": false,
-        "legacy_runtime_used": false,
     });
     if json {
         println!(

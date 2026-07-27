@@ -72,8 +72,8 @@ claim id agents config verification authority target-index repository
 - `authority` initializes or inspects the repository writer and public trust
   roots.
 - `target-index` inspects or seals derived producer Targets.
-- `repository` verifies or performs the temporary one-time current-epoch
-  upgrade.
+- `repository verify` verifies the signed current-epoch boundary and active
+  repository.
 
 `vela help advanced` is the executable source for this grouping.
 
@@ -183,25 +183,15 @@ vela authority trust pin . --record-root sha256:... --json
 The pin is local public trust configuration. It reads no key, grants no
 authority, and changes no Frontier byte.
 
-## One-time repository migration
-
-During the current pre-1.0 epoch migration:
+## Repository verification
 
 ```bash
-vela repository upgrade <frontier> --to current \
-  --archive-dir <archive> \
-  --reason "<reason>" \
-  --json
-
 vela repository verify <frontier> --json
 ```
 
-The preview emits the exact plan root; applying requires that root and the
-configured repository authority. The upgrade is fail-closed, archives the
-predecessor, preserves canonical evidence, and writes one current epoch.
-
-This is temporary machinery. It is removed after all public Frontiers have
-verified current epochs and the recovery drill passes.
+The command verifies the current manifest, signed epoch boundary, retained
+authority chain, exact object roots, and rejection of retired active paths. The
+one-time migration writer is not part of the current binary.
 
 ## Machine contracts
 

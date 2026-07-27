@@ -252,7 +252,7 @@ pub(crate) fn prepare(
     }
     DateTime::parse_from_rfc3339(observed_at)
         .map_err(|error| format!("current review observation time is invalid: {error}"))?;
-    let repository = crate::repository_upgrade::verify_current_repository_at(frontier, true)?;
+    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
     let epoch = load_epoch(frontier)?;
     let authority = crate::cli::load_current_repository_authority(frontier, &repository, &epoch)?;
@@ -677,7 +677,6 @@ pub(crate) fn execute(
                 postimage: Some(next.canonical_bytes()?),
             }],
             derived_drafts: derived,
-            retire_legacy_history: false,
             next_authority_keyset: None,
             next_policy_bundle: None,
             next_policy_material: None,
@@ -690,7 +689,7 @@ pub(crate) fn execute(
         &mut signer,
     )
     .map_err(|error| error.to_string())?;
-    crate::repository_upgrade::verify_current_repository_at(frontier, true)?;
+    crate::current_repository::verify_current_repository_at(frontier, true)?;
     Ok(result)
 }
 

@@ -34,7 +34,7 @@ pub(crate) fn cmd_check(
                 "current repository epochs support exact `vela check` verification; legacy evidence, conformance, and fix modes are retired",
             );
         }
-        crate::repository_upgrade::cmd_repository_verify(src, json_output);
+        crate::current_repository::cmd_repository_verify(src, json_output);
         return;
     }
     if json_output {

@@ -1033,81 +1033,12 @@ pub fn render_visible_repo_files(
     path: &Path,
     project: &Project,
 ) -> Result<VisibleRepoFiles, String> {
-    render_visible_repo_files_inner(path, project, None)
-}
-
-/// Render the exact Profile v1 migration postimage without first installing
-/// the candidate profile in the source checkout.
-///
-/// This is the pure staging counterpart of [`render_visible_repo_files`].
-/// The supplied bytes are preserved exactly while the parsed profile drives
-/// the v1 lock projection. It exists so the protected migration transaction
-/// can bind every derived postimage before its commit marker.
-pub fn render_visible_repo_files_for_profile_migration(
-    path: &Path,
-    project: &Project,
-    profile: &FrontierProfileV1,
-    profile_bytes: &[u8],
-) -> Result<VisibleRepoFiles, String> {
-    profile.validate()?;
-    profile.assert_frontier_id(&project.frontier_id())?;
-    let reparsed = std::str::from_utf8(profile_bytes)
-        .map_err(|error| format!("candidate Profile v1 bytes are not UTF-8: {error}"))
-        .and_then(FrontierProfileV1::from_yaml_str)?;
-    if &reparsed != profile {
-        return Err(
-            "candidate Profile v1 bytes do not match the parsed migration profile".to_string(),
-        );
-    }
-    let project = project_for_profile_migration_materialization(project, profile)?;
-    render_visible_repo_files_inner(path, &project, Some((profile, profile_bytes)))
-}
-
-/// Normalize the in-memory legacy project exactly as a clean Profile v1 load
-/// will before rendering migration postimages.
-///
-/// A migration prepares its complete transaction while the legacy config is
-/// still present and the candidate Profile has not yet been installed. The
-/// legacy loader therefore carries display/compiler seed metadata that the
-/// Profile v1 loader intentionally discards. Rendering those legacy values
-/// into `frontier.json` and `vela.lock` makes the completed transaction stale
-/// immediately after installation. Keep this normalization in the protocol
-/// layer so the migration plan roots and its staged derived files use the same
-/// project a clean post-migration checkout will load.
-pub fn project_for_profile_migration_materialization(
-    project: &Project,
-    profile: &FrontierProfileV1,
-) -> Result<Project, String> {
-    profile.validate()?;
-    profile.assert_frontier_id(&project.frontier_id())?;
-    let mut normalized: Project = serde_json::from_value(
-        serde_json::to_value(project)
-            .map_err(|error| format!("clone Profile v1 migration projection: {error}"))?,
-    )
-    .map_err(|error| format!("restore Profile v1 migration projection: {error}"))?;
-    normalized.vela_version = project::VELA_SCHEMA_VERSION.to_string();
-    normalized.schema = project::VELA_SCHEMA_URL.to_string();
-    normalized.project.name = profile.name.clone();
-    normalized.project.description = profile.summary.clone();
-    normalized.project.compiled_at = normalized
-        .events
-        .iter()
-        .map(|event| event.timestamp.as_str())
-        .min()
-        .unwrap_or("")
-        .to_string();
-    normalized.project.compiler = project::VELA_COMPILER_VERSION.to_string();
-    normalized.project.papers_processed = 0;
-    normalized.project.errors = 0;
-    normalized.project.dependencies.clear();
-    project::recompute_stats(&mut normalized);
-    Ok(normalized)
+    render_visible_repo_files_inner(path, project)
 }
 
 fn render_visible_repo_files_inner(
     path: &Path,
     project: &Project,
-    migration_profile: Option<(&FrontierProfileV1, &[u8])>,
 ) -> Result<VisibleRepoFiles, String> {
     // Split-repository loading is filename ordered. New objects are commonly
     // appended in memory, and their content-derived ids do not necessarily
@@ -1136,61 +1067,42 @@ fn render_visible_repo_files_inner(
     let mut files = VisibleRepoFiles::new();
     files.insert(
         "frontier.json".to_string(),
-        render_visible_state(
-            path,
-            project,
-            &generated_at,
-            migration_profile.map(|(profile, _)| profile),
-            None,
-        )?,
+        render_visible_state(path, project, &generated_at, None, None)?,
     );
-    let manifest = match migration_profile {
-        Some((_, bytes)) => bytes.to_vec(),
-        None => match read_repository_profile(path)? {
-            None => render_manifest(path, project)?,
-            Some(FrontierProfileFile::LegacyV0_1(_)) => {
-                // v0.59: keep the structured cross-frontier deps in the
-                // existing yaml in sync with `Project.dependencies`. We
-                // intentionally only touch the `dependencies.frontiers_v2`
-                // field; other user-edited fields (scope, maintainers,
-                // policies) are preserved.
-                render_synced_manifest(path, &project.project.dependencies)?
-            }
-            Some(FrontierProfileFile::V1(_)) => fs::read(path.join("frontier.yaml"))
-                .map_err(|error| format!("Failed to preserve frontier.yaml: {error}"))?,
-        },
+    let manifest = match read_repository_profile(path)? {
+        None => render_manifest(path, project)?,
+        Some(FrontierProfileFile::LegacyV0_1(_)) => {
+            // v0.59: keep the structured cross-frontier deps in the
+            // existing yaml in sync with `Project.dependencies`. We
+            // intentionally only touch the `dependencies.frontiers_v2`
+            // field; other user-edited fields (scope, maintainers,
+            // policies) are preserved.
+            render_synced_manifest(path, &project.project.dependencies)?
+        }
+        Some(FrontierProfileFile::V1(_)) => fs::read(path.join("frontier.yaml"))
+            .map_err(|error| format!("Failed to preserve frontier.yaml: {error}"))?,
     };
     files.insert("frontier.yaml".to_string(), manifest);
 
-    let rendered_proof = render_proof(
-        path,
-        project,
-        &generated_at,
-        migration_profile.map(|(profile, _)| profile),
-    )?;
+    let rendered_proof = render_proof(path, project, &generated_at, None)?;
     files.extend(
         rendered_proof
             .files
             .into_iter()
             .map(|(relative_path, bytes)| (format!("proof/{relative_path}"), bytes)),
     );
-    let lock_bytes = match migration_profile {
-        Some((profile, _)) => {
-            render_lock_v1(path, project, profile, &rendered_proof.proof, &generated_at)?.1
+    let lock_bytes = match read_repository_profile(path)? {
+        Some(FrontierProfileFile::V1(profile)) => {
+            render_lock_v1(
+                path,
+                project,
+                &profile,
+                &rendered_proof.proof,
+                &generated_at,
+            )?
+            .1
         }
-        None => match read_repository_profile(path)? {
-            Some(FrontierProfileFile::V1(profile)) => {
-                render_lock_v1(
-                    path,
-                    project,
-                    &profile,
-                    &rendered_proof.proof,
-                    &generated_at,
-                )?
-                .1
-            }
-            _ => render_lock(path, project, &rendered_proof.proof, &generated_at)?.1,
-        },
+        _ => render_lock(path, project, &rendered_proof.proof, &generated_at)?.1,
     };
     files.insert("vela.lock".to_string(), lock_bytes);
     Ok(files)

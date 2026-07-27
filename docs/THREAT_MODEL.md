@@ -149,7 +149,7 @@ vela reproduce .
 
 Agreement among readers is corroboration, not authority.
 
-### Repository migration substitution
+### Repository predecessor substitution
 
 The current epoch binds the exact predecessor remote, tag, commit, tree,
 canonical roots, Git-object manifest, archive digest, imported Claim set,
@@ -159,8 +159,8 @@ The transition is signed by repository authority with a null scientific
 before/after effect. Missing objects, changed mappings, partial archives,
 ambiguous Claims, altered Standing, or a mismatched plan fail before commit.
 
-The migration tool remains only until all controlled Frontiers and the recovery
-drill pass.
+The one-time transition tool has been removed. Current verification retains the
+signed epoch boundary and rejects any reintroduced predecessor path.
 
 ## Partially mitigated risks
 

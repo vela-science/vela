@@ -10,7 +10,6 @@ cd "$ROOT"
 # accidentally.
 ./scripts/check-prelaunch-surface.sh
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest conformance.test_verify_manifest
-PYTHONDONTWRITEBYTECODE=1 python3 conformance/verify.py --authority-history-only
 PYTHONDONTWRITEBYTECODE=1 python3 conformance/verify_principal_capability.py
 cargo test --quiet -p vela-protocol-core --lib
 cargo test --quiet -p vela-verify --lib
@@ -23,14 +22,12 @@ cargo test --quiet -p vela-protocol --lib \
   --test evidence_ci \
   --test fixture_manifest_signature \
   --test frontier_policy \
-  --test frontier_repo \
   --test proposal_signature_parity \
   --test trust_invariants
 cargo test --quiet -p vela-edge --lib
 cargo test --quiet -p vela-cli --lib \
-  --test command_contract \
+  --test canonical_source_commitment \
   --test env_isolation \
   --test claim_write_boundary \
-  --test pre_adr_replay_golden \
-  --test submission_surface_parity
+  --test target_index_cli
 printf 'core surface: ok (external Lean not selected)\n'

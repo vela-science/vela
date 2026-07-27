@@ -68,35 +68,10 @@ missing parent, a fork, and anchor-count rollback. Only after that validation su
   Receipt identity binding and its full credential root. Rust and Python retain
   v0.2 registry semantics, require v0.3 to match the exact scoped credential,
   and prove that global registration cannot bypass a v0.3 allowlist.
-- `fixtures/legacy-policy-shadow-corpus-v1.json` freezes the three retained
-  AcceptancePolicy objects from exact Erdős and Sidon commits, expanded into
-  one case per live Permit rule for deterministic Cedar shadow comparison.
-  The ADR 0013 and ADR 0014 hostile substitutions remain in their original
-  fixtures and are consumed directly by the same Rust shadow tests.
 - `fixtures/exact-witness-floor-v1.json` freezes the retained Vela-native
   witness, full byte root, exact lower-bound claim, claim-substitution cases,
   and corrupted-witness case used by AcceptancePolicy v0.2. Rust and Python
   independently rederive the same verifier and claim-fidelity outcomes.
-- `fixtures/authority-history-migration-v1.json` freezes one complete
-  Era-0-to-Era-1 bridge, one post-migration event, two DSSE authority records,
-  the exact retained actor-registry bytes, and the expected mixed-history
-  roots. Rust generates the vector. The Python verifier independently
-  rederives event IDs, legacy and mixed log roots, keyset and policy roots,
-  Ed25519 event signatures, DSSE signatures and threshold, record chaining,
-  transaction coverage, object deltas, principal attribution, and clean pinned
-  Cedar authorization. It also rejects post-migration legacy writes, missing
-  coverage, transaction and policy substitution, signature tampering, and
-  Cedar diagnostics. Run only this contract with:
-
-  ```bash
-  python3 conformance/verify.py --authority-history-only
-  ```
-
-  `scripts/check-authority-history-clean-clone.sh` clones the exact current Git
-  commit without local hardlinks and runs the same verifier with network access
-  denied. It requires `sandbox-exec` on macOS, or Bubblewrap/a usable network
-  namespace on Linux. OpenSSL 3 supplies the independent RFC 8410 Ed25519
-  verification path; the script neither builds Rust nor reads a Vela key.
 - `fixtures/principal-capability-v1.json` freezes one stable human
   issuer-subject identity, one short-lived agent capability, one attenuated
   workload child, and the bearer-free verified claim retained by an authority

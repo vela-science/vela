@@ -31,12 +31,11 @@ pub(crate) mod current_verification;
 pub(crate) mod current_work;
 pub(crate) mod git_hardened;
 pub(crate) use config::{cli_admin, cli_agents, cli_identity};
-// The full durability seam intentionally lands before every legacy writer is
-// migrated, so some caller-facing pieces remain unused inside this slice.
+// Current repository verification and object projections.
+pub(crate) mod current_repository;
 #[allow(dead_code)]
 pub(crate) mod frontier_txn;
 mod operation_journal;
-pub(crate) mod repository_upgrade;
 mod server;
 mod target_index;
 pub(crate) mod ui;

@@ -213,10 +213,6 @@ pub const EVENT_KIND_ACTOR_REGISTRATION_ACTIVATED: &str = "actor.registration_ac
 /// history, its stable identity, and its exact dependency list.
 pub const EVENT_KIND_FRONTIER_REPOSITORY_BOUND: &str = "frontier.repository_bound";
 
-/// One-time continuity bridge from legacy per-event authority to attributed
-/// repository authority. The legacy human key signs this audit-only event;
-/// authority-record sequence 1 covers it under the new repository keyset.
-pub const EVENT_KIND_AUTHORITY_MODEL_MIGRATED: &str = "authority.model_migrated";
 pub const FRONTIER_CREATED_SCHEMA_V1: &str = "vela.frontier-created.v1";
 
 /// Deterministic machine-verified admission (Phase 1A). Emitted, UNSIGNED, when a
@@ -407,7 +403,6 @@ event_kinds! {
     ProposalWithdrawn => "proposal.withdrawn",
     ActorRegistrationActivated => "actor.registration_activated",
     FrontierRepositoryBound => "frontier.repository_bound",
-    AuthorityModelMigrated => "authority.model_migrated",
     PolicyAutoAdmitted => "policy.auto_admitted",
 }
 
@@ -1758,13 +1753,6 @@ pub fn validate_event_payload(kind: &str, payload: &Value) -> Result<(), String>
             let parsed: crate::frontier_repository::FrontierRepositoryBoundaryPayloadV1 =
                 serde_json::from_value(payload.clone())
                     .map_err(|error| format!("invalid repository-boundary payload: {error}"))?;
-            parsed.validate()?;
-        }
-        EVENT_KIND_AUTHORITY_MODEL_MIGRATED => {
-            let parsed: crate::authority_history::AuthorityModelMigrationV1 =
-                serde_json::from_value(payload.clone()).map_err(|error| {
-                    format!("invalid authority-model migration payload: {error}")
-                })?;
             parsed.validate()?;
         }
         EVENT_KIND_ARTIFACT_ASSERTED => {

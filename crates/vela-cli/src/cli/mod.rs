@@ -90,23 +90,8 @@ pub async fn run_command() {
     match cli.command {
         Commands::Repository { action } => match action {
             RepositoryAction::Verify { frontier, json } => {
-                crate::repository_upgrade::cmd_repository_verify(&frontier, json)
+                crate::current_repository::cmd_repository_verify(&frontier, json)
             }
-            RepositoryAction::Upgrade {
-                frontier,
-                to,
-                archive_dir,
-                reason,
-                confirm_root,
-                json,
-            } => crate::repository_upgrade::cmd_repository_upgrade(
-                &frontier,
-                &to,
-                &archive_dir,
-                &reason,
-                confirm_root.as_deref(),
-                json,
-            ),
         },
         Commands::Check {
             source,
@@ -204,11 +189,6 @@ pub async fn run_command() {
                 reason,
                 json,
             } => cmd_authority_init(&frontier, key.as_deref(), &reason, json),
-            AuthorityAction::Upgrade {
-                frontier,
-                reason,
-                json,
-            } => cmd_authority_upgrade(&frontier, &reason, json),
             AuthorityAction::Trust { action } => match action {
                 AuthorityTrustAction::Pin {
                     frontier,
@@ -251,7 +231,7 @@ pub async fn run_command() {
         } => {
             crate::ui::set_mode("next", json);
             let dir = crate::ui::resolve_frontier(frontier);
-            crate::repository_upgrade::cmd_current_next(&dir, limit, json);
+            crate::current_repository::cmd_current_next(&dir, limit, json);
         }
         Commands::Start {
             target,
