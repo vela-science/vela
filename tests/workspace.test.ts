@@ -49,7 +49,7 @@ test("workspace clones only the exact committed root and seals it read-only", as
     gitTree: fixture.tree,
   });
   assert.equal(await readFile(path.join(paths.input, "witness.txt"), "utf8"), "frozen\n");
-  assert.equal(await git(paths.landing, "branch", "--show-current"), "canopus-landing");
+  assert.equal(await git(paths.frontier, "branch", "--show-current"), "canopus-frontier");
   assert.equal(await git(paths.input, "branch", "--show-current"), "");
   await assert.rejects(readFile(path.join(paths.input, "uncommitted.txt")), /ENOENT/u);
   const stat = await lstat(path.join(paths.input, "witness.txt"));

@@ -419,7 +419,7 @@ export class CodexToolsNativeEngine implements Engine {
         sourceAuth: path.join(this.#options.authHome, "auth.json"),
         runtimeAuth: path.join(runtimeCodexHome, "auth.json"),
         inaccessibleInput: path.join(context.paths.input, mission.target_packet.path),
-        unrelatedFile: path.join(context.paths.landing, ".git", "HEAD"),
+        unrelatedFile: path.join(context.paths.frontier, ".git", "HEAD"),
         canary,
         outsideWrite: path.join(context.paths.work, "outside-write"),
         timeoutMs: context.budget.remainingTimeMs(),

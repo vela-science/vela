@@ -146,7 +146,7 @@ export async function runCanopus(
     });
     await activity.append("workspace.prepared", {
       input: "input",
-      landing: "landing",
+      frontier: "frontier",
       output: "output",
       artifacts: "artifacts",
     });
@@ -159,7 +159,7 @@ export async function runCanopus(
         strictBaseline(options.mission),
       ),
       options.vela.assertRoots(
-        paths.landing,
+        paths.frontier,
         options.mission.frontier,
         options.mission.roots,
         strictBaseline(options.mission),
@@ -170,7 +170,7 @@ export async function runCanopus(
     // Vela's task offer performs recovery-barrier bookkeeping even though it
     // does not change scientific state. Run it in the exact-root control clone;
     // the separate worker input clone stays sealed and read-only.
-    const offer = await options.vela.next(options.mission, paths.landing);
+    const offer = await options.vela.next(options.mission, paths.frontier);
     const selected = validateTargetOffer(options.mission.target, offer);
     await activity.append("target.offered", {
       target: selected.id,

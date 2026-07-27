@@ -105,7 +105,7 @@ async function workspace() {
   const paths = {
     root,
     input: path.join(root, "input"),
-    landing: path.join(root, "landing"),
+    frontier: path.join(root, "frontier"),
     work: path.join(root, "work"),
     output: path.join(root, "output"),
     artifacts: path.join(root, "artifacts"),
@@ -141,8 +141,8 @@ function events(): string {
 test("native tool worker pins Codex and permission-profile identities", async () => {
   const paths = await workspace();
   await writeFile(path.join(paths.input, "packet.json"), "{}\n");
-  await mkdir(path.join(paths.landing, ".git"));
-  await writeFile(path.join(paths.landing, ".git", "HEAD"), "ref: refs/heads/main\n");
+  await mkdir(path.join(paths.frontier, ".git"));
+  await writeFile(path.join(paths.frontier, ".git", "HEAD"), "ref: refs/heads/main\n");
   const authHome = path.join(paths.root, "source-auth");
   await mkdir(authHome);
   await writeFile(path.join(authHome, "auth.json"), JSON.stringify({
@@ -243,7 +243,7 @@ test("native tool worker pins Codex and permission-profile identities", async ()
   );
   assert.ok(preflight.includes(path.join(authHome, "auth.json")));
   assert.ok(preflight.includes(path.join(paths.input, "packet.json")));
-  assert.ok(preflight.includes(path.join(paths.landing, ".git", "HEAD")));
+  assert.ok(preflight.includes(path.join(paths.frontier, ".git", "HEAD")));
   assert.equal(preflight.includes(paths.input), false);
   const run = calls[2] ?? [];
   assert.ok(run.includes("--strict-config"));

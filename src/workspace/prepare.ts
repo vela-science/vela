@@ -21,7 +21,7 @@ export class WorkspaceError extends Error {
 export interface WorkspacePaths {
   root: string;
   input: string;
-  landing: string;
+  frontier: string;
   work: string;
   output: string;
   artifacts: string;
@@ -150,7 +150,7 @@ export async function prepareWorkspace(options: PrepareWorkspaceOptions): Promis
   }
   const root = await assertFreshOutsideRoot(options.sourceRepo, options.runRoot);
   const input = path.join(root, "input");
-  const landing = path.join(root, "landing");
+  const frontier = path.join(root, "frontier");
   const work = path.join(root, "work");
   const output = path.join(root, "output");
   const artifacts = path.join(root, "artifacts");
@@ -182,7 +182,7 @@ export async function prepareWorkspace(options: PrepareWorkspaceOptions): Promis
     );
     await gitText(
       runner,
-      ["git", "clone", "--no-hardlinks", "--no-checkout", "--", await realpath(options.sourceRepo), landing],
+      ["git", "clone", "--no-hardlinks", "--no-checkout", "--", await realpath(options.sourceRepo), frontier],
       root,
       home,
       timeoutMs,
@@ -197,44 +197,44 @@ export async function prepareWorkspace(options: PrepareWorkspaceOptions): Promis
       maxOutputBytes,
     );
     // Vela publishes exact scientific deltas to the current ref. Keep the
-    // immutable input detached, but give the isolated landing clone its own
-    // disposable local branch so publication never depends on caller state.
+    // immutable input detached, but give the isolated control clone its own
+    // disposable local branch so inspection never depends on caller state.
     await gitText(
       runner,
-      ["git", "checkout", "-B", "canopus-landing", options.gitCommit],
-      landing,
+      ["git", "checkout", "-B", "canopus-frontier", options.gitCommit],
+      frontier,
       home,
       timeoutMs,
       maxOutputBytes,
     );
-    const [commit, tree, status, landingCommit, landingTree, landingStatus] = await Promise.all([
+    const [commit, tree, status, frontierCommit, frontierTree, frontierStatus] = await Promise.all([
       gitText(runner, ["git", "rev-parse", "--verify", "HEAD^{commit}"], input, home, timeoutMs, maxOutputBytes),
       gitText(runner, ["git", "rev-parse", "--verify", "HEAD^{tree}"], input, home, timeoutMs, maxOutputBytes),
       gitText(runner, ["git", "status", "--porcelain=v1", "--untracked-files=all"], input, home, timeoutMs, maxOutputBytes),
-      gitText(runner, ["git", "rev-parse", "--verify", "HEAD^{commit}"], landing, home, timeoutMs, maxOutputBytes),
-      gitText(runner, ["git", "rev-parse", "--verify", "HEAD^{tree}"], landing, home, timeoutMs, maxOutputBytes),
-      gitText(runner, ["git", "status", "--porcelain=v1", "--untracked-files=all"], landing, home, timeoutMs, maxOutputBytes),
+      gitText(runner, ["git", "rev-parse", "--verify", "HEAD^{commit}"], frontier, home, timeoutMs, maxOutputBytes),
+      gitText(runner, ["git", "rev-parse", "--verify", "HEAD^{tree}"], frontier, home, timeoutMs, maxOutputBytes),
+      gitText(runner, ["git", "status", "--porcelain=v1", "--untracked-files=all"], frontier, home, timeoutMs, maxOutputBytes),
     ]);
     if (
       commit !== options.gitCommit ||
       tree !== options.gitTree ||
-      landingCommit !== options.gitCommit ||
-      landingTree !== options.gitTree
+      frontierCommit !== options.gitCommit ||
+      frontierTree !== options.gitTree
     ) {
       throw new WorkspaceError(
-        `checkout root mismatch: expected ${options.gitCommit}/${options.gitTree}, observed ${commit}/${tree} and ${landingCommit}/${landingTree}`,
+        `checkout root mismatch: expected ${options.gitCommit}/${options.gitTree}, observed ${commit}/${tree} and ${frontierCommit}/${frontierTree}`,
       );
     }
-    if (status !== "" || landingStatus !== "") {
+    if (status !== "" || frontierStatus !== "") {
       throw new WorkspaceError("exact checkout is unexpectedly dirty");
     }
     await sealTree(input, options.maxEntries ?? 200_000);
-    return { root, input, landing, work, output, artifacts, home, velaHome, verifierHome };
+    return { root, input, frontier, work, output, artifacts, home, velaHome, verifierHome };
   } catch (error) {
     await cleanupWorkspace({
       root,
       input,
-      landing,
+      frontier,
       work,
       output,
       artifacts,

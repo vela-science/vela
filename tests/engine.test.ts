@@ -78,7 +78,7 @@ async function paths() {
   const value = {
     root,
     input: path.join(root, "input"),
-    landing: path.join(root, "landing"),
+    frontier: path.join(root, "frontier"),
     work: path.join(root, "work"),
     output: path.join(root, "output"),
     artifacts: path.join(root, "artifacts"),

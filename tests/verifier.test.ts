@@ -49,7 +49,7 @@ async function fixture(): Promise<{
   paths: {
     root: string;
     input: string;
-    landing: string;
+    frontier: string;
     work: string;
     output: string;
     artifacts: string;
@@ -62,7 +62,7 @@ async function fixture(): Promise<{
   const paths = {
     root,
     input: path.join(root, "input"),
-    landing: path.join(root, "landing"),
+    frontier: path.join(root, "frontier"),
     work: path.join(root, "work"),
     output: path.join(root, "output"),
     artifacts: path.join(root, "artifacts"),
@@ -165,7 +165,7 @@ test("verifier runs frozen bytes in the macOS network/write sandbox", async () =
   assert.match(profile, /\(import "dyld-support\.sb"\)/u);
   assert.doesNotMatch(profile, /\(allow file-read\*\)\s/u);
   assert.match(profile, /allow file-write\* \(literal "\/dev\/null"\)/u);
-  assert.doesNotMatch(profile, new RegExp(data.paths.landing, "u"));
+  assert.doesNotMatch(profile, new RegExp(data.paths.frontier, "u"));
   assert.doesNotMatch(profile, new RegExp(data.paths.output, "u"));
   assert.doesNotMatch(profile, new RegExp(data.paths.velaHome, "u"));
   assert.match(profile, new RegExp(await realpath(data.paths.verifierHome), "u"));
@@ -194,7 +194,7 @@ test("real verifier sandbox denies host-secret reads and all persistent writes",
   );
   await mkdir(keyDirectory, { recursive: true });
   const secret = path.join(keyDirectory, "private.key");
-  const writeTarget = path.join(data.paths.landing, "verifier-write.txt");
+  const writeTarget = path.join(data.paths.frontier, "verifier-write.txt");
   await writeFile(secret, "must-not-be-readable\n");
   assert.equal(await readFile(secret, "utf8"), "must-not-be-readable\n");
 
