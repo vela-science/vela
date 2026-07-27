@@ -463,7 +463,13 @@ authority history, and the bound initial keyset and Cedar bundle. The selected
 OpenSSH-agent key signs the covering sequence-1 authority record. This proves
 repository-key possession but grants no scientific standing; consumers still
 pin the resulting full authority root through an independent distribution
-path. The fresh path cannot run over historical or established state.
+path. The pin is the minimal public local
+`vela.authority-trust-anchor.v1 {frontier_id,
+first_authority_record_root}` record, installed directly with
+`vela authority trust pin`. It is separate from the ADR 0016
+repository-boundary anchor, duplicates no keyset or policy fields, performs no
+semantic ceremony, and grants no authority. The fresh path cannot run over
+historical or established state.
 
 ## Migration and release plan
 
@@ -1067,6 +1073,9 @@ ADR 0020 may become Accepted only when:
 - one disposable and one active Frontier use the new writer;
 - a clean fresh Frontier reaches routine `start -> submit -> verification`
   through `authority init` without a migration or personal-key ceremony;
+- an independent reader validates the closed authority trust-anchor schema,
+  rejects a substituted sequence-1 root, and selects the exact first record
+  without trusting repository-controlled bytes;
 - clean-clone replay validates both eras without network access;
 - every post-migration event has unique valid authority-record coverage;
 - routine agent work produces zero prompts;

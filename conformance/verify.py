@@ -40,7 +40,7 @@ from pathlib import Path
 
 
 AUTHORITY_HISTORY_FIXTURE_ROOT = (
-    "sha256:5a609f00f97f9bda79ffceb77f34edfdc4b1ad3c1252f28b844b45b0d1f23806"
+    "sha256:22e820795676c45d4d005ee07cfcd1513a0202a82a45763eed85aa613aa8cb2f"
 )
 AUTHORITY_RECORD_PAYLOAD_TYPE = "application/vnd.vela.authority-record.v1+json"
 EVENT_PAYLOAD_TYPE = "application/vnd.vela.event+json"
@@ -844,6 +844,8 @@ def _verify_authority_history_fixture(fixture: dict) -> dict:
         "policy_bundle",
         "authority_events",
         "authority_envelopes",
+        "authority_trust_anchor",
+        "authority_trust_anchor_root",
         "expected",
         "fixture_root",
     }
@@ -981,6 +983,7 @@ def _verify_authority_history_fixture(fixture: dict) -> dict:
     cumulative_events: list[dict] = []
     covered: set[str] = set()
     final_record_root = None
+    first_record_root = None
     for sequence, envelope in enumerate(fixture["authority_envelopes"], start=1):
         record, record_root = _decode_and_verify_authority_envelope(
             envelope, keyset, frontier_id, sequence, previous_record_root
@@ -998,6 +1001,7 @@ def _verify_authority_history_fixture(fixture: dict) -> dict:
             raise ValueError("authority record repeats an event ID")
 
         if sequence == 1:
+            first_record_root = record_root
             migration_intent = _sha256_canonical(migration_event)
             if (
                 content["transaction_id"] == ""
@@ -1086,6 +1090,22 @@ def _verify_authority_history_fixture(fixture: dict) -> dict:
 
     if covered != set(event_by_id):
         raise ValueError("Era-1 event history lacks unique authority-record coverage")
+    authority_trust_anchor = fixture["authority_trust_anchor"]
+    _require_exact_keys(
+        authority_trust_anchor,
+        {"schema", "frontier_id", "first_authority_record_root"},
+        "authority trust anchor",
+    )
+    if (
+        authority_trust_anchor["schema"] != "vela.authority-trust-anchor.v1"
+        or authority_trust_anchor["frontier_id"] != frontier_id
+        or authority_trust_anchor["first_authority_record_root"] != first_record_root
+        or _sha256_canonical(authority_trust_anchor)
+        != fixture["authority_trust_anchor_root"]
+    ):
+        raise ValueError(
+            "independently distributed authority trust anchor does not select sequence 1"
+        )
     result = {
         "era": "repository_authority",
         "frontier_id": frontier_id,
@@ -1094,6 +1114,7 @@ def _verify_authority_history_fixture(fixture: dict) -> dict:
         "authority_record_count": len(fixture["authority_envelopes"]),
         "migration_event_id": migration_event["id"],
         "final_event_log_root": current_event_root,
+        "first_authority_record_root": first_record_root,
         "final_authority_record_root": final_record_root,
         "final_authority_keyset_root": keyset_root,
         "final_policy_bundle_root": bundle_root,
@@ -1195,6 +1216,16 @@ def _run_authority_history_migration(repo_root: Path) -> int:
         bundle_substitution["policy_bundle"]["policies_root"] = "sha256:" + "1" * 64
         _reroot_authority_fixture(bundle_substitution)
         hostile.append(("policy bundle substitution", bundle_substitution))
+
+        authority_pin_substitution = copy.deepcopy(fixture)
+        authority_pin_substitution["authority_trust_anchor"][
+            "first_authority_record_root"
+        ] = "sha256:" + "2" * 64
+        authority_pin_substitution["authority_trust_anchor_root"] = _sha256_canonical(
+            authority_pin_substitution["authority_trust_anchor"]
+        )
+        _reroot_authority_fixture(authority_pin_substitution)
+        hostile.append(("authority trust-anchor substitution", authority_pin_substitution))
 
         diagnostics = copy.deepcopy(fixture)
         payload = base64.b64decode(diagnostics["authority_envelopes"][1]["payload"])

@@ -18,6 +18,10 @@ use vela_authority::runtime_authentication::{
     AuthenticationRequest, LocalOsSession, RuntimeSessionState,
 };
 use vela_authority::{CedarEvaluationInput, CedarPolicyMaterial};
+use vela_edge::repository_write::{
+    AUTHORITY_TRUST_ANCHOR_SCHEMA_V1, AuthorityTrustAnchorV1,
+    install_authority_trust_anchor_from_home,
+};
 use vela_protocol::authority::{
     AUTHORITY_KEY_ALGORITHM, AUTHORITY_KEY_PURPOSE, AUTHORITY_KEYSET_SCHEMA_V1,
     AuthorityEnvelopeV1, AuthorityEventV1, AuthorityKeyV1, AuthorityKeysetV1, AuthorityRecordV1,
@@ -696,8 +700,87 @@ pub(crate) fn cmd_authority_init(
         println!("  key: {}", result["repository_key_fingerprint"]);
         println!("  authority record: {}", result["authority_record_id"]);
         println!("  authority root: {}", result["authority_record_root"]);
-        println!("  next: commit the exact canonical delta, then run `vela start`");
+        println!(
+            "  next: distribute the full authority root independently, then run `vela authority trust pin`"
+        );
     }
+}
+
+pub(crate) fn cmd_authority_trust_pin(frontier: &Path, record_root: &str, json_out: bool) {
+    crate::ui::set_mode("authority trust pin", json_out);
+    let result =
+        pin_repository_authority(frontier, record_root).unwrap_or_else(|error| fail_return(&error));
+    if json_out {
+        print_json(&result);
+    } else {
+        println!("repository authority pinned");
+        println!("  frontier: {}", result["frontier_id"]);
+        println!(
+            "  sequence-1 record: {}",
+            result["first_authority_record_root"]
+        );
+        println!("  local anchor: {}", result["authority_trust_anchor_root"]);
+        println!("  authority granted: none");
+    }
+}
+
+fn pin_repository_authority(frontier: &Path, record_root: &str) -> Result<Value, String> {
+    let project = vela_protocol::repo::load_from_path(frontier)?;
+    let authority = load_repository_authority(frontier, &project)?
+        .ok_or_else(|| "Frontier has no repository-authority history to pin".to_string())?;
+    let first_envelope = authority
+        .history
+        .authority_envelopes
+        .first()
+        .ok_or_else(|| "repository authority has no sequence-1 record".to_string())?;
+    let first_record = authority_record_from_envelope(first_envelope)?;
+    if first_record.content.sequence != 1
+        || first_record
+            .content
+            .previous_authority_record_root
+            .is_some()
+    {
+        return Err("first repository-authority record is not sequence 1".to_string());
+    }
+    let observed_root = first_record.root()?;
+    if observed_root != record_root {
+        return Err(format!(
+            "independently supplied authority root {record_root} does not match sequence-1 record {observed_root}"
+        ));
+    }
+    let anchor = AuthorityTrustAnchorV1 {
+        schema: AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.to_string(),
+        frontier_id: project.frontier_id(),
+        first_authority_record_root: observed_root.clone(),
+    };
+    let user_home =
+        crate::frontier_txn::operating_system_account_home().map_err(|error| error.to_string())?;
+    let installed = install_authority_trust_anchor_from_home(&user_home, &anchor)?;
+    let boundary_event_id = authority
+        .verification
+        .initialization_event_id
+        .clone()
+        .or_else(|| authority.verification.migration_event_id.clone())
+        .ok_or_else(|| {
+            "repository authority has no initialization or migration boundary".to_string()
+        })?;
+    Ok(json!({
+        "schema": "vela.authority-trust-pin-result.v1",
+        "ok": true,
+        "command": "authority.trust.pin",
+        "frontier": frontier.display().to_string(),
+        "frontier_id": project.frontier_id(),
+        "first_authority_record_id": first_record.record_id,
+        "first_authority_record_root": observed_root,
+        "initial_authority_keyset_root": first_record.content.authority_keyset_root,
+        "initial_policy_bundle_root": first_record.content.authorization.policy_bundle_root,
+        "boundary_event_id": boundary_event_id,
+        "authority_trust_anchor_root": installed.root,
+        "authority_trust_anchor_path": installed.path.display().to_string(),
+        "writes": [installed.path.display().to_string()],
+        "frontier_writes": [],
+        "authority_granted": false
+    }))
 }
 
 fn initialize_repository_authority(
@@ -868,9 +951,19 @@ fn initialize_repository_authority(
         "authority_keyset_root": keyset_root,
         "policy_bundle_root": policy_root,
         "authority_record_id": result.authority_record_id,
-        "authority_record_root": result.authority_record_root,
+        "authority_record_root": result.authority_record_root.clone(),
         "event_ids": result.event_ids,
         "after_event_log_root": result.after_event_log_root,
+        "consumer_pin": {
+            "schema": AUTHORITY_TRUST_ANCHOR_SCHEMA_V1,
+            "frontier_id": project.frontier_id(),
+            "first_authority_record_root": result.authority_record_root,
+            "command": format!(
+                "vela authority trust pin {} --record-root {} --json",
+                frontier.display(),
+                result.authority_record_root
+            )
+        },
         "writes_now": true
     }))
 }
@@ -1119,12 +1212,22 @@ pub(crate) fn load_repository_authority(
 }
 
 fn authority_envelope_sequence(envelope: &AuthorityEnvelopeV1) -> Result<u64, String> {
+    Ok(authority_record_from_envelope(envelope)?.content.sequence)
+}
+
+fn authority_record_from_envelope(
+    envelope: &AuthorityEnvelopeV1,
+) -> Result<AuthorityRecordV1, String> {
     let payload = BASE64_STANDARD
         .decode(&envelope.payload)
         .map_err(|error| format!("authority envelope payload is not base64: {error}"))?;
     let record: AuthorityRecordV1 = serde_json::from_slice(&payload)
         .map_err(|error| format!("authority envelope record JSON is invalid: {error}"))?;
-    Ok(record.content.sequence)
+    if to_canonical_bytes(&record)? != payload {
+        return Err("authority record payload is not canonical JSON".to_string());
+    }
+    record.validate()?;
+    Ok(record)
 }
 
 fn load_or_reconstruct_policy_material(

@@ -265,6 +265,24 @@ otherwise valid forks. The pin is public local consumer configuration, never a
 repository object, secret, scientific-state input, or source of acceptance
 authority.
 
+Repository-authority history has a separate first-root trust choice. Consumers
+obtain the full sequence-1 `vela.authority-record.v1` root independently of the
+checkout and install this minimal closed local record:
+
+```json
+{
+  "schema": "vela.authority-trust-anchor.v1",
+  "frontier_id": "vfr_...",
+  "first_authority_record_root": "sha256:..."
+}
+```
+
+That full record root already commits to the Frontier, initial keyset, policy
+authorization, principal attribution, event and object delta, and execution
+claim. The local anchor therefore duplicates none of those fields. It grants
+no authority, changes no scientific state, and is never derived or
+automatically trusted from repository-controlled bytes.
+
 `vela.retained-object-manifest.v1` is a canonical sorted JSON list of
 `{path, git_mode, size, sha256}` entries. Only tracked regular-file modes
 `100644` and `100755` are valid; `sha256` is a bare 64-character lowercase
@@ -402,7 +420,8 @@ registry root, the initial keyset and policy roots, the authenticated OS
 principal, writer version, and reason. The same initial repository key signs
 the covering sequence-1 DSSE record, proving possession. The record also
 covers the exact retained Cedar material. Consumers still obtain the first
-full authority root through an independent distribution trust path.
+full authority root through an independent distribution trust path and
+install it with `vela authority trust pin`.
 
 The fresh path cannot exempt, relabel, or authorize historical events and
 cannot run on an established or migrated Frontier. Missing, duplicate,

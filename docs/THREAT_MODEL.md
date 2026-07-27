@@ -184,10 +184,12 @@ The current product cannot extend an Era-0 actor registry, mint another legacy
 boundary, or relabel a v0.1 checkout.
 
 Consumer `frontier trust pin` writes only a local out-of-band root. Current
-Era-1 authority transactions rederive repository roots, Git context, principal,
-Cedar policy, and transaction read set before asking the standard repository
-key provider to sign. Drift or provider failure writes no commit marker or
-canonical delta.
+Era-1 consumers separately install the independently distributed sequence-1
+authority-record root with `authority trust pin`. Current Era-1 authority
+transactions require that exact non-replacing local pin, then rederive
+repository roots, Git context, principal, Cedar policy, and transaction read
+set before asking the standard repository key provider to sign. Drift, pin
+substitution, or provider failure writes no commit marker or canonical delta.
 
 ## Partially mitigated risks
 

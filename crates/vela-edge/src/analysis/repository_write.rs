@@ -19,6 +19,7 @@ use std::path::{Path, PathBuf};
 #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
 use rustix::fd::OwnedFd;
 
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use vela_protocol::authority::AuthorityEventV1;
 use vela_protocol::events::EVENT_KIND_FRONTIER_REPOSITORY_BOUND;
@@ -41,6 +42,7 @@ use super::frontier_repository::{
 };
 
 pub const REPOSITORY_TRUST_ANCHOR_SCHEMA_V1: &str = "vela.repository-trust-anchor.v1";
+pub const AUTHORITY_TRUST_ANCHOR_SCHEMA_V1: &str = "vela.authority-trust-anchor.v1";
 
 /// An out-of-band pin for the first administrator boundary in a Frontier.
 ///
@@ -102,6 +104,64 @@ pub struct LoadedRepositoryTrustAnchorV1 {
     pub path: PathBuf,
     pub root: String,
     pub anchor: RepositoryTrustAnchorV1,
+}
+
+/// An out-of-band pin for the first repository-authority record.
+///
+/// This is deliberately smaller than [`RepositoryTrustAnchorV1`]. The full
+/// sequence-1 authority-record root already binds the Frontier, initial
+/// keyset, policy authorization, principal, events, and execution claim. The
+/// local pin selects the intended chain; it grants no authority and is never
+/// read from repository-controlled bytes.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct AuthorityTrustAnchorV1 {
+    pub schema: String,
+    pub frontier_id: String,
+    pub first_authority_record_root: String,
+}
+
+impl AuthorityTrustAnchorV1 {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.schema != AUTHORITY_TRUST_ANCHOR_SCHEMA_V1 {
+            return Err(format!(
+                "authority trust anchor schema must be {AUTHORITY_TRUST_ANCHOR_SCHEMA_V1}"
+            ));
+        }
+        validate_frontier_id(&self.frontier_id)?;
+        validate_sha256_root(
+            "authority trust anchor first_authority_record_root",
+            &self.first_authority_record_root,
+        )
+    }
+
+    pub fn root(&self) -> Result<String, String> {
+        self.validate()?;
+        canonical::sha256_canonical(self).map(|digest| format!("sha256:{digest}"))
+    }
+
+    pub fn verify_sequence_one(
+        &self,
+        frontier_id: &str,
+        first_authority_record_root: &str,
+    ) -> Result<(), String> {
+        self.validate()?;
+        if self.frontier_id != frontier_id
+            || self.first_authority_record_root != first_authority_record_root
+        {
+            return Err(
+                "authority trust anchor does not select the verified sequence-1 record".to_string(),
+            );
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LoadedAuthorityTrustAnchorV1 {
+    pub path: PathBuf,
+    pub root: String,
+    pub anchor: AuthorityTrustAnchorV1,
 }
 
 /// The exact leaf state a repository-file replacement is allowed to consume.
@@ -979,75 +1039,15 @@ pub fn load_repository_trust_anchor_from_home(
     frontier_id: &str,
 ) -> Result<Option<LoadedRepositoryTrustAnchorV1>, String> {
     let path = repository_trust_anchor_path(user_home, frontier_id)?;
-    let vela = user_home.join(".vela");
-    let trust = vela.join("trust");
-    let frontiers = trust.join("frontiers");
-    match safe_metadata(&vela)? {
-        None => return Ok(None),
-        Some(metadata) if metadata.file_type().is_dir() => {
-            require_trusted_parent_directory(&vela, &metadata)?;
-        }
-        Some(_) => {
-            return Err(format!(
-                "trust path '{}' must be a real directory, not a symlink or other file",
-                vela.display()
-            ));
-        }
-    }
-    for directory in [&trust, &frontiers] {
-        match safe_metadata(directory)? {
-            None => return Ok(None),
-            Some(metadata) if metadata.file_type().is_dir() => {
-                require_private_directory(directory, &metadata)?;
-            }
-            Some(_) => {
-                return Err(format!(
-                    "trust path '{}' must be a real directory, not a symlink or other file",
-                    directory.display()
-                ));
-            }
-        }
-    }
-    let Some(metadata) = safe_metadata(&path)? else {
+    let Some(anchor) = load_private_trust_document::<RepositoryTrustAnchorV1>(
+        user_home,
+        "frontiers",
+        &path,
+        "trust anchor",
+    )?
+    else {
         return Ok(None);
     };
-    if !metadata.file_type().is_file() {
-        return Err(format!(
-            "trust anchor '{}' must be a regular file and may not be a symlink",
-            path.display()
-        ));
-    }
-    require_private_file(&path, &metadata)?;
-    let inspected = same_file::Handle::from_path(&path)
-        .map_err(|error| format!("identify trust anchor '{}': {error}", path.display()))?;
-    let mut file = fs::File::open(&path)
-        .map_err(|error| format!("open trust anchor '{}': {error}", path.display()))?;
-    let opened = same_file::Handle::from_file(
-        file.try_clone()
-            .map_err(|error| format!("clone trust-anchor descriptor: {error}"))?,
-    )
-    .map_err(|error| format!("identify open trust anchor: {error}"))?;
-    if inspected != opened {
-        return Err("trust anchor changed while it was opened".to_string());
-    }
-    let mut bytes = Vec::new();
-    Read::by_ref(&mut file)
-        .take(64 * 1024 + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|error| format!("read trust anchor '{}': {error}", path.display()))?;
-    if bytes.len() > 64 * 1024 {
-        return Err("trust anchor exceeds the 64 KiB limit".to_string());
-    }
-    let final_metadata = safe_metadata(&path)?
-        .ok_or_else(|| "trust anchor disappeared while it was read".to_string())?;
-    let final_identity = same_file::Handle::from_path(&path)
-        .map_err(|error| format!("reidentify trust anchor: {error}"))?;
-    require_private_file(&path, &final_metadata)?;
-    if opened != final_identity {
-        return Err("trust anchor changed while it was read".to_string());
-    }
-    let anchor: RepositoryTrustAnchorV1 = serde_json::from_slice(&bytes)
-        .map_err(|error| format!("parse trust anchor '{}': {error}", path.display()))?;
     anchor.validate()?;
     if anchor.frontier_id != frontier_id {
         return Err(format!(
@@ -1072,55 +1072,209 @@ pub fn install_repository_trust_anchor_from_home(
 ) -> Result<LoadedRepositoryTrustAnchorV1, String> {
     anchor.validate()?;
     let path = repository_trust_anchor_path(user_home, &anchor.frontier_id)?;
+    install_private_trust_document(
+        user_home,
+        "frontiers",
+        &path,
+        anchor,
+        "trust anchor",
+        ".repository-trust-anchor-",
+    )?;
+    load_repository_trust_anchor_from_home(user_home, &anchor.frontier_id)?
+        .ok_or_else(|| "installed trust anchor could not be read back".to_string())
+}
+
+/// Deterministic path for the independently distributed sequence-1 authority
+/// root. Repository bytes and environment variables cannot redirect it.
+pub fn authority_trust_anchor_path(user_home: &Path, frontier_id: &str) -> Result<PathBuf, String> {
+    validate_frontier_id(frontier_id)?;
+    Ok(user_home
+        .join(".vela")
+        .join("trust")
+        .join("authorities")
+        .join(format!("{frontier_id}.json")))
+}
+
+pub fn load_authority_trust_anchor_from_home(
+    user_home: &Path,
+    frontier_id: &str,
+) -> Result<Option<LoadedAuthorityTrustAnchorV1>, String> {
+    let path = authority_trust_anchor_path(user_home, frontier_id)?;
+    let Some(anchor) = load_private_trust_document::<AuthorityTrustAnchorV1>(
+        user_home,
+        "authorities",
+        &path,
+        "authority trust anchor",
+    )?
+    else {
+        return Ok(None);
+    };
+    anchor.validate()?;
+    if anchor.frontier_id != frontier_id {
+        return Err(format!(
+            "authority trust anchor frontier {} does not match requested {frontier_id}",
+            anchor.frontier_id
+        ));
+    }
+    Ok(Some(LoadedAuthorityTrustAnchorV1 {
+        root: anchor.root()?,
+        path,
+        anchor,
+    }))
+}
+
+pub fn install_authority_trust_anchor_from_home(
+    user_home: &Path,
+    anchor: &AuthorityTrustAnchorV1,
+) -> Result<LoadedAuthorityTrustAnchorV1, String> {
+    anchor.validate()?;
+    let path = authority_trust_anchor_path(user_home, &anchor.frontier_id)?;
+    install_private_trust_document(
+        user_home,
+        "authorities",
+        &path,
+        anchor,
+        "authority trust anchor",
+        ".authority-trust-anchor-",
+    )?;
+    load_authority_trust_anchor_from_home(user_home, &anchor.frontier_id)?
+        .ok_or_else(|| "installed authority trust anchor could not be read back".to_string())
+}
+
+fn load_private_trust_document<T: DeserializeOwned>(
+    user_home: &Path,
+    namespace: &str,
+    path: &Path,
+    label: &str,
+) -> Result<Option<T>, String> {
     let vela = user_home.join(".vela");
     let trust = vela.join("trust");
-    let frontiers = trust.join("frontiers");
+    let namespace_dir = trust.join(namespace);
+    match safe_metadata(&vela)? {
+        None => return Ok(None),
+        Some(metadata) if metadata.file_type().is_dir() => {
+            require_trusted_parent_directory(&vela, &metadata)?;
+        }
+        Some(_) => {
+            return Err(format!(
+                "trust path '{}' must be a real directory, not a symlink or other file",
+                vela.display()
+            ));
+        }
+    }
+    for directory in [&trust, &namespace_dir] {
+        match safe_metadata(directory)? {
+            None => return Ok(None),
+            Some(metadata) if metadata.file_type().is_dir() => {
+                require_private_directory(directory, &metadata)?;
+            }
+            Some(_) => {
+                return Err(format!(
+                    "trust path '{}' must be a real directory, not a symlink or other file",
+                    directory.display()
+                ));
+            }
+        }
+    }
+    let Some(metadata) = safe_metadata(path)? else {
+        return Ok(None);
+    };
+    if !metadata.file_type().is_file() {
+        return Err(format!(
+            "{label} '{}' must be a regular file and may not be a symlink",
+            path.display()
+        ));
+    }
+    require_private_file(path, &metadata)?;
+    let inspected = same_file::Handle::from_path(path)
+        .map_err(|error| format!("identify {label} '{}': {error}", path.display()))?;
+    let mut file = fs::File::open(path)
+        .map_err(|error| format!("open {label} '{}': {error}", path.display()))?;
+    let opened = same_file::Handle::from_file(
+        file.try_clone()
+            .map_err(|error| format!("clone {label} descriptor: {error}"))?,
+    )
+    .map_err(|error| format!("identify open {label}: {error}"))?;
+    if inspected != opened {
+        return Err(format!("{label} changed while it was opened"));
+    }
+    let mut bytes = Vec::new();
+    Read::by_ref(&mut file)
+        .take(64 * 1024 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("read {label} '{}': {error}", path.display()))?;
+    if bytes.len() > 64 * 1024 {
+        return Err(format!("{label} exceeds the 64 KiB limit"));
+    }
+    let final_metadata =
+        safe_metadata(path)?.ok_or_else(|| format!("{label} disappeared while it was read"))?;
+    let final_identity = same_file::Handle::from_path(path)
+        .map_err(|error| format!("reidentify {label}: {error}"))?;
+    require_private_file(path, &final_metadata)?;
+    if opened != final_identity {
+        return Err(format!("{label} changed while it was read"));
+    }
+    serde_json::from_slice(&bytes)
+        .map(Some)
+        .map_err(|error| format!("parse {label} '{}': {error}", path.display()))
+}
+
+fn install_private_trust_document<T: Serialize + DeserializeOwned + PartialEq>(
+    user_home: &Path,
+    namespace: &str,
+    path: &Path,
+    document: &T,
+    label: &str,
+    temporary_prefix: &str,
+) -> Result<(), String> {
+    let vela = user_home.join(".vela");
+    let trust = vela.join("trust");
+    let namespace_dir = trust.join(namespace);
     ensure_trusted_parent_directory(&vela)?;
     ensure_private_directory(&trust)?;
-    ensure_private_directory(&frontiers)?;
+    ensure_private_directory(&namespace_dir)?;
 
     if path.exists() {
-        let existing = load_repository_trust_anchor_from_home(user_home, &anchor.frontier_id)?
-            .ok_or_else(|| "trust anchor disappeared during install".to_string())?;
-        if existing.anchor == *anchor {
-            return Ok(existing);
+        let existing = load_private_trust_document::<T>(user_home, namespace, path, label)?
+            .ok_or_else(|| format!("{label} disappeared during install"))?;
+        if existing == *document {
+            return Ok(());
         }
         return Err(format!(
-            "refusing to replace existing trust anchor '{}'",
+            "refusing to replace existing {label} '{}'",
             path.display()
         ));
     }
 
-    let mut bytes = serde_json::to_vec_pretty(anchor)
-        .map_err(|error| format!("serialize trust anchor: {error}"))?;
+    let mut bytes = serde_json::to_vec_pretty(document)
+        .map_err(|error| format!("serialize {label}: {error}"))?;
     bytes.push(b'\n');
     let mut temporary = tempfile::Builder::new()
-        .prefix(".repository-trust-anchor-")
-        .tempfile_in(&frontiers)
-        .map_err(|error| format!("create trust-anchor temporary file: {error}"))?;
+        .prefix(temporary_prefix)
+        .tempfile_in(&namespace_dir)
+        .map_err(|error| format!("create {label} temporary file: {error}"))?;
     set_private_file_permissions(temporary.path())?;
     temporary
         .write_all(&bytes)
-        .map_err(|error| format!("write trust-anchor temporary file: {error}"))?;
+        .map_err(|error| format!("write {label} temporary file: {error}"))?;
     temporary
         .as_file()
         .sync_all()
-        .map_err(|error| format!("sync trust-anchor temporary file: {error}"))?;
-    temporary.persist_noclobber(&path).map_err(|error| {
+        .map_err(|error| format!("sync {label} temporary file: {error}"))?;
+    temporary.persist_noclobber(path).map_err(|error| {
         format!(
-            "atomically install trust anchor '{}': {}",
+            "atomically install {label} '{}': {}",
             path.display(),
             error.error
         )
     })?;
-    set_private_file_permissions(&path)?;
-    if let Ok(directory) = fs::File::open(&frontiers) {
+    set_private_file_permissions(path)?;
+    if let Ok(directory) = fs::File::open(&namespace_dir) {
         directory
             .sync_all()
-            .map_err(|error| format!("sync trust-anchor directory: {error}"))?;
+            .map_err(|error| format!("sync {label} directory: {error}"))?;
     }
-    load_repository_trust_anchor_from_home(user_home, &anchor.frontier_id)?
-        .ok_or_else(|| "installed trust anchor could not be read back".to_string())
+    Ok(())
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -1136,6 +1290,8 @@ pub enum RepositoryWriteGateCode {
     ProposalParityFailed,
     RepositoryTrustAnchorRequired,
     RepositoryTrustAnchorInvalid,
+    AuthorityTrustAnchorRequired,
+    AuthorityTrustAnchorInvalid,
     RepositoryBoundaryInvalid,
 }
 
@@ -1152,6 +1308,8 @@ impl RepositoryWriteGateCode {
             Self::ProposalParityFailed => "proposal_parity_failed",
             Self::RepositoryTrustAnchorRequired => "repository_trust_anchor_required",
             Self::RepositoryTrustAnchorInvalid => "repository_trust_anchor_invalid",
+            Self::AuthorityTrustAnchorRequired => "authority_trust_anchor_required",
+            Self::AuthorityTrustAnchorInvalid => "authority_trust_anchor_invalid",
             Self::RepositoryBoundaryInvalid => "repository_boundary_invalid",
         }
     }
@@ -1944,6 +2102,14 @@ mod tests {
         }
     }
 
+    fn authority_trust_anchor() -> AuthorityTrustAnchorV1 {
+        AuthorityTrustAnchorV1 {
+            schema: AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.to_string(),
+            frontier_id: "vfr_0123456789abcdef".to_string(),
+            first_authority_record_root: format!("sha256:{}", "4".repeat(64)),
+        }
+    }
+
     #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
     fn no_repository_replacement_temporaries(directory: &Path) -> bool {
         std::fs::read_dir(directory)
@@ -2137,6 +2303,41 @@ mod tests {
                 0o600
             );
         }
+    }
+
+    #[test]
+    fn authority_trust_anchor_round_trip_is_minimal_rooted_and_non_replacing() {
+        let home = tempfile::tempdir().unwrap();
+        let anchor = authority_trust_anchor();
+        let installed = install_authority_trust_anchor_from_home(home.path(), &anchor).unwrap();
+        assert_eq!(installed.anchor, anchor);
+        assert_eq!(installed.root, anchor.root().unwrap());
+        assert_eq!(
+            installed.path,
+            home.path()
+                .join(".vela/trust/authorities/vfr_0123456789abcdef.json")
+        );
+        let loaded = load_authority_trust_anchor_from_home(home.path(), "vfr_0123456789abcdef")
+            .unwrap()
+            .unwrap();
+        assert_eq!(loaded, installed);
+
+        let mut replacement = anchor;
+        replacement.first_authority_record_root = format!("sha256:{}", "5".repeat(64));
+        let error =
+            install_authority_trust_anchor_from_home(home.path(), &replacement).unwrap_err();
+        assert!(error.contains("refusing to replace existing authority trust anchor"));
+    }
+
+    #[test]
+    fn authority_trust_anchor_rejects_unknown_fields_and_invalid_roots() {
+        let mut value = serde_json::to_value(authority_trust_anchor()).unwrap();
+        value["extra"] = json!(true);
+        assert!(serde_json::from_value::<AuthorityTrustAnchorV1>(value).is_err());
+
+        let mut invalid = authority_trust_anchor();
+        invalid.first_authority_record_root = "sha256:short".to_string();
+        assert!(invalid.validate().is_err());
     }
 
     #[test]

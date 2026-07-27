@@ -22,6 +22,15 @@ that pin is missing, obtain the full first-boundary content root through an
 independent trusted channel and use `vela frontier trust pin`; never copy a pin
 asserted by the checkout itself.
 
+Era-1 authority has a separate sequence-1 trust choice. Obtain the full first
+authority-record root through an independent channel and install it with:
+
+```bash
+vela authority trust pin . --record-root sha256:... --json
+```
+
+This local public pin grants no authority and changes no Frontier byte.
+
 ## Produce one bounded result
 
 ```bash
@@ -75,7 +84,15 @@ When the agent exposes more than one Ed25519 identity, add
 `--key SHA256:<full-fingerprint>`. Vela reads no private-key file. The command
 is valid only over untouched structural genesis, creates one root-bound
 sequence-1 authority record, and enables routine signed-agent work. It grants
-no scientific standing.
+no scientific standing. Distribute the returned full authority-record root
+independently, then install the local consumer pin before any later
+repository-authority write:
+
+```bash
+vela authority trust pin ./frontier \
+  --record-root sha256:<full-sequence-1-root> \
+  --json
+```
 
 ## Historical Frontiers
 

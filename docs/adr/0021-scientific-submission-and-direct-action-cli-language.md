@@ -14,6 +14,26 @@
 - Entry gate: the July 26 product-language and command-contract audit plus the
   completed Vela and Canopus ownership contraction
 
+## Decision source
+
+This ADR adopts the complete decision-bearing contract from the July 26, 2026
+`Vela Product Language and Command Contract` audit
+(`sha256:c55b15d71e42d3c45b957f4159ae897624d97bd1c34cab58870f1f9d13c9e940`).
+The audit is research input, not a second specification. This ADR,
+`TERMINOLOGY.md`, the versioned schemas, and conformance tests are the
+repository-owned contract.
+
+“Complete adoption” means:
+
+- the daily product and every current writer use the action and object names
+  decided below;
+- historical names appear only when identifying their exact source era;
+- retired writers return bounded replacement diagnostics and never execute as
+  aliases;
+- Canopus and the Observatory use the same authority distinctions; and
+- separately gated proposals in the audit, especially Claim Record, do not
+  become writable merely because their target name is accepted.
+
 ## Context
 
 Vela already separates producer activity, retained evidence, scoped
@@ -398,12 +418,22 @@ The substrate now contains the Stage 1 current writer and readers:
 - diagnostics for retired `land` and top-level `verify` writers; and
 - exact replay of historical Receipt and policy-era bytes.
 
+Canopus Stage 2 is implemented in its current candidate: `run` is
+nonmutating, `export` emits authenticated Submission v1 bytes, and only the
+explicit `submit` command delegates them to Vela. Its historical landing and
+Receipt fields live only in era-specific replay parsers.
+
+The current Observatory source implements the Stage 3 object distinctions,
+historical-era disclosure, and root-bound “Why this stands” presentation.
+Reader release identity and hosted projection verification remain separate
+release gates.
+
 Current Submission acceptance remains deliberately blocked with
 `current_verification_contract_required` until the Decision gate consumes
 root-bound Verification Records without weakening the existing evidence floor.
-Claim Record remains separately gated. Stages 2 through 5 and the real
-correction-aware vertical slice are not yet complete, so this ADR remains
-Proposed.
+Claim Record remains separately gated. The real current-object Decision,
+correction-aware vertical slice, fresh-user comprehension evidence, and
+independent recurrence are not yet complete, so this ADR remains Proposed.
 
 ## Consequences
 

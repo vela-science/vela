@@ -28,7 +28,7 @@ cargo test --quiet -p vela-protocol --lib \
   --test trust_invariants
 cargo test --quiet -p vela-edge --lib
 cargo test --quiet -p vela-cli --lib \
-  --test aliases \
+  --test command_contract \
   --test env_isolation \
   --test claim_write_boundary \
   --test pre_adr_replay_golden \

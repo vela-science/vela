@@ -67,6 +67,12 @@
     "schema": "vela.authority-keyset.v1",
     "threshold": 1
   },
+  "authority_trust_anchor": {
+    "first_authority_record_root": "sha256:98176acd425ae1f0f8d94d7ea53ba720ed968a95a039d2592ff6422a82f663c4",
+    "frontier_id": "vfr_0123456789abcdef",
+    "schema": "vela.authority-trust-anchor.v1"
+  },
+  "authority_trust_anchor_root": "sha256:524a42ea14e1165e06c6cd20415a742aba75b20060ddf70f755deed16e01773d",
   "expected": {
     "authority_event_count": 1,
     "authority_record_count": 2,
@@ -75,11 +81,12 @@
     "final_authority_record_root": "sha256:ea1413fdc8c2da7dbb957b2683759eef0cfe80772fe36b98f709a75fd9c0e376",
     "final_event_log_root": "sha256:c3225d583d561def961ecce472f78459e3d767bb76ce99b1bc40f544c3faf6c1",
     "final_policy_bundle_root": "sha256:732181dbce47a0dc7263e66f534d1fe14e414cb5eb1d04623f50201318f99c3d",
+    "first_authority_record_root": "sha256:98176acd425ae1f0f8d94d7ea53ba720ed968a95a039d2592ff6422a82f663c4",
     "frontier_id": "vfr_0123456789abcdef",
     "legacy_event_count": 2,
     "migration_event_id": "vev_b9f8439b4480f8a8"
   },
-  "fixture_root": "sha256:5a609f00f97f9bda79ffceb77f34edfdc4b1ad3c1252f28b844b45b0d1f23806",
+  "fixture_root": "sha256:22e820795676c45d4d005ee07cfcd1513a0202a82a45763eed85aa613aa8cb2f",
   "frontier_id": "vfr_0123456789abcdef",
   "legacy_active_policy_head_root": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
   "legacy_actor_registry_base64": "WwogIHsKICAgICJpZCI6ICJyZXZpZXdlcjpsZWdhY3kiLAogICAgInB1YmxpY19rZXkiOiAiNjZiZTdlMzMyYzdhNDUzMzMyYmQ5ZDBhN2Y3ZGIwNTVmNWM1ZWYxYTA2YWRhNjZkOThiMzlmYjY4MTBjNDczYSIsCiAgICAiYWxnb3JpdGhtIjogImVkMjU1MTkiLAogICAgImNyZWF0ZWRfYXQiOiAiMjAyNi0wNy0wMVQwMDowMDowMFoiCiAgfQpd",

@@ -1,4 +1,4 @@
-//! Integration tests pinning the consolidated CLI surface. After the
+//! Integration tests pinning the consolidated CLI command contract. After the
 //! dev-only cleanup, each concept has exactly ONE spelling: the
 //! acting-identity flag is `--as` (no `--reviewer`/`--actor`/`--by`), the
 //! key flag is `--key` (no `--private-key`), and `finding` is read-only.

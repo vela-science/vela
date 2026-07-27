@@ -30,7 +30,8 @@ Every migrated Frontier has:
 - a retained, restricted Cedar policy bundle;
 - attributed principals and scoped capabilities;
 - one DSSE authority record covering each Era-1 transaction; and
-- an independently installed repository trust anchor.
+- independently installed public trust anchors for the repository boundary
+  and the sequence-1 repository-authority record.
 
 The repository authority is a service identity, not the scientific reviewer.
 Its signature attests that the recorded authentication, authorization,
@@ -144,19 +145,38 @@ one-event Profile v1 genesis with an empty actor registry and no authority
 history. It writes one `authority.initialized` event and one covering
 sequence-1 DSSE record, with the initial keyset, Cedar bundle, and exact policy
 material. It changes no scientific standing. Established and historical
-Frontiers cannot use this path.
+Frontiers cannot use this path. The JSON result includes the full sequence-1
+authority-record root that must be distributed independently of the Frontier
+checkout.
 
 ## Consumer trust
 
-Consumers obtain the first repository-boundary root through an independent
-channel and install a local read trust anchor:
+There are two different trust choices and Vela does not collapse them.
+
+An administrator-bound Frontier uses the ADR 0016 repository-boundary pin:
 
 ```bash
 vela frontier trust pin . --boundary-root sha256:... --json
 ```
 
-Trust-pin installation changes only local consumer state. It does not write
-Frontier history or grant scientific authority.
+Every Era-1 Frontier also distributes its full sequence-1 authority-record
+root through an independent channel. A consumer installs that public root
+directly:
+
+```bash
+vela authority trust pin . --record-root sha256:... --json
+```
+
+The authority pin is the closed
+`vela.authority-trust-anchor.v1 {frontier_id,
+first_authority_record_root}` record. The sequence-1 record already binds the
+initial keyset, policy authorization, principal, events, and execution claim,
+so duplicating those fields in the local anchor would add ambiguity rather
+than security.
+
+Both pin commands write only local consumer configuration under the
+operating-system account home. They read no key, show no semantic approval,
+write no Frontier byte, and grant no scientific or repository authority.
 
 ## Historical replay
 
@@ -173,7 +193,8 @@ proposals, authority records, or derived roots.
 Vela refuses an authority transaction when any of the following is missing,
 stale, ambiguous, or invalid:
 
-- the repository trust anchor or authority history;
+- the applicable repository-boundary and sequence-1 authority trust anchors,
+  or the authority history;
 - the exact principal attribution;
 - the required scoped capability or Cedar authorization;
 - a required semantic human action;

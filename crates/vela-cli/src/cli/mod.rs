@@ -250,6 +250,13 @@ pub async fn run_command() {
                 reason,
                 json,
             } => cmd_authority_init(&frontier, key.as_deref(), &reason, json),
+            AuthorityAction::Trust { action } => match action {
+                AuthorityTrustAction::Pin {
+                    frontier,
+                    record_root,
+                    json,
+                } => cmd_authority_trust_pin(&frontier, &record_root, json),
+            },
         },
         Commands::Frontier { action } => cmd_frontier(action),
         Commands::Init {

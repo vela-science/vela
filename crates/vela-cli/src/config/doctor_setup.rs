@@ -74,18 +74,72 @@ fn repository_authority_check(dir: &Path) -> SetupCheck {
         Err(error) => return fail("repository authority", error, "vela check ."),
     };
     match crate::cli::load_repository_authority(dir, &project) {
-        Ok(Some(authority)) => ok(
-            "repository authority",
-            format!(
-                "{} record(s) · {}",
-                authority.verification.authority_record_count,
-                authority
-                    .verification
-                    .final_authority_record_root
-                    .as_deref()
-                    .unwrap_or("missing head")
-            ),
-        ),
+        Ok(Some(authority)) => {
+            let Some(first_root) = authority
+                .verification
+                .first_authority_record_root
+                .as_deref()
+            else {
+                return fail(
+                    "repository authority",
+                    "verified authority history has no sequence-1 root",
+                    "vela check . --strict --json",
+                );
+            };
+            let home = match crate::frontier_txn::operating_system_account_home() {
+                Ok(home) => home,
+                Err(error) => {
+                    return fail(
+                        "repository authority",
+                        error.to_string(),
+                        "repair the operating-system account home before trusting authority",
+                    );
+                }
+            };
+            match vela_edge::repository_write::load_authority_trust_anchor_from_home(
+                &home,
+                &project.frontier_id(),
+            ) {
+                Ok(Some(anchor))
+                    if anchor
+                        .anchor
+                        .verify_sequence_one(&project.frontier_id(), first_root)
+                        .is_ok() =>
+                {
+                    ok(
+                        "repository authority",
+                        format!(
+                            "{} record(s) · pinned sequence 1 · {}",
+                            authority.verification.authority_record_count,
+                            authority
+                                .verification
+                                .final_authority_record_root
+                                .as_deref()
+                                .unwrap_or("missing head")
+                        ),
+                    )
+                }
+                Ok(Some(_)) => fail(
+                    "repository authority",
+                    "local authority trust anchor does not match the verified sequence-1 record",
+                    format!(
+                        "remove the invalid local pin only after incident review; the expected independent root is {first_root}"
+                    ),
+                ),
+                Ok(None) => warn(
+                    "repository authority",
+                    "repository-authority history is valid but its sequence-1 root is not independently pinned",
+                    format!(
+                        "obtain {first_root} through an independent channel, then run `vela authority trust pin . --record-root {first_root} --json`"
+                    ),
+                ),
+                Err(error) => fail(
+                    "repository authority",
+                    error,
+                    "repair the local authority trust store before any write",
+                ),
+            }
+        }
         Ok(None) if project.events.len() == 1 && project.actors.is_empty() => warn(
             "repository authority",
             "fresh structural Frontier has no repository writer",

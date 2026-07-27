@@ -22,6 +22,20 @@ struct Agent {
     _directory: TempDir,
 }
 
+#[derive(Default)]
+struct LocalTrustCleanup(Option<std::path::PathBuf>);
+
+impl Drop for LocalTrustCleanup {
+    fn drop(&mut self) {
+        if let Some(path) = self.0.take() {
+            let _ = fs::remove_file(&path);
+            if let Some(directory) = path.parent() {
+                let _ = fs::remove_dir(directory);
+            }
+        }
+    }
+}
+
 impl Drop for Agent {
     fn drop(&mut self) {
         let _ = self.child.kill();
@@ -157,6 +171,23 @@ fn fresh_frontier_initializes_standard_repository_authority_and_replays_strictly
             .unwrap()
             .starts_with("ssh-ed25519:SHA256:")
     );
+    let sequence_one_root = result["authority_record_root"].as_str().unwrap();
+    assert_eq!(
+        result["consumer_pin"]["first_authority_record_root"],
+        sequence_one_root
+    );
+    let mut trust_cleanup = LocalTrustCleanup::default();
+    let wrong_pin = vela()
+        .args(["authority", "trust", "pin"])
+        .arg(&frontier)
+        .args([
+            "--record-root",
+            "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(!wrong_pin.status.success());
 
     let authority_root = frontier.join(".vela/authority");
     assert_eq!(
@@ -170,17 +201,26 @@ fn fresh_frontier_initializes_standard_repository_authority_and_replays_strictly
         1
     );
 
-    let strict = vela()
+    let unpinned_strict = vela()
         .args(["check"])
         .arg(&frontier)
         .args(["--strict", "--json"])
         .output()
         .unwrap();
     assert!(
-        strict.status.success(),
+        !unpinned_strict.status.success(),
         "{}\n{}",
-        String::from_utf8_lossy(&strict.stdout),
-        String::from_utf8_lossy(&strict.stderr)
+        String::from_utf8_lossy(&unpinned_strict.stdout),
+        String::from_utf8_lossy(&unpinned_strict.stderr)
+    );
+    let unpinned_strict_text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&unpinned_strict.stdout),
+        String::from_utf8_lossy(&unpinned_strict.stderr)
+    );
+    assert!(
+        unpinned_strict_text.contains("independent sequence-1 pin"),
+        "{unpinned_strict_text}"
     );
 
     git(&frontier, &["config", "user.name", "Vela Test"]);
@@ -237,6 +277,62 @@ fn fresh_frontier_initializes_standard_repository_authority_and_replays_strictly
     fs::write(&submission_path, submission.canonical_bytes().unwrap()).unwrap();
     git(&frontier, &["add", "-A"]);
     git(&frontier, &["commit", "-qm", "initialize authority"]);
+    let proposal_count_before = fs::read_dir(frontier.join(".vela/proposals"))
+        .unwrap()
+        .count();
+    let unpinned_submit = vela()
+        .arg("submit")
+        .arg(&submission_path)
+        .arg("--frontier")
+        .arg(&frontier)
+        .args(["--as", producer, "--json"])
+        .env("SSH_AUTH_SOCK", &agent.socket)
+        .output()
+        .unwrap();
+    assert!(
+        !unpinned_submit.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&unpinned_submit.stdout),
+        String::from_utf8_lossy(&unpinned_submit.stderr)
+    );
+    let unpinned_submit_text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&unpinned_submit.stdout),
+        String::from_utf8_lossy(&unpinned_submit.stderr)
+    );
+    assert!(
+        unpinned_submit_text.contains("independent sequence-1 pin"),
+        "{unpinned_submit_text}"
+    );
+    assert_eq!(
+        fs::read_dir(frontier.join(".vela/proposals"))
+            .unwrap()
+            .count(),
+        proposal_count_before
+    );
+
+    let pinned = vela()
+        .args(["authority", "trust", "pin"])
+        .arg(&frontier)
+        .args(["--record-root", sequence_one_root, "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        pinned.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&pinned.stdout),
+        String::from_utf8_lossy(&pinned.stderr)
+    );
+    let pinned: Value = serde_json::from_slice(&pinned.stdout).unwrap();
+    assert_eq!(pinned["schema"], "vela.authority-trust-pin-result.v1");
+    assert_eq!(pinned["first_authority_record_root"], sequence_one_root);
+    assert_eq!(pinned["authority_granted"], false);
+    assert_eq!(pinned["frontier_writes"].as_array().unwrap().len(), 0);
+    let trust_path =
+        std::path::PathBuf::from(pinned["authority_trust_anchor_path"].as_str().unwrap());
+    assert!(trust_path.is_file());
+    trust_cleanup.0 = Some(trust_path);
+
     let submitted = vela()
         .arg("submit")
         .arg(&submission_path)
@@ -257,6 +353,20 @@ fn fresh_frontier_initializes_standard_repository_authority_and_replays_strictly
     assert_eq!(submitted["route"], "pending_review");
     assert_eq!(submitted["accepted_state_changed"], false);
     let proposal_id = submitted["proposal_id"].as_str().unwrap();
+
+    let strict = vela()
+        .args(["check"])
+        .arg(&frontier)
+        .args(["--strict", "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        strict.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&strict.stdout),
+        String::from_utf8_lossy(&strict.stderr)
+    );
+
     let rejected = vela()
         .args(["review", "reject"])
         .arg(&frontier)

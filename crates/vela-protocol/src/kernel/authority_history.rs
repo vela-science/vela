@@ -228,6 +228,7 @@ pub struct AuthorityHistoryVerification {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub initialization_event_id: Option<String>,
     pub final_event_log_root: String,
+    pub first_authority_record_root: Option<String>,
     pub final_authority_record_root: Option<String>,
     pub final_authority_keyset_root: Option<String>,
     pub final_policy_bundle_root: Option<String>,
@@ -278,6 +279,7 @@ pub fn verify_authority_history(
             migration_event_id: None,
             initialization_event_id: None,
             final_event_log_root: prefixed_legacy_root(input.legacy_events),
+            first_authority_record_root: None,
             final_authority_record_root: None,
             final_authority_keyset_root: None,
             final_policy_bundle_root: None,
@@ -608,6 +610,9 @@ pub fn verify_authority_history(
             Boundary::Migration { .. } => None,
         },
         final_event_log_root: current_event_root,
+        first_authority_record_root: verified_records
+            .first()
+            .map(|record| record.record_root.clone()),
         final_authority_record_root: previous_record_root,
         final_authority_keyset_root: Some(active_keyset_root),
         final_policy_bundle_root: Some(active_policy_root),
@@ -2270,6 +2275,18 @@ mod tests {
 
     fn conformance_fixture_value(fixture: &Fixture) -> serde_json::Value {
         let expected = verify_authority_history(fixture.input()).unwrap();
+        let first_record =
+            verify_authority_envelope(&fixture.envelopes[0], &fixture.keyset, FRONTIER_ID, 1, None)
+                .unwrap();
+        let authority_trust_anchor = json!({
+            "schema": "vela.authority-trust-anchor.v1",
+            "frontier_id": FRONTIER_ID,
+            "first_authority_record_root": first_record.record_root,
+        });
+        let authority_trust_anchor_root = format!(
+            "sha256:{}",
+            sha256_canonical(&authority_trust_anchor).unwrap()
+        );
         let mut value = json!({
             "schema": "vela.authority-history-conformance.v1",
             "frontier_id": FRONTIER_ID,
@@ -2281,6 +2298,8 @@ mod tests {
             "policy_bundle": fixture.bundle,
             "authority_events": fixture.authority_events,
             "authority_envelopes": fixture.envelopes,
+            "authority_trust_anchor": authority_trust_anchor,
+            "authority_trust_anchor_root": authority_trust_anchor_root,
             "expected": expected,
         });
         let fixture_root = format!("sha256:{}", sha256_canonical(&value).unwrap());

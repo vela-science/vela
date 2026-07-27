@@ -235,7 +235,7 @@ pub(crate) fn repository_context_assessment_with_project_and_home(
 ) -> RepositoryContextAssessment {
     use vela_edge::frontier_repository::RepositoryTrustAnchor;
     use vela_edge::repository_write::{
-        RepositoryWriteGateCode, VerifiedRepositoryIdentity,
+        RepositoryWriteGateCode, VerifiedRepositoryIdentity, load_authority_trust_anchor_from_home,
         load_repository_trust_anchor_from_home, verify_repository_for_write_with_authority_events,
     };
     use vela_protocol::events::EVENT_KIND_FRONTIER_REPOSITORY_BOUND;
@@ -351,10 +351,8 @@ pub(crate) fn repository_context_assessment_with_project_and_home(
             } else {
                 None
             };
-            let authority_events = match crate::cli::load_repository_authority(repository, project)
-            {
-                Ok(Some(authority)) => authority.history.authority_events,
-                Ok(None) => Vec::new(),
+            let authority = match crate::cli::load_repository_authority(repository, project) {
+                Ok(authority) => authority,
                 Err(error) => {
                     return RepositoryContextAssessment {
                         payload: repository_context_invalid(
@@ -366,6 +364,96 @@ pub(crate) fn repository_context_assessment_with_project_and_home(
                     };
                 }
             };
+            let authority_trust_anchor_root = if let Some(authority) = authority.as_ref() {
+                let Some(first_root) = authority
+                    .verification
+                    .first_authority_record_root
+                    .as_deref()
+                else {
+                    return RepositoryContextAssessment {
+                        payload: repository_context_invalid(
+                            RepositoryWriteGateCode::AuthorityTrustAnchorInvalid.as_str(),
+                            "verified repository-authority history has no sequence-1 root",
+                        ),
+                        target_index_trust_anchor: None,
+                        authority_events: Vec::new(),
+                    };
+                };
+                let home = match trusted_home {
+                    Some(home) => std::fs::canonicalize(home).map_err(|error| {
+                        format!("resolve operating-system account home for trust store: {error}")
+                    }),
+                    None => crate::frontier_txn::operating_system_account_home()
+                        .map_err(|error| error.to_string())
+                        .and_then(|home| {
+                            std::fs::canonicalize(&home).map_err(|error| {
+                                format!(
+                                    "resolve operating-system account home for trust store: {error}"
+                                )
+                            })
+                        }),
+                };
+                let home = match home {
+                    Ok(home) => home,
+                    Err(error) => {
+                        return RepositoryContextAssessment {
+                            payload: repository_context_invalid(
+                                RepositoryWriteGateCode::AuthorityTrustAnchorInvalid.as_str(),
+                                error,
+                            ),
+                            target_index_trust_anchor: None,
+                            authority_events: Vec::new(),
+                        };
+                    }
+                };
+                let loaded = match load_authority_trust_anchor_from_home(
+                    &home,
+                    &project.frontier_id(),
+                ) {
+                    Ok(Some(anchor)) => anchor,
+                    Ok(None) => {
+                        return RepositoryContextAssessment {
+                            payload: repository_context_invalid(
+                                RepositoryWriteGateCode::AuthorityTrustAnchorRequired.as_str(),
+                                format!(
+                                    "repository authority requires an independent sequence-1 pin; obtain {first_root} through a trusted channel, then run `vela authority trust pin . --record-root {first_root} --json`"
+                                ),
+                            ),
+                            target_index_trust_anchor: None,
+                            authority_events: Vec::new(),
+                        };
+                    }
+                    Err(error) => {
+                        return RepositoryContextAssessment {
+                            payload: repository_context_invalid(
+                                RepositoryWriteGateCode::AuthorityTrustAnchorInvalid.as_str(),
+                                error,
+                            ),
+                            target_index_trust_anchor: None,
+                            authority_events: Vec::new(),
+                        };
+                    }
+                };
+                if let Err(error) = loaded
+                    .anchor
+                    .verify_sequence_one(&project.frontier_id(), first_root)
+                {
+                    return RepositoryContextAssessment {
+                        payload: repository_context_invalid(
+                            RepositoryWriteGateCode::AuthorityTrustAnchorInvalid.as_str(),
+                            error,
+                        ),
+                        target_index_trust_anchor: None,
+                        authority_events: Vec::new(),
+                    };
+                }
+                Some(loaded.root)
+            } else {
+                None
+            };
+            let authority_events = authority
+                .map(|authority| authority.history.authority_events)
+                .unwrap_or_default();
             match verify_repository_for_write_with_authority_events(
                 repository,
                 project,
@@ -404,6 +492,7 @@ pub(crate) fn repository_context_assessment_with_project_and_home(
                             "scientific_state_root": context.profile.scientific_state_root,
                             "identity_mode": identity_mode,
                             "trust_anchor_root": trust_anchor_root,
+                            "authority_trust_anchor_root": authority_trust_anchor_root,
                         }),
                         target_index_trust_anchor,
                         authority_events,
@@ -654,7 +743,7 @@ pub(crate) fn check_json_payload_with_preloaded(
             .and_then(Value::as_str)
             .unwrap_or("Profile v1 repository context did not validate");
         diagnostics.push(json!({
-            "severity": "warning",
+            "severity": "error",
             "rule_id": code,
             "check": REPOSITORY_CONTEXT_CHECK_ID,
             "finding_id": null,
@@ -783,6 +872,8 @@ pub(crate) fn check_json_payload_with_preloaded(
         })
     }));
     let activity_leak_errors = activity_leaks.len();
+    let repository_context_errors =
+        usize::from(repository_context.get("valid").and_then(Value::as_bool) == Some(false));
     let event_errors = replay_report
         .as_ref()
         .map_or(0, |replay| usize::from(!replay.ok))
@@ -917,7 +1008,8 @@ pub(crate) fn check_json_payload_with_preloaded(
         + state_integrity_errors
         + active_policy_errors.len()
         + policy_readiness_errors.len()
-        + activity_leak_errors;
+        + activity_leak_errors
+        + repository_context_errors;
     let warnings = method_warnings + graph_warnings + signal_report.proof_readiness.warnings;
     let infos = method_infos + graph_infos;
     let strict_blockers = signal_report

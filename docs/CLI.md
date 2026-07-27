@@ -184,9 +184,12 @@ Consumer trust pins are local:
 
 ```bash
 vela frontier trust pin . --boundary-root sha256:... --json
+vela authority trust pin . --record-root sha256:... --json
 ```
 
-Pinning changes no Frontier history.
+The first selects the intended repository-administrator boundary. The second
+selects the intended sequence-1 repository-authority record. Pinning changes no
+Frontier history and grants no authority.
 
 ## Claims, Submissions, and Artifacts
 
@@ -295,6 +298,22 @@ vela authority init <frontier> \
 It selects a plain Ed25519 identity already loaded in the standard OpenSSH
 agent and establishes sequence-1 repository authority. It is not a migration,
 personal signer, policy editor, or scientific decision command.
+
+The initialization result exposes the full sequence-1 authority-record root.
+After obtaining that root through an independent channel, a consumer installs
+one public local pin:
+
+```bash
+vela authority trust pin <frontier> \
+  --record-root sha256:<full-sequence-1-root> \
+  --json
+```
+
+This direct command has no preview or signing ceremony because it grants no
+authority and writes no Frontier byte. It verifies the complete authority
+history, requires the supplied full root to match sequence 1 exactly, and
+atomically installs a non-replacing `vela.authority-trust-anchor.v1` under the
+operating-system account home.
 
 Retired commands do not execute compatibility aliases.
 

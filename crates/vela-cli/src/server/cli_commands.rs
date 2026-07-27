@@ -692,6 +692,25 @@ pub(crate) enum AuthorityAction {
         #[arg(long)]
         json: bool,
     },
+    /// Manage independently distributed repository-authority trust roots.
+    Trust {
+        #[command(subcommand)]
+        action: AuthorityTrustAction,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum AuthorityTrustAction {
+    /// Install one public local pin for the exact sequence-1 authority record.
+    Pin {
+        #[arg(default_value = ".")]
+        frontier: PathBuf,
+        /// Full sequence-1 authority-record root from an independent channel.
+        #[arg(long)]
+        record_root: String,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand)]

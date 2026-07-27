@@ -18,7 +18,8 @@ use sha2::{Digest as ShaDigest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 use vela_edge::repository_write::{
     RepositoryWriteGateError, VerifiedRepositoryIdentity, VerifiedRepositoryWriteContext,
-    load_repository_trust_anchor_from_home, verify_repository_for_write_with_authority_events,
+    load_authority_trust_anchor_from_home, load_repository_trust_anchor_from_home,
+    verify_repository_for_write_with_authority_events,
 };
 
 use crate::operation_journal;
@@ -1576,6 +1577,34 @@ fn verify_repository_authority_write_era(
             reason: "repository-authority history is closed".to_string(),
         });
     }
+    let first_authority_record_root = authority
+        .verification
+        .first_authority_record_root
+        .as_deref()
+        .ok_or_else(|| FrontierTxnError::RepositoryWriteIntentDenied {
+            intent: "repository_authority",
+            reason: "verified repository-authority history has no sequence-1 root".to_string(),
+        })?;
+    let trusted_user_home = operating_system_account_home()?;
+    let authority_anchor =
+        load_authority_trust_anchor_from_home(&trusted_user_home, &project.frontier_id())
+            .map_err(|error| FrontierTxnError::RepositoryWriteIntentDenied {
+                intent: "repository_authority",
+                reason: format!("load local authority trust anchor: {error}"),
+            })?
+            .ok_or_else(|| FrontierTxnError::RepositoryWriteIntentDenied {
+                intent: "repository_authority",
+                reason: format!(
+                    "repository-authority writes require an independent sequence-1 pin; run `vela authority trust pin . --record-root {first_authority_record_root} --json` after obtaining that full root through a trusted channel"
+                ),
+            })?;
+    authority_anchor
+        .anchor
+        .verify_sequence_one(&project.frontier_id(), first_authority_record_root)
+        .map_err(|error| FrontierTxnError::RepositoryWriteIntentDenied {
+            intent: "repository_authority",
+            reason: error,
+        })?;
     let (boundary_event_id, boundary_event_root) = if let Some(event_id) =
         authority.verification.migration_event_id.as_deref()
     {
