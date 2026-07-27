@@ -23,6 +23,8 @@ use vela_protocol::canonical::sha256_canonical;
 use vela_protocol::events::StateEvent;
 use vela_protocol::principal_capability::PrincipalClass;
 use vela_protocol::record::ActivityRecord;
+use vela_protocol::submission_v1::SubmissionV1;
+use vela_protocol::verification_record::VerificationRecordV1;
 
 use crate::{CedarEvaluationInput, evaluate};
 
@@ -413,6 +415,134 @@ impl AuthenticationAdapter for SignedAgentRecordSession {
     }
 }
 
+/// A short-lived local agent session proven by one exact Submission v1.
+///
+/// The Submission signature binds the producer, claim, artifacts, caveats,
+/// requested change, and optional execution binding. Repository authority
+/// retains only the full Submission root as a bearer-free observation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SignedAgentSubmissionSession {
+    actor: String,
+    submission_root: String,
+}
+
+impl SignedAgentSubmissionSession {
+    pub fn from_submission(submission: &SubmissionV1) -> Result<Self, String> {
+        submission.verify()?;
+        let actor = &submission.provenance.producer;
+        if !(actor.starts_with("agent:") || actor.starts_with("ci:")) {
+            return Err(
+                "signed Submission authentication requires an agent: or ci: producer".into(),
+            );
+        }
+        Ok(Self {
+            actor: actor.clone(),
+            submission_root: submission.canonical_root()?,
+        })
+    }
+}
+
+impl AuthenticationAdapter for SignedAgentSubmissionSession {
+    fn observe(
+        &mut self,
+        request: &AuthenticationRequest,
+    ) -> Result<AuthenticationObservationV1, AuthenticationFailure> {
+        let authenticated_at = DateTime::parse_from_rfc3339(&request.transaction_at)
+            .map_err(|error| {
+                AuthenticationFailure::InvalidObservation(format!(
+                    "Submission authentication time is invalid: {error}"
+                ))
+            })?
+            .with_timezone(&Utc);
+        let canonical_authenticated_at =
+            authenticated_at.to_rfc3339_opts(SecondsFormat::Secs, true);
+        let expires_at =
+            (authenticated_at + Duration::minutes(5)).to_rfc3339_opts(SecondsFormat::Secs, true);
+        Ok(AuthenticationObservationV1 {
+            schema: AUTHENTICATION_OBSERVATION_SCHEMA_V1.into(),
+            principal_id: self.actor.clone(),
+            principal_class: PrincipalClass::Agent,
+            issuer: "vela.submission.v1".into(),
+            subject: self.actor.clone(),
+            method: AuthenticationMethod::AgentRecordSignature,
+            assurance: AuthenticationAssurance::SingleFactor,
+            session_root: self.submission_root.clone(),
+            authenticated_at: canonical_authenticated_at.clone(),
+            observed_at: canonical_authenticated_at,
+            expires_at,
+            user_presence: false,
+            user_verification: false,
+            recovery_recent: false,
+            revocation_ref: None,
+        })
+    }
+}
+
+/// A short-lived local verifier session proven by one exact Verification
+/// Record v1. The retained observation commits to the signed record without
+/// retaining a key or granting scientific authority.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SignedVerificationRecordSession {
+    actor: String,
+    verification_root: String,
+}
+
+impl SignedVerificationRecordSession {
+    pub fn from_record(record: &VerificationRecordV1) -> Result<Self, String> {
+        record.verify()?;
+        let actor = &record.verifier;
+        if !(actor.starts_with("agent:")
+            || actor.starts_with("ci:")
+            || actor.starts_with("verifier:"))
+        {
+            return Err(
+                "signed Verification Record authentication requires an agent:, ci:, or verifier: actor"
+                    .into(),
+            );
+        }
+        Ok(Self {
+            actor: actor.clone(),
+            verification_root: record.canonical_root()?,
+        })
+    }
+}
+
+impl AuthenticationAdapter for SignedVerificationRecordSession {
+    fn observe(
+        &mut self,
+        request: &AuthenticationRequest,
+    ) -> Result<AuthenticationObservationV1, AuthenticationFailure> {
+        let authenticated_at = DateTime::parse_from_rfc3339(&request.transaction_at)
+            .map_err(|error| {
+                AuthenticationFailure::InvalidObservation(format!(
+                    "Verification Record authentication time is invalid: {error}"
+                ))
+            })?
+            .with_timezone(&Utc);
+        let canonical_authenticated_at =
+            authenticated_at.to_rfc3339_opts(SecondsFormat::Secs, true);
+        let expires_at =
+            (authenticated_at + Duration::minutes(5)).to_rfc3339_opts(SecondsFormat::Secs, true);
+        Ok(AuthenticationObservationV1 {
+            schema: AUTHENTICATION_OBSERVATION_SCHEMA_V1.into(),
+            principal_id: self.actor.clone(),
+            principal_class: PrincipalClass::Agent,
+            issuer: "vela.verification-record.v1".into(),
+            subject: self.actor.clone(),
+            method: AuthenticationMethod::AgentRecordSignature,
+            assurance: AuthenticationAssurance::SingleFactor,
+            session_root: self.verification_root.clone(),
+            authenticated_at: canonical_authenticated_at.clone(),
+            observed_at: canonical_authenticated_at,
+            expires_at,
+            user_presence: false,
+            user_verification: false,
+            recovery_recent: false,
+            revocation_ref: None,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -435,6 +565,138 @@ mod tests {
             principal_class: PrincipalClass::Human,
             transaction_at: "2026-07-24T12:05:00Z".into(),
         }
+    }
+
+    #[test]
+    fn signed_submission_authenticates_at_registration_time_without_becoming_authority() {
+        use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
+        use vela_protocol::submission_v1::{
+            RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft,
+            SubmissionProvenance, SubmissionV1,
+        };
+
+        let key = SigningKey::from_bytes(&[71_u8; 32]);
+        let identity = IdentityBinding::build(
+            IdentityBindingDraft {
+                actor_id: "agent:submission-auth".to_string(),
+                actor_class: ActorClass::Agent,
+                created_at: "2026-01-01T00:00:00Z".to_string(),
+            },
+            &key,
+        )
+        .unwrap();
+        let submission = SubmissionV1::build(
+            SubmissionDraft {
+                claim: SubmissionClaim {
+                    assertion: "An old portable Submission remains authentic.".to_string(),
+                    claim_type: "theoretical".to_string(),
+                    conditions: Vec::new(),
+                },
+                artifacts: vec![SubmissionArtifact {
+                    kind: "witness".to_string(),
+                    path: "witness.json".to_string(),
+                    digest: format!("sha256:{}", "a".repeat(64)),
+                }],
+                caveats: vec!["Authentication is not verification.".to_string()],
+                replayability: "unknown".to_string(),
+                producer_checks: Vec::new(),
+                verification_requirements: vec!["independent review".to_string()],
+                requested_change: RequestedChange {
+                    kind: "add_claim".to_string(),
+                },
+                provenance: SubmissionProvenance {
+                    producer: "agent:submission-auth".to_string(),
+                    source_system: "fixture".to_string(),
+                    source_attempt: None,
+                    source_run: None,
+                    emitted_at: "2026-01-01T00:00:00Z".to_string(),
+                },
+                execution_binding: None,
+            },
+            identity,
+            &key,
+        )
+        .unwrap();
+        let mut session = SignedAgentSubmissionSession::from_submission(&submission).unwrap();
+        let observation = session
+            .observe(&AuthenticationRequest {
+                principal_id: "agent:submission-auth".to_string(),
+                principal_class: PrincipalClass::Agent,
+                transaction_at: "2026-07-26T00:00:00Z".to_string(),
+            })
+            .unwrap();
+        assert_eq!(observation.issuer, "vela.submission.v1");
+        assert_eq!(
+            observation.session_root,
+            submission.canonical_root().unwrap()
+        );
+        assert_eq!(observation.authenticated_at, "2026-07-26T00:00:00Z");
+        assert!(!observation.user_presence);
+        observation.validate().unwrap();
+    }
+
+    #[test]
+    fn signed_verification_record_authenticates_without_becoming_authority() {
+        use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
+        use vela_protocol::verification_record::{
+            IndependenceDisclosure, VerificationMethod, VerificationRecordDraft,
+            VerificationRecordV1, VerificationScope, VerificationSubject,
+        };
+
+        let key = SigningKey::from_bytes(&[72_u8; 32]);
+        let identity = IdentityBinding::build(
+            IdentityBindingDraft {
+                actor_id: "verifier:record-auth".to_string(),
+                actor_class: ActorClass::Agent,
+                created_at: "2026-07-26T00:00:00Z".to_string(),
+            },
+            &key,
+        )
+        .unwrap();
+        let record = VerificationRecordV1::build(
+            VerificationRecordDraft {
+                subject: VerificationSubject {
+                    claim_id: "vf_0123456789abcdef".to_string(),
+                    artifact_ids: Vec::new(),
+                    submission_id: "vsb_0123456789abcdef".to_string(),
+                    submission_root: root('b'),
+                    proposal_id: "vpr_0123456789abcdef".to_string(),
+                },
+                method: VerificationMethod {
+                    profile: "frozen-test".to_string(),
+                    implementation: "fixture-verifier".to_string(),
+                    environment_root: root('c'),
+                },
+                scope: VerificationScope {
+                    property: "the bounded witness replays".to_string(),
+                    does_not_establish: vec!["scientific acceptance".to_string()],
+                },
+                outcome: "pass".to_string(),
+                verifier: "verifier:record-auth".to_string(),
+                independence: IndependenceDisclosure {
+                    declared_independent_of: vec!["agent:producer".to_string()],
+                    shared_dependencies: Vec::new(),
+                },
+                output_artifact_ids: Vec::new(),
+                started_at: "2026-07-26T00:00:00Z".to_string(),
+                completed_at: "2026-07-26T00:01:00Z".to_string(),
+            },
+            identity,
+            &key,
+        )
+        .unwrap();
+        let mut session = SignedVerificationRecordSession::from_record(&record).unwrap();
+        let observation = session
+            .observe(&AuthenticationRequest {
+                principal_id: "verifier:record-auth".to_string(),
+                principal_class: PrincipalClass::Agent,
+                transaction_at: "2026-07-26T12:00:00Z".to_string(),
+            })
+            .unwrap();
+        assert_eq!(observation.issuer, "vela.verification-record.v1");
+        assert_eq!(observation.session_root, record.canonical_root().unwrap());
+        assert!(!observation.user_presence);
+        observation.validate().unwrap();
     }
 
     fn local_session() -> LocalOsSession {

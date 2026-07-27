@@ -1,15 +1,15 @@
 # Vela command contract
 
-Vela is a Git-native scientific-state tool. Agents and people produce evidence,
-verifiers reproduce it, governed authority changes standing, and Git publishes
-the exact bytes.
+Vela is a Git-native scientific-state tool. Agents and people submit evidence,
+Verification Records report scoped checks, governed Decisions change standing,
+and Git publishes the exact bytes.
 
 ## Daily path
 
 Default help exposes eleven commands:
 
 ```text
-init status next start land review check reproduce verify log doctor
+init status next start submit show why review check reproduce log doctor
 ```
 
 The ordinary producer loop is:
@@ -21,8 +21,8 @@ vela start <target> --frontier . --as agent:<name> --json
 
 # Run the verifier named by the Attempt response.
 
-vela land --frontier . \
-  --work <target> \
+vela submit --frontier . \
+  --attempt <vat_id> \
   --claim "<bounded result>" \
   --type computational \
   --replayability exact \
@@ -34,11 +34,10 @@ vela land --frontier . \
 vela check . --strict --json
 ```
 
-`land` builds or imports Receipt v1. Current migrated Frontiers authenticate an
-exact producer activity and retain a pending proposal under the active Cedar
-bundle. The transaction appends no accepted scientific event unless an already
-governed narrow policy explicitly permits the exact result. An agent cannot
-accept or reject a proposal.
+`submit` builds or imports Submission v1. Current Frontiers authenticate exact
+producer input, retain a Registration Record, and create a pending Proposal.
+The transaction appends no Verification Record, Decision, Event, or accepted
+scientific-state change. An agent cannot accept or reject a Proposal.
 
 ## Commands
 
@@ -48,18 +47,20 @@ accept or reject a proposal.
 | `status` | Report Git identity, full roots, replay, blockers, counts, policy readiness, and one next action. |
 | `next` | Rank producer targets. Review work never appears here. |
 | `start` | Start one bounded Attempt against an exact Target. |
-| `land` | Build or import Receipt v1 and route its covered result. |
+| `submit` | Build or import Submission v1 and register a pending Proposal. |
+| `show` | Inspect one exact current or historical typed object. |
+| `why` | Explain a Claim's standing from exact evidence, verification, Decisions, Events, and corrections. |
 | `review` | List, inspect, diff, accept, reject, or export Proposals. |
 | `check` | Verify schemas, replay, signatures, roots, policy, and strict signals. |
 | `reproduce` | Run retained evidence through its frozen verifier. |
-| `verify attach` | Retain proposal-scoped verifier evidence; never accept it. |
+| `verification import` | Retain one scoped Verification Record; never accept it. |
 | `log` | Read accepted event history. |
 | `doctor` | Report blockers and one repair action. `--all` adds diagnostics. |
 
 Setup and read-oriented nouns:
 
 ```text
-finding artifact proposal frontier policy actor id agents config
+claim artifact attempt submission registration verification proposal frontier policy actor id agents config
 ```
 
 Advanced verification and integration:
@@ -98,9 +99,10 @@ profile, lease state, and next command.
 Review items never enter producer ranking. A stale or invalid Target Index
 produces no offer.
 
-### Work session
+### Attempt
 
-`vela start <target> --frontier . --json` emits `vela.attempt.v1`. It binds:
+`vela start <target> --frontier . --json` emits `vela.attempt.v1` with a
+`vat_` identifier. It binds:
 
 - the exact target and packet;
 - starting roots;
@@ -180,17 +182,18 @@ vela frontier trust pin . --boundary-root sha256:... --json
 
 Pinning changes no Frontier history.
 
-## Findings and artifacts
+## Claims, Submissions, and Artifacts
 
-`finding` is read-oriented:
+Use the universal read path:
 
 ```bash
-vela finding show . <vf_id>
-vela finding show . <vf_id> --view evidence
-vela finding show . <vf_id> --view attribution
+vela show . <typed_id> --json
+vela why . <claim_id> --json
 ```
 
-Receipt v1 plus `land` is the producer write path.
+Historical `vf_` Finding bytes remain replayable and are projected as Claim
+Records with their source era disclosed. Current producer writes use Submission
+v1 plus `submit`.
 
 Artifact retraction creates a pending proposal rather than deleting evidence:
 
@@ -264,10 +267,14 @@ Frontier bytes.
 | `proposals` | `review` |
 | `diff vpr_*` | `review diff` |
 | `diff <left> <right>` | `frontier diff` |
-| `state` and `credit` | `finding show --view ...` |
+| `state` and `credit` | `show` and `why` |
 | `publication` | `frontier recover-publication` |
 | `hub` | `vela serve` or the read-only Observatory |
 | `foundry`, `atlas`, `reproduce-external` | Canopus profiles or parent scripts |
+| `work` | `start` |
+| `land` | `submit` |
+| `verify attach` | `verification import` |
+| `review decide` | `review accept` or `review reject` |
 | `sign`, `migrate`, `authority` | historical replay only; no current writer |
 
 Retired commands do not execute compatibility aliases.

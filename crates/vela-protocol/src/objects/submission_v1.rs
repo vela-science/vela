@@ -81,6 +81,8 @@ pub struct SubmissionProvenance {
     pub producer: String,
     pub source_system: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_attempt: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_run: Option<String>,
     pub emitted_at: String,
 }
@@ -295,6 +297,10 @@ impl SubmissionV1 {
         )?;
         require_actor("provenance.producer", &self.provenance.producer)?;
         require_text("provenance.source_system", &self.provenance.source_system)?;
+        if let Some(source_attempt) = &self.provenance.source_attempt {
+            require_text("provenance.source_attempt", source_attempt)?;
+            require_prefixed_hex("provenance.source_attempt", source_attempt, "vat_", 64)?;
+        }
         if let Some(source_run) = &self.provenance.source_run {
             require_text("provenance.source_run", source_run)?;
         }
@@ -352,6 +358,23 @@ fn require_sha256(field: &str, value: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn require_prefixed_hex(
+    field: &str,
+    value: &str,
+    prefix: &str,
+    hex_len: usize,
+) -> Result<(), String> {
+    let Some(hex) = value.strip_prefix(prefix) else {
+        return Err(format!("{field} must begin with `{prefix}`"));
+    };
+    if hex.len() != hex_len || !hex.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(format!(
+            "{field} must contain exactly {hex_len} hexadecimal characters after `{prefix}`"
+        ));
+    }
+    Ok(())
+}
+
 fn require_safe_relative_path(field: &str, value: &str) -> Result<(), String> {
     require_text(field, value)?;
     let path = std::path::Path::new(value);
@@ -405,6 +428,7 @@ mod tests {
             provenance: SubmissionProvenance {
                 producer: "agent:fixture".into(),
                 source_system: "fixture".into(),
+                source_attempt: Some(format!("vat_{}", "4".repeat(64))),
                 source_run: Some("run_fixture".into()),
                 emitted_at: "2026-07-26T00:00:00Z".into(),
             },

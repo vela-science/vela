@@ -8,6 +8,10 @@ use tempfile::TempDir;
 
 use crate::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
 use crate::receipt_v1::{ArtifactInput, ReceiptBuilder, ReceiptInput};
+use crate::submission_v1::{
+    RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
+    SubmissionV1,
+};
 
 fn durable_attachment(
     finding: &FindingBundle,
@@ -334,6 +338,129 @@ fn proposal_withdrawal_fixture() -> (TempDir, Project, ed25519_dalek::SigningKey
     project.proposals.push(proposal);
     repo::save_to_path(tmp.path(), &project).unwrap();
     (tmp, project, key, proposal_id)
+}
+
+fn current_submission_withdrawal_fixture()
+-> (TempDir, Project, ed25519_dalek::SigningKey, String, String) {
+    let tmp = TempDir::new().unwrap();
+    let key = ed25519_dalek::SigningKey::from_bytes(&[27_u8; 32]);
+    let identity = IdentityBinding::build(
+        IdentityBindingDraft {
+            actor_id: "agent:submission-withdrawal".to_string(),
+            actor_class: ActorClass::Agent,
+            created_at: "2026-07-26T00:00:00Z".to_string(),
+        },
+        &key,
+    )
+    .unwrap();
+    let submission = SubmissionV1::build(
+        SubmissionDraft {
+            claim: SubmissionClaim {
+                assertion: "A bounded candidate result.".to_string(),
+                claim_type: "computational".to_string(),
+                conditions: vec!["fixture only".to_string()],
+            },
+            artifacts: vec![SubmissionArtifact {
+                kind: "witness".to_string(),
+                path: "artifact.json".to_string(),
+                digest: format!("sha256:{}", "a".repeat(64)),
+            }],
+            caveats: vec!["Not independently verified.".to_string()],
+            replayability: "exact".to_string(),
+            producer_checks: Vec::new(),
+            verification_requirements: vec!["independent replay".to_string()],
+            requested_change: RequestedChange {
+                kind: "add_claim".to_string(),
+            },
+            provenance: SubmissionProvenance {
+                producer: identity.actor_id.clone(),
+                source_system: "fixture".to_string(),
+                source_attempt: Some(format!("vat_{}", "b".repeat(64))),
+                source_run: None,
+                emitted_at: "2026-07-26T00:00:01Z".to_string(),
+            },
+            execution_binding: None,
+        },
+        identity.clone(),
+        &key,
+    )
+    .unwrap();
+    let submission_root = submission.canonical_root().unwrap();
+    let submission_path = format!(
+        "records/submissions/sha256/{}.json",
+        submission_root.strip_prefix("sha256:").unwrap()
+    );
+    std::fs::create_dir_all(tmp.path().join("records/submissions/sha256")).unwrap();
+    std::fs::write(
+        tmp.path().join(&submission_path),
+        submission.canonical_bytes().unwrap(),
+    )
+    .unwrap();
+    let proposal = new_proposal_at(
+        "finding.add",
+        crate::events::StateTarget {
+            r#type: "finding".to_string(),
+            id: "vf_submission_target".to_string(),
+        },
+        identity.actor_id,
+        "agent",
+        "submit bounded result",
+        json!({
+            "finding": finding("vf_submission_target"),
+            "submission": {
+                "schema": "vela.submission-proposal-links.internal.v1",
+                "submission_id": submission.submission_id,
+                "submission_root": submission_root,
+                "submission_path": submission_path,
+                "operation_id": format!("vop_{}", "c".repeat(64)),
+            }
+        }),
+        Vec::new(),
+        Vec::new(),
+        "2026-07-26T00:00:02Z",
+    );
+    let proposal_id = proposal.id.clone();
+    let mut project = project::assemble("submission-withdrawal", Vec::new(), 0, 0, "test");
+    project.proposals.push(proposal);
+    repo::init_repo(tmp.path(), &project).unwrap();
+    std::fs::create_dir_all(tmp.path().join("records/submissions/sha256")).unwrap();
+    std::fs::write(
+        tmp.path().join(&submission_path),
+        submission.canonical_bytes().unwrap(),
+    )
+    .unwrap();
+    (tmp, project, key, proposal_id, submission_root)
+}
+
+#[test]
+fn current_submission_withdrawal_is_exact_signed_and_scientifically_noop() {
+    let (tmp, mut project, key, proposal_id, submission_root) =
+        current_submission_withdrawal_fixture();
+    let finding_root_before = crate::canonical::sha256_canonical(&project.findings).unwrap();
+    let event = apply_proposal_withdrawal(
+        tmp.path(),
+        &mut project,
+        &proposal_id,
+        "agent:submission-withdrawal",
+        "superseded before decision",
+        "2026-07-26T00:00:03Z",
+        &key,
+    )
+    .unwrap();
+    let payload: events::ProposalWithdrawalPayload =
+        serde_json::from_value(event.payload.clone()).unwrap();
+    assert_eq!(payload.schema, events::PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA);
+    assert_eq!(
+        payload.submission_root.as_deref(),
+        Some(submission_root.as_str())
+    );
+    assert!(payload.receipt_root.is_none());
+    assert_eq!(project.proposals[0].status, "withdrawn");
+    assert_eq!(
+        crate::canonical::sha256_canonical(&project.findings).unwrap(),
+        finding_root_before
+    );
+    assert!(verify_proposal_withdrawals(tmp.path(), &project).is_empty());
 }
 
 #[test]

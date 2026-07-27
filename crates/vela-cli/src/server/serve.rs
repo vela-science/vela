@@ -28,8 +28,8 @@ use super::http::{
     http_health, http_mcp, http_mcp_get,
 };
 use super::tools::{
-    tool_external, tool_finding, tool_graph, tool_nanopublication, tool_objects, tool_orient,
-    tool_search, tool_verify, tool_work,
+    tool_attempt, tool_external, tool_finding, tool_graph, tool_nanopublication, tool_objects,
+    tool_orient, tool_search, tool_verify,
 };
 pub enum ProjectSource {
     Single(PathBuf),
@@ -551,7 +551,7 @@ impl McpService {
     /// the read-only profile, so its `tools/list` is the read-only surface
     /// minus these three: orient, finding, search, graph, external.
     pub fn hosted_exclusions() -> Vec<String> {
-        ["verify", "work", "objects"]
+        ["verify", "attempt", "objects"]
             .into_iter()
             .map(str::to_string)
             .collect()
@@ -987,7 +987,7 @@ fn profile_gate(name: &str, profile: tool_registry::McpProfile) -> Option<ToolEr
         return None;
     }
     let hint = if tool_registry::McpProfile::Draft.allows(&tool) {
-        "restart `vela serve` with `--profile draft` for non-finalizing draft/work capabilities; human finalization is unavailable through MCP and remains an exact protected `vela review accept` or `vela review reject` operation"
+        "restart `vela serve` with `--profile draft` for non-finalizing Attempt capabilities; human finalization is unavailable through MCP and remains an exact protected `vela review accept` or `vela review reject` operation"
     } else {
         "this capability is unavailable through MCP"
     };
@@ -1105,18 +1105,18 @@ async fn execute_tool(
             (tool_graph(args, &project), Some(clone_project(&project)))
         }
         "verify" => (tool_verify(args, source_path), None),
-        "work" => {
-            let result = tool_work(args, source_path);
+        "attempt" => {
+            let result = tool_attempt(args, source_path);
             match result {
                 Ok((data, mut notes)) => {
                     let Some(path) = source_path else {
-                        // `tool_work` rejects this mode before writing; keep a
+                        // `tool_attempt` rejects this mode before writing; keep a
                         // defensive guard here so a future action cannot make
                         // a merged service writable by accident.
                         return (
                             Err(ToolError::new(
                                 ToolErrorKind::PermissionDenied,
-                                "work writes are unavailable without one configured frontier",
+                                "Attempt writes are unavailable without one configured Frontier",
                             )),
                             None,
                         );
@@ -1274,7 +1274,7 @@ mod mcp_service_tests {
         assert_eq!(
             names,
             vec!["orient", "finding", "search", "graph", "external"],
-            "hosted tools/list is the read-only surface minus verify/work/objects"
+            "hosted tools/list is the read-only surface minus verify/attempt/objects"
         );
     }
 
@@ -1339,7 +1339,7 @@ mod mcp_service_tests {
         assert!(warnings.is_empty(), "unexpected warnings: {warnings:?}");
         let (_, body) = local_svc
             .handle_http(
-                r#"{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"work","arguments":{}}}"#,
+                r#"{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"attempt","arguments":{}}}"#,
             )
             .await;
         let text = body.unwrap()["result"]["content"][0]["text"]
@@ -1351,22 +1351,32 @@ mod mcp_service_tests {
     }
 
     #[tokio::test]
-    async fn failed_in_scope_work_does_not_refresh_the_served_snapshot() {
+    async fn failed_in_scope_attempt_does_not_refresh_the_served_snapshot() {
         let temp = tempfile::tempdir().unwrap();
         let path = work_fixture(temp.path()).canonicalize().unwrap();
         let project = repo::load_from_path(&path).unwrap();
         let frontier = Arc::new(Mutex::new(project));
         let args = json!({
             "frontier_path": path.display().to_string(),
-            "action": "drop",
+            "action": "abandon",
             "obligation_id": "scope:probe",
             "agent_actor": "agent:other"
         });
-        let (result, snapshot) =
-            execute_tool("work", &args, &frontier, &Client::new(), &[], Some(&path)).await;
+        let (result, snapshot) = execute_tool(
+            "attempt",
+            &args,
+            &frontier,
+            &Client::new(),
+            &[],
+            Some(&path),
+        )
+        .await;
         let error = result.unwrap_err();
         assert_eq!(error.kind, ToolErrorKind::PermissionDenied);
-        assert!(snapshot.is_none(), "failed work must not refresh MCP reads");
+        assert!(
+            snapshot.is_none(),
+            "failed Attempt must not refresh MCP reads"
+        );
     }
 
     #[tokio::test]

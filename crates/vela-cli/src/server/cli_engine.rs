@@ -11,46 +11,35 @@ use vela_protocol::repo;
 
 pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
     match action {
-        VerifyAction::Attach {
+        VerifyAction::Import {
             frontier,
-            attachment,
-            proposal,
+            record,
             actor,
+            push,
             json,
         } => {
-            crate::ui::set_mode("verify.attach", json);
-            let bytes = std::fs::read(&attachment).unwrap_or_else(|error| {
-                fail_return(&format!("read {}: {error}", attachment.display()))
+            crate::ui::set_mode("verification.import", json);
+            let bytes = std::fs::read(&record).unwrap_or_else(|error| {
+                fail_return(&format!("read {}: {error}", record.display()))
             });
-            let record: vela_protocol::verifier_attachment::VerifierAttachment =
-                serde_json::from_slice(&bytes).unwrap_or_else(|error| {
+            let record = vela_protocol::verification_record::VerificationRecordV1::parse(&bytes)
+                .unwrap_or_else(|error| {
                     fail_return(&format!(
-                        "parse {} as VerifierAttachment: {error}",
-                        attachment.display()
+                        "parse {} as Verification Record v1: {error}",
+                        record.display()
                     ))
                 });
-            let result =
-                crate::workflow::attach_proposal_verifier(&frontier, &proposal, record, &actor)
-                    .unwrap_or_else(|error| fail_return(&error));
+            let result = crate::workflow::import_verification(&frontier, &record, &actor, push)
+                .unwrap_or_else(|error| fail_return(&error));
             if json {
                 print_json(&result);
             } else {
                 println!(
-                    "verify attach: retained {} for proposal {}",
-                    result["attachment_id"].as_str().unwrap_or("attachment"),
-                    proposal
+                    "verification import: retained {} for proposal {}",
+                    result.verification_record_id, result.proposal_id
                 );
                 println!("  acceptance: unchanged (delta 0)");
-                println!(
-                    "  gate: {}",
-                    result
-                        .pointer("/gate/status")
-                        .and_then(Value::as_str)
-                        .unwrap_or("unknown")
-                );
-                if let Some(next) = result["next_missing_condition"].as_str() {
-                    println!("  next: {next}");
-                }
+                println!("  outcome: {}", result.outcome);
             }
         }
     }

@@ -60,7 +60,7 @@ pub fn all_tools() -> Vec<ToolDefinition> {
             PermissionLevel::ReadOnly,
             false,
             vec![
-                "Open targets and rankings are advice, never authority; claiming a target goes through `work` with action=claim.",
+                "Open targets and rankings are advice, never authority; starting one goes through `attempt` with action=start.",
                 "Campaign seeds require the server to know the frontier directory; hosted/merged serves list only review and verify lanes.",
             ],
         ),
@@ -227,17 +227,14 @@ pub fn all_tools() -> Vec<ToolDefinition> {
             vec!["Read-only: replays and verifies, writes nothing."],
         ),
         tool(
-            "work",
-            "The compounding loop against a local frontier checkout. action=claim leases an \
-             open target so other agents route around it, signed with the agent's auto-minted \
-             session key; action=land crosses a result from activity into state — a \
-             vela.receipt.v1 is recorded (artifacts hashed, head pinned), proposed, and routed \
-             by the frontier's signed policy (Permit admits mechanically, Defer parks it in \
-             the human's sign queue); action=drop commits a signed same-owner zero-TTL \
-             lease update and then removes private scratch. Nothing here is a human decision — a landing either rides a policy a \
-             human already signed, or waits for their key. Example: {\"frontier_path\": \
-             \".\", \"action\": \"claim\", \"obligation_id\": \"vf_3f9a\", \"agent_actor\": \
-             \"agent:swarm-1\"}.",
+            "attempt",
+            "The non-finalizing producer loop against one local Frontier checkout. action=start \
+             leases an exact Target and opens an Attempt; action=submit registers one signed \
+             vela.submission.v1 and pending Proposal; action=abandon releases the exact \
+             same-owner lease and removes private Attempt state. Registration creates no \
+             Verification Record, Decision, Event, or accepted-state change. Example: \
+             {\"frontier_path\": \".\", \"action\": \"start\", \"obligation_id\": \
+             \"vf_3f9a\", \"agent_actor\": \"agent:swarm-1\"}.",
             json!({
                 "type": "object",
                 "additionalProperties": false,
@@ -250,42 +247,47 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                     },
                     "action": {
                         "type": "string",
-                        "enum": ["claim", "land", "drop"],
-                        "description": "claim = lease a target; land = route a vela.receipt.v1 by the signed policy; drop = release a session."
+                        "enum": ["start", "submit", "abandon"],
+                        "description": "start = lease a Target and open an Attempt; submit = register signed Submission v1; abandon = release the Attempt."
                     },
                     "obligation_id": {
                         "type": "string",
                         "minLength": 1,
-                        "description": "claim/drop: the vf_ finding to lease or release, or a namespaced external target like erdos:443."
+                        "description": "start/abandon: the exact Target to lease or release."
+                    },
+                    "attempt_id": {
+                        "type": "string",
+                        "pattern": "^vat_[0-9a-f]{64}$",
+                        "description": "submit: optional exact Attempt id when the actor owns more than one active Attempt."
                     },
                     "agent_actor": {
                         "type": "string",
                         "minLength": 4,
                         "pattern": "^(agent:|ci:)",
-                        "description": "claim/land/drop: the agent identity doing the work (agent:<name> or ci:<name>); drop is allowed only for the exact lease owner."
+                        "description": "start/submit/abandon: the producer identity; abandon is allowed only for the exact lease owner."
                     },
                     "ttl_seconds": {
                         "type": "integer",
                         "minimum": 1,
-                        "description": "claim: lease TTL (default 86400)."
+                        "description": "start: lease TTL (default 86400)."
                     },
                     "release_reason": {
                         "type": "string",
                         "minLength": 1,
-                        "description": "drop: why the exact current owner is releasing the lease without landing."
+                        "description": "abandon: why the exact current owner is releasing the lease without a Submission."
                     },
-                    "receipt": {
+                    "submission": {
                         "type": "string",
                         "minLength": 2,
-                        "description": "land: raw vela.receipt.v1 JSON text. Pass the receipt file's text without parsing it into an object so Vela can reject duplicate object names before normalization."
+                        "description": "submit: raw vela.submission.v1 JSON text. Pass exact bytes so Vela can reject duplicate object names before normalization."
                     }
                 }
             }),
             PermissionLevel::Write,
             true,
             vec![
-                "Signs under the agent's own auto-minted session key (never a human's); VELA_AGENT_KEY_HEX overrides when an explicit key is wanted.",
-                "A lease is coordination, never authority; a landing is admitted only by a human-signed policy, else it waits in the sign queue.",
+                "Uses only the producer's agent identity, never a human authority key.",
+                "An Attempt is coordination and Submission registration is intake; neither is Verification or acceptance.",
             ],
         ),
         tool(
@@ -396,12 +398,13 @@ pub fn tool_caveats(name: &str) -> Vec<String> {
 
 /// MCP exposure profile (memo §9.1). A served frontier scopes which tools an
 /// agent can see and call. `MCP exposes tools; Vela governs state`. Human
-/// finalization is available only through the terminal `vela sign` ceremony.
+/// finalization is available only through one direct protected
+/// `vela review accept` or `vela review reject` action.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum McpProfile {
     /// Inspect state, graph, provenance, tasks, schemas. The default.
     ReadOnly,
-    /// Read + the task-first Receipt landing workflow (`work`).
+    /// Read + the non-finalizing producer Attempt workflow (`attempt`).
     Draft,
 }
 
@@ -444,8 +447,9 @@ pub fn tools_for_profile(profile: McpProfile) -> Vec<ToolDefinition> {
 /// The MCP-standard tool annotations, derived from the tool's own
 /// permission level and scope. Claude Code reads `readOnlyHint` to run
 /// read tools concurrently, so exposing these speeds a swarm's inspection
-/// calls. `destructiveHint` is true for `work` because action=drop removes the
-/// caller-owned private session directory (never truth-bearing state).
+/// calls. `destructiveHint` is true for `attempt` because action=abandon
+/// removes the caller-owned private Attempt directory (never truth-bearing
+/// state).
 /// `openWorldHint` is true only for `external`, which
 /// reaches outside the frontier (PubMed / nanopublications).
 fn tool_annotations(tool: &ToolDefinition) -> Value {
@@ -453,7 +457,7 @@ fn tool_annotations(tool: &ToolDefinition) -> Value {
     json!({
         "title": tool.name,
         "readOnlyHint": read_only,
-        "destructiveHint": tool.name == "work",
+        "destructiveHint": tool.name == "attempt",
         "idempotentHint": read_only,
         "openWorldHint": tool.name == "external",
     })
@@ -499,29 +503,18 @@ pub fn tool_output_schema(name: &str) -> Option<Value> {
                 "total": {"type": "integer"}
             }
         }),
-        "work" => json!({
+        "attempt" => json!({
             "type": "object",
-            "description": "The lease/land outcome for a work action.",
+            "description": "The start, submit, or abandon outcome for one producer Attempt.",
             "properties": {
                 "action": {"type": "string"},
                 "operation_id": {"type": ["string", "null"]},
-                "receipt_root": {"type": ["string", "null"]},
-                "record_id": {"type": ["string", "null"]},
+                "submission_id": {"type": ["string", "null"]},
+                "submission_root": {"type": ["string", "null"]},
+                "registration_record_id": {"type": ["string", "null"]},
                 "proposal_id": {"type": ["string", "null"]},
-                "finding_id": {"type": ["string", "null"]},
-                "accepted_event_count_before": {"type": ["integer", "null"], "minimum": 0},
-                "accepted_event_count_after": {"type": ["integer", "null"], "minimum": 0},
                 "accepted_event_delta": {"type": ["integer", "null"], "minimum": 0},
-                "route": {
-                    "type": ["string", "null"],
-                    "description": "policy_admitted | deferred | exact_retry (for land)"
-                },
-                "original_route": {
-                    "type": ["string", "null"],
-                    "enum": ["policy_admitted", "deferred", null],
-                    "description": "Prior durable policy route for exact_retry; null otherwise"
-                },
-                "detail": {"type": ["string", "null"]},
+                "route": {"type": ["string", "null"], "description": "pending_review for Submission registration"},
                 "publication": {"type": ["object", "null"]}
             }
         }),
@@ -587,7 +580,7 @@ mod profile_tests {
 
     /// The whole MCP surface, by contract: exactly these eight names.
     const THE_EIGHT: [&str; 8] = [
-        "orient", "finding", "search", "graph", "verify", "work", "objects", "external",
+        "orient", "finding", "search", "graph", "verify", "attempt", "objects", "external",
     ];
     const REMOVED_WRITERS: [&str; 2] = ["decide", "propose"];
 
@@ -645,12 +638,12 @@ mod profile_tests {
             ro.iter().all(|t| !t.mutating),
             "read-only must expose no mutating tool"
         );
-        // draft adds the task-first work tool, never a parallel proposal or
+        // draft adds the task-first Attempt tool, never a parallel Proposal or
         // finalization tier.
         assert_eq!(
             draft_names,
             vec![
-                "orient", "finding", "search", "graph", "verify", "work", "objects", "external"
+                "orient", "finding", "search", "graph", "verify", "attempt", "objects", "external"
             ]
         );
         assert_eq!(
@@ -659,8 +652,8 @@ mod profile_tests {
                 .filter(|tool| tool.mutating)
                 .map(|tool| tool.name.as_str())
                 .collect::<Vec<_>>(),
-            vec!["work"],
-            "MCP writes are limited to the task-first work tool"
+            vec!["attempt"],
+            "MCP writes are limited to the non-finalizing Attempt tool"
         );
     }
 
@@ -703,27 +696,27 @@ mod profile_tests {
     }
 
     #[test]
-    fn work_land_exposes_receipt_as_raw_json_text() {
-        let work = get_tool("work").unwrap();
-        let receipt = &work.parameters["properties"]["receipt"];
-        assert_eq!(receipt["type"], "string");
+    fn attempt_submit_exposes_submission_as_raw_json_text() {
+        let attempt = get_tool("attempt").unwrap();
+        let submission = &attempt.parameters["properties"]["submission"];
+        assert_eq!(submission["type"], "string");
         assert!(
-            receipt["description"]
+            submission["description"]
                 .as_str()
                 .unwrap()
-                .contains("without parsing it into an object"),
-            "the MCP contract must preserve the producer wire text until ReceiptV1::parse"
+                .contains("exact bytes"),
+            "the MCP contract must preserve producer wire text until SubmissionV1::parse"
         );
     }
 
     #[test]
-    fn work_actions_are_exactly_task_first() {
-        let work = get_tool("work").unwrap();
+    fn attempt_actions_are_exactly_task_first() {
+        let attempt = get_tool("attempt").unwrap();
         assert_eq!(
-            work.parameters["properties"]["action"]["enum"],
-            json!(["claim", "land", "drop"])
+            attempt.parameters["properties"]["action"]["enum"],
+            json!(["start", "submit", "abandon"])
         );
-        let properties = work.parameters["properties"].as_object().unwrap();
+        let properties = attempt.parameters["properties"].as_object().unwrap();
         for retired in [
             "problem",
             "kind",
@@ -743,7 +736,7 @@ mod profile_tests {
         ] {
             assert!(
                 !properties.contains_key(retired),
-                "retired attempt-deposit field `{retired}` remains in MCP work"
+                "retired producer field `{retired}` remains in MCP attempt"
             );
         }
     }
@@ -784,48 +777,44 @@ mod profile_tests {
                 "{name} is frontier-scoped"
             );
         }
-        // Work is coarse-marked destructive because its drop action removes a
-        // private, actor-owned session.
-        let work = &by_name["work"]["annotations"];
-        assert_eq!(work["readOnlyHint"], json!(false), "work writes");
-        assert_eq!(work["destructiveHint"], json!(true), "work");
+        // Attempt is coarse-marked destructive because abandon removes a
+        // private, actor-owned Attempt.
+        let attempt = &by_name["attempt"]["annotations"];
+        assert_eq!(attempt["readOnlyHint"], json!(false), "attempt writes");
+        assert_eq!(attempt["destructiveHint"], json!(true), "attempt");
         // external reaches outside the frontier.
         assert_eq!(
             by_name["external"]["annotations"]["openWorldHint"],
             json!(true)
         );
         // Structured output on the high-traffic tools.
-        for name in ["orient", "finding", "search", "work"] {
+        for name in ["orient", "finding", "search", "attempt"] {
             assert!(
                 by_name[name].get("outputSchema").is_some(),
                 "{name} should declare an outputSchema"
             );
         }
-        let work_properties = by_name["work"]["outputSchema"]["properties"]
+        let attempt_properties = by_name["attempt"]["outputSchema"]["properties"]
             .as_object()
-            .expect("work output schema properties");
+            .expect("attempt output schema properties");
         for field in [
             "operation_id",
-            "receipt_root",
-            "record_id",
+            "submission_id",
+            "submission_root",
+            "registration_record_id",
             "proposal_id",
-            "finding_id",
-            "accepted_event_count_before",
-            "accepted_event_count_after",
             "accepted_event_delta",
             "route",
-            "original_route",
             "publication",
         ] {
             assert!(
-                work_properties.contains_key(field),
-                "work output schema is missing {field}"
+                attempt_properties.contains_key(field),
+                "attempt output schema is missing {field}"
             );
         }
-        assert_eq!(work_properties["accepted_event_delta"]["minimum"], json!(0));
         assert_eq!(
-            work_properties["original_route"]["enum"],
-            json!(["policy_admitted", "deferred", null])
+            attempt_properties["accepted_event_delta"]["minimum"],
+            json!(0)
         );
     }
 }

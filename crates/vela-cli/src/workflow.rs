@@ -1,33 +1,13 @@
-//! The compounding loop's engine: claim → briefing → land → drop.
-//! One implementation behind the CLI verbs (`work`, `land`) and the
-//! MCP `work` tool, so agents and humans drive the same machinery.
+//! The producer loop: next → start → submit.
 //!
-//! `land` is the loop's write edge and the home of the **Vela Receipt**
-//! (`vela.receipt.v1`) — the portable JSON any external tool (Claude
-//! Science exports, notebooks, Codex runs, foundry searches) hands
-//! over to cross from activity into state:
-//!
-//! ```json
-//! {
-//!   "schema": "vela.receipt.v1",
-//!   "claim": "what is now known / bounded / refuted",
-//!   "type": "computational | theoretical | empirical | negative",
-//!   "artifacts": [{"path": "…", "kind": "witness"}],
-//!   "caveats": ["what this does NOT establish"],
-//!   "verifier_runs": [{"method": "…", "outcome": "pass", "log": "…"}],
-//!   "environment": {"…": "optional, carried into provenance"},
-//!   "provenance": {"generated_by": "…", "co_author": "agent:…"}
-//! }
-//! ```
-//!
-//! Landing routes by the frontier's active authority: **Permit** admits
-//! canonically through the applicable retained or current authority lane;
-//! **Defer** leaves the Proposal pending for an exact direct review action;
-//! **Deny** or a gate block refuses canonical admission. Landing is idempotent:
-//! content addressing collapses byte-identical records, and an
-//! already-applied proposal is the caller's exit 5.
+//! `start` creates one private Attempt against an exact target. `submit`
+//! registers an authenticated `vela.submission.v1`, a Vela-issued
+//! Registration Record, and one pending Proposal through repository authority.
+//! It cannot create Verification, a Decision, an Event, or accepted state.
+//! Historical Receipt-era objects remain readable only through compatibility
+//! fixtures; this module contains no current Receipt writer.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -35,14 +15,16 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vela_authority::CedarEvaluationInput;
 use vela_authority::runtime_authentication::{
-    AuthenticationRequest, RuntimeSessionState, SignedAgentEventSession, SignedAgentRecordSession,
+    AuthenticationRequest, RuntimeSessionState, SignedAgentEventSession,
+    SignedAgentSubmissionSession, SignedVerificationRecordSession,
 };
 use vela_protocol::authority::PrincipalSnapshotV1;
-use vela_protocol::bundle::{ArtifactAvailability, ArtifactDisclosure, LocatorIntegrity};
 use vela_protocol::principal_capability::PrincipalClass;
-use vela_protocol::proposals::policy_accept::{self, PolicyLaneRefusal};
-use vela_protocol::receipt_v1::ReceiptV1;
 use vela_protocol::repo;
+use vela_protocol::submission_v1::{
+    ProducerCheck, RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft,
+    SubmissionProvenance, SubmissionV1,
+};
 
 pub(crate) fn acquire_canonical_write_barrier(
     frontier: &Path,
@@ -55,240 +37,6 @@ pub(crate) fn acquire_canonical_write_barrier(
     #[cfg(not(test))]
     {
         crate::frontier_txn::FrontierTxn::acquire_write_barrier(frontier, journal_dir)
-    }
-}
-
-fn reauthorize_prepared_canonical_write(
-    transaction: &mut crate::frontier_txn::FrontierTxn,
-) -> Result<(), crate::frontier_txn::FrontierTxnError> {
-    #[cfg(test)]
-    {
-        transaction.reauthorize_prepared_for_test()
-    }
-    #[cfg(not(test))]
-    {
-        transaction
-            .reauthorize_prepared_for_commit(crate::frontier_txn::CanonicalWriteIntent::Producer)
-    }
-}
-
-/// Where a landing ended up.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub(crate) enum LandRoute {
-    /// Admitted canonically under the signed policy (the autonomy lane).
-    PolicyAdmitted { event_id: String, policy_id: String },
-    /// Pending — a human's `vela sign` queue holds it now. Success-shaped.
-    Deferred { reasons: Vec<String> },
-    /// The same operation id and normalized request already crossed the
-    /// durable boundary. A same-claim receipt with different evidence is never
-    /// this route.
-    ExactRetry { original_route: String },
-}
-
-#[derive(Debug)]
-pub(crate) struct LandOutcome {
-    pub operation_id: String,
-    pub receipt_root: String,
-    pub record_id: String,
-    pub proposal_id: String,
-    pub finding_id: String,
-    /// Canonical event count observed under the frontier-wide recovery
-    /// barrier before this landing was planned. New landings always populate
-    /// this. A journal-free retry of older public state may report `None`
-    /// because inventing a historical count would be misleading.
-    pub accepted_event_count_before: Option<usize>,
-    /// Canonical event count in the transaction postimage. Defer leaves this
-    /// unchanged; a policy-admitted landing increments it by one.
-    pub accepted_event_count_after: Option<usize>,
-    pub route: LandRoute,
-    pub publication: crate::config::git_publish::PublicationOutcome,
-}
-
-/// Transport-neutral landing result. CLI JSON adds only its command envelope;
-/// MCP returns this projection inside its tool envelope. Scientific and
-/// publication facts are therefore mapped exactly once.
-#[derive(Debug, Serialize)]
-pub(crate) struct LandOutcomeWire<'a> {
-    pub operation_id: &'a str,
-    pub receipt_root: &'a str,
-    pub record_id: &'a str,
-    pub proposal_id: &'a str,
-    pub finding_id: &'a str,
-    pub accepted_event_count_before: Option<usize>,
-    pub accepted_event_count_after: Option<usize>,
-    pub accepted_event_delta: Option<usize>,
-    pub route: &'static str,
-    /// Prior durable policy route for an exact retry; null for a first result.
-    pub original_route: Option<&'a str>,
-    pub detail: String,
-    pub publication: &'a crate::config::git_publish::PublicationOutcome,
-}
-
-impl LandOutcome {
-    pub(crate) fn accepted_event_delta(&self) -> Option<usize> {
-        accepted_event_count_delta(
-            self.accepted_event_count_before,
-            self.accepted_event_count_after,
-        )
-        .expect("landing outcomes carry a validated monotone accepted-event count pair")
-    }
-
-    pub(crate) fn wire(&self) -> LandOutcomeWire<'_> {
-        let (route, detail) = self.route.summary();
-        LandOutcomeWire {
-            operation_id: &self.operation_id,
-            receipt_root: &self.receipt_root,
-            record_id: &self.record_id,
-            proposal_id: &self.proposal_id,
-            finding_id: &self.finding_id,
-            accepted_event_count_before: self.accepted_event_count_before,
-            accepted_event_count_after: self.accepted_event_count_after,
-            accepted_event_delta: self.accepted_event_delta(),
-            route,
-            original_route: self.route.original_route(),
-            detail,
-            publication: &self.publication,
-        }
-    }
-}
-
-fn accepted_event_count_delta(
-    before: Option<usize>,
-    after: Option<usize>,
-) -> Result<Option<usize>, String> {
-    match (before, after) {
-        (None, None) => Ok(None),
-        (Some(before), Some(after)) => after.checked_sub(before).map(Some).ok_or_else(|| {
-            format!("accepted-event count decreased across landing ({before} -> {after})")
-        }),
-        _ => Err("accepted-event counts must either both be present or both be absent".to_string()),
-    }
-}
-
-#[cfg(test)]
-mod accepted_event_count_contract_tests {
-    use super::{LandOutcome, LandRoute, accepted_event_count_delta};
-    use crate::config::git_publish::{PublicationOutcome, PublicationState};
-
-    #[test]
-    fn accepted_event_delta_is_monotone_or_absent() {
-        assert_eq!(accepted_event_count_delta(Some(12), Some(12)), Ok(Some(0)));
-        assert_eq!(accepted_event_count_delta(Some(12), Some(13)), Ok(Some(1)));
-        assert_eq!(accepted_event_count_delta(None, None), Ok(None));
-        assert!(accepted_event_count_delta(Some(13), Some(12)).is_err());
-        assert!(accepted_event_count_delta(Some(12), None).is_err());
-        assert!(accepted_event_count_delta(None, Some(12)).is_err());
-    }
-
-    #[test]
-    fn land_wire_projection_is_the_one_transport_neutral_contract() {
-        let fixture = |route, after| LandOutcome {
-            operation_id: format!("vop_{}", "1".repeat(64)),
-            receipt_root: format!("sha256:{}", "2".repeat(64)),
-            record_id: "vrc_wire".to_string(),
-            proposal_id: "vsp_wire".to_string(),
-            finding_id: "vf_wire".to_string(),
-            accepted_event_count_before: Some(7),
-            accepted_event_count_after: Some(after),
-            route,
-            publication: PublicationOutcome {
-                state: PublicationState::Uncommitted {
-                    candidate: None,
-                    reason: "fixture".to_string(),
-                },
-                recovery_command: None,
-            },
-        };
-        let cases = [
-            (
-                fixture(
-                    LandRoute::PolicyAdmitted {
-                        event_id: "vev_wire".to_string(),
-                        policy_id: "vap_wire".to_string(),
-                    },
-                    8,
-                ),
-                "policy_admitted",
-                None,
-                "event vev_wire under vap_wire",
-                1,
-            ),
-            (
-                fixture(
-                    LandRoute::Deferred {
-                        reasons: vec!["human scientific judgment".to_string()],
-                    },
-                    7,
-                ),
-                "deferred",
-                None,
-                "human scientific judgment",
-                0,
-            ),
-            (
-                fixture(
-                    LandRoute::ExactRetry {
-                        original_route: "deferred".to_string(),
-                    },
-                    7,
-                ),
-                "exact_retry",
-                Some("deferred"),
-                "reused durable deferred result",
-                0,
-            ),
-            (
-                fixture(
-                    LandRoute::ExactRetry {
-                        original_route: "policy_admitted".to_string(),
-                    },
-                    7,
-                ),
-                "exact_retry",
-                Some("policy_admitted"),
-                "reused durable policy_admitted result",
-                0,
-            ),
-        ];
-
-        for (outcome, route, original_route, detail, delta) in cases {
-            let wire = serde_json::to_value(outcome.wire()).unwrap();
-            assert_eq!(wire["route"], route);
-            assert_eq!(wire["original_route"], serde_json::json!(original_route));
-            assert_eq!(wire["detail"], detail);
-            assert_eq!(wire["accepted_event_delta"], delta);
-            assert_eq!(wire.as_object().unwrap().len(), 12, "{wire}");
-        }
-    }
-}
-
-impl LandRoute {
-    /// Machine-readable prior route. `detail` remains human-facing text.
-    pub(crate) fn original_route(&self) -> Option<&str> {
-        match self {
-            LandRoute::ExactRetry { original_route } => Some(original_route),
-            LandRoute::PolicyAdmitted { .. } | LandRoute::Deferred { .. } => None,
-        }
-    }
-
-    /// The `(route, detail)` pair every landing surface reports — the CLI
-    /// verb and the MCP `work` tool speak the same contract.
-    pub(crate) fn summary(&self) -> (&'static str, String) {
-        match self {
-            LandRoute::PolicyAdmitted {
-                event_id,
-                policy_id,
-            } => (
-                "policy_admitted",
-                format!("event {event_id} under {policy_id}"),
-            ),
-            LandRoute::Deferred { reasons } => ("deferred", reasons.join(", ")),
-            LandRoute::ExactRetry { original_route } => (
-                "exact_retry",
-                format!("reused durable {original_route} result"),
-            ),
-        }
     }
 }
 
@@ -318,7 +66,7 @@ fn clone_project(
 }
 
 /// Install one already validated and signed event candidate through the same
-/// recoverable frontier-wide transaction used by proposal and landing writes.
+/// recoverable frontier-wide transaction used by Proposal and Decision writes.
 /// The supplied barrier must have been acquired before the Project snapshot
 /// was loaded, so the recorded `state_root_before` is the producer's exact
 /// scientific base rather than a best-effort observation.
@@ -899,124 +647,6 @@ where
     )
 }
 
-/// Retain one verifier's proposal-scoped evidence without crossing any
-/// acceptance boundary. The attachment event is signed by the mechanical
-/// verifier identity and installed through the ordinary recoverable frontier
-/// transaction used by other canonical evidence events.
-pub(crate) fn attach_proposal_verifier(
-    frontier: &Path,
-    proposal_id: &str,
-    attachment: vela_protocol::verifier_attachment::VerifierAttachment,
-    actor: &str,
-) -> Result<Value, String> {
-    let journal_dir = frontier_transaction_journal_dir(frontier)?;
-    let barrier = acquire_canonical_write_barrier(frontier, &journal_dir)
-        .map_err(|error| error.to_string())?;
-    let original = repo::load_from_path(frontier)?;
-    let proposal = original
-        .proposals
-        .iter()
-        .find(|proposal| proposal.id == proposal_id)
-        .ok_or_else(|| format!("proposal {proposal_id} does not exist"))?;
-    let finding: vela_protocol::bundle::FindingBundle = serde_json::from_value(
-        proposal
-            .payload
-            .get("finding")
-            .ok_or("proposal has no payload.finding")?
-            .clone(),
-    )
-    .map_err(|error| format!("parse proposal finding: {error}"))?;
-    let gate_projection = |project: &vela_protocol::project::Project| {
-        let attachments = project
-            .verifier_attachments
-            .iter()
-            .filter(|candidate| candidate.target == finding.id)
-            .cloned()
-            .collect::<Vec<_>>();
-        let gate = vela_protocol::verifier_attachment::derive_gate_status(
-            &vela_protocol::verifier_attachment::claim_digest(&finding.assertion.text),
-            &attachments,
-        );
-        let next_missing_condition = gate.reasons.first().cloned();
-        (attachments.len(), gate, next_missing_condition)
-    };
-    if let Some(event) = original.events.iter().find(|event| {
-        event.kind == vela_protocol::events::EVENT_KIND_VERIFIER_ATTACHMENT_ADDED
-            && event.payload.get("proposal_id").and_then(Value::as_str) == Some(proposal_id)
-            && event
-                .payload
-                .pointer("/attachment/id")
-                .and_then(Value::as_str)
-                == Some(attachment.id.as_str())
-    }) {
-        let (count, gate, next_missing_condition) = gate_projection(&original);
-        return Ok(json!({
-            "ok": true,
-            "command": "verify.attach",
-            "proposal_id": proposal_id,
-            "finding_id": finding.id,
-            "attachment_id": attachment.id,
-            "attachment_event_id": event.id,
-            "attached_at": event.timestamp,
-            "idempotent": true,
-            "accepted_state_delta": 0,
-            "canonical_event_delta": 0,
-            "attachment_count": count,
-            "gate": { "status": gate.status, "reasons": gate.reasons },
-            "next_missing_condition": next_missing_condition,
-            "state_root_before": format!("sha256:{}", vela_protocol::events::event_log_hash(&original.events)),
-            "state_root_after": format!("sha256:{}", vela_protocol::events::event_log_hash(&original.events)),
-            "publication": null,
-        }));
-    }
-    let key = vela_edge::vela_agent_mcp::agent_signing_key(Some(actor))?;
-    let mut candidate = clone_project(&original)?;
-    let attached_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
-    let event = vela_protocol::proposals::append_proposal_verifier_attachment(
-        &mut candidate,
-        proposal_id,
-        attachment.clone(),
-        actor,
-        &attached_at,
-        &key,
-    )?;
-    let (count, gate, next_missing_condition) = gate_projection(&candidate);
-    let result = json!({
-        "ok": true,
-        "command": "verify.attach",
-        "proposal_id": proposal_id,
-        "finding_id": finding.id,
-        "attachment_id": attachment.id,
-        "attachment_event_id": event.id,
-        "attached_at": attached_at,
-        "idempotent": false,
-        "accepted_state_delta": 0,
-        "canonical_event_delta": 1,
-        "attachment_count": count,
-        "gate": { "status": gate.status, "reasons": gate.reasons },
-        "next_missing_condition": next_missing_condition,
-        "state_root_before": format!("sha256:{}", vela_protocol::events::event_log_hash(&original.events)),
-        "state_root_after": format!("sha256:{}", vela_protocol::events::event_log_hash(&candidate.events)),
-    });
-    transact_event_candidate_with_barrier(
-        frontier,
-        barrier,
-        &original,
-        &candidate,
-        result,
-        EventTransactionBinding {
-            operation_namespace: "verifier-attachment",
-            request_schema: "vela.verifier-attachment-request.internal.v1",
-            request_event_id_field: "attachment_event_id",
-            result_event_id_field: "attachment_event_id",
-            result_timestamp_field: "attached_at",
-            publication_summary: "verify attach",
-            preserve_existing_event_bytes: true,
-        },
-        || Ok(()),
-    )
-}
-
 /// The pre-loaded briefing for a target — the compounding payload the
 /// session starts from. Problem-shaped targets get the full task packet;
 /// rich campaign targets also carry their non-authorizing coordination task.
@@ -1101,16 +731,16 @@ pub(crate) fn session_dir(frontier: &Path, target: &str) -> PathBuf {
         .join(format!("{safe}--{target_root}"))
 }
 
-const WORK_SESSION_SCHEMA: &str = "vela.work-session.internal.v1";
+const ATTEMPT_SCHEMA: &str = "vela.attempt.v1";
 const TASK_CONTRACT_SCHEMA: &str = "vela.task-contract.internal.v1";
-const WORK_SESSION_MAX_BYTES: usize = 2 * 1024 * 1024;
+const ATTEMPT_MAX_BYTES: usize = 2 * 1024 * 1024;
 
 /// One private, ignored producer session. It is coordination and authoring
 /// context, never canonical scientific state or an authority object.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct WorkSession {
+pub(crate) struct Attempt {
     pub schema: String,
-    pub session_id: String,
+    pub attempt_id: String,
     pub target: String,
     pub frontier_id: String,
     pub base_event_log_root: String,
@@ -1119,7 +749,7 @@ pub(crate) struct WorkSession {
     ///
     /// Legacy sessions omit it. Repository-authority sessions bind it into
     /// their session identity so unrelated leases may coexist while any
-    /// scientific or authority change still invalidates landing.
+    /// scientific or authority change still invalidates submission.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub base_authority_nonlease_event_log_root: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1130,7 +760,7 @@ pub(crate) struct WorkSession {
     pub lease: WorkSessionLease,
     pub task_contract: TaskContract,
     pub task_contract_root: String,
-    pub receipt_builder: ReceiptBuilderSessionFacts,
+    pub submission_builder: SubmissionBuilderAttemptFacts,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub target_task_binding: Option<vela_edge::target_index::TargetTaskBindingV1>,
     pub briefing: Value,
@@ -1159,7 +789,7 @@ pub(crate) struct TaskContract {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub(crate) struct ReceiptBuilderSessionFacts {
+pub(crate) struct SubmissionBuilderAttemptFacts {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub artifact_refs: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -1169,8 +799,8 @@ pub(crate) struct ReceiptBuilderSessionFacts {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct ResolvedWorkSession {
-    pub record: WorkSession,
+pub(crate) struct ResolvedAttempt {
+    pub record: Attempt,
     pub relative_dir: String,
 }
 
@@ -1205,12 +835,12 @@ fn task_contract(briefing: &Value, target: &str) -> TaskContract {
         schema: TASK_CONTRACT_SCHEMA.to_string(),
         objective,
         completion_condition:
-            "Land one valid Receipt v1 whose evidence and caveats address this target."
+            "Submit one valid Submission whose evidence and caveats address this target."
                 .to_string(),
         allowed_actions: vec![
             "inspect the pinned frontier and task briefing".to_string(),
             "run frozen verifiers and private search or experiment loops".to_string(),
-            "create evidence artifacts and land a Receipt v1".to_string(),
+            "create evidence artifacts and submit one bounded Submission".to_string(),
             "deposit an informative failed or partial attempt".to_string(),
         ],
         forbidden_actions: vec![
@@ -1221,17 +851,18 @@ fn task_contract(briefing: &Value, target: &str) -> TaskContract {
         ],
         required_outputs,
         required_checks: vec![
-            "run every verifier claimed by the receipt and report its actual outcome".to_string(),
+            "run every producer-side check claimed by the Submission and report its actual outcome"
+                .to_string(),
             "state at least one caveat; if no material limitation is known, say so explicitly"
                 .to_string(),
-            "keep artifacts frontier-relative, bounded, and content-addressed at landing"
+            "keep artifacts frontier-relative, bounded, and content-addressed at submission"
                 .to_string(),
         ],
         escalation_path:
-            "Land outside signed Permit scope as Defer; a key-custody human decides it in `vela sign`."
+            "Submit for review; an authorized principal may later accept or reject the exact Proposal."
                 .to_string(),
         authority_ceiling:
-            "Producer evidence only. The session can create a receipt and proposal; it cannot create human acceptance."
+            "Producer evidence only. The Attempt can create a Submission and Proposal; it cannot create acceptance."
                 .to_string(),
     }
 }
@@ -1243,7 +874,7 @@ fn sha256_root(value: &impl Serialize) -> Result<String, String> {
     ))
 }
 
-fn work_session_id(
+fn attempt_id(
     frontier_id: &str,
     target: &str,
     actor: &str,
@@ -1253,7 +884,7 @@ fn work_session_id(
     authority_nonlease_event_log_root: Option<&str>,
 ) -> Result<String, String> {
     let mut preimage = json!({
-        "schema": WORK_SESSION_SCHEMA,
+        "schema": ATTEMPT_SCHEMA,
         "frontier_id": frontier_id,
         "target": target,
         "actor": actor,
@@ -1267,7 +898,7 @@ fn work_session_id(
         preimage["authority_nonlease_event_log_root"] = json!(authority_root);
     }
     Ok(format!(
-        "vws_{}",
+        "vat_{}",
         vela_protocol::canonical::sha256_canonical(&preimage)?
     ))
 }
@@ -1296,14 +927,14 @@ fn repository_authority_nonlease_event_log_root(
     vela_protocol::authority_history::authority_event_log_root(&legacy_root, &events)
 }
 
-fn repository_land_materialization_candidate(
+fn repository_submission_materialization_candidate(
     frontier: &Path,
     proposal: vela_protocol::proposals::StateProposal,
 ) -> Result<vela_protocol::project::Project, String> {
     // Reload from canonical repository bytes rather than accepting the
     // effective workflow Project. The latter may contain detached
     // repository-authority lease overlays used only to validate the active
-    // work session; those overlays must never enter ordinary derived views.
+    // Attempt; those overlays must never enter ordinary derived views.
     let mut candidate = repo::load_from_path(frontier)?;
     vela_protocol::proposals::insert_pending_in_frontier(&mut candidate, proposal)?;
     Ok(candidate)
@@ -1373,13 +1004,13 @@ fn source_git_commit(frontier: &Path) -> (Option<String>, String) {
     }
 }
 
-fn encoded_work_session(session: &WorkSession) -> Result<Vec<u8>, String> {
+fn encoded_attempt(session: &Attempt) -> Result<Vec<u8>, String> {
     let mut bytes = serde_json::to_vec_pretty(session)
-        .map_err(|error| format!("encode work-session record: {error}"))?;
+        .map_err(|error| format!("encode Attempt record: {error}"))?;
     bytes.push(b'\n');
-    if bytes.len() > WORK_SESSION_MAX_BYTES {
+    if bytes.len() > ATTEMPT_MAX_BYTES {
         return Err(format!(
-            "work-session record is {} bytes; limit is {WORK_SESSION_MAX_BYTES} bytes",
+            "Attempt record is {} bytes; limit is {ATTEMPT_MAX_BYTES} bytes",
             bytes.len()
         ));
     }
@@ -1406,9 +1037,9 @@ fn preflight_work_session_size(
     // timestamp fields. This rejects an impossible session before key lookup
     // or candidate signing; the exact record is measured again before commit.
     let timestamp_placeholder = "0".repeat(64);
-    let session = WorkSession {
-        schema: WORK_SESSION_SCHEMA.to_string(),
-        session_id: format!("vws_{}", "0".repeat(64)),
+    let session = Attempt {
+        schema: ATTEMPT_SCHEMA.to_string(),
+        attempt_id: format!("vat_{}", "0".repeat(64)),
         target: target.to_string(),
         frontier_id: frontier_id.to_string(),
         base_event_log_root: base_event_log_root.to_string(),
@@ -1427,17 +1058,17 @@ fn preflight_work_session_size(
         },
         task_contract,
         task_contract_root,
-        receipt_builder: ReceiptBuilderSessionFacts::default(),
+        submission_builder: SubmissionBuilderAttemptFacts::default(),
         target_task_binding,
         briefing,
     };
-    encoded_work_session(&session).map(|_| ())
+    encoded_attempt(&session).map(|_| ())
 }
 
-fn write_work_session(frontier: &Path, session: &WorkSession) -> Result<PathBuf, String> {
+fn write_attempt(frontier: &Path, session: &Attempt) -> Result<PathBuf, String> {
     use std::io::Write;
 
-    let bytes = encoded_work_session(session)?;
+    let bytes = encoded_attempt(session)?;
     let vela = frontier.join(".vela");
     let metadata = std::fs::symlink_metadata(&vela).map_err(|error| {
         format!(
@@ -1455,55 +1086,49 @@ fn write_work_session(frontier: &Path, session: &WorkSession) -> Result<PathBuf,
     match std::fs::symlink_metadata(&work) {
         Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
             return Err(format!(
-                "work-session root must be a real directory: {}",
+                "Attempt root must be a real directory: {}",
                 work.display()
             ));
         }
         Ok(_) => {}
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             std::fs::create_dir(&work)
-                .map_err(|error| format!("create work-session root {}: {error}", work.display()))?;
+                .map_err(|error| format!("create Attempt root {}: {error}", work.display()))?;
         }
         Err(error) => {
-            return Err(format!(
-                "inspect work-session root {}: {error}",
-                work.display()
-            ));
+            return Err(format!("inspect Attempt root {}: {error}", work.display()));
         }
     }
     let directory = session_dir(frontier, &session.target);
     match std::fs::symlink_metadata(&directory) {
         Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
             return Err(format!(
-                "work session must be a real directory: {}",
+                "Attempt must be a real directory: {}",
                 directory.display()
             ));
         }
         Ok(_) => {}
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             std::fs::create_dir(&directory)
-                .map_err(|error| format!("create work session {}: {error}", directory.display()))?;
+                .map_err(|error| format!("create Attempt {}: {error}", directory.display()))?;
         }
         Err(error) => {
-            return Err(format!(
-                "inspect work session {}: {error}",
-                directory.display()
-            ));
+            return Err(format!("inspect Attempt {}: {error}", directory.display()));
         }
     }
-    let path = directory.join("session.json");
+    let path = directory.join("attempt.json");
     if let Ok(metadata) = std::fs::symlink_metadata(&path)
         && (metadata.file_type().is_symlink() || !metadata.is_file())
     {
         return Err(format!(
-            "work-session record must be a regular non-symlink file: {}",
+            "Attempt record must be a regular non-symlink file: {}",
             path.display()
         ));
     }
     let temporary = directory.join(format!(
-        ".session-{}-{}.tmp",
+        ".attempt-{}-{}.tmp",
         std::process::id(),
-        &session.session_id[4..20]
+        &session.attempt_id[4..20]
     ));
     let mut options = std::fs::OpenOptions::new();
     options.write(true).create_new(true);
@@ -1515,13 +1140,13 @@ fn write_work_session(frontier: &Path, session: &WorkSession) -> Result<PathBuf,
     let result = (|| {
         let mut file = options
             .open(&temporary)
-            .map_err(|error| format!("create work-session record: {error}"))?;
+            .map_err(|error| format!("create Attempt record: {error}"))?;
         file.write_all(&bytes)
-            .map_err(|error| format!("write work-session record: {error}"))?;
+            .map_err(|error| format!("write Attempt record: {error}"))?;
         file.sync_all()
-            .map_err(|error| format!("persist work-session record: {error}"))?;
+            .map_err(|error| format!("persist Attempt record: {error}"))?;
         std::fs::rename(&temporary, &path)
-            .map_err(|error| format!("install work-session record: {error}"))?;
+            .map_err(|error| format!("install Attempt record: {error}"))?;
         Ok(path.clone())
     })();
     if result.is_err() {
@@ -1530,47 +1155,40 @@ fn write_work_session(frontier: &Path, session: &WorkSession) -> Result<PathBuf,
     result
 }
 
-fn parse_work_session(path: &Path) -> Result<WorkSession, String> {
+fn parse_attempt(path: &Path) -> Result<Attempt, String> {
     let metadata = std::fs::symlink_metadata(path)
-        .map_err(|error| format!("inspect work session {}: {error}", path.display()))?;
+        .map_err(|error| format!("inspect Attempt {}: {error}", path.display()))?;
     if metadata.file_type().is_symlink() || !metadata.is_file() {
         return Err(format!(
-            "work-session record must be a regular non-symlink file: {}",
+            "Attempt record must be a regular non-symlink file: {}",
             path.display()
         ));
     }
-    if metadata.len() > WORK_SESSION_MAX_BYTES as u64 {
-        return Err(format!(
-            "work-session record is too large: {}",
-            path.display()
-        ));
+    if metadata.len() > ATTEMPT_MAX_BYTES as u64 {
+        return Err(format!("Attempt record is too large: {}", path.display()));
     }
-    let bytes = std::fs::read(path)
-        .map_err(|error| format!("read work session {}: {error}", path.display()))?;
-    let session: WorkSession = serde_json::from_slice(&bytes).map_err(|error| {
+    let bytes =
+        std::fs::read(path).map_err(|error| format!("read Attempt {}: {error}", path.display()))?;
+    let session: Attempt = serde_json::from_slice(&bytes).map_err(|error| {
         format!(
-            "parse work session {}: {error}; remove this private stale session and rerun `vela start <target> --as <actor>`",
+            "parse Attempt {}: {error}; remove this private stale Attempt and rerun `vela start <target> --as <actor>`",
             path.display()
         )
     })?;
-    validate_work_session_record(&session)
-        .map_err(|error| format!("{error}: {}", path.display()))?;
+    validate_attempt_record(&session).map_err(|error| format!("{error}: {}", path.display()))?;
     Ok(session)
 }
 
-fn validate_work_session_record(session: &WorkSession) -> Result<(), String> {
-    if session.schema != WORK_SESSION_SCHEMA {
-        return Err(format!(
-            "unsupported work-session schema {}",
-            session.schema
-        ));
+fn validate_attempt_record(session: &Attempt) -> Result<(), String> {
+    if session.schema != ATTEMPT_SCHEMA {
+        return Err(format!("unsupported Attempt schema {}", session.schema));
     }
     if session.task_contract.schema != TASK_CONTRACT_SCHEMA
         || sha256_root(&session.task_contract)? != session.task_contract_root
     {
-        return Err("work-session task contract does not match its content root".to_string());
+        return Err("Attempt task contract does not match its content root".to_string());
     }
-    let expected_session_id = work_session_id(
+    let expected_attempt_id = attempt_id(
         &session.frontier_id,
         &session.target,
         &session.actor,
@@ -1582,19 +1200,16 @@ fn validate_work_session_record(session: &WorkSession) -> Result<(), String> {
             .map(|binding| binding.binding_root.as_str()),
         session.base_authority_nonlease_event_log_root.as_deref(),
     )?;
-    if session.session_id != expected_session_id {
-        return Err("work-session identity does not match its closed root preimage".to_string());
+    if session.attempt_id != expected_attempt_id {
+        return Err("Attempt identity does not match its closed root preimage".to_string());
     }
     if let Some(binding) = &session.target_task_binding {
         binding.validate().map_err(|error| {
-            format!(
-                "work-session target task binding does not match its closed content root: {error}"
-            )
+            format!("Attempt target binding does not match its closed content root: {error}")
         })?;
         if binding.frontier_id != session.frontier_id || binding.target_id != session.target {
             return Err(
-                "work-session target task binding does not match its Frontier and target"
-                    .to_string(),
+                "Attempt target binding does not match its Frontier and target".to_string(),
             );
         }
         if binding.claim_read_set.event_log_root != session.base_event_log_root
@@ -1602,29 +1217,23 @@ fn validate_work_session_record(session: &WorkSession) -> Result<(), String> {
                 != Some(binding.claim_read_set.git_commit.as_str())
             || session.source_git_state != "pinned"
         {
-            return Err(
-                "work-session target task binding does not match its claim read set".to_string(),
-            );
+            return Err("Attempt target binding does not match its claim read set".to_string());
         }
     }
     Ok(())
 }
 
-fn validate_active_session(
-    frontier: &Path,
-    actor: &str,
-    session: &WorkSession,
-) -> Result<(), String> {
+fn validate_active_session(frontier: &Path, actor: &str, session: &Attempt) -> Result<(), String> {
     if session.actor != actor {
         return Err(format!(
-            "work session {} belongs to {}, not {actor}",
+            "Attempt {} belongs to {}, not {actor}",
             session.target, session.actor
         ));
     }
     let (project, authority) = load_project_with_repository_authority(frontier)?;
     if session.frontier_id != project.frontier_id() {
         return Err(format!(
-            "work session {} belongs to a different frontier",
+            "Attempt {} belongs to a different Frontier",
             session.target
         ));
     }
@@ -1636,19 +1245,19 @@ fn validate_active_session(
             let actual = repository_authority_nonlease_event_log_root(&project, authority)?;
             if actual != expected {
                 return Err(format!(
-                    "work session {} has repository-authority changes from its pinned state",
+                    "Attempt {} has repository-authority changes from its pinned state",
                     session.target
                 ));
             }
         }
         (Some(_), None) => {
             return Err(
-                "repository-authority work session lost its migrated authority history".to_string(),
+                "repository-authority Attempt lost its migrated authority history".to_string(),
             );
         }
         (None, Some(_)) => {
             return Err(
-                "legacy work session cannot cross the repository-authority migration boundary; remove it and rerun `vela start`"
+                "legacy Attempt cannot cross the repository-authority migration boundary; remove it and rerun `vela start`"
                     .to_string(),
             );
         }
@@ -1665,7 +1274,7 @@ fn validate_active_session(
         || current.claim_event_id.as_deref() != Some(session.lease.claim_event_id.as_str())
     {
         return Err(format!(
-            "work session {} no longer owns the exact frontier lease",
+            "Attempt {} no longer owns the exact Frontier lease",
             session.target
         ));
     }
@@ -1673,7 +1282,7 @@ fn validate_active_session(
         vela_protocol::events::attempt_lease_expiry(&current.claimed_at, current.lease_ttl_seconds)
             .map_err(|error| format!("work lease: {error}"))?;
     if expires <= chrono::Utc::now() {
-        return Err(format!("work session {} lease has expired", session.target));
+        return Err(format!("Attempt {} lease has expired", session.target));
     }
     Ok(())
 }
@@ -1681,7 +1290,7 @@ fn validate_active_session(
 fn revalidate_work_session_target_binding(
     frontier: &Path,
     project: &vela_protocol::project::Project,
-    session: &WorkSession,
+    session: &Attempt,
 ) -> Result<(), String> {
     let Some(binding) = &session.target_task_binding else {
         return Ok(());
@@ -1701,62 +1310,20 @@ fn revalidate_work_session_target_binding(
     )
 }
 
-fn receipt_target_task_binding(
-    receipt: &ReceiptV1,
-) -> Result<Option<vela_edge::target_index::TargetTaskBindingV1>, String> {
-    let Some(value) = receipt
-        .as_value()
-        .pointer("/environment/vela:target_task_binding")
-    else {
-        return Ok(None);
-    };
-    let binding =
-        serde_json::from_value::<vela_edge::target_index::TargetTaskBindingV1>(value.clone())
-            .map_err(|error| format!("receipt target task binding is not closed: {error}"))?;
-    binding
-        .validate()
-        .map_err(|error| format!("receipt target task binding is invalid: {error}"))?;
-    Ok(Some(binding))
-}
-
-fn revalidate_receipt_target_task_binding(
-    frontier: &Path,
-    project: &vela_protocol::project::Project,
-    receipt: &ReceiptV1,
-) -> Result<Option<vela_edge::target_index::TargetTaskBindingV1>, String> {
-    let Some(binding) = receipt_target_task_binding(receipt)? else {
-        return Ok(None);
-    };
-    let loaded_anchor =
-        crate::target_index::load_user_repository_trust_anchor(&project.frontier_id())?;
-    let repository_anchor = loaded_anchor
-        .as_ref()
-        .map(|loaded| crate::target_index::boundary_anchor(&loaded.anchor));
-    let authority_events = crate::target_index::load_verified_authority_events(frontier, project)?;
-    vela_edge::target_index::revalidate_target_task_binding_with_authority_events(
-        project,
-        frontier,
-        &binding,
-        repository_anchor.as_ref(),
-        &authority_events,
-    )?;
-    Ok(Some(binding))
-}
-
-/// Return the exact causal root for a session whose scientific base is still
+/// Return the exact causal root for an Attempt whose scientific base is still
 /// current.
 ///
-/// A work session deliberately pins `base_event_log_root` before its own
+/// An Attempt deliberately pins `base_event_log_root` before its own
 /// coordination event, so the task describes the scientific state the
-/// producer actually started from. A policy-routed receipt must instead bind
-/// the current set commitment including signed coordination leases. New
-/// sessions separately pin the non-lease event set, so unrelated leases may
+/// producer actually started from. Attempts separately pin the non-lease event
+/// set, so unrelated leases may
 /// coexist while every scientific, provenance, or authority-event change
-/// fails closed. The non-lease root is required because work sessions are
+/// fails closed. The non-lease root is required because Attempts are
 /// private scratch and have no compatibility lane.
-fn work_session_landing_event_root(
+#[cfg(test)]
+fn attempt_causal_event_root(
     project: &vela_protocol::project::Project,
-    session: &WorkSession,
+    session: &Attempt,
 ) -> Result<String, String> {
     let matching_claims = project
         .events
@@ -1764,7 +1331,7 @@ fn work_session_landing_event_root(
         .filter(|event| event.id == session.lease.claim_event_id)
         .collect::<Vec<_>>();
     if matching_claims.len() != 1 {
-        return Err("work session must resolve to exactly one frontier lease event".to_string());
+        return Err("Attempt must resolve to exactly one Frontier lease event".to_string());
     }
     let claim = matching_claims[0];
     if claim.kind != vela_protocol::events::EVENT_KIND_ATTEMPT_CLAIMED
@@ -1774,11 +1341,11 @@ fn work_session_landing_event_root(
         || claim.payload.get("claimant_pubkey").and_then(Value::as_str)
             != Some(session.lease.claimant_pubkey.as_str())
     {
-        return Err("work session lease event does not match its signed session facts".to_string());
+        return Err("Attempt lease event does not match its signed facts".to_string());
     }
     if nonlease_event_log_root(&project.events) != session.base_nonlease_event_log_root {
         return Err(format!(
-            "work session frontier has non-lease changes from its pinned state; remove the private session and rerun `vela start {} --as {}`",
+            "Attempt Frontier has non-lease changes from its pinned state; remove the private Attempt and rerun `vela start {} --as {}`",
             session.target, session.actor
         ));
     }
@@ -1788,97 +1355,24 @@ fn work_session_landing_event_root(
     ))
 }
 
-fn work_session_landing_event_root_at(
-    frontier: &Path,
-    project: &vela_protocol::project::Project,
-    session: &WorkSession,
-) -> Result<String, String> {
-    let Some(expected_nonlease_root) = session.base_authority_nonlease_event_log_root.as_deref()
-    else {
-        return work_session_landing_event_root(project, session);
-    };
-    let authority = crate::cli::load_repository_authority(frontier, project)?
-        .ok_or_else(|| "repository-authority work session has no authority history".to_string())?;
-    let matching = authority
-        .history
-        .authority_events
-        .iter()
-        .filter(|event| event.id == session.lease.claim_event_id)
-        .collect::<Vec<_>>();
-    let [claim] = matching.as_slice() else {
-        return Err(
-            "work session must resolve to exactly one repository-authority lease event".into(),
-        );
-    };
-    if claim.content.kind != vela_protocol::events::EventKind::AttemptClaimed
-        || claim.content.actor.id != session.actor
-        || claim
-            .content
-            .payload
-            .get("obligation_id")
-            .and_then(Value::as_str)
-            != Some(session.target.as_str())
-        || claim
-            .content
-            .payload
-            .get("claimant_pubkey")
-            .and_then(Value::as_str)
-            != Some(session.lease.claimant_pubkey.as_str())
-    {
-        return Err(
-            "work session repository-authority lease does not match its signed session facts"
-                .into(),
-        );
-    }
-    let actual_nonlease_root = repository_authority_nonlease_event_log_root(project, &authority)?;
-    if actual_nonlease_root != expected_nonlease_root {
-        return Err(format!(
-            "work session frontier has non-lease authority changes from its pinned state; remove the private session and rerun `vela start {} --as {}`",
-            session.target, session.actor
-        ));
-    }
-    Ok(authority.verification.final_event_log_root)
-}
-
-/// Resolve an explicit target or infer the one active session owned by this
-/// actor. Other actors' sessions never create ambiguity.
-pub(crate) fn resolve_work_session(
+/// Resolve an explicit Attempt ID or infer the one active Attempt owned by this
+/// actor. Other actors' Attempts never create ambiguity.
+pub(crate) fn resolve_attempt(
     frontier: &Path,
     actor: &str,
-    requested_target: Option<&str>,
-) -> Result<ResolvedWorkSession, String> {
-    if let Some(target) = requested_target {
-        let directory = session_dir(frontier, target);
-        let record = parse_work_session(&directory.join("session.json"))?;
-        if record.target != target {
-            return Err(format!(
-                "work-session target {} does not match requested target {target}",
-                record.target
-            ));
-        }
-        validate_active_session(frontier, actor, &record)?;
-        let relative_dir = directory
-            .strip_prefix(frontier)
-            .map_err(|_| "work session escaped the frontier".to_string())?
-            .to_string_lossy()
-            .replace('\\', "/");
-        return Ok(ResolvedWorkSession {
-            record,
-            relative_dir,
-        });
-    }
-
+    requested_attempt: Option<&str>,
+) -> Result<ResolvedAttempt, String> {
     let root = frontier.join(".vela").join("work");
     let entries = std::fs::read_dir(&root)
-        .map_err(|_| "no active work session; run `vela start <target>` first".to_string())?;
+        .map_err(|_| "no active Attempt; run `vela start <target>` first".to_string())?;
     let mut candidates = Vec::new();
     for entry in entries {
-        let entry = entry.map_err(|error| format!("enumerate work sessions: {error}"))?;
-        let path = entry.path().join("session.json");
+        let entry = entry.map_err(|error| format!("enumerate Attempts: {error}"))?;
+        let path = entry.path().join("attempt.json");
         if !path.exists() {
             continue;
         }
-        let record = parse_work_session(&path)?;
+        let record = parse_attempt(&path)?;
         if record.actor != actor {
             continue;
         }
@@ -1888,25 +1382,40 @@ pub(crate) fn resolve_work_session(
         let relative_dir = entry
             .path()
             .strip_prefix(frontier)
-            .map_err(|_| "work session escaped the frontier".to_string())?
+            .map_err(|_| "Attempt escaped the Frontier".to_string())?
             .to_string_lossy()
             .replace('\\', "/");
-        candidates.push(ResolvedWorkSession {
+        candidates.push(ResolvedAttempt {
             record,
             relative_dir,
         });
     }
     candidates.sort_by(|left, right| left.record.target.cmp(&right.record.target));
+    if let Some(attempt_id) = requested_attempt {
+        let mut exact = candidates
+            .into_iter()
+            .filter(|candidate| candidate.record.attempt_id == attempt_id)
+            .collect::<Vec<_>>();
+        return match exact.len() {
+            1 => Ok(exact.remove(0)),
+            0 => Err(format!(
+                "no active Attempt {attempt_id} belongs to {actor}; run `vela start <target> --as {actor}`"
+            )),
+            _ => Err(format!(
+                "Attempt identity {attempt_id} is ambiguous; run `vela check . --strict`"
+            )),
+        };
+    }
     match candidates.len() {
         1 => Ok(candidates.remove(0)),
         0 => Err(format!(
-            "no active work session for {actor}; run `vela start <target> --as {actor}` first"
+            "no active Attempt for {actor}; run `vela start <target> --as {actor}` first"
         )),
         count => Err(format!(
-            "{actor} has {count} active work sessions ({}); select one with `vela land --work <target>`",
+            "{actor} has {count} active Attempts ({}); select one with `vela submit --attempt <attempt-id>`",
             candidates
                 .iter()
-                .map(|session| session.record.target.as_str())
+                .map(|attempt| attempt.record.attempt_id.as_str())
                 .collect::<Vec<_>>()
                 .join(", ")
         )),
@@ -1994,8 +1503,8 @@ where
         )
         .map_err(|error| format!("work lease: {error}"))?;
         if expires > chrono::Utc::now() {
-            let path = session_dir(frontier, target).join("session.json");
-            let session = parse_work_session(&path).map_err(|error| {
+            let path = session_dir(frontier, target).join("attempt.json");
+            let session = parse_attempt(&path).map_err(|error| {
                 format!(
                     "work target {target} already has an active lease for {actor}, but its private session is unavailable: {error}; wait for the in-flight `vela start` command or release the lease with `vela start {target} --drop --as {actor}`"
                 )
@@ -2013,8 +1522,8 @@ where
                     "claimed_at": &session.lease.claimed_at,
                 },
                 "briefing": &session.briefing,
-                "session": session,
-                "session_path": path.display().to_string(),
+                "attempt": session,
+                "attempt_path": path.display().to_string(),
             }));
         }
     }
@@ -2120,7 +1629,7 @@ where
         .to_string();
     let expires_at =
         vela_protocol::events::attempt_lease_expiry(&claimed_at, ttl_seconds)?.to_rfc3339();
-    let session_id = work_session_id(
+    let attempt_id = attempt_id(
         &base_project.frontier_id(),
         target,
         actor,
@@ -2131,9 +1640,9 @@ where
             .map(|binding| binding.binding_root.as_str()),
         base_authority_nonlease_event_log_root.as_deref(),
     )?;
-    let session = WorkSession {
-        schema: WORK_SESSION_SCHEMA.to_string(),
-        session_id,
+    let session = Attempt {
+        schema: ATTEMPT_SCHEMA.to_string(),
+        attempt_id,
         target: target.to_string(),
         frontier_id: base_project.frontier_id().to_string(),
         base_event_log_root,
@@ -2152,23 +1661,23 @@ where
         },
         task_contract: contract,
         task_contract_root,
-        receipt_builder: ReceiptBuilderSessionFacts::default(),
+        submission_builder: SubmissionBuilderAttemptFacts::default(),
         target_task_binding,
         briefing: briefing.clone(),
     };
     // The conservative preflight happened before either writer crossed its
     // marker. Recheck the exact private record before installing it.
-    validate_work_session_record(&session)?;
-    encoded_work_session(&session)?;
-    let path = write_work_session(frontier, &session)?;
+    validate_attempt_record(&session)?;
+    encoded_attempt(&session)?;
+    let path = write_attempt(frontier, &session)?;
     Ok(json!({
         "ok": true,
         "idempotent": false,
         "target": target,
         "claim": claim,
         "briefing": briefing,
-        "session": session,
-        "session_path": path.display().to_string(),
+        "attempt": session,
+        "attempt_path": path.display().to_string(),
     }))
 }
 
@@ -2261,53 +1770,35 @@ pub(crate) fn release_session(
     }))
 }
 
-/// Expand the small task-first flag surface into the same complete Receipt v1
-/// accepted by file import. A unique active work session supplies the stable
-/// emission context, so repeating the same normalized request produces the
-/// same receipt and operation identity instead of consulting a new clock.
+/// Build the current producer package from one active Attempt.
+///
+/// Unlike the historical Receipt author, this function has no policy-lane
+/// fields and cannot report verification. Producer checks remain explicitly
+/// producer-reported inside the signed Submission.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn author_receipt(
+pub(crate) fn author_submission(
     frontier: &Path,
     actor: &str,
-    requested_work: Option<&str>,
-    claim: String,
+    requested_attempt: Option<&str>,
+    assertion: String,
     claim_type: String,
+    conditions: Vec<String>,
     replayability: String,
     artifact_flags: &[String],
     caveats: Vec<String>,
-    predicted_observable: Option<String>,
-    not_applicable: bool,
-    performed_test: Option<String>,
-    result: Option<String>,
-    evidence: Vec<String>,
-    counterevidence: Vec<String>,
+    producer_checks: Vec<String>,
+    verification_requirements: Vec<String>,
     execution_binding: Option<vela_protocol::receipt_v1::ExecutionBindingV1>,
-) -> Result<ReceiptV1, String> {
+) -> Result<SubmissionV1, String> {
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
-    use vela_protocol::receipt_v1::{
-        ArtifactInput, ReceiptBuilder, ReceiptInput, ScientificChainAssertion,
-    };
 
     if !(actor.starts_with("agent:") || actor.starts_with("ci:")) {
-        return Err(
-            "flag authoring requires an agent:/ci: producer identity; import a complete Receipt v1 for other producers"
-                .to_string(),
-        );
+        return Err("Submission authoring requires an agent: or ci: producer".to_string());
     }
-    // Receipt authoring reads the producer's private signing key even though
-    // it does not itself mutate the frontier.  Establish the same repository
-    // write authorization used by `land` before that key can be reached.  The
-    // capability is deliberately retained only for this authoring attempt;
-    // `land` obtains a fresh capability for its separate canonical
-    // transaction, so repository drift between the two operations fails
-    // closed rather than reusing stale authority.
     let journal_dir = frontier_transaction_journal_dir(frontier)?;
     let (_migrated, _write_authorization) = acquire_work_write_barrier(frontier, &journal_dir)?;
-    let work = resolve_work_session(frontier, actor, requested_work)?;
-    let work_target = work.record.target.clone();
-    let work_started_at = work.record.created_at.clone();
+    let work = resolve_attempt(frontier, actor, requested_attempt)?;
     let mut artifacts = Vec::new();
-    let mut normalized_artifacts = Vec::new();
     let mut total_artifact_bytes = 0_u64;
     for (index, flag) in artifact_flags.iter().enumerate() {
         let (path, kind) = if frontier.join(flag).is_file() {
@@ -2331,284 +1822,901 @@ pub(crate) fn author_receipt(
             crate::bounded_file::read_bounded_frontier_file(frontier, relative, read_limit, &label)
                 .map_err(|error| public_artifact_read_error(error, read_limit, index))?;
         account_public_artifact_bytes(&mut total_artifact_bytes, bytes.len() as u64, index)?;
-        let digest = hex::encode(Sha256::digest(&bytes));
-        artifacts.push(
-            ArtifactInput::new(
-                path.to_string(),
-                kind.to_string(),
-                Some(digest.clone()),
-                None,
-            )
-            .map_err(|error| error.to_string())?,
-        );
-        normalized_artifacts.push(json!({"path": path, "kind": kind, "sha256": digest}));
+        artifacts.push(SubmissionArtifact {
+            kind: kind.to_string(),
+            path: path.to_string(),
+            digest: format!("sha256:{}", hex::encode(Sha256::digest(&bytes))),
+        });
     }
-    let (project, repository_authority) = load_project_with_repository_authority(frontier)?;
-    revalidate_work_session_target_binding(frontier, &project, &work.record)?;
-    let event_root = work_session_landing_event_root_at(frontier, &project, &work.record)?;
-    let policy_ref = match repository_authority {
-        Some(authority) => {
-            repository_authority_receipt_policy_ref(authority.policy_material.schema.as_str())?
-        }
-        None => vela_protocol::acceptance_policy::load_active_policy(frontier)?
-            .map(|policy| policy.policy.id)
-            .unwrap_or_else(|| "urn:vela:policy:none".to_string()),
-    };
-    let scientific_chain_requested = predicted_observable.is_some()
-        || not_applicable
-        || performed_test.is_some()
-        || result.is_some()
-        || !evidence.is_empty()
-        || !counterevidence.is_empty();
-    let scientific_chain = if scientific_chain_requested {
-        let performed_test = performed_test
-            .ok_or_else(|| "scientific-chain authoring requires --performed-test".to_string())?;
-        let result =
-            result.ok_or_else(|| "scientific-chain authoring requires --result".to_string())?;
-        Some(
-            ScientificChainAssertion::new(
-                predicted_observable,
-                not_applicable,
-                performed_test,
-                result,
-                evidence,
-                counterevidence,
-            )
-            .map_err(|error| error.to_string())?,
-        )
-    } else {
-        None
-    };
-    let operation_preimage = vela_protocol::canonical::to_canonical_bytes(&json!({
-        "schema": "vela.land-authoring.internal.v1",
-        "frontier_id": project.frontier_id(),
-        "actor": actor,
-        "work_target": work_target,
-        "work_session_id": &work.record.session_id,
-        "task_contract_root": &work.record.task_contract_root,
-        "claim": claim,
-        "claim_type": claim_type,
-        "replayability": replayability,
-        "artifacts": normalized_artifacts,
-        "caveats": caveats,
-        "scientific_chain": scientific_chain.as_ref().map(ScientificChainAssertion::as_value),
-        "execution_binding": execution_binding,
-        "target_task_binding": &work.record.target_task_binding,
-        "policy_ref": policy_ref,
-    }))?;
-    let operation_id = crate::operation_journal::operation_id("land", &operation_preimage);
+    let checks = producer_checks
+        .into_iter()
+        .map(|value| {
+            let (method, outcome) = value.rsplit_once(':').ok_or_else(|| {
+                "producer checks use --check <method>:<pass|fail|error|skipped|unknown>".to_string()
+            })?;
+            ProducerCheck::new(method.to_string(), outcome.to_string())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
     let key = vela_edge::vela_agent_mcp::agent_signing_key(Some(actor))?;
     let identity = IdentityBinding::build(
         IdentityBindingDraft {
             actor_id: actor.to_string(),
             actor_class: ActorClass::Agent,
-            created_at: work_started_at.clone(),
+            created_at: work.record.created_at.clone(),
         },
         &key,
     )?;
-    let mut input = ReceiptInput::new(
-        claim,
-        claim_type,
-        replayability,
-        artifacts,
-        caveats,
-        Vec::new(),
-        actor.to_string(),
-        work_started_at,
-        event_root,
-        work.relative_dir,
-        operation_id,
-        policy_ref,
+    SubmissionV1::build(
+        SubmissionDraft {
+            claim: SubmissionClaim {
+                assertion,
+                claim_type,
+                conditions,
+            },
+            artifacts,
+            caveats,
+            replayability,
+            producer_checks: checks,
+            verification_requirements,
+            requested_change: RequestedChange {
+                kind: "add_claim".to_string(),
+            },
+            provenance: SubmissionProvenance {
+                producer: actor.to_string(),
+                source_system: "vela-cli".to_string(),
+                source_attempt: Some(work.record.attempt_id),
+                source_run: None,
+                emitted_at: work.record.created_at,
+            },
+            execution_binding,
+        },
+        identity,
+        &key,
     )
-    .and_then(|input| input.with_task_contract_root(work.record.task_contract_root.clone()))
-    .map_err(|error| error.to_string())?;
-    if let Some(scientific_chain) = scientific_chain {
-        input = input
-            .with_scientific_chain(scientific_chain)
-            .map_err(|error| error.to_string())?;
-    }
-    if let Some(execution_binding) = execution_binding {
-        input = input
-            .with_execution_binding(execution_binding)
-            .map_err(|error| error.to_string())?;
-    }
-    if let Some(target_task_binding) = &work.record.target_task_binding {
-        input = input
-            .with_target_task_binding(
-                serde_json::to_value(target_task_binding).map_err(|error| error.to_string())?,
-            )
-            .map_err(|error| error.to_string())?;
-    }
-    ReceiptBuilder::build(input, &identity).map_err(|error| error.to_string())
 }
 
-/// Repository authority authorizes the canonical write; it is not scientific
-/// acceptance policy. Receipt v1 therefore records the closed policy lane even
-/// when Cedar permits the repository transaction.
-fn repository_authority_receipt_policy_ref(policy_schema: &str) -> Result<String, String> {
-    if !policy_schema.contains("action \"receipt_land\"") {
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct SubmitOutcome {
+    pub schema: &'static str,
+    pub operation_id: String,
+    pub submission_id: String,
+    pub submission_root: String,
+    pub registration_record_id: String,
+    pub registration_record_root: String,
+    pub proposal_id: String,
+    pub claim_id: String,
+    pub route: &'static str,
+    pub accepted_event_count_before: usize,
+    pub accepted_event_count_after: usize,
+    pub accepted_event_delta: usize,
+    pub publication: crate::config::git_publish::PublicationOutcome,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct VerificationImportOutcome {
+    pub schema: &'static str,
+    pub operation_id: String,
+    pub verification_record_id: String,
+    pub verification_record_root: String,
+    pub proposal_id: String,
+    pub claim_id: String,
+    pub outcome: String,
+    pub idempotent: bool,
+    pub accepted_event_delta: usize,
+    pub publication: crate::config::git_publish::PublicationOutcome,
+}
+
+struct PreparedSubmissionArtifacts {
+    writes: Vec<crate::frontier_txn::PlannedWrite>,
+    read_set: Vec<crate::frontier_txn::InputBinding>,
+}
+
+fn prepare_submission_artifacts(
+    frontier: &Path,
+    submission: &SubmissionV1,
+) -> Result<PreparedSubmissionArtifacts, String> {
+    use crate::frontier_txn::{ContentDigest, InputBinding, PlannedWrite, RepoPath, WriteClass};
+
+    let mut blobs = BTreeMap::<String, Vec<u8>>::new();
+    let mut read_set = Vec::new();
+    let mut total = 0_u64;
+    for (index, artifact) in submission.artifacts.iter().enumerate() {
+        let relative = Path::new(&artifact.path);
+        if relative.is_absolute()
+            || !relative
+                .components()
+                .all(|component| matches!(component, std::path::Component::Normal(_)))
+        {
+            return Err(format!(
+                "Submission artifact {index} must be a normalized frontier-relative file"
+            ));
+        }
+        let limit = public_artifact_read_limit(total, index)?;
+        let bytes = crate::bounded_file::read_bounded_frontier_file(
+            frontier,
+            relative,
+            limit,
+            &format!("Submission artifact {index}"),
+        )
+        .map_err(|error| public_artifact_read_error(error, limit, index))?;
+        account_public_artifact_bytes(&mut total, bytes.len() as u64, index)?;
+        let observed = format!("sha256:{}", hex::encode(Sha256::digest(&bytes)));
+        if observed != artifact.digest {
+            return Err(format!(
+                "Submission artifact {index} digest mismatch: declared {}, observed {observed}",
+                artifact.digest
+            ));
+        }
+        let hex = observed
+            .strip_prefix("sha256:")
+            .expect("constructed digest has sha256 prefix");
+        blobs
+            .entry(format!("records/artifacts/sha256/{hex}"))
+            .or_insert(bytes);
+        read_set.push(InputBinding {
+            name: format!("submission_artifact[{index}]"),
+            digest: ContentDigest::parse(observed).map_err(|error| error.to_string())?,
+        });
+    }
+    let writes = blobs
+        .into_iter()
+        .map(|(path, bytes)| {
+            Ok(PlannedWrite::write(
+                RepoPath::parse(path)?,
+                WriteClass::CanonicalEvidence,
+                bytes,
+            ))
+        })
+        .collect::<Result<Vec<_>, crate::frontier_txn::FrontierTxnError>>()
+        .map_err(|error| error.to_string())?;
+    Ok(PreparedSubmissionArtifacts { writes, read_set })
+}
+
+fn submission_publication_inputs(
+    frontier: &Path,
+    submission: &SubmissionV1,
+) -> Result<Vec<PathBuf>, String> {
+    let canonical_frontier = frontier
+        .canonicalize()
+        .map_err(|error| format!("canonicalize frontier: {error}"))?;
+    let mut inputs = submission
+        .artifacts
+        .iter()
+        .map(|artifact| PathBuf::from(&artifact.path))
+        .filter(|relative| {
+            !relative.is_absolute()
+                && relative
+                    .components()
+                    .all(|component| matches!(component, std::path::Component::Normal(_)))
+        })
+        .filter(|relative| {
+            let lexical = canonical_frontier.join(relative);
+            std::fs::symlink_metadata(&lexical)
+                .ok()
+                .is_some_and(|metadata| metadata.file_type().is_file())
+                && lexical
+                    .canonicalize()
+                    .ok()
+                    .is_some_and(|canonical| canonical == lexical)
+        })
+        .collect::<Vec<_>>();
+    inputs.sort();
+    inputs.dedup();
+    Ok(inputs)
+}
+
+fn submission_attempt_close(
+    frontier: &Path,
+    submission: &SubmissionV1,
+    requested_attempt: Option<&str>,
+) -> Result<Option<crate::frontier_txn::RepoPath>, String> {
+    let Some(attempt_id) = requested_attempt else {
+        return Ok(None);
+    };
+    let resolved = resolve_attempt(frontier, &submission.provenance.producer, Some(attempt_id))?;
+    if submission.provenance.source_attempt.as_deref() != Some(&resolved.record.attempt_id) {
         return Err(
-            "repository authority does not yet permit signed-agent Receipt landing; run the protected `vela authority enable-work` rotation"
+            "Submission provenance.source_attempt does not name the selected active Attempt".into(),
+        );
+    }
+    crate::frontier_txn::RepoPath::parse(format!("{}/attempt.json", resolved.relative_dir))
+        .map(Some)
+        .map_err(|error| error.to_string())
+}
+
+/// Register one authenticated Submission through current repository authority.
+///
+/// This writer has one route: pending review. It writes no Receipt,
+/// ActivityRecord, Verification Record, Event, or accepted-state mutation.
+pub(crate) fn submit(
+    frontier: &Path,
+    submission: &SubmissionV1,
+    executor: &str,
+    requested_attempt: Option<&str>,
+    push: bool,
+) -> Result<SubmitOutcome, String> {
+    use crate::config::git_publish::{
+        PublicationOutcome, PublicationState, PublishOptions, exact_publication_preflight,
+        publication_disabled_reason, publication_is_busy, publish_exact_delta,
+    };
+    use crate::frontier_txn::{ContentDigest, InputBinding, PlannedWrite, WriteClass};
+
+    submission.verify()?;
+    let executor = executor.trim();
+    if executor != submission.provenance.producer
+        || executor != submission.authentication.identity_binding.actor_id
+    {
+        return Err("submit actor must match the Submission producer identity".to_string());
+    }
+    let observed = repo::load_from_path(frontier)?;
+    let frontier_id = observed.frontier_id().to_string();
+    let submission_bytes = submission.canonical_bytes()?;
+    let submission_root = submission.canonical_root()?;
+    let submission_hex = submission_root
+        .strip_prefix("sha256:")
+        .ok_or_else(|| "Submission root is not a canonical sha256 digest".to_string())?;
+    let submission_path = format!("records/submissions/sha256/{submission_hex}.json");
+    let request_bytes = vela_protocol::canonical::to_canonical_bytes(&json!({
+        "schema": "vela.submit-request.internal.v1",
+        "frontier_id": frontier_id,
+        "executor": executor,
+        "submission_root": submission_root,
+    }))?;
+    let request_root = ContentDigest::hash(&request_bytes);
+    let operation_id =
+        crate::frontier_txn::OperationId::derive("submit", request_root.as_str().as_bytes());
+    let journal_dir = frontier_transaction_journal_dir(frontier)?;
+    let (migrated, write_barrier) = acquire_work_write_barrier(frontier, &journal_dir)?;
+    if !migrated {
+        return Err(
+            "current Submission registration requires repository authority; migrate this frontier before submitting"
                 .to_string(),
         );
     }
-    Ok("urn:vela:policy:none".to_string())
+    let (original, repository_authority) = load_project_with_repository_authority(frontier)?;
+    let authority = repository_authority.ok_or_else(|| {
+        "repository authority disappeared while acquiring the submit barrier".to_string()
+    })?;
+    if original.frontier_id() != frontier_id {
+        return Err("frontier identity changed while acquiring the submit barrier".to_string());
+    }
+    let registration_action = if authority
+        .policy_material
+        .schema
+        .contains("action \"submission_register\"")
+    {
+        "submission_register"
+    } else if authority
+        .policy_material
+        .schema
+        .contains("action \"receipt_land\"")
+    {
+        // Read-only compatibility with already-issued repository policy
+        // bundles. The current writer still emits only Submission-era objects.
+        "receipt_land"
+    } else {
+        return Err(
+            "repository authority does not permit authenticated producer registration".to_string(),
+        );
+    };
+    let fixed_time = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    let PreparedSubmissionArtifacts {
+        writes: artifact_writes,
+        mut read_set,
+    } = prepare_submission_artifacts(frontier, submission)?;
+    read_set.push(InputBinding {
+        name: "submission".to_string(),
+        digest: ContentDigest::parse(submission_root.clone()).map_err(|error| error.to_string())?,
+    });
+    let proposal = crate::cli::records::proposal_for_submission(
+        submission,
+        &submission_root,
+        &submission_path,
+        operation_id.as_str(),
+        &fixed_time,
+    )?;
+    let claim_id = proposal.target.id.clone();
+    let proposal_id = proposal.id.clone();
+    let materialization_candidate =
+        repository_submission_materialization_candidate(frontier, proposal.clone())?;
+    let scientific_event_root = authority.verification.final_event_log_root.clone();
+    let proposal_after = format!(
+        "sha256:{}",
+        vela_protocol::proposals::proposal_state_hash(&materialization_candidate.proposals)
+    );
+    let registration = vela_protocol::registration_record::RegistrationRecordV1::build(
+        frontier_id.clone(),
+        submission.submission_id.clone(),
+        submission_root.clone(),
+        submission_path.clone(),
+        fixed_time.clone(),
+        format!("vela-cli@{}", env!("CARGO_PKG_VERSION")),
+        submission
+            .authentication
+            .identity_binding
+            .binding_id
+            .clone(),
+        Vec::new(),
+        claim_id.clone(),
+        proposal_id.clone(),
+        "pending_review".to_string(),
+        request_root.as_str().to_string(),
+        vela_protocol::registration_record::RegistrationRoots {
+            event_log_before: scientific_event_root.clone(),
+            event_log_after: scientific_event_root,
+            proposal_after,
+        },
+        false,
+    )?;
+    let registration_root = registration.canonical_root()?;
+    let registration_hex = registration_root
+        .strip_prefix("sha256:")
+        .expect("Registration Record root is canonical");
+    let registration_path = format!("records/registrations/sha256/{registration_hex}.json");
+
+    let mut managed = repo::render_vela_repo_files(frontier, &materialization_candidate)?;
+    preserve_existing_event_bytes(
+        frontier,
+        &materialization_candidate,
+        &materialization_candidate,
+        &mut managed,
+        "submit",
+    )?;
+    let mut derived_drafts = Vec::new();
+    for write in PlannedWrite::from_managed_files(managed).map_err(|error| error.to_string())? {
+        if write.class() != WriteClass::Derived {
+            continue;
+        }
+        let (path, class, postimage) = write
+            .into_authority_object_parts()
+            .map_err(|error| error.to_string())?;
+        if class == WriteClass::Derived
+            && crate::authority_transaction::authority_derived_path(&path)
+        {
+            derived_drafts
+                .push(crate::authority_transaction::AuthorityDerivedDraft { path, postimage });
+        }
+    }
+    let mut object_drafts = vec![
+        crate::authority_transaction::AuthorityObjectDraft {
+            path: format!(".vela/proposals/{proposal_id}.json"),
+            object_kind: "proposal".into(),
+            class: WriteClass::PublicReview,
+            postimage: Some(vela_protocol::canonical::to_canonical_bytes(&proposal)?),
+        },
+        crate::authority_transaction::AuthorityObjectDraft {
+            path: submission_path.clone(),
+            object_kind: "submission".into(),
+            class: WriteClass::PublicReview,
+            postimage: Some(submission_bytes),
+        },
+        crate::authority_transaction::AuthorityObjectDraft {
+            path: registration_path,
+            object_kind: "registration_record".into(),
+            class: WriteClass::PublicReview,
+            postimage: Some(vela_protocol::canonical::to_canonical_bytes(&registration)?),
+        },
+    ];
+    for write in artifact_writes {
+        let (path, class, postimage) = write
+            .into_authority_object_parts()
+            .map_err(|error| error.to_string())?;
+        object_drafts.push(crate::authority_transaction::AuthorityObjectDraft {
+            path,
+            object_kind: "submission_artifact".into(),
+            class,
+            postimage,
+        });
+    }
+    let WorkWriteBarrier::Repository(recovery_barrier) = write_barrier else {
+        return Err("submit lost its repository-authority write barrier".to_string());
+    };
+    let work_session_close = submission_attempt_close(frontier, submission, requested_attempt)?;
+    let authorization_input = CedarEvaluationInput {
+        schema: authority.policy_material.schema.clone(),
+        policies: authority.policy_material.policies.clone(),
+        entities: authority.policy_material.entities.clone(),
+        principal: format!(
+            "Agent::{}",
+            serde_json::to_string(executor).expect("serializing an actor ID cannot fail")
+        ),
+        principal_class: PrincipalClass::Agent,
+        action: registration_action.into(),
+        resource: format!(
+            "Frontier::{}",
+            serde_json::to_string(&frontier_id).expect("serializing a frontier ID cannot fail")
+        ),
+        context: json!({"exact": true}),
+    };
+    let (key_id, public_key) = active_repository_signing_key(&authority)?;
+    let mut repository_signer =
+        crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner::from_environment(
+            key_id,
+            &public_key,
+        )?;
+    let executable =
+        std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
+    let binary_sha256 = crate::authority_transaction::execution_binary_sha256(&executable)?;
+    let mut authentication = SignedAgentSubmissionSession::from_submission(submission)?;
+    let mut prepared = crate::authority_transaction::prepare_authority_transaction(
+        recovery_barrier,
+        frontier,
+        crate::authority_transaction::AuthorityTransactionRequest {
+            history: authority.history,
+            intent_digest: request_root.as_str().to_string(),
+            principal: PrincipalSnapshotV1 {
+                principal_id: executor.to_string(),
+                principal_class: PrincipalClass::Agent,
+                display_name: None,
+                affiliation: None,
+                account_links: vec![executor.to_string()],
+            },
+            authentication_request: AuthenticationRequest {
+                principal_id: executor.to_string(),
+                principal_class: PrincipalClass::Agent,
+                transaction_at: fixed_time,
+            },
+            runtime_session_state: RuntimeSessionState::default(),
+            authorization_input,
+            delegation: None,
+            semantic_approvals: Vec::new(),
+            event_drafts: Vec::new(),
+            object_drafts,
+            derived_drafts,
+            next_authority_keyset: None,
+            next_policy_bundle: None,
+            next_policy_material: None,
+            read_set,
+            vela_version: env!("CARGO_PKG_VERSION").into(),
+            binary_sha256,
+            recorded_at: registration.registered_at.clone(),
+        },
+        &mut authentication,
+        &mut repository_signer,
+    )
+    .map_err(|error| error.to_string())?;
+    let public = prepared
+        .resolved_public_writes()
+        .map_err(|error| error.to_string())?;
+    let delta_root = prepared.canonical_delta_root().to_string();
+    let mut publish_opts = if push {
+        PublishOptions::pushing()
+    } else {
+        PublishOptions::new(false)
+    };
+    let publication_disabled = publication_disabled_reason(frontier, &publish_opts);
+    if publication_disabled.is_none() {
+        publish_opts = publish_opts
+            .with_preflight_inputs(submission_publication_inputs(frontier, submission)?);
+    }
+    let publication_delta = if publication_disabled.is_some() {
+        None
+    } else {
+        publication_delta(frontier, &delta_root, public)?
+    };
+    let publication_preflight = publication_delta
+        .as_ref()
+        .map(|delta| exact_publication_preflight(frontier, delta, &publish_opts))
+        .transpose();
+    let publication_preflight = match publication_preflight {
+        Ok(value) => value,
+        Err(outcome) if publication_is_busy(&outcome) => {
+            return Err(
+                "another Vela write/publication owns this repository; Submission was not registered"
+                    .to_string(),
+            );
+        }
+        Err(outcome) => {
+            prepared
+                .mark_committed()
+                .map_err(|error| error.to_string())?;
+            prepared.install().map_err(|error| error.to_string())?;
+            prepared.complete().map_err(|error| error.to_string())?;
+            if let Some(path) = work_session_close {
+                let _ = std::fs::remove_file(frontier.join(path.as_str()));
+            }
+            return Ok(SubmitOutcome {
+                schema: "vela.submit-result.v1",
+                operation_id: operation_id.as_str().to_string(),
+                submission_id: submission.submission_id.clone(),
+                submission_root,
+                registration_record_id: registration.registration_record_id,
+                registration_record_root: registration_root,
+                proposal_id,
+                claim_id,
+                route: "pending_review",
+                accepted_event_count_before: original.events.len(),
+                accepted_event_count_after: original.events.len(),
+                accepted_event_delta: 0,
+                publication: outcome,
+            });
+        }
+    };
+    prepared
+        .mark_committed()
+        .map_err(|error| error.to_string())?;
+    prepared.install().map_err(|error| error.to_string())?;
+    prepared.complete().map_err(|error| error.to_string())?;
+    if let Some(path) = work_session_close {
+        let target = frontier.join(path.as_str());
+        match std::fs::remove_file(&target) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(format!(
+                    "Submission registered but Attempt cleanup failed at {}: {error}",
+                    target.display()
+                ));
+            }
+        }
+    }
+    let publication = match (publication_delta.as_ref(), publication_preflight) {
+        (Some(delta), Some(preflight)) => publish_exact_delta(
+            frontier,
+            "submit",
+            std::slice::from_ref(&proposal_id),
+            delta,
+            preflight,
+            &publish_opts,
+        )
+        .unwrap_or_else(|error| PublicationOutcome {
+            state: PublicationState::Unknown {
+                reason: error.to_string(),
+            },
+            recovery_command: None,
+        }),
+        _ => PublicationOutcome {
+            state: PublicationState::Uncommitted {
+                candidate: None,
+                reason: publication_disabled.unwrap_or_else(|| {
+                    "Submission transaction had no public Git delta".to_string()
+                }),
+            },
+            recovery_command: None,
+        },
+    };
+    Ok(SubmitOutcome {
+        schema: "vela.submit-result.v1",
+        operation_id: operation_id.as_str().to_string(),
+        submission_id: submission.submission_id.clone(),
+        submission_root,
+        registration_record_id: registration.registration_record_id,
+        registration_record_root: registration_root,
+        proposal_id,
+        claim_id,
+        route: "pending_review",
+        accepted_event_count_before: original.events.len(),
+        accepted_event_count_after: original.events.len(),
+        accepted_event_delta: 0,
+        publication,
+    })
 }
 
-/// Resolve the private coordination files that may be closed by this landing.
+/// Retain one authenticated Verification Record through repository authority.
 ///
-/// A receipt is allowed to retire a `session.json` only when it proves that it
-/// came from that exact work session: the receipt producer, producer key,
-/// operation id, task-contract root, pinned frontier, pinned event root, target,
-/// and current
-/// target lease must all agree. Receipts produced outside `.vela/work/` do not
-/// touch coordination state. A malformed claim to an internal session fails
-/// closed instead of silently deleting another producer's session.
-fn active_work_session_close(
+/// Verification remains scoped evidence. Import writes no scientific Event,
+/// changes no Proposal standing, and cannot accept a Claim.
+pub(crate) fn import_verification(
     frontier: &Path,
-    project: &vela_protocol::project::Project,
-    receipt: &ReceiptV1,
+    record: &vela_protocol::verification_record::VerificationRecordV1,
     executor: &str,
-    operation_id: &str,
-) -> Result<Option<crate::frontier_txn::RepoPath>, String> {
-    use crate::frontier_txn::RepoPath;
-
-    let Some(context) = receipt
-        .as_value()
-        .get("environment")
-        .and_then(|value| value.get("vela:producer_context"))
-        .and_then(Value::as_object)
-    else {
-        // Foreign Receipt v1 producers do not carry Vela's private work-session
-        // context. They may land portable evidence, but can never close local
-        // coordination state because there is no internal session claim to
-        // validate.
-        return Ok(None);
+    push: bool,
+) -> Result<VerificationImportOutcome, String> {
+    use crate::config::git_publish::{
+        PublicationOutcome, PublicationState, PublishOptions, exact_publication_preflight,
+        publication_disabled_reason, publication_is_busy, publish_exact_delta,
     };
-    let base_path = context
-        .get("base_path")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "receipt producer context has no base_path".to_string())?;
-    if !base_path.starts_with(".vela/work/") {
-        return Ok(None);
-    }
+    use crate::frontier_txn::{ContentDigest, InputBinding, WriteClass};
 
-    let components = base_path.split('/').collect::<Vec<_>>();
-    if components.len() != 3
-        || components[0] != ".vela"
-        || components[1] != "work"
-        || components[2].is_empty()
+    record.verify()?;
+    let executor = executor.trim();
+    if executor != record.verifier || executor != record.authentication.identity_binding.actor_id {
+        return Err("verification import actor must match the Verification Record verifier".into());
+    }
+    let observed = repo::load_from_path(frontier)?;
+    let frontier_id = observed.frontier_id().to_string();
+    let proposal = observed
+        .proposals
+        .iter()
+        .find(|proposal| proposal.id == record.subject.proposal_id)
+        .ok_or_else(|| format!("proposal {} does not exist", record.subject.proposal_id))?;
+    if proposal.status != "pending_review" {
+        return Err("Verification Records may be imported only for a pending Proposal".into());
+    }
+    if proposal.target.id != record.subject.claim_id {
+        return Err("Verification Record claim does not match the Proposal target".into());
+    }
+    let submission_link = proposal
+        .payload
+        .get("submission")
+        .and_then(Value::as_object)
+        .ok_or("Proposal does not bind a current Submission")?;
+    if submission_link.get("submission_id").and_then(Value::as_str)
+        != Some(record.subject.submission_id.as_str())
+        || submission_link
+            .get("submission_root")
+            .and_then(Value::as_str)
+            != Some(record.subject.submission_root.as_str())
     {
-        return Err(format!(
-            "receipt claims malformed internal work session {base_path}"
-        ));
+        return Err("Verification Record does not bind the Proposal's exact Submission".into());
     }
-    let session_name = components[2];
-    let actor = context
-        .get("actor")
+    let submission_path = submission_link
+        .get("submission_path")
         .and_then(Value::as_str)
-        .ok_or_else(|| "receipt producer context has no actor".to_string())?;
-    if actor != executor {
-        return Err(format!(
-            "work session producer {actor} does not match landing actor {executor}"
-        ));
-    }
-    if context.get("operation_id").and_then(Value::as_str) != Some(operation_id) {
-        return Err("work session receipt operation id does not match this landing".to_string());
-    }
-    let provenance_actor = receipt
-        .as_value()
-        .get("provenance")
-        .and_then(|value| value.get("submitter"))
-        .and_then(|value| value.get("actor"))
-        .and_then(Value::as_str);
-    if provenance_actor != Some(executor) {
-        return Err("work session receipt provenance does not match its producer".to_string());
+        .ok_or("Proposal Submission link has no exact path")?;
+    let submission_bytes = crate::bounded_file::read_bounded_file(
+        &frontier.join(submission_path),
+        8 * 1024 * 1024,
+        "Submission",
+    )
+    .map_err(|error| error.to_string())?;
+    let submission = SubmissionV1::parse(&submission_bytes)?;
+    if submission.submission_id != record.subject.submission_id
+        || submission.canonical_root()? != record.subject.submission_root
+    {
+        return Err("stored Submission does not match the Verification Record subject".into());
     }
 
-    let session_path =
-        RepoPath::parse(format!("{base_path}/session.json")).map_err(|error| error.to_string())?;
-    let session_directory = frontier.join(base_path);
-    let session_metadata = std::fs::symlink_metadata(&session_directory).map_err(|error| {
-        format!(
-            "inspect claimed work session {}: {error}",
-            session_directory.display()
+    let record_bytes = record.canonical_bytes()?;
+    let record_root = record.canonical_root()?;
+    let record_hex = record_root
+        .strip_prefix("sha256:")
+        .ok_or("Verification Record root is not canonical")?;
+    let record_path = format!("records/verifications/sha256/{record_hex}.json");
+    let request_bytes = vela_protocol::canonical::to_canonical_bytes(&json!({
+        "schema": "vela.verification-import-request.internal.v1",
+        "frontier_id": frontier_id,
+        "executor": executor,
+        "verification_record_root": record_root,
+    }))?;
+    let request_root = ContentDigest::hash(&request_bytes);
+    let operation_id = crate::frontier_txn::OperationId::derive(
+        "verification-import",
+        request_root.as_str().as_bytes(),
+    );
+
+    let existing_path = frontier.join(&record_path);
+    if existing_path.exists() {
+        let existing = crate::bounded_file::read_bounded_file(
+            &existing_path,
+            4 * 1024 * 1024,
+            "Verification Record",
         )
-    })?;
-    if session_metadata.file_type().is_symlink() || !session_metadata.is_dir() {
-        return Err(format!(
-            "claimed work session must be a regular non-symlink directory: {}",
-            session_directory.display()
-        ));
+        .map_err(|error| error.to_string())?;
+        if existing != record_bytes {
+            return Err("Verification Record path exists with different bytes".into());
+        }
+        return Ok(VerificationImportOutcome {
+            schema: "vela.verification-import-result.v1",
+            operation_id: operation_id.as_str().to_string(),
+            verification_record_id: record.verification_record_id.clone(),
+            verification_record_root: record_root,
+            proposal_id: record.subject.proposal_id.clone(),
+            claim_id: record.subject.claim_id.clone(),
+            outcome: record.outcome.clone(),
+            idempotent: true,
+            accepted_event_delta: 0,
+            publication: PublicationOutcome {
+                state: PublicationState::Uncommitted {
+                    candidate: None,
+                    reason: "exact Verification Record is already registered".into(),
+                },
+                recovery_command: None,
+            },
+        });
     }
-    let session = parse_work_session(&frontier.join(session_path.as_str()))?;
-    let expected_directory = session_dir(frontier, &session.target);
-    if expected_directory
-        .file_name()
-        .and_then(|name| name.to_str())
-        != Some(session_name)
-    {
-        return Err(format!(
-            "work-session target {} does not match its collision-safe directory",
-            session.target
-        ));
-    }
-    if session.actor != executor {
-        return Err(format!(
-            "work session producer {} does not match landing actor {executor}",
-            session.actor
-        ));
-    }
-    let frontier_id = project.frontier_id();
-    if session.frontier_id != frontier_id {
-        return Err("work session belongs to a different frontier".to_string());
-    }
-    let receipt_event_root = context
-        .get("event_log_root")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "work session receipt has no event log root".to_string())?;
-    let landing_event_root = work_session_landing_event_root_at(frontier, project, &session)?;
-    if receipt_event_root != landing_event_root {
-        return Err("work session receipt is not bound through its exact lease event".to_string());
-    }
-    let receipt_task_root = context
-        .get("task_contract_root")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "work session receipt has no task-contract root".to_string())?;
-    if receipt_task_root != session.task_contract_root {
-        return Err("work session receipt is not bound to its task contract".to_string());
-    }
-    let receipt_binding = receipt_target_task_binding(receipt)?;
-    if receipt_binding != session.target_task_binding {
+
+    let journal_dir = frontier_transaction_journal_dir(frontier)?;
+    let (migrated, write_barrier) = acquire_work_write_barrier(frontier, &journal_dir)?;
+    if !migrated {
         return Err(
-            "work session receipt does not carry its exact target task binding".to_string(),
+            "current Verification Record import requires repository authority; migrate this frontier first"
+                .into(),
         );
     }
-
-    let lease = project
-        .attempt_claims
-        .iter()
-        .find(|claim| claim.obligation_id == session.target)
-        .ok_or_else(|| format!("work target {} has no frontier lease", session.target))?;
-    if lease.claimant_actor != executor {
-        return Err(format!(
-            "work target {} is leased by {}, not {executor}",
-            session.target, lease.claimant_actor
-        ));
+    let (current, repository_authority) = load_project_with_repository_authority(frontier)?;
+    let authority = repository_authority
+        .ok_or("repository authority disappeared while acquiring the verification barrier")?;
+    if current.frontier_id() != frontier_id
+        || format!(
+            "sha256:{}",
+            vela_protocol::proposals::proposal_state_hash(&current.proposals)
+        ) != format!(
+            "sha256:{}",
+            vela_protocol::proposals::proposal_state_hash(&observed.proposals)
+        )
+    {
+        return Err("frontier or Proposal state changed before verification import".into());
     }
-    if lease.claim_event_id.as_deref() != Some(session.lease.claim_event_id.as_str()) {
-        return Err("work session does not name the current lease event".to_string());
+    if !authority
+        .policy_material
+        .schema
+        .contains("action \"verification_import\"")
+    {
+        return Err(
+            "repository authority does not permit Verification Record import; rotate to the current routine-work policy"
+                .into(),
+        );
     }
-    let producer_key = context
-        .get("identity_binding")
-        .and_then(|value| value.get("public_key_hex"))
-        .and_then(Value::as_str)
-        .ok_or_else(|| "work session receipt has no producer public key".to_string())?;
-    if lease.claimant_pubkey != producer_key {
-        return Err("work session receipt key does not match the target lease key".to_string());
-    }
-
-    Ok(Some(session_path))
+    let WorkWriteBarrier::Repository(recovery_barrier) = write_barrier else {
+        return Err("verification import lost its repository-authority barrier".into());
+    };
+    let recorded_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    let proposal_root = format!(
+        "sha256:{}",
+        vela_protocol::canonical::sha256_canonical(proposal)?
+    );
+    let read_set = vec![
+        InputBinding {
+            name: "verification_record".into(),
+            digest: ContentDigest::parse(record_root.clone()).map_err(|error| error.to_string())?,
+        },
+        InputBinding {
+            name: "submission".into(),
+            digest: ContentDigest::parse(record.subject.submission_root.clone())
+                .map_err(|error| error.to_string())?,
+        },
+        InputBinding {
+            name: "proposal".into(),
+            digest: ContentDigest::parse(proposal_root).map_err(|error| error.to_string())?,
+        },
+    ];
+    let authorization_input = CedarEvaluationInput {
+        schema: authority.policy_material.schema.clone(),
+        policies: authority.policy_material.policies.clone(),
+        entities: authority.policy_material.entities.clone(),
+        principal: format!(
+            "Agent::{}",
+            serde_json::to_string(executor).expect("actor serialization cannot fail")
+        ),
+        principal_class: PrincipalClass::Agent,
+        action: "verification_import".into(),
+        resource: format!(
+            "Frontier::{}",
+            serde_json::to_string(&frontier_id).expect("frontier serialization cannot fail")
+        ),
+        context: json!({"exact": true}),
+    };
+    let (key_id, public_key) = active_repository_signing_key(&authority)?;
+    let mut repository_signer =
+        crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner::from_environment(
+            key_id,
+            &public_key,
+        )?;
+    let executable =
+        std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
+    let binary_sha256 = crate::authority_transaction::execution_binary_sha256(&executable)?;
+    let mut authentication = SignedVerificationRecordSession::from_record(record)?;
+    let mut prepared = crate::authority_transaction::prepare_authority_transaction(
+        recovery_barrier,
+        frontier,
+        crate::authority_transaction::AuthorityTransactionRequest {
+            history: authority.history,
+            intent_digest: request_root.as_str().to_string(),
+            principal: PrincipalSnapshotV1 {
+                principal_id: executor.to_string(),
+                principal_class: PrincipalClass::Agent,
+                display_name: None,
+                affiliation: None,
+                account_links: vec![executor.to_string()],
+            },
+            authentication_request: AuthenticationRequest {
+                principal_id: executor.to_string(),
+                principal_class: PrincipalClass::Agent,
+                transaction_at: recorded_at.clone(),
+            },
+            runtime_session_state: RuntimeSessionState::default(),
+            authorization_input,
+            delegation: None,
+            semantic_approvals: Vec::new(),
+            event_drafts: Vec::new(),
+            object_drafts: vec![crate::authority_transaction::AuthorityObjectDraft {
+                path: record_path,
+                object_kind: "verification_record".into(),
+                class: WriteClass::PublicReview,
+                postimage: Some(record_bytes),
+            }],
+            derived_drafts: Vec::new(),
+            next_authority_keyset: None,
+            next_policy_bundle: None,
+            next_policy_material: None,
+            read_set,
+            vela_version: env!("CARGO_PKG_VERSION").into(),
+            binary_sha256,
+            recorded_at,
+        },
+        &mut authentication,
+        &mut repository_signer,
+    )
+    .map_err(|error| error.to_string())?;
+    let public = prepared
+        .resolved_public_writes()
+        .map_err(|error| error.to_string())?;
+    let delta_root = prepared.canonical_delta_root().to_string();
+    let publish_opts = if push {
+        PublishOptions::pushing()
+    } else {
+        PublishOptions::new(false)
+    };
+    let publication_disabled = publication_disabled_reason(frontier, &publish_opts);
+    let publication_delta = if publication_disabled.is_some() {
+        None
+    } else {
+        publication_delta(frontier, &delta_root, public)?
+    };
+    let publication_preflight = publication_delta
+        .as_ref()
+        .map(|delta| exact_publication_preflight(frontier, delta, &publish_opts))
+        .transpose();
+    let publication_preflight = match publication_preflight {
+        Ok(value) => value,
+        Err(outcome) if publication_is_busy(&outcome) => {
+            return Err(
+                "another Vela write/publication owns this repository; Verification Record was not imported"
+                    .into(),
+            );
+        }
+        Err(outcome) => {
+            prepared
+                .mark_committed()
+                .map_err(|error| error.to_string())?;
+            prepared.install().map_err(|error| error.to_string())?;
+            prepared.complete().map_err(|error| error.to_string())?;
+            return Ok(VerificationImportOutcome {
+                schema: "vela.verification-import-result.v1",
+                operation_id: operation_id.as_str().to_string(),
+                verification_record_id: record.verification_record_id.clone(),
+                verification_record_root: record_root,
+                proposal_id: record.subject.proposal_id.clone(),
+                claim_id: record.subject.claim_id.clone(),
+                outcome: record.outcome.clone(),
+                idempotent: false,
+                accepted_event_delta: 0,
+                publication: outcome,
+            });
+        }
+    };
+    prepared
+        .mark_committed()
+        .map_err(|error| error.to_string())?;
+    prepared.install().map_err(|error| error.to_string())?;
+    prepared.complete().map_err(|error| error.to_string())?;
+    let publication = match (publication_delta.as_ref(), publication_preflight) {
+        (Some(delta), Some(preflight)) => publish_exact_delta(
+            frontier,
+            "verification import",
+            std::slice::from_ref(&record.verification_record_id),
+            delta,
+            preflight,
+            &publish_opts,
+        )
+        .unwrap_or_else(|error| PublicationOutcome {
+            state: PublicationState::Unknown {
+                reason: error.to_string(),
+            },
+            recovery_command: None,
+        }),
+        _ => PublicationOutcome {
+            state: PublicationState::Uncommitted {
+                candidate: None,
+                reason: publication_disabled
+                    .unwrap_or_else(|| "Verification import had no public Git delta".into()),
+            },
+            recovery_command: None,
+        },
+    };
+    Ok(VerificationImportOutcome {
+        schema: "vela.verification-import-result.v1",
+        operation_id: operation_id.as_str().to_string(),
+        verification_record_id: record.verification_record_id.clone(),
+        verification_record_root: record_root,
+        proposal_id: record.subject.proposal_id.clone(),
+        claim_id: record.subject.claim_id.clone(),
+        outcome: record.outcome.clone(),
+        idempotent: false,
+        accepted_event_delta: 0,
+        publication,
+    })
 }
 
 /// Worktree-private recovery storage for scientific frontier transactions.
@@ -2647,1183 +2755,6 @@ pub(crate) fn frontier_transaction_journal_dir(frontier: &Path) -> Result<PathBu
             journal.display()
         )),
     }
-}
-
-/// Durable result stored in the private operation journal. Publication is a
-/// later transport transaction and therefore is deliberately absent.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct DurableLandResult {
-    operation_id: String,
-    receipt_root: String,
-    record_id: String,
-    proposal_id: String,
-    finding_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    accepted_event_count_before: Option<usize>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    accepted_event_count_after: Option<usize>,
-    route: LandRoute,
-    /// Decision-critical facts bound into the private transaction plan. Permit
-    /// also stamps its policy context and certificate into the accepted event;
-    /// Defer retains these bytes only for exact crash recovery and rederives a
-    /// fresh brief at human review time.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    review_route: Option<StagedReviewRoute>,
-}
-
-fn validate_durable_event_counts(result: &DurableLandResult) -> Result<(), String> {
-    accepted_event_count_delta(
-        result.accepted_event_count_before,
-        result.accepted_event_count_after,
-    )
-    .map(|_| ())
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct StagedReviewRoute {
-    schema: String,
-    policy_context: vela_protocol::acceptance_policy::PolicyContext,
-    policy_decision: Option<vela_protocol::acceptance_policy::Decision>,
-    policy_state: vela_protocol::proposals::policy_accept::PolicyState,
-    permit_readiness: vela_protocol::proposals::policy_accept::PermitReadiness,
-    reason_codes: Vec<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    readiness_detail: Option<String>,
-    engine_gate: vela_protocol::proposals::EngineVerdict,
-}
-
-/// Public, deterministic review input retained beside the proposal. It is not
-/// a verdict or authority object; it records the exact staged facts that drove
-/// routing so a clean clone does not need the producer's working directory or
-/// private operation journal to reconstruct the review.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct ProposalReviewMaterial {
-    schema: String,
-    proposal_id: String,
-    receipt_root: String,
-    evaluated_at: String,
-    route: StagedReviewRoute,
-}
-
-#[derive(Debug)]
-struct PreparedArtifacts {
-    records: Vec<vela_protocol::record::RecordArtifact>,
-    writes: Vec<crate::frontier_txn::PlannedWrite>,
-    read_set: Vec<crate::frontier_txn::InputBinding>,
-}
-
-/// Land one already-validated, lossless Receipt v1 through the single
-/// recoverable frontier write edge. `push` changes only the post-commit Git
-/// transport; it cannot change the scientific transaction or policy result.
-pub(crate) fn land(
-    frontier: &Path,
-    receipt: &ReceiptV1,
-    executor: &str,
-    push: bool,
-) -> Result<LandOutcome, String> {
-    use crate::config::git_publish::{
-        PublicationOutcome, PublicationState, PublishOptions, discover_exact_publication,
-        discover_receipt_publication, exact_publication_preflight,
-        exact_publication_resume_preflight, publication_disabled_reason, publication_is_busy,
-        publication_repo_relative_path, publish_exact_delta,
-    };
-    use crate::frontier_txn::{
-        ContentDigest, DeltaDraft, FrontierTxn, InputBinding, OperationId, PlannedWrite,
-        RecoveryState, RepoPath, WriteClass,
-    };
-
-    let executor = executor.trim();
-    if executor.is_empty() {
-        return Err("land requires an explicit acting identity".to_string());
-    }
-    receipt
-        .validate_safe_public_artifact_descriptors()
-        .map_err(|error| error.to_string())?;
-    // Read only the stable frontier identity before exact-retry lookup. New
-    // semantic planning reloads the complete frontier while holding the
-    // frontier-wide recovery barrier below.
-    let observed = repo::load_from_path(frontier)?;
-    let frontier_id = observed.frontier_id().to_string();
-    let receipt_bytes = receipt
-        .canonical_bytes()
-        .map_err(|error| error.to_string())?;
-    let receipt_root = receipt
-        .canonical_root()
-        .map_err(|error| error.to_string())?;
-    let receipt_hex = receipt_root
-        .strip_prefix("sha256:")
-        .ok_or_else(|| "receipt root is not a canonical sha256 digest".to_string())?;
-    let receipt_path = format!("records/receipts/sha256/{receipt_hex}.json");
-    let request_bytes = vela_protocol::canonical::to_canonical_bytes(&json!({
-        "schema": "vela.land-request.internal.v1",
-        "frontier_id": frontier_id,
-        "executor": executor,
-        "receipt_root": receipt_root,
-    }))?;
-    let request_root = ContentDigest::hash(&request_bytes);
-    let operation_id = receipt_operation_id(receipt)?
-        .map(OperationId::parse)
-        .transpose()
-        .map_err(|error| error.to_string())?
-        .unwrap_or_else(|| OperationId::derive("land", request_root.as_str().as_bytes()));
-    let journal_dir = frontier_transaction_journal_dir(frontier)?;
-    let mut publish_opts = if push {
-        PublishOptions::pushing()
-    } else {
-        PublishOptions::new(false)
-    };
-    let publication_disabled = publication_disabled_reason(frontier, &publish_opts);
-    if publication_disabled.is_none() {
-        publish_opts =
-            publish_opts.with_preflight_inputs(receipt_publication_inputs(frontier, receipt)?);
-    }
-
-    // Exact retries are keyed by operation id AND normalized request root.
-    // Reusing an operation id for different receipt bytes is an error, not a
-    // claim-level deduplication shortcut.
-    if let Some(existing) = FrontierTxn::open_if_present(frontier, &journal_dir, &operation_id)
-        .map_err(|error| error.to_string())?
-    {
-        if existing.plan().request_root != request_root {
-            return Err(format!(
-                "operation {} is already bound to a different normalized receipt request",
-                operation_id.as_str()
-            ));
-        }
-        if matches!(existing.recovery_state(), RecoveryState::Aborted) {
-            drop(existing);
-        } else {
-            let durable: DurableLandResult = serde_json::from_value(existing.plan().result.clone())
-                .map_err(|error| format!("decode durable land result: {error}"))?;
-            validate_durable_event_counts(&durable)?;
-            let scientific_completed =
-                matches!(existing.recovery_state(), RecoveryState::Completed);
-            let public = existing
-                .resolved_public_writes()
-                .map_err(|error| error.to_string())?;
-            let delta_root = existing.plan().canonical_delta.root().as_str().to_string();
-            drop(existing);
-            let publication_delta = if publication_disabled.is_some() {
-                None
-            } else {
-                publication_delta(frontier, &delta_root, public)?
-            };
-            if scientific_completed && let Some(delta) = publication_delta.as_ref() {
-                let anchor = publication_repo_relative_path(frontier, &receipt_path)?;
-                if let Some(publication) =
-                    discover_exact_publication(frontier, delta, &anchor, &publish_opts)?
-                {
-                    let original_route = durable.route.summary().0.to_string();
-                    return Ok(outcome_from_durable(
-                        durable,
-                        LandRoute::ExactRetry { original_route },
-                        publication,
-                    ));
-                }
-            }
-            let preflight = publication_delta.as_ref().map(|delta| {
-                if scientific_completed {
-                    exact_publication_resume_preflight(frontier, delta, &publish_opts)
-                } else {
-                    exact_publication_preflight(frontier, delta, &publish_opts)
-                }
-            });
-            let preflight = preflight.transpose();
-            let preflight = match preflight {
-                Ok(value) => value,
-                Err(outcome) if publication_is_busy(&outcome) => {
-                    return Err(
-                        "another Vela write/publication owns this repository; retry the same operation"
-                            .to_string(),
-                    );
-                }
-                Err(outcome) => {
-                    if !scientific_completed {
-                        let mut txn = FrontierTxn::open(frontier, &journal_dir, &operation_id)
-                            .map_err(|error| error.to_string())?;
-                        if matches!(txn.recovery_state(), RecoveryState::Prepared) {
-                            reauthorize_prepared_canonical_write(&mut txn)
-                                .map_err(|error| error.to_string())?;
-                        }
-                        txn.mark_committed().map_err(|error| error.to_string())?;
-                        txn.install().map_err(|error| error.to_string())?;
-                        txn.complete().map_err(|error| error.to_string())?;
-                    }
-                    let original_route = durable.route.summary().0.to_string();
-                    return Ok(outcome_from_durable(
-                        durable,
-                        LandRoute::ExactRetry { original_route },
-                        outcome,
-                    ));
-                }
-            };
-            if !scientific_completed {
-                let mut txn = FrontierTxn::open(frontier, &journal_dir, &operation_id)
-                    .map_err(|error| error.to_string())?;
-                if matches!(txn.recovery_state(), RecoveryState::Prepared) {
-                    reauthorize_prepared_canonical_write(&mut txn)
-                        .map_err(|error| error.to_string())?;
-                }
-                txn.mark_committed().map_err(|error| error.to_string())?;
-                txn.install().map_err(|error| error.to_string())?;
-                txn.complete().map_err(|error| error.to_string())?;
-            }
-            let publication = match (publication_delta.as_ref(), preflight) {
-                (Some(delta), Some(preflight)) => publish_exact_delta(
-                    frontier,
-                    "land",
-                    &[durable.proposal_id.clone()],
-                    delta,
-                    preflight,
-                    &publish_opts,
-                )
-                .unwrap_or_else(|error| PublicationOutcome {
-                    state: PublicationState::Unknown {
-                        reason: error.to_string(),
-                    },
-                    recovery_command: None,
-                }),
-                _ => PublicationOutcome {
-                    state: PublicationState::Uncommitted {
-                        candidate: None,
-                        reason: publication_disabled.clone().unwrap_or_else(|| {
-                            "frontier transaction had no public Git delta".to_string()
-                        }),
-                    },
-                    recovery_command: None,
-                },
-            };
-            let original_route = durable.route.summary().0.to_string();
-            return Ok(outcome_from_durable(
-                durable,
-                LandRoute::ExactRetry { original_route },
-                publication,
-            ));
-        }
-    }
-
-    // A clone deliberately has no private FrontierTxn journals. Recover an
-    // already-landed operation from its public, content-addressed proposal and
-    // receipt links, then discover the unique Git commit that introduced both.
-    // This path is provenance-only: it never recreates a scientific or Git
-    // transaction and it still rejects a reused operation id with different
-    // normalized producer identity or receipt bytes.
-    if let Some(durable) = durable_land_result_from_public_state(
-        &observed,
-        frontier,
-        &receipt_bytes,
-        &receipt_root,
-        operation_id.as_str(),
-        executor,
-    )? {
-        validate_durable_event_counts(&durable)?;
-        let publication = match discover_receipt_publication(
-            frontier,
-            &receipt_bytes,
-            &receipt_root,
-            operation_id.as_str(),
-            &publish_opts,
-        ) {
-            Ok(Some(publication)) => publication,
-            Ok(None) => PublicationOutcome {
-                state: PublicationState::Uncommitted {
-                    candidate: None,
-                    reason: "durable public submission is not present in the selected Git history"
-                        .to_string(),
-                },
-                recovery_command: None,
-            },
-            Err(error) if publication_disabled.is_some() => PublicationOutcome {
-                state: PublicationState::Uncommitted {
-                    candidate: None,
-                    reason: publication_disabled
-                        .clone()
-                        .unwrap_or_else(|| format!("Git publication unavailable: {error}")),
-                },
-                recovery_command: None,
-            },
-            Err(error) => return Err(error),
-        };
-        let original_route = durable.route.summary().0.to_string();
-        return Ok(outcome_from_durable(
-            durable,
-            LandRoute::ExactRetry { original_route },
-            publication,
-        ));
-    }
-
-    let (migrated, write_barrier) = acquire_work_write_barrier(frontier, &journal_dir)?;
-    let policy_snapshot = vela_protocol::acceptance_policy::load_active_policy_snapshot(frontier)?;
-    let (original, repository_authority) = load_project_with_repository_authority(frontier)?;
-    if migrated != repository_authority.is_some() {
-        return Err("landing writer authority changed while acquiring the barrier".to_string());
-    }
-    if original.frontier_id() != frontier_id {
-        return Err("frontier identity changed while acquiring the write barrier".to_string());
-    }
-    revalidate_receipt_target_task_binding(frontier, &original, receipt)?;
-    let expected_event_hash = vela_protocol::events::event_log_hash(&original.events);
-    let expected_event_root = format!("sha256:{expected_event_hash}");
-    // Legacy policy decisions must be strictly later than every causal parent,
-    // so retain sub-second precision there. Repository-authority
-    // authentication has a closed whole-second contract and does not admit
-    // scientific state during Receipt landing.
-    let now = chrono::Utc::now();
-    let fixed_time = if repository_authority.is_some() {
-        now.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
-    } else {
-        now.to_rfc3339()
-    };
-    let PreparedArtifacts {
-        records: record_artifacts,
-        writes: artifact_writes,
-        mut read_set,
-    } = prepare_receipt_artifacts(frontier, receipt)?;
-    if let Some(authority) = repository_authority.as_ref()
-        && !authority
-            .policy_material
-            .schema
-            .contains("action \"receipt_land\"")
-    {
-        return Err(
-            "repository authority does not yet permit signed-agent Receipt landing; run the protected `vela authority enable-work` rotation"
-                .to_string(),
-        );
-    }
-    read_set.push(InputBinding {
-        name: "receipt".to_string(),
-        digest: ContentDigest::parse(receipt_root.clone()).map_err(|error| error.to_string())?,
-    });
-    read_set.extend(policy_authority_input_bindings(&policy_snapshot)?);
-    let signing_key = if executor.starts_with("agent:") || executor.starts_with("ci:") {
-        Some(vela_edge::vela_agent_mcp::agent_signing_key(Some(
-            executor,
-        ))?)
-    } else {
-        None
-    };
-    let record = crate::cli::records::build_record_for_land(
-        receipt,
-        &frontier_id,
-        &expected_event_hash,
-        &receipt_root,
-        &receipt_path,
-        operation_id.as_str(),
-        executor,
-        &fixed_time,
-        record_artifacts,
-        signing_key.as_ref(),
-    )?;
-    if migrated {
-        let binding = receipt
-            .producer_identity_binding()
-            .map_err(|error| error.to_string())?
-            .ok_or_else(|| {
-                "repository-authority landing requires the Receipt's embedded producer identity binding"
-                    .to_string()
-            })?;
-        if binding.actor_id != executor
-            || record.emitted_by != executor
-            || record.signer_pubkey_hex != binding.public_key_hex
-        {
-            return Err(
-                "signed landing record does not match the Receipt producer identity binding"
-                    .to_string(),
-            );
-        }
-    }
-    let record_path = format!("records/{}.json", record.id);
-    let mut proposal = crate::cli::records::proposal_for_record_land(&record, &fixed_time)?;
-    let claim = receipt
-        .as_value()
-        .get("claim")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    let claim_type = receipt
-        .as_value()
-        .get("type")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    let mut same_claim_findings = original
-        .findings
-        .iter()
-        .filter(|finding| {
-            !finding.flags.retracted
-                && finding.assertion.text.trim() == claim.trim()
-                && finding.assertion.assertion_type == claim_type
-        })
-        .map(|finding| finding.id.clone())
-        .collect::<BTreeSet<_>>();
-    // Deferred submissions live in proposals rather than `Project::findings`.
-    // They still establish a prior scientific submission that an independent
-    // same-claim receipt must relate to instead of disappearing through text
-    // deduplication.
-    for prior in &original.proposals {
-        let Some(prior_finding) = prior.payload.get("finding") else {
-            continue;
-        };
-        let assertion = prior_finding.get("assertion");
-        if assertion
-            .and_then(|value| value.get("text"))
-            .and_then(Value::as_str)
-            .is_some_and(|text| text.trim() == claim.trim())
-            && assertion
-                .and_then(|value| value.get("type"))
-                .and_then(Value::as_str)
-                == Some(claim_type)
-            && let Some(id) = prior_finding.get("id").and_then(Value::as_str)
-        {
-            same_claim_findings.insert(id.to_string());
-        }
-    }
-    let same_claim_findings = same_claim_findings.into_iter().collect::<Vec<_>>();
-    if !same_claim_findings.is_empty() {
-        proposal
-            .payload
-            .get_mut("vela_submission")
-            .and_then(Value::as_object_mut)
-            .ok_or_else(|| "submission proposal lost its typed receipt links".to_string())?
-            .insert(
-                "same_claim_findings".to_string(),
-                json!(same_claim_findings),
-            );
-        proposal.id = vela_protocol::proposals::proposal_id(&proposal);
-    }
-    let review_material_path = format!("records/review/sha256/{receipt_hex}.json");
-    proposal
-        .payload
-        .get_mut("vela_submission")
-        .and_then(Value::as_object_mut)
-        .ok_or_else(|| "submission proposal lost its typed receipt links".to_string())?
-        .insert(
-            "review_material_path".to_string(),
-            json!(&review_material_path),
-        );
-    if !proposal.source_refs.contains(&review_material_path) {
-        proposal.source_refs.push(review_material_path.clone());
-        proposal.source_refs.sort();
-        proposal.source_refs.dedup();
-    }
-    proposal.id = vela_protocol::proposals::proposal_id(&proposal);
-    let proposal_id = proposal.id.clone();
-    let finding: vela_protocol::bundle::FindingBundle = serde_json::from_value(
-        proposal
-            .payload
-            .get("finding")
-            .cloned()
-            .ok_or_else(|| "submission proposal has no finding".to_string())?,
-    )
-    .map_err(|error| format!("submission finding parse: {error}"))?;
-    let finding_id = finding.id.clone();
-    let mut candidate: vela_protocol::project::Project =
-        serde_json::from_value(serde_json::to_value(&original).map_err(|error| error.to_string())?)
-            .map_err(|error| error.to_string())?;
-    vela_protocol::proposals::insert_pending_in_frontier(&mut candidate, proposal.clone())?;
-    let staged_policy_route = policy_accept::stage_policy_route_in_frontier_at(
-        frontier,
-        &candidate,
-        &proposal_id,
-        receipt,
-        &fixed_time,
-        &policy_snapshot,
-    )
-    .map_err(|error| error.to_string())?;
-    let context = staged_policy_route.context().clone();
-    let staged_review_route = StagedReviewRoute {
-        schema: "vela.staged-review-route.internal.v2".to_string(),
-        policy_context: context.clone(),
-        policy_decision: staged_policy_route.decision().cloned(),
-        policy_state: staged_policy_route.policy_state(),
-        permit_readiness: staged_policy_route.permit_readiness(),
-        reason_codes: staged_policy_route.policy_reason_codes().to_vec(),
-        readiness_detail: staged_policy_route
-            .readiness_detail()
-            .map(ToString::to_string),
-        engine_gate: staged_policy_route.engine_gate().clone(),
-    };
-    let mut snapshot_files = Vec::new();
-    let route = if migrated {
-        LandRoute::Deferred {
-            reasons: vec![
-                "repository authority retained the signed Receipt as a pending proposal; verification does not accept scientific state"
-                    .to_string(),
-            ],
-        }
-    } else if executor.starts_with("agent:") || executor.starts_with("ci:") {
-        match policy_accept::apply_staged_policy_route_in_frontier(
-            &mut candidate,
-            staged_policy_route,
-            executor,
-        ) {
-            Ok(outcome) => {
-                snapshot_files = outcome.policy_snapshot_files;
-                LandRoute::PolicyAdmitted {
-                    event_id: outcome.event_id,
-                    policy_id: outcome.certificate.policy_id,
-                }
-            }
-            Err(PolicyLaneRefusal::Deferred { reasons }) => LandRoute::Deferred { reasons },
-            Err(PolicyLaneRefusal::Denied { reasons }) => {
-                return Err(format!(
-                    "policy denies this landing; zero canonical and Git delta: {}",
-                    reasons.join(", ")
-                ));
-            }
-            Err(PolicyLaneRefusal::Error(error))
-                if error.contains("engine gate blocked policy-lane") =>
-            {
-                LandRoute::Deferred {
-                    reasons: vec![
-                        "the signed policy permits this, but the engine gate requires human review"
-                            .to_string(),
-                    ],
-                }
-            }
-            Err(PolicyLaneRefusal::Error(error)) => return Err(error),
-        }
-    } else {
-        LandRoute::Deferred {
-            reasons: vec!["human landing: decide it in `vela sign`".to_string()],
-        }
-    };
-
-    let review_material = ProposalReviewMaterial {
-        schema: "vela.proposal-review-material.internal.v2".to_string(),
-        proposal_id: proposal_id.clone(),
-        receipt_root: receipt_root.clone(),
-        evaluated_at: fixed_time.clone(),
-        route: staged_review_route.clone(),
-    };
-    let durable = DurableLandResult {
-        operation_id: operation_id.as_str().to_string(),
-        receipt_root: receipt_root.clone(),
-        record_id: record.id.clone(),
-        proposal_id: proposal_id.clone(),
-        finding_id: finding_id.clone(),
-        accepted_event_count_before: Some(original.events.len()),
-        accepted_event_count_after: Some(candidate.events.len()),
-        route: route.clone(),
-        review_route: Some(staged_review_route),
-    };
-    validate_durable_event_counts(&durable)?;
-    let work_session_close = active_work_session_close(
-        frontier,
-        &original,
-        receipt,
-        executor,
-        operation_id.as_str(),
-    )?;
-    if let Some(authority) = repository_authority {
-        let WorkWriteBarrier::Repository(recovery_barrier) = write_barrier else {
-            return Err("repository-authority landing lost its write barrier".to_string());
-        };
-        // `original` includes detached repository-authority lease events so
-        // work-session validation can observe the active claim. Those events
-        // deliberately do not belong to the ordinary scientific Project
-        // materialized by `vela frontier materialize`. Rendering from that
-        // effective in-memory view would therefore pin transient lease state
-        // into frontier.json and vela.lock, and a fresh official reload would
-        // immediately reject both files. Rebuild the derived-view candidate
-        // from the canonical repository bytes and add only the pending
-        // proposal owned by this landing.
-        let materialization_candidate =
-            repository_land_materialization_candidate(frontier, proposal.clone())?;
-        let mut managed = repo::render_vela_repo_files(frontier, &materialization_candidate)?;
-        preserve_existing_event_bytes(
-            frontier,
-            &materialization_candidate,
-            &materialization_candidate,
-            &mut managed,
-            "land",
-        )?;
-        let mut derived_drafts = Vec::new();
-        for write in PlannedWrite::from_managed_files(managed).map_err(|error| error.to_string())? {
-            if write.class() != WriteClass::Derived {
-                continue;
-            }
-            let (path, class, postimage) = write
-                .into_authority_object_parts()
-                .map_err(|error| error.to_string())?;
-            if class != WriteClass::Derived {
-                return Err(format!(
-                    "repository-authority derived materialization changed class for {path}"
-                ));
-            }
-            if !crate::authority_transaction::authority_derived_path(&path) {
-                continue;
-            }
-            derived_drafts
-                .push(crate::authority_transaction::AuthorityDerivedDraft { path, postimage });
-        }
-        let mut object_drafts = vec![
-            crate::authority_transaction::AuthorityObjectDraft {
-                path: format!(".vela/proposals/{proposal_id}.json"),
-                object_kind: "proposal".into(),
-                class: WriteClass::PublicReview,
-                postimage: Some(vela_protocol::canonical::to_canonical_bytes(&proposal)?),
-            },
-            crate::authority_transaction::AuthorityObjectDraft {
-                path: receipt_path.clone(),
-                object_kind: "receipt".into(),
-                class: WriteClass::PublicReview,
-                postimage: Some(receipt_bytes),
-            },
-            crate::authority_transaction::AuthorityObjectDraft {
-                path: record_path.clone(),
-                object_kind: "activity_record".into(),
-                class: WriteClass::PublicReview,
-                postimage: Some(vela_protocol::canonical::to_canonical_bytes(&record)?),
-            },
-            crate::authority_transaction::AuthorityObjectDraft {
-                path: review_material_path.clone(),
-                object_kind: "review_material".into(),
-                class: WriteClass::PublicReview,
-                postimage: Some(vela_protocol::canonical::to_canonical_bytes(
-                    &review_material,
-                )?),
-            },
-        ];
-        for write in artifact_writes {
-            let (path, class, postimage) = write
-                .into_authority_object_parts()
-                .map_err(|error| error.to_string())?;
-            object_drafts.push(crate::authority_transaction::AuthorityObjectDraft {
-                path,
-                object_kind: "receipt_artifact".into(),
-                class,
-                postimage,
-            });
-        }
-        let mut authentication = SignedAgentRecordSession::from_record(&record)?;
-        let authorization_input = CedarEvaluationInput {
-            schema: authority.policy_material.schema.clone(),
-            policies: authority.policy_material.policies.clone(),
-            entities: authority.policy_material.entities.clone(),
-            principal: format!(
-                "Agent::{}",
-                serde_json::to_string(executor).expect("serializing an actor ID cannot fail")
-            ),
-            principal_class: PrincipalClass::Agent,
-            action: "receipt_land".into(),
-            resource: format!(
-                "Frontier::{}",
-                serde_json::to_string(&frontier_id).expect("serializing a frontier ID cannot fail")
-            ),
-            context: json!({"exact": true}),
-        };
-        let (key_id, public_key) = active_repository_signing_key(&authority)?;
-        let mut repository_signer =
-            crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner::from_environment(
-                key_id,
-                &public_key,
-            )?;
-        let executable = std::env::current_exe()
-            .map_err(|error| format!("resolve running Vela binary: {error}"))?;
-        let binary_sha256 = crate::authority_transaction::execution_binary_sha256(&executable)?;
-        let mut prepared = crate::authority_transaction::prepare_authority_transaction(
-            recovery_barrier,
-            frontier,
-            crate::authority_transaction::AuthorityTransactionRequest {
-                history: authority.history,
-                intent_digest: request_root.as_str().to_string(),
-                principal: PrincipalSnapshotV1 {
-                    principal_id: executor.to_string(),
-                    principal_class: PrincipalClass::Agent,
-                    display_name: None,
-                    affiliation: None,
-                    account_links: vec![executor.to_string()],
-                },
-                authentication_request: AuthenticationRequest {
-                    principal_id: executor.to_string(),
-                    principal_class: PrincipalClass::Agent,
-                    transaction_at: fixed_time.clone(),
-                },
-                runtime_session_state: RuntimeSessionState::default(),
-                authorization_input,
-                delegation: None,
-                semantic_approvals: Vec::new(),
-                event_drafts: Vec::new(),
-                object_drafts,
-                derived_drafts,
-                next_authority_keyset: None,
-                next_policy_bundle: None,
-                next_policy_material: None,
-                read_set,
-                vela_version: env!("CARGO_PKG_VERSION").into(),
-                binary_sha256,
-                recorded_at: fixed_time.clone(),
-            },
-            &mut authentication,
-            &mut repository_signer,
-        )
-        .map_err(|error| error.to_string())?;
-        let public = prepared
-            .resolved_public_writes()
-            .map_err(|error| error.to_string())?;
-        let delta_root = prepared.canonical_delta_root().to_string();
-        let publication_delta = if publication_disabled.is_some() {
-            None
-        } else {
-            publication_delta(frontier, &delta_root, public)?
-        };
-        let publication_preflight = publication_delta
-            .as_ref()
-            .map(|delta| exact_publication_preflight(frontier, delta, &publish_opts))
-            .transpose();
-        let publication_preflight = match publication_preflight {
-            Ok(value) => value,
-            Err(outcome) if publication_is_busy(&outcome) => {
-                return Err(
-                    "another Vela write/publication owns this repository; scientific state was not changed"
-                        .to_string(),
-                );
-            }
-            Err(outcome) => {
-                prepared
-                    .mark_committed()
-                    .map_err(|error| error.to_string())?;
-                prepared.install().map_err(|error| error.to_string())?;
-                prepared.complete().map_err(|error| error.to_string())?;
-                if let Some(path) = work_session_close {
-                    let target = frontier.join(path.as_str());
-                    match std::fs::remove_file(&target) {
-                        Ok(()) => {}
-                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-                        Err(error) => {
-                            return Err(format!(
-                                "submission landed but private work-session cleanup failed at {}: {error}",
-                                target.display()
-                            ));
-                        }
-                    }
-                }
-                return Ok(outcome_from_durable(durable, route, outcome));
-            }
-        };
-        prepared
-            .mark_committed()
-            .map_err(|error| error.to_string())?;
-        prepared.install().map_err(|error| error.to_string())?;
-        prepared.complete().map_err(|error| error.to_string())?;
-        if let Some(path) = work_session_close {
-            let target = frontier.join(path.as_str());
-            match std::fs::remove_file(&target) {
-                Ok(()) => {}
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-                Err(error) => {
-                    return Err(format!(
-                        "submission landed but private work-session cleanup failed at {}: {error}",
-                        target.display()
-                    ));
-                }
-            }
-        }
-        let publication = match (publication_delta.as_ref(), publication_preflight) {
-            (Some(delta), Some(preflight)) => publish_exact_delta(
-                frontier,
-                "land",
-                std::slice::from_ref(&proposal_id),
-                delta,
-                preflight,
-                &publish_opts,
-            )
-            .unwrap_or_else(|error| PublicationOutcome {
-                state: PublicationState::Unknown {
-                    reason: error.to_string(),
-                },
-                recovery_command: None,
-            }),
-            _ => PublicationOutcome {
-                state: PublicationState::Uncommitted {
-                    candidate: None,
-                    reason: publication_disabled.unwrap_or_else(|| {
-                        "repository-authority transaction had no public Git delta".to_string()
-                    }),
-                },
-                recovery_command: None,
-            },
-        };
-        return Ok(outcome_from_durable(durable, route, publication));
-    }
-    let WorkWriteBarrier::Legacy(recovery_barrier) = write_barrier else {
-        return Err("legacy landing lost its write barrier".to_string());
-    };
-    let mut managed = repo::render_vela_repo_files(frontier, &candidate)?;
-    preserve_existing_event_bytes(frontier, &original, &candidate, &mut managed, "land")?;
-    let mut writes =
-        PlannedWrite::from_managed_files(managed).map_err(|error| error.to_string())?;
-    writes.push(PlannedWrite::write(
-        RepoPath::parse(&receipt_path).map_err(|error| error.to_string())?,
-        WriteClass::PublicReview,
-        receipt_bytes,
-    ));
-    writes.push(PlannedWrite::write(
-        RepoPath::parse(&record_path).map_err(|error| error.to_string())?,
-        WriteClass::PublicReview,
-        pretty_json_bytes(&record)?,
-    ));
-    writes.push(PlannedWrite::write(
-        RepoPath::parse(&review_material_path).map_err(|error| error.to_string())?,
-        WriteClass::PublicReview,
-        pretty_json_bytes(&review_material)?,
-    ));
-    if let Some(session_path) = work_session_close {
-        writes.push(PlannedWrite::delete(
-            session_path,
-            WriteClass::PrivateCoordination,
-        ));
-    }
-    writes.extend(artifact_writes);
-    for snapshot in snapshot_files {
-        let path = snapshot
-            .relative_path
-            .to_str()
-            .ok_or_else(|| "policy snapshot path is not UTF-8".to_string())?;
-        let target = frontier.join(&snapshot.relative_path);
-        let existing = std::fs::read(&target).map_err(|error| {
-            format!(
-                "signed policy snapshot {} is unavailable: {error}; activate or migrate the policy before producer landing",
-                target.display()
-            )
-        })?;
-        if existing != snapshot.bytes {
-            return Err(format!(
-                "content-addressed policy snapshot {} exists with different bytes",
-                target.display()
-            ));
-        }
-        // Policy activation owns immutable policy bytes. A producer landing
-        // may consume the exact snapshot but cannot create or repair it under
-        // a producer write capability.
-        let _ = RepoPath::parse(path).map_err(|error| error.to_string())?;
-    }
-    let draft = DeltaDraft::prepare(frontier, writes).map_err(|error| error.to_string())?;
-    let public = draft
-        .resolved_public_writes()
-        .map_err(|error| error.to_string())?;
-    let publication_delta = if publication_disabled.is_some() {
-        None
-    } else {
-        publication_delta(frontier, draft.delta.root().as_str(), public)?
-    };
-    let publication_preflight = publication_delta
-        .as_ref()
-        .map(|delta| exact_publication_preflight(frontier, delta, &publish_opts))
-        .transpose();
-    let publication_preflight = match publication_preflight {
-        Ok(value) => value,
-        Err(outcome) if publication_is_busy(&outcome) => {
-            return Err(
-                "another Vela write/publication owns this repository; scientific state was not changed"
-                    .to_string(),
-            );
-        }
-        Err(outcome) => {
-            let plan = frontier_plan(
-                frontier,
-                &frontier_id,
-                &fixed_time,
-                operation_id.clone(),
-                request_root,
-                &expected_event_root,
-                &candidate,
-                &durable,
-                read_set,
-                &context,
-                &draft,
-            )?;
-            let mut txn = FrontierTxn::prepare_with_barrier(recovery_barrier, plan, draft)
-                .map_err(|error| error.to_string())?;
-            txn.mark_committed().map_err(|error| error.to_string())?;
-            txn.install().map_err(|error| error.to_string())?;
-            txn.complete().map_err(|error| error.to_string())?;
-            return Ok(outcome_from_durable(durable, route, outcome));
-        }
-    };
-    let plan = frontier_plan(
-        frontier,
-        &frontier_id,
-        &fixed_time,
-        operation_id,
-        request_root,
-        &expected_event_root,
-        &candidate,
-        &durable,
-        read_set,
-        &context,
-        &draft,
-    )?;
-    let mut txn = FrontierTxn::prepare_with_barrier(recovery_barrier, plan, draft)
-        .map_err(|error| error.to_string())?;
-    txn.mark_committed().map_err(|error| error.to_string())?;
-    txn.install().map_err(|error| error.to_string())?;
-    txn.complete().map_err(|error| error.to_string())?;
-    drop(txn);
-    let publication = match (publication_delta.as_ref(), publication_preflight) {
-        (Some(delta), Some(preflight)) => publish_exact_delta(
-            frontier,
-            "land",
-            &[proposal_id],
-            delta,
-            preflight,
-            &publish_opts,
-        )
-        .unwrap_or_else(|error| PublicationOutcome {
-            state: PublicationState::Unknown {
-                reason: error.to_string(),
-            },
-            recovery_command: None,
-        }),
-        _ => PublicationOutcome {
-            state: PublicationState::Uncommitted {
-                candidate: None,
-                reason: publication_disabled
-                    .unwrap_or_else(|| "frontier transaction had no public Git delta".to_string()),
-            },
-            recovery_command: None,
-        },
-    };
-    Ok(outcome_from_durable(durable, route, publication))
-}
-
-#[allow(clippy::too_many_arguments)]
-fn frontier_plan(
-    frontier: &Path,
-    frontier_id: &str,
-    fixed_time: &str,
-    operation_id: crate::frontier_txn::OperationId,
-    request_root: crate::frontier_txn::ContentDigest,
-    expected_event_root: &str,
-    candidate: &vela_protocol::project::Project,
-    durable: &DurableLandResult,
-    mut read_set: Vec<crate::frontier_txn::InputBinding>,
-    context: &vela_protocol::acceptance_policy::PolicyContext,
-    draft: &crate::frontier_txn::DeltaDraft,
-) -> Result<crate::frontier_txn::FrontierTxnPlan, String> {
-    use crate::frontier_txn::{
-        ContentDigest, FrontierBinding, FrontierTxnPlan, FrontierTxnPlanSpec, InputBinding,
-        OperationKind,
-    };
-    let layout = vela_protocol::canonical::to_canonical_bytes(&json!({
-        "schema": "vela.frontier-layout.internal.v1",
-        "frontier_id": frontier_id,
-        "paths": draft
-            .delta
-            .writes()
-            .iter()
-            .map(|write| write.path.as_str())
-            .collect::<Vec<_>>(),
-    }))?;
-    read_set.push(InputBinding {
-        name: "policy_context".to_string(),
-        digest: ContentDigest::parse(context.policy_language_digest()?)
-            .map_err(|error| error.to_string())?,
-    });
-    read_set.sort_by(|left, right| left.name.cmp(&right.name));
-    let expected_event_log_root =
-        ContentDigest::parse(expected_event_root.to_string()).map_err(|error| error.to_string())?;
-    let resulting_event_log_root = ContentDigest::parse(format!(
-        "sha256:{}",
-        vela_protocol::events::event_log_hash(&candidate.events)
-    ))
-    .map_err(|error| error.to_string())?;
-    let mut resulting_event_ids = candidate
-        .events
-        .iter()
-        .map(|event| event.id.clone())
-        .collect::<Vec<_>>();
-    resulting_event_ids.sort();
-    FrontierTxnPlan::new(
-        FrontierTxnPlanSpec {
-            kind: OperationKind::Submission,
-            operation_id,
-            request_root,
-            frontier: FrontierBinding::new(frontier, frontier_id.to_string(), &layout)
-                .map_err(|error| error.to_string())?,
-            fixed_time: fixed_time.to_string(),
-            expected_event_log_root,
-            resulting_event_log_root,
-            resulting_event_ids,
-            read_set,
-            result: serde_json::to_value(durable).map_err(|error| error.to_string())?,
-        },
-        draft.delta.clone(),
-    )
-    .map_err(|error| error.to_string())
-}
-
-fn prepare_receipt_artifacts(
-    frontier: &Path,
-    receipt: &ReceiptV1,
-) -> Result<PreparedArtifacts, String> {
-    use crate::frontier_txn::{ContentDigest, InputBinding, PlannedWrite, RepoPath, WriteClass};
-    use vela_protocol::record::RecordArtifact;
-
-    let values = receipt
-        .as_value()
-        .get("artifacts")
-        .and_then(Value::as_array)
-        .ok_or_else(|| "validated receipt is missing artifacts".to_string())?;
-    let mut records = Vec::with_capacity(values.len());
-    let mut public_blobs = BTreeMap::<String, Vec<u8>>::new();
-    let mut read_set = Vec::new();
-    let mut total_artifact_bytes = 0_u64;
-    for (index, value) in values.iter().enumerate() {
-        let path = value
-            .get("path")
-            .and_then(Value::as_str)
-            .ok_or_else(|| format!("artifact {index} has no path"))?;
-        let kind = value
-            .get("kind")
-            .and_then(Value::as_str)
-            .ok_or_else(|| format!("artifact {index} has no kind"))?;
-        let disclosure = match value.get("disclosure").and_then(Value::as_str) {
-            Some("restricted") => ArtifactDisclosure::Restricted,
-            Some("public") | None => ArtifactDisclosure::Public,
-            Some(other) => return Err(format!("artifact {index} has unknown disclosure {other}")),
-        };
-        let media_type = value
-            .get("media_type")
-            .and_then(Value::as_str)
-            .map(ToString::to_string);
-        let declared_size = value.get("size_bytes").and_then(Value::as_u64);
-        let declared_hash = value.get("sha256").and_then(Value::as_str);
-        if disclosure == ArtifactDisclosure::Restricted {
-            if declared_hash.is_some() {
-                return Err(format!(
-                    "restricted artifact {index} must not expose a public equality digest"
-                ));
-            }
-            if !(path.starts_with("custodian:") || path.starts_with("opaque:")) {
-                return Err(format!(
-                    "restricted artifact {index} needs a custodian: or opaque: locator"
-                ));
-            }
-            records.push(RecordArtifact {
-                kind: kind.to_string(),
-                locator: path.to_string(),
-                sha256: String::new(),
-                size_bytes: None,
-                media_type,
-                disclosure,
-                locator_integrity: parse_locator_integrity(value)?,
-                availability: parse_availability(value)?,
-                note: "restricted opaque reference; payload and opening are not in Git".to_string(),
-            });
-            continue;
-        }
-
-        let relative = Path::new(path);
-        let local_candidate = !relative.is_absolute()
-            && relative
-                .components()
-                .all(|component| matches!(component, std::path::Component::Normal(_)));
-        let local = if local_candidate {
-            let candidate = frontier.join(relative);
-            match std::fs::symlink_metadata(&candidate) {
-                Ok(_) => Some(candidate),
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
-                Err(error) => {
-                    return Err(format!("inspect artifact {}: {error}", candidate.display()));
-                }
-            }
-        } else {
-            None
-        };
-        if local.is_some() {
-            let label = format!("artifact {index}");
-            let read_limit = public_artifact_read_limit(total_artifact_bytes, index)?;
-            let bytes = crate::bounded_file::read_bounded_frontier_file(
-                frontier, relative, read_limit, &label,
-            )
-            .map_err(|error| public_artifact_read_error(error, read_limit, index))?;
-            account_public_artifact_bytes(&mut total_artifact_bytes, bytes.len() as u64, index)?;
-            let digest = hex::encode(Sha256::digest(&bytes));
-            if declared_hash.is_some_and(|declared| declared != digest) {
-                return Err(format!("artifact {index} sha256 does not match its bytes"));
-            }
-            if declared_size.is_some_and(|declared| declared != bytes.len() as u64) {
-                return Err(format!(
-                    "artifact {index} size_bytes does not match its bytes"
-                ));
-            }
-            let size_bytes = bytes.len() as u64;
-            let blob_path = format!("records/artifacts/sha256/{digest}");
-            public_blobs.entry(blob_path.clone()).or_insert(bytes);
-            read_set.push(InputBinding {
-                name: format!("artifact[{index}]"),
-                digest: ContentDigest::parse(format!("sha256:{digest}"))
-                    .map_err(|error| error.to_string())?,
-            });
-            records.push(RecordArtifact {
-                kind: kind.to_string(),
-                locator: blob_path,
-                sha256: digest,
-                size_bytes: Some(size_bytes),
-                media_type: Some(
-                    media_type.unwrap_or_else(|| "application/octet-stream".to_string()),
-                ),
-                disclosure,
-                locator_integrity: LocatorIntegrity::Immutable,
-                availability: ArtifactAvailability::Available,
-                note: format!("copied from Receipt v1 artifact {index}"),
-            });
-            continue;
-        }
-
-        let uri = value
-            .get("uri")
-            .and_then(Value::as_str)
-            .filter(|uri| !uri.trim().is_empty())
-            .unwrap_or(path);
-        let digest = declared_hash.ok_or_else(|| {
-            format!(
-                "public artifact {index} is not a frontier file and needs a sha256 + size_bytes + media_type descriptor"
-            )
-        })?;
-        let size_bytes = declared_size.ok_or_else(|| {
-            format!(
-                "public artifact {index} is not a frontier file and needs an explicit size_bytes descriptor"
-            )
-        })?;
-        let media_type = media_type.ok_or_else(|| {
-            format!(
-                "public artifact {index} is not a frontier file and needs an explicit media_type descriptor"
-            )
-        })?;
-        records.push(RecordArtifact {
-            kind: kind.to_string(),
-            locator: uri.to_string(),
-            sha256: digest.to_string(),
-            size_bytes: Some(size_bytes),
-            media_type: Some(media_type),
-            disclosure,
-            locator_integrity: parse_locator_integrity(value)?,
-            availability: parse_availability(value)?,
-            note: "public content descriptor; locator was not dereferenced".to_string(),
-        });
-        read_set.push(InputBinding {
-            name: format!("artifact[{index}]"),
-            digest: ContentDigest::parse(format!("sha256:{digest}"))
-                .map_err(|error| error.to_string())?,
-        });
-    }
-    let writes = public_blobs
-        .into_iter()
-        .map(|(path, bytes)| {
-            Ok(PlannedWrite::write(
-                RepoPath::parse(path)?,
-                WriteClass::CanonicalEvidence,
-                bytes,
-            ))
-        })
-        .collect::<Result<Vec<_>, crate::frontier_txn::FrontierTxnError>>()
-        .map_err(|error| error.to_string())?;
-    Ok(PreparedArtifacts {
-        records,
-        writes,
-        read_set,
-    })
 }
 
 fn account_public_artifact_bytes(
@@ -3926,123 +2857,6 @@ mod public_artifact_budget_tests {
     }
 }
 
-/// Return only safe, currently materialized public receipt inputs. Exact Git
-/// publication binds these worktree bytes and permits them as read-only dirt;
-/// the candidate still contains only the transaction's content-addressed copy.
-/// Missing or no-longer-regular paths are omitted here so recovery never needs
-/// mutable producer files; initial semantic preparation reports those errors.
-fn receipt_publication_inputs(
-    frontier: &Path,
-    receipt: &ReceiptV1,
-) -> Result<Vec<PathBuf>, String> {
-    let canonical_frontier = frontier
-        .canonicalize()
-        .map_err(|error| format!("canonicalize frontier: {error}"))?;
-    let mut inputs = receipt
-        .as_value()
-        .get("artifacts")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter(|artifact| artifact.get("disclosure").and_then(Value::as_str) != Some("restricted"))
-        .filter_map(|artifact| artifact.get("path").and_then(Value::as_str))
-        .filter_map(|path| {
-            let relative = PathBuf::from(path);
-            (!relative.is_absolute()
-                && relative
-                    .components()
-                    .all(|component| matches!(component, std::path::Component::Normal(_))))
-            .then_some(relative)
-        })
-        .filter(|relative| {
-            let lexical = canonical_frontier.join(relative);
-            std::fs::symlink_metadata(&lexical)
-                .ok()
-                .is_some_and(|metadata| metadata.file_type().is_file())
-                && lexical
-                    .canonicalize()
-                    .ok()
-                    .is_some_and(|canonical| canonical == lexical)
-        })
-        .collect::<Vec<_>>();
-    inputs.sort();
-    inputs.dedup();
-    Ok(inputs)
-}
-
-/// Bind the exact active-policy bytes (or their absence) into the scientific
-/// transaction's marker-time read set. The frontier lock coordinates Vela
-/// writers; these bindings also fail closed against a manual policy rotation
-/// by a process that ignores the lock.
-fn policy_authority_input_bindings(
-    snapshot: &vela_protocol::acceptance_policy::ActivePolicySnapshot,
-) -> Result<Vec<crate::frontier_txn::InputBinding>, String> {
-    use crate::frontier_txn::{InputBinding, RepoPath};
-
-    [
-        (
-            ".vela/policies/active.json",
-            snapshot.policy_bytes.as_deref(),
-        ),
-        (
-            ".vela/policies/active.sig.json",
-            snapshot.signature_bytes.as_deref(),
-        ),
-    ]
-    .into_iter()
-    .map(|(relative, bytes)| {
-        let path = RepoPath::parse(relative).map_err(|error| error.to_string())?;
-        InputBinding::file_snapshot(path, bytes).map_err(|error| error.to_string())
-    })
-    .collect()
-}
-
-fn parse_locator_integrity(value: &Value) -> Result<LocatorIntegrity, String> {
-    match value.get("locator_integrity").and_then(Value::as_str) {
-        Some("immutable") => Ok(LocatorIntegrity::Immutable),
-        Some("mutable") => Ok(LocatorIntegrity::Mutable),
-        Some("unknown") | None => Ok(LocatorIntegrity::Unknown),
-        Some(other) => Err(format!("unknown locator_integrity {other}")),
-    }
-}
-
-fn parse_availability(value: &Value) -> Result<ArtifactAvailability, String> {
-    match value.get("availability").and_then(Value::as_str) {
-        Some("available") => Ok(ArtifactAvailability::Available),
-        Some("unavailable") => Ok(ArtifactAvailability::Unavailable),
-        Some("unknown") | None => Ok(ArtifactAvailability::Unknown),
-        Some(other) => Err(format!("unknown artifact availability {other}")),
-    }
-}
-
-fn receipt_operation_id(receipt: &ReceiptV1) -> Result<Option<String>, String> {
-    let environment = receipt.as_value().get("environment");
-    let from_environment = environment
-        .and_then(|value| value.get("vela:producer_context"))
-        .and_then(|value| value.get("operation_id"))
-        .and_then(Value::as_str);
-    let from_provenance = receipt
-        .as_value()
-        .get("provenance")
-        .and_then(|value| value.get("submitter"))
-        .and_then(|value| value.get("operation_id"))
-        .and_then(Value::as_str);
-    if let (Some(left), Some(right)) = (from_environment, from_provenance)
-        && left != right
-    {
-        return Err("receipt carries conflicting producer operation ids".to_string());
-    }
-    Ok(from_environment
-        .or(from_provenance)
-        .map(ToString::to_string))
-}
-
-fn pretty_json_bytes(value: &impl Serialize) -> Result<Vec<u8>, String> {
-    let mut bytes = serde_json::to_vec_pretty(value).map_err(|error| error.to_string())?;
-    bytes.push(b'\n');
-    Ok(bytes)
-}
-
 fn publication_delta(
     frontier: &Path,
     root: &str,
@@ -4086,158 +2900,6 @@ fn publication_delta(
     }))
 }
 
-fn durable_land_result_from_public_state(
-    project: &vela_protocol::project::Project,
-    frontier: &Path,
-    expected_receipt_bytes: &[u8],
-    expected_receipt_root: &str,
-    operation_id: &str,
-    executor: &str,
-) -> Result<Option<DurableLandResult>, String> {
-    let mut matches = project.proposals.iter().filter(|proposal| {
-        proposal
-            .payload
-            .get("vela_submission")
-            .and_then(|submission| submission.get("operation_id"))
-            .and_then(Value::as_str)
-            == Some(operation_id)
-    });
-    let Some(proposal) = matches.next() else {
-        return Ok(None);
-    };
-    if matches.next().is_some() {
-        return Err(format!(
-            "public frontier contains multiple proposals for operation {operation_id}"
-        ));
-    }
-    let submission = proposal
-        .payload
-        .get("vela_submission")
-        .and_then(Value::as_object)
-        .ok_or_else(|| {
-            format!(
-                "proposal {} lost its typed public submission links",
-                proposal.id
-            )
-        })?;
-    let receipt_root = submission
-        .get("receipt_root")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "public submission has no receipt_root".to_string())?;
-    if receipt_root != expected_receipt_root {
-        return Err(format!(
-            "operation {operation_id} is already bound to a different public receipt root"
-        ));
-    }
-    if proposal.actor.id != executor {
-        return Err(format!(
-            "operation {operation_id} was produced by {}, not {executor}",
-            proposal.actor.id
-        ));
-    }
-    let receipt_path = submission
-        .get("receipt_path")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "public submission has no receipt_path".to_string())?;
-    let expected_hex = expected_receipt_root
-        .strip_prefix("sha256:")
-        .ok_or_else(|| "public submission receipt root is not sha256".to_string())?;
-    let expected_path = format!("records/receipts/sha256/{expected_hex}.json");
-    if receipt_path != expected_path {
-        return Err(format!(
-            "public submission receipt path {receipt_path} does not match its content root"
-        ));
-    }
-    let stored_bytes = crate::bounded_file::read_bounded_frontier_file(
-        frontier,
-        Path::new(receipt_path),
-        crate::bounded_file::RECEIPT_MAX_BYTES,
-        "durable public receipt",
-    )
-    .map_err(|error| error.to_string())?;
-    let stored = ReceiptV1::parse(&stored_bytes).map_err(|error| error.to_string())?;
-    if stored.canonical_root().map_err(|error| error.to_string())? != expected_receipt_root
-        || stored
-            .canonical_bytes()
-            .map_err(|error| error.to_string())?
-            != expected_receipt_bytes
-    {
-        return Err(format!(
-            "durable public receipt {receipt_path} differs from the exact retry input"
-        ));
-    }
-
-    let record_id = submission
-        .get("record_id")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "public submission has no record_id".to_string())?
-        .to_string();
-    let finding_id = proposal
-        .payload
-        .get("finding")
-        .and_then(|finding| finding.get("id"))
-        .and_then(Value::as_str)
-        .unwrap_or(&proposal.target.id)
-        .to_string();
-    let policy_lane_errors = policy_accept::verify_policy_lane_events(project, frontier);
-    if !policy_lane_errors.is_empty() {
-        return Err(format!(
-            "durable public retry refused an unverifiable policy lane: {}",
-            policy_lane_errors.join(" | ")
-        ));
-    }
-    let route = proposal
-        .applied_event_id
-        .as_deref()
-        .and_then(|event_id| project.events.iter().find(|event| event.id == event_id))
-        .and_then(|event| {
-            let lane = event.payload.get(policy_accept::POLICY_LANE_PAYLOAD_KEY)?;
-            let policy_id = lane.get("policy_id")?.as_str()?;
-            Some(LandRoute::PolicyAdmitted {
-                event_id: event.id.clone(),
-                policy_id: policy_id.to_string(),
-            })
-        })
-        .unwrap_or_else(|| LandRoute::Deferred {
-            // The exact public route facts live in the review-material blob.
-            // LandOutcome's retry surface exposes only the route class, so do
-            // not invent or duplicate its explanatory reasons here.
-            reasons: Vec::new(),
-        });
-    Ok(Some(DurableLandResult {
-        operation_id: operation_id.to_string(),
-        receipt_root: expected_receipt_root.to_string(),
-        record_id,
-        proposal_id: proposal.id.clone(),
-        finding_id,
-        // Public state proves the route but does not retain the historical
-        // before/after counts for pre-existing submissions. Returning None is
-        // preferable to deriving a false count from a later frontier head.
-        accepted_event_count_before: None,
-        accepted_event_count_after: None,
-        route,
-        review_route: None,
-    }))
-}
-
-fn outcome_from_durable(
-    durable: DurableLandResult,
-    route: LandRoute,
-    publication: crate::config::git_publish::PublicationOutcome,
-) -> LandOutcome {
-    LandOutcome {
-        operation_id: durable.operation_id,
-        receipt_root: durable.receipt_root,
-        record_id: durable.record_id,
-        proposal_id: durable.proposal_id,
-        finding_id: durable.finding_id,
-        accepted_event_count_before: durable.accepted_event_count_before,
-        accepted_event_count_after: durable.accepted_event_count_after,
-        route,
-        publication,
-    }
-}
-
 #[cfg(test)]
 mod workflow_transaction_tests {
     use super::*;
@@ -4250,35 +2912,14 @@ mod workflow_transaction_tests {
     use vela_protocol::receipt_v1::{ArtifactInput, ReceiptBuilder, ReceiptInput};
 
     #[test]
-    fn repository_authority_authorizes_land_without_claiming_scientific_acceptance() {
-        let schema = r#"
-            action "work_claim" appliesTo { principal: Agent, resource: Frontier };
-            action "receipt_land" appliesTo { principal: Agent, resource: Frontier };
-        "#;
-        assert_eq!(
-            repository_authority_receipt_policy_ref(schema).unwrap(),
-            "urn:vela:policy:none"
-        );
-    }
-
-    #[test]
-    fn repository_authority_receipt_authoring_fails_closed_without_land_permission() {
-        let error = repository_authority_receipt_policy_ref(
-            r#"action "work_claim" appliesTo { principal: Agent, resource: Frontier };"#,
-        )
-        .unwrap_err();
-        assert!(error.contains("does not yet permit signed-agent Receipt landing"));
-    }
-
-    #[test]
-    fn repository_land_materialization_excludes_detached_workflow_lease_overlays() {
+    fn repository_submission_materialization_excludes_detached_attempt_overlays() {
         let temp = tempfile::tempdir().unwrap();
         let canonical =
             vela_protocol::project::assemble("materialization-source", Vec::new(), 0, 0, "test");
         vela_protocol::repo::init_repo(temp.path(), &canonical).unwrap();
 
         // Model the effective workflow view: repository-authority loading may
-        // overlay an active detached lease so landing can validate the work
+        // overlay an active detached lease so submit can validate the Attempt
         // session. This state must not be the source for frontier.json or
         // vela.lock.
         let mut effective = vela_protocol::repo::load_from_path(temp.path()).unwrap();
@@ -4322,7 +2963,7 @@ mod workflow_transaction_tests {
         let proposal_id = proposal.id.clone();
 
         let materialized =
-            repository_land_materialization_candidate(temp.path(), proposal).unwrap();
+            repository_submission_materialization_candidate(temp.path(), proposal).unwrap();
         assert_eq!(materialized.events.len(), canonical.events.len());
         assert!(
             materialized
@@ -4482,7 +3123,7 @@ mod workflow_transaction_tests {
         assert_eq!(retry["withdrawal_event_id"], first["withdrawal_event_id"]);
     }
 
-    fn work_session_size_fixture(padding: usize) -> WorkSession {
+    fn attempt_size_fixture(padding: usize) -> Attempt {
         let contract = TaskContract {
             schema: TASK_CONTRACT_SCHEMA.to_string(),
             objective: "fixture".to_string(),
@@ -4494,9 +3135,9 @@ mod workflow_transaction_tests {
             escalation_path: "fixture".to_string(),
             authority_ceiling: PRODUCER_AUTHORITY_CEILING_FOR_TEST.to_string(),
         };
-        WorkSession {
-            schema: WORK_SESSION_SCHEMA.to_string(),
-            session_id: format!("vws_{}", "0".repeat(64)),
+        Attempt {
+            schema: ATTEMPT_SCHEMA.to_string(),
+            attempt_id: format!("vat_{}", "0".repeat(64)),
             target: "seed:size-fixture".to_string(),
             frontier_id: "vfr_size_fixture".to_string(),
             base_event_log_root: format!("sha256:{}", "0".repeat(64)),
@@ -4515,7 +3156,7 @@ mod workflow_transaction_tests {
             },
             task_contract_root: sha256_root(&contract).unwrap(),
             task_contract: contract,
-            receipt_builder: ReceiptBuilderSessionFacts::default(),
+            submission_builder: SubmissionBuilderAttemptFacts::default(),
             target_task_binding: None,
             briefing: json!({"padding": "x".repeat(padding)}),
         }
@@ -4525,8 +3166,8 @@ mod workflow_transaction_tests {
         "Producer evidence only; fixture cannot accept truth.";
 
     #[test]
-    fn target_binding_extends_session_identity_without_changing_legacy_sessions() {
-        let legacy = work_session_id(
+    fn target_binding_extends_attempt_identity() {
+        let legacy = attempt_id(
             "vfr_1234567890abcdef",
             "erdos:1056",
             "agent:indexed",
@@ -4538,10 +3179,10 @@ mod workflow_transaction_tests {
         .unwrap();
         assert_eq!(
             legacy,
-            "vws_fde56ebc2573d6f9c363bc4970adfac66f62ca175698c480ef58bc898744f5fc"
+            "vat_9be875f8d6fc0dbae603811935f5ba2e2a079ac88654ed1bd1abdfeef8ecfb14"
         );
 
-        let bound = work_session_id(
+        let bound = attempt_id(
             "vfr_1234567890abcdef",
             "erdos:1056",
             "agent:indexed",
@@ -4553,50 +3194,43 @@ mod workflow_transaction_tests {
         .unwrap();
         assert_eq!(
             bound,
-            "vws_6c76d7c76f326b78b46e16f92f403c4424067b76b2ef997c42b20e171a32fed6"
+            "vat_29a886f89c32ef8a2b13864339f229541a0b2a174bf0afb4f0dea3ac7e34a221"
         );
         assert_ne!(bound, legacy);
     }
 
     #[test]
-    fn work_session_requires_the_nonlease_root_without_a_legacy_fallback() {
+    fn attempt_requires_the_nonlease_root_without_a_fallback() {
         let temp = tempfile::tempdir().unwrap();
-        let path = temp.path().join("session.json");
-        let mut value = serde_json::to_value(work_session_size_fixture(0)).unwrap();
+        let path = temp.path().join("attempt.json");
+        let mut value = serde_json::to_value(attempt_size_fixture(0)).unwrap();
         value
             .as_object_mut()
             .unwrap()
             .remove("base_nonlease_event_log_root");
         std::fs::write(&path, serde_json::to_vec_pretty(&value).unwrap()).unwrap();
 
-        let error = parse_work_session(&path).unwrap_err();
+        let error = parse_attempt(&path).unwrap_err();
         assert!(error.contains("base_nonlease_event_log_root"), "{error}");
         assert!(error.contains("rerun `vela start"), "{error}");
     }
 
     #[test]
-    fn work_session_size_ceiling_is_exact_and_preflight_precedes_claim() {
-        let empty = work_session_size_fixture(0);
+    fn attempt_size_ceiling_is_exact_and_preflight_precedes_claim() {
+        let empty = attempt_size_fixture(0);
         let empty_len = serde_json::to_vec_pretty(&empty).unwrap().len() + 1;
-        assert!(empty_len < WORK_SESSION_MAX_BYTES);
-        let at_limit = work_session_size_fixture(WORK_SESSION_MAX_BYTES - empty_len);
-        assert_eq!(
-            encoded_work_session(&at_limit).unwrap().len(),
-            WORK_SESSION_MAX_BYTES
-        );
-        let over_limit = work_session_size_fixture(WORK_SESSION_MAX_BYTES - empty_len + 1);
-        assert!(
-            encoded_work_session(&over_limit)
-                .unwrap_err()
-                .contains("limit")
-        );
+        assert!(empty_len < ATTEMPT_MAX_BYTES);
+        let at_limit = attempt_size_fixture(ATTEMPT_MAX_BYTES - empty_len);
+        assert_eq!(encoded_attempt(&at_limit).unwrap().len(), ATTEMPT_MAX_BYTES);
+        let over_limit = attempt_size_fixture(ATTEMPT_MAX_BYTES - empty_len + 1);
+        assert!(encoded_attempt(&over_limit).unwrap_err().contains("limit"));
 
         let temp = tempfile::tempdir().unwrap();
         let project =
             vela_protocol::project::assemble("preflight-no-lease", Vec::new(), 0, 0, "fixture");
         vela_protocol::repo::init_repo(temp.path(), &project).unwrap();
         let before = repo::load_from_path(temp.path()).unwrap();
-        let oversized_actor = format!("agent:{}", "x".repeat(WORK_SESSION_MAX_BYTES));
+        let oversized_actor = format!("agent:{}", "x".repeat(ATTEMPT_MAX_BYTES));
         let error = open_session(
             temp.path(),
             "seed:oversized-session",
@@ -4604,7 +3238,7 @@ mod workflow_transaction_tests {
             86_400,
         )
         .unwrap_err();
-        assert!(error.contains("work-session record is"), "{error}");
+        assert!(error.contains("Attempt record is"), "{error}");
         let after = repo::load_from_path(temp.path()).unwrap();
         assert_eq!(
             vela_protocol::events::event_log_hash(&after.events),
@@ -4795,7 +3429,7 @@ mod workflow_transaction_tests {
     }
 
     #[test]
-    fn work_session_landing_root_allows_other_leases_but_rejects_nonlease_change() {
+    fn attempt_causal_root_allows_other_leases_but_rejects_nonlease_change() {
         let original = vela_protocol::project::assemble("lease-root", Vec::new(), 0, 0, "fixture");
         let key = SigningKey::from_bytes(&[0x76; 32]);
         let target = "seed:lease-root";
@@ -4809,7 +3443,7 @@ mod workflow_transaction_tests {
             None,
             "2026-07-14T10:00:00Z",
         );
-        let mut session = work_session_size_fixture(0);
+        let mut session = attempt_size_fixture(0);
         session.target = target.to_string();
         session.actor = actor.to_string();
         session.frontier_id = original.frontier_id().to_string();
@@ -4820,13 +3454,13 @@ mod workflow_transaction_tests {
 
         let expected = claim["state_root_after"].as_str().unwrap();
         assert_eq!(
-            work_session_landing_event_root(&claimed, &session).unwrap(),
+            attempt_causal_event_root(&claimed, &session).unwrap(),
             expected
         );
         let mut reordered = clone_project(&claimed).unwrap();
         reordered.events.reverse();
         assert_eq!(
-            work_session_landing_event_root(&reordered, &session).unwrap(),
+            attempt_causal_event_root(&reordered, &session).unwrap(),
             expected,
             "the event-set commitment must not inherit storage order"
         );
@@ -4841,7 +3475,7 @@ mod workflow_transaction_tests {
             "2026-07-14T10:00:01Z",
         );
         assert_eq!(
-            work_session_landing_event_root(&later, &session).unwrap(),
+            attempt_causal_event_root(&later, &session).unwrap(),
             later_claim["state_root_after"].as_str().unwrap(),
             "an unrelated coordination lease must not stale scientific work"
         );
@@ -4861,7 +3495,7 @@ mod workflow_transaction_tests {
                 timestamp: Some("2026-07-14T10:00:02Z"),
             });
         changed.events.push(event);
-        let error = work_session_landing_event_root(&changed, &session).unwrap_err();
+        let error = attempt_causal_event_root(&changed, &session).unwrap_err();
         assert!(
             error.contains("non-lease changes"),
             "unexpected non-lease change error: {error}"

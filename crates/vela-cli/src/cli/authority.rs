@@ -200,8 +200,8 @@ when {
     context.authentication.assurance == "single_factor"
 };"#;
 
-const ROUTINE_LANDING_SCHEMA: &str = r#"
-action "receipt_land" appliesTo {
+const ROUTINE_SUBMISSION_SCHEMA: &str = r#"
+action "submission_register" appliesTo {
     principal: Agent,
     resource: Frontier,
     context: {
@@ -219,8 +219,35 @@ action "receipt_land" appliesTo {
     }
 };"#;
 
-const ROUTINE_LANDING_POLICY: &str = r#"
-permit(principal, action == Action::"receipt_land", resource)
+const ROUTINE_SUBMISSION_POLICY: &str = r#"
+permit(principal, action == Action::"submission_register", resource)
+when {
+    context.exact &&
+    context.authentication.method == "agent_record_signature" &&
+    context.authentication.assurance == "single_factor"
+};"#;
+
+const ROUTINE_VERIFICATION_SCHEMA: &str = r#"
+action "verification_import" appliesTo {
+    principal: Agent,
+    resource: Frontier,
+    context: {
+        exact: Bool,
+        authentication: {
+            method: String,
+            assurance: String,
+            authenticated_at: String,
+            observed_at: String,
+            expires_at: String,
+            user_presence: Bool,
+            user_verification: Bool,
+            recovery_recent: Bool
+        }
+    }
+};"#;
+
+const ROUTINE_VERIFICATION_POLICY: &str = r#"
+permit(principal, action == Action::"verification_import", resource)
 when {
     context.exact &&
     context.authentication.method == "agent_record_signature" &&
@@ -228,7 +255,10 @@ when {
 };"#;
 
 const ROUTINE_WORK_POLICY_TESTS_ROOT: &str =
-    "sha256:9487bb848454d03b35d9f2623211bde8fc7616fbc4b4c503b0f1ad3d40a4ab2e";
+    // sha256("routine-work-policy-tests.v3|work_claim:agent_event_signature|\
+    // submission_register:agent_record_signature|verification_import:\
+    // agent_record_signature|exact=true|hostile:false-exact,none-auth,human-principal")
+    "sha256:cf062aaec11c083af44080cc55363f27591656b52acec538ad964ec301fcc698";
 
 pub(crate) fn active_repository_key(
     authority: &LoadedRepositoryAuthority,
@@ -308,7 +338,7 @@ fn initial_policy_bundle_at_with_routine_work(
     let entities = Value::Array(entities);
     let schema = if include_routine_work {
         format!(
-            "{automatic_schema}\n{HUMAN_AUTHORITY_SCHEMA}\n{ROUTINE_WORK_SCHEMA}\n{ROUTINE_LANDING_SCHEMA}\n"
+            "{automatic_schema}\n{HUMAN_AUTHORITY_SCHEMA}\n{ROUTINE_WORK_SCHEMA}\n{ROUTINE_SUBMISSION_SCHEMA}\n{ROUTINE_VERIFICATION_SCHEMA}\n"
         )
     } else {
         // Preserve the exact sequence-1 bytes emitted by Vela 0.930.0-rc.7.
@@ -317,7 +347,7 @@ fn initial_policy_bundle_at_with_routine_work(
     let human_policy = human_authority_policy(principal_id)?;
     let policies = if include_routine_work {
         format!(
-            "{automatic_policies}\n{human_policy}\n{ROUTINE_WORK_POLICY}\n{ROUTINE_LANDING_POLICY}\n"
+            "{automatic_policies}\n{human_policy}\n{ROUTINE_WORK_POLICY}\n{ROUTINE_SUBMISSION_POLICY}\n{ROUTINE_VERIFICATION_POLICY}\n"
         )
     } else {
         // Preserve the exact sequence-1 bytes emitted by Vela 0.930.0-rc.7.
@@ -457,8 +487,8 @@ fn verify_routine_work_policy(
             allowed.diagnostics
         ));
     }
-    let landing_input = CedarEvaluationInput {
-        action: "receipt_land".into(),
+    let submission_input = CedarEvaluationInput {
+        action: "submission_register".into(),
         context: json!({
             "exact": true,
             "authentication": {
@@ -474,14 +504,28 @@ fn verify_routine_work_policy(
         }),
         ..agent_input.clone()
     };
-    let landing_allowed = vela_authority::evaluate(&landing_input);
-    if !landing_allowed.valid
-        || !landing_allowed.diagnostics.is_empty()
-        || landing_allowed.decision != vela_protocol::authority::CedarDecision::Allow
+    let submission_allowed = vela_authority::evaluate(&submission_input);
+    if !submission_allowed.valid
+        || !submission_allowed.diagnostics.is_empty()
+        || submission_allowed.decision != vela_protocol::authority::CedarDecision::Allow
     {
         return Err(format!(
-            "routine work policy does not authorize one exact signed-agent Receipt landing: {:?}",
-            landing_allowed.diagnostics
+            "routine work policy does not authorize one exact signed-agent Submission registration: {:?}",
+            submission_allowed.diagnostics
+        ));
+    }
+    let verification_input = CedarEvaluationInput {
+        action: "verification_import".into(),
+        ..submission_input.clone()
+    };
+    let verification_allowed = vela_authority::evaluate(&verification_input);
+    if !verification_allowed.valid
+        || !verification_allowed.diagnostics.is_empty()
+        || verification_allowed.decision != vela_protocol::authority::CedarDecision::Allow
+    {
+        return Err(format!(
+            "routine work policy does not authorize one exact signed Verification Record import: {:?}",
+            verification_allowed.diagnostics
         ));
     }
     for hostile in [
@@ -518,7 +562,7 @@ fn verify_routine_work_policy(
             ..agent_input.clone()
         },
         CedarEvaluationInput {
-            action: "receipt_land".into(),
+            action: "submission_register".into(),
             context: json!({
                 "exact": true,
                 "authentication": {
@@ -532,10 +576,10 @@ fn verify_routine_work_policy(
                     "recovery_recent": false
                 }
             }),
-            ..landing_input.clone()
+            ..submission_input.clone()
         },
         CedarEvaluationInput {
-            action: "receipt_land".into(),
+            action: "submission_register".into(),
             context: json!({
                 "exact": false,
                 "authentication": {
@@ -549,7 +593,7 @@ fn verify_routine_work_policy(
                     "recovery_recent": false
                 }
             }),
-            ..landing_input.clone()
+            ..submission_input.clone()
         },
     ] {
         let denied = vela_authority::evaluate(&hostile);
@@ -594,8 +638,12 @@ fn ensure_routine_producer_material_ready(
     project: &Project,
 ) -> Result<(), String> {
     let has_work_claim = material.schema.contains("action \"work_claim\"");
-    let has_receipt_land = material.schema.contains("action \"receipt_land\"");
-    match (has_work_claim, has_receipt_land) {
+    let has_submission_register = material.schema.contains("action \"submission_register\"");
+    let has_historical_receipt_land = material.schema.contains("action \"receipt_land\"");
+    match (
+        has_work_claim,
+        has_submission_register || has_historical_receipt_land,
+    ) {
         (false, false) => {
             return Err(
                 "signed-agent routine producer work is not enabled; run `vela authority enable-work . --reason <bounded-reason> --json`, inspect the exact plan, and request its protected approval"
@@ -605,7 +653,7 @@ fn ensure_routine_producer_material_ready(
         (true, true) => {}
         _ => {
             return Err(
-                "repository-authority routine producer schema is incomplete; work_claim and receipt_land must be introduced together"
+                "repository-authority routine producer schema is incomplete; work_claim and submission_register must be introduced together"
                     .into(),
             );
         }
@@ -1103,7 +1151,9 @@ mod tests {
         .unwrap();
 
         let mut incomplete = CedarPolicyMaterial::from_evaluation(&current_authorization);
-        incomplete.schema = incomplete.schema.replace(ROUTINE_LANDING_SCHEMA.trim(), "");
+        incomplete.schema = incomplete
+            .schema
+            .replace(ROUTINE_SUBMISSION_SCHEMA.trim(), "");
         assert!(
             ensure_routine_producer_material_ready(&incomplete, &project)
                 .unwrap_err()

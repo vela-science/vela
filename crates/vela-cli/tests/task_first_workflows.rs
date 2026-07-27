@@ -2750,7 +2750,7 @@ batches:
     assert_eq!(session["source_git_commit_oid"], expected_git_commit);
     assert_eq!(
         session["task_contract"]["authority_ceiling"],
-        "Producer evidence only. The session can create a receipt and proposal; it cannot create human acceptance."
+        "Producer evidence only. The Attempt can create a Submission and Proposal; it cannot create human acceptance."
     );
     assert!(
         session["task_contract"]["forbidden_actions"]

@@ -41,8 +41,8 @@ pub(crate) fn print_session_help() {
     println!();
     println!("  COMMANDS");
     println!("    init       status     next       start");
-    println!("    land       review     check      reproduce");
-    println!("    verify     log        doctor");
+    println!("    submit     show       why        review");
+    println!("    check      reproduce  log        doctor");
     println!();
     println!("  Run `vela help advanced` for setup nouns and advanced verification.");
     println!();
@@ -90,7 +90,7 @@ pub(crate) fn print_session_dashboard(project: &vela_protocol::project::Project,
         println!("  {}   · {}", style::warn("pending"), parts.join("  "));
     }
     println!();
-    println!("  the loop: vela next · vela start <target> · vela land · vela sign");
+    println!("  the loop: vela next · vela start <target> · vela submit · vela review");
     println!();
 }
 

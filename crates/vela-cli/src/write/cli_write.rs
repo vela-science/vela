@@ -25,6 +25,52 @@ fn proposal_next_actions(frontier: &std::path::Path, proposal_id: &str) -> Vec<V
     let Some(finding) = finding else {
         return Vec::new();
     };
+    let current_submission = proposal.payload.get("submission");
+    if let Some(submission) = current_submission {
+        let current_verifications =
+            crate::cli_object::verification_records_for_claim(frontier, &finding.id)
+                .unwrap_or_default();
+        return vec![
+            json!({
+                "kind": "inspect_submission",
+                "authority": "read_only",
+                "command": format!(
+                    "vela show {} {} --json",
+                    frontier.display(),
+                    submission
+                        .get("submission_id")
+                        .and_then(Value::as_str)
+                        .unwrap_or("<vsb_id>")
+                ),
+                "reason": "Inspect the exact authenticated producer input."
+            }),
+            json!({
+                "kind": "import_verification",
+                "authority": "evidence_only",
+                "command": format!(
+                    "vela verification import {} <verification.json> --as verifier:<actor> --json",
+                    frontier.display()
+                ),
+                "retained_records": current_verifications.len(),
+                "reason": "Retain an independent scoped Verification Record. Verification does not accept the Proposal."
+            }),
+            json!({
+                "kind": "human_decision",
+                "authority": "human_key_required",
+                "commands": {
+                    "accept": format!(
+                        "vela review accept {} {proposal_id} --reason <why> --json",
+                        frontier.display()
+                    ),
+                    "reject": format!(
+                        "vela review reject {} {proposal_id} --reason <why> --json",
+                        frontier.display()
+                    )
+                },
+                "reason": "Acceptance remains fail-closed until the current Verification Record contract is satisfied; rejection is available now."
+            }),
+        ];
+    }
     let attachments = project
         .verifier_attachments
         .iter()
@@ -50,7 +96,7 @@ fn proposal_next_actions(frontier: &std::path::Path, proposal_id: &str) -> Vec<V
         actions.push(json!({
             "kind": "add_verifier_evidence",
             "authority": "evidence_only",
-            "command": format!("vela verify attach {} <attachment.json> --proposal {proposal_id} --as verifier:<actor>", frontier.display()),
+            "command": format!("vela verification import {} <verification.json> --as verifier:<actor>", frontier.display()),
             "reason": gate.reasons.first().cloned().unwrap_or_else(|| "Additional verification evidence is required.".to_string())
         }));
     }
@@ -208,6 +254,20 @@ pub(crate) fn cmd_review(action: ReviewAction) {
             match inspection {
                 crate::review_material::ReviewInspection::Pending(review) => {
                     let next_actions = proposal_next_actions(&frontier, &proposal_id);
+                    let source_work = repo::load_from_path(&frontier).ok().and_then(|project| {
+                        project
+                            .proposals
+                            .into_iter()
+                            .find(|proposal| proposal.id == proposal_id)
+                            .and_then(|proposal| proposal.payload.get("submission").cloned())
+                    });
+                    let current_verifications = source_work.as_ref().map(|_| {
+                        crate::cli_object::verification_records_for_claim(
+                            &frontier,
+                            &review.brief.change.subject.id,
+                        )
+                        .unwrap_or_default()
+                    });
                     let payload = json!({
                         "ok": true,
                         "command": "review.show",
@@ -216,6 +276,8 @@ pub(crate) fn cmd_review(action: ReviewAction) {
                         "proposal_id": proposal_id,
                         "record_type": "decision_brief",
                         "review": review,
+                        "submission": source_work,
+                        "verification_records": current_verifications,
                         "next_actions": next_actions,
                     });
                     if json {

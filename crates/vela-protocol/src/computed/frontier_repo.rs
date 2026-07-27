@@ -895,8 +895,8 @@ jobs:
             r#"# {name} — agent charter
 
 This frontier is driven by `vela` + `git`. The ordinary path is
-`next -> work -> land -> sign`: agents stop after the routed landing; only a
-human key or a previously human-signed Permit policy changes accepted state.
+`next -> start -> submit -> review`: agents stop after registering a
+Submission; only an authorized Decision changes accepted state.
 `vela agents sync` regenerates CLAUDE.md / AGENTS.md / editor adapters from
 this file — edit here, never there.
 
@@ -906,9 +906,9 @@ Agents may:
 
 - inspect state: `vela status .`, `vela next .`, `vela check .`
 - claim one target: `vela start <target> --as agent:<name> --json`
-- land Receipt v1 work through that session: `vela land --work <target>
+- submit authenticated work through that Attempt: `vela submit --attempt <vat_id>
   --claim … --artifact … --caveat … --as agent:<name> --json`
-- import a foreign producer's canonical Receipt v1: `vela land receipt.json
+- import a foreign producer's canonical Submission v1: `vela submit submission.json
   --as agent:<name> --json`
 - run the verifiers: `vela reproduce .`, `vela check . --strict`
 - rebuild derived views: `vela frontier materialize .`
@@ -927,10 +927,10 @@ Agents may not:
 ```bash
 vela next . --json                              # ranked offer
 vela start <target> --as agent:<name> --json     # lease + briefing
-vela land --work <target> --claim <claim> \
+vela submit --attempt <vat_id> --claim <claim> \
   --type computational --replayability exact \
   --artifact <path>:<kind> --caveat <limit> \
-  --as agent:<name> --json                       # Receipt v1 + policy route
+  --as agent:<name> --json                       # Submission + pending Proposal
 vela status . --json                             # accepted and pending state
 vela review show . <vpr_id> --json               # pending or terminal record
 vela check . --strict                            # replay and parity gate
@@ -2349,14 +2349,14 @@ fn project_with_frontier_id(project: &Project) -> Result<Project, String> {
 
 fn write_frontier_card(path: &Path, name: &str) -> Result<(), String> {
     let text = format!(
-        "# {name}\n\nThis is a Vela frontier repository. Agents follow `next -> work -> land`; a human uses `sign` for deferred decisions, and Git publishes the resulting bytes.\n\n- State entrypoint: `frontier.json`\n- Manifest: `frontier.yaml`\n- Lockfile: `vela.lock`\n\nRun:\n\n```bash\nvela agents sync . --json\nvela status . --json\nvela next . --json\nvela check . --strict --json\n```\n"
+        "# {name}\n\nThis is a Vela Frontier repository. Producers follow `next -> start -> submit`; independent verifiers emit Verification Records; authorized Decisions change standing; Git publishes the resulting bytes.\n\n- State entrypoint: `frontier.json`\n- Manifest: `frontier.yaml`\n- Lockfile: `vela.lock`\n\nRun:\n\n```bash\nvela agents sync . --json\nvela status . --json\nvela next . --json\nvela check . --strict --json\n```\n"
     );
     fs::write(path.join("README.md"), text).map_err(|e| format!("Failed to write README.md: {e}"))
 }
 
 fn write_frontier_card_v1(path: &Path, name: &str, scope: &str) -> Result<(), String> {
     let text = format!(
-        "# {name}\n\n{scope}\n\nThis repository is a Vela Frontier. Canonical state lives in `.vela/`; `frontier.json` and `vela.lock` are generated read projections.\n\n## Start here\n\n```bash\nvela status . --json\nvela next . --json\nvela check . --strict --json\n```\n\nAgents may produce and land bounded evidence. Only verified policy or an exact protected human decision changes accepted scientific state.\n"
+        "# {name}\n\n{scope}\n\nThis repository is a Vela Frontier. Canonical state lives in `.vela/`; `frontier.json` and `vela.lock` are generated read projections.\n\n## Start here\n\n```bash\nvela status . --json\nvela next . --json\nvela check . --strict --json\n```\n\nAgents may start Attempts and submit bounded evidence. Verification Records report scoped checks. Only an authorized Decision changes accepted scientific state.\n"
     );
     fs::write(path.join("README.md"), text).map_err(|error| {
         format!(

@@ -12,9 +12,11 @@ const RELEASE_DENY: &[&str] = &[
     "diff",
     "foundry",
     "hub",
+    "land",
     "proposals",
     "publication",
     "reproduce-external",
+    "verify",
 ];
 
 /// Names omitted from the advanced menu. `completions` remains callable but
@@ -27,9 +29,11 @@ pub(crate) const HIDDEN_FROM_ADVANCED_HELP: &[&str] = &[
     "diff",
     "foundry",
     "hub",
+    "land",
     "proposals",
     "publication",
     "reproduce-external",
+    "verify",
 ];
 
 /// Whether `name` is a released top-level command the dispatcher will hand
@@ -91,13 +95,15 @@ Daily product:
   status        Compact frontier identity, roots, counts, and next action
   next          Ranked Target Offers
   start         Start one bounded Attempt against an exact Target
-  land          Land Receipt v1; policy admits, defers, or denies
+  submit        Register authenticated producer input for review
   review        Inspect or perform one exact authorized Proposal action
   check         Replay, signatures, parity, and strict signals
   reproduce     Re-run stored witnesses with frozen verifiers
-  verify        Retain non-authorizing proposal-scoped verifier evidence
+  verification  Retain non-authorizing scoped Verification Records
   log           Recent signed events or one finding's history
   doctor        Blockers plus one safe next action
+  show          One exact object, its root, era, and authority effect
+  why           Root-bound explanation of one Claim's Standing
 
 Nouns and setup:
   finding       record, standing, evidence, and attribution views

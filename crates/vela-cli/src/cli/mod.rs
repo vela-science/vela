@@ -219,7 +219,7 @@ pub async fn run_command() {
             }
         }
         Commands::Gate { action } => cmd_gate(action),
-        Commands::Verify { action } => cmd_verify_evidence(action),
+        Commands::Verification { action } => cmd_verify_evidence(action),
         Commands::Agents { action } => crate::cli_agents::cmd_agents(action),
         Commands::Completions { shell } => {
             use clap::CommandFactory;
@@ -262,6 +262,16 @@ pub async fn run_command() {
                     json,
                 },
         } => cmd_finding_show(&frontier, &finding_id, &view, json),
+        Commands::Show {
+            frontier,
+            object_id,
+            json,
+        } => crate::cli_object::cmd_show(&frontier, &object_id, json),
+        Commands::Why {
+            frontier,
+            claim_id,
+            json,
+        } => crate::cli_object::cmd_why(&frontier, &claim_id, json),
 
         Commands::Artifact { command } => match command {
             ArtifactCommands::Retract {
@@ -419,29 +429,29 @@ pub async fn run_command() {
             let dir = crate::ui::resolve_frontier(frontier);
             let Some(target) = target else {
                 let root = dir.join(".vela/work");
-                let mut sessions = std::fs::read_dir(&root)
+                let mut attempts = std::fs::read_dir(&root)
                     .into_iter()
                     .flatten()
                     .filter_map(Result::ok)
                     .filter_map(|entry| {
                         entry
                             .path()
-                            .join("session.json")
+                            .join("attempt.json")
                             .is_file()
                             .then_some(entry.path())
                     })
                     .collect::<Vec<_>>();
-                sessions.sort();
+                attempts.sort();
                 if json {
                     print_json(&serde_json::json!({
                         "ok": true,
                         "command": "start",
-                        "sessions": sessions.iter().map(|path| path.display().to_string()).collect::<Vec<_>>(),
+                        "attempts": attempts.iter().map(|path| path.display().to_string()).collect::<Vec<_>>(),
                     }));
                 } else {
-                    println!("  {} open session(s) under .vela/work/", sessions.len());
-                    for session in sessions {
-                        println!("  · {}", safe_text::inline(&session.display().to_string()));
+                    println!("  {} open Attempt(s) under .vela/work/", attempts.len());
+                    for attempt in attempts {
+                        println!("  · {}", safe_text::inline(&attempt.display().to_string()));
                     }
                 }
                 return;
@@ -450,7 +460,7 @@ pub async fn run_command() {
             if drop_it {
                 let reason = reason
                     .as_deref()
-                    .unwrap_or("producer released the work session without landing a receipt");
+                    .unwrap_or("producer abandoned the Attempt without a Submission");
                 let result = crate::workflow::release_session(&dir, &target, &actor, reason)
                     .unwrap_or_else(|error| fail_return(&error));
                 if json {
@@ -488,7 +498,7 @@ pub async fn run_command() {
             match crate::workflow::open_session(&dir, &target, &actor, ttl) {
                 Ok(opened) => {
                     if json {
-                        let session = &opened["session"];
+                        let attempt = &opened["attempt"];
                         let briefing = &opened["briefing"];
                         let task = briefing.get("task");
                         let packet = task.and_then(|task| task.get("packet_ref"));
@@ -497,32 +507,35 @@ pub async fn run_command() {
                             "command": "start",
                             "schema": "vela.attempt.v1",
                             "idempotent": opened.get("idempotent").and_then(serde_json::Value::as_bool).unwrap_or(false),
-                            "frontier_id": session.get("frontier_id"),
+                            "frontier_id": attempt.get("frontier_id"),
                             "target_id": target,
-                            "session": {
-                                "id": session.get("session_id"),
-                                "path": opened.get("session_path"),
-                                "actor": session.get("actor"),
-                                "expires_at": session.pointer("/lease/expires_at"),
+                            "attempt": {
+                                "id": attempt.get("attempt_id"),
+                                "path": opened.get("attempt_path"),
+                                "actor": attempt.get("actor"),
+                                "expires_at": attempt.pointer("/lease/expires_at"),
                             },
                             "starting_roots": {
-                                "event_log": session.get("base_event_log_root"),
-                                "nonlease_event_log": session.get("base_nonlease_event_log_root"),
-                                "task_contract": session.get("task_contract_root"),
-                                "git_commit": session.get("source_git_commit_oid"),
+                                "event_log": attempt.get("base_event_log_root"),
+                                "nonlease_event_log": attempt.get("base_nonlease_event_log_root"),
+                                "task_contract": attempt.get("task_contract_root"),
+                                "git_commit": attempt.get("source_git_commit_oid"),
                             },
                             "task": {
-                                "objective": session.pointer("/task_contract/objective"),
-                                "completion_condition": session.pointer("/task_contract/completion_condition"),
-                                "required_outputs": session.pointer("/task_contract/required_outputs"),
-                                "required_checks": session.pointer("/task_contract/required_checks"),
-                                "authority_ceiling": session.pointer("/task_contract/authority_ceiling"),
+                                "objective": attempt.pointer("/task_contract/objective"),
+                                "completion_condition": attempt.pointer("/task_contract/completion_condition"),
+                                "required_outputs": attempt.pointer("/task_contract/required_outputs"),
+                                "required_checks": attempt.pointer("/task_contract/required_checks"),
+                                "authority_ceiling": attempt.pointer("/task_contract/authority_ceiling"),
                             },
                             "publication": opened.pointer("/claim/publication"),
                             "packet": packet,
                             "verifier_profile": task.and_then(|task| task.get("verifier_profile"))
                                 .or_else(|| packet.and_then(|packet| packet.get("schema"))),
-                            "next_command": format!("vela land --work {target} --claim <scoped-result> --type <type> --replayability <class> --artifact <path>:<kind> --caveat <limit> --as <agent> --json"),
+                            "next_command": format!(
+                                "vela submit --attempt {} --claim <scoped-result> --type <type> --replayability <class> --artifact <path>:<kind> --caveat <limit> --as <agent> --json",
+                                attempt.get("attempt_id").and_then(serde_json::Value::as_str).unwrap_or("<attempt-id>")
+                            ),
                         }));
                     } else {
                         crate::ui::header("ATTEMPT", &target, Some("started"));
@@ -552,111 +565,101 @@ pub async fn run_command() {
                         }
                         println!(
                             "  {:<14} {}",
-                            vela_protocol::cli_style::dim("session"),
+                            vela_protocol::cli_style::dim("attempt"),
                             safe_text::inline(
                                 opened
-                                    .get("session_path")
+                                    .get("attempt_path")
                                     .and_then(|value| value.as_str())
-                                    .unwrap_or(".vela/work/<slug>--<target-sha256>/session.json")
+                                    .unwrap_or(".vela/work/<slug>--<target-sha256>/attempt.json")
                             )
                         );
                         render_work_publication(&opened["claim"]);
                         println!(
-                            "  {:<14} vela land --work {} --claim ...",
+                            "  {:<14} vela submit --attempt {} --claim ...",
                             vela_protocol::cli_style::dim("current writer"),
-                            safe_text::inline(&target),
+                            safe_text::inline(
+                                opened
+                                    .pointer("/attempt/attempt_id")
+                                    .and_then(serde_json::Value::as_str)
+                                    .unwrap_or("<attempt-id>")
+                            ),
                         );
                     }
                 }
                 Err(e) => fail(&e),
             }
         }
-        Commands::Land {
-            receipt,
+        Commands::Submit {
+            submission,
             frontier,
             claim,
             claim_type,
+            condition,
             replayability,
             artifact,
             caveat,
-            predicted_observable,
-            not_applicable,
-            performed_test,
-            result,
-            evidence,
-            counterevidence,
+            producer_check,
+            verification_requirement,
             packet_root,
             profile_root,
             verifier_capsule_root,
             result_contract_root,
-            work,
+            attempt,
             r#as,
             push,
             json,
         } => {
-            crate::ui::set_mode("land", json);
+            crate::ui::set_mode("submit", json);
             let dir = crate::ui::resolve_frontier(frontier);
             let actor = crate::cli_identity::resolve_actor(r#as.as_deref());
             let preflight_identity =
                 vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
-                    "schema": "vela.land-preflight.internal.v1",
+                    "schema": "vela.submit-preflight.internal.v1",
                     "frontier": dir.display().to_string(),
                     "actor": actor,
-                    "receipt": receipt.as_ref().map(|path| path.display().to_string()),
+                    "submission": submission.as_ref().map(|path| path.display().to_string()),
                     "claim": claim,
                     "claim_type": claim_type,
+                    "conditions": condition,
                     "replayability": replayability,
                     "artifacts": artifact,
                     "caveats": caveat,
-                    "predicted_observable": predicted_observable,
-                    "not_applicable": not_applicable,
-                    "performed_test": performed_test,
-                    "result": result,
-                    "evidence": evidence,
-                    "counterevidence": counterevidence,
+                    "producer_checks": producer_check,
+                    "verification_requirements": verification_requirement,
                     "packet_root": packet_root,
                     "profile_root": profile_root,
                     "verifier_capsule_root": verifier_capsule_root,
                     "result_contract_root": result_contract_root,
-                    "work": work,
+                    "attempt": attempt,
                     "push": push,
                 }))
                 .unwrap_or_default();
             let preflight_id =
-                crate::operation_journal::operation_id("land-preflight", &preflight_identity);
+                crate::operation_journal::operation_id("submit-preflight", &preflight_identity);
             let fail_preflight = |kind, message: String| -> ! {
-                crate::ui::fail_unchanged(kind, &message, &preflight_id, "vela land --help")
+                crate::ui::fail_unchanged(kind, &message, &preflight_id, "vela submit --help")
             };
-            let receipt = if let Some(path) = receipt {
-                if work.is_some() {
-                    fail_preflight(
-                        crate::ui::ErrorKind::Usage,
-                        "--work selects the private flag-authoring path and cannot be combined with a foreign Receipt v1 file".to_string(),
-                    );
-                }
-                let raw = crate::bounded_file::read_bounded_file(
-                    &path,
-                    crate::bounded_file::RECEIPT_MAX_BYTES,
-                    "foreign Receipt v1",
-                )
-                .unwrap_or_else(|error| {
-                    let kind = if error.code == "missing" {
-                        crate::ui::ErrorKind::NotFound
-                    } else {
-                        crate::ui::ErrorKind::Domain
-                    };
-                    fail_preflight(kind, error.to_string())
-                });
-                vela_protocol::receipt_v1::ReceiptV1::parse(&raw).unwrap_or_else(|error| {
+            let submission = if let Some(path) = submission {
+                let raw =
+                    crate::bounded_file::read_bounded_file(&path, 8 * 1024 * 1024, "Submission v1")
+                        .unwrap_or_else(|error| {
+                            let kind = if error.code == "missing" {
+                                crate::ui::ErrorKind::NotFound
+                            } else {
+                                crate::ui::ErrorKind::Domain
+                            };
+                            fail_preflight(kind, error.to_string())
+                        });
+                vela_protocol::submission_v1::SubmissionV1::parse(&raw).unwrap_or_else(|error| {
                     fail_preflight(crate::ui::ErrorKind::Domain, error.to_string())
                 })
             } else {
                 let Some(claim) = claim else {
                     crate::ui::fail_unchanged(
                         crate::ui::ErrorKind::Usage,
-                        "land needs a receipt file or --claim",
+                        "submit needs a Submission file or --claim",
                         &preflight_id,
-                        "vela land --help",
+                        "vela submit --help",
                     );
                 };
                 let claim_type = claim_type.unwrap_or_else(|| {
@@ -704,53 +707,62 @@ pub async fn run_command() {
                         "exact execution binding requires all four full roots".to_string(),
                     ),
                 };
-                crate::workflow::author_receipt(
+                crate::workflow::author_submission(
                     &dir,
                     &actor,
-                    work.as_deref(),
+                    attempt.as_deref(),
                     claim,
                     claim_type,
+                    condition,
                     replayability,
                     &artifact,
                     caveat,
-                    predicted_observable,
-                    not_applicable,
-                    performed_test,
-                    result,
-                    evidence,
-                    counterevidence,
+                    producer_check,
+                    verification_requirement,
                     execution_binding,
                 )
                 .unwrap_or_else(|error| {
                     fail_preflight(
                         crate::ui::ErrorKind::Domain,
-                        format!("receipt build: {error}"),
+                        format!("Submission build: {error}"),
                     )
                 })
             };
-            match crate::workflow::land(&dir, &receipt, &actor, push) {
+            match crate::workflow::submit(&dir, &submission, &actor, attempt.as_deref(), push) {
                 Ok(outcome) => {
-                    let wire = outcome.wire();
                     if json {
-                        let mut payload = serde_json::to_value(&wire)
-                            .expect("LandOutcomeWire contains only serializable values");
+                        let mut payload = serde_json::to_value(&outcome)
+                            .expect("SubmitOutcome contains only serializable values");
                         let fields = payload
                             .as_object_mut()
-                            .expect("LandOutcomeWire serializes as an object");
+                            .expect("SubmitOutcome serializes as an object");
                         fields.insert("ok".to_string(), serde_json::json!(true));
-                        fields.insert("command".to_string(), serde_json::json!("land"));
+                        fields.insert("command".to_string(), serde_json::json!("submit"));
                         fields.insert(
                             "request_id".to_string(),
-                            serde_json::json!(wire.operation_id),
+                            serde_json::json!(outcome.operation_id),
                         );
                         print_json(&payload);
                     } else {
-                        render_land_outcome(
-                            wire.proposal_id,
-                            wire.route,
-                            &wire.detail,
-                            wire.operation_id,
-                            wire.publication,
+                        crate::ui::header(
+                            "SUBMISSION",
+                            &outcome.submission_id,
+                            Some(outcome.route),
+                        );
+                        println!(
+                            "  {:<18} {}",
+                            vela_protocol::cli_style::dim("proposal"),
+                            safe_text::inline(&outcome.proposal_id)
+                        );
+                        println!(
+                            "  {:<18} {}",
+                            vela_protocol::cli_style::dim("registration"),
+                            safe_text::inline(&outcome.registration_record_id)
+                        );
+                        println!(
+                            "  {:<18} {}",
+                            vela_protocol::cli_style::dim("accepted delta"),
+                            outcome.accepted_event_delta
                         );
                     }
                 }
@@ -871,119 +883,6 @@ fn render_work_publication(operation: &serde_json::Value) {
     }
 }
 
-fn render_land_outcome(
-    proposal_id: &str,
-    route: &str,
-    detail: &str,
-    operation_id: &str,
-    publication: &crate::config::git_publish::PublicationOutcome,
-) {
-    use crate::config::git_publish::PublicationState;
-
-    let (state, retained, changed_git, unchanged, remote, fallback_next) = match &publication.state
-    {
-        PublicationState::Unchanged { commit } => (
-            "unchanged".to_string(),
-            format!("existing local commit {commit} already contains every exact postimage"),
-            "no Git ref or caller index entry moved".to_string(),
-            "caller index/worktree entries".to_string(),
-            "unverified; the exact local target commit is proven".to_string(),
-            "git push".to_string(),
-        ),
-        PublicationState::Uncommitted { candidate, reason } => (
-            format!("uncommitted: {reason}"),
-            candidate
-                .as_ref()
-                .map(|oid| format!("candidate {oid} is not on the target ref"))
-                .unwrap_or_else(|| "no publication commit on the target ref".to_string()),
-            "no Git ref moved".to_string(),
-            "unrelated index/worktree entries".to_string(),
-            "not contacted by this publication attempt".to_string(),
-            "git status --short".to_string(),
-        ),
-        PublicationState::Stale {
-            candidate,
-            expected,
-            actual,
-        } => (
-            format!("stale: candidate {candidate} planned from {expected}; target is now {actual}"),
-            format!("candidate {candidate} was not installed on the target ref"),
-            "the competing Git ref update won; Vela did not merge or overwrite it".to_string(),
-            "caller index/worktree entries".to_string(),
-            "not contacted by this publication attempt".to_string(),
-            "git status --short".to_string(),
-        ),
-        PublicationState::CommittedLocal { commit } => (
-            "committed_local".to_string(),
-            format!("local commit {commit}"),
-            format!("local Git ref now retains commit {commit}"),
-            "unrelated index/worktree entries".to_string(),
-            "unverified; only the local commit is proven".to_string(),
-            "git push".to_string(),
-        ),
-        PublicationState::Pushed { commit, remote } => (
-            format!("pushed to {remote}"),
-            format!("commit {commit}"),
-            format!("commit {commit} is verified on {remote}"),
-            "unrelated index/worktree entries".to_string(),
-            format!("verified on {remote}"),
-            "vela status --json".to_string(),
-        ),
-        PublicationState::Unknown { reason } => (
-            format!("unknown: {reason}"),
-            "publication state is not proven; inspect the recovery result".to_string(),
-            "publication could not be proven".to_string(),
-            "unrelated index/worktree entries".to_string(),
-            "unverified".to_string(),
-            "git status --short".to_string(),
-        ),
-    };
-    let next = publication
-        .recovery_command
-        .as_deref()
-        .unwrap_or(&fallback_next);
-
-    crate::ui::header("LAND", proposal_id, Some(route));
-    println!(
-        "  {:<16} proposal {} routed {} ({})",
-        style::dim("changed"),
-        safe_text::inline(proposal_id),
-        safe_text::inline(route),
-        safe_text::inline(detail)
-    );
-    println!(
-        "  {:<16} {}",
-        style::dim("git"),
-        safe_text::inline(&changed_git)
-    );
-    println!(
-        "  {:<16} {}",
-        style::dim("unchanged"),
-        safe_text::inline(&unchanged)
-    );
-    println!(
-        "  {:<16} {}",
-        style::dim("remote"),
-        safe_text::inline(&remote)
-    );
-    println!(
-        "  {:<16} {}",
-        style::dim("publication"),
-        safe_text::inline(&state)
-    );
-    println!(
-        "  {:<16} {}",
-        style::dim("request"),
-        safe_text::inline(operation_id)
-    );
-    println!(
-        "  {:<16} {}",
-        style::dim("retained"),
-        safe_text::inline(&retained)
-    );
-    println!("  {:<16} {}", style::dim("next"), safe_text::inline(next));
-}
-
 // Bare `vela` (no args) opens a session against the nearest `.vela/`
 // repo, walking up from cwd. The session prints a one-screen
 // dashboard, then accepts single-letter verb shortcuts or
@@ -1087,6 +986,12 @@ pub fn run_from_args() {
                 "credit" => Some("vela finding show <frontier> <vf_id> --view attribution"),
                 "publication" => Some("vela frontier recover-publication"),
                 "hub" => Some("vela serve for a local read surface, or the optional Observatory"),
+                "land" => Some(
+                    "vela submit <submission.json>, or vela submit --attempt <attempt-id> --claim <scoped-result> ...",
+                ),
+                "verify" => Some(
+                    "vela verification import <frontier> <verification.json> --as verifier:<actor>",
+                ),
                 "foundry" | "reproduce-external" => {
                     Some("a Canopus verifier profile or parent campaign script")
                 }

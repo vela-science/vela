@@ -819,7 +819,7 @@ mod tests {
         }
         assert!(principal_class_may_request(
             PrincipalClass::Agent,
-            "receipt_land"
+            "submission_register"
         ));
     }
 

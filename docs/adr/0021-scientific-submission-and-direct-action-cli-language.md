@@ -386,6 +386,25 @@ This ADR becomes Accepted only after:
 - no agent, producer, reader, or browser reaches authority or a human key; and
 - provider-exit and clean-source recovery drills pass.
 
+## Implementation status
+
+The substrate now contains the Stage 1 current writer and readers:
+
+- closed Submission, Registration Record, and Verification Record schemas;
+- `start`, `submit`, `show`, `why`, direct review actions,
+  `proposal withdraw`, and `verification import`;
+- a non-finalizing MCP `attempt` surface using the same
+  `start | submit | abandon` vocabulary;
+- diagnostics for retired `land` and top-level `verify` writers; and
+- exact replay of historical Receipt and policy-era bytes.
+
+Current Submission acceptance remains deliberately blocked with
+`current_verification_contract_required` until the Decision gate consumes
+root-bound Verification Records without weakening the existing evidence floor.
+Claim Record remains separately gated. Stages 2 through 5 and the real
+correction-aware vertical slice are not yet complete, so this ADR remains
+Proposed.
+
 ## Consequences
 
 The migration is intentionally breaking before 1.0. It removes semantic

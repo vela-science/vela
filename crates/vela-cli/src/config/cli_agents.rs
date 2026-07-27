@@ -168,7 +168,7 @@ fn mcp_json_adapter(root: &Path) -> String {
 /// parity. Edit the plugin file and this const together.
 const SKILL_FRONTMATTER: &str = r##"---
 name: vela-frontier
-description: Working in a repository that has a .vela/ directory (a Vela frontier). Use when picking targets, running verifiers, writing receipts, landing results, or inspecting protected review. The transitional producer loop is next → start → land; humans authorize exact decisions.
+description: Working in a repository that has a .vela/ directory (a Vela Frontier). Use when inspecting standing, starting Attempts, submitting evidence, importing Verification Records, or reviewing exact Proposals. The producer loop is next → start → submit; only authorized Decisions change standing.
 ---
 "##;
 
@@ -177,7 +177,7 @@ description: Working in a repository that has a .vela/ directory (a Vela frontie
 const SKILL_BODY: &str = r##"
 # Vela frontier work
 
-Vela is Git-native, authority-scoped state for scientific work. Findings,
+Vela is Git-native, authority-scoped state for scientific work. Claims,
 evidence, provenance, and proofs are bound to content-addressed, signed,
 replayable events; everything else (frontier.json, proof packets, rollups) is a
 derived view. Activity is not state: a script that ran is activity; a witness
@@ -188,10 +188,11 @@ one.
 
 ## The loop
 
-Three producer verbs; everything else is reading, review, or plumbing.
+Three producer verbs; everything else is inspection, verification, decision,
+or plumbing.
 
 ```text
-next -> start -> land
+next -> start -> submit
 ```
 
 - `vela next --json` — the offer: ranked open targets with the compounding
@@ -199,16 +200,15 @@ next -> start -> land
   dead channels). Returns `{targets: [{lane, id, title, why, next_command, task?}]}`.
   Trust the ranking; it already encodes what the frontier knows.
 - `vela start <target> --as agent:<you> --json` — claim the lease, load the
-  briefing, and write one typed private `session.json` under `.vela/work/`.
-  A same-actor retry returns that exact active session without another lease
-  event. Read the returned briefing before working; do not edit the session
+  briefing, and write one typed private Attempt under `.vela/work/`.
+  A same-actor retry returns that exact active Attempt without another lease
+  event. Read the returned briefing before working; do not edit the Attempt
   record.
-- `vela land --work <target> --claim <result> --artifact <path>:<kind>
-  --caveat <limit> --as agent:<you> --json` — build Receipt v1 from the exact
-  session and use the shared write edge. With exactly one active session for
-  this actor, `--work` is inferred. A committed Permit or Defer closes only
-  `session.json`; Deny or invalid input keeps it for repair. Foreign producers
-  may still use `vela land receipt.json`.
+- `vela submit --attempt <vat_id> --claim <result> --type <type>
+  --replayability <class> --artifact <path>:<kind> --caveat <limit>
+  --as agent:<you> --json` — build and register Submission v1 from the exact
+  Attempt. Registration creates a pending Proposal and no accepted-state
+  change. A foreign producer may pass one signed `submission.json`.
 - `vela start <target> --drop --reason <why> --as agent:<you> --json` — sign a
   same-owner zero-TTL lease update, then remove private scratch. Deleting files
   by hand does not release a lease.
@@ -219,63 +219,66 @@ next -> start -> land
   row includes `created_at`; use `vela review show . <vpr_id> --json` for one
   exact pending Review Packet or signed terminal Decision record.
 - When a task supplies a full `vpr_` ID, start with `vela review show`; it
-  returns the pending brief or signed terminal decision. Rejected proposal
-  findings are intentionally absent from accepted `finding show` and `log`
-  views. That absence is not deletion.
+  returns the pending Review Packet or signed terminal Decision. Rejected
+  Proposals remain inspectable; they do not create accepted Claim standing.
 - `vela review accept . <vpr_id> --reason <text> --json` or
   `vela review reject . <vpr_id> --reason <text> --json` prepares one exact
   Decision Plan. An agent may invoke the protected request, but only the
   registered human may authorize its decision card.
 
-For a frozen-verifier witness, run `vela reproduce <witness>` first, then land
-the result through the active work session with `vela land --work <target>
+For a frozen-verifier witness, run `vela reproduce <witness>` first, then
+submit the result through the active Attempt with `vela submit --attempt <vat_id>
 --artifact <witness>:witness --as agent:<you> --json`. A producer outside the
-frontier can instead emit the same portable Receipt v1 and call `vela land
-receipt.json`. Both paths cross the one Receipt/land write edge. Retired CI
-auto-verdicts are not an authority path.
+frontier can emit the same portable Submission v1 and call `vela submit
+submission.json`. Producer checks remain producer-reported; an independent
+Verification Record is separate.
 
 Every verb takes `--json` and returns one object with `ok` and `command`; no
 prose leaks into a JSON stream. Exit codes: 0 ok, 1 domain failure, 2 usage,
 3 not found, 4 custody refused, 5 already exists. The frontier argument is
 discovered by walking upward from the current directory, like git.
 
-## The receipt
+## The submission
 
-A Vela Receipt (`vela.receipt.v1`) is the portable JSON any tool exports —
-a notebook, a search run, a proof attempt:
+A Vela Submission (`vela.submission.v1`) is authenticated producer input from
+a notebook, search run, proof attempt, or research harness. It can request a
+change, but it cannot assert Standing, mint Verification, or create a Decision:
 
 ```json
 {
-  "schema": "vela.receipt.v1",
-  "claim": "what is now known / bounded / refuted",
-  "type": "computational | theoretical | empirical | negative",
-  "artifacts": [{"path": "witness.json", "kind": "witness"}],
+  "schema": "vela.submission.v1",
+  "claim": {
+    "assertion": "what is now known / bounded / refuted",
+    "type": "computational",
+    "conditions": ["the exact bounded range"]
+  },
+  "artifacts": [{
+    "path": "witness.json",
+    "kind": "witness",
+    "digest": "sha256:..."
+  }],
   "caveats": ["what this does NOT establish"],
-  "verifier_runs": [{"method": "…", "outcome": "pass", "log": "…"}]
+  "producer_checks": [{
+    "method": "local replay",
+    "outcome": "pass",
+    "authority": "producer_reported"
+  }]
 }
 ```
 
 The claim is one scoped sentence a skeptical reviewer could sign against.
-Artifact paths must exist — they are hashed at land time. Caveats state what
-the work does not establish; write at least one unless the claim is genuinely
-unconditional. Verifier runs record only what actually ran, with honest
-outcomes. Negative results (channel exhausted, bound unimproved) are landable
-state and save the next session the respend.
+Artifact paths must exist and match their full digest. Caveats state what the
+work does not establish. Producer checks report only what the producer ran;
+independent Verification is a separate signed record. Bounded negative results
+remain useful submissions and save the next Attempt from repeating them.
 
-## Landing routes
+## Registration and decision
 
-Era-0 landing routes by a retained signed policy:
-
-- **Permit** — admitted canonically with no key ceremony. The human's
-  authority arrived earlier, once, as the retained policy signature; the event carries
-  the certificate and replay verifies it.
-- **Defer** — parked for an exact protected human `review accept` or
-  `review reject` Decision.
-- **Deny** — refuses canonical admission. The returned structured result states
-  what, if anything, was retained; zero-delta Deny is not assumed by clients.
-
-Truth-bearing claims stay human-keyed in every mode. There is no configuration
-in which an agent's proposal becomes accepted state without a human key.
+`vela submit` registers the exact Submission and a pending Proposal. It returns
+a Vela-issued Registration Record proving intake, not truth. Independent
+Verification Records may then attach scoped results. Only `review accept` or
+`review reject` creates an authorized Decision; registration and verification
+never imply acceptance.
 
 ## Custody
 
@@ -311,12 +314,12 @@ silently break the reproduction of a banked result.
 
 ## Reading state
 
-`vela status --json` is the one-screen summary (findings, replay integrity,
-policy state and Permit readiness, sign-queue depth, compounding metrics).
-`vela finding show <dir> <vf_id> --view standing` is one finding's claim-state
-cell; `vela log <dir> <vf_id>` is its history. The MCP
+`vela status --json` is the one-screen summary of Claims, replay integrity,
+policy state, review depth, and the next bounded action.
+`vela show <dir> <typed_id>` inspects an exact object; `vela why <dir>
+<claim_id>` explains its standing; `vela log <dir>` reads canonical history. The MCP
 server (`vela serve . --profile draft`) exposes the read surface plus the
-non-finalizing `work` tool (claim|land|drop);
+non-finalizing Attempt and Submission tools;
 `decide` is excluded by construction, so nothing an agent does through MCP
 finalizes state.
 "##;

@@ -613,13 +613,11 @@ pub(crate) fn tool_verify(args: &Value, source_path: Option<&Path>) -> ToolOutpu
     Ok((payload, Vec::new()))
 }
 
-/// `work` — the compounding loop for agents: claim a lease, land a
-/// receipt (routed by the signed policy), or drop a session. Everything signs under the agent's own
-/// auto-minted session key; nothing here is a human decision — a landing
-/// either rides a policy the human already signed, or defers to the
-/// human's sign queue.
-pub(crate) fn tool_work(args: &Value, source_path: Option<&Path>) -> ToolOutput {
-    let (bound_args, served_frontier) = bind_frontier_args(args, source_path, "work")?;
+/// `attempt` — start an Attempt, register a Submission, or abandon the Attempt.
+/// Submission registration is authenticated producer intake only: it creates
+/// no Verification Record, Decision, Event, or accepted-state mutation.
+pub(crate) fn tool_attempt(args: &Value, source_path: Option<&Path>) -> ToolOutput {
+    let (bound_args, served_frontier) = bind_frontier_args(args, source_path, "attempt")?;
     // Downstream helpers receive the canonical server-owned path, never the
     // caller's spelling (which could otherwise be swapped through a symlink
     // after this check).
@@ -632,19 +630,21 @@ pub(crate) fn tool_work(args: &Value, source_path: Option<&Path>) -> ToolOutput 
             .unwrap_or_default();
         if !actor.starts_with("agent:") && !actor.starts_with("ci:") {
             return Err(ToolError::invalid(format!(
-                "work action={action} requires `agent_actor` matching ^(agent:|ci:)"
+                "attempt action={action} requires `agent_actor` matching ^(agent:|ci:)"
             )));
         }
         Ok(actor)
     };
     match args.get("action").and_then(Value::as_str) {
-        Some("claim") => {
-            let actor = agent_actor("claim")?;
+        Some("start") => {
+            let actor = agent_actor("start")?;
             let target = args
                 .get("obligation_id")
                 .and_then(Value::as_str)
                 .filter(|target| !target.is_empty())
-                .ok_or_else(|| ToolError::invalid("work action=claim requires `obligation_id`"))?;
+                .ok_or_else(|| {
+                    ToolError::invalid("attempt action=start requires `obligation_id`")
+                })?;
             let ttl = args
                 .get("ttl_seconds")
                 .and_then(Value::as_u64)
@@ -653,38 +653,43 @@ pub(crate) fn tool_work(args: &Value, source_path: Option<&Path>) -> ToolOutput 
                 .map_err(ToolError::classify)?;
             Ok((opened, Vec::new()))
         }
-        Some("land") => {
-            let actor = agent_actor("land")?;
-            let receipt_json = args.get("receipt").and_then(Value::as_str).ok_or_else(|| {
+        Some("submit") => {
+            let actor = agent_actor("submit")?;
+            let submission_json =
+                args.get("submission").and_then(Value::as_str).ok_or_else(|| {
                 ToolError::invalid(
-                    "work action=land requires `receipt` as raw vela.receipt.v1 JSON text",
+                    "attempt action=submit requires `submission` as raw vela.submission.v1 JSON text",
                 )
             })?;
-            // Keep the producer wire text intact until ReceiptV1's bounded,
-            // duplicate-rejecting parser sees it. Parsing MCP `receipt` as a
+            // Keep the producer wire text intact until SubmissionV1's bounded,
+            // duplicate-rejecting parser sees it. Parsing MCP `submission` as a
             // Value and reserializing here would erase duplicate object names
             // before the protocol boundary could reject them.
-            let receipt = vela_protocol::receipt_v1::ReceiptV1::parse(receipt_json.as_bytes())
-                .map_err(|e| ToolError::invalid(e.to_string()))?;
+            let submission =
+                vela_protocol::submission_v1::SubmissionV1::parse(submission_json.as_bytes())
+                    .map_err(|e| ToolError::invalid(e.to_string()))?;
             let frontier = frontier_path;
-            let outcome = crate::workflow::land(frontier, &receipt, actor, false)
+            let attempt_id = args.get("attempt_id").and_then(Value::as_str);
+            let outcome = crate::workflow::submit(frontier, &submission, actor, attempt_id, false)
                 .map_err(ToolError::classify)?;
-            let wire = serde_json::to_value(outcome.wire()).map_err(|error| {
-                ToolError::internal(format!("serialize landing result: {error}"))
+            let wire = serde_json::to_value(outcome).map_err(|error| {
+                ToolError::internal(format!("serialize submit result: {error}"))
             })?;
             Ok((wire, Vec::new()))
         }
-        Some("drop") => {
-            let actor = agent_actor("drop")?;
+        Some("abandon") => {
+            let actor = agent_actor("abandon")?;
             let target = args
                 .get("obligation_id")
                 .and_then(Value::as_str)
                 .filter(|t| !t.is_empty())
-                .ok_or_else(|| ToolError::invalid("work action=drop requires `obligation_id`"))?;
+                .ok_or_else(|| {
+                    ToolError::invalid("attempt action=abandon requires `obligation_id`")
+                })?;
             let reason = args
                 .get("release_reason")
                 .and_then(Value::as_str)
-                .unwrap_or("producer released the MCP work session without landing a receipt");
+                .unwrap_or("producer released the MCP Attempt without registering a Submission");
             let released = crate::workflow::release_session(frontier_path, target, actor, reason)
                 .map_err(|error| {
                 if error.contains("leased by") || error.contains("key does not match") {
@@ -695,8 +700,8 @@ pub(crate) fn tool_work(args: &Value, source_path: Option<&Path>) -> ToolOutput 
             })?;
             Ok((released, Vec::new()))
         }
-        _ => Err(ToolError::invalid("work requires `action`")
-            .with_hint("valid actions: claim, land, drop")),
+        _ => Err(ToolError::invalid("attempt requires `action`")
+            .with_hint("valid actions: start, submit, abandon")),
     }
 }
 
@@ -1787,7 +1792,7 @@ pub(crate) fn build_task_packet(
         "attempts": {"count": attempts.len(), "items": attempts},
         "submission": {
             "witness": "write the artifact as <frontier>/witnesses/<name>.witness.json and run `vela reproduce <frontier>` — the frozen verifier must pass",
-            "finding": "encode the claim and evidence in Receipt v1, then use `vela land`; current authority routes it and deferred work reaches one direct review action",
+            "finding": "encode the claim and evidence in Submission v1, then use `vela submit`; current authority registers it pending review",
             "attempt": "land a negative or partial Receipt v1; failed passes are evidence when they carry an artifact and caveat",
         },
         "caveat": "Allowed outputs are the only state-changing submissions; strategy prose without an artifact does not move the frontier.",
@@ -2326,28 +2331,28 @@ batches:
         );
         assert_eq!(
             target["task"]["authority_ceiling"],
-            "Producer evidence only. The session can create a receipt and proposal; it cannot create human acceptance."
+            "Producer evidence only. The Attempt can create a Submission and Proposal; it cannot create human acceptance."
         );
     }
 
     #[test]
-    fn work_refuses_a_frontier_other_than_the_served_checkout() {
+    fn attempt_refuses_a_frontier_other_than_the_served_checkout() {
         let temp = tempfile::tempdir().unwrap();
         let served = frontier_dir(temp.path(), "served");
         let other = frontier_dir(temp.path(), "other");
         let escaped = served.join("..").join("other");
 
-        let work_error = tool_work(
+        let attempt_error = tool_attempt(
             &json!({
                 "frontier_path": escaped,
-                "action": "drop",
+                "action": "abandon",
                 "obligation_id": "vf_out_of_scope"
             }),
             Some(&served),
         )
         .unwrap_err();
-        assert_eq!(work_error.kind, ToolErrorKind::PermissionDenied);
-        assert!(work_error.message.contains("outside the frontier bound"));
+        assert_eq!(attempt_error.kind, ToolErrorKind::PermissionDenied);
+        assert!(attempt_error.message.contains("outside the frontier bound"));
 
         let verify_error = tool_verify(
             &json!({"frontier_path": other.display().to_string(), "mode": "strict"}),
@@ -2365,13 +2370,13 @@ batches:
     }
 
     #[test]
-    fn work_is_unavailable_for_a_merged_service() {
+    fn attempt_is_unavailable_for_a_merged_service() {
         let temp = tempfile::tempdir().unwrap();
         let requested = frontier_dir(temp.path(), "requested");
-        let result = tool_work(
+        let result = tool_attempt(
             &json!({
                 "frontier_path": requested.display().to_string(),
-                "action": "drop",
+                "action": "abandon",
                 "obligation_id": "vf_out_of_scope"
             }),
             None,
@@ -2392,10 +2397,10 @@ batches:
     }
 
     #[test]
-    fn work_uses_the_canonical_served_checkout() {
+    fn attempt_uses_the_canonical_served_checkout() {
         let temp = tempfile::tempdir().unwrap();
         let served = frontier_dir(temp.path(), "served");
-        for tool in ["work", "verify", "objects"] {
+        for tool in ["attempt", "verify", "objects"] {
             let (_, bound) = bind_frontier_args(
                 &json!({"frontier_path": served.join(".")}),
                 Some(&served),
@@ -2407,15 +2412,15 @@ batches:
     }
 
     #[test]
-    fn drop_refuses_a_non_owner_without_removing_private_scratch() {
+    fn abandon_refuses_a_non_owner_without_removing_private_scratch() {
         let temp = tempfile::tempdir().unwrap();
         let served = owned_session_frontier(temp.path());
         let session = crate::workflow::session_dir(&served, "scope:probe");
 
-        let denied = tool_work(
+        let denied = tool_attempt(
             &json!({
                 "frontier_path": served.display().to_string(),
-                "action": "drop",
+                "action": "abandon",
                 "obligation_id": "scope:probe",
                 "agent_actor": "agent:other"
             }),
@@ -2437,7 +2442,7 @@ batches:
         let link = temp.path().join("other-link");
         symlink(&other, &link).unwrap();
 
-        for tool in ["work", "verify", "objects"] {
+        for tool in ["attempt", "verify", "objects"] {
             let error = bind_frontier_args(
                 &json!({"frontier_path": link.display().to_string()}),
                 Some(&served),

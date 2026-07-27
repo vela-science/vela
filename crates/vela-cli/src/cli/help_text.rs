@@ -27,24 +27,19 @@ EXAMPLES
 
 SEE ALSO
   vela next   the ranked offer this claims from
-  vela land   compatibility writer until Submission v1 ships";
+  vela submit register one authenticated producer Submission";
 
-pub const LAND: &str = "\
+pub const SUBMIT: &str = "\
 EXAMPLES
-  vela land receipt.json                       record → propose → route by policy
-  vela land --work erdos:443 --claim \"a(7) >= 22\" --artifact w.json:witness
-                                               build from the selected work session
-  vela land --work sidon:a24 --claim \"a(24) > 7179\" --packet-root sha256:…
-                                               exact binding also needs profile,
-                                               capsule, and result roots
-  vela land receipt.json --push                commit locally AND publish now
+  vela submit submission.json                  register a signed Submission v1
+  vela submit --attempt vat_0123… --claim \"a(7) >= 22\" --type computational \
+    --replayability exact --artifact w.json:witness --caveat \"bounded search\"
+                                               author from one active Attempt
+  vela submit submission.json --push           commit locally AND publish now
 
-With one active session for this actor, --work is inferred. With several,
-select one explicitly. A committed Permit or Defer closes session.json; Deny
-or invalid input leaves it available for repair.
-
-The four exact roots are all-or-nothing whole-Receipt-bound evidence. They do
-not grant authority; only a matching signed v0.2 policy can Permit that result.
+Submission registers authenticated producer input as a pending Proposal. It
+does not create a Verification Record, Decision, Event, or accepted-state
+change. --check records only producer-reported checks.
 
 SEE ALSO
   vela review show     inspect one exact deferred Proposal";
@@ -107,12 +102,12 @@ also run `vela reproduce .`.";
 
 pub const VERIFY: &str = "\
 EXAMPLES
-  vela verify attach . attachment.json --proposal vpr_8b49… \\
+  vela verification import . verification.json \\
     --as verifier:independent-check --json
-        retain signed, proposal-scoped evidence without accepting the proposal
+        retain a signed Verification Record without accepting the Proposal
 
-The attachment must bind the exact finding and full claim root, one explicit
-implementation, retained execution roots, and rooted adversarial probes.
+The record binds the exact Submission, Proposal, Claim, artifacts, method,
+environment, scope, outcome, and verifier identity.
 
 SEE ALSO
   vela reproduce . --proposal vpr_8b49…   replay only pending evidence
@@ -179,12 +174,27 @@ boundaries and dependencies remain replayable and read-only.";
 pub const FINDING: &str = "\
 EXAMPLES
   vela finding show . vf_6d4a…     read one accepted finding
-  vela land --claim \"…\" --artifact result.json:witness --as agent:demo
-                                    submit new work as Receipt v1
+  vela submit --claim \"…\" --artifact result.json:witness --as agent:demo
+                                    register new work as Submission v1
 
-Finding is read-only. Receipt v1 plus `vela land` is the only producer write
-path; current authority routes it, and deferred work reaches one direct
+Finding is read-only. Submission v1 plus `vela submit` is the producer write
+path; current authority registers it pending review, then one direct
 `vela review accept` or `vela review reject` action.";
+
+pub const SHOW: &str = "\
+EXAMPLES
+  vela show . vsb_0123456789abcdef --json
+  vela show . vpr_0123456789abcdef --json
+
+Show verifies and renders one exact object. It reports the object's content
+root, source era, and authority effect without changing the frontier.";
+
+pub const WHY: &str = "\
+EXAMPLES
+  vela why . vf_0123456789abcdef --json
+
+Why derives the Claim or historical Finding standing from its Proposal,
+Verification, and Decision chain and binds the explanation to current roots.";
 
 pub const ARTIFACT: &str = "\
 EXAMPLES

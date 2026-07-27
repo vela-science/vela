@@ -18,14 +18,15 @@ use crate::repo;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProposalWithdrawalAuthorization {
     pub proposal_root: String,
-    pub receipt_root: String,
-    pub receipt_path: String,
+    pub producer_object_root: String,
+    pub producer_object_path: String,
+    pub payload_schema: String,
     pub identity_binding: crate::identity::IdentityBinding,
 }
 
-/// Resolve and verify the producer authority already bound by a landed
-/// proposal's exact Receipt v1. This grants only the ability to withdraw that
-/// still-pending proposal; it is never reviewer or accepted-state authority.
+/// Resolve and verify the producer identity bound by a current Submission or
+/// historical Receipt. This grants only the ability to withdraw that exact
+/// still-pending Proposal; it is never reviewer or accepted-state authority.
 pub fn proposal_withdrawal_authorization(
     frontier: &Path,
     proposal: &StateProposal,
@@ -36,13 +37,75 @@ pub fn proposal_withdrawal_authorization(
             proposal.id, proposal.status
         ));
     }
+    let proposal_root = format!(
+        "sha256:{}",
+        canonical::sha256_canonical(proposal)
+            .map_err(|error| format!("canonicalize proposal: {error}"))?
+    );
+    if let Some(submission) = proposal
+        .payload
+        .get("submission")
+        .and_then(Value::as_object)
+    {
+        validate_current_submission_links(&Value::Object(submission.clone()))?;
+        let submission_root = submission
+            .get("submission_root")
+            .and_then(Value::as_str)
+            .ok_or("submission.submission_root must be a string")?
+            .to_string();
+        let submission_path = submission
+            .get("submission_path")
+            .and_then(Value::as_str)
+            .ok_or("submission.submission_path must be a string")?
+            .to_string();
+        let relative = Path::new(&submission_path);
+        if relative.is_absolute()
+            || relative.components().any(|component| {
+                matches!(
+                    component,
+                    std::path::Component::ParentDir
+                        | std::path::Component::RootDir
+                        | std::path::Component::Prefix(_)
+                )
+            })
+        {
+            return Err("Proposal Submission path must remain Frontier-relative".to_string());
+        }
+        let bytes = std::fs::read(frontier.join(relative))
+            .map_err(|error| format!("read bound Submission {submission_path}: {error}"))?;
+        let current = crate::submission_v1::SubmissionV1::parse(&bytes)
+            .map_err(|error| format!("verify bound Submission {submission_path}: {error}"))?;
+        current.verify()?;
+        let observed_root = current.canonical_root()?;
+        if observed_root != submission_root {
+            return Err(format!(
+                "bound Submission root mismatch: Proposal declares {submission_root}, observed {observed_root}"
+            ));
+        }
+        let identity_binding = current.authentication.identity_binding.clone();
+        if identity_binding.actor_id != proposal.actor.id
+            || identity_binding.actor_class != crate::identity::ActorClass::Agent
+        {
+            return Err(
+                "Proposal actor does not match its Submission producer identity".to_string(),
+            );
+        }
+        return Ok(ProposalWithdrawalAuthorization {
+            proposal_root,
+            producer_object_root: submission_root,
+            producer_object_path: submission_path,
+            payload_schema: events::PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA.to_string(),
+            identity_binding,
+        });
+    }
+
     let submission = proposal
         .payload
         .get("vela_submission")
         .and_then(Value::as_object)
         .ok_or_else(|| {
             format!(
-                "proposal {} has no Receipt-bound vela_submission and cannot be producer-withdrawn",
+                "Proposal {} has no producer-bound Submission and cannot be withdrawn",
                 proposal.id
             )
         })?;
@@ -96,15 +159,11 @@ pub fn proposal_withdrawal_authorization(
     {
         return Err("proposal actor does not match its Receipt producer identity".to_string());
     }
-    let proposal_root = format!(
-        "sha256:{}",
-        canonical::sha256_canonical(proposal)
-            .map_err(|error| format!("canonicalize proposal: {error}"))?
-    );
     Ok(ProposalWithdrawalAuthorization {
         proposal_root,
-        receipt_root,
-        receipt_path,
+        producer_object_root: receipt_root,
+        producer_object_path: receipt_path,
+        payload_schema: events::PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA_V1.to_string(),
         identity_binding,
     })
 }
@@ -129,17 +188,22 @@ pub fn apply_proposal_withdrawal(
     if actor_id != project.proposals[index].actor.id
         || actor_id != authorization.identity_binding.actor_id
     {
-        return Err("withdrawal actor is not the Receipt-bound proposal producer".to_string());
+        return Err("withdrawal actor is not the Submission-bound Proposal producer".to_string());
     }
     let actual_key = crate::sign::pubkey_hex(key);
     if !actual_key.eq_ignore_ascii_case(&authorization.identity_binding.public_key_hex) {
-        return Err("withdrawal key does not match the Receipt-bound producer key".to_string());
+        return Err("withdrawal key does not match the Submission-bound producer key".to_string());
     }
     let payload = events::ProposalWithdrawalPayload {
-        schema: events::PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA.to_string(),
+        schema: authorization.payload_schema.clone(),
         proposal_id: proposal_id.to_string(),
         proposal_root: authorization.proposal_root,
-        receipt_root: authorization.receipt_root,
+        submission_root: (authorization.payload_schema
+            == events::PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA)
+            .then_some(authorization.producer_object_root.clone()),
+        receipt_root: (authorization.payload_schema
+            == events::PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA_V1)
+            .then_some(authorization.producer_object_root),
         identity_binding_id: authorization.identity_binding.binding_id,
     };
     let mut event =
@@ -159,7 +223,7 @@ pub fn apply_proposal_withdrawal(
     Ok(event)
 }
 
-/// Verify every stored withdrawal against its exact proposal/Receipt binding.
+/// Verify every stored withdrawal against its exact producer-object binding.
 pub fn verify_proposal_withdrawals(frontier: &Path, project: &Project) -> Vec<String> {
     project
         .events
@@ -221,12 +285,23 @@ pub fn verify_proposal_withdrawal_event(
     }
     let payload: events::ProposalWithdrawalPayload = serde_json::from_value(event.payload.clone())
         .map_err(|error| format!("withdrawal event {} has invalid payload: {error}", event.id))?;
-    if payload.schema != events::PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA
+    let producer_root_matches = match payload.schema.as_str() {
+        events::PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA => {
+            payload.submission_root.as_deref() == Some(authorization.producer_object_root.as_str())
+                && payload.receipt_root.is_none()
+        }
+        events::PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA_V1 => {
+            payload.receipt_root.as_deref() == Some(authorization.producer_object_root.as_str())
+                && payload.submission_root.is_none()
+        }
+        _ => false,
+    };
+    if payload.schema != authorization.payload_schema
         || payload.proposal_id != proposal.id
         || event.target.r#type != "proposal"
         || event.target.id != proposal.id
         || payload.proposal_root != authorization.proposal_root
-        || payload.receipt_root != authorization.receipt_root
+        || !producer_root_matches
         || payload.identity_binding_id != authorization.identity_binding.binding_id
         || event.actor.id != authorization.identity_binding.actor_id
         || event.actor.r#type != "agent"
@@ -240,7 +315,7 @@ pub fn verify_proposal_withdrawal_event(
         .unwrap_or(false)
     {
         return Err(format!(
-            "withdrawal event {} does not match its exact proposal/Receipt producer binding",
+            "withdrawal event {} does not match its exact Proposal/Submission producer binding",
             event.id
         ));
     }
@@ -1115,6 +1190,9 @@ fn validate_proposal_shape(frontier: &Project, proposal: &StateProposal) -> Resu
             if let Some(submission) = proposal.payload.get("vela_submission") {
                 validate_submission_links(submission)?;
             }
+            if let Some(submission) = proposal.payload.get("submission") {
+                validate_current_submission_links(submission)?;
+            }
         }
         "finding.review" => {
             require_existing_finding(frontier, &proposal.target.id)?;
@@ -1464,6 +1542,68 @@ fn validate_submission_links(value: &Value) -> Result<(), String> {
                 "vela_submission.review_material_path must be {expected}"
             ));
         }
+    }
+    Ok(())
+}
+
+fn validate_current_submission_links(value: &Value) -> Result<(), String> {
+    let object = value
+        .as_object()
+        .ok_or("finding.add payload.submission must be an object")?;
+    if object.get("schema").and_then(Value::as_str)
+        != Some("vela.submission-proposal-links.internal.v1")
+    {
+        return Err("finding.add payload.submission has an unsupported schema".to_string());
+    }
+    let submission_id = object
+        .get("submission_id")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    if !submission_id.strip_prefix("vsb_").is_some_and(|id| {
+        id.len() == 16
+            && id
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    }) {
+        return Err("submission.submission_id must be vsb_<16 lowercase hex>".to_string());
+    }
+    let submission_root = object
+        .get("submission_root")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let digest = submission_root
+        .strip_prefix("sha256:")
+        .ok_or("submission.submission_root must be a full sha256: digest")?;
+    if digest.len() != 64
+        || !digest
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(
+            "submission.submission_root must contain 64 lowercase hex characters".to_string(),
+        );
+    }
+    let operation_id = object
+        .get("operation_id")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let operation_digest = operation_id
+        .strip_prefix("vop_")
+        .ok_or("submission.operation_id must start with vop_")?;
+    if operation_digest.len() != 64
+        || !operation_digest
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err("submission.operation_id must contain 64 lowercase hex characters".to_string());
+    }
+    let submission_path = object
+        .get("submission_path")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let expected = format!("records/submissions/sha256/{digest}.json");
+    if submission_path != expected {
+        return Err(format!("submission.submission_path must be {expected}"));
     }
     Ok(())
 }

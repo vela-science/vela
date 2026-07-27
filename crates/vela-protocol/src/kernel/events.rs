@@ -201,7 +201,8 @@ pub const EVENT_KIND_REVIEW_REVISION_REQUESTED: &str = "review.revision_requeste
 /// authorized by the self-signed producer identity embedded in the exact
 /// Receipt v1 already bound by the proposal.
 pub const EVENT_KIND_PROPOSAL_WITHDRAWN: &str = "proposal.withdrawn";
-pub const PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA: &str = "vela.proposal-withdrawal.v1";
+pub const PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA_V1: &str = "vela.proposal-withdrawal.v1";
+pub const PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA: &str = "vela.proposal-withdrawal.v2";
 
 /// Signed temporal activation of an actor registration. The event is an
 /// audit-only boundary over exact Git/Vela history; it neither authenticates
@@ -642,29 +643,62 @@ pub struct ProposalWithdrawalPayload {
     pub schema: String,
     pub proposal_id: String,
     pub proposal_root: String,
-    pub receipt_root: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub submission_root: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub receipt_root: Option<String>,
     pub identity_binding_id: String,
 }
 
 /// Construct an unsigned producer-withdrawal event. The caller verifies the
-/// Receipt-bound producer identity and applies the ordinary event signature.
+/// Submission-bound producer identity and applies the ordinary event signature.
 pub fn new_proposal_withdrawal_event(
     payload: ProposalWithdrawalPayload,
     actor_id: &str,
     reason: &str,
     timestamp: Option<&str>,
 ) -> Result<StateEvent, String> {
-    if payload.schema != PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA {
+    if !matches!(
+        payload.schema.as_str(),
+        PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA | PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA_V1
+    ) {
         return Err(format!(
-            "proposal withdrawal payload schema must be {PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA}"
+            "proposal withdrawal payload schema must be {PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA} or {PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA_V1}"
         ));
     }
     if !payload.proposal_id.starts_with("vpr_") {
         return Err("proposal withdrawal requires a vpr_ proposal id".to_string());
     }
+    let producer_root = match payload.schema.as_str() {
+        PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA => match (
+            payload.submission_root.as_deref(),
+            payload.receipt_root.as_deref(),
+        ) {
+            (Some(root), None) => ("submission_root", root),
+            _ => {
+                return Err(
+                    "proposal withdrawal v2 requires submission_root and forbids receipt_root"
+                        .to_string(),
+                );
+            }
+        },
+        PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA_V1 => match (
+            payload.receipt_root.as_deref(),
+            payload.submission_root.as_deref(),
+        ) {
+            (Some(root), None) => ("receipt_root", root),
+            _ => {
+                return Err(
+                    "proposal withdrawal v1 requires receipt_root and forbids submission_root"
+                        .to_string(),
+                );
+            }
+        },
+        _ => unreachable!("schema was closed above"),
+    };
     for (name, root) in [
         ("proposal_root", payload.proposal_root.as_str()),
-        ("receipt_root", payload.receipt_root.as_str()),
+        producer_root,
     ] {
         if !root.strip_prefix("sha256:").is_some_and(|hex| {
             hex.len() == 64

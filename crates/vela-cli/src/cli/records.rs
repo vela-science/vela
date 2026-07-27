@@ -1,5 +1,5 @@
-//! Portable activity records: the `vela land` mint/propose adapters and
-//! witness-file collection for `vela reproduce`.
+//! Witness-file collection for `vela reproduce` and current Submission
+//! proposal derivation.
 
 use super::*;
 
@@ -55,148 +55,168 @@ fn collect_witness_files_into(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-// ── land adapters (the workflow engine's pure compatibility index) ──
-
-fn value_str(value: Option<&Value>) -> Option<String> {
-    value
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(ToString::to_string)
-}
-
-fn value_str_array(value: Option<&Value>) -> Vec<String> {
-    value
-        .and_then(Value::as_array)
-        .map(|items| {
-            items
-                .iter()
-                .filter_map(|item| value_str(Some(item)))
-                .collect()
-        })
-        .unwrap_or_default()
-}
-
-/// Derive the compatibility activity-record index from one validated Receipt
-/// v1 without writing anything. The canonical receipt remains the evidence
-/// source of truth; every copied field here is a deterministic read-only index
-/// that is bound back to `receipt_digest` and `receipt_path`.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn build_record_for_land(
-    receipt: &vela_protocol::receipt_v1::ReceiptV1,
-    frontier_id: &str,
-    against_head: &str,
-    receipt_digest: &str,
-    receipt_path: &str,
+/// Derive a pending finding proposal from a current Submission v1.
+///
+/// The proposal points to the Submission but deliberately does not point to
+/// the Registration Record: that record is created after the proposal and
+/// records the outcome of the intake transaction, so reversing the edge would
+/// create a content-addressing cycle.
+pub(crate) fn proposal_for_submission(
+    submission: &vela_protocol::submission_v1::SubmissionV1,
+    submission_root: &str,
+    submission_path: &str,
     operation_id: &str,
-    executor: &str,
-    emitted_at: &str,
-    artifacts: Vec<vela_protocol::record::RecordArtifact>,
-    key: Option<&ed25519_dalek::SigningKey>,
-) -> Result<vela_protocol::record::ActivityRecord, String> {
-    use vela_protocol::record::{
-        ActivityRecord, ActivityRecordDraft, RecordSource, RecordVerifierRun,
-    };
-
-    let value = receipt.as_value();
-    let claim = value
-        .get("claim")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "validated receipt is missing claim".to_string())?;
-    let claim_type = value
-        .get("type")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "validated receipt is missing type".to_string())?;
-    let caveats = value
-        .get("caveats")
-        .and_then(Value::as_array)
-        .ok_or_else(|| "validated receipt is missing caveats".to_string())?
-        .iter()
-        .map(|item| {
-            item.as_str()
-                .map(ToString::to_string)
-                .ok_or_else(|| "validated receipt caveat is not text".to_string())
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    let verifier_runs = value
-        .get("verifier_runs")
-        .and_then(Value::as_array)
-        .ok_or_else(|| "validated receipt is missing verifier_runs".to_string())?
-        .iter()
-        .map(|run| RecordVerifierRun {
-            method: run
-                .get("method")
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-                .to_string(),
-            outcome: run
-                .get("outcome")
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-                .to_string(),
-            output_hash: run
-                .get("output_hash")
-                .or_else(|| run.get("log_digest"))
-                .or_else(|| run.get("log"))
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-                .to_string(),
-            solver: run
-                .get("solver")
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-                .to_string(),
-        })
-        .collect();
-    let environment = value.get("environment").unwrap_or(&Value::Null);
-    let source_env = environment.get("source").and_then(Value::as_object);
-    let source = source_env.map(|source| {
-        let name = value_str(source.get("name"))
-            .or_else(|| value_str(source.get("project")))
-            .or_else(|| value_str(source.get("system")))
-            .unwrap_or_default();
-        let source_type =
-            value_str(source.get("source_type")).unwrap_or_else(|| "database_record".to_string());
-        let uri = value_str(source.get("source_uri"))
-            .or_else(|| value_str(source.get("uri")))
-            .unwrap_or_default();
-        let authors = value_str_array(source.get("authors"));
-        RecordSource {
-            name,
-            source_type,
-            uri,
-            authors,
-        }
-    });
-    let source_refs = source_env
-        .map(|source| value_str_array(source.get("source_refs")))
-        .unwrap_or_default();
-    let lineage = vela_protocol::receipt_v1::lineage_from_receipt(value);
-    let draft = ActivityRecordDraft {
-        frontier_id: frontier_id.to_string(),
-        against_head: against_head.to_string(),
-        assertion: claim.to_string(),
-        assertion_type: claim_type.to_string(),
-        artifacts,
-        verifier_runs,
-        caveats,
-        source,
-        source_refs,
-        receipt_digest: receipt_digest.to_string(),
-        receipt_path: receipt_path.to_string(),
-        operation_id: operation_id.to_string(),
-        lineage,
-        emitted_by: executor.to_string(),
-        emitted_at: emitted_at.to_string(),
-    };
-    ActivityRecord::build(draft, key)
-}
-
-/// Derive the pending finding proposal without applying or persisting it.
-pub(crate) fn proposal_for_record_land(
-    record: &vela_protocol::record::ActivityRecord,
     at: &str,
 ) -> Result<vela_protocol::proposals::StateProposal, String> {
-    let signed = record.verify()?;
-    record.to_finding_proposal_at("recorded against the current head", signed, at)
+    submission.verify()?;
+    let evidence_spans = submission
+        .artifacts
+        .iter()
+        .map(|artifact| {
+            serde_json::json!({
+                "source": submission_path,
+                "artifact_path": artifact.path,
+                "artifact_kind": artifact.kind,
+                "artifact_sha256": artifact.digest,
+                "start": 0,
+                "end": 0,
+            })
+        })
+        .collect::<Vec<_>>();
+    let conditions_text = if submission.claim.conditions.is_empty() {
+        None
+    } else {
+        Some(submission.claim.conditions.join("\n"))
+    };
+    let mut source_refs = vec![submission_path.to_string()];
+    source_refs.extend(
+        submission
+            .artifacts
+            .iter()
+            .map(|artifact| artifact.path.clone()),
+    );
+    source_refs.sort();
+    source_refs.dedup();
+    let mut proposal = vela_protocol::state::build_add_finding_proposal_at(
+        vela_protocol::state::FindingDraftOptions {
+            text: submission.claim.assertion.clone(),
+            assertion_type: submission.claim.claim_type.clone(),
+            source: format!("Submission {}", submission.submission_id),
+            source_type: "vela_submission".to_string(),
+            author: submission.provenance.producer.clone(),
+            confidence: 0.5,
+            evidence_type: submission.claim.claim_type.clone(),
+            doi: None,
+            year: None,
+            url: None,
+            source_authors: Vec::new(),
+            source_refs,
+            conditions_text,
+            evidence_spans,
+            gap: false,
+            negative_space: submission.claim.claim_type == "negative",
+            replication_attestation: None,
+        },
+        at,
+    )?;
+    proposal.reason = "Register an authenticated producer Submission for review".to_string();
+    proposal.caveats = submission.caveats.clone();
+    proposal.caveats.push(
+        "Registration records producer input; it does not verify or accept the claim.".to_string(),
+    );
+    proposal.caveats.sort();
+    proposal.caveats.dedup();
+    proposal.payload["submission"] = serde_json::json!({
+        "schema": "vela.submission-proposal-links.internal.v1",
+        "submission_id": submission.submission_id,
+        "submission_root": submission_root,
+        "submission_path": submission_path,
+        "operation_id": operation_id,
+    });
+    proposal.id = vela_protocol::proposals::proposal_id(&proposal);
+    Ok(proposal)
+}
+
+#[cfg(test)]
+mod current_submission_tests {
+    use ed25519_dalek::SigningKey;
+    use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
+    use vela_protocol::submission_v1::{
+        RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft,
+        SubmissionProvenance, SubmissionV1,
+    };
+
+    use super::*;
+
+    #[test]
+    fn current_submission_proposal_is_pending_and_receipt_free() {
+        let key = SigningKey::from_bytes(&[91_u8; 32]);
+        let identity = IdentityBinding::build(
+            IdentityBindingDraft {
+                actor_id: "agent:submission-fixture".to_string(),
+                actor_class: ActorClass::Agent,
+                created_at: "2026-07-26T00:00:00Z".to_string(),
+            },
+            &key,
+        )
+        .unwrap();
+        let submission = SubmissionV1::build(
+            SubmissionDraft {
+                claim: SubmissionClaim {
+                    assertion: "A bounded witness exists.".to_string(),
+                    claim_type: "computational".to_string(),
+                    conditions: vec!["fixture domain".to_string()],
+                },
+                artifacts: vec![SubmissionArtifact {
+                    kind: "witness".to_string(),
+                    path: "witness.json".to_string(),
+                    digest: format!("sha256:{}", "a".repeat(64)),
+                }],
+                caveats: vec!["Fixture only.".to_string()],
+                replayability: "exact".to_string(),
+                producer_checks: Vec::new(),
+                verification_requirements: vec!["independent replay".to_string()],
+                requested_change: RequestedChange {
+                    kind: "add_claim".to_string(),
+                },
+                provenance: SubmissionProvenance {
+                    producer: "agent:submission-fixture".to_string(),
+                    source_system: "fixture".to_string(),
+                    source_attempt: Some(format!("vat_{}", "3".repeat(64))),
+                    source_run: Some("vws_fixture".to_string()),
+                    emitted_at: "2026-07-26T00:00:00Z".to_string(),
+                },
+                execution_binding: None,
+            },
+            identity,
+            &key,
+        )
+        .unwrap();
+        let root = submission.canonical_root().unwrap();
+        let path = format!(
+            "records/submissions/sha256/{}.json",
+            root.strip_prefix("sha256:").unwrap()
+        );
+        let proposal = proposal_for_submission(
+            &submission,
+            &root,
+            &path,
+            &format!("vop_{}", "b".repeat(64)),
+            "2026-07-26T00:00:01Z",
+        )
+        .unwrap();
+        assert_eq!(proposal.status, "pending_review");
+        assert!(proposal.payload.get("submission").is_some());
+        assert!(proposal.payload.get("vela_submission").is_none());
+        let mut project =
+            vela_protocol::project::assemble("submission-fixture", Vec::new(), 0, 0, "test");
+        let event_count = project.events.len();
+        vela_protocol::proposals::insert_pending_in_frontier(&mut project, proposal).unwrap();
+        assert_eq!(project.events.len(), event_count);
+        assert_eq!(project.proposals.len(), 1);
+        assert_eq!(
+            project.proposals[0].payload["submission"]["submission_root"],
+            root
+        );
+    }
 }

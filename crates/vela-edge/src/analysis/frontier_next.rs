@@ -76,7 +76,7 @@ pub struct FrontierNextProjection {
     pub producer_work: ProducerWorkAvailability,
 }
 
-const PRODUCER_AUTHORITY_CEILING: &str = "Producer evidence only. The session can create a receipt and proposal; it cannot create human acceptance.";
+const PRODUCER_AUTHORITY_CEILING: &str = "Producer evidence only. The Attempt can create a Submission and Proposal; it cannot create human acceptance.";
 const CAMPAIGN_YAML_MAX_BYTES: u64 = 1024 * 1024;
 const CAMPAIGN_TASK_MAX_BYTES: usize = 256 * 1024;
 const CAMPAIGN_MAX_BATCHES: usize = 4096;

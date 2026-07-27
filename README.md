@@ -5,7 +5,7 @@
 <p align="center"><strong>Version control for scientific state.</strong></p>
 
 <p align="center">
-  Capture evidence. Reproduce it exactly. Keep verification and scientific authority distinct.
+  See what stands. Attempt what remains. Submit evidence. Verify what it proves.
 </p>
 
 <p align="center">
@@ -23,14 +23,19 @@
   <a href="docs/QUICKSTART.md">Quickstart</a>
 </p>
 
-Vela turns a Git repository into a **frontier**: a content-addressed,
-replayable record of evidence, review, policy, and the scientific state accepted
-by one named authority for one bounded scope.
+Vela turns a Git repository into a **Frontier**: a content-addressed,
+replayable history of Claims, evidence, verification, Decisions, corrections,
+and the scientific state accepted by one named authority for one bounded scope.
 
 The core rule is simple: **verifier success is evidence, not acceptance**.
-Agents may produce work and verifiers may check it. Accepted scientific state
+Agents may make Attempts and submit evidence; verifiers may check exact
+properties. Accepted scientific state
 changes only through an exact human decision or a narrow policy that a human
 already signed.
+
+```text
+inspect -> attempt -> submit -> verify -> decide -> continue
+```
 
 ## Start with a replay
 
@@ -70,34 +75,37 @@ vela reproduce examples/sidon-a309370
 Success means the retained bytes still produce the recorded scoped result. It
 does not mean the result is universally true or scientifically accepted.
 
-## Produce bounded work
+## Submit bounded evidence
 
 ```sh
 vela status <frontier>
 vela next <frontier> --json
 vela start <target> --frontier <frontier> --as agent:<you> --json
 
-vela land --frontier <frontier> --work <target> --claim <result> \
+vela submit --frontier <frontier> --attempt <vat_id> --claim <result> \
   --type computational --replayability exact --artifact <path>:<kind> \
   --caveat <scope-limit> --as agent:<you> --json
 
+vela show <frontier> <vsb_or_vpr_or_vev_id> --json
+vela why <frontier> <claim_id> --json
 vela reproduce <frontier>
 ```
 
-`vela land` creates a Receipt. A signed policy may `Permit` an exact,
-pre-authorized result class or `Defer` it for human review. Producers can
-withdraw their own pending work; they cannot accept or reject it.
+`vela submit` registers an authenticated Submission, issues a Registration
+Record, and creates a pending Proposal. It writes no Verification Record and
+changes no accepted scientific state. Producers can withdraw their own pending
+Proposal; they cannot accept or reject it.
 
 ## The boundary
 
 | Evidence path | Authority path |
 | --- | --- |
 | Git fixes exact bytes and ancestry. | Signed policy can route only an exact allowed class. |
-| Verifiers check one declared claim and artifact. | A protected human decision accepts or rejects one proposal. |
-| Receipts preserve producer, packet, caveat, and verifier roots. | The Observatory and other replaceable readers remain read-only projections. |
+| Verification Records report one declared property over exact inputs. | A protected human Decision accepts or rejects one Proposal. |
+| Submissions preserve producer, Claim, Artifact, scope, and caveat roots. | The Observatory and other replaceable readers remain read-only projections. |
 
-Verification is derived from retained attachments, not a mutable status field.
-See [Verification](docs/VERIFICATION.md) for the exact gate and reject vectors.
+Verification is a separate scoped record, not a producer assertion or mutable
+status field. See [Verification](docs/VERIFICATION.md) for the exact contract.
 
 ## Build from source
 
@@ -120,7 +128,8 @@ must never receive a human key.
 - [Produce work](docs/PRODUCER_QUICKSTART.md): contribute without a human key
 - [Protect authority](docs/SIGNING.md): custody, exact decisions, and repository administration
 - [Understand the protocol](docs/PROTOCOL.md): objects, events, replay, and standing
-- [Inspect exact contracts](docs/RECEIPTS.md): Receipts, roots, and provenance
+- [Use current terms](docs/TERMINOLOGY.md): Claims, Submissions, Verification Records, and standing
+- [Read historical compatibility](docs/RECEIPTS.md): Receipt-era roots and replay
 - [Operate safely](docs/THREAT_MODEL.md): trust boundaries and governance
 
 ## License

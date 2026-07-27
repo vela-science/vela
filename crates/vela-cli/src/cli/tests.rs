@@ -132,7 +132,7 @@ mod surface_tests {
     }
 
     #[test]
-    fn land_execution_binding_is_all_or_nothing_and_file_exclusive() {
+    fn submit_execution_binding_is_all_or_nothing_and_file_exclusive() {
         on_big_stack(|| {
             let roots = [
                 "--packet-root",
@@ -146,7 +146,7 @@ mod surface_tests {
             ];
             let mut complete = vec![
                 "vela",
-                "land",
+                "submit",
                 "--claim",
                 "bounded result",
                 "--type",
@@ -159,7 +159,7 @@ mod surface_tests {
             assert!(
                 Cli::try_parse_from([
                     "vela",
-                    "land",
+                    "submit",
                     "--claim",
                     "bounded result",
                     "--type",
@@ -171,7 +171,7 @@ mod surface_tests {
                 ])
                 .is_err()
             );
-            let mut foreign = vec!["vela", "land", "receipt.json"];
+            let mut foreign = vec!["vela", "submit", "submission.json"];
             foreign.extend(roots);
             assert!(Cli::try_parse_from(foreign).is_err());
         });
@@ -315,7 +315,6 @@ mod surface_tests {
         "gate",
         "id",
         "init",
-        "land",
         "log",
         "next",
         "policy",
@@ -324,9 +323,12 @@ mod surface_tests {
         "reproduce",
         "review",
         "serve",
+        "show",
         "start",
         "status",
-        "verify",
+        "submit",
+        "verification",
+        "why",
     ];
     const V0900_HIDDEN: &[&str] = &["completions", "target-index"];
 
@@ -379,7 +381,6 @@ mod surface_tests {
                 "workspace",
                 "attest",
                 "receipt",
-                "submit",
                 // the v0.738 hard cut: ten verbs retired into the loop
                 "inbox",
                 "propose",
@@ -437,12 +438,10 @@ mod surface_tests {
             assert!(
                 Cli::try_parse_from([
                     "vela",
-                    "verify",
-                    "attach",
+                    "verification",
+                    "import",
                     ".",
-                    "attachment.json",
-                    "--proposal",
-                    "vpr_fixture",
+                    "verification.json",
                     "--as",
                     "verifier:independent",
                     "--json",

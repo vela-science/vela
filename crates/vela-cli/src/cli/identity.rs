@@ -26,7 +26,7 @@ pub(crate) fn print_identity_created(identity: &crate::cli_identity::Identity, j
     println!("  vela actor add <frontier>");
     println!("Established registries change only through signed governance.");
     println!(
-        "Then `vela land` needs no key flag; human Decisions use direct `vela review accept|reject` actions."
+        "Then `vela submit` needs no key flag; human Decisions use direct `vela review accept|reject` actions."
     );
 }
 

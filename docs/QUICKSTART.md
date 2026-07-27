@@ -1,8 +1,8 @@
 # Vela quickstart
 
 Vela is version control for scientific state. Git publishes exact bytes;
-agents produce Receipt v1 evidence; frozen verifiers reproduce it; a governed
-policy or attributed human decision admits an exact transition.
+agents submit authenticated evidence; Verification Records report scoped
+checks; an authorized Decision changes standing.
 
 ## Read an existing Frontier
 
@@ -30,7 +30,7 @@ vela start <target> --as agent:<name> --json
 
 # Run the exact verifier and retain its artifact.
 
-vela land --work <target> \
+vela submit --attempt <vat_id> \
   --claim "<bounded result>" \
   --type computational \
   --replayability exact \
@@ -40,11 +40,17 @@ vela land --work <target> \
   --json
 ```
 
-`next` and `work` consume the fresh Target Index v2 and exact target packet.
-The claim retains its target-task binding in Receipt v1. A verifier pass is
-evidence, not acceptance. `Deferred` means the proposal awaits an attributed
-human decision; a policy admission means an already governed policy authorized
-that exact class.
+`next` returns Offers from the fresh Target Index v2. `start` binds one exact
+Target and packet into an Attempt. `submit` registers the resulting Submission,
+issues a Registration Record, and creates a pending Proposal. It does not
+create Verification, a Decision, an Event, or accepted scientific state.
+
+Inspect the resulting objects without writing:
+
+```bash
+vela show . <vsb_or_vrr_or_vpr_id> --json
+vela why . <claim_id> --json
+```
 
 ## Create a new Frontier
 

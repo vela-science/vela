@@ -15,138 +15,110 @@ and `CHANGELOG.md`, not in the active protocol.
 
 ## 1. Scope
 
-The current protocol has one narrow waist:
+The current narrow waist is:
 
 ```text
-producer activity
-    -> Receipt v1 (evidence, not a verdict)
-    -> proposal (a candidate state transition)
-    -> signed policy or human decision (authority)
-    -> canonical event (the accepted transition)
-    -> deterministic replay (current frontier state)
+Target -> Attempt -> Submission -> Registration Record -> Proposal
+       -> Verification Record(s) -> authorized Decision -> Event
+       -> deterministic replay -> Standing
 ```
 
-Everything above or below that waist is replaceable. A producer may be a
-notebook, proof assistant, lab system, agent, hosted runtime, or another Git
-repository. A consumer may be a graph, wiki, search service, article machine,
-or user interface. Neither becomes an authority service by integrating with
-Vela.
+The user-facing cycle is:
 
-The current interoperability contracts are:
+```text
+inspect -> attempt -> submit -> verify -> decide -> continue
+```
 
-- `vela.receipt.v1` and its canonical whole-body binding;
-- current finding, artifact, proposal, event, actor, and policy bytes;
-- canonical JSON, content addressing, event signatures, and event replay;
-- the committed frontier layout and its rebuildable views;
-- stable CLI JSON for the documented producer and reviewer loop; and
-- the public conformance vectors under `conformance/`.
+Everything above or below this waist is replaceable. A producer may be a
+notebook, proof assistant, laboratory system, Canopus, or another workbench.
+A reader may be the Observatory, search, a wiki, or a graph. Integrating with
+Vela grants neither role scientific authority.
 
-Work sessions, Decision Plans, transaction journals, caches, indexes, reader
-tables, adapter-private results, and Rust module boundaries are implementation
-details. They may change without becoming new protocol objects.
+Current interoperability contracts are:
+
+- `vela.submission.v1`, the sole portable producer package;
+- `vela.registration-record.v1`, Vela's exact intake record;
+- `vela.verification-record.v1`, a scoped verifier observation;
+- current Claim/Finding, Artifact, Proposal, Decision/Event, actor, and policy
+  bytes;
+- canonical JSON, content addressing, signatures, replay, and repository
+  authority; and
+- stable CLI JSON for `start`, `submit`, `show`, `why`, verification import,
+  direct review actions, checking, and reproduction.
+
+Historical Receipt-era objects remain readable and replayable. Current writers
+do not emit them.
 
 ## 2. Roles and authority
 
-Vela separates capabilities that other systems often collapse.
-
 | Role | May do | May not do |
 | --- | --- | --- |
-| Producer or agent | inspect state, claim a work lease, run tools, emit a Receipt, land evidence, draft a correction | accept, reject, revise, sign as a human, or invent a policy certificate |
-| Verifier | evaluate exact bytes under a named method and emit a bound result | decide significance, acceptance, or authorship |
-| Signed policy | permit only the bounded class and causal state named by a prior human ceremony | widen its own scope, treat model output as authority, or sign new policy |
-| Human principal | execute one exact exceptional action through attributed `review accept|reject|retract`; administer repository policy when authorized | delegate the semantic action to an agent, turn authentication into a verdict, or bypass repository authorization |
-| Git host | preserve and transport commits and refs | turn a commit, merge, or pull request into scientific acceptance |
-| Derived reader | clone configured Git sources, verify them, and serve read projections | register canonical state through a public write API, sign, accept, store witness authority, or mutate a frontier |
+| Producer or agent | inspect, start an Attempt, run tools, submit evidence, withdraw its own pending Proposal | create Verification, accept, reject, sign as a human, or invent authority |
+| Verifier | evaluate exact bytes under a named method and emit a Verification Record | decide significance, standing, acceptance, or authorship |
+| Signed policy | admit only an exact class previously authorized by a human | widen itself, treat model output as authority, or sign new policy |
+| Human principal | accept, reject, retract, correct, or supersede one exact Proposal when authorized | delegate semantic judgment to an agent or bypass repository authorization |
+| Git host | preserve and transport commits and refs | turn publication or merge into scientific acceptance |
+| Derived reader | verify configured sources and serve projections | mutate a Frontier, sign, decide, or store authority |
 
-Authority custody and authenticated human intent are separate trust
-boundaries. A model may help prepare review material and invoke an exact
-request, but no model, browser, MCP tool, reader process, or background worker
-may approve the human action or hold repository authority. Human finalization
-is terminal-only.
+Authentication, repository authorization, verification, and scientific
+acceptance are separate dimensions. A model may prepare evidence or request an
+exact protected action. It may not authorize that action or hold a human key.
 
 ## 3. Canonical bytes and identifiers
 
 Canonical objects use deterministic UTF-8 JSON. Content roots use lowercase
-SHA-256 in the form `sha256:<64 hex>`. Object identifiers are derived from the
-canonical or explicitly defined preimage for their type; a changed preimage
-mints a different identifier.
+SHA-256 as `sha256:<64 hex>`. A changed canonical preimage creates a different
+identifier.
 
-The current waist uses these prefixes:
-
-| Prefix | Object |
+| Prefix | Current object |
 | --- | --- |
-| `vfr_` | frontier identity |
-| `vf_` | finding |
-| `va_` | artifact descriptor |
-| `vpr_` | proposal |
-| `vev_` | canonical event |
-| `vrc_` | durable landing record that points to a Receipt root |
-| `vva_` | verifier attachment |
+| `vfr_` | Frontier identity |
+| `vat_` | Attempt; operational and non-authoritative |
+| `vsb_` | Submission |
+| `vrr_` | Registration Record |
+| `vpr_` | Proposal |
+| `vvr_` | Verification Record |
+| `vev_` | canonical Event |
 | `vap_` | signed acceptance policy |
 
-Other prefixes belong to domain objects or private operations. They are not a
-reason to expand the narrow waist. In particular, private operation and work
-session identifiers do not carry scientific authority.
+Historical `vf_`, `vrc_`, and `vva_` identifiers remain valid and replayable.
+Readers project them as Claim Records, Registration Records, and Verification
+Records only while disclosing their exact source schema, ID, and root.
 
-Git object IDs and Vela IDs are different. A Git commit identifies a tree and
-its transport history. A Vela ID identifies a typed scientific or governance
-object. Neither may be substituted for the other.
-
-The canonical rules and vectors live in:
-
-- [`crates/vela-protocol/src/kernel/canonical.rs`](../crates/vela-protocol/src/kernel/canonical.rs)
-- [`conformance/canonical-hashing.json`](../conformance/canonical-hashing.json)
-- [`conformance/decision-binding.json`](../conformance/decision-binding.json)
+Git object IDs and Vela IDs are different. A Git commit identifies transport
+history and a tree. A Vela ID identifies one typed scientific, evidence, or
+governance object. Neither substitutes for the other.
 
 ## 4. Current objects and schemas
 
-### 4.1 Receipt v1
+### 4.1 Submission, Registration Record, and Verification Record
 
-`vela.receipt.v1` is the sole portable producer input. It carries a scoped
-claim, claim type, replayability, artifacts or immutable locators, caveats,
-conditions, verification requirements, producer provenance, and optional
-producer-reported verifier runs.
+`vela.submission.v1` is authenticated producer input. It binds one scoped
+Claim, conditions, Artifacts, caveats, replayability, producer provenance,
+producer-reported checks, independent verification requirements, requested
+change, and optional exact execution binding. A Submission cannot assert
+standing or contain a Vela Decision or Event.
 
-A Receipt is evidence. It is never an acceptance, gate verdict, authorship
-decision, or human attestation. A producer-reported pass remains a producer
-claim until a separate verifier attachment establishes its own bound result.
+`vela.registration-record.v1` is emitted by Vela after exact Submission bytes
+cross the repository-authority intake boundary. It binds the Submission root,
+Frontier, operation, registered Artifacts, resulting Proposal, route, and
+transaction root. Registration proves intake, not truth, verification, or
+acceptance.
 
-The complete Receipt body is canonically bound into its attestation. Parsers
-reject duplicate JSON names, malformed or stale whole-body bindings, unsafe
-paths, unsupported replayability values, invalid artifact references, and
-producer attempts to claim Vela-side authority.
+`vela.verification-record.v1` is a verifier's authenticated, scoped observation
+over exact Claim, Submission, Proposal, Artifact, method, implementation,
+environment, and property roots. A passing Verification Record changes no
+standing by itself.
 
-Vela uses several deliberately different commitment domains. The full
-[root and identifier taxonomy](ROOTS.md) defines which canonicalization
-profile and object each root binds, and the substitutions that must fail.
+Implementations:
 
-Receipt v1 may carry the closed namespaced extension
-`environment["vela:execution_binding"]` with schema
-`vela.execution-binding.v1`. It contains only full SHA-256 roots for the exact
-target packet, producer profile, verifier capsule, and positive result
-contract. The extension is evidence about execution identity, not authority;
-it matters to Permit only when a signed AcceptancePolicy v0.2 or v0.3 names
-the exact roots.
+- [`crates/vela-protocol/src/objects/submission_v1.rs`](../crates/vela-protocol/src/objects/submission_v1.rs)
+- [`crates/vela-protocol/src/objects/registration_record.rs`](../crates/vela-protocol/src/objects/registration_record.rs)
+- [`crates/vela-protocol/src/objects/verification_record.rs`](../crates/vela-protocol/src/objects/verification_record.rs)
 
-For AcceptancePolicy v0.2 or v0.3, an exact Receipt carrying exactly one public
-artifact of kind `vela-witness` may establish an A2 method-integrity floor.
-Vela reopens the frontier-relative regular file without following symlinks,
-checks its Receipt digest, runs the frozen `vela-verify` implementation, and
-checks that the proposal's exact claim is faithful to the witness. Missing,
-duplicate, altered, invalid, or claim-incoherent witness bytes grant no floor.
-Producer-reported verifier rows remain non-authoritative. Policy v0.1 does not
-perform this derivation, preserving historical context and replay bytes.
-
-Public local artifacts are retained by content digest. Public remote artifacts
-need an immutable locator, digest, and size. Restricted material uses an opaque
-`custodian:` or `opaque:` reference; the public Receipt must not disclose the
-payload or an equality-revealing digest.
-
-The current schema and implementation are:
-
-- [`docs/schemas/vela.receipt.v1.schema.json`](schemas/vela.receipt.v1.schema.json)
-- [`crates/vela-protocol/src/objects/receipt_v1.rs`](../crates/vela-protocol/src/objects/receipt_v1.rs)
-- [Receipts](RECEIPTS.md)
+Historical `vela.receipt.v1` remains documented in [RECEIPTS.md](RECEIPTS.md)
+for exact replay only. The term Receipt is reserved for a future Vela-issued,
+verifiable inclusion proof; this protocol defines no such current object.
 
 ### 4.2 Finding and artifact
 
@@ -189,24 +161,26 @@ events are signed. Policy-routed admission is accompanied by a verified
 certificate from the applicable signed policy. Coordination and audit events
 are explicitly distinguished from scientific state transitions.
 
-`proposal.withdrawn` is a signed, non-scientific lifecycle event with payload
-schema `vela.proposal-withdrawal.v1`. It binds the exact pending proposal root,
-Receipt root, and embedded producer identity-binding ID. The ordinary event
-signature must verify under that Receipt-bound agent key. A valid event changes
-only proposal standing to `withdrawn`; it cannot delete evidence or change
-accepted findings. Invalid withdrawal bytes are reported and projected as
-pending, and block strict verification.
+`proposal.withdrawn` is a signed, non-scientific lifecycle event. Current
+payload schema `vela.proposal-withdrawal.v2` binds the exact pending Proposal
+root, Submission root, and producer identity-binding ID. The ordinary event
+signature must verify under that Submission-bound agent key. Historical
+`vela.proposal-withdrawal.v1` events retain their exact Receipt binding. A
+valid event changes only Proposal Standing to `withdrawn`; it cannot delete
+evidence or change accepted Claims. Invalid withdrawal bytes are reported and
+projected as pending, and block strict verification.
 
 Its closed payload is:
 
 ```text
-schema, proposal_id, proposal_root, receipt_root, identity_binding_id
+schema, proposal_id, proposal_root, submission_root, identity_binding_id
 ```
 
 The event targets the exact proposal, uses an agent actor and null scientific
 before/after roots, and requires a non-empty reason. A proposal with a human
-decision event, more than one withdrawal event, no Receipt v1 binding, or a
-mismatched producer key cannot gain withdrawn standing.
+Decision event, more than one withdrawal event, no current Submission binding
+(or historical Receipt binding), or a mismatched producer key cannot gain
+withdrawn Standing.
 
 The event type, known-kind registry, validation, and constructors live in
 [`crates/vela-protocol/src/kernel/events.rs`](../crates/vela-protocol/src/kernel/events.rs).
@@ -353,7 +327,7 @@ Missing, forked, altered, or tampered anchor history fails closed and grants no
 exemption. Actor records without a valid activation retain timeless signature
 enforcement.
 
-An acceptance policy (`vap_`) is human-signed, frontier-scoped, and bounded by
+Historical AcceptancePolicy (`vap_`) is human-signed, frontier-scoped, and bounded by
 its current causal head. The current lane is `vela.policy-lane.v2`; an
 unbound, unknown, revoked, stale, or out-of-scope policy cannot authorize a
 Permit. Policy suggestions and tests are derived advice, not authority.
@@ -448,7 +422,7 @@ before this storage rule may be reconstructed only when its exact bundle root
 matches the deterministic sequence-1 translator. Any other missing or partial
 material fails closed.
 
-Routine producer work uses two exact, short-lived authentication proofs:
+Historical Era-0 producer work used two exact, short-lived authentication proofs:
 
 - the existing signed lease event authenticates `work_claim` under
   `agent_event_signature`; and
@@ -458,14 +432,16 @@ Routine producer work uses two exact, short-lived authentication proofs:
 The activity-record signature binds the producer, Receipt root, operation,
 claim, artifacts, caveats, and Frontier head. The embedded Receipt identity
 binding, lease key, activity-record signer, and acting agent must match.
-Landing is an object-only authority transaction: it covers the pending
+Historical landing was an object-only authority transaction: it covered the pending
 proposal, Receipt, activity record, review material, and retained artifacts,
 while appending no scientific event. Its before/after event roots are
 identical. Verification therefore cannot be mistaken for acceptance.
 
-Active Frontiers already retain the narrow producer bundle established during
-migration. Its historical rotation remains replayable, but the one-time
-`authority enable-work` command and approval helper are retired. The repository
+Current producer intake instead registers one authenticated Submission and one
+pending Proposal. Independent verifiers append exact Verification Records.
+Only a direct authorized Decision changes Standing. Historical producer
+bundles and policy events remain replayable, but their writer commands are
+retired. The repository
 authority remains the sole Era-1 transaction signer. Producer authentication
 grants no review, acceptance, policy, membership, recovery, or key-rotation
 authority.
@@ -618,25 +594,24 @@ maximum 24-hour window; expiry and revocation fail closed. Cookies, bearer
 tokens, refresh tokens, assertions, and raw session identifiers remain with
 the authentication provider and never enter canonical history.
 
-### 4.6 Verifier attachment
+### 4.6 Verification dimensions
 
-A verifier attachment (`vela.verifier_attachment.v0.1`, `vva_`) binds a method,
-solver or implementation, result, artifact evidence, and exact claim target.
-Gate status is derived from retained attachments; it is not set by a producer
-or stored as a free-standing truth field.
+Current verifiers emit `vela.verification-record.v1` (`vvr_`). Historical
+`vela.verifier_attachment.v0.1` (`vva_`) remains replayable and is projected
+as a historical Verification Record with its source era disclosed.
 
 Verification, acceptance, and publication are independent:
 
 | Axis | Question | Authority |
 | --- | --- | --- |
 | Integrity | Do canonical bytes, signatures, roots, and replay agree? | `vela check` and the reducer |
-| Reproduction | Do frozen verifiers obtain the recorded result again? | `vela reproduce` and named verifier bytes |
-| Gate | Do independent, claim-matched attachments satisfy the declared verification rule? | deterministic gate projection |
-| Acceptance | Should this frontier adopt the proposed transition? | signed policy or human key |
-| Publication | Did the exact accepted or pending bytes reach the intended Git ref? | verified Git transaction |
+| Reproduction | Do frozen methods obtain the recorded result again? | `vela reproduce` and named verifier bytes |
+| Verification | What exact property did one Verification Record pass, fail, or leave inconclusive? | the scoped record only |
+| Acceptance | Should this Frontier adopt the proposed transition? | an authorized Decision |
+| Publication | Did exact bytes reach the intended Git ref? | verified Git transaction |
 
-A result can pass one axis and fail another. The protocol never flattens them
-into one word such as “verified” or “published.”
+A result can pass one axis and fail another. The protocol never flattens these
+dimensions into one unqualified word such as “verified” or “published.”
 
 ## 5. The only producer write edge
 
@@ -645,45 +620,38 @@ The supported producer loop is:
 ```bash
 vela next <frontier> --json
 vela start <target> --frontier <frontier> --as agent:<name> --json
-vela land --frontier <frontier> --work <target> \
+vela submit --frontier <frontier> --attempt <vat_id> \
   --claim <claim> --type computational --replayability exact \
   --artifact <path>:<kind> --caveat <limit> --as agent:<name> --json
 ```
 
-A foreign producer may instead pass a complete Receipt:
+A foreign producer may instead pass one complete current Submission:
 
 ```bash
-vela land receipt.json --frontier <frontier> --as agent:<name> --json
+vela submit submission.json --frontier <frontier> --as agent:<name> --json
 ```
 
-Flags, file import, installed adapters, and the draft MCP profile converge on
-the same strict Receipt parser and landing service. There is no adapter-owned
-event writer and no packet-specific acceptance path.
+Both paths converge on the same strict Submission verifier and recoverable
+repository-authority transaction. Successful intake retains exact Submission
+bytes, content-addressed Artifacts, one Registration Record, and one pending
+Proposal. It writes no Verification Record, Decision, Event, or accepted-state
+mutation.
 
-Landing prepares the exact Receipt bytes, artifact projection, landing record,
-proposal, policy context, route, and materialized outputs before committing a
-delta. Each explicit Receipt artifact becomes a typed finding evidence span
-that points back into the retained Receipt; this makes the evidence locator
-reviewable without promoting a producer claim or verifier run to a verdict.
-After repository-authority migration, producer landing always takes the
-object-only **Defer** route in this writer generation. Any future automatic
-scientific admission must be separately specified and proven; it is not
-inferred from Cedar authorization to store a pending submission.
-The route is:
+The ordinary result is:
 
-- **Deny:** reject before the commit marker; leave no canonical or Git delta.
-- **Defer:** retain the Receipt and pending proposal for a human decision.
-- **Permit:** install the accepted event only with a verified certificate from
-  the applicable, previously human-signed policy.
+```text
+Submission registered; review required.
+Accepted scientific state changed: no.
+```
 
 An exact retry is idempotent. Reusing an operation identity with different
-Receipt bytes fails. A new Receipt with the same claim but new evidence remains
-a new contribution; it is not erased by claim-text deduplication.
+Submission bytes fails. A second Submission over related Claim text remains a
+new contribution; Vela does not erase it through text deduplication.
 
-The landing transaction and a Git push are separate. Failure before the
-scientific commit marker is discardable. Failure after it is recovered from a
-private operation journal using the exact prepared bytes. Failure to push does
-not change the policy route or scientific authority.
+The registration transaction and Git publication are separate. Failure before
+the canonical commit marker is discardable. Failure after it is recovered from
+a private operation journal using the exact prepared bytes. Failure to push
+does not change Proposal standing or scientific authority.
 
 ## 6. Human decision and policy decision
 
@@ -805,12 +773,15 @@ A frontier is an ordinary Git repository. The current owned paths are:
 | `.vela/policies/active.json`, `.vela/policies/active.sig.json` | mutable candidate policy bytes and signature input; never causal authority without a signed policy head |
 | `.vela/policies/<vap_>.json`, `.vela/policies/<vap_>.sig.json` | immutable retained policy pairs needed to replay actual policy-lane admissions |
 | `.vela/findings/*.json`, `.vela/artifacts/*.json` | reducer-owned materialized object files; never hand-edit |
-| `records/receipts/sha256/*.json` | exact durable Receipt bytes named by full digest |
+| `records/submissions/sha256/*.json` | exact current Submission bytes named by full digest |
+| `records/registrations/sha256/*.json` | current Registration Records for accepted intake |
+| `records/verifications/sha256/*.json` | current non-authorizing Verification Records |
+| `records/receipts/sha256/*.json` | historical Receipt bytes retained for replay |
 | `frontier.yaml` | repository manifest and declared dependency metadata |
 | `frontier.json` | visible materialized frontier state |
 | `vela.lock` | derived roots for events, proposals, sources, artifacts, proof, and dependencies |
 | `proof/` | rebuildable replay and proof projections |
-| `.vela/work/` | private, ignored work-session state |
+| `.vela/work/` | private, ignored Attempt state |
 | `.vela/operation-journals/`, `.git/vela/operation-journals/` | private recovery state; never published as scientific state |
 
 `vela frontier materialize <frontier>` rebuilds visible state and lock/proof
@@ -852,7 +823,8 @@ Graphs, semantic indexes, wikis, packets, dashboards, and AI context are also
 derived systems. They should bind their output to the source Git commit and
 Vela event-log root, label freshness and inference class, and remain safe to
 replace. An inferred edge or generated summary enters accepted state only by
-returning through Receipt v1.
+returning through a current Submission and authorized Decision. Historical
+Receipt-based chains retain their original replay semantics.
 
 See [Interoperability](INTEROPERABILITY.md).
 

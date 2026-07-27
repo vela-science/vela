@@ -197,7 +197,8 @@ pub(crate) enum Commands {
         #[arg(long)]
         adoption: bool,
         /// MCP exposure profile: `read-only` (default) or `draft` (adds only
-        /// the task-first `work` tool). Human finalization is terminal-only.
+        /// the non-finalizing `attempt` tool). Human finalization is
+        /// unavailable through MCP.
         #[arg(long)]
         profile: Option<String>,
         /// Output stable JSON for --check-tools
@@ -235,9 +236,10 @@ pub(crate) enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// The verification gate: deliverable-grade and verifier-attachment
-    /// checks. `vela verify` proves the *log* is what was signed; `vela
-    /// gate` proves a *claim* earned its status — ≥2 independent matched
+    /// The advanced historical verification gate: deliverable-grade and
+    /// verifier-attachment checks. `vela check` proves the log is internally
+    /// consistent; `vela gate` evaluates whether a historical claim earned
+    /// its status — ≥2 independent matched
     /// verifier attachments and a surviving adversarial probe, never a
     /// self-reported "verified" string. See `vela_protocol::verifier_attachment`
     /// and `vela_edge::deliverable_grade`.
@@ -246,9 +248,9 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         action: GateAction,
     },
-    /// Retain and inspect non-authorizing verifier evidence.
+    /// Retain and inspect non-authorizing Verification Records.
     #[command(after_long_help = crate::cli::help_text::VERIFY)]
-    Verify {
+    Verification {
         #[command(subcommand)]
         action: VerifyAction,
     },
@@ -337,6 +339,29 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         command: FindingCommands,
     },
+    /// Show one exact Vela object by its stable id.
+    #[command(after_long_help = crate::cli::help_text::SHOW)]
+    Show {
+        /// Frontier repository directory.
+        frontier: PathBuf,
+        /// A Claim/Finding, Submission, Registration Record, Verification
+        /// Record, Proposal, Event, Artifact, or historical record id.
+        object_id: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Explain why one Claim/Finding currently has its derived standing.
+    ///
+    /// This is a root-bound read projection. It never changes authority.
+    #[command(after_long_help = crate::cli::help_text::WHY)]
+    Why {
+        /// Frontier repository directory.
+        frontier: PathBuf,
+        /// Current Claim id (`vcl_...`) or historical Finding id (`vf_...`).
+        claim_id: String,
+        #[arg(long)]
+        json: bool,
+    },
     /// Manage content-addressed artifacts without changing linked claims
     #[command(after_long_help = crate::cli::help_text::ARTIFACT)]
     Artifact {
@@ -361,7 +386,7 @@ pub(crate) enum Commands {
     #[command(after_long_help = crate::cli::help_text::START)]
     Start {
         /// The target (obligation id, e.g. erdos:617). Omit to list
-        /// open sessions.
+        /// open Attempts.
         target: Option<String>,
         #[arg(long)]
         frontier: Option<PathBuf>,
@@ -381,22 +406,24 @@ pub(crate) enum Commands {
         json: bool,
     },
 
-    /// Land a result: record -> propose -> route by the signed policy.
-    /// Permit admits canonically (the autonomy lane); Defer parks it in
-    /// the human's sign queue; Deny refuses canonical admission. The positional is a
-    /// vela.receipt.v1 JSON — the portable contract ANY tool exports.
-    #[command(after_long_help = crate::cli::help_text::LAND)]
-    Land {
-        /// Path to a receipt JSON. Or use --claim/--artifact/--caveat.
-        receipt: Option<PathBuf>,
+    /// Register one authenticated Submission and create a pending Proposal.
+    /// This producer action cannot create Verification, a Decision, an Event,
+    /// or accepted scientific state.
+    #[command(after_long_help = crate::cli::help_text::SUBMIT)]
+    Submit {
+        /// Path to a signed Submission v1. Or author one from an active Attempt
+        /// with --claim, --type, --artifact, and --caveat.
+        submission: Option<PathBuf>,
         #[arg(long)]
         frontier: Option<PathBuf>,
         #[arg(long)]
         claim: Option<String>,
-        /// Scientific claim type. Required for flag authoring unless an active
-        /// work session supplies it unambiguously.
+        /// Scientific claim type.
         #[arg(long = "type")]
         claim_type: Option<String>,
+        /// Scope conditions under which the claim is asserted.
+        #[arg(long)]
+        condition: Vec<String>,
         /// Re-execution class: exact, bounded, approximate, unavailable, or unknown.
         #[arg(long)]
         replayability: Option<String>,
@@ -404,47 +431,32 @@ pub(crate) enum Commands {
         artifact: Vec<String>,
         #[arg(long)]
         caveat: Vec<String>,
-        /// Observable expected before the test was performed. Exactly one of
-        /// this flag and --not-applicable is required when authoring a
-        /// scientific chain.
-        #[arg(long)]
-        predicted_observable: Option<String>,
-        /// Declare explicitly that this theoretical/source-only result has no
-        /// applicable predicted observable.
-        #[arg(long)]
-        not_applicable: bool,
-        /// Test or check that was actually performed.
-        #[arg(long)]
-        performed_test: Option<String>,
-        /// Result observed from the performed test.
-        #[arg(long)]
-        result: Option<String>,
-        /// Ordered artifact/root references supporting the result.
-        #[arg(long)]
-        evidence: Vec<String>,
-        /// Ordered artifact/root references that count against or bound the
-        /// result.
-        #[arg(long)]
-        counterevidence: Vec<String>,
+        /// Producer-reported check, formatted METHOD:OUTCOME. This is not a
+        /// Verification Record.
+        #[arg(long = "check")]
+        producer_check: Vec<String>,
+        /// Independent verification required before acceptance.
+        #[arg(long = "requires-verification")]
+        verification_requirement: Vec<String>,
         /// Full root of the exact target packet executed by this producer.
-        #[arg(long, conflicts_with = "receipt", requires_all = ["profile_root", "verifier_capsule_root", "result_contract_root"])]
+        #[arg(long, conflicts_with = "submission", requires_all = ["profile_root", "verifier_capsule_root", "result_contract_root"])]
         packet_root: Option<String>,
         /// Full root of the exact producer profile used for this result.
-        #[arg(long, conflicts_with = "receipt", requires_all = ["packet_root", "verifier_capsule_root", "result_contract_root"])]
+        #[arg(long, conflicts_with = "submission", requires_all = ["packet_root", "verifier_capsule_root", "result_contract_root"])]
         profile_root: Option<String>,
         /// Full root of the exact frozen verifier capsule.
-        #[arg(long, conflicts_with = "receipt", requires_all = ["packet_root", "profile_root", "result_contract_root"])]
+        #[arg(long, conflicts_with = "submission", requires_all = ["packet_root", "profile_root", "result_contract_root"])]
         verifier_capsule_root: Option<String>,
         /// Full root of the exact positive result contract checked by the capsule.
-        #[arg(long, conflicts_with = "receipt", requires_all = ["packet_root", "profile_root", "verifier_capsule_root"])]
+        #[arg(long, conflicts_with = "submission", requires_all = ["packet_root", "profile_root", "verifier_capsule_root"])]
         result_contract_root: Option<String>,
-        /// Select the active work target explicitly. Required when this actor
-        /// owns more than one active session.
+        /// Select the active Attempt explicitly. Required when this actor owns
+        /// more than one active Attempt.
         #[arg(long)]
-        work: Option<String>,
+        attempt: Option<String>,
         #[arg(long, help = HELP_AS)]
         r#as: Option<String>,
-        /// Publish now: commit locally AND push. Without it, land commits
+        /// Publish now: commit locally AND push. Without it, submit commits
         /// locally and you publish deliberately with `git push`.
         #[arg(long)]
         push: bool,
@@ -631,17 +643,18 @@ pub(crate) enum GateAction {
     },
 }
 
-/// `vela verify` — durable, non-authorizing verifier evidence.
+/// `vela verification` — durable, non-authorizing verifier evidence.
 #[derive(Subcommand)]
 pub(crate) enum VerifyAction {
-    /// Attach one content-addressed verifier record to a pending proposal.
-    Attach {
+    /// Import one signed, content-addressed Verification Record.
+    Import {
         frontier: PathBuf,
-        attachment: PathBuf,
-        #[arg(long)]
-        proposal: String,
+        record: PathBuf,
         #[arg(long = "as", help = HELP_REQUIRED_AS)]
         actor: String,
+        /// Publish now: commit locally and push.
+        #[arg(long)]
+        push: bool,
         #[arg(long)]
         json: bool,
     },

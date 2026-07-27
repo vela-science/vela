@@ -1085,7 +1085,12 @@ fn pressure_fact_from_proposal(
         .payload
         .get("vela_submission")
         .and_then(|submission| submission.get("receipt_root"))
-    {
+        .or_else(|| {
+            proposal
+                .payload
+                .get("submission")
+                .and_then(|submission| submission.get("submission_root"))
+        }) {
         None => None,
         Some(value) => {
             let root = value.as_str().ok_or_else(|| {
@@ -1224,6 +1229,14 @@ fn build_review_item(
         )
         .map_err(|error| ReviewProjectionError::new("decision_brief_invariant", error))
     };
+
+    if proposal.payload.get("submission").is_some() {
+        return build(vela_edge::decision_brief::ReviewRoute::unavailable(
+            policy_facts,
+            "current_verification_contract_required",
+            "the current Submission is reviewable and rejectable, but acceptance remains blocked until its Verification Record contract is satisfied",
+        ));
+    }
 
     if proposal.kind
         == vela_protocol::proposals::policy_accept::LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND

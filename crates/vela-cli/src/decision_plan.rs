@@ -1619,14 +1619,27 @@ pub(crate) fn decision_read_set(
                     format!("proposal {} disappeared", answer.proposal_id),
                 )
             })?;
-        let Some(path) = proposal
+        let source_path = proposal
             .payload
-            .pointer("/vela_submission/receipt_path")
+            .pointer("/submission/submission_path")
             .and_then(serde_json::Value::as_str)
-        else {
+            .map(|path| (path, "submission"))
+            .or_else(|| {
+                proposal
+                    .payload
+                    .pointer("/vela_submission/receipt_path")
+                    .and_then(serde_json::Value::as_str)
+                    .map(|path| (path, "receipt"))
+            });
+        let Some((path, kind)) = source_path else {
             continue;
         };
-        if !safe_receipt_path(path) {
+        let safe = if kind == "submission" {
+            safe_submission_path(path)
+        } else {
+            safe_receipt_path(path)
+        };
+        if !safe {
             // The Decision Brief already binds this as invalid/unavailable and
             // therefore blocks accept. Reject must remain possible without
             // hashing or journaling an attacker-selected local path.
@@ -1645,10 +1658,17 @@ pub(crate) fn decision_read_set(
     Ok(read_set)
 }
 
+fn safe_submission_path(path: &str) -> bool {
+    safe_content_addressed_record_path(path, "records/submissions/sha256/")
+}
+
 fn safe_receipt_path(path: &str) -> bool {
+    safe_content_addressed_record_path(path, "records/receipts/sha256/")
+}
+
+fn safe_content_addressed_record_path(path: &str, prefix: &str) -> bool {
     let path = Path::new(path);
-    path.to_str()
-        .is_some_and(|path| path.starts_with("records/receipts/sha256/"))
+    path.to_str().is_some_and(|path| path.starts_with(prefix))
         && !path.is_absolute()
         && path
             .components()
@@ -2139,6 +2159,20 @@ mod tests {
             "records/receipts/sha256/../../../../.ssh/id_ed25519"
         ));
         assert!(!safe_receipt_path("/records/receipts/sha256/a.json"));
+    }
+
+    #[test]
+    fn submission_read_set_accepts_only_content_addressed_repository_paths() {
+        assert!(safe_submission_path(
+            "records/submissions/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.json"
+        ));
+        assert!(!safe_submission_path(".ssh/id_ed25519"));
+        assert!(!safe_submission_path(
+            "records/submissions/sha256/../../../../.ssh/id_ed25519"
+        ));
+        assert!(!safe_submission_path(
+            "/records/submissions/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.json"
+        ));
     }
 
     #[test]

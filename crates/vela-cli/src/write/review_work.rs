@@ -395,10 +395,10 @@ fn build_review_work_payload(repo_path: &Path) -> Result<ReviewWorkPayload, Stri
             source: "review/frontier-action-queue.v1.json",
             proposal_preview_commands: vec![
                 "vela proposals validate review/correction-return-proposals.v1.json --json",
-                "vela land <receipt.json> --frontier <frontier> --as agent:<you> --json",
+                "vela submit <submission.json> --frontier <frontier> --as agent:<you> --json",
             ],
             explicit_reviewer_actions: vec!["vela sign <proposal-id> --frontier <frontier>"],
-            boundary: "Validation, Receipt landing, and reviewer actions are commands to copy. The review-work page does not execute them or import proposals.",
+            boundary: "Submission, Verification, and reviewer Decisions are separate commands. The review-work page executes none of them and imports no Proposal.",
         },
         queues,
     })
