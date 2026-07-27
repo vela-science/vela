@@ -224,8 +224,8 @@ export async function doctorProduct(options: {
     if (gitStatus.exitCode !== 0 || gitStatus.stderr.length !== 0) throw new Error("git status failed");
     const clean = gitStatus.stdout.length === 0;
     if (!clean) throw new Error("frontier checkout must be clean before Canopus runs");
-    if (status.schema !== "vela.status.v1" || offer.schema !== "vela.offer.v1") {
-      throw new Error("frontier did not return the Vela 0.9 compact contracts");
+    if (status.schema !== "vela.status.v2" || offer.schema !== "vela.offer.v1") {
+      throw new Error("frontier did not return the current Vela compact contracts");
     }
     const profile = await resolveProductProfile(offer, options.profileName, options.requestedTarget);
     const selected = selectProductOffer(offer, profile, options.requestedTarget);

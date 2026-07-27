@@ -86,7 +86,7 @@ test("native Windows doctor remains read-only and does not probe worker runtimes
         if (executable === "vela" && options.argv[1] === "status") {
           return commandResult(options, JSON.stringify({
             ok: false,
-            schema: "vela.status.v1",
+            schema: "vela.status.v2",
             roots: {
               event_log: `sha256:${"a".repeat(64)}`,
               scientific_state_root: `sha256:${"b".repeat(64)}`,
