@@ -471,6 +471,19 @@ pub async fn run_command() {
         } => {
             crate::ui::set_mode("start", json);
             let dir = crate::ui::resolve_frontier(frontier);
+            let actor = crate::cli_identity::resolve_actor(r#as.as_deref());
+            if dir.join(".vela/epoch.json").is_file() {
+                crate::current_work::cmd_start(
+                    &dir,
+                    target.as_deref(),
+                    ttl,
+                    drop_it,
+                    reason.as_deref(),
+                    &actor,
+                    json,
+                );
+                return;
+            }
             let Some(target) = target else {
                 let root = dir.join(".vela/work");
                 let mut attempts = std::fs::read_dir(&root)
@@ -500,7 +513,6 @@ pub async fn run_command() {
                 }
                 return;
             };
-            let actor = crate::cli_identity::resolve_actor(r#as.as_deref());
             if drop_it {
                 let reason = reason
                     .as_deref()

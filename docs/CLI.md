@@ -113,17 +113,19 @@ produces no offer.
 
 ### Attempt
 
-`vela start <target> --frontier . --json` emits `vela.attempt.v1` with a
-`vat_` identifier. It binds:
+`vela start <target> --frontier . --json` emits `vela.attempt.v2` in a current
+repository epoch (and reads v1 only in the predecessor compatibility binary).
+The private `vat_` Attempt binds:
 
 - the exact target and packet;
-- starting roots;
+- the repository epoch/root, Target Index root, and Git commit/tree;
 - completion contract;
 - verifier profile;
-- lease state; and
+- local expiry; and
 - current producer submission command.
 
-Repeating an active claim by the same actor is idempotent.
+It writes no canonical lease Event and reads no authority key. Repeating an
+active local Attempt by the same actor is idempotent.
 
 ### Review
 

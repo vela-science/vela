@@ -216,6 +216,14 @@ transition. Its domain generator must produce a new closed candidate after
 migration; Vela never carries stale ranking forward as apparently current
 work.
 
+`vela start` in a current epoch creates `vela.attempt.v2` only under the
+ignored `.vela/work/` authoring directory. The Attempt closes over the exact
+repository root, epoch, Target Index v3, packet, source, Git commit/tree, and
+task contract. It creates no lease Event, repository record, authority
+transaction, or key read. Local expiry and one target-scoped filesystem lock
+prevent two local producers from silently sharing the same private Attempt;
+they are coordination mechanics, not global authority or scientific state.
+
 ### 4. One fail-closed migration command
 
 The advanced command is:
@@ -276,6 +284,8 @@ Current-epoch strict verification blocks:
 - a legacy path or schema in the active repository;
 - a Target Index v2 in the active repository, or a Target Index v3 whose
   source, input, packet, epoch, or repository binding drifts;
+- a current Attempt that retains an event-rooted task binding or does not bind
+  the exact current repository, Target Index, packet, and Git read set;
 - a forked, rolled-back, incomplete, or wrongly rooted current authority
   chain; and
 - any current event or Decision that targets an archived-only object.

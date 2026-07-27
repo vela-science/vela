@@ -16,6 +16,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 use vela_protocol::authority::AuthorityEventV1;
+use vela_protocol::current_repository::CurrentRepositoryV2;
 use vela_protocol::events::{
     self, EVENT_KIND_FRONTIER_REPOSITORY_BOUND, StateEvent, event_content_preimage_bytes,
 };
@@ -39,6 +40,7 @@ pub const TARGET_INDEX_SCHEMA_V3: &str = "vela.target-index.v3";
 pub const TARGET_INDEX_CANDIDATE_SCHEMA_V1: &str = "vela.target-index-candidate.v1";
 pub const TARGET_INDEX_INPUT_MANIFEST_SCHEMA_V1: &str = "vela.target-index-input-manifest.v1";
 pub const TARGET_TASK_BINDING_SCHEMA_V1: &str = "vela.target-task-binding.v1";
+pub const TARGET_TASK_BINDING_SCHEMA_V2: &str = "vela.target-task-binding.v2";
 pub const TARGET_INDEX_MIGRATION_CONTEXT_SCHEMA_V1: &str = "vela.target-index-migration-context.v1";
 pub const TARGET_INDEX_SCHEMA_V1: &str = "vela.target-index.v1";
 
@@ -282,6 +284,34 @@ pub struct TargetTaskBindingV1 {
     pub packet: TargetPacketRefV2,
     pub index_roots: TargetTaskIndexRootsV1,
     pub claim_read_set: TargetTaskClaimReadSetV1,
+    pub binding_root: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct TargetTaskClaimReadSetV2 {
+    pub git_object_format: GitObjectFormat,
+    pub git_commit: String,
+    pub git_tree: String,
+}
+
+/// Exact producer-task binding for a current repository epoch.
+///
+/// The event-rooted read set in v1 is intentionally absent. Scientific state
+/// is the exact current repository manifest; Git retains the producer's
+/// reproducible starting point without becoming an authority surface.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct TargetTaskBindingV2 {
+    pub schema: String,
+    pub frontier_id: String,
+    pub target_id: String,
+    pub target_index_root: String,
+    pub source: TargetIndexSourceV2,
+    pub input_root: String,
+    pub packet: TargetPacketRefV2,
+    pub repository: TargetIndexRepositoryV3,
+    pub claim_read_set: TargetTaskClaimReadSetV2,
     pub binding_root: String,
 }
 
@@ -1329,6 +1359,229 @@ impl TargetTaskBindingV1 {
         object.remove("binding_root");
         canonical_root(&value)
     }
+}
+
+impl TargetTaskBindingV2 {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.schema != TARGET_TASK_BINDING_SCHEMA_V2 {
+            return Err(format!(
+                "binding.schema must be {TARGET_TASK_BINDING_SCHEMA_V2}"
+            ));
+        }
+        require_frontier_id(&self.frontier_id)?;
+        validate_target_id(&self.target_id)?;
+        require_sha256_root("target_index_root", &self.target_index_root)?;
+        require_git_object(
+            "source.git_commit",
+            &self.source.git_commit,
+            self.source.git_object_format,
+        )?;
+        require_git_object(
+            "source.git_tree",
+            &self.source.git_tree,
+            self.source.git_object_format,
+        )?;
+        require_sha256_root("input_root", &self.input_root)?;
+        self.packet.validate()?;
+        require_epoch_id("repository.epoch_id", &self.repository.epoch_id)?;
+        require_sha256_root(
+            "repository.repository_root",
+            &self.repository.repository_root,
+        )?;
+        require_git_object(
+            "claim_read_set.git_commit",
+            &self.claim_read_set.git_commit,
+            self.claim_read_set.git_object_format,
+        )?;
+        require_git_object(
+            "claim_read_set.git_tree",
+            &self.claim_read_set.git_tree,
+            self.claim_read_set.git_object_format,
+        )?;
+        require_sha256_root("binding_root", &self.binding_root)?;
+        if self.computed_binding_root()? != self.binding_root {
+            return Err("binding_root does not match the canonical binding preimage".to_string());
+        }
+        Ok(())
+    }
+
+    pub fn computed_binding_root(&self) -> Result<String, String> {
+        let mut value = serde_json::to_value(self).map_err(|error| error.to_string())?;
+        let object = value
+            .as_object_mut()
+            .ok_or_else(|| "target task binding did not serialize as an object".to_string())?;
+        object.remove("binding_root");
+        canonical_root(&value)
+    }
+}
+
+fn exact_current_repository(
+    repo_path: &Path,
+    frontier_id: &str,
+    epoch_id: &str,
+    repository_root: &str,
+) -> Result<CurrentRepositoryV2, String> {
+    let path = repo_path.join(".vela/repository.json");
+    let bytes = read_regular_file(&path, 8 * 1024 * 1024, "current repository manifest")?;
+    let tracked = exact_tracked_head_bytes(repo_path, ".vela/repository.json", 8 * 1024 * 1024)?;
+    if tracked != bytes {
+        return Err(
+            "current repository manifest differs from the exact tracked HEAD blob".to_string(),
+        );
+    }
+    let repository = CurrentRepositoryV2::parse(&bytes)?;
+    if repository.frontier_id != frontier_id
+        || repository.epoch_id != epoch_id
+        || repository.canonical_root()? != repository_root
+    {
+        return Err(
+            "current repository manifest does not match the requested Frontier epoch and root"
+                .to_string(),
+        );
+    }
+    Ok(repository)
+}
+
+/// Build the exact private-work binding for a current repository Target Offer.
+///
+/// This is read-only. It does not create a lease event, consult Era-0 replay,
+/// or require any authority credential.
+pub fn build_current_target_task_binding(
+    repo_path: &Path,
+    assessment: &CurrentTargetIndexAssessment,
+    frontier_id: &str,
+    epoch_id: &str,
+    repository_root: &str,
+    target_id: &str,
+) -> Result<TargetTaskBindingV2, String> {
+    if !assessment.global_issues.is_empty()
+        || assessment
+            .target_issues
+            .get(target_id)
+            .is_some_and(|issues| !issues.is_empty())
+    {
+        return Err(format!(
+            "current target task binding refuses stale or invalid target {target_id:?}"
+        ));
+    }
+    let target = assessment
+        .index
+        .targets
+        .iter()
+        .find(|target| target.id == target_id)
+        .ok_or_else(|| format!("current target task binding cannot find target {target_id:?}"))?;
+    if target.state != "open" {
+        return Err(format!(
+            "current target task binding requires an open target; {target_id:?} is {}",
+            target.state
+        ));
+    }
+    if assessment.index.frontier_id != frontier_id
+        || assessment.index.repository.epoch_id != epoch_id
+        || assessment.index.repository.repository_root != repository_root
+    {
+        return Err(
+            "current target task binding index does not match the exact current repository"
+                .to_string(),
+        );
+    }
+    exact_current_repository(repo_path, frontier_id, epoch_id, repository_root)?;
+
+    let git_object_format = repository_object_format(repo_path)?;
+    let git_commit = git_text(repo_path, &["rev-parse", "HEAD^{commit}"])?;
+    require_git_object("claim_read_set.git_commit", &git_commit, git_object_format)?;
+    let git_tree = git_text(repo_path, &["rev-parse", "HEAD^{tree}"])?;
+    require_git_object("claim_read_set.git_tree", &git_tree, git_object_format)?;
+    let mut binding = TargetTaskBindingV2 {
+        schema: TARGET_TASK_BINDING_SCHEMA_V2.to_string(),
+        frontier_id: frontier_id.to_string(),
+        target_id: target.id.clone(),
+        target_index_root: assessment.index.index_root.clone(),
+        source: assessment.index.source.clone(),
+        input_root: assessment.index.inputs.input_root.clone(),
+        packet: target.packet.clone(),
+        repository: assessment.index.repository.clone(),
+        claim_read_set: TargetTaskClaimReadSetV2 {
+            git_object_format,
+            git_commit,
+            git_tree,
+        },
+        binding_root: format!("sha256:{}", "0".repeat(64)),
+    };
+    binding.binding_root = binding.computed_binding_root()?;
+    binding.validate()?;
+    Ok(binding)
+}
+
+/// Revalidate a retained current task binding before creating a Submission.
+///
+/// Descendant Git commits are allowed, but the exact repository, target
+/// index, packet, source, and original claim tree must remain available.
+pub fn revalidate_current_target_task_binding(
+    repo_path: &Path,
+    binding: &TargetTaskBindingV2,
+) -> Result<(), String> {
+    binding.validate()?;
+    exact_current_repository(
+        repo_path,
+        &binding.frontier_id,
+        &binding.repository.epoch_id,
+        &binding.repository.repository_root,
+    )?;
+    let resolved = git_text(
+        repo_path,
+        &[
+            "rev-parse",
+            &format!("{}^{{commit}}", binding.claim_read_set.git_commit),
+        ],
+    )?;
+    if resolved != binding.claim_read_set.git_commit {
+        return Err("current target binding claim commit did not resolve exactly".to_string());
+    }
+    let claim_tree = git_text(
+        repo_path,
+        &[
+            "rev-parse",
+            &format!("{}^{{tree}}", binding.claim_read_set.git_commit),
+        ],
+    )?;
+    if claim_tree != binding.claim_read_set.git_tree {
+        return Err("current target binding claim tree changed".to_string());
+    }
+    let assessment = assess_current_target_index(
+        repo_path,
+        &binding.frontier_id,
+        &binding.repository.epoch_id,
+        &binding.repository.repository_root,
+    )?
+    .ok_or_else(|| "current target binding Target Index is unavailable".to_string())?;
+    if !assessment.global_issues.is_empty()
+        || assessment
+            .target_issues
+            .get(&binding.target_id)
+            .is_some_and(|issues| !issues.is_empty())
+    {
+        return Err("current target binding index or packet is stale".to_string());
+    }
+    let target = assessment
+        .index
+        .targets
+        .iter()
+        .find(|target| target.id == binding.target_id)
+        .ok_or_else(|| "current target binding target is absent".to_string())?;
+    if target.state != "open"
+        || binding.target_index_root != assessment.index.index_root
+        || binding.source != assessment.index.source
+        || binding.input_root != assessment.index.inputs.input_root
+        || binding.packet != target.packet
+        || binding.repository != assessment.index.repository
+    {
+        return Err(
+            "current target binding no longer matches its index, source, inputs, packet, or repository"
+                .to_string(),
+        );
+    }
+    Ok(())
 }
 
 /// Build the exact, closed producer-task binding at the claim read edge.
@@ -4801,6 +5054,81 @@ mod tests {
             vec![CODE_STATE_ROOT_MISMATCH]
         );
         assert!(drifted.fresh_open_targets().is_empty());
+    }
+
+    #[test]
+    fn current_task_binding_closes_repository_index_packet_and_git_without_events() {
+        let fixture = git_fixture();
+        let epoch_id = "vre_1234567890abcdef";
+        let repository = CurrentRepositoryV2 {
+            schema: "vela.repository.v2".to_string(),
+            frontier_id: fixture.project.frontier_id(),
+            profile_root: root('1'),
+            epoch_id: epoch_id.to_string(),
+            epoch_root: root('2'),
+            accepted_claims: Vec::new(),
+            pending_claims: Vec::new(),
+            proposals: Vec::new(),
+            submissions: Vec::new(),
+            registrations: Vec::new(),
+            verifications: Vec::new(),
+            artifacts: Vec::new(),
+            authority_keyset_root: root('3'),
+            authority_policy_root: root('4'),
+        };
+        repository.verify().unwrap();
+        let repository_root = repository.canonical_root().unwrap();
+        write(
+            &fixture.directory.path().join(".vela/repository.json"),
+            repository.canonical_bytes().unwrap(),
+        );
+        let current = TargetIndexV3::from_v2(
+            &fixture.index,
+            epoch_id.to_string(),
+            repository_root.clone(),
+            "0.930.0-rc.13".to_string(),
+        )
+        .unwrap();
+        write(
+            &fixture.directory.path().join("targets.json"),
+            current.canonical_bytes().unwrap(),
+        );
+        run(
+            fixture.directory.path(),
+            &["add", ".vela/repository.json", "targets.json"],
+        );
+        run(
+            fixture.directory.path(),
+            &["commit", "-qm", "current work context"],
+        );
+
+        let assessment = assess_current_target_index(
+            fixture.directory.path(),
+            &fixture.project.frontier_id(),
+            epoch_id,
+            &repository_root,
+        )
+        .unwrap()
+        .unwrap();
+        let binding = build_current_target_task_binding(
+            fixture.directory.path(),
+            &assessment,
+            &fixture.project.frontier_id(),
+            epoch_id,
+            &repository_root,
+            "erdos:1056",
+        )
+        .unwrap();
+        binding.validate().unwrap();
+        revalidate_current_target_task_binding(fixture.directory.path(), &binding).unwrap();
+        let encoded = serde_json::to_string(&binding).unwrap();
+        assert!(encoded.contains("\"schema\":\"vela.target-task-binding.v2\""));
+        assert!(encoded.contains(&repository_root));
+        assert!(!encoded.contains("event_log_root"));
+
+        let mut drifted = binding;
+        drifted.repository.repository_root = root('f');
+        assert!(drifted.validate().unwrap_err().contains("binding_root"));
     }
 
     fn replacement_seal_plan(fixture: &GitFixture) -> TargetIndexSealPlan {

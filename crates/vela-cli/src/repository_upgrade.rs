@@ -1834,7 +1834,7 @@ fn write_current_candidate(
 /// Verify a current-only repository without consulting Era-0 events, locks, or
 /// generated snapshots. The optional authority-record requirement is enabled
 /// for an applied epoch and disabled only for the key-free candidate preview.
-fn verify_current_repository_at(
+pub(crate) fn verify_current_repository_at(
     root: &Path,
     require_authority_record: bool,
 ) -> Result<CurrentRepositoryV2, String> {
@@ -2295,18 +2295,17 @@ fn claim_from_finding(
     )
 }
 
+type ConvertedPendingProposals = (
+    Vec<ObjectRef>,
+    Vec<ClaimRecordV1>,
+    Vec<ProposalMapping>,
+    Vec<ProposalV1>,
+);
+
 fn convert_current_pending_proposals(
     proposals: &[vela_protocol::proposals::StateProposal],
     predecessor_commit: &str,
-) -> Result<
-    (
-        Vec<ObjectRef>,
-        Vec<ClaimRecordV1>,
-        Vec<ProposalMapping>,
-        Vec<ProposalV1>,
-    ),
-    String,
-> {
+) -> Result<ConvertedPendingProposals, String> {
     let mut claim_refs = Vec::new();
     let mut claim_records = Vec::new();
     let mut proposal_refs = Vec::new();

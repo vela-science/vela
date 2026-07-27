@@ -503,6 +503,14 @@ authority remains the sole Era-1 transaction signer. Producer authentication
 grants no review, acceptance, policy, membership, recovery, or key-rotation
 authority.
 
+In a Profile v2/current repository epoch, `vela start` is entirely private:
+`vela.attempt.v2` binds the current repository root, epoch, Target Index v3,
+packet, task contract, and starting Git commit/tree. It creates no lease Event
+or authority transaction. Local expiry and locking coordinate one checkout
+only and confer no global work ownership. `vela submit` must revalidate the
+retained binding before repository authority can register current Submission
+records.
+
 The rotation law and internal writer are also closed. A new keyset must name
 the exact prior keyset root, advance generation by one, and bind the
 authority-record chain head that existed immediately before the covering
