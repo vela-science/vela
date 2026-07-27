@@ -930,32 +930,78 @@ fn validate_fresh_initialization_request(
     let predecessor_actor_root = ContentDigest::hash(&request.history.legacy_actor_registry_bytes)
         .as_str()
         .to_string();
-    if draft.kind.as_str() != AUTHORITY_INITIALIZED_EVENT_KIND
-        || draft.target.r#type != "frontier"
-        || draft.target.id != request.history.frontier_id
-        || draft.actor.r#type != "human"
-        || draft.actor.id != request.principal.principal_id
-        || draft.before_hash != vela_protocol::events::NULL_HASH
-        || draft.after_hash != vela_protocol::events::NULL_HASH
-        || payload.frontier_id != request.history.frontier_id
-        || payload.new_principal_id != request.principal.principal_id
-        || payload.new_authority_keyset_root != keyset_root
-        || payload.new_policy_bundle_root != policy_root
-        || payload.initial_event_log_root != predecessor_event_root
-        || payload.initial_actor_registry_root != predecessor_actor_root
-        || payload.reason != draft.reason
-        || request.authorization_input.action != AUTHORITY_INITIALIZE_ACTION
-        || !request.semantic_approvals.iter().any(|approval| {
-            approval.action == AUTHORITY_INITIALIZE_ACTION
-                && approval.principal_id == request.principal.principal_id
-                && approval.reason == draft.reason
-                && approval.intent_digest == request.intent_digest
-        })
-    {
-        return Err(AuthorityTransactionError::Invalid(
-            "fresh authority initialization request does not bind its exact principal, snapshots, action, and reason"
-                .into(),
-        ));
+    let mut mismatches = Vec::new();
+    for (matches, field) in [
+        (
+            draft.kind.as_str() == AUTHORITY_INITIALIZED_EVENT_KIND,
+            "event_kind",
+        ),
+        (draft.target.r#type == "frontier", "target_type"),
+        (
+            draft.target.id == request.history.frontier_id,
+            "target_frontier",
+        ),
+        (draft.actor.r#type == "human", "actor_type"),
+        (
+            draft.actor.id == request.principal.principal_id,
+            "actor_principal",
+        ),
+        (
+            draft.before_hash == vela_protocol::events::NULL_HASH,
+            "before_root",
+        ),
+        (
+            draft.after_hash == vela_protocol::events::NULL_HASH,
+            "after_root",
+        ),
+        (
+            payload.frontier_id == request.history.frontier_id,
+            "payload_frontier",
+        ),
+        (
+            payload.new_principal_id == request.principal.principal_id,
+            "payload_principal",
+        ),
+        (
+            payload.new_authority_keyset_root == keyset_root,
+            "authority_keyset_root",
+        ),
+        (
+            payload.new_policy_bundle_root == policy_root,
+            "policy_bundle_root",
+        ),
+        (
+            payload.initial_event_log_root == predecessor_event_root,
+            "predecessor_event_log_root",
+        ),
+        (
+            payload.initial_actor_registry_root == predecessor_actor_root,
+            "predecessor_actor_registry_root",
+        ),
+        (payload.reason == draft.reason, "reason"),
+        (
+            request.authorization_input.action == AUTHORITY_INITIALIZE_ACTION,
+            "authorization_action",
+        ),
+        (
+            request.semantic_approvals.iter().any(|approval| {
+                approval.action == AUTHORITY_INITIALIZE_ACTION
+                    && approval.principal_id == request.principal.principal_id
+                    && approval.reason == draft.reason
+                    && approval.intent_digest == request.intent_digest
+            }),
+            "semantic_approval",
+        ),
+    ] {
+        if !matches {
+            mismatches.push(field);
+        }
+    }
+    if !mismatches.is_empty() {
+        return Err(AuthorityTransactionError::Invalid(format!(
+            "fresh authority initialization request does not bind its exact principal, snapshots, action, and reason: {}",
+            mismatches.join(", ")
+        )));
     }
     if request.retire_legacy_history {
         let retires = |path: &str| {

@@ -133,7 +133,14 @@ Historical `vela.receipt.v1` remains documented in [RECEIPTS.md](RECEIPTS.md)
 for exact replay only. The term Receipt is reserved for a future Vela-issued,
 verifiable inclusion proof; this protocol defines no such current object.
 
-### 4.2 Historical Finding and artifact
+### 4.2 Claim, historical Finding, and artifact
+
+A current Claim Record (`vela.claim-record.v1`, full `vcl_` ID) binds one
+versioned assertion, its conditions, evidence references, provenance,
+relations, creation time, and optional exact predecessor import. Its canonical
+bytes do not store Standing. A Profile v2 repository indexes the same exact
+Claim root as `accepted` or `pending_review`; terminal Decisions and covered
+domain events explain all other Standing.
 
 A historical Finding (`vf_`) is the retained scientific claim primitive of the
 Finding era. Its bundle binds the assertion, evidence, conditions, confidence
@@ -142,8 +149,14 @@ timestamps. The retained portable Finding schema is
 [`finding-bundle.v0.10.0.json`](../schema/finding-bundle.v0.10.0.json).
 Current readers expose it through `vela show`, `vela claim show`, and
 `vela why` while disclosing its historical source era. Current writers do not
-mint new `vf_` identities. The proposed `vcl_` Claim Record remains separately
-gated by ADR 0021.
+mint new `vf_` identities.
+
+After a repository epoch, `vela show`, `vela claim show`, `vela why`, and
+`vela log` verify and read only `.vela/repository.json`, its exact
+content-addressed records, the epoch, and covered repository-authority events.
+They never reconstruct an Era-0 Project snapshot. `vela log` exposes both the
+transaction-independent semantic Event ID and its covering authority Event ID
+and root.
 
 An artifact (`va_`) is a content-addressed descriptor for bytes or an immutable
 external reference. Artifact disclosure, locator integrity, and observed

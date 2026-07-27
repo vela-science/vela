@@ -468,6 +468,15 @@ pub(crate) fn unpublished_store_files(path: &Path) -> usize {
 /// v0.42: Recent canonical events. The `git log` analogue.
 pub(crate) fn cmd_log(path: &Path, limit: usize, kind_filter: Option<&str>, json: bool) {
     crate::ui::set_mode("log", json);
+    if path.join(".vela/epoch.json").is_file() {
+        let payload = crate::current_read::log_payload(path, limit, kind_filter)
+            .unwrap_or_else(|error| fail_return(&error));
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&payload).expect("serialize current log")
+        );
+        return;
+    }
     let project = repo::load_from_path(path).unwrap_or_else(|e| fail_return(&e));
     let mut events: Vec<&vela_protocol::events::StateEvent> = project
         .events

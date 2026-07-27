@@ -138,6 +138,19 @@ fn read_current_record(frontier: &Path, object_id: &str) -> Result<Option<Value>
 
 pub(crate) fn cmd_show(frontier: &Path, object_id: &str, json_out: bool) {
     crate::ui::set_mode("show", json_out);
+    if frontier.join(".vela/epoch.json").is_file() {
+        let projection = crate::current_read::show_payload(frontier, object_id)
+            .unwrap_or_else(|error| fail_return(&error));
+        if json_out {
+            print_json(&projection);
+        } else {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&projection).expect("serialize object projection")
+            );
+        }
+        return;
+    }
     let project = repo::load_from_path(frontier).unwrap_or_else(|error| fail_return(&error));
     let frontier_id = project.frontier_id();
     let projection = if let Some(record) =
@@ -314,6 +327,19 @@ pub(crate) fn cmd_why(frontier: &Path, claim_id: &str, json_out: bool) {
             "why requires a full Claim or historical Finding id",
             Some("use `vela why <frontier> vf_... --json`"),
         );
+    }
+    if frontier.join(".vela/epoch.json").is_file() {
+        let projection = crate::current_read::why_payload(frontier, claim_id)
+            .unwrap_or_else(|error| fail_return(&error));
+        if json_out {
+            print_json(&projection);
+        } else {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&projection).expect("serialize standing explanation")
+            );
+        }
+        return;
     }
     let project = repo::load_from_path(frontier).unwrap_or_else(|error| fail_return(&error));
     let finding = project

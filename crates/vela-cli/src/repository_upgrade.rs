@@ -46,14 +46,14 @@ const EQUIVALENCE_SCHEMA: &str = "vela.repository-equivalence.v1";
 const ARCHIVE_INDEX_SCHEMA: &str = "vela.archived-object-index.v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-struct CurrentProposalDecision {
-    standing: String,
-    event_id: String,
-    event_root: String,
-    decided_at: String,
-    actor: String,
-    reason: String,
-    applied_event_id: Option<String>,
+pub(crate) struct CurrentProposalDecision {
+    pub(crate) standing: String,
+    pub(crate) event_id: String,
+    pub(crate) event_root: String,
+    pub(crate) decided_at: String,
+    pub(crate) actor: String,
+    pub(crate) reason: String,
+    pub(crate) applied_event_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -655,7 +655,7 @@ fn current_proposal_decisions(
     Ok(decisions)
 }
 
-fn load_current_proposal_decisions(
+pub(crate) fn load_current_proposal_decisions(
     frontier: &Path,
     repository: &CurrentRepositoryV2,
 ) -> Result<BTreeMap<String, CurrentProposalDecision>, String> {

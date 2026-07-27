@@ -12,6 +12,20 @@ use serde_json::{Value, json};
 
 pub(crate) fn cmd_claim_show(frontier: &Path, claim_id: &str, view: &str, json_out: bool) {
     crate::ui::set_mode("claim.show", json_out);
+    if frontier.join(".vela/epoch.json").is_file() {
+        let projection = crate::current_read::claim_payload(frontier, claim_id, view)
+            .unwrap_or_else(|error| fail_return(&error));
+        if json_out {
+            print_json(&projection);
+        } else {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&projection)
+                    .expect("serialize current Claim projection")
+            );
+        }
+        return;
+    }
     let project = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
     let ctx = state::finding_context(&project, claim_id).unwrap_or_else(|_| {
         crate::cli::fail_not_found(

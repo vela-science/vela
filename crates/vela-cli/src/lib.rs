@@ -30,6 +30,7 @@ mod tools;
 mod withdrawal;
 pub(crate) use tools::{cli_check, cli_proof};
 mod config;
+pub(crate) mod current_read;
 pub(crate) mod current_repository_decision;
 pub(crate) mod current_submission;
 pub(crate) mod current_verification;

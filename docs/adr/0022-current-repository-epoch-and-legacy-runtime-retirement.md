@@ -289,6 +289,16 @@ unknown Proposal, a missing or later applied event, a mismatched scientific
 transition, or disagreement between Decision standing and the active Claim
 indexes blocks repository verification.
 
+Current `show`, `claim show`, `why`, and `log` use the same verified boundary.
+They resolve active Claims from the repository indexes and terminal Claims
+through their retained Proposal and Decision chain; expose current Submission,
+Registration, Verification, Artifact, Proposal, Claim, and authority Event
+records by exact full identity; and report both semantic and covering
+authority-event identity. They do not load the retired Era-0 Project, event
+store, proposal store, or actor registry. Missing bytes, root drift, an
+unresolvable Claim, or an invalid authority chain fails closed instead of
+falling back to historical replay.
+
 ### 4. One fail-closed migration command
 
 The advanced command is:
