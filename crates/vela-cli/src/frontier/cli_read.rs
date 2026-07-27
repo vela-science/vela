@@ -585,6 +585,12 @@ pub(crate) fn cmd_verify(path: &Path, json_output: bool) {
 }
 
 pub(crate) async fn cmd_doctor(frontier: Option<&Path>, port: u16, all: bool, json_output: bool) {
+    if let Some(frontier) = frontier
+        && frontier.join(".vela/epoch.json").is_file()
+    {
+        crate::current_doctor::cmd_current_doctor(frontier, all, json_output);
+        return;
+    }
     let report = doctor::run(frontier, port);
     // The local setup/ceremony lane lives crate-side (identity, pin,
     // policy freshness, adapters, registry) and merges into the report.
