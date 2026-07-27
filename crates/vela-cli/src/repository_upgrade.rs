@@ -1291,7 +1291,7 @@ fn apply_repository_upgrade_in_worktree(
                 continue;
             }
         }
-        if entry.path == "frontier.json" || entry.path == "vela.lock" {
+        if is_epoch_derived_path(&entry.path) {
             derived_drafts.push(AuthorityDerivedDraft {
                 path: entry.path.clone(),
                 postimage: None,
@@ -1308,6 +1308,13 @@ fn apply_repository_upgrade_in_worktree(
         if current.as_deref() == Some(bytes.as_slice()) {
             continue;
         }
+        if path == "targets.json" {
+            derived_drafts.push(AuthorityDerivedDraft {
+                path: path.clone(),
+                postimage: Some(bytes.clone()),
+            });
+            continue;
+        }
         object_drafts.push(epoch_object_draft(path, Some(bytes.clone()))?);
     }
     object_drafts.sort_by(|left, right| left.path.cmp(&right.path));
@@ -1316,6 +1323,13 @@ fn apply_repository_upgrade_in_worktree(
         .any(|pair| pair[0].path == pair[1].path)
     {
         return Err("repository epoch derives duplicate canonical object drafts".into());
+    }
+    derived_drafts.sort_by(|left, right| left.path.cmp(&right.path));
+    if derived_drafts
+        .windows(2)
+        .any(|pair| pair[0].path == pair[1].path)
+    {
+        return Err("repository epoch derives duplicate derived-file drafts".into());
     }
 
     let actor_registry_bytes = fs::read(worktree.join(".vela/actors.json"))
@@ -1546,6 +1560,10 @@ fn epoch_object_draft(
         class,
         postimage,
     })
+}
+
+fn is_epoch_derived_path(path: &str) -> bool {
+    matches!(path, "frontier.json" | "targets.json" | "vela.lock")
 }
 
 fn git_success(root: &Path, args: &[&str], action: &str) -> Result<(), String> {
@@ -3096,5 +3114,9 @@ mod tests {
             "records/submissions/sha256/x.json"
         ));
         assert!(!is_predecessor_archive_path("graph/frontier-map.json"));
+        assert!(is_epoch_derived_path("frontier.json"));
+        assert!(is_epoch_derived_path("targets.json"));
+        assert!(is_epoch_derived_path("vela.lock"));
+        assert!(!is_epoch_derived_path(".vela/repository.json"));
     }
 }
