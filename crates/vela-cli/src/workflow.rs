@@ -1803,9 +1803,16 @@ pub(crate) fn author_submission(
     if !(actor.starts_with("agent:") || actor.starts_with("ci:")) {
         return Err("Submission authoring requires an agent: or ci: producer".to_string());
     }
-    let journal_dir = frontier_transaction_journal_dir(frontier)?;
-    let (_migrated, _write_authorization) = acquire_work_write_barrier(frontier, &journal_dir)?;
-    let work = resolve_attempt(frontier, actor, requested_attempt)?;
+    let attempt_id = requested_attempt.ok_or_else(|| {
+        "current Submission authoring requires --attempt from `vela start <target> --json`"
+            .to_string()
+    })?;
+    let work = crate::current_work::resolve_submission_attempt(
+        frontier,
+        actor,
+        Some(attempt_id),
+    )?
+    .ok_or_else(|| format!("current Attempt {attempt_id} disappeared during authoring"))?;
     let mut artifacts = Vec::new();
     let mut total_artifact_bytes = 0_u64;
     for (index, flag) in artifact_flags.iter().enumerate() {
@@ -1850,7 +1857,7 @@ pub(crate) fn author_submission(
         IdentityBindingDraft {
             actor_id: actor.to_string(),
             actor_class: ActorClass::Agent,
-            created_at: work.record.created_at.clone(),
+            created_at: work.attempt.created_at.clone(),
         },
         &key,
     )?;
@@ -1873,9 +1880,9 @@ pub(crate) fn author_submission(
             provenance: SubmissionProvenance {
                 producer: actor.to_string(),
                 source_system: "vela-cli".to_string(),
-                source_attempt: Some(work.record.attempt_id),
+                source_attempt: Some(work.attempt.attempt_id),
                 source_run: None,
-                emitted_at: work.record.created_at,
+                emitted_at: work.attempt.created_at,
             },
             execution_binding,
         },
@@ -3074,6 +3081,29 @@ mod workflow_transaction_tests {
     };
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::receipt_v1::{ArtifactInput, ReceiptBuilder, ReceiptInput};
+
+    #[test]
+    fn current_submission_authoring_requires_one_exact_attempt_before_repository_access() {
+        let error = author_submission(
+            Path::new("/repository-must-not-be-read"),
+            "agent:fixture",
+            None,
+            "One bounded assertion.".into(),
+            "computational".into(),
+            Vec::new(),
+            "exact".into(),
+            &[],
+            vec!["Bounded fixture only.".into()],
+            Vec::new(),
+            Vec::new(),
+            None,
+        )
+        .unwrap_err();
+        assert_eq!(
+            error,
+            "current Submission authoring requires --attempt from `vela start <target> --json`"
+        );
+    }
 
     #[test]
     fn repository_submission_materialization_excludes_detached_attempt_overlays() {
