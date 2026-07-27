@@ -30,7 +30,7 @@ cargo test --quiet -p vela-edge --lib
 cargo test --quiet -p vela-cli --lib \
   --test aliases \
   --test env_isolation \
-  --test finding_write_boundary \
+  --test claim_write_boundary \
   --test pre_adr_replay_golden \
   --test submission_surface_parity
 printf 'core surface: ok (external Lean not selected)\n'
