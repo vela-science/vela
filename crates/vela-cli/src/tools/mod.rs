@@ -2,4 +2,3 @@
 //! Re-exported flat (`crate::cli_*`) at the crate root; file organization only.
 
 pub mod cli_check;
-pub mod cli_proof;

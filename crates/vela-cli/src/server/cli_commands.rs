@@ -63,37 +63,6 @@ pub enum ConfigAction {
     },
 }
 
-#[derive(Subcommand, Debug)]
-pub enum PolicyAction {
-    /// Inspect a frozen Era-0 policy and its historical admissions.
-    Show {
-        frontier: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Re-evaluate frozen Era-0 policy outcomes without granting authority.
-    Test {
-        frontier: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Evaluate one pending proposal against the current policy without
-    /// mutating the frontier. Intended for CI and diagnostic tooling.
-    EvaluateProposal {
-        /// Proposal id and optional frontier, in either order.
-        #[arg(num_args = 1..=2)]
-        operands: Vec<String>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Inspect historical policy-lane admissions, grouped by frozen policy.
-    Log {
-        frontier: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
-}
-
 #[derive(Subcommand)]
 pub(crate) enum Commands {
     /// One-time repository format and epoch operations.
@@ -157,60 +126,6 @@ pub(crate) enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// Export and validate a proof packet
-    #[command(after_long_help = crate::cli::help_text::PROOF)]
-    Proof {
-        /// Frontier JSON file or Vela repo
-        frontier: PathBuf,
-        /// Output proof packet directory
-        #[arg(long, short = 'o', default_value = "proof-packet")]
-        out: PathBuf,
-        /// Proof packet template
-        #[arg(long, default_value = "generic")]
-        template: String,
-        /// Record latest proof packet state back into the input frontier
-        #[arg(long)]
-        record_proof_state: bool,
-        /// Output stable JSON
-        #[arg(long)]
-        json: bool,
-    },
-    /// Make this frontier queryable by AI agents: an MCP server any
-    /// client (Claude Code, Cursor, …) can attach to, over stdio or
-    /// HTTP. Profiles gate what tools exist: read-only (default), or draft
-    /// for nonfinalizing writes.
-    #[command(after_long_help = crate::cli::help_text::SERVE)]
-    Serve {
-        /// Frontier JSON file or Vela repo
-        #[arg(required_unless_present_any = ["frontiers", "setup"])]
-        frontier: Option<PathBuf>,
-        /// Directory of frontier files
-        #[arg(long)]
-        frontiers: Option<PathBuf>,
-        /// LLM backend reserved for future optional tools
-        #[arg(short, long)]
-        backend: Option<String>,
-        /// Run an HTTP server on this port instead of MCP stdio
-        #[arg(long)]
-        http: Option<u16>,
-        /// Print MCP setup instructions
-        #[arg(long)]
-        setup: bool,
-        /// Validate public tool contracts and exit
-        #[arg(long)]
-        check_tools: bool,
-        /// Include first external frontier adoption guidance in --check-tools output
-        #[arg(long)]
-        adoption: bool,
-        /// MCP exposure profile: `read-only` (default) or `draft` (adds only
-        /// the non-finalizing `attempt` tool). Human finalization is
-        /// unavailable through MCP.
-        #[arg(long)]
-        profile: Option<String>,
-        /// Output stable JSON for --check-tools
-        #[arg(long)]
-        json: bool,
-    },
     /// v0.42: Show what's pending right now — the daily-driver
     /// equivalent of `git status`. One screen: counts, the inbox,
     /// the audit. Read in two seconds.
@@ -241,18 +156,6 @@ pub(crate) enum Commands {
         /// Output stable JSON.
         #[arg(long)]
         json: bool,
-    },
-    /// The advanced historical verification gate: deliverable-grade and
-    /// verifier-attachment checks. `vela check` proves the log is internally
-    /// consistent; `vela gate` evaluates whether a historical claim earned
-    /// its status — ≥2 independent matched
-    /// verifier attachments and a surviving adversarial probe, never a
-    /// self-reported "verified" string. See `vela_protocol::verifier_attachment`
-    /// and `vela_edge::deliverable_grade`.
-    #[command(after_long_help = crate::cli::help_text::GATE)]
-    Gate {
-        #[command(subcommand)]
-        action: GateAction,
     },
     /// Retain and inspect non-authorizing Verification Records.
     #[command(after_long_help = crate::cli::help_text::VERIFY)]
@@ -292,24 +195,11 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         action: IdAction,
     },
-    /// Manage the frontier's registered actor identities (Phase M, v0.4)
-    #[command(after_long_help = crate::cli::help_text::ACTOR)]
-    Actor {
-        #[command(subcommand)]
-        action: ActorAction,
-    },
     /// Initialize the standard repository-authority writer for a fresh Frontier.
     #[command(hide = true)]
     Authority {
         #[command(subcommand)]
         action: AuthorityAction,
-    },
-    /// Inspect and materialize frontier-level state, including read-only
-    /// cross-frontier dependency projections.
-    #[command(after_long_help = crate::cli::help_text::FRONTIER)]
-    Frontier {
-        #[command(subcommand)]
-        action: FrontierAction,
     },
     /// Initialize a minimal .vela frontier repository.
     #[command(after_long_help = crate::cli::help_text::INIT)]
@@ -330,13 +220,6 @@ pub(crate) enum Commands {
     Review {
         #[command(subcommand)]
         action: ReviewAction,
-    },
-    /// Manage the lifecycle of an exact Proposal without conflating producer
-    /// withdrawal with review authority.
-    #[command(after_long_help = crate::cli::help_text::PROPOSAL)]
-    Proposal {
-        #[command(subcommand)]
-        action: ProposalAction,
     },
     /// Seal, diagnose, or inspect the optional derived producer target index.
     /// These commands never grant scientific authority.
@@ -373,12 +256,6 @@ pub(crate) enum Commands {
         claim_id: String,
         #[arg(long)]
         json: bool,
-    },
-    /// Manage content-addressed artifacts without changing linked claims
-    #[command(after_long_help = crate::cli::help_text::ARTIFACT)]
-    Artifact {
-        #[command(subcommand)]
-        command: ArtifactCommands,
     },
     /// THE offer: ranked open targets with the compounding payload
     /// pre-loaded (premises, banked routes, attempts, dead channels).
@@ -484,14 +361,6 @@ pub(crate) enum Commands {
     Config {
         #[command(subcommand)]
         action: ConfigAction,
-    },
-
-    /// Read-only inspection of frozen Era-0 policy inputs and admissions.
-    /// Repository authority and restricted Cedar own all new writes.
-    #[command(after_long_help = crate::cli::help_text::POLICY)]
-    Policy {
-        #[command(subcommand)]
-        action: PolicyAction,
     },
 
     /// Emit shell completions for bash, zsh, or fish.
@@ -613,48 +482,6 @@ pub(crate) enum AgentsAction {
     },
 }
 
-/// `vela gate` — the verification gate over a claim.
-#[derive(Subcommand)]
-pub(crate) enum GateAction {
-    /// L5 anti-inflation: require a deliverable grade and block
-    /// solve-language unless the grade is an actual solve. Exit 1 on a
-    /// gate failure (e.g. an `improved_published_bound` whose claim text
-    /// says "resolves #647").
-    Grade {
-        /// The claim text to lint.
-        #[arg(long)]
-        claim: String,
-        /// The deliverable grade (e.g. `improved_published_bound`,
-        /// `unconditional_solve`, `new_oeis_term`). Omit to see the
-        /// "grade required" failure.
-        #[arg(long)]
-        grade: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Derive the verification gate status (G1 independence + G2
-    /// claim-match + G3 surviving probe + G4 well-formed) for a claim
-    /// from a JSON array of verifier attachments. There is no setter:
-    /// the status is computed, never stored. Exit 1 unless the gate
-    /// derives `verified`.
-    Check {
-        /// The exact claim text the attachments must be bound to.
-        #[arg(long)]
-        claim: String,
-        /// Path to a JSON array of `VerifierAttachment` objects.
-        #[arg(long)]
-        attachments: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Print the deliverable-grade taxonomy and verifier-method /
-    /// probe-kind vocabularies (the closed sets the gate accepts).
-    Vocab {
-        #[arg(long)]
-        json: bool,
-    },
-}
-
 /// `vela verification` — durable, non-authorizing verifier evidence.
 #[derive(Subcommand)]
 pub(crate) enum VerifyAction {
@@ -667,16 +494,6 @@ pub(crate) enum VerifyAction {
         /// Publish now: commit locally and push.
         #[arg(long)]
         push: bool,
-        #[arg(long)]
-        json: bool,
-    },
-}
-
-#[derive(Subcommand)]
-pub(crate) enum ActorAction {
-    /// List registered actors in a frontier
-    List {
-        frontier: PathBuf,
         #[arg(long)]
         json: bool,
     },
@@ -756,145 +573,6 @@ pub(crate) enum RepositoryAction {
     },
 }
 
-#[derive(Subcommand)]
-pub(crate) enum FrontierTrustAction {
-    /// Preview or install one out-of-band pin for the first administrator boundary.
-    Pin {
-        /// Frontier repository directory.
-        frontier: PathBuf,
-        /// Full content root obtained from a trusted out-of-band source.
-        #[arg(long)]
-        boundary_root: String,
-        /// Exact plan root returned by a prior key-free preview.
-        #[arg(long, requires = "confirm_at")]
-        confirm_root: Option<String>,
-        /// Exact observation time returned by the same preview.
-        #[arg(long, requires = "confirm_root")]
-        confirm_at: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
-}
-
-#[derive(Subcommand)]
-pub(crate) enum FrontierAction {
-    /// Manage user-local trust pins for repository administrator boundaries.
-    Trust {
-        #[command(subcommand)]
-        action: FrontierTrustAction,
-    },
-    /// Retired legacy v0.1 initializer. Use `vela init`.
-    #[command(hide = true)]
-    New {
-        /// Path to write the new frontier file (e.g. `./frontier.json`).
-        path: PathBuf,
-        /// Human-readable frontier name.
-        #[arg(long)]
-        name: String,
-        /// Optional one-paragraph description of the bounded question.
-        #[arg(long, default_value = "")]
-        description: String,
-        /// Overwrite if the file already exists.
-        #[arg(long)]
-        force: bool,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Replay a split frontier repository into frontier.json and vela.lock.
-    Materialize {
-        /// Frontier repository directory.
-        frontier: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// List exact dependencies. Vela 0.914 has no later dependency-update writer.
-    ListDeps {
-        frontier: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Compare two frontier repositories or snapshots.
-    Diff {
-        left: PathBuf,
-        right: PathBuf,
-        #[arg(long)]
-        json: bool,
-        #[arg(long)]
-        quiet: bool,
-    },
-    /// Recover one interrupted path-exact Git publication.
-    RecoverPublication {
-        #[arg(long)]
-        operation: String,
-        #[arg(long)]
-        frontier: Option<PathBuf>,
-        #[arg(long)]
-        push: bool,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Compact verified completed private recovery journals.
-    #[command(hide = true)]
-    CompactRecovery {
-        /// Frontier repository directory.
-        frontier: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// v0.158: tag the current frontier state as a versioned
-    /// release. Writes a content-addressed `vfrr_*` record to
-    /// `<frontier-dir>/.vela/releases/<vfrr_*>.json`. Releases
-    /// are immutable; the substrate-side equivalent of a paper
-    /// edition or software version tag.
-    Release {
-        /// Frontier path.
-        frontier: PathBuf,
-        /// Human-readable release name (e.g. `v1.0`, `2026-Q2`,
-        /// `pre-print`). Required, non-empty.
-        #[arg(long)]
-        name: String,
-        /// Optional release notes (changelog, scope, attribution).
-        #[arg(long)]
-        notes: Option<String>,
-        /// Optional previous release id to chain. When omitted,
-        /// the substrate looks up the latest release in
-        /// `<frontier-dir>/.vela/releases/` and chains there.
-        #[arg(long)]
-        previous: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// v0.158: list every release recorded for a frontier.
-    Releases {
-        /// Frontier path.
-        frontier: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Audit readiness across strict check, proof, Evidence CI,
-    /// health, stats, and review-work queues.
-    Audit {
-        /// Frontier repo directory or frontier JSON file.
-        frontier: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Rank the frontier's OPEN findings by accumulating structural support —
-    /// which open finding is closest to a verifier-run from done. A projection
-    /// (advice, never authority), with the popularity baseline and the
-    /// inspectable evidence behind each score. Adapts Garg's Frontier Graph
-    /// method to a verifier-gated substrate; validated forward by the loop.
-    Rank {
-        /// Frontier repo directory or frontier JSON file.
-        frontier: PathBuf,
-        /// How many top candidates to show.
-        #[arg(long, default_value_t = 20)]
-        limit: usize,
-        #[arg(long)]
-        json: bool,
-    },
-}
-
 // Claim and artifact nouns stay on the compact current surface.
 #[derive(Subcommand)]
 pub(crate) enum ClaimCommands {
@@ -908,27 +586,6 @@ pub(crate) enum ClaimCommands {
         #[arg(long, default_value = "record")]
         view: String,
         /// Emit stable JSON instead of the human view
-        #[arg(long)]
-        json: bool,
-    },
-}
-
-#[derive(Subcommand)]
-pub(crate) enum ArtifactCommands {
-    /// Propose retiring an accepted artifact. The proposal stays pending until
-    /// a human performs one direct action on that exact Proposal.
-    Retract {
-        /// Frontier JSON file or Vela repo
-        frontier: PathBuf,
-        /// Content-addressed artifact id (`va_<hex>`)
-        artifact_id: String,
-        /// Why this artifact should stop carrying active proof-readiness weight
-        #[arg(long)]
-        reason: String,
-        /// Acting identity. Agents may draft; only a human key may accept.
-        #[arg(long = "as")]
-        actor: String,
-        /// Output stable JSON
         #[arg(long)]
         json: bool,
     },
@@ -955,14 +612,6 @@ pub(crate) enum ReviewAction {
         #[arg(long)]
         json: bool,
     },
-    /// Diff one exact proposed scientific-state change without entering the
-    /// authority path.
-    Diff {
-        frontier: PathBuf,
-        proposal_id: String,
-        #[arg(long)]
-        json: bool,
-    },
     /// Accept exactly one Proposal through repository authority.
     Accept {
         frontier: PathBuf,
@@ -976,30 +625,6 @@ pub(crate) enum ReviewAction {
     Reject {
         frontier: PathBuf,
         proposal_id: String,
-        #[arg(long)]
-        reason: String,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Export proposal records from a frontier.
-    Export {
-        frontier: PathBuf,
-        output: PathBuf,
-        #[arg(long)]
-        status: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
-}
-
-#[derive(Subcommand)]
-pub(crate) enum ProposalAction {
-    /// Withdraw the producer's own pending, producer-bound Proposal.
-    Withdraw {
-        frontier: PathBuf,
-        proposal_id: String,
-        #[arg(long = "as", help = HELP_REQUIRED_AS)]
-        actor: String,
         #[arg(long)]
         reason: String,
         #[arg(long)]

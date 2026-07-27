@@ -1307,44 +1307,6 @@ fn ensure_routine_producer_material_ready(
     Ok(())
 }
 
-impl LoadedRepositoryAuthority {
-    /// Return Era-1 events in covering-record sequence.
-    ///
-    /// Event-log commitments are set based, but reducers for coordination
-    /// records such as lease refresh/release require causal transaction
-    /// order. The already-verified envelopes are the sole ordering source.
-    pub(crate) fn ordered_events(&self) -> Result<Vec<&AuthorityEventV1>, String> {
-        let by_id = self
-            .history
-            .authority_events
-            .iter()
-            .map(|event| (event.id.as_str(), event))
-            .collect::<std::collections::BTreeMap<_, _>>();
-        let mut ordered = Vec::with_capacity(by_id.len());
-        for envelope in &self.history.authority_envelopes {
-            let payload = BASE64_STANDARD
-                .decode(&envelope.payload)
-                .map_err(|error| format!("authority envelope payload is not base64: {error}"))?;
-            let record: AuthorityRecordV1 = serde_json::from_slice(&payload)
-                .map_err(|error| format!("authority envelope record JSON is invalid: {error}"))?;
-            for event_id in &record.content.event_ids {
-                if let Some(event) = by_id.get(event_id.as_str()) {
-                    ordered.push(*event);
-                } else if record.content.sequence != 1 {
-                    return Err(format!(
-                        "authority record {} references missing Era-1 event {event_id}",
-                        record.content.sequence
-                    ));
-                }
-            }
-        }
-        if ordered.len() != by_id.len() {
-            return Err("verified authority history did not order every Era-1 event".into());
-        }
-        Ok(ordered)
-    }
-}
-
 pub(crate) fn load_repository_authority(
     frontier: &Path,
     project: &Project,

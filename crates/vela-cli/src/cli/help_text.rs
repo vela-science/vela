@@ -63,15 +63,6 @@ KNOWN PROPOSAL
   A rejected proposal's candidate Claim is intentionally absent from
   accepted `claim show` and `log` views; that is not deletion.";
 
-pub const PROPOSAL: &str = "\
-EXAMPLES
-  vela proposal withdraw . vpr_8b49… --as agent:producer \\
-    --reason \"superseded by corrected evidence\"
-        withdraw the producer's own pending Proposal without deleting evidence
-
-Withdrawal is a producer lifecycle action, not a review Decision. A terminal
-Proposal cannot be withdrawn.";
-
 pub const LOG: &str = "\
 EXAMPLES
   vela log .   the accepted-event history, newest first";
@@ -86,19 +77,6 @@ EXAMPLES
   vela reproduce examples/sidon-a309370   re-verify every witness from scratch
 
 No trust required: the frozen verifiers re-derive each stored witness.";
-
-pub const PROOF: &str = "\
-EXAMPLES
-  vela proof verify packet.json     re-check a proof packet
-  vela proof explain vf_…           what carries this finding";
-
-pub const GATE: &str = "\
-EXAMPLES
-  vela gate check --claim \"exact claim\" --attachments attachments.json --json
-  vela gate grade --claim \"bounded result\" --grade improved_published_bound --json
-
-For a whole frontier, run `vela check . --strict`; when it stores witnesses,
-also run `vela reproduce .`.";
 
 pub const VERIFY: &str = "\
 EXAMPLES
@@ -125,12 +103,6 @@ EXAMPLES
   vela doctor                     blockers plus one next action
   vela doctor --all               full setup and tool diagnostics";
 
-pub const SERVE: &str = "\
-EXAMPLES
-  vela serve .          MCP over stdio for an agent
-  vela serve . --http 3741
-                        the same dispatcher over loopback HTTP";
-
 pub const CONFIG: &str = "\
 EXAMPLES
   vela config get work.lease_ttl_seconds --frontier .
@@ -150,28 +122,6 @@ EXAMPLES
 
 Human decisions use the local OS principal and repository authority. Vela does
 not create or store a human signing identity.";
-
-pub const ACTOR: &str = "\
-EXAMPLES
-  vela actor list .              inspect the frozen Era-0 actor registry
-
-New authority uses attributed principals, scoped capabilities, and repository
-authority records. The legacy actor registry remains replayable and read-only.
-Fresh setup uses `vela authority init`; historical Frontiers retain their exact
-migration boundary.";
-
-pub const FRONTIER: &str = "\
-EXAMPLES
-  vela frontier trust pin . --boundary-root sha256:... --json
-                                       preview an out-of-band consumer pin
-  vela frontier materialize .         rebuild derived views
-  vela frontier diff left right       compare two frontiers
-  vela frontier recover-publication --operation vop_…
-                                       resume exact Git publication
-
-`frontier trust pin` installs a local consumer trust anchor obtained through an
-independent channel. It does not write Frontier history. Historical repository
-boundaries and dependencies remain replayable and read-only.";
 
 pub const CLAIM: &str = "\
 EXAMPLES
@@ -199,27 +149,6 @@ EXAMPLES
 
 Why derives the Claim or historical Finding standing from its Proposal,
 Verification, and Decision chain and binds the explanation to current roots.";
-
-pub const ARTIFACT: &str = "\
-EXAMPLES
-  vela artifact retract . va_417333a3e62df44a --reason \"legacy unpinned pointer\" --as agent:cleanup
-
-This is the sole direct draft-retirement exception. It creates only a pending
-proposal and never an accepted event; direct `vela review accept|reject`
-actions are the human Decisions.";
-
-pub const POLICY: &str = "\
-EXAMPLES
-  vela policy show .                  inspect the frozen Era-0 policy
-  vela policy test .                  replay it over retained pending proposals
-  vela policy evaluate-proposal . vpr_…
-                                      inspect one retained admission
-  vela policy log .                   list retained policy-lane events
-
-Policy authoring, activation, rotation, revocation, and CI auto-merge porcelain
-are retired. Existing signed policies and policy-lane events remain permanently
-replayable. Fresh Frontiers use `vela authority init`; historical Frontiers
-retain their exact migration boundary.";
 
 pub const AGENTS: &str = "\
 EXAMPLES

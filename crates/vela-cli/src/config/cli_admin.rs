@@ -1,9 +1,8 @@
 use crate::cli::{fail_return, parse_signing_key, print_identity_created, print_json};
-use crate::cli_commands::{ActorAction, IdAction};
-use colored::Colorize;
+use crate::cli_commands::IdAction;
 use serde_json::json;
 use vela_protocol::cli_style as style;
-use vela_protocol::{repo, sign};
+use vela_protocol::sign;
 
 /// Manage file-backed producer identities.
 ///
@@ -131,44 +130,6 @@ pub(crate) fn cmd_id(action: IdAction) {
                     println!("  human authority: authenticated platform principal");
                 } else {
                     println!("  key:    {}", identity.key_path);
-                }
-            }
-        }
-    }
-}
-
-pub(crate) fn cmd_actor(action: ActorAction) {
-    match action {
-        ActorAction::List { frontier, json } => {
-            let project =
-                repo::load_from_path(&frontier).unwrap_or_else(|error| fail_return(&error));
-            if json {
-                print_json(&json!({
-                    "ok": true,
-                    "command": "actor.list",
-                    "frontier": frontier.display().to_string(),
-                    "actors": project.actors,
-                }));
-            } else {
-                println!();
-                println!(
-                    "  {}",
-                    format!("VELA · ACTOR · LIST · {}", frontier.display())
-                        .to_uppercase()
-                        .dimmed()
-                );
-                println!("  {}", style::tick_row(60));
-                if project.actors.is_empty() {
-                    println!("  (no legacy actors registered)");
-                } else {
-                    for actor in &project.actors {
-                        println!(
-                            "  {:<28} {}…  registered {}",
-                            actor.id,
-                            &actor.public_key[..16],
-                            actor.created_at
-                        );
-                    }
                 }
             }
         }

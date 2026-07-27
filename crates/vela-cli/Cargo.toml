@@ -35,28 +35,14 @@ serde_json = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 serde_yaml = { workspace = true }
 colored = { workspace = true }
-axum = { workspace = true }
-tower-http = { workspace = true }
-# Deps for the relocated CLI / serve / workbench surface (formerly in
-# vela-protocol). The binary owns these app concerns: argument parsing,
-# the local HTTP server + client, signing.
 clap = { workspace = true }
 clap_complete = { workspace = true }
-dotenvy = { workspace = true }
 toml = { workspace = true }
-reqwest = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
-urlencoding = { workspace = true }
 ed25519-dalek = { workspace = true }
 base64 = { workspace = true }
-zeroize = { workspace = true }
-rand = { workspace = true }
 tempfile = { workspace = true }
-# Pure-Rust CDCL SAT solver (no C deps): the structured-search backend for the
-# discovery portfolio. The solver only PRODUCES candidates; the frozen
-# vela-verify re-checks every witness, so trust stays the verifier.
-splr = "0.17"
 same-file = "1.0.6"
 unicode-normalization = { workspace = true }
 

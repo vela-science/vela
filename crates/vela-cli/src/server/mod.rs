@@ -1,8 +1,4 @@
-//! The HTTP/MCP server + the command engine + clap command defs.
-//! Re-exported flat (`crate::cli_*`) at the crate root; file organization only.
+//! Current CLI command definitions and execution helpers.
 
 pub mod cli_commands;
 pub mod cli_engine;
-pub mod http;
-pub mod serve;
-pub mod tools;

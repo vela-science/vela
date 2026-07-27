@@ -252,48 +252,6 @@ pub(crate) fn cmd_show(frontier: &Path, object_id: &str, json_out: bool) {
     }
 }
 
-pub(crate) fn verification_records_for_proposal(
-    frontier: &Path,
-    proposal_id: &str,
-) -> Result<
-    Vec<(
-        String,
-        vela_protocol::verification_record::VerificationRecordV1,
-    )>,
-    String,
-> {
-    let mut records = Vec::new();
-    for path in candidate_files(frontier, "records/verifications/sha256")? {
-        let metadata = fs::symlink_metadata(&path)
-            .map_err(|error| format!("inspect {}: {error}", path.display()))?;
-        if metadata.file_type().is_symlink()
-            || !metadata.is_file()
-            || path.extension().and_then(|value| value.to_str()) != Some("json")
-        {
-            continue;
-        }
-        let bytes =
-            crate::bounded_file::read_bounded_file(&path, 4 * 1024 * 1024, "Verification Record")
-                .map_err(|error| error.to_string())?;
-        let record = vela_protocol::verification_record::VerificationRecordV1::parse(&bytes)?;
-        if record.subject.proposal_id == proposal_id {
-            let relative = path
-                .strip_prefix(frontier)
-                .map_err(|_| format!("{} is outside the frontier", path.display()))?
-                .to_str()
-                .ok_or_else(|| format!("{} is not UTF-8", path.display()))?
-                .to_string();
-            records.push((relative, record));
-        }
-    }
-    records.sort_by(|left, right| {
-        left.1
-            .verification_record_id
-            .cmp(&right.1.verification_record_id)
-    });
-    Ok(records)
-}
-
 pub(crate) fn verification_records_for_claim(
     frontier: &Path,
     claim_id: &str,

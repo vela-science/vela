@@ -1165,94 +1165,6 @@ pub(crate) fn check_json_payload_with_preloaded(
     })
 }
 
-pub(crate) fn save_recorded_proof_state(
-    frontier: &Path,
-    loaded: &project::Project,
-) -> Result<(), String> {
-    // For a split `.vela` repo, the canonical proof state lives in
-    // .vela/proof-state.json — what `load` and Evidence CI's `proof.freshness`
-    // read. `proof_load_path` resolves a repo to its compatibility
-    // `frontier.json`, so a naive file-patch here would record the proof state
-    // into that snapshot only and leave the canonical .vela state stale (the
-    // observed three-source divergence). When the target is a repo dir, or a
-    // `frontier.json` sitting inside one, save through the canonical repo path
-    // so .vela/proof-state.json and the regenerated lock both reflect the
-    // export.
-    let repo_dir = if frontier.is_dir() && frontier.join(".vela").is_dir() {
-        Some(frontier.to_path_buf())
-    } else if frontier.is_file()
-        && frontier.file_name().is_some_and(|n| n == "frontier.json")
-        && frontier.parent().is_some_and(|p| p.join(".vela").is_dir())
-    {
-        frontier.parent().map(Path::to_path_buf)
-    } else {
-        None
-    };
-    if let Some(dir) = repo_dir {
-        let journal_dir = crate::workflow::frontier_transaction_journal_dir(&dir)?;
-        let write_barrier = crate::workflow::acquire_canonical_write_barrier(&dir, &journal_dir)
-            .map_err(|error| error.to_string())?;
-        let managed = repo::render_vela_repo_files(&dir, loaded)?;
-        let writes = crate::frontier_txn::PlannedWrite::from_managed_files(managed)
-            .map_err(|error| error.to_string())?;
-        let request = vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
-            "schema": "vela.proof-state-recording.internal.v1",
-            "frontier_id": loaded.frontier_id(),
-            "proof_state": &loaded.proof_state,
-        }))?;
-        crate::frontier_txn::execute_no_event_transaction(
-            write_barrier,
-            &dir,
-            "proof-state-recording",
-            crate::frontier_txn::ContentDigest::hash(request),
-            &chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
-            loaded,
-            writes,
-            Vec::new(),
-            serde_json::json!({
-                "schema": "vela.proof-state-recording-result.internal.v1",
-            }),
-        )
-        .map_err(|error| error.to_string())?;
-        return Ok(());
-    }
-
-    if !frontier.is_file() {
-        let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier)?;
-        let write_barrier =
-            crate::workflow::acquire_canonical_write_barrier(frontier, &journal_dir)
-                .map_err(|error| error.to_string())?;
-        let managed = repo::render_vela_repo_files(frontier, loaded)?;
-        let writes = crate::frontier_txn::PlannedWrite::from_managed_files(managed)
-            .map_err(|error| error.to_string())?;
-        let request = vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
-            "schema": "vela.proof-state-recording.internal.v1",
-            "frontier_id": loaded.frontier_id(),
-            "proof_state": &loaded.proof_state,
-        }))?;
-        crate::frontier_txn::execute_no_event_transaction(
-            write_barrier,
-            frontier,
-            "proof-state-recording",
-            crate::frontier_txn::ContentDigest::hash(request),
-            &chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
-            loaded,
-            writes,
-            Vec::new(),
-            serde_json::json!({
-                "schema": "vela.proof-state-recording-result.internal.v1",
-            }),
-        )
-        .map_err(|error| error.to_string())?;
-        return Ok(());
-    }
-
-    Err(format!(
-        "frontier_profile_upgrade_required: proof-state recording cannot rewrite legacy standalone snapshot '{}'; migrate it to a Profile v1 repository first",
-        frontier.display()
-    ))
-}
-
 pub(crate) fn hash_path(path: &Path) -> Result<String, String> {
     let mut hasher = Sha256::new();
     if path.is_file() {
@@ -1284,15 +1196,6 @@ pub(crate) fn load_frontier_or_fail(path: &Path) -> project::Project {
     repo::load_from_path(path).unwrap_or_else(|e| {
         fail_return(&format!(
             "Failed to load frontier '{}': {e}",
-            path.display()
-        ))
-    })
-}
-
-pub(crate) fn hash_path_or_fail(path: &Path) -> String {
-    hash_path(path).unwrap_or_else(|e| {
-        fail_return(&format!(
-            "Failed to hash frontier '{}': {e}",
             path.display()
         ))
     })
@@ -1380,28 +1283,6 @@ fn empty_signal_report() -> signals::SignalReport {
             warnings: 0,
             caveats: vec!["Frontier could not be loaded for signal analysis.".to_string()],
         },
-    }
-}
-
-#[cfg(test)]
-mod write_gate_tests {
-    use super::*;
-
-    #[test]
-    fn legacy_standalone_proof_state_save_requires_profile_upgrade_without_writes() {
-        let temp = tempfile::tempdir().unwrap();
-        let path = temp.path().join("frontier.json");
-        let project = project::assemble("legacy proof fixture", Vec::new(), 0, 0, "fixture");
-        let mut bytes = serde_json::to_vec_pretty(&project).unwrap();
-        bytes.push(b'\n');
-        std::fs::write(&path, &bytes).unwrap();
-
-        let error = save_recorded_proof_state(&path, &project).unwrap_err();
-        assert!(
-            error.contains("frontier_profile_upgrade_required"),
-            "{error}"
-        );
-        assert_eq!(std::fs::read(&path).unwrap(), bytes);
     }
 }
 

@@ -31,22 +31,6 @@ pub(crate) fn wrap_line(text: &str, max_chars: usize) -> String {
 
 // ── v0.42 daily-driver triad ────────────────────────────────────────
 
-pub(crate) fn frontier_label(p: &vela_protocol::project::Project) -> String {
-    if p.project.name.trim().is_empty() {
-        "(unnamed)".to_string()
-    } else {
-        p.project.name.clone()
-    }
-}
-
-pub(crate) fn fmt_timestamp(ts: &str) -> String {
-    // RFC 3339 → "MM-DD HH:MM" for human reading. Falls back to first
-    // 16 chars if parsing fails (which is enough to be readable).
-    chrono::DateTime::parse_from_rfc3339(ts)
-        .map(|dt| dt.format("%m-%d %H:%M").to_string())
-        .unwrap_or_else(|_| ts.chars().take(16).collect())
-}
-
 pub(crate) fn print_signal_summary(report: &signals::SignalReport, strict: bool) {
     println!();
     println!("  {}", "SIGNALS".dimmed());
@@ -61,85 +45,6 @@ pub(crate) fn print_signal_summary(report: &signals::SignalReport, strict: bool)
             "  {} proof readiness has blocking signals.",
             style::lost("strict check failed")
         );
-    }
-}
-
-pub(crate) fn print_tool_check_report(report: &Value) {
-    let summary = report.get("summary").unwrap_or(&Value::Null);
-    let frontier = report.get("frontier").unwrap_or(&Value::Null);
-    println!();
-    println!("  {}", "VELA · SERVE · CHECK-TOOLS".dimmed());
-    println!("  {}", style::tick_row(60));
-    println!(
-        "frontier: {}",
-        frontier
-            .get("name")
-            .and_then(Value::as_str)
-            .unwrap_or("unknown")
-    );
-    println!(
-        "claims: {}",
-        frontier
-            .get("findings")
-            .and_then(Value::as_u64)
-            .unwrap_or_default()
-    );
-    println!(
-        "checks: {} passed, {} failed",
-        summary
-            .get("passed")
-            .and_then(Value::as_u64)
-            .unwrap_or_default(),
-        summary
-            .get("failed")
-            .and_then(Value::as_u64)
-            .unwrap_or_default()
-    );
-    if let Some(tools) = report.get("tools").and_then(Value::as_array) {
-        let names = tools
-            .iter()
-            .filter_map(Value::as_str)
-            .collect::<Vec<_>>()
-            .join(", ");
-        println!("tools: {names}");
-    }
-    if let Some(checks) = report.get("checks").and_then(Value::as_array) {
-        for check in checks {
-            let status = if check.get("ok").and_then(Value::as_bool) == Some(true) {
-                style::ok("ok")
-            } else {
-                style::lost("lost")
-            };
-            println!(
-                "  {} {}",
-                status,
-                check
-                    .get("tool")
-                    .and_then(Value::as_str)
-                    .unwrap_or("unknown")
-            );
-        }
-    }
-    if let Some(adoption) = report.get("adoption").and_then(Value::as_object) {
-        println!();
-        println!("adoption:");
-        println!(
-            "  status: {}",
-            if adoption.get("ok").and_then(Value::as_bool) == Some(true) {
-                "ok"
-            } else {
-                "needs attention"
-            }
-        );
-        if let Some(prompt) = adoption.get("prompt").and_then(Value::as_str) {
-            println!("  prompt: {prompt}");
-        }
-        if let Some(config) = adoption.get("mcp_config") {
-            println!(
-                "  mcp: {}",
-                serde_json::to_string(config).expect("serialize mcp config")
-            );
-        }
     }
 }
 

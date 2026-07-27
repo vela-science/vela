@@ -1,11 +1,8 @@
-use crate::serve;
-use vela_edge::frontier_health;
 use vela_edge::lint;
 use vela_edge::signals;
 use vela_edge::state_integrity;
 use vela_edge::validate;
 use vela_protocol::events;
-use vela_protocol::evidence_ci;
 use vela_protocol::frontier_repo;
 use vela_protocol::project;
 use vela_protocol::proposals;
@@ -39,41 +36,30 @@ pub(crate) use crate::claim_view::*;
 pub(crate) use crate::cli_admin::*;
 pub(crate) use crate::cli_check::*;
 use crate::cli_commands::*;
-pub(crate) use crate::cli_engine::*;
-pub(crate) use crate::cli_frontier::*;
-pub(crate) use crate::cli_proof::*;
+use crate::cli_engine::{cmd_evidence_ci, cmd_reproduce, cmd_verify_evidence};
 pub(crate) use crate::cli_read::*;
 pub(crate) use crate::cli_write::*;
 
 mod authority;
 mod checks;
-mod frontier_audit;
 pub(crate) mod help_text;
 mod identity;
 mod lifecycle;
 mod output;
 pub(crate) mod progress;
 pub(crate) mod records;
-pub(crate) mod repository_trust;
 pub(crate) mod review_decision;
 pub(crate) mod safe_text;
-mod session;
 mod surface;
-pub(crate) mod table;
-#[cfg(test)]
-mod tests;
 pub(crate) use authority::*;
 pub(crate) use checks::*;
-pub(crate) use frontier_audit::*;
 pub(crate) use identity::*;
 pub(crate) use lifecycle::*;
 pub(crate) use output::*;
 pub(crate) use records::*;
-pub(crate) use session::*;
 pub(crate) use surface::*;
 // Preserve the crate-public paths these two had when they lived in mod.rs.
 pub use checks::scan_for_sensitive_paths;
-pub use surface::is_science_subcommand;
 
 pub async fn run_command() {
     // Deliberately NO dotenv here. `dotenvy::dotenv()` walks the working
@@ -163,56 +149,6 @@ pub async fn run_command() {
             all,
             json,
         } => cmd_doctor(frontier.as_deref(), port, all, json).await,
-        Commands::Proof {
-            frontier,
-            out,
-            template,
-            record_proof_state,
-            json,
-        } => cmd_proof(&frontier, &out, &template, record_proof_state, json),
-        Commands::Serve {
-            frontier,
-            frontiers,
-            backend,
-            http,
-            setup,
-            check_tools,
-            adoption,
-            profile,
-            json,
-        } => {
-            if setup {
-                cmd_mcp_setup(frontier.as_deref(), frontiers.as_deref());
-            } else if check_tools {
-                let source =
-                    serve::ProjectSource::from_args(frontier.as_deref(), frontiers.as_deref());
-                match serve::check_tools(source, adoption) {
-                    Ok(report) => {
-                        if json {
-                            print_json(&report);
-                        } else {
-                            print_tool_check_report(&report);
-                        }
-                    }
-                    Err(e) => fail(&format!("Tool check failed: {e}")),
-                }
-            } else {
-                let profile = profile.unwrap_or_else(|| {
-                    crate::config::settings::try_resolve("mcp.profile", frontier.as_deref())
-                        .unwrap_or_else(|error| fail_return(&error))
-                        .0
-                });
-                let mcp_profile = vela_edge::tool_registry::McpProfile::parse(&profile)
-                    .unwrap_or_else(|e| fail_return(&e));
-                let source =
-                    serve::ProjectSource::from_args(frontier.as_deref(), frontiers.as_deref());
-                if let Some(port) = http {
-                    serve::run_http(source, backend.as_deref(), port, mcp_profile).await;
-                } else {
-                    serve::run(source, backend.as_deref(), mcp_profile).await;
-                }
-            }
-        }
         Commands::Status { frontier, json } => {
             cmd_status_compact(&crate::ui::resolve_frontier(frontier), json)
         }
@@ -238,7 +174,6 @@ pub async fn run_command() {
                 cmd_log(&frontier, limit, kind.as_deref(), json);
             }
         }
-        Commands::Gate { action } => cmd_gate(action),
         Commands::Verification { action } => cmd_verify_evidence(action),
         Commands::Agents { action } => crate::cli_agents::cmd_agents(action),
         Commands::Completions { shell } => {
@@ -262,7 +197,6 @@ pub async fn run_command() {
             json,
         } => cmd_reproduce(&path, proposal.as_deref(), json),
         Commands::Id { action } => cmd_id(action),
-        Commands::Actor { action } => cmd_actor(action),
         Commands::Authority { action } => match action {
             AuthorityAction::Init {
                 frontier,
@@ -283,7 +217,6 @@ pub async fn run_command() {
                 } => cmd_authority_trust_pin(&frontier, &record_root, json),
             },
         },
-        Commands::Frontier { action } => cmd_frontier(action),
         Commands::Init {
             path,
             name,
@@ -291,7 +224,6 @@ pub async fn run_command() {
             json,
         } => cmd_init(&path, name.as_deref(), scope.as_deref(), json),
         Commands::Review { action } => cmd_review(action),
-        Commands::Proposal { action } => cmd_proposal(action),
         Commands::TargetIndex { action } => crate::target_index::cmd_target_index(action),
         Commands::Claim {
             command:
@@ -312,20 +244,6 @@ pub async fn run_command() {
             claim_id,
             json,
         } => crate::cli_object::cmd_why(&frontier, &claim_id, json),
-
-        Commands::Artifact { command } => match command {
-            ArtifactCommands::Retract {
-                frontier,
-                artifact_id,
-                reason,
-                actor,
-                json,
-            } => {
-                crate::ui::set_mode("artifact.retract", json);
-                cmd_artifact_retract(frontier, artifact_id, reason, actor, json)
-            }
-        },
-
         Commands::Next {
             frontier,
             limit,
@@ -579,71 +497,15 @@ pub async fn run_command() {
                 crate::config::settings::cmd_config_list(frontier.as_deref(), json)
             }
         },
-        Commands::Policy { action } => match action {
-            PolicyAction::Show { frontier, json } => {
-                crate::ui::set_mode("policy", json);
-                crate::config::cli_policy::cmd_policy_show(
-                    &crate::ui::resolve_frontier(frontier),
-                    json,
-                )
-            }
-            PolicyAction::Test { frontier, json } => {
-                crate::ui::set_mode("policy", json);
-                crate::config::cli_policy::cmd_policy_test(
-                    &crate::ui::resolve_frontier(frontier),
-                    json,
-                )
-            }
-            PolicyAction::EvaluateProposal { operands, json } => {
-                crate::ui::set_mode("policy", json);
-                let proposal_id = operands
-                    .iter()
-                    .find(|value| value.starts_with("vpr_"))
-                    .cloned()
-                    .unwrap_or_else(|| {
-                        fail_return("policy evaluate-proposal needs one vpr_ proposal id")
-                    });
-                let frontier = operands
-                    .iter()
-                    .find(|value| !value.starts_with("vpr_"))
-                    .map(PathBuf::from);
-                crate::config::cli_policy::cmd_policy_evaluate_proposal(
-                    &crate::ui::resolve_frontier(frontier),
-                    &proposal_id,
-                    json,
-                )
-            }
-            PolicyAction::Log { frontier, json } => {
-                crate::ui::set_mode("policy", json);
-                crate::config::cli_policy::cmd_policy_log(
-                    &crate::ui::resolve_frontier(frontier),
-                    json,
-                )
-            }
-        },
     }
 }
-
-// Bare `vela` (no args) opens a session against the nearest `.vela/`
-// repo, walking up from cwd. The session prints a one-screen
-// dashboard, then accepts single-letter verb shortcuts or
-// natural-language questions routed through `cmd_ask`.
-//
-// Doctrine: this is the daily-driver entry, not a kitchen-sink IDE.
-// Single screen, no scroll, no full TUI redraw. Each verb spawns the
-// existing kernel command and prints its output inline. The session
-// stays out of the user's way: type something, get an answer, type
-// again. OpenCode/Claude Code shape.
 
 pub fn run_from_args() {
     style::init();
     let args = std::env::args().collect::<Vec<_>>();
     match args.get(1).map(String::as_str) {
-        // v0.47: bare `vela` opens a session against the nearest
-        // `.vela/` repo. The 30+ subcommand list is still there for
-        // direct invocation; the session is the daily-driver entry.
         None => {
-            run_session();
+            print_product_help();
             return;
         }
         Some("-h" | "--help" | "help") => {
@@ -652,112 +514,13 @@ pub fn run_from_args() {
             if args.get(2).map(String::as_str) == Some("advanced") {
                 print_strict_help();
             } else {
-                print_session_help();
+                print_product_help();
             }
             return;
         }
         Some("-V" | "--version" | "version") => {
             println!("vela {}", env!("CARGO_PKG_VERSION"));
             return;
-        }
-        Some("proof") if args.get(2).map(String::as_str) == Some("verify") => {
-            let json = args.iter().any(|arg| arg == "--json");
-            let frontier = args
-                .iter()
-                .skip(3)
-                .find(|arg| !arg.starts_with('-'))
-                .map(PathBuf::from)
-                .inspect(|p| {
-                    // An exported proof-packet DIR (has manifest.json but no
-                    // .vela/) verifies via the packet validator — the path
-                    // packets themselves stamp into their receipts.
-                    if p.join("manifest.json").exists() && !p.join(".vela").is_dir() {
-                        crate::cli_read::cmd_verify(p, json);
-                        std::process::exit(0);
-                    }
-                })
-                .unwrap_or_else(|| {
-                    eprintln!(
-                        "{} proof verify requires a frontier repo",
-                        style::err_prefix()
-                    );
-                    std::process::exit(2);
-                });
-            cmd_proof_verify(&frontier, json);
-            return;
-        }
-        Some("proof") if args.get(2).map(String::as_str) == Some("explain") => {
-            let frontier = args
-                .iter()
-                .skip(3)
-                .find(|arg| !arg.starts_with('-'))
-                .map(PathBuf::from)
-                .unwrap_or_else(|| {
-                    eprintln!(
-                        "{} proof explain requires a frontier repo",
-                        style::err_prefix()
-                    );
-                    std::process::exit(2);
-                });
-            cmd_proof_explain(&frontier);
-            return;
-        }
-        // Historical projection namespaces were consolidated under `claim`.
-        Some("state") => {
-            eprintln!("{} `vela state` retired in 0.900", style::err_prefix());
-            eprintln!(
-                "use `vela claim show <frontier> <claim_id> --view record|standing|evidence`"
-            );
-            std::process::exit(2);
-        }
-        Some("finding") => {
-            eprintln!(
-                "{} `vela finding` retired from the current product language",
-                style::err_prefix()
-            );
-            eprintln!(
-                "use `vela claim show <frontier> <claim_id> --view record|standing|evidence`"
-            );
-            std::process::exit(2);
-        }
-        Some("atlas") => {
-            eprintln!(
-                "{} `vela atlas` retired from the core binary in 0.900",
-                style::err_prefix()
-            );
-            eprintln!("use the campaign reader or a Canopus verifier profile");
-            std::process::exit(2);
-        }
-        Some(cmd) if !is_science_subcommand(cmd) => {
-            let replacement = match cmd {
-                "proposals" => Some(
-                    "vela review list <frontier> --json, then vela review show <frontier> <vpr_id> --json",
-                ),
-                "diff" => Some(
-                    "vela review diff <frontier> <vpr_id>, or vela frontier diff <left> <right>",
-                ),
-                "credit" => Some("vela claim show <frontier> <claim_id> --view attribution"),
-                "publication" => Some("vela frontier recover-publication"),
-                "hub" => Some("vela serve for a local read surface, or the optional Observatory"),
-                "land" => Some(
-                    "vela submit <submission.json>, or vela submit --attempt <attempt-id> --claim <scoped-result> ...",
-                ),
-                "verify" => Some(
-                    "vela verification import <frontier> <verification.json> --as verifier:<actor>",
-                ),
-                "foundry" | "reproduce-external" => {
-                    Some("a Canopus verifier profile or parent campaign script")
-                }
-                _ => None,
-            };
-            if let Some(replacement) = replacement {
-                eprintln!("{} `vela {cmd}` retired in 0.900", style::err_prefix());
-                eprintln!("use `{replacement}`");
-            } else {
-                eprintln!("{} unknown command: {cmd}", style::err_prefix());
-                eprintln!("run `vela --help` for the product surface.");
-            }
-            std::process::exit(2);
         }
         Some(_) => {}
     }

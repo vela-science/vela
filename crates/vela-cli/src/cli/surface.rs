@@ -1,75 +1,15 @@
-//! The released command surface: the deny/curation lists, the derived
-//! `is_science_subcommand` gate, and the curated `vela help advanced`
-//! text.
+//! The compact product help and advanced command reference.
 
-use super::*;
-
-/// Names retired from the core binary in v0.900. They remain here so the
-/// dispatch gate cannot accidentally revive a stale alias.
-const RELEASE_DENY: &[&str] = &[
-    "atlas",
-    "credit",
-    "diff",
-    "foundry",
-    "finding",
-    "hub",
-    "land",
-    "proposals",
-    "publication",
-    "reproduce-external",
-    "verify",
-];
-
-/// Names omitted from the advanced menu. `completions` remains callable but
-/// hidden; the rest are retired names retained for concise migration guidance.
-#[cfg(test)]
-pub(crate) const HIDDEN_FROM_ADVANCED_HELP: &[&str] = &[
-    "atlas",
-    "completions",
-    "credit",
-    "diff",
-    "foundry",
-    "finding",
-    "hub",
-    "land",
-    "proposals",
-    "publication",
-    "reproduce-external",
-    "verify",
-];
-
-/// Whether `name` is a released top-level command the dispatcher will hand
-/// to clap. Derived from the clap command tree (`Cli::command()`), not a
-/// hand-maintained list, so a newly-added subcommand — or any of its
-/// aliases — is accepted the instant it exists. `surface.rs`'s unit tests
-/// pin this to the enum so the derivation can never silently drop a
-/// command. (Pre-clap intercepts like `claim state` / `proof verify` are
-/// matched in `run_from_args` before this gate, so they need no entry.)
-/// The released top-level command names + aliases, derived once from the
-/// clap tree and memoized. Building the full command tree is not free, so
-/// caching keeps `is_science_subcommand` O(1) per dispatch instead of
-/// rebuilding ~226 nodes every call.
-fn released_command_names() -> &'static std::collections::HashSet<String> {
-    use std::sync::OnceLock;
-    static NAMES: OnceLock<std::collections::HashSet<String>> = OnceLock::new();
-    NAMES.get_or_init(|| {
-        use clap::CommandFactory;
-        let mut set = std::collections::HashSet::new();
-        for c in Cli::command().get_subcommands() {
-            set.insert(c.get_name().to_string());
-            for a in c.get_all_aliases() {
-                set.insert(a.to_string());
-            }
-        }
-        set
-    })
-}
-
-pub fn is_science_subcommand(name: &str) -> bool {
-    if RELEASE_DENY.contains(&name) {
-        return false;
-    }
-    released_command_names().contains(name)
+pub(crate) fn print_product_help() {
+    println!(
+        "Vela {}\nVersion control for scientific state.\n",
+        env!("CARGO_PKG_VERSION")
+    );
+    println!("Usage: vela <COMMAND>\n");
+    println!("  init       status     next       start");
+    println!("  submit     show       why        review");
+    println!("  check      reproduce  log        doctor\n");
+    println!("Run `vela help advanced` for setup and verification commands.");
 }
 
 pub(crate) fn print_strict_help() {
@@ -82,7 +22,6 @@ pub(crate) fn print_strict_help() {
 /// so it can never silently omit a newly-added command (the drift the old
 /// hand-maintained allowlist suffered, now caught at the help layer too).
 pub(crate) fn strict_help_text() -> String {
-    let retired_line = RELEASE_DENY.join(", ");
     format!(
         r#"Vela {}
 Version control for scientific state.
@@ -108,31 +47,21 @@ Daily product:
 
 Nouns and setup:
   claim         record, standing, evidence, and attribution views
-  artifact      content-addressed evidence lifecycle
-  frontier      materialize, compare, recover publication, release, audit
-  policy        frozen Era-0 policy inspection and admission history
-  proposal      producer lifecycle for one exact pending Proposal
-  actor         inspect the frozen Era-0 actor registry
   id            optional file-backed producer identity
   agents        regenerate agent adapters from VELA.md
   config        closed local/frontier configuration
 
 Advanced verification and integration:
   verification  Retain non-authorizing scoped Verification Records
-  gate          claim-level verification projections
-  proof         proof packet export, verify, and explain
-  serve         read-only or nonfinalizing draft MCP/HTTP surface
 
 Advanced setup:
   authority     initialize standard repository authority for a fresh Frontier
   target-index  inspect, diagnose, or seal derived producer targets
+  repository    verify or perform the one-time current epoch upgrade
 
 Hidden utility:
   completions   generate shell completion scripts
-
-Retired from the core product: {}
 "#,
         env!("CARGO_PKG_VERSION"),
-        retired_line,
     )
 }

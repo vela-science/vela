@@ -6,14 +6,6 @@ use std::process::{Command, Output};
 
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use vela_protocol::frontier_profile::FrontierProfileV1;
-use vela_protocol::frontier_repository::{
-    FRONTIER_REPOSITORY_BOUNDARY_SCHEMA, FrontierIdentityV1, FrontierRepositoryBoundaryMode,
-    FrontierRepositoryBoundaryPayloadV1, FrontierRepositoryTrustMode, exact_dependency_root,
-    new_repository_boundary_event, repository_boundary_event_content_root,
-    repository_boundary_payload_from_event_shape, repository_identity_event_content_root,
-};
-use vela_protocol::sign::{ActorRecord, pubkey_hex, sign_event};
 
 fn run(home: &Path, cwd: &Path, args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_vela"))
@@ -28,21 +20,6 @@ fn run(home: &Path, cwd: &Path, args: &[&str]) -> Output {
         .env_remove("VELA_NO_PUBLISH")
         .output()
         .expect("run vela")
-}
-
-fn run_with_agent(home: &Path, cwd: &Path, args: &[&str], seed_hex: &str) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_vela"))
-        .args(args)
-        .current_dir(cwd)
-        .env("HOME", home)
-        .env("NO_COLOR", "1")
-        .env("VELA_ADVICE", "0")
-        .env("VELA_AGENT_KEY_HEX", seed_hex)
-        .env_remove("VELA_ACTOR_ID")
-        .env_remove("VELA_KEY_PATH")
-        .env_remove("VELA_NO_PUBLISH")
-        .output()
-        .expect("run vela with agent key")
 }
 
 fn git(repo: &Path, args: &[&str]) -> String {
@@ -226,114 +203,6 @@ impl Fixture {
             "--json",
         ]))
     }
-
-    fn install_administrator_boundary(
-        &self,
-    ) -> vela_edge::repository_write::RepositoryTrustAnchorV1 {
-        let mut project = vela_protocol::repo::load_from_path(self.path()).unwrap();
-        let genesis = project
-            .events
-            .iter()
-            .find(|event| event.kind.as_str() == "frontier.created")
-            .cloned()
-            .unwrap();
-        let identity = FrontierIdentityV1::from_genesis_event(&genesis).unwrap();
-        let key = ed25519_dalek::SigningKey::from_bytes(&[0x41; 32]);
-        let actor = ActorRecord {
-            id: "reviewer:target-index-administrator".to_string(),
-            public_key: pubkey_hex(&key),
-            algorithm: "ed25519".to_string(),
-            created_at: "2026-07-22T12:00:00Z".to_string(),
-            tier: None,
-            orcid: None,
-            access_clearance: None,
-            revoked_at: None,
-            revoked_reason: None,
-        };
-        project.actors = vec![actor.clone()];
-        vela_protocol::repo::save(
-            &vela_protocol::repo::VelaSource::VelaRepo(self.path().to_path_buf()),
-            &project,
-        )
-        .unwrap();
-        git(self.path(), &["add", "-A"]);
-        git(self.path(), &["commit", "-qm", "anchor administrator"]);
-        let anchor_commit = git(self.path(), &["rev-parse", "HEAD^{commit}"]);
-        let facts = vela_edge::frontier_repository::derive_repository_anchor_facts(
-            self.path(),
-            &anchor_commit,
-        )
-        .unwrap();
-        let profile = FrontierProfileV1::from_yaml_str(
-            &std::fs::read_to_string(self.path().join("frontier.yaml")).unwrap(),
-        )
-        .unwrap();
-        let mut boundary = new_repository_boundary_event(
-            FrontierRepositoryBoundaryPayloadV1 {
-                schema: FRONTIER_REPOSITORY_BOUNDARY_SCHEMA.to_string(),
-                mode: FrontierRepositoryBoundaryMode::UpdateDependencies,
-                frontier_id: identity.frontier_id.clone(),
-                identity_root: identity.root().unwrap(),
-                observed_profile_root: profile.profile_root().unwrap(),
-                dependency_root: exact_dependency_root(&[]).unwrap(),
-                dependencies: Vec::new(),
-                previous_identity_event_root: Some(
-                    repository_identity_event_content_root(&genesis).unwrap(),
-                ),
-                legacy_identity_preimage_root: None,
-                administrator_actor_id: actor.id,
-                administrator_public_key: actor.public_key,
-                administrator_algorithm: actor.algorithm,
-                trust_mode: FrontierRepositoryTrustMode::Genesis,
-                git_object_format: facts.git_object_format,
-                anchor_git_commit: facts.git_commit,
-                anchor_git_tree: facts.git_tree,
-                anchor_event_log_root: facts.event_log_root,
-                anchor_event_count: facts.event_count,
-                anchor_snapshot_root: facts.snapshot_root,
-                anchor_snapshot_schema: facts.snapshot_schema,
-                anchor_proposal_root: facts.proposal_root,
-                anchor_actor_registry_root: facts.actor_registry_root,
-                anchor_artifact_registry_root: facts.artifact_registry_root,
-                anchor_canonical_store_root: facts.canonical_store_root,
-            },
-            "Bind the exact target-index administrator.",
-            "2026-07-22T12:01:00Z",
-        )
-        .unwrap();
-        boundary.signature = Some(sign_event(&boundary, &key).unwrap());
-        let payload = repository_boundary_payload_from_event_shape(&boundary).unwrap();
-        let anchor = vela_edge::repository_write::RepositoryTrustAnchorV1 {
-            schema: vela_edge::repository_write::REPOSITORY_TRUST_ANCHOR_SCHEMA_V1.to_string(),
-            frontier_id: payload.frontier_id,
-            identity_root: payload.identity_root,
-            boundary_content_root: repository_boundary_event_content_root(&boundary).unwrap(),
-            administrator_actor_id: payload.administrator_actor_id,
-            administrator_public_key: payload.administrator_public_key,
-        };
-        project.events.push(boundary);
-        vela_protocol::repo::save(
-            &vela_protocol::repo::VelaSource::VelaRepo(self.path().to_path_buf()),
-            &project,
-        )
-        .unwrap();
-        git(self.path(), &["add", "-A"]);
-        git(self.path(), &["commit", "-qm", "bind repository"]);
-
-        let mut candidate = self.candidate.clone();
-        candidate["source"]["git_commit"] =
-            json!(git(self.path(), &["rev-parse", "HEAD^{commit}"]));
-        write(
-            &self.path().join(".vela/tmp/target-index-candidate.json"),
-            serde_json::to_vec_pretty(&candidate).unwrap(),
-        );
-        vela_edge::repository_write::install_repository_trust_anchor_from_home(
-            self.home.path(),
-            &anchor,
-        )
-        .unwrap();
-        anchor
-    }
 }
 
 #[test]
@@ -399,78 +268,6 @@ fn seal_apply_atomically_writes_only_targets_json_without_staging() {
         git(fixture.path(), &["diff", "--cached", "--name-only"]),
         ""
     );
-}
-
-#[test]
-fn next_and_start_reject_home_and_repository_fallbacks_for_the_first_boundary_pin() {
-    let fixture = Fixture::new();
-    let anchor = fixture.install_administrator_boundary();
-    let boundary_anchor = vela_edge::frontier_repository::RepositoryTrustAnchor {
-        boundary_content_root: anchor.boundary_content_root.clone(),
-        administrator_public_key: anchor.administrator_public_key.clone(),
-    };
-    let plan = vela_edge::target_index::prepare_target_index_seal(
-        fixture.path(),
-        &fixture.path().join(".vela/tmp/target-index-candidate.json"),
-        env!("CARGO_PKG_VERSION"),
-        Some(&boundary_anchor),
-    )
-    .unwrap();
-    vela_edge::target_index::install_target_index_seal(fixture.path(), &plan).unwrap();
-    git(fixture.path(), &["add", "targets.json"]);
-    git(
-        fixture.path(),
-        &["commit", "-qm", "seal pinned target index"],
-    );
-    let anchor_path = fixture
-        .home
-        .path()
-        .join(".vela/trust/frontiers")
-        .join(format!("{}.json", fixture.frontier_id));
-    assert!(
-        anchor_path.is_file(),
-        "the hostile HOME contains an otherwise exact consumer pin"
-    );
-
-    let head = git(fixture.path(), &["rev-parse", "HEAD"]);
-    let hostile_home_next = fixture.command(&["next", ".", "--limit", "1", "--json"]);
-    assert!(!hostile_home_next.status.success());
-    assert!(
-        combined(&hostile_home_next).contains("RepositoryTrustAnchor"),
-        "{}",
-        combined(&hostile_home_next)
-    );
-    let repository_local_anchor = fixture
-        .path()
-        .join(".vela/trust/frontiers")
-        .join(format!("{}.json", fixture.frontier_id));
-    write(
-        &repository_local_anchor,
-        serde_json::to_vec_pretty(&anchor).unwrap(),
-    );
-    let repository_fallback = fixture.command(&["next", ".", "--limit", "1", "--json"]);
-    assert!(!repository_fallback.status.success());
-    assert!(
-        combined(&repository_fallback).contains("RepositoryTrustAnchor"),
-        "repository-local trust material must not satisfy the independent user pin: {}",
-        combined(&repository_fallback)
-    );
-    std::fs::remove_file(&repository_local_anchor).unwrap();
-    let seed = "22".repeat(32);
-    let missing_work = run_with_agent(
-        fixture.home.path(),
-        fixture.path(),
-        &["start", "erdos:1056", "--as", "agent:pinned", "--json"],
-        &seed,
-    );
-    assert!(!missing_work.status.success());
-    assert!(
-        combined(&missing_work).contains("repository_trust_anchor_required"),
-        "{}",
-        combined(&missing_work)
-    );
-    assert_eq!(git(fixture.path(), &["rev-parse", "HEAD"]), head);
-    assert!(!fixture.path().join(".vela/work").exists());
 }
 
 #[test]

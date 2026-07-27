@@ -1,5 +1,4 @@
-//! Frontier lifecycle: minimal Profile v1 initialization and the explicit
-//! `vela serve --setup` MCP scaffold.
+//! Frontier lifecycle initialization.
 
 use super::*;
 
@@ -62,38 +61,4 @@ pub(crate) fn cmd_init(path: &Path, name: Option<&str>, scope: Option<&str>, jso
             path.display()
         );
     }
-}
-
-pub(crate) fn cmd_mcp_setup(source: Option<&Path>, frontiers: Option<&Path>) {
-    let source_desc = source
-        .map(|p| p.display().to_string())
-        .or_else(|| frontiers.map(|p| p.display().to_string()))
-        .unwrap_or_else(|| "frontier.json".to_string());
-    // Emit the read-only profile by default (memo §9.1): the safe generic MCP
-    // snippet. A frontier's generated `.mcp.json` opts into the nonfinalizing
-    // draft profile explicitly so `next -> work -> land` remains available.
-    let args = if let Some(path) = source {
-        format!(r#""serve", "{}", "--profile", "read-only""#, path.display())
-    } else if let Some(path) = frontiers {
-        format!(
-            r#""serve", "--frontiers", "{}", "--profile", "read-only""#,
-            path.display()
-        )
-    } else {
-        r#""serve", "frontier.json", "--profile", "read-only""#.to_string()
-    };
-    println!(
-        r#"Add this MCP server configuration to your client:
-
-{{
-  "mcpServers": {{
-    "vela": {{
-      "command": "vela",
-      "args": [{args}]
-    }}
-  }}
-}}
-
-Source: {source_desc}"#
-    );
 }

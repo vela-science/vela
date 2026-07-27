@@ -10,25 +10,18 @@ use vela_protocol::cli_style as style;
 // library. These were `vela_protocol::{cli, serve, workbench, cli_*}`
 // before; they now live here and reach into the substrate via
 // `vela_protocol::*`.
-mod atlas;
-pub(crate) use atlas::decl_graph;
 // The standard repository-authority transaction core used by fresh setup,
 // producer registration, verification import, and exact review decisions.
 pub(crate) mod authority_transaction;
 #[allow(dead_code)]
 mod bounded_file;
-#[allow(dead_code)]
-pub(crate) mod decision_plan;
 mod frontier;
 pub(crate) mod repository_authority_provider;
-#[allow(dead_code)]
-pub(crate) mod repository_decision;
-pub(crate) use frontier::{cli_frontier, cli_read};
+pub(crate) use frontier::cli_read;
 mod write;
-pub(crate) use write::{claim_view, cli_object, cli_write, review_work};
+pub(crate) use write::{claim_view, cli_object, cli_write};
 mod tools;
-mod withdrawal;
-pub(crate) use tools::{cli_check, cli_proof};
+pub(crate) use tools::cli_check;
 mod config;
 pub(crate) mod current_doctor;
 pub(crate) mod current_read;
@@ -44,15 +37,11 @@ pub(crate) use config::{cli_admin, cli_agents, cli_identity};
 pub(crate) mod frontier_txn;
 mod operation_journal;
 pub(crate) mod repository_upgrade;
-pub(crate) mod review_material;
 mod server;
 mod target_index;
 pub(crate) mod ui;
 pub(crate) mod workflow;
-pub(crate) use server::{cli_commands, cli_engine, serve};
-// Read-only integrations embed one dispatcher behind the supported local
-// stdio and `vela serve --http` transports.
-pub use server::serve::McpService;
+pub(crate) use server::{cli_commands, cli_engine};
 
 pub mod cli;
 

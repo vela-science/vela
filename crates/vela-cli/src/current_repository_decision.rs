@@ -28,12 +28,27 @@ use crate::authority_transaction::{
     AuthorityEventDraft, AuthorityObjectDraft, AuthorityTransactionRequest,
     AuthorityTransactionResult, execute_authority_transaction,
 };
-use crate::decision_plan::DecisionAction;
 use crate::frontier_txn::{ContentDigest, FrontierTxn, InputBinding, WriteClass};
 use crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner;
 
 const PLAN_SCHEMA: &str = "vela.current-review-decision.v1";
 const PLAN_DOMAIN: &[u8] = b"vela.current-review-decision.v1\0";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum DecisionAction {
+    Accept,
+    Reject,
+}
+
+impl DecisionAction {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Accept => "accept",
+            Self::Reject => "reject",
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
