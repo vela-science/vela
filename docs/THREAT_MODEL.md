@@ -186,22 +186,18 @@ designed boundary; a reverse proxy does not retroactively authenticate the
 local actor model. Receipts should reference large artifacts by content digest
 and path rather than embedding unbounded payloads.
 
-### Protected bootstrap and migration
+### Historical bootstrap and migration
 
-`actor add` uses a one-shot protected possession challenge bound to the exact
-empty-registry delta. `frontier bind`, `frontier trust pin`, and Profile v1
-migration use exact two-phase plans: preview is key-free, and matching
-execution rederives the plan, binary/helper identity, repository roots, Git
-ancestry, candidate bytes, actor authority, and transaction read set before
-the protected operation.
+Actor bootstrap, repository binding, and Profile v1 migration are retired
+writers. Their retained events and boundaries remain part of strict replay.
+The current product cannot extend an Era-0 actor registry, mint another legacy
+boundary, or relabel a v0.1 checkout.
 
-Actor bootstrap can replace only the canonical empty registry with one
-matching protected human actor. It cannot extend an established registry.
-Migration preserves every pre-boundary canonical and retained-evidence byte
-and appends one non-scientific boundary; it cannot silently relabel a v0.1
-checkout. Cancellation, stale confirmation, root drift, missing dependency
-anchors, or protected-authentication failure writes no durable canonical
-delta.
+Consumer `frontier trust pin` writes only a local out-of-band root. Current
+Era-1 authority transactions rederive repository roots, Git context, principal,
+Cedar policy, and transaction read set before asking the standard repository
+key provider to sign. Drift or provider failure writes no commit marker or
+canonical delta.
 
 ## Partially mitigated risks
 

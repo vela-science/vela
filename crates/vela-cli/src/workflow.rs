@@ -681,7 +681,7 @@ fn transact_repository_authority_lease(
         )?;
     let executable =
         std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
-    let binary_sha256 = vela_signer::contract::file_sha256(&executable)?;
+    let binary_sha256 = crate::authority_transaction::execution_binary_sha256(&executable)?;
     let result = crate::authority_transaction::execute_authority_transaction(
         barrier,
         frontier,
@@ -752,64 +752,6 @@ fn transact_repository_authority_lease(
         }),
     );
     Ok(claim)
-}
-
-pub(crate) fn transact_actor_registration<F>(frontier: &Path, build: F) -> Result<Value, String>
-where
-    F: FnOnce(
-        &vela_protocol::project::Project,
-    ) -> Result<(vela_protocol::project::Project, String, String), String>,
-{
-    let journal_dir = frontier_transaction_journal_dir(frontier)?;
-    let barrier = {
-        #[cfg(test)]
-        {
-            crate::frontier_txn::FrontierTxn::acquire_write_barrier_for_test(frontier, &journal_dir)
-        }
-        #[cfg(not(test))]
-        {
-            crate::frontier_txn::FrontierTxn::acquire_administrator_write_barrier(
-                frontier,
-                &journal_dir,
-            )
-        }
-    }
-    .map_err(|error| error.to_string())?;
-    let original = repo::load_from_path(frontier)?;
-    let state_root_before = format!(
-        "sha256:{}",
-        vela_protocol::events::event_log_hash(&original.events)
-    );
-    let (candidate, activation_event_id, activated_at) = build(&original)?;
-    let state_root_after = format!(
-        "sha256:{}",
-        vela_protocol::events::event_log_hash(&candidate.events)
-    );
-    let result = json!({
-        "ok": true,
-        "command": "actor.activate",
-        "activation_event_id": activation_event_id,
-        "activated_at": activated_at,
-        "state_root_before": state_root_before,
-        "state_root_after": state_root_after,
-    });
-    transact_event_candidate_with_barrier(
-        frontier,
-        barrier,
-        &original,
-        &candidate,
-        result,
-        EventTransactionBinding {
-            operation_namespace: "actor-registration-activation",
-            request_schema: "vela.actor-registration-activation-request.internal.v1",
-            request_event_id_field: "activation_event_id",
-            result_event_id_field: "activation_event_id",
-            result_timestamp_field: "activated_at",
-            publication_summary: "activate actor registration",
-            preserve_existing_event_bytes: true,
-        },
-        || Ok(()),
-    )
 }
 
 pub(crate) fn transact_proposal_withdrawal<F>(
@@ -3329,7 +3271,7 @@ pub(crate) fn land(
             )?;
         let executable = std::env::current_exe()
             .map_err(|error| format!("resolve running Vela binary: {error}"))?;
-        let binary_sha256 = vela_signer::contract::file_sha256(&executable)?;
+        let binary_sha256 = crate::authority_transaction::execution_binary_sha256(&executable)?;
         let mut prepared = crate::authority_transaction::prepare_authority_transaction(
             recovery_barrier,
             frontier,

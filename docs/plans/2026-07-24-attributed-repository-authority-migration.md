@@ -63,6 +63,10 @@ rebinds, or agent self-approval.
 | Vela `v0.930.0-rc.7` | deterministic derived Profile views | stabilize generated statistic-map bytes across processes before any later materialization or migration |
 | Vela `v0.930.0-rc.8` | verified dual-history product parity | preserve proposal standing, Target Index freshness, producer offers, and derived materialization after one exact repository-authority decision |
 | Vela `v0.930.0-rc.9` | repaired strict-state and producer preflight | report exact blockers and fail before writes when routine producer authority is absent |
+| Vela `v0.930.0-rc.10` | repository-authority decision writer | cover rejection and acceptance through one recoverable DSSE transaction |
+| Vela `v0.930.0-rc.11` | provider and replay hardening | close semantic-event identity, parity, and repository-provider edge cases |
+| Vela `v0.930.0-rc.12` | retained Erdős producer slice | land one exact deferred Receipt with zero accepted-state delta and clean-clone replay |
+| Vela `v0.930.0-rc.13` | source contraction candidate | remove the helper crate, legacy writers, personal custody, and copied-confirmation UX |
 | Vela `v0.930.0` | every active Frontier migrated; legacy writers and helper deleted | breaking pre-1.0 authority simplification |
 | Canopus `v0.7.0` | released Vela capability profile and zero-prompt producer run | replace long-lived producer keys with short-lived grants |
 | Vela Web `v0.430.0` | exact new authority history available read-only | render attribution, authorization, verification, and standing separately |
@@ -460,10 +464,30 @@ Retain:
 - historical ADRs and migration evidence;
 - current actor registries as read-only history;
 - the transaction journal;
-- exact protected scientific-state semantics.
+- exact attributed scientific-state semantics.
 
 Add grep, dependency, help-surface, and binary-package gates that fail if a
 deleted live writer reappears.
+
+Progress evidence, 2026-07-26:
+
+- all four active Frontiers retain a verified Era-1 boundary;
+- routine producer claim, release, and Receipt-bound pending landing use the
+  repository-authority writer;
+- Erdős proposal `vpr_d94b6b3bbe4c80ed` replayed from a clean clone with
+  accepted-event delta zero;
+- the exact artifact, verifier, and Receipt roots remain retained;
+- the public CLI contains no `sign`, `migrate`, `authority`, `actor add`,
+  `frontier bind`, or human identity-custody writer;
+- the `vela-signer` crate, binary, OS policy, custom prompt adapters, helper
+  pins, rebind sessions, and migration-only transaction capability are deleted;
+  and
+- release packaging now contains one `vela` product binary across six crates.
+
+The remaining gate is a human-run exceptional decision through the final
+local-OS-session plus standard OpenSSH repository-authority provider, followed
+by exact clean-clone replay. Until that evidence exists, ADR 0020 remains
+Proposed and `v0.930.0` remains unreleased.
 
 Canopus adopts capability input and emits truthful workload attribution. It
 never becomes an issuer, reviewer, policy administrator, or authority signer.
@@ -491,7 +515,6 @@ cargo test -p vela-protocol authority_record
 cargo test -p vela-authority cedar_profile
 cargo test -p vela-protocol legacy_policy_translation
 cargo test -p vela-cli authority_transaction
-cargo test -p vela-cli authority_migration
 cargo test -p vela-protocol --test authority_era_fixtures
 cargo test -p vela-protocol --test cross_impl_reducer_fixtures
 python3 conformance/verify.py

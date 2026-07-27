@@ -181,30 +181,6 @@ pub(crate) enum ReviewPressureProjection {
     },
 }
 
-pub(crate) fn review_pressure_summary(pressure: &ReviewPressureProjection) -> String {
-    match pressure {
-        ReviewPressureProjection::Measured { report } => {
-            let level = match report.level {
-                vela_edge::review_backpressure::BackpressureLevel::Normal => "normal",
-                vela_edge::review_backpressure::BackpressureLevel::Elevated => "elevated",
-                vela_edge::review_backpressure::BackpressureLevel::Critical => "critical",
-            };
-            format!(
-                "{level} · {} pending · oldest {}s · largest actor queue {}",
-                report.metrics.queue_depth,
-                report.metrics.oldest_age_seconds,
-                report.metrics.actor_pressure.largest_actor_queue_depth
-            )
-        }
-        ReviewPressureProjection::Unavailable {
-            reason_code,
-            total,
-            maximum,
-            ..
-        } => format!("unavailable ({reason_code}) · {total} pending · measurement bound {maximum}"),
-    }
-}
-
 /// Lock-neutral review material for an exact caller-selected proposal set.
 ///
 /// The caller must already own the frontier recovery barrier and must pass the
@@ -571,19 +547,6 @@ impl ReviewProjection {
                 format!("pending proposal {proposal_id} was not found"),
             )
         })
-    }
-
-    /// Render the first phase of a single-item scripted decision without
-    /// acquiring the recovery barrier. This path must remain strictly
-    /// read-only even when an earlier transaction is still Prepared. The
-    /// Decision Plan preview builder double-reads and compares the complete
-    /// input set, and confirmed execution later rederives under the barrier.
-    pub(crate) fn one_read_only(
-        frontier: &Path,
-        proposal_id: &str,
-    ) -> Result<vela_edge::decision_brief::ReviewSnapshot, ReviewProjectionError> {
-        let observed_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
-        Self::one_at(frontier, proposal_id, &observed_at)
     }
 
     /// Rebuild one scripted confirmation preview at an explicitly echoed
@@ -2492,10 +2455,6 @@ mod tests {
             pressure_json["report"]["metrics"]["repeated_exact_work"]["status"],
             "measured"
         );
-        assert_eq!(
-            review_pressure_summary(&catalog.pressure),
-            "critical · 10000 pending · oldest 16484s · largest actor queue 79"
-        );
         let (_, first_page) = select_review_leaves(&catalog.leaves, None, REVIEW_PAGE_MAX).unwrap();
         assert_eq!(first_page.len(), REVIEW_PAGE_MAX);
 
@@ -2515,10 +2474,6 @@ mod tests {
                 && total == MAX_REVIEW_QUEUE_FACTS + 1
                 && maximum == MAX_REVIEW_QUEUE_FACTS
         ));
-        assert_eq!(
-            review_pressure_summary(&overflow.pressure),
-            "unavailable (pending_catalog_exceeds_pressure_bound) · 16385 pending · measurement bound 16384"
-        );
         assert_eq!(
             select_review_leaves(&overflow.leaves, None, REVIEW_PAGE_MAX)
                 .unwrap()

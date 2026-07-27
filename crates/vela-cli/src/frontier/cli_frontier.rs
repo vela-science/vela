@@ -13,19 +13,6 @@ pub(crate) fn cmd_frontier(action: FrontierAction) {
     use vela_protocol::project::ProjectDependency;
     use vela_protocol::repo;
     match action {
-        FrontierAction::Bind {
-            frontier,
-            reason,
-            confirm_root,
-            confirm_at,
-            json,
-        } => crate::cli::repository_bind::cmd_frontier_bind(
-            &frontier,
-            &reason,
-            confirm_root.as_deref(),
-            confirm_at.as_deref(),
-            json,
-        ),
         FrontierAction::Trust { action } => match action {
             crate::cli_commands::FrontierTrustAction::Pin {
                 frontier,
@@ -52,7 +39,7 @@ pub(crate) fn cmd_frontier(action: FrontierAction) {
                 crate::ui::ErrorKind::Usage,
                 "frontier new is retired; it cannot create or overwrite a legacy v0.1 repository",
                 Some(&format!(
-                    "use `vela init {} --name <name> --scope <bounded-question>` for a new Profile v1 frontier; use `vela migrate` for an existing repository",
+                    "use `vela init {} --name <name> --scope <bounded-question>` for a new Profile v1 frontier; use Vela v0.915.1 only when historical migration tooling is required",
                     path.display()
                 )),
             );
@@ -141,7 +128,7 @@ pub(crate) fn cmd_frontier(action: FrontierAction) {
             };
             let publication =
                 match crate::decision_plan::recover_decision_operation(&dir, &operation) {
-                    Ok(Some(outcome)) => crate::cli::sign_session::publish_exact_decision(
+                    Ok(Some(outcome)) => crate::cli::review_decision::publish_exact_decision(
                         &dir,
                         &format!("recover decision: {operation}"),
                         &outcome,

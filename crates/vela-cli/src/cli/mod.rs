@@ -51,16 +51,13 @@ mod frontier_audit;
 pub(crate) mod help_text;
 mod identity;
 mod lifecycle;
-mod migration;
 mod output;
 pub(crate) mod progress;
-pub(crate) mod prompt;
 pub(crate) mod records;
-pub(crate) mod repository_bind;
 pub(crate) mod repository_trust;
+pub(crate) mod review_decision;
 pub(crate) mod safe_text;
 mod session;
-pub(crate) mod sign_session;
 mod surface;
 pub(crate) mod table;
 #[cfg(test)]
@@ -70,7 +67,6 @@ pub(crate) use checks::*;
 pub(crate) use frontier_audit::*;
 pub(crate) use identity::*;
 pub(crate) use lifecycle::*;
-pub(crate) use migration::*;
 pub(crate) use output::*;
 pub(crate) use records::*;
 pub(crate) use session::*;
@@ -247,42 +243,6 @@ pub async fn run_command() {
         } => cmd_reproduce(&path, proposal.as_deref(), json),
         Commands::Id { action } => cmd_id(action),
         Commands::Actor { action } => cmd_actor(action),
-        Commands::Authority { action } => match action {
-            AuthorityAction::Migrate {
-                frontier,
-                repository_key_id,
-                repository_public_key,
-                reason,
-                apply,
-                confirm_root,
-                confirm_at,
-                json,
-            } => cmd_authority_migrate(
-                &frontier,
-                &repository_key_id,
-                &repository_public_key,
-                &reason,
-                apply,
-                confirm_root.as_deref(),
-                confirm_at.as_deref(),
-                json,
-            ),
-            AuthorityAction::EnableWork {
-                frontier,
-                reason,
-                apply,
-                confirm_root,
-                confirm_at,
-                json,
-            } => cmd_authority_enable_work(
-                &frontier,
-                &reason,
-                apply,
-                confirm_root.as_deref(),
-                confirm_at.as_deref(),
-                json,
-            ),
-        },
         Commands::Frontier { action } => cmd_frontier(action),
         Commands::Init {
             path,
@@ -292,32 +252,6 @@ pub async fn run_command() {
         } => cmd_init(&path, name.as_deref(), scope.as_deref(), json),
         Commands::Review { action } => cmd_review(action),
         Commands::TargetIndex { action } => crate::target_index::cmd_target_index(action),
-        Commands::Migrate {
-            frontier,
-            target_version,
-            check: _,
-            apply,
-            profile,
-            dependency_input,
-            target_candidate,
-            actor,
-            reason,
-            confirm_root,
-            confirm_at,
-            json,
-        } => cmd_migrate(
-            &frontier,
-            &target_version,
-            apply,
-            &profile,
-            dependency_input.as_deref(),
-            &target_candidate,
-            &actor,
-            &reason,
-            confirm_root.as_deref(),
-            confirm_at.as_deref(),
-            json,
-        ),
         Commands::Finding {
             command:
                 FindingCommands::Show {
@@ -341,60 +275,6 @@ pub async fn run_command() {
             }
         },
 
-        Commands::Sign {
-            target,
-            frontier,
-            yes,
-            confirm_root,
-            confirm_at,
-            reason,
-            reset,
-            preview,
-            cursor,
-            limit,
-            sk,
-            key,
-            json,
-        } => {
-            crate::ui::set_mode("sign", json);
-            if sk {
-                crate::ui::fail_with(
-                    crate::ui::ErrorKind::Usage,
-                    "--sk (hardware touch-to-sign) is designed but not yet wired: the recommended path is a PKCS#11/OpenPGP Ed25519 token (raw Ed25519, zero verifier change); see docs/HARDWARE_SIGNING_PROPOSAL.md",
-                    Some(
-                        "run the ceremony with your file key; pin the binary with `vela id pin-binary`",
-                    ),
-                );
-            }
-            if preview {
-                sign_session::cmd_sign_preview(frontier, cursor, limit, json);
-            } else if let Some(target) = target {
-                let as_path = std::path::Path::new(&target);
-                if as_path.exists() {
-                    if confirm_root.is_some() || confirm_at.is_some() {
-                        crate::ui::fail_with(
-                            crate::ui::ErrorKind::Usage,
-                            "--confirm-root applies only to proposal decisions, not detached file signatures",
-                            None,
-                        );
-                    }
-                    sign_session::cmd_sign_detached(as_path, key.as_deref(), json);
-                } else {
-                    sign_session::cmd_sign_one(
-                        frontier,
-                        &target,
-                        reason,
-                        key,
-                        yes,
-                        confirm_root.as_deref(),
-                        confirm_at.as_deref(),
-                        json,
-                    );
-                }
-            } else {
-                sign_session::cmd_sign_session(frontier, key, json, reset);
-            }
-        }
         Commands::Next {
             frontier,
             limit,

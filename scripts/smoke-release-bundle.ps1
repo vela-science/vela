@@ -29,8 +29,7 @@ New-Item -ItemType Directory -Force $Unpack, $Bin | Out-Null
 try {
   Expand-Archive $Archive -DestinationPath $Unpack
   $Vela = Join-Path $Unpack "vela.exe"
-  $Signer = Join-Path $Unpack "vela-signer.exe"
-  foreach ($Binary in @($Vela, $Signer)) {
+  foreach ($Binary in @($Vela)) {
     if (-not (Test-Path $Binary -PathType Leaf)) { throw "missing release binary: $Binary" }
     if ($RequirePlatformSignature) {
       $Signature = Get-AuthenticodeSignature $Binary
@@ -38,15 +37,13 @@ try {
     }
   }
   if ((& $Vela --version) -ne "vela $ExpectedVersion") { throw "vela version mismatch" }
-  if ((& $Signer --version) -ne "vela-signer $ExpectedVersion") { throw "vela-signer version mismatch" }
 
-  foreach ($Binary in @("vela.exe", "vela-signer.exe")) {
+  foreach ($Binary in @("vela.exe")) {
     Copy-Item -Force (Join-Path $Unpack $Binary) (Join-Path $Bin $Binary)
   }
   & (Join-Path $Bin "vela.exe") --version
-  & (Join-Path $Bin "vela-signer.exe") --version
 
-  foreach ($Binary in @("vela.exe", "vela-signer.exe")) {
+  foreach ($Binary in @("vela.exe")) {
     $Installed = Join-Path $Bin $Binary
     Copy-Item -Force (Join-Path $Unpack $Binary) $Installed
     Remove-Item -Force $Installed

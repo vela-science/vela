@@ -894,15 +894,12 @@ or another signature. Offline history verification proves the authority
 sequence advances while the event root does not, and rejects a re-signed
 record whose after-event root was changed.
 
-For a migrated Frontier whose sequence-1 bundle predates routine work,
-`vela authority enable-work` constructs one root-bound successor bundle. Its
-protected apply path obtains fresh platform-owned user presence through the
-pinned one-shot helper, reads no Vela human key, and records a
-`platform_user_presence` observation. The repository SSH-agent key signs only
-the already-authorized authority record. The narrow policy grants claim,
-refresh, release, and Receipt-bound pending submission. Agents still cannot
-obtain review, scientific acceptance, policy administration, membership,
-recovery, or key rotation.
+For migrated Frontiers whose sequence-1 bundle predated routine work, the
+historical `authority enable-work` ceremony installed one root-bound successor
+bundle. That one-time writer is now retired. Its retained policy grants claim,
+refresh, release, and Receipt-bound pending submission only. Agents still
+cannot obtain review, scientific acceptance, policy administration,
+membership, recovery, or key rotation.
 
 The real Erdős Frontier exercised the routine-work activation and coordination
 path on 2026-07-26. One protected semantic approval produced policy record
@@ -924,24 +921,23 @@ the scientific root remained
 the private work session was removed, and all pre-existing strict debt
 remained visible.
 
-The next bounded implementation slice replaces migrated rejection's dead
-legacy-key route with one exact provider-authenticated repository transaction.
+The exceptional-decision slice replaces migrated rejection's dead legacy-key
+route with one exact provider-authenticated repository transaction.
 The Decision Plan binds the proposal ID and full root, Decision Brief and typed
 binding roots, action, reason, principal, authority head, policy root, and
-binary identity. The platform helper displays that semantic request and returns
-only a bearer-free user-presence observation; it reads no Vela key and signs
-nothing. Restricted Cedar authorizes `review_reject`, and the SSH-agent-backed
-repository authority signs the covering record. The transaction installs one
+binary identity. The exact command is the semantic human action. The local
+operating-system session authenticates the principal, restricted Cedar
+authorizes `review_reject`, and the standard OpenSSH-agent repository authority
+signs the covering record. There is no helper, Vela human key, copied root, or
+copied timestamp. The transaction installs one
 `review.rejected` Era-1 event and the matching proposal postimage while using
 null before/after scientific roots. Dual-log proposal parity and terminal
 review projection now consume already-verified repository-authority events.
 
-Focused tests prove exact proposal-root binding, policy non-rotation, response
-substitution refusal, dual-log rejection parity, and unchanged legacy terminal
-decisions. Four live attempts returned macOS `LAErrorSystemCancel`; every
-attempt left the Erdős checkout and journal set unchanged. This is strong
-cancellation evidence, not the required active exceptional-decision
-qualification.
+Focused tests prove exact proposal-root binding, policy non-rotation,
+principal and repository-key mismatch refusal, dual-log rejection parity,
+unchanged legacy terminal decisions, and zero writes on preflight or provider
+failure.
 
 The next slice closes the acceptance hash cycle without changing
 `vela.event.v1`. Every verified Era-1 event deterministically recovers the
@@ -964,24 +960,29 @@ Focused protocol and transaction fixtures now prove:
 - the recoverable authority writer covers both events and the proposal
   postimage in one DSSE transaction.
 
-This completes the implementation gate but not the live qualification gate.
-No active proposal has been accepted through this path, and the exact Erdős
-rejection still awaits a successful user-presence observation. ADR 0020
-therefore remains Proposed.
+The retained Erdős vertical slice then exercised routine work again with
+Vela `0.930.0-rc.12`. Proposal `vpr_d94b6b3bbe4c80ed` binds Receipt root
+`sha256:816c7a1c3b355706eeb24aa30755b0d83d83489084dff64ce401ce80b0b26f5b`,
+artifact root
+`sha256:b369f29c3dfe777401375eeb47f682d20d89ca0387deaf600d791c01f98da9c0`,
+and verifier root
+`sha256:02a8e6504e78b3109cf02f5d1bf092d1242a666b19b21ec84c119414470ca536`.
+It routed `Defer`, changed no accepted event, replayed from a clean clone, and
+preserved all 1,592 pre-existing strict blockers.
 
-Final `vela-signer` and identity-custody deletion remains blocked until:
+The source candidate now deletes the custom `vela-signer` crate and binary,
+identity-v2 custody, signer sessions, binary/helper pins, OS prompt adapters,
+actor and boundary bootstrap writers, migration writers, and their packaging.
+The release graph contains one product binary and six crates. Era-0 history
+still replays through the protocol verifier, but no current command can mint a
+new Era-0 signature or migration.
 
-1. remaining routine producer landing transactions enter through the
-   repository-authority writer with short-lived scoped authentication;
-2. exceptional human scientific decisions use a standard provider assertion that binds
-   the exact semantic action and cannot be fabricated by an agent process;
-3. every active Frontier has rotated to a retained Cedar source package; and
-4. the replacement paths pass clean-clone, cancellation, stale-session,
-   substitution, and recovery tests.
-
-Deleting the old surface before those gates would remove a bad product by
-leaving no product. Keeping its source temporarily does not make it live on a
-migrated Frontier: the era guard is the fail-closed boundary.
+This completes the source contraction and implementation gate, not the live
+exceptional-decision qualification. No active proposal has yet completed an
+accept or reject transaction through the final local-OS-session plus OpenSSH
+repository-authority path. ADR 0020 therefore remains Proposed until that
+human-run qualification, clean-clone replay, and the remaining acceptance
+gates pass.
 
 ## Alternatives rejected
 

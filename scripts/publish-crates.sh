@@ -17,7 +17,6 @@ CRATES=(
   vela-verify
   vela-protocol
   vela-authority
-  vela-signer
   vela-edge
   vela-cli
 )
@@ -25,7 +24,7 @@ CRATES_API_USER_AGENT="vela-release-publisher/$VERSION (https://github.com/vela-
 
 preflight_package_graph() {
   # Cargo 1.91+ assembles and verifies unpublished workspace dependencies in a
-  # temporary local registry. This proves the complete seven-crate graph before
+  # temporary local registry. This proves the complete six-crate graph before
   # the first immutable upload.
   cargo package --workspace --locked
 }
@@ -39,7 +38,7 @@ crate_exists() {
 case "$MODE" in
   check)
     preflight_package_graph
-    printf '%s\n' "Complete seven-crate package graph is publishable."
+    printf '%s\n' "Complete six-crate package graph is publishable."
     ;;
   --execute)
     [[ "$VERSION" != *-* ]] || {

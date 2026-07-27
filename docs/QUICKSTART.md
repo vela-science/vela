@@ -1,8 +1,8 @@
 # Vela quickstart
 
 Vela is version control for scientific state. Git publishes exact bytes;
-agents produce Receipt v1 evidence; frozen verifiers reproduce it; a signed
-policy or protected human decision admits an exact transition.
+agents produce Receipt v1 evidence; frozen verifiers reproduce it; a governed
+policy or attributed human decision admits an exact transition.
 
 ## Read an existing Frontier
 
@@ -42,9 +42,9 @@ vela land --work <target> \
 
 `next` and `work` consume the fresh Target Index v2 and exact target packet.
 The claim retains its target-task binding in Receipt v1. A verifier pass is
-evidence, not acceptance. `Deferred` means the proposal awaits a protected
-human decision; a policy admission means an already human-signed policy
-authorized that exact class.
+evidence, not acceptance. `Deferred` means the proposal awaits an attributed
+human decision; a policy admission means an already governed policy authorized
+that exact class.
 
 ## Create a new Frontier
 
@@ -56,29 +56,16 @@ vela init ./frontier \
 ```
 
 The result is a minimal Profile v1 repository with structural identity and no
-administrator authority. A human steward then protects their identity,
-bootstraps the exact empty actor registry, commits that delta, and runs the
-two-phase `vela frontier bind` ceremony. See
-[SIGNING.md](SIGNING.md#first-repository-administrator).
+scientific decision. Repository-authority provisioning is deliberately not an
+ordinary initialization side effect. The current candidate has no public
+boundary-bootstrap writer; use a reviewed ecosystem provisioning workflow
+rather than hand-authoring authority history.
 
-## Migrate a legacy Frontier
+## Historical Frontiers
 
-Profile v0.1 remains readable but is not a canonical writer in Vela 0.914.
-Migration is a protected two-phase operation requiring external candidate
-profile and target-index files:
-
-```bash
-vela migrate . --to frontier-repo-v1 --check \
-  --profile ../profile.yaml \
-  --target-candidate ../target-index-candidate.json \
-  --as reviewer:<administrator> \
-  --reason "Bind exact legacy repository" \
-  --json
-```
-
-Inspect the plan before invoking the matching `--apply` command with its
-`--confirm-root` and `--confirm-at`. Migration preserves all pre-boundary
-canonical and evidence bytes and appends one signed non-scientific boundary.
+Profile v0.1 remains readable but has no current writer. Use Vela `0.915.1`
+only when exact old-command replay is required. Do not relabel or hand-migrate
+a legacy checkout.
 
 ## What to read next
 
@@ -86,6 +73,6 @@ canonical and evidence bytes and appends one signed non-scientific boundary.
   [PRODUCER_QUICKSTART.md](PRODUCER_QUICKSTART.md)
 - Commands: [CLI.md](CLI.md)
 - Repository layout: [FRONTIER_REPOSITORY_PROFILE.md](FRONTIER_REPOSITORY_PROFILE.md)
-- Human custody and approvals: [SIGNING.md](SIGNING.md)
+- Authority and attribution: [SIGNING.md](SIGNING.md)
 - Byte and root meanings: [ROOTS.md](ROOTS.md)
 - Protocol semantics: [PROTOCOL.md](PROTOCOL.md)

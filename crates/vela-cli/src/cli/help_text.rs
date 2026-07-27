@@ -5,7 +5,7 @@
 //! and clig.dev prescribe. Plain text (clap strips color from help); `·`
 //! is the only separator; house voice — lowercase, terse, concrete.
 //!
-//! Kept as data-only consts (the `HELP_KEY`/`HELP_AS` precedent) so the
+//! Kept as data-only consts so the
 //! `every_visible_command_has_examples` test can assert every visible verb
 //! carries one. New verbs get a const here in the same edit that adds them
 //! to the surface.
@@ -49,29 +49,6 @@ not grant authority; only a matching signed v0.2 policy can Permit that result.
 SEE ALSO
   vela review decide   decide one exact deferred proposal";
 
-pub const SIGN: &str = "\
-EXAMPLES
-  vela sign                       decide one frontier's pending proposals
-  vela sign vpr_8b49… --json      render root + observation time; read no key
-  vela sign vpr_8b49… --yes --confirm-root sha256:… --confirm-at 2026-07-14T12:00:00Z
-                                  accept only that exact rendered set
-  vela sign --reset               discard a saved session and start clean
-
-In the interactive session: a accept · r reject · s skip. Vela then builds
-and shows the exact semantic set and transaction root before one confirm and
-one key read. Run inside a frontier or pass --frontier; frontiers commit
-independently.
-
-Scripted decisions are two-step: the first invocation only renders the set,
-root, and exact RFC3339 observation time. Mutation requires --yes plus both
-echoed --confirm-root and --confirm-at values. Mismatch or drift stops pre-key.
-The echoed time is valid for 15 minutes (with 60 seconds of future clock skew);
-after that, render a fresh preview.
-
-SEE ALSO
-  vela review preview           inspect pending proposal decision material
-  vela review show              inspect a pending or terminal proposal";
-
 pub const STATUS: &str = "\
 EXAMPLES
   vela status .        what awaits, what is live
@@ -83,10 +60,7 @@ EXAMPLES
   vela review show . vpr_8b49… --json one pending brief or terminal decision
   vela review preview . vpr_8b49…     read-only Decision Brief
   vela review decide . vpr_8b49… --reject --reason \"insufficient evidence\" --json
-                                        key-free exact Decision Plan preview
-  vela review decide . vpr_8b49… --reject --reason \"insufficient evidence\" \\
-    --confirm-root sha256:… --confirm-at 2026-07-17T12:00:00Z
-                                        one exact protected decision card
+                                        execute one exact attributed decision
   vela review withdraw . vpr_8b49… --as agent:producer --reason \"superseded\"
                                         close your own Receipt-bound proposal
 
@@ -95,21 +69,6 @@ KNOWN PROPOSAL
   either the pending Decision Brief or the signed terminal decision record.
   A rejected proposal's candidate finding is intentionally absent from
   accepted `finding show` and `log` views; that is not deletion.";
-
-pub const MIGRATE: &str = "\
-EXAMPLES
-  vela migrate . --to frontier-repo-v1 --check --profile ../profile.yaml \\
-    --target-candidate ../target-index-candidate.json \\
-    --as reviewer:steward --reason \"Bind exact legacy repository\" --json
-      render one key-free, root-bound migration plan
-  vela migrate . --to frontier-repo-v1 --apply --profile ../profile.yaml \\
-    --target-candidate ../target-index-candidate.json \\
-    --as reviewer:steward --reason \"Bind exact legacy repository\" \\
-    --confirm-root sha256:<64hex> --confirm-at <RFC3339> --json
-      revalidate the exact plan before protected repository administration
-
-When the legacy profile has dependencies, add:
-  --dependency-input ../dependency-migration.json";
 
 pub const LOG: &str = "\
 EXAMPLES
@@ -183,53 +142,22 @@ Frontier v1 uses .vela/settings.toml; legacy .vela/config.toml remains readable.
 
 pub const ID: &str = "\
 EXAMPLES
-  vela id create        one-time: generate a key and remember the actor
-  vela id protect       one-time: protect a human approval identity
-  vela id show          the current identity
-  vela id lock          close the bounded local approval session";
+  vela id create --agent --handle canopus
+                        create a file-backed producer identity
+  vela id show          inspect the optional producer identity
+
+Human decisions use the local OS principal and repository authority. Vela does
+not create or store a human signing identity.";
 
 pub const ACTOR: &str = "\
 EXAMPLES
-  vela actor list .              registered actors on this frontier
-  vela actor add .               bootstrap an empty registry from `vela id`
-  vela actor activate . --anchor <commit> --preview --json
-  vela actor activate . --anchor <commit> --yes --confirm-root <sha256:...> --json
+  vela actor list .              inspect the frozen Era-0 actor registry
 
-Activation is a human-key terminal ceremony. The preview reads no key.
-Unsigned anchor members remain legacy and unauthenticated.";
-
-pub const AUTHORITY: &str = "\
-EXAMPLES
-  vela authority migrate . \
-    --repository-key-id ssh:repository-admin \
-    --repository-public-key <64hex> \
-    --reason \"Move this frontier to attributed repository authority\" --json
-      render one key-free migration plan; read no human or repository key
-
-  vela authority migrate . \
-    --repository-key-id ssh:repository-admin \
-    --repository-public-key <64hex> \
-    --reason \"Move this frontier to attributed repository authority\" \
-    --apply --confirm-root sha256:<64hex> --confirm-at <RFC3339> --json
-      revalidate the exact plan, then request one protected human approval
-
-Migration preserves every legacy event byte and closes the legacy policy
-surface. The protected card is the final use of the legacy human key. The
-repository key signs only later attributed repository-authority events.
-
-  vela authority enable-work . \
-    --reason \"Allow signed agents to coordinate exact work leases\" --json
-      preview the narrow post-migration policy rotation
-
-  vela authority enable-work . \
-    --reason \"Allow signed agents to coordinate exact work leases\" \
-    --apply --confirm-root sha256:<64hex> --confirm-at <RFC3339> --json
-      request one platform-owned approval, then rotate and replay";
+New authority uses attributed principals, scoped capabilities, and repository
+authority records. The legacy actor registry remains replayable and read-only.";
 
 pub const FRONTIER: &str = "\
 EXAMPLES
-  vela frontier bind . --reason \"establish the first administrator\" --json
-                                       preview one protected native boundary
   vela frontier trust pin . --boundary-root sha256:... --json
                                        preview an out-of-band consumer pin
   vela frontier materialize .         rebuild derived views
@@ -237,12 +165,9 @@ EXAMPLES
   vela frontier recover-publication --operation vop_…
                                        resume exact Git publication
 
-`frontier bind` appends exactly one signed, non-scientific boundary after a
-matching confirmation and protected user presence. It installs the local trust
-pin but does not commit or publish Git. Other consumers pin the full first
-boundary root obtained through an independent channel. Vela 0.914 has no
-writer for a later dependency update; inspect dependencies with `frontier
-list-deps` and do not hand-author a continuation event.";
+`frontier trust pin` installs a local consumer trust anchor obtained through an
+independent channel. It does not write Frontier history. Historical repository
+boundaries and dependencies remain replayable and read-only.";
 
 pub const FINDING: &str = "\
 EXAMPLES

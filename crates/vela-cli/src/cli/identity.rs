@@ -6,24 +6,7 @@ use super::*;
 /// Shared success print for `vela id create` / `vela id import`: shows the
 /// identity and the one-time empty-registry bootstrap command.
 pub(crate) fn print_identity_created(identity: &crate::cli_identity::Identity, json: bool) {
-    let signer = match &identity.signer {
-        Some(crate::cli_identity::IdentitySigner::Helper {
-            provider,
-            protection_grade,
-            mode,
-            ..
-        }) => json!({
-            "kind": "helper",
-            "provider": provider,
-            "protection_grade": protection_grade,
-            "mode": mode,
-        }),
-        Some(crate::cli_identity::IdentitySigner::File { key_path }) => json!({
-            "kind": "file",
-            "key_path": key_path,
-        }),
-        None => json!({"kind": "file", "key_path": identity.key_path}),
-    };
+    let signer = json!({"kind": "file", "key_path": identity.key_path});
     if json {
         print_json(&json!({
             "ok": true,
@@ -37,15 +20,7 @@ pub(crate) fn print_identity_created(identity: &crate::cli_identity::Identity, j
     }
     println!("{} identity · {}", style::ok("ready"), identity.actor_id);
     println!("  public key: {}", identity.pubkey);
-    match &identity.signer {
-        Some(crate::cli_identity::IdentitySigner::Helper { mode, .. }) => {
-            println!("  approval:   protected · {mode}");
-        }
-        Some(crate::cli_identity::IdentitySigner::File { key_path }) => {
-            println!("  key file:   {key_path}");
-        }
-        None => println!("  key file:   {}", identity.key_path),
-    }
+    println!("  key file:   {}", identity.key_path);
     println!();
     println!("Next: bootstrap a new frontier's empty actor registry with");
     println!("  vela actor add <frontier>");

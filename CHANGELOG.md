@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+## v0.930.0-rc.13 — 2026-07-26 — Contract authority to standard providers
+
+- Replace the custom protected-signer path with one attributed
+  repository-authority decision: local OS principal authentication,
+  restricted Cedar authorization, and exact DSSE signing through the standard
+  OpenSSH agent.
+- Remove the `vela-signer` crate and binary, identity-v2 custody, signer
+  sessions, binary/helper rebind, platform prompt adapters, and one-time
+  migration writers.
+- Remove copied root/time confirmation from `review decide`; the exact command
+  is the semantic human action and the recoverable transaction remains the
+  write boundary.
+- Contract release archives to one `vela` binary and the workspace to six
+  crates while retaining byte-identical Era-0 replay.
+- Retire obsolete signer-session schemas and rewrite current authority,
+  command, verification, repository-profile, quickstart, and threat-model
+  guidance around the single live writer.
+
 ## v0.930.0-rc.12 — 2026-07-26 — Preserve repository configuration during landing
 
 - Keep `frontier.yaml` and every other repository-configuration surface out of

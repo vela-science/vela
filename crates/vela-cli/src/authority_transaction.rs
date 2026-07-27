@@ -15,6 +15,7 @@ use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use vela_authority::runtime_authentication::{
     AuthenticationAdapter, AuthenticationRequest, AuthorityPreflightFailure, RuntimeSessionState,
     preflight_authority_action,
@@ -4424,4 +4425,9 @@ mod tests {
         );
         verify_installed_history(&fixture, &[], &envelope);
     }
+}
+pub(crate) fn execution_binary_sha256(path: &Path) -> Result<String, String> {
+    let bytes = std::fs::read(path)
+        .map_err(|error| format!("read execution binary {}: {error}", path.display()))?;
+    Ok(format!("sha256:{}", hex::encode(Sha256::digest(bytes))))
 }

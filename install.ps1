@@ -7,10 +7,10 @@ param(
 $ErrorActionPreference = "Stop"
 $Repo = "vela-science/vela"
 if ($Action -eq "Uninstall") {
-  foreach ($Binary in @("vela.exe", "vela-signer.exe")) {
+  foreach ($Binary in @("vela.exe")) {
     Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $InstallDir $Binary)
   }
-  Write-Host "Removed Vela binaries. Frontier and identity data were preserved."
+  Write-Host "Removed Vela. Frontier data was preserved."
   exit 0
 }
 if (-not [Environment]::Is64BitOperatingSystem) {
@@ -62,7 +62,7 @@ try {
   $Unpack = Join-Path $Temp "unpack"
   Expand-Archive $Archive -DestinationPath $Unpack
   New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
-  foreach ($Binary in @("vela.exe", "vela-signer.exe")) {
+  foreach ($Binary in @("vela.exe")) {
     $Source = Join-Path $Unpack $Binary
     if (-not (Test-Path $Source -PathType Leaf)) { throw "$Binary is missing from $Asset" }
     if ($TrustRecord.platform_signature -eq "authenticode") {
@@ -81,8 +81,7 @@ try {
   }
   if (($env:Path -split ';') -notcontains $InstallDir) { $env:Path = "$InstallDir;$env:Path" }
   & (Join-Path $InstallDir "vela.exe") --version
-  & (Join-Path $InstallDir "vela-signer.exe") --version
-  Write-Host "Installed vela and vela-signer to $InstallDir"
+  Write-Host "Installed vela to $InstallDir"
   if ($TrustRecord.platform_signature -eq "absent") {
     Write-Host "Note: this is a GitHub-attested portable build without an Authenticode signature."
   }

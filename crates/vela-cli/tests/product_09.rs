@@ -83,14 +83,17 @@ fn compact_contract_exposes_only_the_daily_surface_and_bounded_status() {
         "verify",
         "log",
         "doctor",
-        "migrate",
     ] {
         assert!(help.contains(command), "missing {command}: {help}");
     }
-    assert!(!help.contains("  sign"), "default help leaked sign: {help}");
+    for removed in ["  sign", "  migrate", "  authority"] {
+        assert!(
+            !help.contains(removed),
+            "default help leaked {removed}: {help}"
+        );
+    }
     let advanced = run(temp.path(), temp.path(), &["help", "advanced"]);
     assert_success(&advanced);
-    assert!(text(&advanced).contains("historical batch and detached-file signing compatibility"));
     assert!(text(&advanced).contains("target-index  inspect, diagnose, or seal"));
     for retired in ["proposals", "foundry", "atlas", "hub", "publication"] {
         assert!(
@@ -310,7 +313,7 @@ fn compact_contract_exposes_only_the_daily_surface_and_bounded_status() {
 }
 
 #[test]
-fn nested_frontier_failures_keep_stable_dotted_command_ids() {
+fn active_nested_frontier_failures_keep_stable_dotted_command_ids() {
     let temp = tempfile::tempdir().unwrap();
 
     let bind = run(
@@ -326,10 +329,11 @@ fn nested_frontier_failures_keep_stable_dotted_command_ids() {
         ],
     );
     assert!(!bind.status.success(), "{}", text(&bind));
-    assert!(bind.stderr.is_empty(), "{}", text(&bind));
-    let bind: serde_json::Value = serde_json::from_slice(&bind.stdout).unwrap();
-    assert_eq!(bind["ok"], false);
-    assert_eq!(bind["command"], "frontier.bind");
+    assert!(
+        text(&bind).contains("unrecognized subcommand"),
+        "{}",
+        text(&bind)
+    );
 
     let recover = run(
         temp.path(),

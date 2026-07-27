@@ -97,15 +97,14 @@ Daily product:
   verify        Retain non-authorizing proposal-scoped verifier evidence
   log           Recent signed events or one finding's history
   doctor        Blockers plus one safe next action
-  migrate       Preview or apply a root-preserving repository migration
 
 Nouns and setup:
   finding       record, standing, evidence, and attribution views
   artifact      content-addressed evidence lifecycle
   frontier      materialize, compare, recover publication, release, audit
   policy        frozen Era-0 policy inspection and admission history
-  actor         governed frontier identities
-  id            local identity and key custody setup
+  actor         inspect the frozen Era-0 actor registry
+  id            optional file-backed producer identity
   agents        regenerate agent adapters from VELA.md
   config        closed local/frontier configuration
 
@@ -113,10 +112,8 @@ Advanced verification and integration:
   gate          claim-level verification projections
   proof         proof packet export, verify, and explain
   serve         read-only or nonfinalizing draft MCP/HTTP surface
-  sign          historical batch and detached-file signing compatibility
 
 Advanced setup:
-  authority     one-time repository-authority migration candidate
   target-index  inspect, diagnose, or seal derived producer targets
 
 Hidden utility:

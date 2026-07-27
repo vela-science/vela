@@ -33,42 +33,22 @@ case "$ARCHIVE" in
 esac
 
 test -f "$UNPACK/vela"
-test -f "$UNPACK/vela-signer"
 test -x "$UNPACK/vela"
-test -x "$UNPACK/vela-signer"
 test -z "$(find "$UNPACK" -type l -print -quit)"
 test "$("$UNPACK/vela" --version)" = "vela $EXPECTED_VERSION"
-test "$("$UNPACK/vela-signer" --version)" = "vela-signer $EXPECTED_VERSION"
 
 if [ "$REQUIRE_PLATFORM_SIGNATURE" = true ]; then
   test "$(uname -s)" = Darwin
-  codesign --verify --strict --verbose=2 "$UNPACK/vela" "$UNPACK/vela-signer"
+  codesign --verify --strict --verbose=2 "$UNPACK/vela"
   spctl --assess --type execute --verbose=2 "$UNPACK/vela"
-  spctl --assess --type execute --verbose=2 "$UNPACK/vela-signer"
 fi
 
-if [ "$(uname -s)" = Linux ]; then
-  POLICY="share/polkit-1/actions/science.vela.signer.policy"
-  test -f "$UNPACK/$POLICY"
-  mkdir -p "$PREFIX/$(dirname "$POLICY")"
-  install -m 0644 "$UNPACK/$POLICY" "$PREFIX/$POLICY"
-fi
-
-for binary in vela vela-signer; do
-  install -m 0755 "$UNPACK/$binary" "$PREFIX/bin/$binary"
-done
+install -m 0755 "$UNPACK/vela" "$PREFIX/bin/vela"
 HOME="$ROOT/home" "$PREFIX/bin/vela" --version
-HOME="$ROOT/home" "$PREFIX/bin/vela-signer" --version
 
 # Exercise an exact in-place upgrade, then uninstall only installed product bytes.
-for binary in vela vela-signer; do
-  install -m 0755 "$UNPACK/$binary" "$PREFIX/bin/$binary"
-  rm "$PREFIX/bin/$binary"
-  test ! -e "$PREFIX/bin/$binary"
-done
-if [ "$(uname -s)" = Linux ]; then
-  rm "$PREFIX/$POLICY"
-  test ! -e "$PREFIX/$POLICY"
-fi
+install -m 0755 "$UNPACK/vela" "$PREFIX/bin/vela"
+rm "$PREFIX/bin/vela"
+test ! -e "$PREFIX/bin/vela"
 
 echo "release bundle smoke passed: $(basename "$ARCHIVE") ($EXPECTED_VERSION)"

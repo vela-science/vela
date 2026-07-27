@@ -5,7 +5,6 @@
 #   vela-authority      restricted standard authorization evaluation
 #   vela-edge           derived views and adapters over kernel state
 #   vela-cli            the `vela` product binary
-#   vela-signer         one-shot protected human signer
 #   vela-verify         frozen, dependency-light exact verifiers; the
 #                       reference registry `vela gate` / `vela reproduce`
 #                       build on
@@ -15,7 +14,6 @@ members = [
     "crates/vela-edge",
     "crates/vela-protocol-core",
     "crates/vela-cli",
-    "crates/vela-signer",
     "crates/vela-verify",
 ]
 resolver = "3"
@@ -24,7 +22,7 @@ resolver = "3"
 # Release numbering uses `0.RRR.P`, where RRR names the release train and P is
 # the compatible patch within that train. Older `v0.X` markers in comments and
 # research documents are historical proof-slice labels.
-version = "0.930.0-rc.12"
+version = "0.930.0-rc.13"
 edition = "2024"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/vela-science/vela"
@@ -69,12 +67,11 @@ windows-sys = "0.61"
 
 # Internal crates. `version` is required so cargo publish can resolve
 # the dep against crates.io; `path` is used for in-workspace builds.
-vela-protocol = { path = "crates/vela-protocol", version = "0.930.0-rc.12" }
-vela-authority = { path = "crates/vela-authority", version = "0.930.0-rc.12" }
-vela-protocol-core = { path = "crates/vela-protocol-core", version = "0.930.0-rc.12" }
-vela-verify = { path = "crates/vela-verify", version = "0.930.0-rc.12" }
-vela-signer = { path = "crates/vela-signer", version = "0.930.0-rc.12" }
-vela-edge = { path = "crates/vela-edge", version = "0.930.0-rc.12" }
+vela-protocol = { path = "crates/vela-protocol", version = "0.930.0-rc.13" }
+vela-authority = { path = "crates/vela-authority", version = "0.930.0-rc.13" }
+vela-protocol-core = { path = "crates/vela-protocol-core", version = "0.930.0-rc.13" }
+vela-verify = { path = "crates/vela-verify", version = "0.930.0-rc.13" }
+vela-edge = { path = "crates/vela-edge", version = "0.930.0-rc.13" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

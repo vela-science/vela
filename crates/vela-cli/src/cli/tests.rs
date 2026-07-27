@@ -178,7 +178,7 @@ mod surface_tests {
     }
 
     #[test]
-    fn repository_maintenance_modes_are_exactly_one_and_help_is_truthful() {
+    fn retired_migration_is_absent_and_target_sealing_modes_are_exact() {
         on_big_stack(|| {
             let migrate = [
                 "vela",
@@ -197,11 +197,11 @@ mod surface_tests {
             for mode in ["--check", "--apply"] {
                 let mut args = migrate.to_vec();
                 args.push(mode);
-                assert!(Cli::try_parse_from(args).is_ok(), "{mode} must parse alone");
+                assert!(
+                    Cli::try_parse_from(args).is_err(),
+                    "retired migration must not parse with {mode}"
+                );
             }
-            let mut both = migrate.to_vec();
-            both.extend(["--check", "--apply"]);
-            assert!(Cli::try_parse_from(both).is_err());
 
             let seal = [
                 "vela",
@@ -221,12 +221,6 @@ mod surface_tests {
             both.extend(["--check", "--apply"]);
             assert!(Cli::try_parse_from(both).is_err());
 
-            let migrate_help = match Cli::try_parse_from(["vela", "migrate", "--help"]) {
-                Ok(_) => panic!("--help must exit through clap"),
-                Err(error) => error.to_string(),
-            };
-            assert!(!migrate_help.contains("--check --apply"));
-            assert!(migrate_help.contains("Exact acting identity"));
             assert!(crate::cli::help_text::SERVE.contains("--http 3741"));
             assert!(!crate::cli::help_text::SERVE.contains("hub.constellate.science"));
         });
@@ -238,7 +232,6 @@ mod surface_tests {
         "actor",
         "agents",
         "artifact",
-        "authority",
         "check",
         "config",
         "doctor",
@@ -249,14 +242,12 @@ mod surface_tests {
         "init",
         "land",
         "log",
-        "migrate",
         "next",
         "policy",
         "proof",
         "reproduce",
         "review",
         "serve",
-        "sign",
         "status",
         "verify",
         "work",
@@ -337,6 +328,30 @@ mod surface_tests {
                     "retired verb `{name}` is still reachable — the cut regressed"
                 );
             }
+        });
+    }
+
+    #[test]
+    fn era_zero_writers_and_one_time_migration_writers_are_absent() {
+        on_big_stack(|| {
+            for args in [
+                vec!["vela", "sign"],
+                vec!["vela", "migrate", "."],
+                vec!["vela", "authority", "enable-work", "."],
+                vec!["vela", "frontier", "bind", "."],
+                vec!["vela", "id", "protect"],
+                vec!["vela", "id", "lock"],
+                vec!["vela", "id", "pin-binary"],
+                vec!["vela", "actor", "add", "."],
+                vec!["vela", "actor", "activate", "."],
+            ] {
+                assert!(
+                    Cli::try_parse_from(&args).is_err(),
+                    "retired writer unexpectedly parses: {args:?}"
+                );
+            }
+            assert!(Cli::try_parse_from(["vela", "actor", "list", "."]).is_ok());
+            assert!(Cli::try_parse_from(["vela", "frontier", "materialize", "."]).is_ok());
         });
     }
 

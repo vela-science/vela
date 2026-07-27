@@ -1,22 +1,20 @@
 //! Repository-authority human review decisions.
 //!
-//! This is the Era-1 replacement for personal Vela event signing. The human
-//! approves one exact semantic intent through the platform provider; the
-//! repository authority signs the covering transaction. The provider returns
-//! no credential and Vela never reads a human scientific key.
+//! This is the Era-1 replacement for personal Vela event signing. In the solo
+//! local profile, invoking the exact proposal/action/reason command is the
+//! semantic approval, the operating-system account supplies authentication,
+//! and the repository authority signs the covering transaction. Vela never
+//! reads a human scientific key.
 
 use std::fs;
 use std::path::Path;
 
-use chrono::{DateTime, Duration, SecondsFormat, Utc};
-use rand::RngCore;
+use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use vela_authority::CedarEvaluationInput;
-use vela_authority::runtime_authentication::{
-    AuthenticationRequest, PlatformUserPresenceSession, RuntimeSessionState,
-};
+use vela_authority::runtime_authentication::{AuthenticationRequest, RuntimeSessionState};
 use vela_protocol::authority::{PrincipalSnapshotV1, SemanticApprovalV1};
 use vela_protocol::canonical::to_canonical_bytes;
 use vela_protocol::events::{EventKind, NULL_HASH, StateActor, StateEvent, StateTarget};
@@ -263,33 +261,18 @@ fn execute_decision(
     )?;
     if locked.plan != *expected {
         return Err(
-            "repository review facts changed while acquiring the authority barrier; no provider approval was requested"
+            "repository review facts changed while acquiring the authority barrier; no authority signature was requested"
                 .into(),
         );
     }
 
-    let request = provider_request(frontier, &locked)?;
-    let response = crate::cli::request_authority_intent(&request)?;
     let recorded_at =
-        crate::cli::canonical_whole_second_time("review approval", &response.approved_at)?;
+        crate::cli::canonical_whole_second_time("review decision", &locked.plan.observed_at)?;
     let local = crate::cli::local_session(&recorded_at)?;
     if local.principal_id != locked.plan.principal_id {
-        return Err(
-            "local operating-system principal changed after protected review approval".into(),
-        );
+        return Err("local operating-system principal changed before review execution".into());
     }
-    let mut authentication = PlatformUserPresenceSession {
-        principal_id: locked.plan.principal_id.clone(),
-        issuer: local.issuer,
-        subject: local.subject,
-        session_root: response.session_root,
-        authenticated_at: recorded_at.clone(),
-        expires_at: (DateTime::parse_from_rfc3339(&recorded_at)
-            .map_err(|error| error.to_string())?
-            .with_timezone(&Utc)
-            + Duration::minutes(5))
-        .to_rfc3339_opts(SecondsFormat::Secs, true),
-    };
+    let mut authentication = local;
 
     let authorization = CedarEvaluationInput {
         schema: locked.authority.policy_material.schema.clone(),
@@ -338,7 +321,7 @@ fn execute_decision(
     let mut signer = SshAgentRepositoryAuthoritySigner::from_environment(key_id, &public_key)?;
     let executable =
         std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
-    let binary_sha256 = vela_signer::contract::file_sha256(&executable)?;
+    let binary_sha256 = crate::authority_transaction::execution_binary_sha256(&executable)?;
     let result = execute_authority_transaction(
         barrier,
         frontier,
@@ -598,44 +581,6 @@ fn authority_object_kind(path: &str) -> &'static str {
     } else {
         "canonical_evidence"
     }
-}
-
-fn provider_request(
-    frontier: &Path,
-    prepared: &PreparedRepositoryReviewDecision,
-) -> Result<vela_signer::AuthorityIntentRequest, String> {
-    let executable =
-        std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
-    let helper = crate::cli_identity::signer_helper_path(&executable)?;
-    let helper_sha256 = vela_signer::contract::file_sha256(&helper)?;
-    let mut nonce = [0_u8; 32];
-    rand::rngs::OsRng.fill_bytes(&mut nonce);
-    let request = vela_signer::AuthorityIntentRequest {
-        schema: vela_signer::AUTHORITY_INTENT_REQUEST_SCHEMA.into(),
-        nonce: hex::encode(nonce),
-        expires_at: (Utc::now()
-            + Duration::seconds(vela_signer::AUTHORITY_INTENT_REQUEST_LIFETIME_SECONDS))
-        .to_rfc3339_opts(SecondsFormat::Secs, true),
-        vela_binary_path: executable.display().to_string(),
-        vela_binary_sha256: vela_signer::contract::file_sha256(&executable)?,
-        helper_sha256,
-        frontier_id: prepared.plan.frontier_id.clone(),
-        frontier_name: prepared.plan.frontier_name.clone(),
-        principal_id: prepared.plan.principal_id.clone(),
-        action: prepared.plan.action.clone(),
-        reason: prepared.plan.reason.clone(),
-        intent_digest: prepared.plan.plan_root.clone(),
-        current_policy_bundle_root: prepared.plan.policy_bundle_root.clone(),
-        next_policy_bundle_root: prepared.plan.policy_bundle_root.clone(),
-        resource_id: Some(prepared.plan.proposal_id.clone()),
-        resource_root: Some(prepared.plan.proposal_root.clone()),
-    };
-    let canonical = std::fs::canonicalize(frontier).unwrap_or_else(|_| frontier.to_path_buf());
-    if canonical.as_os_str().is_empty() {
-        return Err("frontier path is empty".into());
-    }
-    vela_signer::validate_authority_intent_request(&request, Utc::now())?;
-    Ok(request)
 }
 
 fn plan_root(plan: &RepositoryReviewDecisionPlan) -> Result<String, String> {

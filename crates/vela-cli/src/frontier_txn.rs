@@ -1380,181 +1380,6 @@ pub(crate) struct CanonicalWriteBarrier {
     authorization: FrontierTxnAuthorization,
 }
 
-/// Exact facts checked before showing the protected Profile v0.1 -> v1
-/// approval prompt.
-///
-/// This value can retain the recovery lock but cannot prepare or commit a
-/// transaction. Only the matching protected signer response can promote it
-/// into a [`MigrationWriteBarrier`].
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct MigrationCeremonySpec {
-    canonical_frontier_root: PathBuf,
-    frontier_id: String,
-    anchor_git_commit: String,
-    anchor_git_tree: String,
-    pre_event_log_root: ContentDigest,
-    pre_event_count: usize,
-    confirmed_plan_root: ContentDigest,
-    request_root: ContentDigest,
-    boundary_event_id: String,
-}
-
-impl MigrationCeremonySpec {
-    pub(crate) fn from_protected_request(
-        request: &vela_signer::RepositoryBoundarySignerRequest,
-    ) -> Result<Self, FrontierTxnError> {
-        Self::from_protected_request_at(request, chrono::Utc::now())
-    }
-
-    fn from_protected_request_at(
-        request: &vela_signer::RepositoryBoundarySignerRequest,
-        validation_time: chrono::DateTime<chrono::Utc>,
-    ) -> Result<Self, FrontierTxnError> {
-        vela_signer::validate_repository_boundary_request(request, validation_time)
-            .map_err(FrontierTxnError::MigrationAuthorizationInvalid)?;
-        let payload: vela_protocol::frontier_repository::FrontierRepositoryBoundaryPayloadV1 =
-            serde_json::from_value(request.event.payload.clone()).map_err(|error| {
-                FrontierTxnError::MigrationAuthorizationInvalid(format!(
-                    "decode protected migration boundary payload: {error}"
-                ))
-            })?;
-        if payload.mode
-            != vela_protocol::frontier_repository::FrontierRepositoryBoundaryMode::TemporalizeExisting
-        {
-            return Err(FrontierTxnError::MigrationAuthorizationInvalid(
-                "migration ceremony accepts only temporalize_existing repository boundaries"
-                    .to_string(),
-            ));
-        }
-        if payload.trust_mode
-            != vela_protocol::frontier_repository::FrontierRepositoryTrustMode::Tofu
-        {
-            return Err(FrontierTxnError::MigrationAuthorizationInvalid(
-                "legacy Profile v0.1 migration requires the first TOFU repository boundary"
-                    .to_string(),
-            ));
-        }
-        let pre_event_count = usize::try_from(payload.anchor_event_count).map_err(|_| {
-            FrontierTxnError::MigrationAuthorizationInvalid(
-                "migration anchor event count does not fit this platform".to_string(),
-            )
-        })?;
-        let canonical_frontier_root = PathBuf::from(&request.frontier_path);
-        if !canonical_frontier_root.is_absolute()
-            || canonical_frontier_root.components().any(|component| {
-                matches!(
-                    component,
-                    std::path::Component::CurDir | std::path::Component::ParentDir
-                )
-            })
-        {
-            return Err(FrontierTxnError::MigrationAuthorizationInvalid(
-                "protected migration frontier_path must be an absolute normalized path".to_string(),
-            ));
-        }
-        let spec = Self {
-            canonical_frontier_root,
-            frontier_id: payload.frontier_id,
-            anchor_git_commit: payload.anchor_git_commit,
-            anchor_git_tree: payload.anchor_git_tree,
-            pre_event_log_root: ContentDigest::parse(payload.anchor_event_log_root)?,
-            pre_event_count,
-            confirmed_plan_root: ContentDigest::parse(request.boundary_plan_root.clone())?,
-            request_root: ContentDigest::parse(
-                vela_signer::repository_boundary_request_root(request)
-                    .map_err(FrontierTxnError::MigrationAuthorizationInvalid)?,
-            )?,
-            boundary_event_id: request.event.id.clone(),
-        };
-        validate_git_oid("migration anchor commit", &spec.anchor_git_commit)?;
-        validate_git_oid("migration anchor tree", &spec.anchor_git_tree)?;
-        if spec.frontier_id.trim().is_empty() {
-            return Err(FrontierTxnError::MigrationAuthorizationInvalid(
-                "migration frontier id is empty".to_string(),
-            ));
-        }
-        Ok(spec)
-    }
-
-    pub(crate) fn confirmed_plan_root(&self) -> &ContentDigest {
-        &self.confirmed_plan_root
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct MigrationCeremonyBarrier {
-    recovery: FrontierRecoveryBarrier,
-    spec: MigrationCeremonySpec,
-}
-
-/// Exact facts reauthorized for the one protected Profile v0.1 -> v1
-/// migration transaction. This is private transaction plumbing, not a
-/// protocol object or a reusable administrator permission. There is
-/// deliberately no caller-facing constructor: promotion from a held ceremony
-/// barrier is the only production path.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct MigrationWritePermitSpec {
-    ceremony: MigrationCeremonySpec,
-    confirmed_delta_root: ContentDigest,
-}
-
-impl MigrationWritePermitSpec {
-    fn from_protected_response(
-        ceremony: &MigrationCeremonySpec,
-        request: &vela_signer::RepositoryBoundarySignerRequest,
-        response: &vela_signer::RepositoryBoundarySignerResponse,
-        confirmed_delta_root: impl Into<String>,
-    ) -> Result<Self, FrontierTxnError> {
-        let approved_at = chrono::DateTime::parse_from_rfc3339(&response.approved_at)
-            .map_err(|error| {
-                FrontierTxnError::MigrationAuthorizationInvalid(format!(
-                    "repository-boundary response approved_at is not RFC3339: {error}"
-                ))
-            })?
-            .with_timezone(&chrono::Utc);
-        let current = MigrationCeremonySpec::from_protected_request_at(request, approved_at)?;
-        if &current != ceremony {
-            return Err(FrontierTxnError::MigrationAuthorizationInvalid(
-                "protected repository-boundary request differs from the held migration ceremony"
-                    .to_string(),
-            ));
-        }
-        // `approved_at` is response metadata, not part of the signed event.
-        // Recheck freshness against this process's current wall clock so a
-        // captured, formerly valid request/response cannot mint a new
-        // migration capability after its bounded ceremony window.
-        vela_signer::validate_repository_boundary_request_fresh(request, chrono::Utc::now())
-            .map_err(FrontierTxnError::MigrationAuthorizationInvalid)?;
-        vela_signer::validate_repository_boundary_response(request, response)
-            .map_err(FrontierTxnError::MigrationAuthorizationInvalid)?;
-        if response.request_root != ceremony.request_root.as_str()
-            || response.event_id != ceremony.boundary_event_id
-        {
-            return Err(FrontierTxnError::MigrationAuthorizationInvalid(
-                "protected response differs from the held request or boundary event".to_string(),
-            ));
-        }
-        Ok(Self {
-            ceremony: ceremony.clone(),
-            confirmed_delta_root: ContentDigest::parse(confirmed_delta_root)?,
-        })
-    }
-
-    pub(crate) fn confirmed_plan_root(&self) -> &ContentDigest {
-        &self.ceremony.confirmed_plan_root
-    }
-
-    pub(crate) fn confirmed_delta_root(&self) -> &ContentDigest {
-        &self.confirmed_delta_root
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct MigrationWriteBarrier {
-    recovery: FrontierRecoveryBarrier,
-    authorization: FrontierTxnAuthorization,
-}
-
 #[derive(Debug)]
 struct RepositoryAuthorityWriteAuthorization {
     frontier_id: String,
@@ -1565,8 +1390,7 @@ struct RepositoryAuthorityWriteAuthorization {
 /// The exact repository authority required by one canonical write attempt.
 ///
 /// This value is deliberately part of the in-memory capability rather than a
-/// caller-controlled boolean. Migration uses its own exact, protected permit
-/// and may not enter through any of these ordinary write intents.
+/// caller-controlled boolean.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CanonicalWriteIntent {
     /// Producer evidence, leases, verifier attachments, and derived views.
@@ -1603,27 +1427,6 @@ struct CanonicalWriteAuthorization {
     trusted_user_home: PathBuf,
     intent: CanonicalWriteIntent,
     delta_root: Option<ContentDigest>,
-}
-
-#[derive(Debug)]
-struct MigrationWriteAuthorization {
-    spec: MigrationWritePermitSpec,
-    context_root: ContentDigest,
-}
-
-#[derive(Serialize)]
-struct MigrationWriteAuthorizationCommitment<'a> {
-    schema: &'static str,
-    frontier_id: &'a str,
-    canonical_root: String,
-    anchor_git_commit: &'a str,
-    anchor_git_tree: &'a str,
-    pre_event_log_root: &'a ContentDigest,
-    pre_event_count: usize,
-    confirmed_plan_root: &'a ContentDigest,
-    confirmed_delta_root: &'a ContentDigest,
-    request_root: &'a ContentDigest,
-    boundary_event_id: &'a str,
 }
 
 #[derive(Serialize)]
@@ -2140,124 +1943,6 @@ pub(crate) fn operating_system_account_home() -> Result<PathBuf, FrontierTxnErro
     ))
 }
 
-fn validate_git_oid(label: &str, value: &str) -> Result<(), FrontierTxnError> {
-    if !matches!(value.len(), 40 | 64)
-        || !value
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
-        return Err(FrontierTxnError::MigrationAuthorizationInvalid(format!(
-            "{label} must be a full lowercase SHA-1 or SHA-256 Git object id"
-        )));
-    }
-    Ok(())
-}
-
-fn exact_git_revision(root: &Path, revision: &str) -> Result<String, FrontierTxnError> {
-    let value =
-        crate::git_hardened::text(root, &["rev-parse", "--verify", revision]).map_err(|error| {
-            FrontierTxnError::MigrationAuthorizationInvalid(format!(
-                "git rev-parse for {revision} failed: {error}"
-            ))
-        })?;
-    validate_git_oid(revision, &value)?;
-    Ok(value)
-}
-
-fn verify_migration_ceremony_source(
-    root: &Path,
-    spec: &MigrationCeremonySpec,
-) -> Result<(), FrontierTxnError> {
-    use vela_protocol::frontier_repo::{FrontierProfileFile, read_repository_profile};
-
-    let root = canonical_frontier_root(root)?;
-    if root != spec.canonical_frontier_root {
-        return Err(FrontierTxnError::MigrationAuthorizationInvalid(format!(
-            "migration destination differs from protected plan: expected {}, found {}",
-            spec.canonical_frontier_root.display(),
-            root.display()
-        )));
-    }
-
-    match read_repository_profile(&root) {
-        Ok(Some(FrontierProfileFile::LegacyV0_1(_))) | Ok(None) => {}
-        Ok(Some(FrontierProfileFile::V1(_))) => {
-            return Err(FrontierTxnError::MigrationAuthorizationInvalid(
-                "migration permit applies only to a legacy Profile v0.1 repository".to_string(),
-            ));
-        }
-        Err(error) => {
-            return Err(FrontierTxnError::MigrationAuthorizationInvalid(format!(
-                "read migration source profile: {error}"
-            )));
-        }
-    }
-    let project = vela_protocol::repo::load_from_path(&root).map_err(|error| {
-        FrontierTxnError::MigrationAuthorizationInvalid(format!(
-            "load migration source repository: {error}"
-        ))
-    })?;
-    if project.frontier_id() != spec.frontier_id {
-        return Err(FrontierTxnError::MigrationAuthorizationInvalid(format!(
-            "migration permit frontier {} does not match current {}",
-            spec.frontier_id,
-            project.frontier_id()
-        )));
-    }
-    let actual_event_count = project.events.len();
-    let actual_event_log_root = ContentDigest::parse(format!(
-        "sha256:{}",
-        vela_protocol::events::event_log_hash(&project.events)
-    ))?;
-    if actual_event_count != spec.pre_event_count
-        || actual_event_log_root != spec.pre_event_log_root
-    {
-        return Err(FrontierTxnError::MigrationAuthorizationInvalid(format!(
-            "migration source event prefix drifted: expected {} events at {}, found {} at {}",
-            spec.pre_event_count,
-            spec.pre_event_log_root.as_str(),
-            actual_event_count,
-            actual_event_log_root.as_str()
-        )));
-    }
-    let actual_commit = exact_git_revision(&root, "HEAD")?;
-    let actual_tree = exact_git_revision(&root, "HEAD^{tree}")?;
-    if actual_commit != spec.anchor_git_commit || actual_tree != spec.anchor_git_tree {
-        return Err(FrontierTxnError::MigrationAuthorizationInvalid(format!(
-            "migration Git anchor drifted: expected {}/{}, found {}/{}",
-            spec.anchor_git_commit, spec.anchor_git_tree, actual_commit, actual_tree
-        )));
-    }
-    Ok(())
-}
-
-fn verify_migration_write_authorization(
-    root: &Path,
-    spec: &MigrationWritePermitSpec,
-) -> Result<MigrationWriteAuthorization, FrontierTxnError> {
-    verify_migration_ceremony_source(root, &spec.ceremony)?;
-    let root = canonical_frontier_root(root)?;
-    let bytes =
-        vela_protocol::canonical::to_canonical_bytes(&MigrationWriteAuthorizationCommitment {
-            schema: "vela.migration-write-authorization.internal.v1",
-            frontier_id: &spec.ceremony.frontier_id,
-            canonical_root: root.to_string_lossy().into_owned(),
-            anchor_git_commit: &spec.ceremony.anchor_git_commit,
-            anchor_git_tree: &spec.ceremony.anchor_git_tree,
-            pre_event_log_root: &spec.ceremony.pre_event_log_root,
-            pre_event_count: spec.ceremony.pre_event_count,
-            confirmed_plan_root: &spec.ceremony.confirmed_plan_root,
-            confirmed_delta_root: &spec.confirmed_delta_root,
-            request_root: &spec.ceremony.request_root,
-            boundary_event_id: &spec.ceremony.boundary_event_id,
-        })
-        .map_err(FrontierTxnError::Canonicalize)?;
-    Ok(MigrationWriteAuthorization {
-        spec: spec.clone(),
-        context_root: ContentDigest::hash(bytes),
-    })
-}
-
 impl FrontierRecoveryBarrier {
     /// Re-verify a caller's complete bound read set while retaining the
     /// frontier write lock. The lock coordinates Vela writers; it is advisory
@@ -2391,16 +2076,6 @@ fn reverify_transaction_authorization(
                 &expected.trusted_user_home,
                 expected.intent,
             )?;
-            if actual.context_root != expected.context_root {
-                return Err(FrontierTxnError::StaleWriteAuthorization {
-                    expected: expected.context_root.clone(),
-                    actual: actual.context_root,
-                });
-            }
-            Ok(())
-        }
-        FrontierTxnAuthorization::Migration(expected) => {
-            let actual = verify_migration_write_authorization(root, &expected.spec)?;
             if actual.context_root != expected.context_root {
                 return Err(FrontierTxnError::StaleWriteAuthorization {
                     expected: expected.context_root.clone(),
@@ -3007,7 +2682,6 @@ pub(crate) struct FrontierTxn {
 #[derive(Debug)]
 enum FrontierTxnAuthorization {
     Verified(CanonicalWriteAuthorization),
-    Migration(MigrationWriteAuthorization),
     RepositoryAuthority(RepositoryAuthorityWriteAuthorization),
     #[cfg(test)]
     TestHarness,
@@ -3017,7 +2691,6 @@ impl FrontierTxnAuthorization {
     fn verified_frontier_id(&self) -> Option<&str> {
         match self {
             Self::Verified(authorization) => Some(&authorization.frontier_id),
-            Self::Migration(authorization) => Some(&authorization.spec.ceremony.frontier_id),
             Self::RepositoryAuthority(authorization) => Some(&authorization.frontier_id),
             #[cfg(test)]
             Self::TestHarness => None,
@@ -3245,52 +2918,6 @@ impl FrontierTxn {
         verify_repository_write_authorization(&root, &trusted_user_home, intent).map(|_| ())
     }
 
-    /// Lock and recheck the exact legacy source before showing a protected
-    /// migration approval prompt.
-    ///
-    /// This barrier cannot prepare a transaction. Holding it across the
-    /// prompt prevents another Vela writer from making the approval stale and
-    /// ensures contention or recovery failures happen before user presence is
-    /// requested.
-    pub(crate) fn acquire_migration_ceremony_barrier(
-        frontier_root: &Path,
-        journal_dir: &Path,
-        spec: MigrationCeremonySpec,
-    ) -> Result<MigrationCeremonyBarrier, FrontierTxnError> {
-        let root = canonical_frontier_root(frontier_root)?;
-        // Exact unlocked preflight prevents a malformed request from creating
-        // even an ignored lock. The same source is rechecked under lock.
-        verify_migration_ceremony_source(&root, &spec)?;
-        let recovery = Self::acquire_recovery_barrier(&root, journal_dir)?;
-        verify_migration_ceremony_source(&recovery.root, &spec)?;
-        Ok(MigrationCeremonyBarrier { recovery, spec })
-    }
-
-    /// Promote a still-held ceremony barrier after the matching protected
-    /// response and exact signed delta have been verified.
-    pub(crate) fn authorize_migration_write_barrier(
-        ceremony: MigrationCeremonyBarrier,
-        request: &vela_signer::RepositoryBoundarySignerRequest,
-        response: &vela_signer::RepositoryBoundarySignerResponse,
-        confirmed_delta_root: impl Into<String>,
-    ) -> Result<MigrationWriteBarrier, FrontierTxnError> {
-        let MigrationCeremonyBarrier { recovery, spec } = ceremony;
-        let permit = MigrationWritePermitSpec::from_protected_response(
-            &spec,
-            request,
-            response,
-            confirmed_delta_root,
-        )?;
-        // The recovery lock acquired before the prompt is still held here.
-        // Recheck the exact source after approval and bind the final delta.
-        verify_migration_ceremony_source(&recovery.root, &spec)?;
-        let authorization = verify_migration_write_authorization(&recovery.root, &permit)?;
-        Ok(MigrationWriteBarrier {
-            recovery,
-            authorization: FrontierTxnAuthorization::Migration(authorization),
-        })
-    }
-
     #[cfg(test)]
     pub(crate) fn acquire_write_barrier_for_test(
         frontier_root: &Path,
@@ -3325,41 +2952,6 @@ impl FrontierTxn {
             recovery,
             authorization,
         } = barrier;
-        Self::prepare_with_recovery_barrier_and_authorization(
-            recovery,
-            authorization,
-            plan,
-            draft,
-            &mut NoFrontierTxnFailpoints,
-        )
-    }
-
-    pub(crate) fn prepare_with_migration_barrier(
-        barrier: MigrationWriteBarrier,
-        plan: FrontierTxnPlan,
-        draft: DeltaDraft,
-    ) -> Result<Self, FrontierTxnError> {
-        let MigrationWriteBarrier {
-            recovery,
-            authorization,
-        } = barrier;
-        let FrontierTxnAuthorization::Migration(migration) = &authorization else {
-            return Err(FrontierTxnError::MigrationAuthorizationInvalid(
-                "migration barrier did not carry a migration authorization".to_string(),
-            ));
-        };
-        if &plan.request_root != migration.spec.confirmed_plan_root() {
-            return Err(FrontierTxnError::MigrationPlanRootMismatch {
-                permitted: migration.spec.confirmed_plan_root().clone(),
-                planned: plan.request_root.clone(),
-            });
-        }
-        if plan.canonical_delta.root() != migration.spec.confirmed_delta_root() {
-            return Err(FrontierTxnError::MigrationDeltaRootMismatch {
-                permitted: migration.spec.confirmed_delta_root().clone(),
-                planned: plan.canonical_delta.root().clone(),
-            });
-        }
         Self::prepare_with_recovery_barrier_and_authorization(
             recovery,
             authorization,
@@ -3633,67 +3225,6 @@ impl FrontierTxn {
             |blob| self.read_blob(blob),
         )?;
         self.authorization = Some(FrontierTxnAuthorization::Verified(authorization));
-        Ok(())
-    }
-
-    /// Recheck a reopened, marker-free migration before requesting another
-    /// protected approval. The transaction already retains its recovery lock,
-    /// so a successful return guarantees another Vela writer cannot alter the
-    /// source between this preflight and explicit reauthorization.
-    pub(crate) fn preflight_prepared_migration_ceremony(
-        &self,
-        request: &vela_signer::RepositoryBoundarySignerRequest,
-    ) -> Result<MigrationCeremonySpec, FrontierTxnError> {
-        if !matches!(self.journal.recovery, RecoveryState::Prepared) {
-            return Err(FrontierTxnError::WriteAuthorizationNotApplicable {
-                state: self.journal.recovery.clone(),
-            });
-        }
-        match read_commit_marker(&self.paths, &self.journal) {
-            Err(FrontierTxnError::NotCommitted) => {}
-            Ok(_) => {
-                return Err(FrontierTxnError::WriteAuthorizationNotApplicable {
-                    state: self.journal.recovery.clone(),
-                });
-            }
-            Err(error) => return Err(error),
-        }
-        let ceremony = MigrationCeremonySpec::from_protected_request(request)?;
-        if &self.journal.plan.request_root != ceremony.confirmed_plan_root() {
-            return Err(FrontierTxnError::MigrationPlanRootMismatch {
-                permitted: ceremony.confirmed_plan_root().clone(),
-                planned: self.journal.plan.request_root.clone(),
-            });
-        }
-        verify_migration_ceremony_source(&self.root, &ceremony)?;
-        Ok(ceremony)
-    }
-
-    pub(crate) fn reauthorize_prepared_for_migration(
-        &mut self,
-        ceremony: MigrationCeremonySpec,
-        request: &vela_signer::RepositoryBoundarySignerRequest,
-        response: &vela_signer::RepositoryBoundarySignerResponse,
-    ) -> Result<(), FrontierTxnError> {
-        let checked = self.preflight_prepared_migration_ceremony(request)?;
-        if checked != ceremony {
-            return Err(FrontierTxnError::MigrationAuthorizationInvalid(
-                "protected request differs from the pre-prompt migration ceremony".to_string(),
-            ));
-        }
-        let spec = MigrationWritePermitSpec::from_protected_response(
-            &ceremony,
-            request,
-            response,
-            self.journal
-                .plan
-                .canonical_delta
-                .root()
-                .as_str()
-                .to_string(),
-        )?;
-        let authorization = verify_migration_write_authorization(&self.root, &spec)?;
-        self.authorization = Some(FrontierTxnAuthorization::Migration(authorization));
         Ok(())
     }
 
@@ -4289,15 +3820,6 @@ pub(crate) enum FrontierTxnError {
         intent: &'static str,
         reason: String,
     },
-    MigrationAuthorizationInvalid(String),
-    MigrationPlanRootMismatch {
-        permitted: ContentDigest,
-        planned: ContentDigest,
-    },
-    MigrationDeltaRootMismatch {
-        permitted: ContentDigest,
-        planned: ContentDigest,
-    },
     StaleWriteAuthorization {
         expected: ContentDigest,
         actual: ContentDigest,
@@ -4414,21 +3936,6 @@ impl fmt::Display for FrontierTxnError {
             Self::RepositoryWriteIntentDenied { intent, reason } => write!(
                 formatter,
                 "repository_write_intent_denied: {intent}: {reason}"
-            ),
-            Self::MigrationAuthorizationInvalid(reason) => {
-                write!(formatter, "migration_write_authorization_invalid: {reason}")
-            }
-            Self::MigrationPlanRootMismatch { permitted, planned } => write!(
-                formatter,
-                "migration plan root mismatch: permit binds {}, transaction binds {}",
-                permitted.as_str(),
-                planned.as_str()
-            ),
-            Self::MigrationDeltaRootMismatch { permitted, planned } => write!(
-                formatter,
-                "migration delta root mismatch: permit binds {}, transaction binds {}",
-                permitted.as_str(),
-                planned.as_str()
             ),
             Self::StaleWriteAuthorization { expected, actual } => write!(
                 formatter,
@@ -4962,7 +4469,6 @@ fn sync_directory(path: &Path) -> Result<(), FrontierTxnError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ed25519_dalek::SigningKey;
     use serde_json::json;
 
     #[test]
@@ -5357,134 +4863,6 @@ mod tests {
             String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr),
         );
-    }
-
-    fn expired_migration_signer_exchange() -> (
-        tempfile::NamedTempFile,
-        vela_signer::RepositoryBoundarySignerRequest,
-        vela_signer::RepositoryBoundarySignerResponse,
-    ) {
-        use vela_protocol::frontier_repository::{
-            FRONTIER_REPOSITORY_BOUNDARY_SCHEMA, FrontierRepositoryBoundaryMode,
-            FrontierRepositoryBoundaryPayloadV1, FrontierRepositoryTrustMode, GitObjectFormat,
-            LEGACY_FRONTIER_ORIGIN_SCHEMA, LegacyFrontierOriginV1, exact_dependency_root,
-            new_repository_boundary_event,
-        };
-
-        let binary = tempfile::NamedTempFile::new().unwrap();
-        fs::write(binary.path(), b"fixed migration test binary").unwrap();
-        let key = SigningKey::from_bytes(&[73; 32]);
-        let public_key = hex::encode(key.verifying_key().to_bytes());
-        let legacy_identity_preimage_root = format!("sha256:{}", "1".repeat(64));
-        let frontier_id = "vfr_0123456789abcdef".to_string();
-        let anchor_git_commit = "2".repeat(40);
-        let anchor_git_tree = "3".repeat(40);
-        let anchor_event_log_root = format!("sha256:{}", "4".repeat(64));
-        let identity_root = LegacyFrontierOriginV1 {
-            schema: LEGACY_FRONTIER_ORIGIN_SCHEMA.to_string(),
-            frontier_id: frontier_id.clone(),
-            legacy_identity_preimage_root: legacy_identity_preimage_root.clone(),
-            git_object_format: GitObjectFormat::Sha1,
-            anchor_git_commit: anchor_git_commit.clone(),
-            anchor_git_tree: anchor_git_tree.clone(),
-            anchor_event_log_root: anchor_event_log_root.clone(),
-            anchor_event_count: 1,
-        }
-        .identity_root()
-        .unwrap();
-        let dependencies = Vec::new();
-        let payload = FrontierRepositoryBoundaryPayloadV1 {
-            schema: FRONTIER_REPOSITORY_BOUNDARY_SCHEMA.to_string(),
-            mode: FrontierRepositoryBoundaryMode::TemporalizeExisting,
-            frontier_id: frontier_id.clone(),
-            identity_root,
-            observed_profile_root: format!("sha256:{}", "5".repeat(64)),
-            dependency_root: exact_dependency_root(&dependencies).unwrap(),
-            dependencies,
-            previous_identity_event_root: None,
-            legacy_identity_preimage_root: Some(legacy_identity_preimage_root),
-            administrator_actor_id: "reviewer:migration".to_string(),
-            administrator_public_key: public_key.clone(),
-            administrator_algorithm: "ed25519".to_string(),
-            trust_mode: FrontierRepositoryTrustMode::Tofu,
-            git_object_format: GitObjectFormat::Sha1,
-            anchor_git_commit,
-            anchor_git_tree,
-            anchor_event_log_root,
-            anchor_event_count: 1,
-            anchor_snapshot_root: format!("sha256:{}", "6".repeat(64)),
-            anchor_snapshot_schema: "vela.frontier.v0.1".to_string(),
-            anchor_proposal_root: format!("sha256:{}", "7".repeat(64)),
-            anchor_actor_registry_root: format!("sha256:{}", "8".repeat(64)),
-            anchor_artifact_registry_root: format!("sha256:{}", "9".repeat(64)),
-            anchor_canonical_store_root: format!("sha256:{}", "a".repeat(64)),
-        };
-        let observed_at = "2020-01-01T00:00:00Z";
-        let event =
-            new_repository_boundary_event(payload, "Bind exact repository", observed_at).unwrap();
-        let request = vela_signer::RepositoryBoundarySignerRequest {
-            schema: vela_signer::REPOSITORY_REQUEST_SCHEMA.to_string(),
-            nonce: "b".repeat(64),
-            expires_at: "2020-01-01T00:01:00Z".to_string(),
-            vela_binary_path: binary.path().display().to_string(),
-            vela_binary_sha256: vela_signer::contract::file_sha256(binary.path()).unwrap(),
-            helper_sha256: format!("sha256:{}", "c".repeat(64)),
-            frontier_id,
-            frontier_path: "/tmp/frontier".to_string(),
-            reason: "Bind exact repository".to_string(),
-            administrator_actor: "reviewer:migration".to_string(),
-            administrator_public_key: public_key.clone(),
-            observed_at: observed_at.to_string(),
-            boundary_plan_root: format!("sha256:{}", "d".repeat(64)),
-            provider: "os_store".to_string(),
-            protection_grade: "user_session".to_string(),
-            protection_mode: vela_signer::contract::ProtectionMode::Session,
-            display: vela_signer::RepositoryBoundaryDisplay {
-                frontier_name: "Migration fixture".to_string(),
-                profile_version: "vela.frontier-profile.v1".to_string(),
-                dependency_summary: "0 exact dependencies".to_string(),
-                consequence:
-                    "temporalize existing repository; first boundary requires an out-of-band pin"
-                        .to_string(),
-            },
-            event,
-        };
-        let response = vela_signer::RepositoryBoundarySignerResponse {
-            schema: vela_signer::REPOSITORY_RESPONSE_SCHEMA.to_string(),
-            request_root: vela_signer::repository_boundary_request_root(&request).unwrap(),
-            administrator_public_key: public_key,
-            helper_version: "0.914.0".to_string(),
-            helper_sha256: request.helper_sha256.clone(),
-            provider: request.provider.clone(),
-            protection_grade: request.protection_grade.clone(),
-            approved_at: "2020-01-01T00:00:30Z".to_string(),
-            protection_mode: request.protection_mode,
-            event_id: request.event.id.clone(),
-            event_signature: vela_protocol::sign::sign_event(&request.event, &key).unwrap(),
-        };
-        (binary, request, response)
-    }
-
-    #[test]
-    fn expired_protected_migration_exchange_cannot_mint_write_capability() {
-        let (_binary, request, response) = expired_migration_signer_exchange();
-        let approved_at = chrono::DateTime::parse_from_rfc3339(&response.approved_at)
-            .unwrap()
-            .with_timezone(&chrono::Utc);
-        let ceremony =
-            MigrationCeremonySpec::from_protected_request_at(&request, approved_at).unwrap();
-        let error = MigrationWritePermitSpec::from_protected_response(
-            &ceremony,
-            &request,
-            &response,
-            format!("sha256:{}", "e".repeat(64)),
-        )
-        .unwrap_err();
-        assert!(matches!(
-            error,
-            FrontierTxnError::MigrationAuthorizationInvalid(reason)
-                if reason.contains("expired before approval completed")
-        ));
     }
 
     #[test]

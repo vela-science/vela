@@ -97,7 +97,7 @@ jobs:
             echo "Vela workspace version $version does not match bound version $EXPECTED_VERSION" >&2
             exit 1
           }
-          for package in vela-authority vela-edge vela-protocol vela-protocol-core vela-signer vela-verify; do
+          for package in vela-authority vela-edge vela-protocol vela-protocol-core vela-verify; do
             observed="$(package_version "$package")"
             test "$observed" = "$version" || {
               echo "Vela workspace version mismatch: vela-cli=$version, $package=$observed" >&2
@@ -105,10 +105,8 @@ jobs:
             }
           done
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
-      - name: Test signer contracts and platform profile
-        run: cargo test --locked -p vela-signer
-      - name: Build release binaries
-        run: cargo build --locked --release -p vela-cli --bins
+      - name: Build release binary
+        run: cargo build --locked --release -p vela-cli --bin vela
       - name: Check exact fixture-signature state
         if: runner.os == 'Linux'
         run: cargo test --locked -p vela-protocol --test fixture_manifest_signature
@@ -118,17 +116,13 @@ jobs:
           ASSET: ${{ matrix.asset }}
         run: |
           mkdir -p dist stage
-          cp target/release/vela target/release/vela-signer stage/
-          if [ "$RUNNER_OS" = "Linux" ]; then
-            mkdir -p stage/share/polkit-1/actions
-            cp packaging/linux/science.vela.signer.policy stage/share/polkit-1/actions/
-          fi
+          cp target/release/vela stage/
       - name: Stage Windows bundle
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist, stage | Out-Null
-          Copy-Item target/release/vela.exe, target/release/vela-signer.exe stage/
+          Copy-Item target/release/vela.exe stage/
       - name: Generate SPDX SBOM
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
         with:
@@ -154,7 +148,7 @@ jobs:
         env:
           ASSET: ${{ matrix.asset }}
         run: |
-          Compress-Archive -Path stage/vela.exe, stage/vela-signer.exe -DestinationPath "dist/$env:ASSET"
+          Compress-Archive -Path stage/vela.exe -DestinationPath "dist/$env:ASSET"
       - name: Record the exact portable trust tier
         shell: bash
         env:
@@ -276,7 +270,6 @@ jobs:
           root="$RUNNER_TEMP/vela-registry-install"
           cargo install --locked vela-cli --version "$VERSION" --root "$root"
           "$root/bin/vela" --version | grep -F "vela $VERSION"
-          "$root/bin/vela-signer" --version | grep -F "vela-signer $VERSION"
 
   publish:
     if: >-

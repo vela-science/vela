@@ -104,30 +104,6 @@ fn advice_enabled() -> bool {
     v != "0" && v != "off"
 }
 
-/// Whether the CLI may prompt: stdin AND stdout are terminals and the
-/// user hasn't opted out with `VELA_NO_INPUT`. A piped or CI invocation
-/// is not interactive, so a prompt there would hang or silently default —
-/// callers use [`ensure_can_prompt`] to refuse cleanly instead (gh/clig.dev).
-pub fn is_interactive() -> bool {
-    use std::io::IsTerminal;
-    std::env::var_os("VELA_NO_INPUT").is_none()
-        && std::io::stdin().is_terminal()
-        && std::io::stdout().is_terminal()
-}
-
-/// Refuse (exit 2) rather than prompt when input cannot be read
-/// interactively. `what` names the prompt; `hint` names the scriptable
-/// alternative (e.g. `pass --yes`). Never hangs, never assumes "no".
-pub fn ensure_can_prompt(what: &str, hint: &str) {
-    if !is_interactive() {
-        fail_with(
-            ErrorKind::Usage,
-            &format!("refusing to prompt for {what}: not an interactive terminal"),
-            Some(hint),
-        );
-    }
-}
-
 /// Terminate with the one error grammar. Human mode:
 /// `err · <message>` + optional `hint: <next command>`; JSON mode: a
 /// single `{ok:false, command, error:{kind,message,hint}}` object on

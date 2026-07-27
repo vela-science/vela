@@ -191,9 +191,9 @@ fn reviewed_tags_publish_provenance_labeled_cross_platform_bundles() {
     assert!(RELEASE_WORKFLOW.contains("package_id=\"${package_id##*#}\""));
     assert!(RELEASE_WORKFLOW.contains("${package_id##*@}"));
     assert!(RELEASE_WORKFLOW.contains("test \"v$version\" = \"$GITHUB_REF_NAME\""));
-    assert!(RELEASE_WORKFLOW.contains("cargo build --locked --release -p vela-cli --bins"));
-    assert!(RELEASE_WORKFLOW.contains("target/release/vela-signer"));
-    assert!(RELEASE_WORKFLOW.contains("target/release/vela-signer.exe"));
+    assert!(RELEASE_WORKFLOW.contains("cargo build --locked --release -p vela-cli --bin vela"));
+    assert!(!RELEASE_WORKFLOW.contains("target/release/vela-signer"));
+    assert!(!RELEASE_WORKFLOW.contains("target/release/vela-signer.exe"));
     for asset in [
         "vela-linux-x86_64.tar.gz",
         "vela-macos-aarch64.zip",
@@ -212,7 +212,7 @@ fn reviewed_tags_publish_provenance_labeled_cross_platform_bundles() {
     assert!(RELEASE_WORKFLOW.contains("\"artifact_class\": \"portable\""));
     assert!(RELEASE_WORKFLOW.contains("\"platform_signature\": \"absent\""));
     assert!(RELEASE_WORKFLOW.contains("test -f \"dist/$asset.trust.json\""));
-    assert!(RELEASE_WORKFLOW.contains("science.vela.signer.policy"));
+    assert!(!RELEASE_WORKFLOW.contains("science.vela.signer.policy"));
     assert!(RELEASE_WORKFLOW.contains("gh release create \"$GITHUB_REF_NAME\" dist/*"));
     assert!(RELEASE_WORKFLOW.contains("prerelease: ${{ steps.version.outputs.prerelease }}"));
     assert!(RELEASE_WORKFLOW.contains("echo \"prerelease=$prerelease\""));
@@ -262,7 +262,7 @@ fn fresh_runner_smoke_precedes_publication_and_preserves_platform_checks() {
     }
     for token in [
         "shasum -a 256 -c",
-        "vela-signer $EXPECTED_VERSION",
+        "vela $EXPECTED_VERSION",
         "codesign --verify --strict",
         "spctl --assess --type execute",
         "install -m 0755",
@@ -275,7 +275,7 @@ fn fresh_runner_smoke_precedes_publication_and_preserves_platform_checks() {
     for token in [
         "Get-FileHash -Algorithm SHA256",
         "Get-AuthenticodeSignature",
-        "vela-signer $ExpectedVersion",
+        "vela $ExpectedVersion",
         "Copy-Item -Force",
         "Remove-Item -Force",
     ] {
@@ -299,11 +299,9 @@ fn every_hosted_action_is_pinned_by_commit() {
 
 #[test]
 fn installer_points_to_the_nonfinalizing_task_first_path() {
-    assert!(INSTALLER.contains("vela-signer"));
-    assert!(INSTALLER.contains("science.vela.signer.policy"));
-    assert!(INSTALLER.contains("mkdir -p \"$POLICYDIR\" 2>/dev/null"));
-    assert!(INSTALLER.contains("Protected decisions remain disabled"));
-    assert!(WINDOWS_INSTALLER.contains("vela-signer.exe"));
+    assert!(!INSTALLER.contains("vela-signer"));
+    assert!(!INSTALLER.contains("science.vela.signer.policy"));
+    assert!(!WINDOWS_INSTALLER.contains("vela-signer.exe"));
     assert!(WINDOWS_INSTALLER.contains("Get-FileHash -Algorithm SHA256"));
     assert!(INSTALLER.contains("VELA_EXPECTED_SHA256"));
     assert!(WINDOWS_INSTALLER.contains("VELA_EXPECTED_SHA256"));

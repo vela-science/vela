@@ -153,42 +153,6 @@ impl PublicationOutcome {
     }
 }
 
-/// Describe an exact Frontier transaction that has been installed in the
-/// worktree but deliberately not committed by the command that produced it.
-///
-/// Repository binding and Profile v1 migration are protected administrative
-/// ceremonies. They return their transaction operation and canonical-delta
-/// roots to the caller, but leave Git publication as an explicit subsequent
-/// act. The recovery command is therefore read-only and scoped to the exact
-/// public paths in that delta; it never stages or commits unrelated work.
-pub(crate) fn manual_uncommitted_exact_delta(
-    frontier: &Path,
-    operation_id: &str,
-    delta_root: &str,
-    paths: &[String],
-) -> PublicationOutcome {
-    let mut paths = paths.to_vec();
-    paths.sort();
-    paths.dedup();
-    let mut recovery_command = format!(
-        "git -C {} status --short --",
-        shell_quote(&frontier.display().to_string())
-    );
-    for path in paths {
-        recovery_command.push(' ');
-        recovery_command.push_str(&shell_quote(&path));
-    }
-    PublicationOutcome {
-        state: PublicationState::Uncommitted {
-            candidate: None,
-            reason: format!(
-                "operation {operation_id} installed exact canonical delta {delta_root}; no Git commit was created"
-            ),
-        },
-        recovery_command: Some(recovery_command),
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 struct GitOid {
     object_format: String,

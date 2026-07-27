@@ -143,12 +143,11 @@ fn atlas_ingest_writers_are_retired() {
     }
 }
 
-/// The 0.9 setup and authority nouns remain reachable.
+/// The compact setup and read/review nouns remain reachable.
 #[test]
 fn folded_spellings_dispatch() {
     for args in [
         vec!["id", "keygen", "--help"],
-        vec!["sign", "--help"],
         vec!["review", "--help"],
         vec!["finding", "show", "--help"],
         vec!["frontier", "diff", "--help"],
@@ -185,25 +184,25 @@ fn review_help_directs_known_proposals_to_the_terminal_read_surface() {
     );
 }
 
-/// Protected decisions intentionally have no legacy batch, key-path, or
-/// non-interactive approval inputs. Clap must reject those spellings before
-/// frontier or identity resolution, so saved sign-session state cannot enter
-/// the targeted path.
+/// Repository-authority decisions intentionally have no copied confirmation,
+/// legacy batch, key-path, or non-interactive approval inputs. Clap must reject
+/// those spellings before frontier or identity resolution.
 #[test]
 fn review_decide_has_no_batch_key_yes_or_wildcard_surface() {
     let help = vela(&["review", "decide", "--help"]);
     assert!(help.status.success(), "{}", combined(&help));
     let help = combined(&help);
-    for required in [
-        "--accept",
-        "--reject",
-        "--reason",
-        "--confirm-root",
-        "--confirm-at",
-    ] {
+    for required in ["--accept", "--reject", "--reason"] {
         assert!(help.contains(required), "missing {required}: {help}");
     }
-    for forbidden in ["--key", "--yes", "--batch", "--all"] {
+    for forbidden in [
+        "--confirm-root",
+        "--confirm-at",
+        "--key",
+        "--yes",
+        "--batch",
+        "--all",
+    ] {
         assert!(!help.contains(forbidden), "leaked {forbidden}: {help}");
         let out = vela(&[
             "review",
@@ -355,10 +354,16 @@ fn ordinary_identity_and_policy_help_hide_legacy_key_ceremonies() {
             "id help leaked {hidden}: {identity}"
         );
     }
-    for visible in ["create", "protect", "show", "lock"] {
+    for visible in ["create", "show"] {
         assert!(
             identity.contains(visible),
             "id help omitted {visible}: {identity}"
+        );
+    }
+    for retired in ["protect", "lock", "pin-binary"] {
+        assert!(
+            !identity.contains(retired),
+            "id help leaked retired ceremony {retired}: {identity}"
         );
     }
 
@@ -432,7 +437,8 @@ fn finding_is_read_only_and_legacy_writer_bypasses_are_absent() {
         assert!(
             text.contains("unrecognized subcommand")
                 || text.contains("unexpected argument")
-                || text.contains("retired"),
+                || text.contains("retired")
+                || text.contains("unknown command"),
             "`{}` should be rejected by clap: {text}",
             args.join(" ")
         );
@@ -470,17 +476,7 @@ fn direct_writer_bypasses_are_absent() {
 }
 
 #[test]
-fn actor_add_has_no_identity_or_key_injection_surface() {
-    let help = vela(&["actor", "add", "--help"]);
-    assert!(help.status.success(), "{}", combined(&help));
-    let help = combined(&help);
-    for forbidden in ["--key", "--pubkey", "--as", "--actor-id"] {
-        assert!(
-            !help.contains(forbidden),
-            "actor add exposed {forbidden}: {help}"
-        );
-    }
-
+fn retired_actor_writers_are_rejected_by_clap() {
     let arbitrary = vela(&[
         "actor",
         "add",
@@ -491,9 +487,13 @@ fn actor_add_has_no_identity_or_key_injection_surface() {
     ]);
     assert_eq!(arbitrary.status.code(), Some(2));
     assert!(
-        combined(&arbitrary).contains("unexpected argument")
-            || combined(&arbitrary).contains("reviewer:other")
+        combined(&arbitrary).contains("unrecognized subcommand")
+            || combined(&arbitrary).contains("unexpected argument")
     );
+    for action in ["activate", "bootstrap"] {
+        let output = vela(&["actor", action, "."]);
+        assert_eq!(output.status.code(), Some(2));
+    }
 }
 
 fn artifact_frontier() -> (TempDir, std::path::PathBuf) {
@@ -649,53 +649,24 @@ fn parsed_external_reproduction_has_bounded_colorless_usage_errors() {
     );
 }
 
-/// Interactive prompts must refuse cleanly on non-terminal stdin (piped /
-/// CI) rather than hang on empty reads or silently assume "no" (gh/clig.dev).
-/// `id pin-binary` is the simplest guarded prompt (no binary-pin pre-gate).
+/// The retired binary-pin ceremony must stop at parsing and never recreate a
+/// local identity or binary-pin side channel.
 #[test]
-fn prompts_refuse_piped_stdin() {
-    use std::process::Stdio;
+fn retired_binary_pin_ceremony_has_no_prompt_or_write_path() {
     let home = tempfile::TempDir::new().expect("temporary Vela home");
-    let setup = Command::new(env!("CARGO_BIN_EXE_vela"))
-        .args(["id", "create", "--handle", "prompt-test", "--agent"])
-        .env("HOME", home.path())
-        .env("VELA_NO_PUBLISH", "1")
-        .output()
-        .expect("create fixture identity");
-    assert!(
-        setup.status.success(),
-        "fixture identity setup failed: {}",
-        combined(&setup)
-    );
-    // Keep the test key file-backed and isolated while exercising the human
-    // prompt guard. Production human identities default to the platform store.
-    let identity_path = home.path().join(".vela/identity.json");
-    let mut identity: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&identity_path).unwrap()).unwrap();
-    identity["actor_id"] = serde_json::json!("reviewer:prompt-test");
-    identity["actor_type"] = serde_json::json!("human");
-    std::fs::write(
-        &identity_path,
-        format!("{}\n", serde_json::to_string_pretty(&identity).unwrap()),
-    )
-    .unwrap();
     let out = Command::new(env!("CARGO_BIN_EXE_vela"))
         .args(["id", "pin-binary"])
         .env("HOME", home.path())
         .env("VELA_NO_PUBLISH", "1")
-        .stdin(Stdio::null()) // /dev/null is not a tty
         .output()
         .expect("run vela");
     let err = stderr(&out);
     assert!(
-        err.contains("not an interactive terminal"),
-        "piped `id pin-binary` must refuse to prompt, got: {err}"
+        err.contains("unrecognized subcommand"),
+        "retired `id pin-binary` must be rejected by clap, got: {err}"
     );
-    assert_ne!(
-        out.status.code(),
-        Some(0),
-        "a refused prompt must not exit 0"
-    );
+    assert_ne!(out.status.code(), Some(0));
+    assert!(!home.path().join(".vela/binary-pin.json").exists());
 }
 
 /// JSON porcelain remains available on active commands. Retired policy

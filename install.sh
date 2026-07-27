@@ -4,25 +4,17 @@ set -euo pipefail
 REPO="vela-science/vela"
 PREFIX="${VELA_INSTALL_PREFIX:-/usr/local}"
 BINDIR="${VELA_INSTALL_BINDIR:-$PREFIX/bin}"
-POLICYDIR="${VELA_POLKIT_POLICY_DIR:-/usr/share/polkit-1/actions}"
 ACTION="${1:-install}"
 
 case "$ACTION" in
   install|upgrade) ;;
   uninstall)
-    for binary in vela vela-signer; do
+    for binary in vela; do
       if [ -e "$BINDIR/$binary" ]; then
         if [ -w "$BINDIR/$binary" ]; then rm -f "$BINDIR/$binary"; else sudo rm -f "$BINDIR/$binary"; fi
       fi
     done
-    if [ -e "$POLICYDIR/science.vela.signer.policy" ]; then
-      if [ -w "$POLICYDIR/science.vela.signer.policy" ]; then
-        rm -f "$POLICYDIR/science.vela.signer.policy"
-      else
-        sudo rm -f "$POLICYDIR/science.vela.signer.policy"
-      fi
-    fi
-    echo "Removed Vela binaries and platform integration. Frontier and identity data were preserved."
+    echo "Removed Vela. Frontier data was preserved."
     exit 0
     ;;
   -h|--help|help)
@@ -39,7 +31,7 @@ case "${OS}-${ARCH}" in
   darwin-arm64|darwin-aarch64) ASSET="vela-macos-aarch64.zip" ;;
   linux-x86_64) ASSET="vela-linux-x86_64.tar.gz" ;;
   darwin-x86_64)
-    echo "No prebuilt bundle for Intel macOS (x86_64). Build both binaries from source:" >&2
+    echo "No prebuilt bundle for Intel macOS (x86_64). Build Vela from source:" >&2
     echo "  cargo install --locked --path crates/vela-cli" >&2
     exit 1
     ;;
@@ -108,17 +100,13 @@ if [ "$OS" = "darwin" ]; then
 else
   tar -C "$TMP/unpack" -xzf "$TMP/$ASSET"
 fi
-for binary in vela vela-signer; do
-  test -f "$TMP/unpack/$binary"
-  chmod +x "$TMP/unpack/$binary"
-done
+test -f "$TMP/unpack/vela"
+chmod +x "$TMP/unpack/vela"
 
 if [ "$OS" = "darwin" ]; then
   if [ "$PLATFORM_SIGNATURE" = "developer_id_notarized" ]; then
-    for binary in vela vela-signer; do
-      codesign --verify --strict --verbose=2 "$TMP/unpack/$binary"
-      spctl --assess --type execute --verbose=2 "$TMP/unpack/$binary"
-    done
+    codesign --verify --strict --verbose=2 "$TMP/unpack/vela"
+    spctl --assess --type execute --verbose=2 "$TMP/unpack/vela"
   elif [ "$PLATFORM_SIGNATURE" = "absent" ]; then
     echo "Note: this is a GitHub-attested portable build without Apple Developer ID notarization."
   else
@@ -128,33 +116,14 @@ if [ "$OS" = "darwin" ]; then
 fi
 
 mkdir -p "$BINDIR" 2>/dev/null || true
-for binary in vela vela-signer; do
-  if [[ -w "$BINDIR" ]]; then
-    install "$TMP/unpack/$binary" "$BINDIR/$binary"
-  else
-    sudo install "$TMP/unpack/$binary" "$BINDIR/$binary"
-  fi
-done
-
-if [ "$OS" = "linux" ]; then
-  POLICY="$TMP/unpack/share/polkit-1/actions/science.vela.signer.policy"
-  test -f "$POLICY"
-  if mkdir -p "$POLICYDIR" 2>/dev/null && [[ -w "$POLICYDIR" ]]; then
-    install -m 0644 "$POLICY" "$POLICYDIR/science.vela.signer.policy"
-  else
-    sudo mkdir -p "$POLICYDIR"
-    sudo install -m 0644 "$POLICY" "$POLICYDIR/science.vela.signer.policy"
-  fi
-  if [ "$POLICYDIR" != "/usr/share/polkit-1/actions" ]; then
-    echo "Staged the Linux signer policy under the explicit prefix at $POLICYDIR."
-    echo "Protected decisions remain disabled until an administrator installs it:"
-    echo "  sudo install -m 0644 '$POLICYDIR/science.vela.signer.policy' /usr/share/polkit-1/actions/science.vela.signer.policy"
-  fi
+if [[ -w "$BINDIR" ]]; then
+  install "$TMP/unpack/vela" "$BINDIR/vela"
+else
+  sudo install "$TMP/unpack/vela" "$BINDIR/vela"
 fi
 
-echo "Installed vela and vela-signer to $BINDIR"
+echo "Installed vela to $BINDIR"
 "$BINDIR/vela" --version
-"$BINDIR/vela-signer" --version
 
 if [[ ":$PATH:" != *":$BINDIR:"* ]]; then
   echo

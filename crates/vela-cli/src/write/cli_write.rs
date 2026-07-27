@@ -220,7 +220,7 @@ pub(crate) fn cmd_review(action: ReviewAction) {
                     } else {
                         println!("review · {proposal_id} · pending");
                         for line in
-                            crate::cli::sign_session::render_decision_brief_lines(&review.brief)
+                            crate::cli::review_decision::render_decision_brief_lines(&review.brief)
                         {
                             println!("  {line}");
                         }
@@ -282,7 +282,8 @@ pub(crate) fn cmd_review(action: ReviewAction) {
                 print_json(&payload);
             } else {
                 println!("review preview · {proposal_id}");
-                for line in crate::cli::sign_session::render_decision_brief_lines(&review.brief) {
+                for line in crate::cli::review_decision::render_decision_brief_lines(&review.brief)
+                {
                     println!("  {line}");
                 }
             }
@@ -293,10 +294,8 @@ pub(crate) fn cmd_review(action: ReviewAction) {
             accept,
             reject,
             reason,
-            confirm_root,
-            confirm_at,
             json,
-        } => crate::cli::sign_session::cmd_review_decide(
+        } => crate::cli::review_decision::cmd_review_decide(
             frontier,
             &proposal_id,
             if accept {
@@ -307,8 +306,6 @@ pub(crate) fn cmd_review(action: ReviewAction) {
                 unreachable!("clap requires one decision action")
             },
             reason,
-            confirm_root.as_deref(),
-            confirm_at.as_deref(),
             json,
         ),
         ReviewAction::Withdraw {

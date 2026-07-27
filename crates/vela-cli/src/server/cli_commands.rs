@@ -21,7 +21,6 @@ use std::path::PathBuf;
 /// One meaning per flag, everywhere (the audit's top finding was
 /// semantic drift). These are the canonical help strings, referenced by
 /// every variant that carries the flag.
-pub(crate) const HELP_KEY: &str = "Path to an Ed25519 private key (hex seed file). Optional: defaults to your `vela id` identity key";
 pub(crate) const HELP_AS: &str = "Acting identity for this write (reviewer:<you> or agent:<name>). Optional: defaults to your `vela id`";
 pub(crate) const HELP_REQUIRED_AS: &str =
     "Exact acting identity for this write (reviewer:<you> or agent:<name>)";
@@ -279,8 +278,7 @@ pub(crate) enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// Your Vela identity and protected approval session. Agents use their
-    /// own identities; humans approve exact exceptions and standing policy.
+    /// Inspect or create an agent identity used for bounded producer work.
     #[command(after_long_help = crate::cli::help_text::ID)]
     Id {
         #[command(subcommand)]
@@ -291,15 +289,6 @@ pub(crate) enum Commands {
     Actor {
         #[command(subcommand)]
         action: ActorAction,
-    },
-    /// Inspect or cross the one-time repository-authority migration boundary.
-    ///
-    /// Preview is key-free. Apply requires the exact preview root and one
-    /// protected approval by the registered legacy administrator.
-    #[command(after_long_help = crate::cli::help_text::AUTHORITY)]
-    Authority {
-        #[command(subcommand)]
-        action: AuthorityAction,
     },
     /// Inspect and materialize frontier-level state, including read-only
     /// cross-frontier dependency projections.
@@ -335,45 +324,6 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         action: TargetIndexAction,
     },
-    /// Migrate a frontier repository format without rewriting canonical state.
-    #[command(after_long_help = crate::cli::help_text::MIGRATE)]
-    #[command(group(ArgGroup::new("migration_mode").required(true).multiple(false).args(["check", "apply"])))]
-    Migrate {
-        /// Frontier repository directory.
-        frontier: PathBuf,
-        /// Target repository format.
-        #[arg(long = "to", default_value = "frontier-repo-v1")]
-        target_version: String,
-        /// Preview the exact migration without writing.
-        #[arg(long)]
-        check: bool,
-        /// Apply the previewed repository-format migration.
-        #[arg(long)]
-        apply: bool,
-        /// Read-only candidate Profile v1 YAML outside the Frontier checkout.
-        #[arg(long)]
-        profile: PathBuf,
-        /// Closed exact dependency-resolution input for legacy dependencies.
-        #[arg(long)]
-        dependency_input: Option<PathBuf>,
-        /// Read-only domain target-index candidate outside the checkout.
-        #[arg(long)]
-        target_candidate: PathBuf,
-        /// Registered human repository administrator.
-        #[arg(long = "as", help = HELP_REQUIRED_AS)]
-        actor: String,
-        /// Exact reason bound into the boundary event and migration plan.
-        #[arg(long)]
-        reason: String,
-        /// Root from the exact key-free preview.
-        #[arg(long, requires = "confirm_at")]
-        confirm_root: Option<String>,
-        /// Observation time from the exact key-free preview.
-        #[arg(long, requires = "confirm_root")]
-        confirm_at: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
     /// Inspect finding bundles as the core frontier primitive.
     #[command(after_long_help = crate::cli::help_text::FINDING)]
     Finding {
@@ -386,64 +336,6 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         command: ArtifactCommands,
     },
-    /// THE human proposal-decision ceremony: one frontier, one exact
-    /// semantic set, one confirm, one key read, then an exact Git
-    /// publication attempt. Scripted forms first render a root, then mutate
-    /// only with `sign <vpr_id> --yes --confirm-root <sha256:...>
-    /// --confirm-at <RFC3339>`. `sign <file>` remains the detached-byte
-    /// ceremony. Agents are refused (exit 4).
-    #[command(after_long_help = crate::cli::help_text::SIGN)]
-    Sign {
-        /// A proposal id to preview/decide, or a file path to
-        /// sign detached. Omit for the interactive session.
-        target: Option<String>,
-        /// Frontier path. Optional when exactly one frontier is discoverable.
-        #[arg(long)]
-        frontier: Option<PathBuf>,
-        /// Confirm a scripted single-item decision. Mutation also requires
-        /// --confirm-root matching the root rendered by a prior invocation.
-        #[arg(long)]
-        yes: bool,
-        /// Exact Decision Plan root rendered by the prior scripted preview.
-        #[arg(long, requires = "target", conflicts_with_all = ["preview", "reset"])]
-        confirm_root: Option<String>,
-        /// Exact RFC3339 observation instant echoed by the prior scripted
-        /// preview; required with --confirm-root to reproduce timestamped bytes.
-        /// The pair expires after the documented 15-minute review window.
-        #[arg(long, requires = "target", conflicts_with_all = ["preview", "reset"])]
-        confirm_at: Option<String>,
-        /// Decision reason for scripted accepts.
-        #[arg(long)]
-        reason: Option<String>,
-        /// Discard the saved interactive session (your in-progress
-        /// verdicts) and start clean. Use this if a resumed session shows
-        /// choices you want to redo.
-        #[arg(long)]
-        reset: bool,
-        /// Read-only Decision Brief page. Never resolves or reads a key.
-        #[arg(
-            long,
-            conflicts_with_all = ["target", "yes", "confirm_root", "confirm_at", "reason", "reset", "sk", "key"]
-        )]
-        preview: bool,
-        /// Opaque continuation returned by a prior --preview --json page.
-        #[arg(long, requires = "preview")]
-        cursor: Option<String>,
-        /// Decision Brief page size (default 25, maximum 100).
-        #[arg(long, requires = "preview")]
-        limit: Option<usize>,
-        /// Hardware touch-to-sign. Accepted but intentionally NOT wired yet —
-        /// the recommended path is an OpenPGP/PKCS#11 Ed25519 token (raw
-        /// Ed25519, zero verifier change), not FIDO2; see
-        /// docs/HARDWARE_SIGNING_PROPOSAL.md. Using it errors with that guidance.
-        #[arg(long)]
-        sk: bool,
-        #[arg(long, help = HELP_KEY)]
-        key: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
-
     /// THE offer: ranked open targets with the compounding payload
     /// pre-loaded (premises, banked routes, attempts, dead channels).
     /// `--json` is the agent contract. Take one with `vela work`.
@@ -614,53 +506,13 @@ pub(crate) enum TargetIndexAction {
 
 #[derive(Subcommand)]
 pub(crate) enum IdAction {
-    /// Protect an existing human approval identity, or authorize its exact
-    /// local helper after a package update. Safe defaults authenticate first,
-    /// verify the public key, and remove the plaintext source.
-    Protect {
-        /// Retained for 0.901 script compatibility. Protection always requires
-        /// platform authentication.
-        #[arg(long, hide = true)]
-        user_presence: bool,
-        /// Retained for 0.901 script compatibility. Successful human
-        /// protection always removes the plaintext source.
-        #[arg(long, hide = true)]
-        remove_source_key: bool,
-        /// session: authenticate a bounded signer session; always: reauthenticate every use.
-        #[arg(long, default_value = "session", value_parser = ["session", "always"])]
-        mode: String,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Close the bounded local approval session. The protected identity and
-    /// every frontier remain unchanged.
-    Lock {
-        #[arg(long)]
-        json: bool,
-    },
-    /// Pin the current `vela` binary's hash (a human, confirm-gated act) so
-    /// every ceremony verifies the binary first — the clear-signing invariant.
-    /// You rarely need this by hand: protected decision preparation reports
-    /// binary-binding drift before requesting user presence.
-    /// Use `--status` to inspect the pin.
-    #[command(hide = true)]
-    PinBinary {
-        /// Show the pin state without recording.
-        #[arg(long)]
-        status: bool,
-        /// Skip the confirm prompt.
-        #[arg(long)]
-        yes: bool,
-    },
-    /// One-time setup: generate a key, store it, and remember your actor id
-    /// After this, agent `vela land` needs no `--key`/`--actor` flags.
+    /// Create a file-backed agent identity for bounded producer work.
     Create {
-        /// Your handle, e.g. `alice`. Becomes `reviewer:alice` (or
-        /// `agent:alice` with --agent). Defaults to `$USER`.
+        /// Agent handle, e.g. `worker-1`. Becomes `agent:worker-1`.
         #[arg(long)]
         handle: Option<String>,
-        /// Register as an agent identity (`agent:<handle>`) instead of a
-        /// human reviewer.
+        /// Required compatibility guard: Vela no longer creates human
+        /// signing identities.
         #[arg(long)]
         agent: bool,
         /// Overwrite an existing identity.
@@ -669,13 +521,12 @@ pub(crate) enum IdAction {
         #[arg(long)]
         json: bool,
     },
-    /// Show the current identity (actor id, public key, key path).
+    /// Show the current agent identity.
     Show {
         #[arg(long)]
         json: bool,
     },
-    /// Adopt an existing private key as your identity (e.g. one a
-    /// teammate generated, or a key you already use elsewhere).
+    /// Adopt an existing agent private key.
     #[command(hide = true)]
     Import {
         /// Path to the existing Ed25519 private key (hex seed).
@@ -684,7 +535,7 @@ pub(crate) enum IdAction {
         /// Your handle, e.g. `alice`. Defaults to `$USER`.
         #[arg(long)]
         handle: Option<String>,
-        #[arg(long)]
+        #[arg(long, required = true)]
         agent: bool,
         #[arg(long)]
         force: bool,
@@ -791,96 +642,9 @@ pub(crate) enum VerifyAction {
 
 #[derive(Subcommand)]
 pub(crate) enum ActorAction {
-    /// Bootstrap an empty actor registry from the configured local identity.
-    /// This is a one-time initialization step, not a general registry writer.
-    Add {
-        frontier: PathBuf,
-        /// v0.43: Optional ORCID identifier for cross-system identity.
-        /// Format `0000-0000-0000-000X`. Accepts bare form, URL form
-        /// (`https://orcid.org/0000-...`), or `orcid:` prefix.
-        #[arg(long)]
-        orcid: Option<String>,
-        /// v0.51: Optional read-side access clearance.
-        /// `public` (default), `restricted`, or `classified`. Higher
-        /// clearance permits reading lower-tier objects through
-        /// `vela serve`'s actor-aware MCP/HTTP read paths.
-        #[arg(long)]
-        clearance: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
     /// List registered actors in a frontier
     List {
         frontier: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Preview or perform the human-only temporal activation ceremony.
-    Activate {
-        frontier: PathBuf,
-        /// Exact pre-registration Git commit.
-        #[arg(long)]
-        anchor: String,
-        /// Actor id to activate. Defaults to the configured identity.
-        #[arg(long)]
-        actor: Option<String>,
-        /// Render the exact key-free preview without reading a private key.
-        #[arg(long)]
-        preview: bool,
-        /// Skip the interactive confirmation after rendering the preview.
-        #[arg(long)]
-        yes: bool,
-        /// Exact root returned by a prior preview. Required with --yes.
-        #[arg(long, requires = "yes")]
-        confirm_root: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
-}
-
-#[derive(Subcommand, Debug)]
-pub(crate) enum AuthorityAction {
-    /// Preview or apply the one-time Era-0 to Era-1 authority migration.
-    Migrate {
-        /// Frontier repository directory.
-        frontier: PathBuf,
-        /// Stable identifier for the repository-authority key in the SSH agent.
-        #[arg(long)]
-        repository_key_id: String,
-        /// Raw Ed25519 repository-authority public key as 64 lowercase hex characters.
-        #[arg(long)]
-        repository_public_key: String,
-        /// Why this Frontier is crossing to repository authority.
-        #[arg(long)]
-        reason: String,
-        /// Apply the exact preview. Omit for the key-free preview.
-        #[arg(long)]
-        apply: bool,
-        /// Exact root returned by the key-free preview.
-        #[arg(long, requires = "confirm_at")]
-        confirm_root: Option<String>,
-        /// Exact observation time returned by the key-free preview.
-        #[arg(long, requires = "confirm_root")]
-        confirm_at: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Enable exact signed-agent work leases under repository authority.
-    EnableWork {
-        /// Migrated Frontier repository directory.
-        frontier: PathBuf,
-        /// Why routine signed-agent lease coordination is being enabled.
-        #[arg(long)]
-        reason: String,
-        /// Apply the exact preview. Omit for a key-free preview.
-        #[arg(long)]
-        apply: bool,
-        /// Exact root returned by the key-free preview.
-        #[arg(long, requires = "confirm_at")]
-        confirm_root: Option<String>,
-        /// Exact observation time returned by the key-free preview.
-        #[arg(long, requires = "confirm_root")]
-        confirm_at: Option<String>,
         #[arg(long)]
         json: bool,
     },
@@ -908,22 +672,6 @@ pub(crate) enum FrontierTrustAction {
 
 #[derive(Subcommand)]
 pub(crate) enum FrontierAction {
-    /// Establish the first protected administrator boundary for a native Profile v1 Frontier.
-    Bind {
-        /// Frontier repository directory.
-        frontier: PathBuf,
-        /// Human-readable reason bound into the signed boundary.
-        #[arg(long)]
-        reason: String,
-        /// Exact plan root returned by a prior key-free preview.
-        #[arg(long, requires = "confirm_at")]
-        confirm_root: Option<String>,
-        /// Exact observation time returned by the same preview.
-        #[arg(long, requires = "confirm_root")]
-        confirm_at: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
     /// Manage user-local trust pins for repository administrator boundaries.
     Trust {
         #[command(subcommand)]
@@ -1111,7 +859,7 @@ pub(crate) enum ReviewAction {
         #[arg(long)]
         json: bool,
     },
-    /// Prepare or approve exactly one protected human decision.
+    /// Execute exactly one repository-authority human decision.
     Decide {
         frontier: PathBuf,
         proposal_id: String,
@@ -1121,10 +869,6 @@ pub(crate) enum ReviewAction {
         reject: bool,
         #[arg(long)]
         reason: String,
-        #[arg(long, requires = "confirm_at")]
-        confirm_root: Option<String>,
-        #[arg(long, requires = "confirm_root")]
-        confirm_at: Option<String>,
         #[arg(long)]
         json: bool,
     },

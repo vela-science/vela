@@ -42,7 +42,7 @@ pub(crate) fn print_session_help() {
     println!("  COMMANDS");
     println!("    init       status     next       work");
     println!("    land       review     check      reproduce");
-    println!("    verify     log        doctor     migrate");
+    println!("    verify     log        doctor");
     println!();
     println!("  Run `vela help advanced` for setup nouns and advanced verification.");
     println!();

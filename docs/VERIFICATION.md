@@ -10,7 +10,7 @@ and presentation. Conflating them is the central failure this gate prevents.
    bytes and inputs.
 3. **Claim binding:** the checked property matches the scoped claim recorded in
    Receipt v1.
-4. **Admission:** a human-signed policy Permit or protected human decision
+4. **Admission:** a governed policy Permit or attributed human decision
    authorized the exact state transition.
 
 A signature alone does not prove correctness. A passing verifier alone does not
@@ -108,7 +108,7 @@ roots, and a rooted record for every adversarial probe. It rejects stale claim
 bindings and declared independence across shared lineage couplings. The event
 may change the derived verification gate; it cannot accept, reject, or finalize
 the proposal. `vela review show` reports the exact next reproduction,
-attachment, and protected human-decision commands as separate actions.
+attachment, and attributed human-decision commands as separate actions.
 
 ## Landing and admission
 
@@ -117,9 +117,9 @@ The ordinary path is:
 ```text
 verified artifact and scoped claim
     -> vela land
-    -> signed policy evaluation
+    -> governed policy evaluation
     -> Permit: admit the exact authorized class
-       Defer: preserve the proposal for protected review decide
+       Defer: preserve the proposal for attributed review
        Deny: refuse and return a repairable result
 ```
 
@@ -135,18 +135,22 @@ writer.
 
 ## Human decision
 
-`vela review decide` is the ordinary human decision ceremony. On Era-0
-Frontiers its key-free preview and matching second phase retain the protected
-personal-key compatibility path. On repository-authority Frontiers,
-`--accept|--reject` binds one proposal, action, reason, observation, policy,
-read set, and exact roots, then obtains fresh platform user presence without
-retrieving a human Vela key. Restricted Cedar authorizes the action; the
-repository authority signs the covering transaction. Any drift forces a new
-plan, and cancellation writes nothing. Acceptance additionally requires a
-permitted Decision Brief and strict aggregate Engine gate, then verifies that
+`vela review decide` is the ordinary human decision command on an Era-1
+Frontier. It binds one proposal, action, reason, principal, policy, authority
+head, read set, binary identity, and exact canonical delta. The command is the
+semantic human action. The local operating-system session authenticates the
+principal, restricted Cedar authorizes the action, and the standard OpenSSH
+agent repository-authority key signs the covering DSSE record. Vela reads no
+human scientific key and accepts no copied root, timestamp, batch answer, or
+custom-helper response.
+
+Any drift aborts before the commit marker. Acceptance additionally requires an
+eligible Decision Brief and strict aggregate Engine gate, then verifies that
 the covered scientific domain event and explicit review event replay together
-across both logs.
-`vela sign` remains advanced-only historical compatibility.
+across both histories. Rejection changes no accepted scientific state.
+
+Era-0 decisions remain byte-verifiable but have no live writer in the current
+candidate. Use Vela `0.915.1` only for exact historical command replay.
 
 Human acceptance is a statement of scoped judgment, not a claim that every
 possible property was verified. The decision record should retain the relevant

@@ -1,6 +1,6 @@
 # Vela protocol: current contract
 
-Status: proposed Vela `0.930.0-rc.12` repository-authority candidate. Vela
+Status: proposed Vela `0.930.0-rc.13` repository-authority candidate. Vela
 `0.915.1` is retained only as the historical Era-0 replay baseline.
 
 This document defines the small protocol surface that Vela ships now. Git
@@ -8,7 +8,7 @@ stores and transports immutable bytes. Vela gives a scientific meaning to a
 bounded subset of those bytes, records who had authority to change accepted
 state, and deterministically rebuilds the current frontier from the event log.
 
-The workspace candidate (`0.930.0-rc.12`), finding-bundle schema (`0.10.0`), and wire
+The workspace candidate (`0.930.0-rc.13`), finding-bundle schema (`0.10.0`), and wire
 schema names such as `vela.event.v0.1` are separate identifiers. New work uses
 the current forms below. Older micro-version chronology belongs in Git history
 and `CHANGELOG.md`, not in the active protocol.
@@ -54,7 +54,7 @@ Vela separates capabilities that other systems often collapse.
 | Producer or agent | inspect state, claim a work lease, run tools, emit a Receipt, land evidence, draft a correction | accept, reject, revise, sign as a human, or invent a policy certificate |
 | Verifier | evaluate exact bytes under a named method and emit a bound result | decide significance, acceptance, or authorship |
 | Signed policy | permit only the bounded class and causal state named by a prior human ceremony | widen its own scope, treat model output as authority, or sign new policy |
-| Human principal | approve one exact exceptional decision through protected `review decide`; administer repository policy when authorized | delegate OS approval to an agent, turn authentication into a verdict, or bypass repository authorization |
+| Human principal | execute one exact exceptional decision through attributed `review decide`; administer repository policy when authorized | delegate the semantic action to an agent, turn authentication into a verdict, or bypass repository authorization |
 | Git host | preserve and transport commits and refs | turn a commit, merge, or pull request into scientific acceptance |
 | Derived reader | clone configured Git sources, verify them, and serve read projections | register canonical state through a public write API, sign, accept, store witness authority, or mutate a frontier |
 
@@ -259,12 +259,11 @@ content root of its `frontier.created` event. Every later update requires
 root, preserves frontier identity, legacy identity root, administrator, key,
 and algorithm, and strictly increases `anchor_event_count`.
 
-Vela `0.914.0` has maintained porcelain only for the first protected genesis
-boundary and the one-time legacy temporalization boundary. It verifies later
-`previous_boundary` events for replay compatibility but does not create them;
-the initially bound dependency set is immutable through ordinary `0.914.0`
-commands. Hand-authoring a later event is unsupported. A future writer must
-provide a separately reviewed, two-phase protected plan and transaction.
+Historical Vela versions created the first genesis and one-time legacy
+temporalization boundaries. The current candidate verifies those events and
+later `previous_boundary` events for replay compatibility but exposes no
+boundary or dependency writer. Hand-authoring a continuation event is
+unsupported.
 
 Before replay accepts repository identity or dependency state, the complete
 known boundary event set is validated independently of timestamps. Every event
@@ -464,11 +463,12 @@ proposal, Receipt, activity record, review material, and retained artifacts,
 while appending no scientific event. Its before/after event roots are
 identical. Verification therefore cannot be mistaken for acceptance.
 
-`vela authority enable-work` rotates an older migrated Frontier to this narrow
-producer bundle after fresh platform-owned user presence. The approval helper
-reads no human Vela key, and the repository authority remains the sole
-transaction signer. Neither action grants review, acceptance, policy,
-membership, recovery, or key-rotation authority.
+Active Frontiers already retain the narrow producer bundle established during
+migration. Its historical rotation remains replayable, but the one-time
+`authority enable-work` command and approval helper are retired. The repository
+authority remains the sole Era-1 transaction signer. Producer authentication
+grants no review, acceptance, policy, membership, recovery, or key-rotation
+authority.
 
 The rotation law and internal writer are also closed. A new keyset must name
 the exact prior keyset root, advance generation by one, and bind the
@@ -526,40 +526,31 @@ event-log root containing the bridge. Later roots use
 sorted full roots of all covered `vela.event.v1` objects. This preserves every
 Era-0 byte while giving Era-1 one deterministic append-only commitment.
 
-The candidate now includes pure verification, reusable writer cores, and one
-temporary migration-only CLI seam:
+The candidate includes pure verification and one reusable authority writer:
 
 - [`crates/vela-protocol/src/kernel/authority.rs`](../crates/vela-protocol/src/kernel/authority.rs)
 - [`crates/vela-protocol/src/kernel/authority_history.rs`](../crates/vela-protocol/src/kernel/authority_history.rs)
 - [`crates/vela-authority/src/legacy_translation.rs`](../crates/vela-authority/src/legacy_translation.rs)
 - [`crates/vela-cli/src/authority_transaction.rs`](../crates/vela-cli/src/authority_transaction.rs)
-- [`crates/vela-cli/src/authority_migration.rs`](../crates/vela-cli/src/authority_migration.rs)
 - [`crates/vela-cli/src/cli/authority.rs`](../crates/vela-cli/src/cli/authority.rs)
-- [`crates/vela-signer/src/authority_migration_contract.rs`](../crates/vela-signer/src/authority_migration_contract.rs)
 
-The sequence-1 writer verifies one already legacy-signed bridge before
-authentication or repository signing, then prepares one recoverable
-transaction containing the bridge, initial full-root keyset and policy
-manifests, and covering DSSE record. `vela authority migrate` now exposes only
-this one transition: preview is key-free; apply requires the exact preview,
-one fresh protected approval over the legacy continuity event, an exact local
-OS principal, and a matching Ed25519 key in the standard OpenSSH agent.
-Historical event files are bound as their retained bytes and are not
-normalized. Formal, Sidon, Quantum, and Erdős have now installed this
-sequence-1 boundary without changing their scientific roots. Once
-`authority.model_migrated` is present, every legacy producer, administrator,
-actor-registry, first-boundary, decision-preview, and historical-sign writer
-fails before a journal, prompt, or key read. The candidate now exposes bounded
-Era-1 writers for exact signed-agent leases, Receipt-bound pending submissions,
-and human `review_accept` / `review_reject`. Both decision paths obtain one
-bearer-free platform user-presence observation, evaluate restricted Cedar, and
-use the repository authority as the sole transaction signer; neither reads a
-personal Vela key. Rejection changes no scientific root. Acceptance is exposed
-only when the ordinary Decision Brief and strict aggregate Engine gate permit
-it, then atomically installs the scientific domain event, explicit
-`review.accepted` event, and exact canonical postimages. Dual-log replay uses
-the semantic event identities and fails on a missing, duplicate, or ambiguous
-applied transition. Era-0 verification remains required throughout.
+Formal, Sidon, Quantum, and Erdős retain a verified sequence-1 bridge without
+changed scientific roots. The one-time writer that created those bridges is
+retired. Once `authority.model_migrated` is present, every legacy producer,
+administrator, actor-registry, first-boundary, and historical-sign write fails
+before a journal or key read.
+
+The live Era-1 writer covers exact signed-agent leases, Receipt-bound pending
+submissions, and human `review_accept` / `review_reject`. A human decision is
+one exact command. Vela authenticates the local operating-system principal,
+evaluates restricted Cedar, and asks the standard OpenSSH agent repository
+authority to sign the covering record. It reads no personal Vela key and uses
+no custom helper. Rejection changes no scientific root. Acceptance is exposed
+only when the Decision Brief and strict aggregate Engine gate permit it, then
+atomically installs the scientific domain event, explicit `review.accepted`
+event, and exact canonical postimages. Dual-log replay rejects missing,
+duplicate, or ambiguous applied transitions. Era-0 verification remains
+required throughout.
 
 The complete core lifecycle drill now uses one disposable Frontier
 to install the legacy bridge, perform an ordinary Era-1 decision, rotate the
@@ -711,21 +702,17 @@ plumbing, not a new authority object.
 Any change to the proposal, frontier head, evidence, policy, actor registry, or
 semantic effect invalidates the prepared decision.
 
-Era-0 remains the historical two-phase path: a key-free preview returns
-`vela.review-decision.v1`, and execution echoes its root and observation time
-before the protected personal key may sign.
+Era-0 decision events remain byte-verifiable but have no live writer in the
+current candidate.
 
-After repository-authority migration, rejection is a single semantic request
+After repository-authority migration, rejection is a single semantic command
 with no copied root or timestamp. Vela rederives the plan under the authority
-barrier, verifies the binary/helper pair, and asks the platform for fresh user
-presence over the exact action, proposal ID/root, reason, policy root, and
-intent root. The response is bearer-free and cannot authorize a different
-request. Restricted Cedar must permit the local human principal's
-`review_reject` action. The repository authority—not the human identity—then
-signs the DSSE transaction covering the append-only `review.rejected` event
-and proposal postimage. Cancellation and drift write nothing. The protected
-path has no key-path, batch, wildcard, saved-answer, `--yes`, or persistent
-approval input.
+barrier, authenticates the local operating-system principal, and requires
+restricted Cedar to permit that principal's exact `review_reject` action. The
+repository authority—not a human identity—then signs the DSSE transaction
+covering the append-only `review.rejected` event and proposal postimage.
+Failure or drift writes nothing. The path has no key path, custom helper,
+batch, wildcard, saved answer, `--yes`, or persistent approval input.
 
 Repository-authority acceptance is not inferred from verifier success or
 enabled by analogy. The command is available only when it can install and
