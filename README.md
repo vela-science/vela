@@ -45,7 +45,7 @@ The Vela product story has five steps:
 
 Canopus owns **Produce** only. It reuses Git for preservation and Vela for
 checking, landing, replay, and authority; it does not become a second state
-store, verifier authority, or scientific workbench platform.
+store, Git publisher, verifier authority, or scientific workbench platform.
 
 ## Inspect one retained example
 
@@ -83,8 +83,8 @@ The first command selects the pending artifact explicitly and runs Vela's
 frozen Sidon verifier. The second is an independent base-3 implementation that
 also rejects a bound collision injection. Neither command accepts the proposal.
 
-Current source is Canopus `0.8.0-rc.1`, composed only with attested Vela
-`0.930.0-rc.12`. Older Canopus and Vela binaries remain available from immutable
+Current source is Canopus `0.8.0-rc.1`, composed with the focused-green Vela
+`0.930.0-rc.13` candidate. Older Canopus and Vela binaries remain available from immutable
 release history for replay, but they are not active writer or producer paths.
 
 ## Quickstart
@@ -169,7 +169,7 @@ the retained
 
 ## Development
 
-Current-source development requires Bun 1.3.12, Vela `0.930.0-rc.12`, Codex CLI
+Current-source development requires Bun 1.3.12, Vela `0.930.0-rc.13`, Codex CLI
 0.145.0, and Docker. The built
 package also runs under Node 22 or 24; unsupported odd-numbered Node releases
 are rejected rather than silently treated as supported.

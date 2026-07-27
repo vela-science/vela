@@ -66,18 +66,19 @@ The landing clone uses a disposable attached branch so Vela can publish exact
 deltas; the immutable input clone remains detached and read-only. Successful
 runs delete the isolated Vela home and its agent-only key. Failed runs may
 retain local diagnostic state until explicit cleanup. Never publish a run root
-or Codex credential directory wholesale. After verification, Mission v1 makes
-one unsigned non-authoritative Git commit containing exactly the frozen source
-artifacts before invoking `vela land`; `activity.jsonl` records that commit,
-tree, and path set. The terminal Vela commit then contains the Receipt, activity
-record, proposal, and `records/artifacts/sha256/<digest>` copies. This ordering
-keeps `vela.lock` and every clean Git checkout self-contained.
+or Codex credential directory wholesale. Canopus does not author Git commits.
+It supplies the frozen source artifacts to `vela land`; Vela alone commits the
+exact Receipt, activity record, proposal, source artifacts, and retained
+`records/artifacts/sha256/<digest>` copies. `activity.jsonl` records Vela's
+publication facts and the resulting roots.
 
 A `--no-land` run writes `canopus.diagnostic-run.v1`, invokes the same frozen
 worker and verifier path, and leaves the source frontier at its starting commit
 and tree. It has no Receipt or proposal. A landed product run performs all work
-in isolated clones, verifies the clean clone, then fast-forwards the clean local
-source checkout to the exact verified landing commit. It never pushes a remote.
+in isolated clones and returns a clean-clone-reproduced local candidate with its
+exact repository, commit, and tree. The source checkout remains unchanged.
+Publishing or otherwise integrating that candidate is an explicit Frontier
+operator action outside Canopus.
 
 Product output must live outside the source frontier and outside known
 cloud-synced Desktop or cloud-storage roots. Docker bind mounts over cloud-backed

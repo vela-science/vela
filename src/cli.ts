@@ -418,7 +418,8 @@ async function productRunCommand(args: string[]): Promise<void> {
     accepted_event_delta: landing?.accepted_event_delta ?? null,
     clean_clone_reproduced: result.run.record.reproduction.matched,
     evidence_root: result.evidence_root,
-    source_publication: result.source_publication,
+    source_state: result.source_state,
+    landing_candidate: result.landing_candidate,
     run_file: path.join(result.run.paths.root, "run.json"),
   })}\n`);
 }

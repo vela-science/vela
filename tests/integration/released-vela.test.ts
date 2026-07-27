@@ -16,7 +16,11 @@ import { retainedArtifactPath, VelaClient } from "../../src/vela/cli.js";
 const exec = promisify(execFile);
 const velaBinary = process.env.CANOPUS_VELA_BIN;
 const registeredVelaDigest = process.env.CANOPUS_VELA_SHA256;
-const enabled = velaBinary !== undefined && registeredVelaDigest !== undefined;
+const registeredVelaVersion = process.env.CANOPUS_VELA_VERSION;
+const enabled =
+  velaBinary !== undefined &&
+  registeredVelaDigest !== undefined &&
+  registeredVelaVersion !== undefined;
 
 async function command(
   binary: string,
@@ -51,10 +55,15 @@ async function removeSealedTree(root: string): Promise<void> {
 
 test(
   "released Vela work, Defer landing, record binding, and clean-clone verifier compose",
-  { skip: enabled ? false : "set CANOPUS_VELA_BIN and CANOPUS_VELA_SHA256" },
+  {
+    skip: enabled
+      ? false
+      : "set CANOPUS_VELA_BIN, CANOPUS_VELA_SHA256, and CANOPUS_VELA_VERSION",
+  },
   async (context) => {
     assert.ok(velaBinary !== undefined);
     assert.ok(registeredVelaDigest !== undefined);
+    assert.ok(registeredVelaVersion !== undefined);
     const parent = await mkdtemp(path.join(os.tmpdir(), "canopus-released-vela-"));
     context.after(async () => await removeSealedTree(parent));
     const source = path.join(parent, "source");
@@ -105,7 +114,7 @@ test(
 
     const vela = new VelaClient({
       binary: velaBinary,
-      expectedVersion: "0.930.0-rc.12",
+      expectedVersion: registeredVelaVersion,
       expectedSha256: registeredVelaDigest,
       home: path.join(runRoot, "vela-home"),
     });
@@ -114,7 +123,7 @@ test(
       schema: "canopus.mission.v0",
       id: "mission_released_vela_smoke",
       target: "seed:canopus-smoke",
-      vela_version: "0.930.0-rc.12",
+      vela_version: registeredVelaVersion,
       vela_sha256: registeredVelaDigest,
       frontier: ".",
       actor: "agent:canopus-smoke",
@@ -176,9 +185,45 @@ test(
     assert.equal(result.record.reproduction.matched, true);
     assert.equal(result.record.external_gate_credit, false);
     const activity = await readFile(path.join(result.paths.root, "activity.jsonl"), "utf8");
-    assert.match(activity, /\.vela\/events\/vev_[0-9a-f]{16}\.json/u);
-    assert.match(activity, /"frontier\.json"/u);
-    assert.match(activity, /"vela\.lock"/u);
+    const activityEvents = activity
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as {
+        type: string;
+        payload: Record<string, unknown>;
+      });
+    const workClaimed = activityEvents.find((event) => event.type === "work.claimed");
+    assert.ok(workClaimed !== undefined);
+    const workPublication = workClaimed.payload.publication as {
+      state: string;
+      commit: string;
+      recovery_command: string;
+    };
+    assert.equal(workPublication.state, "committed_local");
+    assert.equal(
+      workPublication.commit,
+      (workClaimed.payload.roots as { git_commit: string }).git_commit,
+    );
+    assert.match(
+      workPublication.recovery_command,
+      /^vela publication recover --operation vop_[0-9a-f]{64} --push$/u,
+    );
+    assert.equal(activityEvents.some((event) => event.type === "artifacts.published"), false);
+    const subjects = await command(
+      "git",
+      [
+        "log",
+        "--format=%s",
+        `${initial.roots.git_commit}..${result.record.final_roots.git_commit}`,
+      ],
+      result.paths.landing,
+      setupHome,
+    );
+    assert.doesNotMatch(subjects, /^canopus:/mu);
+    assert.equal(
+      await command("git", ["rev-parse", "HEAD^{commit}"], source, setupHome),
+      initial.roots.git_commit,
+    );
     const witness = result.record.candidate.artifacts.find(
       (artifact) => artifact.path === "result.json",
     );

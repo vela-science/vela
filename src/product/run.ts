@@ -1,4 +1,4 @@
-import { lstat, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, realpath, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,7 +11,7 @@ import {
   type CanopusRunResult,
 } from "../run.js";
 import { canonicalJson, contentDigest, sha256Bytes } from "../util/canonical.js";
-import { isolatedEnvironment, runCommand, type CommandRunner } from "../util/command.js";
+import { runCommand, type CommandRunner } from "../util/command.js";
 import { readBoundedRegularFile } from "../util/files.js";
 import { VelaClient } from "../vela/cli.js";
 import { doctorProduct, type ProductDoctorResult } from "./doctor.js";
@@ -29,9 +29,19 @@ export interface ProductRunResult {
   bundle_root: string;
   evidence_manifest: string;
   evidence_root: string;
-  source_publication:
-    | { state: "committed_local"; commit: string; tree: string }
-    | { state: "unchanged_no_land"; commit: string; tree: string };
+  source_state: {
+    state: "unchanged";
+    commit: string;
+    tree: string;
+  };
+  landing_candidate:
+    | {
+        state: "verified_local_candidate";
+        repository: string;
+        commit: string;
+        tree: string;
+      }
+    | null;
 }
 
 function packageFile(relative: string): string {
@@ -61,74 +71,6 @@ async function assertFreshOutput(outputRoot: string, sourceRoot: string): Promis
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
   await mkdir(output, { recursive: true, mode: 0o700 });
-}
-
-async function gitText(options: {
-  argv: readonly string[];
-  cwd: string;
-  home: string;
-  runner: CommandRunner;
-}): Promise<string> {
-  const result = await options.runner({
-    argv: ["git", ...options.argv],
-    cwd: options.cwd,
-    env: isolatedEnvironment(options.home),
-    timeoutMs: 120_000,
-    maxOutputBytes: 8 * 1024 * 1024,
-  });
-  if (result.exitCode !== 0 || result.stderr.length !== 0) {
-    throw new Error(
-      `git ${options.argv.join(" ")} failed: stdout_sha256=${sha256Bytes(result.stdout)}; ` +
-      `stderr_sha256=${sha256Bytes(result.stderr)}`,
-    );
-  }
-  return result.stdout.toString("utf8").trim();
-}
-
-async function publishVerifiedLanding(options: {
-  source: string;
-  landing: string;
-  expectedStart: string;
-  expectedFinal: string;
-  expectedTree: string;
-  home: string;
-  runner: CommandRunner;
-}): Promise<{ state: "committed_local"; commit: string; tree: string }> {
-  const [head, status] = await Promise.all([
-    gitText({ argv: ["rev-parse", "--verify", "HEAD^{commit}"], cwd: options.source, home: options.home, runner: options.runner }),
-    gitText({ argv: ["status", "--porcelain=v1", "--untracked-files=all"], cwd: options.source, home: options.home, runner: options.runner }),
-  ]);
-  if (head !== options.expectedStart || status !== "") {
-    throw new Error("source frontier changed while the bounded run was executing");
-  }
-  const landingHead = await gitText({
-    argv: ["rev-parse", "--verify", "canopus-landing^{commit}"],
-    cwd: options.landing,
-    home: options.home,
-    runner: options.runner,
-  });
-  if (landingHead !== options.expectedFinal) throw new Error("landing clone final commit drifted");
-  await gitText({
-    argv: ["fetch", "--quiet", "--no-tags", options.landing, "canopus-landing"],
-    cwd: options.source,
-    home: options.home,
-    runner: options.runner,
-  });
-  await gitText({
-    argv: ["merge", "--ff-only", "--no-edit", "FETCH_HEAD"],
-    cwd: options.source,
-    home: options.home,
-    runner: options.runner,
-  });
-  const [commit, tree, finalStatus] = await Promise.all([
-    gitText({ argv: ["rev-parse", "--verify", "HEAD^{commit}"], cwd: options.source, home: options.home, runner: options.runner }),
-    gitText({ argv: ["rev-parse", "--verify", "HEAD^{tree}"], cwd: options.source, home: options.home, runner: options.runner }),
-    gitText({ argv: ["status", "--porcelain=v1", "--untracked-files=all"], cwd: options.source, home: options.home, runner: options.runner }),
-  ]);
-  if (commit !== options.expectedFinal || tree !== options.expectedTree || finalStatus !== "") {
-    throw new Error("source publication did not reproduce the verified landing roots");
-  }
-  return { state: "committed_local", commit, tree };
 }
 
 async function writeEvidenceManifest(
@@ -204,8 +146,6 @@ export async function runProduct(options: {
   const source = await realpath(options.frontier);
   const outputRoot = path.resolve(options.outputRoot ?? defaultProductOutput(source));
   await assertFreshOutput(outputRoot, source);
-  const controlHome = path.join(outputRoot, "control-home");
-  await mkdir(controlHome, { mode: 0o700 });
   try {
     const diagnosis = await doctorProduct({
       frontier: source,
@@ -288,22 +228,14 @@ export async function runProduct(options: {
       ? await runCanopus({ ...commonRun, noLand: true })
       : await runCanopus(commonRun);
     const evidence = await writeEvidenceManifest(run, contentDigest(prepared.mission));
-    const publication = options.noLand === true
-      ? {
-          state: "unchanged_no_land" as const,
-          commit: prepared.mission.roots.git_commit,
-          tree: prepared.mission.roots.git_tree,
-        }
-      : await publishVerifiedLanding({
-          source,
-          landing: run.paths.landing,
-          expectedStart: prepared.mission.roots.git_commit,
-          expectedFinal: (run as CanopusRunResult).record.final_roots.git_commit,
-          expectedTree: (run as CanopusRunResult).record.final_roots.git_tree,
-          home: controlHome,
-          runner,
-        });
-    await rm(controlHome, { recursive: true, force: true });
+    const landingCandidate = options.noLand === true
+      ? null
+      : {
+          state: "verified_local_candidate" as const,
+          repository: run.paths.landing,
+          commit: (run as CanopusRunResult).record.final_roots.git_commit,
+          tree: (run as CanopusRunResult).record.final_roots.git_tree,
+        };
     return {
       run,
       doctor: diagnosis.public,
@@ -311,7 +243,12 @@ export async function runProduct(options: {
       bundle_root: bundleRoot,
       evidence_manifest: evidence.file,
       evidence_root: evidence.root,
-      source_publication: publication,
+      source_state: {
+        state: "unchanged",
+        commit: prepared.mission.roots.git_commit,
+        tree: prepared.mission.roots.git_tree,
+      },
+      landing_candidate: landingCandidate,
     };
   } catch (error) {
     // Preserve bounded failure evidence and the exact diagnostic inputs.
