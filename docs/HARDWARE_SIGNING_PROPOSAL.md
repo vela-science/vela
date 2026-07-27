@@ -1,9 +1,10 @@
 # Hardware touch-to-sign
 
-Status: design + enrollment runbook. `vela sign --sk` exists today as an honest
-refusal that points here. This document is what the code references; it does not
-ship crypto into the verify path until the primary path below is implemented and
-tested end-to-end with a physical token.
+Status: historical design study. The current authority path uses the operating
+system principal, restricted Cedar authorization, and a standard OpenSSH agent
+repository-authority key. There is no current `vela sign` writer. This document
+is retained only as design history and must not be used as current setup
+guidance.
 
 ## The problem it closes
 

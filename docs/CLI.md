@@ -6,7 +6,7 @@ and Git publishes the exact bytes.
 
 ## Daily path
 
-Default help exposes eleven commands:
+Default help exposes twelve commands:
 
 ```text
 init status next start submit show why review check reproduce log doctor

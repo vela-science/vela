@@ -100,7 +100,7 @@ vela id create --agent --handle canopus
 vela id show --json
 ```
 
-The producer key signs exact lease, activity, Receipt, and withdrawal records.
+The producer key signs exact lease, Submission, and withdrawal records.
 It cannot authorize review, acceptance, policy administration, membership,
 recovery, or repository-key rotation.
 
@@ -109,12 +109,12 @@ Routine producer work uses already governed policy:
 ```bash
 vela next . --json
 vela start <target> --frontier . --as agent:<handle> --json
-vela land receipt.json --frontier . --as agent:<handle> --json
+vela submit submission.json --frontier . --as agent:<handle> --json
 ```
 
-A policy-routed `Defer` creates a pending proposal. A `Permit` is valid only
-when the retained policy explicitly covers the exact claim class and evidence
-bindings. Neither route grants the producer human authority.
+Current Submission registration retains the exact producer package, issues a
+Registration Record, and creates a pending Proposal. It creates no
+Verification Record, Decision, Event, or accepted Standing.
 
 Producers may withdraw their own pending Proposal:
 
@@ -126,6 +126,12 @@ vela proposal withdraw . <vpr_id> \
 ```
 
 Withdrawal never deletes evidence or changes accepted findings.
+
+Fresh `vela init` repositories have structural identity but no configured
+repository authority. The current candidate deliberately fails Submission
+registration closed until the reviewed authority-provisioning workflow has
+established the first boundary. It exposes no personal-key or legacy migration
+writer as a shortcut.
 
 ## Consumer trust
 
@@ -158,7 +164,7 @@ stale, ambiguous, or invalid:
 - the exact principal attribution;
 - the required scoped capability or Cedar authorization;
 - a required semantic human action;
-- the proposal, Receipt, verifier, or policy binding;
+- the Proposal, Submission, Verification Record, or policy binding;
 - the transaction read set or canonical delta;
 - the selected repository-authority key or signature; or
 - journal recovery and marker verification.

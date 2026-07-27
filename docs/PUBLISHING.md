@@ -20,7 +20,7 @@ git push
 
 Use the frontier's exact frozen reproduction command when it differs from
 `vela reproduce .`. A verifier pass is evidence about the declared mechanical
-property. It does not replace any signed policy or human decision required for
+property. It does not replace any authorized Decision required for
 accepted scientific state.
 
 Materialized files are committed only when the frontier contract calls for
@@ -41,12 +41,13 @@ A Git pull request is the collaboration and branch-review mechanism. Vela's
 scientific contribution path inside that repository remains:
 
 ```text
-next -> start -> land -> signed policy route -> Permit | Defer -> protected human decision
+next -> start -> submit -> independent verification -> authorized decision
 ```
 
-`land` records the exact Receipt v1 contribution and its routed effect. The Git
+`submit` records the exact Submission, Registration Record, and pending
+Proposal with an accepted-event delta of zero. The Git
 host may run `vela check --strict` and selected frozen verifiers, but CI cannot
-use a human key or turn a deferred proposal into accepted state. A merge is
+use repository-authority credentials or turn a pending Proposal into accepted state. A merge is
 publication of the committed bytes, not an independent acceptance mechanism.
 
 For the released composite action, pin both the action version and—when the
@@ -123,8 +124,8 @@ frontier ID and relevant finding or artifact IDs so another reader can locate
 the accepted state and reproduce its checks. An Observatory URL may be included
 as a convenience link, but it should not be the only locator.
 
-Describe Vela accurately: it records a replayable frontier and the authority
-that admitted its transitions. It does not certify that a claim is important or
+Describe Vela accurately: it records a replayable Frontier and the authority
+that admitted its transitions. It does not certify that a Claim is important or
 scientifically correct merely because the bytes are signed and reproducible.
 
 ## Release boundary
@@ -147,5 +148,6 @@ an early external project or service.
 Earlier development documents described Hub registration and signed transport,
 special frontier packets, an embedded website, package-registry publication,
 and profile-specific reviewer writers. Those were prelaunch experiments and are
-not compatibility contracts. Immutable historical events remain replayable,
-but new publication uses Git and new contributions use Receipt v1 plus `land`.
+not compatibility contracts. Immutable historical Events and Receipt-era
+objects remain replayable, but new publication uses Git and new producer input
+uses Submission v1 plus `submit`.

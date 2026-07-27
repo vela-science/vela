@@ -45,7 +45,9 @@ Record:
 ## What leaves
 
 - public canonical events and proposals;
-- public Receipt v1 records and safe review material;
+- public current Submissions, Registration Records, Verification Records, and
+  safe review material;
+- historical Receipt v1 records retained for replay;
 - public artifacts whose recorded licenses permit redistribution;
 - schemas, conformance vectors, documentation, and release checksums; and
 - derived packets clearly labelled as views.

@@ -14,7 +14,7 @@ adopted**.
 
 | Principle | Evidence now | Gap and owner | Revisit trigger |
 | --- | --- | --- | --- |
-| Coverage across scholarship | Domain-neutral Receipt v1, Git frontier model, and verifier adapters | Current examples overrepresent formal mathematics and software. Project steward owns broader pilots. | Two maintained non-math frontiers |
+| Coverage across scholarship | Domain-neutral Submission v1, Git frontier model, and verifier adapters | Current examples overrepresent formal mathematics and software. Project steward owns broader pilots. | Two maintained non-math frontiers |
 | Stakeholder governed | Authority is frontier-local and key-bound; forks do not depend on a central service | No stakeholder board or representation policy. Human project owner. | Before a hosted service becomes relied upon |
 | Non-discriminatory participation | Public dual-licensed code, documented receipt boundary, ordinary Git contribution | No adopted membership or accessibility policy. Human project owner. | Before formal membership or hosted access tiers |
 | Transparent governance | Protocol authority and signed policy behavior are public and replayable | Legal, financial, appointment, conflict, and appeal processes are not established. Human project owner. | Before accepting money or institutional dependencies |
@@ -43,11 +43,11 @@ adopted**.
 | Open and secure data access | Public state is cloneable; restricted receipts expose opaque custodian references without payload or equality digest | No approved restricted-data transfer, retention, breach, custodian succession, or deletion policy outside the technical rules below. Data steward required. | Before storing third-party restricted data |
 | Available and preserved | Git transport, bundles, checksums, source archive metadata, offline replay | No trusted third-party archival deposit or preservation SLA. Project steward. | First citable stable release |
 | Patent non-assertion | No patent claim is made in the repository | No adopted covenant; this is a human/legal decision. | Before formal adoption or outside reliance |
-| Interoperability and open standards | Git, JSON, SHA-256, Ed25519, DSSE/in-toto, RO-Crate export, SWHID examples, Receipt v1 conformance | Independent adoption evidence and long-term compatibility policy remain incomplete. Protocol steward. | Two producers and two consumers |
+| Interoperability and open standards | Git, JSON, SHA-256, Ed25519, DSSE/in-toto, RO-Crate export, SWHID examples, Submission v1 conformance, and historical Receipt replay | Independent adoption evidence and long-term compatibility policy remain incomplete. Protocol steward. | Two producers and two consumers |
 
 ## Data export and transfer policy
 
-Public canonical state, public receipts, public artifact bytes, schemas,
+Public canonical state, public Submissions and historical Receipts, public artifact bytes, schemas,
 conformance fixtures, and documentation may be exported according to their
 recorded licenses. Export preserves content roots, source licenses, provenance,
 and authority events. A locator is not substituted for a digest.

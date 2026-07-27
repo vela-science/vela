@@ -9,7 +9,7 @@ and presentation. Conflating them is the central failure this gate prevents.
 2. **Verifier outcome:** a named, pinned method returned an outcome for those
    bytes and inputs.
 3. **Claim binding:** the checked property matches the scoped claim recorded in
-   Receipt v1.
+   Submission v1.
 4. **Admission:** a governed policy Permit or attributed human decision
    authorized the exact state transition.
 
@@ -70,7 +70,7 @@ locally executable verifier.
 
 ## Verifier evidence
 
-Receipt v1 records verifier runs as attributed evidence:
+Submission v1 may record producer checks as attributed evidence:
 
 - method and implementation identity;
 - exact inputs and artifact digests;
@@ -79,10 +79,10 @@ Receipt v1 records verifier runs as attributed evidence:
 - the property checked;
 - caveats and checks not performed.
 
-The producer must report only runs that actually occurred. A failed or
-inconclusive run is useful negative state and must not be rewritten as a pass.
-Producer-maintained verification is disclosed as such; it is not independent
-corroboration merely because it is deterministic.
+The producer must report only checks that actually occurred. A failed or
+inconclusive check is useful negative state and must not be rewritten as a
+pass. A producer check remains `producer_reported`; it is not an independent
+Verification Record merely because it is deterministic.
 
 Vela may derive a gate status from matched verifier attachments:
 
@@ -110,28 +110,24 @@ may change the derived verification gate; it cannot accept, reject, or finalize
 the proposal. `vela review show` reports the exact next reproduction,
 attachment, and attributed human-decision commands as separate actions.
 
-## Landing and admission
+## Submission and admission
 
 The ordinary path is:
 
 ```text
-verified artifact and scoped claim
-    -> vela land
-    -> governed policy evaluation
-    -> Permit: admit the exact authorized class
-       Defer: preserve the proposal for attributed review
-       Deny: refuse and return a repairable result
+Attempt and scoped evidence
+    -> vela submit
+    -> Registration Record + pending Proposal
+    -> independent Verification Record(s)
+    -> review accept | review reject
+    -> authorized Decision + canonical Event
 ```
 
-A Permit is not unauthenticated auto-admission. Its authority comes from a
-previously human-signed policy, and replay verifies the active causal policy
-head and certificate. An old unsigned `policy.auto_admitted` event may remain
-decodable in immutable history, but there is no current writer for it.
-
-Defer is the correct outcome when the claim class, replayability, verifier,
-artifact, caveat, base, or effect is outside the signed Permit. The producer
-does not route around Defer through a direct finding, attempt, review, or MCP
-writer.
+Registration proves intake, not correctness or acceptance. A current producer
+cannot mint a Verification Record, Decision, Event, or accepted Claim Record.
+Historical policy `Permit`, `Defer`, and `Deny` outcomes remain replayable, but
+the current writer registers a pending Proposal and leaves the consequential
+action to an authorized decision.
 
 ## Human decision
 
@@ -181,7 +177,7 @@ frozen authority-path verifier.
 
 External Lean reproduction is an optional producer adapter. It pins the source
 commit, Lean and Mathlib environment, declaration, axiom policy, and retained
-logs, then emits unsigned or producer-signed Receipt v1 evidence. A kernel pass
+logs, then emits an authenticated Submission v1. A kernel pass
 establishes that the named declaration checks under that environment. It does
 not establish that the declaration faithfully formalizes the intended theorem
 or that the result is novel and important.

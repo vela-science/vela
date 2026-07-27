@@ -9,7 +9,7 @@ The protected assets are:
 
 - accepted event bytes and their causal order;
 - artifact content identities and verifier pins;
-- human signing keys and signed policy authority;
+- repository-authority keys, attributed principals, and retained policy;
 - the exact proposal, base root, policy, and effect shown at decision time;
 - Profile v1 Frontier identity, exact dependency pins, first-administrator
   selection, and retained bytes anchored by repository boundaries;
@@ -20,27 +20,28 @@ The system boundary is:
 
 ```text
 untrusted producer or adapter
-    -> Receipt v1 + artifacts
-    -> validation, frozen verification, and policy routing
-    -> Permit under an existing human-signed policy, or Defer
-    -> protected human decision when deferred
+    -> authenticated Submission + content-addressed Artifacts
+    -> Registration Record + pending Proposal
+    -> independent Verification Records
+    -> authorized human or delegated policy Decision
+    -> repository-authority record
     -> accepted events in a standalone Git repository
     -> deterministic replay and disposable read projections
 ```
 
 Git hosts provide byte distribution and repository access control. Vela events
-and policies provide scientific authority. The Observatory, MCP, proof packets,
+and authority records provide scientific authority. The Observatory, MCP, proof packets,
 materialized snapshots, graphs, and wikis are projections and are not trust
 roots.
 
 ## Attacker classes
 
-1. **Malicious or compromised producer.** Can submit arbitrary receipts,
+1. **Malicious or compromised producer.** Can submit arbitrary Submissions,
    artifacts, paths, metadata, and scientific prose, including prompt
    injection and fabricated citations.
 2. **Compromised agent runtime or local process.** Can modify files writable by
    the user, race a publication attempt, and lie in its UI output. It does not
-   possess the human key by design.
+   possess the repository-authority credential by design.
 3. **Compromised signing key.** Can create signatures within that key's
    authority until the accepted history revokes or replaces it.
 4. **Compromised Git host or repository credential.** Can hide, reorder, or
@@ -66,42 +67,29 @@ policy certificates, and hashes. Altering a protected field causes strict
 validation or signature verification to fail.
 
 This does not make an unsigned source file trustworthy. The claim must bind the
-artifact digest that the verifier and receipt actually used.
+artifact digest that the verifier and Submission actually used.
 
-### Malicious Receipt input
+### Malicious Submission input
 
-`vela land` treats every Receipt v1 and artifact as untrusted. Strict JSON,
+`vela submit` treats every Submission and Artifact as untrusted. Strict JSON,
 schema checks, size and path limits, digest recomputation, producer identity,
-task and base-root binding, verifier requirements, and signed policy evaluation
-run before the transaction commits.
+Attempt binding, and repository-context checks run before registration.
 
-A producer signature proves origin only. Model confidence and a successful tool
-run are not acceptance. An uncovered class is deferred to the human ceremony;
-the producer cannot create a human decision through another command or MCP
-profile.
+A producer signature proves origin only. Producer checks, model confidence,
+and a successful tool run are not Verification or acceptance. Registration
+creates a pending Proposal with an accepted-event delta of zero; the producer
+cannot create a Decision through another command or MCP profile.
 
 ### Decision substitution and stale review
 
-The protected decision ceremony binds one proposal, action, reason, accepted
-base, active policy, observation time, and derived effect. If any bound input
-drifts, confirmation fails and the plan must be rebuilt. The cross-platform
-signer card names the exact action, proposal, frontier, reason, and Decision
-Plan root, so a later caller cannot silently replace the reviewed bytes.
-
-On Era-0 Frontiers, direct `vela review accept|reject` actions start the pinned
-one-shot helper only
-after every key-free check passes; the helper controls use of the protected
-personal key.
-
-On repository-authority Frontiers, the helper is an authentication adapter
-only. It displays the exact action, proposal ID/root, reason, policy root, and
-intent root, obtains fresh platform user presence, and returns a bounded
-bearer-free observation. It reads no Vela key and creates no signature.
-Restricted Cedar authorizes the exact human action, and the repository
-authority signs the complete DSSE transaction after the final read-set check.
-Agent identities are structurally refused for human review. A process that can
-rewrite both the binaries and their local execution environment remains
-outside the local-user-session threat profile.
+Direct `vela review accept|reject` binds one Proposal, action, reason, current
+causal state, policy, principal attribution, read set, and derived effect. If a
+bound input drifts, the action fails before crossing the transaction marker.
+Restricted Cedar authorizes the exact semantic action, and the standard
+OpenSSH provider signs one covering repository-authority record after the final
+read-set check. There is no personal Vela key, custom helper, copied
+confirmation root, batch session, or wildcard action. Agent identities are
+structurally refused for human review.
 
 ### Duplicate or concurrent publication
 
@@ -168,14 +156,15 @@ Target Index v2 is derived and non-authoritative, but a substituted packet or
 stale rank can still misdirect a producer. Vela therefore seals exact source
 Git identity, declared input bytes, event prefix, scientific-state, proposal,
 identity, dependency, packet, and index roots. `next` validates all open
-entries; `work` revalidates the selected entry and transaction read set at the
+entries; `start` revalidates the selected entry and transaction read set at the
 write edge.
 
-A stale or invalid index grants no offer or lease. Successful work retains a
-closed target-task binding in the private session and byte-identically inside
-Receipt v1, so later index changes or deleted scratch cannot rewrite the
-historical task. This does not prove that a domain generator disclosed every
-semantic input or chose a scientifically valuable rank.
+A stale or invalid index grants no Offer or lease. A successful Attempt retains
+a closed target-task binding in private coordination, and a current Submission
+may bind the exact packet, profile, verifier capsule, and result contract.
+Later index changes cannot rewrite registered Submission bytes. This does not
+prove that a domain generator disclosed every semantic input or chose a
+scientifically valuable rank.
 
 ### Service resource abuse
 
@@ -184,7 +173,7 @@ reader has no authenticated request identity, ignores caller-asserted actor
 names, and returns public-tier data only. It exposes no signing or protected
 decision operation. A networked or authenticated deployment needs a separate
 designed boundary; a reverse proxy does not retroactively authenticate the
-local actor model. Receipts should reference large artifacts by content digest
+local actor model. Submissions should reference large Artifacts by content digest
 and path rather than embedding unbounded payloads.
 
 ### Historical bootstrap and migration
@@ -227,8 +216,8 @@ capsule, and positive result contract. This blocks same-class verifier and
 target substitution; it does not make the selected verifier scientifically
 adequate. That semantic judgment remains part of the human policy approval.
 
-AcceptancePolicy v0.3 can further bind that exact lane to the full root of one
-retained Receipt identity binding. This avoids granting a replaceable producer
+Historical AcceptancePolicy v0.3 can further bind that exact lane to the full
+root of one retained Receipt identity binding. This avoids granting a replaceable producer
 frontier-wide registry meaning. It is not open self-enrollment: the protected
 policy plan rederives the full binding, the human-signed rule names it exactly,
 and even a globally registered actor cannot substitute another key or omit the
@@ -278,4 +267,4 @@ it correct.
 See [`../SECURITY.md`](../SECURITY.md). Report security vulnerabilities
 privately with reproduction steps, the affected boundary, and the smallest
 known malicious input. Scientific disagreements and ordinary data corrections
-belong in the frontier's normal Receipt v1 and decision workflow.
+belong in the frontier's current Submission and Decision workflow.

@@ -1,5 +1,12 @@
 # Receipts - the boundary where activity becomes admissible
 
+> **Historical interoperability contract.** Receipt v1 and `vela land` are
+> replay-only in the current product era. Current producers create
+> `vela.submission.v1` with `vela submit`; Vela returns a Registration Record
+> and a pending Proposal. The word Receipt is reserved for a future
+> Vela-issued inclusion proof. This document preserves the exact historical
+> schema and its replay semantics; it is not current producer guidance.
+
 A **receipt** is how external activity enters Vela. It is not a transcript and
 not a verdict. It is a content-addressed, claim-aware evidence packet that
 `vela land` turns into a pending proposal, which a signed policy or a human then

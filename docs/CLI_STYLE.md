@@ -63,14 +63,14 @@ const in the same edit that adds it to the surface. Pinned by
 
 The surface is a deliberate hybrid, not drift:
 
-- **Flat loop verbs** for daily cadence: `init · status · next · work · land ·
-  review · check · reproduce · log · doctor · migrate`.
+- **Flat loop verbs** for daily cadence: `init · status · next · start · submit
+  · show · why · review · check · reproduce · log · doctor`.
 - **Noun-verb** for everything else: `finding <verb>`, `frontier <verb>`,
   `policy <verb>`, `config <verb>`, `id <verb>`, …
-- **Two direct Era-0 scientific decision entries** (`review accept` and
-  `review reject`) until each
-  frontier crosses its attributed repository-authority boundary. Producers
-  cross through Receipt v1 and `land`; frozen policy state is read-only.
+- **Direct consequential verbs** say what they do: `review accept`,
+  `review reject`, `proposal withdraw`, and `verification import`. Producers
+  cross through Submission v1 and `submit`; current writers never call a
+  pending registration “landed.”
 - No new top-level verb without a deliberate `V0738_VISIBLE` edit. Growth
   is a decision, not a drift (pinned both directions).
 

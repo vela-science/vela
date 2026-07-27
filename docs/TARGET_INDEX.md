@@ -122,16 +122,16 @@ transaction read set immediately before appending the lease. Failure writes no
 session, event, journal marker, or Git commit. There is no `--force`,
 non-strict bypass, or Profile v1 compatibility exception.
 
-One successful claim creates a closed `vela.target-task-binding.v1` containing
+One successful start creates a closed `vela.target-task-binding.v1` containing
 the target and index root, source Git identity, input root, exact packet, index
 roots, claim-time Git/event read set, and its own full binding root. The
-private session carries that record. `vela land` copies the same bytes into
-the Receipt v1 `vela:target_task_binding` extension, where the Receipt
-whole-body binding covers them.
+private Attempt carries that record. `vela submit` copies the same bytes into
+the Submission v1 target binding, where the Submission whole-body binding
+covers them.
 
 A later valid index change cannot rewrite that historical task binding.
 Deleting a private session therefore cannot erase which offer and packet
-produced a retained Receipt.
+produced a retained Submission and Registration Record.
 
 ## Inspection and compatibility
 

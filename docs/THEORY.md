@@ -1,6 +1,7 @@
 # Vela theory: the formal boundary
 
-Status: current public-beta boundary for Vela `0.915.1`.
+Status: current candidate boundary. Historical object semantics remain
+replayable but are not current writer guidance.
 
 This document says exactly what can be inferred from Vela's protocol, code,
 conformance vectors, and Lean models. It is intentionally smaller than the
@@ -25,7 +26,7 @@ another.
 | Named verifier | a result for exact artifacts under a named method and environment | significance, generality, or acceptance |
 | Signed policy or human decision | authority to admit a bounded transition | correctness of the underlying scientific claim |
 
-The system should use the narrowest accurate sentence. “The Receipt parsed,”
+The system should use the narrowest accurate sentence. “The Submission parsed,”
 “the reducer replayed,” “the named verifier passed,” and “a human accepted the
 proposal” are different claims.
 
@@ -40,9 +41,9 @@ C_τ : Object_τ -> Bytes
 ```
 
 be the canonical byte function specified for that type. The subscript matters:
-Receipt v1 uses its strict JCS whole-body contract, while other current objects
-use the canonical JSON subset pinned by their schemas and vectors. Vela must not
-pretend every historical object shared one serializer.
+historical Receipt v1 uses its strict JCS whole-body contract, while current
+Submission v1 and other current objects use their versioned canonical contracts.
+Vela must not pretend every object shares one serializer.
 
 Let
 
@@ -66,27 +67,26 @@ examples are
 [`canonical-hashing.json`](../conformance/canonical-hashing.json) and
 [`decision-binding.json`](../conformance/decision-binding.json).
 
-### 2.2 Receipts and proposals
+### 2.2 Submissions, registrations, and proposals
 
-A Receipt is a producer statement
-
-```text
-r = (claim, type, replayability, artifacts, caveats,
-     conditions, required verification, provenance)
-```
-
-bound to its complete canonical body. It is evidence, not a decision. Landing
-maps a valid Receipt to retained bytes, artifacts, a landing record, and a
-proposal:
+A Submission is an authenticated producer package
 
 ```text
-L(r, S) = (retained(r), proposal(r, S), route(r, S))
+s = (claim, type, replayability, artifacts, caveats,
+     conditions, producer checks, provenance, authentication)
 ```
 
-The route is `Deny`, `Defer`, or `Permit`. `Deny` produces no canonical delta.
-`Defer` retains a pending proposal. `Permit` can install accepted state only
-when a previously human-signed policy verifies for the exact causal state and
-produces a replay-verifiable certificate.
+bound to its complete canonical body. It is evidence, not a decision.
+Registration maps a valid Submission to retained bytes, artifacts, a
+Registration Record, and a pending Proposal:
+
+```text
+Register(s, S) = (retained(s), registration(s, S), proposal(s, S))
+```
+
+Registration changes no accepted Claim standing. Producer checks remain
+producer-reported. Independent Verification Records and an authorized Decision
+are separate records with separate actors and roots.
 
 A human acceptance follows the same semantic boundary through a terminal key
 ceremony. The private Decision Plan binds the exact proposal and current facts;
@@ -141,9 +141,10 @@ Authorized(e, S_pre, K, P) :=
 
 The second disjunct does not make a service or model a signer. It means a human
 previously signed a bounded policy and the deterministic evaluator re-derived
-`Permit` for the exact proposal, Receipt, evidence set, policy head, and parent
-event-log root. Unknown, stale, revoked, expired, widened, backdated, or
-otherwise mismatched inputs fail closed.
+the historical policy result for the exact Proposal, historical Receipt,
+evidence set, policy head, and parent event-log root. The current writer uses
+the attributed repository-authority Decision path. Unknown, stale, revoked,
+expired, widened, backdated, or otherwise mismatched inputs fail closed.
 
 The executable policy boundary is in
 [`acceptance_policy.rs`](../crates/vela-protocol/src/policy/acceptance_policy.rs)
@@ -214,8 +215,8 @@ reporting a pass.
 
 ### 3.5 Evidence is not a verdict
 
-Receipt claims, producer-reported runs, verifier attachments, gate projections,
-human judgments, and publication receipts retain their separate provenance.
+Submission claims, producer checks, Verification Records, gate projections,
+human Decisions, and publication records retain their separate provenance.
 Derived displays must not collapse them into an unqualified “verified” flag.
 
 ### 3.6 Correction without erasure
@@ -234,8 +235,8 @@ edit is not a scientific correction.
 
 `frontier.json`, proof packets, indexes, graphs, reader rows, wikis, rankings, and
 AI summaries are functions of committed inputs. They may be deleted and rebuilt.
-An inferred relation enters accepted state only by returning through Receipt v1,
-proposal, and decision.
+An inferred relation enters accepted state only by returning through a
+Submission, Proposal, and authorized Decision.
 
 ### 3.8 Transaction separation
 
@@ -394,7 +395,7 @@ In particular, presheaves, graded epistemic calculi, provenance semirings,
 proof-carrying knowledge, generalized transfer categories, Atlas/Constellate
 object systems, and autonomous federation may remain useful research ideas.
 They are not current protocol guarantees unless they return as small, implemented,
-tested objects at the Receipt-to-event boundary.
+tested objects at the Submission-to-Decision boundary.
 
 ## 8. The boundary in one statement
 

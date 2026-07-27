@@ -516,8 +516,9 @@ retired. Once `authority.model_migrated` is present, every legacy producer,
 administrator, actor-registry, first-boundary, and historical-sign write fails
 before a journal or key read.
 
-The live Era-1 writer covers exact signed-agent leases, Receipt-bound pending
-submissions, and human `review_accept` / `review_reject`. A human decision is
+The live Era-1 writer covers exact signed-agent Attempts, Submission-bound
+pending Proposals, Verification Record imports, and human `review_accept` /
+`review_reject`. A human decision is
 one exact command. Vela authenticates the local operating-system principal,
 evaluates restricted Cedar, and asks the standard OpenSSH agent repository
 authority to sign the covering record. It reads no personal Vela key and uses
@@ -747,7 +748,7 @@ released vectors for the contract they claim.
 
 Accepted history is immutable; current scientific state is revisable.
 
-A correction is a new Receipt or proposal that names the affected object and
+A correction is a new Submission or Proposal that names the affected object and
 the proposed semantic change. A human or applicable signed policy decides it
 through the same boundary as any other transition. Retraction, supersession,
 qualification, caveat, evidence repair, and review reversal append new events.
@@ -878,7 +879,7 @@ Current rules are:
 There is no second Carina kernel, public-mirror authority, or reader federation
 write protocol. Early Diderot material is an inert exploratory evidence example,
 not a Vela partner, compatibility target, architectural validation, or release
-gate. Any future integration uses the generic Receipt boundary.
+gate. Any future integration uses the generic Submission boundary.
 
 Git history preserves the retired design chronology. The active contract stays
 small so new producers and consumers can implement it without inheriting every

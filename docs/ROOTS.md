@@ -45,7 +45,21 @@ Non-finite values are rejected. This profile is pinned by
 `conformance/canonical-hashing.json`; it is deliberately described as Vela
 canonical JSON rather than claimed to be universal RFC 8785 JCS.
 
-### Receipt v1 JCS
+### Current Submission, Registration, and Verification records
+
+Submission v1 uses Vela-canonical JSON. Its readable `vsb_` handle is the first
+16 hex characters of SHA-256 over the signed preimage, with
+`submission_id` and the authentication signature cleared. Its full canonical
+root is SHA-256 over the complete authenticated object bytes.
+
+Registration Record v1 uses Vela-canonical JSON. Its readable `vrr_` handle is
+derived with only `registration_record_id` cleared; its full root covers the
+complete Vela-issued record. Verification Record v1 follows the Submission
+pattern: the readable `vvr_` handle derives from the signed preimage, while the
+full root covers the complete authenticated record. A readable handle is never
+a substitute for its full root.
+
+### Historical Receipt v1 JCS
 
 Receipt v1 uses RFC 8785 JCS through its receipt-specific canonicalizer. The
 parser rejects duplicate JSON names and values outside its bounded validity
@@ -77,9 +91,12 @@ with either JSON profile.
 | Evidence-atom root | `sha256:` plus SHA-256 of the Vela-canonical evidence atom. | Full root in the evidence-atom domain. | Artifact bytes, a verifier attachment, or a finding revision. |
 | Artifact handle `va_…` | First 16 hex characters of a descriptor preimage. Older descriptors use a delimited string; descriptors with explicit reference axes use Vela canonical JSON. | Exact, unique handle only for descriptor routing. | Artifact byte digest, availability, disclosure status, or review standing. |
 | Public artifact digest | SHA-256 of the exact retained or retrieved public bytes. Retained local artifacts live under `records/artifacts/sha256/<digest>`. Restricted artifacts intentionally expose no equality digest. | Full digest and the artifact descriptor's media/kind and size or immutable locator constraints. | Artifact handle, Receipt root, or permission to disclose restricted material. |
-| Receipt root | `sha256:` plus SHA-256 of the complete Receipt v1 JCS bytes. | Full root after strict Receipt v1 validation. | Landing record, proposal, verifier result, policy verdict, or acceptance. |
+| Submission handle `vsb_…` and root | Handle: first 16 hex characters of SHA-256 over the Vela-canonical signed preimage with ID and signature cleared. Root: SHA-256 over the complete authenticated Submission v1 bytes. | Unique handle for routing; full canonical root for intake, Verification, or handoff. | Producer authority, Registration Record, Proposal, Verification Record, Decision, or Standing. |
+| Registration Record handle `vrr_…` and root | Handle: first 16 hex characters of SHA-256 over the Vela-canonical record with its ID cleared. Root: SHA-256 over the complete Vela-issued Registration Record v1 bytes. | Unique handle plus full root and rederivation from the retained Submission transaction. | Inclusion proof, truth, verification, Decision, or acceptance. |
+| Verification Record handle `vvr_…` and root | Handle: first 16 hex characters of SHA-256 over the Vela-canonical signed preimage with ID and signature cleared. Root: SHA-256 over the complete authenticated Verification Record v1 bytes. | Unique handle plus full root, signature, exact subject, method, environment, property, and limitations. | Producer check, scientific acceptance, or authority. |
+| Historical Receipt root | `sha256:` plus SHA-256 of the complete Receipt v1 JCS bytes. | Full root after strict historical Receipt v1 validation. | Registration Record, proposal, verifier result, policy verdict, or acceptance. |
 | Producer identity-binding handle `vib_…` and full credential root | First 16 hex characters, or the complete lowercase SHA-256 root, over the Vela-canonical `vela.identity_binding.v0.1` object with `binding_id` and `signature` cleared. The self-signature separately proves possession of the embedded Ed25519 key. | `vib_` is an exact routing handle. The complete root is the credential identity used by the accepted AcceptancePolicy v0.3 scoped allowlist. | Actor-registry membership, personhood, expertise, independence, or authority without an exact human-signed policy. |
-| Landing record handle `vrc_…` | First 16 hex characters of SHA-256 over the Vela-canonical `ActivityRecord` with its ID and signature cleared. The record points to the full Receipt root. | Exact, unique handle plus retained record bytes and Receipt root. | Receipt root or scientific claim identity. |
+| Historical landing record handle `vrc_…` | First 16 hex characters of SHA-256 over the Vela-canonical `ActivityRecord` with its ID and signature cleared. The record points to the full historical Receipt root. | Exact, unique handle plus retained record bytes and historical Receipt root. | Registration Record, Receipt root, or scientific claim identity. |
 | Proposal handle `vpr_…` | First 16 hex characters of SHA-256 over the Vela-canonical logical proposal preimage. `created_at` and mutable review status are excluded so exact retries are idempotent. | Exact, unique handle plus the full proposal root for a decision or withdrawal. | Proposal root, Decision Plan, event, or accepted-state change. |
 | Proposal root | `sha256:` plus SHA-256 of the exact Vela-canonical `StateProposal` bytes at the operation boundary. | Full root and exact proposal handle/status. | Aggregate proposal root or Decision Plan root. |
 | Proposal aggregate root | `sha256:` plus SHA-256 of the Vela-canonical ordered proposal array. Reported by `vela status`. | Full root for the complete proposal collection and the frontier checkout being inspected. | Any individual proposal root. |
@@ -99,7 +116,7 @@ with either JSON profile.
 | Git tree | Git object ID for `HEAD^{tree}`. It binds tracked paths and bytes but not history. | Complete object ID and repository hash format. | Commit ancestry, untracked state, event replay, or currentness. |
 | Target input root | `sha256:` plus SHA-256 of the closed `vela.target-index-input-manifest.v1`, whose sorted entries bind source-commit path, mode, size, and digest. | Full root plus resolution of every entry from the exact source Git tree. | Proof that a domain generator disclosed every input, target-index root, or packet digest. |
 | Target-index root | `sha256:` plus SHA-256 of the complete canonical `vela.target-index.v2` object with only `index_root` omitted. | Full root, closed-schema validation, exact source/input/packet/repository roots, and freshness at the operation edge. | Work authority, scientific standing, graph rank, or a historical task binding. |
-| Target-task binding root | `sha256:` plus SHA-256 of the complete canonical `vela.target-task-binding.v1` with only `binding_root` omitted. It retains the exact target, index, packet, source, repository roots, and claim-time read set. | Full root in both the private session and the byte-identical Receipt v1 extension. | A current offer, verifier result, policy Permit, or accepted state. |
+| Target-task binding root | `sha256:` plus SHA-256 of the complete canonical `vela.target-task-binding.v1` with only `binding_root` omitted. It retains the exact target, index, packet, source, repository roots, and claim-time read set. | Full root in both the private Attempt and the byte-identical Submission binding. Historical Receipts retain their original extension semantics. | A current offer, Verification Record, Decision, or accepted state. |
 | Projection or site-bundle root | A non-authoritative projection's own documented canonical or exact-byte digest, together with its bound source roots. | Projection schema/version, full projection root, and exact source roots. | Any source root or a claim that the projection is live. |
 | Release checksum | SHA-256 of exact binary or archive bytes. | Full checksum, artifact name/platform, release version, and trusted publication source. | Git commit, package integrity metadata, code signature, or build provenance. |
 | Build attestation | A signed provenance statement binding a produced artifact digest to a workflow and source identity. | Attestation verification, expected issuer/workflow/source, and the artifact digest. | Artifact checksum, platform code signature, scientific signature, or frontier authority. |

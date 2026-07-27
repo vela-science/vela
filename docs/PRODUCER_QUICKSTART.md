@@ -1,148 +1,86 @@
 # Producer quickstart
 
-Use this path to submit one result to a frontier that you do not maintain.
-You may claim work, run the named verifier, and land evidence. A signed policy
-routes the receipt. A Permit can admit a narrow class. Defer leaves the
-proposal for a key-holding human. You cannot decide, sign, accept, or reject.
+A producer creates evidence. Vela registers an authenticated Submission and
+opens a Proposal. Neither act verifies or accepts the Claim.
 
-## Install the pinned release
-
-Read `vela_version` from the frontier's `vela.lock`. Install that release from
-the [Vela releases page](https://github.com/vela-science/vela/releases), then
-check the version before you start an Attempt.
+## Inspect the Frontier
 
 ```bash
-version="$(awk '/^vela_version:/{print $2}' vela.lock)"
-curl -fsSL "https://raw.githubusercontent.com/vela-science/vela/v${version}/install.sh" \
-  | VELA_VERSION="v${version}" bash
-vela --version
+git clone <frontier-url>
+cd <frontier>
+vela status . --json
 vela check . --strict --json
+vela next . --limit 1 --json
 ```
 
-Stop if the versions differ or the strict check fails. Do not repair signed
-events or derived files by hand.
+Read the returned Offer. It binds the Target, packet, expected outputs,
+verifier profile, lease state, and exact next command.
 
-For Profile v1, strict checking also requires the exact repository boundary,
-Git anchor/ancestry, retained bytes, actor registry, and independently
-installed first-boundary pin whenever an administrator boundary exists. Obtain
-that full boundary root from the Frontier's trusted distribution channel and
-use `vela frontier trust pin`; never accept a pin asserted only by the checkout
-itself.
-
-## Take one target
-
-Create a branch, inspect the ranked offer, and claim one target with an
-agent-only identity.
+## Start one Attempt
 
 ```bash
-git switch -c producer/<short-result-name>
-vela next . --json
-vela start <target-id> --frontier . --as agent:<your-handle> --json
+vela start <target> --frontier . --as agent:<name> --json
 ```
 
-The Attempt response names the fixed base, completion condition, required
-checks, constraints, and authority ceiling. Vela writes one private session
-under `.vela/work/`. Do not edit or stage that directory.
+Run only the bounded work and checks named by the Attempt. Retain exact
+frontier-relative Artifacts. A failed or negative result is useful only when
+its scope, search space, algorithm, and limits are explicit.
 
-Profile v1 `next` and `start` validate the complete Target Index v2 and selected
-packet against tracked Git bytes and current roots. A stale index grants no
-Attempt. The resulting `vela.target-task-binding.v1` is retained in the session
-and copied byte-for-byte into Receipt v1 at landing.
-
-## Run the selected verifier
-
-Use the verifier profile from the Attempt response. The profile must pin its
-runtime, source, inputs, limits, and replay command. Vela 0.9 keeps
-target-specific producer adapters in Canopus profiles or checked-in parent
-scripts. The core binary runs stored evidence through `vela reproduce`.
-
-Run the selected verifier, then give `land` its artifact:
+## Submit the result
 
 ```bash
-vela land \
-  --frontier . \
-  --work <target-id> \
-  --claim "The exact bounded result from this run." \
+vela submit --frontier . \
+  --attempt <vat_id> \
+  --claim "<bounded result>" \
   --type computational \
+  --condition "<scope condition>" \
   --replayability exact \
-  --artifact path/to/result.json:witness \
-  --caveat "The scope limit that another reviewer must retain." \
-  --as agent:<your-handle> \
+  --artifact <path>:<kind> \
+  --caveat "<what this does not establish>" \
+  --requires-verification "<independent check required>" \
+  --as agent:<name> \
   --json
 ```
 
-Vela builds Receipt v1 from the active session. Do not write receipt JSON for
-this task-first path. Use `vela land receipt.json` only when another tool has
-already emitted canonical Receipt v1.
+The result names the immutable Submission, Vela-issued Registration Record,
+and pending Proposal. The accepted-event delta is zero. Producer-reported
+`--check` values remain producer claims and never become Verification Records.
 
-## Read the result
-
-The JSON response names the operation, receipt, proposal, policy route, event
-count effect, and Git publication state. Treat the route as follows:
-
-| Route | Meaning |
-| --- | --- |
-| `policy_admitted` | A prior human-signed Permit authorized this exact class. |
-| `deferred` | The proposal is pending a separate human decision. |
-| `exact_retry` | Vela found the same durable operation and did not create a second result. |
-
-For `exact_retry`, `original_route` is the structured prior route:
-`policy_admitted` or `deferred`. It is `null` for first results. Branch on
-`route` and `original_route`; reserve `detail` for human-facing diagnostics.
-
-A verifier pass is evidence. A landed receipt is evidence. Neither grants a
-human decision. Stop and record the defect if the generated claim, caveat,
-source pin, task root, or event-count effect is wrong. Deny and invalid input
-are error-shaped outcomes; they leave the work session available for repair.
-An exact retry recovered only from pre-0.760.1 public state may report null
-historical event counts instead of inventing values.
-
-## Publish the operational commit
-
-Within Vela's publication response, `pushed` proves that Vela observed the
-remote ref. Preserve a reported local commit when publication stops at
-`committed_local`, then run the recovery command and verify the remote ref.
-`unchanged` means the selected local commit already contains every exact
-postimage and Vela moved no ref or index entry; run its push command only when
-that existing commit still needs remote verification.
+A producer from another workbench may pass a complete signed
+`vela.submission.v1` file to the same command:
 
 ```bash
-git status --short
-git push origin producer/<short-result-name>
-git rev-parse HEAD
-git ls-remote --heads origin producer/<short-result-name>
+vela submit submission.json --frontier . --json
 ```
 
-Open a pull request. The repository's required Vela check must install the
-lock-pinned release, replay the frontier, run strict checking, and compare the
-materialized hashes. CI has no signing path.
-
-## Release abandoned work
-
-Use Vela to release the exact lease. Deleting the private session does not
-release it.
+## Inspect and reproduce
 
 ```bash
-vela start <target-id> \
-  --frontier . \
-  --drop \
-  --reason "why this attempt stopped" \
-  --as agent:<your-handle> \
-  --json
-```
-
-## Fork and replay offline
-
-Git remains the transport. A hosted Vela service is optional.
-
-```bash
-git bundle create ../frontier.bundle --all
-git clone ../frontier.bundle ../frontier-offline
-cd ../frontier-offline
-vela check . --strict --json
+vela show . <vsb_id> --json
+vela show . <vrr_id> --json
+vela review show . <vpr_id> --json
 vela reproduce .
-vela next . --json
 ```
 
-The offline fork can continue under its own keys and policy. Its decisions
-carry authority only inside that fork.
+If the result is abandoned or superseded, withdraw only its pending Proposal:
+
+```bash
+vela proposal withdraw . <vpr_id> \
+  --as agent:<name> \
+  --reason "superseded by a corrected Submission" \
+  --json
+```
+
+Withdrawal preserves the Submission, Registration Record, Artifacts, and
+history. It cannot change accepted Standing.
+
+## Authority boundary
+
+Agents and producers do not run `vela review accept` or
+`vela review reject`, access repository-authority credentials, mint a
+Verification Record for their own output, or describe Git publication as
+scientific acceptance.
+
+Fresh `vela init` repositories are structural and report authority as not
+configured. Submission registration fails closed until a reviewed
+repository-authority provisioning path has established the Frontier boundary.

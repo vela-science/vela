@@ -160,9 +160,9 @@ The Target Index is an optional work bridge. Domain tools own target meaning
 and packet schemas. Vela owns only a closed seal over exact Git inputs,
 repository roots, packet bytes, and target ordering.
 
-`next` and `work` fail closed on a stale or invalid index. A successful claim
-retains an exact target-task binding in the private session and eventual
-Receipt. Deleting the index removes a catalogue convenience and changes no
+`next` and `start` fail closed on a stale or invalid index. A successful start
+retains an exact target-task binding in the private Attempt and eventual
+Submission. Deleting the index removes a catalogue convenience and changes no
 scientific state or authority. Graph position and structural advice never
 replace canonical producer ranking.
 

@@ -47,7 +47,8 @@ What makes a producer leave verified state behind instead of keeping a private r
   already accepts: an OEIS comment, an arXiv-ready statement, a GitHub or mathlib contribution. The
   OEIS bridge and the release/DOI archive exist; per-venue export adapters are partial.
 - **Exact contribution provenance.** A producer who submits one bounded result
-  can retain an exact Receipt, artifact, proposal, and decision trail. A
+  can retain an exact Submission, Registration Record, artifact, Proposal, and
+  Decision trail. A
   dependency pin supplies context, not evidence or attribution; a generic
   transfer contract does not establish standing or credit. Any downstream
   attribution view must cite the exact retained relation and remain a derived,

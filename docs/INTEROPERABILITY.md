@@ -1,22 +1,24 @@
 # Interoperability and the narrow waist
 
-Status: current public boundary through Profile v1, 2026-07-23.
+Status: current candidate boundary through Profile v1, 2026-07-26.
 
 Vela interoperates by preserving a small public boundary, not by making every
 scientific tool adopt Vela's internal model. A producer can keep its own Git
 repository, language, verifier, notebook, graph, or publication system. It
-crosses the boundary with ordinary immutable references and a complete Receipt
-v1. A Vela frontier then records the resulting proposal and any later
+crosses the boundary with ordinary immutable references and an authenticated
+Submission v1. A Vela Frontier then issues a Registration Record, records the
+resulting Proposal and Verification Records, and retains any later
 authority-bearing event without giving the producer authority to decide it.
 
 ## Contract classes
 
 | Class | Contracts | Prelaunch stability intent |
 | --- | --- | --- |
-| Released | Receipt v1 JSON and canonicalization, canonical event JSON and replay, content-addressed artifacts, Profile v1 identity/boundary contracts, Scientific State Root v2, and documented CLI JSON | Versioned, bounded, and conformance-tested. Unknown namespaced Receipt v1 extensions survive parsing and canonical re-emission. |
+| Current candidate | Submission v1, Registration Record v1, Verification Record v1, canonical Event JSON and replay, content-addressed Artifacts, Profile v1 identity/boundary contracts, Scientific State Root v2, and documented CLI JSON | Versioned, bounded, and conformance-tested before release. |
+| Historical replay | Receipt v1 JSON and canonicalization, landing records, and policy-era events | Read-only compatibility. Unknown namespaced Receipt v1 extensions survive parsing and canonical re-emission; no current writer emits them. |
 | Derived work | Target Index v2 candidate/seal, `vela.offer.v1`, and retained `vela.target-task-binding.v1` | Exact and fail-closed for Profile v1 work, but non-authoritative and replaceable by another domain candidate generator. |
-| Experimental | Decision Brief presentation and packet decision view | Useful and covered by fixtures, but may change before evidence from independent producers and consumers. |
-| Internal | Work sessions, transaction journals, adapter result JSON, caches, Rust modules | Replaceable implementation detail. Producers must not author or depend on it. |
+| Experimental | Review Packet presentation and packet decision view | Useful and covered by fixtures, but may change before evidence from independent producers and consumers. |
+| Internal | Private Attempt scratch, transaction journals, adapter result JSON, caches, Rust modules | Replaceable implementation detail. Producers must not author or depend on it. |
 
 The packet file `decisions/decision-view.json` is a derived offline view. It
 embeds the exact signed decision event or policy certificate and points back to
@@ -30,17 +32,15 @@ The supported adapter shape is:
 
 ```text
 pinned inputs -> sandboxed verifier -> bounded adapter-private result
--> private ReceiptBuilder -> shared land service
+-> authenticated SubmissionBuilder -> shared registration service
 ```
 
 An independently shipped producer skips the adapter-private result and emits a
-complete Receipt v1. Vela intentionally does not define a second generic
-verifier-result schema. An adapter may not mutate accepted events, proposals,
-publication, policy, or work-session state directly.
+complete Submission v1. A verifier emits a separate, authenticated Verification
+Record. An adapter may not mutate accepted Events, Proposals, Decisions,
+publication, policy, or Attempt state directly.
 
-The protocol test adds rich unknown namespaced objects to a valid receipt and
-requires lossless parse, canonical re-emission, and a body root that binds the
-extensions:
+Historical Receipt extension preservation remains pinned by:
 
 ```bash
 cargo test -p vela-protocol rich_unknown_extensions_round_trip_losslessly_and_bind_root
@@ -73,16 +73,17 @@ missing prerequisites, is in
 
 ## Boundary examples
 
-- External Lean is an installed Vela command. It pins source and toolchain,
-  executes in a fail-closed sandbox, builds Receipt v1 privately, and uses the
-  shared landing service.
+- External Lean is an optional producer adapter. It pins source and toolchain,
+  executes in a fail-closed sandbox, and emits an authenticated Submission
+  whose producer check remains distinct from an independent Verification
+  Record.
 - Diderot is a very early exploratory project, not a Vela partner, robust
   external producer, compatibility target, or architectural validation. A
   future experiment may carry one of its certificates as attributed external
-  evidence through Receipt v1, preserving issuer, scope, caveats, and reviewer
-  labor. Diderot-specific formats and availability are not Vela conformance or
-  release dependencies, and a certificate is never mapped directly to Vela
-  acceptance.
+  evidence through Submission v1, preserving issuer, scope, caveats, and
+  reviewer labor. Diderot-specific formats and availability are not Vela
+  conformance or release dependencies, and a certificate is never mapped
+  directly to Vela acceptance.
 - RO-Crate and SWHID are export and immutable-locator conventions. They do not
   replace Vela event authority.
 - OpenResearch, OCI, CloudEvents, Hugging Face cards, graph tools, and wiki
