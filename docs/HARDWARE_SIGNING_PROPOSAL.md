@@ -1,5 +1,8 @@
 # Hardware touch-to-sign
 
+> **Rejected historical proposal.** Vela uses the normal OpenSSH agent for the
+> repository service key and no Vela-managed human signing product.
+
 Status: historical design study. The current authority path uses the operating
 system principal, restricted Cedar authorization, and a standard OpenSSH agent
 repository-authority key. There is no current `vela sign` writer. This document

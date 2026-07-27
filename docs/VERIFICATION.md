@@ -25,21 +25,11 @@ stored witness bytes and environment pins. It must not consult an unpinned
 network resource or model judgment. The command reports the property each
 verifier checked and refuses malformed or mismatched inputs.
 
-`vela check <frontier> --strict --json` validates the frontier record: content
-addresses, accepted-event replay, signatures and policy certificates, required
-artifacts, derived-state parity, and strict trust debt. For Profile v1 it also
-validates the closed profile/settings, complete identity-boundary chain, Git
-anchors and ancestry, retained canonical bytes, actor registry, and the
-consumer's independently installed first-boundary pin whenever an
-administrator boundary exists. It does not replace the domain verifier.
-
-A verified pinned temporalization boundary may preserve proposal logical-ID
-conflicts that already existed at its exact Git anchor. Strict checking labels
-them `anchored_immutable_unauthenticated` and keeps them nonblocking only after
-the repository gate proves that the conflict set did not expand and every
-conflicted proposal byte remains exact. This is replay compatibility, not
-authentication: native conflicts, new conflicts, changed historical bytes,
-invalid boundaries, and missing or wrong trust pins fail closed.
+`vela check <frontier> --strict --json` validates the current repository epoch:
+content addresses, authority-history continuity, admitted-event replay,
+required Artifacts, exact Git ancestry, retained canonical objects, derived
+parity, and the independently installed sequence-one authority trust root. It
+does not replace the domain verifier.
 
 Run both from the exact Git tree being cited:
 
@@ -48,11 +38,10 @@ vela check . --strict --json
 vela reproduce .
 ```
 
-Non-strict `vela check . --json` reports the same typed Profile v1
-repository-context defects and keeps that context invalid. It is diagnostic,
-not a compatibility bypass: an invalid boundary grants no identity,
-dependency, signature, or historical exemption, and canonical writers still
-fail before transaction journaling.
+Non-strict `vela check . --json` reports the same typed repository-context
+defects and keeps that context invalid. It is diagnostic, not a bypass:
+invalid authority or repository context grants no identity, signature, or
+historical exemption, and canonical writers fail before journaling.
 
 When a pending proposal retains a frontier-local frozen witness, `review show`
 advertises proposal-scoped reproduction:
@@ -95,10 +84,8 @@ The current Verification Record requires the exact Claim, Submission,
 Proposal, and Artifact bindings it bears on; a named method and implementation;
 full execution-evidence roots; an outcome; scope; and explicit nonclaims. It
 rejects stale or substituted inputs and cannot accept, reject, or finalize the
-Proposal. Historical VerifierAttachment and gate-status bytes remain
-replayable through their historical schemas but have no current writer.
-`vela review show` reports reproduction, verification, and attributed Decision
-state as separate facts.
+Proposal. `vela review show` reports reproduction, verification, and
+attributed Decision state as separate facts.
 
 ## Submission and admission
 
@@ -113,11 +100,10 @@ Attempt and scoped evidence
     -> authorized Decision + canonical Event
 ```
 
-Registration proves intake, not correctness or acceptance. A current producer
-cannot mint a Verification Record, Decision, Event, or accepted Claim Record.
-Historical policy `Permit`, `Defer`, and `Deny` outcomes remain replayable, but
-the current writer registers a pending Proposal and leaves the consequential
-action to an authorized decision.
+Registration proves intake, not correctness or acceptance. A producer cannot
+mint a Verification Record, Decision, Event, or accepted Claim Record. The
+current writer registers a pending Proposal and leaves the consequential
+action to an authorized Decision.
 
 For a current Submission, the Decision gate re-reads the exact retained
 Submission and Verification Record bytes. Each declared
@@ -130,9 +116,8 @@ not perform one.
 
 ## Human decision
 
-Direct `vela review accept|reject` commands are the ordinary human decision
-surface on an Era-1
-Frontier. It binds one proposal, action, reason, principal, policy, authority
+Direct `vela review accept|reject` commands are the human Decision surface. A
+command binds one Proposal, action, reason, principal, policy, authority
 head, read set, binary identity, and exact canonical delta. The command is the
 semantic human action. The local operating-system session authenticates the
 principal, restricted Cedar authorizes the action, and the standard OpenSSH
@@ -144,9 +129,6 @@ Any drift aborts before the commit marker. Acceptance additionally requires an
 eligible Review Packet and strict aggregate Engine gate, then verifies that
 the covered scientific domain event and explicit review event replay together
 across both histories. Rejection changes no accepted scientific state.
-
-Era-0 decisions remain byte-verifiable but have no live writer in the current
-candidate. Use Vela `0.915.1` only for exact historical command replay.
 
 Human acceptance is a statement of scoped judgment, not a claim that every
 possible property was verified. The decision record should retain the relevant

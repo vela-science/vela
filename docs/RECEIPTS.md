@@ -1,5 +1,8 @@
 # Receipts - the boundary where activity becomes admissible
 
+> **Historical interoperability contract.** Current producer intake uses
+> Submission, Registration Record, and Proposal. Receipt writers are retired.
+
 > **Historical interoperability contract.** Receipt v1 and `vela land` are
 > replay-only in the current product era. Current producers create
 > `vela.submission.v1` with `vela submit`; Vela returns a Registration Record

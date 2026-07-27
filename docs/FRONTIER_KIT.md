@@ -1,5 +1,8 @@
 # Frontier Kit
 
+> **Historical kit.** This package predates the current repository epoch and
+> is not a current onboarding or command contract.
+
 A Frontier Kit gives an outside producer enough exact context to create one
 useful Submission without importing Vela internals or authority.
 

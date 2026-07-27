@@ -1,5 +1,8 @@
 # Frontier repository profile
 
+> **Historical predecessor contract.** Current repositories use the epoch
+> layout in [PROTOCOL.md](PROTOCOL.md) and ADR 0022.
+
 This document defines the current `vela.frontier-profile.v1` and
 `vela.frontier_repo.v1` repository contract. It grants no authority by itself.
 Git stores and transports exact bytes, Vela replays and governs scientific

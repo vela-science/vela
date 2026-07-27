@@ -62,18 +62,6 @@ vela review show . <vpr_id> --json
 vela reproduce .
 ```
 
-If the result is abandoned or superseded, withdraw only its pending Proposal:
-
-```bash
-vela proposal withdraw . <vpr_id> \
-  --as agent:<name> \
-  --reason "superseded by a corrected Submission" \
-  --json
-```
-
-Withdrawal preserves the Submission, Registration Record, Artifacts, and
-history. It cannot change accepted Standing.
-
 ## Authority boundary
 
 Agents and producers do not run `vela review accept` or
@@ -82,5 +70,6 @@ Verification Record for their own output, or describe Git publication as
 scientific acceptance.
 
 Fresh `vela init` repositories are structural and report authority as not
-configured. Submission registration fails closed until a reviewed
-repository-authority provisioning path has established the Frontier boundary.
+configured. Submission registration fails closed until `vela authority init`
+has established the repository writer and the consumer has installed its
+independently distributed sequence-one trust root.

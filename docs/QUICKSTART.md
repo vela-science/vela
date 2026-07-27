@@ -14,15 +14,9 @@ vela status . --json
 vela reproduce .
 ```
 
-For Profile v1, strict checking verifies more than event replay: it validates
-the closed profile and settings, signed repository-boundary chain, exact Git
-anchors and ancestry, retained canonical bytes, actor registry, and the
-consumer's independent first-boundary pin whenever such a boundary exists. If
-that pin is missing, obtain the full first-boundary content root through an
-independent trusted channel and use `vela frontier trust pin`; never copy a pin
-asserted by the checkout itself.
-
-Era-1 authority has a separate sequence-1 trust choice. Obtain the full first
+Strict checking validates the current repository epoch, exact Git anchors and
+ancestry, retained canonical objects, authority-history continuity, and the
+consumer's independent sequence-one trust anchor. Obtain the full first
 authority-record root through an independent channel and install it with:
 
 ```bash
@@ -70,7 +64,7 @@ vela init ./frontier \
   --json
 ```
 
-The result is a minimal Profile v1 repository with structural identity and no
+The result is a minimal current repository with structural identity and no
 scientific decision. Load one dedicated Ed25519 repository-authority key into
 your standard OpenSSH agent, then establish the writer:
 
@@ -94,11 +88,12 @@ vela authority trust pin ./frontier \
   --json
 ```
 
-## Historical Frontiers
+## Predecessor repositories
 
-Profile v0.1 remains readable but has no current writer. Use Vela `0.915.1`
-only when exact old-command replay is required. Do not relabel or hand-migrate
-a legacy checkout.
+Predecessor tags and archives retain the old source and executable needed to
+verify their bytes. Upgrade only through `vela repository upgrade`; never
+hand-edit or relabel an old checkout. The current CLI does not expose
+predecessor writer commands.
 
 ## What to read next
 

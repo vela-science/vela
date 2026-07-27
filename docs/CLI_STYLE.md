@@ -1,5 +1,8 @@
 # Vela CLI style guide
 
+> **Historical design record.** This guide predates the current-only command
+> cut. The executable help and [CLI contract](CLI.md) define current behavior.
+
 The conventions the CLI holds itself to, and the tests that enforce them.
 Written down so they stop regressing. Grounded in gh and clig.dev; where
 Vela already had a rule (`docs/CLI.md`), this codifies it.

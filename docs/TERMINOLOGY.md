@@ -35,7 +35,7 @@ owns each system responsibility.
 | Attempt | One bounded effort against an exact Target | Coordination only |
 | Run | One execution occurrence in a workbench or verifier | None |
 | Claim | One exact assertion under explicit scope and conditions | None |
-| Claim Record | Proposed canonical record of a Claim revision and its typed relations; separately gated and not yet writable | None |
+| Claim Record | Canonical record of a Claim revision, conditions, evidence, provenance, and typed relations | None by itself |
 | Finding | Editorial label for a Claim with positive standing in a named Frontier | View only |
 | Artifact | Retained bytes or an immutable locator with exact identity and provenance | None |
 | Evidence | A typed role played by an Artifact or Observation relative to a Claim | None |
@@ -110,13 +110,13 @@ available active completed abandoned expired contaminated
 Submission registration:
 
 ```text
-draft submitted registered refused withdrawn
+draft submitted registered refused
 ```
 
 Proposal:
 
 ```text
-pending_review accepted rejected withdrawn superseded
+pending_review accepted rejected
 ```
 
 Verification outcome:
@@ -139,28 +139,22 @@ integrity: matched | mismatched | not_checked
 locator: immutable | mutable | unavailable | opaque
 ```
 
-## Historical source eras
+## Predecessor provenance
 
-Historical bytes are never renamed or rehashed:
+Imported Claim Records name their exact predecessor object ID, full root,
+source era, and Git commit. The current identity is derived from the current
+Claim bytes; an old identity or signature is never copied into a current
+authentication field.
 
-| Historical object | Historical prefix | Current relationship |
-| --- | --- | --- |
-| Finding | `vf_` | Historical Claim/Finding record; never rewritten as a Claim Record |
-| Receipt v1 | receipt root | Historical producer package; never relabeled as a Submission |
-| Activity or landing record | `vrc_` | Historical intake/landing record; not a Registration Record |
-| VerifierAttachment | `vva_` | Historical verifier evidence; not a Verification Record |
-
-Current readers expose source schema, identifier, root, projection version,
-and any semantic loss. Current writers emit only the current Submission,
-Registration, and Verification era. The separately gated Claim Record writer
-does not exist yet.
+All predecessor bytes remain retrievable through the epoch's tag, commit,
+Git-object manifest, and archive digest. They are not current writer objects.
 
 ## Controlled verbs
 
 Read:
 
 ```text
-status show list diff why log
+status show list why log
 ```
 
 Work:
@@ -172,7 +166,7 @@ next start run resume abandon
 Intake:
 
 ```text
-submit register import withdraw
+submit register import
 ```
 
 Evaluation:
@@ -190,7 +184,7 @@ accept reject correct supersede retract authorize revoke
 Distribution and recovery:
 
 ```text
-export publish serve repair restore rebuild compact
+export publish repair restore rebuild compact
 ```
 
 Lower-power roles never receive higher-power verbs.
@@ -251,10 +245,10 @@ empirical_transport
 Shared labels, embeddings, graph proximity, `skos:exactMatch`, or
 `owl:sameAs` never transport Standing by themselves.
 
-## Compatibility rule
+## Epoch rule
 
-> Read every retained era that matters. Write exactly one current era. Never
-> rewrite canonical history to make vocabulary cleaner.
+> Verify the signed predecessor boundary. Write exactly one current epoch.
+> Never rewrite canonical history to make vocabulary cleaner.
 
 See [ADR 0021](adr/0021-scientific-submission-and-direct-action-cli-language.md)
 for the migration, conformance, and acceptance gates.

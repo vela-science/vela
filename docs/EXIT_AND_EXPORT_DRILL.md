@@ -1,5 +1,8 @@
 # Exit and export drill
 
+> **Historical drill.** Commands and repository layouts in this record belong
+> to the predecessor epoch. Use it only with its pinned source revision.
+
 Status: manual portability checklist. It checks standard Git transport and
 local replay; it does not exercise a real human key, certify a release, or
 appoint a successor.

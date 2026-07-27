@@ -1,61 +1,54 @@
 # Authority and attribution
 
 Vela separates evidence production, verification, authorization, and
-scientific standing.
+scientific Standing.
 
 ```text
 producer evidence
-  -> deterministic verification
-  -> pending proposal
-  -> authorized semantic decision
+  -> scoped verification
+  -> pending Proposal
+  -> authorized semantic Decision
   -> repository-authority record
-  -> append-only standing
+  -> Standing
 ```
 
-A signature proves control of a key over exact bytes. It does not prove that a
-claim is true. Verifier success does not imply acceptance, and Git publication
-does not imply either.
+A signature proves control of a key over exact bytes. It does not prove a
+Claim true. Verification does not imply acceptance, and Git publication
+implies neither.
 
-> **Candidate behavior.** Vela `0.930.0-rc.13` implements Proposed
-> [ADR 0020](adr/0020-attributed-repository-authority-and-standard-delegation.md).
-> Vela `0.915.1` remains available for byte-identical Era-0 replay. New Era-0
-> personal-signing and migration writers are retired.
+## Repository authority
 
-## The current authority model
+Every current Frontier has:
 
-Every migrated Frontier has:
-
-- an append-only authority history;
-- a full-root authority keyset;
-- a retained, restricted Cedar policy bundle;
+- an append-only repository-authority history;
+- a full-root Ed25519 authority keyset;
+- a retained restricted Cedar authorization bundle;
 - attributed principals and scoped capabilities;
-- one DSSE authority record covering each Era-1 transaction; and
-- independently installed public trust anchors for the repository boundary
-  and the sequence-1 repository-authority record.
+- one DSSE authority record covering each canonical transaction; and
+- an independently distributed sequence-one authority-record root.
 
-The repository authority is a service identity, not the scientific reviewer.
-Its signature attests that the recorded authentication, authorization,
-semantic action, read-set recheck, and canonical write all matched. The
-authority record separately attributes the human, agent, or workload principal
-responsible for the action.
+Repository authority is a service identity, not the scientific reviewer. Its
+signature attests that the principal, authorization, semantic action, read-set
+recheck, and canonical write matched. The record attributes the human, agent,
+or workload responsible for the action.
 
-The initial local provider is the standard OpenSSH agent. Vela asks the agent
-to sign the exact authority record with the key selected by the Frontier
-keyset. Vela does not create, store, reveal, or recover a human signing seed.
+The initial local provider is the normal OpenSSH agent. Vela asks it to sign
+the exact authority record with the key selected by the Frontier keyset. Vela
+does not create, store, reveal, or recover a human signing seed.
 
-## Human decisions
+## Human Decisions
 
-Inspect one pending proposal:
+Inspect one pending Proposal:
 
 ```bash
 vela review show . <vpr_id> --json
 ```
 
-Then execute exactly one semantic action:
+Then perform exactly one action:
 
 ```bash
 vela review reject . <vpr_id> \
-  --reason "The retained evidence does not satisfy the stated acceptance conditions." \
+  --reason "The retained evidence does not satisfy the stated conditions." \
   --json
 ```
 
@@ -63,49 +56,40 @@ or, when the Review Packet says acceptance is eligible:
 
 ```bash
 vela review accept . <vpr_id> \
-  --reason "The exact claim, evidence, verifier record, and conditions support acceptance." \
+  --reason "The exact claim, evidence, verification, and conditions support acceptance." \
   --json
 ```
 
-The command itself is the human semantic action. Vela:
+The command is the semantic action. Vela:
 
 1. derives the exact Review Packet and transaction plan;
-2. binds the proposal, action, reason, principal, policy, authority head,
+2. binds the Proposal, action, reason, principal, policy, authority head,
    binary identity, read set, and canonical delta;
-3. authenticates the current local operating-system principal;
-4. evaluates the retained Cedar policy;
-5. rechecks the transaction inputs;
+3. authenticates the local operating-system principal;
+4. evaluates the retained policy;
+5. rechecks every transaction input;
 6. asks the OpenSSH agent to sign the covering authority record; and
-7. installs the transaction through the recoverable Frontier journal.
+7. installs the transaction through the recoverable journal.
 
-There is no copied root or timestamp, custom helper, Vela human key, approval
-session, batch mode, wildcard, `--yes`, or persistent semantic approval.
+There is no copied root or timestamp, custom signer helper, Vela human key,
+approval session, batch mode, wildcard, `--yes`, or persistent semantic
+approval.
 
-If eligibility, policy, key selection, read-set verification, or repository
-signing fails, the transaction does not cross the commit marker. Rejection
-changes proposal standing but not accepted scientific state. Acceptance writes
-the exact scientific event and explicit `review.accepted` event in one covered
-transaction.
+An agent may prepare or explain this command. It may not invoke acceptance or
+rejection on the human's behalf, access the authority key, or infer a Decision
+from a prompt or signature request.
 
-Agents may prepare or explain this command. They may not invoke an accepting
-or rejecting decision on the human's behalf, access the repository-authority
-key, or claim that a proposal became accepted without verifying the resulting
-authority record and event history.
+## Producer identity
 
-## Producer attribution
-
-An optional file-backed agent identity is only for bounded producer work:
+An optional file-backed agent identity authenticates bounded producer work:
 
 ```bash
 vela id create --agent --handle canopus
 vela id show --json
 ```
 
-The producer key signs exact lease, Submission, and withdrawal records.
-It cannot authorize review, acceptance, policy administration, membership,
-recovery, or repository-key rotation.
-
-Routine producer work uses already governed policy:
+It may sign an Attempt or Submission. It cannot authorize review, acceptance,
+policy administration, recovery, membership, or repository-key changes.
 
 ```bash
 vela next . --json
@@ -113,24 +97,13 @@ vela start <target> --frontier . --as agent:<handle> --json
 vela submit submission.json --frontier . --as agent:<handle> --json
 ```
 
-Current Submission registration retains the exact producer package, issues a
-Registration Record, and creates a pending Proposal. It creates no
-Verification Record, Decision, Event, or accepted Standing.
+Submission intake creates no Verification Record, Decision, Event, or accepted
+Standing.
 
-Producers may withdraw their own pending Proposal:
+## Initialize a new Frontier
 
-```bash
-vela proposal withdraw . <vpr_id> \
-  --as agent:<handle> \
-  --reason "superseded by a corrected submission" \
-  --json
-```
-
-Withdrawal never deletes evidence or changes accepted Claim Standing.
-
-Fresh `vela init` repositories have structural identity but no configured
-repository authority. Establish the standard writer with one dedicated
-Ed25519 key already loaded in the normal OpenSSH agent:
+Load one dedicated Ed25519 repository-authority identity into the normal
+OpenSSH agent, then run:
 
 ```bash
 vela authority init . \
@@ -139,69 +112,52 @@ vela authority init . \
 ```
 
 Vela automatically selects the key only when exactly one plain Ed25519
-identity is loaded. Otherwise `--key SHA256:<full-fingerprint>` selects it.
-The command reads no private-key file and is valid only over the exact
-one-event Profile v1 genesis with an empty actor registry and no authority
-history. It writes one `authority.initialized` event and one covering
-sequence-1 DSSE record, with the initial keyset, Cedar bundle, and exact policy
-material. It changes no scientific standing. Established and historical
-Frontiers cannot use this path. The JSON result includes the full sequence-1
-authority-record root that must be distributed independently of the Frontier
-checkout.
+identity is loaded. Otherwise, select the full OpenSSH fingerprint with
+`--key SHA256:<fingerprint>`.
+
+Initialization is valid only for an untouched structural Frontier with no
+authority history. It writes the initial keyset, Cedar bundle, exact policy
+material, initialization Event, and covering sequence-one DSSE record. It
+changes no scientific Standing.
+
+Distribute the returned full sequence-one authority-record root independently
+of the Frontier checkout.
 
 ## Consumer trust
 
-There are two different trust choices and Vela does not collapse them.
-
-An administrator-bound Frontier uses the ADR 0016 repository-boundary pin:
-
-```bash
-vela frontier trust pin . --boundary-root sha256:... --json
-```
-
-Every Era-1 Frontier also distributes its full sequence-1 authority-record
-root through an independent channel. A consumer installs that public root
-directly:
+Install the independently obtained public root:
 
 ```bash
 vela authority trust pin . --record-root sha256:... --json
 ```
 
-The authority pin is the closed
-`vela.authority-trust-anchor.v1 {frontier_id,
-first_authority_record_root}` record. The sequence-1 record already binds the
-initial keyset, policy authorization, principal, events, and execution claim,
-so duplicating those fields in the local anchor would add ambiguity rather
-than security.
+The anchor is a closed record binding the Frontier and first authority-record
+root. That record already commits to the initial keyset, policy, principal,
+Events, and execution claim.
 
-Both pin commands write only local consumer configuration under the
-operating-system account home. They read no key, show no semantic approval,
-write no Frontier byte, and grant no scientific or repository authority.
+Pinning writes only local consumer configuration. It reads no private key,
+grants no authority, and changes no Frontier byte.
 
-## Historical replay
+## Failure behavior
 
-Era-0 actor registrations, event signatures, policies, and migration
-boundaries remain immutable and verifiable. They are not live authoring
-surfaces in the current candidate.
+Vela refuses a repository-authority transaction when any required input is
+missing, stale, ambiguous, or invalid, including:
 
-Use the historical `v0.915.1` binary when an exact old-command replay is
-required. Do not hand-edit old events, registrations, policies, receipts,
-proposals, authority records, or derived roots.
-
-## Fail-closed rules
-
-Vela refuses an authority transaction when any of the following is missing,
-stale, ambiguous, or invalid:
-
-- the applicable repository-boundary and sequence-1 authority trust anchors,
-  or the authority history;
-- the exact principal attribution;
-- the required scoped capability or Cedar authorization;
-- a required semantic human action;
-- the Proposal, Submission, Verification Record, or policy binding;
+- the sequence-one trust anchor or authority history;
+- exact principal attribution;
+- required scoped authorization or human action;
+- the Proposal, Submission, Verification Record, Claim, or Artifact binding;
 - the transaction read set or canonical delta;
 - the selected repository-authority key or signature; or
-- journal recovery and marker verification.
+- recovery-journal and commit-marker integrity.
 
-Cancellation and preflight failure produce no authority event, proposal
-mutation, accepted-state change, or commit marker.
+Preflight, authentication, authorization, signing, or cancellation failure
+creates no committed authority record, Event, Proposal mutation, or Standing
+change.
+
+## Historical verification
+
+Predecessor tags and source archives preserve earlier repository contracts.
+Use their pinned binaries to verify their bytes. The current binary does not
+keep historical writer commands, personal key products, or compatibility
+aliases alive.

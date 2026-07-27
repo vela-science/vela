@@ -1,5 +1,8 @@
 # POSI 2.0 self-assessment
 
+> **Dated assessment.** This records the project state at its stated revision;
+> it is not a current product or release contract.
+
 Assessment date: 2026-07-14. Status: project self-assessment, not a claim of
 formal POSI adoption.
 

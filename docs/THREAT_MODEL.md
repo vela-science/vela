@@ -1,265 +1,219 @@
-# Threat model
+# Vela threat model
 
-Vela protects the integrity and authority history of a bounded scientific
-frontier. It does not decide whether the science is correct.
+Vela protects the integrity, attribution, authorization, and replay of one
+bounded scientific Frontier. It does not determine whether the science is
+true, novel, important, or ethical.
 
-## Assets and boundaries
+## Protected assets
 
-The protected assets are:
+- canonical Claim, Submission, Registration, Verification, Proposal, Decision,
+  Event, and Artifact bytes;
+- repository-authority keysets, policy material, and history;
+- the authenticated principal and semantic action behind each canonical write;
+- exact Git commit/tree, repository epoch, object sets, and roots;
+- the independently distributed sequence-one authority-record root;
+- Target, packet, Attempt, and Submission bindings; and
+- deterministic replay and frozen verifier contracts.
 
-- accepted event bytes and their causal order;
-- artifact content identities and verifier pins;
-- repository-authority keys, attributed principals, and retained policy;
-- the exact proposal, base root, policy, and effect shown at decision time;
-- Profile v1 Frontier identity, exact dependency pins, first-administrator
-  selection, and retained bytes anchored by repository boundaries;
-- Target Index v2 source, packet, and claim-time task bindings; and
-- deterministic replay and public wire contracts.
-
-The system boundary is:
+## Boundary
 
 ```text
-untrusted producer or adapter
-    -> authenticated Submission + content-addressed Artifacts
-    -> Registration Record + pending Proposal
-    -> independent Verification Records
-    -> authorized human or delegated policy Decision
-    -> repository-authority record
-    -> accepted events in a standalone Git repository
-    -> deterministic replay and disposable read projections
+untrusted producer
+  -> authenticated Submission + content-addressed Artifacts
+  -> Registration Record + pending Proposal
+
+untrusted verifier input
+  -> signed scoped Verification Record
+
+authorized semantic principal
+  -> Decision
+  -> repository-authority record
+  -> canonical Event and Standing
+
+verified Git Frontier
+  -> disposable Observatory and indexes
 ```
 
-Git hosts provide byte distribution and repository access control. Vela events
-and authority records provide scientific authority. The Observatory, MCP, proof packets,
-materialized snapshots, graphs, and wikis are projections and are not trust
-roots.
+Git hosts distribute bytes and control repository access. Vela authority
+records authenticate canonical repository writes. The Observatory, Neon,
+search, graphs, exports, and caches are not trust roots.
 
 ## Attacker classes
 
-1. **Malicious or compromised producer.** Can submit arbitrary Submissions,
-   artifacts, paths, metadata, and scientific prose, including prompt
-   injection and fabricated citations.
-2. **Compromised agent runtime or local process.** Can modify files writable by
-   the user, race a publication attempt, and lie in its UI output. It does not
-   possess the repository-authority credential by design.
-3. **Compromised signing key.** Can create signatures within that key's
-   authority until the accepted history revokes or replaces it.
-4. **Compromised Git host or repository credential.** Can hide, reorder, or
-   replace hosted refs and may publish attacker-controlled bytes.
-5. **Compromised Observatory or other projection service.** Can omit, delay, or forge
-   index answers, but does not possess frontier authority.
-6. **Compromised build or install channel.** Can distribute a malicious Vela
-   binary that misrenders or mishandles a ceremony.
-7. **Resource-exhaustion attacker.** Can send large or repeated requests to an
-   exposed HTTP or MCP service.
-8. **Malicious repository publisher.** Can present a valid-looking checkout
-   with a forked first administrator, backdated boundary, substituted
-   dependency, shallow anchor history, altered retained object, or stale target
-   index.
+1. **Malicious producer.** Submits fabricated Claims, Artifacts, citations,
+   paths, metadata, or prompt injection.
+2. **Compromised verifier.** Signs an incorrect, underspecified, dependent, or
+   substituted scoped result.
+3. **Compromised local process.** Races or changes files writable by the user
+   and lies in its presentation.
+4. **Compromised repository-authority key.** Signs actions available to its
+   authenticated and authorized environment.
+5. **Compromised Git host.** Hides, replaces, forks, or rolls back refs and
+   hosted objects.
+6. **Compromised reader.** Omits or forges projections, ranking, search, or
+   freshness.
+7. **Compromised build channel.** Distributes a binary that misrenders,
+   authorizes, or signs a different transaction.
+8. **Resource attacker.** Supplies oversized objects, graphs, or repeated
+   expensive validation requests.
 
 ## Defended properties
 
-### Content and event tampering
+### Canonical object tampering
 
-Canonical IDs re-derive from exact canonical bytes. Event signatures cover
-their defined preimages, and replay validates event structure, causal bindings,
-policy certificates, and hashes. Altering a protected field causes strict
-validation or signature verification to fail.
+Full content identities rederive from closed canonical bytes. Relationships
+bind full roots. Altering a protected field, substituting an object, or using a
+shortened digest fails strict validation.
 
-This does not make an unsigned source file trustworthy. The claim must bind the
-artifact digest that the verifier and Submission actually used.
+### Malicious producer input
 
-### Malicious Submission input
+`submit` treats the Submission and every Artifact as untrusted. It validates
+closed schemas, sizes, paths, digests, producer identity, Attempt and Target
+bindings, current repository context, and declared verification requirements
+before intake.
 
-`vela submit` treats every Submission and Artifact as untrusted. Strict JSON,
-schema checks, size and path limits, digest recomputation, producer identity,
-Attempt binding, and repository-context checks run before registration.
+A producer signature proves origin only. Intake creates a pending Proposal and
+no accepted Standing.
 
-A producer signature proves origin only. Producer checks, model confidence,
-and a successful tool run are not Verification or acceptance. Registration
-creates a pending Proposal with an accepted-event delta of zero; the producer
-cannot create a Decision through another command or MCP profile.
+### Verifier substitution
 
-### Decision substitution and stale review
+A Verification Record binds the exact Frontier, Claim, Submission, Proposal,
+Artifacts, method, environment, scoped property, outcome, nonclaims, and
+verifier identity.
 
-Direct `vela review accept|reject` binds one Proposal, action, reason, current
-causal state, policy, principal attribution, read set, and derived effect. If a
-bound input drifts, the action fails before crossing the transaction marker.
-Restricted Cedar authorizes the exact semantic action, and the standard
-OpenSSH provider signs one covering repository-authority record after the final
-read-set check. There is no personal Vela key, custom helper, copied
-confirmation root, batch session, or wildcard action. Agent identities are
-structurally refused for human review.
+A passing record cannot be reused for a changed Claim, broader property,
+different Artifact, different Proposal, or substituted implementation.
+Independence is explicit and checked where required.
 
-### Duplicate or concurrent publication
+### Decision substitution
 
-The publication transaction uses explicit path sets and expected Git state. It
-does not consume unrelated staged work. Ref movement or a changed base returns
-a stale outcome rather than merging, rebasing, or overwriting another writer.
-Retries preserve the operation identity and do not silently duplicate the
-accepted effect.
+One `review accept` or `review reject` action binds the exact Proposal, action,
+reason, principal, policy, authority head, ordered Verification Records, read
+set, binary identity, and canonical delta.
 
-### Git history replacement
+Any drift aborts before the commit marker. Agent producer identities are
+refused for human review. There is no batch approval, wildcard, copied
+confirmation root, custom signer, or Vela-managed human key.
 
-Anyone can retain an earlier clone, verify event signatures, and compare roots.
-Profile v1 repository verification also requires the signed boundary chain,
-complete anchor objects, exact Git ancestry, retained-object manifest, actor
-registry, and the consumer's independently installed first-boundary pin. A
-valid Git commit or boundary signature alone does not prove that this is the
-administrator fork the consumer intended.
+### Repository-authority substitution
 
-The Observatory may index only descendants of its selected promoted commit.
-That can make one class of force-push visible, but it is not a substitute for
-protected branches, independent clones, the consumer pin, or repository
-credential recovery.
+Authority records form a full-root DSSE chain. Each record commits to the
+previous record, keyset, policy, principal, authorization, semantic action,
+Event roots, repository roots, and complete write set.
 
-If a Git host and every available copy are compromised, Vela cannot recover
-missing bytes. Durable replication remains an operator and community
-responsibility.
+The checkout cannot choose its own sequence-one trust anchor. Consumers install
+the full first authority-record root from an independent channel.
 
-### Derived-reader compromise
+### Fork and rollback
 
-A derived reader selects exact repositories, strictly replays them, and serves
-replaceable projections. It has no frontier-state, source-registration,
-deprecation, signing, transparency-proof, or peer-consensus write surface.
+Strict checking verifies the repository epoch, predecessor commitment, Git
+commit/tree, authority-chain continuity, repository manifest, and current
+objects. A valid Git commit or authority signature alone does not prove that a
+consumer has the intended fork.
 
-A bad reader can lie about discovery or freshness. Resolve the dispute from
-the configured Git URL and exact commit with `vela check . --strict` and the
-frozen verifier. Agreement between multiple readers is corroborative only; it
-does not create authority.
+Independent clones, protected refs, predecessor archives, and pinned trust
+roots make replacement detectable. Vela cannot recover bytes that no honest
+copy retains.
 
-### Repository-boundary substitution
+### Stale or malicious work projection
 
-The first administrator boundary cannot authenticate itself from repository
-bytes. An attacker may copy a valid unsigned Profile v1 genesis and create a
-different signed administrator fork with the same structural Frontier
-identity. Every consumer therefore pins the full first-boundary content root
-and administrator key through a separately reviewed
-`vela.repository-trust-anchor.v1` record under the operating-system account
-home.
+The Target Index is derived but binds the current repository epoch/root,
+source inputs, packets, task contracts, and deterministic rank facts.
+`next` validates the full index; `start` revalidates the chosen Target.
 
-Vela accepts no environment, profile, settings, lockfile, remote-URL, or
-mutable-tag override for that pin and never creates it from a checkout on first
-use. Boundary membership comes from exact anchored Git and event history, not
-timestamps. Missing parents, forks, cycles, non-ancestor or unavailable Git
-objects, rollback-shaped anchors, altered historical bytes, registry drift,
-and invalid signatures fail closed.
+A stale or invalid index yields no Offer. Ranking and graph position never
+create authority.
 
-The pure event-set validator and repository-context verifier answer different
-questions and both are required. Non-strict checking reports the same typed
-defects but grants no identity, dependency, signature, or historical
-exemption. Canonical writers fail before creating a transaction journal.
+### Concurrent writes and recovery
 
-### Malicious or stale work projection
+Canonical transactions bind expected repository and Git state, exact path
+sets, read sets, and postimages. They do not consume unrelated staged work or
+silently merge a changed base.
 
-Target Index v2 is derived and non-authoritative, but a substituted packet or
-stale rank can still misdirect a producer. Vela therefore seals exact source
-Git identity, declared input bytes, event prefix, scientific-state, proposal,
-identity, dependency, packet, and index roots. `next` validates all open
-entries; `start` revalidates the selected entry and transaction read set at the
-write edge.
+The recoverable journal and commit marker distinguish preflight, active,
+committed, and recoverable states. A failed or cancelled transaction before the
+marker creates no canonical effect.
 
-A stale or invalid index grants no Offer or lease. A successful Attempt retains
-a closed target-task binding in private coordination, and a current Submission
-may bind the exact packet, profile, verifier capsule, and result contract.
-Later index changes cannot rewrite registered Submission bytes. This does not
-prove that a domain generator disclosed every semantic input or chose a
-scientifically valuable rank.
+### Reader compromise
 
-### Service resource abuse
+Readers receive only exact rooted repository projections and no writer
+credential. They expose no acceptance, signing, policy, Submission,
+Verification, or Event mutation.
 
-Local `vela serve` caps request bodies and always binds loopback. Its HTTP
-reader has no authenticated request identity, ignores caller-asserted actor
-names, and returns public-tier data only. It exposes no signing or protected
-decision operation. A networked or authenticated deployment needs a separate
-designed boundary; a reverse proxy does not retroactively authenticate the
-local actor model. Submissions should reference large Artifacts by content digest
-and path rather than embedding unbounded payloads.
+Resolve disputes from an exact Git checkout:
 
-### Historical bootstrap and migration
+```bash
+vela check . --strict --json
+vela reproduce .
+```
 
-Actor bootstrap, repository binding, and Profile v1 migration are retired
-writers. Their retained events and boundaries remain part of strict replay.
-The current product cannot extend an Era-0 actor registry, mint another legacy
-boundary, or relabel a v0.1 checkout.
+Agreement among readers is corroboration, not authority.
 
-Consumer `frontier trust pin` writes only a local out-of-band root. Current
-Era-1 consumers separately install the independently distributed sequence-1
-authority-record root with `authority trust pin`. Current Era-1 authority
-transactions require that exact non-replacing local pin, then rederive
-repository roots, Git context, principal, Cedar policy, and transaction read
-set before asking the standard repository key provider to sign. Drift, pin
-substitution, or provider failure writes no commit marker or canonical delta.
+### Repository migration substitution
+
+The current epoch binds the exact predecessor remote, tag, commit, tree,
+canonical roots, Git-object manifest, archive digest, imported Claim set,
+retained current objects, archived-object index, and equivalence report.
+
+The transition is signed by repository authority with a null scientific
+before/after effect. Missing objects, changed mappings, partial archives,
+ambiguous Claims, altered Standing, or a mismatched plan fail before commit.
+
+The migration tool remains only until all controlled Frontiers and the recovery
+drill pass.
 
 ## Partially mitigated risks
 
 ### Key compromise
 
-A compromised repository-authority key can create signatures within the
-authorization context available to its operating-system principal. Restricted
-Cedar action policy and exact read-set binding limit accidental or substituted
-actions, but they cannot make a stolen key safe. Authority rotation or
-revocation must itself be an explicit authorized transition; the current
-candidate must not pretend that deleting local key material rewrites history.
+A stolen repository-authority key can sign within the policy and principal
+context available to the attacker. Restricted Cedar actions and exact read-set
+binding reduce substitution and accidental misuse but cannot make a stolen key
+safe.
 
-Historical signatures remain historical facts. Recovery cannot rewrite them.
-A fully compromised authority quorum requires an explicit social and key-
-recovery procedure outside the normal producer loop.
+Rotation, revocation, and incident response must be explicit authority
+transitions. Deleting local key material cannot rewrite historical signatures.
 
-### Verifier compromise or underspecification
+### Verifier underspecification
 
-A frozen verifier can be deterministic and still check the wrong property. A
-producer may also formalize a weaker statement than the prose claims. Vela
-therefore records verifier identity, environment, inputs, outcome, and caveats,
-and keeps statement faithfulness and significance separate from a kernel pass.
+A deterministic verifier can check the wrong property. Vela records exact
+scope, inputs, method, outcome, environment, and nonclaims, but expert review
+must still assess statement fidelity, significance, and missing assumptions.
 
-Historical AcceptancePolicy v0.2 and v0.3 records may bind a Permit to packet,
-producer, verifier, result-contract, or Receipt-era identity roots. They remain
-strict replay inputs for Frontiers that contain them. They are not current
-writer interfaces and do not authorize a new Submission by analogy.
+New verifiers need positive fixtures, adversarial mutants, malformed cases,
+resource bounds, reproducible environments, and independent review of the
+property they establish.
 
-New verifiers need positive fixtures, meaningful negative controls, resource
-bounds, and independent review of what their result means. A verifier maintained
-by the producer is evidence with a disclosed conflict, not independent
-corroboration.
+### Build compromise
 
-### Install and build compromise
+Source hosts, compilers, release workflows, package registries, and installers
+remain supply-chain dependencies. Pin exact releases, verify checksums and
+attestations, and review authority-path changes. The scientific-state protocol
+cannot make a malicious executable safe.
 
-GitHub releases and source builds remain software supply-chain dependencies.
-Pin an exact release, verify published checksums or attestations when supplied,
-review changes that affect key custody, and keep the signing binary pin outside
-agent-writable sandboxes where possible. Vela cannot use its scientific event
-protocol to make a malicious executable safe.
+### Workstation compromise
 
-### Profile metadata and settings confusion
-
-`frontier.yaml` is closed non-authoritative metadata. Its `frontier_id` is
-checked against identity derived from canonical events; maintainers and scope
-cannot grant authority. `.vela/settings.toml` is a closed allowlist for
-publication narrowing, lease TTL, and MCP profile only. It cannot carry
-credentials, dependencies, verifier commands, policy, actors, network
-endpoints, or accepted-state inputs. Unknown fields fail validation rather
-than becoming an ambient extension surface.
+Vela cannot protect a repository when the operating-system account, active
+authority agent, binary, and filesystem are all compromised. Operator
+hardening, short-lived agent loading, device security, and incident procedures
+remain required.
 
 ## Explicitly out of scope
 
 - deciding scientific truth, novelty, importance, or ethics;
-- preserving restricted source bytes Vela never received;
-- protecting a workstation whose user account and human key are both fully
-  compromised;
+- confidentiality for bytes committed to a public Frontier;
+- preserving source bytes Vela never received;
 - Git-host availability and organization-account recovery;
-- governance institutions, IRB-equivalent review, or legal compliance;
-- confidentiality for data committed to a public frontier repository;
-- authenticating restricted or classified readers over `vela serve --http`;
-- automatic administrator-key recovery or Profile v1 actor-registry rotation.
+- automatic key recovery;
+- hosted authority or a public mutation API;
+- restricted-reader authentication;
+- universal scientific ontology or domain semantics; and
+- making one authorized but scientifically bad judgment correct.
 
-A conformant, signed, replayable frontier can still contain a bad human
-judgment. Vela makes the judgment attributable and correctable; it does not make
-it correct.
+Vela makes a judgment exact, attributable, replayable, and correctable. It does
+not make it true.
 
-## Reporting
+## Security reports
 
-See [`../SECURITY.md`](../SECURITY.md). Report security vulnerabilities
-privately with reproduction steps, the affected boundary, and the smallest
-known malicious input. Scientific disagreements and ordinary data corrections
-belong in the frontier's current Submission and Decision workflow.
+Do not include keys, credentials, private Frontier data, or exploit details in
+a public issue. Use the repository security-advisory channel.
