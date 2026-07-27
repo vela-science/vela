@@ -35,7 +35,7 @@ owns each system responsibility.
 | Attempt | One bounded effort against an exact Target | Coordination only |
 | Run | One execution occurrence in a workbench or verifier | None |
 | Claim | One exact assertion under explicit scope and conditions | None |
-| Claim Record | The canonical record of a Claim revision and its typed relations | None |
+| Claim Record | Proposed canonical record of a Claim revision and its typed relations; separately gated and not yet writable | None |
 | Finding | Editorial label for a Claim with positive standing in a named Frontier | View only |
 | Artifact | Retained bytes or an immutable locator with exact identity and provenance | None |
 | Evidence | A typed role played by an Artifact or Observation relative to a Claim | None |

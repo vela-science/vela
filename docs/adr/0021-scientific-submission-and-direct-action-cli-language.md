@@ -92,7 +92,7 @@ Adopt for current writers and readers:
 | VerifierAttachment | Verification Record |
 | work session | Attempt |
 | Decision Brief | Review Packet |
-| Finding | Claim Record; `finding` becomes an editorial label for a positively standing Claim |
+| Finding | Claim Record after its separate gate; until then, readers expose `vf_` as a historical Finding-era claim record |
 
 The term `Receipt` is reserved for a future Vela-issued, independently
 verifiable registration or inclusion proof. This ADR does not add that object.

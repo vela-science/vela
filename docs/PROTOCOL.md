@@ -39,8 +39,8 @@ Current interoperability contracts are:
 - `vela.submission.v1`, the sole portable producer package;
 - `vela.registration-record.v1`, Vela's exact intake record;
 - `vela.verification-record.v1`, a scoped verifier observation;
-- current Claim/Finding, Artifact, Proposal, Decision/Event, actor, and policy
-  bytes;
+- current Claim presentations over historical Finding-era bytes, plus current
+  Artifact, Proposal, Decision/Event, actor, and policy bytes;
 - canonical JSON, content addressing, signatures, replay, and repository
   authority; and
 - stable CLI JSON for `start`, `submit`, `show`, `why`, verification import,
@@ -82,8 +82,10 @@ identifier.
 | `vap_` | signed acceptance policy |
 
 Historical `vf_`, `vrc_`, and `vva_` identifiers remain valid and replayable.
-Readers project them as Claim Records, Registration Records, and Verification
-Records only while disclosing their exact source schema, ID, and root.
+Readers may present them as historical claim, registration, and verification
+records only while disclosing their exact source schema, ID, and root. They
+must not manufacture current `vcl_`, `vrr_`, or `vvr_` identities by
+relabeling historical bytes.
 
 Git object IDs and Vela IDs are different. A Git commit identifies transport
 history and a tree. A Vela ID identifies one typed scientific, evidence, or
