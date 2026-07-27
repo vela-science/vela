@@ -594,18 +594,25 @@ retired. Once `authority.model_migrated` is present, every legacy producer,
 administrator, actor-registry, first-boundary, and historical-sign write fails
 before a journal or key read.
 
-The live Era-1 writer covers exact signed-agent Attempts, Submission-bound
-pending Proposals, Verification Record imports, and human `review_accept` /
-`review_reject`. A human decision is
-one exact command. Vela authenticates the local operating-system principal,
-evaluates restricted Cedar, and asks the standard OpenSSH agent repository
-authority to sign the covering record. It reads no personal Vela key and uses
-no custom helper. Rejection changes no scientific root. Acceptance is exposed
-only when the Review Packet and strict aggregate Engine gate permit it, then
-atomically installs the scientific domain event, explicit `review.accepted`
-event, and exact canonical postimages. Dual-log replay rejects missing,
-duplicate, or ambiguous applied transitions. Era-0 verification remains
-required throughout.
+The live current writer covers private Attempts, authenticated
+Submission-bound pending Proposals, exact Verification Record imports, and
+human `review_accept` / `review_reject`. A human decision is one exact semantic
+command. Vela authenticates the local operating-system principal, evaluates
+restricted Cedar, and asks the standard OpenSSH agent repository authority to
+sign the covering record. It reads no personal Vela key and uses no custom
+helper.
+
+The Decision Plan binds the exact current repository, Proposal, Claim,
+Submission, ordered Verification Record set, principal, action, reason,
+observation time, authority-event head, and policy root. Acceptance is
+unavailable when an exact Verification Record fails or errors, or when a
+declared Submission requirement lacks an independent passing record that
+explicitly names the producer it is independent from. Rejection changes no
+accepted Claim standing. Acceptance atomically updates the current repository
+and appends the scientific domain event plus an explicit linked
+`review.accepted` event. Replay rejects missing, duplicate, or ambiguous
+applied transitions. Era-0 events remain archived predecessor evidence and
+are not consulted by the live writer.
 
 The complete core lifecycle drill now uses one disposable Frontier
 to install the legacy bridge, perform an ordinary Era-1 decision, rotate the
@@ -780,20 +787,28 @@ semantic effect invalidates the prepared decision.
 Era-0 decision events remain byte-verifiable but have no live writer in the
 current candidate.
 
-After repository-authority migration, rejection is a single semantic command
-with no copied root or timestamp. Vela rederives the plan under the authority
-barrier, authenticates the local operating-system principal, and requires
-restricted Cedar to permit that principal's exact `review_reject` action. The
-repository authority—not a human identity—then signs the DSSE transaction
-covering the append-only `review.rejected` event and proposal postimage.
+After a current repository epoch begins, rejection is a single semantic
+command with no copied root or timestamp. Vela rederives the plan under the
+authority barrier, authenticates the local operating-system principal, and
+requires restricted Cedar to permit that principal's exact `review_reject`
+action. The repository authority—not a human scientific identity—then signs
+the covering DSSE transaction. For an add or revision Proposal, rejection
+removes the exact Claim from `pending_claims`; for a withdrawal Proposal it
+leaves the accepted Claim untouched. The append-only `review.rejected` event
+retains the Proposal and before/after repository roots as audit evidence.
 Failure or drift writes nothing. The path has no key path, custom helper,
 batch, wildcard, saved answer, `--yes`, or persistent approval input.
 
-Repository-authority acceptance is not inferred from verifier success or
-enabled by analogy. The command is available only when it can install and
-replay both the accepted scientific domain event and the review decision
-across the dual history. A blocked Review Packet still fails before the
-provider prompt.
+Repository-authority acceptance is not inferred from verifier success. Before
+the provider is asked to sign, every declared Submission verification
+requirement must have an exact independent passing Verification Record and no
+exact record may report failure or error. Acceptance then moves an add Claim
+from pending to accepted, replaces exactly one accepted predecessor for a
+revision, or removes exactly one accepted Claim for a withdrawal. The
+transaction installs the next current repository, rebinds the derived Target
+Index, and appends one scientific domain event plus one `review.accepted`
+event whose `applied_event_id` names the domain event. It invokes no Era-0
+Project reader, reducer, or Decision writer.
 
 A signed policy uses the same causal discipline. It can permit a predeclared
 class without a per-item human ceremony, but only while its ID, signature,

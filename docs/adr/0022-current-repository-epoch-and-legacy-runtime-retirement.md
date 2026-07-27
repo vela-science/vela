@@ -260,6 +260,26 @@ and Claim Record's `imported_from` blocks. They do not become signatures over
 the replacement objects, and the live writer cannot use that migration-only
 mapping for a new record.
 
+`vela review accept` and `vela review reject` in a current epoch read only the
+current repository and current authority history. The Decision Plan binds the
+exact repository, Proposal, Claim, Submission, ordered Verification Record
+set, principal, action, reason, observation time, authority-event head, and
+policy root. Acceptance is unavailable if any exact Verification Record fails
+or errors, or if any Submission verification requirement lacks an independent
+passing record that declares separation from the producer. Verifier success
+does not decide the Proposal; it is only a prerequisite for the human semantic
+command.
+
+Rejection removes an add or revision Claim from `pending_claims` and leaves
+accepted standing unchanged. Rejected withdrawal leaves the accepted Claim
+unchanged. Acceptance moves an add Claim from pending to accepted, replaces
+exactly one accepted predecessor for a revision, or removes exactly one
+accepted Claim for a withdrawal. The covering repository-authority transaction
+updates `.vela/repository.json`, rebinds Target Index v3, and appends either
+one `review.rejected` event or one scientific domain event plus a linked
+`review.accepted` event. No Era-0 reducer, Project snapshot, human Vela key,
+copied confirmation root, or legacy Decision object participates.
+
 ### 4. One fail-closed migration command
 
 The advanced command is:
