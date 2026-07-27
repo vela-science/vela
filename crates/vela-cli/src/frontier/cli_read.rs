@@ -268,7 +268,7 @@ pub(crate) fn compact_status_payload_with_home(
     Ok(json!({
         "ok": status_ok,
         "command": "status",
-        "schema": "vela.status.v1",
+        "schema": "vela.status.v2",
         "frontier": {
             "id": project.frontier_id(),
             "name": project.project.name,
@@ -299,7 +299,7 @@ pub(crate) fn compact_status_payload_with_home(
         },
         "counts": {
             "events": project.events.len(),
-            "findings": project.findings.len(),
+            "claims": project.findings.len(),
             "open_work": open_work,
             "available_work": available_work,
             "leased_work": leased_work,
@@ -384,7 +384,7 @@ pub(crate) fn cmd_status_compact(path: &Path, json_out: bool) {
             println!("            {} {}", count, code);
         }
         println!("  events    {}", payload["counts"]["events"]);
-        println!("  findings  {}", payload["counts"]["findings"]);
+        println!("  claims    {}", payload["counts"]["claims"]);
         println!(
             "  work      {} available · {} leased · {} configured open",
             payload["counts"]["available_work"],

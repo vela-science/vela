@@ -25,7 +25,7 @@ pub(crate) mod repository_authority_provider;
 pub(crate) mod repository_decision;
 pub(crate) use frontier::{cli_frontier, cli_read};
 mod write;
-pub(crate) use write::{cli_finding, cli_object, cli_write, review_work};
+pub(crate) use write::{claim_view, cli_object, cli_write, review_work};
 mod tools;
 mod withdrawal;
 pub(crate) use tools::{cli_check, cli_proof};

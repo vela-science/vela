@@ -24,7 +24,7 @@ review records or invent a producer offer when strict state is blocked.
 Then render a restrained dashboard in chat. Prose-first — numbers inline in
 sentences, no giant tables, under roughly twenty lines:
 
-- **Frontier.** Name, finding count, replay integrity
+- **Frontier.** Name, Claim count, replay integrity
   (`integrity.replay`), strict standing and blocker count, policy byte state
   (`policy.state`), and Permit readiness (`policy.permit_readiness`).
 - **Review.** `counts.pending_review` from status and the compact records from

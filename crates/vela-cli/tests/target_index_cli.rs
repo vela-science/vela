@@ -402,7 +402,7 @@ fn seal_apply_atomically_writes_only_targets_json_without_staging() {
 }
 
 #[test]
-fn next_and_work_reject_home_and_repository_fallbacks_for_the_first_boundary_pin() {
+fn next_and_start_reject_home_and_repository_fallbacks_for_the_first_boundary_pin() {
     let fixture = Fixture::new();
     let anchor = fixture.install_administrator_boundary();
     let boundary_anchor = vela_edge::frontier_repository::RepositoryTrustAnchor {
@@ -460,7 +460,7 @@ fn next_and_work_reject_home_and_repository_fallbacks_for_the_first_boundary_pin
     let missing_work = run_with_agent(
         fixture.home.path(),
         fixture.path(),
-        &["work", "erdos:1056", "--as", "agent:pinned", "--json"],
+        &["start", "erdos:1056", "--as", "agent:pinned", "--json"],
         &seed,
     );
     assert!(!missing_work.status.success());
@@ -728,171 +728,4 @@ fn seal_refuses_unrelated_dirty_files_and_invalid_packet_outputs() {
             .contains("target_index_packet_mismatch")
     );
     assert!(!fixture.path().join("targets.json").exists());
-}
-
-#[test]
-fn indexed_work_binding_survives_session_close_and_fails_closed_on_drift() {
-    let fixture = Fixture::new();
-    fixture.apply();
-    git(
-        fixture.path(),
-        &["add", "targets.json", "site/problems/1056.json"],
-    );
-    git(fixture.path(), &["commit", "-qm", "seal target index"]);
-
-    let next = success_json(&fixture.command(&["next", ".", "--limit", "1", "--json"]));
-    assert_eq!(next["targets"][0]["target_id"], "erdos:1056");
-    assert_eq!(
-        next["targets"][0]["rank"], 7,
-        "compact offer must retain the sealed canonical rank"
-    );
-    assert_eq!(next["availability"]["configured"], 1);
-    assert_eq!(next["availability"]["stale"], 0);
-    assert_eq!(next["availability"]["returned"], 1);
-    assert!(
-        next["availability"]["repair_command"]
-            .as_str()
-            .is_some_and(|command| command.starts_with("vela target-index repair "))
-    );
-    let seed = "11".repeat(32);
-    let work = success_json(&run_with_agent(
-        fixture.home.path(),
-        fixture.path(),
-        &["work", "erdos:1056", "--as", "agent:indexed", "--json"],
-        &seed,
-    ));
-    let session_path = Path::new(work["session"]["path"].as_str().unwrap()).to_path_buf();
-    let original_session: Value =
-        serde_json::from_slice(&std::fs::read(&session_path).unwrap()).unwrap();
-    let binding_value = original_session["target_task_binding"].clone();
-    let binding: vela_edge::target_index::TargetTaskBindingV1 =
-        serde_json::from_value(binding_value.clone()).unwrap();
-    binding.validate().unwrap();
-    assert_eq!(binding.frontier_id, fixture.frontier_id);
-    assert_eq!(binding.target_id, "erdos:1056");
-    assert_eq!(
-        binding.claim_read_set.event_log_root,
-        original_session["base_event_log_root"]
-    );
-    assert_eq!(
-        binding.claim_read_set.git_commit,
-        original_session["source_git_commit_oid"]
-    );
-
-    write(
-        &fixture.path().join("artifacts/indexed-result.json"),
-        br#"{"bounded":true}"#,
-    );
-    let land_args = [
-        "land",
-        "--work",
-        "erdos:1056",
-        "--claim",
-        "The indexed bounded fixture produced one exact artifact.",
-        "--type",
-        "computational",
-        "--replayability",
-        "exact",
-        "--artifact",
-        "artifacts/indexed-result.json:witness",
-        "--caveat",
-        "Fixture scope only.",
-        "--as",
-        "agent:indexed",
-        "--json",
-    ];
-
-    let mut wrong_session_identity = original_session.clone();
-    wrong_session_identity["session_id"] = json!(format!("vws_{}", "0".repeat(64)));
-    write(
-        &session_path,
-        serde_json::to_vec_pretty(&wrong_session_identity).unwrap(),
-    );
-    let tampered = run_with_agent(fixture.home.path(), fixture.path(), &land_args, &seed);
-    assert!(!tampered.status.success());
-    assert!(combined(&tampered).contains("work-session identity"));
-    write(
-        &session_path,
-        serde_json::to_vec_pretty(&original_session).unwrap(),
-    );
-
-    let mut tampered_session = original_session.clone();
-    tampered_session["target_task_binding"]["target_id"] = json!("erdos:1057");
-    write(
-        &session_path,
-        serde_json::to_vec_pretty(&tampered_session).unwrap(),
-    );
-    let tampered = run_with_agent(fixture.home.path(), fixture.path(), &land_args, &seed);
-    assert!(!tampered.status.success());
-    assert!(combined(&tampered).contains("target task binding"));
-    write(
-        &session_path,
-        serde_json::to_vec_pretty(&original_session).unwrap(),
-    );
-
-    let packet_path = fixture.path().join("site/problems/1056.json");
-    let packet_bytes = std::fs::read(&packet_path).unwrap();
-    write(&packet_path, br#"{"drifted":true}"#);
-    let drifted = run_with_agent(fixture.home.path(), fixture.path(), &land_args, &seed);
-    assert!(!drifted.status.success());
-    assert!(
-        combined(&drifted).contains("target task binding"),
-        "{}",
-        combined(&drifted)
-    );
-    write(&packet_path, packet_bytes);
-
-    let index_path = fixture.path().join("targets.json");
-    let index_bytes = std::fs::read(&index_path).unwrap();
-    let mut changed_index = index_bytes.clone();
-    changed_index.push(b' ');
-    write(&index_path, changed_index);
-    let drifted = run_with_agent(fixture.home.path(), fixture.path(), &land_args, &seed);
-    assert!(!drifted.status.success());
-    assert!(
-        combined(&drifted).contains("tracked targets.json must be exact canonical JSON"),
-        "{}",
-        combined(&drifted)
-    );
-    write(&index_path, index_bytes);
-
-    let landed = success_json(&run_with_agent(
-        fixture.home.path(),
-        fixture.path(),
-        &land_args,
-        &seed,
-    ));
-    assert!(!session_path.exists());
-    let receipt_hex = landed["receipt_root"]
-        .as_str()
-        .unwrap()
-        .strip_prefix("sha256:")
-        .unwrap();
-    let receipt_path = fixture
-        .path()
-        .join("records/receipts/sha256")
-        .join(format!("{receipt_hex}.json"));
-    let receipt_bytes = std::fs::read(&receipt_path).unwrap();
-    let receipt = vela_protocol::receipt_v1::ReceiptV1::parse(&receipt_bytes).unwrap();
-    let receipt_binding = &receipt.as_value()["environment"]["vela:target_task_binding"];
-    assert_eq!(
-        receipt_binding, &binding_value,
-        "the landed Receipt must retain the exact session binding value"
-    );
-    assert_eq!(
-        vela_protocol::canonical::to_canonical_bytes(receipt_binding).unwrap(),
-        vela_protocol::canonical::to_canonical_bytes(&binding_value).unwrap(),
-        "the Receipt extension must have byte-identical canonical binding content"
-    );
-
-    let mut tampered_receipt = receipt.as_value().clone();
-    tampered_receipt["environment"]["vela:target_task_binding"]["packet"]["sha256"] =
-        json!(format!("sha256:{}", "0".repeat(64)));
-    assert!(
-        vela_protocol::receipt_v1::ReceiptV1::parse(
-            &serde_json::to_vec(&tampered_receipt).unwrap()
-        )
-        .is_err(),
-        "target binding tampering must invalidate the Receipt body/attestation round trip"
-    );
 }

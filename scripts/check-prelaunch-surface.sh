@@ -59,6 +59,12 @@ if grep -RInE "$retired_claude_authority_pattern" "${claude_plugin_surfaces[@]}"
   fail "retired Claude authority workflow returned"
 fi
 
+retired_claude_product_pattern='vela land|/vela:land|Receipt v1|review preview|finding count|nonfinalizing `work` tool'
+if grep -RInE "$retired_claude_product_pattern" "${claude_plugin_surfaces[@]}" >/dev/null; then
+  grep -RInE "$retired_claude_product_pattern" "${claude_plugin_surfaces[@]}" >&2
+  fail "retired Claude product language returned"
+fi
+
 # Generated first-run guidance is executable product surface. It must not
 # resurrect commands removed by the prelaunch hard cut.
 generated_guidance_surfaces=(

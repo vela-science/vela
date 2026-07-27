@@ -35,11 +35,11 @@ struct Cli {
     command: Commands,
 }
 
+pub(crate) use crate::claim_view::*;
 pub(crate) use crate::cli_admin::*;
 pub(crate) use crate::cli_check::*;
 use crate::cli_commands::*;
 pub(crate) use crate::cli_engine::*;
-pub(crate) use crate::cli_finding::*;
 pub(crate) use crate::cli_frontier::*;
 pub(crate) use crate::cli_proof::*;
 pub(crate) use crate::cli_read::*;
@@ -261,15 +261,15 @@ pub async fn run_command() {
         Commands::Review { action } => cmd_review(action),
         Commands::Proposal { action } => cmd_proposal(action),
         Commands::TargetIndex { action } => crate::target_index::cmd_target_index(action),
-        Commands::Finding {
+        Commands::Claim {
             command:
-                FindingCommands::Show {
+                ClaimCommands::Show {
                     frontier,
-                    finding_id,
+                    claim_id,
                     view,
                     json,
                 },
-        } => cmd_finding_show(&frontier, &finding_id, &view, json),
+        } => cmd_claim_show(&frontier, &claim_id, &view, json),
         Commands::Show {
             frontier,
             object_id,
@@ -969,10 +969,22 @@ pub fn run_from_args() {
             cmd_proof_explain(&frontier);
             return;
         }
-        // The pre-0.9 projection namespace was consolidated under `finding`.
+        // Historical projection namespaces were consolidated under `claim`.
         Some("state") => {
             eprintln!("{} `vela state` retired in 0.900", style::err_prefix());
-            eprintln!("use `vela finding show <frontier> <vf_id> --view record|standing|evidence`");
+            eprintln!(
+                "use `vela claim show <frontier> <claim_id> --view record|standing|evidence`"
+            );
+            std::process::exit(2);
+        }
+        Some("finding") => {
+            eprintln!(
+                "{} `vela finding` retired from the current product language",
+                style::err_prefix()
+            );
+            eprintln!(
+                "use `vela claim show <frontier> <claim_id> --view record|standing|evidence`"
+            );
             std::process::exit(2);
         }
         Some("atlas") => {
@@ -991,7 +1003,7 @@ pub fn run_from_args() {
                 "diff" => Some(
                     "vela review diff <frontier> <vpr_id>, or vela frontier diff <left> <right>",
                 ),
-                "credit" => Some("vela finding show <frontier> <vf_id> --view attribution"),
+                "credit" => Some("vela claim show <frontier> <claim_id> --view attribution"),
                 "publication" => Some("vela frontier recover-publication"),
                 "hub" => Some("vela serve for a local read surface, or the optional Observatory"),
                 "land" => Some(

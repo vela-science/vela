@@ -96,7 +96,6 @@ fn retired_top_level_verbs_404() {
         "accept-batch",
         "normalize",
         "ingest",
-        "claim",
         "campaign",
         "lean",
         "attempt",
@@ -149,7 +148,7 @@ fn folded_spellings_dispatch() {
     for args in [
         vec!["id", "keygen", "--help"],
         vec!["review", "--help"],
-        vec!["finding", "show", "--help"],
+        vec!["claim", "show", "--help"],
         vec!["frontier", "diff", "--help"],
     ] {
         let out = vela(&args);
@@ -179,7 +178,7 @@ fn review_help_directs_known_proposals_to_the_terminal_read_surface() {
     assert!(text.contains("start with `vela review show`"), "{text}");
     assert!(text.contains("intentionally absent from"), "{text}");
     assert!(
-        text.contains("accepted `finding show` and `log` views"),
+        text.contains("accepted `claim show` and `log` views"),
         "{text}"
     );
 }
@@ -395,8 +394,8 @@ fn ordinary_identity_and_policy_help_hide_legacy_key_ceremonies() {
 }
 
 #[test]
-fn finding_is_read_only_and_legacy_writer_bypasses_are_absent() {
-    let show = vela(&["finding", "show", "--help"]);
+fn claim_is_read_only_and_legacy_writer_bypasses_are_absent() {
+    let show = vela(&["claim", "show", "--help"]);
     assert!(show.status.success(), "{}", combined(&show));
 
     for verb in [
@@ -410,17 +409,20 @@ fn finding_is_read_only_and_legacy_writer_bypasses_are_absent() {
         "retract",
         "contribution",
     ] {
-        let nested = vela(&["finding", verb, "--help"]);
+        let nested = vela(&["claim", verb, "--help"]);
         assert!(
             !nested.status.success()
                 && (combined(&nested).contains("unrecognized subcommand")
                     || combined(&nested).contains("unexpected argument")),
-            "`vela finding {verb}` unexpectedly exists: {}",
+            "`vela claim {verb}` unexpectedly exists: {}",
             combined(&nested)
         );
     }
-    let finding_help = combined(&vela(&["finding", "--help"]));
-    assert!(finding_help.contains("Submission v1") && finding_help.contains("vela submit"));
+    let claim_help = combined(&vela(&["claim", "--help"]));
+    assert!(claim_help.contains("Submission v1") && claim_help.contains("vela submit"));
+
+    let retired = combined(&vela(&["finding", "show", "--help"]));
+    assert!(retired.contains("retired") && retired.contains("vela claim show"));
 
     for args in [
         vec!["proposals", "import", "--help"],
@@ -447,7 +449,7 @@ fn finding_is_read_only_and_legacy_writer_bypasses_are_absent() {
 #[test]
 fn direct_writer_bypasses_are_absent() {
     for args in [
-        vec!["finding", "link", "add", "--help"],
+        vec!["claim", "link", "add", "--help"],
         vec!["frontier", "add-dep", "--help"],
         vec!["actor", "rotate", "--help"],
     ] {
@@ -470,7 +472,7 @@ fn direct_writer_bypasses_are_absent() {
         let text = combined(&out);
         assert_eq!(out.status.code(), Some(2), "{verb}: {text}");
         assert!(text.contains("state` retired"), "{verb}: {text}");
-        assert!(text.contains("vela finding show"), "{verb}: {text}");
+        assert!(text.contains("vela claim show"), "{verb}: {text}");
     }
 }
 

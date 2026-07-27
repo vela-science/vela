@@ -60,8 +60,8 @@ EXAMPLES
 KNOWN PROPOSAL
   When a full vpr_ ID is supplied, start with `vela review show`. It returns
   either the pending Review Packet or the signed terminal Decision record.
-  A rejected proposal's candidate finding is intentionally absent from
-  accepted `finding show` and `log` views; that is not deletion.";
+  A rejected proposal's candidate Claim is intentionally absent from
+  accepted `claim show` and `log` views; that is not deletion.";
 
 pub const PROPOSAL: &str = "\
 EXAMPLES
@@ -173,15 +173,17 @@ EXAMPLES
 independent channel. It does not write Frontier history. Historical repository
 boundaries and dependencies remain replayable and read-only.";
 
-pub const FINDING: &str = "\
+pub const CLAIM: &str = "\
 EXAMPLES
-  vela finding show . vf_6d4a…     read one accepted finding
+  vela claim show . vf_6d4a…       read one historical Finding-era claim
   vela submit --claim \"…\" --artifact result.json:witness --as agent:demo
                                     register new work as Submission v1
 
-Finding is read-only. Submission v1 plus `vela submit` is the producer write
-path; current authority registers it pending review, then one direct
-`vela review accept` or `vela review reject` action.";
+Claim inspection is read-only. A `vf_` result discloses its historical Finding
+source era; Vela does not relabel it as a current Claim Record. Submission v1
+plus `vela submit` is the producer write path; current authority registers it
+pending review, then one direct `vela review accept` or `vela review reject`
+action.";
 
 pub const SHOW: &str = "\
 EXAMPLES

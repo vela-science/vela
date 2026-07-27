@@ -78,7 +78,7 @@ pub(crate) fn print_tool_check_report(report: &Value) {
             .unwrap_or("unknown")
     );
     println!(
-        "findings: {}",
+        "claims: {}",
         frontier
             .get("findings")
             .and_then(Value::as_u64)

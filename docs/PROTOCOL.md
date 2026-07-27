@@ -122,13 +122,17 @@ Historical `vela.receipt.v1` remains documented in [RECEIPTS.md](RECEIPTS.md)
 for exact replay only. The term Receipt is reserved for a future Vela-issued,
 verifiable inclusion proof; this protocol defines no such current object.
 
-### 4.2 Finding and artifact
+### 4.2 Historical Finding and artifact
 
-A finding (`vf_`) is the current scientific claim primitive. Its bundle binds
-the assertion, evidence, conditions, confidence basis, provenance, flags,
-typed links, annotations, attachments, and timestamps. The current portable
-finding schema is
+A historical Finding (`vf_`) is the retained scientific claim primitive of the
+Finding era. Its bundle binds the assertion, evidence, conditions, confidence
+basis, provenance, flags, typed links, annotations, attachments, and
+timestamps. The retained portable Finding schema is
 [`finding-bundle.v0.10.0.json`](../schema/finding-bundle.v0.10.0.json).
+Current readers expose it through `vela show`, `vela claim show`, and
+`vela why` while disclosing its historical source era. Current writers do not
+mint new `vf_` identities. The proposed `vcl_` Claim Record remains separately
+gated by ADR 0021.
 
 An artifact (`va_`) is a content-addressed descriptor for bytes or an immutable
 external reference. Artifact disclosure, locator integrity, and observed

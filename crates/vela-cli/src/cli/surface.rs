@@ -11,6 +11,7 @@ const RELEASE_DENY: &[&str] = &[
     "credit",
     "diff",
     "foundry",
+    "finding",
     "hub",
     "land",
     "proposals",
@@ -28,6 +29,7 @@ pub(crate) const HIDDEN_FROM_ADVANCED_HELP: &[&str] = &[
     "credit",
     "diff",
     "foundry",
+    "finding",
     "hub",
     "land",
     "proposals",
@@ -105,7 +107,7 @@ Daily product:
   doctor        Blockers plus one safe next action
 
 Nouns and setup:
-  finding       record, standing, evidence, and attribution views
+  claim         record, standing, evidence, and attribution views
   artifact      content-addressed evidence lifecycle
   frontier      materialize, compare, recover publication, release, audit
   policy        frozen Era-0 policy inspection and admission history

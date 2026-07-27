@@ -77,7 +77,7 @@ commands in the current candidate.
 
 ### Status
 
-`vela status . --json` emits `vela.status.v1`. It includes:
+`vela status . --json` emits `vela.status.v2`. It includes:
 
 - Frontier and Git identity;
 - full event, scientific-state, proposal, actor-registry, and artifact roots;

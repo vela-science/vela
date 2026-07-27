@@ -1,7 +1,7 @@
 # The Vela plugin for Claude Code
 
 Trusted scientific state, driven from your agent. The plugin puts the Vela
-loop — `next → start → land` — inside Claude Code. Authority remains outside
+loop — `next → start → submit` — inside Claude Code. Authority remains outside
 the agent: a retained Era-0 policy may authorize a narrow Permit class, while
 other results wait for an exact human or repository-authority transition. No
 plugin command signs, approves, stores verdicts, touches a human key, or
@@ -32,21 +32,22 @@ Marketplace, later: once published, `claude plugin install vela`.
   records, opens one exact Review Packet at a time, and keeps proposal,
   verifier evidence, and terminal authority distinct. It writes no answer or
   session file and never enters an authority path.
-- `/vela:land` — receipt authoring. Builds Receipt v1 from claim, type,
-  replayability, artifact, and caveat flags bound to the exact work session,
-  lands it as the agent identity, and reports the route. It does not ask a
-  human to confirm producer-authored evidence as a trust step.
+- `/vela:submit` — Submission authoring. Builds `vela.submission.v1` from a
+  bounded claim, exact artifacts, caveats, and the selected Attempt, registers
+  it as the agent identity, and reports the route and accepted-state delta.
+  It does not ask a human to confirm producer-authored evidence as a trust
+  step.
 
 ## Producer path
 
-`/vela:next` opens the session. `/vela:land <target>` selects it explicitly;
+`/vela:next` opens the Attempt. `/vela:submit <target>` selects it explicitly;
 with no target, the CLI infers only when the current actor owns exactly one
-active session. The normal path is equivalent to:
+active Attempt. The normal path is equivalent to:
 
 ```bash
 vela start <target> --as agent:<name> --json
 
-vela land --work <target> \
+vela submit --attempt <vat_id> \
   --claim "<bounded result>" \
   --type <computational|theoretical|empirical|negative|contradiction> \
   --replayability <exact|bounded|approximate|unavailable|unknown> \
@@ -56,11 +57,13 @@ vela land --work <target> \
   --json
 ```
 
-Vela builds canonical Receipt v1 from the typed session. A committed Permit or
-Defer closes only `session.json` after installation. Deny, invalid input, or a
-key mismatch preserves the session and returns a repair action. File-based
-`vela land receipt.json` remains available for canonical Receipt v1 emitted by
-a foreign or stateless producer; plugin sessions do not hand-author it.
+Vela builds canonical Submission v1 from the typed Attempt. Successful intake
+returns the Registration Record, Proposal, route, and explicit
+`accepted_state_changed` value. The ordinary path is pending review with no
+accepted-state change. Refusal, invalid input, or an identity mismatch
+preserves the Attempt and returns a repair action. A foreign producer supplies
+one complete `vela.submission.v1`; plugin Attempts do not hand-author protocol
+JSON.
 
 Release abandoned work through the owner-checked command:
 
@@ -75,7 +78,7 @@ private scratch. Deleting `.vela/work/` does not release a lease.
 ## Skill
 
 `vela-frontier` teaches any session working in a `.vela/` repository the loop,
-the receipt contract, the landing routes, and the custody rules. The same
+the Submission contract, registration routes, and custody rules. The same
 skill text is emitted into frontier repos by `vela agents sync` (as
 `.claude/skills/vela-frontier/SKILL.md` and
 `.agents/skills/vela-frontier/SKILL.md`), so a repo teaches the same rules
@@ -96,13 +99,11 @@ deprecated upstream in favor of skills.
 
 `.mcp.json` starts `vela serve . --profile draft` with
 `VELA_ACTOR_ID=agent:claude`. The draft profile is the read surface plus one
-nonfinalizing `work` tool (claim, land Receipt v1, or signed drop).
-The plugin's session-built default uses the CLI flag surface above. Both paths
-call the same landing service and signed policy evaluator. Permit carries the
-retained policy certificate; Defer parks the proposal in the review queue;
-Deny commits no landing. Nothing on MCP finalizes a human or
-repository-authority decision. The `decide` tool is absent from the registry
-and every profile.
+nonfinalizing `attempt` tool (`start`, `submit`, or `abandon`). The CLI and MCP
+paths call the same Submission registration service. Successful ordinary
+intake creates a pending Proposal and no accepted-state change. Nothing on MCP
+finalizes a human or repository-authority Decision. The `decide` tool is absent
+from the registry and every profile.
 
 ## Session brief
 

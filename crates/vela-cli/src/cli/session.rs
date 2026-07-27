@@ -79,7 +79,7 @@ pub(crate) fn print_session_dashboard(project: &vela_protocol::project::Project,
         repo_path.display()
     );
     println!(
-        "  findings   {:>4}     events   {}     proposals pending  {}",
+        "  claims     {:>4}     events   {}     proposals pending  {}",
         project.findings.len(),
         project.events.len(),
         pending

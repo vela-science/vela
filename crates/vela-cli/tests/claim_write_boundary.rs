@@ -87,7 +87,7 @@ fn assert_absent_without_delta(frontier: &Path, args: &[&str], retired: &str) {
 }
 
 #[test]
-fn direct_finding_writers_are_absent_and_have_zero_delta() {
+fn direct_claim_writers_are_absent_and_have_zero_delta() {
     let frontier = initialized_frontier();
     for command in [
         "add",
@@ -100,7 +100,7 @@ fn direct_finding_writers_are_absent_and_have_zero_delta() {
         "retract",
         "contribution",
     ] {
-        assert_absent_without_delta(frontier.path(), &["finding", command], command);
+        assert_absent_without_delta(frontier.path(), &["claim", command], command);
     }
 }
 

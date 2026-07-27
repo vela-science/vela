@@ -339,11 +339,11 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         action: TargetIndexAction,
     },
-    /// Inspect finding bundles as the core frontier primitive.
-    #[command(after_long_help = crate::cli::help_text::FINDING)]
-    Finding {
+    /// Inspect one current Claim or historical Finding-era record.
+    #[command(after_long_help = crate::cli::help_text::CLAIM)]
+    Claim {
         #[command(subcommand)]
-        command: FindingCommands,
+        command: ClaimCommands,
     },
     /// Show one exact Vela object by its stable id.
     #[command(after_long_help = crate::cli::help_text::SHOW)]
@@ -833,18 +833,15 @@ pub(crate) enum FrontierAction {
     },
 }
 
-// Finding and artifact nouns stay on the compact 0.9 surface.
+// Claim and artifact nouns stay on the compact current surface.
 #[derive(Subcommand)]
-pub(crate) enum FindingCommands {
-    /// v0.327: Read-only projection of one finding: assertion,
-    /// evidence atoms, conditions, confidence with basis and
-    /// actor-classified reviewed-state, typed links, and provenance.
-    /// Deep inspection without raw-JSON spelunking.
+pub(crate) enum ClaimCommands {
+    /// Read-only projection of one Claim or historical Finding-era record.
     Show {
         /// Frontier JSON file or Vela repo
         frontier: PathBuf,
-        /// Finding id (`vf_<hex>`)
-        finding_id: String,
+        /// Current Claim (`vcl_<hex>`) or historical Finding (`vf_<hex>`) id
+        claim_id: String,
         /// record | standing | evidence | attribution
         #[arg(long, default_value = "record")]
         view: String,

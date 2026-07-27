@@ -31,8 +31,8 @@ Present the frontier's offer and start an Attempt on the target the user picks.
    private `session.json` under a collision-safe `.vela/work/` directory. Do
    not ask the user or agent to edit or stage it.
 6. Close with the next action: do the work, run the selected verifier, then use
-   `/vela:land <target>`. The land command builds Receipt v1 from flags and the
-   exact session; the producer does not author protocol JSON.
+   `/vela:submit <target>`. The submit command builds Submission v1 from flags
+   and the exact Attempt; the producer does not author protocol JSON.
 7. If another actor holds the lease, report its actor and expiry. Do not release
    it. An owner who abandons work uses a signed release with a truthful reason:
 

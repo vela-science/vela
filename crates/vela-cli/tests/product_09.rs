@@ -76,11 +76,12 @@ fn compact_contract_exposes_only_the_daily_surface_and_bounded_status() {
         "status",
         "next",
         "start",
-        "land",
+        "submit",
+        "show",
+        "why",
         "review",
         "check",
         "reproduce",
-        "verify",
         "log",
         "doctor",
     ] {
@@ -110,7 +111,9 @@ fn compact_contract_exposes_only_the_daily_surface_and_bounded_status() {
     assert_success(&status);
     assert!(status.stdout.len() <= 16 * 1024);
     let value: serde_json::Value = serde_json::from_slice(&status.stdout).unwrap();
-    assert_eq!(value["schema"], "vela.status.v1");
+    assert_eq!(value["schema"], "vela.status.v2");
+    assert_eq!(value["counts"]["claims"], 0);
+    assert!(value["counts"].get("findings").is_none());
     assert_eq!(value["integrity"]["replay"], "reproduced");
     assert_eq!(value["integrity"]["strict"], "pass");
     assert!(
@@ -300,7 +303,7 @@ fn compact_contract_exposes_only_the_daily_surface_and_bounded_status() {
 
     for (retired, replacement) in [
         ("proposals", "vela review list"),
-        ("state", "vela finding show"),
+        ("state", "vela claim show"),
         ("hub", "vela serve"),
         ("atlas", "Canopus"),
     ] {
@@ -525,4 +528,33 @@ fn init_minimal_requires_bounded_inputs_and_omits_optional_scaffolding() {
         &["check", frontier.to_str().unwrap(), "--json"],
     );
     assert_success(&check);
+}
+
+#[test]
+fn claim_show_discloses_the_historical_finding_source_era() {
+    let home = tempfile::tempdir().unwrap();
+    let substrate = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let frontier = substrate.join("examples/erdos-formalization");
+    let output = run(
+        home.path(),
+        &substrate,
+        &[
+            "claim",
+            "show",
+            frontier.to_str().unwrap(),
+            "vf_b9e82eeed266af04",
+            "--json",
+        ],
+    );
+    assert_success(&output);
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["command"], "claim.show");
+    assert_eq!(value["schema"], "vela.claim-view.v1");
+    assert_eq!(value["claim_id"], "vf_b9e82eeed266af04");
+    assert_eq!(value["source_era"], "historical");
+    assert_eq!(
+        value["source_schema"],
+        "https://vela.science/schema/finding-bundle/v0.10.0"
+    );
+    assert_eq!(value["historical_finding_id"], "vf_b9e82eeed266af04");
 }
