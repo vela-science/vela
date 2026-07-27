@@ -1,0 +1,368 @@
+//! Current scientific assertion object: `vela.claim-record.v1`.
+//!
+//! Claim Records contain the assertion and its exact support identity. Standing
+//! is derived from repository Events; it is never stored in this object.
+
+use std::collections::BTreeMap;
+
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use sha2::{Digest, Sha256};
+
+pub const CLAIM_RECORD_V1_SCHEMA: &str = "vela.claim-record.v1";
+pub const LEGACY_FINDING_EXTENSION: &str = "vela.legacy-finding.v1";
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ClaimAssertion {
+    pub text: String,
+    pub kind: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ClaimEvidenceRef {
+    pub relation: String,
+    pub artifact_root: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artifact_path: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ClaimSource {
+    pub kind: String,
+    pub title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub locator: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub authors: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub year: Option<i32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ClaimRelation {
+    pub kind: String,
+    pub target_claim_id: String,
+    pub target_claim_root: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ImportedClaimSource {
+    pub era: String,
+    pub object_id: String,
+    pub object_root: String,
+    pub predecessor_commit: String,
+}
+
+/// A versioned Claim body. The full canonical root is security identity; the
+/// readable `vcl_` prefix is routing only.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ClaimRecordV1 {
+    pub schema: String,
+    pub claim_id: String,
+    pub revision: u32,
+    pub assertion: ClaimAssertion,
+    pub conditions: Vec<String>,
+    pub evidence: Vec<ClaimEvidenceRef>,
+    pub provenance: Vec<ClaimSource>,
+    pub relations: Vec<ClaimRelation>,
+    pub created_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub imported_from: Option<ImportedClaimSource>,
+    /// Closed protocol fields remain small. Domain or migration detail is
+    /// namespaced and canonical but cannot carry Standing or authority.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub extensions: BTreeMap<String, Value>,
+}
+
+impl ClaimRecordV1 {
+    #[allow(clippy::too_many_arguments)]
+    pub fn build(
+        revision: u32,
+        assertion: ClaimAssertion,
+        conditions: Vec<String>,
+        evidence: Vec<ClaimEvidenceRef>,
+        provenance: Vec<ClaimSource>,
+        relations: Vec<ClaimRelation>,
+        created_at: String,
+        imported_from: Option<ImportedClaimSource>,
+        extensions: BTreeMap<String, Value>,
+    ) -> Result<Self, String> {
+        let mut value = Self {
+            schema: CLAIM_RECORD_V1_SCHEMA.to_string(),
+            claim_id: String::new(),
+            revision,
+            assertion,
+            conditions,
+            evidence,
+            provenance,
+            relations,
+            created_at,
+            imported_from,
+            extensions,
+        };
+        value.validate_semantics()?;
+        value.claim_id = value.derive_id()?;
+        value.verify()?;
+        Ok(value)
+    }
+
+    pub fn parse(bytes: &[u8]) -> Result<Self, String> {
+        if bytes.len() > 8 * 1024 * 1024 {
+            return Err("Claim Record exceeds the 8 MiB encoded limit".into());
+        }
+        let value: Self = serde_json::from_slice(bytes)
+            .map_err(|error| format!("parse Claim Record v1: {error}"))?;
+        value.verify()?;
+        Ok(value)
+    }
+
+    pub fn verify(&self) -> Result<(), String> {
+        self.validate_semantics()?;
+        let expected = self.derive_id()?;
+        if self.claim_id != expected {
+            return Err(format!(
+                "Claim Record id mismatch: declared {}, rebuilt {expected}",
+                self.claim_id
+            ));
+        }
+        Ok(())
+    }
+
+    pub fn canonical_bytes(&self) -> Result<Vec<u8>, String> {
+        crate::canonical::to_canonical_bytes(self)
+    }
+
+    pub fn canonical_root(&self) -> Result<String, String> {
+        Ok(format!(
+            "sha256:{}",
+            hex::encode(Sha256::digest(self.canonical_bytes()?))
+        ))
+    }
+
+    fn derive_id(&self) -> Result<String, String> {
+        let mut body = self.clone();
+        body.claim_id.clear();
+        let bytes = crate::canonical::to_canonical_bytes(&body)?;
+        Ok(format!("vcl_{}", &hex::encode(Sha256::digest(bytes))[..16]))
+    }
+
+    fn validate_semantics(&self) -> Result<(), String> {
+        if self.schema != CLAIM_RECORD_V1_SCHEMA {
+            return Err(format!(
+                "Claim Record schema must be `{CLAIM_RECORD_V1_SCHEMA}`"
+            ));
+        }
+        if self.revision == 0 {
+            return Err("Claim Record revision must be positive".into());
+        }
+        require_text("assertion.text", &self.assertion.text)?;
+        require_text("assertion.kind", &self.assertion.kind)?;
+        for condition in &self.conditions {
+            require_text("conditions", condition)?;
+        }
+        for evidence in &self.evidence {
+            require_text("evidence.relation", &evidence.relation)?;
+            require_sha256("evidence.artifact_root", &evidence.artifact_root)?;
+            if let Some(path) = &evidence.artifact_path {
+                require_relative_path("evidence.artifact_path", path)?;
+            }
+        }
+        for source in &self.provenance {
+            require_text("provenance.kind", &source.kind)?;
+            require_text("provenance.title", &source.title)?;
+            if let Some(locator) = &source.locator {
+                require_text("provenance.locator", locator)?;
+            }
+            for author in &source.authors {
+                require_text("provenance.authors", author)?;
+            }
+        }
+        for relation in &self.relations {
+            require_text("relations.kind", &relation.kind)?;
+            require_prefixed(
+                "relations.target_claim_id",
+                &relation.target_claim_id,
+                "vcl_",
+            )?;
+            require_sha256("relations.target_claim_root", &relation.target_claim_root)?;
+        }
+        chrono::DateTime::parse_from_rfc3339(&self.created_at)
+            .map_err(|_| "Claim Record created_at must be RFC 3339".to_string())?;
+        if let Some(source) = &self.imported_from {
+            require_text("imported_from.era", &source.era)?;
+            require_text("imported_from.object_id", &source.object_id)?;
+            require_sha256("imported_from.object_root", &source.object_root)?;
+            require_git_oid(
+                "imported_from.predecessor_commit",
+                &source.predecessor_commit,
+            )?;
+        }
+        for (namespace, value) in &self.extensions {
+            if !namespace.contains('.') || namespace.starts_with('.') || namespace.ends_with('.') {
+                return Err(format!(
+                    "Claim Record extension `{namespace}` must use a dotted namespace"
+                ));
+            }
+            if !value.is_object() {
+                return Err(format!(
+                    "Claim Record extension `{namespace}` must be a JSON object"
+                ));
+            }
+            reject_authority_extension(namespace, value)?;
+        }
+        Ok(())
+    }
+}
+
+fn reject_authority_extension(namespace: &str, value: &Value) -> Result<(), String> {
+    const FORBIDDEN: &[&str] = &[
+        "standing",
+        "accepted",
+        "accepted_state",
+        "decision",
+        "authority",
+        "signature",
+    ];
+    if let Some(object) = value.as_object() {
+        for key in object.keys() {
+            if FORBIDDEN.contains(&key.as_str()) {
+                return Err(format!(
+                    "Claim Record extension `{namespace}` cannot carry authority field `{key}`"
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn require_text(field: &str, value: &str) -> Result<(), String> {
+    if value.trim().is_empty() || value != value.trim() || value.chars().any(char::is_control) {
+        return Err(format!(
+            "Claim Record {field} must be non-empty, trimmed text"
+        ));
+    }
+    Ok(())
+}
+
+fn require_prefixed(field: &str, value: &str, prefix: &str) -> Result<(), String> {
+    require_text(field, value)?;
+    if !value.starts_with(prefix) {
+        return Err(format!("Claim Record {field} must start with {prefix}"));
+    }
+    Ok(())
+}
+
+fn require_sha256(field: &str, value: &str) -> Result<(), String> {
+    let digest = value
+        .strip_prefix("sha256:")
+        .ok_or_else(|| format!("Claim Record {field} must be a full sha256: digest"))?;
+    if digest.len() != 64
+        || !digest
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(format!(
+            "Claim Record {field} must be a full sha256: digest"
+        ));
+    }
+    Ok(())
+}
+
+fn require_git_oid(field: &str, value: &str) -> Result<(), String> {
+    if !matches!(value.len(), 40 | 64)
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(format!("Claim Record {field} must be a full Git object id"));
+    }
+    Ok(())
+}
+
+fn require_relative_path(field: &str, value: &str) -> Result<(), String> {
+    require_text(field, value)?;
+    if value.starts_with('/') || value.split('/').any(|segment| segment == "..") {
+        return Err(format!("Claim Record {field} must be a safe relative path"));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn root(byte: char) -> String {
+        format!("sha256:{}", byte.to_string().repeat(64))
+    }
+
+    #[test]
+    fn claim_record_is_content_addressed_and_carries_no_standing() {
+        let record = ClaimRecordV1::build(
+            1,
+            ClaimAssertion {
+                text: "A bounded computation returned no witness.".into(),
+                kind: "computational".into(),
+            },
+            vec!["Range 1..100 inclusive.".into()],
+            vec![ClaimEvidenceRef {
+                relation: "supports".into(),
+                artifact_root: root('a'),
+                artifact_path: Some(format!("records/artifacts/sha256/{}", "a".repeat(64))),
+            }],
+            vec![ClaimSource {
+                kind: "repository_import".into(),
+                title: "Historical Finding vf_fixture".into(),
+                locator: None,
+                authors: vec![],
+                year: None,
+            }],
+            vec![],
+            "2026-07-27T00:00:00Z".into(),
+            Some(ImportedClaimSource {
+                era: "finding_v0_10".into(),
+                object_id: "vf_fixture".into(),
+                object_root: root('b'),
+                predecessor_commit: "c".repeat(40),
+            }),
+            BTreeMap::new(),
+        )
+        .unwrap();
+        assert!(record.claim_id.starts_with("vcl_"));
+        ClaimRecordV1::parse(&record.canonical_bytes().unwrap()).unwrap();
+
+        let mut raw = serde_json::to_value(&record).unwrap();
+        raw["claim_id"] = Value::String("vcl_tampered".into());
+        assert!(ClaimRecordV1::parse(&serde_json::to_vec(&raw).unwrap()).is_err());
+    }
+
+    #[test]
+    fn extension_cannot_smuggle_standing_or_authority() {
+        let mut extensions = BTreeMap::new();
+        extensions.insert(
+            LEGACY_FINDING_EXTENSION.into(),
+            serde_json::json!({"standing": "accepted"}),
+        );
+        let error = ClaimRecordV1::build(
+            1,
+            ClaimAssertion {
+                text: "Claim".into(),
+                kind: "theoretical".into(),
+            },
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+            "2026-07-27T00:00:00Z".into(),
+            None,
+            extensions,
+        )
+        .unwrap_err();
+        assert!(error.contains("cannot carry authority field"));
+    }
+}
