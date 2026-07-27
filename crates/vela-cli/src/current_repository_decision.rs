@@ -20,7 +20,7 @@ use vela_protocol::current_repository::{ClaimStandingRefV1, CurrentRepositoryV2}
 use vela_protocol::events::{EventKind, NULL_HASH, StateActor, StateEvent, StateTarget};
 use vela_protocol::principal_capability::PrincipalClass;
 use vela_protocol::proposal_v1::ProposalV1;
-use vela_protocol::repository_epoch::RepositoryEpochV1;
+use vela_protocol::repository_epoch::RepositoryBoundaryV1;
 use vela_protocol::submission_v1::SubmissionV1;
 use vela_protocol::verification_record::VerificationRecordV1;
 
@@ -230,14 +230,10 @@ fn require_acceptance_evidence(
     Ok(())
 }
 
-fn load_epoch(frontier: &Path) -> Result<RepositoryEpochV1, String> {
+fn load_epoch(frontier: &Path) -> Result<RepositoryBoundaryV1, String> {
     let bytes = fs::read(frontier.join(".vela/epoch.json"))
         .map_err(|error| format!("read current repository epoch: {error}"))?;
-    let epoch = RepositoryEpochV1::parse(&bytes)?;
-    if epoch.canonical_bytes()? != bytes {
-        return Err("current repository epoch is not canonical JSON".into());
-    }
-    Ok(epoch)
+    RepositoryBoundaryV1::parse(&bytes)
 }
 
 pub(crate) fn prepare(

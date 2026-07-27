@@ -25,7 +25,7 @@ use vela_protocol::current_repository::{
 use vela_protocol::principal_capability::PrincipalClass;
 use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject, ProposalV1};
 use vela_protocol::registration_record::{RegistrationRecordV1, RegistrationRoots};
-use vela_protocol::repository_epoch::RepositoryEpochV1;
+use vela_protocol::repository_epoch::RepositoryBoundaryV1;
 use vela_protocol::submission_v1::SubmissionV1;
 
 use crate::authority_transaction::{
@@ -391,7 +391,7 @@ pub(crate) fn submit(
     }
     let epoch_bytes = fs::read(frontier.join(".vela/epoch.json"))
         .map_err(|error| format!("read current repository epoch: {error}"))?;
-    let epoch = RepositoryEpochV1::parse(&epoch_bytes)?;
+    let epoch = RepositoryBoundaryV1::parse(&epoch_bytes)?;
     if epoch.canonical_bytes()? != epoch_bytes {
         return Err("current repository epoch is not canonical JSON".into());
     }

@@ -1506,6 +1506,41 @@ fn verify_repository_write_authorization(
             "resolve operating-system account home for trust store: {error}"
         ))
     })?;
+    if intent == CanonicalWriteIntent::RepositoryAuthorityInitialization
+        && !root.join(".vela/epoch.json").exists()
+        && !root.join(".vela/repository.json").exists()
+    {
+        let profile =
+            crate::current_repository::verify_current_bootstrap_at(root).map_err(|error| {
+                FrontierTxnError::RepositoryWriteIntentDenied {
+                    intent: intent.as_str(),
+                    reason: error,
+                }
+            })?;
+        let profile_root = profile.profile_root().map_err(|error| {
+            FrontierTxnError::RepositoryWriteIntentDenied {
+                intent: intent.as_str(),
+                reason: error,
+            }
+        })?;
+        let context_root = ContentDigest::hash(
+            vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
+                "schema": "vela.repository-bootstrap-authorization.internal.v1",
+                "frontier_id": profile.frontier_id,
+                "profile_root": profile_root,
+                "trusted_user_home": trusted_user_home.to_string_lossy(),
+                "write_intent": intent.as_str(),
+            }))
+            .map_err(FrontierTxnError::Canonicalize)?,
+        );
+        return Ok(CanonicalWriteAuthorization {
+            frontier_id: profile.frontier_id,
+            context_root,
+            trusted_user_home,
+            intent,
+            delta_root: None,
+        });
+    }
     let project = vela_protocol::repo::load_from_path(root).map_err(|error| {
         FrontierTxnError::Io(format!("load repository for write gate: {error}"))
     })?;
@@ -1651,12 +1686,11 @@ fn verify_current_repository_authority_write_era(
         })?;
     let epoch_bytes = fs::read(root.join(".vela/epoch.json"))
         .map_err(|error| FrontierTxnError::Io(format!("read current repository epoch: {error}")))?;
-    let epoch = vela_protocol::repository_epoch::RepositoryEpochV1::parse(&epoch_bytes).map_err(
-        |error| FrontierTxnError::RepositoryWriteIntentDenied {
+    let epoch = vela_protocol::repository_epoch::RepositoryBoundaryV1::parse(&epoch_bytes)
+        .map_err(|error| FrontierTxnError::RepositoryWriteIntentDenied {
             intent: "repository_authority",
             reason: format!("current repository epoch is invalid: {error}"),
-        },
-    )?;
+        })?;
     let authority = crate::cli::load_current_repository_authority(root, &repository, &epoch)
         .map_err(|error| FrontierTxnError::RepositoryWriteIntentDenied {
             intent: "repository_authority",
@@ -1689,17 +1723,23 @@ fn verify_current_repository_authority_write_era(
                     "current repository-authority writes require an independent sequence-one pin; run `vela authority trust pin . --record-root {first_root} --json`"
                 ),
             })?;
-    if !authority_anchor_selects_current_epoch(
-        &anchor.anchor,
-        &repository.frontier_id,
-        first_root,
-        &epoch.predecessor_roots.authority_head,
-    ) {
+    let anchor_selects = anchor
+        .anchor
+        .verify_sequence_one(&repository.frontier_id, first_root)
+        .is_ok()
+        || epoch.predecessor_roots().is_some_and(|roots| {
+            authority_anchor_selects_current_epoch(
+                &anchor.anchor,
+                &repository.frontier_id,
+                first_root,
+                &roots.authority_head,
+            )
+        });
+    if !anchor_selects {
         return Err(FrontierTxnError::RepositoryWriteIntentDenied {
             intent: "repository_authority",
             reason: format!(
-                "local authority trust anchor selects neither current sequence one {first_root} nor the signed one-record predecessor head {}",
-                epoch.predecessor_roots.authority_head
+                "local authority trust anchor does not select current sequence one {first_root}"
             ),
         });
     }
@@ -1877,6 +1917,8 @@ fn verify_write_intent_delta(
     let mut boundary_events = 0_usize;
     let mut authority_initializations = 0_usize;
     let mut authority_records = 0_usize;
+    let mut repository_geneses = 0_usize;
+    let mut repository_manifests = 0_usize;
 
     for write in delta.writes() {
         let path = write.path.as_str();
@@ -1964,7 +2006,43 @@ fn verify_write_intent_delta(
                     }
                     authority_initializations += 1;
                 } else {
-                    if !path.starts_with(".vela/authority/")
+                    if path == ".vela/epoch.json" {
+                        if write.class != WriteClass::CanonicalEvidence
+                            || !matches!(write.preimage, FileState::Absent)
+                            || !matches!(write.postimage, FileState::File { .. })
+                        {
+                            return Err(deny(
+                                "repository genesis must create one canonical epoch object".into(),
+                            ));
+                        }
+                        let blob = write.payload.as_ref().ok_or_else(|| {
+                            FrontierTxnError::CorruptPlan(
+                                "repository genesis has no postimage blob".into(),
+                            )
+                        })?;
+                        let bytes = read_blob(blob)?;
+                        vela_protocol::repository_epoch::RepositoryGenesisV1::parse(&bytes)
+                            .map_err(FrontierTxnError::CorruptPlan)?;
+                        repository_geneses += 1;
+                    } else if path == ".vela/repository.json" {
+                        if write.class != WriteClass::CanonicalEvidence
+                            || !matches!(write.preimage, FileState::Absent)
+                            || !matches!(write.postimage, FileState::File { .. })
+                        {
+                            return Err(deny(
+                                "repository genesis must create one canonical manifest".into(),
+                            ));
+                        }
+                        let blob = write.payload.as_ref().ok_or_else(|| {
+                            FrontierTxnError::CorruptPlan(
+                                "repository manifest has no postimage blob".into(),
+                            )
+                        })?;
+                        let bytes = read_blob(blob)?;
+                        vela_protocol::current_repository::CurrentRepositoryV2::parse(&bytes)
+                            .map_err(FrontierTxnError::CorruptPlan)?;
+                        repository_manifests += 1;
+                    } else if !path.starts_with(".vela/authority/")
                         || write.class != WriteClass::Authority
                         || !matches!(write.preimage, FileState::Absent)
                         || !matches!(write.postimage, FileState::File { .. })
@@ -2014,10 +2092,13 @@ fn verify_write_intent_delta(
         )));
     }
     if intent == CanonicalWriteIntent::RepositoryAuthorityInitialization
-        && (authority_initializations != 1 || authority_records != 1)
+        && (authority_initializations != 1
+            || authority_records != 1
+            || repository_geneses != 1
+            || repository_manifests != 1)
     {
         return Err(deny(format!(
-            "fresh repository authority requires one initialization event and one covering record; found {authority_initializations} and {authority_records}"
+            "fresh repository authority requires one initialization event, one covering record, one genesis, and one manifest; found {authority_initializations}, {authority_records}, {repository_geneses}, and {repository_manifests}"
         )));
     }
     Ok(())

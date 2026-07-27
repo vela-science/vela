@@ -49,7 +49,7 @@ Target
 | Event | Canonical admitted transition | Changes replay |
 | Standing | Deterministic result of current replay | Derived |
 
-## 3. Current repository epoch
+## 3. Current repository origin
 
 A current Frontier contains:
 
@@ -73,13 +73,29 @@ targets.json
 
 `frontier.yaml` identifies the bounded repository. `.vela/repository.json`
 commits to the active object sets and current repository root.
-`.vela/epoch.json` binds the current epoch to its exact predecessor.
+`.vela/epoch.json` binds the repository to either its native current genesis or
+its exact signed predecessor.
 
 The active repository contains no predecessor scientific Event log, actor
 registry, AcceptancePolicy store, Finding bundle, Receipt store, legacy
 Proposal directory, or materialized Project snapshot.
 
-### 3.1 Repository epoch
+### 3.1 Native genesis and predecessor epoch
+
+`vela.repository-genesis.v1` is the origin for a repository created directly
+by the current product. It binds:
+
+- Frontier identity and Profile v2 root;
+- epoch 1 and a content-derived `vre_` identity;
+- the exact empty current object-set root;
+- the exact empty event-log and actor-registry roots; and
+- the authority-initialization reason.
+
+It contains no predecessor, archive, imported set, compatibility snapshot, or
+equivalence report. `vela init` creates only Profile v2 and repository
+scaffolding. `vela authority init` installs the genesis, current manifest, and
+sequence-one authority history in one recoverable signed transaction. Until
+then, strict repository verification is blocked.
 
 `vela.repository-epoch.v1` binds:
 
@@ -103,6 +119,11 @@ keyset, Cedar material, and exact postimages.
 
 Current replay begins at that sequence-one record. Retaining predecessor-era
 canonical paths inside the current repository is invalid.
+
+Readers dispatch on the exact origin schema. Both forms bind the manifest's
+full epoch ID and root; substitution or an unknown schema fails closed. The
+predecessor-epoch writer is retired, while existing signed epoch bytes remain
+replayable.
 
 ### 3.2 Claim Record
 

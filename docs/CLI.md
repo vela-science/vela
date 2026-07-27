@@ -72,8 +72,7 @@ claim id agents config verification authority target-index repository
 - `authority` initializes or inspects the repository writer and public trust
   roots.
 - `target-index` inspects or seals derived producer Targets.
-- `repository verify` verifies the signed current-epoch boundary and active
-  repository.
+- `repository verify` verifies the signed current origin and active repository.
 
 `vela help advanced` is the executable source for this grouping.
 
@@ -163,9 +162,10 @@ vela init ./my-frontier \
   --scope "Does X hold?"
 ```
 
-Initialization creates no scientific authority. To establish a new current
-repository writer, load one dedicated Ed25519 identity in the normal OpenSSH
-agent and run:
+Initialization writes Profile v2 and scaffolding only. `status` and `doctor`
+report `authority_uninitialized`; strict repository verification remains
+blocked. To establish the repository writer, load one dedicated Ed25519
+identity in the normal OpenSSH agent and run:
 
 ```bash
 vela authority init ./my-frontier \
@@ -189,9 +189,9 @@ authority, and changes no Frontier byte.
 vela repository verify <frontier> --json
 ```
 
-The command verifies the current manifest, signed epoch boundary, retained
-authority chain, exact object roots, and rejection of retired active paths. The
-one-time migration writer is not part of the current binary.
+The command verifies the current manifest, native-genesis or signed-predecessor
+origin, retained authority chain, exact object roots, and rejection of retired
+active paths. The one-time migration writer is not part of the current binary.
 
 ## Machine contracts
 

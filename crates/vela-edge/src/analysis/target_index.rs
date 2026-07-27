@@ -229,13 +229,6 @@ pub struct TargetIndexCandidateV1 {
     pub targets: Vec<TargetIndexCandidateEntryV1>,
 }
 
-/// Exact pre/post-boundary context for deriving a Target Index v2 during the
-/// one legacy Repository Profile migration transaction.
-///
-/// The context is deliberately independent of `targets.json`: domain target
-/// semantics still come only from the separately rooted candidate. The
-/// boundary may be unsigned during key-free preview or signed during apply;
-/// its canonical content core must be identical in either phase.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TargetIndexMigrationContextV1 {
@@ -391,9 +384,31 @@ pub struct TargetIndexTargetInspection {
 /// Complete, write-free result of sealing one domain-owned target-index
 /// candidate. The candidate supplies target semantics; every security- or
 /// integrity-bearing value in `index` is derived by Vela.
+/// Complete, write-free result of sealing one domain-owned candidate for a
+/// current Profile v2 repository. The exact repository epoch and manifest
+/// root replace every Era-0 event/proposal root.
 #[derive(Debug, Clone, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct TargetIndexSealPlan {
+    pub schema: &'static str,
+    pub frontier_id: String,
+    pub candidate_path: String,
+    pub candidate_root: String,
+    pub source: TargetIndexSourceV2,
+    pub input_paths: Vec<String>,
+    pub packet_paths: Vec<String>,
+    pub index_path: &'static str,
+    pub index_root: String,
+    pub canonical_json: String,
+    pub index: TargetIndexV3,
+    pub touched_paths: Vec<String>,
+    #[serde(skip)]
+    allowed_dirty_paths: BTreeSet<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct LegacyTargetIndexSealPlan {
     pub schema: &'static str,
     pub frontier_id: String,
     pub candidate_path: String,
@@ -2722,7 +2737,7 @@ pub fn prepare_target_index_seal(
     candidate_path: &Path,
     binary_version: &str,
     trust_anchor: Option<&RepositoryTrustAnchor>,
-) -> Result<TargetIndexSealPlan, String> {
+) -> Result<LegacyTargetIndexSealPlan, String> {
     prepare_target_index_seal_with_authority_events(
         repo_path,
         candidate_path,
@@ -2738,7 +2753,7 @@ pub fn prepare_target_index_seal_with_authority_events(
     binary_version: &str,
     trust_anchor: Option<&RepositoryTrustAnchor>,
     authority_events: &[AuthorityEventV1],
-) -> Result<TargetIndexSealPlan, String> {
+) -> Result<LegacyTargetIndexSealPlan, String> {
     prepare_target_index_seal_with_context(
         repo_path,
         candidate_path,
@@ -2748,6 +2763,214 @@ pub fn prepare_target_index_seal_with_authority_events(
             authority_events,
         },
     )
+}
+
+/// Derive a complete Target Index v3 for one current repository.
+///
+/// This function performs no writes. Candidate semantics come only from the
+/// closed domain-owned candidate. Vela derives the exact Git input manifest,
+/// packet roots, repository binding, and index root.
+pub fn prepare_current_target_index_seal(
+    repo_path: &Path,
+    candidate_path: &Path,
+    binary_version: &str,
+    frontier_id: &str,
+    epoch_id: &str,
+    repository_root: &str,
+) -> Result<TargetIndexSealPlan, String> {
+    validate_semver(binary_version)?;
+    require_frontier_id(frontier_id)?;
+    require_epoch_id("epoch_id", epoch_id)?;
+    require_sha256_root("repository_root", repository_root)?;
+    exact_current_repository(repo_path, frontier_id, epoch_id, repository_root)?;
+
+    let candidate_path = exact_candidate_path(repo_path, candidate_path);
+    let candidate_bytes = read_regular_file(
+        &candidate_path,
+        TARGET_INDEX_JSON_MAX_BYTES,
+        "target-index candidate",
+    )?;
+    let candidate_value: Value = serde_json::from_slice(&candidate_bytes)
+        .map_err(|error| format!("{CODE_SCHEMA_INVALID}: parse candidate: {error}"))?;
+    let candidate: TargetIndexCandidateV1 = serde_json::from_value(candidate_value)
+        .map_err(|error| format!("{CODE_SCHEMA_INVALID}: parse candidate: {error}"))?;
+    candidate.validate()?;
+    if candidate.frontier_id != frontier_id {
+        return Err(format!(
+            "{CODE_FRONTIER_MISMATCH}: candidate Frontier {} differs from current repository {frontier_id}",
+            candidate.frontier_id
+        ));
+    }
+    let candidate_root = sha256_root(&candidate_bytes);
+
+    let mut allowed_dirty_paths = candidate
+        .targets
+        .iter()
+        .map(|target| target.packet.path.clone())
+        .collect::<BTreeSet<_>>();
+    allowed_dirty_paths.insert("targets.json".to_string());
+    let candidate_display = match repo_relative_existing_path(repo_path, &candidate_path)? {
+        Some(path) => {
+            allowed_dirty_paths.insert(path.clone());
+            path
+        }
+        None => candidate_path.display().to_string(),
+    };
+    ensure_only_allowed_seal_dirt(repo_path, &allowed_dirty_paths)?;
+
+    let git_object_format = repository_object_format(repo_path)?;
+    require_git_object(
+        "candidate.source.git_commit",
+        &candidate.source.git_commit,
+        git_object_format,
+    )?;
+    let resolved = git_text(
+        repo_path,
+        &[
+            "rev-parse",
+            &format!("{}^{{commit}}", candidate.source.git_commit),
+        ],
+    )
+    .map_err(|error| format!("{CODE_SOURCE_UNAVAILABLE}: {error}"))?;
+    if resolved != candidate.source.git_commit {
+        return Err(format!(
+            "{CODE_SOURCE_UNAVAILABLE}: candidate source did not resolve to the exact object"
+        ));
+    }
+    let head = git_text(repo_path, &["rev-parse", "HEAD^{commit}"])?;
+    let ancestor = command(
+        repo_path,
+        &[
+            "merge-base",
+            "--is-ancestor",
+            &candidate.source.git_commit,
+            &head,
+        ],
+    )?;
+    if !ancestor.status.success() {
+        return Err(format!(
+            "{CODE_SOURCE_NOT_ANCESTOR}: candidate source is not an ancestor of HEAD"
+        ));
+    }
+    let source = TargetIndexSourceV2 {
+        git_object_format,
+        git_commit: candidate.source.git_commit.clone(),
+        git_tree: git_text(
+            repo_path,
+            &[
+                "rev-parse",
+                &format!("{}^{{tree}}", candidate.source.git_commit),
+            ],
+        )?,
+    };
+
+    let entries = candidate
+        .source
+        .input_paths
+        .iter()
+        .map(|path| source_input_entry(repo_path, &source.git_commit, path))
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut inputs = TargetIndexInputManifestV1 {
+        schema: TARGET_INDEX_INPUT_MANIFEST_SCHEMA_V1.to_string(),
+        input_root: sha256_root(&[]),
+        entries,
+    };
+    inputs.input_root = inputs.computed_root()?;
+
+    let mut targets = Vec::with_capacity(candidate.targets.len());
+    for target in &candidate.targets {
+        let packet_bytes =
+            safe_worktree_file(repo_path, &target.packet.path, TARGET_PACKET_MAX_BYTES)?;
+        let packet_value: Value = serde_json::from_slice(&packet_bytes).map_err(|error| {
+            format!(
+                "{CODE_PACKET_MISMATCH}: packet {:?} is not valid JSON: {error}",
+                target.packet.path
+            )
+        })?;
+        if !packet_value.is_object()
+            || packet_value.get("schema").and_then(Value::as_str)
+                != Some(target.packet.schema.as_str())
+        {
+            return Err(format!(
+                "{CODE_PACKET_MISMATCH}: packet {:?} must be one object with schema {:?}",
+                target.packet.path, target.packet.schema
+            ));
+        }
+        targets.push(TargetIndexEntryV2 {
+            id: target.id.clone(),
+            title: target.title.clone(),
+            why: target.why.clone(),
+            state: target.state.clone(),
+            rank: target.rank,
+            objective: target.objective.clone(),
+            labels: target.labels.clone(),
+            packet: TargetPacketRefV2 {
+                schema: target.packet.schema.clone(),
+                path: target.packet.path.clone(),
+                size: packet_bytes.len() as u64,
+                sha256: sha256_root(&packet_bytes),
+            },
+        });
+    }
+
+    let mut index = TargetIndexV3 {
+        schema: TARGET_INDEX_SCHEMA_V3.to_string(),
+        frontier_id: frontier_id.to_string(),
+        source: source.clone(),
+        inputs,
+        repository: TargetIndexRepositoryV3 {
+            epoch_id: epoch_id.to_string(),
+            repository_root: repository_root.to_string(),
+        },
+        claim_boundary: TargetIndexClaimBoundaryV2 {
+            derived: true,
+            authoritative: false,
+            deletable: true,
+        },
+        generated_by: TargetIndexGeneratorV2 {
+            program: "vela".to_string(),
+            version: binary_version.to_string(),
+        },
+        targets,
+        index_root: String::new(),
+    };
+    index.index_root = index.computed_index_root()?;
+    let canonical_bytes = index.canonical_bytes()?;
+    if let Some(source_index) = tree_entry(repo_path, &source.git_commit, "targets.json")?
+        && blob(repo_path, &source_index)? == canonical_bytes
+    {
+        return Err(format!(
+            "{CODE_SOURCE_SELF_REFERENCE}: source tree already contains the exact sealed targets.json bytes"
+        ));
+    }
+    let canonical_json = String::from_utf8(canonical_bytes)
+        .map_err(|error| format!("canonical target index is not UTF-8: {error}"))?;
+    let packet_paths = index
+        .targets
+        .iter()
+        .map(|target| target.packet.path.clone())
+        .collect::<Vec<_>>();
+    let input_paths = index
+        .inputs
+        .entries
+        .iter()
+        .map(|entry| entry.path.clone())
+        .collect::<Vec<_>>();
+    Ok(TargetIndexSealPlan {
+        schema: "vela.target-index-seal-plan.v1",
+        frontier_id: index.frontier_id.clone(),
+        candidate_path: candidate_display,
+        candidate_root,
+        source,
+        input_paths,
+        packet_paths,
+        index_path: "targets.json",
+        index_root: index.index_root.clone(),
+        canonical_json,
+        index,
+        touched_paths: vec!["targets.json".to_string()],
+        allowed_dirty_paths,
+    })
 }
 
 /// Derive the same closed Target Index v2 during the one protected legacy
@@ -2763,7 +2986,7 @@ pub fn prepare_target_index_seal_for_migration(
     candidate_path: &Path,
     binary_version: &str,
     context: &TargetIndexMigrationContextV1,
-) -> Result<TargetIndexSealPlan, String> {
+) -> Result<LegacyTargetIndexSealPlan, String> {
     prepare_target_index_seal_with_context(
         repo_path,
         candidate_path,
@@ -2777,7 +3000,7 @@ fn prepare_target_index_seal_with_context(
     candidate_path: &Path,
     binary_version: &str,
     seal_context: TargetIndexSealContext<'_>,
-) -> Result<TargetIndexSealPlan, String> {
+) -> Result<LegacyTargetIndexSealPlan, String> {
     validate_semver(binary_version)?;
     let candidate_path = exact_candidate_path(repo_path, candidate_path);
     let candidate_bytes = read_regular_file(
@@ -3039,7 +3262,7 @@ fn prepare_target_index_seal_with_context(
         .iter()
         .map(|entry| entry.path.clone())
         .collect::<Vec<_>>();
-    Ok(TargetIndexSealPlan {
+    Ok(LegacyTargetIndexSealPlan {
         schema: "vela.target-index-seal-plan.v1",
         frontier_id: index.frontier_id.clone(),
         candidate_path: candidate_display,
@@ -3083,7 +3306,7 @@ impl PreparedTargetIndexSealInstall {
 /// repository write gate is evaluated.
 pub fn prepare_target_index_seal_install(
     repo_path: &Path,
-    plan: &TargetIndexSealPlan,
+    plan: &LegacyTargetIndexSealPlan,
 ) -> Result<PreparedTargetIndexSealInstall, String> {
     ensure_only_allowed_seal_dirt(repo_path, &plan.allowed_dirty_paths)?;
     let bytes = plan.canonical_json.as_bytes();
@@ -3097,12 +3320,29 @@ pub fn prepare_target_index_seal_install(
     Ok(PreparedTargetIndexSealInstall { replacement })
 }
 
+/// Pin a current-repository target-index destination and its exact preimage
+/// before the current repository write gate is evaluated.
+pub fn prepare_current_target_index_seal_install(
+    repo_path: &Path,
+    plan: &TargetIndexSealPlan,
+) -> Result<PreparedTargetIndexSealInstall, String> {
+    ensure_only_allowed_seal_dirt(repo_path, &plan.allowed_dirty_paths)?;
+    let replacement = PreparedRepositoryFileReplacement::prepare_observed(
+        repo_path,
+        Path::new(plan.index_path),
+        plan.canonical_json.as_bytes(),
+        RepositoryFileReplacementMode::Exact(0o644),
+        TARGET_INDEX_JSON_MAX_BYTES,
+    )?;
+    Ok(PreparedTargetIndexSealInstall { replacement })
+}
+
 /// Atomically install a previously derived seal plan. Production CLI callers
 /// prepare before the Profile v1 write gate; this convenience wrapper retains
 /// the same sound edge for direct library callers.
 pub fn install_target_index_seal(
     repo_path: &Path,
-    plan: &TargetIndexSealPlan,
+    plan: &LegacyTargetIndexSealPlan,
 ) -> Result<bool, String> {
     prepare_target_index_seal_install(repo_path, plan)?.install()
 }
@@ -5131,12 +5371,12 @@ mod tests {
         assert!(drifted.validate().unwrap_err().contains("binding_root"));
     }
 
-    fn replacement_seal_plan(fixture: &GitFixture) -> TargetIndexSealPlan {
+    fn replacement_seal_plan(fixture: &GitFixture) -> LegacyTargetIndexSealPlan {
         let mut index = fixture.index.clone();
         index.generated_by.version = "0.914.1".to_string();
         index.index_root = index.computed_index_root().unwrap();
         let canonical_json = String::from_utf8(index.canonical_bytes().unwrap()).unwrap();
-        TargetIndexSealPlan {
+        LegacyTargetIndexSealPlan {
             schema: "vela.target-index-seal-plan.v1",
             frontier_id: index.frontier_id.clone(),
             candidate_path: "/outside/closed-target-candidate.json".to_string(),

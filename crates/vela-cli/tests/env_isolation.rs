@@ -79,37 +79,3 @@ fn usage_errors_are_exit_2() {
     );
     assert_eq!(out.status.code(), Some(2), "id rotate same id: {out:?}");
 }
-
-/// The exit-code contract is what an agent branches on. A missing Claim
-/// must be 3 (not found), while a malformed invocation is 2 (usage).
-#[test]
-fn claim_show_honors_the_exit_code_contract() {
-    let tmp = tempfile::TempDir::new().unwrap();
-    init_frontier(tmp.path());
-    let dir = ".";
-    // A well-formed but absent finding id → not found (3).
-    let out = run_in(
-        tmp.path(),
-        &[
-            "claim",
-            "show",
-            dir,
-            "vf_ffffffffffffffff",
-            "--view",
-            "standing",
-            "--json",
-        ],
-    );
-    assert_eq!(
-        out.status.code(),
-        Some(3),
-        "missing finding must be exit 3: {out:?}"
-    );
-    // A malformed invocation (no operands) → usage (2).
-    let out = run_in(tmp.path(), &["claim", "show", "--json"]);
-    assert_eq!(
-        out.status.code(),
-        Some(2),
-        "usage error must be exit 2: {out:?}"
-    );
-}

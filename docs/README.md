@@ -16,6 +16,7 @@
 - [Target Index](TARGET_INDEX.md)
 - [Threat model](THREAT_MODEL.md)
 - [Current repository epoch ADR](adr/0022-current-repository-epoch-and-legacy-runtime-retirement.md)
+- [Native current repository genesis ADR](adr/0023-native-current-repository-genesis.md)
 
 ## Project documents
 

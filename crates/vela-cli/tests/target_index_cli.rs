@@ -5,10 +5,13 @@ use std::path::Path;
 use std::process::{Command, Output};
 
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 
-fn run(home: &Path, cwd: &Path, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_vela"))
+mod support;
+use support::EphemeralAgent;
+
+fn run(home: &Path, cwd: &Path, socket: Option<&Path>, args: &[&str]) -> Output {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_vela"));
+    command
         .args(args)
         .current_dir(cwd)
         .env("HOME", home)
@@ -17,9 +20,13 @@ fn run(home: &Path, cwd: &Path, args: &[&str]) -> Output {
         .env_remove("VELA_ACTOR_ID")
         .env_remove("VELA_AGENT_KEY_HEX")
         .env_remove("VELA_KEY_PATH")
-        .env_remove("VELA_NO_PUBLISH")
-        .output()
-        .expect("run vela")
+        .env_remove("VELA_NO_PUBLISH");
+    if let Some(socket) = socket {
+        command.env("SSH_AUTH_SOCK", socket);
+    } else {
+        command.env_remove("SSH_AUTH_SOCK");
+    }
+    command.output().expect("run vela")
 }
 
 fn git(repo: &Path, args: &[&str]) -> String {
@@ -105,6 +112,7 @@ fn visible_files(root: &Path) -> BTreeMap<String, Vec<u8>> {
 struct Fixture {
     directory: tempfile::TempDir,
     home: tempfile::TempDir,
+    agent: EphemeralAgent,
     frontier_id: String,
     candidate: Value,
 }
@@ -113,10 +121,12 @@ impl Fixture {
     fn new() -> Self {
         let directory = tempfile::tempdir().unwrap();
         let home = tempfile::tempdir().unwrap();
+        let agent = EphemeralAgent::start(home.path(), "vela target index test");
         let frontier = directory.path();
         success_json(&run(
             home.path(),
             frontier,
+            None,
             &[
                 "init",
                 ".",
@@ -127,14 +137,32 @@ impl Fixture {
                 "--json",
             ],
         ));
+        success_json(&run(
+            home.path(),
+            frontier,
+            Some(agent.socket()),
+            &[
+                "authority",
+                "init",
+                ".",
+                "--reason",
+                "Establish target-index fixture authority.",
+                "--json",
+            ],
+        ));
         git(frontier, &["config", "user.name", "Vela Test"]);
         git(frontier, &["config", "user.email", "vela@example.invalid"]);
         write(&frontier.join("domain/source.json"), br#"{"open":[1056]}"#);
         git(frontier, &["add", "-A"]);
         git(frontier, &["commit", "-qm", "source"]);
         let source_commit = git(frontier, &["rev-parse", "HEAD^{commit}"]);
-        let project = vela_protocol::repo::load_from_path(frontier).unwrap();
-        let frontier_id = project.frontier_id();
+        let profile_source = std::fs::read_to_string(frontier.join("frontier.yaml")).unwrap();
+        let frontier_id =
+            vela_protocol::current_repository::CurrentFrontierProfileV2::from_yaml_str(
+                &profile_source,
+            )
+            .unwrap()
+            .frontier_id;
         write(
             &frontier.join("site/problems/1056.json"),
             br#"{"problem":1056,"schema":"erdos-frontier.problem-work.v1"}"#,
@@ -167,6 +195,7 @@ impl Fixture {
         Self {
             directory,
             home,
+            agent,
             frontier_id,
             candidate,
         }
@@ -177,7 +206,12 @@ impl Fixture {
     }
 
     fn command(&self, args: &[&str]) -> Output {
-        run(self.home.path(), self.path(), args)
+        run(
+            self.home.path(),
+            self.path(),
+            Some(self.agent.socket()),
+            args,
+        )
     }
 
     fn check_args(&self) -> Vec<&str> {
@@ -338,123 +372,6 @@ fn repair_is_read_only_and_stale_exact_id_inspection_is_never_actionable() {
             .unwrap()
             .iter()
             .any(|code| code == "target_index_output_not_tracked")
-    );
-}
-
-#[test]
-fn historical_v1_is_inspectable_but_never_actionable() {
-    let fixture = Fixture::new();
-    let project = vela_protocol::repo::load_from_path(fixture.path()).unwrap();
-    let packet = std::fs::read(fixture.path().join("site/problems/1056.json")).unwrap();
-    let legacy = json!({
-        "schema": "vela.target-index.v1",
-        "frontier_id": project.frontier_id(),
-        "as_of": {
-            "snapshot_hash": format!("sha256:{}", vela_protocol::events::snapshot_hash(&project)),
-            "event_log_hash": format!("sha256:{}", vela_protocol::events::event_log_hash(&project.events)),
-            "proposal_state_hash": format!("sha256:{}", vela_protocol::proposals::proposal_state_hash(&project.proposals))
-        },
-        "targets": [{
-            "id": "erdos:1056",
-            "title": "Erdős 1056",
-            "why": "Historical target.",
-            "state": "open",
-            "rank": 1,
-            "objective": "Inspect only.",
-            "labels": ["upstream-open", "erdos"],
-            "packet": {
-                "path": "site/problems/1056.json",
-                "sha256": format!("sha256:{}", hex::encode(Sha256::digest(&packet))),
-                "schema": "erdos-frontier.problem-work.v1"
-            }
-        }]
-    });
-    write(
-        &fixture.path().join("targets.json"),
-        serde_json::to_vec(&legacy).unwrap(),
-    );
-    let summary = success_json(&fixture.command(&["target-index", "inspect", ".", "--json"]));
-    assert_eq!(summary["summary"]["historical_only"], true);
-    assert_eq!(summary["summary"]["configured_open"], 1);
-    assert_eq!(summary["summary"]["stale_open"], 1);
-    assert_eq!(
-        summary["summary"]["codes"],
-        json!(["target_index_profile_upgrade_required"])
-    );
-
-    let repair = success_json(&fixture.command(&["target-index", "repair", ".", "--json"]));
-    assert_eq!(repair["report"]["historical_only"], true);
-    assert_eq!(
-        repair["report"]["codes"],
-        json!(["target_index_profile_upgrade_required"])
-    );
-    assert!(
-        repair["report"]["generator_instruction"]
-            .as_str()
-            .unwrap()
-            .contains("protected frontier-repo-v1 migration")
-    );
-    assert_eq!(
-        repair["report"]["repair_command"],
-        "vela migrate . --to frontier-repo-v1 --check --profile ../frontier-profile-v1.yaml --target-candidate ../target-index-candidate.json --as reviewer:ADMINISTRATOR --reason 'Bind exact legacy repository' --json"
-    );
-    assert_eq!(
-        repair["report"]["candidate_path"],
-        "../target-index-candidate.json"
-    );
-
-    let output =
-        success_json(&fixture.command(&["target-index", "inspect", ".", "erdos:1056", "--json"]));
-    assert_eq!(output["target"]["index_schema"], "vela.target-index.v1");
-    assert_eq!(output["target"]["historical_only"], true);
-    assert_eq!(output["target"]["actionable"], false);
-    assert_eq!(output["target"]["packet"]["problem"], 1056);
-    assert_eq!(
-        output["target"]["codes"],
-        json!(["target_index_profile_upgrade_required"])
-    );
-}
-
-#[test]
-fn historical_v1_still_rejects_duplicate_labels() {
-    let fixture = Fixture::new();
-    let project = vela_protocol::repo::load_from_path(fixture.path()).unwrap();
-    let packet = std::fs::read(fixture.path().join("site/problems/1056.json")).unwrap();
-    let legacy = json!({
-        "schema": "vela.target-index.v1",
-        "frontier_id": project.frontier_id(),
-        "as_of": {
-            "snapshot_hash": format!("sha256:{}", vela_protocol::events::snapshot_hash(&project)),
-            "event_log_hash": format!("sha256:{}", vela_protocol::events::event_log_hash(&project.events)),
-            "proposal_state_hash": format!("sha256:{}", vela_protocol::proposals::proposal_state_hash(&project.proposals))
-        },
-        "targets": [{
-            "id": "erdos:1056",
-            "title": "Erdős 1056",
-            "why": "Historical target.",
-            "state": "open",
-            "rank": 1,
-            "objective": "Inspect only.",
-            "labels": ["erdos", "erdos"],
-            "packet": {
-                "path": "site/problems/1056.json",
-                "sha256": format!("sha256:{}", hex::encode(Sha256::digest(&packet))),
-                "schema": "erdos-frontier.problem-work.v1"
-            }
-        }]
-    });
-    write(
-        &fixture.path().join("targets.json"),
-        serde_json::to_vec(&legacy).unwrap(),
-    );
-
-    let output = fixture.command(&["target-index", "inspect", ".", "--json"]);
-    assert_eq!(output.status.code(), Some(1));
-    assert!(
-        failure_json(&output)["error"]["message"]
-            .as_str()
-            .unwrap()
-            .contains("duplicate label")
     );
 }
 

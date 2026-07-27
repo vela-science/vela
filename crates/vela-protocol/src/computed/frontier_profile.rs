@@ -133,55 +133,14 @@ impl FrontierProfileV1 {
                 "profile.schema must be `{FRONTIER_PROFILE_SCHEMA_V1}`"
             ));
         }
-        validate_frontier_id(&self.frontier_id)?;
-        validate_text("profile.name", &self.name, FRONTIER_PROFILE_NAME_MAX_BYTES)?;
-        validate_text(
-            "profile.summary",
+        validate_profile_metadata(
+            &self.frontier_id,
+            &self.name,
             &self.summary,
-            FRONTIER_PROFILE_SUMMARY_MAX_BYTES,
-        )?;
-        validate_text(
-            "profile.scope.question",
-            &self.scope.question,
-            FRONTIER_PROFILE_QUESTION_MAX_BYTES,
-        )?;
-        let includes = validate_unique_text_list(
-            "profile.scope.includes",
-            &self.scope.includes,
-            FRONTIER_PROFILE_SCOPE_ITEM_MAX_BYTES,
-        )?;
-        let excludes = validate_unique_text_list(
-            "profile.scope.excludes",
-            &self.scope.excludes,
-            FRONTIER_PROFILE_SCOPE_ITEM_MAX_BYTES,
-        )?;
-        if includes.intersection(&excludes).next().is_some() {
-            return Err(
-                "profile.scope cannot contain the same statement in includes and excludes"
-                    .to_string(),
-            );
-        }
-        validate_unique_text_list(
-            "profile.maintainers",
+            &self.scope,
             &self.maintainers,
-            FRONTIER_PROFILE_MAINTAINER_MAX_BYTES,
-        )?;
-        validate_text(
-            "profile.license.content",
-            &self.license.content,
-            FRONTIER_PROFILE_LICENSE_MAX_BYTES,
-        )?;
-        validate_text(
-            "profile.license.code",
-            &self.license.code,
-            FRONTIER_PROFILE_LICENSE_MAX_BYTES,
-        )?;
-        validate_text(
-            "profile.license.data",
-            &self.license.data,
-            FRONTIER_PROFILE_LICENSE_MAX_BYTES,
-        )?;
-        Ok(())
+            &self.license,
+        )
     }
 
     /// Check the profile's readable Frontier ID against an identity that was
@@ -229,6 +188,68 @@ impl FrontierProfileV1 {
             scientific_state_root,
         })
     }
+}
+
+/// Shared validation for the stable human-editable profile fields.
+///
+/// Profile v2 reuses these field types and limits without constructing or
+/// accepting a Profile v1 value.
+pub(crate) fn validate_profile_metadata(
+    frontier_id: &str,
+    name: &str,
+    summary: &str,
+    scope: &FrontierProfileScopeV1,
+    maintainers: &[String],
+    license: &FrontierProfileLicenseV1,
+) -> Result<(), String> {
+    validate_frontier_id(frontier_id)?;
+    validate_text("profile.name", name, FRONTIER_PROFILE_NAME_MAX_BYTES)?;
+    validate_text(
+        "profile.summary",
+        summary,
+        FRONTIER_PROFILE_SUMMARY_MAX_BYTES,
+    )?;
+    validate_text(
+        "profile.scope.question",
+        &scope.question,
+        FRONTIER_PROFILE_QUESTION_MAX_BYTES,
+    )?;
+    let includes = validate_unique_text_list(
+        "profile.scope.includes",
+        &scope.includes,
+        FRONTIER_PROFILE_SCOPE_ITEM_MAX_BYTES,
+    )?;
+    let excludes = validate_unique_text_list(
+        "profile.scope.excludes",
+        &scope.excludes,
+        FRONTIER_PROFILE_SCOPE_ITEM_MAX_BYTES,
+    )?;
+    if includes.intersection(&excludes).next().is_some() {
+        return Err(
+            "profile.scope cannot contain the same statement in includes and excludes".to_string(),
+        );
+    }
+    validate_unique_text_list(
+        "profile.maintainers",
+        maintainers,
+        FRONTIER_PROFILE_MAINTAINER_MAX_BYTES,
+    )?;
+    validate_text(
+        "profile.license.content",
+        &license.content,
+        FRONTIER_PROFILE_LICENSE_MAX_BYTES,
+    )?;
+    validate_text(
+        "profile.license.code",
+        &license.code,
+        FRONTIER_PROFILE_LICENSE_MAX_BYTES,
+    )?;
+    validate_text(
+        "profile.license.data",
+        &license.data,
+        FRONTIER_PROFILE_LICENSE_MAX_BYTES,
+    )?;
+    Ok(())
 }
 
 impl EffectiveFrontierAuthorityV1 {
@@ -433,7 +454,7 @@ fn validate_unique_text_list(
 /// and erases the syntactic distinction. Quoted indicator characters remain
 /// ordinary text. Unquoted indicator tokens are forbidden even when a parser
 /// would resolve them to the same in-memory value.
-fn reject_yaml_indirection(source: &str) -> Result<(), String> {
+pub(crate) fn reject_yaml_indirection(source: &str) -> Result<(), String> {
     let characters = source.chars().collect::<Vec<_>>();
     let mut index = 0;
     let mut single_quoted = false;
@@ -508,7 +529,7 @@ fn reject_yaml_indirection(source: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_yaml_structure(value: &serde_yaml::Value) -> Result<(), String> {
+pub(crate) fn validate_yaml_structure(value: &serde_yaml::Value) -> Result<(), String> {
     match value {
         serde_yaml::Value::Mapping(mapping) => {
             for (key, value) in mapping {

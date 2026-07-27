@@ -16,7 +16,7 @@ use vela_protocol::current_repository::{
 };
 use vela_protocol::events::{EventKind, NULL_HASH};
 use vela_protocol::proposal_v1::ProposalV1;
-use vela_protocol::repository_epoch::RepositoryEpochV1;
+use vela_protocol::repository_epoch::RepositoryBoundaryV1;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub(crate) struct CurrentProposalDecision {
@@ -42,7 +42,7 @@ pub(crate) fn cmd_repository_verify(frontier: &Path, json_out: bool) {
     let epoch_bytes = fs::read(frontier.join(".vela/epoch.json")).unwrap_or_else(|error| {
         crate::cli::fail_return(&format!("read current repository epoch: {error}"))
     });
-    let epoch = RepositoryEpochV1::parse(&epoch_bytes)
+    let epoch = RepositoryBoundaryV1::parse(&epoch_bytes)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let commit = git_text(&frontier, &["rev-parse", "HEAD^{commit}"])
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
@@ -56,7 +56,7 @@ pub(crate) fn cmd_repository_verify(frontier: &Path, json_out: bool) {
         "frontier_id": repository.frontier_id,
         "git_commit": commit,
         "git_tree": tree,
-        "epoch_id": epoch.epoch_id,
+        "epoch_id": epoch.epoch_id(),
         "epoch_root": epoch.canonical_root().unwrap_or_else(|error| crate::cli::fail_return(&error)),
         "repository_root": repository.canonical_root().unwrap_or_else(|error| crate::cli::fail_return(&error)),
         "authority_keyset_root": repository.authority_keyset_root,
@@ -90,13 +90,72 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             frontier.display()
         ))
     });
-    let repository = verify_current_repository_at(&frontier, true)
-        .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let profile_source =
         fs::read_to_string(frontier.join("frontier.yaml")).unwrap_or_else(|error| {
             crate::cli::fail_return(&format!("read current Frontier Profile: {error}"))
         });
     let profile = CurrentFrontierProfileV2::from_yaml_str(&profile_source)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    if !frontier.join(".vela/epoch.json").exists()
+        && !frontier.join(".vela/repository.json").exists()
+    {
+        verify_current_bootstrap_at(&frontier)
+            .unwrap_or_else(|error| crate::cli::fail_return(&error));
+        let commit = git_text(&frontier, &["rev-parse", "HEAD^{commit}"]).ok();
+        let tree = git_text(&frontier, &["rev-parse", "HEAD^{tree}"]).ok();
+        let next_action = format!(
+            "vela authority init {} --reason 'Establish repository authority.' --json",
+            frontier.display()
+        );
+        let payload = json!({
+            "schema": "vela.status.v1",
+            "ok": true,
+            "command": "status",
+            "frontier": {
+                "id": profile.frontier_id,
+                "name": profile.name,
+                "profile_root": profile.profile_root()
+                    .unwrap_or_else(|error| crate::cli::fail_return(&error))
+            },
+            "git": {"commit": commit, "tree": tree},
+            "integrity": {
+                "replay": "not_initialized",
+                "strict": "blocked",
+                "blocker_count": 1,
+                "blockers_by_code": {"repository_authority_uninitialized": 1}
+            },
+            "roots": {
+                "epoch": Value::Null,
+                "repository": Value::Null,
+                "authority_keyset": Value::Null,
+                "authority_policy": Value::Null
+            },
+            "counts": {
+                "claims": 0,
+                "accepted_claims": 0,
+                "pending_claims": 0,
+                "pending_review": 0,
+                "accepted_review": 0,
+                "rejected_review": 0,
+                "submissions": 0,
+                "registrations": 0,
+                "verifications": 0,
+                "artifacts": 0
+            },
+            "phase": "authority_uninitialized",
+            "next_action": next_action,
+        });
+        if json_out {
+            crate::cli::print_json(&payload);
+        } else {
+            println!("vela status · {}", payload["frontier"]["name"]);
+            println!("  replay    not initialized");
+            println!("  strict    blocked · repository authority uninitialized");
+            println!("  next      {}", payload["next_action"]);
+        }
+        return;
+    }
+    let repository = verify_current_repository_at(&frontier, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let commit = git_text(&frontier, &["rev-parse", "HEAD^{commit}"])
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
@@ -193,6 +252,34 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             payload["next_action"].as_str().unwrap_or("none")
         );
     }
+}
+
+pub(crate) fn verify_current_bootstrap_at(root: &Path) -> Result<CurrentFrontierProfileV2, String> {
+    let profile_source = fs::read_to_string(root.join("frontier.yaml"))
+        .map_err(|error| format!("read current frontier.yaml: {error}"))?;
+    let profile = CurrentFrontierProfileV2::from_yaml_str(&profile_source)?;
+    if root.join(".vela/epoch.json").exists() || root.join(".vela/repository.json").exists() {
+        return Err(
+            "current repository bootstrap cannot contain an epoch or repository manifest".into(),
+        );
+    }
+    for relative in [
+        ".vela/authority",
+        ".vela/claims",
+        ".vela/proposals",
+        ".vela/submissions",
+        ".vela/registrations",
+        ".vela/verifications",
+        ".vela/artifacts",
+        "records",
+    ] {
+        if root.join(relative).exists() {
+            return Err(format!(
+                "current repository bootstrap contains canonical object path {relative} before authority initialization"
+            ));
+        }
+    }
+    Ok(profile)
 }
 
 pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
@@ -429,7 +516,7 @@ pub(crate) fn load_current_proposal_decisions(
 ) -> Result<BTreeMap<String, CurrentProposalDecision>, String> {
     let epoch_bytes = fs::read(frontier.join(".vela/epoch.json"))
         .map_err(|error| format!("read current repository epoch: {error}"))?;
-    let epoch = RepositoryEpochV1::parse(&epoch_bytes)?;
+    let epoch = RepositoryBoundaryV1::parse(&epoch_bytes)?;
     let authority = crate::cli::load_current_repository_authority(frontier, repository, &epoch)?;
     current_proposal_decisions(&authority.history.authority_events)
 }
@@ -808,19 +895,16 @@ pub(crate) fn verify_current_repository_at(
 
     let epoch_bytes = fs::read(root.join(".vela/epoch.json"))
         .map_err(|error| format!("read current repository epoch: {error}"))?;
-    let epoch = RepositoryEpochV1::parse(&epoch_bytes)?;
-    if epoch.canonical_bytes()? != epoch_bytes {
-        return Err("current repository epoch bytes are not canonical JSON".into());
-    }
+    let epoch = RepositoryBoundaryV1::parse(&epoch_bytes)?;
     let epoch_root = epoch.canonical_root()?;
 
     let repository_bytes = fs::read(root.join(".vela/repository.json"))
         .map_err(|error| format!("read current repository manifest: {error}"))?;
     let repository = CurrentRepositoryV2::parse(&repository_bytes)?;
     if repository.frontier_id != profile.frontier_id
-        || repository.frontier_id != epoch.frontier_id
+        || repository.frontier_id != epoch.frontier_id()
         || repository.profile_root != profile_root
-        || repository.epoch_id != epoch.epoch_id
+        || repository.epoch_id != epoch.epoch_id()
         || repository.epoch_root != epoch_root
     {
         return Err(
@@ -1116,6 +1200,23 @@ pub(crate) fn verify_current_repository_at(
     Ok(repository)
 }
 
+/// Verify the complete current repository and its authority history while
+/// allowing a derived Target Index to report its own staleness.
+///
+/// Target-index inspect, repair, and reseal must remain available precisely
+/// when tracked source or packet bytes drift. Canonical repository and
+/// authority objects still fail closed.
+pub(crate) fn verify_current_repository_allow_derived_drift_at(
+    root: &Path,
+) -> Result<CurrentRepositoryV2, String> {
+    let repository = verify_current_repository_at(root, false)?;
+    let epoch_bytes = fs::read(root.join(".vela/epoch.json"))
+        .map_err(|error| format!("read current repository epoch: {error}"))?;
+    let epoch = RepositoryBoundaryV1::parse(&epoch_bytes)?;
+    verify_current_epoch_authority(root, &repository, &epoch)?;
+    Ok(repository)
+}
+
 fn read_rooted_object(root: &Path, path: &str, expected_root: &str) -> Result<Vec<u8>, String> {
     let bytes = fs::read(root.join(path))
         .map_err(|error| format!("read current object {path}: {error}"))?;
@@ -1136,7 +1237,7 @@ fn read_rooted_object(root: &Path, path: &str, expected_root: &str) -> Result<Ve
 fn verify_current_epoch_authority(
     root: &Path,
     repository: &CurrentRepositoryV2,
-    epoch: &RepositoryEpochV1,
+    epoch: &RepositoryBoundaryV1,
 ) -> Result<(), String> {
     let loaded = crate::cli::load_current_repository_authority(root, repository, epoch)?;
     validate_current_proposal_standing(root, repository, &loaded.history.authority_events)?;
@@ -1157,13 +1258,25 @@ fn verify_current_epoch_authority(
         serde_json::from_value(event.content.payload.clone())
             .map_err(|error| format!("parse current epoch initialization payload: {error}"))?;
     initialization.validate()?;
+    let (initial_event_log_root, initial_actor_registry_root) = match epoch.predecessor_roots() {
+        Some(roots) => (roots.event_log.as_str(), roots.actor_registry.as_str()),
+        None => {
+            let genesis = epoch
+                .genesis()
+                .ok_or_else(|| "repository boundary has no origin".to_string())?;
+            (
+                genesis.initial_event_log_root.as_str(),
+                genesis.initial_actor_registry_root.as_str(),
+            )
+        }
+    };
     if initialization.frontier_id != repository.frontier_id
-        || initialization.initial_event_log_root != epoch.predecessor_roots.event_log
-        || initialization.initial_actor_registry_root != epoch.predecessor_roots.actor_registry
+        || initialization.initial_event_log_root != initial_event_log_root
+        || initialization.initial_actor_registry_root != initial_actor_registry_root
         || initialization.new_authority_keyset_root != repository.authority_keyset_root
         || initialization.new_policy_bundle_root != repository.authority_policy_root
         || initialization.new_principal_id != event.content.principal_id
-        || initialization.reason != epoch.reason
+        || initialization.reason != epoch.reason()
     {
         return Err(
             "current epoch authority initialization does not bind the exact predecessor and current roots"
@@ -1219,7 +1332,7 @@ fn verify_current_epoch_authority(
     let first = crate::cli::authority_record_from_envelope(first_envelope)?;
     if first.content.sequence != 1
         || first.content.event_ids != vec![event.id.clone()]
-        || first.content.before_event_log_root != epoch.predecessor_roots.event_log
+        || first.content.before_event_log_root != initial_event_log_root
         || first.content.principal.principal_id != event.content.principal_id
         || first.content.authorization.policy_bundle_root != initialization.new_policy_bundle_root
     {
@@ -1228,7 +1341,7 @@ fn verify_current_epoch_authority(
         );
     }
     let expected_after = vela_protocol::authority_history::authority_event_log_root(
-        &epoch.predecessor_roots.event_log,
+        initial_event_log_root,
         &[event],
     )?;
     if first.content.after_event_log_root != expected_after {

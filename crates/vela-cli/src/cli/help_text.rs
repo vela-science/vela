@@ -94,9 +94,10 @@ SEE ALSO
 pub const INIT: &str = "\
 EXAMPLES
   vela init ./my-frontier --name \"Bounded question\" --scope \"Does X hold?\"
-                                   create the minimal Git-native frontier
+                                   create a Profile v2 bootstrap
 
-JSON mode requires both --name and --scope. Optional integrations are separate.";
+JSON mode requires both --name and --scope. The next action is one explicit
+repository-authority initialization; no scientific state or old event log is created.";
 
 pub const DOCTOR: &str = "\
 EXAMPLES

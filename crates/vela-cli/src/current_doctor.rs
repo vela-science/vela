@@ -9,7 +9,7 @@ use std::path::Path;
 use std::process::Command;
 
 use serde_json::{Value, json};
-use vela_protocol::repository_epoch::RepositoryEpochV1;
+use vela_protocol::repository_epoch::RepositoryBoundaryV1;
 
 fn git_text(frontier: &Path, args: &[&str]) -> Result<String, String> {
     let output = Command::new("git")
@@ -74,7 +74,7 @@ fn target_index_diagnostic(
 fn trust_diagnostic(
     frontier: &Path,
     repository: &vela_protocol::current_repository::CurrentRepositoryV2,
-    epoch: &RepositoryEpochV1,
+    epoch: &RepositoryBoundaryV1,
 ) -> Result<Value, String> {
     let authority = crate::cli::load_current_repository_authority(frontier, repository, epoch)?;
     let first_root = authority
@@ -98,12 +98,14 @@ fn trust_diagnostic(
             ("pinned", "independent sequence-one root matches")
         }
         Some(anchor)
-            if crate::frontier_txn::authority_anchor_selects_current_epoch(
-                &anchor.anchor,
-                &repository.frontier_id,
-                first_root,
-                &epoch.predecessor_roots.authority_head,
-            ) =>
+            if epoch.predecessor_roots().is_some_and(|roots| {
+                crate::frontier_txn::authority_anchor_selects_current_epoch(
+                    &anchor.anchor,
+                    &repository.frontier_id,
+                    first_root,
+                    &roots.authority_head,
+                )
+            }) =>
         {
             (
                 "predecessor_pinned",
@@ -130,11 +132,44 @@ fn current_doctor_payload(frontier: &Path, all: bool) -> Result<Value, String> {
     let frontier = frontier
         .canonicalize()
         .map_err(|error| format!("resolve current Frontier {}: {error}", frontier.display()))?;
+    if !frontier.join(".vela/epoch.json").exists()
+        && !frontier.join(".vela/repository.json").exists()
+    {
+        let profile = crate::current_repository::verify_current_bootstrap_at(&frontier)?;
+        let profile_root = profile.profile_root()?;
+        let next_action = format!(
+            "vela authority init {} --reason 'Establish repository authority.' --json",
+            frontier.display()
+        );
+        return Ok(json!({
+            "schema": "vela.doctor.v1",
+            "ok": true,
+            "command": "doctor",
+            "frontier": {
+                "id": profile.frontier_id,
+                "name": profile.name,
+                "profile_root": profile_root
+            },
+            "phase": "authority_uninitialized",
+            "checks": {
+                "profile": "valid",
+                "repository": "not_initialized",
+                "authority": "not_initialized"
+            },
+            "blockers": ["repository_authority_uninitialized"],
+            "next_action": next_action,
+            "diagnostics": if all {
+                json!({"scientific_object_count": 0})
+            } else {
+                Value::Null
+            }
+        }));
+    }
     let repository = crate::current_repository::verify_current_repository_at(&frontier, true)?;
     let repository_root = repository.canonical_root()?;
     let epoch_bytes = std::fs::read(frontier.join(".vela/epoch.json"))
         .map_err(|error| format!("read current repository epoch: {error}"))?;
-    let epoch = RepositoryEpochV1::parse(&epoch_bytes)?;
+    let epoch = RepositoryBoundaryV1::parse(&epoch_bytes)?;
     let epoch_root = epoch.canonical_root()?;
     let commit = git_text(&frontier, &["rev-parse", "HEAD^{commit}"])?;
     let tree = git_text(&frontier, &["rev-parse", "HEAD^{tree}"])?;
@@ -233,8 +268,10 @@ fn current_doctor_payload(frontier: &Path, all: bool) -> Result<Value, String> {
         "next_action": next_action,
     });
     if all {
+        let boundary: Value = serde_json::from_slice(&epoch.canonical_bytes()?)
+            .map_err(|error| format!("encode repository boundary details: {error}"))?;
         payload["details"] = json!({
-            "epoch": epoch,
+            "epoch": boundary,
             "decisions": decisions,
             "serve": "retired_from_current_product",
             "historical_policy": "available_only_through_the_pinned_predecessor_release",

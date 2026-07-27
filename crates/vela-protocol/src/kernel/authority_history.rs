@@ -691,12 +691,13 @@ fn verify_authority_close_record(
     Ok(event.id.clone())
 }
 
-/// Verify a fresh Profile v1 authority boundary.
+/// Verify a fresh repository authority boundary.
 ///
-/// Fresh initialization is deliberately narrow: the retained predecessor must
-/// be exactly the unsigned structural `frontier.created`
-/// event and an empty actor registry. No historical scientific event can gain
-/// authority through this path.
+/// A current native bootstrap has no predecessor events or actor registry.
+/// The historical Profile v1 bootstrap remains replayable only when it
+/// contains exactly the unsigned structural `frontier.created` event and an
+/// empty encoded actor registry. No scientific event can gain authority
+/// through either path.
 pub fn verify_authority_initialization(
     frontier_id: &str,
     initial_events: &[StateEvent],
@@ -706,25 +707,30 @@ pub fn verify_authority_initialization(
     initialization_event: &AuthorityEventV1,
 ) -> Result<AuthorityInitializationV1, String> {
     require_frontier(frontier_id)?;
-    let [created] = initial_events else {
-        return Err(
-            "fresh authority initialization requires exactly one structural frontier.created event"
-                .into(),
-        );
-    };
-    if created.kind.as_str() != "frontier.created"
-        || created.id != compute_event_id(created)
-        || created.signature.is_some()
-    {
-        return Err(
-            "fresh authority initialization requires the exact unsigned frontier.created event"
-                .into(),
-        );
-    }
-    let actors: Vec<ActorRecord> = serde_json::from_slice(initial_actor_registry_bytes)
-        .map_err(|error| format!("fresh actor registry is invalid: {error}"))?;
-    if !actors.is_empty() {
-        return Err("fresh authority initialization requires an empty actor registry".into());
+    if initial_events.is_empty() && initial_actor_registry_bytes.is_empty() {
+        // Native current repository genesis. Its exact empty roots are checked
+        // against the signed initialization payload below.
+    } else {
+        let [created] = initial_events else {
+            return Err(
+                "historical fresh authority initialization requires exactly one structural frontier.created event"
+                    .into(),
+            );
+        };
+        if created.kind.as_str() != "frontier.created"
+            || created.id != compute_event_id(created)
+            || created.signature.is_some()
+        {
+            return Err(
+                "historical fresh authority initialization requires the exact unsigned frontier.created event"
+                    .into(),
+            );
+        }
+        let actors: Vec<ActorRecord> = serde_json::from_slice(initial_actor_registry_bytes)
+            .map_err(|error| format!("fresh actor registry is invalid: {error}"))?;
+        if !actors.is_empty() {
+            return Err("fresh authority initialization requires an empty actor registry".into());
+        }
     }
     let payload = initialization_payload_from_event(initialization_event)?;
     if payload.frontier_id != frontier_id

@@ -1436,6 +1436,8 @@ fn bind_repository_authority_history(
         .history
         .archived_predecessor_actor_registry_root
         .is_some()
+        || (request.history.legacy_actor_registry_bytes.is_empty()
+            && !frontier_root.join(".vela/actors.json").exists())
     {
         bindings.push(
             InputBinding::absent_file(frontier_root, actor_registry_path)

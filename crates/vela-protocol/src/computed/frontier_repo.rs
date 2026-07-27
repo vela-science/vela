@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
+use crate::current_repository::{CURRENT_FRONTIER_PROFILE_SCHEMA_V2, CurrentFrontierProfileV2};
 use crate::events;
 use crate::frontier_profile::{
     FRONTIER_PROFILE_SCHEMA_V1, FrontierProfileLicenseV1, FrontierProfileScopeV1, FrontierProfileV1,
@@ -28,6 +29,7 @@ pub const FRONTIER_LOCK_SCHEMA: &str = "vela.frontier_lock.v0.1";
 pub const FRONTIER_LOCK_SCHEMA_V1: &str = "vela.frontier_lock.v1";
 pub const FRONTIER_INIT_SCHEMA: &str = "vela.frontier_repo_init.v0.1";
 pub const FRONTIER_INIT_SCHEMA_V1: &str = "vela.frontier_repo_init.v1";
+pub const CURRENT_FRONTIER_INIT_SCHEMA_V2: &str = "vela.frontier-init.v2";
 pub const FRONTIER_MATERIALIZE_SCHEMA: &str = "vela.frontier_materialize.v0.1";
 pub const FRONTIER_REPO_STATUS_SCHEMA: &str = "vela.frontier_repo_status.v0.1";
 pub const FRONTIER_REPO_DOCTOR_SCHEMA: &str = "vela.frontier_repo_doctor.v0.1";
@@ -370,6 +372,219 @@ pub struct ProfileV1InitOptions<'a> {
     pub name: &'a str,
     pub scope: &'a str,
     pub initialize_git: bool,
+}
+
+/// Inputs for a native current-generation Frontier bootstrap.
+///
+/// Initialization creates identity and repository scaffolding only. Repository
+/// authority is established later by one explicit `vela authority init`
+/// transaction; no scientific or compatibility history is invented.
+#[derive(Debug, Clone)]
+pub struct CurrentInitOptions<'a> {
+    pub name: &'a str,
+    pub scope: &'a str,
+    pub initialize_git: bool,
+}
+
+#[derive(Serialize)]
+struct FrontierGenesisIdentity<'a> {
+    schema: &'static str,
+    name: &'a str,
+    scope: &'a str,
+}
+
+fn derive_current_frontier_id(name: &str, scope: &str) -> Result<String, String> {
+    let bytes = crate::canonical::to_canonical_bytes(&FrontierGenesisIdentity {
+        schema: "vela.frontier-genesis-identity.v1",
+        name,
+        scope,
+    })?;
+    Ok(format!("vfr_{}", &hex::encode(Sha256::digest(bytes))[..16]))
+}
+
+/// Create a fresh Profile v2 repository bootstrap without an Era-0 event log,
+/// actor registry, materialized snapshot, lock file, or predecessor epoch.
+pub fn initialize_current_minimal(
+    path: &Path,
+    options: CurrentInitOptions<'_>,
+) -> Result<serde_json::Value, String> {
+    let name = options.name.trim();
+    let scope = options.scope.trim();
+    if name.is_empty() {
+        return Err("current initialization requires a non-empty name".to_string());
+    }
+    if scope.is_empty() {
+        return Err("current initialization requires a non-empty bounded scope".to_string());
+    }
+
+    let target_existed = match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+            return Err(format!(
+                "{} must be a real directory or an absent path",
+                path.display()
+            ));
+        }
+        Ok(_) => {
+            let mut entries = fs::read_dir(path)
+                .map_err(|error| format!("inspect init target '{}': {error}", path.display()))?;
+            if entries
+                .next()
+                .transpose()
+                .map_err(|error| format!("inspect init target '{}': {error}", path.display()))?
+                .is_some()
+            {
+                return Err(format!(
+                    "refusing to initialize non-empty directory {}",
+                    path.display()
+                ));
+            }
+            true
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            fs::create_dir_all(path).map_err(|error| {
+                format!(
+                    "failed to create frontier directory '{}': {error}",
+                    path.display()
+                )
+            })?;
+            false
+        }
+        Err(error) => {
+            return Err(format!("inspect init target '{}': {error}", path.display()));
+        }
+    };
+
+    let staging = tempfile::Builder::new()
+        .prefix(".vela-init-")
+        .tempdir_in(path)
+        .map_err(|error| format!("create initialization staging directory: {error}"))?;
+    let staged = initialize_current_minimal_in_place(staging.path(), &options);
+    let mut payload = match staged {
+        Ok(payload) => payload,
+        Err(error) => {
+            drop(staging);
+            if !target_existed {
+                let _ = fs::remove_dir(path);
+            }
+            return Err(error);
+        }
+    };
+
+    let mut entries = fs::read_dir(staging.path())
+        .map_err(|error| format!("read initialization staging directory: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("read initialization staging entry: {error}"))?;
+    entries.sort_by_key(fs::DirEntry::file_name);
+    let mut installed = Vec::new();
+    for entry in entries {
+        let destination = path.join(entry.file_name());
+        if fs::symlink_metadata(&destination).is_ok() {
+            for (source, destination) in installed.iter().rev() {
+                let _ = fs::rename(destination, source);
+            }
+            drop(staging);
+            if !target_existed {
+                let _ = fs::remove_dir(path);
+            }
+            return Err(format!(
+                "initialization target changed while staging: {}",
+                destination.display()
+            ));
+        }
+        if let Err(error) = fs::rename(entry.path(), &destination) {
+            for (source, destination) in installed.iter().rev() {
+                let _ = fs::rename(destination, source);
+            }
+            drop(staging);
+            if !target_existed {
+                let _ = fs::remove_dir(path);
+            }
+            return Err(format!(
+                "install initialized repository entry '{}': {error}",
+                destination.display()
+            ));
+        }
+        installed.push((entry.path(), destination));
+    }
+    drop(staging);
+
+    payload["path"] = json!(path.display().to_string());
+    payload["next_action"] = json!(format!(
+        "vela authority init {} --reason 'Establish repository authority.' --json",
+        posix_shell_arg(&path.display().to_string())
+    ));
+    Ok(payload)
+}
+
+fn initialize_current_minimal_in_place(
+    path: &Path,
+    options: &CurrentInitOptions<'_>,
+) -> Result<serde_json::Value, String> {
+    let name = options.name.trim();
+    let scope = options.scope.trim();
+    let frontier_id = derive_current_frontier_id(name, scope)?;
+    let profile = CurrentFrontierProfileV2 {
+        schema: CURRENT_FRONTIER_PROFILE_SCHEMA_V2.to_string(),
+        frontier_id: frontier_id.clone(),
+        name: name.to_string(),
+        summary: scope.to_string(),
+        scope: FrontierProfileScopeV1 {
+            question: scope.to_string(),
+            includes: Vec::new(),
+            excludes: Vec::new(),
+        },
+        maintainers: Vec::new(),
+        license: FrontierProfileLicenseV1 {
+            content: "CC-BY-4.0".to_string(),
+            code: "Apache-2.0".to_string(),
+            data: "varies".to_string(),
+        },
+    };
+    profile.validate()?;
+    let profile_root = profile.profile_root()?;
+    let profile_bytes = serde_yaml::to_string(&profile)
+        .map_err(|error| format!("serialize Profile v2: {error}"))?;
+    fs::write(path.join("frontier.yaml"), profile_bytes)
+        .map_err(|error| format!("write frontier.yaml: {error}"))?;
+    fs::create_dir_all(path.join(".vela")).map_err(|error| format!("create .vela: {error}"))?;
+    let settings = FrontierSettingsV1 {
+        schema: FRONTIER_SETTINGS_SCHEMA.to_string(),
+        publish: None,
+        work: None,
+        mcp: None,
+    };
+    fs::write(path.join(".vela/settings.toml"), settings.to_toml()?)
+        .map_err(|error| format!("write .vela/settings.toml: {error}"))?;
+    write_frontier_card_v1(path, name, scope)?;
+    write_scope_v1(path, scope)?;
+    write_git_native_scaffold(path, name, false)?;
+    initialize_git_repository(path, options.initialize_git)?;
+
+    Ok(json!({
+        "schema": CURRENT_FRONTIER_INIT_SCHEMA_V2,
+        "ok": true,
+        "layout": "vela.repository-bootstrap.v1",
+        "path": path.display().to_string(),
+        "name": name,
+        "scope": scope,
+        "frontier_id": frontier_id,
+        "profile_root": profile_root,
+        "authority": "uninitialized",
+        "scientific_object_count": 0,
+        "wrote": [
+            "README.md",
+            "SCOPE.md",
+            "frontier.yaml",
+            ".gitignore",
+            ".gitattributes",
+            "VELA.md",
+            ".vela/settings.toml"
+        ],
+        "next_action": format!(
+            "vela authority init {} --reason 'Establish repository authority.' --json",
+            posix_shell_arg(&path.display().to_string())
+        )
+    }))
 }
 
 pub fn initialize(path: &Path, options: InitOptions<'_>) -> Result<serde_json::Value, String> {
@@ -2657,6 +2872,40 @@ fn default_visibility() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn current_init_writes_profile_only_without_era_zero_history() {
+        let parent = tempfile::tempdir().expect("tempdir");
+        let root = parent.path().join("frontier");
+        let result = initialize_current_minimal(
+            &root,
+            CurrentInitOptions {
+                name: "Native fixture",
+                scope: "Test one native current repository bootstrap.",
+                initialize_git: false,
+            },
+        )
+        .expect("initialize current fixture");
+        assert_eq!(result["schema"], CURRENT_FRONTIER_INIT_SCHEMA_V2);
+        let source = fs::read_to_string(root.join("frontier.yaml")).expect("read profile");
+        let profile = CurrentFrontierProfileV2::from_yaml_str(&source).expect("parse Profile v2");
+        assert_eq!(profile.schema, CURRENT_FRONTIER_PROFILE_SCHEMA_V2);
+        assert!(root.join(".vela/settings.toml").is_file());
+        for retired in [
+            ".vela/events",
+            ".vela/actors.json",
+            ".vela/proof-state.json",
+            "frontier.json",
+            "vela.lock",
+            ".vela/epoch.json",
+            ".vela/repository.json",
+        ] {
+            assert!(
+                !root.join(retired).exists(),
+                "fresh current init wrote retired path {retired}"
+            );
+        }
+    }
 
     #[test]
     fn profile_v1_strict_layout_replays_its_pinned_materializer_version() {

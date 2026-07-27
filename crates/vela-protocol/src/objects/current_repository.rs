@@ -12,7 +12,8 @@ use sha2::{Digest, Sha256};
 
 use crate::bundle::Artifact;
 use crate::frontier_profile::{
-    FRONTIER_PROFILE_SCHEMA_V1, FrontierProfileLicenseV1, FrontierProfileScopeV1, FrontierProfileV1,
+    FrontierProfileLicenseV1, FrontierProfileScopeV1, reject_yaml_indirection,
+    validate_profile_metadata, validate_yaml_structure,
 };
 
 pub const CURRENT_REPOSITORY_SCHEMA_V2: &str = "vela.repository.v2";
@@ -108,25 +109,12 @@ pub struct CurrentFrontierProfileV2 {
 }
 
 impl CurrentFrontierProfileV2 {
-    pub fn from_v1(profile: FrontierProfileV1) -> Result<Self, String> {
-        profile.validate()?;
-        let value = Self {
-            schema: CURRENT_FRONTIER_PROFILE_SCHEMA_V2.into(),
-            frontier_id: profile.frontier_id,
-            name: profile.name,
-            summary: profile.summary,
-            scope: profile.scope,
-            maintainers: profile.maintainers,
-            license: profile.license,
-        };
-        value.validate()?;
-        Ok(value)
-    }
-
     pub fn from_yaml_str(source: &str) -> Result<Self, String> {
+        reject_yaml_indirection(source)?;
         let value: serde_yaml::Value = serde_yaml::from_str(source).map_err(|error| {
             format!("invalid {CURRENT_FRONTIER_PROFILE_SCHEMA_V2} YAML: {error}")
         })?;
+        validate_yaml_structure(&value)?;
         let profile: Self = serde_yaml::from_value(value).map_err(|error| {
             format!("invalid {CURRENT_FRONTIER_PROFILE_SCHEMA_V2} YAML: {error}")
         })?;
@@ -140,16 +128,14 @@ impl CurrentFrontierProfileV2 {
                 "profile.schema must be `{CURRENT_FRONTIER_PROFILE_SCHEMA_V2}`"
             ));
         }
-        let legacy_shape = FrontierProfileV1 {
-            schema: FRONTIER_PROFILE_SCHEMA_V1.into(),
-            frontier_id: self.frontier_id.clone(),
-            name: self.name.clone(),
-            summary: self.summary.clone(),
-            scope: self.scope.clone(),
-            maintainers: self.maintainers.clone(),
-            license: self.license.clone(),
-        };
-        legacy_shape.validate()
+        validate_profile_metadata(
+            &self.frontier_id,
+            &self.name,
+            &self.summary,
+            &self.scope,
+            &self.maintainers,
+            &self.license,
+        )
     }
 
     pub fn profile_root(&self) -> Result<String, String> {
@@ -439,9 +425,9 @@ mod tests {
     }
 
     #[test]
-    fn current_profile_preserves_v1_metadata_but_has_a_new_root() {
-        let legacy = FrontierProfileV1 {
-            schema: FRONTIER_PROFILE_SCHEMA_V1.into(),
+    fn current_profile_is_native_closed_metadata() {
+        let current = CurrentFrontierProfileV2 {
+            schema: CURRENT_FRONTIER_PROFILE_SCHEMA_V2.into(),
             frontier_id: "vfr_0123456789abcdef".into(),
             name: "Example".into(),
             summary: "A bounded example Frontier.".into(),
@@ -457,7 +443,6 @@ mod tests {
                 data: "CC0-1.0".into(),
             },
         };
-        let current = CurrentFrontierProfileV2::from_v1(legacy).unwrap();
         let yaml = serde_yaml::to_string(&current).unwrap();
         let parsed = CurrentFrontierProfileV2::from_yaml_str(&yaml).unwrap();
         assert_eq!(parsed, current);

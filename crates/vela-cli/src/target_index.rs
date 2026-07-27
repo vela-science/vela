@@ -8,17 +8,11 @@
 use std::path::Path;
 
 use serde::Serialize;
-use vela_edge::frontier_repository::RepositoryTrustAnchor;
-use vela_edge::repository_write::{
-    RepositoryTrustAnchorV1, load_repository_trust_anchor_from_home,
-    verify_repository_for_write_with_authority_events,
-};
 use vela_edge::target_index::{
-    TargetIndexInspectionSummary, TargetIndexRepairReport, TargetIndexSealPlan,
-    TargetIndexTargetInspection, inspect_target_index_target_with_trust_anchor_and_authority,
-    prepare_target_index_seal_install, prepare_target_index_seal_with_authority_events,
-    target_index_inspection_summary_with_trust_anchor_and_authority,
-    target_index_repair_report_with_trust_anchor_and_authority, validate_target_id,
+    CurrentTargetIndexAssessment, TargetIndexInspectionSummary, TargetIndexRepairReport,
+    TargetIndexSealPlan, TargetIndexTargetInspection, assess_current_target_index,
+    prepare_current_target_index_seal, prepare_current_target_index_seal_install,
+    validate_target_id,
 };
 
 use crate::cli_commands::TargetIndexAction;
@@ -75,70 +69,88 @@ fn frontier_display(frontier: &Path) -> String {
     frontier.display().to_string()
 }
 
-fn load(frontier: &Path) -> vela_protocol::project::Project {
-    vela_protocol::repo::load_from_path(frontier)
+fn load_current(frontier: &Path) -> vela_protocol::current_repository::CurrentRepositoryV2 {
+    crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)
         .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None))
 }
 
-pub(crate) fn load_user_repository_trust_anchor(
-    frontier_id: &str,
-) -> Result<Option<vela_edge::repository_write::LoadedRepositoryTrustAnchorV1>, String> {
-    // This is security-critical consumer trust, not ordinary configuration.
-    // Resolve the operating-system account home exactly as the canonical write
-    // gate does; `$HOME` is process input and must not redirect the pin lookup.
-    let home =
-        crate::frontier_txn::operating_system_account_home().map_err(|error| error.to_string())?;
-    load_repository_trust_anchor_from_home(&home, frontier_id)
-}
-
-pub(crate) fn boundary_anchor(anchor: &RepositoryTrustAnchorV1) -> RepositoryTrustAnchor {
-    RepositoryTrustAnchor {
-        boundary_content_root: anchor.boundary_content_root.clone(),
-        administrator_public_key: anchor.administrator_public_key.clone(),
-    }
-}
-
-pub(crate) fn load_verified_authority_events(
+fn assess_current(
     frontier: &Path,
-    project: &vela_protocol::project::Project,
-) -> Result<Vec<vela_protocol::authority::AuthorityEventV1>, String> {
-    crate::cli::load_repository_authority(frontier, project)
-        .map_err(|error| format!("verify repository-authority history: {error}"))
-        .map(|authority| authority.map_or_else(Vec::new, |value| value.history.authority_events))
+    repository: &vela_protocol::current_repository::CurrentRepositoryV2,
+) -> CurrentTargetIndexAssessment {
+    let repository_root = repository
+        .canonical_root()
+        .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
+    assess_current_target_index(
+        frontier,
+        &repository.frontier_id,
+        &repository.epoch_id,
+        &repository_root,
+    )
+    .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None))
+    .unwrap_or_else(|| {
+        ui::fail_with(
+            ErrorKind::NotFound,
+            "this Frontier has no targets.json",
+            Some("generate and seal a domain-owned target-index candidate"),
+        )
+    })
+}
+
+fn assessment_codes(
+    assessment: &CurrentTargetIndexAssessment,
+    target_id: Option<&str>,
+) -> Vec<&'static str> {
+    let mut codes = assessment
+        .global_issues
+        .iter()
+        .map(|issue| issue.code)
+        .chain(
+            target_id
+                .and_then(|target_id| assessment.target_issues.get(target_id))
+                .into_iter()
+                .flatten()
+                .map(|issue| issue.code),
+        )
+        .collect::<Vec<_>>();
+    codes.sort_unstable();
+    codes.dedup();
+    codes
 }
 
 fn cmd_seal(frontier: &Path, candidate: &Path, apply: bool, json: bool) {
     ui::set_mode("target-index.seal", json);
-    let project = load(frontier);
-    let loaded_anchor = load_user_repository_trust_anchor(&project.frontier_id())
+    let repository = load_current(frontier);
+    let repository_root = repository
+        .canonical_root()
         .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
-    let repository_anchor = loaded_anchor
-        .as_ref()
-        .map(|loaded| boundary_anchor(&loaded.anchor));
-    let authority_events = load_verified_authority_events(frontier, &project)
-        .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
-    let plan = prepare_target_index_seal_with_authority_events(
+    let plan = prepare_current_target_index_seal(
         frontier,
         candidate,
         env!("CARGO_PKG_VERSION"),
-        repository_anchor.as_ref(),
-        &authority_events,
+        &repository.frontier_id,
+        &repository.epoch_id,
+        &repository_root,
     )
     .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
     let changed = if apply {
         // Pin the repository root, destination parent, and exact targets.json
         // preimage before the write gate. The install revalidates those same
         // identities and bytes after the gate, closing the path-swap window.
-        let prepared_install = prepare_target_index_seal_install(frontier, &plan)
+        let prepared_install = prepare_current_target_index_seal_install(frontier, &plan)
             .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
-        let write_project = load(frontier);
-        verify_repository_for_write_with_authority_events(
-            frontier,
-            &write_project,
-            loaded_anchor.as_ref().map(|loaded| &loaded.anchor),
-            &authority_events,
-        )
-        .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error.to_string(), None));
+        let write_repository = load_current(frontier);
+        if write_repository
+            .canonical_root()
+            .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None))
+            != repository_root
+        {
+            ui::fail_with(
+                ErrorKind::Domain,
+                "current repository changed after the target-index seal plan",
+                None,
+            );
+        }
         prepared_install
             .install()
             .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None))
@@ -197,29 +209,36 @@ fn cmd_seal(frontier: &Path, candidate: &Path, apply: bool, json: bool) {
 
 fn cmd_repair(frontier: &Path, json: bool) {
     ui::set_mode("target-index.repair", json);
-    let project = load(frontier);
-    let loaded_anchor = load_user_repository_trust_anchor(&project.frontier_id())
-        .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
-    let repository_anchor = loaded_anchor
-        .as_ref()
-        .map(|loaded| boundary_anchor(&loaded.anchor));
-    let authority_events = load_verified_authority_events(frontier, &project)
-        .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
-    let report = target_index_repair_report_with_trust_anchor_and_authority(
-        &project,
-        frontier,
-        &frontier_display(frontier),
-        repository_anchor.as_ref(),
-        &authority_events,
-    )
-    .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None))
-    .unwrap_or_else(|| {
-        ui::fail_with(
-            ErrorKind::NotFound,
-            "this Frontier has no targets.json",
-            Some("generate a domain-owned target-index candidate first"),
-        )
-    });
+    let repository = load_current(frontier);
+    let assessment = assess_current(frontier, &repository);
+    let codes = assessment_codes(&assessment, None);
+    let changed_declared_paths = assessment
+        .index
+        .targets
+        .iter()
+        .filter(|target| {
+            assessment
+                .target_issues
+                .get(&target.id)
+                .is_some_and(|issues| !issues.is_empty())
+        })
+        .map(|target| target.packet.path.clone())
+        .collect::<Vec<_>>();
+    let report = TargetIndexRepairReport {
+        schema: "vela.target-index-repair.v1",
+        frontier_id: repository.frontier_id,
+        index_schema: assessment.index.schema.clone(),
+        index_root: assessment.index.index_root.clone(),
+        historical_only: false,
+        codes,
+        changed_declared_paths,
+        candidate_path: ".vela/tmp/target-index-candidate.json",
+        generator_instruction: "Regenerate the closed domain-owned candidate and its packet outputs before running the seal check; Vela will not invent or repin target semantics.",
+        repair_command: format!(
+            "vela target-index seal {} --candidate .vela/tmp/target-index-candidate.json --check --json",
+            frontier_display(frontier)
+        ),
+    };
     let output = RepairOutput {
         schema: "vela.target-index-repair-output.v1",
         ok: true,
@@ -245,62 +264,64 @@ fn cmd_repair(frontier: &Path, json: bool) {
 
 fn cmd_inspect(frontier: &Path, target_id: Option<&str>, json: bool) {
     ui::set_mode("target-index.inspect", json);
-    let project = load(frontier);
-    let loaded_anchor = load_user_repository_trust_anchor(&project.frontier_id())
-        .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
-    let repository_anchor = loaded_anchor
-        .as_ref()
-        .map(|loaded| boundary_anchor(&loaded.anchor));
+    let repository = load_current(frontier);
     let repair_command = format!(
         "vela target-index repair {} --json",
         frontier_display(frontier)
     );
+    let assessment = assess_current(frontier, &repository);
     let (summary, target) = if let Some(target_id) = target_id {
         validate_target_id(target_id)
             .unwrap_or_else(|error| ui::fail_with(ErrorKind::Usage, &error, None));
-        let authority_events = load_verified_authority_events(frontier, &project)
-            .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
-        let target = inspect_target_index_target_with_trust_anchor_and_authority(
-            &project,
-            frontier,
-            target_id,
-            repository_anchor.as_ref(),
-            &authority_events,
-        )
-        .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None))
-        .unwrap_or_else(|| {
-            ui::fail_with(
-                ErrorKind::NotFound,
-                &format!("exact target ID {target_id:?} is absent from targets.json"),
-                Some(&repair_command),
-            )
-        });
+        let entry = assessment
+            .index
+            .targets
+            .iter()
+            .find(|target| target.id == target_id)
+            .unwrap_or_else(|| {
+                ui::fail_with(
+                    ErrorKind::NotFound,
+                    &format!("exact target ID {target_id:?} is absent from targets.json"),
+                    Some(&repair_command),
+                )
+            });
+        let codes = assessment_codes(&assessment, Some(target_id));
+        let target = TargetIndexTargetInspection {
+            schema: "vela.target-index-target-inspection.v1",
+            index_schema: assessment.index.schema.clone(),
+            index_root: assessment.index.index_root.clone(),
+            target_id: entry.id.clone(),
+            title: entry.title.clone(),
+            state: entry.state.clone(),
+            historical_only: false,
+            actionable: entry.state == "open" && codes.is_empty(),
+            codes,
+            packet_ref: serde_json::to_value(&entry.packet).unwrap_or_else(|error| {
+                ui::fail_with(ErrorKind::Internal, &error.to_string(), None)
+            }),
+            packet: assessment.packet_value(target_id).cloned(),
+        };
         (None, Some(target))
     } else {
-        let authority_events = load_verified_authority_events(frontier, &project)
-            .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
-        let summary = target_index_inspection_summary_with_trust_anchor_and_authority(
-            &project,
-            frontier,
-            &frontier_display(frontier),
-            repository_anchor.as_ref(),
-            &authority_events,
-        )
-        .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None))
-        .unwrap_or_else(|| {
-            ui::fail_with(
-                ErrorKind::NotFound,
-                "this Frontier has no targets.json",
-                Some("generate and seal a domain-owned target-index candidate"),
-            )
-        });
+        let configured_open = assessment.configured_open();
+        let summary = TargetIndexInspectionSummary {
+            schema: "vela.target-index-inspection-summary.v1",
+            frontier_id: repository.frontier_id.clone(),
+            index_schema: assessment.index.schema.clone(),
+            index_root: assessment.index.index_root.clone(),
+            historical_only: false,
+            configured_open,
+            stale_open: configured_open.saturating_sub(assessment.fresh_open_targets().len()),
+            codes: assessment_codes(&assessment, None),
+            repair_command: repair_command.clone(),
+        };
         (Some(summary), None)
     };
     let output = InspectOutput {
         schema: "vela.target-index-inspect.v1",
         ok: true,
         command: "target-index.inspect",
-        frontier_id: project.frontier_id(),
+        frontier_id: repository.frontier_id,
         summary,
         target,
         repair_command,

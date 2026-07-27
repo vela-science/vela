@@ -85,9 +85,11 @@ Create and inspect a bounded Frontier:
 ./target/release/vela doctor ../my-frontier --all
 ```
 
-`init` creates repository structure, not scientific authority. A fresh
-Frontier administrator can establish the repository writer with one dedicated
-Ed25519 identity already loaded in the normal OpenSSH agent:
+`init` creates a Profile v2 bootstrap, not scientific authority. `status` and
+`doctor` report the uninitialized authority boundary without inventing an old
+event log. A fresh Frontier administrator can establish the repository writer
+with one dedicated Ed25519 identity already loaded in the normal OpenSSH
+agent:
 
 ```bash
 ./target/release/vela authority init ../my-frontier \
@@ -144,7 +146,7 @@ claim id agents config verification authority target-index repository
 ```
 
 Run `vela help advanced` for the grouped contract. `repository` is read-only:
-it verifies the signed current-epoch boundary and active repository.
+it verifies the signed current origin and active repository.
 
 ## Repository model
 
@@ -198,13 +200,15 @@ once per actual release boundary.
 - [Terminology](docs/TERMINOLOGY.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Current repository epoch ADR](docs/adr/0022-current-repository-epoch-and-legacy-runtime-retirement.md)
+- [Native current repository genesis ADR](docs/adr/0023-native-current-repository-genesis.md)
 
 ## Project status
 
-Vela is pre-1.0. All controlled public Frontiers now use the current repository
-epoch. Historical Git revisions and predecessor tags preserve earlier
-contracts; the current binary does not keep their parsers or writer interfaces
-alive.
+Vela is pre-1.0. All controlled public Frontiers use the current repository
+object model. Existing signed predecessor epochs remain exact read-only
+origins; newly created Frontiers use native current genesis. Historical Git
+revisions preserve earlier contracts, and the current binary exposes no
+migration writer.
 
 ## License
 

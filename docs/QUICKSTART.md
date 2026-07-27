@@ -43,7 +43,7 @@ vela submit --attempt <vat_id> \
   --json
 ```
 
-`next` returns Offers from the fresh Target Index v2. `start` binds one exact
+`next` returns Offers from the fresh Target Index v3. `start` binds one exact
 Target and packet into an Attempt. `submit` registers the resulting Submission,
 issues a Registration Record, and creates a pending Proposal. It does not
 create Verification, a Decision, an Event, or accepted scientific state.
@@ -64,9 +64,11 @@ vela init ./frontier \
   --json
 ```
 
-The result is a minimal current repository with structural identity and no
-scientific decision. Load one dedicated Ed25519 repository-authority key into
-your standard OpenSSH agent, then establish the writer:
+The result is a Profile v2 bootstrap with no Event, Claim, Decision, or
+scientific authority. `status` and `doctor` work immediately and report the
+single `repository_authority_uninitialized` blocker. Load one dedicated
+Ed25519 repository-authority key into your standard OpenSSH agent, then
+establish the writer:
 
 ```bash
 vela authority init ./frontier \
@@ -77,10 +79,10 @@ vela authority init ./frontier \
 When the agent exposes more than one Ed25519 identity, add
 `--key SHA256:<full-fingerprint>`. Vela reads no private-key file. The command
 is valid only over untouched structural genesis, creates one root-bound
-sequence-1 authority record, and enables routine signed-agent work. It grants
-no scientific standing. Distribute the returned full authority-record root
-independently, then install the local consumer pin before any later
-repository-authority write:
+sequence-1 authority record and the initial unsigned Git commit, and enables
+routine signed-agent work. It grants no scientific standing. Distribute the
+returned full authority-record root independently, then install the local
+consumer pin before any later repository-authority write:
 
 ```bash
 vela authority trust pin ./frontier \

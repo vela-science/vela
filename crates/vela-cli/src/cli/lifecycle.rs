@@ -43,9 +43,9 @@ pub(crate) fn cmd_init(path: &Path, name: Option<&str>, scope: Option<&str>, jso
     };
     let name = resolve("name", name);
     let scope = resolve("scope", scope);
-    let payload = frontier_repo::initialize_profile_v1_minimal(
+    let payload = frontier_repo::initialize_current_minimal(
         path,
-        frontier_repo::ProfileV1InitOptions {
+        frontier_repo::CurrentInitOptions {
             name: &name,
             scope: &scope,
             initialize_git: true,

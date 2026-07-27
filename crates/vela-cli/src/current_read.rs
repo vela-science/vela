@@ -18,7 +18,7 @@ use vela_protocol::current_repository::{
     ClaimStandingRefV1, CurrentRepositoryV2, RepositoryObjectRefV1,
 };
 use vela_protocol::proposal_v1::ProposalV1;
-use vela_protocol::repository_epoch::RepositoryEpochV1;
+use vela_protocol::repository_epoch::RepositoryBoundaryV1;
 
 use crate::current_repository::CurrentProposalDecision;
 
@@ -66,7 +66,7 @@ fn load_context(frontier: &Path) -> Result<CurrentReadContext, String> {
     let repository_root = repository.canonical_root()?;
     let epoch_bytes = fs::read(frontier.join(".vela/epoch.json"))
         .map_err(|error| format!("read current repository epoch: {error}"))?;
-    let epoch = RepositoryEpochV1::parse(&epoch_bytes)?;
+    let epoch = RepositoryBoundaryV1::parse(&epoch_bytes)?;
     let authority = crate::cli::load_current_repository_authority(frontier, &repository, &epoch)?;
     let decisions =
         crate::current_repository::load_current_proposal_decisions(frontier, &repository)?;
