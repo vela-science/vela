@@ -61,6 +61,7 @@ fn collect_witness_files_into(dir: &Path, out: &mut Vec<PathBuf>) {
 /// the Registration Record: that record is created after the proposal and
 /// records the outcome of the intake transaction, so reversing the edge would
 /// create a content-addressing cycle.
+#[cfg(test)]
 pub(crate) fn proposal_for_submission(
     frontier: &vela_protocol::project::Project,
     submission: &vela_protocol::submission_v1::SubmissionV1,

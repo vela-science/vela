@@ -16,6 +16,9 @@ use sha2::{Digest, Sha256};
 use vela_authority::CedarEvaluationInput;
 use vela_authority::runtime_authentication::{
     AuthenticationRequest, RuntimeSessionState, SignedAgentEventSession,
+};
+#[cfg(test)]
+use vela_authority::runtime_authentication::{
     SignedAgentSubmissionSession, SignedVerificationRecordSession,
 };
 use vela_protocol::authority::PrincipalSnapshotV1;
@@ -800,6 +803,7 @@ pub(crate) struct SubmissionBuilderAttemptFacts {
 }
 
 #[derive(Debug, Clone)]
+#[cfg(test)]
 pub(crate) struct ResolvedAttempt {
     pub record: Attempt,
     pub relative_dir: String,
@@ -928,6 +932,7 @@ fn repository_authority_nonlease_event_log_root(
     vela_protocol::authority_history::authority_event_log_root(&legacy_root, &events)
 }
 
+#[cfg(test)]
 fn repository_submission_materialization_candidate(
     frontier: &Path,
     authority_events: &[vela_protocol::authority::AuthorityEventV1],
@@ -1365,6 +1370,7 @@ fn attempt_causal_event_root(
 
 /// Resolve an explicit Attempt ID or infer the one active Attempt owned by this
 /// actor. Other actors' Attempts never create ambiguity.
+#[cfg(test)]
 pub(crate) fn resolve_attempt(
     frontier: &Path,
     actor: &str,
@@ -1807,12 +1813,8 @@ pub(crate) fn author_submission(
         "current Submission authoring requires --attempt from `vela start <target> --json`"
             .to_string()
     })?;
-    let work = crate::current_work::resolve_submission_attempt(
-        frontier,
-        actor,
-        Some(attempt_id),
-    )?
-    .ok_or_else(|| format!("current Attempt {attempt_id} disappeared during authoring"))?;
+    let work = crate::current_work::resolve_submission_attempt(frontier, actor, Some(attempt_id))?
+        .ok_or_else(|| format!("current Attempt {attempt_id} disappeared during authoring"))?;
     let mut artifacts = Vec::new();
     let mut total_artifact_bytes = 0_u64;
     for (index, flag) in artifact_flags.iter().enumerate() {
@@ -2085,6 +2087,7 @@ pub(crate) fn submission_publication_inputs(
     Ok(inputs)
 }
 
+#[cfg(test)]
 fn submission_attempt_close(
     frontier: &Path,
     submission: &SubmissionV1,
@@ -2116,16 +2119,26 @@ pub(crate) fn submit(
     bundle_root: Option<&Path>,
     push: bool,
 ) -> Result<SubmitOutcome, String> {
-    if frontier.join(".vela/epoch.json").is_file() {
-        return crate::current_submission::submit(
-            frontier,
-            submission,
-            executor,
-            requested_attempt,
-            bundle_root,
-            push,
-        );
-    }
+    crate::current_submission::submit(
+        frontier,
+        submission,
+        executor,
+        requested_attempt,
+        bundle_root,
+        push,
+    )
+}
+
+#[cfg(test)]
+#[allow(dead_code)]
+fn legacy_submit(
+    frontier: &Path,
+    submission: &SubmissionV1,
+    executor: &str,
+    requested_attempt: Option<&str>,
+    bundle_root: Option<&Path>,
+    push: bool,
+) -> Result<SubmitOutcome, String> {
     use crate::config::git_publish::{
         PublicationOutcome, PublicationState, PublishOptions, exact_publication_preflight,
         publication_disabled_reason, publication_is_busy, publish_exact_delta,
@@ -2511,9 +2524,17 @@ pub(crate) fn import_verification(
     executor: &str,
     push: bool,
 ) -> Result<VerificationImportOutcome, String> {
-    if frontier.join(".vela/epoch.json").is_file() {
-        return crate::current_verification::import(frontier, record, executor, push);
-    }
+    crate::current_verification::import(frontier, record, executor, push)
+}
+
+#[cfg(test)]
+#[allow(dead_code)]
+fn legacy_import_verification(
+    frontier: &Path,
+    record: &vela_protocol::verification_record::VerificationRecordV1,
+    executor: &str,
+    push: bool,
+) -> Result<VerificationImportOutcome, String> {
     use crate::config::git_publish::{
         PublicationOutcome, PublicationState, PublishOptions, exact_publication_preflight,
         publication_disabled_reason, publication_is_busy, publish_exact_delta,
