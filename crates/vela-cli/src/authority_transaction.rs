@@ -30,9 +30,11 @@ use vela_protocol::authority::{
     verify_authority_keyset_transition, verify_policy_bundle_transition,
 };
 use vela_protocol::authority_history::{
-    AUTHORITY_CLOSE_ACTION, AUTHORITY_CLOSED_EVENT_KIND, AUTHORITY_ROTATE_ACTION, AuthorityCloseV1,
-    AuthorityHistoryEra, AuthorityHistoryInput, AuthorityHistoryVerification, POLICY_ROTATE_ACTION,
-    authority_event_log_root, verify_authority_history,
+    AUTHORITY_CLOSE_ACTION, AUTHORITY_CLOSED_EVENT_KIND, AUTHORITY_INITIALIZE_ACTION,
+    AUTHORITY_INITIALIZED_EVENT_KIND, AUTHORITY_ROTATE_ACTION, AuthorityCloseV1,
+    AuthorityHistoryEra, AuthorityHistoryInput, AuthorityHistoryVerification,
+    AuthorityInitializationV1, POLICY_ROTATE_ACTION, authority_event_log_root,
+    verify_authority_history,
 };
 use vela_protocol::canonical::to_canonical_bytes;
 use vela_protocol::events::{EventKind, StateActor, StateEvent, StateTarget, event_log_hash};
@@ -167,7 +169,9 @@ struct DurableAuthorityTransactionResult {
 pub(crate) struct PreparedAuthorityTransaction {
     transaction: FrontierTxn,
     pub(crate) result: AuthorityTransactionResult,
+    #[cfg(test)]
     pub(crate) events: Vec<AuthorityEventV1>,
+    #[cfg(test)]
     pub(crate) envelope: AuthorityEnvelopeV1,
 }
 
@@ -287,21 +291,34 @@ where
     })
     .map_err(AuthorityTransactionError::History)?;
     bind_repository_authority_history(frontier_root, &mut request)?;
-    if history.era != AuthorityHistoryEra::RepositoryAuthority {
+    let fresh_initialization = history.era == AuthorityHistoryEra::LegacyOnly;
+    if fresh_initialization {
+        validate_fresh_initialization_request(&request)?;
+    }
+    let previous_authority_record_root = history.final_authority_record_root.clone();
+    if !fresh_initialization && previous_authority_record_root.is_none() {
         return Err(AuthorityTransactionError::History(
-            "the disposable Era-1 writer requires a verified migration bridge".into(),
+            "repository-authority history has no previous record root".into(),
         ));
     }
-    let previous_authority_record_root =
-        history.final_authority_record_root.clone().ok_or_else(|| {
-            AuthorityTransactionError::History(
-                "repository-authority history has no previous record root".into(),
-            )
-        })?;
     let sequence = u64::try_from(history.authority_record_count + 1)
         .map_err(|_| AuthorityTransactionError::Invalid("authority sequence exceeds u64".into()))?;
-    validate_active_authority_snapshots(&request, &history)?;
-    validate_requested_rotation(&request, sequence, &previous_authority_record_root)?;
+    if fresh_initialization {
+        if sequence != 1 {
+            return Err(AuthorityTransactionError::History(
+                "fresh authority initialization must create sequence 1".into(),
+            ));
+        }
+    } else {
+        validate_active_authority_snapshots(&request, &history)?;
+        validate_requested_rotation(
+            &request,
+            sequence,
+            previous_authority_record_root
+                .as_deref()
+                .expect("checked repository-authority history head"),
+        )?;
+    }
 
     let preflight = preflight_authority_action(
         authentication_adapter,
@@ -337,7 +354,7 @@ where
     let transaction_id = transaction_id(
         &request,
         &history.final_event_log_root,
-        &previous_authority_record_root,
+        previous_authority_record_root.as_deref(),
         &request_root,
         &entity_snapshot_root,
         &authority_keyset_root,
@@ -415,7 +432,7 @@ where
     let read_set_root = read_set_root(
         &request,
         &history.final_event_log_root,
-        &previous_authority_record_root,
+        previous_authority_record_root.as_deref(),
         &authority_keyset_root,
         &policy_bundle_root,
     )?;
@@ -431,7 +448,7 @@ where
     let record = AuthorityRecordV1::new(AuthorityRecordContentV1 {
         frontier_id: request.history.frontier_id.clone(),
         sequence,
-        previous_authority_record_root: Some(previous_authority_record_root),
+        previous_authority_record_root,
         operation_id: operation_id.as_str().into(),
         transaction_id: transaction_id.clone(),
         intent_digest: request.intent_digest.clone(),
@@ -481,10 +498,16 @@ where
         ));
     }
     let mut candidate_keysets = request.history.retained_authority_keysets.clone();
+    if fresh_initialization {
+        candidate_keysets.push(request.history.authority_keyset.clone());
+    }
     if let Some(next) = &request.next_authority_keyset {
         candidate_keysets.push(next.clone());
     }
     let mut candidate_policies = request.history.retained_policy_bundles.clone();
+    if fresh_initialization {
+        candidate_policies.push(request.history.policy_bundle.clone());
+    }
     if let Some(next) = &request.next_policy_bundle {
         candidate_policies.push(next.clone());
     }
@@ -650,7 +673,9 @@ where
     Ok(PreparedAuthorityTransaction {
         transaction,
         result,
+        #[cfg(test)]
         events,
+        #[cfg(test)]
         envelope,
     })
 }
@@ -687,6 +712,7 @@ where
 /// recovery barrier verifies the completed marker, blobs, canonical
 /// postimages, and historical event commitment before this function compares
 /// the durable result byte-for-byte.
+#[cfg(test)]
 pub(crate) fn retry_completed_authority_transaction(
     barrier: &CanonicalWriteBarrier,
     expected: &AuthorityTransactionResult,
@@ -788,6 +814,71 @@ fn validate_semantic_event_links(
                 review.id
             )));
         }
+    }
+    Ok(())
+}
+
+fn validate_fresh_initialization_request(
+    request: &AuthorityTransactionRequest,
+) -> Result<(), AuthorityTransactionError> {
+    if !request.history.authority_events.is_empty()
+        || !request.history.authority_envelopes.is_empty()
+        || !request.history.retained_authority_keysets.is_empty()
+        || !request.history.retained_policy_bundles.is_empty()
+        || request.next_authority_keyset.is_some()
+        || request.next_policy_bundle.is_some()
+        || request.next_policy_material.is_some()
+        || request.event_drafts.len() != 1
+    {
+        return Err(AuthorityTransactionError::History(
+            "fresh authority initialization requires an empty Era-1 store and one initialization event"
+                .into(),
+        ));
+    }
+    let draft = &request.event_drafts[0];
+    let payload: AuthorityInitializationV1 = serde_json::from_value(draft.payload.clone())
+        .map_err(|error| {
+            AuthorityTransactionError::Invalid(format!(
+                "fresh authority initialization payload is invalid: {error}"
+            ))
+        })?;
+    payload
+        .validate()
+        .map_err(AuthorityTransactionError::Invalid)?;
+    let keyset_root = request
+        .history
+        .authority_keyset
+        .root()
+        .map_err(AuthorityTransactionError::Invalid)?;
+    let policy_root = request
+        .history
+        .policy_bundle
+        .root()
+        .map_err(AuthorityTransactionError::Invalid)?;
+    if draft.kind.as_str() != AUTHORITY_INITIALIZED_EVENT_KIND
+        || draft.target.r#type != "frontier"
+        || draft.target.id != request.history.frontier_id
+        || draft.actor.r#type != "human"
+        || draft.actor.id != request.principal.principal_id
+        || draft.before_hash != vela_protocol::events::NULL_HASH
+        || draft.after_hash != vela_protocol::events::NULL_HASH
+        || payload.frontier_id != request.history.frontier_id
+        || payload.new_principal_id != request.principal.principal_id
+        || payload.new_authority_keyset_root != keyset_root
+        || payload.new_policy_bundle_root != policy_root
+        || payload.reason != draft.reason
+        || request.authorization_input.action != AUTHORITY_INITIALIZE_ACTION
+        || !request.semantic_approvals.iter().any(|approval| {
+            approval.action == AUTHORITY_INITIALIZE_ACTION
+                && approval.principal_id == request.principal.principal_id
+                && approval.reason == draft.reason
+                && approval.intent_digest == request.intent_digest
+        })
+    {
+        return Err(AuthorityTransactionError::Invalid(
+            "fresh authority initialization request does not bind its exact principal, snapshots, action, and reason"
+                .into(),
+        ));
     }
     Ok(())
 }
@@ -961,6 +1052,7 @@ fn normalize_authority_snapshots(
         .history
         .retained_authority_keysets
         .iter()
+        .chain(std::iter::once(&request.history.authority_keyset))
         .chain(request.next_authority_keyset.iter())
     {
         let root = keyset.root().map_err(AuthorityTransactionError::Invalid)?;
@@ -976,6 +1068,7 @@ fn normalize_authority_snapshots(
         .history
         .retained_policy_bundles
         .iter()
+        .chain(std::iter::once(&request.history.policy_bundle))
         .chain(request.next_policy_bundle.iter())
     {
         let root = bundle.root().map_err(AuthorityTransactionError::Invalid)?;
@@ -1608,7 +1701,7 @@ fn normalize_read_set(read_set: &mut [InputBinding]) -> Result<(), AuthorityTran
 fn transaction_id(
     request: &AuthorityTransactionRequest,
     before_event_log_root: &str,
-    previous_authority_record_root: &str,
+    previous_authority_record_root: Option<&str>,
     authorization_request_root: &str,
     entity_snapshot_root: &str,
     authority_keyset_root: &str,
@@ -1664,7 +1757,7 @@ fn authorization_request_root(
 fn read_set_root(
     request: &AuthorityTransactionRequest,
     current_event_log_root: &str,
-    previous_authority_record_root: &str,
+    previous_authority_record_root: Option<&str>,
     authority_keyset_root: &str,
     policy_bundle_root: &str,
 ) -> Result<String, AuthorityTransactionError> {
@@ -1791,7 +1884,7 @@ struct TransactionIdCommitment<'a> {
     frontier_id: &'a str,
     intent_digest: &'a str,
     before_event_log_root: &'a str,
-    previous_authority_record_root: &'a str,
+    previous_authority_record_root: Option<&'a str>,
     principal_id: &'a str,
     authorization_request_root: &'a str,
     entity_snapshot_root: &'a str,
@@ -1822,7 +1915,7 @@ struct ReadSetCommitment<'a> {
     schema: &'static str,
     frontier_id: &'a str,
     current_event_log_root: &'a str,
-    previous_authority_record_root: &'a str,
+    previous_authority_record_root: Option<&'a str>,
     authority_keyset_root: &'a str,
     policy_bundle_root: &'a str,
     inputs: &'a [InputBinding],

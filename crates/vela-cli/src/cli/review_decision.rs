@@ -176,7 +176,7 @@ pub(crate) fn cmd_review_decide(
     .unwrap_or_else(|error| ui::fail_with(ErrorKind::Custody, &error, None));
     let payload = serde_json::json!({
         "ok": true,
-        "command": "review.decide",
+        "command": format!("review.{}", action.as_str()),
         "schema": "vela.review-decision.v2",
         "frontier": frontier.display().to_string(),
         "proposal_id": prepared.plan.proposal_id,

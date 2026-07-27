@@ -61,10 +61,47 @@ pub(crate) fn run(frontier: Option<&Path>) -> Vec<SetupCheck> {
     let mut out = Vec::new();
     out.push(identity_check());
     if let Some(dir) = frontier {
+        out.push(repository_authority_check(dir));
         out.push(policy_check(dir));
         out.push(adapters_check(dir));
     }
     out
+}
+
+fn repository_authority_check(dir: &Path) -> SetupCheck {
+    let project = match vela_protocol::repo::load_from_path(dir) {
+        Ok(project) => project,
+        Err(error) => return fail("repository authority", error, "vela check ."),
+    };
+    match crate::cli::load_repository_authority(dir, &project) {
+        Ok(Some(authority)) => ok(
+            "repository authority",
+            format!(
+                "{} record(s) · {}",
+                authority.verification.authority_record_count,
+                authority
+                    .verification
+                    .final_authority_record_root
+                    .as_deref()
+                    .unwrap_or("missing head")
+            ),
+        ),
+        Ok(None) if project.events.len() == 1 && project.actors.is_empty() => warn(
+            "repository authority",
+            "fresh structural Frontier has no repository writer",
+            "vela authority init . --reason <bounded-reason> --json",
+        ),
+        Ok(None) => warn(
+            "repository authority",
+            "historical Era-0 Frontier is replay-only in the current product",
+            "use the pinned historical binary for exact replay; do not synthesize a fresh boundary",
+        ),
+        Err(error) => fail(
+            "repository authority",
+            error,
+            "vela check . --strict --json",
+        ),
+    }
 }
 
 /// Producer identity and key custody. Human authority needs no local identity.
@@ -149,7 +186,7 @@ fn policy_check(dir: &Path) -> SetupCheck {
             "inspect the active policy pair and policy-head chain; invalid governance never fails open",
         ),
         vela_protocol::proposals::policy_accept::PermitReadiness::HumanOnly => {
-            let repair = "inspect `vela policy show --json`; frozen Era-0 policy bytes remain replayable, while new authority requires the repository-authority migration";
+            let repair = "inspect `vela policy show --json`; fresh Frontiers use `vela authority init`, while frozen Era-0 policy bytes remain replay-only";
             warn("policy", summary, repair)
         }
     }

@@ -292,6 +292,12 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         action: ActorAction,
     },
+    /// Initialize the standard repository-authority writer for a fresh Frontier.
+    #[command(hide = true)]
+    Authority {
+        #[command(subcommand)]
+        action: AuthorityAction,
+    },
     /// Inspect and materialize frontier-level state, including read-only
     /// cross-frontier dependency projections.
     #[command(after_long_help = crate::cli::help_text::FRONTIER)]
@@ -665,6 +671,24 @@ pub(crate) enum ActorAction {
     /// List registered actors in a frontier
     List {
         frontier: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum AuthorityAction {
+    /// Bind a fresh Frontier to one loaded OpenSSH-agent Ed25519 identity.
+    Init {
+        #[arg(default_value = ".")]
+        frontier: PathBuf,
+        /// Full OpenSSH SHA256 fingerprint, key ID, or raw public-key hex.
+        /// Omit only when the agent exposes exactly one Ed25519 identity.
+        #[arg(long)]
+        key: Option<String>,
+        /// Why this repository authority is being established.
+        #[arg(long)]
+        reason: String,
         #[arg(long)]
         json: bool,
     },

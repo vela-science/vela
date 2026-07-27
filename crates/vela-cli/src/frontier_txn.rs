@@ -1383,8 +1383,8 @@ pub(crate) struct CanonicalWriteBarrier {
 #[derive(Debug)]
 struct RepositoryAuthorityWriteAuthorization {
     frontier_id: String,
-    migration_event_id: String,
-    migration_event_root: ContentDigest,
+    boundary_event_id: String,
+    boundary_event_root: ContentDigest,
 }
 
 /// The exact repository authority required by one canonical write attempt.
@@ -1403,6 +1403,9 @@ pub(crate) enum CanonicalWriteIntent {
     /// Create the first protected administrator boundary for a native v1
     /// repository. Later boundary updates use `Administrator`.
     FirstAdministratorBoundary,
+    /// Establish the sequence-1 standard repository-authority record over an
+    /// otherwise untouched Profile v1 structural genesis.
+    RepositoryAuthorityInitialization,
     /// Human review, policy, registry extension, and other administrator
     /// operations.
     Administrator,
@@ -1415,6 +1418,7 @@ impl CanonicalWriteIntent {
             Self::Derived => "derived",
             Self::ActorRegistry => "actor_registry",
             Self::FirstAdministratorBoundary => "first_administrator_boundary",
+            Self::RepositoryAuthorityInitialization => "repository_authority_initialization",
             Self::Administrator => "administrator",
         }
     }
@@ -1555,29 +1559,74 @@ fn verify_repository_authority_write_era(
             "load repository for repository-authority gate: {error}"
         ))
     })?;
-    let migrations = project
-        .events
-        .iter()
-        .filter(|event| {
-            event.kind == vela_protocol::events::EventKind::AuthorityModelMigrated
-                || event.kind.as_str() == vela_protocol::events::EVENT_KIND_AUTHORITY_MODEL_MIGRATED
-        })
-        .collect::<Vec<_>>();
-    let [migration] = migrations.as_slice() else {
+    let authority = crate::cli::load_repository_authority(root, &project)
+        .map_err(|error| FrontierTxnError::RepositoryWriteIntentDenied {
+            intent: "repository_authority",
+            reason: format!("repository-authority history is invalid: {error}"),
+        })?
+        .ok_or_else(|| FrontierTxnError::RepositoryWriteIntentDenied {
+            intent: "repository_authority",
+            reason:
+                "repository-authority writes require an initialized or migrated authority history"
+                    .to_string(),
+        })?;
+    if authority.verification.closed {
         return Err(FrontierTxnError::RepositoryWriteIntentDenied {
             intent: "repository_authority",
-            reason: format!(
-                "repository-authority writes require exactly one authority.model_migrated event; found {}",
-                migrations.len()
-            ),
+            reason: "repository-authority history is closed".to_string(),
+        });
+    }
+    let (boundary_event_id, boundary_event_root) = if let Some(event_id) =
+        authority.verification.migration_event_id.as_deref()
+    {
+        let event = project
+                .events
+                .iter()
+                .find(|event| event.id == event_id)
+                .ok_or_else(|| FrontierTxnError::RepositoryWriteIntentDenied {
+                    intent: "repository_authority",
+                    reason: format!(
+                        "verified authority migration event {event_id} is missing from canonical history"
+                    ),
+                })?;
+        let bytes = vela_protocol::canonical::to_canonical_bytes(event)
+            .map_err(FrontierTxnError::Canonicalize)?;
+        (event_id.to_string(), ContentDigest::hash(bytes))
+    } else if let Some(event_id) = authority.verification.initialization_event_id.as_deref() {
+        let event = authority
+                .history
+                .authority_events
+                .iter()
+                .find(|event| event.id == event_id)
+                .ok_or_else(|| FrontierTxnError::RepositoryWriteIntentDenied {
+                    intent: "repository_authority",
+                    reason: format!(
+                        "verified authority initialization event {event_id} is missing from canonical history"
+                    ),
+                })?;
+        (
+                event_id.to_string(),
+                ContentDigest::parse(event.root().map_err(|error| {
+                    FrontierTxnError::RepositoryWriteIntentDenied {
+                        intent: "repository_authority",
+                        reason: format!(
+                            "verified authority initialization event {event_id} has no valid root: {error}"
+                        ),
+                    }
+                })?)?,
+            )
+    } else {
+        return Err(FrontierTxnError::RepositoryWriteIntentDenied {
+            intent: "repository_authority",
+            reason:
+                "repository-authority history has neither an initialization nor migration boundary"
+                    .to_string(),
         });
     };
-    let bytes = vela_protocol::canonical::to_canonical_bytes(migration)
-        .map_err(FrontierTxnError::Canonicalize)?;
     Ok(RepositoryAuthorityWriteAuthorization {
         frontier_id: project.frontier_id(),
-        migration_event_id: migration.id.clone(),
-        migration_event_root: ContentDigest::hash(bytes),
+        boundary_event_id,
+        boundary_event_root,
     })
 }
 
@@ -1657,6 +1706,58 @@ fn staged_event(
     Ok(Some(event))
 }
 
+fn staged_authority_event(
+    write: &StagedWrite,
+    mut read_blob: impl FnMut(&JournalBlobRef) -> Result<Vec<u8>, FrontierTxnError>,
+) -> Result<Option<vela_protocol::authority::AuthorityEventV1>, FrontierTxnError> {
+    let Some(relative) = write.path.as_str().strip_prefix(".vela/authority/events/") else {
+        return Ok(None);
+    };
+    let Some(event_id) = relative.strip_suffix(".json") else {
+        return Err(FrontierTxnError::RepositoryWriteIntentDenied {
+            intent: "invalid",
+            reason: format!(
+                "authority event write {} is not one direct JSON event",
+                write.path.as_str()
+            ),
+        });
+    };
+    if write.class != WriteClass::Authority
+        || !matches!(write.preimage, FileState::Absent)
+        || !matches!(write.postimage, FileState::File { .. })
+    {
+        return Err(FrontierTxnError::RepositoryWriteIntentDenied {
+            intent: "invalid",
+            reason: format!(
+                "authority events are append-only Authority writes: {}",
+                write.path.as_str()
+            ),
+        });
+    }
+    let blob = write.payload.as_ref().ok_or_else(|| {
+        FrontierTxnError::CorruptPlan(format!(
+            "authority event write {} has no postimage blob",
+            write.path.as_str()
+        ))
+    })?;
+    let bytes = read_blob(blob)?;
+    let event = serde_json::from_slice::<vela_protocol::authority::AuthorityEventV1>(&bytes)
+        .map_err(|error| {
+            FrontierTxnError::CorruptPlan(format!(
+                "authority event write {} is invalid: {error}",
+                write.path.as_str()
+            ))
+        })?;
+    event.validate().map_err(FrontierTxnError::CorruptPlan)?;
+    if event.id != event_id {
+        return Err(FrontierTxnError::CorruptPlan(format!(
+            "authority event write {} has a mismatched content id",
+            write.path.as_str()
+        )));
+    }
+    Ok(Some(event))
+}
+
 fn verify_write_intent_delta(
     intent: CanonicalWriteIntent,
     delta: &CanonicalDelta,
@@ -1668,6 +1769,8 @@ fn verify_write_intent_delta(
     };
     let mut actor_registry_writes = 0_usize;
     let mut boundary_events = 0_usize;
+    let mut authority_initializations = 0_usize;
+    let mut authority_records = 0_usize;
 
     for write in delta.writes() {
         let path = write.path.as_str();
@@ -1742,6 +1845,39 @@ fn verify_write_intent_delta(
                     )));
                 }
             }
+            CanonicalWriteIntent::RepositoryAuthorityInitialization => {
+                let authority_event = staged_authority_event(write, &mut read_blob)?;
+                if let Some(event) = authority_event {
+                    if event.content.kind.as_str()
+                        != vela_protocol::authority_history::AUTHORITY_INITIALIZED_EVENT_KIND
+                    {
+                        return Err(deny(format!(
+                            "fresh repository authority cannot append event kind {}",
+                            event.content.kind
+                        )));
+                    }
+                    authority_initializations += 1;
+                } else {
+                    if !path.starts_with(".vela/authority/")
+                        || write.class != WriteClass::Authority
+                        || !matches!(write.preimage, FileState::Absent)
+                        || !matches!(write.postimage, FileState::File { .. })
+                    {
+                        return Err(deny(format!(
+                            "fresh repository authority contains unrelated or non-append write {path}"
+                        )));
+                    }
+                    if path.starts_with(".vela/authority/records/") && path.ends_with(".dsse.json")
+                    {
+                        authority_records += 1;
+                    }
+                }
+                if event.is_some() {
+                    return Err(deny(
+                        "fresh repository authority cannot append a legacy event".into(),
+                    ));
+                }
+            }
             CanonicalWriteIntent::Administrator => {
                 if path == ".vela/actors.json" {
                     return Err(deny(
@@ -1769,6 +1905,13 @@ fn verify_write_intent_delta(
     if intent == CanonicalWriteIntent::FirstAdministratorBoundary && boundary_events != 1 {
         return Err(deny(format!(
             "first administrator boundary requires exactly one boundary event, found {boundary_events}"
+        )));
+    }
+    if intent == CanonicalWriteIntent::RepositoryAuthorityInitialization
+        && (authority_initializations != 1 || authority_records != 1)
+    {
+        return Err(deny(format!(
+            "fresh repository authority requires one initialization event and one covering record; found {authority_initializations} and {authority_records}"
         )));
     }
     Ok(())
@@ -1835,6 +1978,19 @@ fn verify_write_intent(
                 reason: "the first administrator boundary requires structural genesis and a previously self-bound actor; existing boundary chains use administrator authorization".to_string(),
             })
         }
+        CanonicalWriteIntent::RepositoryAuthorityInitialization
+            if matches!(context.identity, VerifiedRepositoryIdentity::Genesis { .. })
+                && project.actors.is_empty() =>
+        {
+            Ok(())
+        }
+        CanonicalWriteIntent::RepositoryAuthorityInitialization => Err(
+            FrontierTxnError::RepositoryWriteIntentDenied {
+                intent: intent.as_str(),
+                reason: "fresh repository authority requires untouched structural genesis and an empty actor registry"
+                    .into(),
+            },
+        ),
     }
 }
 
@@ -2087,12 +2243,12 @@ fn reverify_transaction_authorization(
         FrontierTxnAuthorization::RepositoryAuthority(expected) => {
             let actual = verify_repository_authority_write_era(root)?;
             if actual.frontier_id != expected.frontier_id
-                || actual.migration_event_id != expected.migration_event_id
-                || actual.migration_event_root != expected.migration_event_root
+                || actual.boundary_event_id != expected.boundary_event_id
+                || actual.boundary_event_root != expected.boundary_event_root
             {
                 return Err(FrontierTxnError::StaleWriteAuthorization {
-                    expected: expected.migration_event_root.clone(),
-                    actual: actual.migration_event_root,
+                    expected: expected.boundary_event_root.clone(),
+                    actual: actual.boundary_event_root,
                 });
             }
             Ok(())
@@ -2894,6 +3050,17 @@ impl FrontierTxn {
             frontier_root,
             journal_dir,
             CanonicalWriteIntent::FirstAdministratorBoundary,
+        )
+    }
+
+    pub(crate) fn acquire_repository_authority_initialization_barrier(
+        frontier_root: &Path,
+        journal_dir: &Path,
+    ) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
+        Self::acquire_write_barrier_for_intent(
+            frontier_root,
+            journal_dir,
+            CanonicalWriteIntent::RepositoryAuthorityInitialization,
         )
     }
 

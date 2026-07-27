@@ -156,7 +156,9 @@ EXAMPLES
   vela actor list .              inspect the frozen Era-0 actor registry
 
 New authority uses attributed principals, scoped capabilities, and repository
-authority records. The legacy actor registry remains replayable and read-only.";
+authority records. The legacy actor registry remains replayable and read-only.
+Fresh setup uses `vela authority init`; historical Frontiers retain their exact
+migration boundary.";
 
 pub const FRONTIER: &str = "\
 EXAMPLES
@@ -214,7 +216,8 @@ EXAMPLES
 
 Policy authoring, activation, rotation, revocation, and CI auto-merge porcelain
 are retired. Existing signed policies and policy-lane events remain permanently
-replayable; new authority is established through repository migration.";
+replayable. Fresh Frontiers use `vela authority init`; historical Frontiers
+retain their exact migration boundary.";
 
 pub const AGENTS: &str = "\
 EXAMPLES

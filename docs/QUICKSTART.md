@@ -62,10 +62,20 @@ vela init ./frontier \
 ```
 
 The result is a minimal Profile v1 repository with structural identity and no
-scientific decision. Repository-authority provisioning is deliberately not an
-ordinary initialization side effect. The current candidate has no public
-boundary-bootstrap writer; use a reviewed ecosystem provisioning workflow
-rather than hand-authoring authority history.
+scientific decision. Load one dedicated Ed25519 repository-authority key into
+your standard OpenSSH agent, then establish the writer:
+
+```bash
+vela authority init ./frontier \
+  --reason "Establish the repository writer for this bounded Frontier." \
+  --json
+```
+
+When the agent exposes more than one Ed25519 identity, add
+`--key SHA256:<full-fingerprint>`. Vela reads no private-key file. The command
+is valid only over untouched structural genesis, creates one root-bound
+sequence-1 authority record, and enables routine signed-agent work. It grants
+no scientific standing.
 
 ## Historical Frontiers
 

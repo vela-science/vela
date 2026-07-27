@@ -1434,11 +1434,9 @@ fn acquire_work_write_barrier(
     journal_dir: &Path,
 ) -> Result<(bool, WorkWriteBarrier), String> {
     let preliminary = repo::load_from_path(frontier)?;
-    let migrated = preliminary
-        .events
-        .iter()
-        .any(|event| event.kind == vela_protocol::events::EventKind::AuthorityModelMigrated);
-    let barrier = if migrated {
+    let repository_authority_enabled =
+        crate::cli::load_repository_authority(frontier, &preliminary)?.is_some();
+    let barrier = if repository_authority_enabled {
         WorkWriteBarrier::Repository(
             crate::frontier_txn::FrontierTxn::acquire_repository_authority_write_barrier(
                 frontier,
@@ -1452,7 +1450,7 @@ fn acquire_work_write_barrier(
                 .map_err(|error| error.to_string())?,
         )
     };
-    Ok((migrated, barrier))
+    Ok((repository_authority_enabled, barrier))
 }
 
 pub(crate) fn open_session(
@@ -1481,14 +1479,15 @@ where
         ));
     }
     let journal_dir = frontier_transaction_journal_dir(frontier)?;
-    let (migrated, barrier) = acquire_work_write_barrier(frontier, &journal_dir)?;
+    let (repository_authority_enabled, barrier) =
+        acquire_work_write_barrier(frontier, &journal_dir)?;
     after_barrier()?;
     // Pin the producer's scientific base before the coordination lease adds
     // its own event. The claim remains the exact live-lease identity, while
     // the session and optional campaign task describe what state the producer
     // actually started from.
     let (base_project, repository_authority) = load_project_with_repository_authority(frontier)?;
-    if migrated != repository_authority.is_some() {
+    if repository_authority_enabled != repository_authority.is_some() {
         return Err("repository authority changed while acquiring the work barrier".into());
     }
     if let Some(current) = base_project
@@ -1694,9 +1693,10 @@ pub(crate) fn release_session(
         return Err("work --drop requires a non-empty release reason".to_string());
     }
     let journal_dir = frontier_transaction_journal_dir(frontier)?;
-    let (migrated, barrier) = acquire_work_write_barrier(frontier, &journal_dir)?;
+    let (repository_authority_enabled, barrier) =
+        acquire_work_write_barrier(frontier, &journal_dir)?;
     let (project, repository_authority) = load_project_with_repository_authority(frontier)?;
-    if migrated != repository_authority.is_some() {
+    if repository_authority_enabled != repository_authority.is_some() {
         return Err("repository authority changed while acquiring the work barrier".into());
     }
     let lease = project
@@ -1889,6 +1889,7 @@ pub(crate) struct SubmitOutcome {
     pub accepted_event_count_before: usize,
     pub accepted_event_count_after: usize,
     pub accepted_event_delta: usize,
+    pub accepted_state_changed: bool,
     pub publication: crate::config::git_publish::PublicationOutcome,
 }
 
@@ -2066,10 +2067,11 @@ pub(crate) fn submit(
     let operation_id =
         crate::frontier_txn::OperationId::derive("submit", request_root.as_str().as_bytes());
     let journal_dir = frontier_transaction_journal_dir(frontier)?;
-    let (migrated, write_barrier) = acquire_work_write_barrier(frontier, &journal_dir)?;
-    if !migrated {
+    let (repository_authority_enabled, write_barrier) =
+        acquire_work_write_barrier(frontier, &journal_dir)?;
+    if !repository_authority_enabled {
         return Err(
-            "current Submission registration requires repository authority; migrate this frontier before submitting"
+            "current Submission registration requires repository authority; on a fresh Frontier run `vela authority init . --reason <bounded-reason> --json`"
                 .to_string(),
         );
     }
@@ -2328,6 +2330,7 @@ pub(crate) fn submit(
                 accepted_event_count_before: original.events.len(),
                 accepted_event_count_after: original.events.len(),
                 accepted_event_delta: 0,
+                accepted_state_changed: false,
                 publication: outcome,
             });
         }
@@ -2388,6 +2391,7 @@ pub(crate) fn submit(
         accepted_event_count_before: original.events.len(),
         accepted_event_count_after: original.events.len(),
         accepted_event_delta: 0,
+        accepted_state_changed: false,
         publication,
     })
 }
@@ -2507,10 +2511,11 @@ pub(crate) fn import_verification(
     }
 
     let journal_dir = frontier_transaction_journal_dir(frontier)?;
-    let (migrated, write_barrier) = acquire_work_write_barrier(frontier, &journal_dir)?;
-    if !migrated {
+    let (repository_authority_enabled, write_barrier) =
+        acquire_work_write_barrier(frontier, &journal_dir)?;
+    if !repository_authority_enabled {
         return Err(
-            "current Verification Record import requires repository authority; migrate this frontier first"
+            "current Verification Record import requires repository authority; on a fresh Frontier run `vela authority init . --reason <bounded-reason> --json`"
                 .into(),
         );
     }

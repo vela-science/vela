@@ -77,8 +77,8 @@ authenticated principal
 
 ## Decision
 
-Adopt attributed repository authority for every new write after an explicit
-per-Frontier migration boundary.
+Adopt attributed repository authority for every new write after either an
+explicit historical migration boundary or a fresh structural initialization.
 
 ### 1. Keep the scientific-state kernel
 
@@ -455,6 +455,16 @@ unavailable, Vela creates no fictional continuity. The only fallback is an
 explicit trust reset with a new out-of-band trust anchor and a read-only legacy
 lineage.
 
+Fresh Profile v1 repositories do not pretend to migrate. They use the closed
+`vela.authority-initialization.v1` payload in one
+`authority.initialized` `vela.event.v1`. The event is valid only over exactly
+one unsigned structural `frontier.created` event, an empty actor registry, no
+authority history, and the bound initial keyset and Cedar bundle. The selected
+OpenSSH-agent key signs the covering sequence-1 authority record. This proves
+repository-key possession but grants no scientific standing; consumers still
+pin the resulting full authority root through an independent distribution
+path. The fresh path cannot run over historical or established state.
+
 ## Migration and release plan
 
 The implementation sequence is normative:
@@ -532,7 +542,7 @@ cargo test -p vela-protocol authority_record
 cargo test -p vela-authority cedar_profile
 cargo test -p vela-protocol legacy_policy_translation
 cargo test -p vela-cli authority_transaction
-cargo test -p vela-cli authority_migration
+cargo test -p vela-cli --test authority_initialization
 cargo test -p vela-protocol --test authority_era_fixtures
 cargo test -p vela-protocol --test cross_impl_reducer_fixtures
 python3 conformance/verify.py
@@ -553,6 +563,8 @@ Required vectors include:
   writes;
 - byte-identical Era-0 replay;
 - one exact migration bridge and rejection of later legacy writes;
+- one exact fresh initialization and rejection of non-genesis, non-empty,
+  duplicate, or substituted inputs;
 - clean-clone network-disabled replay of both eras; and
 - unchanged accepted scientific state from authority migration alone.
 
@@ -984,6 +996,23 @@ repository-authority path. ADR 0020 therefore remains Proposed until that
 human-run qualification, clean-clone replay, and the remaining acceptance
 gates pass.
 
+### Fresh-authority evidence, 2026-07-27
+
+The candidate now exposes one advanced standard-provider setup command:
+
+```text
+vela authority init <frontier> [--key <full-fingerprint>] --reason <text>
+```
+
+It selects exactly one plain Ed25519 identity from the normal OpenSSH agent,
+binds the local OS principal, writes the fresh `authority.initialized` event,
+initial keyset, current routine-work Cedar bundle and material, and sequence-1
+DSSE record through the existing recovery journal. It reads no private-key
+file and invokes no Vela signer helper or personal identity. A disposable
+Profile v1 Frontier initializes and passes strict replay; repeated
+initialization fails closed. Historical authority-transaction and migration
+vectors remain unchanged.
+
 ## Alternatives rejected
 
 ### Preserve or improve the current helper
@@ -1036,6 +1065,8 @@ ADR 0020 may become Accepted only when:
   under the pinned Cedar bundle;
 - no translated case introduces a new automatic Permit;
 - one disposable and one active Frontier use the new writer;
+- a clean fresh Frontier reaches routine `start -> submit -> verification`
+  through `authority init` without a migration or personal-key ceremony;
 - clean-clone replay validates both eras without network access;
 - every post-migration event has unique valid authority-record coverage;
 - routine agent work produces zero prompts;

@@ -4,17 +4,17 @@
 //! request-identities and sign-request messages. It never reads a private-key
 //! file and receives only the canonical authority-record payload after the
 //! writer has completed every authentication, authorization, and semantic
-//! check. The proposed ADR 0020 migration command is its only current public
-//! caller; ordinary Era-1 administration remains gated until the release
-//! candidate qualifies.
+//! check. Fresh authority initialization and ordinary Era-1 transactions use
+//! the same provider boundary.
 
 use std::env;
 use std::io::{Read, Write};
 use std::path::Path;
 
 use base64::Engine as _;
-use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use base64::engine::general_purpose::{STANDARD as BASE64_STANDARD, STANDARD_NO_PAD};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+use sha2::{Digest, Sha256};
 use vela_protocol::authority::{AUTHORITY_PAYLOAD_TYPE_V1, DsseSignatureV1, dsse_pae};
 
 use crate::authority_transaction::RepositoryAuthoritySigner;
@@ -132,6 +132,13 @@ impl AgentConnection {
 struct AgentIdentity {
     key_blob: Vec<u8>,
     ed25519_public_key: Option<[u8; 32]>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RepositoryAuthorityIdentity {
+    pub(crate) key_id: String,
+    pub(crate) fingerprint: String,
+    pub(crate) public_key: String,
 }
 
 impl AgentIdentity {
@@ -294,6 +301,80 @@ impl SshAgentRepositoryAuthoritySigner {
             })
             .ok_or_else(|| "SSH_AUTH_SOCK is not set".to_string())?;
         Self::connect(Path::new(&socket), key_id, expected_public_key_hex)
+    }
+}
+
+pub(crate) fn select_repository_authority_identity(
+    selector: Option<&str>,
+) -> Result<RepositoryAuthorityIdentity, String> {
+    let socket = env::var_os("SSH_AUTH_SOCK")
+        .or({
+            #[cfg(windows)]
+            {
+                Some(r"\\.\pipe\openssh-ssh-agent".into())
+            }
+            #[cfg(not(windows))]
+            {
+                None
+            }
+        })
+        .ok_or_else(|| {
+            "no standard OpenSSH agent is available; start one and load one dedicated Ed25519 repository-authority key"
+                .to_string()
+        })?;
+    let mut connection = AgentConnection::connect(Path::new(&socket))?;
+    let mut identities = connection
+        .identities()?
+        .into_iter()
+        .filter_map(|identity| {
+            identity.ed25519_public_key.map(|public_key| {
+                let fingerprint = format!(
+                    "SHA256:{}",
+                    STANDARD_NO_PAD.encode(Sha256::digest(&identity.key_blob))
+                );
+                RepositoryAuthorityIdentity {
+                    key_id: format!("ssh-ed25519:{fingerprint}"),
+                    fingerprint,
+                    public_key: hex::encode(public_key),
+                }
+            })
+        })
+        .collect::<Vec<_>>();
+    identities.sort_by(|left, right| left.key_id.cmp(&right.key_id));
+    let matches = identities
+        .iter()
+        .filter(|identity| {
+            selector.is_none_or(|selector| {
+                selector == identity.key_id
+                    || selector == identity.fingerprint
+                    || selector == identity.public_key
+            })
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    match matches.as_slice() {
+        [identity] => Ok(identity.clone()),
+        [] if identities.is_empty() => Err(
+            "the OpenSSH agent exposes no plain Ed25519 identity; load one dedicated repository-authority key"
+                .into(),
+        ),
+        [] => Err(format!(
+            "no loaded Ed25519 identity matches {}; available fingerprints: {}",
+            selector.unwrap_or("<automatic selection>"),
+            identities
+                .iter()
+                .map(|identity| identity.fingerprint.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )),
+        _ => Err(format!(
+            "the OpenSSH agent exposes multiple Ed25519 identities; select one with --key <fingerprint>: {}",
+            matches
+                .iter()
+                .map(|identity| identity.fingerprint.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )),
     }
 }
 

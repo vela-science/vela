@@ -128,10 +128,23 @@ vela proposal withdraw . <vpr_id> \
 Withdrawal never deletes evidence or changes accepted findings.
 
 Fresh `vela init` repositories have structural identity but no configured
-repository authority. The current candidate deliberately fails Submission
-registration closed until the reviewed authority-provisioning workflow has
-established the first boundary. It exposes no personal-key or legacy migration
-writer as a shortcut.
+repository authority. Establish the standard writer with one dedicated
+Ed25519 key already loaded in the normal OpenSSH agent:
+
+```bash
+vela authority init . \
+  --reason "Establish the repository writer for this bounded Frontier." \
+  --json
+```
+
+Vela automatically selects the key only when exactly one plain Ed25519
+identity is loaded. Otherwise `--key SHA256:<full-fingerprint>` selects it.
+The command reads no private-key file and is valid only over the exact
+one-event Profile v1 genesis with an empty actor registry and no authority
+history. It writes one `authority.initialized` event and one covering
+sequence-1 DSSE record, with the initial keyset, Cedar bundle, and exact policy
+material. It changes no scientific standing. Established and historical
+Frontiers cannot use this path.
 
 ## Consumer trust
 

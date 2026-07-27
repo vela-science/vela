@@ -22,8 +22,11 @@ use crate::events::{
 use crate::sign::{ActorRecord, verify_event_signature};
 
 pub const AUTHORITY_MODEL_MIGRATION_SCHEMA_V1: &str = "vela.authority-model-migration.v1";
+pub const AUTHORITY_INITIALIZATION_SCHEMA_V1: &str = "vela.authority-initialization.v1";
 pub const AUTHORITY_EVENT_LOG_SCHEMA_V1: &str = "vela.authority-event-log.v1";
 pub const AUTHORITY_MIGRATION_ACTION: &str = "authority_model_migrate";
+pub const AUTHORITY_INITIALIZE_ACTION: &str = "authority_initialize";
+pub const AUTHORITY_INITIALIZED_EVENT_KIND: &str = "authority.initialized";
 pub const AUTHORITY_ROTATE_ACTION: &str = "authority_rotate";
 pub const AUTHORITY_CLOSE_ACTION: &str = "authority_close";
 pub const POLICY_ROTATE_ACTION: &str = "policy_rotate";
@@ -143,6 +146,69 @@ impl AuthorityModelMigrationV1 {
     }
 }
 
+/// Fresh-repository bootstrap for Era-1 authority.
+///
+/// Unlike [`AuthorityModelMigrationV1`], this object has no legacy signer and
+/// grants no exemption to historical events. It is valid only over the exact
+/// one-event Profile v1 skeleton produced by `vela init`, with an empty actor
+/// registry. The covering sequence-1 authority record proves possession of the
+/// selected repository key; consumers still pin the resulting full authority
+/// root through their ordinary distribution trust path.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AuthorityInitializationV1 {
+    pub schema: String,
+    pub frontier_id: String,
+    pub initial_event_log_root: String,
+    pub initial_actor_registry_root: String,
+    pub new_authority_keyset_root: String,
+    pub new_policy_bundle_root: String,
+    pub new_principal_id: String,
+    pub minimum_writer_version: String,
+    pub reason: String,
+}
+
+impl AuthorityInitializationV1 {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.schema != AUTHORITY_INITIALIZATION_SCHEMA_V1 {
+            return Err(format!(
+                "authority initialization schema must be {AUTHORITY_INITIALIZATION_SCHEMA_V1}"
+            ));
+        }
+        require_frontier(&self.frontier_id)?;
+        for (name, root) in [
+            (
+                "initial_event_log_root",
+                self.initial_event_log_root.as_str(),
+            ),
+            (
+                "initial_actor_registry_root",
+                self.initial_actor_registry_root.as_str(),
+            ),
+            (
+                "new_authority_keyset_root",
+                self.new_authority_keyset_root.as_str(),
+            ),
+            (
+                "new_policy_bundle_root",
+                self.new_policy_bundle_root.as_str(),
+            ),
+        ] {
+            require_sha256_root(name, root)?;
+        }
+        if self.new_principal_id.trim().is_empty()
+            || self.minimum_writer_version.trim().is_empty()
+            || self.reason.trim().is_empty()
+        {
+            return Err(
+                "authority initialization principal, minimum writer version, and reason must be non-empty"
+                    .into(),
+            );
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorityHistoryEra {
@@ -159,6 +225,8 @@ pub struct AuthorityHistoryVerification {
     pub authority_event_count: usize,
     pub authority_record_count: usize,
     pub migration_event_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub initialization_event_id: Option<String>,
     pub final_event_log_root: String,
     pub final_authority_record_root: Option<String>,
     pub final_authority_keyset_root: Option<String>,
@@ -197,10 +265,10 @@ pub fn verify_authority_history(
         .filter(|event| event.kind.as_str() == EVENT_KIND_AUTHORITY_MODEL_MIGRATED)
         .collect();
 
-    if migrations.is_empty() {
-        if !input.authority_events.is_empty() || !input.authority_envelopes.is_empty() {
-            return Err("Era-1 history exists without an authority-model migration bridge".into());
-        }
+    if migrations.is_empty()
+        && input.authority_events.is_empty()
+        && input.authority_envelopes.is_empty()
+    {
         return Ok(AuthorityHistoryVerification {
             era: AuthorityHistoryEra::LegacyOnly,
             frontier_id: input.frontier_id.into(),
@@ -208,6 +276,7 @@ pub fn verify_authority_history(
             authority_event_count: 0,
             authority_record_count: 0,
             migration_event_id: None,
+            initialization_event_id: None,
             final_event_log_root: prefixed_legacy_root(input.legacy_events),
             final_authority_record_root: None,
             final_authority_keyset_root: None,
@@ -216,49 +285,112 @@ pub fn verify_authority_history(
             closure_event_id: None,
         });
     }
-    if migrations.len() != 1 {
+    if migrations.len() > 1 {
         return Err("authority history must contain exactly one migration bridge".into());
     }
     if input.authority_envelopes.is_empty() {
-        return Err("migration bridge has no covering authority record".into());
+        return Err("repository-authority history has no covering authority record".into());
     }
 
-    let migration_event = migrations[0];
-    let legacy_prefix: Vec<StateEvent> = input
-        .legacy_events
-        .iter()
-        .filter(|event| event.id != migration_event.id)
-        .cloned()
-        .collect();
     let authority_keysets = index_authority_keysets(input.frontier_id, input.authority_keysets)?;
     let policy_bundles = index_policy_bundles(input.frontier_id, input.policy_bundles)?;
-    let migration_payload = migration_payload_from_event(migration_event)?;
-    let mut active_keyset_root = migration_payload.new_authority_keyset_root.clone();
-    let mut active_policy_root = migration_payload.new_policy_bundle_root.clone();
+
+    enum Boundary<'a> {
+        Migration {
+            event: &'a StateEvent,
+            payload: AuthorityModelMigrationV1,
+            legacy_prefix: Vec<StateEvent>,
+        },
+        Initialization {
+            event: &'a AuthorityEventV1,
+            payload: AuthorityInitializationV1,
+        },
+    }
+
+    let boundary = if let Some(migration_event) = migrations.first().copied() {
+        let legacy_prefix = input
+            .legacy_events
+            .iter()
+            .filter(|event| event.id != migration_event.id)
+            .cloned()
+            .collect::<Vec<_>>();
+        Boundary::Migration {
+            event: migration_event,
+            payload: migration_payload_from_event(migration_event)?,
+            legacy_prefix,
+        }
+    } else {
+        let initializations = input
+            .authority_events
+            .iter()
+            .filter(|event| event.content.kind.as_str() == AUTHORITY_INITIALIZED_EVENT_KIND)
+            .collect::<Vec<_>>();
+        let [initialization_event] = initializations.as_slice() else {
+            return Err(
+                "Era-1 history without a migration bridge must contain exactly one fresh authority initialization"
+                    .into(),
+            );
+        };
+        Boundary::Initialization {
+            event: initialization_event,
+            payload: initialization_payload_from_event(initialization_event)?,
+        }
+    };
+
+    let (mut active_keyset_root, mut active_policy_root) = match &boundary {
+        Boundary::Migration { payload, .. } => (
+            payload.new_authority_keyset_root.clone(),
+            payload.new_policy_bundle_root.clone(),
+        ),
+        Boundary::Initialization { payload, .. } => (
+            payload.new_authority_keyset_root.clone(),
+            payload.new_policy_bundle_root.clone(),
+        ),
+    };
     let mut active_keyset = authority_keysets
         .get(&active_keyset_root)
         .copied()
-        .ok_or_else(|| "migration bridge initial authority keyset is not retained".to_string())?;
+        .ok_or_else(|| "initial authority keyset is not retained".to_string())?;
     let mut active_policy = policy_bundles
         .get(&active_policy_root)
         .copied()
-        .ok_or_else(|| "migration bridge initial policy bundle is not retained".to_string())?;
-    let migration = verify_authority_migration_bridge(
-        input.frontier_id,
-        &legacy_prefix,
-        input.legacy_actor_registry_bytes,
-        input.legacy_active_policy_head_root,
-        input.legacy_policy_store_manifest_root,
-        active_keyset,
-        active_policy,
-        migration_event,
-    )?;
+        .ok_or_else(|| "initial policy bundle is not retained".to_string())?;
+    match &boundary {
+        Boundary::Migration {
+            event,
+            legacy_prefix,
+            ..
+        } => {
+            verify_authority_migration_bridge(
+                input.frontier_id,
+                legacy_prefix,
+                input.legacy_actor_registry_bytes,
+                input.legacy_active_policy_head_root,
+                input.legacy_policy_store_manifest_root,
+                active_keyset,
+                active_policy,
+                event,
+            )?;
+        }
+        Boundary::Initialization { event, .. } => {
+            verify_authority_initialization(
+                input.frontier_id,
+                input.legacy_events,
+                input.legacy_actor_registry_bytes,
+                active_keyset,
+                active_policy,
+                event,
+            )?;
+        }
+    }
     if active_keyset.generation != 1
         || active_keyset.previous_keyset_root.is_some()
         || active_keyset.activation_record_root.is_some()
         || active_policy.previous_bundle_root.is_some()
     {
-        return Err("migration bridge must activate initial keyset and policy generations".into());
+        return Err(
+            "authority boundary must activate initial keyset and policy generations".into(),
+        );
     }
     let mut activated_keysets = BTreeSet::from([active_keyset_root.clone()]);
     let mut activated_policies = BTreeSet::from([active_policy_root.clone()]);
@@ -288,8 +420,12 @@ pub fn verify_authority_history(
             .insert(event.id.as_str());
     }
 
-    let legacy_root_with_bridge = prefixed_legacy_root(input.legacy_events);
-    let mut current_event_root = migration.legacy_event_log_root.clone();
+    let legacy_event_root = prefixed_legacy_root(input.legacy_events);
+    let base_event_root = match &boundary {
+        Boundary::Migration { payload, .. } => payload.legacy_event_log_root.clone(),
+        Boundary::Initialization { payload, .. } => payload.initial_event_log_root.clone(),
+    };
+    let mut current_event_root = base_event_root;
     let mut previous_record_root: Option<String> = None;
     let mut covered_era_one: BTreeSet<String> = BTreeSet::new();
     let mut cumulative_era_one = Vec::new();
@@ -318,13 +454,24 @@ pub fn verify_authority_history(
         }
 
         if sequence == 1 {
-            verify_first_record(
-                &verified,
-                migration_event,
-                &migration,
-                &legacy_root_with_bridge,
-            )?;
-            current_event_root = legacy_root_with_bridge.clone();
+            match &boundary {
+                Boundary::Migration { event, payload, .. } => {
+                    verify_first_record(&verified, event, payload, &legacy_event_root)?;
+                    current_event_root = legacy_event_root.clone();
+                }
+                Boundary::Initialization { event, payload } => {
+                    verify_first_initialization_record(
+                        &verified,
+                        event,
+                        payload,
+                        &legacy_event_root,
+                    )?;
+                    covered_era_one.insert(event.id.clone());
+                    cumulative_era_one.push(*event);
+                    current_event_root =
+                        authority_event_log_root(&legacy_event_root, &cumulative_era_one)?;
+                }
+            }
         } else {
             let transaction_id = verified.record.content.transaction_id.as_str();
             let actual_ids: BTreeSet<&str> = verified
@@ -368,7 +515,7 @@ pub fn verify_authority_history(
             let expected_after = if transaction_events.is_empty() {
                 current_event_root.clone()
             } else {
-                authority_event_log_root(&legacy_root_with_bridge, &cumulative_era_one)?
+                authority_event_log_root(&legacy_event_root, &cumulative_era_one)?
             };
             if verified.record.content.after_event_log_root != expected_after {
                 return Err(format!(
@@ -452,7 +599,14 @@ pub fn verify_authority_history(
         legacy_event_count: input.legacy_events.len(),
         authority_event_count: input.authority_events.len(),
         authority_record_count: verified_records.len(),
-        migration_event_id: Some(migration_event.id.clone()),
+        migration_event_id: match &boundary {
+            Boundary::Migration { event, .. } => Some(event.id.clone()),
+            Boundary::Initialization { .. } => None,
+        },
+        initialization_event_id: match &boundary {
+            Boundary::Initialization { event, .. } => Some(event.id.clone()),
+            Boundary::Migration { .. } => None,
+        },
         final_event_log_root: current_event_root,
         final_authority_record_root: previous_record_root,
         final_authority_keyset_root: Some(active_keyset_root),
@@ -745,6 +899,89 @@ pub fn migration_payload_from_event(
     Ok(payload)
 }
 
+/// Verify a fresh Profile v1 authority boundary.
+///
+/// Fresh initialization is deliberately narrower than migration: the retained
+/// legacy side must be exactly the unsigned structural `frontier.created`
+/// event and an empty actor registry. No historical scientific event can gain
+/// authority through this path.
+pub fn verify_authority_initialization(
+    frontier_id: &str,
+    initial_events: &[StateEvent],
+    initial_actor_registry_bytes: &[u8],
+    authority_keyset: &AuthorityKeysetV1,
+    policy_bundle: &PolicyBundleV1,
+    initialization_event: &AuthorityEventV1,
+) -> Result<AuthorityInitializationV1, String> {
+    require_frontier(frontier_id)?;
+    let [created] = initial_events else {
+        return Err(
+            "fresh authority initialization requires exactly one structural frontier.created event"
+                .into(),
+        );
+    };
+    if created.kind.as_str() != "frontier.created"
+        || created.id != compute_event_id(created)
+        || created.signature.is_some()
+    {
+        return Err(
+            "fresh authority initialization requires the exact unsigned frontier.created event"
+                .into(),
+        );
+    }
+    let actors: Vec<ActorRecord> = serde_json::from_slice(initial_actor_registry_bytes)
+        .map_err(|error| format!("fresh actor registry is invalid: {error}"))?;
+    if !actors.is_empty() {
+        return Err("fresh authority initialization requires an empty actor registry".into());
+    }
+    let payload = initialization_payload_from_event(initialization_event)?;
+    if payload.frontier_id != frontier_id
+        || payload.initial_event_log_root != prefixed_legacy_root(initial_events)
+        || payload.initial_actor_registry_root != sha256_bytes(initial_actor_registry_bytes)
+    {
+        return Err(
+            "fresh authority initialization does not bind the exact structural state".into(),
+        );
+    }
+    authority_keyset.validate()?;
+    policy_bundle.validate()?;
+    if authority_keyset.frontier_id != frontier_id
+        || policy_bundle.frontier_id != frontier_id
+        || payload.new_authority_keyset_root != authority_keyset.root()?
+        || payload.new_policy_bundle_root != policy_bundle.root()?
+    {
+        return Err(
+            "fresh authority initialization does not bind its initial authority inputs".into(),
+        );
+    }
+    Ok(payload)
+}
+
+pub fn initialization_payload_from_event(
+    event: &AuthorityEventV1,
+) -> Result<AuthorityInitializationV1, String> {
+    event.validate()?;
+    if event.content.kind.as_str() != AUTHORITY_INITIALIZED_EVENT_KIND
+        || event.content.target.r#type != "frontier"
+        || event.content.actor.r#type != "human"
+        || event.content.before_hash != NULL_HASH
+        || event.content.after_hash != NULL_HASH
+    {
+        return Err("authority initialization event shape is invalid".into());
+    }
+    let payload: AuthorityInitializationV1 = serde_json::from_value(event.content.payload.clone())
+        .map_err(|error| format!("authority initialization payload is invalid: {error}"))?;
+    payload.validate()?;
+    if event.content.target.id != payload.frontier_id
+        || event.content.reason != payload.reason
+        || event.content.principal_id != payload.new_principal_id
+        || event.content.actor.id != payload.new_principal_id
+    {
+        return Err("authority initialization event does not match its payload".into());
+    }
+    Ok(payload)
+}
+
 pub fn authority_event_log_root(
     legacy_root_with_bridge: &str,
     authority_events: &[&AuthorityEventV1],
@@ -842,6 +1079,101 @@ fn verify_initial_migration_object_delta(
             migration_event_root,
             "event",
         ),
+        (
+            format!(".vela/authority/keysets/{keyset_stem}.json"),
+            authority_keyset_root,
+            "authority_keyset",
+        ),
+        (
+            format!(".vela/authority/policies/{policy_stem}.json"),
+            policy_bundle_root,
+            "policy_bundle",
+        ),
+    ];
+    for (path, root, kind) in expected {
+        let matches = verified
+            .record
+            .content
+            .object_delta
+            .iter()
+            .filter(|delta| {
+                delta.path == path
+                    && delta.before_root.is_none()
+                    && delta.after_root.as_deref() == Some(root)
+                    && delta.object_kind == kind
+            })
+            .count();
+        if matches != 1 {
+            return Err(format!(
+                "authority record 1 lacks one exact initial object delta for {path}"
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn verify_first_initialization_record(
+    verified: &VerifiedAuthorityRecord,
+    initialization_event: &AuthorityEventV1,
+    initialization: &AuthorityInitializationV1,
+    initial_event_log_root: &str,
+) -> Result<(), String> {
+    let record = &verified.record;
+    let event_root = initialization_event.root()?;
+    let initialization_intent = format!("sha256:{}", sha256_canonical(initialization)?);
+    let expected_after = authority_event_log_root(initial_event_log_root, &[initialization_event])?;
+    if record.content.event_ids != [initialization_event.id.clone()]
+        || record.content.before_event_log_root != initial_event_log_root
+        || record.content.after_event_log_root != expected_after
+        || record.content.principal.principal_id != initialization.new_principal_id
+        || record.content.intent_digest != initialization_intent
+        || initialization_event.content.transaction_id != record.content.transaction_id
+    {
+        return Err("authority record 1 does not exactly cover fresh initialization".into());
+    }
+    let approval = record.content.semantic_approvals.iter().find(|approval| {
+        approval.principal_id == initialization.new_principal_id
+            && approval.action == AUTHORITY_INITIALIZE_ACTION
+            && approval.reason == initialization.reason
+            && approval.intent_digest == record.content.intent_digest
+    });
+    if approval.is_none() {
+        return Err("authority record 1 lacks the exact initialization approval".into());
+    }
+    let event_path = format!(".vela/authority/events/{}.json", initialization_event.id);
+    let event_matches = record
+        .content
+        .object_delta
+        .iter()
+        .filter(|delta| {
+            delta.path == event_path
+                && delta.before_root.is_none()
+                && delta.after_root.as_deref() == Some(event_root.as_str())
+                && delta.object_kind == "event"
+        })
+        .count();
+    if event_matches != 1 {
+        return Err("authority record 1 lacks one exact fresh initialization event delta".into());
+    }
+    verify_initial_snapshot_delta(
+        verified,
+        &initialization.new_authority_keyset_root,
+        &initialization.new_policy_bundle_root,
+    )
+}
+
+fn verify_initial_snapshot_delta(
+    verified: &VerifiedAuthorityRecord,
+    authority_keyset_root: &str,
+    policy_bundle_root: &str,
+) -> Result<(), String> {
+    let keyset_stem = authority_keyset_root
+        .strip_prefix("sha256:")
+        .ok_or_else(|| "initial authority keyset root lacks sha256 tag".to_string())?;
+    let policy_stem = policy_bundle_root
+        .strip_prefix("sha256:")
+        .ok_or_else(|| "initial policy bundle root lacks sha256 tag".to_string())?;
+    let expected = [
         (
             format!(".vela/authority/keysets/{keyset_stem}.json"),
             authority_keyset_root,

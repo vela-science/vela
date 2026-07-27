@@ -275,7 +275,20 @@ Frontier bytes.
 | `land` | `submit` |
 | `verify attach` | `verification import` |
 | `review decide` | `review accept` or `review reject` |
-| `sign`, `migrate`, `authority` | historical replay only; no current writer |
+| `sign`, `migrate` | historical replay only; no current writer |
+
+Fresh Profile v1 repositories expose one advanced setup command:
+
+```bash
+vela authority init <frontier> \
+  [--key SHA256:<full-openssh-fingerprint>] \
+  --reason <bounded-reason> \
+  --json
+```
+
+It selects a plain Ed25519 identity already loaded in the standard OpenSSH
+agent and establishes sequence-1 repository authority. It is not a migration,
+personal signer, policy editor, or scientific decision command.
 
 Retired commands do not execute compatibility aliases.
 

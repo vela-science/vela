@@ -243,6 +243,14 @@ pub async fn run_command() {
         } => cmd_reproduce(&path, proposal.as_deref(), json),
         Commands::Id { action } => cmd_id(action),
         Commands::Actor { action } => cmd_actor(action),
+        Commands::Authority { action } => match action {
+            AuthorityAction::Init {
+                frontier,
+                key,
+                reason,
+                json,
+            } => cmd_authority_init(&frontier, key.as_deref(), &reason, json),
+        },
         Commands::Frontier { action } => cmd_frontier(action),
         Commands::Init {
             path,

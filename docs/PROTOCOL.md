@@ -381,6 +381,27 @@ object roots, chain forks, keyset or policy substitution, invalid legacy
 signatures, and Cedar diagnostics or denial. Exact registry bytes are bound;
 no network or live identity provider is needed for replay.
 
+Fresh Profile v1 repositories use a distinct, narrower sequence-1 boundary:
+
+```text
+authority.initialized
+  payload: vela.authority-initialization.v1
+```
+
+This is a `vela.event.v1` under `.vela/authority/events/`, not a legacy
+`StateEvent`. It is valid only when the pre-authority repository contains
+exactly the unsigned structural `frontier.created` event, an empty actor
+registry, and no authority history. Its payload binds that exact event-log and
+registry root, the initial keyset and policy roots, the authenticated OS
+principal, writer version, and reason. The same initial repository key signs
+the covering sequence-1 DSSE record, proving possession. The record also
+covers the exact retained Cedar material. Consumers still obtain the first
+full authority root through an independent distribution trust path.
+
+The fresh path cannot exempt, relabel, or authorize historical events and
+cannot run on an established or migrated Frontier. Missing, duplicate,
+backdated, substituted, or tampered initialization bytes fail closed.
+
 Storage is deliberately split at that boundary. The one migration bridge
 remains an ordinary Era-0 file at `.vela/events/<id>.json`. Post-migration
 `vela.event.v1` files live at `.vela/authority/events/<id>.json`, and their

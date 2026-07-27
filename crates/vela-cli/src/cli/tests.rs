@@ -330,7 +330,7 @@ mod surface_tests {
         "verification",
         "why",
     ];
-    const V0900_HIDDEN: &[&str] = &["completions", "target-index"];
+    const V0900_HIDDEN: &[&str] = &["authority", "completions", "target-index"];
 
     #[test]
     fn v0930_surface_is_exact_both_directions() {
