@@ -1,7 +1,7 @@
 # ADR 0023: Native current repository genesis
 
 - Status: Proposed
-- Target release: next Vela substrate release after `v0.930.0-rc.13`
+- Target release: Vela `v0.940.0`
 - Protocol effect: one native `vela.repository-genesis.v1` origin object
 - Product effect: `vela init` creates Profile v2 directly and the ordinary
   bootstrap no longer writes Era-0 events, actors, snapshots, or lock files

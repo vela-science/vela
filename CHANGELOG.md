@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## v0.940.0 — 2026-07-27 — One current repository contract
+
+- Make Profile v2, Claim Record v1, Submission v1, Registration Record v1,
+  Verification Record v1, Proposal v1, and repository authority the only live
+  repository contract.
+- Verify a signed repository-epoch boundary while removing the Era-0 parser,
+  reducer, writers, compatibility projections, migration command, and
+  one-time migration machinery from the daily binary.
+- Initialize fresh repositories directly in Profile v2 and bind native
+  `vela.repository-genesis.v1` through the same sequence-one authority
+  transaction used by current repositories.
+- Preserve historical audit through immutable predecessor commits, tags, and
+  source archives rather than same-binary legacy replay.
+- Keep the public product loop object-first:
+  `inspect -> attempt -> submit -> verify -> decide -> continue`.
+
 ## v0.930.0-rc.13 — 2026-07-26 — Contract authority to standard providers
 
 - Replace the custom protected-signer path with one attributed

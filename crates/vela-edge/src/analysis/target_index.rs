@@ -4667,7 +4667,7 @@ mod tests {
             &legacy,
             "vre_1234567890abcdef".to_string(),
             root('b'),
-            "0.930.0-rc.13".to_string(),
+            "0.940.0".to_string(),
         )
         .unwrap();
         current.validate().unwrap();
@@ -5248,7 +5248,7 @@ mod tests {
             &fixture.index,
             epoch_id.to_string(),
             repository_root.clone(),
-            "0.930.0-rc.13".to_string(),
+            "0.940.0".to_string(),
         )
         .unwrap();
         write(
@@ -5326,7 +5326,7 @@ mod tests {
             &fixture.index,
             epoch_id.to_string(),
             repository_root.clone(),
-            "0.930.0-rc.13".to_string(),
+            "0.940.0".to_string(),
         )
         .unwrap();
         write(
