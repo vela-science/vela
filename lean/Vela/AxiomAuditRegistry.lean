@@ -69,7 +69,23 @@ def registry : List AuditEntry :=
    { category := .research, declaration := ``Vela.transfer_sound },
    { category := .research, declaration := ``Vela.TransferBinaryCodeToCWC.bincode_to_cwc_sound },
    { category := .research, declaration := ``Vela.TransferCWCtoDNA.cwc_to_dna_sound },
-   { category := .research, declaration := ``Vela.TransferBinaryCodeToCWC.binCodeToDNA }]
+   { category := .research, declaration := ``Vela.TransferBinaryCodeToCWC.binCodeToDNA },
+   -- Concrete witnesses for the abstract theorems above. Registered after the
+   -- historical entries so the established order is unchanged. Each takes the
+   -- category of the abstract theorem it discharges: without these, theorem12
+   -- and theorem14 are audited as statements whose hypotheses no exhibited
+   -- model is known to satisfy.
+   { category := .research, declaration := ``Vela.ProposalIdempotency.Concrete.caccept_deduped },
+   { category := .research,
+     declaration := ``Vela.ProposalIdempotency.Concrete.theorem14_concrete_accept_idempotent },
+   { category := .research,
+     declaration := ``Vela.ProposalIdempotency.Concrete.theorem14_concrete_accept_threefold },
+   { category := .protocol,
+     declaration := ``Vela.ConcurrentReplay.Concrete.capply_locally_commutative },
+   { category := .protocol,
+     declaration := ``Vela.ConcurrentReplay.Concrete.theorem12_concrete_commutes },
+   { category := .protocol,
+     declaration := ``Vela.ConcurrentReplay.Concrete.capply_shared_target_noncommute }]
 
 def declarationsFor (category : AuditClass) : List Name :=
   registry.filterMap fun entry =>

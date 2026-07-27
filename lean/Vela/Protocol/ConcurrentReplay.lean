@@ -100,4 +100,79 @@ theorem theorem12b_two_event_swap
     apply (apply state₀ e₁) e₂ = apply (apply state₀ e₂) e₁ :=
   theorem12_concurrent_replay_commutes apply disjoint hCommute state₀ e₁ e₂ hDisjoint
 
+/-! ## De-hollowing: a concrete reducer that PROVES `LocallyCommutative`
+
+The theorems above are honest but conditional: they take `LocallyCommutative`
+as a hypothesis, so the substantive claim ("the substrate's reducer commutes on
+disjoint targets") is *assumed*, not *proven*. The section below removes that
+hollowness exactly as `Vela.ReducerModel` did for T28/T34 — by giving a CONCRETE
+reducer over a concrete state and discharging `LocallyCommutative` from the
+reducer's definition. No axiom, no `sorry`.
+
+We model the substrate's per-finding projection as a map from a target id to the
+finding's current content (`String → Option String`); the empty map is `S_0`.
+A canonical event is a `(target, content)` pair, and the reducer writes the
+content into the slot keyed by `target` — exactly the `event.target.id`-keyed
+update the prose describes. Two events are *disjoint* iff their target ids
+differ, and on disjoint targets the two writes touch independent slots, so they
+commute. The commutation is a theorem about `Function.update`, derived from the
+reducer step — the real content T12 gestured at. -/
+
+namespace Concrete
+
+/-- Concrete substrate projection: each target id maps to its finding's current
+content (`none` if no finding present at that id). The initial state `S_0` is
+the everywhere-`none` map. -/
+abbrev FindingMap := String → Option String
+
+/-- A canonical event: write `content` into the finding slot `target`. This is
+the faithful shape of `finding.add`/`finding.note`/`finding.caveat`/
+`artifact.asserted` — each carries a `target.id` and a payload. -/
+structure CEvent where
+  target : String
+  content : String
+
+/-- The empty initial projection `S_0`. -/
+def empty : FindingMap := fun _ => none
+
+/-- The concrete reducer step: write the event's content into its target slot.
+This is the substrate's `event.target.id`-keyed update made definitional. -/
+def capply (s : FindingMap) (e : CEvent) : FindingMap :=
+  Function.update s e.target (some e.content)
+
+/-- The substrate's actual disjointness check: two events are disjoint iff their
+`target.id` fields differ. Here it is a concrete (decidable) predicate, not an
+abstract one. -/
+def cdisjoint (e₁ e₂ : CEvent) : Prop := e₁.target ≠ e₂.target
+
+/-- **De-hollowed core**: the concrete reducer IS locally commutative on disjoint
+targets — PROVEN from the update semantics, not assumed. Two writes to distinct
+target slots commute because `Function.update` on distinct keys commutes. -/
+theorem capply_locally_commutative : LocallyCommutative capply cdisjoint := by
+  intro s e₁ e₂ hd
+  simp only [capply]
+  exact Function.update_comm hd (some e₁.content) (some e₂.content) s
+
+/-- **De-hollowed Theorem 12.** Specialized to the concrete reducer: two events
+with disjoint target ids commute, with the commutativity *derived from the
+reducer definition* rather than taken as a hypothesis. -/
+theorem theorem12_concrete_commutes
+    (s₀ : FindingMap) (e₁ e₂ : CEvent) (hDisjoint : cdisjoint e₁ e₂) :
+    capply (capply s₀ e₁) e₂ = capply (capply s₀ e₂) e₁ :=
+  theorem12_concurrent_replay_commutes capply cdisjoint
+    capply_locally_commutative s₀ e₁ e₂ hDisjoint
+
+/-- Sanity check that disjointness is load-bearing: two events on the SAME target
+do NOT in general commute (last writer wins), so the concrete reducer matches the
+prose's claim that the canonical order is load-bearing on shared targets. -/
+theorem capply_shared_target_noncommute :
+    ∃ (s₀ : FindingMap) (e₁ e₂ : CEvent),
+      e₁.target = e₂.target ∧ capply (capply s₀ e₁) e₂ ≠ capply (capply s₀ e₂) e₁ := by
+  refine ⟨empty, ⟨"t", "a"⟩, ⟨"t", "b"⟩, rfl, ?_⟩
+  intro h
+  have := congrFun h "t"
+  simp [capply, Function.update] at this
+
+end Concrete
+
 end Vela.ConcurrentReplay

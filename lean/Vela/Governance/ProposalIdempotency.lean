@@ -87,4 +87,67 @@ theorem theorem14_accept_threefold
   rw [theorem14_accept_idempotent accept s p hDedup]
   exact hDedup
 
+/-! ## De-hollowing: a concrete reducer that PROVES the dedup hypothesis
+
+The theorems above are honest but conditional: `DedupedOn accept (accept s p) p`
+(literally `accept (accept s p) p = accept s p`) is taken as a hypothesis, so the
+substantive idempotency claim is *assumed*, not *proven*. The section below
+removes that hollowness exactly as `Vela.ReducerModel` did for T28/T34 — by
+giving a CONCRETE acceptance reducer over a concrete frontier state and PROVING
+the dedup property (and therefore idempotency) from the reducer's definition.
+No axiom, no `sorry`.
+
+We model the frontier as its accepted-set: the list of `applied_event_id`s that
+have been accepted. Accepting a proposal whose id is already present is a no-op
+(the substrate's `applied_event_id` dedup step, `crates/vela-protocol/src/
+reducer.rs`); otherwise the id is appended. The idempotency then *follows* from
+the definition, because after the first accept the id is in the set. -/
+
+namespace Concrete
+
+/-- Concrete frontier projection: the set of accepted `applied_event_id`s,
+in acceptance order (append-only). `S_0` is the empty list. -/
+abbrev Accepted := List String
+
+/-- A proposal, identified by its `applied_event_id` (the dedup key). -/
+structure Proposal where
+  appliedEventId : String
+
+/-- The concrete acceptance reducer: appending a proposal's id to the
+accepted-set, but *only if it is not already present* — the substrate's
+`applied_event_id` deduplication step made definitional. -/
+def caccept (s : Accepted) (p : Proposal) : Accepted :=
+  if p.appliedEventId ∈ s then s else s ++ [p.appliedEventId]
+
+/-- After accepting `p`, its id is in the accepted-set — whether it was already
+present (guard true, set unchanged) or freshly appended (guard false). -/
+theorem mem_after_accept (s : Accepted) (p : Proposal) :
+    p.appliedEventId ∈ caccept s p := by
+  unfold caccept
+  split
+  · assumption
+  · simp
+
+/-- **De-hollowed dedup property**: re-accepting an already-accepted proposal is a
+no-op — PROVEN from the reducer definition (the guard fires once the id is in the
+set), not assumed. This is exactly `DedupedOn caccept (caccept s p) p`. -/
+theorem caccept_deduped (s : Accepted) (p : Proposal) :
+    DedupedOn caccept (caccept s p) p := by
+  show caccept (caccept s p) p = caccept s p
+  rw [caccept, if_pos (mem_after_accept s p)]
+
+/-- **De-hollowed Theorem 14.** Idempotency of the concrete acceptance reducer,
+with the dedup hypothesis *discharged* by `caccept_deduped` rather than assumed:
+`caccept (caccept s p) p = caccept s p` holds unconditionally. -/
+theorem theorem14_concrete_accept_idempotent (s : Accepted) (p : Proposal) :
+    caccept (caccept s p) p = caccept s p :=
+  theorem14_accept_idempotent caccept s p (caccept_deduped s p)
+
+/-- **De-hollowed threefold corollary**, likewise unconditional. -/
+theorem theorem14_concrete_accept_threefold (s : Accepted) (p : Proposal) :
+    caccept (caccept (caccept s p) p) p = caccept s p :=
+  theorem14_accept_threefold caccept s p (caccept_deduped s p)
+
+end Concrete
+
 end Vela.ProposalIdempotency
