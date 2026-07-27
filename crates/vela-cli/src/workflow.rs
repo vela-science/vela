@@ -929,13 +929,20 @@ fn repository_authority_nonlease_event_log_root(
 
 fn repository_submission_materialization_candidate(
     frontier: &Path,
+    authority_events: &[vela_protocol::authority::AuthorityEventV1],
     proposal: vela_protocol::proposals::StateProposal,
 ) -> Result<vela_protocol::project::Project, String> {
     // Reload from canonical repository bytes rather than accepting the
     // effective workflow Project. The latter may contain detached
     // repository-authority lease overlays used only to validate the active
-    // Attempt; those overlays must never enter ordinary derived views.
+    // Attempt; those overlays must never enter ordinary derived views. The
+    // verified authority log itself is canonical, however, and its semantic
+    // events must remain in the dual-era materialized projection. Otherwise a
+    // current Submission can silently replace a correct dual-log lock with an
+    // Era-0-only lock.
     let mut candidate = repo::load_from_path(frontier)?;
+    candidate.events = vela_protocol::reducer::semantic_event_union(&candidate, authority_events)?;
+    vela_protocol::project::recompute_stats(&mut candidate);
     vela_protocol::proposals::insert_pending_in_frontier(&mut candidate, proposal)?;
     Ok(candidate)
 }
@@ -2192,8 +2199,11 @@ pub(crate) fn submit(
     )?;
     let claim_id = proposal.target.id.clone();
     let proposal_id = proposal.id.clone();
-    let materialization_candidate =
-        repository_submission_materialization_candidate(frontier, proposal.clone())?;
+    let materialization_candidate = repository_submission_materialization_candidate(
+        frontier,
+        &authority.history.authority_events,
+        proposal.clone(),
+    )?;
     let scientific_event_root = authority.verification.final_event_log_root.clone();
     let proposal_after = format!(
         "sha256:{}",
@@ -2229,14 +2239,17 @@ pub(crate) fn submit(
         .expect("Registration Record root is canonical");
     let registration_path = format!("records/registrations/sha256/{registration_hex}.json");
 
-    let mut managed = repo::render_vela_repo_files(frontier, &materialization_candidate)?;
-    preserve_existing_event_bytes(
-        frontier,
-        &materialization_candidate,
-        &materialization_candidate,
-        &mut managed,
-        "submit",
-    )?;
+    // Submission registers public review/evidence objects separately below.
+    // Only stage the visible derived projection here. Rendering the complete
+    // managed repository would incorrectly treat virtual Era-1 semantic
+    // events as new Era-0 event files.
+    let managed = vela_protocol::repo::ManagedFileSet {
+        writes: vela_protocol::frontier_repo::render_visible_repo_files(
+            frontier,
+            &materialization_candidate,
+        )?,
+        deletes: Default::default(),
+    };
     let mut derived_drafts = Vec::new();
     for write in PlannedWrite::from_managed_files(managed).map_err(|error| error.to_string())? {
         if write.class() != WriteClass::Derived {
@@ -3098,7 +3111,7 @@ mod workflow_transaction_tests {
         let proposal_id = proposal.id.clone();
 
         let materialized =
-            repository_submission_materialization_candidate(temp.path(), proposal).unwrap();
+            repository_submission_materialization_candidate(temp.path(), &[], proposal).unwrap();
         assert_eq!(materialized.events.len(), canonical.events.len());
         assert!(
             materialized
@@ -3112,6 +3125,72 @@ mod workflow_transaction_tests {
                 .iter()
                 .any(|proposal| proposal.id == proposal_id)
         );
+    }
+
+    #[test]
+    fn repository_submission_materialization_preserves_verified_dual_log_events() {
+        use vela_protocol::authority::{AUTHORITY_MODE, AuthorityEventContentV1, AuthorityEventV1};
+
+        let temp = tempfile::tempdir().unwrap();
+        let canonical =
+            vela_protocol::project::assemble("dual-log-materialization", Vec::new(), 0, 0, "test");
+        vela_protocol::repo::init_repo(temp.path(), &canonical).unwrap();
+        let authority_event = AuthorityEventV1::new(AuthorityEventContentV1 {
+            transaction_id: "vat_dual_log_fixture".into(),
+            principal_id: "agent:fixture".into(),
+            authority_mode: AUTHORITY_MODE.into(),
+            kind: vela_protocol::events::EventKind::AttemptClaimed,
+            target: vela_protocol::events::StateTarget {
+                r#type: "attempt".into(),
+                id: "fixture:target".into(),
+            },
+            actor: vela_protocol::events::StateActor {
+                r#type: "agent".into(),
+                id: "agent:fixture".into(),
+            },
+            timestamp: "2026-07-26T00:00:00Z".into(),
+            reason: "Retain a canonical Era-1 lease in the materialized dual log.".into(),
+            before_hash: vela_protocol::events::NULL_HASH.into(),
+            after_hash: vela_protocol::events::NULL_HASH.into(),
+            payload: json!({
+                "obligation_id": "fixture:target",
+                "lease_ttl_seconds": 60,
+                "claimant_actor": "agent:fixture",
+                "claimant_pubkey": "fixture-key",
+            }),
+            caveats: Vec::new(),
+        })
+        .unwrap();
+        let pending_finding = finding();
+        let proposal = vela_protocol::proposals::new_proposal_at(
+            "finding.add",
+            vela_protocol::events::StateTarget {
+                r#type: "finding".to_string(),
+                id: pending_finding.id.clone(),
+            },
+            "agent:fixture",
+            "agent",
+            "retain verified work for review",
+            json!({ "finding": pending_finding }),
+            Vec::new(),
+            Vec::new(),
+            "2026-07-26T00:00:01Z",
+        );
+
+        let materialized = repository_submission_materialization_candidate(
+            temp.path(),
+            std::slice::from_ref(&authority_event),
+            proposal,
+        )
+        .unwrap();
+        assert_eq!(materialized.events.len(), canonical.events.len() + 1);
+        assert!(
+            materialized
+                .events
+                .iter()
+                .any(|event| event.id == authority_event.id)
+        );
+        assert_eq!(materialized.stats.event_count, canonical.events.len() + 1);
     }
 
     fn review_withdraw_fixture() -> (tempfile::TempDir, SigningKey, String) {
