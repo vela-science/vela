@@ -126,17 +126,46 @@ pub(crate) fn compact_status_payload_with_home(
     );
     let policy_ok = policy.permit_readiness()
         != vela_protocol::proposals::policy_accept::PermitReadiness::Blocked;
-    // `status` is the compact product projection of the same fail-closed bar
-    // as `check --strict`. Do not independently approximate that bar here:
-    // doing so previously let stale derived state report `strict: pass` even
-    // while the canonical strict checker rejected the Frontier.
-    let strict_check = crate::cli::check_json_payload_with_preloaded(
-        frontier_dir,
-        false,
-        true,
-        Some(&project),
-        repository_context.payload.clone(),
-    );
+    // Strict verification and Target Index assessment are independent,
+    // read-only projections over the same already verified repository
+    // context. Run them together: a large Frontier should pay for both
+    // boundaries, but it need not pay their wall times serially.
+    let (strict_check, work_projection_result) = std::thread::scope(|scope| {
+        let strict = scope.spawn(|| {
+            // `status` is the compact product projection of the same
+            // fail-closed bar as `check --strict`. Do not independently
+            // approximate that bar here.
+            crate::cli::check_json_payload_with_preloaded(
+                frontier_dir,
+                false,
+                true,
+                Some(&project),
+                repository_context.payload.clone(),
+            )
+        });
+        let work = scope.spawn(|| {
+            if repository_acceptable {
+                vela_edge::frontier_next::try_frontier_next_projection_with_trust_anchor_and_authority(
+                    &project,
+                    Some(frontier_dir),
+                    observed_at,
+                    1,
+                    repository_context.target_index_trust_anchor.as_ref(),
+                    &repository_context.authority_events,
+                )
+                .map(Some)
+            } else {
+                Ok(None)
+            }
+        });
+        let strict_check = strict
+            .join()
+            .map_err(|_| "strict status projection panicked".to_string())?;
+        let work_projection_result = work
+            .join()
+            .map_err(|_| "work status projection panicked".to_string())?;
+        Ok::<_, String>((strict_check, work_projection_result))
+    })?;
     let strict_check_ok = strict_check.get("ok").and_then(serde_json::Value::as_bool) == Some(true);
     // Compact status counts the intrinsic signals already produced by the
     // canonical check and adds check categories below. Diagnostic-derived
@@ -179,26 +208,15 @@ pub(crate) fn compact_status_payload_with_home(
     // is threaded into the projection; no pin is inferred from targets.json
     // or any other repository-controlled bytes.
     let mut target_index_error = None;
-    let work_projection = if repository_acceptable {
-        match vela_edge::frontier_next::try_frontier_next_projection_with_trust_anchor_and_authority(
-            &project,
-            Some(frontier_dir),
-            observed_at,
-            1,
-            repository_context.target_index_trust_anchor.as_ref(),
-            &repository_context.authority_events,
-        ) {
-            Ok(projection) => Some(projection),
-            Err(error) => {
-                *blockers_by_code
-                    .entry("target_index_projection_invalid".to_string())
-                    .or_default() += 1;
-                target_index_error = Some(error);
-                None
-            }
+    let work_projection = match work_projection_result {
+        Ok(projection) => projection,
+        Err(error) => {
+            *blockers_by_code
+                .entry("target_index_projection_invalid".to_string())
+                .or_default() += 1;
+            target_index_error = Some(error);
+            None
         }
-    } else {
-        None
     };
     let open_work = work_projection
         .as_ref()

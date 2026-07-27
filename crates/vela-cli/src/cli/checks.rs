@@ -480,7 +480,18 @@ pub(crate) fn check_json_payload_with_preloaded(
     } else {
         (None, None)
     };
-    let source_hash = hash_path(src).unwrap_or_else(|_| "unavailable".to_string());
+    // Once the Frontier has loaded, bind the check to the canonical project
+    // bytes that the validators below actually inspect. Recursively hashing
+    // the checkout made an otherwise read-only status depend on `.git`,
+    // virtual environments, caches, and ignored recovery state. Besides being
+    // needlessly expensive on real Frontiers, that broad hash could change
+    // while every Vela-canonical byte remained identical.
+    //
+    // Keep the filesystem fallback for malformed inputs that cannot be loaded:
+    // their diagnostic payload still needs a best-effort source identity.
+    let source_hash = loaded
+        .and_then(canonical_project_hash)
+        .unwrap_or_else(|| hash_path(src).unwrap_or_else(|_| "unavailable".to_string()));
     let mut diagnostics = Vec::new();
     diagnostics.extend(report.errors.iter().map(|e| {
         json!({
@@ -1162,6 +1173,11 @@ pub(crate) fn hash_path(path: &Path) -> Result<String, String> {
     Ok(format!("{:x}", hasher.finalize()))
 }
 
+fn canonical_project_hash(frontier: &project::Project) -> Option<String> {
+    let bytes = vela_protocol::canonical::to_canonical_bytes(frontier).ok()?;
+    Some(hex::encode(Sha256::digest(bytes)))
+}
+
 pub(crate) fn load_frontier_or_fail(path: &Path) -> project::Project {
     repo::load_from_path(path).unwrap_or_else(|e| {
         fail_return(&format!(
@@ -1554,6 +1570,47 @@ mod repository_context_tests {
         );
 
         assert_eq!(preloaded, ordinary);
+    }
+
+    #[test]
+    fn loaded_source_hash_ignores_noncanonical_checkout_bytes() {
+        let fixture = bound_repository(AnchorCase::Valid);
+        install_repository_trust_anchor_from_home(fixture.home.path(), &fixture.anchor).unwrap();
+        let project = repo::load_from_path(fixture.repo.path()).unwrap();
+        let context = repository_context_assessment_with_project_and_home(
+            fixture.repo.path(),
+            Some(&project),
+            Some(fixture.home.path()),
+        );
+        let before = check_json_payload_with_preloaded(
+            fixture.repo.path(),
+            false,
+            true,
+            Some(&project),
+            context.payload.clone(),
+        );
+
+        std::fs::write(
+            fixture.repo.path().join("ignored-check-cache.tmp"),
+            b"operational bytes outside the loaded Frontier",
+        )
+        .unwrap();
+        let after = check_json_payload_with_preloaded(
+            fixture.repo.path(),
+            false,
+            true,
+            Some(&project),
+            context.payload,
+        );
+
+        assert_eq!(before["source"]["hash"], after["source"]["hash"]);
+        assert_eq!(
+            before["source"]["hash"],
+            format!(
+                "sha256:{}",
+                canonical_project_hash(&project).expect("canonical project hash")
+            )
+        );
     }
 
     #[test]

@@ -1805,6 +1805,21 @@ fn index_entry(repo: &Path, path: &str) -> Result<Option<GitTreeEntry>, String> 
     Ok(Some(parsed))
 }
 
+fn index_entries(repo: &Path) -> Result<BTreeMap<String, GitTreeEntry>, String> {
+    let output = git(repo, &["ls-files", "--stage", "-z"])?;
+    let mut entries = BTreeMap::new();
+    for raw in output
+        .split(|byte| *byte == 0)
+        .filter(|entry| !entry.is_empty())
+    {
+        let parsed = parse_index_record(raw)?;
+        if entries.insert(parsed.path.clone(), parsed).is_some() {
+            return Err("Git index contains duplicate stage-0 paths".to_string());
+        }
+    }
+    Ok(entries)
+}
+
 fn exact_tracked_head_bytes(repo: &Path, path: &str, max_bytes: u64) -> Result<Vec<u8>, String> {
     let head =
         tree_entry(repo, "HEAD", path)?.ok_or_else(|| format!("{path:?} is absent from HEAD"))?;
@@ -1824,6 +1839,78 @@ fn exact_tracked_head_bytes(repo: &Path, path: &str, max_bytes: u64) -> Result<V
         return Err(format!("{path:?} working bytes do not match HEAD"));
     }
     Ok(worktree)
+}
+
+/// Verify many tracked packet paths with one tree read, one index read, and one
+/// batched blob process.
+///
+/// The per-path verifier above is appropriate at a transaction edge. A read
+/// projection can contain thousands of packets, however, and spawning three
+/// Git processes for each packet made `status` scale with process-launch
+/// overhead rather than packet bytes. This batch retains the same HEAD/index/
+/// worktree equality checks and returns an independent result per requested
+/// path so one stale packet does not hide the rest of the assessment.
+fn exact_tracked_head_bytes_batch(
+    repo: &Path,
+    paths: impl IntoIterator<Item = String>,
+    max_bytes: u64,
+) -> Result<BTreeMap<String, Result<Vec<u8>, String>>, String> {
+    let requested = paths.into_iter().collect::<BTreeSet<_>>();
+    for path in &requested {
+        validate_repository_path(path, "Git path", 1_024)?;
+    }
+
+    let head_entries = tree_entries(repo, "HEAD")?
+        .into_iter()
+        .map(|entry| (entry.path.clone(), entry))
+        .collect::<BTreeMap<_, _>>();
+    let staged_entries = index_entries(repo)?;
+    let mut results = BTreeMap::new();
+    let mut valid = Vec::new();
+
+    for path in requested {
+        let Some(head) = head_entries.get(&path) else {
+            results.insert(path.clone(), Err(format!("{path:?} is absent from HEAD")));
+            continue;
+        };
+        let Some(staged) = staged_entries.get(&path) else {
+            results.insert(
+                path.clone(),
+                Err(format!("{path:?} is absent from the Git index")),
+            );
+            continue;
+        };
+        if !matches!(head.mode.as_str(), "100644" | "100755")
+            || head.kind != "blob"
+            || staged.mode != head.mode
+            || staged.object != head.object
+        {
+            results.insert(
+                path.clone(),
+                Err(format!(
+                    "{path:?} must be an unchanged tracked regular file in HEAD and the Git index"
+                )),
+            );
+            continue;
+        }
+        valid.push((path, head.clone()));
+    }
+
+    let blobs = batch_blobs(
+        repo,
+        &valid.iter().map(|(_, entry)| entry).collect::<Vec<_>>(),
+    )?;
+    for ((path, _), blob_bytes) in valid.into_iter().zip(blobs) {
+        let result = safe_worktree_file(repo, &path, max_bytes).and_then(|worktree| {
+            if worktree == blob_bytes {
+                Ok(worktree)
+            } else {
+                Err(format!("{path:?} working bytes do not match HEAD"))
+            }
+        });
+        results.insert(path, result);
+    }
+    Ok(results)
 }
 
 fn safe_worktree_file(repo_path: &Path, relative: &str, max_bytes: u64) -> Result<Vec<u8>, String> {
@@ -3025,9 +3112,18 @@ fn assess_v2(
         Err(error) => global_issues.push(issue(CODE_OUTPUT_NOT_TRACKED, error)),
     }
 
+    let open_packet_bytes = exact_tracked_head_bytes_batch(
+        repo_path,
+        index
+            .targets
+            .iter()
+            .filter(|target| target.state == "open")
+            .map(|target| target.packet.path.clone()),
+        TARGET_PACKET_MAX_BYTES,
+    )?;
     for target in index.targets.iter().filter(|target| target.state == "open") {
-        match exact_tracked_head_bytes(repo_path, &target.packet.path, TARGET_PACKET_MAX_BYTES) {
-            Ok(packet_bytes) => {
+        match open_packet_bytes.get(&target.packet.path) {
+            Some(Ok(packet_bytes)) => {
                 let digest = sha256_root(&packet_bytes);
                 if packet_bytes.len() as u64 != target.packet.size || digest != target.packet.sha256
                 {
@@ -3064,11 +3160,17 @@ fn assess_v2(
                     ),
                 }
             }
-            Err(error) => push_target_issue(
+            Some(Err(error)) => push_target_issue(
                 &mut target_issues,
                 &target.id,
                 CODE_OUTPUT_NOT_TRACKED,
                 error,
+            ),
+            None => push_target_issue(
+                &mut target_issues,
+                &target.id,
+                CODE_OUTPUT_NOT_TRACKED,
+                "packet path was absent from the batched tracked-file assessment",
             ),
         }
     }

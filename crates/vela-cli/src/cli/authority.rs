@@ -382,8 +382,14 @@ fn initial_policy_bundle_at_with_routine_work(
             "{automatic_schema}\n{authority_schema}\n{ROUTINE_WORK_SCHEMA}\n{ROUTINE_SUBMISSION_SCHEMA}\n{ROUTINE_VERIFICATION_SCHEMA}\n"
         )
     } else {
-        // Preserve the exact sequence-1 bytes emitted by Vela 0.930.0-rc.7.
-        format!("{automatic_schema}\n{HUMAN_AUTHORITY_SCHEMA}\n")
+        // Preserve the exact migration-policy bytes emitted before the
+        // routine-work schema was added. HUMAN_AUTHORITY_SCHEMA now carries a
+        // trailing newline for composition with the fresh-authority schema;
+        // the historical migration writer did not.
+        format!(
+            "{automatic_schema}\n{}\n",
+            HUMAN_AUTHORITY_SCHEMA.trim_end()
+        )
     };
     let human_policy = human_authority_policy(principal_id, action == AUTHORITY_INITIALIZE_ACTION)?;
     let policies = if include_routine_work {
@@ -1495,6 +1501,38 @@ mod tests {
             ensure_routine_producer_material_ready(&incomplete, &project)
                 .unwrap_err()
                 .contains("must be introduced together")
+        );
+    }
+
+    #[test]
+    fn historical_migration_schema_bytes_retain_the_original_root() {
+        let schema = format!(
+            "{AUTOMATIC_POLICY_SCHEMA}\n{}\n",
+            HUMAN_AUTHORITY_SCHEMA.trim_end()
+        );
+        assert_eq!(
+            ContentDigest::hash(schema.as_bytes()).as_str(),
+            "sha256:4583b841bf5ac65a69b5ca835b6ed76290bcf6a9e13ff612747f3dfa999e7fe0"
+        );
+    }
+
+    #[test]
+    fn historical_migration_bundle_reconstructs_the_retained_quantum_root() {
+        let fixture = fixture();
+        let mut project = vela_protocol::repo::load_from_path(fixture.path()).unwrap();
+        project.frontier_id = Some("vfr_001f148c07eebecb".into());
+        let (bundle, _) = initial_policy_bundle_at_with_routine_work(
+            fixture.path(),
+            &project,
+            "local:device-sha256:67fbb8e56377e6868e9f941524e0bf39cfb4fd2a4bfdd25c2edb93fc82f86213|uid:501",
+            "2026-07-25T22:24:21Z",
+            false,
+            AUTHORITY_MIGRATION_ACTION,
+        )
+        .unwrap();
+        assert_eq!(
+            bundle.root().unwrap(),
+            "sha256:84c2df090f50d84a6036771608ffc8068c676a937628b47382f77ec8bd9f5dfc"
         );
     }
 }
