@@ -134,6 +134,8 @@ struct CandidateManifest {
     profile_root: String,
     authority_keyset_root: String,
     authority_policy_root: String,
+    target_index_root: Option<String>,
+    target_index_disposition: String,
 }
 
 #[derive(Debug, Clone)]
@@ -169,6 +171,8 @@ struct RepositoryUpgradePlan {
     repository_root: String,
     authority_keyset_root: String,
     authority_policy_root: String,
+    target_index_root: Option<String>,
+    target_index_disposition: String,
     authority_key_id: String,
     git_object_manifest_path: String,
     git_object_manifest_root: String,
@@ -390,6 +394,116 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             "  next      {}",
             payload["next_action"].as_str().unwrap_or("none")
         );
+    }
+}
+
+pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
+    crate::ui::set_mode("next", json_out);
+    let frontier = frontier.canonicalize().unwrap_or_else(|error| {
+        crate::cli::fail_return(&format!(
+            "resolve current Frontier {}: {error}",
+            frontier.display()
+        ))
+    });
+    let repository = verify_current_repository_at(&frontier, true)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let repository_root = repository
+        .canonical_root()
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let assessment = vela_edge::target_index::assess_current_target_index(
+        &frontier,
+        &repository.frontier_id,
+        &repository.epoch_id,
+        &repository_root,
+    )
+    .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let Some(assessment) = assessment else {
+        let payload = json!({
+            "schema": "vela.offer.v1",
+            "ok": true,
+            "command": "next",
+            "frontier_id": repository.frontier_id,
+            "repository_root": repository_root,
+            "availability": {
+                "configured": 0,
+                "stale": 0,
+                "available": 0,
+                "leased": 0,
+                "returned": 0
+            },
+            "targets": [],
+            "next_action": "No Target Index is configured; inspect the Frontier before inventing work.",
+            "legacy_runtime_used": false
+        });
+        if json_out {
+            crate::cli::print_json(&payload);
+        } else {
+            println!("next · no configured Target Offers");
+        }
+        return;
+    };
+    let configured = assessment.configured_open();
+    let fresh = assessment.fresh_open_targets();
+    let available = fresh.len();
+    let limit = limit.clamp(1, 128);
+    let offers = fresh
+        .into_iter()
+        .take(limit)
+        .map(|target| {
+            json!({
+                "rank": target.rank,
+                "lane": "produce",
+                "target_id": target.id,
+                "title": target.title,
+                "objective": target.objective,
+                "why": target.why,
+                "labels": target.labels,
+                "packet": target.packet,
+                "verifier_profile": assessment.packet_value(&target.id)
+                    .and_then(|packet| packet.get("verifier_profile"))
+                    .or_else(|| assessment.packet_value(&target.id)
+                        .and_then(|packet| packet.get("verifier"))),
+                "lease_state": "available",
+                "next_command": format!(
+                    "vela start {} --frontier {} --as agent:<name> --json",
+                    target.id,
+                    frontier.display()
+                )
+            })
+        })
+        .collect::<Vec<_>>();
+    let payload = json!({
+        "schema": "vela.offer.v1",
+        "ok": true,
+        "command": "next",
+        "frontier_id": repository.frontier_id,
+        "epoch_id": repository.epoch_id,
+        "repository_root": repository_root,
+        "target_index_root": assessment.index.index_root,
+        "availability": {
+            "configured": configured,
+            "stale": configured.saturating_sub(available),
+            "available": available,
+            "leased": 0,
+            "returned": offers.len()
+        },
+        "targets": offers,
+        "legacy_runtime_used": false
+    });
+    if json_out {
+        crate::cli::print_json(&payload);
+    } else {
+        let returned = payload["availability"]["returned"].as_u64().unwrap_or(0);
+        println!("next · {returned} Target Offer(s)");
+        for offer in payload["targets"].as_array().into_iter().flatten() {
+            println!(
+                "  {}  {}",
+                offer["target_id"].as_str().unwrap_or(""),
+                offer["title"].as_str().unwrap_or("")
+            );
+            println!("      {}", offer["why"].as_str().unwrap_or(""));
+            println!("      {}", offer["next_command"].as_str().unwrap_or(""));
+        }
     }
 }
 
@@ -670,6 +784,8 @@ fn prepare_repository_upgrade(
     let authority_keyset_root = authority_keyset.root()?;
     let authority_policy_root = authority_policy.root()?;
     let (profile_bytes, profile_root) = current_profile(&frontier)?;
+    let (predecessor_target_index, target_index_disposition) =
+        load_migratable_target_index(&frontier, &project)?;
 
     let object_manifest = git_object_manifest(&frontier, &commit, &tree)?;
     let object_manifest_bytes = vela_protocol::canonical::to_canonical_bytes(&object_manifest)?;
@@ -756,7 +872,7 @@ fn prepare_repository_upgrade(
         )
     })?;
     let stem = format!(
-        "{}-{}",
+        "{}-{}-current-target-v3-2",
         frontier
             .file_name()
             .and_then(|value| value.to_str())
@@ -821,6 +937,18 @@ fn prepare_repository_upgrade(
         &authority_policy_root,
     )?;
     let repository_root = repository.canonical_root()?;
+    let target_index = predecessor_target_index
+        .as_ref()
+        .map(|index| {
+            vela_edge::target_index::TargetIndexV3::from_v2(
+                index,
+                epoch.epoch_id.clone(),
+                repository_root.clone(),
+                env!("CARGO_PKG_VERSION").to_string(),
+            )
+        })
+        .transpose()?;
+    let target_index_root = target_index.as_ref().map(|index| index.index_root.clone());
     let candidate = CandidateManifest {
         schema: CANDIDATE_MANIFEST_SCHEMA,
         frontier_id: project.frontier_id(),
@@ -838,6 +966,8 @@ fn prepare_repository_upgrade(
         profile_root: profile_root.clone(),
         authority_keyset_root: authority_keyset_root.clone(),
         authority_policy_root: authority_policy_root.clone(),
+        target_index_root: target_index_root.clone(),
+        target_index_disposition: target_index_disposition.clone(),
     };
     let candidate_bytes = vela_protocol::canonical::to_canonical_bytes(&candidate)?;
     let candidate_root = root_bytes(&candidate_bytes);
@@ -879,6 +1009,12 @@ fn prepare_repository_upgrade(
         &authority_policy,
         &authority_policy_material,
     )?;
+    if let Some(target_index) = &target_index {
+        write_exact(
+            &records_path.join("targets.json"),
+            &target_index.canonical_bytes()?,
+        )?;
+    }
     verify_current_repository_at(&records_path, false)?;
     let archived_count = archive_index.objects.len();
     let next = format!(
@@ -905,6 +1041,8 @@ fn prepare_repository_upgrade(
         repository_root,
         authority_keyset_root,
         authority_policy_root,
+        target_index_root,
+        target_index_disposition,
         authority_key_id,
         git_object_manifest_path: object_manifest_path.display().to_string(),
         git_object_manifest_root: object_manifest_root,
@@ -959,9 +1097,34 @@ fn apply_repository_upgrade(plan: &RepositoryUpgradePlan) -> Result<Value, Strin
     {
         return Err("Git object manifest no longer matches the confirmed predecessor".into());
     }
+    let candidate_manifest_bytes = fs::read(&plan.candidate_manifest_path).map_err(|error| {
+        format!(
+            "read candidate manifest {}: {error}",
+            plan.candidate_manifest_path
+        )
+    })?;
+    if root_bytes(&candidate_manifest_bytes) != plan.candidate_manifest_root {
+        return Err("repository upgrade candidate manifest changed after confirmation".into());
+    }
 
     let candidate_root = candidate_records_path(&plan.candidate_manifest_path)?;
     verify_current_repository_at(&candidate_root, false)?;
+    match &plan.target_index_root {
+        Some(expected_root) => {
+            let bytes = fs::read(candidate_root.join("targets.json"))
+                .map_err(|error| format!("read current Target Index candidate: {error}"))?;
+            let index: vela_edge::target_index::TargetIndexV3 = serde_json::from_slice(&bytes)
+                .map_err(|error| format!("parse current Target Index candidate: {error}"))?;
+            index.validate()?;
+            if index.canonical_bytes()? != bytes || index.index_root != *expected_root {
+                return Err("current Target Index candidate changed after confirmation".to_string());
+            }
+        }
+        None if candidate_root.join("targets.json").exists() => {
+            return Err("unexpected Target Index appeared in current candidate".to_string());
+        }
+        None => {}
+    }
     let archive_root = PathBuf::from(&plan.candidate_manifest_path)
         .parent()
         .ok_or_else(|| "candidate manifest has no archive directory".to_string())?
@@ -1122,6 +1285,11 @@ fn apply_repository_upgrade_in_worktree(
             if &current == candidate {
                 continue;
             }
+            // A differing candidate is one atomic replacement, not a delete
+            // followed by a second write draft for the same path.
+            if entry.path == "targets.json" {
+                continue;
+            }
         }
         if entry.path == "frontier.json" || entry.path == "vela.lock" {
             derived_drafts.push(AuthorityDerivedDraft {
@@ -1247,7 +1415,7 @@ fn apply_repository_upgrade_in_worktree(
         &mut signer,
     )
     .map_err(|error| error.to_string())?;
-    verify_current_repository_at(worktree, true)?;
+    verify_current_repository_at(worktree, false)?;
 
     git_success(worktree, &["add", "--all"], "stage repository epoch")?;
     git_success(
@@ -1269,6 +1437,7 @@ fn apply_repository_upgrade_in_worktree(
     if git_text(worktree, &["rev-parse", "HEAD^1^{commit}"])? != plan.predecessor_commit {
         return Err("repository epoch commit is not the direct predecessor child".into());
     }
+    verify_current_repository_at(worktree, true)?;
     match git_text(
         source_frontier,
         &["rev-parse", &format!("refs/tags/{}", plan.predecessor_tag)],
@@ -1508,6 +1677,36 @@ fn current_profile(frontier: &Path) -> Result<(Vec<u8>, String), String> {
     Ok((bytes, profile_root))
 }
 
+fn load_migratable_target_index(
+    frontier: &Path,
+    project: &vela_protocol::project::Project,
+) -> Result<(Option<vela_edge::target_index::TargetIndexV2>, String), String> {
+    if !frontier.join("targets.json").is_file() {
+        return Ok((None, "absent".to_string()));
+    }
+    let loaded_anchor =
+        crate::target_index::load_user_repository_trust_anchor(&project.frontier_id())?;
+    let repository_anchor = loaded_anchor
+        .as_ref()
+        .map(|loaded| crate::target_index::boundary_anchor(&loaded.anchor));
+    let authority_events = crate::target_index::load_verified_authority_events(frontier, project)?;
+    let assessment = vela_edge::target_index::assess_target_index_with_trust_anchor_and_authority(
+        project,
+        frontier,
+        repository_anchor.as_ref(),
+        &authority_events,
+    )?
+    .ok_or_else(|| "tracked targets.json disappeared during repository upgrade".to_string())?;
+    let codes = assessment.all_codes();
+    if !codes.is_empty() {
+        return Ok((None, format!("archived_stale:{}", codes.join(","))));
+    }
+    let index = assessment.v2().cloned().ok_or_else(|| {
+        "repository upgrade requires Target Index v2 before current-epoch conversion".to_string()
+    })?;
+    Ok((Some(index), "converted_v2_to_v3".to_string()))
+}
+
 #[allow(clippy::too_many_arguments)]
 fn current_repository(
     frontier_id: &str,
@@ -1664,6 +1863,52 @@ fn verify_current_repository_at(
         return Err(
             "current Profile, repository manifest, and epoch do not bind the same identity".into(),
         );
+    }
+    let repository_root = repository.canonical_root()?;
+    if root.join("targets.json").is_file() {
+        let bytes = fs::read(root.join("targets.json"))
+            .map_err(|error| format!("read current Target Index: {error}"))?;
+        let index: vela_edge::target_index::TargetIndexV3 = serde_json::from_slice(&bytes)
+            .map_err(|error| format!("parse current Target Index: {error}"))?;
+        index.validate()?;
+        if index.canonical_bytes()? != bytes
+            || index.frontier_id != repository.frontier_id
+            || index.repository.epoch_id != repository.epoch_id
+            || index.repository.repository_root != repository_root
+        {
+            return Err(
+                "current Target Index does not bind the exact current repository".to_string(),
+            );
+        }
+        if require_authority_record {
+            let assessment = vela_edge::target_index::assess_current_target_index(
+                root,
+                &repository.frontier_id,
+                &repository.epoch_id,
+                &repository_root,
+            )?
+            .ok_or_else(|| "current Target Index disappeared during verification".to_string())?;
+            let mut codes = assessment
+                .global_issues
+                .iter()
+                .map(|issue| issue.code)
+                .collect::<Vec<_>>();
+            codes.extend(
+                assessment
+                    .target_issues
+                    .values()
+                    .flatten()
+                    .map(|issue| issue.code),
+            );
+            codes.sort_unstable();
+            codes.dedup();
+            if !codes.is_empty() {
+                return Err(format!(
+                    "current Target Index fails closed: {}",
+                    codes.join(", ")
+                ));
+            }
+        }
     }
 
     for reference in &repository.accepted_claims {
@@ -2428,13 +2673,18 @@ fn legacy_classification(path: &str) -> &'static str {
         "receipt_v1"
     } else if path == "frontier.json" {
         "legacy_snapshot"
+    } else if path == "targets.json" {
+        "target_index_v2"
     } else {
         "legacy_projection"
     }
 }
 
 fn is_predecessor_archive_path(path: &str) -> bool {
-    path == "vela.lock" || path.starts_with(".vela/authority/") || is_retired_current_path(path)
+    path == "vela.lock"
+        || path == "targets.json"
+        || path.starts_with(".vela/authority/")
+        || is_retired_current_path(path)
 }
 
 fn is_retired_current_path(path: &str) -> bool {
@@ -2731,6 +2981,7 @@ mod tests {
         assert!(is_predecessor_archive_path(
             ".vela/authority/records/var_x.dsse.json"
         ));
+        assert!(is_predecessor_archive_path("targets.json"));
         assert!(!is_retired_current_path(
             ".vela/authority/records/var_x.dsse.json"
         ));

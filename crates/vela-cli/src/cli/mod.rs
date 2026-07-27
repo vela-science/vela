@@ -333,6 +333,10 @@ pub async fn run_command() {
         } => {
             crate::ui::set_mode("next", json);
             let dir = crate::ui::resolve_frontier(frontier);
+            if dir.join(".vela/epoch.json").is_file() {
+                crate::repository_upgrade::cmd_current_next(&dir, limit, json);
+                return;
+            }
             let project =
                 vela_protocol::repo::load_from_path(&dir).unwrap_or_else(|e| fail_return(&e));
             let loaded_anchor =

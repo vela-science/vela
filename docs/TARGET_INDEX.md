@@ -1,4 +1,4 @@
-# Native Target Index v2
+# Native Target Index
 
 `targets.json` is an optional, derived bridge between a scientific atlas and
 Vela's task-first producer loop. It makes bounded work addressable without
@@ -9,7 +9,28 @@ Domain tools own target meaning, target ordering, packet construction, and
 packet schemas. Vela owns only the closed seal. A target is work advice, never
 standing, verification, policy, or acceptance.
 
-## Closed contract
+## Current Profile v2 contract
+
+Current repositories use `vela.target-index.v3`. It preserves the v2 source
+commit/tree, closed input manifest, exact packet references, target ordering,
+and explicitly derived/deletable claim boundary. It replaces v2's Era-0 event,
+proposal, identity, dependency, and Profile roots with one exact binding:
+
+```json
+{
+  "repository": {
+    "epoch_id": "vre_...",
+    "repository_root": "sha256:..."
+  }
+}
+```
+
+`vela next` revalidates source ancestry, the source tree, every declared input
+blob, every open packet, the tracked index bytes, the epoch ID, and the current
+repository root. It never loads archived events. A stale v2 index is archived
+during the repository epoch transition rather than silently promoted.
+
+## Profile v1 predecessor contract
 
 A sealed index has schema `vela.target-index.v2` and contains:
 

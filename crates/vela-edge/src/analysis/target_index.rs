@@ -35,6 +35,7 @@ use super::frontier_repository::{
 use super::repository_write::{PreparedRepositoryFileReplacement, RepositoryFileReplacementMode};
 
 pub const TARGET_INDEX_SCHEMA_V2: &str = "vela.target-index.v2";
+pub const TARGET_INDEX_SCHEMA_V3: &str = "vela.target-index.v3";
 pub const TARGET_INDEX_CANDIDATE_SCHEMA_V1: &str = "vela.target-index-candidate.v1";
 pub const TARGET_INDEX_INPUT_MANIFEST_SCHEMA_V1: &str = "vela.target-index-input-manifest.v1";
 pub const TARGET_TASK_BINDING_SCHEMA_V1: &str = "vela.target-task-binding.v1";
@@ -152,6 +153,41 @@ pub struct TargetIndexV2 {
     pub generated_by: TargetIndexGeneratorV2,
     pub targets: Vec<TargetIndexEntryV2>,
     pub index_root: String,
+}
+
+/// Current-repository binding for a derived Target Index.
+///
+/// Unlike Target Index v2, this binding does not retain Era-0 event,
+/// proposal, identity, or dependency roots. The exact current repository
+/// manifest is the sole scientific-state read boundary.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct TargetIndexRepositoryV3 {
+    pub epoch_id: String,
+    pub repository_root: String,
+}
+
+/// Event-free Target Index for Profile v2/current repository epochs.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct TargetIndexV3 {
+    pub schema: String,
+    pub frontier_id: String,
+    pub source: TargetIndexSourceV2,
+    pub inputs: TargetIndexInputManifestV1,
+    pub repository: TargetIndexRepositoryV3,
+    pub claim_boundary: TargetIndexClaimBoundaryV2,
+    pub generated_by: TargetIndexGeneratorV2,
+    pub targets: Vec<TargetIndexEntryV2>,
+    pub index_root: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct CurrentTargetIndexAssessment {
+    pub index: TargetIndexV3,
+    pub global_issues: Vec<TargetIndexIssue>,
+    pub target_issues: BTreeMap<String, Vec<TargetIndexIssue>>,
+    packet_values: BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -409,6 +445,21 @@ fn require_frontier_id(value: &str) -> Result<(), String> {
         Ok(())
     } else {
         Err("frontier_id must use the vfr_<16 lowercase hex> form".to_string())
+    }
+}
+
+fn require_epoch_id(field: &str, value: &str) -> Result<(), String> {
+    let Some(suffix) = value.strip_prefix("vre_") else {
+        return Err(format!("{field} must use the vre_<16 lowercase hex> form"));
+    };
+    if suffix.len() == 16
+        && suffix
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        Ok(())
+    } else {
+        Err(format!("{field} must use the vre_<16 lowercase hex> form"))
     }
 }
 
@@ -764,23 +815,99 @@ impl TargetIndexEntryV2 {
     }
 }
 
+fn validate_target_index_common(
+    frontier_id: &str,
+    source: &TargetIndexSourceV2,
+    inputs: &TargetIndexInputManifestV1,
+    claim_boundary: &TargetIndexClaimBoundaryV2,
+    generated_by: &TargetIndexGeneratorV2,
+    targets: &[TargetIndexEntryV2],
+) -> Result<(), String> {
+    require_frontier_id(frontier_id)?;
+    require_git_object(
+        "source.git_commit",
+        &source.git_commit,
+        source.git_object_format,
+    )?;
+    require_git_object(
+        "source.git_tree",
+        &source.git_tree,
+        source.git_object_format,
+    )?;
+    inputs.validate()?;
+    if claim_boundary
+        != &(TargetIndexClaimBoundaryV2 {
+            derived: true,
+            authoritative: false,
+            deletable: true,
+        })
+    {
+        return Err(
+            "claim_boundary must be exactly derived=true, authoritative=false, deletable=true"
+                .to_string(),
+        );
+    }
+    if generated_by.program != "vela" {
+        return Err("generated_by.program must be `vela`".to_string());
+    }
+    validate_semver(&generated_by.version)?;
+    if targets.len() > TARGET_INDEX_MAX_TARGETS {
+        return Err(format!(
+            "target index has {} targets; limit is {TARGET_INDEX_MAX_TARGETS}",
+            targets.len()
+        ));
+    }
+    for target in targets {
+        target.validate()?;
+    }
+    validate_unique_target_ids(targets.iter().map(|target| target.id.as_str()))?;
+    validate_target_order(
+        targets
+            .iter()
+            .map(|target| (target.id.as_str(), target.rank)),
+    )?;
+    let packet_paths = targets
+        .iter()
+        .map(|target| target.packet.path.as_str())
+        .collect::<BTreeSet<_>>();
+    let mut packet_portable = BTreeMap::<String, &str>::new();
+    for path in &packet_paths {
+        let key = portable_path_key(path);
+        if let Some(previous) = packet_portable.insert(key, path)
+            && previous != *path
+        {
+            return Err(format!(
+                "packet paths {previous:?} and {path:?} have a portable collision"
+            ));
+        }
+    }
+    for input in &inputs.entries {
+        if input.path == "targets.json"
+            || input.path == ".vela/tmp/target-index-candidate.json"
+            || packet_paths.contains(input.path.as_str())
+        {
+            return Err(format!(
+                "input path {:?} is a target-index output or candidate path",
+                input.path
+            ));
+        }
+    }
+    Ok(())
+}
+
 impl TargetIndexV2 {
     pub fn validate(&self) -> Result<(), String> {
         if self.schema != TARGET_INDEX_SCHEMA_V2 {
             return Err(format!("schema must be {TARGET_INDEX_SCHEMA_V2}"));
         }
-        require_frontier_id(&self.frontier_id)?;
-        require_git_object(
-            "source.git_commit",
-            &self.source.git_commit,
-            self.source.git_object_format,
+        validate_target_index_common(
+            &self.frontier_id,
+            &self.source,
+            &self.inputs,
+            &self.claim_boundary,
+            &self.generated_by,
+            &self.targets,
         )?;
-        require_git_object(
-            "source.git_tree",
-            &self.source.git_tree,
-            self.source.git_object_format,
-        )?;
-        self.inputs.validate()?;
         for (field, root) in [
             ("roots.event_log_root", &self.roots.event_log_root),
             (
@@ -806,65 +933,74 @@ impl TargetIndexV2 {
                 "roots.event_count must be at most {JSON_SAFE_INTEGER_MAX}"
             ));
         }
-        if self.claim_boundary
-            != (TargetIndexClaimBoundaryV2 {
-                derived: true,
-                authoritative: false,
-                deletable: true,
-            })
-        {
-            return Err(
-                "claim_boundary must be exactly derived=true, authoritative=false, deletable=true"
-                    .to_string(),
-            );
+        require_sha256_root("index_root", &self.index_root)?;
+        if self.computed_index_root()? != self.index_root {
+            return Err("index_root does not match the canonical index preimage".to_string());
         }
-        if self.generated_by.program != "vela" {
-            return Err("generated_by.program must be `vela`".to_string());
-        }
-        validate_semver(&self.generated_by.version)?;
-        if self.targets.len() > TARGET_INDEX_MAX_TARGETS {
-            return Err(format!(
-                "target index has {} targets; limit is {TARGET_INDEX_MAX_TARGETS}",
-                self.targets.len()
-            ));
-        }
-        for target in &self.targets {
-            target.validate()?;
-        }
-        validate_unique_target_ids(self.targets.iter().map(|target| target.id.as_str()))?;
-        validate_target_order(
-            self.targets
-                .iter()
-                .map(|target| (target.id.as_str(), target.rank)),
-        )?;
+        Ok(())
+    }
 
-        let packet_paths = self
-            .targets
-            .iter()
-            .map(|target| target.packet.path.as_str())
-            .collect::<BTreeSet<_>>();
-        let mut packet_portable = BTreeMap::<String, &str>::new();
-        for path in &packet_paths {
-            let key = portable_path_key(path);
-            if let Some(previous) = packet_portable.insert(key, path)
-                && previous != *path
-            {
-                return Err(format!(
-                    "packet paths {previous:?} and {path:?} have a portable collision"
-                ));
-            }
+    pub fn computed_index_root(&self) -> Result<String, String> {
+        let mut value = serde_json::to_value(self).map_err(|error| error.to_string())?;
+        let object = value
+            .as_object_mut()
+            .ok_or_else(|| "target index did not serialize as an object".to_string())?;
+        object.remove("index_root");
+        canonical_root(&value)
+    }
+
+    pub fn canonical_bytes(&self) -> Result<Vec<u8>, String> {
+        self.validate()?;
+        canonical::to_canonical_bytes(self).map_err(|error| error.to_string())
+    }
+}
+
+impl TargetIndexV3 {
+    pub fn from_v2(
+        source: &TargetIndexV2,
+        epoch_id: String,
+        repository_root: String,
+        generator_version: String,
+    ) -> Result<Self, String> {
+        let mut value = Self {
+            schema: TARGET_INDEX_SCHEMA_V3.to_string(),
+            frontier_id: source.frontier_id.clone(),
+            source: source.source.clone(),
+            inputs: source.inputs.clone(),
+            repository: TargetIndexRepositoryV3 {
+                epoch_id,
+                repository_root,
+            },
+            claim_boundary: source.claim_boundary.clone(),
+            generated_by: TargetIndexGeneratorV2 {
+                program: "vela".to_string(),
+                version: generator_version,
+            },
+            targets: source.targets.clone(),
+            index_root: String::new(),
+        };
+        value.index_root = value.computed_index_root()?;
+        value.validate()?;
+        Ok(value)
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        if self.schema != TARGET_INDEX_SCHEMA_V3 {
+            return Err(format!("schema must be {TARGET_INDEX_SCHEMA_V3}"));
         }
-        for input in &self.inputs.entries {
-            if input.path == "targets.json"
-                || input.path == ".vela/tmp/target-index-candidate.json"
-                || packet_paths.contains(input.path.as_str())
-            {
-                return Err(format!(
-                    "input path {:?} is a target-index output or candidate path",
-                    input.path
-                ));
-            }
-        }
+        validate_target_index_common(
+            &self.frontier_id,
+            &self.source,
+            &self.inputs,
+            &self.claim_boundary,
+            &self.generated_by,
+            &self.targets,
+        )?;
+        require_epoch_id("repository.epoch_id", &self.repository.epoch_id)?;
+        require_sha256_root(
+            "repository.repository_root",
+            &self.repository.repository_root,
+        )?;
         require_sha256_root("index_root", &self.index_root)?;
         if self.computed_index_root()? != self.index_root {
             return Err("index_root does not match the canonical index preimage".to_string());
@@ -2774,23 +2910,98 @@ fn push_target_issue(
         .push(target_issue(code, target_id, message));
 }
 
+fn assess_open_target_packets(
+    repo_path: &Path,
+    targets: &[TargetIndexEntryV2],
+    target_issues: &mut BTreeMap<String, Vec<TargetIndexIssue>>,
+    packet_values: &mut BTreeMap<String, Value>,
+) -> Result<(), String> {
+    let open_packet_bytes = exact_tracked_head_bytes_batch(
+        repo_path,
+        targets
+            .iter()
+            .filter(|target| target.state == "open")
+            .map(|target| target.packet.path.clone()),
+        TARGET_PACKET_MAX_BYTES,
+    )?;
+    for target in targets.iter().filter(|target| target.state == "open") {
+        match open_packet_bytes.get(&target.packet.path) {
+            Some(Ok(packet_bytes)) => {
+                let digest = sha256_root(packet_bytes);
+                if packet_bytes.len() as u64 != target.packet.size || digest != target.packet.sha256
+                {
+                    push_target_issue(
+                        target_issues,
+                        &target.id,
+                        CODE_PACKET_MISMATCH,
+                        format!(
+                            "packet bytes at {:?} differ from the sealed size or digest",
+                            target.packet.path
+                        ),
+                    );
+                    continue;
+                }
+                match serde_json::from_slice::<Value>(packet_bytes) {
+                    Ok(packet)
+                        if packet.is_object()
+                            && packet.get("schema").and_then(Value::as_str)
+                                == Some(target.packet.schema.as_str()) =>
+                    {
+                        packet_values.insert(target.id.clone(), packet);
+                    }
+                    Ok(_) => push_target_issue(
+                        target_issues,
+                        &target.id,
+                        CODE_PACKET_MISMATCH,
+                        "packet must be one JSON object with the exact sealed schema",
+                    ),
+                    Err(error) => push_target_issue(
+                        target_issues,
+                        &target.id,
+                        CODE_PACKET_MISMATCH,
+                        format!("packet JSON is invalid: {error}"),
+                    ),
+                }
+            }
+            Some(Err(error)) => {
+                push_target_issue(target_issues, &target.id, CODE_OUTPUT_NOT_TRACKED, error)
+            }
+            None => push_target_issue(
+                target_issues,
+                &target.id,
+                CODE_OUTPUT_NOT_TRACKED,
+                "packet path was absent from the batched tracked-file assessment",
+            ),
+        }
+    }
+    Ok(())
+}
+
 fn validate_input_git_bytes(
     repo_path: &Path,
     index: &TargetIndexV2,
 ) -> Result<Vec<TargetIndexIssue>, String> {
+    validate_input_git_bytes_for(repo_path, &index.source, &index.inputs)
+}
+
+fn validate_input_git_bytes_for(
+    repo_path: &Path,
+    source_binding: &TargetIndexSourceV2,
+    inputs: &TargetIndexInputManifestV1,
+) -> Result<Vec<TargetIndexIssue>, String> {
     let mut issues = Vec::new();
-    let input_root = index.inputs.computed_root()?;
-    if input_root != index.inputs.input_root {
+    let input_root = inputs.computed_root()?;
+    if input_root != inputs.input_root {
         issues.push(issue(
             CODE_INPUT_ROOT_MISMATCH,
             format!(
                 "declared input root {} differs from derived {input_root}",
-                index.inputs.input_root
+                inputs.input_root
             ),
         ));
     }
-    for declared in &index.inputs.entries {
-        let source = tree_entry(repo_path, &index.source.git_commit, &declared.path)?;
+    for declared in &inputs.entries {
+        let source = tree_entry(repo_path, &source_binding.git_commit, &declared.path)?;
         let head = tree_entry(repo_path, "HEAD", &declared.path)?;
         let Some(source) = source else {
             issues.push(issue(
@@ -3112,68 +3323,12 @@ fn assess_v2(
         Err(error) => global_issues.push(issue(CODE_OUTPUT_NOT_TRACKED, error)),
     }
 
-    let open_packet_bytes = exact_tracked_head_bytes_batch(
+    assess_open_target_packets(
         repo_path,
-        index
-            .targets
-            .iter()
-            .filter(|target| target.state == "open")
-            .map(|target| target.packet.path.clone()),
-        TARGET_PACKET_MAX_BYTES,
+        &index.targets,
+        &mut target_issues,
+        &mut packet_values,
     )?;
-    for target in index.targets.iter().filter(|target| target.state == "open") {
-        match open_packet_bytes.get(&target.packet.path) {
-            Some(Ok(packet_bytes)) => {
-                let digest = sha256_root(packet_bytes);
-                if packet_bytes.len() as u64 != target.packet.size || digest != target.packet.sha256
-                {
-                    push_target_issue(
-                        &mut target_issues,
-                        &target.id,
-                        CODE_PACKET_MISMATCH,
-                        format!(
-                            "packet bytes at {:?} differ from the sealed size or digest",
-                            target.packet.path
-                        ),
-                    );
-                    continue;
-                }
-                match serde_json::from_slice::<Value>(packet_bytes) {
-                    Ok(packet)
-                        if packet.is_object()
-                            && packet.get("schema").and_then(Value::as_str)
-                                == Some(target.packet.schema.as_str()) =>
-                    {
-                        packet_values.insert(target.id.clone(), packet);
-                    }
-                    Ok(_) => push_target_issue(
-                        &mut target_issues,
-                        &target.id,
-                        CODE_PACKET_MISMATCH,
-                        "packet must be one JSON object with the exact sealed schema",
-                    ),
-                    Err(error) => push_target_issue(
-                        &mut target_issues,
-                        &target.id,
-                        CODE_PACKET_MISMATCH,
-                        format!("packet JSON is invalid: {error}"),
-                    ),
-                }
-            }
-            Some(Err(error)) => push_target_issue(
-                &mut target_issues,
-                &target.id,
-                CODE_OUTPUT_NOT_TRACKED,
-                error,
-            ),
-            None => push_target_issue(
-                &mut target_issues,
-                &target.id,
-                CODE_OUTPUT_NOT_TRACKED,
-                "packet path was absent from the batched tracked-file assessment",
-            ),
-        }
-    }
 
     // Profile drift alone is intentionally audit context rather than
     // staleness. Deriving it above still proves that it is valid Profile v1.
@@ -3314,6 +3469,208 @@ pub fn assess_target_index_with_trust_anchor_and_authority(
         other => Err(format!(
             "{CODE_SCHEMA_INVALID}: unsupported target index schema {other:?}"
         )),
+    }
+}
+
+/// Assess the event-free Target Index used by Profile v2 repositories.
+///
+/// Scientific standing is bound only through the exact current repository
+/// root. Git source/input checks and packet checks retain the same fail-closed
+/// work-advice guarantees as Target Index v2 without consulting Era-0 state.
+pub fn assess_current_target_index(
+    repo_path: &Path,
+    frontier_id: &str,
+    epoch_id: &str,
+    repository_root: &str,
+) -> Result<Option<CurrentTargetIndexAssessment>, String> {
+    require_frontier_id(frontier_id)?;
+    require_epoch_id("epoch_id", epoch_id)?;
+    require_sha256_root("repository_root", repository_root)?;
+    let path = repo_path.join("targets.json");
+    let metadata = match std::fs::symlink_metadata(&path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(format!("inspect target index {}: {error}", path.display())),
+    };
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(format!(
+            "{CODE_OUTPUT_NOT_TRACKED}: targets.json must be a regular non-symlink file"
+        ));
+    }
+    let bytes = read_regular_file(&path, TARGET_INDEX_JSON_MAX_BYTES, "target index")?;
+    let envelope: Value = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("{CODE_SCHEMA_INVALID}: parse targets.json: {error}"))?;
+    let schema = envelope
+        .get("schema")
+        .and_then(Value::as_str)
+        .ok_or_else(|| format!("{CODE_SCHEMA_INVALID}: targets.json has no string schema"))?;
+    if schema != TARGET_INDEX_SCHEMA_V3 {
+        return Err(format!(
+            "{CODE_PROFILE_UPGRADE_REQUIRED}: current repository requires {TARGET_INDEX_SCHEMA_V3}, found {schema}"
+        ));
+    }
+    let index: TargetIndexV3 = serde_json::from_value(envelope)
+        .map_err(|error| format!("{CODE_SCHEMA_INVALID}: parse v3 index: {error}"))?;
+    index.validate()?;
+    if index.canonical_bytes()? != bytes {
+        return Err(format!(
+            "{CODE_SCHEMA_INVALID}: tracked targets.json must be exact canonical JSON without whitespace or a trailing newline"
+        ));
+    }
+
+    let mut global_issues = Vec::new();
+    let mut target_issues = BTreeMap::new();
+    let mut packet_values = BTreeMap::new();
+    if index.frontier_id != frontier_id {
+        global_issues.push(issue(
+            CODE_FRONTIER_MISMATCH,
+            "index Frontier differs from the current repository",
+        ));
+    }
+    if index.repository.epoch_id != epoch_id || index.repository.repository_root != repository_root
+    {
+        global_issues.push(issue(
+            CODE_STATE_ROOT_MISMATCH,
+            "index current-repository binding differs from the exact current repository",
+        ));
+    }
+
+    let actual_format = repository_object_format(repo_path)?;
+    if actual_format != index.source.git_object_format {
+        global_issues.push(issue(
+            CODE_SOURCE_TREE_MISMATCH,
+            "index Git object format differs from this repository",
+        ));
+    }
+    let resolved_source = git_text(
+        repo_path,
+        &[
+            "rev-parse",
+            &format!("{}^{{commit}}", index.source.git_commit),
+        ],
+    );
+    let source_available = match resolved_source {
+        Ok(resolved) if resolved == index.source.git_commit => true,
+        Ok(_) => {
+            global_issues.push(issue(
+                CODE_SOURCE_UNAVAILABLE,
+                "source commit did not resolve to the exact declared object",
+            ));
+            false
+        }
+        Err(error) => {
+            global_issues.push(issue(
+                CODE_SOURCE_UNAVAILABLE,
+                format!("source commit is unavailable: {error}"),
+            ));
+            false
+        }
+    };
+    if source_available {
+        let source_tree = git_text(
+            repo_path,
+            &[
+                "rev-parse",
+                &format!("{}^{{tree}}", index.source.git_commit),
+            ],
+        )?;
+        if source_tree != index.source.git_tree {
+            global_issues.push(issue(
+                CODE_SOURCE_TREE_MISMATCH,
+                format!(
+                    "source commit derives tree {source_tree}, not {}",
+                    index.source.git_tree
+                ),
+            ));
+        }
+        let head = git_text(repo_path, &["rev-parse", "HEAD^{commit}"])?;
+        let ancestor = command(
+            repo_path,
+            &[
+                "merge-base",
+                "--is-ancestor",
+                &index.source.git_commit,
+                &head,
+            ],
+        )?;
+        if !ancestor.status.success() {
+            global_issues.push(issue(
+                CODE_SOURCE_NOT_ANCESTOR,
+                "source commit is not an ancestor of current HEAD",
+            ));
+        }
+        if let Some(source_index) = tree_entry(repo_path, &index.source.git_commit, "targets.json")?
+            && blob(repo_path, &source_index)? == bytes
+        {
+            global_issues.push(issue(
+                CODE_SOURCE_SELF_REFERENCE,
+                "source tree already contains the exact sealed targets.json bytes",
+            ));
+        }
+        global_issues.extend(validate_input_git_bytes_for(
+            repo_path,
+            &index.source,
+            &index.inputs,
+        )?);
+    }
+    if index.computed_index_root()? != index.index_root {
+        global_issues.push(issue(
+            CODE_INDEX_ROOT_MISMATCH,
+            "index_root differs from the canonical index preimage",
+        ));
+    }
+    match exact_tracked_head_bytes(repo_path, "targets.json", TARGET_INDEX_JSON_MAX_BYTES) {
+        Ok(tracked) if tracked == bytes => {}
+        Ok(_) => global_issues.push(issue(
+            CODE_OUTPUT_NOT_TRACKED,
+            "targets.json bytes differ from the exact tracked HEAD blob",
+        )),
+        Err(error) => global_issues.push(issue(CODE_OUTPUT_NOT_TRACKED, error)),
+    }
+
+    assess_open_target_packets(
+        repo_path,
+        &index.targets,
+        &mut target_issues,
+        &mut packet_values,
+    )?;
+    sort_issues(&mut global_issues);
+    for issues in target_issues.values_mut() {
+        sort_issues(issues);
+    }
+    Ok(Some(CurrentTargetIndexAssessment {
+        index,
+        global_issues,
+        target_issues,
+        packet_values,
+    }))
+}
+
+impl CurrentTargetIndexAssessment {
+    pub fn configured_open(&self) -> usize {
+        self.index
+            .targets
+            .iter()
+            .filter(|target| target.state == "open")
+            .count()
+    }
+
+    pub fn fresh_open_targets(&self) -> Vec<&TargetIndexEntryV2> {
+        if !self.global_issues.is_empty() {
+            return Vec::new();
+        }
+        self.index
+            .targets
+            .iter()
+            .filter(|target| {
+                target.state == "open"
+                    && self.target_issues.get(&target.id).is_none_or(Vec::is_empty)
+            })
+            .collect()
+    }
+
+    pub fn packet_value(&self, target_id: &str) -> Option<&Value> {
+        self.packet_values.get(target_id)
     }
 }
 
@@ -3808,6 +4165,41 @@ mod tests {
         let mut changed = index.clone();
         changed.targets[0].rank += 1;
         assert!(changed.validate().unwrap_err().contains("index_root"));
+    }
+
+    #[test]
+    fn target_index_v3_replaces_event_roots_with_one_repository_binding() {
+        let legacy = base_index();
+        let current = TargetIndexV3::from_v2(
+            &legacy,
+            "vre_1234567890abcdef".to_string(),
+            root('b'),
+            "0.930.0-rc.13".to_string(),
+        )
+        .unwrap();
+        current.validate().unwrap();
+        let encoded = String::from_utf8(current.canonical_bytes().unwrap()).unwrap();
+        assert!(encoded.contains("\"schema\":\"vela.target-index.v3\""));
+        assert!(encoded.contains("\"epoch_id\":\"vre_1234567890abcdef\""));
+        assert!(encoded.contains(&format!("\"repository_root\":\"{}\"", root('b'))));
+        for retired in [
+            "event_log_root",
+            "nonlease_event_log_root",
+            "scientific_state_root",
+            "proposal_root",
+            "identity_root",
+            "dependency_root",
+            "observed_profile_root",
+        ] {
+            assert!(
+                !encoded.contains(retired),
+                "Target Index v3 retained {retired}"
+            );
+        }
+
+        let mut drifted = current;
+        drifted.repository.repository_root = root('c');
+        assert!(drifted.validate().unwrap_err().contains("index_root"));
     }
 
     #[test]
@@ -4352,6 +4744,63 @@ mod tests {
             proposals::proposal_state_hash(&materialized.proposals),
             proposals::proposal_state_hash(&fixture.project.proposals)
         );
+    }
+
+    #[test]
+    fn target_index_v3_assesses_current_repository_without_era0_state() {
+        let fixture = git_fixture();
+        let epoch_id = "vre_1234567890abcdef";
+        let repository_root = root('b');
+        let current = TargetIndexV3::from_v2(
+            &fixture.index,
+            epoch_id.to_string(),
+            repository_root.clone(),
+            "0.930.0-rc.13".to_string(),
+        )
+        .unwrap();
+        write(
+            &fixture.directory.path().join("targets.json"),
+            current.canonical_bytes().unwrap(),
+        );
+        run(fixture.directory.path(), &["add", "targets.json"]);
+        run(
+            fixture.directory.path(),
+            &["commit", "-qm", "current target index"],
+        );
+
+        let assessment = assess_current_target_index(
+            fixture.directory.path(),
+            &fixture.project.frontier_id(),
+            epoch_id,
+            &repository_root,
+        )
+        .unwrap()
+        .unwrap();
+        assert!(assessment.global_issues.is_empty());
+        assert!(assessment.target_issues.is_empty());
+        assert_eq!(assessment.fresh_open_targets()[0].id, "erdos:1056");
+        assert_eq!(
+            assessment.packet_value("erdos:1056").unwrap()["problem"],
+            1056
+        );
+
+        let drifted = assess_current_target_index(
+            fixture.directory.path(),
+            &fixture.project.frontier_id(),
+            epoch_id,
+            &root('c'),
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(
+            drifted
+                .global_issues
+                .iter()
+                .map(|issue| issue.code)
+                .collect::<Vec<_>>(),
+            vec![CODE_STATE_ROOT_MISMATCH]
+        );
+        assert!(drifted.fresh_open_targets().is_empty());
     }
 
     fn replacement_seal_plan(fixture: &GitFixture) -> TargetIndexSealPlan {

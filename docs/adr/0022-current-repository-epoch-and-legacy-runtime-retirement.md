@@ -67,6 +67,7 @@ records/registrations/sha256/          vela.registration-record.v1
 records/verifications/sha256/          vela.verification-record.v1
 records/proposals/sha256/              vela.proposal.v1
 records/artifacts/sha256/              retained content-addressed evidence
+targets.json                           vela.target-index.v3, when fresh
 ```
 
 The active repository does not contain:
@@ -198,6 +199,23 @@ Only Artifacts reachable from imported Claims or retained current objects
 remain in the active repository. Every other tracked Artifact remains
 retrievable from the predecessor.
 
+Target Index v2 is also a predecessor object because its standing read set
+contains Era-0 event, proposal, identity, dependency, and Profile roots. A
+fresh v2 index is converted to event-free `vela.target-index.v3`, which retains
+the exact source/input/packet bindings and replaces that legacy read set with:
+
+```text
+repository:
+  epoch_id
+  repository_root
+```
+
+The Target Index remains derived, non-authoritative, and deletable. An index
+that is stale at the predecessor is archived rather than blessed by the epoch
+transition. Its domain generator must produce a new closed candidate after
+migration; Vela never carries stale ranking forward as apparently current
+work.
+
 ### 4. One fail-closed migration command
 
 The advanced command is:
@@ -256,6 +274,8 @@ Current-epoch strict verification blocks:
   Registration Record;
 - missing reachable Artifacts;
 - a legacy path or schema in the active repository;
+- a Target Index v2 in the active repository, or a Target Index v3 whose
+  source, input, packet, epoch, or repository binding drifts;
 - a forked, rolled-back, incomplete, or wrongly rooted current authority
   chain; and
 - any current event or Decision that targets an archived-only object.
