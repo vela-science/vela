@@ -178,8 +178,8 @@ function identity(name, versionValue, root) {
 
 const values = options(process.argv.slice(2).filter((value) => value !== "--"));
 const maxTokens = Number(values.get("--max-tokens") ?? "100000");
-if (!Number.isSafeInteger(maxTokens) || maxTokens < 1 || maxTokens > 250_000) {
-  throw new Error("--max-tokens must be an integer in 1..250000");
+if (!Number.isSafeInteger(maxTokens) || maxTokens < 1 || maxTokens > 300_000) {
+  throw new Error("--max-tokens must be an integer in 1..300000");
 }
 const assignmentPrefix = values.get("--assignment-prefix") ?? "A";
 if (!/^[A-Z][A-Z0-9]{0,7}$/u.test(assignmentPrefix)) {

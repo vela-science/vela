@@ -244,6 +244,29 @@ imports. Their immutable directories retain explicit stop records and do not
 count as campaign evidence. A completed arm process and a passing task
 verifier remain separate rooted outcomes.
 
+The original 100,000-token registration then stopped its first native cell
+after 113,985 observed tokens, no candidate ingestion, and no verifier run.
+Its run root is
+`sha256:c68d8ea8bab6ade8014baa6920e8cc7e06ff1599b22f0ad30173fe448d3e73ab`
+and its report root is
+`sha256:c878bfde27443a646ee7f188c7b710288fd68d73ec44083fbd1283c8a28cf7a2`.
+The user explicitly authorized a higher budget. A root-linked amendment at
+plan root
+`sha256:bff9d87e2d340ac7dfd18eada1df6d02613a23f4b558f17d1b84bef4bc9c97a5`
+registered fresh `A2-*` assignments with a 200,000-token ceiling. Its first
+native cell reached 224,005 observed tokens, so the post-run budget guard
+rejected the result before candidate ingestion or verifier execution. That
+stopped run root is
+`sha256:345df46d92ebd86d4219f36df041bbbcd8e0ede4c759e2bbf0425c9f04da26af`;
+its report root is
+`sha256:559c37f77697f59881efeebd9da06b5fa8ab55bd56cc8df8090c95de2479ba8e`.
+
+Both stopped plans and runs remain campaign evidence. They are not retried or
+overwritten. A second root-linked amendment may register fresh `A3-*`
+assignments at a bounded 300,000-token ceiling, with all task facts, model,
+tools, verifiers, custody, retry, scorer, and publication rules unchanged.
+The cumulative campaign remains below its 32-model-call ceiling.
+
 ### Stage B
 
 Run only after a safe Stage A. Compare plain TypeScript, stateless LangGraph,

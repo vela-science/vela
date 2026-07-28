@@ -141,7 +141,7 @@ function mission({ packet, packetRoot, assignment, mode, values, profileRoot, sc
   const maxTokens = positiveInteger(
     values.get("--max-tokens"),
     "--max-tokens",
-    250_000,
+    500_000,
   );
   const maxArtifactBytes = positiveInteger(
     values.get("--max-artifact-bytes"),
