@@ -41,6 +41,13 @@ matching the released Canopus budget contract. Missing, malformed, mismatched,
 per-task over-budget, or aggregate over-budget usage is a hard stop; the
 failed Run remains rooted and later registered cells are reported as unrun.
 
+Each task also binds one safe relative artifact path, byte ceiling, verifier
+file, verifier runtime, and closed argument vector. After the arm exits, the
+supervisor reads the artifact as a bounded non-linked regular file and invokes
+the verifier with no Codex home or provider credential. Process completion,
+artifact identity, and verifier passage remain separate fields in the rooted
+Run.
+
 Stage A must retain both native controls: ordinary native Codex and native
 Codex with the exact packet and frozen verifier used by Canopus. Execution,
 state, and inheritance lift are bound to three distinct scorer roots and

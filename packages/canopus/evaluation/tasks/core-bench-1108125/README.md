@@ -10,7 +10,7 @@ only the fourteen allowlisted code and data files into `packet.json`; retained
 published results and CORE-Bench answer records are not included.
 
 ```bash
-bun run eval:task:prepare -- \
+bun run eval:task:prepare:scientific -- \
   --archive /path/to/capsule-1108125.tar.gz \
   --output /new/registration/task
 ```
@@ -38,7 +38,7 @@ PNG container metadata outside Figure S5 are deliberately outside the result
 contract.
 
 ```bash
-bun run eval:task:verify -- \
+bun run eval:task:verify:scientific -- \
   --archive /path/to/capsule-1108125.tar.gz \
   --artifact /path/to/artifacts/result.json
 ```

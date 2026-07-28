@@ -150,6 +150,19 @@ list every registered cell that was not run.
 - Repetitions: two fresh sessions per task and arm.
 - Maximum: 12 model calls.
 
+The canonical coverage audit confirms `10429401..10429600` as the first
+uncovered contiguous Erdős range. Its exact Frontier packet root is
+`sha256:517c16cc9c59d7f91aeaea4287e0ce49000c7545199e86ea632c0a2e91faf30b`;
+the answer-free evaluation packet root is
+`sha256:51f20cf69e9f1453b9cb58adbc28ad640653f5eeb26adb44c6b3eb34dd5c94ff`.
+The existing independent search verifier was rebuilt with those exact bounds
+at root
+`sha256:70baf5baaa44a5a955aea189b0c1393dca11d0731ca32537366460c697e5a255`
+and accepted the same preflight artifact twice in the frozen network-denied,
+capability-dropped container. Its preflight artifact root is
+`sha256:baec250e336105634fec8a7ce529c38e85a0bc7085004fecf70023ac5fd0113e`.
+The packet contains none of those result bytes.
+
 The first canonically ordered CORE-Bench candidate, `capsule-0201225`, is
 ineligible: the retained code is GPL-3.0 rather than permissively licensed, and
 the capsule depends on an archived external container image. Its exclusion is
@@ -192,7 +205,8 @@ and verifier-result root
 These are preflight evidence, not model output or scientific acceptance. Stage
 A remains blocked until all three trusted arm wrappers, the next uncovered
 Erdős packet and verifier, the scorer files, locks, and environment manifests
-are frozen into one registered plan.
+are frozen into one registered plan. A completed arm process and a passing
+task verifier are stored as separate rooted outcomes.
 
 ### Stage B
 

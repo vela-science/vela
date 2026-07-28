@@ -17,6 +17,7 @@ import { canonicalJson } from "../../lib/evaluation-plan.mjs";
 import {
   IMAGE,
   IMAGE_DIGEST,
+  DOCKER_ROOT,
   SOURCE_ARCHIVE_ROOT,
   assertSafeArchiveEntries,
   verifierRecord,
@@ -107,6 +108,9 @@ for (const [file, at] of [[archive, "archive"], [artifact, "artifact"], [docker,
   if (!metadata.isFile() || metadata.isSymbolicLink()) {
     throw new Error(`${at} must be a regular non-symbolic file`);
   }
+}
+if (sha256(await readFile(docker)) !== DOCKER_ROOT) {
+  throw new Error("verification Docker client root drifted");
 }
 const archiveBytes = await readFile(archive);
 if (sha256(archiveBytes) !== SOURCE_ARCHIVE_ROOT) {

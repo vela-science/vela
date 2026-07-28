@@ -15,6 +15,8 @@ export const IMAGE =
   "registry.codeocean.com/published/1d48d413-6398-4952-9412-5074b5ebc096";
 export const IMAGE_DIGEST =
   "sha256:503117b1e393779705fd34c2dbcabfb04fbd65d755887c13137566205418630a";
+export const DOCKER_ROOT =
+  "sha256:6f56a151c37ea0e848b3abde7770ad408babef7a56c8f2ec6230fcd582ecdc7e";
 export const FIGURE_S5_ROOT =
   "sha256:07304f6bf71d8c2050373a6196cf1adcd7d8a46fcafe66682bed3c0986f60cbc";
 

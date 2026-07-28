@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import {
+  chmodSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -60,6 +61,11 @@ function plan() {
       packet_root: root("8"),
       verifier_path: "verifiers/math",
       verifier_root: root("9"),
+      verifier_runtime: "direct",
+      verifier_runtime_root: root("9"),
+      verifier_args: ["{artifact}"],
+      artifact_path: "artifacts/result.txt",
+      max_artifact_bytes: 65_536,
       license: "MIT",
       cpu_only: true,
       network: "deny",
@@ -140,6 +146,7 @@ function registeredStageA() {
     source_root: root("1"),
     verifier_path: "verifiers/scientific",
     verifier_root: root("0"),
+    verifier_runtime_root: root("0"),
   };
   const arms = [
     base.arms[0],
@@ -211,6 +218,40 @@ test("evaluation plan rejects authority and post-output retry paths", () => {
       custody: { ...draft.custody, repository_authority: "allowed" },
     })),
     /repository_authority must be forbidden/u,
+  );
+});
+
+test("evaluation plan closes candidate artifact and verifier invocation", () => {
+  const draft = plan();
+  assert.throws(
+    () => parseEvaluationPlan(rootEvaluationPlan({
+      ...draft,
+      tasks: [{
+        ...draft.tasks[0],
+        verifier_args: ["--candidate", "result.txt"],
+      }],
+    })),
+    /exactly one \{artifact\}/u,
+  );
+  assert.throws(
+    () => parseEvaluationPlan(rootEvaluationPlan({
+      ...draft,
+      tasks: [{
+        ...draft.tasks[0],
+        artifact_path: "../result.txt",
+      }],
+    })),
+    /safe relative POSIX path/u,
+  );
+  assert.throws(
+    () => parseEvaluationPlan(rootEvaluationPlan({
+      ...draft,
+      tasks: [{
+        ...draft.tasks[0],
+        verifier_args: ["{artifact}", "{oracle}"],
+      }],
+    })),
+    /unsupported placeholder/u,
   );
 });
 
@@ -318,6 +359,7 @@ test("evaluation validation rehashes every bound input file", async () => {
       mkdirSync(path.dirname(target), { recursive: true });
       writeFileSync(target, content);
     }
+    chmodSync(path.join(directory, "verifiers/math"), 0o700);
     mkdirSync(path.join(directory, "workspace"));
     const draft = plan();
     const rooted = rootEvaluationPlan({
@@ -327,6 +369,7 @@ test("evaluation validation rehashes every bound input file", async () => {
         source_root: byteRoot(files["sources/math.json"]),
         packet_root: byteRoot(files["packets/math.json"]),
         verifier_root: byteRoot(files["verifiers/math"]),
+        verifier_runtime_root: byteRoot(files["verifiers/math"]),
       }],
       arms: [{
         ...draft.arms[0],
@@ -383,8 +426,10 @@ test("evaluation runner preserves every registered result after process failures
       "scorers/state.json": "{\"metric\":\"state\"}\n",
       "scorers/inheritance.json": "{\"metric\":\"inheritance\"}\n",
       "arm-wrapper.mjs": [
-        "import { writeFileSync } from 'node:fs';",
+        "import { mkdirSync, writeFileSync } from 'node:fs';",
         "const [, , output, assignment, exitCode] = process.argv;",
+        "mkdirSync(`${output}/artifacts`,{recursive:true});",
+        "writeFileSync(`${output}/artifacts/result.txt`,'candidate\\n');",
         "writeFileSync(3,",
         "JSON.stringify({schema:'canopus.evaluation-arm-result.v1',",
         "assignment_id:assignment,model_output_observed:true,",
@@ -399,6 +444,8 @@ test("evaluation runner preserves every registered result after process failures
       mkdirSync(path.dirname(target), { recursive: true });
       writeFileSync(target, content);
     }
+    chmodSync(path.join(directory, "verifiers/math"), 0o700);
+    chmodSync(path.join(directory, "verifiers/scientific"), 0o700);
     mkdirSync(path.join(directory, "workspace"));
     const executableRoot = byteRoot(readFileSync(process.execPath));
     const base = registeredStageA();
@@ -409,6 +456,7 @@ test("evaluation runner preserves every registered result after process failures
         source_root: byteRoot(files[task.source_path]),
         packet_root: byteRoot(files[task.packet_path]),
         verifier_root: byteRoot(files[task.verifier_path]),
+        verifier_runtime_root: byteRoot(files[task.verifier_path]),
       })),
       arms: base.arms.map((arm) => ({
         ...arm,
@@ -480,6 +528,9 @@ test("evaluation runner preserves every registered result after process failures
     assert.equal(summary.runs, 12);
     assert.equal(summary.completed, 8);
     assert.equal(summary.failed, 4);
+    assert.equal(summary.verifier_passed, 8);
+    assert.equal(summary.verifier_failed, 0);
+    assert.equal(summary.verifier_not_run, 4);
     assert.equal(summary.observed_tokens, 120);
     assert.deepEqual(summary.unmeasured_token_runs, []);
     assert.deepEqual(summary.missing_assignment_ids, []);
@@ -519,6 +570,8 @@ test("evaluation runner rejects worker-created arm result files", () => {
       mkdirSync(path.dirname(target), { recursive: true });
       writeFileSync(target, content);
     }
+    chmodSync(path.join(directory, "verifiers/math"), 0o700);
+    chmodSync(path.join(directory, "verifiers/scientific"), 0o700);
     mkdirSync(path.join(directory, "workspace"));
     const executableRoot = byteRoot(readFileSync(process.execPath));
     const base = registeredStageA();
@@ -529,6 +582,7 @@ test("evaluation runner rejects worker-created arm result files", () => {
         source_root: byteRoot(files[task.source_path]),
         packet_root: byteRoot(files[task.packet_path]),
         verifier_root: byteRoot(files[task.verifier_path]),
+        verifier_runtime_root: byteRoot(files[task.verifier_path]),
       })),
       arms: base.arms.map((arm) => ({
         ...arm,

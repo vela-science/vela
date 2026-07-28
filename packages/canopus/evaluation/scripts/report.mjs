@@ -66,6 +66,11 @@ const report = {
     record.exit_code === 0 && record.runner_error === null && !record.timed_out).length,
   failed: records.filter((record) =>
     record.exit_code !== 0 || record.runner_error !== null || record.timed_out).length,
+  verifier_passed: records.filter((record) =>
+    record.verifier?.outcome === "pass").length,
+  verifier_failed: records.filter((record) =>
+    record.verifier?.outcome === "fail").length,
+  verifier_not_run: records.filter((record) => record.verifier === null).length,
   missing_assignment_ids: missingAssignments,
   wall_time_ms: records.reduce((sum, record) => sum + record.wall_time_ms, 0),
   observed_tokens: records.reduce(
@@ -77,7 +82,7 @@ const report = {
     .map((record) => record.assignment.id),
   run_roots: records.map((record) => digest(record)).sort(),
   interpretation:
-    "Process completion only. Verifier passage, scientific disposition, cost, and expert-minute scoring require the registered task scorer.",
+    "Verifier passage is recorded independently from process completion. Scientific disposition and expert-minute scoring still require the registered task scorers.",
 };
 const file = path.join(root, "report.json");
 await writeFile(file, canonicalJson(report), { mode: 0o600, flag: "wx" });

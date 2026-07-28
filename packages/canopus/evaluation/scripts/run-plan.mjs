@@ -2,7 +2,7 @@
 
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 
@@ -108,6 +108,99 @@ async function execute(argv, cwd, timeoutMs) {
   });
 }
 
+async function executeVerifier(argv, cwd, timeoutMs) {
+  return await new Promise((resolve) => {
+    const child = spawn(argv[0], argv.slice(1), {
+      cwd,
+      env: {
+        PATH: "/usr/local/bin:/usr/bin:/bin",
+        HOME: cwd,
+        LANG: "C",
+        LC_ALL: "C",
+        NO_COLOR: "1",
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const stdout = [];
+    const stderr = [];
+    let bytes = 0;
+    let runnerError = null;
+    let timedOut = false;
+    let settled = false;
+    const finish = (outcome) => {
+      if (settled) return;
+      settled = true;
+      resolve(outcome);
+    };
+    const collect = (chunks, chunk) => {
+      bytes += chunk.length;
+      if (bytes > 16 * 1024 * 1024 && runnerError === null) {
+        runnerError = "evaluation verifier exceeded the 16 MiB output bound";
+        child.kill("SIGKILL");
+        return;
+      }
+      if (runnerError === null) chunks.push(chunk);
+    };
+    child.stdout.on("data", (chunk) => collect(stdout, chunk));
+    child.stderr.on("data", (chunk) => collect(stderr, chunk));
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill("SIGKILL");
+    }, timeoutMs);
+    child.on("error", (error) => {
+      clearTimeout(timer);
+      finish({
+        exit_code: null,
+        signal: null,
+        stdout: Buffer.concat(stdout),
+        stderr: Buffer.concat(stderr),
+        timed_out: timedOut,
+        runner_error: error.message,
+      });
+    });
+    child.on("close", (code, signal) => {
+      clearTimeout(timer);
+      finish({
+        exit_code: code,
+        signal,
+        stdout: Buffer.concat(stdout),
+        stderr: Buffer.concat(stderr),
+        timed_out: timedOut,
+        runner_error: runnerError,
+      });
+    });
+  });
+}
+
+function remainsBelow(root, candidate) {
+  const relative = path.relative(root, candidate);
+  return relative !== "" && relative !== ".." &&
+    !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+}
+
+async function readArtifact(assignmentRoot, relativePath, maxBytes) {
+  const resolvedRoot = await realpath(assignmentRoot);
+  const candidate = path.resolve(resolvedRoot, relativePath);
+  const resolved = await realpath(candidate);
+  if (!remainsBelow(resolvedRoot, resolved)) {
+    throw new Error("candidate artifact escapes its assigned output");
+  }
+  const metadata = await lstat(candidate);
+  if (
+    !metadata.isFile() ||
+    metadata.isSymbolicLink() ||
+    metadata.nlink !== 1 ||
+    metadata.size === 0 ||
+    metadata.size > maxBytes
+  ) {
+    throw new Error("candidate artifact violates its regular-file byte contract");
+  }
+  return {
+    path: resolved,
+    bytes: await readFile(resolved),
+  };
+}
+
 const values = options(process.argv.slice(2).filter((value) => value !== "--"));
 for (const required of ["--plan", "--stage", "--output"]) {
   if (!values.has(required)) {
@@ -122,6 +215,10 @@ const {
   plan,
   executable_paths: executablePaths,
   wrapper_paths: wrapperPaths,
+  task_source_paths: taskSourcePaths,
+  task_packet_paths: taskPacketPaths,
+  task_verifier_paths: taskVerifierPaths,
+  task_verifier_runtime_paths: taskVerifierRuntimePaths,
 } = await verifyEvaluationPlanFiles(
   JSON.parse(await readFile(planFile, "utf8")),
   planFile,
@@ -138,7 +235,7 @@ let stopReason = null;
 for (const assignment of assignments) {
   const task = plan.tasks.find((candidate) => candidate.id === assignment.task_id);
   const arm = plan.arms.find((candidate) => candidate.id === assignment.arm_id);
-  const packet = await realpath(path.join(planDirectory, task.packet_path));
+  const packet = taskPacketPaths[task.id];
   if (sha256(await readFile(packet)) !== task.packet_root) {
     throw new Error(`task ${task.id} packet root drifted`);
   }
@@ -158,9 +255,9 @@ for (const assignment of assignments) {
     path.resolve(planDirectory, arm.cwd),
     task.max_wall_time_ms,
   );
-  const endedAt = new Date();
-  const wallTimeMs = Number((process.hrtime.bigint() - started) / 1_000_000n);
-  totalWallTimeMs += wallTimeMs;
+  const producerWallTimeMs = Number(
+    (process.hrtime.bigint() - started) / 1_000_000n,
+  );
   await writeFile(path.join(assignmentRoot, "stdout.bin"), outcome.stdout, { mode: 0o600 });
   await writeFile(path.join(assignmentRoot, "stderr.bin"), outcome.stderr, { mode: 0o600 });
   let armResult = null;
@@ -194,6 +291,87 @@ for (const assignment of assignments) {
   const observedTokens = armResult === null
     ? null
     : armResult.usage.input_tokens + armResult.usage.output_tokens;
+  let artifactRoot = null;
+  let verifier = null;
+  if (
+    outcome.exit_code === 0 &&
+    outcome.runner_error === null &&
+    armResultError === null
+  ) {
+    const verifierStarted = process.hrtime.bigint();
+    let verifierOutcome = {
+      exit_code: null,
+      signal: null,
+      stdout: Buffer.alloc(0),
+      stderr: Buffer.alloc(0),
+      timed_out: false,
+      runner_error: null,
+    };
+    try {
+      const artifact = await readArtifact(
+        assignmentRoot,
+        task.artifact_path,
+        task.max_artifact_bytes,
+      );
+      artifactRoot = sha256(artifact.bytes);
+      const source = taskSourcePaths[task.id];
+      if (sha256(await readFile(source)) !== task.source_root) {
+        throw new Error(`task ${task.id} source root drifted`);
+      }
+      const verifierExecutable = taskVerifierPaths[task.id];
+      if (sha256(await readFile(verifierExecutable)) !== task.verifier_root) {
+        throw new Error(`task ${task.id} verifier root drifted`);
+      }
+      if (
+        sha256(await readFile(taskVerifierRuntimePaths[task.id])) !==
+          task.verifier_runtime_root
+      ) {
+        throw new Error(`task ${task.id} verifier runtime root drifted`);
+      }
+      const verifierArgv = task.verifier_args.map((entry) =>
+        entry
+          .replaceAll("{artifact}", artifact.path)
+          .replaceAll("{source}", source));
+      verifierOutcome = await executeVerifier(
+        [
+          taskVerifierRuntimePaths[task.id],
+          ...(task.verifier_runtime === "bun" ? [verifierExecutable] : []),
+          ...verifierArgv,
+        ],
+        assignmentRoot,
+        task.max_wall_time_ms,
+      );
+    } catch (error) {
+      verifierOutcome.runner_error = error instanceof Error ? error.message : String(error);
+    }
+    await writeFile(
+      path.join(assignmentRoot, "verifier-stdout.bin"),
+      verifierOutcome.stdout,
+      { mode: 0o600, flag: "wx" },
+    );
+    await writeFile(
+      path.join(assignmentRoot, "verifier-stderr.bin"),
+      verifierOutcome.stderr,
+      { mode: 0o600, flag: "wx" },
+    );
+    const verifierError = verifierOutcome.runner_error ??
+      (verifierOutcome.timed_out ? "evaluation verifier timed out" : null);
+    verifier = {
+      outcome:
+        verifierOutcome.exit_code === 0 && verifierError === null ? "pass" : "fail",
+      exit_code: verifierOutcome.exit_code,
+      signal: verifierOutcome.signal,
+      wall_time_ms: Number(
+        (process.hrtime.bigint() - verifierStarted) / 1_000_000n,
+      ),
+      stdout_root: sha256(verifierOutcome.stdout),
+      stderr_root: sha256(verifierOutcome.stderr),
+      error: verifierError,
+    };
+  }
+  const endedAt = new Date();
+  const wallTimeMs = Number((process.hrtime.bigint() - started) / 1_000_000n);
+  totalWallTimeMs += wallTimeMs;
   const record = {
     schema: EVALUATION_RUN_SCHEMA,
     run_id: `eval_${digest({
@@ -220,6 +398,9 @@ for (const assignment of assignments) {
     arm_result_root: armResultRoot,
     usage: armResult?.usage ?? null,
     observed_tokens: observedTokens,
+    artifact_root: artifactRoot,
+    producer_wall_time_ms: producerWallTimeMs,
+    verifier,
   };
   await writeFile(path.join(assignmentRoot, "run.json"), canonicalJson(record), {
     mode: 0o600,

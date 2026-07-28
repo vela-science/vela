@@ -123,7 +123,9 @@ function parseTask(value, at) {
     item,
     [
       "id", "class", "source", "source_path", "source_root", "packet_path", "packet_root",
-      "verifier_path", "verifier_root", "license", "cpu_only", "network",
+      "verifier_path", "verifier_root", "verifier_runtime", "verifier_runtime_root",
+      "verifier_args", "artifact_path",
+      "max_artifact_bytes", "license", "cpu_only", "network",
       "max_wall_time_ms", "max_observed_tokens",
     ],
     [],
@@ -135,6 +137,35 @@ function parseTask(value, at) {
   if (item.cpu_only !== true || item.network !== "deny") {
     throw new Error(`${at} must be CPU-only and network-denied`);
   }
+  const verifierArgs = array(
+    item.verifier_args,
+    `${at}.verifier_args`,
+    1,
+    32,
+    (entry, entryAt) => text(entry, entryAt, 4096),
+  );
+  if (verifierArgs.filter((entry) => entry === "{artifact}").length !== 1) {
+    throw new Error(`${at}.verifier_args must contain exactly one {artifact}`);
+  }
+  if (verifierArgs.filter((entry) => entry === "{source}").length > 1) {
+    throw new Error(`${at}.verifier_args may contain at most one {source}`);
+  }
+  for (const entry of verifierArgs) {
+    if (entry.includes("{") && !["{artifact}", "{source}"].includes(entry)) {
+      throw new Error(`${at}.verifier_args contains an unsupported placeholder`);
+    }
+  }
+  if (!["direct", "bun"].includes(item.verifier_runtime)) {
+    throw new Error(`${at}.verifier_runtime is unsupported`);
+  }
+  const verifierRoot = root(item.verifier_root, `${at}.verifier_root`);
+  const verifierRuntimeRoot = root(
+    item.verifier_runtime_root,
+    `${at}.verifier_runtime_root`,
+  );
+  if (item.verifier_runtime === "direct" && verifierRuntimeRoot !== verifierRoot) {
+    throw new Error(`${at} direct verifier runtime must equal its verifier root`);
+  }
   return {
     id: text(item.id, `${at}.id`, 256),
     class: item.class,
@@ -144,7 +175,17 @@ function parseTask(value, at) {
     packet_path: relative(item.packet_path, `${at}.packet_path`),
     packet_root: root(item.packet_root, `${at}.packet_root`),
     verifier_path: relative(item.verifier_path, `${at}.verifier_path`),
-    verifier_root: root(item.verifier_root, `${at}.verifier_root`),
+    verifier_root: verifierRoot,
+    verifier_runtime: item.verifier_runtime,
+    verifier_runtime_root: verifierRuntimeRoot,
+    verifier_args: verifierArgs,
+    artifact_path: relative(item.artifact_path, `${at}.artifact_path`),
+    max_artifact_bytes: integer(
+      item.max_artifact_bytes,
+      `${at}.max_artifact_bytes`,
+      1,
+      64 * 1024 * 1024,
+    ),
     license: text(item.license, `${at}.license`, 128),
     cpu_only: true,
     network: "deny",
@@ -567,7 +608,8 @@ export function parseEvaluationRun(value) {
       "started_at", "ended_at", "wall_time_ms", "exit_code", "signal",
       "stdout_root", "stderr_root", "model_output_observed", "timed_out",
       "runner_error", "retry_of", "authority_effect", "arm_result_root",
-      "usage", "observed_tokens",
+      "usage", "observed_tokens", "artifact_root", "producer_wall_time_ms",
+      "verifier",
     ],
     [],
     "run",
@@ -608,6 +650,52 @@ export function parseEvaluationRun(value) {
       "run.observed_tokens must equal input_tokens plus output_tokens",
     );
   }
+  let verifier = null;
+  if (record.verifier !== null) {
+    const item = object(record.verifier, "run.verifier");
+    exactKeys(
+      item,
+      [
+        "outcome", "exit_code", "signal", "wall_time_ms", "stdout_root",
+        "stderr_root", "error",
+      ],
+      [],
+      "run.verifier",
+    );
+    if (!["pass", "fail"].includes(item.outcome)) {
+      throw new Error("run.verifier.outcome is unsupported");
+    }
+    if (
+      item.exit_code !== null &&
+      (!Number.isSafeInteger(item.exit_code) || item.exit_code < 0 || item.exit_code > 255)
+    ) {
+      throw new Error("run.verifier.exit_code must be null or an integer in 0..255");
+    }
+    const error = nullableText(item.error, "run.verifier.error");
+    if (
+      (item.outcome === "pass" && (item.exit_code !== 0 || error !== null)) ||
+      (item.outcome === "fail" && item.exit_code === 0 && error === null)
+    ) {
+      throw new Error("run.verifier outcome contradicts its process result");
+    }
+    verifier = {
+      outcome: item.outcome,
+      exit_code: item.exit_code,
+      signal: nullableText(item.signal, "run.verifier.signal", 64),
+      wall_time_ms: integer(
+        item.wall_time_ms,
+        "run.verifier.wall_time_ms",
+        0,
+        86_400_000,
+      ),
+      stdout_root: root(item.stdout_root, "run.verifier.stdout_root"),
+      stderr_root: root(item.stderr_root, "run.verifier.stderr_root"),
+      error,
+    };
+  }
+  if (verifier?.outcome === "pass" && record.artifact_root === null) {
+    throw new Error("passing run verifier requires an artifact_root");
+  }
   return {
     schema: EVALUATION_RUN_SCHEMA,
     run_id: text(record.run_id, "run.run_id", 128),
@@ -635,6 +723,16 @@ export function parseEvaluationRun(value) {
       : root(record.arm_result_root, "run.arm_result_root"),
     usage,
     observed_tokens: observedTokens,
+    artifact_root: record.artifact_root === null
+      ? null
+      : root(record.artifact_root, "run.artifact_root"),
+    producer_wall_time_ms: integer(
+      record.producer_wall_time_ms,
+      "run.producer_wall_time_ms",
+      0,
+      86_400_000,
+    ),
+    verifier,
   };
 }
 
@@ -781,25 +879,40 @@ export async function verifyEvaluationPlanFiles(plan, planFile) {
   let verifiedFiles = 0;
   const executablePaths = {};
   const wrapperPaths = {};
+  const taskSourcePaths = {};
+  const taskPacketPaths = {};
+  const taskVerifierPaths = {};
+  const taskVerifierRuntimePaths = {};
   for (const task of parsed.tasks) {
-    await verifyFile(
+    taskSourcePaths[task.id] = await verifyFile(
       planDirectory,
       task.source_path,
       task.source_root,
       `task ${task.id} source`,
     );
-    await verifyFile(
+    taskPacketPaths[task.id] = await verifyFile(
       planDirectory,
       task.packet_path,
       task.packet_root,
       `task ${task.id} packet`,
     );
-    await verifyFile(
+    taskVerifierPaths[task.id] = await verifyFile(
       planDirectory,
       task.verifier_path,
       task.verifier_root,
       `task ${task.id} verifier`,
     );
+    if (task.verifier_runtime === "direct") {
+      await access(taskVerifierPaths[task.id], constants.X_OK);
+      taskVerifierRuntimePaths[task.id] = taskVerifierPaths[task.id];
+    } else {
+      taskVerifierRuntimePaths[task.id] = await resolveExecutable(
+        "bun",
+        planDirectory,
+        task.verifier_runtime_root,
+        `task ${task.id} verifier runtime`,
+      );
+    }
     verifiedFiles += 3;
   }
   for (const arm of parsed.arms) {
@@ -844,5 +957,9 @@ export async function verifyEvaluationPlanFiles(plan, planFile) {
     verified_files: verifiedFiles,
     executable_paths: executablePaths,
     wrapper_paths: wrapperPaths,
+    task_source_paths: taskSourcePaths,
+    task_packet_paths: taskPacketPaths,
+    task_verifier_paths: taskVerifierPaths,
+    task_verifier_runtime_paths: taskVerifierRuntimePaths,
   };
 }

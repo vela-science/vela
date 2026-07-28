@@ -83,9 +83,11 @@
     "eval:validate": "bun evaluation/scripts/validate-plan.mjs",
     "eval:run": "bun evaluation/scripts/run-plan.mjs",
     "eval:report": "bun evaluation/scripts/report.mjs",
-    "eval:conformance": "node --test tests/evaluation-plan.test.mjs tests/evaluation-scientific-task.test.mjs",
-    "eval:task:prepare": "bun evaluation/tasks/core-bench-1108125/prepare.mjs",
-    "eval:task:verify": "bun evaluation/tasks/core-bench-1108125/verify.mjs",
+    "eval:conformance": "node --test tests/evaluation-plan.test.mjs tests/evaluation-scientific-task.test.mjs tests/evaluation-erdos-task.test.mjs",
+    "eval:task:prepare:scientific": "bun evaluation/tasks/core-bench-1108125/prepare.mjs",
+    "eval:task:verify:scientific": "bun evaluation/tasks/core-bench-1108125/verify.mjs",
+    "eval:task:prepare:erdos": "bun evaluation/tasks/erdos-1056-10429401-10429600/prepare.mjs",
+    "eval:task:build-verifier:erdos": "bun evaluation/tasks/erdos-1056-10429401-10429600/build-verifier.mjs",
     "trace:export": "bun evaluation/scripts/trace-export.mjs"
   },
   "devDependencies": {
