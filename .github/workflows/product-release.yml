@@ -1,9 +1,9 @@
-name: Vela product packages release
+name: Product packages release
 
 on:
   push:
     tags:
-      - "canopus-v*"
+      - "product-v*"
 
 permissions: {}
 
@@ -52,8 +52,8 @@ jobs:
             packages/canopus/dist/tests/product-cli.test.js \
             packages/canopus/dist/tests/product-profile.test.js \
             packages/canopus/dist/tests/release-contract.test.js
-      - name: Verify tag matches package version
-        run: test "canopus-v$(node -p 'require("./packages/canopus/package.json").version')" = "$GITHUB_REF_NAME"
+      - name: Verify tag matches product version
+        run: test "product-v$(node -p 'require("./packages/canopus/package.json").version')" = "$GITHUB_REF_NAME"
       - name: Pack source-bound packages
         run: |
           mkdir release
@@ -70,7 +70,7 @@ jobs:
           for archive in release/*.tgz; do
             gh attestation verify "$archive" \
               --repo "$GITHUB_REPOSITORY" \
-              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/canopus-release.yml" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/product-release.yml" \
               --source-ref "$GITHUB_REF" \
               --source-digest "$GITHUB_SHA" \
               --deny-self-hosted-runners
@@ -83,6 +83,7 @@ jobs:
             spec="$package@$version"
             archive=$(find release -maxdepth 1 -name "*-$(basename "$package_dir")-$version.tgz" -print)
             test -n "$archive"
+            archive="./$archive"
             if npm view "$spec" version >/dev/null 2>&1; then
               test "$(npm view "$spec" version)" = "$version"
             else

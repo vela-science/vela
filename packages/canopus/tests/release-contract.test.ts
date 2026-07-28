@@ -9,7 +9,7 @@ import {
 
 test("current product release pins the tested Vela and Codex boundaries", async () => {
   const [workflow, lockText] = await Promise.all([
-    readFile(new URL("../../../../.github/workflows/canopus-ci.yml", import.meta.url), "utf8"),
+    readFile(new URL("../../../../.github/workflows/product-ci.yml", import.meta.url), "utf8"),
     readFile(new URL("../../toolchain.lock.json", import.meta.url), "utf8"),
   ]);
   const lock = JSON.parse(lockText) as {
@@ -30,7 +30,7 @@ test("current product release pins the tested Vela and Codex boundaries", async 
 
 test("installed-package smoke validates the current packaged Erdős profile", async () => {
   const workflow = await readFile(
-    new URL("../../../../.github/workflows/canopus-ci.yml", import.meta.url),
+    new URL("../../../../.github/workflows/product-ci.yml", import.meta.url),
     "utf8",
   );
   const currentProfile = "erdos1056-k15-10429201-10429400";
@@ -50,14 +50,14 @@ test("installed-package smoke validates the current packaged Erdős profile", as
 
 test("release binds tag, GitHub attestation, and npm trusted provenance", async () => {
   const workflow = await readFile(
-    new URL("../../../../.github/workflows/canopus-release.yml", import.meta.url),
+    new URL("../../../../.github/workflows/product-release.yml", import.meta.url),
     "utf8",
   );
 
   for (const contract of [
     "environment: npm",
     "id-token: write",
-    "test \"canopus-v$(node -p 'require(\"./packages/canopus/package.json\").version')\" = \"$GITHUB_REF_NAME\"",
+    "test \"product-v$(node -p 'require(\"./packages/canopus/package.json\").version')\" = \"$GITHUB_REF_NAME\"",
     "actions/attest-build-provenance@",
     "gh attestation verify",
     "--signer-workflow",
@@ -68,6 +68,7 @@ test("release binds tag, GitHub attestation, and npm trusted provenance", async 
     "bun pm pack --cwd packages/canopus",
     "(cd release && shasum -a 256 *.tgz > SHA256SUMS)",
     "for package_dir in packages/protocol packages/canopus",
+    "archive=\"./$archive\"",
     "npm publish \"$archive\" --provenance --access public",
     "npm audit signatures --json --include-attestations",
     "https://slsa.dev/provenance/v1",

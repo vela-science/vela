@@ -1,27 +1,29 @@
-name: Canopus CI
+name: Product packages CI
 
 on:
   push:
     paths:
       - "package.json"
       - "bun.lock"
+      - "scripts/check-package-boundaries.mjs"
       - "packages/protocol/**"
       - "packages/canopus/**"
-      - ".github/workflows/canopus-ci.yml"
+      - ".github/workflows/product-ci.yml"
   pull_request:
     paths:
       - "package.json"
       - "bun.lock"
+      - "scripts/check-package-boundaries.mjs"
       - "packages/protocol/**"
       - "packages/canopus/**"
-      - ".github/workflows/canopus-ci.yml"
+      - ".github/workflows/product-ci.yml"
 
 permissions:
   contents: read
 
 defaults:
   run:
-    working-directory: packages/canopus
+    working-directory: .
 
 jobs:
   check:
@@ -43,9 +45,9 @@ jobs:
           node-version: 22
       - name: Load the exact tested toolchain
         shell: bash
-        run: node scripts/export-toolchain-env.mjs "$RUNNER_OS" >> "$GITHUB_ENV"
+        run: node packages/canopus/scripts/export-toolchain-env.mjs "$RUNNER_OS" >> "$GITHUB_ENV"
       - run: bun install --frozen-lockfile
-      - run: bun run --cwd ../protocol build
+      - run: bun run --cwd packages/protocol build
       - name: Run platform-appropriate checks
         run: |
           if [ "${{ runner.os }}" = macOS ]; then
@@ -54,10 +56,10 @@ jobs:
             bun run typecheck
             bun run build
             node --test \
-              dist/tests/engine-tools.test.js \
-              dist/tests/mission-v1.test.js \
-              dist/tests/product-cli.test.js \
-              dist/tests/product-profile.test.js
+              packages/canopus/dist/tests/engine-tools.test.js \
+              packages/canopus/dist/tests/mission-v1.test.js \
+              packages/canopus/dist/tests/product-cli.test.js \
+              packages/canopus/dist/tests/product-profile.test.js
           fi
       - name: Verify released Vela composition
         run: |
@@ -80,7 +82,7 @@ jobs:
               CANOPUS_VELA_BIN="$RUNNER_TEMP/vela-release/vela" \
               CANOPUS_VELA_SHA256="sha256:$VELA_SHA256" \
               CANOPUS_VELA_VERSION="$VELA_VERSION" \
-              node --test dist/tests/integration/released-vela.test.js
+              node --test packages/canopus/dist/tests/integration/released-vela.test.js
           fi
       - name: Run real Linux sandbox custody preflight
         if: runner.os == 'Linux'
@@ -103,7 +105,7 @@ jobs:
           printf '%s  %s\n' "$CODEX_BINARY_SHA256" "$codex_bin" | shasum -a 256 -c -
           chmod +x "$codex_bin"
           test "$("$codex_bin" --version)" = "codex-cli $CODEX_VERSION"
-          node scripts/run-native-sandbox-preflight.mjs --codex "$codex_bin"
+          node packages/canopus/scripts/run-native-sandbox-preflight.mjs --codex "$codex_bin"
       - name: Pull frozen verifier anonymously by exact digest
         if: runner.os == 'Linux'
         env:
@@ -117,7 +119,7 @@ jobs:
       - name: Install and smoke the packed product
         run: |
           mkdir "$RUNNER_TEMP/canopus-package"
-          bun pm pack --destination "$RUNNER_TEMP/canopus-package"
+          bun pm pack --cwd packages/canopus --destination "$RUNNER_TEMP/canopus-package"
           set -- "$RUNNER_TEMP"/canopus-package/*.tgz
           test "$#" -eq 1
           npm install --global --prefix "$RUNNER_TEMP/canopus-install" "$1"
@@ -139,13 +141,13 @@ jobs:
           node-version: 22
       - name: Load the exact tested toolchain
         shell: pwsh
-        run: node scripts/export-toolchain-env.mjs "$env:RUNNER_OS" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        run: node packages/canopus/scripts/export-toolchain-env.mjs "$env:RUNNER_OS" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - run: bun install --frozen-lockfile
-      - run: bun run --cwd ../protocol build
-      - run: bun run typecheck
-      - run: bun run build
+      - run: bun run --cwd packages/protocol build
+      - run: bun run --cwd packages/canopus typecheck
+      - run: bun run --cwd packages/canopus build
       - name: Verify native Windows platform contracts
-        run: node --test dist/tests/product-platform.test.js
+        run: node --test packages/canopus/dist/tests/product-platform.test.js
       - name: Verify Vela and installed Canopus package
         shell: pwsh
         run: |
@@ -163,7 +165,7 @@ jobs:
             throw "Vela binary checksum mismatch"
           }
           & "$env:RUNNER_TEMP\vela\vela.exe" --version
-          bun pm pack --destination $env:RUNNER_TEMP
+          bun pm pack --cwd packages/canopus --destination $env:RUNNER_TEMP
           $package = Get-ChildItem "$env:RUNNER_TEMP\vela-science-canopus-*.tgz" | Select-Object -First 1
           npm install --global --prefix "$env:RUNNER_TEMP\canopus" $package.FullName
           & "$env:RUNNER_TEMP\canopus\canopus.cmd" --help

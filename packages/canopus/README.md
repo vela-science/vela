@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@vela-science/canopus"><img alt="npm" src="https://img.shields.io/npm/v/@vela-science/canopus?style=flat-square&color=C9A664&labelColor=081224" /></a>
-  <a href="https://github.com/vela-science/vela/actions/workflows/canopus-ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/vela-science/vela/canopus-ci.yml?branch=main&style=flat-square&label=build&labelColor=081224" /></a>
+  <a href="https://github.com/vela-science/vela/actions/workflows/product-ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/vela-science/vela/product-ci.yml?branch=main&style=flat-square&label=build&labelColor=081224" /></a>
   <a href="LICENSE-APACHE"><img alt="Apache-2.0 OR MIT" src="https://img.shields.io/badge/license-Apache--2.0%20OR%20MIT-4F8F8B?style=flat-square&labelColor=081224" /></a>
 </p>
 

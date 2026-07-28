@@ -187,7 +187,7 @@ repositories remain separate because they have independent deployment and
 scientific-history lifecycles.
 
 The Protocol package and Canopus publish together, in dependency order, from
-one `canopus-v*` release tag. Routine development does not advance versions or
+one `product-v*` release tag. Routine development does not advance versions or
 copy release facts across the workspace; package versions change only when a
 public contract ships. The next full Vela product train will use one release
 tag for the Rust and npm artifacts as well.

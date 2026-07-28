@@ -34,7 +34,7 @@ test("workflow actions are immutable and Node tooling uses maintained runtimes",
 });
 
 test("release validates the complete macOS product before the portable OIDC publisher", async () => {
-  const value = await readFile(new URL("canopus-release.yml", workflows), "utf8");
+  const value = await readFile(new URL("product-release.yml", workflows), "utf8");
   const validateStart = value.indexOf("  validate:\n");
   const publishStart = value.indexOf("  publish:\n");
   assert.ok(validateStart >= 0, "release validate job is missing");
