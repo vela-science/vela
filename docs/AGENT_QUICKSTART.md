@@ -1,12 +1,14 @@
 # Agent quickstart
 
-The agent loop is:
+The product loop is:
 
 ```text
-inspect -> attempt -> submit -> verify -> decide -> continue
+map -> target -> run -> verify -> commit -> compound
 ```
 
-An agent owns only the first three steps.
+An ordinary producer agent may map state, select one bounded Target, run the
+work, and submit evidence. A separately declared verifier may report its scoped
+check. No agent receives Frontier commit authority from either role.
 
 For a new repository, initialization is deliberately structural:
 

@@ -17,6 +17,7 @@
 - [Threat model](THREAT_MODEL.md)
 - [Current repository epoch ADR](adr/0022-current-repository-epoch-and-legacy-runtime-retirement.md)
 - [Native current repository genesis ADR](adr/0023-native-current-repository-genesis.md)
+- [Math-first compounding product architecture ADR](adr/0025-math-first-compounding-product-architecture.md)
 
 ## Project documents
 

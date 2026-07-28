@@ -10,6 +10,10 @@
   Receipt-era bytes remain replayable
 - Product effect: replace inverted producer and review language with
   `inspect -> attempt -> submit -> verify -> decide -> continue`
+- Product-language note: ADR 0025 supersedes that sequence as the public
+  outcome headline with `map -> target -> run -> verify -> commit -> compound`.
+  This ADR's object lifecycle and direct-action command contract remain
+  unchanged.
 - Authority effect: none; the existing repository-authority transaction remains
   the only path that may change scientific standing
 - Compatibility: read every retained era that matters; write exactly one

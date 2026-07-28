@@ -1,8 +1,18 @@
 # Vela roadmap
 
-Vela is proving one compact thesis: exact scientific state should survive
-different producers, verifiers, decisions, corrections, and readers without
-turning any workbench or database into authority.
+Vela is proving one compact thesis: science should become living,
+correction-aware state that compounds across different producers, verifiers,
+decisions, and readers without turning any workbench, package, map, or database
+into authority.
+
+The public product loop is:
+
+```text
+map -> target -> run -> verify -> commit -> compound
+```
+
+`Commit` is product language for the existing authorized Decision, Event, and
+exact root transition. It is not a new protocol primitive.
 
 The detailed gates, exact current evidence, budgets, and stop conditions live
 in the [active evidence campaign](CAMPAIGN.md). This roadmap stays deliberately
@@ -18,34 +28,61 @@ short.
 - The old Canopus and private integration repositories are archived.
 - The four Frontiers, Vela Web, and organization workflows retain their
   independent ownership boundaries.
+- A repaired registered Stage A completed all 12 matched cells: Canopus passed
+  4/4 artifacts, native Codex 3/4, and same-packet native 4/4. Canopus used
+  fewer observed tokens and less wall time per verifier-passing artifact than
+  both baselines. This is first-party baseline evidence, not a population or
+  adoption claim.
 
 No replacement assembly or lab repository was created.
 
-## P1 — measure before expanding
+Stage B orchestration shopping is closed for this campaign because the
+registered call ceiling cannot fit it. No framework runtime was added.
 
-Run a registered framework-neutral evaluation of:
-
-- native Codex;
-- the existing Canopus single-engine path; and
-- optional orchestration only after safety gates pass.
-
-Retain an orchestration integration only if it wins both registered task
-classes, repeats on held-out tasks, and improves verified scientific work per
-all-in cost and expert-minute by at least 20 percent. Otherwise preserve the
-result and delete the integration.
-
-## P1 — math-first evidence
+## P1 — complete one Vela Math vertical slice
 
 - Run one named mechanically checkable Formal Conjectures mission.
+- Keep kernel acceptance, statement fidelity, scientific review, and Frontier
+  Standing distinct.
 - Measure evidence-location, correction, replay, and continuation against Git
   plus the same verifier.
-- Keep kernel verification, statement fidelity, and scientific acceptance
-  distinct.
 - Test the current `status` → `show` → `why` read path before adding a
   scientific-state comparison surface. Add one only if it materially reduces
   reviewer evidence-location or correction time.
 - Treat the exact Proposal Scientific Diff and `why` explanation as the first
   product surfaces to improve; prove read value before adding more write UX.
+
+## P1 — prove correction-aware compounding
+
+Demonstrate one exact accepted-Claim dependency cascade through correction,
+affected-state discovery, an opened repair Obligation, and repair or
+retraction. Measure correction localization and continuation lift. This is the
+first required proof that Vela adds state value beyond Git plus files.
+
+Require one clean-room reader to derive the same bounded impact while
+preserving an independent surviving route. Then retain the source correction
+in a second Frontier without importing its authority. The current legacy
+depth-capped Finding cascade is historical behavior, not the future protocol
+contract.
+
+## P2 — earn a reusable math profile
+
+Prototype the smallest Vela Math mapping source-locally. Do not publish a
+package until two maintained consumers use the same stable contract and
+extraction deletes maintained duplication. Preserve Lean, Lake, Mathlib,
+problem-corpus, and external identifier sovereignty.
+
+The package path is:
+
+```text
+source-local profile
+-> exact lock
+-> two maintained consumers
+-> deleted duplication
+-> read-only index
+```
+
+Package publication never changes Standing.
 
 ## P2 — one computational transfer
 
@@ -57,8 +94,13 @@ genuinely different format before proposing shared adapter infrastructure.
 ## Deferred
 
 No `1.0.0` schedule, hosted authority, scheduler, graph database, universal
-ontology, shared adapter registry, mandatory orchestration framework, or
-second writer is planned.
+ontology, shared adapter registry, mandatory orchestration framework, second
+writer, hosted package Registry, Atlas service, marketplace, control room, or
+science-factory platform is planned.
+
+A read-only package index is earned only by repeated package reuse. A
+federated Atlas is earned only by exact cross-Frontier resolution, correction
+propagation, and cold-user lift. Attractive architecture is not an entry gate.
 
 Failure to demonstrate lift causes simplification and deletion, not another
 architecture layer.

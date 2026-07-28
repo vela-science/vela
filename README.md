@@ -5,7 +5,7 @@
 <h1 align="center">Vela</h1>
 
 <p align="center">
-  <strong>Version control for scientific state.</strong>
+  <strong>Version control for living science.</strong>
 </p>
 
 <p align="center">
@@ -19,25 +19,35 @@
 
 ---
 
-Research already has tools for code, papers, data, and computation. Vela
-tracks the missing state between them: what is claimed, what evidence supports
-it, what was independently verified, what was accepted, what was corrected,
-and why the current result stands.
+Research already has tools for code, papers, data, proofs, and computation.
+Vela tracks the missing state between them: what is claimed, what exact
+evidence bears on it, what was independently checked, what a named Frontier
+decided, what was corrected, and what the next researcher can safely inherit.
 
-Vela is an open scientific-state substrate. Its long-range direction is a
-federated merge and inheritance layer for science: different workbenches can
-produce evidence, different verifiers can report scoped checks, and each
-Frontier can decide and replay its own state without a hosted authority or
-universal ontology.
+Vela is an open scientific-state and compounding layer. Its product loop is:
+
+```text
+map -> target -> run -> verify -> commit -> compound
+```
+
+Work can run anywhere. Checks remain scoped. Only an authorized Decision
+changes Standing. The accepted result, correction, or retained failed route
+then becomes a stronger starting point for the next person or agent.
+
+Its long-range direction is a federated inheritance layer for science:
+different workbenches can produce evidence, different verifiers can report
+scoped checks, and each Frontier can decide and replay its own state without a
+hosted authority or universal ontology.
 
 With Vela you can:
 
 - inspect one scientific state from exact Git bytes and full roots;
-- start bounded work without receiving authority;
+- map an unresolved gap into bounded work without receiving authority;
 - submit portable, authenticated evidence;
 - retain verifier observations without treating them as acceptance;
 - make one exact authorized Decision; and
-- replay how every Claim reached its current Standing.
+- replay how every Claim reached its current Standing and what can safely
+  happen next.
 
 ## How it works
 
@@ -244,6 +254,7 @@ once per actual release boundary.
 - [Current repository epoch ADR](docs/adr/0022-current-repository-epoch-and-legacy-runtime-retirement.md)
 - [Native current repository genesis ADR](docs/adr/0023-native-current-repository-genesis.md)
 - [Product monorepo and transition-repository retirement ADR](docs/adr/0024-repository-ownership-and-integration-repository-retirement.md)
+- [Math-first compounding product architecture ADR](docs/adr/0025-math-first-compounding-product-architecture.md)
 
 ## Project status
 

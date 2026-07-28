@@ -5,23 +5,35 @@ Historical object names remain valid when describing their exact source era.
 
 ## Product contract
 
-> **Vela is version control for scientific state.**
+> **Vela is version control for living science.**
 
-> **See what stands. Attempt what remains. Submit evidence. Verify what it
-> proves. Decide what changes. Continue from the new state.**
+> **Map the frontier. Target what matters. Run the work. Verify the result.
+> Commit what stands. Compound every gain.**
 
 ```text
-inspect -> attempt -> submit -> verify -> decide -> continue
+map -> target -> run -> verify -> commit -> compound
 ```
 
-The architecture ownership mnemonic is different:
+These are product verbs, not renamed protocol objects:
+
+```text
+map       reads exact state, dependencies, disagreement, and gaps
+target    selects bounded work from current state
+run       creates activity and evidence
+verify    records a scoped check over exact inputs
+commit    summarizes an authorized Decision + Event + root transition
+compound  reuses the new state, correction, or retained failed route
+```
+
+`Frontier Commit` is a product-level description of an authorized transition.
+It is not a protocol object, Git merge, verifier result, package publication,
+or new authority path.
+
+The architecture ownership mnemonic remains:
 
 ```text
 produce -> preserve -> check -> decide -> reuse
 ```
-
-The first sequence describes user actions. The second describes which layer
-owns each system responsibility.
 
 ## Canonical current vocabulary
 
@@ -46,6 +58,7 @@ owns each system responsibility.
 | Review Packet | A derived, root-bound presentation of one Proposal | None |
 | Decision | An authorized judgment over one exact Proposal | Defines transition intent |
 | Event | The append-only canonical transition record | Replays authorized effect |
+| Frontier Commit | Product term for an authorized Decision, canonical Event, exact before/after roots, and replayed Standing | No independent effect |
 | Standing | The deterministic current status derived from valid Events | Resulting state |
 | Observatory | A removable read-only projection | None |
 
@@ -230,6 +243,7 @@ writer merely because they are useful:
 | Bridge | A maintained set of mappings between domains with every premise and scope needed for transport | None by itself |
 | Adapter | A replaceable translation from an exact workbench export to a Submission and explicit loss report | None |
 | Lens | A rooted view, metric, or action ordering under declared assumptions | None |
+| Package | A versioned, content-addressed unit of reusable language, capability, corpus, verifier, mapping, or adapter; publication has no authority effect | None |
 | Atlas | A future removable cross-Frontier navigation concept | None |
 
 Mappings state one consequence tier. The default is `discovery`:

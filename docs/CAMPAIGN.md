@@ -7,6 +7,7 @@ Prove or falsify Vela's value through one bounded campaign:
 ```text
 complete and replay a real Submission -> Verification -> Decision loop
 compare native Codex, Canopus, and removable orchestration under matched budgets
+prove one math-first correction and continuation slice
 retain only components that improve verified work or reviewer efficiency
 earn one standards-compatible computational transfer
 ```
@@ -15,17 +16,57 @@ The campaign does not assume that Vela, Canopus, an orchestration framework, or
 a graph-shaped reader is useful. Negative and null results are valid when they
 are rooted, replayable, and honestly scoped.
 
+The active execution objective is:
+
+> Complete the math-first evidence campaign, prove or falsify one
+> correction-aware compounding transition through an independent reader, and
+> earn each package, interoperability, and discovery layer through measured
+> reuse while keeping the Vela monorepo, canonical Frontiers, and Vela Web
+> small and separately owned.
+
 ## Product thesis
 
-Vela is an open scientific-state substrate: version control for what is
-claimed, submitted, verified, decided, corrected, and ready to do next.
+Vela is version control for living science: an open state and compounding
+layer for what is claimed, checked, decided, corrected, inherited, and ready
+to do next.
 
 ```text
-inspect -> attempt -> submit -> verify -> decide -> continue
+map -> target -> run -> verify -> commit -> compound
+```
+
+The six verbs are the product loop:
+
+- **Map:** read exact current state, disagreement, dependencies, and gaps.
+- **Target:** turn one gap into bounded, addressable work.
+- **Run:** execute in any suitable human, agent, prover, or computational
+  environment.
+- **Verify:** record one scoped check over exact inputs and explicit nonclaims.
+- **Commit:** summarize the authorized Decision, Event, and root transition.
+- **Compound:** make the resulting state, correction, or failed route improve
+  the next action.
+
+`Frontier Commit` is product language for an authorized Decision plus its
+canonical Event and exact before/after roots. It is not a new protocol object.
+A verifier pass, package publication, Git merge, database update, or model
+confidence cannot create one.
+
+The protocol path remains exact underneath:
+
+```text
+Target
+  -> Attempt
+  -> Submission
+  -> Registration Record
+  -> Proposal
+  -> Verification Record
+  -> Decision
+  -> Event
+  -> Standing
 ```
 
 Producers produce. Verifiers report. Authorized reviewers decide. Events
-record. Replay derives Standing. Readers explain.
+record. Replay derives Standing. Readers explain. Product language must make
+the outcome legible without weakening those distinctions.
 
 The longer-range hypothesis is a federated merge and inheritance layer for
 science. This campaign does not treat that hypothesis as established. It asks
@@ -48,6 +89,12 @@ to exact state that another human or agent may safely inherit. Vela does not
 need to own the workbench, model, trace store, database, or publication venue
 to own that transition.
 
+Mathematics is the first complete proving ground because bounded statements,
+formal kernels, deterministic computations, stable problem corpora, and
+dependency graphs make both success and failure unusually inspectable. Vela
+Math is a domain profile under test, not a second authority system and not
+Vela's permanent domain boundary.
+
 ## Performance functions
 
 The north star is genuine reusable scientific progress per scarce human
@@ -59,6 +106,12 @@ judgment. Three measures stay separate:
    replay per reviewer-minute.
 3. **Inheritance lift:** time to first useful downstream action, duplicated
    work, and correction awareness after producer substitution.
+
+Compounding is demonstrated only when retained state changes later work: a
+dependency becomes safely reusable, a failed route prevents repetition, a
+correction reaches an affected Claim, an Obligation becomes a better Target,
+or a cold successor reaches useful work faster. Merely storing an artifact is
+accumulation, not compounding.
 
 Run count, graph size, generated Claims, and workflow completion are not proxy
 success metrics. Verification is evidence, never acceptance.
@@ -81,21 +134,90 @@ optional producer
 
 Only canonical Frontier Git, Vela's replay rules, and the authorized Decision
 boundary are durable product architecture. Canopus, evaluator bridges, traces,
-Observatory projections, orchestration frameworks, and external-format
-adapters must remain removable.
+Observatory projections, orchestration frameworks, domain packages, and
+external-format adapters must remain removable until their evidence gates
+pass.
 
-The activity and state planes remain deliberately separate:
+Four planes remain deliberately separate:
 
 ```text
-models, tools, sessions, attempts, traces, artifacts
-                     |
-               bounded Submission
-                     v
-Claim -> Verification -> Proposal -> Decision -> Event -> Standing
+activity
+  models, tools, sessions, Runs, traces, branches, raw artifacts
+      |
+      | bounded Submission
+      v
+scientific state
+  Claims, Verification Records, Proposals, Decisions, Events, Standing
+
+package
+  optional versioned schemas, corpora, verifiers, mappings, and adapters
+
+discovery
+  disposable Observatory, search, graphs, rankings, and explanations
 ```
 
 A rich work episode may be retained as evidence. It is never promoted wholesale
 into the portable scientific-state contract.
+
+Packages distribute reusable language or capability; they never confer
+Standing. Discovery surfaces explain rooted state; they never become a second
+writer. Native systems remain sovereign: Lean checks Lean, Lake resolves Lean
+packages, Git hosts bytes and ancestry, workbenches run activity, and named
+Frontiers decide what they recognize.
+
+## Protocol-breakthrough hypothesis
+
+The category-level hypothesis is narrower than a universal science platform:
+
+> Different scientific systems can exchange one exact proposed transition,
+> verify its causal inputs independently, apply local authority, replay the
+> same bounded result, and deterministically identify the direct consequences
+> of a later correction without one hosted writer or global consensus.
+
+The current protocol already has the essential single-Frontier admission
+boundary: canonical objects, authenticated Submissions, scoped Verification
+Records, direct authorized Decisions, append-only Events, deterministic replay,
+and correction without erasure. The next campaign must not pretend those
+properties already establish portable correction-aware federation.
+
+The current correction implementation is specifically insufficient as the
+network contract. Historical Finding-era propagation:
+
+- walks `supports` and `depends` links as one class;
+- caps traversal at an implementation-specific depth of three;
+- marks downstream records contested without evaluating alternative surviving
+  routes;
+- contains a legacy scalar-confidence threshold; and
+- emits invalidation events from an implementation-specific projection.
+
+Those behaviors remain replayable where history requires them. They are a
+baseline to replace or retire, not the semantics to standardize.
+
+The missing proof is:
+
+```text
+one exact correction or narrowing
+-> predecessor retained
+-> typed support and dependency routes recomputed
+-> independent surviving route preserved
+-> directly affected Claim made explicit
+-> bounded repair Obligation opened
+-> same result in a second implementation
+-> foreign Frontier retains local authority
+```
+
+Before adding a protocol object, relation algebra, or federation service, use a
+real mathematical fixture to determine the smallest boundary another
+implementation must understand. The initial interchange may be a derived,
+root-bound transition and scientific-diff projection over existing canonical
+objects. It gains no authority and is deletable if the experiment fails.
+
+The current `PROTOCOL.md`, public schemas, and conformance vectors remain the
+normative starting point. Do not create a parallel six-document specification
+series unless a clean-room implementer demonstrates that the current set is
+insufficient. A second implementation must not import Rust or reference
+implementation internals; colocated TypeScript is useful cross-implementation
+evidence but not external independence.
 
 The repository topology is:
 
@@ -145,7 +267,7 @@ The first campaign loop is terminal and replayed:
 The current Erdős repository has 2,771 accepted Claims, one accepted review,
 one rejected review, no pending review, strict replay, and zero blockers.
 
-## Next gate: registered framework-neutral evaluation
+## Completed registered framework-neutral evaluation
 
 The non-normative `canopus.evaluation-plan.v1` freezes tasks, arms, versions,
 roots, budgets, retries, scorers, exclusions, custody rules, and publication
@@ -355,21 +477,163 @@ wins both task classes, repeats on held-out tasks, and improves the primary
 efficiency measure by at least 20 percent over native Codex and plain
 TypeScript. Otherwise preserve the result and delete the integration.
 
-## Subsequent gates
+## Math-first compounding sequence
 
-1. Run one named mechanically checkable Formal Conjectures mission with a
-   frozen Lean statement, toolchain, dependencies, axioms policy, packet, and
-   verifier.
-2. Compare the `status -> show -> why` read path against Git plus the same
-   structured evidence and verifier.
-3. Treat the exact Proposal/Scientific Diff and `why` explanation as the first
-   product surfaces under test; add a scientific-state comparison surface only
-   if a frozen cold-use test
-   materially reduces evidence-location or correction time.
-4. After measured math value, package one public CPU-only computational
-   replication with a source-local adapter and a root-bound RO-Crate export.
-5. Require a second genuinely different external format before proposing
-   shared adapter infrastructure.
+The long-range ecosystem is a hypothesis. The build order earns it one
+vertical slice at a time.
+
+### Gate 1 — one complete Vela Math slice
+
+Run the first named mechanically checkable Formal Conjectures offer with its
+already frozen:
+
+- source statement and exact upstream revision;
+- Lean version, Mathlib revision, and dependency roots;
+- fully qualified declaration and output contract;
+- allowed and forbidden axioms;
+- packet and verifier capsule; and
+- explicit distinction among kernel acceptance, statement fidelity, and
+  scientific Standing.
+
+Route the result through the ordinary Submission and Verification path. Do not
+add a math-specific event, authority path, workflow engine, or CLI lifecycle.
+The slice must let a cold reader answer:
+
+```text
+What is claimed?
+Does the formal artifact check?
+Does it match the source?
+What has the Frontier decided?
+What remains unresolved?
+What exact action is useful next?
+```
+
+### Gate 2 — prove correction-aware compounding
+
+Select a real accepted mathematical Claim with at least two downstream
+dependents and an alternative support route somewhere in the bounded graph.
+Use it to demonstrate one exact dependency cascade:
+
+```text
+Claim A stands
+Claim B depends on A
+A is corrected, narrowed, or rejected
+B becomes explicitly at risk
+surviving support remains visible
+a repair Obligation opens
+B is repaired, narrowed, or retracted
+```
+
+Measure correction localization, affected-record discovery, repair time, and
+clean replay against Git plus the same structured evidence. This is the first
+flagship state-lift test because ordinary artifact stores and CI do not by
+themselves preserve the governed consequence of a correction.
+
+Freeze the initial root, exact relation types, support routes, correction,
+completeness bound, and expected nonclaims before implementing the reader.
+Require:
+
+1. the Rust reference path and one clean-room reader derive the same bounded
+   affected set and resulting projection;
+2. the reader rejects wrong roots, unknown consequential relations, missing
+   premises, stale prior state, and silent truncation;
+3. a relation used only for discovery cannot invalidate Standing;
+4. an independent surviving support route is not over-invalidated;
+5. every incomplete traversal reports its algorithm and bound; and
+6. a second Frontier can retain the foreign correction and source Standing
+   while requiring its own local Decision for any local Standing effect.
+
+The first implementation may perform full deterministic recomputation. An
+incremental engine, graph database, relay, resolver, or fixed-point service is
+not justified until the complete bounded semantics are correct and measured.
+
+### Gate 3 — test a source-local Vela Math profile
+
+Do not reopen rejected ADR 0019 or publish `@vela/math` merely because the
+memo supplies an attractive object model. First prototype the smallest
+source-local profile needed by the Formal and Erdős slices:
+
+```text
+Problem
+Mathematical Claim
+Formalization
+Mathematical Result
+Obligation
+Statement-fidelity review
+```
+
+The profile may map existing exact Vela and native objects; it may not add a
+Kernel object, reducer rule, authority effect, global ontology, or second
+dependency resolver. `Obligation` begins as a typed product and projection
+concept over existing Target and evidence facts. Promotion to a shared package
+requires all of:
+
+1. two maintained consumers need the same stable contract;
+2. extraction deletes maintained duplication;
+3. clean-clone generation is deterministic and offline;
+4. native IDs, packages, and verifier semantics remain sovereign;
+5. loss and unsupported meaning are explicit; and
+6. removing the package changes no replayed Standing.
+
+If these conditions fail, retain the useful source-local mapping and publish
+no package.
+
+### Gate 4 — scientific diff and cold inheritance
+
+Compare the current `status -> show -> why` path and exact Proposal data
+against Git plus the same evidence and verifier. Treat the scientific state
+diff and `why` explanation as the first reader surfaces under test.
+
+A new read surface must reduce evidence-location, correction, or continuation
+time by at least 20 percent in a frozen cold-use comparison. The initial diff
+must expose only:
+
+- Claim and scope changes;
+- evidence and scoped checks;
+- Obligations closed and opened;
+- dependency and correction consequences;
+- the exact authority request and result; and
+- before/after roots.
+
+Graphs, embeddings, rankings, and maps remain root-bound Lenses. Their
+position or score never implies authority.
+
+If the derived transition projection proves necessary for independent replay,
+define its minimum envelope only after the fixture. Do not add a canonical
+`Frontier Commit` object merely to bundle objects already addressed by full
+roots.
+
+### Gate 5 — one standards-compatible transfer
+
+After measured math value, package one public CPU-only computational
+replication with a source-local adapter and a root-bound RO-Crate export. Keep
+native source identifiers and emit an explicit loss report. Require a second
+genuinely different external format before proposing shared adapter
+infrastructure.
+
+### Expansion gates
+
+The sequence after a successful local package is:
+
+```text
+source-local profile
+-> exact lock
+-> two maintained consumers
+-> deleted duplication
+-> read-only package index
+-> minimum federated read map
+-> external institutional recurrence
+```
+
+A hosted Registry is not authorized before repeatable package reuse. A Vela
+Atlas is not authorized before exact cross-Frontier resolution and correction
+propagation outperform ordinary repository navigation. Actions, Spaces,
+Collections, Campaigns, relays, private registries, and institutional control
+rooms remain names for possible products, not scheduled components.
+
+No new astronomy brand is introduced. If earned, these remain descriptive
+Vela product surfaces. Canopus remains the one separately named optional
+producer because it has a distinct installable and removable contract.
 
 ## Product evidence gates
 

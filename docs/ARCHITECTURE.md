@@ -1,19 +1,23 @@
 # Vela architecture
 
-Vela is version control for scientific state.
+Vela is version control for living science.
 
-Its product category is an open scientific-state substrate: the portable
-layer that records what is claimed, evidenced, verified, decided, corrected,
-and safe to continue from. The longer-range direction is a federated merge
-and inheritance layer for science. That direction remains a hypothesis until
-different producers and readers demonstrate cheaper continuation and
-correction handling.
+Its product category is an open scientific-state and compounding layer: the
+portable boundary that records what is claimed, evidenced, checked, decided,
+corrected, inherited, and safe to do next. The longer-range direction is a
+federated inheritance layer for science. That direction remains a hypothesis
+until different producers and readers demonstrate cheaper continuation,
+correction handling, and downstream reuse.
 
 The product story is:
 
 ```text
-inspect -> attempt -> submit -> verify -> decide -> continue
+map -> target -> run -> verify -> commit -> compound
 ```
+
+`Commit` is product language for the existing authorized Decision, Event, and
+exact before/after root transition. It is not a new canonical object or an
+automatic consequence of verification, publication, or a Git merge.
 
 A Frontier is one ordinary Git repository for a bounded scientific scope.
 Vela defines the portable records, replay rules, repository authority, and
@@ -56,6 +60,33 @@ Each object has one job:
 Git publication is not acceptance. Verification is not acceptance. A
 signature authenticates exact bytes; it does not establish that a Claim is
 true.
+
+## Four architectural planes
+
+```text
+Activity plane
+  Runs, branches, traces, notebooks, attempts, raw artifacts
+
+Scientific-state plane
+  Claims, Submissions, Verification Records, Decisions, Events, Standing
+
+Package plane
+  optional schemas, corpora, verifiers, mappings, adapters, and locks
+
+Discovery plane
+  Observatory, search, graphs, rankings, and generated explanations
+```
+
+Vela owns the scientific-state boundary. Workbenches own activity. Packages
+make language and capability reusable but confer no Standing. Discovery
+surfaces are root-bound, rebuildable readers.
+
+Mathematics is the first complete domain proving ground, not a second Kernel.
+Lean and other proof assistants retain proof checking, native package managers
+retain dependency resolution, source communities retain their identifiers and
+review processes, and each Frontier retains bounded authority. A future Vela
+Math profile must earn extraction through two maintained consumers and deleted
+duplication before it becomes a shared package.
 
 ## Source and repository ownership
 
@@ -110,6 +141,8 @@ The architecture does not add:
 - a canonical database or public mutation API;
 - a universal ontology or work graph;
 - a mandatory model runner;
+- a package Registry before reusable packages exist;
+- an Atlas service before exact cross-Frontier value is measured;
 - a private meta-repository that outsiders must understand;
 - or an integration repository without an installable distribution.
 
