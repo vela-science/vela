@@ -168,7 +168,7 @@ function parseArm(value, at) {
   exactKeys(
     item,
     [
-      "id", "kind", "argv", "cwd", "dependency_lock_path",
+      "id", "kind", "argv", "cwd", "wrapper_path", "wrapper_root", "dependency_lock_path",
       "dependency_lock_root", "environment_path", "environment_root",
       "executable_root",
     ],
@@ -189,11 +189,16 @@ function parseArm(value, at) {
   }
   const argv = array(item.argv, `${at}.argv`, 1, 64, (entry, entryAt) =>
     text(entry, entryAt, 4096));
+  if (argv.filter((entry) => entry === "{wrapper}").length !== 1) {
+    throw new Error(`${at}.argv must contain exactly one {wrapper} control entrypoint`);
+  }
   return {
     id: text(item.id, `${at}.id`, 128),
     kind: item.kind,
     argv,
     cwd: relative(item.cwd, `${at}.cwd`),
+    wrapper_path: relative(item.wrapper_path, `${at}.wrapper_path`),
+    wrapper_root: root(item.wrapper_root, `${at}.wrapper_root`),
     dependency_lock_path: relative(
       item.dependency_lock_path,
       `${at}.dependency_lock_path`,
@@ -775,6 +780,7 @@ export async function verifyEvaluationPlanFiles(plan, planFile) {
   const planDirectory = path.dirname(resolvedPlan);
   let verifiedFiles = 0;
   const executablePaths = {};
+  const wrapperPaths = {};
   for (const task of parsed.tasks) {
     await verifyFile(
       planDirectory,
@@ -804,6 +810,12 @@ export async function verifyEvaluationPlanFiles(plan, planFile) {
       arm.executable_root,
       `arm ${arm.id} executable`,
     );
+    wrapperPaths[arm.id] = await verifyFile(
+      planDirectory,
+      arm.wrapper_path,
+      arm.wrapper_root,
+      `arm ${arm.id} wrapper`,
+    );
     await verifyFile(
       planDirectory,
       arm.dependency_lock_path,
@@ -816,7 +828,7 @@ export async function verifyEvaluationPlanFiles(plan, planFile) {
       arm.environment_root,
       `arm ${arm.id} environment`,
     );
-    verifiedFiles += 3;
+    verifiedFiles += 4;
   }
   for (const scorer of parsed.scorers) {
     await verifyFile(
@@ -831,5 +843,6 @@ export async function verifyEvaluationPlanFiles(plan, planFile) {
     plan: parsed,
     verified_files: verifiedFiles,
     executable_paths: executablePaths,
+    wrapper_paths: wrapperPaths,
   };
 }

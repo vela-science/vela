@@ -134,10 +134,12 @@ roots, budgets, retries, scorers, exclusions, custody rules, and publication
 policy before usable model output.
 
 Registration binds and rehashes the source snapshot, task packet, verifier,
-arm executable, dependency lock, environment, and each of the three distinct
-performance scorers. Every registered outcome remains visible; an ordinary
-failed process does not truncate the remaining matched cells, and a hard stop
-must list every registered cell that was not run.
+arm executable, trusted arm wrapper, dependency lock, environment, and each of
+the three distinct performance scorers. The runner accepts provider usage only
+through its bounded supervisor control channel; a worker-created control file
+fails closed. Every registered outcome remains visible; an ordinary failed
+process does not truncate the remaining matched cells, and a hard stop must
+list every registered cell that was not run.
 
 ### Stage A
 
@@ -178,6 +180,19 @@ between replays, so the scorer must bind only the registered scientific result
 contract and must not claim whole-output byte equivalence. The model-visible
 source bundle must exclude the retained `results/` directory and the
 CORE-Bench answer records.
+
+The deterministic answer-safe packet projects exactly 14 allowlisted code and
+data files and has root
+`sha256:21df72869c39f4d116a5a44760d9105f10400acf17e2946e92176192cc003a2f`.
+The independent verifier reproduced the registered result contract with
+artifact root
+`sha256:cd684ba40c64a445d6ba2e119571dfd8cc85f3a6bd86a0a5174b2d923772ed84`
+and verifier-result root
+`sha256:36f31e928a854c13bbcaf8d2589e7e952460f08385ce29788509acb4105baba2`.
+These are preflight evidence, not model output or scientific acceptance. Stage
+A remains blocked until all three trusted arm wrappers, the next uncovered
+Erdős packet and verifier, the scorer files, locks, and environment manifests
+are frozen into one registered plan.
 
 ### Stage B
 

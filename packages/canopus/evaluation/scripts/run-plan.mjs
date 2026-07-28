@@ -39,11 +39,16 @@ async function execute(argv, cwd, timeoutMs) {
         ["PATH", "HOME", "CODEX_HOME", "TMPDIR", "LANG", "LC_ALL", "NO_COLOR"]
           .flatMap((key) => process.env[key] === undefined ? [] : [[key, process.env[key]]]),
       ),
-      stdio: ["ignore", "pipe", "pipe"],
+      // File descriptor 3 is a supervisor-only control channel. Trusted arm
+      // wrappers write provider usage there after the model process exits and
+      // must not inherit it into the model sandbox.
+      stdio: ["ignore", "pipe", "pipe", "pipe"],
     });
     const stdout = [];
     const stderr = [];
+    const control = [];
     let bytes = 0;
+    let controlBytes = 0;
     let runnerError = null;
     let timedOut = false;
     let settled = false;
@@ -63,6 +68,15 @@ async function execute(argv, cwd, timeoutMs) {
     };
     child.stdout.on("data", (chunk) => collect(stdout, chunk));
     child.stderr.on("data", (chunk) => collect(stderr, chunk));
+    child.stdio[3].on("data", (chunk) => {
+      controlBytes += chunk.length;
+      if (controlBytes > 64 * 1024 && runnerError === null) {
+        runnerError = "evaluation control record exceeded the 64 KiB bound";
+        child.kill("SIGKILL");
+        return;
+      }
+      if (runnerError === null) control.push(chunk);
+    });
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill("SIGKILL");
@@ -74,6 +88,7 @@ async function execute(argv, cwd, timeoutMs) {
         signal: null,
         stdout: Buffer.concat(stdout),
         stderr: Buffer.concat(stderr),
+        control: Buffer.concat(control),
         timed_out: timedOut,
         runner_error: error.message,
       });
@@ -85,6 +100,7 @@ async function execute(argv, cwd, timeoutMs) {
         signal,
         stdout: Buffer.concat(stdout),
         stderr: Buffer.concat(stderr),
+        control: Buffer.concat(control),
         timed_out: timedOut,
         runner_error: runnerError,
       });
@@ -102,7 +118,11 @@ const planFile = await realpath(values.get("--plan"));
 const stage = values.get("--stage");
 if (!["A", "B", "C"].includes(stage)) throw new Error("--stage must be A, B, or C");
 const output = path.resolve(values.get("--output"));
-const { plan, executable_paths: executablePaths } = await verifyEvaluationPlanFiles(
+const {
+  plan,
+  executable_paths: executablePaths,
+  wrapper_paths: wrapperPaths,
+} = await verifyEvaluationPlanFiles(
   JSON.parse(await readFile(planFile, "utf8")),
   planFile,
 );
@@ -127,6 +147,7 @@ for (const assignment of assignments) {
   const argv = arm.argv.map((entry) =>
     entry
       .replaceAll("{task_packet}", packet)
+      .replaceAll("{wrapper}", wrapperPaths[arm.id])
       .replaceAll("{output}", assignmentRoot)
       .replaceAll("{assignment_id}", assignment.id)
       .replaceAll("{seed}", String(assignment.seed)));
@@ -146,20 +167,30 @@ for (const assignment of assignments) {
   let armResultRoot = null;
   let armResultError = null;
   try {
-    const armResultBytes = await readFile(path.join(assignmentRoot, "arm-result.json"));
-    armResult = parseEvaluationArmResult(JSON.parse(armResultBytes.toString("utf8")));
-    if (armResult.assignment_id !== assignment.id) {
+    if (outcome.control.length === 0) {
+      throw new Error("trusted arm wrapper returned no fd 3 control record");
+    }
+    const candidateArmResult = parseEvaluationArmResult(
+      JSON.parse(outcome.control.toString("utf8")),
+    );
+    if (candidateArmResult.assignment_id !== assignment.id) {
       throw new Error(
-        `arm result belongs to ${armResult.assignment_id}, expected ${assignment.id}`,
+        `arm result belongs to ${candidateArmResult.assignment_id}, expected ${assignment.id}`,
       );
     }
-    armResultRoot = sha256(armResultBytes);
-    totalObservedTokens += armResult.usage.input_tokens + armResult.usage.output_tokens;
+    await writeFile(path.join(assignmentRoot, "arm-result.json"), outcome.control, {
+      mode: 0o600,
+      flag: "wx",
+    });
+    armResult = candidateArmResult;
+    armResultRoot = sha256(outcome.control);
+    totalObservedTokens +=
+      candidateArmResult.usage.input_tokens + candidateArmResult.usage.output_tokens;
   } catch (error) {
     armResultError = error instanceof Error ? error.message : String(error);
   }
   const runnerError = outcome.runner_error ??
-    (armResultError === null ? null : `invalid or missing arm-result.json: ${armResultError}`);
+    (armResultError === null ? null : `invalid or missing trusted arm result: ${armResultError}`);
   const observedTokens = armResult === null
     ? null
     : armResult.usage.input_tokens + armResult.usage.output_tokens;

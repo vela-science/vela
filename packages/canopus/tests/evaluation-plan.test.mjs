@@ -69,8 +69,10 @@ function plan() {
     arms: [{
       id: "native",
       kind: "native_codex",
-      argv: ["codex", "exec", "{task_packet}"],
+      argv: ["codex", "{wrapper}", "exec", "{task_packet}"],
       cwd: "workspace",
+      wrapper_path: "wrappers/native.mjs",
+      wrapper_root: root("0"),
       dependency_lock_path: "locks/native.lock",
       dependency_lock_root: root("a"),
       environment_path: "environments/native.json",
@@ -304,6 +306,7 @@ test("evaluation validation rehashes every bound input file", async () => {
       "sources/math.json": "{\"source\":\"math\"}\n",
       "packets/math.json": "{}\n",
       "verifiers/math": "#!/bin/sh\nexit 0\n",
+      "wrappers/native.mjs": "#!/usr/bin/env node\nprocess.exit(0);\n",
       "locks/native.lock": "lock\n",
       "environments/native.json": "{}\n",
       "scorers/execution.json": "{\"metric\":\"execution\"}\n",
@@ -327,7 +330,8 @@ test("evaluation validation rehashes every bound input file", async () => {
       }],
       arms: [{
         ...draft.arms[0],
-        argv: [process.execPath, "-e", "process.exit(0)"],
+        argv: [process.execPath, "{wrapper}"],
+        wrapper_root: byteRoot(files["wrappers/native.mjs"]),
         dependency_lock_root: byteRoot(files["locks/native.lock"]),
         environment_root: byteRoot(files["environments/native.json"]),
         executable_root: byteRoot(readFileSync(process.execPath)),
@@ -345,11 +349,17 @@ test("evaluation validation rehashes every bound input file", async () => {
     const planFile = path.join(directory, "plan.json");
     writeFileSync(planFile, `${JSON.stringify(rooted)}\n`);
     const verified = await verifyEvaluationPlanFiles(rooted, planFile);
-    assert.equal(verified.verified_files, 9);
+    assert.equal(verified.verified_files, 10);
     writeFileSync(path.join(directory, "verifiers/math"), "drift\n");
     await assert.rejects(
       verifyEvaluationPlanFiles(rooted, planFile),
       /verifier root drifted/u,
+    );
+    writeFileSync(path.join(directory, "verifiers/math"), files["verifiers/math"]);
+    writeFileSync(path.join(directory, "wrappers/native.mjs"), "drift\n");
+    await assert.rejects(
+      verifyEvaluationPlanFiles(rooted, planFile),
+      /wrapper root drifted/u,
     );
   } finally {
     rmSync(directory, { recursive: true, force: true });
@@ -366,6 +376,7 @@ test("evaluation runner preserves every registered result after process failures
       "packets/scientific.json": "{\"task\":\"scientific\"}\n",
       "verifiers/math": "#!/bin/sh\nexit 0\n",
       "verifiers/scientific": "#!/bin/sh\nexit 0\n",
+      "wrappers/native.mjs": "#!/usr/bin/env node\nprocess.exit(0);\n",
       "locks/native.lock": "lock\n",
       "environments/native.json": "{}\n",
       "scorers/execution.json": "{\"metric\":\"execution\"}\n",
@@ -374,7 +385,7 @@ test("evaluation runner preserves every registered result after process failures
       "arm-wrapper.mjs": [
         "import { writeFileSync } from 'node:fs';",
         "const [, , output, assignment, exitCode] = process.argv;",
-        "writeFileSync(`${output}/arm-result.json`,",
+        "writeFileSync(3,",
         "JSON.stringify({schema:'canopus.evaluation-arm-result.v1',",
         "assignment_id:assignment,model_output_observed:true,",
         "usage:{input_tokens:6,cached_input_tokens:2,output_tokens:4,",
@@ -403,11 +414,13 @@ test("evaluation runner preserves every registered result after process failures
         ...arm,
         argv: [
           process.execPath,
-          path.join(directory, "arm-wrapper.mjs"),
+          "{wrapper}",
           "{output}",
           "{assignment_id}",
           arm.kind === "native_codex" ? "7" : "0",
         ],
+        wrapper_path: "arm-wrapper.mjs",
+        wrapper_root: byteRoot(files["arm-wrapper.mjs"]),
         executable_root: executableRoot,
         dependency_lock_root: byteRoot(files[arm.dependency_lock_path]),
         environment_root: byteRoot(files[arm.environment_path]),
@@ -470,6 +483,109 @@ test("evaluation runner preserves every registered result after process failures
     assert.equal(summary.observed_tokens, 120);
     assert.deepEqual(summary.unmeasured_token_runs, []);
     assert.deepEqual(summary.missing_assignment_ids, []);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("evaluation runner rejects worker-created arm result files", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "canopus-evaluation-hostile-"));
+  try {
+    const files = {
+      "sources/math.json": "{\"source\":\"math\"}\n",
+      "sources/scientific.json": "{\"source\":\"scientific\"}\n",
+      "packets/math.json": "{\"task\":\"math\"}\n",
+      "packets/scientific.json": "{\"task\":\"scientific\"}\n",
+      "verifiers/math": "#!/bin/sh\nexit 0\n",
+      "verifiers/scientific": "#!/bin/sh\nexit 0\n",
+      "locks/native.lock": "lock\n",
+      "environments/native.json": "{}\n",
+      "scorers/execution.json": "{\"metric\":\"execution\"}\n",
+      "scorers/state.json": "{\"metric\":\"state\"}\n",
+      "scorers/inheritance.json": "{\"metric\":\"inheritance\"}\n",
+      "hostile-wrapper.mjs": [
+        "import { writeFileSync } from 'node:fs';",
+        "const [, , output, assignment] = process.argv;",
+        "const result=JSON.stringify({schema:'canopus.evaluation-arm-result.v1',",
+        "assignment_id:assignment,model_output_observed:true,",
+        "usage:{input_tokens:6,cached_input_tokens:2,output_tokens:4,",
+        "reasoning_output_tokens:1}})+'\\n';",
+        "writeFileSync(`${output}/arm-result.json`,result);",
+        "writeFileSync(3,result);",
+      ].join(""),
+    };
+    for (const [name, content] of Object.entries(files)) {
+      const target = path.join(directory, name);
+      mkdirSync(path.dirname(target), { recursive: true });
+      writeFileSync(target, content);
+    }
+    mkdirSync(path.join(directory, "workspace"));
+    const executableRoot = byteRoot(readFileSync(process.execPath));
+    const base = registeredStageA();
+    const rooted = rootEvaluationPlan({
+      ...base,
+      tasks: base.tasks.map((task) => ({
+        ...task,
+        source_root: byteRoot(files[task.source_path]),
+        packet_root: byteRoot(files[task.packet_path]),
+        verifier_root: byteRoot(files[task.verifier_path]),
+      })),
+      arms: base.arms.map((arm) => ({
+        ...arm,
+        argv: [
+          process.execPath,
+          "{wrapper}",
+          "{output}",
+          "{assignment_id}",
+        ],
+        wrapper_path: "hostile-wrapper.mjs",
+        wrapper_root: byteRoot(files["hostile-wrapper.mjs"]),
+        executable_root: executableRoot,
+        dependency_lock_root: byteRoot(files[arm.dependency_lock_path]),
+        environment_root: byteRoot(files[arm.environment_path]),
+      })),
+      scorers: base.scorers.map((entry) => ({
+        ...entry,
+        root: byteRoot(files[entry.path]),
+      })),
+      performance_functions: {
+        execution_lift: byteRoot(files["scorers/execution.json"]),
+        state_lift: byteRoot(files["scorers/state.json"]),
+        inheritance_lift: byteRoot(files["scorers/inheritance.json"]),
+      },
+    });
+    const planFile = path.join(directory, "plan.json");
+    const output = path.join(directory, "runs");
+    writeFileSync(planFile, `${JSON.stringify(rooted)}\n`);
+    const run = spawnSync(
+      process.execPath,
+      [
+        path.join(packageRoot, "evaluation/scripts/run-plan.mjs"),
+        "--plan",
+        planFile,
+        "--stage",
+        "A",
+        "--output",
+        output,
+      ],
+      {
+        cwd: packageRoot,
+        encoding: "utf8",
+      },
+    );
+    assert.equal(run.status, 0, run.stderr);
+    const index = JSON.parse(readFileSync(path.join(output, "index.json"), "utf8"));
+    assert.equal(index.status, "stopped");
+    assert.match(index.stop_reason, /did not produce valid rooted token usage/u);
+    assert.equal(index.runs.length, 1);
+    assert.equal(index.registered_assignment_ids.length, 12);
+    const firstRun = JSON.parse(readFileSync(
+      path.join(output, index.registered_assignment_ids[0], "run.json"),
+      "utf8",
+    ));
+    assert.equal(firstRun.arm_result_root, null);
+    assert.equal(firstRun.usage, null);
+    assert.match(firstRun.runner_error, /EEXIST|file already exists/u);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

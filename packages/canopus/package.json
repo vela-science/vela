@@ -83,7 +83,9 @@
     "eval:validate": "bun evaluation/scripts/validate-plan.mjs",
     "eval:run": "bun evaluation/scripts/run-plan.mjs",
     "eval:report": "bun evaluation/scripts/report.mjs",
-    "eval:conformance": "node --test tests/evaluation-plan.test.mjs",
+    "eval:conformance": "node --test tests/evaluation-plan.test.mjs tests/evaluation-scientific-task.test.mjs",
+    "eval:task:prepare": "bun evaluation/tasks/core-bench-1108125/prepare.mjs",
+    "eval:task:verify": "bun evaluation/tasks/core-bench-1108125/verify.mjs",
     "trace:export": "bun evaluation/scripts/trace-export.mjs"
   },
   "devDependencies": {

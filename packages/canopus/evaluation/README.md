@@ -10,6 +10,10 @@ Canopus `0.8.0` and the first Erdős producer loop have passed. The next live
 registration is created only after both Stage A tasks, all three matched arms,
 and every source snapshot, packet, verifier, executable, scorer, dependency
 lock, and environment manifest are frozen and rehashed by `eval:validate`.
+Each arm also binds its trusted wrapper as a separate exact file. The wrapper
+is inserted only through the `{wrapper}` argv placeholder, so pinning the
+runtime executable cannot accidentally leave a mutable script outside the
+registration.
 
 ```bash
 bun run eval:validate
@@ -24,14 +28,18 @@ scientific disposition, cost, and expert-minute scoring remain explicit
 registered scorer outputs. A passing process is not a Verification Record or
 Decision.
 
-Every trusted arm wrapper must write `arm-result.json` in its assigned output
-directory using `canopus.evaluation-arm-result.v1`. The result binds the
-assignment and reports provider-observed input, cached-input, output, and
-reasoning-output tokens. The registered `observed_tokens` budget uses input
-plus output tokens, matching the released Canopus budget contract. Missing,
-malformed, mismatched, per-task over-budget, or aggregate over-budget usage is
-a hard stop; the failed Run remains rooted and later registered cells are
-reported as unrun.
+Every trusted arm wrapper must write one
+`canopus.evaluation-arm-result.v1` record to file descriptor 3 after its model
+process exits. The wrapper must not inherit that descriptor into the model
+sandbox. Standard output and the writable candidate workspace are evidence,
+not control channels. The evaluation runner validates the control record and
+then persists its exact bytes as `arm-result.json`; a model-created file at
+that path fails closed. The result binds the assignment and reports
+provider-observed input, cached-input, output, and reasoning-output tokens.
+The registered `observed_tokens` budget uses input plus output tokens,
+matching the released Canopus budget contract. Missing, malformed, mismatched,
+per-task over-budget, or aggregate over-budget usage is a hard stop; the
+failed Run remains rooted and later registered cells are reported as unrun.
 
 Stage A must retain both native controls: ordinary native Codex and native
 Codex with the exact packet and frozen verifier used by Canopus. Execution,
