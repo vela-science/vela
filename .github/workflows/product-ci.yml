@@ -2,6 +2,8 @@ name: Product packages CI
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "package.json"
       - "bun.lock"
@@ -118,11 +120,17 @@ jobs:
             | grep -F 'ghcr.io/vela-science/canopus-verifier@sha256:a6f354862f2a3f7d72eb99244c65fa8583c98b74e17e3d5ce6e31ef48aa16536'
       - name: Install and smoke the packed product
         run: |
-          mkdir "$RUNNER_TEMP/canopus-package"
-          bun pm pack --cwd packages/canopus --destination "$RUNNER_TEMP/canopus-package"
-          set -- "$RUNNER_TEMP"/canopus-package/*.tgz
+          mkdir "$RUNNER_TEMP/product-packages"
+          bun pm pack --cwd packages/protocol --destination "$RUNNER_TEMP/product-packages"
+          bun pm pack --cwd packages/canopus --destination "$RUNNER_TEMP/product-packages"
+          set -- "$RUNNER_TEMP"/product-packages/vela-science-protocol-*.tgz
           test "$#" -eq 1
-          npm install --global --prefix "$RUNNER_TEMP/canopus-install" "$1"
+          protocol="$1"
+          set -- "$RUNNER_TEMP"/product-packages/vela-science-canopus-*.tgz
+          test "$#" -eq 1
+          canopus_archive="$1"
+          npm install --global --prefix "$RUNNER_TEMP/canopus-install" \
+            "$protocol" "$canopus_archive"
           canopus="$RUNNER_TEMP/canopus-install/bin/canopus"
           "$canopus" --help
           "$canopus" profile list
@@ -165,9 +173,14 @@ jobs:
             throw "Vela binary checksum mismatch"
           }
           & "$env:RUNNER_TEMP\vela\vela.exe" --version
+          bun pm pack --cwd packages/protocol --destination $env:RUNNER_TEMP
           bun pm pack --cwd packages/canopus --destination $env:RUNNER_TEMP
-          $package = Get-ChildItem "$env:RUNNER_TEMP\vela-science-canopus-*.tgz" | Select-Object -First 1
-          npm install --global --prefix "$env:RUNNER_TEMP\canopus" $package.FullName
+          $protocol = Get-ChildItem "$env:RUNNER_TEMP\vela-science-protocol-*.tgz" |
+            Select-Object -First 1
+          $canopus = Get-ChildItem "$env:RUNNER_TEMP\vela-science-canopus-*.tgz" |
+            Select-Object -First 1
+          npm install --global --prefix "$env:RUNNER_TEMP\canopus" `
+            $protocol.FullName $canopus.FullName
           & "$env:RUNNER_TEMP\canopus\canopus.cmd" --help
           & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile list
           & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile validate erdos1056-k15-10429201-10429400

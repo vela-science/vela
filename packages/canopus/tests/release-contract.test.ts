@@ -46,6 +46,16 @@ test("installed-package smoke validates the current packaged Erdős profile", as
     new RegExp(`profile validate ${supersededProfile}`, "u"),
     "CI must not validate a profile omitted from the current package",
   );
+  assert.equal(
+    workflow.match(/bun pm pack --cwd packages\/protocol/gu)?.length,
+    2,
+    "Unix and Windows smoke must install the local Protocol archive",
+  );
+  assert.doesNotMatch(
+    workflow,
+    /npm install[^\n]*@vela-science\/protocol/u,
+    "CI must not race a just-published Protocol version in the registry",
+  );
 });
 
 test("release binds tag, GitHub attestation, and npm trusted provenance", async () => {
