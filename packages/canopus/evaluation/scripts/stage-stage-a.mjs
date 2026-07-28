@@ -155,6 +155,7 @@ function identity(name, versionValue, root) {
 
 const values = options(process.argv.slice(2).filter((value) => value !== "--"));
 const output = path.resolve(values.get("--output"));
+await mkdir(path.dirname(output), { recursive: true, mode: 0o700 });
 try {
   await lstat(output);
   throw new Error("Stage A output already exists");
