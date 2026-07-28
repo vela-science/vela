@@ -20,6 +20,8 @@
 
 ## Project documents
 
+- [Active evidence campaign](CAMPAIGN.md)
+- [Roadmap](ROADMAP.md)
 - [Interoperability boundary](INTEROPERABILITY.md)
 - [Theory](THEORY.md)
 - [Publishing](PUBLISHING.md)

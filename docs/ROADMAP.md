@@ -4,6 +4,10 @@ Vela is proving one compact thesis: exact scientific state should survive
 different producers, verifiers, decisions, corrections, and readers without
 turning any workbench or database into authority.
 
+The detailed gates, exact current evidence, budgets, and stop conditions live
+in the [active evidence campaign](CAMPAIGN.md). This roadmap stays deliberately
+short.
+
 ## Completed foundation
 
 - One bounded Erdős

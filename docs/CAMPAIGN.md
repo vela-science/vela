@@ -1,0 +1,180 @@
+# Math-first, framework-neutral evidence campaign
+
+## Objective
+
+Prove or falsify Vela's value through one bounded campaign:
+
+```text
+complete and replay a real Submission -> Verification -> Decision loop
+compare native Codex, Canopus, and removable orchestration under matched budgets
+retain only components that improve verified work or reviewer efficiency
+earn one standards-compatible computational transfer
+```
+
+The campaign does not assume that Vela, Canopus, an orchestration framework, or
+a graph-shaped reader is useful. Negative and null results are valid when they
+are rooted, replayable, and honestly scoped.
+
+## Product thesis
+
+Vela is an open scientific-state substrate: version control for what is
+claimed, submitted, verified, decided, corrected, and ready to do next.
+
+```text
+inspect -> attempt -> submit -> verify -> decide -> continue
+```
+
+Producers produce. Verifiers report. Authorized reviewers decide. Events
+record. Replay derives Standing. Readers explain.
+
+The longer-range hypothesis is a federated merge and inheritance layer for
+science. This campaign does not treat that hypothesis as established. It asks
+whether a fresh producer or reader can safely continue from retained state
+after the original session, runtime, and read database are removed.
+
+Vela does not replace Git, workbenches, formal systems, workflow engines,
+artifact stores, or domain databases. It reuses them and adds only the
+scientific transition boundary they do not share.
+
+## Performance functions
+
+The north star is genuine reusable scientific progress per scarce human
+judgment. Three measures stay separate:
+
+1. **Execution lift:** verifier-passing bounded artifacts per all-in cost and
+   expert-minute.
+2. **State lift:** correct dispositions, correction comprehension, and exact
+   replay per reviewer-minute.
+3. **Inheritance lift:** time to first useful downstream action, duplicated
+   work, and correction awareness after producer substitution.
+
+Run count, graph size, generated Claims, and workflow completion are not proxy
+success metrics. Verification is evidence, never acceptance.
+
+## Architecture under test
+
+```text
+optional producer
+  -> bounded Artifact and Claim
+  -> independent frozen verifier
+  -> Vela Submission and Verification records in canonical Git
+  -> one authorized human Decision
+  -> current Standing and next bounded action
+  -> disposable read projection
+```
+
+Only canonical Frontier Git, Vela's replay rules, and the authorized Decision
+boundary are durable product architecture. Canopus, evaluator bridges, traces,
+Observatory projections, orchestration frameworks, and external-format
+adapters must remain removable.
+
+The repository topology is:
+
+```text
+vela                    product monorepo and release owner
+vela-web                read-only web product
+erdos-frontier          canonical Frontier
+formal-conjectures-frontier
+quantum-codes-frontier
+sidon-frontier
+.github                 organization profile and shared GitHub configuration
+```
+
+The former `vela-research-harness`, `vela-internal`, `vela-site`,
+`vela-frontiers`, and `prover-lane-frontier` repositories are archived. No
+replacement integration repository exists.
+
+## Current evidence
+
+| Surface | Current evidence |
+| --- | --- |
+| Vela product | `0.940.9`; product packages and conformance are green at `13a404bfe7b7f91d900f0e6bad3a4dc0dc0d6342` |
+| TypeScript protocol | `@vela-science/protocol@0.1.0`, owned by this monorepo |
+| Canopus | `@vela-science/canopus@0.8.0`, owned by `packages/canopus` with unsquashed source history |
+| Erdős Frontier | strict replay passes at `6a2b20a4623c0aa3ec667e65452c7aae6210b306` |
+| Formal Frontier | strict replay passes at `d5f5355de3588a9a558ee9505e2960e7d138acaf` |
+| Sidon Frontier | strict replay passes at `410fd680e1d27a185617b7cf06cd940ef0016369` |
+| Quantum Frontier | strict replay passes at `790f255c394b7900e7a1e36a740406d16b783165` |
+| Web | read-only clean-clone checks and projection-bound build pass at `bdb10ed92edba5ea1a0e75d44bfb457e0b806f5f`; GitHub runner allocation is externally blocked by the organization billing state |
+
+### Completed real loop
+
+The first campaign loop is terminal and replayed:
+
+- Run `run_55604e5b-4290-4201-bd5f-becae6a0e40d`;
+- Submission `vsb_be4ef74c7c4857c9`, root
+  `sha256:9bea49924e30670d3b4a08c29059b949bcec3161c448680ff2c364e731424dc7`;
+- Claim `vcl_d65fa34573c0a57dff8959ed6b4227999cc03e07fad5f2be9bef184677a7ef8a`;
+- Verification `vvr_1974ed5d3e3a72c3`, root
+  `sha256:946b09e8dc50dd41bf1fda6733cc04b9ce2faa516e54845c006a90418a5641cb`;
+- accepted Decision event `vev_27bf8b3635f8f747`, root
+  `sha256:3cae525ba7fb95f4960cf0be3fa86de03660f7308ae3e27fd2e2123caa4dd915`;
+- exact bounded range `10429201..10429400`;
+- accepted-event delta remained zero until the authorized Decision;
+- the Decision is explicitly bounded and does not resolve Erdős problem 1056.
+
+The current Erdős repository has 2,771 accepted Claims, one accepted review,
+one rejected review, no pending review, strict replay, and zero blockers.
+
+## Next gate: registered framework-neutral evaluation
+
+The non-normative `canopus.evaluation-plan.v1` freezes tasks, arms, versions,
+roots, budgets, retries, scorers, exclusions, custody rules, and publication
+policy before usable model output.
+
+### Stage A
+
+- Tasks: the next uncovered Erdős range and the first qualifying pinned
+  scientific-computing task.
+- Arms: native Codex, native Codex with the same packet and verifier, and the
+  current Canopus engine.
+- Repetitions: two fresh sessions per task and arm.
+- Maximum: 12 model calls.
+
+### Stage B
+
+Run only after a safe Stage A. Compare plain TypeScript, stateless LangGraph,
+and the OpenAI Agents SDK on the same frozen tasks, with two repetitions per
+arm and task. Maximum: 12 model calls.
+
+### Stage C
+
+Run only if Stage B produces a candidate winner. Compare that candidate, the
+stronger registered native control, and plain TypeScript on held-out tasks.
+Maximum: 12 model calls.
+
+An orchestration framework is retained only if it has no hard-gate failure,
+wins both task classes, repeats on held-out tasks, and improves the primary
+efficiency measure by at least 20 percent over native Codex and plain
+TypeScript. Otherwise preserve the result and delete the integration.
+
+## Subsequent gates
+
+1. Run one named mechanically checkable Formal Conjectures mission with a
+   frozen Lean statement, toolchain, dependencies, axioms policy, packet, and
+   verifier.
+2. Compare the `status -> show -> why` read path against Git plus the same
+   structured evidence and verifier.
+3. Add a scientific-state comparison surface only if a frozen cold-use test
+   materially reduces evidence-location or correction time.
+4. After measured math value, package one public CPU-only computational
+   replication with a source-local adapter and a root-bound RO-Crate export.
+5. Require a second genuinely different external format before proposing
+   shared adapter infrastructure.
+
+## Invariants and stop conditions
+
+- Canonical Git Frontiers remain the scientific source of truth.
+- Vela owns protocol, replay, Standing, repository authority, and Decisions.
+- Canopus is optional and removable.
+- The Observatory and Neon remain disposable read projections.
+- Agents never invoke a Decision, access repository-authority credentials, or
+  enter an authentication or signing trust path.
+- No second writer, hosted authority, scheduler, universal ontology, mandatory
+  framework, or canonical database is added.
+- Hidden failures, benchmark leakage, post-output plan changes, unexplained
+  root drift, verifier-as-acceptance language, or non-reproducible evidence stop
+  the campaign.
+
+Failure to demonstrate lift causes simplification and deletion, not another
+architecture layer.
