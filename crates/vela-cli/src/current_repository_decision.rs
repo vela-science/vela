@@ -165,6 +165,7 @@ fn exact_verifications(
     frontier: &Path,
     repository: &CurrentRepositoryV2,
     proposal: &ProposalV1,
+    claim: &ClaimRecordV1,
     submission: &SubmissionV1,
 ) -> Result<Vec<(String, VerificationRecordV1)>, String> {
     let mut records = Vec::new();
@@ -176,10 +177,8 @@ fn exact_verifications(
             VerificationRecordV1::parse,
             VerificationRecordV1::canonical_bytes,
         )?;
-        if record.subject.proposal_id == proposal.proposal_id
-            && record.subject.claim_id == proposal.subject.id
+        if crate::current_repository::verification_targets_proposal(proposal, claim, &record)
             && record.subject.submission_id == submission.submission_id
-            && record.subject.submission_root == proposal.producer_package.root
         {
             records.push((reference.root.clone(), record));
         }
@@ -280,7 +279,7 @@ pub(crate) fn prepare(
     )?;
     let claim = claim_for_proposal(frontier, &repository, &proposal)?;
     let submission = submission_for_proposal(frontier, &repository, &proposal)?;
-    let verifications = exact_verifications(frontier, &repository, &proposal, &submission)?;
+    let verifications = exact_verifications(frontier, &repository, &proposal, &claim, &submission)?;
     if action == DecisionAction::Accept {
         require_acceptance_evidence(&submission, &verifications)?;
     }

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## v0.940.3 — 2026-07-27 — Migrated Verification lineage repair
+
+- Resolve retained predecessor-scoped Verification Records through the exact
+  current Proposal and Claim `imported_from` lineage.
+- Include the same exact migrated observations in `review show` and the
+  repository-authority Decision Plan without rewriting their signed bytes.
+- Reject mismatched Proposal, Claim, or Submission lineage and retain the
+  existing strict unique-mapping requirement.
+
 ## v0.940.2 — 2026-07-27 — Current Submission integration repair
 
 - Admit current Claim records through the canonical-evidence write boundary

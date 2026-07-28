@@ -17,6 +17,7 @@ use vela_protocol::current_repository::{
 use vela_protocol::events::{EventKind, NULL_HASH};
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::repository_epoch::RepositoryBoundaryV1;
+use vela_protocol::verification_record::VerificationRecordV1;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub(crate) struct CurrentProposalDecision {
@@ -891,9 +892,9 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
         .filter_map(|verification| {
             let bytes = read_rooted_object(&frontier, &verification.path, &verification.root)
                 .unwrap_or_else(|error| crate::cli::fail_return(&error));
-            let record = vela_protocol::verification_record::VerificationRecordV1::parse(&bytes)
+            let record = VerificationRecordV1::parse(&bytes)
                 .unwrap_or_else(|error| crate::cli::fail_return(&error));
-            (record.subject.proposal_id == proposal_id).then_some(json!({
+            verification_targets_proposal(&proposal, &claim, &record).then_some(json!({
                 "verification_record_root": verification.root,
                 "record": record
             }))
@@ -943,6 +944,36 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
             payload["authority_boundary"].as_str().unwrap_or("")
         );
     }
+}
+
+/// Return whether one authenticated Verification Record observes this exact
+/// current Proposal lineage and retained Submission.
+///
+/// Records created before a repository-epoch transition remain signed over
+/// their predecessor Proposal and Claim identities. ADR 0022 retains those
+/// bytes as usable observations only when both identities map through the
+/// current objects' exact `imported_from` blocks. New records bind the current
+/// identities directly.
+pub(crate) fn verification_targets_proposal(
+    proposal: &ProposalV1,
+    claim: &ClaimRecordV1,
+    record: &VerificationRecordV1,
+) -> bool {
+    if claim.claim_id != proposal.subject.id {
+        return false;
+    }
+    let direct_subject = record.subject.proposal_id == proposal.proposal_id
+        && record.subject.claim_id == proposal.subject.id;
+    let imported_subject = proposal.imported_from.as_ref().is_some_and(|source| {
+        source.proposal_id == record.subject.proposal_id
+            && claim
+                .imported_from
+                .as_ref()
+                .is_some_and(|claim_source| claim_source.object_id == record.subject.claim_id)
+    });
+    (direct_subject || imported_subject)
+        && record.subject.submission_id == proposal.producer_package.id
+        && record.subject.submission_root == proposal.producer_package.root
 }
 
 pub(crate) fn verify_current_repository_at(
@@ -1559,13 +1590,119 @@ fn files_recursive(root: &Path) -> Result<Vec<PathBuf>, String> {
 
 #[cfg(test)]
 mod tests {
+    use ed25519_dalek::SigningKey;
     use vela_protocol::authority::{AUTHORITY_MODE, AuthorityEventContentV1};
+    use vela_protocol::claim_record::{ClaimAssertion, ImportedClaimSource};
     use vela_protocol::events::{NULL_HASH, StateActor, StateTarget};
+    use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
+    use vela_protocol::proposal_v1::{
+        ImportedProposalSource, ProposalProducerPackage, ProposalSubject,
+    };
+    use vela_protocol::verification_record::{
+        IndependenceDisclosure, VerificationMethod, VerificationRecordDraft, VerificationScope,
+        VerificationSubject,
+    };
 
     use super::*;
 
     fn root(byte: char) -> String {
         format!("sha256:{}", byte.to_string().repeat(64))
+    }
+
+    fn imported_review_lineage() -> (ProposalV1, ClaimRecordV1, VerificationRecordV1) {
+        let predecessor_commit = "1".repeat(40);
+        let legacy_claim_id = "vf_6e8f08edac62ff26".to_string();
+        let legacy_proposal_id = "vpr_a983c9305332b0a8".to_string();
+        let submission_id = "vsb_ce7f0f4d4b6a4c40".to_string();
+        let submission_root = root('2');
+        let claim = ClaimRecordV1::build(
+            1,
+            ClaimAssertion {
+                text: "An exact bounded search completed.".into(),
+                kind: "computational".into(),
+            },
+            vec!["The frozen verifier replays the exact range.".into()],
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            "2026-07-27T00:00:00Z".into(),
+            Some(ImportedClaimSource {
+                era: "era0".into(),
+                object_id: legacy_claim_id.clone(),
+                object_root: root('3'),
+                predecessor_commit: predecessor_commit.clone(),
+            }),
+            BTreeMap::new(),
+        )
+        .unwrap();
+        let proposal = ProposalV1::build(
+            "claim.add".into(),
+            ProposalSubject {
+                kind: "claim".into(),
+                id: claim.claim_id.clone(),
+                root: claim.canonical_root().unwrap(),
+            },
+            "agent:producer-fixture".into(),
+            "2026-07-27T00:00:01Z".into(),
+            "Register the exact bounded result.".into(),
+            ProposalProducerPackage {
+                kind: "submission_v1".into(),
+                id: submission_id.clone(),
+                root: submission_root.clone(),
+                path: "records/submissions/sha256/fixture.json".into(),
+            },
+            vec!["The bounded result is not universal.".into()],
+            Some(ImportedProposalSource {
+                proposal_id: legacy_proposal_id.clone(),
+                proposal_root: root('4'),
+                predecessor_commit,
+            }),
+        )
+        .unwrap();
+        let key = SigningKey::from_bytes(&[73_u8; 32]);
+        let verifier = "verifier:fixture";
+        let identity = IdentityBinding::build(
+            IdentityBindingDraft {
+                actor_id: verifier.into(),
+                actor_class: ActorClass::Org,
+                created_at: "2026-07-27T00:00:02Z".into(),
+            },
+            &key,
+        )
+        .unwrap();
+        let verification = VerificationRecordV1::build(
+            VerificationRecordDraft {
+                subject: VerificationSubject {
+                    claim_id: legacy_claim_id,
+                    artifact_ids: vec!["va_fixture".into()],
+                    submission_id,
+                    submission_root,
+                    proposal_id: legacy_proposal_id,
+                },
+                method: VerificationMethod {
+                    profile: "fixture-v1".into(),
+                    implementation: "fixture-verifier".into(),
+                    environment_root: root('5'),
+                },
+                scope: VerificationScope {
+                    property: "Replay the frozen verifier.".into(),
+                    does_not_establish: vec!["Scientific acceptance.".into()],
+                },
+                outcome: "pass".into(),
+                verifier: verifier.into(),
+                independence: IndependenceDisclosure {
+                    declared_independent_of: vec!["agent:producer-fixture".into()],
+                    shared_dependencies: Vec::new(),
+                },
+                output_artifact_ids: Vec::new(),
+                started_at: "2026-07-27T00:00:03Z".into(),
+                completed_at: "2026-07-27T00:00:04Z".into(),
+            },
+            identity,
+            &key,
+        )
+        .unwrap();
+        (proposal, claim, verification)
     }
 
     fn review_event(
@@ -1735,5 +1872,52 @@ mod tests {
             .unwrap_err(),
             "authority record 2 breaks repository manifest root continuity"
         );
+    }
+
+    #[test]
+    fn migrated_verification_targets_exact_imported_lineage() {
+        let (proposal, claim, verification) = imported_review_lineage();
+        assert!(verification_targets_proposal(
+            &proposal,
+            &claim,
+            &verification
+        ));
+
+        let mut direct = verification.clone();
+        direct.subject.proposal_id = proposal.proposal_id.clone();
+        direct.subject.claim_id = claim.claim_id.clone();
+        assert!(verification_targets_proposal(&proposal, &claim, &direct));
+
+        let mut wrong_submission_root = verification.clone();
+        wrong_submission_root.subject.submission_root = root('9');
+        assert!(!verification_targets_proposal(
+            &proposal,
+            &claim,
+            &wrong_submission_root
+        ));
+
+        let mut wrong_proposal = verification.clone();
+        wrong_proposal.subject.proposal_id = "vpr_0000000000000000".into();
+        assert!(!verification_targets_proposal(
+            &proposal,
+            &claim,
+            &wrong_proposal
+        ));
+
+        let mut wrong_claim = verification.clone();
+        wrong_claim.subject.claim_id = "vf_0000000000000000".into();
+        assert!(!verification_targets_proposal(
+            &proposal,
+            &claim,
+            &wrong_claim
+        ));
+
+        let mut unrelated_claim = claim.clone();
+        unrelated_claim.imported_from = None;
+        assert!(!verification_targets_proposal(
+            &proposal,
+            &unrelated_claim,
+            &verification
+        ));
     }
 }
