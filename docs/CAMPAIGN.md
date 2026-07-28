@@ -151,11 +151,33 @@ must list every registered cell that was not run.
 The first canonically ordered CORE-Bench candidate, `capsule-0201225`, is
 ineligible: the retained code is GPL-3.0 rather than permissively licensed, and
 the capsule depends on an archived external container image. Its exclusion is
-part of the registered selection audit. `capsule-0220918` remains under audit.
+part of the registered selection audit. `capsule-0220918` is ineligible because
+both registered evaluation commands bind TensorFlow directly to GPU devices.
 The following candidate, `capsule-0238624`, has MIT code and CC0 data but is
-also ineligible because its frozen environment and reproduction command require
-CUDA, `tensorflow-gpu`, and an NVIDIA runtime. The next eligible candidate must
-still be selected by the same frozen order and rules.
+also ineligible because its frozen environment and reproduction command
+require CUDA, `tensorflow-gpu`, and an NVIDIA runtime. `capsule-0325493`
+(`sha256:16e4b41cfce6e94d22c21978a085d3d58274ae8720242b18ae80bce618f51d57`)
+is ineligible because its code is GPL-3.0 and its data is CC BY-NC 4.0.
+`capsule-0396930`
+(`sha256:f472a05b447c7b286936c356c42511c2e2f31cbb971e4e0c685532a92d59c142`)
+has MIT code and a CPU-only frozen command, but its data is CC BY-NC-SA 4.0
+and therefore also fails the permissive-data rule. `capsule-0940461` has MIT
+code and CC0 data, but its source notebook contains retained answer output and
+its exact archived amd64 image did not advance beyond kernel initialization in
+two network-denied Apple-silicon preflights, including a single-threaded retry.
+It therefore fails the no-answer-leakage/current-platform completion gate.
+
+The first qualifying task is `capsule-1108125`
+(`sha256:95240472124f26b33ab40a35dad435b27bc4b42f9b6dbc52d6d02248d72d8371`).
+Its code is MIT, its data is CC0, and the exact archived image
+`sha256:503117b1e393779705fd34c2dbcabfb04fbd65d755887c13137566205418630a`
+completed two network-denied, capability-dropped, CPU-bounded replays in 10
+and 9 seconds. The three requested means and requested scree direction were
+stable. An unrelated Monte Carlo output and three PNG container bytes differed
+between replays, so the scorer must bind only the registered scientific result
+contract and must not claim whole-output byte equivalence. The model-visible
+source bundle must exclude the retained `results/` directory and the
+CORE-Bench answer records.
 
 ### Stage B
 
