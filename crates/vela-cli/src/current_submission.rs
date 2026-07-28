@@ -79,6 +79,38 @@ pub(crate) fn add_object_ref(
     Ok(())
 }
 
+fn add_artifact_ref(
+    references: &mut Vec<RepositoryObjectRefV1>,
+    digest: &str,
+    path: &str,
+) -> Result<(), String> {
+    if let Some(existing) = references.iter().find(|existing| existing.root == digest) {
+        if existing.path == path {
+            // Artifact bytes and their digest have already been checked by
+            // prepare_submission_artifacts. Reuse the current repository
+            // reference even when predecessor import retained a historical
+            // schema label or raw-hex id.
+            return Ok(());
+        }
+        return Err(format!(
+            "current repository Artifact root {digest} collides with path {}",
+            existing.path
+        ));
+    }
+    let id = digest
+        .strip_prefix("sha256:")
+        .ok_or_else(|| "current Submission Artifact digest is not sha256".to_string())?;
+    add_object_ref(
+        references,
+        RepositoryObjectRefV1 {
+            schema: "content-addressed-artifact".into(),
+            id: id.to_string(),
+            root: digest.to_string(),
+            path: path.to_string(),
+        },
+    )
+}
+
 fn add_pending_claim(
     repository: &mut CurrentRepositoryV2,
     claim: &ClaimRecordV1,
@@ -495,14 +527,10 @@ pub(crate) fn submit(
             .digest
             .strip_prefix("sha256:")
             .expect("verified Submission artifact digest is sha256");
-        add_object_ref(
+        add_artifact_ref(
             &mut next_repository.artifacts,
-            RepositoryObjectRefV1 {
-                schema: "content-addressed-artifact".into(),
-                id: artifact.digest.clone(),
-                root: artifact.digest.clone(),
-                path: format!("records/artifacts/sha256/{digest}"),
-            },
+            &artifact.digest,
+            &format!("records/artifacts/sha256/{digest}"),
         )?;
     }
     let request_root = format!(
@@ -892,6 +920,43 @@ mod tests {
             BTreeMap::new(),
         )
         .unwrap()
+    }
+
+    #[test]
+    fn exact_artifact_root_reuses_predecessor_reference() {
+        let digest = root('e');
+        let path = format!("records/artifacts/sha256/{}", "e".repeat(64));
+        let mut references = vec![RepositoryObjectRefV1 {
+            schema: "canopus.verifier-manifest.v1".into(),
+            id: "e".repeat(64),
+            root: digest.clone(),
+            path: path.clone(),
+        }];
+
+        add_artifact_ref(&mut references, &digest, &path).unwrap();
+
+        assert_eq!(references.len(), 1);
+        assert_eq!(references[0].schema, "canopus.verifier-manifest.v1");
+    }
+
+    #[test]
+    fn artifact_root_reuse_rejects_a_different_path() {
+        let digest = root('e');
+        let mut references = vec![RepositoryObjectRefV1 {
+            schema: "content-addressed-artifact".into(),
+            id: "e".repeat(64),
+            root: digest.clone(),
+            path: "records/artifacts/sha256/original".into(),
+        }];
+
+        let error = add_artifact_ref(
+            &mut references,
+            &digest,
+            "records/artifacts/sha256/different",
+        )
+        .unwrap_err();
+
+        assert!(error.contains("collides with path"));
     }
 
     #[test]

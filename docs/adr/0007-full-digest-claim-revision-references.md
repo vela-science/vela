@@ -1,8 +1,10 @@
 # ADR 0007: Full-digest claim revision references
 
-- Status: Proposed
+- Status: Deferred — inactive; entry gate unmet
 - Candidate release: Vela `v0.801.0`
 - Entry gate: ADR 0006 demonstrates an identity gap
+- Current disposition: No implementation or release is authorized by the
+  math-first evidence campaign.
 
 ## Context
 

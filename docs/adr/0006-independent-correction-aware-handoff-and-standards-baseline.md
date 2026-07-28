@@ -1,8 +1,11 @@
 # ADR 0006: Independent correction-aware handoff and standards baseline
 
-- Status: Proposed
+- Status: Deferred — inactive experiment
 - Protocol release: none
 - Experiment runner: Canopus `v0.2.0`
+- Current disposition: Preserve the design as historical evidence. The current
+  campaign does not depend on outside participants and authorizes no primitive
+  from this experiment.
 
 ## Context
 

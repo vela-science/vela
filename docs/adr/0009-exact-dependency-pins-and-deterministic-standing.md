@@ -1,9 +1,12 @@
 # ADR 0009: Exact dependency pins and deterministic standing
 
-- Status: Proposed
+- Status: Superseded by ADR 0018
 - Candidate release: Vela `v0.803.0`
 - Entry gate: ADR 0006 demonstrates a dependency-standing gap after ADR 0007
   and ADR 0008
+- Current disposition: Do not implement this proposed lock or command family.
+  ADR 0018 owns the retained authenticated historical dependency-state
+  contract.
 
 ## Context
 

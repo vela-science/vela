@@ -1,6 +1,6 @@
 # ADR 0019: Versioned semantic packages and workbench-adapter boundaries
 
-- Status: Proposed
+- Status: Rejected — no shared adapter promotion
 - Protocol effect: None in the proposed program
 - Candidate release: None reserved
 - Scientific authority effect: None
@@ -16,6 +16,8 @@
 - Reopen promotion only when extraction deletes maintained duplication or a
   stable licensed workbench export carries an honest bounded scientific result
   through the ordinary Receipt path.
+- Historical result: Source-local mappings remain useful evidence. They do not
+  authorize a package, registry, adapter SDK, protocol object, or Vela release.
 
 ## Context
 

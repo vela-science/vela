@@ -2,6 +2,9 @@
 
 - Status: Proposed
 - Target release: Vela `v0.940.0`
+- Remaining acceptance gate: retain Proposed status until the current campaign
+  completes a real Submission, independent Verification, and human Decision
+  loop plus a second-producer replay.
 - Protocol effect: one current producer era with Submission, Registration
   Record, Verification Record, and optionally Claim Record objects; historical
   Receipt-era bytes remain replayable

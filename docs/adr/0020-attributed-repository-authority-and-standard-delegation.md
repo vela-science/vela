@@ -9,6 +9,9 @@
   transaction edge
 - Scientific authority effect: preserve human or governed scientific judgment;
   change how that judgment is authenticated, authorized, and recorded
+- Remaining acceptance gate: retain Proposed status until the current campaign
+  completes a real repository-authority Decision loop and a fresh-user
+  comprehension check on the released contract.
 - Compatibility: all Vela `0.915` history remains byte-identical and
   read-verifiable; only the new authority model has a live writer after
   migration

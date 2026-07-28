@@ -1,8 +1,10 @@
 # ADR 0008: Signed frontier checkpoint continuity
 
-- Status: Proposed
+- Status: Deferred — inactive; entry gate unmet
 - Candidate release: Vela `v0.802.0`
 - Entry gate: ADR 0006 demonstrates a continuity gap after ADR 0007
+- Current disposition: No implementation or release is authorized by the
+  math-first evidence campaign.
 
 ## Context
 

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## v0.940.6 — 2026-07-28 — Retained artifact reference reuse repair
+
+- Reuse an exact retained Artifact reference when a new current Submission
+  binds the same root and canonical path.
+- Preserve the predecessor reference bytes instead of treating its historical
+  schema label or raw-hex identifier as a repository-identity collision.
+- Continue to reject the same Artifact root at a different path.
+- No protocol, object, authority, accepted-state, or canonical-history
+  semantics change.
+
 ## v0.940.5 — 2026-07-28 — Terminal imported Verification replay repair
 
 - Resolve a retained predecessor-scoped Verification Record through the

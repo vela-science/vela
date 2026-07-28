@@ -1,9 +1,12 @@
 # ADR 0017: Kernel, Frontier Algebra, and Discovery Calculus boundaries
 
-- Status: Proposed
+- Status: Deferred — research only
 - Protocol effect: None
 - Candidate release: No Vela release required for the first experiment
 - Scientific authority effect: None
+- Current disposition: Preserve the layer analysis, but do not implement a
+  Frontier calculus, universal work graph, or new release surface until a
+  repeated evidence gap is demonstrated.
 
 ## Context
 
