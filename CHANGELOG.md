@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## v0.940.8 — 2026-07-28 — Completed-journal rolling-head repair
+
+- Fixed the completed-history recovery barrier so a valid later current-object
+  transaction may replace the authenticated rolling `.vela/repository.json`
+  head without being rejected by an older completed transaction generation.
+- Kept active transaction installation and completion byte-exact, and kept
+  immutable events, authority records, Proposals, Receipts, and evidence
+  postimages fail closed.
+- Added a regression reproducing the Erdős Verification import failure and
+  proving that unrelated canonical-evidence drift still blocks recovery.
+
 ## v0.940.7 — 2026-07-28 — Current Target Index writer repair
 
 - Fixed current Submission and Verification writers so an exact Target Index

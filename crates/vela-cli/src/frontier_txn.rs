@@ -2228,6 +2228,17 @@ fn completed_postimage_is_rematerializable(write: &StagedWrite) -> bool {
         // journals. This exception applies only to completed-history checks;
         // installation and completion still verify the exact postimage.
         || write.path.as_str() == ".vela/proof-state.json"
+        // The current-repository manifest is an authenticated rolling head, not
+        // immutable historical evidence. Current Submission and Verification
+        // transactions replace it after independently verifying the repository
+        // epoch and authority chain. Legacy completed journals therefore prove
+        // the manifest bytes they installed, but cannot require those bytes to
+        // remain the current head forever. This exception is deliberately
+        // limited to completed-history checks: active installation and
+        // completion still require the exact planned postimage, while every
+        // immutable event, authority record, Proposal, Receipt, and evidence
+        // object remains byte-exact.
+        || write.path.as_str() == ".vela/repository.json"
 }
 
 fn verify_completed_history(
@@ -5263,6 +5274,57 @@ mod tests {
         assert_eq!(reopened.recovery_state(), &RecoveryState::Completed);
         drop(reopened);
         drop(FrontierTxn::acquire_recovery_barrier(&root, &journals).unwrap());
+    }
+
+    #[test]
+    fn completed_journal_allows_a_later_repository_head_but_not_evidence_drift() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        let journals = temp.path().join("journals");
+        fs::create_dir_all(root.join(".vela")).unwrap();
+
+        let draft = DeltaDraft::prepare(
+            &root,
+            vec![
+                PlannedWrite::write(
+                    RepoPath::parse(".vela/repository.json").unwrap(),
+                    WriteClass::CanonicalEvidence,
+                    b"authenticated repository head one".to_vec(),
+                ),
+                PlannedWrite::write(
+                    RepoPath::parse("records/receipt.json").unwrap(),
+                    WriteClass::CanonicalEvidence,
+                    b"immutable receipt".to_vec(),
+                ),
+            ],
+        )
+        .unwrap();
+        let plan = fixture_plan(&root, &draft, b"rolling repository head");
+        let mut txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
+        txn.mark_committed().unwrap();
+        txn.install().unwrap();
+        txn.complete().unwrap();
+        drop(txn);
+
+        // A current object transaction may install a later, independently
+        // verified repository head without participating in this legacy
+        // journal generation.
+        fs::write(
+            root.join(".vela/repository.json"),
+            b"authenticated repository head two",
+        )
+        .unwrap();
+        drop(FrontierTxn::acquire_recovery_barrier(&root, &journals).unwrap());
+
+        // The exception is only for the rolling repository head. Immutable
+        // canonical evidence written by the same completed transaction remains
+        // byte-exact and fails closed if altered.
+        fs::write(root.join("records/receipt.json"), b"altered receipt").unwrap();
+        assert!(matches!(
+            FrontierTxn::acquire_recovery_barrier(&root, &journals),
+            Err(FrontierTxnError::CompletedPostimageMismatch { path, .. })
+                if path.as_str() == "records/receipt.json"
+        ));
     }
 
     #[test]

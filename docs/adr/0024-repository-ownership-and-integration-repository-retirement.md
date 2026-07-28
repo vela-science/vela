@@ -1,11 +1,10 @@
-# ADR 0024: Repository ownership and integration-repository retirement
+# ADR 0024: Product monorepo and integration-repository retirement
 
 - Status: Proposed
-- Target release: no Vela release; accept after the repository-decomposition
-  gate completes
+- Target release: accept after the history-import and owner-check gates
 - Protocol effect: none
-- Product effect: public Vela owns architecture and roadmap; each repository
-  owns its own tests, release facts, and compatibility boundary
+- Product effect: one public source repository for Vela, the TypeScript
+  protocol SDK, Canopus, shared schemas, fixtures, and product CI
 - Authority effect: none
 - Compatibility: Git history, tags, releases, package names, Frontier bytes,
   and public interfaces remain intact
@@ -13,34 +12,33 @@
 ## Context
 
 `vela-science/vela-internal` was created to compose exact Vela, Canopus, Web,
-and Frontier sources. It now mixes release pins, conformance, cross-language
-fixtures, campaign coordination, private research, historical reports, and
-duplicated canon. Only Vela is an actual submodule; Canopus and Web are found
-through sibling-checkout conventions. The repository produces no installable
-distribution.
+and Frontier sources. It now mixes release pins, conformance, campaign
+coordination, private research, historical reports, and duplicated canon. It
+produces no installable distribution.
 
-This creates three failures:
+Canopus is independently packaged, optional, and replaceable, but it changes
+with Vela frequently and hand-copies Vela's public protocol types,
+canonicalization rules, release versions, binary hashes, fixtures, and CI
+inputs. The repository split has not created a stronger trust boundary. It has
+created multiple sources of truth for one public contract.
 
-1. Public users must discover a private meta-repository to understand the
-   project.
-2. The owner of architecture, roadmap, and compatibility is ambiguous.
-3. Parent CI can block product work even when the actual owner repositories
-   are green.
+The current topology therefore causes three recurring failures:
 
-Canopus has the opposite shape. It is independently packaged, optional,
-replaceable, and integrated through released Vela CLI identities. That is a
-real repository boundary, but its repository name does not match its product
-and npm package.
+1. public users must discover a private meta-repository to understand the
+   product;
+2. release and compatibility facts drift across Vela, Canopus, Web, CI, and
+   the parent; and
+3. repository separation is mistaken for authority separation even though the
+   real boundary is the public Submission, Verification, and Decision contract.
 
 ## Decision
 
-### 1. Use owner repositories
+### 1. Use one public product monorepo
 
 The target active topology is:
 
 ```text
 vela-science/vela
-vela-science/canopus
 vela-science/vela-web
 vela-science/erdos-frontier
 vela-science/formal-conjectures-frontier
@@ -49,100 +47,136 @@ vela-science/quantum-codes-frontier
 vela-science/.github
 ```
 
-Each repository owns the tests and documentation needed to release and use
-its component:
+The public Vela repository contains:
+
+```text
+crates/                  Rust protocol, authority, replay, verification, CLI
+packages/protocol/       generated TypeScript public contracts and validators
+packages/canopus/        optional bounded producer and evaluation harness
+schema/                  language-neutral public schemas
+conformance/             shared positive, hostile, and mutation fixtures
+actions/                 consumer actions
+docs/                    architecture, protocol, product, and release guidance
+```
+
+The product artifacts release independently:
+
+| Artifact | Version owner | Runtime boundary |
+| --- | --- | --- |
+| Vela CLI and Rust crates | Cargo workspace | Owns protocol, replay, repository authority, and Decisions |
+| `@vela-science/protocol` | Bun/npm package | Public types, canonical encoding, IDs, roots, validators, and conformance |
+| `@vela-science/canopus` | Bun/npm package | Optional producer; invokes Vela through the public executable or client contract |
+
+Canopus may depend on `@vela-science/protocol`. It may not import authority
+internals, read authority credentials, create Decisions, or mutate Standing.
+Tests enforce these import and process boundaries. Runtime authority separation
+therefore remains explicit even though source and shared contracts live
+together.
+
+Vela Web remains separate because it is a read-only product with an
+independent deployment lifecycle. Frontiers remain separate because each is a
+canonical scientific repository with independent Git and authority history.
+
+### 2. Retire `vela-internal`
+
+The mixed-role repository is already frozen at
+`pre-decomposition/2026-07-28`. Its load-bearing scripts, fixtures, and current
+documents are classified by owner:
 
 | Concern | Owner |
 | --- | --- |
-| Protocol, schemas, reducer parity, authority, replay, CLI, release qualification | Vela |
-| Released-Vela composition, model custody, verifier isolation, Run replay, Submission export, evaluation | Canopus |
+| Protocol, schemas, reducer parity, authority, replay, CLI, release qualification | Vela product monorepo |
+| Model custody, verifier isolation, Run replay, Submission export, evaluation | `packages/canopus` |
 | Exact state replay, Target Index, domain verifiers, correction cases | Each Frontier |
 | Projection compatibility, manifests, read-only boundary | Vela Web |
 | Reusable security, provenance, dependency, and organization policy workflows | `.github` |
 
-### 2. Retire `vela-internal` from the product topology
+Migration is complete only when every retained check passes in its owner,
+no supported workflow depends on a sibling checkout or the parent, and the
+load-bearing inventory is empty. The parent then receives a final archival
+README and is archived without deleting history.
 
-The current mixed-role repository is frozen with a final
-`pre-decomposition/2026-07-28` tag before destructive cleanup. Its
-load-bearing scripts, fixtures, and documents are inventoried by owner.
+### 3. Absorb Canopus without collapsing its product boundary
 
-Migration is complete only when:
-
-- every retained check passes in its owner repository;
-- no release or Frontier workflow depends on a sibling checkout or the parent;
-- public architecture and roadmap live in Vela;
-- the organization profile maps the supported repositories;
-- historical reports and commits remain reachable;
-- and the load-bearing inventory is empty.
-
-Then `vela-internal` receives a final archival README and is archived on
-GitHub. It is not renamed to a distribution repository because it assembles
-no distribution. It is not renamed to a lab by default because private memos
-already have a non-product home.
-
-### 3. Rename the Canopus repository
-
-After Canopus `0.8.0` is released and its provenance is verified:
+After Canopus `0.8.0` and the current Erdős loop are verified, import the
+public `vela-research-harness` history without squashing under
+`packages/canopus/`.
 
 ```text
 vela-science/vela-research-harness
-    -> vela-science/canopus
+    -> vela-science/vela/packages/canopus
 ```
 
-The npm package remains `@vela-science/canopus`. Source URLs, workflows,
-badges, release metadata, organization navigation, and downstream checks are
-updated in one bounded migration. The old GitHub name is never recreated, so
-Git and web redirects remain available.
+The npm package remains `@vela-science/canopus`. Once clean-clone package,
+provenance, and compatibility checks pass from the monorepo, the old repository
+receives a final archival README and is archived. Its tags, Releases, issues,
+and history remain available; it is not kept as a writable mirror.
 
-### 4. Replace synthetic ecosystem locks with compatibility evidence
+### 4. Separate compatibility, releases, and exact execution
 
-Each released component publishes its own immutable identity and provenance.
-Organization workflows exercise a compatibility matrix across public
-interfaces and exact release artifacts.
+Compatibility is expressed by schema and capability, not a copied exact patch
+number. Add:
 
-An exact Run continues to pin all binary and source identities. A mutable
-application or parent lock does not become canonical scientific state.
+```text
+vela capabilities --json
+vela.release-manifest.v1
+packages/canopus/compatibility.json
+packages/canopus/toolchain.lock.json
+```
 
-The current parent `ecosystem.lock.json` remains transitional evidence until
-the owner workflows cover its useful assertions. It is then archived with the
-parent instead of copied into a new meta-repository.
+`compatibility.json` declares required repository epochs, schemas, and Vela
+capabilities. `toolchain.lock.json` is generated from immutable Vela and Codex
+release manifests and drives CI, installers, and Mission preparation. Source,
+README examples, and workflows do not copy the current Vela patch or platform
+hash matrix.
 
-### 5. Keep boundaries external
+Every exact Run continues to pin its Vela binary, source, Codex runtime,
+verifier, packet, and artifact identities. Component versions remain
+independent; the monorepo does not create an ecosystem version.
 
-Canopus remains separate from Vela. It uses the released executable, version,
-digest, Submission, and Verification boundaries. It does not import Vela
-internals or become a privileged producer.
+### 5. Generate releases and share fixtures
 
-Vela Web remains separate because it is a read-only product with an
-independent deployment lifecycle. Frontiers remain separate because each is a
-canonical scientific repository with its own authority and history.
+After the history import is stable, use manifest-driven release automation for
+the Cargo workspace, protocol npm package, and Canopus npm package. One release
+PR may update independently versioned artifacts and changelogs; publication
+workflows publish only the components actually released.
+
+One conformance corpus drives Rust, TypeScript, Canopus, Web-reader, and
+external-implementation checks. Cross-repository reusable workflows live in
+`vela-science/.github` and are pinned by full commit SHA. Repository-specific
+tests stay beside their owner.
 
 ## Rejected alternatives
 
-- **Keep `vela-internal` unchanged.** Rejected because it has no coherent
-  product or distribution responsibility.
-- **Merge Canopus into Vela.** Rejected because it weakens replaceability and
-  couples Rust protocol work to model execution, Bun, sandboxes, and npm.
-- **Create `vela-distribution` now.** Rejected because no multi-component
-  distribution exists.
-- **Create `vela-lab` automatically.** Rejected because exploratory work does
-  not need another active repository.
-- **Delete the parent immediately.** Rejected because useful tests and
-  historical evidence must first move or be explicitly retired.
+- **Keep `vela-internal`.** Rejected because it has no coherent product or
+  distribution responsibility.
+- **Keep Canopus in a writable second repository.** Rejected because frequent
+  coordinated changes and handwritten public-contract duplication outweigh
+  Git-level separation, which did not enforce runtime authority.
+- **Give Canopus direct Rust-internal access after the merge.** Rejected because
+  source colocation is not permission to bypass the public producer boundary.
+- **Create `vela-lab`.** Rejected because private memos already have a
+  non-product home and exploratory work should not become release
+  infrastructure.
+- **Delete transition repositories immediately.** Rejected because unique
+  history and load-bearing checks must first move or be explicitly retired.
 
 ## Acceptance gates
 
 1. A checked inventory classifies every active parent script, fixture,
    workflow, and current document as move, retire, or historical.
-2. Owner repositories pass their focused and clean-clone checks without the
-   parent.
-3. Canopus `0.8.0` is released before its repository rename.
-4. The organization profile and all current public links name the target
-   topology.
-5. `vela-internal` has no load-bearing consumer, carries the final transition
-   tag and archival README, and is archived without deleting history.
-6. No protocol bytes, Frontier history, release tag, or package identity is
+2. Owner repositories pass focused and clean-clone checks without the parent.
+3. Canopus `0.8.0` is released before its history is imported without squash.
+4. Rust and TypeScript pass the same public conformance fixtures.
+5. Canopus clean-clone build, package, replay, and provenance checks pass from
+   `packages/canopus` without importing authority internals.
+6. The old Canopus repository and `vela-internal` have no load-bearing
+   consumer, carry final archival READMEs, and are archived without deleting
+   history.
+7. Component releases use independent tags and versions, and exact Runs retain
+   their original binary identities.
+8. No protocol bytes, Frontier history, release tag, or package identity is
    rewritten.
 
-Until all six pass, this ADR remains Proposed and `vela-internal` remains a
-transition workspace rather than a supported product dependency.
+Until all eight pass, this ADR remains Proposed. Existing repositories are
+transition sources, not permanent parallel owners.

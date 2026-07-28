@@ -50,14 +50,13 @@ Git publication is not acceptance. Verification is not acceptance. A
 signature authenticates exact bytes; it does not establish that a Claim is
 true.
 
-## Repository ownership
+## Source and repository ownership
 
-The active public topology is intentionally small:
+The target public topology is intentionally small:
 
 | Repository | Sole responsibility |
 | --- | --- |
-| `vela-science/vela` | Protocol, CLI, replay, repository authority, schemas, conformance, releases, architecture, roadmap |
-| `vela-science/canopus` | Optional bounded producer, run evidence, verifier execution, Submission export, evaluation adapters |
+| `vela-science/vela` | Product monorepo: Rust implementation, TypeScript protocol SDK, optional Canopus producer, shared schemas, conformance, releases, architecture |
 | `vela-science/vela-web` | Editorial site and read-only Observatory |
 | `vela-science/erdos-frontier` | Canonical Erdős Frontier |
 | `vela-science/formal-conjectures-frontier` | Canonical formal-conjectures Frontier |
@@ -65,9 +64,10 @@ The active public topology is intentionally small:
 | `vela-science/quantum-codes-frontier` | Canonical quantum-codes Frontier |
 | `vela-science/.github` | Organization profile, reusable workflows, security policy, repository templates |
 
-`vela-science/vela-research-harness` is the current repository name for
-Canopus. It will become `vela-science/canopus` after the `0.8.0` release gate;
-GitHub's repository redirect preserves existing clones and release links.
+`vela-science/vela-research-harness` is the transition source for Canopus.
+After the `0.8.0` gate, its unsquashed history moves to
+`vela-science/vela/packages/canopus`; the old repository is archived rather
+than maintained as a mirror.
 
 `vela-science/vela-internal` is a transition repository, not a product
 component. It is being decomposed and will be archived after every
@@ -76,18 +76,23 @@ Vela, Canopus, Frontier, or Observatory workflow may depend on it.
 
 ## Release boundaries
 
-Each component releases independently and publishes its own version, commit,
-artifacts, checksums, provenance, and supported interface versions.
+Each component releases independently from the product monorepo and publishes
+its own version, commit, artifacts, checksums, provenance, and supported
+interface versions.
 
 - Vela releases the protocol implementation and CLI.
-- Canopus tests against released Vela binaries through the public CLI.
+- The TypeScript protocol package is generated or checked against the same
+  public schemas and fixtures as Rust.
+- Canopus checks capabilities, invokes released Vela binaries through the
+  public boundary, and pins exact binaries in every Run.
 - Each Frontier verifies and reproduces its own exact state.
 - Vela Web verifies its read projection against exact Frontier sources.
 - Organization workflows test the compatibility matrix without becoming a
   canonical writer or synthetic ecosystem release.
 
-An exact scientific Run still pins every binary and digest it used. That
-execution identity does not require all components to share a release number.
+An exact scientific Run still pins every binary and digest it used. Colocated
+source does not grant Canopus authority access, and component versions do not
+move in lockstep.
 
 ## Non-goals
 

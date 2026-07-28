@@ -20,20 +20,20 @@ depend on acceptance.
 ## P0 — simplify repository ownership
 
 1. Keep public architecture and roadmap here in `vela`.
-2. Move Vela conformance and release checks into `vela`.
-3. Keep released-Vela composition, model custody, verifier isolation, and
-   evaluation in Canopus.
+2. Consolidate the TypeScript protocol SDK, shared conformance fixtures, and
+   independently versioned Canopus package into the public Vela monorepo.
+3. Preserve the public executable boundary: Canopus may consume protocol
+   contracts but never authority internals.
 4. Keep exact replay, Target Index checks, and domain verifiers in each
    Frontier.
 5. Keep projection and read-only-boundary checks in `vela-web`.
 6. Move reusable security and provenance workflows to
    `vela-science/.github`.
-7. Rename `vela-research-harness` to `canopus` after Canopus `0.8.0`.
-8. Tag and archive `vela-internal` after its load-bearing inventory reaches
-   zero.
+7. Import Canopus history without squash after `0.8.0`, then archive the old
+   repository rather than maintaining a mirror.
+8. Archive `vela-internal` after its load-bearing inventory reaches zero.
 
-Do not create a replacement assembly repository unless Vela eventually ships
-one actual multi-component distribution.
+Do not create a replacement assembly or lab repository.
 
 ## P1 — measure before expanding
 
