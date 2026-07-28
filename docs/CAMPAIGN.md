@@ -222,10 +222,27 @@ artifact root
 and verifier-result root
 `sha256:36f31e928a854c13bbcaf8d2589e7e952460f08385ce29788509acb4105baba2`.
 These are preflight evidence, not model output or scientific acceptance. Stage
-A remains blocked until all three trusted arm wrappers, the next uncovered
-Erdős packet and verifier, the scorer files, locks, and environment manifests
-are frozen into one registered plan. A completed arm process and a passing
-task verifier are stored as separate rooted outcomes.
+A is registered at plan root
+`sha256:b62608a4da6f5dfd534eecc980c7019313e12234c3ffef40532170cd2ce947b7`
+from monorepo commit `f986031`. The plan binds 33 files and all 12 assignments,
+including the three trusted arm wrappers, both task packets and verifiers, the
+scorer files, locks, exact executables, resources, and environment manifest.
+
+Both frozen verifier entrypoints replayed their preflight artifacts from the
+registration directory. The hostile verifier fixture observed no network,
+writable root, writable input, writable artifact, writable capsule, or visible
+host home. The hostile native-worker fixture at exact Codex root
+`sha256:1da3f4e0e96028b8a771814293c3033dafd1971f943f6c7e79b0897fe705f590`
+observed a working shell but no readable source authentication, runtime
+authentication, unrelated repository, host canary, process authentication, or
+outside-workspace write. Its event-stream root is
+`sha256:6d6cac4f41d6bd59fdd8e3b46596783e6b8423ffeca9c5cd95effe22a5e14809`.
+
+Two earlier registrations stopped before model execution after preflight
+exposed an incompatible direct Linux verifier and then unbundled verifier
+imports. Their immutable directories retain explicit stop records and do not
+count as campaign evidence. A completed arm process and a passing task
+verifier remain separate rooted outcomes.
 
 ### Stage B
 
