@@ -7,11 +7,12 @@ accepted `10429201..10429400` result. Its canonical source is the exact
 
 The model-visible packet names `10429401..10429600` and the exact output
 contract without including the preflight result. The independent verifier is
-built from the existing audited search source with exact compile-time bounds.
-Its ARM64 Linux root is
-`sha256:70baf5baaa44a5a955aea189b0c1393dca11d0731ca32537366460c697e5a255`.
-Two network-denied, capability-dropped replays accepted the same preflight
-artifact. That preflight is verifier evidence, not model output, a Submission,
-or scientific acceptance.
+built from the existing audited search source with exact compile-time bounds
+as a deterministic static Linux amd64 binary. Its root is
+`sha256:68f64c3dc4bc55e98927f65ba509e5c571944239337864bbf631546ac259cdf4`.
+The runtime wrapper invokes it inside the exact pinned, read-only,
+network-denied, capability-dropped verifier image. Two replays accepted the
+same preflight artifact. That preflight is verifier evidence, not model output,
+a Submission, or scientific acceptance.
 
 These files remain outside the public Canopus package.

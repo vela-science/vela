@@ -174,10 +174,11 @@ uncovered contiguous Erdős range. Its exact Frontier packet root is
 the answer-free evaluation packet root is
 `sha256:51f20cf69e9f1453b9cb58adbc28ad640653f5eeb26adb44c6b3eb34dd5c94ff`.
 The existing independent search verifier was rebuilt with those exact bounds
-at root
-`sha256:70baf5baaa44a5a955aea189b0c1393dca11d0731ca32537366460c697e5a255`
-and accepted the same preflight artifact twice in the frozen network-denied,
-capability-dropped container. Its preflight artifact root is
+as a deterministic static Linux amd64 binary at root
+`sha256:68f64c3dc4bc55e98927f65ba509e5c571944239337864bbf631546ac259cdf4`.
+The registered Bun wrapper invokes it only inside the exact pinned,
+network-denied, read-only, capability-dropped verifier image. It accepted the
+same preflight artifact twice. Its preflight artifact root is
 `sha256:baec250e336105634fec8a7ce529c38e85a0bc7085004fecf70023ac5fd0113e`.
 The packet contains none of those result bytes.
 

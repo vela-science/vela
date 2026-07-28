@@ -2,23 +2,14 @@
 
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import {
-  lstat,
-  mkdir,
-  readFile,
-  realpath,
-} from "node:fs/promises";
-import path from "node:path";
+import { lstat, readFile, realpath } from "node:fs/promises";
 import process from "node:process";
 
 import {
   DOCKER_ROOT,
-  RANGE_END,
-  RANGE_START,
   VERIFIER_BINARY_ROOT,
   VERIFIER_IMAGE,
   VERIFIER_IMAGE_DIGEST,
-  VERIFIER_SOURCE_ROOT,
 } from "./task.mjs";
 
 function sha256(bytes) {
@@ -31,24 +22,24 @@ function options(argv) {
     const key = argv[index];
     const value = argv[index + 1];
     if (
-      !["--source", "--docker", "--output"].includes(key) ||
+      !["--artifact", "--binary", "--docker"].includes(key) ||
       value === undefined ||
       parsed.has(key)
     ) {
-      throw new Error(`invalid verifier-build option near ${key ?? "end"}`);
+      throw new Error(`invalid verifier option near ${key ?? "end"}`);
     }
     parsed.set(key, value);
   }
-  if (["--source", "--docker", "--output"].some((key) => !parsed.has(key))) {
+  if (["--artifact", "--binary", "--docker"].some((key) => !parsed.has(key))) {
     throw new Error(
-      "usage: build-verifier.mjs --source <verifier.cpp> " +
-      "--docker <docker> --output <new-file>",
+      "usage: verify.mjs --artifact <result.txt> --binary <verifier> " +
+      "--docker <docker>",
     );
   }
   return parsed;
 }
 
-async function execute(argv, timeoutMs = 120_000) {
+async function execute(argv, timeoutMs = 60_000) {
   return await new Promise((resolve, reject) => {
     const child = spawn(argv[0], argv.slice(1), {
       env: { PATH: "/usr/local/bin:/usr/bin:/bin", LANG: "C", LC_ALL: "C" },
@@ -68,7 +59,7 @@ async function execute(argv, timeoutMs = 120_000) {
       bytes += chunk.length;
       if (bytes > 2 * 1024 * 1024) {
         child.kill("SIGKILL");
-        finish(() => reject(new Error("verifier build exceeded its output bound")));
+        finish(() => reject(new Error("verifier exceeded its output bound")));
         return;
       }
       target.push(chunk);
@@ -84,18 +75,19 @@ async function execute(argv, timeoutMs = 120_000) {
     })));
     const timer = setTimeout(() => {
       child.kill("SIGKILL");
-      finish(() => reject(new Error("verifier build timed out")));
+      finish(() => reject(new Error("verifier timed out")));
     }, timeoutMs);
   });
 }
 
 const values = options(process.argv.slice(2).filter((value) => value !== "--"));
-const [source, docker] = await Promise.all([
-  realpath(values.get("--source")),
+const [artifact, binary, docker] = await Promise.all([
+  realpath(values.get("--artifact")),
+  realpath(values.get("--binary")),
   realpath(values.get("--docker")),
 ]);
 for (const [file, expected, label] of [
-  [source, VERIFIER_SOURCE_ROOT, "source"],
+  [binary, VERIFIER_BINARY_ROOT, "binary"],
   [docker, DOCKER_ROOT, "Docker client"],
 ]) {
   const metadata = await lstat(file);
@@ -107,22 +99,16 @@ for (const [file, expected, label] of [
     throw new Error(`verifier ${label} identity drifted`);
   }
 }
-const output = path.resolve(values.get("--output"));
-await mkdir(path.dirname(output), { recursive: true, mode: 0o700 });
-try {
-  await lstat(output);
-  throw new Error("verifier output already exists");
-} catch (error) {
-  if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") {
-    throw error;
-  }
+const artifactBytes = await readFile(artifact);
+if (artifactBytes.length === 0 || artifactBytes.length > 64 * 1024) {
+  throw new Error("verification artifact exceeds its byte contract");
 }
 const image = `${VERIFIER_IMAGE}@${VERIFIER_IMAGE_DIGEST}`;
 const inspect = await execute([docker, "image", "inspect", image], 30_000);
 if (inspect.code !== 0) {
-  throw new Error(`exact verifier build image is not installed: ${image}`);
+  throw new Error(`exact verifier image is not installed: ${image}`);
 }
-const build = await execute([
+const result = await execute([
   docker,
   "run",
   "--rm",
@@ -130,49 +116,30 @@ const build = await execute([
   "linux/amd64",
   "--network",
   "none",
+  "--read-only",
   "--cap-drop",
   "ALL",
   "--security-opt",
   "no-new-privileges",
   "--memory",
-  "2g",
+  "1g",
   "--cpus",
-  "2",
+  "1",
   "--pids-limit",
   "64",
   "--mount",
-  `type=bind,src=${source},dst=/src/verifier.cpp,readonly`,
+  `type=bind,src=${binary},dst=/verifier,readonly`,
   "--mount",
-  `type=bind,src=${path.dirname(output)},dst=/out`,
+  `type=bind,src=${artifact},dst=/artifact,readonly`,
   "--entrypoint",
-  "/usr/bin/g++",
+  "/verifier",
   image,
-  "-O3",
-  "-std=c++17",
-  "-static",
-  "-s",
-  `-DCANOPUS_RANGE_START=${RANGE_START}`,
-  `-DCANOPUS_RANGE_END=${RANGE_END}`,
-  "/src/verifier.cpp",
-  "-o",
-  `/out/${path.basename(output)}`,
+  "/artifact",
 ]);
-if (build.code !== 0) {
+if (result.code !== 0) {
   throw new Error(
-    `verifier build failed: exit=${String(build.code)} ` +
-    `signal=${String(build.signal)} stderr_sha256=${sha256(build.stderr)}`,
+    `bounded verifier failed: exit=${String(result.code)} ` +
+    `signal=${String(result.signal)} stderr_sha256=${sha256(result.stderr)}`,
   );
 }
-const outputRoot = sha256(await readFile(output));
-if (outputRoot !== VERIFIER_BINARY_ROOT) {
-  throw new Error(
-    `built verifier root drifted: expected ${VERIFIER_BINARY_ROOT}, observed ${outputRoot}`,
-  );
-}
-process.stdout.write(`${JSON.stringify({
-  ok: true,
-  command: "eval:task:build-verifier",
-  verifier: output,
-  verifier_root: outputRoot,
-  image,
-})}\n`);
+process.stdout.write(result.stdout);

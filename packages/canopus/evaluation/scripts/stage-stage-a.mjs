@@ -21,7 +21,7 @@ import {
 import {
   ARTIFACT_PATH as ERDOS_ARTIFACT_PATH,
   SOURCE_PACKET_ROOT as ERDOS_SOURCE_ROOT,
-  VERIFIER_ROOT as ERDOS_VERIFIER_ROOT,
+  VERIFIER_BINARY_ROOT as ERDOS_VERIFIER_BINARY_ROOT,
   buildPacket as buildErdosPacket,
   packetBytes as erdosPacketBytes,
 } from "../tasks/erdos-1056-10429401-10429600/task.mjs";
@@ -213,10 +213,22 @@ const scientificArchiveEntries = (await execute([
   .split("\n")
   .filter((entry) => entry.length > 0);
 assertSafeArchiveEntries(scientificArchiveEntries);
-const erdosVerifierCopy = await copyExact(
+const erdosVerifierBinaryCopy = await copyExact(
   erdosVerifier,
-  path.join(output, "verifiers/erdos-1056"),
-  { expectedRoot: ERDOS_VERIFIER_ROOT, executable: true, maxBytes: 16 * 1024 * 1024 },
+  path.join(output, "resources/erdos-1056-verifier"),
+  {
+    expectedRoot: ERDOS_VERIFIER_BINARY_ROOT,
+    executable: true,
+    maxBytes: 16 * 1024 * 1024,
+  },
+);
+const erdosVerifierCopy = await copyExact(
+  path.join(
+    packageRoot,
+    "evaluation/tasks/erdos-1056-10429401-10429600/verify.mjs",
+  ),
+  path.join(output, "verifiers/erdos-1056.mjs"),
+  { maxBytes: 1_048_576 },
 );
 const scientificVerifierCopy = await copyExact(
   path.join(packageRoot, "evaluation/tasks/core-bench-1108125/verify.mjs"),
@@ -430,12 +442,26 @@ const tasks = [
     source_root: erdosSourceCopy.root,
     packet_path: "packets/erdos-1056.json",
     packet_root: sha256(erdosPacket),
-    verifier_path: "verifiers/erdos-1056",
+    verifier_path: "verifiers/erdos-1056.mjs",
     verifier_root: erdosVerifierCopy.root,
-    verifier_runtime: "direct",
-    verifier_runtime_root: erdosVerifierCopy.root,
-    verifier_args: ["{artifact}"],
-    verifier_resources: [],
+    verifier_runtime: "bun",
+    verifier_runtime_root: bunRoot,
+    verifier_args: [
+      "--artifact",
+      "{artifact}",
+      "--binary",
+      "{resource:erdos_binary}",
+      "--docker",
+      "{resource:docker}",
+    ],
+    verifier_resources: [
+      {
+        name: "erdos_binary",
+        path: "resources/erdos-1056-verifier",
+        root: erdosVerifierBinaryCopy.root,
+      },
+      { name: "docker", path: "resources/docker", root: dockerCopy.root },
+    ],
     artifact_path: ERDOS_ARTIFACT_PATH,
     max_artifact_bytes: 65_536,
     license: "Apache-2.0 OR MIT",

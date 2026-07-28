@@ -8,10 +8,14 @@ export const SOURCE_PACKET_ROOT =
   "sha256:517c16cc9c59d7f91aeaea4287e0ce49000c7545199e86ea632c0a2e91faf30b";
 export const VERIFIER_SOURCE_ROOT =
   "sha256:adc5482e5809e78aa35eec705cb68a0f9dbcb4c3269ea3e36666ce335b3a1732";
-export const VERIFIER_COMPILER_ROOT =
-  "sha256:b70a2d4da3aa934c1276a038bd69d7041dc5f94e4090e5432500422c59f53b6f";
-export const VERIFIER_ROOT =
-  "sha256:70baf5baaa44a5a955aea189b0c1393dca11d0731ca32537366460c697e5a255";
+export const VERIFIER_BINARY_ROOT =
+  "sha256:68f64c3dc4bc55e98927f65ba509e5c571944239337864bbf631546ac259cdf4";
+export const VERIFIER_IMAGE =
+  "registry.codeocean.com/published/1d48d413-6398-4952-9412-5074b5ebc096";
+export const VERIFIER_IMAGE_DIGEST =
+  "sha256:503117b1e393779705fd34c2dbcabfb04fbd65d755887c13137566205418630a";
+export const DOCKER_ROOT =
+  "sha256:6f56a151c37ea0e848b3abde7770ad408babef7a56c8f2ec6230fcd582ecdc7e";
 export const RANGE_START = 10_429_401;
 export const RANGE_END = 10_429_600;
 export const ARTIFACT_PATH =
@@ -89,4 +93,3 @@ export function buildPacket(sourceBytes) {
 export function packetBytes(packet) {
   return Buffer.from(canonicalJson(packet));
 }
-
