@@ -65,7 +65,14 @@ it does not prove that a Claim is true.
 
 ## Quick start
 
-Vela is currently a source candidate. Build the exact repository revision:
+Install the released CLI from crates.io:
+
+```bash
+cargo install vela-cli --version 0.940.5 --locked
+vela --version
+```
+
+Or build the exact repository revision:
 
 ```bash
 git clone https://github.com/vela-science/vela.git
