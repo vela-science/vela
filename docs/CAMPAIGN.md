@@ -280,6 +280,33 @@ All task facts, model, tools, verifiers, custody, retry, scorer, and publication
 rules remain unchanged. The cumulative campaign remains below its
 32-model-call ceiling.
 
+The final diagnostic registration at plan root
+`sha256:9fbfd54fd40db4e2b02ded895365468c596f54e4dc0e19ae09630a80fb28125b`
+completed all 12 cells with 3,876,079 observed tokens, no missing cells, and no
+authority effects. Its report root is
+`sha256:d5577c1faedfbdaea892a9dc0ac28000c33c176ce727f880a582999ef5c6651f`.
+All six Erdős artifacts were byte-identical to the preflight artifact and
+passed the frozen verifier. Canopus used 111,750 and 104,369 observed tokens;
+plain native used 181,678 and 383,037; same-packet native used 805,796 and
+84,722.
+
+All six scientific-computing processes produced artifacts, but every artifact
+failed the frozen verifier. Inspection exposed a task-contract defect rather
+than a valid arm comparison: the packet named output fields but omitted the
+required schema and task identity, numeric rounding rule, and exact trend
+enum. Every arm computed defensible raw means near 0.3410, 0.4624, and 0.9961,
+while the verifier silently expected the registered two-decimal replay values
+0.34, 0.46, and 1 plus the exact string `decrease`.
+
+Stage B is blocked. The failed artifacts remain evidence, but they cannot rank
+the arms on scientific correctness. A root-linked Stage A repair must publish
+an answer-free closed output contract with the exact field types, identities,
+two-decimal rounding rule, and `decrease|increase` enum. It must use fresh
+assignments and preserve the completed diagnostic report. The repaired
+answer-free packet root is
+`sha256:a367b30c4aebb021bc1f19a618bbf6b1fc487121cd9310b68c620da41b5a3add`.
+No task answer enters the model-visible packet.
+
 ### Stage B
 
 Run only after a safe Stage A. Compare plain TypeScript, stateless LangGraph,

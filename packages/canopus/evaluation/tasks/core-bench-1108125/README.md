@@ -28,14 +28,16 @@ The worker must produce:
 }
 ```
 
-Those values are shown here for verifier maintenance, not placed in the
-model-visible packet. The exact task verifier must remain outside worker
-readable paths. It replays the source with the registered image, network
-disabled, a read-only root, read-only source mounts, and ephemeral output
-filesystems. It checks the three summary rows and the stable Figure S5 root,
-then compares the candidate artifact. The unrelated Monte Carlo output and
-PNG container metadata outside Figure S5 are deliberately outside the result
-contract.
+The model-visible packet specifies the complete closed object contract,
+including schema and task identities, the two-decimal rounding rule for each
+mean, and the `decrease|increase` enum. It does not contain the values above.
+Those values remain here for verifier maintenance. The exact task verifier
+must remain outside worker-readable paths. It replays the source with the
+registered image, network disabled, a read-only root, read-only source mounts,
+and ephemeral output filesystems. It checks the three summary rows and the
+stable Figure S5 root, then compares the candidate artifact. The unrelated
+Monte Carlo output and PNG container metadata outside Figure S5 are
+deliberately outside the result contract.
 
 ```bash
 bun run eval:task:verify:scientific -- \

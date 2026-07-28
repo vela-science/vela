@@ -69,6 +69,23 @@ test("task packet contains only the answer-safe source allowlist", () => {
   assert.equal(packet.files.some((file) => file.path.startsWith("results/")), false);
   assert.equal(packet.constraints.precomputed_results, "not_provided");
   assert.equal(packet.constraints.verifier, "not_exposed");
+  assert.equal(packet.output.additional_fields, "forbidden");
+  assert.deepEqual(Object.keys(packet.output.fields), [
+    "schema",
+    "task_id",
+    "forestgroup_mean",
+    "gender_mean",
+    "income_mean",
+    "eigen_trend",
+  ]);
+  assert.equal(
+    packet.output.fields.forestgroup_mean.rounding,
+    "nearest two decimal places",
+  );
+  assert.equal("exact" in packet.output.fields.forestgroup_mean, false);
+  assert.equal("exact" in packet.output.fields.gender_mean, false);
+  assert.equal("exact" in packet.output.fields.income_mean, false);
+  assert.deepEqual(packet.output.fields.eigen_trend.enum, ["decrease", "increase"]);
   assert.deepEqual(packetBytes(packet), packetBytes(packet));
   files.set("results/output", Buffer.from("answer\n"));
   assert.throws(() => buildPacket(files), /source allowlist mismatch/u);

@@ -162,12 +162,39 @@ export function buildPacket(files) {
     output: {
       path: "artifacts/result.json",
       schema: ARTIFACT_SCHEMA,
-      fields: [
-        "forestgroup_mean",
-        "gender_mean",
-        "income_mean",
-        "eigen_trend",
-      ],
+      encoding: "utf8",
+      additional_fields: "forbidden",
+      fields: {
+        schema: {
+          type: "string",
+          exact: ARTIFACT_SCHEMA,
+        },
+        task_id: {
+          type: "string",
+          exact: TASK_ID,
+        },
+        forestgroup_mean: {
+          type: "number",
+          calculation: "arithmetic mean of the registered forestgroup column",
+          rounding: "nearest two decimal places",
+        },
+        gender_mean: {
+          type: "number",
+          calculation: "arithmetic mean of the registered gender column",
+          rounding: "nearest two decimal places",
+        },
+        income_mean: {
+          type: "number",
+          calculation: "arithmetic mean of the registered income column",
+          rounding: "nearest two decimal places",
+        },
+        eigen_trend: {
+          type: "string",
+          enum: ["decrease", "increase"],
+          calculation:
+            "direction of both factor and component eigenvalues as their number increases",
+        },
+      },
     },
     files: projectedFiles,
   };
