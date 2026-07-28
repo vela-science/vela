@@ -47,6 +47,9 @@ canopus submit /path/to/submission-bundle /path/to/frontier
 - `show` inspects current and historical run records.
 - `replay` reruns the frozen verifier without a model call.
 - `export` creates a signed portable Submission and retains no producer key.
+  If a retained Run from an older worker contract still says verification is
+  pending after its verifier passed, export fails closed until the producer
+  supplies one corrected bounded Claim and explicit scope limit.
 - `submit` explicitly registers that Submission through Vela. The expected
   result is `pending_review` with accepted-event delta zero.
 
@@ -68,7 +71,7 @@ or interprets verifier success as acceptance.
 
 ## Exact product contract
 
-Current source is Canopus `0.8.0-rc.4`, composed with released Vela
+Current source is Canopus `0.8.0-rc.5`, composed with released Vela
 `0.940.5`, Codex CLI `0.145.0`, Bun `1.3.12`, Git, and a pinned verifier
 container. Historical releases remain available for exact replay; they are not
 current writers.

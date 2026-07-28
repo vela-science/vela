@@ -92,3 +92,110 @@ test("review-only export preserves an absent optional execution binding", async 
     new RegExp(fixture.mission.verifier.capsule_sha256, "u"),
   );
 });
+
+test("export fails closed on stale verifier wording and preserves an explicit bounded correction", async () => {
+  const home = await mkdtemp(path.join(os.tmpdir(), "canopus-export-correction-"));
+  const artifact = Buffer.from("status=negative\nrange=1..10\n");
+  const fixture = await writeCurrentRunFixture({
+    root: path.join(home, "product"),
+    artifact,
+    velaVersion: "0.940.5",
+    velaSha256: sha256Bytes(artifact),
+    gitCommit: "e".repeat(40),
+    gitTree: "f".repeat(40),
+    roots: {
+      git_commit: "e".repeat(40),
+      git_tree: "f".repeat(40),
+      vela_repository: `sha256:${"a".repeat(64)}`,
+    },
+    includeExecutionBinding: false,
+    candidateClaim:
+      "The exact bounded search found no witness; frozen verification remains pending outside this workspace.",
+    candidateCaveats: [
+      "Verifier execution was not performed here; Canopus will run it after exit.",
+      "Canopus produced this record; it is not a Verification Record or Decision.",
+    ],
+  });
+  const originalRun = await readFile(fixture.runFile);
+  await assert.rejects(
+    exportSubmission({
+      runFile: fixture.runFile,
+      outputRoot: path.join(home, "blocked"),
+    }),
+    /requires --claim and --scope-limit/u,
+  );
+
+  const output = path.join(home, "corrected");
+  await exportSubmission({
+    runFile: fixture.runFile,
+    outputRoot: output,
+    correctedClaim:
+      "The exact bounded search over 1..10 found no witness; the retained frozen-verifier replay passed.",
+    scopeLimit: "This bounded negative result is not a universal nonexistence result.",
+    now: new Date("2026-07-28T12:00:00Z"),
+  });
+  const submission = JSON.parse(
+    await readFile(path.join(output, "submission.json"), "utf8"),
+  ) as SubmissionV1;
+  verifySubmission(submission);
+  assert.equal(
+    submission.claim.assertion,
+    "The exact bounded search over 1..10 found no witness; the retained frozen-verifier replay passed.",
+  );
+  assert.deepEqual(submission.caveats, [
+    "The worker handed off without verifier authority; Canopus subsequently recorded the separate verifier outcome.",
+    "Canopus produced this record; it is not a Verification Record or Decision.",
+    "This bounded negative result is not a universal nonexistence result.",
+    "The Submission wording corrects a stale post-run Claim after verifier passage; the immutable Run remains unchanged.",
+  ]);
+  assert.deepEqual(await readFile(fixture.runFile), originalRun);
+});
+
+test("export rejects arbitrary Claim replacement and control characters", async () => {
+  const home = await mkdtemp(path.join(os.tmpdir(), "canopus-export-guard-"));
+  const artifact = Buffer.from("{\"value\":42}\n");
+  const fixture = await writeCurrentRunFixture({
+    root: path.join(home, "product"),
+    artifact,
+    velaVersion: "0.940.5",
+    velaSha256: sha256Bytes(artifact),
+    gitCommit: "e".repeat(40),
+    gitTree: "f".repeat(40),
+    roots: {
+      git_commit: "e".repeat(40),
+      git_tree: "f".repeat(40),
+      vela_repository: `sha256:${"a".repeat(64)}`,
+    },
+  });
+  await assert.rejects(
+    exportSubmission({
+      runFile: fixture.runFile,
+      outputRoot: path.join(home, "arbitrary"),
+      correctedClaim: "A different Claim.",
+      scopeLimit: "A limit.",
+    }),
+    /allowed only for a retained Run Claim/u,
+  );
+
+  const controlFixture = await writeCurrentRunFixture({
+    root: path.join(home, "control-product"),
+    artifact,
+    velaVersion: "0.940.5",
+    velaSha256: sha256Bytes(artifact),
+    gitCommit: "e".repeat(40),
+    gitTree: "f".repeat(40),
+    roots: {
+      git_commit: "e".repeat(40),
+      git_tree: "f".repeat(40),
+      vela_repository: `sha256:${"a".repeat(64)}`,
+    },
+    candidateClaim: "A bounded result\u0015with a control byte.",
+  });
+  await assert.rejects(
+    exportSubmission({
+      runFile: controlFixture.runFile,
+      outputRoot: path.join(home, "control"),
+    }),
+    /requires --claim and --scope-limit/u,
+  );
+});

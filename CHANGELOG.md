@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Advance Canopus `0.8.0-rc.5` after real Erdős dogfood exposed stale
+  post-verifier wording at the Submission waist. New workers keep verifier
+  status out of the Claim, verifier-pending caveats are normalized after the
+  separate check, and export fails closed on stale verifier language or control
+  bytes. An explicit Claim-plus-scope-limit correction can author a new signed
+  producer Submission while preserving the immutable Run unchanged.
 - Consume Vela's current `produce` lane directly when selecting the first
   canonical offer. Remove the retired `attack`-lane and `task.packet_ref`
   compatibility path that blocked real `0.940.5` Frontiers before a model call.

@@ -9,8 +9,12 @@ function unique(values: readonly string[]): string[] {
   return [...new Set(values)];
 }
 
-function finalizeWorkerCaveat(value: string): string {
-  if (/verif(?:y|ication|ier).*(?:pending|has not run)|pending.*verif(?:y|ication|ier)/iu.test(value)) {
+export function finalizeWorkerCaveat(value: string): string {
+  if (
+    /verif(?:y|ication|ier).*(?:pending|has not run|not (?:been )?(?:performed|executed|run))|pending.*verif(?:y|ication|ier)/iu.test(
+      value,
+    )
+  ) {
     return "The worker handed off without verifier authority; Canopus subsequently recorded the separate verifier outcome.";
   }
   return value;

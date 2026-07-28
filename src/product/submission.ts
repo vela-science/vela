@@ -16,12 +16,18 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 
+import { finalizeWorkerCaveat } from "../candidate/finalize.js";
 import { parseMission, type MissionV1 } from "../contracts/mission.js";
 import { parseCurrentRunRecord, projectCurrentRun } from "../projection/current-run.js";
 import { canonicalJcs, canonicalJson, protocolDigest, sha256Bytes } from "../util/canonical.js";
 import { readBoundedRegularFile } from "../util/files.js";
 
 const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
+const STALE_VERIFIER_LANGUAGE =
+  /verif(?:y|ication|ier).*(?:pending|has not run|not (?:been )?(?:performed|executed|run))|pending.*verif(?:y|ication|ier)/iu;
+const CONTROL_CHARACTER = /[\u0000-\u001f\u007f]/u;
+const CORRECTION_NOTICE =
+  "The Submission wording corrects a stale post-run Claim after verifier passage; the immutable Run remains unchanged.";
 
 export interface IdentityBinding {
   schema: "vela.identity_binding.v0.1";
@@ -170,6 +176,8 @@ export async function exportSubmission(options: {
   runFile: string;
   outputRoot: string;
   actor?: string;
+  correctedClaim?: string;
+  scopeLimit?: string;
   now?: Date;
 }): Promise<{
   schema: "canopus.export-result.v1";
@@ -200,6 +208,34 @@ export async function exportSubmission(options: {
   if (record.candidate.artifacts.length === 0 || record.candidate.caveats.length === 0) {
     throw new Error("Submission export requires at least one Artifact and one caveat");
   }
+  if ((options.correctedClaim === undefined) !== (options.scopeLimit === undefined)) {
+    throw new Error("Submission correction requires both a corrected Claim and a scope limit");
+  }
+  const retainedClaimNeedsCorrection =
+    STALE_VERIFIER_LANGUAGE.test(record.candidate.claim) ||
+    CONTROL_CHARACTER.test(record.candidate.claim);
+  if (retainedClaimNeedsCorrection && options.correctedClaim === undefined) {
+    throw new Error(
+      "Run Claim is stale after verifier passage or contains control bytes; export requires --claim and --scope-limit to author one corrected bounded Submission without changing the Run",
+    );
+  }
+  if (!retainedClaimNeedsCorrection && options.correctedClaim !== undefined) {
+    throw new Error("Submission correction is allowed only for a retained Run Claim that is stale or contains control bytes");
+  }
+  const assertion = options.correctedClaim ?? record.candidate.claim;
+  if (CONTROL_CHARACTER.test(assertion)) {
+    throw new Error("Submission Claim contains a control character");
+  }
+  if (STALE_VERIFIER_LANGUAGE.test(assertion)) {
+    throw new Error("Submission Claim contradicts the retained passing verifier outcome");
+  }
+  if (options.scopeLimit !== undefined && CONTROL_CHARACTER.test(options.scopeLimit)) {
+    throw new Error("Submission scope limit contains a control character");
+  }
+  const caveats = [...new Set([
+    ...record.candidate.caveats.map(finalizeWorkerCaveat),
+    ...(options.scopeLimit === undefined ? [] : [options.scopeLimit, CORRECTION_NOTICE]),
+  ])];
   const actor = options.actor ?? mission.actor;
   if (!actor.startsWith("agent:")) {
     throw new Error("Canopus Submission export requires an agent: producer");
@@ -256,12 +292,12 @@ export async function exportSubmission(options: {
       schema: "vela.submission.v1",
       submission_id: "",
       claim: {
-        assertion: record.candidate.claim,
+        assertion,
         type: mission.claim_type,
         conditions: [mission.completion_condition],
       },
       artifacts: submissionArtifacts,
-      caveats: record.candidate.caveats,
+      caveats,
       replayability: mission.replayability,
       producer_checks: [],
       verification_requirements: [

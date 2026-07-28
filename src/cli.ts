@@ -32,7 +32,8 @@ Primary workflow:
   canopus run [frontier] [--first | --target <id>] [--profile <name>] [--output <dir>]
   canopus show [run.json | failure.json | latest]
   canopus replay <run.json>
-  canopus export <run.json | latest> [--output <new-directory>] [--as <agent:id>]
+  canopus export <run.json | latest> [--output <new-directory>] [--as <agent:id>] \\
+    [--claim <corrected-bounded-claim> --scope-limit <limit>]
   canopus submit <submission-bundle> [frontier] [--vela <binary>]
 
 Mission v1 prepare/validate remains available under advanced help.
@@ -101,10 +102,13 @@ model call, Vela mutation, network, or authority action.`;
 
 function exportUsage(): string {
   return `Usage:
-  canopus export <run.json | latest> [--output <new-directory>] [--as <agent:id>]
+  canopus export <run.json | latest> [--output <new-directory>] [--as <agent:id>] \\
+    [--claim <corrected-bounded-claim> --scope-limit <limit>]
 
 Creates a signed portable vela.submission.v1 bundle from a successful Run.
-Export does not touch a frontier and does not create Verification or Standing.`;
+Export does not touch a frontier and does not create Verification or Standing.
+The correction pair is accepted only when the retained Run Claim has stale
+verifier wording or control bytes; the immutable Run remains unchanged.`;
 }
 
 function submitUsage(): string {
@@ -395,16 +399,20 @@ async function replayCommand(file: string | undefined, rest: string[]): Promise<
 
 async function exportCommand(file: string | undefined, rest: string[]): Promise<void> {
   if (file === undefined) throw new Error("export requires a Run file or latest");
-  const parsed = productOptions(rest, ["--output", "--as"], []);
+  const parsed = productOptions(rest, ["--output", "--as", "--claim", "--scope-limit"], []);
   if (parsed.positional.length !== 0) throw new Error("export accepts one Run file");
   const runFile = file === "latest" ? await latestRunFile() : path.resolve(file);
   const output = parsed.values.get("--output") ??
     path.join(path.dirname(path.dirname(runFile)), `submission-${Date.now()}`);
   const actor = parsed.values.get("--as");
+  const correctedClaim = parsed.values.get("--claim");
+  const scopeLimit = parsed.values.get("--scope-limit");
   process.stdout.write(`${JSON.stringify(await exportSubmission({
     runFile,
     outputRoot: path.resolve(output),
     ...(actor === undefined ? {} : { actor }),
+    ...(correctedClaim === undefined ? {} : { correctedClaim }),
+    ...(scopeLimit === undefined ? {} : { scopeLimit }),
   }))}\n`);
 }
 

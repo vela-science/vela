@@ -16,6 +16,8 @@ export async function writeCurrentRunFixture(options: {
   roots: MissionRoots;
   actor?: string;
   includeExecutionBinding?: boolean;
+  candidateClaim?: string;
+  candidateCaveats?: string[];
 }): Promise<{ runFile: string; mission: MissionV1 }> {
   const actor = options.actor ?? "agent:canopus-export-fixture";
   const artifactDigest = sha256Bytes(options.artifact);
@@ -128,14 +130,14 @@ export async function writeCurrentRunFixture(options: {
     candidate: {
       digest,
       status: "success",
-      claim: "The exact bounded fixture returned 42.",
+      claim: options.candidateClaim ?? "The exact bounded fixture returned 42.",
       artifacts: [{
         path: "result.json",
         kind: "witness",
         digest: artifactDigest,
         bytes: options.artifact.length,
       }],
-      caveats: ["This establishes only the exact bounded fixture."],
+      caveats: options.candidateCaveats ?? ["This establishes only the exact bounded fixture."],
     },
     verifier: {
       status: "passed",

@@ -42,6 +42,13 @@ submission-bundle/
 Independent verifier output is named only as a verification requirement; it is
 not mislabeled as producer authority or a Vela Verification Record.
 
+The current worker contract keeps verifier status out of the Claim. Export
+fails closed if a retained older Run says verification is pending after its
+verifier passed or contains control bytes. In that narrow case the producer may
+pass `--claim` with `--scope-limit`; Canopus signs a corrected Submission,
+records that the wording changed after the run, and leaves the Run byte-for-byte
+unchanged. Arbitrary Claim replacement on a non-stale Run is refused.
+
 The producer key is ephemeral. It is not placed in run evidence, the portable
 bundle, or a retained capability store. A producer that independently keeps its
 own key may use Vela's direct withdrawal interface; Canopus does not add a
