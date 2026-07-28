@@ -22,7 +22,7 @@ resolver = "3"
 # Release numbering uses `0.RRR.P`, where RRR names the release train and P is
 # the compatible patch within that train. Older `v0.X` markers in comments and
 # research documents are historical proof-slice labels.
-version = "0.940.4"
+version = "0.940.5"
 edition = "2024"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/vela-science/vela"
@@ -67,11 +67,11 @@ windows-sys = "0.61"
 
 # Internal crates. `version` is required so cargo publish can resolve
 # the dep against crates.io; `path` is used for in-workspace builds.
-vela-protocol = { path = "crates/vela-protocol", version = "0.940.4" }
-vela-authority = { path = "crates/vela-authority", version = "0.940.4" }
-vela-protocol-core = { path = "crates/vela-protocol-core", version = "0.940.4" }
-vela-verify = { path = "crates/vela-verify", version = "0.940.4" }
-vela-edge = { path = "crates/vela-edge", version = "0.940.4" }
+vela-protocol = { path = "crates/vela-protocol", version = "0.940.5" }
+vela-authority = { path = "crates/vela-authority", version = "0.940.5" }
+vela-protocol-core = { path = "crates/vela-protocol-core", version = "0.940.5" }
+vela-verify = { path = "crates/vela-verify", version = "0.940.5" }
+vela-edge = { path = "crates/vela-edge", version = "0.940.5" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## v0.940.5 — 2026-07-28 — Terminal imported Verification replay repair
+
+- Resolve a retained predecessor-scoped Verification Record through the
+  Proposal's immutable rooted Claim after rejection removes that Claim from
+  the pending index.
+- Preserve fail-closed canonical Claim, Proposal, Submission, and full-root
+  checks without rewriting imported evidence.
+- Report any future post-commit verification failure as an already-committed
+  repository-authority transaction so operators do not retry a Decision.
+- No protocol, object, authority, or accepted-state semantics change.
+
 ## v0.940.4 — 2026-07-28 — Agent Decision boundary guidance repair
 
 - Remove the retired protected-request language from the generated Frontier
