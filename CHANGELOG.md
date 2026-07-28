@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## v0.940.9 — 2026-07-28 — Decision publication verification repair
+
+- Verify an accepted Decision's linked scientific event by its
+  signature-independent semantic identity and exact authority transaction,
+  without depending on authority-event filename order.
+- Verify the transaction-owned Target Index against the exact new repository
+  root before publication, then retain the tracked-HEAD check after the Git
+  commit exists.
+- Recovered the already-signed Erdős Decision without retrying authority,
+  rewriting history, or changing any signed bytes.
+
 ## v0.940.8 — 2026-07-28 — Completed-journal rolling-head repair
 
 - Fixed the completed-history recovery barrier so a valid later current-object

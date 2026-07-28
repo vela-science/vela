@@ -474,7 +474,7 @@ fn current_proposal_decisions(
     events: &[AuthorityEventV1],
 ) -> Result<BTreeMap<String, CurrentProposalDecision>, String> {
     let mut decisions = BTreeMap::new();
-    for (index, event) in events.iter().enumerate() {
+    for event in events {
         let standing = match event.content.kind {
             EventKind::ReviewAccepted => "accepted",
             EventKind::ReviewRejected => "rejected",
@@ -530,13 +530,19 @@ fn current_proposal_decisions(
                         event.id
                     )
                 })?;
-            let applied_event = authority_event_by_semantic_id(&events[..index], applied)?
-                .ok_or_else(|| {
+            let applied_event =
+                authority_event_by_semantic_id(events, applied)?.ok_or_else(|| {
                     format!(
-                        "current accepted review event {} names a missing or later domain event",
+                        "current accepted review event {} names a missing domain event",
                         event.id
                     )
                 })?;
+            if applied_event.content.transaction_id != event.content.transaction_id {
+                return Err(format!(
+                    "current accepted review event {} names a domain event from another transaction",
+                    event.id
+                ));
+            }
             if applied_event.content.target.r#type != "claim"
                 || !matches!(
                     applied_event.content.kind,
@@ -1776,12 +1782,41 @@ mod tests {
             proposal_id,
             Some(&applied_id),
         );
-        let decisions = current_proposal_decisions(&[domain, review]).unwrap();
+        let decisions = current_proposal_decisions(&[domain.clone(), review.clone()]).unwrap();
         let decision = decisions.get(proposal_id).unwrap();
         assert_eq!(decision.standing, "accepted");
         assert_eq!(
             decision.applied_event_id.as_deref(),
             Some(applied_id.as_str())
+        );
+
+        let decisions = current_proposal_decisions(&[review, domain]).unwrap();
+        let decision = decisions.get(proposal_id).unwrap();
+        assert_eq!(decision.standing, "accepted");
+        assert_eq!(
+            decision.applied_event_id.as_deref(),
+            Some(applied_id.as_str())
+        );
+    }
+
+    #[test]
+    fn current_proposal_standing_requires_one_transaction() {
+        let proposal_id = "vpr_0123456789abcdef";
+        let domain = applied_event(proposal_id, &format!("vcl_{}", "3".repeat(64)));
+        let applied_id = domain.semantic_event_id().unwrap();
+        let review = review_event(
+            "vtx_fixture_other",
+            EventKind::ReviewAccepted,
+            proposal_id,
+            Some(&applied_id),
+        );
+        let review_id = review.id.clone();
+        assert_eq!(
+            current_proposal_decisions(&[review, domain]).unwrap_err(),
+            format!(
+                "current accepted review event {} names a domain event from another transaction",
+                review_id
+            )
         );
     }
 

@@ -69,7 +69,7 @@ it does not prove that a Claim is true.
 Install the released CLI from crates.io:
 
 ```bash
-cargo install vela-cli --version 0.940.8 --locked
+cargo install vela-cli --version 0.940.9 --locked
 vela --version
 ```
 

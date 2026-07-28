@@ -684,7 +684,9 @@ pub(crate) fn execute(
         &mut signer,
     )
     .map_err(|error| error.to_string())?;
-    if let Err(error) = crate::current_repository::verify_current_repository_at(frontier, true) {
+    if let Err(error) =
+        crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)
+    {
         return Err(format!(
             "repository-authority transaction committed as record {} but postcondition verification failed: {error}; do not retry the Decision",
             result.authority_record_id
