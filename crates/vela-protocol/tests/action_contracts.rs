@@ -115,6 +115,20 @@ fn root_action_is_consumer_pinned_strict_and_nonfinalizing() {
         &action,
         "Install vela (pinned release binary, no from-source build)",
     );
+    let install_step = action["runs"]["steps"]
+        .as_array()
+        .expect("composite action must have steps")
+        .iter()
+        .find(|step| {
+            step["name"].as_str()
+                == Some("Install vela (pinned release binary, no from-source build)")
+        })
+        .expect("missing install step");
+    assert_eq!(
+        install_step["env"]["GH_TOKEN"].as_str(),
+        Some("${{ github.token }}"),
+        "the composite action must expose the implicit workflow token to attestation checks"
+    );
     assert!(install.contains("requested=\"${VELA_VERSION_INPUT#v}\""));
     assert!(install.contains("vela-version is required"));
     assert!(install.contains("vela-version must be one stable exact release"));

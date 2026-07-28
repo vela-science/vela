@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## v0.940.1 — 2026-07-27 — GitHub Action attestation fix
+
+- Expose the implicit workflow token to the composite action's release
+  attestation checks, so consumers can use the documented action without
+  duplicating `GH_TOKEN` wiring.
+- No protocol, repository, object, authority, or CLI behavior changes.
+
 ## v0.940.0 — 2026-07-27 — One current repository contract
 
 - Make Profile v2, Claim Record v1, Submission v1, Registration Record v1,
