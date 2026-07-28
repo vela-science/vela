@@ -6,7 +6,7 @@ import { parseRunRecord, projectRun, type RunRecord } from "../src/projection/ru
 const digest = `sha256:${"a".repeat(64)}`;
 const roots = {
   git_commit: "b".repeat(40), git_tree: "c".repeat(40),
-  vela_event_log: digest, vela_snapshot: digest,
+  vela_repository: digest,
 };
 
 function record(): RunRecord {

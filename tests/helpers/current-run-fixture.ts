@@ -67,12 +67,6 @@ export async function writeCurrentRunFixture(options: {
     landing: { expected_routes: ["defer"], max_accepted_delta: 0 },
     target_packet: { path: "packet/target.json", sha256: packetRoot },
     profile: { name: "fixture", root: profileRoot },
-    strict_baseline: {
-      status: "pass",
-      blocker_count: 0,
-      blockers_root: digest,
-      rule_counts: [],
-    },
     worker: {
       kind: "codex_tools_native",
       platform: "darwin",

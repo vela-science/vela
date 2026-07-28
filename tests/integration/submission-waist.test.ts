@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -38,6 +38,7 @@ test("Canopus Submission crosses the released Vela writer with zero accepted del
   const remote = path.join(root, "remote.git");
   const replay = path.join(root, "replay");
   await Promise.all([mkdir(home), mkdir(frontier)]);
+  const fixtureNonce = path.basename(root);
   command("ssh-keygen", [
     "-q", "-t", "ed25519", "-N", "", "-C", "canopus disposable authority",
     "-f", path.join(root, "authority"),
@@ -66,8 +67,8 @@ test("Canopus Submission crosses the released Vela writer with zero accepted del
   command("git", ["config", "--global", "user.email", "fixture@vela.invalid"], root, env);
   command(vela, [
     "init", frontier,
-    "--name", "Canopus Interop Frontier",
-    "--scope", "Exercise Canopus Submission interoperability.",
+    "--name", `Canopus Interop ${fixtureNonce}`,
+    "--scope", `Exercise one disposable Canopus Submission ${fixtureNonce}.`,
     "--json",
   ], root, env);
   command("git", ["init", "-q", "--bare", remote], root, env);
@@ -78,17 +79,28 @@ test("Canopus Submission crosses the released Vela writer with zero accepted del
   command("git", ["remote", "add", "origin", remote], frontier, env);
   command("git", ["push", "-q", "-u", "origin", "main"], frontier, env);
   command("git", ["--git-dir", remote, "symbolic-ref", "HEAD", "refs/heads/main"], root, env);
-  command(vela, [
+  const initialized = JSON.parse(command(vela, [
     "authority", "init", frontier,
     "--reason", "Establish ephemeral authority for the Canopus writer gate.",
     "--json",
+  ], root, env)) as { frontier_id: string; authority_record_root: string };
+  const trustAnchor = path.join(
+    os.homedir(),
+    ".vela",
+    "trust",
+    "authorities",
+    `${initialized.frontier_id}.json`,
+  );
+  t.after(async () => await rm(trustAnchor, { force: true }));
+  command(vela, [
+    "authority", "trust", "pin", frontier,
+    "--record-root", initialized.authority_record_root,
+    "--json",
   ], root, env);
-  command("git", ["add", "--all"], frontier, env);
-  command("git", ["commit", "-q", "-m", "Initialize disposable repository authority"], frontier, env);
   command("git", ["push", "-q", "origin", "main"], frontier, env);
 
   const before = JSON.parse(command(vela, ["status", frontier, "--json"], root, env)) as {
-    roots: { event_log: string; scientific_state_root: string };
+    roots: { repository: string };
   };
   const gitCommit = command("git", ["rev-parse", "HEAD^{commit}"], frontier, env);
   const gitTree = command("git", ["rev-parse", "HEAD^{tree}"], frontier, env);
@@ -103,8 +115,7 @@ test("Canopus Submission crosses the released Vela writer with zero accepted del
     roots: {
       git_commit: gitCommit,
       git_tree: gitTree,
-      vela_event_log: before.roots.event_log,
-      vela_snapshot: before.roots.scientific_state_root,
+      vela_repository: before.roots.repository,
     },
   });
   const bundle = path.join(root, "bundle");
@@ -139,14 +150,14 @@ test("Canopus Submission crosses the released Vela writer with zero accepted del
   assert.equal(command("git", ["status", "--porcelain=v1", "--untracked-files=all"], frontier, env), "");
 
   const after = JSON.parse(command(vela, ["status", frontier, "--json"], root, env)) as {
-    roots: { event_log: string };
+    roots: { repository: string };
     counts: { pending_review: number };
   };
-  assert.equal(after.roots.event_log, before.roots.event_log);
+  assert.notEqual(after.roots.repository, before.roots.repository);
   assert.equal(after.counts.pending_review, 1);
   command("git", ["clone", "-q", "--no-hardlinks", frontier, replay], root, env);
   const replayed = JSON.parse(command(vela, ["status", replay, "--json"], root, env)) as {
-    roots: { event_log: string };
+    roots: { repository: string };
   };
-  assert.equal(replayed.roots.event_log, before.roots.event_log);
+  assert.equal(replayed.roots.repository, after.roots.repository);
 });

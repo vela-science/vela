@@ -80,24 +80,27 @@ test("native Windows doctor remains read-only and does not probe worker runtimes
         if (options.argv[1] === "--version") {
           return commandResult(
             options,
-            executable === "vela" ? "vela 0.930.0-rc.13\n" : "git version 2.50.0\n",
+            executable === "vela" ? "vela 0.940.2\n" : "git version 2.50.0\n",
           );
         }
         if (executable === "vela" && options.argv[1] === "status") {
           return commandResult(options, JSON.stringify({
-            ok: false,
-            schema: "vela.status.v2",
+            ok: true,
+            schema: "vela.status.v1",
+            command: "status",
             roots: {
-              event_log: `sha256:${"a".repeat(64)}`,
-              scientific_state_root: `sha256:${"b".repeat(64)}`,
+              repository: `sha256:${"b".repeat(64)}`,
             },
             git: { commit: "c".repeat(40), tree: "d".repeat(40) },
-            integrity: { blocker_count: 81 },
-          }), 1);
+            integrity: { replay: "verified", strict: "pass", blocker_count: 0 },
+          }));
         }
         if (executable === "vela" && options.argv[1] === "next") {
           return commandResult(options, JSON.stringify({
             schema: "vela.offer.v1",
+            ok: true,
+            command: "next",
+            repository_root: `sha256:${"b".repeat(64)}`,
             targets: [{ rank: 1, target_id: "erdos:1056" }],
           }));
         }
@@ -111,10 +114,10 @@ test("native Windows doctor remains read-only and does not probe worker runtimes
     assert.equal(result.public.worker.mission_runtime, "wsl2_required");
     assert.equal(result.public.worker.mission_ready, false);
     assert.equal(
-      result.public.frontier.scientific_state_root,
+      result.public.frontier.repository_root,
       `sha256:${"b".repeat(64)}`,
     );
-    assert.equal(result.public.frontier.strict_blockers, 81);
+    assert.equal(result.public.frontier.strict_blockers, 0);
     assert.equal(result.public.runtimes.codex, null);
     assert.equal(result.public.runtimes.docker, null);
     assert.match(result.public.next_action, /Open WSL2.+rerun canopus doctor/su);

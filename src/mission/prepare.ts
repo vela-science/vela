@@ -326,13 +326,11 @@ export async function prepareMission(options: PrepareMissionOptions): Promise<Pr
       home: path.join(runtimeHome, "vela"),
       runner,
     });
-    const strictBaseline = await vela.observeStrictBaseline(sourceRepo, frontier);
-    const inspection = await vela.inspect(sourceRepo, frontier, strictBaseline);
+    const inspection = await vela.inspect(sourceRepo, frontier);
     const offer = await vela.offer(
       sourceRepo,
       frontier,
       inspection.roots,
-      strictBaseline,
       128,
     );
     const requestedTarget = raw.target === undefined || raw.target === "auto"
@@ -416,7 +414,6 @@ export async function prepareMission(options: PrepareMissionOptions): Promise<Pr
       objective: boundedObjective(raw.objective),
       roots: inspection.roots,
       target_packet: packet,
-      strict_baseline: strictBaseline,
       worker: {
         ...workerDraft,
         kind: "codex_tools_native",

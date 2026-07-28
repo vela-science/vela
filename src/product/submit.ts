@@ -27,8 +27,27 @@ async function command(
     maxOutputBytes,
   });
   if (result.exitCode !== 0) {
+    let diagnostic = "no structured error";
+    try {
+      const parsed = JSON.parse(result.stdout.toString("utf8")) as unknown;
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        const error = (parsed as Record<string, unknown>).error;
+        if (typeof error === "object" && error !== null && !Array.isArray(error)) {
+          const message = (error as Record<string, unknown>).message;
+          if (typeof message === "string" && message.length > 0) {
+            diagnostic = [...message]
+              .slice(0, 512)
+              .join("")
+              .replace(/\b(?:sk|sess|key)-[A-Za-z0-9_-]{8,}\b/gu, "[secret-redacted]");
+          }
+        }
+      }
+    } catch {
+      // Raw subprocess output is represented only by its digest below.
+    }
     throw new Error(
-      `${argv[0]} ${argv[1] ?? ""} exited ${result.exitCode}: ${result.stderr.toString("utf8").trim()}`,
+      `${argv[0]} ${argv[1] ?? ""} exited ${result.exitCode}: ${diagnostic}; ` +
+      `stdout_sha256=${sha256Bytes(result.stdout)}; stderr_sha256=${sha256Bytes(result.stderr)}`,
     );
   }
   return result.stdout.toString("utf8").trim();
@@ -204,6 +223,7 @@ export async function submitBundle(options: {
   if (status !== "") throw new Error("source frontier must be clean before submit");
   const before = await command(runner, ["git", "rev-parse", "--verify", "HEAD^{commit}"], frontier);
   const beforeTree = await command(runner, ["git", "rev-parse", "--verify", "HEAD^{tree}"], frontier);
+  const sourceOrigin = await command(runner, ["git", "remote", "get-url", "origin"], frontier);
   if (before !== manifest.source.git_commit || beforeTree !== manifest.source.git_tree) {
     throw new Error("source frontier no longer matches the Run roots");
   }
@@ -223,6 +243,7 @@ export async function submitBundle(options: {
     await command(runner, ["git", "clone", "--no-hardlinks", "--", frontier, clone], temporary);
     const cloneHead = await command(runner, ["git", "rev-parse", "--verify", "HEAD^{commit}"], clone);
     if (cloneHead !== before) throw new Error("disposable submit clone does not match source HEAD");
+    await command(runner, ["git", "remote", "set-url", "origin", sourceOrigin], clone);
     for (const artifact of manifest.artifacts) {
       const source = path.join(bundle, artifact.source);
       await access(source, constants.R_OK);

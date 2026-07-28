@@ -28,8 +28,7 @@ export interface ProductDoctorResult {
     path: string;
     git_commit: string;
     git_tree: string;
-    event_log_root: string;
-    scientific_state_root: string;
+    repository_root: string;
     clean: boolean;
     strict_blockers: number;
   };
@@ -224,7 +223,14 @@ export async function doctorProduct(options: {
     if (gitStatus.exitCode !== 0 || gitStatus.stderr.length !== 0) throw new Error("git status failed");
     const clean = gitStatus.stdout.length === 0;
     if (!clean) throw new Error("frontier checkout must be clean before Canopus runs");
-    if (status.schema !== "vela.status.v2" || offer.schema !== "vela.offer.v1") {
+    if (
+      status.schema !== "vela.status.v1" ||
+      status.ok !== true ||
+      status.command !== "status" ||
+      offer.schema !== "vela.offer.v1" ||
+      offer.ok !== true ||
+      offer.command !== "next"
+    ) {
       throw new Error("frontier did not return the current Vela compact contracts");
     }
     const profile = await resolveProductProfile(offer, options.profileName, options.requestedTarget);
@@ -232,6 +238,17 @@ export async function doctorProduct(options: {
     const roots = objectAt(status.roots, "vela status.roots");
     const gitState = objectAt(status.git, "vela status.git");
     const integrity = objectAt(status.integrity, "vela status.integrity");
+    const repositoryRoot = sha256At(roots.repository, "vela status.roots.repository");
+    if (
+      integrity.replay !== "verified" ||
+      integrity.strict !== "pass" ||
+      nonnegative(integrity.blocker_count, "vela status.integrity.blocker_count") !== 0
+    ) {
+      throw new Error("frontier must replay and pass strict verification before Canopus can run");
+    }
+    if (sha256At(offer.repository_root, "vela next.repository_root") !== repositoryRoot) {
+      throw new Error("vela status and next disagree on the current repository root");
+    }
     const staging = path.join(runtime, "capsule-build");
     await mkdir(staging, { mode: 0o700 });
     const capsule = await stageProfileCapsule({ profile, stagingRoot: staging });
@@ -246,11 +263,7 @@ export async function doctorProduct(options: {
             path: frontier,
             git_commit: stringAt(gitState.commit, "vela status.git.commit", { min: 40, max: 64 }),
             git_tree: stringAt(gitState.tree, "vela status.git.tree", { min: 40, max: 64 }),
-            event_log_root: sha256At(roots.event_log, "vela status.roots.event_log"),
-            scientific_state_root: sha256At(
-              roots.scientific_state_root,
-              "vela status.roots.scientific_state_root",
-            ),
+            repository_root: repositoryRoot,
             clean,
             strict_blockers: nonnegative(integrity.blocker_count, "vela status.integrity.blocker_count"),
           },
@@ -349,11 +362,7 @@ export async function doctorProduct(options: {
           path: frontier,
           git_commit: stringAt(gitState.commit, "vela status.git.commit", { min: 40, max: 64 }),
           git_tree: stringAt(gitState.tree, "vela status.git.tree", { min: 40, max: 64 }),
-          event_log_root: sha256At(roots.event_log, "vela status.roots.event_log"),
-          scientific_state_root: sha256At(
-            roots.scientific_state_root,
-            "vela status.roots.scientific_state_root",
-          ),
+          repository_root: repositoryRoot,
           clean,
           strict_blockers: nonnegative(integrity.blocker_count, "vela status.integrity.blocker_count"),
         },

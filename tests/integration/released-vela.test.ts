@@ -27,11 +27,12 @@ async function command(
   args: string[],
   cwd: string,
   home: string,
+  extraEnvironment: NodeJS.ProcessEnv = {},
 ): Promise<string> {
   const result = await exec(binary, args, {
     cwd,
     encoding: "utf8",
-    env: isolatedEnvironment(home),
+    env: { ...isolatedEnvironment(home), ...extraEnvironment },
     maxBuffer: 8 * 1024 * 1024,
     timeout: 30_000,
   });
@@ -83,6 +84,59 @@ test(
       parent,
       setupHome,
     );
+    const authorityKey = path.join(parent, "authority");
+    await command(
+      "/usr/bin/ssh-keygen",
+      ["-q", "-t", "ed25519", "-N", "", "-C", "canopus released fixture", "-f", authorityKey],
+      parent,
+      setupHome,
+    );
+    const agentSocket = path.join(
+      "/tmp",
+      `canopus-released-agent-${process.pid}-${Date.now()}`,
+    );
+    const agentOutput = await command(
+      "/usr/bin/ssh-agent",
+      ["-a", agentSocket, "-s"],
+      parent,
+      setupHome,
+    );
+    const agentPid = agentOutput.match(/SSH_AGENT_PID=([0-9]+);/u)?.[1];
+    assert.ok(agentPid !== undefined);
+    const authorityEnvironment = {
+      SSH_AUTH_SOCK: agentSocket,
+      SSH_AGENT_PID: agentPid,
+    };
+    context.after(async () => {
+      await command(
+        "/usr/bin/ssh-agent",
+        ["-k"],
+        parent,
+        setupHome,
+        authorityEnvironment,
+      ).catch(() => undefined);
+    });
+    await command(
+      "/usr/bin/ssh-add",
+      [authorityKey],
+      parent,
+      setupHome,
+      authorityEnvironment,
+    );
+    await command(
+      velaBinary,
+      [
+        "authority", "init", source,
+        "--reason", "Establish disposable authority for the released Canopus fixture.",
+        "--json",
+      ],
+      parent,
+      setupHome,
+      authorityEnvironment,
+    );
+    const domainDirectory = path.join(source, "domain");
+    await mkdir(domainDirectory);
+    await writeFile(path.join(domainDirectory, "source.json"), "{\"open\":[\"seed:canopus-smoke\"]}\n");
     const verifierDirectory = path.join(source, "verifier");
     await mkdir(verifierDirectory);
     const verifierSource = path.join(parent, "check-json.c");
@@ -93,10 +147,6 @@ test(
     );
     await exec("/usr/bin/clang", ["-Os", "-o", verifier, verifierSource]);
     await chmod(verifier, 0o555);
-    await writeFile(
-      path.join(source, "campaign.yaml"),
-      `batches:\n  - name: Canopus released-interface smoke\n    state: open\n    problems:\n      - id: seed:canopus-smoke\n        title: Verify one exact bounded JSON artifact\n        why: Exercise work, authored Defer landing, and clean-clone replay\n`,
-    );
     await command("git", ["config", "user.name", "Canopus Integration"], source, setupHome);
     await command(
       "git",
@@ -107,7 +157,68 @@ test(
     await command("git", ["add", "-A"], source, setupHome);
     await command(
       "git",
-      ["-c", "core.hooksPath=/dev/null", "commit", "--no-gpg-sign", "-m", "Initialize Canopus Vela smoke frontier"],
+      ["-c", "core.hooksPath=/dev/null", "commit", "--no-gpg-sign", "-m", "Add target source"],
+      source,
+      setupHome,
+    );
+    const sourceCommit = await command(
+      "git",
+      ["rev-parse", "HEAD^{commit}"],
+      source,
+      setupHome,
+    );
+    const status = JSON.parse(await command(
+      velaBinary,
+      ["status", source, "--json"],
+      parent,
+      setupHome,
+    )) as { frontier: { id: string } };
+    const packetDirectory = path.join(source, "site", "problems");
+    await mkdir(packetDirectory, { recursive: true });
+    const packetPath = path.join(packetDirectory, "canopus-smoke.json");
+    await writeFile(
+      packetPath,
+      "{\"schema\":\"canopus.fixture-work.v1\",\"target\":\"seed:canopus-smoke\"}\n",
+    );
+    const candidateDirectory = path.join(source, ".vela", "tmp");
+    await mkdir(candidateDirectory, { recursive: true });
+    const candidate = path.join(candidateDirectory, "target-index-candidate.json");
+    await writeFile(candidate, JSON.stringify({
+      schema: "vela.target-index-candidate.v1",
+      frontier_id: status.frontier.id,
+      source: {
+        git_commit: sourceCommit,
+        input_paths: ["domain/source.json"],
+      },
+      targets: [{
+        id: "seed:canopus-smoke",
+        title: "Verify one exact bounded JSON artifact",
+        why: "Exercise the released read-only offer and Canopus verifier path.",
+        state: "open",
+        rank: 1,
+        objective: "Produce one exact bounded JSON witness.",
+        labels: ["canopus", "fixture"],
+        packet: {
+          schema: "canopus.fixture-work.v1",
+          path: "site/problems/canopus-smoke.json",
+        },
+      }],
+    }, null, 2));
+    await command(
+      velaBinary,
+      [
+        "target-index", "seal", source,
+        "--candidate", candidate,
+        "--apply",
+        "--json",
+      ],
+      parent,
+      setupHome,
+    );
+    await command("git", ["add", "-A"], source, setupHome);
+    await command(
+      "git",
+      ["-c", "core.hooksPath=/dev/null", "commit", "--no-gpg-sign", "-m", "Seal Canopus target index"],
       source,
       setupHome,
     );

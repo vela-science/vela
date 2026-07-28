@@ -44,8 +44,7 @@ export type Replayability = (typeof REPLAYABILITY)[number];
 export interface MissionRoots {
   git_commit: string;
   git_tree: string;
-  vela_event_log: string;
-  vela_snapshot: string;
+  vela_repository: string;
 }
 
 export interface MissionBudgets {
@@ -97,18 +96,6 @@ export interface TargetPacketSpec {
 export interface ProducerProfileSpec {
   name: string;
   root: string;
-}
-
-export interface StrictRuleCount {
-  rule: string;
-  count: number;
-}
-
-export interface StrictBaseline {
-  status: "pass" | "fail";
-  blocker_count: number;
-  blockers_root: string;
-  rule_counts: StrictRuleCount[];
 }
 
 export interface LandingSpec {
@@ -169,7 +156,6 @@ export interface MissionV1 extends MissionBase {
   schema: typeof MISSION_V1_SCHEMA;
   target_packet: TargetPacketSpec;
   profile?: ProducerProfileSpec;
-  strict_baseline: StrictBaseline;
   worker: WorkerSpec;
   verifier: ContainerVerifierSpec;
   execution_binding?: ExecutionBindingV1;
@@ -182,15 +168,14 @@ function parseRoots(value: unknown): MissionRoots {
   const object = objectAt(value, "mission.roots");
   exactKeys(
     object,
-    ["git_commit", "git_tree", "vela_event_log", "vela_snapshot"],
+    ["git_commit", "git_tree", "vela_repository"],
     [],
     "mission.roots",
   );
   return {
     git_commit: gitObjectAt(object.git_commit, "mission.roots.git_commit"),
     git_tree: gitObjectAt(object.git_tree, "mission.roots.git_tree"),
-    vela_event_log: sha256At(object.vela_event_log, "mission.roots.vela_event_log"),
-    vela_snapshot: sha256At(object.vela_snapshot, "mission.roots.vela_snapshot"),
+    vela_repository: sha256At(object.vela_repository, "mission.roots.vela_repository"),
   };
 }
 
@@ -361,57 +346,6 @@ function parseTargetPacket(value: unknown): TargetPacketSpec {
   return {
     path: relativePathAt(object.path, "mission.target_packet.path"),
     sha256: sha256At(object.sha256, "mission.target_packet.sha256"),
-  };
-}
-
-function parseStrictBaseline(value: unknown): StrictBaseline {
-  const object = objectAt(value, "mission.strict_baseline");
-  exactKeys(
-    object,
-    ["status", "blocker_count", "blockers_root", "rule_counts"],
-    [],
-    "mission.strict_baseline",
-  );
-  const rule_counts = arrayAt(
-    object.rule_counts,
-    "mission.strict_baseline.rule_counts",
-    { min: 0, max: 64 },
-    (item, at) => {
-      const entry = objectAt(item, at);
-      exactKeys(entry, ["rule", "count"], [], at);
-      return {
-        rule: stringAt(entry.rule, `${at}.rule`, {
-          min: 1,
-          max: 128,
-          pattern: /^[a-z][a-z0-9_]*$/u,
-        }),
-        count: integerAt(entry.count, `${at}.count`, 1, 1_000_000),
-      };
-    },
-  );
-  for (let index = 1; index < rule_counts.length; index += 1) {
-    if ((rule_counts[index - 1]?.rule ?? "") >= (rule_counts[index]?.rule ?? "")) {
-      throw new ContractError("mission.strict_baseline.rule_counts must be sorted and unique");
-    }
-  }
-  const blocker_count = integerAt(
-    object.blocker_count,
-    "mission.strict_baseline.blocker_count",
-    0,
-    1_000_000,
-  );
-  if (rule_counts.reduce((sum, entry) => sum + entry.count, 0) !== blocker_count) {
-    throw new ContractError("mission.strict_baseline.rule_counts must sum to blocker_count");
-  }
-  const status = enumAt(object.status, "mission.strict_baseline.status", ["pass", "fail"] as const);
-  if ((status === "pass") !== (blocker_count === 0)) {
-    throw new ContractError("mission.strict_baseline status must agree with blocker_count");
-  }
-  return {
-    status,
-    blocker_count,
-    blockers_root: sha256At(object.blockers_root, "mission.strict_baseline.blockers_root"),
-    rule_counts,
   };
 }
 
@@ -595,7 +529,6 @@ export function parseMission(value: unknown): Mission {
           "repair_reason",
           "target_packet",
           "profile",
-          "strict_baseline",
           "worker",
           "execution_binding",
           "result_contract",
@@ -605,7 +538,7 @@ export function parseMission(value: unknown): Mission {
   );
 
   if (isV1) {
-    for (const required of ["target_packet", "strict_baseline", "worker"] as const) {
+    for (const required of ["target_packet", "worker"] as const) {
       if (object[required] === undefined) {
         throw new ContractError(`mission.${required} is required for mission v1`);
       }
@@ -720,7 +653,6 @@ export function parseMission(value: unknown): Mission {
         schema: MISSION_V1_SCHEMA,
         target_packet: targetPacket,
         ...(profile === undefined ? {} : { profile }),
-        strict_baseline: parseStrictBaseline(object.strict_baseline),
         worker: parseWorker(object.worker),
         verifier: verifier as ContainerVerifierSpec,
         ...(executionBinding === undefined ? {} : { execution_binding: executionBinding }),

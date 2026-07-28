@@ -42,19 +42,9 @@ function mission(
     roots: {
       git_commit: "b".repeat(40),
       git_tree: "c".repeat(40),
-      vela_event_log: digest,
-      vela_snapshot: digest,
+      vela_repository: digest,
     },
     target_packet: { path: "site/problems/1056.json", sha256: packetDigest },
-    strict_baseline: {
-      status: "fail",
-      blocker_count: 2,
-      blockers_root: digest,
-      rule_counts: [
-        { rule: "missing_conditions", count: 1 },
-        { rule: "unsigned_registered_actor", count: 1 },
-      ],
-    },
     allowed_paths: ["erdos1056-k15.witness.json"],
     budgets: {
       max_research_wall_time_ms: 60_000,

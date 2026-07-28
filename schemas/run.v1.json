@@ -193,12 +193,11 @@
     "roots": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["git_commit", "git_tree", "vela_event_log", "vela_snapshot"],
+      "required": ["git_commit", "git_tree", "vela_repository"],
       "properties": {
         "git_commit": { "$ref": "#/$defs/gitObject" },
         "git_tree": { "$ref": "#/$defs/gitObject" },
-        "vela_event_log": { "$ref": "#/$defs/sha256" },
-        "vela_snapshot": { "$ref": "#/$defs/sha256" }
+        "vela_repository": { "$ref": "#/$defs/sha256" }
       }
     },
     "observations": {

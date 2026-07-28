@@ -11,7 +11,7 @@ import {
 import { materializeDraftArtifacts } from "./artifact/materialize.js";
 import { BudgetTracker } from "./budget/enforce.js";
 import { finalizeCandidate } from "./candidate/finalize.js";
-import type { Mission, MissionRoots, StrictBaseline } from "./contracts/mission.js";
+import type { Mission, MissionRoots } from "./contracts/mission.js";
 import type { Engine } from "./engines/engine.js";
 import { engineManifest, verifierManifest } from "./evidence/manifests.js";
 import type { RunRecord } from "./projection/run.js";
@@ -27,7 +27,6 @@ export interface VelaPort {
     repoRoot: string,
     frontier: string,
     expected: MissionRoots,
-    strictBaseline?: StrictBaseline,
   ): Promise<VelaInspection>;
   next(mission: Mission, repoRoot: string): Promise<VelaCommandResponse>;
 }
@@ -82,10 +81,6 @@ export interface CanopusCurrentRunResult {
     clean_clone_reproduced: boolean;
   };
   paths: WorkspacePaths;
-}
-
-function strictBaseline(mission: Mission): StrictBaseline | undefined {
-  return mission.schema === "canopus.mission.v1" ? mission.strict_baseline : undefined;
 }
 
 function exactText(value: unknown, expected: string, at: string): void {
@@ -156,13 +151,11 @@ export async function runCanopus(
         paths.input,
         options.mission.frontier,
         options.mission.roots,
-        strictBaseline(options.mission),
       ),
       options.vela.assertRoots(
         paths.frontier,
         options.mission.frontier,
         options.mission.roots,
-        strictBaseline(options.mission),
       ),
     ]);
     await activity.append("roots.verified", { roots: options.mission.roots });
@@ -316,7 +309,6 @@ export async function runCanopus(
           reproductionPaths.input,
           options.mission.frontier,
           options.mission.roots,
-          strictBaseline(options.mission),
         );
         reproductionVerifier = await runVerifier({
           mission: options.mission,

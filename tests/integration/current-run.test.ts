@@ -48,8 +48,7 @@ async function sourceRepository(): Promise<{
     roots: {
       git_commit: await git(repo, "rev-parse", "HEAD^{commit}"),
       git_tree: await git(repo, "rev-parse", "HEAD^{tree}"),
-      vela_event_log: scientificRoot,
-      vela_snapshot: scientificRoot,
+      vela_repository: scientificRoot,
     },
   };
 }
@@ -63,8 +62,8 @@ class FakeVela implements VelaPort {
     return {
       version: "0.930.0",
       roots: expected,
-      check: { ok: true },
-      proof: { ok: true },
+      status: { ok: true },
+      repository: { ok: true },
     };
   }
 

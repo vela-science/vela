@@ -96,8 +96,7 @@ async function fixture(): Promise<{
       roots: {
         git_commit: "b".repeat(40),
         git_tree: "c".repeat(40),
-        vela_event_log: rootDigest,
-        vela_snapshot: rootDigest,
+        vela_repository: rootDigest,
       },
       allowed_paths: ["witness"],
       budgets: {
@@ -333,12 +332,6 @@ test("mission v1 verifier uses an exact capsule in a network/write-denied contai
     ...base,
     schema: "canopus.mission.v1",
     target_packet: { path: "packet.json", sha256: rootDigest },
-    strict_baseline: {
-      status: "pass",
-      blocker_count: 0,
-      blockers_root: sha256Bytes("[]"),
-      rule_counts: [],
-    },
     worker: {
       kind: "codex_tools_native",
       platform: "darwin",

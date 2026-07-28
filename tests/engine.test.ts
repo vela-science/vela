@@ -43,8 +43,7 @@ function mission(): Mission {
     roots: {
       git_commit: "b".repeat(40),
       git_tree: "c".repeat(40),
-      vela_event_log: digest,
-      vela_snapshot: digest,
+      vela_repository: digest,
     },
     allowed_paths: ["result.json"],
     budgets: {

@@ -2,10 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import type { Mission, MissionV1 } from "../src/contracts/mission.js";
+import type { Mission } from "../src/contracts/mission.js";
 import {
   DEFAULT_VELA_COMMAND_TIMEOUT_MS,
-  strictBaselineFromCheck,
   VelaClient,
   VelaClientError,
   type CommandRunner,
@@ -14,20 +13,28 @@ import { sha256Bytes } from "../src/util/canonical.js";
 
 const gitCommit = "b".repeat(40);
 const gitTree = "c".repeat(40);
-const root = `sha256:${"a".repeat(64)}`;
+const repositoryRoot = `sha256:${"a".repeat(64)}`;
+const epochRoot = `sha256:${"d".repeat(64)}`;
+const keysetRoot = `sha256:${"e".repeat(64)}`;
+const policyRoot = `sha256:${"f".repeat(64)}`;
 const velaBinaryDigest = sha256Bytes(readFileSync(process.execPath));
 
 test("large-frontier Vela operations retain a bounded transaction-safe timeout", () => {
   assert.equal(DEFAULT_VELA_COMMAND_TIMEOUT_MS, 600_000);
 });
 
-function result(argv: readonly string[], stdout: unknown, exitCode = 0): Awaited<ReturnType<CommandRunner>> {
+function result(
+  argv: readonly string[],
+  stdout: unknown,
+  exitCode = 0,
+  stderr = "",
+): Awaited<ReturnType<CommandRunner>> {
   return {
     argv: [...argv],
     exitCode,
     signal: null,
     stdout: Buffer.from(typeof stdout === "string" ? stdout : JSON.stringify(stdout)),
-    stderr: Buffer.alloc(0),
+    stderr: Buffer.from(stderr),
     durationMs: 1,
   };
 }
@@ -37,8 +44,8 @@ function mission(): Mission {
     schema: "canopus.mission.v0",
     id: "mission_vela_client",
     target: "target-1",
-    vela_version: "0.800.19",
-    vela_sha256: root,
+    vela_version: "0.940.2",
+    vela_sha256: repositoryRoot,
     frontier: "frontier",
     actor: "agent:canopus-test",
     role: "producer",
@@ -49,8 +56,7 @@ function mission(): Mission {
     roots: {
       git_commit: gitCommit,
       git_tree: gitTree,
-      vela_event_log: root,
-      vela_snapshot: root,
+      vela_repository: repositoryRoot,
     },
     allowed_paths: ["artifact.json"],
     budgets: {
@@ -64,7 +70,7 @@ function mission(): Mission {
     },
     verifier: {
       argv: ["frontier/verifier", "artifact.json"],
-      executable_sha256: root,
+      executable_sha256: repositoryRoot,
       cwd: "frontier",
       timeout_ms: 1000,
       max_output_bytes: 4096,
@@ -79,7 +85,58 @@ function mission(): Mission {
   };
 }
 
-function fakeRunner(options: { version?: string; checkRoot?: string; proofRoot?: string } = {}): {
+interface FakeOptions {
+  version?: string;
+  status?: Record<string, unknown>;
+  repository?: Record<string, unknown>;
+  next?: Record<string, unknown>;
+  repositoryExitCode?: number;
+  repositoryStderr?: string;
+}
+
+function validStatus(): Record<string, unknown> {
+  return {
+    schema: "vela.status.v1",
+    ok: true,
+    command: "status",
+    frontier: { id: "vfr_fixture", name: "Fixture", profile_root: repositoryRoot },
+    git: { commit: gitCommit, tree: gitTree },
+    integrity: {
+      replay: "verified",
+      strict: "pass",
+      blocker_count: 0,
+      blockers_by_code: {},
+    },
+    roots: {
+      epoch: epochRoot,
+      repository: repositoryRoot,
+      authority_keyset: keysetRoot,
+      authority_policy: policyRoot,
+    },
+    counts: {},
+    next_action: "vela repository verify . --json",
+  };
+}
+
+function validRepository(): Record<string, unknown> {
+  return {
+    schema: "vela.repository-verification.v1",
+    ok: true,
+    command: "repository verify",
+    frontier: "frontier",
+    frontier_id: "vfr_fixture",
+    git_commit: gitCommit,
+    git_tree: gitTree,
+    epoch_id: "vre_fixture",
+    epoch_root: epochRoot,
+    repository_root: repositoryRoot,
+    authority_keyset_root: keysetRoot,
+    authority_policy_root: policyRoot,
+    counts: {},
+  };
+}
+
+function fakeRunner(options: FakeOptions = {}): {
   runner: CommandRunner;
   calls: string[][];
   environments: NodeJS.ProcessEnv[];
@@ -94,113 +151,55 @@ function fakeRunner(options: { version?: string; checkRoot?: string; proofRoot?:
       return result(argv, `${argv.at(-1) === "HEAD^{tree}" ? gitTree : gitCommit}\n`);
     }
     if (argv[1] === "--version") {
-      return result(argv, `vela ${options.version ?? "0.800.19"}\n`);
+      return result(argv, `vela ${options.version ?? "0.940.2"}\n`);
     }
-    if (argv[1] === "check") {
-      return result(argv, {
-        ok: true,
-        summary: { strict: true, status: "pass", errors: 0, invalid_findings: 0 },
-        checks: [
-          { id: "schema", status: "pass" },
-          { id: "signals", status: "pass", failed: 0, blockers: [] },
-          { id: "events", status: "pass" },
-          { id: "state_integrity", status: "pass" },
-          { id: "active_policy", status: "pass" },
-          { id: "policy_readiness", status: "pass" },
-          { id: "policy_lane", status: "pass" },
-        ],
-        replay: {
-          event_log_hash: root.slice(7),
-          current_hash: (options.checkRoot ?? root).slice(7),
-          replayed_hash: (options.checkRoot ?? root).slice(7),
-          source_hash: (options.checkRoot ?? root).slice(7),
-        },
-      });
+    if (argv[1] === "status") {
+      return result(argv, options.status ?? validStatus());
     }
-    if (argv[1] === "proof") {
-      const proofRoot = options.proofRoot ?? root;
-      return result(argv, {
-        ok: true,
-        event_log_hash: root,
-        snapshot_hash: proofRoot,
-        proof: { event_log_hash: root, frontier_hash: proofRoot },
-      });
+    if (argv[1] === "repository") {
+      return result(
+        argv,
+        options.repository ?? validRepository(),
+        options.repositoryExitCode ?? 0,
+        options.repositoryStderr,
+      );
     }
     if (argv[1] === "next") {
-      return result(argv, { ok: true, command: argv[1] });
+      return result(argv, options.next ?? {
+        schema: "vela.offer.v1",
+        ok: true,
+        command: "next",
+        frontier_id: "vfr_fixture",
+        epoch_id: "vre_fixture",
+        repository_root: repositoryRoot,
+        target_index_root: `sha256:${"1".repeat(64)}`,
+        availability: { configured: 1, stale: 0, available: 1, leased: 0, returned: 1 },
+        targets: [{ target_id: "target-1", rank: 1 }],
+      });
     }
     throw new Error(`unexpected command: ${argv.join(" ")}`);
   };
   return { runner, calls, environments };
 }
 
-function debtCheck(blockers: Array<Record<string, unknown>>): Record<string, unknown> {
-  const status = blockers.length === 0 ? "pass" : "fail";
-  return {
-    ok: blockers.length === 0,
-    summary: { strict: true, status, errors: 0, invalid_findings: 0 },
-    checks: [
-      { id: "schema", status: "pass" },
-      { id: "signals", status, failed: blockers.length, blockers },
-      { id: "events", status: "pass" },
-      { id: "state_integrity", status: "pass" },
-      { id: "active_policy", status: "pass" },
-      { id: "policy_readiness", status: "pass" },
-      { id: "policy_lane", status: "pass" },
-    ],
-    replay: {
-      event_log_hash: root.slice(7),
-      current_hash: root.slice(7),
-      replayed_hash: root.slice(7),
-      source_hash: root.slice(7),
-    },
-  };
-}
-
-function debtMission(check: Record<string, unknown>): MissionV1 {
-  const base = mission();
-  return {
-    ...base,
-    schema: "canopus.mission.v1",
-    target_packet: { path: "packet.json", sha256: root },
-    strict_baseline: strictBaselineFromCheck(check),
-    worker: {
-      kind: "codex_tools_native",
-      platform: "darwin",
-      codex_version: "codex-cli 0.144.5",
-      codex_sha256: root,
-      permission_profile_path: "contract/native-worker.config.toml",
-      permission_profile_sha256: root,
-      workspace: "target_packet_only",
-      output_schema_sha256: root,
-      model: "gpt-5.2-codex",
-      network: "provider_only",
-      tools: ["shell", "apply_patch"],
-    },
-    verifier: {
-      ...base.verifier,
-      capsule_path: "capsule",
-      capsule_sha256: root,
-      image: root,
-    },
-  };
-}
-
-function client(runner: CommandRunner): VelaClient {
+function client(runner: CommandRunner, version = "0.940.2"): VelaClient {
   return new VelaClient({
     binary: process.execPath,
-    expectedVersion: "0.800.19",
+    expectedVersion: version,
     expectedSha256: velaBinaryDigest,
     home: "/tmp/canopus-home",
     runner,
   });
 }
 
-test("Vela client proves Git, replay, and proof roots", async () => {
+test("Vela client binds Git to one strict-passing current repository root", async () => {
   const fake = fakeRunner();
   const inspection = await client(fake.runner).assertRoots("/repo", "frontier", mission().roots);
   assert.deepEqual(inspection.roots, mission().roots);
+  assert.equal(inspection.status.schema, "vela.status.v1");
+  assert.equal(inspection.repository.schema, "vela.repository-verification.v1");
   assert.equal(fake.calls.some((argv) => argv.includes("sign")), false);
+  assert.equal(fake.calls.some((argv) => argv[1] === "check" || argv[1] === "proof"), false);
   assert.equal(fake.environments.some((env) => env.VELA_AGENT_KEY_HEX !== undefined), false);
   assert.equal(fake.environments.every((env) => env.VELA_NO_KEY_ACCESS === "1"), true);
 });
@@ -209,7 +208,7 @@ test("Vela client forwards only the repository-authority agent socket", async ()
   const fake = fakeRunner();
   const vela = new VelaClient({
     binary: process.execPath,
-    expectedVersion: "0.800.19",
+    expectedVersion: "0.940.2",
     expectedSha256: velaBinaryDigest,
     home: "/tmp/canopus-home",
     repositoryAuthorityAgentSocket: "/private/tmp/ssh-agent.sock",
@@ -231,7 +230,7 @@ test("Vela client rejects a relative repository-authority agent socket", () => {
     () =>
       new VelaClient({
         binary: process.execPath,
-        expectedVersion: "0.800.19",
+        expectedVersion: "0.940.2",
         expectedSha256: velaBinaryDigest,
         home: "/tmp/canopus-home",
         repositoryAuthorityAgentSocket: "agent.sock",
@@ -241,193 +240,105 @@ test("Vela client rejects a relative repository-authority agent socket", () => {
   );
 });
 
-test("Vela 0.915 uses strict replay roots for a minimal frontier without proof/latest", async () => {
-  const fake = fakeRunner({ version: "0.915.1" });
-  const vela = new VelaClient({
-    binary: process.execPath,
-    expectedVersion: "0.915.1",
-    expectedSha256: velaBinaryDigest,
-    home: "/tmp/canopus-home",
-    runner: fake.runner,
-  });
-  const inspection = await vela.assertRoots("/repo", "frontier", mission().roots);
-  assert.deepEqual(inspection.roots, mission().roots);
-  assert.equal(inspection.proof.command, "status_root_projection");
-  assert.equal(fake.calls.some((argv) => argv[1] === "proof"), false);
+test("Vela client rejects replay or strict debt instead of registering a baseline", async () => {
+  for (const integrity of [
+    { replay: "failed", strict: "pass", blocker_count: 0, blockers_by_code: {} },
+    {
+      replay: "verified",
+      strict: "fail",
+      blocker_count: 1,
+      blockers_by_code: { unsigned_record: 1 },
+    },
+  ]) {
+    const status = validStatus();
+    status.integrity = integrity;
+    await assert.rejects(
+      client(fakeRunner({ status }).runner).inspect("/repo", "frontier"),
+      (error: unknown) =>
+        error instanceof VelaClientError &&
+        error.code === "command_failed" &&
+        /must replay and pass strict verification/u.test(error.message),
+    );
+  }
 });
 
-test("Vela 0.930 prereleases use compact roots without requiring a retired proof bundle", async () => {
-  const fake = fakeRunner({ version: "0.930.0-rc.12" });
-  const vela = new VelaClient({
-    binary: process.execPath,
-    expectedVersion: "0.930.0-rc.12",
-    expectedSha256: velaBinaryDigest,
-    home: "/tmp/canopus-home",
-    runner: fake.runner,
-  });
-  const inspection = await vela.assertRoots("/repo", "frontier", mission().roots);
-  assert.deepEqual(inspection.roots, mission().roots);
-  assert.equal(inspection.proof.command, "status_root_projection");
-  assert.equal(fake.calls.some((argv) => argv[1] === "proof"), false);
-});
-
-test("Vela client serializes strict check before proof verification", async () => {
-  const fake = fakeRunner();
-  let checkFinished = false;
-  const runner: CommandRunner = async (options) => {
-    if (options.argv[1] === "check") {
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      const observed = await fake.runner(options);
-      checkFinished = true;
-      return observed;
-    }
-    if (options.argv[1] === "proof" && !checkFinished) {
-      return result(options.argv, { error: "proof raced strict check" }, 1);
-    }
-    return await fake.runner(options);
-  };
-  const inspection = await client(runner).inspect("/repo", "frontier");
-  assert.deepEqual(inspection.roots, mission().roots);
-});
-
-test("Vela client accepts only an exact registered strict blocker set", async () => {
-  const blockers = [
-    { id: "sig_b", kind: "missing_conditions", reason: "b", severity: "warning" },
-    { id: "sig_a", kind: "missing_conditions", reason: "a", severity: "warning" },
-    { id: "sig_c", kind: "unsigned_registered_actor", reason: "c", severity: "error" },
-  ];
-  const check = debtCheck(blockers);
-  const activeMission = debtMission(check);
-  const fake = fakeRunner();
-  const runner: CommandRunner = async (options) => {
-    if (options.argv[1] === "check") return result(options.argv, check, 1);
-    return await fake.runner(options);
-  };
-  const inspection = await client(runner).assertRoots(
-    "/repo",
-    "frontier",
-    activeMission.roots,
-    activeMission.strict_baseline,
-  );
-  assert.equal(inspection.check.ok, false);
-  assert.deepEqual(activeMission.strict_baseline.rule_counts, [
-    { rule: "missing_conditions", count: 2 },
-    { rule: "unsigned_registered_actor", count: 1 },
-  ]);
-
-  const drifted = debtCheck([...blockers, {
-    id: "sig_d",
-    kind: "missing_conditions",
-    reason: "new debt",
-    severity: "warning",
-  }]);
-  const driftRunner: CommandRunner = async (options) => {
-    if (options.argv[1] === "check") return result(options.argv, drifted, 1);
-    return await fake.runner(options);
-  };
+test("Vela client rejects status and verification root drift", async () => {
+  const repository = validRepository();
+  repository.repository_root = `sha256:${"2".repeat(64)}`;
   await assert.rejects(
-    client(driftRunner).assertRoots(
-      "/repo",
-      "frontier",
-      activeMission.roots,
-      activeMission.strict_baseline,
-    ),
+    client(fakeRunner({ repository }).runner).inspect("/repo", "frontier"),
+    (error: unknown) => error instanceof VelaClientError && error.code === "root_mismatch",
+  );
+
+  const status = validStatus();
+  (status.git as Record<string, unknown>).tree = "9".repeat(40);
+  await assert.rejects(
+    client(fakeRunner({ status }).runner).inspect("/repo", "frontier"),
     (error: unknown) => error instanceof VelaClientError && error.code === "root_mismatch",
   );
 });
 
-test("Vela client rejects non-signal failures despite a registered debt baseline", async () => {
-  const check = debtCheck([
-    { id: "sig_a", kind: "missing_conditions", reason: "a", severity: "warning" },
-  ]);
-  const activeMission = debtMission(check);
-  const checks = check.checks as Array<Record<string, unknown>>;
-  const events = checks.find((entry) => entry.id === "events");
-  assert.ok(events);
-  events.status = "fail";
-  const fake = fakeRunner();
-  const runner: CommandRunner = async (options) => {
-    if (options.argv[1] === "check") return result(options.argv, check, 1);
-    return await fake.runner(options);
-  };
+test("Vela client rejects malformed current contract identities", async () => {
+  const status = validStatus();
+  status.schema = "vela.status.v2";
   await assert.rejects(
-    client(runner).assertRoots(
-      "/repo",
-      "frontier",
-      activeMission.roots,
-      activeMission.strict_baseline,
-    ),
-    /failed outside the registered signals baseline/u,
+    client(fakeRunner({ status }).runner).inspect("/repo", "frontier"),
+    /status contract identity is invalid/u,
+  );
+
+  const repository = validRepository();
+  repository.schema = "vela.repository-verification.v0";
+  await assert.rejects(
+    client(fakeRunner({ repository }).runner).inspect("/repo", "frontier"),
+    /verification contract identity is invalid/u,
   );
 });
 
-test("Vela client reports bounded structured errors and only digests raw streams", async () => {
+test("Vela client requires the exact registered binary version", async () => {
+  const fake = fakeRunner({ version: "0.940.0" });
+  await assert.rejects(
+    client(fake.runner).inspect("/repo", "frontier"),
+    (error: unknown) => error instanceof VelaClientError && error.code === "version_mismatch",
+  );
+});
+
+test("Vela offer remains bound to the inspected repository root", async () => {
   const fake = fakeRunner();
-  const runner: CommandRunner = async (options) => {
-    if (options.argv[1] === "proof") {
-      return {
-        ...result(
-          options.argv,
-          {
-            state_integrity: {
-              structural_errors: [
-                { message: "proof conflict with sk-never-display-123456789" },
-              ],
-            },
-          },
-          1,
-        ),
-        stderr: Buffer.from("Bearer never-display-this"),
-      };
-    }
-    return await fake.runner(options);
+  const response = await client(fake.runner).next(mission(), "/repo");
+  assert.equal(response.value.schema, "vela.offer.v1");
+
+  const next = {
+    schema: "vela.offer.v1",
+    ok: true,
+    command: "next",
+    repository_root: `sha256:${"2".repeat(64)}`,
+    targets: [],
   };
   await assert.rejects(
-    client(runner).inspect("/repo", "frontier"),
+    client(fakeRunner({ next }).runner).next(mission(), "/repo"),
+    (error: unknown) => error instanceof VelaClientError && error.code === "root_mismatch",
+  );
+});
+
+test("Vela client reports bounded structured command errors and hashes raw streams", async () => {
+  const fake = fakeRunner({
+    repositoryExitCode: 2,
+    repository: {
+      error: {
+        message: "repository conflict with sk-never-display-123456789",
+      },
+    },
+    repositoryStderr: "Bearer never-display-this",
+  });
+  await assert.rejects(
+    client(fake.runner).inspect("/repo", "frontier"),
     (error: unknown) => {
       assert.ok(error instanceof VelaClientError);
-      assert.match(error.message, /proof conflict with \[secret-redacted\]/u);
+      assert.match(error.message, /repository conflict with \[secret-redacted\]/u);
       assert.match(error.message, /stdout_sha256=sha256:/u);
       assert.match(error.message, /stderr_sha256=sha256:/u);
-      assert.doesNotMatch(error.message, /never-display-this/u);
+      assert.doesNotMatch(error.message, /never-display/u);
       return true;
     },
   );
-});
-
-test("Vela client rejects the wrong released binary version", async () => {
-  const fake = fakeRunner({ version: "0.800.13" });
-  await assert.rejects(
-    client(fake.runner).inspect("/repo", "frontier"),
-    (error: unknown) => error instanceof VelaClientError && error.code === "version_mismatch",
-  );
-});
-
-test("Vela client rejects a version-spoofing binary digest", async () => {
-  const fake = fakeRunner();
-  const spoofed = new VelaClient({
-    binary: process.execPath,
-    expectedVersion: "0.800.19",
-    expectedSha256: root,
-    home: "/tmp/canopus-home",
-    runner: fake.runner,
-  });
-  await assert.rejects(
-    spoofed.inspect("/repo", "frontier"),
-    (error: unknown) => error instanceof VelaClientError && error.code === "version_mismatch",
-  );
-  assert.equal(fake.calls.length, 0);
-});
-
-test("Vela client rejects check/proof root disagreement", async () => {
-  const fake = fakeRunner({ proofRoot: `sha256:${"d".repeat(64)}` });
-  await assert.rejects(
-    client(fake.runner).inspect("/repo", "frontier"),
-    (error: unknown) => error instanceof VelaClientError && error.code === "root_mismatch",
-  );
-});
-
-test("Vela client exposes no signer command", () => {
-  assert.equal("sign" in VelaClient.prototype, false);
-  assert.equal("accept" in VelaClient.prototype, false);
 });

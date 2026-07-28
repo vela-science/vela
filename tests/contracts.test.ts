@@ -26,8 +26,7 @@ function mission(): Record<string, unknown> {
     roots: {
       git_commit: "b".repeat(40),
       git_tree: "c".repeat(40),
-      vela_event_log: digest,
-      vela_snapshot: digest,
+      vela_repository: digest,
     },
     allowed_paths: ["proof/Main.lean", "artifacts/witness.json"],
     budgets: {
@@ -106,15 +105,6 @@ function missionV1(): Record<string, unknown> {
     ...mission(),
     schema: "canopus.mission.v1",
     target_packet: { path: "packets/target.json", sha256: digest },
-    strict_baseline: {
-      status: "fail",
-      blocker_count: 3,
-      blockers_root: digest,
-      rule_counts: [
-        { rule: "missing_conditions", count: 2 },
-        { rule: "unsigned_registered_actor", count: 1 },
-      ],
-    },
     worker: {
       kind: "codex_tools_native",
       platform: "darwin",
@@ -192,11 +182,7 @@ test("mission v1 optionally binds the exact producer profile for old-record repl
   assert.deepEqual(parseMission(current), current);
 });
 
-test("mission v1 rejects unregistered strict debt and unbound Permit", () => {
-  const debt = missionV1();
-  (debt.strict_baseline as { blocker_count: number }).blocker_count = 4;
-  assert.throws(() => parseMission(debt), /must sum to blocker_count/u);
-
+test("mission v1 rejects unbound Permit", () => {
   const permit = missionV1();
   permit.landing = { expected_routes: ["permit"], max_accepted_delta: 1 };
   assert.throws(() => parseMission(permit), /Permit requires an exact execution binding/u);
@@ -243,8 +229,8 @@ test("mission rejects unknown fields", () => {
 
 test("mission rejects short roots", () => {
   const input = mission();
-  input.roots = { ...(input.roots as object), vela_snapshot: "sha256:abcd" };
-  assert.throws(() => parseMission(input), /vela_snapshot has an invalid format/u);
+  input.roots = { ...(input.roots as object), vela_repository: "sha256:abcd" };
+  assert.throws(() => parseMission(input), /vela_repository has an invalid format/u);
 });
 
 test("mission rejects path escape and a shell-bearing verifier executable", () => {

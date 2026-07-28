@@ -47,16 +47,9 @@ function mission(): MissionV1 {
     roots: {
       git_commit: "b".repeat(40),
       git_tree: "c".repeat(40),
-      vela_event_log: digest,
-      vela_snapshot: digest,
+      vela_repository: digest,
     },
     target_packet: { path: "packet.json", sha256: digest },
-    strict_baseline: {
-      status: "fail",
-      blocker_count: 1,
-      blockers_root: digest,
-      rule_counts: [{ rule: "missing_conditions", count: 1 }],
-    },
     allowed_paths: ["result.json"],
     budgets: {
       max_research_wall_time_ms: 10_000,

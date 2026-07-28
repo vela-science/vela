@@ -108,12 +108,11 @@ function literal<const T extends string | boolean>(value: unknown, expected: T, 
 
 function rootsAt(value: unknown, at: string): MissionRoots {
   const object = objectAt(value, at);
-  exactKeys(object, ["git_commit", "git_tree", "vela_event_log", "vela_snapshot"], [], at);
+  exactKeys(object, ["git_commit", "git_tree", "vela_repository"], [], at);
   return {
     git_commit: gitObjectAt(object.git_commit, `${at}.git_commit`),
     git_tree: gitObjectAt(object.git_tree, `${at}.git_tree`),
-    vela_event_log: sha256At(object.vela_event_log, `${at}.vela_event_log`),
-    vela_snapshot: sha256At(object.vela_snapshot, `${at}.vela_snapshot`),
+    vela_repository: sha256At(object.vela_repository, `${at}.vela_repository`),
   };
 }
 

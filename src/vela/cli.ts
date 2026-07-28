@@ -3,7 +3,6 @@ import path from "node:path";
 import type {
   Mission,
   MissionRoots,
-  StrictBaseline,
 } from "../contracts/mission.js";
 import {
   GIT_OBJECT_RE,
@@ -19,7 +18,7 @@ import {
   type CommandResult,
   type CommandRunner,
 } from "../util/command.js";
-import { canonicalJcs, sha256Bytes } from "../util/canonical.js";
+import { sha256Bytes } from "../util/canonical.js";
 import { MAX_EXECUTABLE_BYTES, sha256RegularFile } from "../util/files.js";
 import type { VelaCommandResponse, VelaInspection } from "./types.js";
 
@@ -78,13 +77,6 @@ function parseJsonObject(stdout: Buffer, command: string): Record<string, unknow
   }
 }
 
-function usesCompactStatusProjection(version: string): boolean {
-  const match = /^0\.(\d+)\.(\d+)(?:-[0-9A-Za-z.-]+)?$/u.exec(version);
-  if (match === null) return false;
-  const minor = Number(match[1]);
-  return Number.isSafeInteger(minor) && minor >= 900 && minor <= 930;
-}
-
 function safeFailureMessage(value: unknown): string | undefined {
   if (typeof value !== "string" || value.length === 0) return undefined;
   const normalized = value
@@ -133,21 +125,6 @@ function commandFailureSummary(result: CommandResult): string {
   ].join("; ");
 }
 
-function bool(value: unknown, at: string): boolean {
-  if (typeof value !== "boolean") {
-    throw new VelaClientError("malformed_output", `${at} must be a boolean`);
-  }
-  return value;
-}
-
-function nullableCount(value: unknown, at: string): number | null {
-  if (value === null) return null;
-  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
-    throw new VelaClientError("malformed_output", `${at} must be a nonnegative integer or null`);
-  }
-  return value;
-}
-
 function normalizeSha256(value: unknown, at: string): string {
   if (typeof value !== "string") {
     throw new VelaClientError("malformed_output", `${at} must be a SHA-256 string`);
@@ -183,8 +160,7 @@ function assertEqual(actual: string, expected: string, label: string): void {
 function compareRoots(actual: MissionRoots, expected: MissionRoots): void {
   assertEqual(actual.git_commit, expected.git_commit, "Git commit");
   assertEqual(actual.git_tree, expected.git_tree, "Git tree");
-  assertEqual(actual.vela_event_log, expected.vela_event_log, "Vela event log");
-  assertEqual(actual.vela_snapshot, expected.vela_snapshot, "Vela snapshot");
+  assertEqual(actual.vela_repository, expected.vela_repository, "Vela repository");
 }
 
 function nonnegativeInteger(value: unknown, at: string): number {
@@ -192,115 +168,6 @@ function nonnegativeInteger(value: unknown, at: string): number {
     throw new VelaClientError("malformed_output", `${at} must be a nonnegative integer`);
   }
   return value;
-}
-
-function strictSignalCheck(check: Record<string, unknown>): Record<string, unknown> {
-  if (!Array.isArray(check.checks)) {
-    throw new VelaClientError("malformed_output", "vela check.checks must be an array");
-  }
-  let signalCheck: Record<string, unknown> | undefined;
-  for (const [index, value] of check.checks.entries()) {
-    const entry = fieldObject({ entry: value }, "entry", `vela check.checks[${index}]`);
-    const id = stringAt(entry.id, `vela check.checks[${index}].id`, { min: 1, max: 128 });
-    const status = stringAt(entry.status, `vela check.checks[${index}].status`, {
-      min: 1,
-      max: 32,
-    });
-    if (id === "signals") {
-      if (signalCheck !== undefined) {
-        throw new VelaClientError("malformed_output", "vela check contains duplicate signals checks");
-      }
-      signalCheck = entry;
-    } else if (status !== "pass") {
-      throw new VelaClientError(
-        "command_failed",
-        `vela strict check failed outside the registered signals baseline: ${id}=${status}`,
-      );
-    }
-  }
-  if (signalCheck === undefined) {
-    throw new VelaClientError("malformed_output", "vela check omitted the signals check");
-  }
-  return signalCheck;
-}
-
-export function strictBaselineFromCheck(check: Record<string, unknown>): StrictBaseline {
-  const summary = fieldObject(check, "summary", "vela check");
-  if (summary.strict !== true) {
-    throw new VelaClientError("malformed_output", "vela check summary is not strict");
-  }
-  if (
-    nonnegativeInteger(summary.errors, "vela check.summary.errors") !== 0 ||
-    nonnegativeInteger(summary.invalid_findings, "vela check.summary.invalid_findings") !== 0
-  ) {
-    throw new VelaClientError(
-      "command_failed",
-      "vela strict check contains structural errors or invalid findings",
-    );
-  }
-  const signalCheck = strictSignalCheck(check);
-  if (!Array.isArray(signalCheck.blockers)) {
-    throw new VelaClientError("malformed_output", "vela check signals.blockers must be an array");
-  }
-  const blockers = signalCheck.blockers.map((value, index) =>
-    fieldObject({ blocker: value }, "blocker", `vela check signals.blockers[${index}]`));
-  const blocker_count = nonnegativeInteger(
-    signalCheck.failed,
-    "vela check signals.failed",
-  );
-  if (blockers.length !== blocker_count) {
-    throw new VelaClientError(
-      "malformed_output",
-      "vela check signals blocker array and failed count disagree",
-    );
-  }
-  const counts = new Map<string, number>();
-  for (const [index, blocker] of blockers.entries()) {
-    const kind = stringAt(blocker.kind, `vela check signals.blockers[${index}].kind`, {
-      min: 1,
-      max: 128,
-      pattern: /^[a-z][a-z0-9_]*$/u,
-    });
-    counts.set(kind, (counts.get(kind) ?? 0) + 1);
-  }
-  const canonicalBlockers = blockers
-    .map((blocker) => canonicalJcs(blocker))
-    .sort()
-    .map((serialized) => JSON.parse(serialized) as unknown);
-  const status = blocker_count === 0 ? "pass" : "fail";
-  const signalStatus = stringAt(signalCheck.status, "vela check signals.status", {
-    min: 1,
-    max: 32,
-  });
-  if (signalStatus !== status || summary.status !== status || bool(check.ok, "vela check.ok") !== (status === "pass")) {
-    throw new VelaClientError("malformed_output", "vela strict status fields disagree");
-  }
-  return {
-    status,
-    blocker_count,
-    blockers_root: sha256Bytes(canonicalJcs(canonicalBlockers)),
-    rule_counts: [...counts.entries()]
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([rule, count]) => ({ rule, count })),
-  };
-}
-
-function assertStrictBaseline(actual: StrictBaseline, expected?: StrictBaseline): void {
-  if (expected === undefined) {
-    if (actual.status !== "pass") {
-      throw new VelaClientError(
-        "command_failed",
-        `vela strict check has ${actual.blocker_count} unregistered blockers`,
-      );
-    }
-    return;
-  }
-  if (canonicalJcs(actual) !== canonicalJcs(expected)) {
-    throw new VelaClientError(
-      "root_mismatch",
-      `strict baseline mismatch: expected ${canonicalJcs(expected)}, observed ${canonicalJcs(actual)}`,
-    );
-  }
 }
 
 export class VelaClient {
@@ -367,61 +234,6 @@ export class VelaClient {
     return parseJsonObject(result.stdout, label);
   }
 
-  async #strictCheck(
-    frontier: string,
-    cwd: string,
-    baseline?: StrictBaseline,
-  ): Promise<Record<string, unknown>> {
-    const argv = [this.#binary, "check", frontier, "--strict", "--json"];
-    const result = await this.#runner({
-      argv,
-      cwd,
-      env: this.#env,
-      timeoutMs: this.#timeoutMs,
-      maxOutputBytes: this.#maxOutputBytes,
-    });
-    if (result.exitCode !== 0 && result.exitCode !== 1) {
-      throw new VelaClientError(
-        "command_failed",
-        `${argv[0]} ${argv.slice(1).join(" ")} exited ${result.exitCode}: ${commandFailureSummary(result)}`,
-      );
-    }
-    const check = parseJsonObject(result.stdout, "vela check");
-    const actual = strictBaselineFromCheck(check);
-    if ((result.exitCode === 0) !== (actual.status === "pass")) {
-      throw new VelaClientError("malformed_output", "vela strict exit code and status disagree");
-    }
-    assertStrictBaseline(actual, baseline);
-    return check;
-  }
-
-  public async observeStrictBaseline(
-    repoRoot: string,
-    frontier: string,
-  ): Promise<StrictBaseline> {
-    const safeFrontier = frontierPath(frontier);
-    const argv = [this.#binary, "check", safeFrontier, "--strict", "--json"];
-    const result = await this.#runner({
-      argv,
-      cwd: repoRoot,
-      env: this.#env,
-      timeoutMs: this.#timeoutMs,
-      maxOutputBytes: this.#maxOutputBytes,
-    });
-    if (result.exitCode !== 0 && result.exitCode !== 1) {
-      throw new VelaClientError(
-        "command_failed",
-        `${argv[0]} ${argv.slice(1).join(" ")} exited ${result.exitCode}: ${commandFailureSummary(result)}`,
-      );
-    }
-    const check = parseJsonObject(result.stdout, "vela check");
-    const baseline = strictBaselineFromCheck(check);
-    if ((result.exitCode === 0) !== (baseline.status === "pass")) {
-      throw new VelaClientError("malformed_output", "vela strict exit code and status disagree");
-    }
-    return baseline;
-  }
-
   public async assertVersion(cwd: string): Promise<string> {
     const binaryDigest = await sha256RegularFile(this.#binary, MAX_EXECUTABLE_BYTES);
     if (binaryDigest !== this.#expectedSha256) {
@@ -460,87 +272,128 @@ export class VelaClient {
   public async inspect(
     repoRoot: string,
     frontier: string,
-    strictBaseline?: StrictBaseline,
   ): Promise<VelaInspection> {
     const safeFrontier = frontierPath(frontier);
     const version = await this.assertVersion(repoRoot);
-    const [gitCommit, gitTree, check] = await Promise.all([
+    const [gitCommit, gitTree, status, repository] = await Promise.all([
       this.#gitObject(repoRoot, "HEAD^{commit}"),
       this.#gitObject(repoRoot, "HEAD^{tree}"),
-      this.#strictCheck(safeFrontier, repoRoot, strictBaseline),
+      this.#json(["status", safeFrontier, "--json"], repoRoot, "vela status"),
+      this.#json(
+        ["repository", "verify", safeFrontier, "--json"],
+        repoRoot,
+        "vela repository verify",
+      ),
     ]);
-    // Vela 0.9 makes the compact status projection the ordinary root reader.
-    // Historical binaries retain proof verification for exact Mission v0/v1
-    // replay, but a minimal 0.9 frontier intentionally has no proof bundle.
-    const replay =
-      typeof check.replay === "object" && check.replay !== null
-        ? fieldObject(check, "replay", "vela check")
-        : fieldObject(fieldObject(check, "state_integrity", "vela check"), "replay", "vela check.state_integrity");
-    const checkEvent = normalizeSha256(replay.event_log_hash, "vela check.replay.event_log_hash");
-    const checkCurrent = normalizeSha256(replay.current_hash, "vela check.replay.current_hash");
-    if (replay.replayed_hash !== undefined) {
-      assertEqual(
-        normalizeSha256(replay.replayed_hash, "vela check.replay.replayed_hash"),
-        checkCurrent,
-        "Vela replayed snapshot",
+    if (
+      status.schema !== "vela.status.v1" ||
+      status.ok !== true ||
+      status.command !== "status"
+    ) {
+      throw new VelaClientError("malformed_output", "vela status contract identity is invalid");
+    }
+    if (
+      repository.schema !== "vela.repository-verification.v1" ||
+      repository.ok !== true ||
+      repository.command !== "repository verify"
+    ) {
+      throw new VelaClientError(
+        "malformed_output",
+        "vela repository verification contract identity is invalid",
       );
     }
-    if (replay.source_hash !== undefined) {
-      assertEqual(
-        normalizeSha256(replay.source_hash, "vela check.replay.source_hash"),
-        checkCurrent,
-        "Vela source snapshot",
+    const statusGit = fieldObject(status, "git", "vela status");
+    const integrity = fieldObject(status, "integrity", "vela status");
+    const statusRoots = fieldObject(status, "roots", "vela status");
+    if (
+      integrity.replay !== "verified" ||
+      integrity.strict !== "pass" ||
+      nonnegativeInteger(integrity.blocker_count, "vela status.integrity.blocker_count") !== 0
+    ) {
+      throw new VelaClientError(
+        "command_failed",
+        "Vela repository must replay and pass strict verification before Canopus can run",
       );
     }
-
-    const proof = usesCompactStatusProjection(version)
-      ? {
-          ok: true,
-          command: "status_root_projection",
-          event_log_hash: checkEvent,
-          snapshot_hash: checkCurrent,
-        }
-      : await this.#json(["proof", "verify", safeFrontier, "--json"], repoRoot, "vela proof verify");
-
-    if (!bool(proof.ok, "vela root projection.ok")) {
-      throw new VelaClientError("command_failed", "vela root projection returned ok=false");
+    const blockers = fieldObject(integrity, "blockers_by_code", "vela status.integrity");
+    if (Object.keys(blockers).length !== 0) {
+      throw new VelaClientError(
+        "malformed_output",
+        "vela status strict pass contains blocker classifications",
+      );
     }
-
-    const proofEvent = normalizeSha256(
-      proof.event_log_hash,
-      "vela root projection.event_log_hash",
+    const statusCommit = stringAt(statusGit.commit, "vela status.git.commit", {
+      min: 40,
+      max: 64,
+      pattern: GIT_OBJECT_RE,
+    });
+    const statusTree = stringAt(statusGit.tree, "vela status.git.tree", {
+      min: 40,
+      max: 64,
+      pattern: GIT_OBJECT_RE,
+    });
+    assertEqual(statusCommit, gitCommit, "Git/status commit");
+    assertEqual(statusTree, gitTree, "Git/status tree");
+    assertEqual(
+      stringAt(repository.git_commit, "vela repository verify.git_commit", {
+        min: 40,
+        max: 64,
+        pattern: GIT_OBJECT_RE,
+      }),
+      gitCommit,
+      "Git/repository commit",
     );
-    const proofSnapshot = normalizeSha256(
-      proof.snapshot_hash,
-      "vela root projection.snapshot_hash",
+    assertEqual(
+      stringAt(repository.git_tree, "vela repository verify.git_tree", {
+        min: 40,
+        max: 64,
+        pattern: GIT_OBJECT_RE,
+      }),
+      gitTree,
+      "Git/repository tree",
     );
-    assertEqual(proofEvent, checkEvent, "check/proof event log");
-    assertEqual(proofSnapshot, checkCurrent, "check/proof snapshot");
-
-    if (proof.proof !== undefined) {
-      const proofBody = fieldObject(proof, "proof", "vela proof verify");
+    const repositoryRoot = normalizeSha256(
+      repository.repository_root,
+      "vela repository verify.repository_root",
+    );
+    assertEqual(
+      normalizeSha256(statusRoots.repository, "vela status.roots.repository"),
+      repositoryRoot,
+      "status/repository root",
+    );
+    for (const [statusKey, repositoryKey, label] of [
+      ["epoch", "epoch_root", "epoch"],
+      ["authority_keyset", "authority_keyset_root", "authority keyset"],
+      ["authority_policy", "authority_policy_root", "authority policy"],
+    ] as const) {
       assertEqual(
-        normalizeSha256(proofBody.event_log_hash, "vela proof verify.proof.event_log_hash"),
-        checkEvent,
-        "proof body event log",
-      );
-      assertEqual(
-        normalizeSha256(proofBody.frontier_hash, "vela proof verify.proof.frontier_hash"),
-        checkCurrent,
-        "proof body snapshot",
+        normalizeSha256(statusRoots[statusKey], `vela status.roots.${statusKey}`),
+        normalizeSha256(
+          repository[repositoryKey],
+          `vela repository verify.${repositoryKey}`,
+        ),
+        `status/repository ${label}`,
       );
     }
+    const statusFrontier = fieldObject(status, "frontier", "vela status");
+    assertEqual(
+      stringAt(statusFrontier.id, "vela status.frontier.id", { min: 1, max: 64 }),
+      stringAt(repository.frontier_id, "vela repository verify.frontier_id", {
+        min: 1,
+        max: 64,
+      }),
+      "status/repository frontier",
+    );
 
     return {
       version,
       roots: {
         git_commit: gitCommit,
         git_tree: gitTree,
-        vela_event_log: checkEvent,
-        vela_snapshot: checkCurrent,
+        vela_repository: repositoryRoot,
       },
-      check,
-      proof,
+      status,
+      repository,
     };
   }
 
@@ -548,9 +401,8 @@ export class VelaClient {
     repoRoot: string,
     frontier: string,
     expected: MissionRoots,
-    strictBaseline?: StrictBaseline,
   ): Promise<VelaInspection> {
-    const inspection = await this.inspect(repoRoot, frontier, strictBaseline);
+    const inspection = await this.inspect(repoRoot, frontier);
     compareRoots(inspection.roots, expected);
     return inspection;
   }
@@ -563,7 +415,6 @@ export class VelaClient {
       repoRoot,
       mission.frontier,
       mission.roots,
-      mission.schema === "canopus.mission.v1" ? mission.strict_baseline : undefined,
     );
   }
 
@@ -571,14 +422,13 @@ export class VelaClient {
     repoRoot: string,
     frontier: string,
     roots: MissionRoots,
-    strictBaseline?: StrictBaseline,
     limit = 128,
   ): Promise<VelaCommandResponse> {
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 128) {
       throw new VelaClientError("malformed_output", "vela next limit must be 1..128");
     }
     const safeFrontier = frontierPath(frontier);
-    await this.assertRoots(repoRoot, safeFrontier, roots, strictBaseline);
+    await this.assertRoots(repoRoot, safeFrontier, roots);
     const value = await this.#json(
       ["next", safeFrontier, "--limit", String(limit), "--json"],
       repoRoot,
@@ -587,6 +437,18 @@ export class VelaClient {
     if (value.ok === false) {
       throw new VelaClientError("command_failed", "vela next returned ok=false");
     }
+    if (
+      value.schema !== "vela.offer.v1" ||
+      value.command !== "next" ||
+      value.ok !== true
+    ) {
+      throw new VelaClientError("malformed_output", "vela next contract identity is invalid");
+    }
+    assertEqual(
+      normalizeSha256(value.repository_root, "vela next.repository_root"),
+      roots.vela_repository,
+      "mission/offer repository",
+    );
     return { ok: true, value };
   }
 }

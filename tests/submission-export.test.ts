@@ -24,8 +24,7 @@ test("export creates an authenticated portable Submission without mutating Vela"
     roots: {
       git_commit: "e".repeat(40),
       git_tree: "f".repeat(40),
-      vela_event_log: `sha256:${"a".repeat(64)}`,
-      vela_snapshot: `sha256:${"a".repeat(64)}`,
+      vela_repository: `sha256:${"a".repeat(64)}`,
     },
   });
   const output = path.join(home, "submission");
@@ -73,8 +72,7 @@ test("review-only export preserves an absent optional execution binding", async 
     roots: {
       git_commit: "e".repeat(40),
       git_tree: "f".repeat(40),
-      vela_event_log: `sha256:${"a".repeat(64)}`,
-      vela_snapshot: `sha256:${"a".repeat(64)}`,
+      vela_repository: `sha256:${"a".repeat(64)}`,
     },
     includeExecutionBinding: false,
   });
