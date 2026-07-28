@@ -2,13 +2,6 @@ name: Canopus formal verifier image candidate
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - packages/canopus/capsules/formal-erdos-505-test-dim-one/**
-      - packages/canopus/containers/formal-erdos-505/**
-      - .github/workflows/canopus-formal-verifier-image.yml
 
 permissions:
   contents: read

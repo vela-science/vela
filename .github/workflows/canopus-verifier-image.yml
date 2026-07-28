@@ -2,12 +2,6 @@ name: Canopus verifier image candidate
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - packages/canopus/containers/verifier/**
-      - .github/workflows/canopus-verifier-image.yml
 
 permissions:
   contents: read
