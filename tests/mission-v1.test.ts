@@ -6,7 +6,9 @@ import test from "node:test";
 
 import { parseMission, type MissionV1 } from "../src/contracts/mission.js";
 import {
+  packetFromTarget,
   parseVelaVersionOutput,
+  selectedProducerTarget,
   validateMissionBundle,
 } from "../src/mission/prepare.js";
 import { canonicalJson, contentDigest, sha256Bytes } from "../src/util/canonical.js";
@@ -18,6 +20,55 @@ test("mission preparation accepts the exact stable and prerelease Vela identitie
   assert.equal(parseVelaVersionOutput("vela 0.930.0-rc.12"), "0.930.0-rc.12");
   assert.throws(() => parseVelaVersionOutput("vela latest"), /invalid version/u);
   assert.throws(() => parseVelaVersionOutput("vela 0.930.0 rc.9"), /invalid version/u);
+});
+
+test("mission preparation consumes only the current Vela producer offer", () => {
+  const producer = {
+    lane: "produce",
+    target_id: "erdos:1056",
+    packet: {
+      schema: "erdos-frontier.problem-work.v1",
+      path: "site/problems/1056.json",
+      sha256: digest,
+    },
+  };
+  assert.equal(
+    selectedProducerTarget({
+      targets: [
+        { lane: "review", target_id: "vpr_fixture" },
+        producer,
+      ],
+    }),
+    producer,
+  );
+  assert.equal(
+    selectedProducerTarget({ targets: [producer] }, "erdos:1056"),
+    producer,
+  );
+  assert.deepEqual(
+    packetFromTarget(producer, {
+      target: "erdos:1056",
+      schema: "erdos-frontier.problem-work.v1",
+    }),
+    {
+      path: "site/problems/1056.json",
+      sha256: digest,
+    },
+  );
+  assert.throws(
+    () => selectedProducerTarget({
+      targets: [{ lane: "attack", target_id: "legacy:target" }],
+    }),
+    /no producer target/u,
+  );
+  assert.throws(
+    () => packetFromTarget({
+      lane: "produce",
+      target_id: "erdos:1056",
+      task: { packet_ref: producer.packet },
+    }),
+    /producer packet/u,
+  );
 });
 
 function mission(

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Consume Vela's current `produce` lane directly when selecting the first
+  canonical offer. Remove the retired `attack`-lane and `task.packet_ref`
+  compatibility path that blocked real `0.940.5` Frontiers before a model call.
 - Advance Canopus `0.8.0-rc.4` to the attested Vela `0.940.5` release. The
   macOS and Linux archives and binaries are pinned by exact SHA-256;
   the product contract is unchanged.

@@ -204,51 +204,49 @@ function boundedObjective(value: unknown): string {
   return objective;
 }
 
-function selectedAttack(
+export function selectedProducerTarget(
   offer: Record<string, unknown>,
   requested?: string,
 ): Record<string, unknown> {
   if (!Array.isArray(offer.targets)) throw new Error("vela next omitted targets");
-  const attacks: Record<string, unknown>[] = [];
+  const producers: Record<string, unknown>[] = [];
   for (const [index, raw] of offer.targets.entries()) {
     const target = objectAt(raw, `vela next.targets[${index}]`);
-    if (target.lane === "attack") attacks.push(target);
+    if (target.lane === "produce") producers.push(target);
   }
-  if (attacks.length === 0) {
-    throw new Error("vela next returned no non-review attack target in the first 128 offers");
+  if (producers.length === 0) {
+    throw new Error("vela next returned no producer target in the first 128 offers");
   }
-  if (requested === undefined) return attacks[0] as Record<string, unknown>;
-  const matches = attacks.filter((target) => (target.target_id ?? target.id) === requested);
+  if (requested === undefined) return producers[0] as Record<string, unknown>;
+  const matches = producers.filter((target) => (target.target_id ?? target.id) === requested);
   if (matches.length !== 1) {
     throw new Error(
-      `explicit mission target ${requested} must appear exactly once among the first 128 attack offers; ` +
+      `explicit mission target ${requested} must appear exactly once among the first 128 producer offers; ` +
       `observed ${matches.length}`,
     );
   }
   return matches[0] as Record<string, unknown>;
 }
 
-function packetFromTarget(
+export function packetFromTarget(
   target: Record<string, unknown>,
   expected?: { target: string; schema: string },
 ): { path: string; sha256: string } {
-  const packet = target.packet === undefined
-    ? objectAt(objectAt(target.task, "vela next attack.task").packet_ref, "vela next attack.task.packet_ref")
-    : objectAt(target.packet, "vela next attack.packet");
+  const packet = objectAt(target.packet, "vela next producer packet");
   const targetId = target.target_id ?? target.id;
   if (expected !== undefined && targetId !== expected.target) {
-    throw new Error(`selected attack target ${String(targetId)} does not match profile target ${expected.target}`);
+    throw new Error(`selected producer target ${String(targetId)} does not match profile target ${expected.target}`);
   }
-  const schema = stringAt(packet.schema, "vela next attack.packet.schema", { min: 1, max: 128 });
+  const schema = stringAt(packet.schema, "vela next producer packet.schema", { min: 1, max: 128 });
   if (expected !== undefined && schema !== expected.schema) {
     throw new Error(`selected packet schema ${schema} does not match profile schema ${expected.schema}`);
   }
   if (expected === undefined && schema !== "erdos-frontier.problem-work.v1") {
-    throw new Error("selected attack target has no registered exact problem packet schema");
+    throw new Error("selected producer target has no registered exact problem packet schema");
   }
   return {
-    path: relativePathAt(packet.path, "vela next attack.packet.path"),
-    sha256: sha256At(packet.sha256, "vela next attack.packet.sha256"),
+    path: relativePathAt(packet.path, "vela next producer packet.path"),
+    sha256: sha256At(packet.sha256, "vela next producer packet.sha256"),
   };
 }
 
@@ -336,10 +334,10 @@ export async function prepareMission(options: PrepareMissionOptions): Promise<Pr
     const requestedTarget = raw.target === undefined || raw.target === "auto"
       ? undefined
       : stringAt(raw.target, "mission.target", { min: 1, max: 256 });
-    const target = selectedAttack(offer.value, requestedTarget);
+    const target = selectedProducerTarget(offer.value, requestedTarget);
     const targetId = stringAt(
       target.target_id ?? target.id,
-      "vela next attack.target_id",
+      "vela next producer target_id",
       { min: 1, max: 256 },
     );
     const packet = packetFromTarget(target, options.targetPacket);
