@@ -1,6 +1,6 @@
 # ADR 0023: Native current repository genesis
 
-- Status: Proposed
+- Status: Accepted
 - Target release: Vela `v0.940.0`
 - Protocol effect: one native `vela.repository-genesis.v1` origin object
 - Product effect: `vela init` creates Profile v2 directly and the ordinary
@@ -204,3 +204,11 @@ boundaries remain verifiable. The change removes trust-boundary friction by
 eliminating a fake migration ceremony; it does not weaken authority because
 strict use remains blocked until the exact repository genesis is signed and
 replayable.
+
+## Acceptance
+
+Accepted at the Vela `v0.940.0` release gate. The focused native-genesis,
+authority-transaction, current-repository, hostile-conformance, clean-clone,
+and all-four-Frontier checks passed. The deterministic release union also
+passed with zero failures or warnings; external Lean and live-network lanes
+remained explicitly outside this decision.
