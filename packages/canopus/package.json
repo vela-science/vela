@@ -1,0 +1,90 @@
+{
+  "name": "@vela-science/canopus",
+  "version": "0.8.0-rc.8",
+  "description": "A bounded, replaceable research harness over released Vela interfaces",
+  "type": "module",
+  "private": false,
+  "license": "Apache-2.0 OR MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vela-science/vela-research-harness.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "engines": {
+    "node": ">=22 <23 || >=24 <25"
+  },
+  "packageManager": "bun@1.3.12",
+  "bin": {
+    "canopus": "dist/src/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    }
+  },
+  "files": [
+    "dist/src/activity",
+    "dist/src/artifact",
+    "dist/src/budget",
+    "dist/src/candidate",
+    "dist/src/contracts",
+    "dist/src/engines",
+    "dist/src/evidence",
+    "dist/src/mission",
+    "dist/src/product",
+    "dist/src/projection",
+    "dist/src/util",
+    "dist/src/vela",
+    "dist/src/verifier",
+    "dist/src/workspace",
+    "dist/src/cli.js",
+    "dist/src/cli.d.ts",
+    "dist/src/index.js",
+    "dist/src/index.d.ts",
+    "dist/src/run.js",
+    "dist/src/run.d.ts",
+    "schemas",
+    "capsules/erdos1056-k15/bin/linux-arm64/10429201-10429400/verifier",
+    "capsules/erdos1056-k15/bin/linux-x86_64/10429201-10429400/verifier",
+    "missions",
+    "profiles",
+    "runtime",
+    "scripts/run-hostile-native-custody-fixture.mjs",
+    "scripts/run-hostile-verifier-fixture.mjs",
+    "tests/fixtures/hostile-verifier",
+    "README.md",
+    "THIRD_PARTY.md",
+    "docs/MISSIONS.md",
+    "docs/RUN_RECORD.md",
+    "docs/EVALUATION.md",
+    "docs/adr/0010-nonmutating-runs-and-explicit-submission.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "LICENSE-APACHE",
+    "LICENSE-MIT"
+  ],
+  "scripts": {
+    "build": "node scripts/clean-dist.mjs && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "bun run build && node --test 'dist/tests/**/*.test.js' 'tests/**/*.test.mjs'",
+    "check": "bun run lint && bun run test",
+    "prepack": "bun run build",
+    "pack:check": "bun pm pack --dry-run",
+    "fixture:hostile-custody": "node scripts/run-hostile-native-custody-fixture.mjs",
+    "fixture:hostile-verifier": "node scripts/run-hostile-verifier-fixture.mjs",
+    "eval:validate": "bun evaluation/scripts/validate-plan.mjs",
+    "eval:run": "bun evaluation/scripts/run-plan.mjs",
+    "eval:report": "bun evaluation/scripts/report.mjs",
+    "eval:conformance": "node --test tests/evaluation-plan.test.mjs",
+    "trace:export": "bun evaluation/scripts/trace-export.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  }
+}

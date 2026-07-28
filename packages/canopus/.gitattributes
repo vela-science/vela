@@ -1,0 +1,5 @@
+* text=auto eol=lf
+capsules/**/verifier -text
+*.png -text
+*.tgz -text
+*.zip -text

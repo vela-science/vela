@@ -1,0 +1,160 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            archive: vela-macos-aarch64.zip
+            archive_sha256: e48607239c584d70d7583e25c07991af047e5a031478bd7665f37510d270fbda
+            binary_sha256: 599ca6d3bb02b4fef06adbe5717d227bf356096431d734c4c65b05d7a6a5610b
+          - runner: ubuntu-24.04
+            archive: vela-linux-x86_64.tar.gz
+            archive_sha256: c4103e772db7e6bb22624cce6710927ea7c854eb747fed01ad92d139a2ab6c05
+            binary_sha256: d89eea3aa64890ce5145fb3d219f5b8f702a7675465a477e0ab1ed0a6d91265f
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.12
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - run: bun install --frozen-lockfile
+      - name: Run platform-appropriate checks
+        run: |
+          if [ "${{ runner.os }}" = macOS ]; then
+            bun run check
+          else
+            bun run typecheck
+            bun run build
+            node --test \
+              dist/tests/engine-tools.test.js \
+              dist/tests/mission-v1.test.js \
+              dist/tests/product-cli.test.js \
+              dist/tests/product-profile.test.js
+          fi
+      - name: Verify released Vela composition
+        env:
+          VELA_ARCHIVE: ${{ matrix.archive }}
+          VELA_ARCHIVE_SHA256: ${{ matrix.archive_sha256 }}
+          VELA_SHA256: ${{ matrix.binary_sha256 }}
+        run: |
+          curl --fail --location --silent --show-error \
+            "https://github.com/vela-science/vela/releases/download/v0.940.7/$VELA_ARCHIVE" \
+            --output "$RUNNER_TEMP/$VELA_ARCHIVE"
+          printf '%s  %s\n' "$VELA_ARCHIVE_SHA256" "$RUNNER_TEMP/$VELA_ARCHIVE" \
+            | shasum -a 256 -c -
+          mkdir "$RUNNER_TEMP/vela-release"
+          if [ "${{ runner.os }}" = macOS ]; then
+            unzip -q "$RUNNER_TEMP/$VELA_ARCHIVE" -d "$RUNNER_TEMP/vela-release"
+          else
+            tar -xzf "$RUNNER_TEMP/$VELA_ARCHIVE" -C "$RUNNER_TEMP/vela-release"
+          fi
+          printf '%s  %s\n' "$VELA_SHA256" "$RUNNER_TEMP/vela-release/vela" \
+            | shasum -a 256 -c -
+          chmod +x "$RUNNER_TEMP/vela-release/vela"
+          "$RUNNER_TEMP/vela-release/vela" --version
+          if [ "${{ runner.os }}" = macOS ]; then
+            CANOPUS_VELA_BIN="$RUNNER_TEMP/vela-release/vela" \
+              CANOPUS_VELA_SHA256="sha256:$VELA_SHA256" \
+              CANOPUS_VELA_VERSION="0.940.7" \
+              node --test dist/tests/integration/released-vela.test.js
+          fi
+      - name: Run real Linux sandbox custody preflight
+        if: runner.os == 'Linux'
+        env:
+          CODEX_TARBALL_SHA256: 11239480f8e3efd1430f23bbe91c1a397856b8bbe6185ccbaee2382d25e03df2
+          CODEX_BINARY_SHA256: a2a05dafaa1acb002a45eaec0a462de5b13694fcfcd7bc43305f14781ce7be14
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes apparmor-profiles apparmor-utils bubblewrap
+          sudo install -m 0644 \
+            /usr/share/apparmor/extra-profiles/bwrap-userns-restrict \
+            /etc/apparmor.d/bwrap-userns-restrict
+          sudo apparmor_parser -r /etc/apparmor.d/bwrap-userns-restrict
+          curl --fail --location --silent --show-error \
+            "https://registry.npmjs.org/@openai/codex/-/codex-0.145.0-linux-x64.tgz" \
+            --output "$RUNNER_TEMP/codex-0.145.0-linux-x64.tgz"
+          printf '%s  %s\n' "$CODEX_TARBALL_SHA256" \
+            "$RUNNER_TEMP/codex-0.145.0-linux-x64.tgz" | shasum -a 256 -c -
+          mkdir "$RUNNER_TEMP/codex-0.145.0-linux-x64"
+          tar -xzf "$RUNNER_TEMP/codex-0.145.0-linux-x64.tgz" \
+            -C "$RUNNER_TEMP/codex-0.145.0-linux-x64"
+          codex_bin="$RUNNER_TEMP/codex-0.145.0-linux-x64/package/vendor/x86_64-unknown-linux-musl/bin/codex"
+          printf '%s  %s\n' "$CODEX_BINARY_SHA256" "$codex_bin" | shasum -a 256 -c -
+          chmod +x "$codex_bin"
+          test "$("$codex_bin" --version)" = "codex-cli 0.145.0"
+          node scripts/run-native-sandbox-preflight.mjs --codex "$codex_bin"
+      - name: Pull frozen verifier anonymously by exact digest
+        if: runner.os == 'Linux'
+        env:
+          VERIFIER_IMAGE: ghcr.io/vela-science/canopus-verifier@sha256:a6f354862f2a3f7d72eb99244c65fa8583c98b74e17e3d5ce6e31ef48aa16536
+        run: |
+          export DOCKER_CONFIG="$RUNNER_TEMP/anonymous-docker-config"
+          mkdir "$DOCKER_CONFIG"
+          docker pull "$VERIFIER_IMAGE"
+          docker image inspect --format '{{json .RepoDigests}}' "$VERIFIER_IMAGE" \
+            | grep -F 'ghcr.io/vela-science/canopus-verifier@sha256:a6f354862f2a3f7d72eb99244c65fa8583c98b74e17e3d5ce6e31ef48aa16536'
+      - name: Install and smoke the packed product
+        run: |
+          mkdir "$RUNNER_TEMP/canopus-package"
+          bun pm pack --destination "$RUNNER_TEMP/canopus-package"
+          set -- "$RUNNER_TEMP"/canopus-package/*.tgz
+          test "$#" -eq 1
+          npm install --global --prefix "$RUNNER_TEMP/canopus-install" "$1"
+          canopus="$RUNNER_TEMP/canopus-install/bin/canopus"
+          "$canopus" --help
+          "$canopus" profile list
+          "$canopus" profile validate erdos1056-k15-10429201-10429400
+
+  windows-read-only:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.12
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run build
+      - name: Verify native Windows platform contracts
+        run: node --test dist/tests/product-platform.test.js
+      - name: Verify Vela and installed Canopus package
+        shell: pwsh
+        run: |
+          $archive = "$env:RUNNER_TEMP\vela-windows-x86_64.zip"
+          Invoke-WebRequest `
+            -Uri "https://github.com/vela-science/vela/releases/download/v0.940.7/vela-windows-x86_64.zip" `
+            -OutFile $archive
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLower() -ne `
+              "846177f5a09bbbcfc3e7470a0329772025c92a1661b1b9b1e3aa258560f04edf") {
+            throw "Vela archive checksum mismatch"
+          }
+          Expand-Archive $archive "$env:RUNNER_TEMP\vela"
+          if ((Get-FileHash "$env:RUNNER_TEMP\vela\vela.exe" -Algorithm SHA256).Hash.ToLower() -ne `
+              "1615e195c50a331052eddd28c535b3164cd062a4d3b8540163ece73792e72af6") {
+            throw "Vela binary checksum mismatch"
+          }
+          & "$env:RUNNER_TEMP\vela\vela.exe" --version
+          bun pm pack --destination $env:RUNNER_TEMP
+          $package = Get-ChildItem "$env:RUNNER_TEMP\vela-science-canopus-*.tgz" | Select-Object -First 1
+          npm install --global --prefix "$env:RUNNER_TEMP\canopus" $package.FullName
+          & "$env:RUNNER_TEMP\canopus\canopus.cmd" --help
+          & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile list
+          & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile validate erdos1056-k15-10429201-10429400

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.science/schemas/canopus/verifier-manifest.v0.json",
+  "title": "Canopus verifier manifest v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "capsule_path",
+    "executable_sha256",
+    "argv_template",
+    "cwd",
+    "sandbox",
+    "platform"
+  ],
+  "properties": {
+    "schema": { "const": "canopus.verifier-manifest.v0" },
+    "capsule_path": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "executable_sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "argv_template": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": { "type": "string", "maxLength": 4096 }
+    },
+    "cwd": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "sandbox": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backend", "network", "persistent_writes", "process_fork"],
+      "properties": {
+        "backend": { "const": "macos_seatbelt" },
+        "network": { "const": "deny" },
+        "persistent_writes": { "const": "deny" },
+        "process_fork": { "const": "deny" }
+      }
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "arch"],
+      "properties": {
+        "os": { "const": "darwin" },
+        "arch": { "enum": ["arm64", "x64"] }
+      }
+    }
+  }
+}

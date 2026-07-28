@@ -1,0 +1,42 @@
+{
+  "id": "mission_erdos1056_k15_range_10429201_10429400",
+  "target": "auto",
+  "frontier": ".",
+  "actor": "agent:canopus-local",
+  "role": "producer",
+  "claim_type": "computational",
+  "replayability": "exact",
+  "objective": "Perform one finite exhaustive search for an Erdős 1056 k=15 witness over every prime p in the exact inclusive range 10429201..10429400. Use a compiled C++ program, one prime at a time; a flat open-addressed table keyed by the factorial residue keeps this bounded computation inside the registered memory and time limits. For each prime, compute t! modulo p for every cut t in 0..p-1 and count every residue fiber. For each p choose its largest fiber, breaking a tie by the smallest residue. If any largest fiber has at least 16 cuts, stop at the first such prime and report status=witness. Otherwise report status=negative and the greatest multiplicity over the whole range, breaking ties by the earliest prime and then the smallest residue. In both cases list every increasing cut in the selected fiber. Produce exactly one UTF-8 artifact at artifacts/erdos1056-k15-range-10429201-10429400.txt with these newline-terminated lines in order: schema=canopus.erdos1056-k15-search.v1; status=witness or status=negative; problem=1056; k=15; range_start=10429201; range_end=10429400; primes_tested=<exact count>; max_multiplicity=<exact count>; best_p=<prime>; best_residue=<residue>; cuts=<comma-separated cuts>. Independently cross-check the selected prime, residue, multiplicity, and complete cut list before emitting the artifact. Return engine status success only after the program completes the entire registered range and writes the exact artifact. This is an exact bounded computation, not a universal answer to Erdős 1056.",
+  "completion_condition": "The frozen verifier independently recomputes the full exact range in a separate network-denied and write-denied container and byte-matches the single artifact.",
+  "allowed_paths": [
+    "artifacts/erdos1056-k15-range-10429201-10429400.txt"
+  ],
+  "budgets": {
+    "max_research_wall_time_ms": 1800000,
+    "max_research_processes": 16,
+    "max_research_output_bytes": 16777216,
+    "max_prompt_bytes": 2097152,
+    "max_artifact_bytes": 1048576,
+    "max_attempts": 1,
+    "max_observed_tokens": 160000
+  },
+  "worker": {
+    "model": "gpt-5.4"
+  },
+  "verifier": {
+    "argv": [
+      "capsule/verifier",
+      "{artifact:artifacts/erdos1056-k15-range-10429201-10429400.txt}"
+    ],
+    "cwd": "site",
+    "timeout_ms": 300000,
+    "max_output_bytes": 65536,
+    "capsule_path": "capsule/verifier"
+  },
+  "scientific_chain": {
+    "predicted_observable": "The frozen verifier independently obtains the same first witness or complete bounded-negative result for all primes in 10429201..10429400 and exits zero on the exact candidate bytes.",
+    "performed_test": "capsule/verifier artifacts/erdos1056-k15-range-10429201-10429400.txt"
+  },
+  "parent_candidate": "sha256:b369f29c3dfe777401375eeb47f682d20d89ca0387deaf600d791c01f98da9c0",
+  "repair_reason": "Continue Erdős 1056 with the next exact non-overlapping inclusive range after the retained 10429001..10429200 artifact. Do not reuse a prior numeric result, and independently cross-check the selected fiber before emitting the one allowed artifact."
+}

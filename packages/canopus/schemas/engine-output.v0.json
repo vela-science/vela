@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.science/schemas/canopus/engine-output.v0.json",
+  "title": "Canopus engine output v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "status", "claim", "artifacts", "observations", "caveats"],
+  "properties": {
+    "schema": { "type": "string", "const": "canopus.engine-output.v0" },
+    "status": {
+      "description": "Producer completion only: success means contract-complete candidate bytes are present and does not imply verifier passage or scientific acceptance.",
+      "enum": ["success", "null", "failed"]
+    },
+    "claim": { "type": "string", "minLength": 1, "maxLength": 8192 },
+    "artifacts": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "kind", "encoding", "content"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1, "maxLength": 1024 },
+          "kind": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "encoding": { "type": "string", "const": "utf8" },
+          "content": { "type": "string", "maxLength": 1048576 }
+        }
+      }
+    },
+    "observations": {
+      "type": "array",
+      "maxItems": 16,
+      "items": { "type": "string", "minLength": 1, "maxLength": 4096 }
+    },
+    "caveats": {
+      "type": "array",
+      "maxItems": 8,
+      "items": { "type": "string", "minLength": 1, "maxLength": 4096 }
+    }
+  }
+}

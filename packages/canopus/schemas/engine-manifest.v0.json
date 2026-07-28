@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.science/schemas/canopus/engine-manifest.v0.json",
+  "title": "Canopus engine manifest v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "engine",
+    "usage",
+    "wall_time_ms",
+    "event_types",
+    "action_types",
+    "events_sha256",
+    "stderr_sha256"
+  ],
+  "properties": {
+    "schema": { "const": "canopus.engine-manifest.v0" },
+    "engine": { "$ref": "candidate.v0.json#/properties/engine" },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input_tokens", "cached_input_tokens", "output_tokens", "reasoning_output_tokens"],
+      "properties": {
+        "input_tokens": { "type": "integer", "minimum": 0 },
+        "cached_input_tokens": { "type": "integer", "minimum": 0 },
+        "output_tokens": { "type": "integer", "minimum": 0 },
+        "reasoning_output_tokens": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "wall_time_ms": { "type": "integer", "minimum": 0, "maximum": 3600000 },
+    "event_types": {
+      "type": "array",
+      "maxItems": 64,
+      "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+    },
+    "action_types": {
+      "type": "array",
+      "maxItems": 16,
+      "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+    },
+    "events_sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "stderr_sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}

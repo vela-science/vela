@@ -1,0 +1,17 @@
+{
+  "schema": "canopus.quantum-stabilizer-witness.v1",
+  "target": "quantum:[[10,1,4]]",
+  "n": 10,
+  "k": 1,
+  "generators": [
+    "ZIIIIIIIII",
+    "IZIIIIIIII",
+    "IIZIIIIIII",
+    "IIIZIIIIII",
+    "IIIIZIIIII",
+    "IIIIIZIIII",
+    "IIIIIIZIII",
+    "IIIIIIIZII",
+    "IIIIIIIIZI"
+  ]
+}

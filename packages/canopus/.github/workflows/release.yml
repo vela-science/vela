@@ -1,0 +1,121 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions: {}
+
+jobs:
+  validate:
+    runs-on: macos-15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.12
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      - run: bun run pack:check
+
+  publish:
+    needs: validate
+    runs-on: ubuntu-24.04
+    environment: npm
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.12
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: bun install --frozen-lockfile
+      - name: Run portable release checks
+        run: |
+          bun run typecheck
+          bun run build
+          node --test \
+            dist/tests/engine-tools.test.js \
+            dist/tests/mission-v1.test.js \
+            dist/tests/product-cli.test.js \
+            dist/tests/product-profile.test.js \
+            dist/tests/release-contract.test.js
+      - name: Verify tag matches package version
+        run: test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
+      - name: Pack source-bound package
+        run: |
+          mkdir release
+          bun pm pack --destination release
+          (cd release && shasum -a 256 *.tgz > SHA256SUMS)
+      - uses: actions/attest-build-provenance@78e6cbd37d0ac1a40113c04f2037dacf1ea3f12e # v4
+        with:
+          subject-path: release/*.tgz
+      - name: Verify the exact GitHub build attestation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -- release/*.tgz
+          test "$#" -eq 1
+          gh attestation verify "$1" \
+            --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" \
+            --source-ref "$GITHUB_REF" \
+            --source-digest "$GITHUB_SHA" \
+            --deny-self-hosted-runners
+      - name: Publish with npm trusted publishing provenance
+        run: npm publish ./release/*.tgz --provenance --access public
+      - name: Verify the published npm signature and provenance
+        run: |
+          package=$(node -p 'require("./package.json").name')
+          version=$(node -p 'require("./package.json").version')
+          spec="$package@$version"
+          predicate=""
+          for attempt in 1 2 3 4 5; do
+            predicate=$(npm view "$spec" dist.attestations.provenance.predicateType 2>/dev/null || true)
+            test -n "$predicate" && break
+            sleep 3
+          done
+          test "$predicate" = "https://slsa.dev/provenance/v1"
+          audit_root=$(mktemp -d)
+          trap 'rm -rf "$audit_root"' EXIT
+          cd "$audit_root"
+          npm init -y >/dev/null
+          npm install --ignore-scripts --save-exact "$spec" >/dev/null
+          audit_ok=false
+          for attempt in $(seq 1 24); do
+            if npm audit signatures --json --include-attestations > audit.json 2> audit.err; then
+              if node - "$package" "$version" <<'NODE'
+          const fs = require("node:fs");
+          const audit = JSON.parse(fs.readFileSync("audit.json", "utf8"));
+          if (audit.invalid?.length || audit.missing?.length) process.exit(1);
+          if (!audit.verified?.some((entry) =>
+            entry.name === process.argv[2] &&
+            entry.version === process.argv[3] &&
+            entry.attestationBundles?.some((bundle) =>
+              bundle.predicateType === "https://slsa.dev/provenance/v1"))) process.exit(1);
+          NODE
+              then
+                audit_ok=true
+                break
+              fi
+            fi
+            sleep 10
+          done
+          test "$audit_ok" = true || cat audit.err
+          test "$audit_ok" = true
+      - name: Publish matching GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" release/*.tgz release/SHA256SUMS --verify-tag --generate-notes

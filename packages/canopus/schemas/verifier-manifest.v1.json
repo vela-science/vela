@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.science/schemas/canopus/verifier-manifest.v1.json",
+  "title": "Canopus verifier manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "capsule_path",
+    "executable_sha256",
+    "argv_template",
+    "cwd",
+    "image",
+    "sandbox",
+    "platform"
+  ],
+  "properties": {
+    "schema": { "const": "canopus.verifier-manifest.v1" },
+    "capsule_path": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "executable_sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "argv_template": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": { "type": "string", "maxLength": 4096 }
+    },
+    "cwd": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "image": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "sandbox": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "backend",
+        "network",
+        "root_filesystem",
+        "bind_mounts",
+        "capabilities",
+        "privilege_escalation"
+      ],
+      "properties": {
+        "backend": { "const": "docker" },
+        "network": { "const": "deny" },
+        "root_filesystem": { "const": "read_only" },
+        "bind_mounts": { "const": "exact_inputs_read_only" },
+        "capabilities": { "const": "drop_all" },
+        "privilege_escalation": { "const": "deny" }
+      }
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "arch"],
+      "properties": {
+        "os": { "const": "linux" },
+        "arch": { "enum": ["amd64", "arm64", "unspecified"] }
+      }
+    }
+  }
+}
