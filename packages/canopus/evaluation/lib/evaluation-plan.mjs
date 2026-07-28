@@ -234,7 +234,7 @@ function parseTask(value, at) {
       item.max_observed_tokens,
       `${at}.max_observed_tokens`,
       1,
-      100_000,
+      250_000,
     ),
   };
 }

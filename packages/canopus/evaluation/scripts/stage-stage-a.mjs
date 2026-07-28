@@ -15,6 +15,7 @@ import process from "node:process";
 
 import {
   canonicalJson,
+  parseEvaluationPlan,
   rootEvaluationPlan,
   verifyEvaluationPlanFiles,
 } from "../lib/evaluation-plan.mjs";
@@ -59,6 +60,10 @@ function options(argv) {
         "--codex",
         "--vela",
         "--docker",
+        "--max-tokens",
+        "--assignment-prefix",
+        "--amends-plan",
+        "--amendment-reason",
       ].includes(key) ||
       value === undefined ||
       parsed.has(key)
@@ -172,6 +177,28 @@ function identity(name, versionValue, root) {
 }
 
 const values = options(process.argv.slice(2).filter((value) => value !== "--"));
+const maxTokens = Number(values.get("--max-tokens") ?? "100000");
+if (!Number.isSafeInteger(maxTokens) || maxTokens < 1 || maxTokens > 250_000) {
+  throw new Error("--max-tokens must be an integer in 1..250000");
+}
+const assignmentPrefix = values.get("--assignment-prefix") ?? "A";
+if (!/^[A-Z][A-Z0-9]{0,7}$/u.test(assignmentPrefix)) {
+  throw new Error("--assignment-prefix must be 1..8 uppercase alphanumeric characters");
+}
+const amendsPlanPath = values.get("--amends-plan");
+const amendmentReason = values.get("--amendment-reason");
+if ((amendsPlanPath === undefined) !== (amendmentReason === undefined)) {
+  throw new Error("--amends-plan and --amendment-reason must be provided together");
+}
+let amendsRoot = null;
+if (amendsPlanPath !== undefined) {
+  const previousPlanFile = await realpath(amendsPlanPath);
+  const previousPlan = parseEvaluationPlan(
+    JSON.parse(await readFile(previousPlanFile, "utf8")),
+  );
+  await verifyEvaluationPlanFiles(previousPlan, previousPlanFile);
+  amendsRoot = previousPlan.plan_root;
+}
 const output = path.resolve(values.get("--output"));
 await mkdir(path.dirname(output), { recursive: true, mode: 0o700 });
 try {
@@ -432,7 +459,7 @@ const arms = [
     "--max-wall-ms",
     "3600000",
     "--max-tokens",
-    "100000",
+    String(maxTokens),
     "--max-artifact-bytes",
     "65536",
   ],
@@ -481,7 +508,7 @@ const tasks = [
     cpu_only: true,
     network: "deny",
     max_wall_time_ms: 3_600_000,
-    max_observed_tokens: 100_000,
+    max_observed_tokens: maxTokens,
   },
   {
     id: "core-bench:capsule-1108125",
@@ -512,13 +539,13 @@ const tasks = [
     cpu_only: true,
     network: "deny",
     max_wall_time_ms: 3_600_000,
-    max_observed_tokens: 100_000,
+    max_observed_tokens: maxTokens,
   },
 ];
 const assignments = tasks.flatMap((task) =>
   arms.flatMap((arm) =>
     [1, 2].map((repetition) => ({
-      id: `A-${task.id}-${arm.id}-r${repetition}`,
+      id: `${assignmentPrefix}-${task.id}-${arm.id}-r${repetition}`,
       stage: "A",
       task_id: task.id,
       arm_id: arm.id,
@@ -528,7 +555,9 @@ const assignments = tasks.flatMap((task) =>
 const model = values.get("--model");
 const plan = rootEvaluationPlan({
   schema: "canopus.evaluation-plan.v1",
-  plan_id: "vela-math-first-stage-a-2026-07-28",
+  plan_id: amendsRoot === null
+    ? "vela-math-first-stage-a-2026-07-28"
+    : "vela-math-first-stage-a-amendment-2026-07-28",
   status: "registered",
   created_at: values.get("--created-at"),
   campaign: "Math-first framework-neutral Stage A evaluation.",
@@ -554,7 +583,7 @@ const plan = rootEvaluationPlan({
   budgets: {
     max_model_calls: 12,
     max_total_wall_time_ms: 43_200_000,
-    max_total_observed_tokens: 1_200_000,
+    max_total_observed_tokens: maxTokens * assignments.length,
   },
   retry_policy: {
     max_pre_output_infrastructure_retries: 1,
@@ -589,8 +618,8 @@ const plan = rootEvaluationPlan({
     roots: "required",
     independence_credit: "none_first_party",
   },
-  amends_root: null,
-  amendment_reason: null,
+  amends_root: amendsRoot,
+  amendment_reason: amendmentReason ?? null,
   plan_root: "",
 });
 const planFile = path.join(output, "plan.json");

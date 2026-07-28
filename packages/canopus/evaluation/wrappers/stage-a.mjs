@@ -141,7 +141,7 @@ function mission({ packet, packetRoot, assignment, mode, values, profileRoot, sc
   const maxTokens = positiveInteger(
     values.get("--max-tokens"),
     "--max-tokens",
-    100_000,
+    250_000,
   );
   const maxArtifactBytes = positiveInteger(
     values.get("--max-artifact-bytes"),
@@ -386,4 +386,3 @@ try {
 
 if (usage !== null) writeControl(assignment, usage, modelOutputObserved);
 process.exitCode = failed ? 1 : 0;
-
