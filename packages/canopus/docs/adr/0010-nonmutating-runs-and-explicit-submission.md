@@ -1,13 +1,17 @@
 # ADR 0010: Nonmutating Runs and explicit Submission
 
 - Status: Accepted
-- Candidate release: Canopus `v0.8.0`
+- Product release: `product-v0.8.0` (Canopus `0.8.0`)
 - Protocol effect: None
 - Vela requirement: current `vela.submission.v1` and `vela submit`
 - Supersedes for current writers: automatic landing portions of ADR 0004
 - Acceptance gate: the corrected real Erdős Submission must register as
   pending review with accepted-event delta zero and reproduce from a clean
   clone; package, custody, provenance, and release checks must also pass.
+- Accepted: 2026-07-28 after Submission `vsb_be4ef74c7c4857c9`
+  registered with zero accepted-state delta, Verification
+  `vvr_1974ed5d3e3a72c3` passed, the human Decision completed, and the exact
+  Frontier replayed from a clean clone.
 
 ## Context
 
