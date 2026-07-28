@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-- Advance Canopus `0.8.0-rc.3` to the attested Vela `0.940.2` release. The
-  macOS, Linux, and Windows archives and binaries are pinned by exact SHA-256;
+- Advance Canopus `0.8.0-rc.4` to the attested Vela `0.940.5` release. The
+  macOS and Linux archives and binaries are pinned by exact SHA-256;
   the product contract is unchanged.
 - Begin Canopus `0.8.0-rc.1` as an exact candidate composition with attested
   Vela `0.930.0-rc.12`. The older `0.7.0`/`0.915.1` composition remains

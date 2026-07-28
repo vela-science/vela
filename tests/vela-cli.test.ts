@@ -44,7 +44,7 @@ function mission(): Mission {
     schema: "canopus.mission.v0",
     id: "mission_vela_client",
     target: "target-1",
-    vela_version: "0.940.4",
+    vela_version: "0.940.5",
     vela_sha256: repositoryRoot,
     frontier: "frontier",
     actor: "agent:canopus-test",
@@ -151,7 +151,7 @@ function fakeRunner(options: FakeOptions = {}): {
       return result(argv, `${argv.at(-1) === "HEAD^{tree}" ? gitTree : gitCommit}\n`);
     }
     if (argv[1] === "--version") {
-      return result(argv, `vela ${options.version ?? "0.940.4"}\n`);
+      return result(argv, `vela ${options.version ?? "0.940.5"}\n`);
     }
     if (argv[1] === "status") {
       return result(argv, options.status ?? validStatus());
@@ -182,7 +182,7 @@ function fakeRunner(options: FakeOptions = {}): {
   return { runner, calls, environments };
 }
 
-function client(runner: CommandRunner, version = "0.940.4"): VelaClient {
+function client(runner: CommandRunner, version = "0.940.5"): VelaClient {
   return new VelaClient({
     binary: process.execPath,
     expectedVersion: version,
@@ -208,7 +208,7 @@ test("Vela client forwards only the repository-authority agent socket", async ()
   const fake = fakeRunner();
   const vela = new VelaClient({
     binary: process.execPath,
-    expectedVersion: "0.940.4",
+    expectedVersion: "0.940.5",
     expectedSha256: velaBinaryDigest,
     home: "/tmp/canopus-home",
     repositoryAuthorityAgentSocket: "/private/tmp/ssh-agent.sock",
@@ -230,7 +230,7 @@ test("Vela client rejects a relative repository-authority agent socket", () => {
     () =>
       new VelaClient({
         binary: process.execPath,
-        expectedVersion: "0.940.4",
+        expectedVersion: "0.940.5",
         expectedSha256: velaBinaryDigest,
         home: "/tmp/canopus-home",
         repositoryAuthorityAgentSocket: "agent.sock",

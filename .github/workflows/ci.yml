@@ -15,12 +15,12 @@ jobs:
         include:
           - runner: macos-15
             archive: vela-macos-aarch64.zip
-            archive_sha256: 84d8563e899478576636fbaad5b2b0c28e0e85d3f6932ca0b36512e56476c1cb
-            binary_sha256: e536d1bd681e84e562dc99d83d03b28ae77610f30dcd1ed3a02485b489d8b521
+            archive_sha256: 882f93c788eb22b892d777613c3afd1890ade4862d47d802a7fa806e300d3d11
+            binary_sha256: e5d8dfaa2a9aa60060579115ebdf730f0297cd5b8059f08fc063f4fdfd10cb25
           - runner: ubuntu-24.04
             archive: vela-linux-x86_64.tar.gz
-            archive_sha256: c91a2e458fb2f0fe1611807d23c0821a30cb67df3fd3f4806fef3dd353a38894
-            binary_sha256: c209a9d6e65fa52d2dd533351d8622be0ba1e1c5faf48fe4a5eb562296eface6
+            archive_sha256: 80d80a7aaaefbf981158bf985b8840d81a98afa84e54f803c1a53ef6bd1ade80
+            binary_sha256: f607fda46e110935b753a4158fbea76e79cbb60286e15bc1cef3ca369e50ec20
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     steps:
@@ -52,7 +52,7 @@ jobs:
           VELA_SHA256: ${{ matrix.binary_sha256 }}
         run: |
           curl --fail --location --silent --show-error \
-            "https://github.com/vela-science/vela/releases/download/v0.940.2/$VELA_ARCHIVE" \
+            "https://github.com/vela-science/vela/releases/download/v0.940.5/$VELA_ARCHIVE" \
             --output "$RUNNER_TEMP/$VELA_ARCHIVE"
           printf '%s  %s\n' "$VELA_ARCHIVE_SHA256" "$RUNNER_TEMP/$VELA_ARCHIVE" \
             | shasum -a 256 -c -
@@ -69,7 +69,7 @@ jobs:
           if [ "${{ runner.os }}" = macOS ]; then
             CANOPUS_VELA_BIN="$RUNNER_TEMP/vela-release/vela" \
               CANOPUS_VELA_SHA256="sha256:$VELA_SHA256" \
-              CANOPUS_VELA_VERSION="0.940.2" \
+              CANOPUS_VELA_VERSION="0.940.5" \
               node --test dist/tests/integration/released-vela.test.js
           fi
       - name: Run real Linux sandbox custody preflight
