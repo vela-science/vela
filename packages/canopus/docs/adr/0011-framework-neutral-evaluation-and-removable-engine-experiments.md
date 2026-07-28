@@ -52,7 +52,8 @@ The non-normative `canopus.evaluation-plan.v1` binds exact:
 
 - task, model, Codex, Canopus, Vela, Git, environment, and dependency
   identities;
-- packet, artifact, verifier, and source roots;
+- source, packet, verifier, executable, dependency-lock, environment, and
+  scorer paths and roots;
 - arms, assignment, repetitions, budgets, retries, stopping, scorers,
   exclusions, and publication policy;
 - secret-custody and authority restrictions; and
@@ -60,6 +61,24 @@ The non-normative `canopus.evaluation-plan.v1` binds exact:
 
 An amendment names the full root of its predecessor and states the reason.
 Usable output never permits a silent in-place plan edit.
+
+Registration is not merely a JSON root. Validation rehashes every bound input
+and the executable resolved for each arm before execution. A registered Stage
+A contains exactly one math task, one scientific-computing task, the ordinary
+native Codex control, the same-packet native Codex control, the Canopus arm,
+and repetitions one and two for every task/arm pair: 12 assignments total.
+The aggregate time and token ceilings must cover every assignment ceiling.
+
+Every process result remains in the rooted run set, including nonzero exits.
+A hard runtime stop identifies unrun registered assignments explicitly.
+Reporting fails closed on a missing run-set index, a mixed plan root, an
+unregistered Run, or bytes that do not match the indexed Run root.
+
+Each trusted arm wrapper emits one rooted
+`canopus.evaluation-arm-result.v1` with the exact assignment and provider
+token accounting. Missing or invalid usage, a per-task token overrun, or an
+aggregate token overrun stops later model calls while retaining the triggering
+Run. This is evaluation accounting, not a public engine protocol.
 
 Source-only evaluation commands are:
 
@@ -112,6 +131,11 @@ one scorer cannot silently stand in for all three. Its north star is genuine
 reusable scientific progress per scarce human judgment. A verifier pass, a
 successful workflow, and a correct scientific disposition remain different
 outcomes.
+
+Rich workbench traces remain activity-plane evidence. The registered
+Submission, Verification, Decision, Event, and replayed Standing remain the
+scientific-state plane. Evaluation may bind a trace root, but never promotes a
+framework trace or checkpoint store into canonical scientific state.
 
 If native Codex with the same packet and verifier matches Canopus, remove the
 Canopus machinery that did not create lift. If Git plus the same signed

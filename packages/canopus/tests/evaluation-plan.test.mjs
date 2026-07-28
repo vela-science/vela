@@ -1,23 +1,44 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   parseEvaluationPlan,
   rootEvaluationPlan,
+  verifyEvaluationPlanFiles,
 } from "../evaluation/lib/evaluation-plan.mjs";
 
 const root = (character) => `sha256:${character.repeat(64)}`;
+const packageRoot = fileURLToPath(new URL("../", import.meta.url));
+const byteRoot = (value) =>
+  `sha256:${createHash("sha256").update(value).digest("hex")}`;
 const identity = (name, character) => ({
   name,
   version: "1.0.0",
   sha256: root(character),
 });
+const scorer = (id, character) => ({
+  id,
+  path: `scorers/${id}.json`,
+  root: root(character),
+});
 
 function plan() {
   const base = {
     schema: "canopus.evaluation-plan.v1",
-    plan_id: "eval_fixture_stage_a",
-    status: "registered",
+    plan_id: "eval_fixture",
+    status: "draft",
     created_at: "2026-07-28T00:00:00Z",
     campaign: "Math-first framework-neutral fixture.",
     identities: {
@@ -33,9 +54,11 @@ function plan() {
       id: "math:fixture",
       class: "math",
       source: "fixture",
+      source_path: "sources/math.json",
       source_root: root("7"),
       packet_path: "packets/math.json",
       packet_root: root("8"),
+      verifier_path: "verifiers/math",
       verifier_root: root("9"),
       license: "MIT",
       cpu_only: true,
@@ -48,8 +71,11 @@ function plan() {
       kind: "native_codex",
       argv: ["codex", "exec", "{task_packet}"],
       cwd: "workspace",
+      dependency_lock_path: "locks/native.lock",
       dependency_lock_root: root("a"),
+      environment_path: "environments/native.json",
       environment_root: root("b"),
+      executable_root: root("f"),
     }],
     assignments: [{
       id: "A-math-native-r1",
@@ -69,7 +95,11 @@ function plan() {
       post_output_retries: 0,
     },
     stopping_rules: ["Stop on any credential exposure."],
-    scorers: [root("c"), root("d"), root("e")],
+    scorers: [
+      scorer("execution", "c"),
+      scorer("state", "d"),
+      scorer("inheritance", "e"),
+    ],
     performance_functions: {
       execution_lift: root("c"),
       state_lift: root("d"),
@@ -96,24 +126,76 @@ function plan() {
   return rootEvaluationPlan(base);
 }
 
-test("evaluation plan is closed, rooted, and registered before execution", () => {
-  const registered = plan();
-  assert.deepEqual(parseEvaluationPlan(registered), registered);
+function registeredStageA() {
+  const base = plan();
+  const scientificTask = {
+    ...base.tasks[0],
+    id: "scientific:fixture",
+    class: "scientific_computing",
+    packet_path: "packets/scientific.json",
+    packet_root: root("f"),
+    source_path: "sources/scientific.json",
+    source_root: root("1"),
+    verifier_path: "verifiers/scientific",
+    verifier_root: root("0"),
+  };
+  const arms = [
+    base.arms[0],
+    {
+      ...base.arms[0],
+      id: "native-packet",
+      kind: "native_codex_packet",
+    },
+    {
+      ...base.arms[0],
+      id: "canopus",
+      kind: "canopus",
+    },
+  ];
+  const tasks = [...base.tasks, scientificTask];
+  const assignments = tasks.flatMap((task) =>
+    arms.flatMap((arm) =>
+      [1, 2].map((repetition) => ({
+        id: `A-${task.id}-${arm.id}-r${repetition}`,
+        stage: "A",
+        task_id: task.id,
+        arm_id: arm.id,
+        repetition,
+        seed: repetition,
+      }))));
+  return rootEvaluationPlan({
+    ...base,
+    plan_id: "eval_fixture_stage_a",
+    status: "registered",
+    tasks,
+    arms,
+    assignments,
+    budgets: {
+      max_model_calls: 12,
+      max_total_wall_time_ms: 12 * 60_000,
+      max_total_observed_tokens: 12 * 10_000,
+    },
+  });
+}
+
+test("evaluation plan is closed and rooted before execution", () => {
+  const draft = plan();
+  assert.deepEqual(parseEvaluationPlan(draft), draft);
   assert.throws(
-    () => parseEvaluationPlan({ ...registered, plan_root: root("f") }),
+    () => parseEvaluationPlan({ ...draft, plan_root: root("f") }),
     /plan root mismatch/u,
   );
   assert.throws(
-    () => parseEvaluationPlan({ ...registered, hidden_retry: true }),
+    () => parseEvaluationPlan({ ...draft, hidden_retry: true }),
     /hidden_retry is not allowed/u,
   );
 });
 
 test("evaluation plan rejects authority and post-output retry paths", () => {
-  const registered = plan();
+  const draft = plan();
   assert.throws(
     () => parseEvaluationPlan(rootEvaluationPlan({
-      ...registered,
+      ...draft,
       retry_policy: {
         max_pre_output_infrastructure_retries: 1,
         post_output_retries: 1,
@@ -123,36 +205,68 @@ test("evaluation plan rejects authority and post-output retry paths", () => {
   );
   assert.throws(
     () => parseEvaluationPlan(rootEvaluationPlan({
-      ...registered,
-      custody: { ...registered.custody, repository_authority: "allowed" },
+      ...draft,
+      custody: { ...draft.custody, repository_authority: "allowed" },
     })),
     /repository_authority must be forbidden/u,
   );
 });
 
-test("evaluation plan permits the required same-packet native control and caps calls at 36", () => {
-  const registered = plan();
-  const packetControl = {
-    ...registered.arms[0],
-    id: "native-packet",
-    kind: "native_codex_packet",
-  };
-  assert.doesNotThrow(() => parseEvaluationPlan(rootEvaluationPlan({
-    ...registered,
-    arms: [...registered.arms, packetControl],
-  })));
+test("registered Stage A requires both task classes and all matched controls", () => {
+  const registered = registeredStageA();
+  assert.deepEqual(parseEvaluationPlan(registered), registered);
   assert.throws(
     () => parseEvaluationPlan(rootEvaluationPlan({
       ...registered,
+      arms: registered.arms.filter((arm) => arm.kind !== "native_codex_packet"),
+      assignments: registered.assignments.filter((assignment) =>
+        assignment.arm_id !== "native-packet"),
+      budgets: {
+        max_model_calls: 8,
+        max_total_wall_time_ms: 8 * 60_000,
+        max_total_observed_tokens: 8 * 10_000,
+      },
+    })),
+    /same-packet native Codex/u,
+  );
+});
+
+test("evaluation plan rejects duplicate identities and underfunded totals", () => {
+  const draft = plan();
+  assert.throws(
+    () => parseEvaluationPlan(rootEvaluationPlan({
+      ...draft,
+      tasks: [...draft.tasks, draft.tasks[0]],
+    })),
+    /duplicate ids/u,
+  );
+  assert.throws(
+    () => parseEvaluationPlan(rootEvaluationPlan({
+      ...draft,
+      budgets: {
+        ...draft.budgets,
+        max_total_observed_tokens: draft.budgets.max_total_observed_tokens - 1,
+      },
+    })),
+    /token ceilings exceed/u,
+  );
+});
+
+test("evaluation plan caps calls at 36", () => {
+  const draft = plan();
+  assert.throws(
+    () => parseEvaluationPlan(rootEvaluationPlan({
+      ...draft,
       assignments: Array.from({ length: 37 }, (_, index) => ({
-        ...registered.assignments[0],
+        ...draft.assignments[0],
         id: `assignment-${index}`,
         repetition: (index % 16) + 1,
         seed: index,
       })),
       budgets: {
-        ...registered.budgets,
         max_model_calls: 36,
+        max_total_wall_time_ms: 3_600_000,
+        max_total_observed_tokens: 1_000_000,
       },
     })),
     /1\.\.36 entries/u,
@@ -160,25 +274,203 @@ test("evaluation plan permits the required same-packet native control and caps c
 });
 
 test("evaluation plan binds distinct execution, state, and inheritance scorers", () => {
-  const registered = plan();
+  const draft = plan();
   assert.throws(
     () => parseEvaluationPlan(rootEvaluationPlan({
-      ...registered,
+      ...draft,
       performance_functions: {
-        ...registered.performance_functions,
-        inheritance_lift: registered.performance_functions.state_lift,
+        ...draft.performance_functions,
+        inheritance_lift: draft.performance_functions.state_lift,
       },
     })),
     /three distinct scorer roots/u,
   );
   assert.throws(
     () => parseEvaluationPlan(rootEvaluationPlan({
-      ...registered,
+      ...draft,
       performance_functions: {
-        ...registered.performance_functions,
+        ...draft.performance_functions,
         inheritance_lift: root("f"),
       },
     })),
     /absent from plan\.scorers/u,
   );
+});
+
+test("evaluation validation rehashes every bound input file", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "canopus-evaluation-"));
+  try {
+    const files = {
+      "sources/math.json": "{\"source\":\"math\"}\n",
+      "packets/math.json": "{}\n",
+      "verifiers/math": "#!/bin/sh\nexit 0\n",
+      "locks/native.lock": "lock\n",
+      "environments/native.json": "{}\n",
+      "scorers/execution.json": "{\"metric\":\"execution\"}\n",
+      "scorers/state.json": "{\"metric\":\"state\"}\n",
+      "scorers/inheritance.json": "{\"metric\":\"inheritance\"}\n",
+    };
+    for (const [name, content] of Object.entries(files)) {
+      const target = path.join(directory, name);
+      mkdirSync(path.dirname(target), { recursive: true });
+      writeFileSync(target, content);
+    }
+    mkdirSync(path.join(directory, "workspace"));
+    const draft = plan();
+    const rooted = rootEvaluationPlan({
+      ...draft,
+      tasks: [{
+        ...draft.tasks[0],
+        source_root: byteRoot(files["sources/math.json"]),
+        packet_root: byteRoot(files["packets/math.json"]),
+        verifier_root: byteRoot(files["verifiers/math"]),
+      }],
+      arms: [{
+        ...draft.arms[0],
+        argv: [process.execPath, "-e", "process.exit(0)"],
+        dependency_lock_root: byteRoot(files["locks/native.lock"]),
+        environment_root: byteRoot(files["environments/native.json"]),
+        executable_root: byteRoot(readFileSync(process.execPath)),
+      }],
+      scorers: draft.scorers.map((entry) => ({
+        ...entry,
+        root: byteRoot(files[entry.path]),
+      })),
+      performance_functions: {
+        execution_lift: byteRoot(files["scorers/execution.json"]),
+        state_lift: byteRoot(files["scorers/state.json"]),
+        inheritance_lift: byteRoot(files["scorers/inheritance.json"]),
+      },
+    });
+    const planFile = path.join(directory, "plan.json");
+    writeFileSync(planFile, `${JSON.stringify(rooted)}\n`);
+    const verified = await verifyEvaluationPlanFiles(rooted, planFile);
+    assert.equal(verified.verified_files, 9);
+    writeFileSync(path.join(directory, "verifiers/math"), "drift\n");
+    await assert.rejects(
+      verifyEvaluationPlanFiles(rooted, planFile),
+      /verifier root drifted/u,
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("evaluation runner preserves every registered result after process failures", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "canopus-evaluation-run-"));
+  try {
+    const files = {
+      "sources/math.json": "{\"source\":\"math\"}\n",
+      "sources/scientific.json": "{\"source\":\"scientific\"}\n",
+      "packets/math.json": "{\"task\":\"math\"}\n",
+      "packets/scientific.json": "{\"task\":\"scientific\"}\n",
+      "verifiers/math": "#!/bin/sh\nexit 0\n",
+      "verifiers/scientific": "#!/bin/sh\nexit 0\n",
+      "locks/native.lock": "lock\n",
+      "environments/native.json": "{}\n",
+      "scorers/execution.json": "{\"metric\":\"execution\"}\n",
+      "scorers/state.json": "{\"metric\":\"state\"}\n",
+      "scorers/inheritance.json": "{\"metric\":\"inheritance\"}\n",
+      "arm-wrapper.mjs": [
+        "import { writeFileSync } from 'node:fs';",
+        "const [, , output, assignment, exitCode] = process.argv;",
+        "writeFileSync(`${output}/arm-result.json`,",
+        "JSON.stringify({schema:'canopus.evaluation-arm-result.v1',",
+        "assignment_id:assignment,model_output_observed:true,",
+        "usage:{input_tokens:6,cached_input_tokens:2,output_tokens:4,",
+        "reasoning_output_tokens:1}})+'\\n');",
+        "if (exitCode === '0') process.stdout.write('ok\\n');",
+        "process.exit(Number(exitCode));",
+      ].join(""),
+    };
+    for (const [name, content] of Object.entries(files)) {
+      const target = path.join(directory, name);
+      mkdirSync(path.dirname(target), { recursive: true });
+      writeFileSync(target, content);
+    }
+    mkdirSync(path.join(directory, "workspace"));
+    const executableRoot = byteRoot(readFileSync(process.execPath));
+    const base = registeredStageA();
+    const rooted = rootEvaluationPlan({
+      ...base,
+      tasks: base.tasks.map((task) => ({
+        ...task,
+        source_root: byteRoot(files[task.source_path]),
+        packet_root: byteRoot(files[task.packet_path]),
+        verifier_root: byteRoot(files[task.verifier_path]),
+      })),
+      arms: base.arms.map((arm) => ({
+        ...arm,
+        argv: [
+          process.execPath,
+          path.join(directory, "arm-wrapper.mjs"),
+          "{output}",
+          "{assignment_id}",
+          arm.kind === "native_codex" ? "7" : "0",
+        ],
+        executable_root: executableRoot,
+        dependency_lock_root: byteRoot(files[arm.dependency_lock_path]),
+        environment_root: byteRoot(files[arm.environment_path]),
+      })),
+      scorers: base.scorers.map((entry) => ({
+        ...entry,
+        root: byteRoot(files[entry.path]),
+      })),
+      performance_functions: {
+        execution_lift: byteRoot(files["scorers/execution.json"]),
+        state_lift: byteRoot(files["scorers/state.json"]),
+        inheritance_lift: byteRoot(files["scorers/inheritance.json"]),
+      },
+    });
+    const planFile = path.join(directory, "plan.json");
+    const output = path.join(directory, "runs");
+    writeFileSync(planFile, `${JSON.stringify(rooted)}\n`);
+    const run = spawnSync(
+      process.execPath,
+      [
+        path.join(packageRoot, "evaluation/scripts/run-plan.mjs"),
+        "--plan",
+        planFile,
+        "--stage",
+        "A",
+        "--output",
+        output,
+      ],
+      {
+        cwd: packageRoot,
+        encoding: "utf8",
+      },
+    );
+    assert.equal(run.status, 0, run.stderr);
+    const index = JSON.parse(readFileSync(path.join(output, "index.json"), "utf8"));
+    const firstRun = JSON.parse(readFileSync(
+      path.join(output, index.registered_assignment_ids[0], "run.json"),
+      "utf8",
+    ));
+    assert.equal(
+      index.status,
+      "complete",
+      JSON.stringify({ index, first_run: firstRun }),
+    );
+    assert.equal(index.runs.length, 12);
+    const report = spawnSync(
+      process.execPath,
+      [path.join(packageRoot, "evaluation/scripts/report.mjs"), output],
+      {
+        cwd: packageRoot,
+        encoding: "utf8",
+      },
+    );
+    assert.equal(report.status, 0, report.stderr);
+    const summary = JSON.parse(readFileSync(path.join(output, "report.json"), "utf8"));
+    assert.equal(summary.registered, 12);
+    assert.equal(summary.runs, 12);
+    assert.equal(summary.completed, 8);
+    assert.equal(summary.failed, 4);
+    assert.equal(summary.observed_tokens, 120);
+    assert.deepEqual(summary.unmeasured_token_runs, []);
+    assert.deepEqual(summary.missing_assignment_ids, []);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

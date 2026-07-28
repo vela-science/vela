@@ -36,6 +36,13 @@ Vela does not replace Git, workbenches, formal systems, workflow engines,
 artifact stores, or domain databases. It reuses them and adds only the
 scientific transition boundary they do not share.
 
+The familiar product analogy is Git plus a protected pull-request workflow,
+with Terraform's preview-versus-apply separation: a candidate scientific
+change is inspectable and checkable before an authorized Decision changes
+Standing. The analogy stops at the authority boundary. A Git merge, signature,
+registration, workflow completion, or verifier pass is not a scientific
+Decision.
+
 ## Performance functions
 
 The north star is genuine reusable scientific progress per scarce human
@@ -50,6 +57,10 @@ judgment. Three measures stay separate:
 
 Run count, graph size, generated Claims, and workflow completion are not proxy
 success metrics. Verification is evidence, never acceptance.
+
+The campaign tests four claims independently: Canopus execution lift, Vela
+state lift, combined-system efficiency, and cold adoption. Evidence for one
+does not establish another.
 
 ## Architecture under test
 
@@ -122,6 +133,12 @@ The non-normative `canopus.evaluation-plan.v1` freezes tasks, arms, versions,
 roots, budgets, retries, scorers, exclusions, custody rules, and publication
 policy before usable model output.
 
+Registration binds and rehashes the source snapshot, task packet, verifier,
+arm executable, dependency lock, environment, and each of the three distinct
+performance scorers. Every registered outcome remains visible; an ordinary
+failed process does not truncate the remaining matched cells, and a hard stop
+must list every registered cell that was not run.
+
 ### Stage A
 
 - Tasks: the next uncovered Erdős range and the first qualifying pinned
@@ -130,6 +147,15 @@ policy before usable model output.
   current Canopus engine.
 - Repetitions: two fresh sessions per task and arm.
 - Maximum: 12 model calls.
+
+The first canonically ordered CORE-Bench candidate, `capsule-0201225`, is
+ineligible: the retained code is GPL-3.0 rather than permissively licensed, and
+the capsule depends on an archived external container image. Its exclusion is
+part of the registered selection audit. `capsule-0220918` remains under audit.
+The following candidate, `capsule-0238624`, has MIT code and CC0 data but is
+also ineligible because its frozen environment and reproduction command require
+CUDA, `tensorflow-gpu`, and an NVIDIA runtime. The next eligible candidate must
+still be selected by the same frozen order and rules.
 
 ### Stage B
 
@@ -155,7 +181,9 @@ TypeScript. Otherwise preserve the result and delete the integration.
    verifier.
 2. Compare the `status -> show -> why` read path against Git plus the same
    structured evidence and verifier.
-3. Add a scientific-state comparison surface only if a frozen cold-use test
+3. Treat the exact Proposal/Scientific Diff and `why` explanation as the first
+   product surfaces under test; add a scientific-state comparison surface only
+   if a frozen cold-use test
    materially reduces evidence-location or correction time.
 4. After measured math value, package one public CPU-only computational
    replication with a source-local adapter and a root-bound RO-Crate export.
@@ -172,6 +200,9 @@ TypeScript. Otherwise preserve the result and delete the integration.
   enter an authentication or signing trust path.
 - No second writer, hosted authority, scheduler, universal ontology, mandatory
   framework, or canonical database is added.
+- Component compatibility is generated from release manifests and conformance,
+  not maintained by copying version literals across repositories. Exact Runs
+  still pin every binary and digest.
 - Hidden failures, benchmark leakage, post-output plan changes, unexplained
   root drift, verifier-as-acceptance language, or non-reproducible evidence stop
   the campaign.

@@ -4,7 +4,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 
-import { parseEvaluationPlan } from "../lib/evaluation-plan.mjs";
+import { verifyEvaluationPlanFiles } from "../lib/evaluation-plan.mjs";
 
 const supplied = process.argv.slice(2).filter((value) => value !== "--");
 let files = supplied;
@@ -21,13 +21,18 @@ if (files.length === 0) {
 }
 const plans = [];
 for (const file of files) {
-  const plan = parseEvaluationPlan(JSON.parse(await readFile(file, "utf8")));
+  const planFile = path.resolve(file);
+  const { plan, verified_files: verifiedFiles } = await verifyEvaluationPlanFiles(
+    JSON.parse(await readFile(planFile, "utf8")),
+    planFile,
+  );
   plans.push({
     file,
     plan_id: plan.plan_id,
     status: plan.status,
     plan_root: plan.plan_root,
     assignments: plan.assignments.length,
+    verified_files: verifiedFiles,
   });
 }
 process.stdout.write(`${JSON.stringify({

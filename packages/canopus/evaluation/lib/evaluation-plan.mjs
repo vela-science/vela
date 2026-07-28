@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
+import { constants } from "node:fs";
+import { access, lstat, readFile, realpath } from "node:fs/promises";
+import path from "node:path";
 
 export const EVALUATION_PLAN_SCHEMA = "canopus.evaluation-plan.v1";
+export const EVALUATION_ARM_RESULT_SCHEMA = "canopus.evaluation-arm-result.v1";
 export const EVALUATION_RUN_SCHEMA = "canopus.evaluation-run.v1";
 export const EVALUATION_REPORT_SCHEMA = "canopus.evaluation-report.v1";
 export const SHA256 = /^sha256:[0-9a-f]{64}$/u;
@@ -59,6 +63,31 @@ function integer(value, at, min, max) {
   return value;
 }
 
+function boolean(value, at) {
+  if (typeof value !== "boolean") throw new Error(`${at} must be boolean`);
+  return value;
+}
+
+function nullableText(value, at, max = 4096) {
+  return value === null ? null : text(value, at, max);
+}
+
+function timestamp(value, at) {
+  const candidate = text(value, at, 64);
+  const parsed = new Date(candidate);
+  if (Number.isNaN(parsed.valueOf())) {
+    throw new Error(`${at} must be a canonical RFC3339 UTC timestamp`);
+  }
+  const normalized = parsed.toISOString();
+  if (
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u.test(candidate) ||
+    ![normalized, normalized.replace(".000Z", "Z")].includes(candidate)
+  ) {
+    throw new Error(`${at} must be a canonical RFC3339 UTC timestamp`);
+  }
+  return candidate;
+}
+
 function array(value, at, min, max, parse) {
   if (!Array.isArray(value) || value.length < min || value.length > max) {
     throw new Error(`${at} must contain ${min}..${max} entries`);
@@ -93,9 +122,9 @@ function parseTask(value, at) {
   exactKeys(
     item,
     [
-      "id", "class", "source", "source_root", "packet_path", "packet_root",
-      "verifier_root", "license", "cpu_only", "network", "max_wall_time_ms",
-      "max_observed_tokens",
+      "id", "class", "source", "source_path", "source_root", "packet_path", "packet_root",
+      "verifier_path", "verifier_root", "license", "cpu_only", "network",
+      "max_wall_time_ms", "max_observed_tokens",
     ],
     [],
     at,
@@ -110,9 +139,11 @@ function parseTask(value, at) {
     id: text(item.id, `${at}.id`, 256),
     class: item.class,
     source: text(item.source, `${at}.source`, 512),
+    source_path: relative(item.source_path, `${at}.source_path`),
     source_root: root(item.source_root, `${at}.source_root`),
     packet_path: relative(item.packet_path, `${at}.packet_path`),
     packet_root: root(item.packet_root, `${at}.packet_root`),
+    verifier_path: relative(item.verifier_path, `${at}.verifier_path`),
     verifier_root: root(item.verifier_root, `${at}.verifier_root`),
     license: text(item.license, `${at}.license`, 128),
     cpu_only: true,
@@ -136,7 +167,11 @@ function parseArm(value, at) {
   const item = object(value, at);
   exactKeys(
     item,
-    ["id", "kind", "argv", "cwd", "dependency_lock_root", "environment_root"],
+    [
+      "id", "kind", "argv", "cwd", "dependency_lock_path",
+      "dependency_lock_root", "environment_path", "environment_root",
+      "executable_root",
+    ],
     [],
     at,
   );
@@ -159,8 +194,24 @@ function parseArm(value, at) {
     kind: item.kind,
     argv,
     cwd: relative(item.cwd, `${at}.cwd`),
+    dependency_lock_path: relative(
+      item.dependency_lock_path,
+      `${at}.dependency_lock_path`,
+    ),
     dependency_lock_root: root(item.dependency_lock_root, `${at}.dependency_lock_root`),
+    environment_path: relative(item.environment_path, `${at}.environment_path`),
     environment_root: root(item.environment_root, `${at}.environment_root`),
+    executable_root: root(item.executable_root, `${at}.executable_root`),
+  };
+}
+
+function parseScorer(value, at) {
+  const item = object(value, at);
+  exactKeys(item, ["id", "path", "root"], [], at);
+  return {
+    id: text(item.id, `${at}.id`, 128),
+    path: relative(item.path, `${at}.path`),
+    root: root(item.root, `${at}.root`),
   };
 }
 
@@ -175,6 +226,62 @@ function parseAssignment(value, at) {
     arm_id: text(item.arm_id, `${at}.arm_id`, 128),
     repetition: integer(item.repetition, `${at}.repetition`, 1, 16),
     seed: integer(item.seed, `${at}.seed`, 0, 2_147_483_647),
+  };
+}
+
+function parseUsage(value, at) {
+  const usage = object(value, at);
+  exactKeys(
+    usage,
+    [
+      "input_tokens", "cached_input_tokens", "output_tokens",
+      "reasoning_output_tokens",
+    ],
+    [],
+    at,
+  );
+  return {
+    input_tokens: integer(usage.input_tokens, `${at}.input_tokens`, 0, 1_000_000_000),
+    cached_input_tokens: integer(
+      usage.cached_input_tokens,
+      `${at}.cached_input_tokens`,
+      0,
+      1_000_000_000,
+    ),
+    output_tokens: integer(
+      usage.output_tokens,
+      `${at}.output_tokens`,
+      0,
+      1_000_000_000,
+    ),
+    reasoning_output_tokens: integer(
+      usage.reasoning_output_tokens,
+      `${at}.reasoning_output_tokens`,
+      0,
+      1_000_000_000,
+    ),
+  };
+}
+
+export function parseEvaluationArmResult(value) {
+  const result = object(value, "arm_result");
+  exactKeys(
+    result,
+    ["schema", "assignment_id", "model_output_observed", "usage"],
+    [],
+    "arm_result",
+  );
+  if (result.schema !== EVALUATION_ARM_RESULT_SCHEMA) {
+    throw new Error("arm_result.schema is unsupported");
+  }
+  return {
+    schema: EVALUATION_ARM_RESULT_SCHEMA,
+    assignment_id: text(result.assignment_id, "arm_result.assignment_id", 128),
+    model_output_observed: boolean(
+      result.model_output_observed,
+      "arm_result.model_output_observed",
+    ),
+    usage: parseUsage(result.usage, "arm_result.usage"),
   };
 }
 
@@ -196,6 +303,9 @@ export function parseEvaluationPlan(value) {
   if (!["draft", "registered", "stopped", "complete"].includes(plan.status)) {
     throw new Error("plan.status is unsupported");
   }
+  text(plan.plan_id, "plan.plan_id", 128);
+  timestamp(plan.created_at, "plan.created_at");
+  text(plan.campaign, "plan.campaign", 4096);
   const identities = object(plan.identities, "plan.identities");
   exactKeys(
     identities,
@@ -208,7 +318,10 @@ export function parseEvaluationPlan(value) {
   const assignments = array(plan.assignments, "plan.assignments", 1, 36, parseAssignment);
   const taskIds = new Set(tasks.map((task) => task.id));
   const armIds = new Set(arms.map((arm) => arm.id));
+  if (taskIds.size !== tasks.length) throw new Error("plan.tasks contains duplicate ids");
+  if (armIds.size !== arms.length) throw new Error("plan.arms contains duplicate ids");
   const assignmentIds = new Set();
+  const assignmentTuples = new Set();
   for (const assignment of assignments) {
     if (!taskIds.has(assignment.task_id)) {
       throw new Error(`assignment ${assignment.id} names an unknown task`);
@@ -220,6 +333,16 @@ export function parseEvaluationPlan(value) {
       throw new Error(`duplicate assignment ${assignment.id}`);
     }
     assignmentIds.add(assignment.id);
+    const tuple = [
+      assignment.stage,
+      assignment.task_id,
+      assignment.arm_id,
+      assignment.repetition,
+    ].join("/");
+    if (assignmentTuples.has(tuple)) {
+      throw new Error(`duplicate assignment tuple ${tuple}`);
+    }
+    assignmentTuples.add(tuple);
   }
   const budgets = object(plan.budgets, "plan.budgets");
   exactKeys(
@@ -243,6 +366,70 @@ export function parseEvaluationPlan(value) {
   );
   if (assignments.length > budgets.max_model_calls) {
     throw new Error("assignments exceed the registered model-call budget");
+  }
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
+  const assignedWallTime = assignments.reduce(
+    (sum, assignment) => sum + taskById.get(assignment.task_id).max_wall_time_ms,
+    0,
+  );
+  const assignedTokens = assignments.reduce(
+    (sum, assignment) => sum + taskById.get(assignment.task_id).max_observed_tokens,
+    0,
+  );
+  if (assignedWallTime > budgets.max_total_wall_time_ms) {
+    throw new Error("assignment wall-time ceilings exceed the registered total budget");
+  }
+  if (assignedTokens > budgets.max_total_observed_tokens) {
+    throw new Error("assignment token ceilings exceed the registered total budget");
+  }
+  if (plan.status === "registered") {
+    const stageA = assignments.filter((assignment) => assignment.stage === "A");
+    if (stageA.length > 0) {
+      const stageATaskIds = new Set(stageA.map((assignment) => assignment.task_id));
+      const stageATasks = tasks.filter((task) => stageATaskIds.has(task.id));
+      const stageAArmIds = new Set(stageA.map((assignment) => assignment.arm_id));
+      const stageAArms = arms.filter((arm) => stageAArmIds.has(arm.id));
+      if (
+        stageATasks.length !== 2 ||
+        new Set(stageATasks.map((task) => task.class)).size !== 2 ||
+        !stageATasks.some((task) => task.class === "math") ||
+        !stageATasks.some((task) => task.class === "scientific_computing")
+      ) {
+        throw new Error(
+          "registered Stage A requires one math and one scientific-computing task",
+        );
+      }
+      const requiredKinds = new Set([
+        "native_codex",
+        "native_codex_packet",
+        "canopus",
+      ]);
+      if (
+        stageAArms.length !== requiredKinds.size ||
+        stageAArms.some((arm) => !requiredKinds.has(arm.kind))
+      ) {
+        throw new Error(
+          "registered Stage A requires native Codex, same-packet native Codex, and Canopus",
+        );
+      }
+      for (const task of stageATasks) {
+        for (const arm of stageAArms) {
+          const repetitions = stageA
+            .filter((assignment) =>
+              assignment.task_id === task.id && assignment.arm_id === arm.id)
+            .map((assignment) => assignment.repetition)
+            .sort((left, right) => left - right);
+          if (repetitions.length !== 2 || repetitions[0] !== 1 || repetitions[1] !== 2) {
+            throw new Error(
+              `registered Stage A requires repetitions 1 and 2 for ${task.id}/${arm.id}`,
+            );
+          }
+        }
+      }
+      if (stageA.length !== 12) {
+        throw new Error("registered Stage A requires exactly 12 assignments");
+      }
+    }
   }
   const retry = object(plan.retry_policy, "plan.retry_policy");
   exactKeys(
@@ -288,8 +475,14 @@ export function parseEvaluationPlan(value) {
     "plan.scorers",
     3,
     16,
-    (entry, at) => root(entry, at),
+    parseScorer,
   );
+  if (new Set(scorers.map((scorer) => scorer.id)).size !== scorers.length) {
+    throw new Error("plan.scorers contains duplicate ids");
+  }
+  if (new Set(scorers.map((scorer) => scorer.root)).size !== scorers.length) {
+    throw new Error("plan.scorers contains duplicate roots");
+  }
   const performanceFunctions = object(
     plan.performance_functions,
     "plan.performance_functions",
@@ -318,7 +511,7 @@ export function parseEvaluationPlan(value) {
     throw new Error("plan performance functions must use three distinct scorer roots");
   }
   for (const performanceRoot of performanceRoots) {
-    if (!scorers.includes(performanceRoot)) {
+    if (!scorers.some((scorer) => scorer.root === performanceRoot)) {
       throw new Error(
         `plan performance function ${performanceRoot} is absent from plan.scorers`,
       );
@@ -329,13 +522,16 @@ export function parseEvaluationPlan(value) {
   for (const key of ["codex", "canopus", "vela", "git", "environment"]) {
     parseIdentity(identities[key], `plan.identities.${key}`);
   }
-  array(
+  const dependencies = array(
     identities.dependencies,
     "plan.identities.dependencies",
     0,
     32,
     parseIdentity,
   );
+  if (new Set(dependencies.map((dependency) => dependency.name)).size !== dependencies.length) {
+    throw new Error("plan.identities.dependencies contains duplicate names");
+  }
   if (plan.amends_root === null) {
     if (plan.amendment_reason !== null) {
       throw new Error("an original plan cannot have an amendment reason");
@@ -357,6 +553,283 @@ export function rootEvaluationPlan(value) {
   return { ...rooted, plan_root: digest(rooted) };
 }
 
+export function parseEvaluationRun(value) {
+  const record = object(value, "run");
+  exactKeys(
+    record,
+    [
+      "schema", "run_id", "plan_root", "assignment", "task_root", "arm_root",
+      "started_at", "ended_at", "wall_time_ms", "exit_code", "signal",
+      "stdout_root", "stderr_root", "model_output_observed", "timed_out",
+      "runner_error", "retry_of", "authority_effect", "arm_result_root",
+      "usage", "observed_tokens",
+    ],
+    [],
+    "run",
+  );
+  if (record.schema !== EVALUATION_RUN_SCHEMA) {
+    throw new Error("run.schema is unsupported");
+  }
+  const startedAt = timestamp(record.started_at, "run.started_at");
+  const endedAt = timestamp(record.ended_at, "run.ended_at");
+  if (endedAt < startedAt) throw new Error("run ended before it started");
+  if (
+    record.exit_code !== null &&
+    (!Number.isSafeInteger(record.exit_code) || record.exit_code < 0 || record.exit_code > 255)
+  ) {
+    throw new Error("run.exit_code must be null or an integer in 0..255");
+  }
+  if (record.authority_effect !== "none") {
+    throw new Error("run.authority_effect must be none");
+  }
+  const hasUsage = record.usage !== null;
+  if (
+    hasUsage !== (record.arm_result_root !== null) ||
+    hasUsage !== (record.observed_tokens !== null)
+  ) {
+    throw new Error(
+      "run usage, observed_tokens, and arm_result_root must be present together",
+    );
+  }
+  const usage = hasUsage ? parseUsage(record.usage, "run.usage") : null;
+  const observedTokens = hasUsage
+    ? integer(record.observed_tokens, "run.observed_tokens", 0, 1_000_000_000)
+    : null;
+  if (
+    usage !== null &&
+    observedTokens !== usage.input_tokens + usage.output_tokens
+  ) {
+    throw new Error(
+      "run.observed_tokens must equal input_tokens plus output_tokens",
+    );
+  }
+  return {
+    schema: EVALUATION_RUN_SCHEMA,
+    run_id: text(record.run_id, "run.run_id", 128),
+    plan_root: root(record.plan_root, "run.plan_root"),
+    assignment: parseAssignment(record.assignment, "run.assignment"),
+    task_root: root(record.task_root, "run.task_root"),
+    arm_root: root(record.arm_root, "run.arm_root"),
+    started_at: startedAt,
+    ended_at: endedAt,
+    wall_time_ms: integer(record.wall_time_ms, "run.wall_time_ms", 0, 86_400_000),
+    exit_code: record.exit_code,
+    signal: nullableText(record.signal, "run.signal", 64),
+    stdout_root: root(record.stdout_root, "run.stdout_root"),
+    stderr_root: root(record.stderr_root, "run.stderr_root"),
+    model_output_observed: boolean(
+      record.model_output_observed,
+      "run.model_output_observed",
+    ),
+    timed_out: boolean(record.timed_out, "run.timed_out"),
+    runner_error: nullableText(record.runner_error, "run.runner_error"),
+    retry_of: nullableText(record.retry_of, "run.retry_of", 128),
+    authority_effect: "none",
+    arm_result_root: record.arm_result_root === null
+      ? null
+      : root(record.arm_result_root, "run.arm_result_root"),
+    usage,
+    observed_tokens: observedTokens,
+  };
+}
+
+export function parseEvaluationRunSet(value) {
+  const index = object(value, "run_set");
+  exactKeys(
+    index,
+    [
+      "schema", "plan_root", "stage", "status", "stop_reason",
+      "registered_assignment_ids", "runs",
+    ],
+    [],
+    "run_set",
+  );
+  if (index.schema !== "canopus.evaluation-run-set.v1") {
+    throw new Error("run_set.schema is unsupported");
+  }
+  if (!["complete", "stopped"].includes(index.status)) {
+    throw new Error("run_set.status is unsupported");
+  }
+  if (!["A", "B", "C"].includes(index.stage)) {
+    throw new Error("run_set.stage is unsupported");
+  }
+  const registeredAssignmentIds = array(
+    index.registered_assignment_ids,
+    "run_set.registered_assignment_ids",
+    1,
+    36,
+    (entry, at) => text(entry, at, 128),
+  );
+  if (new Set(registeredAssignmentIds).size !== registeredAssignmentIds.length) {
+    throw new Error("run_set.registered_assignment_ids contains duplicates");
+  }
+  const runs = array(index.runs, "run_set.runs", 1, 36, (entry, at) => {
+    const item = object(entry, at);
+    exactKeys(item, ["assignment_id", "run_root"], [], at);
+    return {
+      assignment_id: text(item.assignment_id, `${at}.assignment_id`, 128),
+      run_root: root(item.run_root, `${at}.run_root`),
+    };
+  });
+  if (new Set(runs.map((entry) => entry.assignment_id)).size !== runs.length) {
+    throw new Error("run_set.runs contains duplicate assignments");
+  }
+  if (runs.some((entry) => !registeredAssignmentIds.includes(entry.assignment_id))) {
+    throw new Error("run_set.runs contains an unregistered assignment");
+  }
+  const missing = registeredAssignmentIds.filter(
+    (assignmentId) => !runs.some((entry) => entry.assignment_id === assignmentId),
+  );
+  if (index.status === "complete" && missing.length > 0) {
+    throw new Error("complete run_set is missing registered assignments");
+  }
+  if (
+    (index.status === "complete" && index.stop_reason !== null) ||
+    (index.status === "stopped" && index.stop_reason === null)
+  ) {
+    throw new Error("run_set stop reason does not match its status");
+  }
+  return {
+    schema: "canopus.evaluation-run-set.v1",
+    plan_root: root(index.plan_root, "run_set.plan_root"),
+    stage: index.stage,
+    status: index.status,
+    stop_reason: nullableText(index.stop_reason, "run_set.stop_reason"),
+    registered_assignment_ids: registeredAssignmentIds,
+    runs,
+  };
+}
+
 export function canonicalJson(value) {
   return `${canonical(value)}\n`;
+}
+
+function byteRoot(bytes) {
+  return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+}
+
+function remainsBelow(root, candidate) {
+  const relative = path.relative(root, candidate);
+  return relative !== "" && !relative.startsWith(`..${path.sep}`) && relative !== ".." &&
+    !path.isAbsolute(relative);
+}
+
+async function verifyFile(planDirectory, relativePath, expectedRoot, at) {
+  const candidate = path.resolve(planDirectory, relativePath);
+  const resolved = await realpath(candidate);
+  if (!remainsBelow(planDirectory, resolved)) {
+    throw new Error(`${at} escapes the registered plan directory`);
+  }
+  const metadata = await lstat(resolved);
+  if (!metadata.isFile()) throw new Error(`${at} is not a regular file`);
+  const observed = byteRoot(await readFile(resolved));
+  if (observed !== expectedRoot) {
+    throw new Error(`${at} root drifted: expected ${expectedRoot}, observed ${observed}`);
+  }
+  return resolved;
+}
+
+async function verifyDirectory(planDirectory, relativePath, at) {
+  const candidate = path.resolve(planDirectory, relativePath);
+  const resolved = await realpath(candidate);
+  if (!remainsBelow(planDirectory, resolved)) {
+    throw new Error(`${at} escapes the registered plan directory`);
+  }
+  const metadata = await lstat(resolved);
+  if (!metadata.isDirectory()) throw new Error(`${at} is not a directory`);
+  return resolved;
+}
+
+async function resolveExecutable(command, cwd, expectedRoot, at) {
+  const candidates = command.includes("/")
+    ? [path.resolve(cwd, command)]
+    : (process.env.PATH ?? "")
+      .split(path.delimiter)
+      .filter((entry) => entry.length > 0)
+      .map((entry) => path.join(entry, command));
+  for (const candidate of candidates) {
+    try {
+      await access(candidate, constants.X_OK);
+      const resolved = await realpath(candidate);
+      const metadata = await lstat(resolved);
+      if (!metadata.isFile()) continue;
+      const observed = byteRoot(await readFile(resolved));
+      if (observed !== expectedRoot) {
+        throw new Error(
+          `${at} root drifted: expected ${expectedRoot}, observed ${observed}`,
+        );
+      }
+      return resolved;
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith(`${at} root drifted:`)) {
+        throw error;
+      }
+    }
+  }
+  throw new Error(`${at} is not an executable file on the registered PATH`);
+}
+
+export async function verifyEvaluationPlanFiles(plan, planFile) {
+  const parsed = parseEvaluationPlan(plan);
+  const resolvedPlan = await realpath(planFile);
+  const planDirectory = path.dirname(resolvedPlan);
+  let verifiedFiles = 0;
+  const executablePaths = {};
+  for (const task of parsed.tasks) {
+    await verifyFile(
+      planDirectory,
+      task.source_path,
+      task.source_root,
+      `task ${task.id} source`,
+    );
+    await verifyFile(
+      planDirectory,
+      task.packet_path,
+      task.packet_root,
+      `task ${task.id} packet`,
+    );
+    await verifyFile(
+      planDirectory,
+      task.verifier_path,
+      task.verifier_root,
+      `task ${task.id} verifier`,
+    );
+    verifiedFiles += 3;
+  }
+  for (const arm of parsed.arms) {
+    const cwd = await verifyDirectory(planDirectory, arm.cwd, `arm ${arm.id} cwd`);
+    executablePaths[arm.id] = await resolveExecutable(
+      arm.argv[0],
+      cwd,
+      arm.executable_root,
+      `arm ${arm.id} executable`,
+    );
+    await verifyFile(
+      planDirectory,
+      arm.dependency_lock_path,
+      arm.dependency_lock_root,
+      `arm ${arm.id} dependency lock`,
+    );
+    await verifyFile(
+      planDirectory,
+      arm.environment_path,
+      arm.environment_root,
+      `arm ${arm.id} environment`,
+    );
+    verifiedFiles += 3;
+  }
+  for (const scorer of parsed.scorers) {
+    await verifyFile(
+      planDirectory,
+      scorer.path,
+      scorer.root,
+      `scorer ${scorer.id}`,
+    );
+    verifiedFiles += 1;
+  }
+  return {
+    plan: parsed,
+    verified_files: verifiedFiles,
+    executable_paths: executablePaths,
+  };
 }

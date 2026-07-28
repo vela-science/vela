@@ -4,7 +4,11 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 
-import { canonicalJson, digest } from "../lib/evaluation-plan.mjs";
+import {
+  canonicalJson,
+  digest,
+  parseEvaluationRun,
+} from "../lib/evaluation-plan.mjs";
 
 function values(argv) {
   const result = new Map();
@@ -23,10 +27,9 @@ const options = values(process.argv.slice(2).filter((value) => value !== "--"));
 if (options.get("--format") !== "otlp-json" || options.get("--content") !== "none") {
   throw new Error("trace export supports only --format otlp-json --content none");
 }
-const input = JSON.parse(await readFile(path.resolve(options.get("--input")), "utf8"));
-if (input.schema !== "canopus.evaluation-run.v1") {
-  throw new Error("trace input must be canopus.evaluation-run.v1");
-}
+const input = parseEvaluationRun(
+  JSON.parse(await readFile(path.resolve(options.get("--input")), "utf8")),
+);
 const trace = {
   resourceSpans: [{
     resource: {
@@ -54,7 +57,12 @@ const trace = {
           { key: "vela.authority_effect", value: { stringValue: "none" } },
           { key: "gen_ai.content_recorded", value: { boolValue: false } },
         ],
-        status: { code: input.exit_code === 0 ? 1 : 2 },
+        status: {
+          code:
+            input.exit_code === 0 && input.runner_error === null && !input.timed_out
+              ? 1
+              : 2,
+        },
       }],
     }],
   }],
