@@ -5,6 +5,14 @@
 - Protocol effect: None
 - Vela authority effect: None
 
+> Current evidence (2026-07-28): repaired Stage A completed at plan root
+> `sha256:31268241f0f1ada92fd78d245643ad9274308a74d617a965e8e2bcb46195fd47`.
+> Canopus passed four of four matched cells and improved aggregate
+> verifier-passing output per token and wall time. Stage B was not run because
+> transparent Stage A diagnostics and repair consumed 27 calls, leaving fewer
+> than the 12 cells required under the campaign's original 32-call ceiling.
+> No framework integration is supported and no `v0.9.0` release is justified.
+
 ## Context
 
 Canopus currently has one narrow product responsibility: turn one exact Vela

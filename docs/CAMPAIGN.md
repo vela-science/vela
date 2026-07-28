@@ -298,26 +298,57 @@ enum. Every arm computed defensible raw means near 0.3410, 0.4624, and 0.9961,
 while the verifier silently expected the registered two-decimal replay values
 0.34, 0.46, and 1 plus the exact string `decrease`.
 
-Stage B is blocked. The failed artifacts remain evidence, but they cannot rank
-the arms on scientific correctness. A root-linked Stage A repair must publish
-an answer-free closed output contract with the exact field types, identities,
-two-decimal rounding rule, and `decrease|increase` enum. It must use fresh
-assignments and preserve the completed diagnostic report. The repaired
-answer-free packet root is
+The failed diagnostic artifacts remain evidence, but they do not rank the arms
+on scientific correctness. The root-linked Stage A repair published an
+answer-free closed output contract with exact field types, identities,
+two-decimal rounding rules, and a `decrease|increase` enum. Its repaired packet
+root is
 `sha256:a367b30c4aebb021bc1f19a618bbf6b1fc487121cd9310b68c620da41b5a3add`.
 No task answer enters the model-visible packet.
 
+The repaired Stage A plan root is
+`sha256:31268241f0f1ada92fd78d245643ad9274308a74d617a965e8e2bcb46195fd47`.
+All 12 fresh assignments completed with no missing run, no safety failure, and
+no authority effect. Eleven artifacts passed their frozen verifier. Its report
+root is
+`sha256:43be5378169f2911eb09773b2a9ffbbf8364c080e37dc874b13188ccff144bfb`.
+
+| Arm | Verifier passes | Observed tokens | Wall time | Passes / 1M tokens | Passes / hour |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Canopus | 4 / 4 | 853,514 | 324.375 s | 4.687 | 44.393 |
+| Native Codex | 3 / 4 | 1,207,939 | 616.799 s | 2.484 | 17.510 |
+| Same-packet native | 4 / 4 | 2,253,673 | 449.045 s | 1.775 | 32.068 |
+
+Canopus improved verifier-passing artifacts per observed token by 88.7 percent
+over plain native and 164.0 percent over same-packet native. It improved
+verifier-passing artifacts per wall hour by 153.5 percent and 38.4 percent,
+respectively. No expert intervention occurred inside a cell. These are two
+fresh repetitions per task and arm, so the result is evidence of baseline
+utility, not a stable population estimate or independent-participant result.
+
+The one failed repaired run was plain native Erdős r1. It returned every cut
+one below the registered indexing convention; the frozen verifier rejected it.
+All other repaired artifacts passed. The scientific task repair converted the
+earlier 0 / 6 verifier result into 6 / 6, confirming that the earlier failures
+were caused by the incomplete output contract rather than an arm capability
+difference.
+
 ### Stage B
 
-Run only after a safe Stage A. Compare plain TypeScript, stateless LangGraph,
-and the OpenAI Agents SDK on the same frozen tasks, with two repetitions per
-arm and task. Maximum: 12 model calls.
+Do not run in this campaign. Stage A was safe, but three transparent budget
+diagnostics plus the diagnostic and repaired matched runs consumed 27 model
+calls. The campaign's original 32-call ceiling cannot fit the 12 registered
+Stage B cells. Expanding the ceiling after seeing Stage A would turn a bounded
+evaluation into open-ended framework shopping.
+
+No LangGraph or OpenAI Agents SDK runtime enters supported Canopus code.
+Preserve the source-only evaluation seam and the negative Stage B disposition.
+Any future orchestration comparison requires a new campaign, held-out tasks,
+and a new preregistered budget.
 
 ### Stage C
 
-Run only if Stage B produces a candidate winner. Compare that candidate, the
-stronger registered native control, and plain TypeScript on held-out tasks.
-Maximum: 12 model calls.
+Not reached. No framework candidate exists.
 
 An orchestration framework is retained only if it has no hard-gate failure,
 wins both task classes, repeats on held-out tasks, and improves the primary
