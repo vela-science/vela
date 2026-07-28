@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readFile, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   loadProductProfile,
@@ -123,7 +124,9 @@ test("profile v2 binds exact platform custody and packs only portable contract r
 
 test("Linux custody denies host roots and reopens only the exact workspace", async () => {
   const config = await readFile(
-    path.resolve("runtime/native-worker/config-linux.toml"),
+    fileURLToPath(
+      new URL("../../runtime/native-worker/config-linux.toml", import.meta.url),
+    ),
     "utf8",
   );
   assert.match(config, /^"\/home" = "deny"$/mu);
