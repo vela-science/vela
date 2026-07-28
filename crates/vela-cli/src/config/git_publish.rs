@@ -2312,6 +2312,7 @@ fn frontier_specs(frontier: &Path, root: &Path) -> Result<Vec<String>, String> {
         ".vela".to_string(),
         "frontier.json".to_string(),
         "frontier.yaml".to_string(),
+        "targets.json".to_string(),
         "vela.lock".to_string(),
         "proof".to_string(),
         "sources".to_string(),

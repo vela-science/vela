@@ -398,7 +398,7 @@ pub(crate) fn import(
                 .map_err(|error| error.to_string())?;
             prepared.install().map_err(|error| error.to_string())?;
             prepared.complete().map_err(|error| error.to_string())?;
-            crate::current_repository::verify_current_repository_at(frontier, true)?;
+            crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)?;
             return Ok(VerificationImportOutcome {
                 schema: "vela.verification-import-result.v1",
                 operation_id: operation_id.as_str().into(),
@@ -418,7 +418,7 @@ pub(crate) fn import(
         .map_err(|error| error.to_string())?;
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
-    crate::current_repository::verify_current_repository_at(frontier, true)?;
+    crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)?;
     let publication = match (delta.as_ref(), preflight) {
         (Some(delta), Some(preflight)) => publish_exact_delta(
             frontier,
@@ -443,6 +443,21 @@ pub(crate) fn import(
             recovery_command: None,
         },
     };
+    if matches!(
+        publication.state,
+        PublicationState::Unchanged { .. }
+            | PublicationState::CommittedLocal { .. }
+            | PublicationState::Pushed { .. }
+    ) {
+        crate::current_repository::verify_current_repository_at(frontier, true).map_err(
+            |error| {
+                format!(
+                    "Verification Record was published but strict post-publication verification \
+                     failed: {error}; do not retry the import"
+                )
+            },
+        )?;
+    }
     Ok(VerificationImportOutcome {
         schema: "vela.verification-import-result.v1",
         operation_id: operation_id.as_str().into(),

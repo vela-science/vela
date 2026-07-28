@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## v0.940.7 — 2026-07-28 — Current Target Index writer repair
+
+- Fixed current Submission and Verification writers so an exact Target Index
+  rebind is verified as a transaction-derived postimage before publication and
+  strictly against Git only after the publication commit exists.
+- Added `targets.json` to the closed public Frontier topology so the exact
+  derived rebind is included in the same local commit as its repository
+  transition.
+- Added a clean-clone regression covering Submission registration in a current
+  repository with a sealed Target Index. Tracking, repository roots, accepted
+  state, and replay remain fail closed.
+
 ## v0.940.6 — 2026-07-28 — Retained artifact reference reuse repair
 
 - Reuse an exact retained Artifact reference when a new current Submission

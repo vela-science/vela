@@ -724,7 +724,7 @@ pub(crate) fn submit(
                 .map_err(|error| error.to_string())?;
             prepared.install().map_err(|error| error.to_string())?;
             prepared.complete().map_err(|error| error.to_string())?;
-            crate::current_repository::verify_current_repository_at(frontier, true)?;
+            crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)?;
             crate::current_work::close_submission_attempt(resolved_attempt)?;
             return Ok(SubmitOutcome {
                 schema: "vela.submit-result.v1",
@@ -749,7 +749,7 @@ pub(crate) fn submit(
         .map_err(|error| error.to_string())?;
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
-    crate::current_repository::verify_current_repository_at(frontier, true)?;
+    crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)?;
     crate::current_work::close_submission_attempt(resolved_attempt)?;
     let publication = match (delta.as_ref(), preflight) {
         (Some(delta), Some(preflight)) => publish_exact_delta(
@@ -775,6 +775,21 @@ pub(crate) fn submit(
             recovery_command: None,
         },
     };
+    if matches!(
+        publication.state,
+        PublicationState::Unchanged { .. }
+            | PublicationState::CommittedLocal { .. }
+            | PublicationState::Pushed { .. }
+    ) {
+        crate::current_repository::verify_current_repository_at(frontier, true).map_err(
+            |error| {
+                format!(
+                    "Submission was published but strict post-publication verification failed: \
+                     {error}; do not retry the Submission"
+                )
+            },
+        )?;
+    }
     Ok(SubmitOutcome {
         schema: "vela.submit-result.v1",
         operation_id: operation_id.as_str().into(),

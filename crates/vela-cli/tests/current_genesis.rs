@@ -6,7 +6,7 @@ use std::path::Path;
 use std::process::{Command, Output};
 
 use ed25519_dalek::SigningKey;
-use serde_json::Value;
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
 use vela_protocol::submission_v1::{
@@ -49,6 +49,101 @@ impl Drop for RemoveOnDrop {
     fn drop(&mut self) {
         let _ = std::fs::remove_file(&self.0);
     }
+}
+
+fn install_current_target_index(frontier: &Path, socket: &Path) {
+    std::fs::create_dir_all(frontier.join("domain")).expect("domain directory");
+    std::fs::write(frontier.join("domain/source.json"), br#"{"open":[1056]}"#)
+        .expect("target source");
+    let committed = Command::new("git")
+        .current_dir(frontier)
+        .args(["add", "domain/source.json"])
+        .status()
+        .expect("stage target source");
+    assert!(committed.success());
+    let committed = Command::new("git")
+        .current_dir(frontier)
+        .args(["commit", "-qm", "target source"])
+        .status()
+        .expect("commit target source");
+    assert!(committed.success());
+    let source = Command::new("git")
+        .current_dir(frontier)
+        .args(["rev-parse", "HEAD^{commit}"])
+        .output()
+        .expect("target source commit");
+    assert!(source.status.success());
+    let source = String::from_utf8(source.stdout)
+        .expect("UTF-8 source commit")
+        .trim()
+        .to_string();
+    let profile_source =
+        std::fs::read_to_string(frontier.join("frontier.yaml")).expect("frontier profile");
+    let frontier_id =
+        vela_protocol::current_repository::CurrentFrontierProfileV2::from_yaml_str(&profile_source)
+            .expect("current profile")
+            .frontier_id;
+    std::fs::create_dir_all(frontier.join("site/problems")).expect("packet directory");
+    std::fs::write(
+        frontier.join("site/problems/1056.json"),
+        br#"{"problem":1056,"schema":"erdos-frontier.problem-work.v1"}"#,
+    )
+    .expect("target packet");
+    std::fs::create_dir_all(frontier.join(".vela/tmp")).expect("candidate directory");
+    std::fs::write(
+        frontier.join(".vela/tmp/target-index-candidate.json"),
+        serde_json::to_vec_pretty(&json!({
+            "schema": "vela.target-index-candidate.v1",
+            "frontier_id": frontier_id,
+            "source": {
+                "git_commit": source,
+                "input_paths": ["domain/source.json"]
+            },
+            "targets": [{
+                "id": "erdos:1056",
+                "title": "Erdős 1056",
+                "why": "First exact bounded target.",
+                "state": "open",
+                "rank": 1,
+                "objective": "Produce one bounded artifact.",
+                "labels": ["erdos", "open"],
+                "packet": {
+                    "schema": "erdos-frontier.problem-work.v1",
+                    "path": "site/problems/1056.json"
+                }
+            }]
+        }))
+        .expect("candidate JSON"),
+    )
+    .expect("target candidate");
+    let sealed = success_json(&run(
+        frontier,
+        Some(socket),
+        &[
+            "target-index",
+            "seal",
+            ".",
+            "--candidate",
+            ".vela/tmp/target-index-candidate.json",
+            "--apply",
+            "--json",
+        ],
+    ));
+    assert_eq!(sealed["schema"], "vela.target-index-seal.v1");
+    std::fs::remove_file(frontier.join(".vela/tmp/target-index-candidate.json"))
+        .expect("remove source-local candidate");
+    let committed = Command::new("git")
+        .current_dir(frontier)
+        .args(["add", "targets.json", "site/problems/1056.json"])
+        .status()
+        .expect("stage sealed Target Index");
+    assert!(committed.success());
+    let committed = Command::new("git")
+        .current_dir(frontier)
+        .args(["commit", "-qm", "seal target index"])
+        .status()
+        .expect("commit sealed Target Index");
+    assert!(committed.success());
 }
 
 #[test]
@@ -267,6 +362,7 @@ fn current_submission_commits_and_replays_without_changing_accepted_state() {
             .as_str()
             .expect("trust anchor path"),
     ));
+    install_current_target_index(&frontier, agent.socket());
 
     let artifact = b"{\"bounded\":true}\n";
     let artifact_digest = format!("sha256:{}", hex::encode(Sha256::digest(artifact)));
@@ -352,7 +448,10 @@ fn current_submission_commits_and_replays_without_changing_accepted_state() {
     assert_eq!(submitted["schema"], "vela.submit-result.v1");
     assert_eq!(submitted["route"], "pending_review");
     assert_eq!(submitted["accepted_event_delta"], 0);
-    assert_eq!(submitted["publication"]["state"], "committed_local");
+    assert_eq!(
+        submitted["publication"]["state"], "committed_local",
+        "unexpected publication outcome: {submitted}"
+    );
 
     let after = Command::new("git")
         .current_dir(&frontier)
@@ -370,6 +469,14 @@ fn current_submission_commits_and_replays_without_changing_accepted_state() {
     assert_eq!(checked["counts"]["pending_claims"], 1);
     let status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
     assert_eq!(status["integrity"]["strict"], "pass");
+    let target_index: Value = serde_json::from_slice(
+        &std::fs::read(frontier.join("targets.json")).expect("rebound Target Index"),
+    )
+    .expect("Target Index JSON");
+    assert_eq!(
+        target_index["repository"]["repository_root"],
+        checked["repository_root"]
+    );
 
     let clone = temporary.path().join("submission-clone");
     let cloned = Command::new("git")
