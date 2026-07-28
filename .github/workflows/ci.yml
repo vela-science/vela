@@ -16,11 +16,11 @@ jobs:
           - runner: macos-15
             archive: vela-macos-aarch64.zip
             archive_sha256: e48607239c584d70d7583e25c07991af047e5a031478bd7665f37510d270fbda
-            binary_sha256: eae9c73822647a0f4b8b7e85ad10ba46bf1b0b181f96641b67dec689e9aeac2b
+            binary_sha256: 599ca6d3bb02b4fef06adbe5717d227bf356096431d734c4c65b05d7a6a5610b
           - runner: ubuntu-24.04
             archive: vela-linux-x86_64.tar.gz
             archive_sha256: c4103e772db7e6bb22624cce6710927ea7c854eb747fed01ad92d139a2ab6c05
-            binary_sha256: ff4a5d2901a93afa10bdfcb1e64a62db6d1e1f225834f9231508392b6568c224
+            binary_sha256: d89eea3aa64890ce5145fb3d219f5b8f702a7675465a477e0ab1ed0a6d91265f
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     steps:
@@ -148,7 +148,7 @@ jobs:
           }
           Expand-Archive $archive "$env:RUNNER_TEMP\vela"
           if ((Get-FileHash "$env:RUNNER_TEMP\vela\vela.exe" -Algorithm SHA256).Hash.ToLower() -ne `
-              "20c2b6a440ed408e4ff5a79d6f8672c32dd5c0424ad0e3155132c9966b15eb73") {
+              "1615e195c50a331052eddd28c535b3164cd062a4d3b8540163ece73792e72af6") {
             throw "Vela binary checksum mismatch"
           }
           & "$env:RUNNER_TEMP\vela\vela.exe" --version
