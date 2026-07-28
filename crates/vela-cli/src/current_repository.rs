@@ -603,18 +603,7 @@ fn validate_current_proposal_standing(
     for reference in &repository.proposals {
         let bytes = read_rooted_object(root, &reference.path, &reference.root)?;
         let proposal = ProposalV1::parse(&bytes)?;
-        let claim_path = crate::current_submission::rooted_path(
-            "records/claims/sha256",
-            &proposal.subject.root,
-        )?;
-        let claim_bytes = read_rooted_object(root, &claim_path, &proposal.subject.root)?;
-        let claim = ClaimRecordV1::parse(&claim_bytes)?;
-        if claim.claim_id != proposal.subject.id {
-            return Err(format!(
-                "current Proposal {} has the wrong Claim bytes",
-                proposal.proposal_id
-            ));
-        }
+        let claim = rooted_claim_for_proposal(root, &proposal)?;
         let pending = repository.pending_claims.iter().any(|candidate| {
             candidate.claim_id == proposal.subject.id
                 && candidate.claim_root == proposal.subject.root
@@ -976,6 +965,29 @@ pub(crate) fn verification_targets_proposal(
         && record.subject.submission_root == proposal.producer_package.root
 }
 
+fn rooted_claim_for_proposal(root: &Path, proposal: &ProposalV1) -> Result<ClaimRecordV1, String> {
+    let claim_path =
+        crate::current_submission::rooted_path("records/claims/sha256", &proposal.subject.root)?;
+    let claim_bytes = read_rooted_object(root, &claim_path, &proposal.subject.root)?;
+    let claim = ClaimRecordV1::parse(&claim_bytes)?;
+    if claim.canonical_bytes()? != claim_bytes || claim.claim_id != proposal.subject.id {
+        return Err(format!(
+            "current Proposal {} has the wrong canonical Claim bytes",
+            proposal.proposal_id
+        ));
+    }
+    Ok(claim)
+}
+
+fn verification_targets_rooted_proposal(
+    root: &Path,
+    proposal: &ProposalV1,
+    record: &VerificationRecordV1,
+) -> Result<bool, String> {
+    let claim = rooted_claim_for_proposal(root, proposal)?;
+    Ok(verification_targets_proposal(proposal, &claim, record))
+}
+
 pub(crate) fn verify_current_repository_at(
     root: &Path,
     require_authority_record: bool,
@@ -1127,7 +1139,7 @@ pub(crate) fn verify_current_repository_at(
                 matching_proposals.push((proposal_reference, proposal));
             }
         }
-        let [(proposal_reference, proposal)] = matching_proposals.as_slice() else {
+        let [(_, proposal)] = matching_proposals.as_slice() else {
             return Err(format!(
                 "{} targets Proposal {} with {} current or imported matches",
                 reference.path,
@@ -1135,34 +1147,8 @@ pub(crate) fn verify_current_repository_at(
                 matching_proposals.len()
             ));
         };
-        let claim_matches = if proposal.proposal_id == verification.subject.proposal_id {
-            proposal.subject.id == verification.subject.claim_id
-        } else {
-            let pending_reference = repository
-                .pending_claims
-                .iter()
-                .find(|claim| {
-                    claim.claim_id == proposal.subject.id
-                        && claim.claim_root == proposal.subject.root
-                })
-                .ok_or_else(|| {
-                    format!(
-                        "{} imported Proposal has no exact pending Claim",
-                        proposal_reference.path
-                    )
-                })?;
-            let claim_bytes =
-                read_rooted_object(root, &pending_reference.path, &pending_reference.claim_root)?;
-            let claim = ClaimRecordV1::parse(&claim_bytes)?;
-            claim
-                .imported_from
-                .as_ref()
-                .is_some_and(|source| source.object_id == verification.subject.claim_id)
-        };
-        if !claim_matches
-            || proposal.producer_package.id != verification.subject.submission_id
-            || proposal.producer_package.root != verification.subject.submission_root
-        {
+        let claim_matches = verification_targets_rooted_proposal(root, proposal, &verification)?;
+        if !claim_matches {
             return Err(format!(
                 "{} does not bind its exact current/imported Proposal subject and producer package",
                 reference.path
@@ -1919,5 +1905,28 @@ mod tests {
             &unrelated_claim,
             &verification
         ));
+    }
+
+    #[test]
+    fn terminal_imported_verification_uses_retained_rooted_claim() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (proposal, claim, verification) = imported_review_lineage();
+        let claim_root = claim.canonical_root().unwrap();
+        let claim_path =
+            crate::current_submission::rooted_path("records/claims/sha256", &claim_root).unwrap();
+        let absolute = temporary.path().join(claim_path);
+        fs::create_dir_all(absolute.parent().unwrap()).unwrap();
+        fs::write(&absolute, claim.canonical_bytes().unwrap()).unwrap();
+
+        assert!(
+            verification_targets_rooted_proposal(temporary.path(), &proposal, &verification)
+                .unwrap()
+        );
+
+        fs::write(&absolute, b"{}\n").unwrap();
+        assert!(
+            verification_targets_rooted_proposal(temporary.path(), &proposal, &verification)
+                .is_err()
+        );
     }
 }
