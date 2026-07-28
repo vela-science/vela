@@ -6,6 +6,7 @@ import path from "node:path";
 import { protocolDigest, sha256Bytes } from "../util/canonical.js";
 import { runCommand, type CommandRunner } from "../util/command.js";
 import { readBoundedRegularFile } from "../util/files.js";
+import { SUPPORTED_VELA_VERSION } from "./version.js";
 import { findExecutable } from "./runtime.js";
 import {
   verifySubmission,
@@ -180,6 +181,8 @@ export async function submitBundle(options: {
   accepted_event_delta: 0;
   source_commit_before: string;
   source_commit_after: string;
+  registration_binary_version: string;
+  registration_binary_sha256: string;
 }> {
   const runner = options.runner ?? runCommand;
   const bundle = await realpath(options.bundle);
@@ -222,19 +225,38 @@ export async function submitBundle(options: {
   );
   if (status !== "") throw new Error("source frontier must be clean before submit");
   const before = await command(runner, ["git", "rev-parse", "--verify", "HEAD^{commit}"], frontier);
-  const beforeTree = await command(runner, ["git", "rev-parse", "--verify", "HEAD^{tree}"], frontier);
+  const sourceTree = await command(
+    runner,
+    ["git", "rev-parse", "--verify", `${manifest.source.git_commit}^{tree}`],
+    frontier,
+  );
   const sourceOrigin = await command(runner, ["git", "remote", "get-url", "origin"], frontier);
-  if (before !== manifest.source.git_commit || beforeTree !== manifest.source.git_tree) {
-    throw new Error("source frontier no longer matches the Run roots");
+  if (sourceTree !== manifest.source.git_tree) {
+    throw new Error("retained Run source commit no longer matches its exact Git tree");
+  }
+  if (before !== manifest.source.git_commit) {
+    const ancestry = await runner({
+      argv: ["git", "merge-base", "--is-ancestor", manifest.source.git_commit, before],
+      cwd: frontier,
+      env: process.env,
+      timeoutMs: 120_000,
+      maxOutputBytes: 64 * 1024,
+    });
+    if (ancestry.exitCode !== 0) {
+      throw new Error(
+        "current frontier is not a descendant of the retained Run source commit",
+      );
+    }
   }
   const vela = await findExecutable(options.velaBinary ?? process.env.VELA_BIN ?? "vela");
   const observedVela = sha256Bytes(await readBoundedRegularFile(vela, 512 * 1024 * 1024));
-  if (observedVela !== manifest.source.vela_sha256) {
-    throw new Error(`Vela binary mismatch: expected ${manifest.source.vela_sha256}, observed ${observedVela}`);
-  }
   const version = await command(runner, [vela, "--version"], frontier, 64 * 1024);
-  if (!version.includes(manifest.source.vela_version)) {
-    throw new Error(`Vela version mismatch: expected ${manifest.source.vela_version}, observed ${version}`);
+  if (version !== `vela ${SUPPORTED_VELA_VERSION}`) {
+    throw new Error(
+      `Canopus requires registration through vela ${SUPPORTED_VELA_VERSION}, observed ${version}; ` +
+      `the retained Run source binary remains recorded separately as ${manifest.source.vela_version} ` +
+      `(${manifest.source.vela_sha256})`,
+    );
   }
 
   const temporary = await mkdtemp(path.join(os.tmpdir(), "canopus-submit-"));
@@ -311,6 +333,8 @@ export async function submitBundle(options: {
       accepted_event_delta: 0,
       source_commit_before: before,
       source_commit_after: after,
+      registration_binary_version: version,
+      registration_binary_sha256: observedVela,
     };
   } finally {
     await rm(temporary, { recursive: true, force: true });

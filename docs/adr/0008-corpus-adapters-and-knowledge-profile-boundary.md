@@ -7,6 +7,9 @@
   workbench export with a real bounded handoff
 - Shared-extraction gate: two qualifying formats expose duplicated common code
   that the extraction deletes
+- Current disposition: retain source-local adapters only. The math-first
+  campaign does not authorize a shared adapter schema, SDK, registry, command
+  family, or release.
 
 ## Context
 

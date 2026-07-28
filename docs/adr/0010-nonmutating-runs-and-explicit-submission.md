@@ -5,6 +5,9 @@
 - Protocol effect: None
 - Vela requirement: current `vela.submission.v1` and `vela submit`
 - Supersedes for current writers: automatic landing portions of ADR 0004
+- Acceptance gate: the corrected real Erdős Submission must register as
+  pending review with accepted-event delta zero and reproduce from a clean
+  clone; package, custody, provenance, and release checks must also pass.
 
 ## Context
 
@@ -96,9 +99,15 @@ Before mutation it verifies:
 - the Submission identity, whole-body signature, and full root;
 - exact agreement between bundled and declared Artifacts;
 - safe relative paths, byte counts, and full digests;
-- the source Git commit and tree;
+- the exact retained source Git commit and tree;
+- that the current clean Frontier is that commit or a descendant of it;
 - a clean source worktree; and
-- the exact Vela binary version and SHA-256.
+- the current supported registration binary version and its observed SHA-256.
+
+The Run's historical Vela version and SHA-256 remain immutable source
+provenance. They are not incorrectly required to write a later current
+repository epoch. The submit result records the exact current registration
+binary identity.
 
 It performs registration in a disposable exact-head clone, accepts only
 `vela.submit-result.v1` with `pending_review` and accepted-event delta zero,
@@ -132,7 +141,10 @@ capabilities, and Canopus-managed withdrawal are not compatibility aliases.
 ## Adversarial cases
 
 - A dirty or root-drifted source Frontier blocks submit.
-- A different Vela binary with the same version string blocks on SHA-256.
+- A missing source commit, wrong retained tree, or non-descendant current
+  Frontier blocks submit.
+- The submit result discloses the exact registration-binary SHA-256; release
+  qualification fails if it does not match the pinned platform artifact.
 - A malformed, extra-field, path-traversing, duplicated, missing, truncated,
   or digest-mismatched Artifact blocks before Vela runs.
 - A manifest that swaps producer, identity binding, Submission, source roots,
@@ -152,8 +164,9 @@ Focused tests must prove:
 - a current Run reproduces from a clean clone;
 - export emits an authenticated Vela Submission with no retained key;
 - bundle and Submission Artifact sets agree exactly;
-- submit rejects path traversal, bundle drift, binary drift, source drift, and
-  authority-changing Vela results;
+- submit rejects path traversal, bundle drift, unsupported registration
+  binaries, missing/non-descendant source history, and authority-changing Vela
+  results;
 - submit fast-forwards only after verified pending registration;
 - historical current-source readers still parse released Run formats; and
 - released Vela composition retains zero mutation during Run.

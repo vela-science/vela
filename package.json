@@ -1,6 +1,6 @@
 {
   "name": "@vela-science/canopus",
-  "version": "0.8.0-rc.5",
+  "version": "0.8.0-rc.6",
   "description": "A bounded, replaceable research harness over released Vela interfaces",
   "type": "module",
   "private": false,
@@ -76,7 +76,12 @@
     "prepack": "bun run build",
     "pack:check": "bun pm pack --dry-run",
     "fixture:hostile-custody": "node scripts/run-hostile-native-custody-fixture.mjs",
-    "fixture:hostile-verifier": "node scripts/run-hostile-verifier-fixture.mjs"
+    "fixture:hostile-verifier": "node scripts/run-hostile-verifier-fixture.mjs",
+    "eval:validate": "bun evaluation/scripts/validate-plan.mjs",
+    "eval:run": "bun evaluation/scripts/run-plan.mjs",
+    "eval:report": "bun evaluation/scripts/report.mjs",
+    "eval:conformance": "node --test tests/evaluation-plan.test.mjs",
+    "trace:export": "bun evaluation/scripts/trace-export.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

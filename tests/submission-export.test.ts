@@ -6,7 +6,12 @@ import test from "node:test";
 
 import { exportSubmission, verifySubmission, type SubmissionV1 } from "../src/product/submission.js";
 import { submitBundle } from "../src/product/submit.js";
-import { canonicalJson, protocolDigest, sha256Bytes } from "../src/util/canonical.js";
+import {
+  canonicalJson,
+  contentDigest,
+  protocolDigest,
+  sha256Bytes,
+} from "../src/util/canonical.js";
 import { writeCurrentRunFixture } from "./helpers/current-run-fixture.js";
 
 test("export creates an authenticated portable Submission without mutating Vela", async () => {
@@ -99,7 +104,7 @@ test("export fails closed on stale verifier wording and preserves an explicit bo
   const fixture = await writeCurrentRunFixture({
     root: path.join(home, "product"),
     artifact,
-    velaVersion: "0.940.5",
+    velaVersion: "0.940.6",
     velaSha256: sha256Bytes(artifact),
     gitCommit: "e".repeat(40),
     gitTree: "f".repeat(40),
@@ -157,7 +162,7 @@ test("export rejects arbitrary Claim replacement and control characters", async 
   const fixture = await writeCurrentRunFixture({
     root: path.join(home, "product"),
     artifact,
-    velaVersion: "0.940.5",
+    velaVersion: "0.940.6",
     velaSha256: sha256Bytes(artifact),
     gitCommit: "e".repeat(40),
     gitTree: "f".repeat(40),
@@ -180,7 +185,7 @@ test("export rejects arbitrary Claim replacement and control characters", async 
   const controlFixture = await writeCurrentRunFixture({
     root: path.join(home, "control-product"),
     artifact,
-    velaVersion: "0.940.5",
+    velaVersion: "0.940.6",
     velaSha256: sha256Bytes(artifact),
     gitCommit: "e".repeat(40),
     gitTree: "f".repeat(40),
@@ -198,4 +203,72 @@ test("export rejects arbitrary Claim replacement and control characters", async 
     }),
     /requires --claim and --scope-limit/u,
   );
+});
+
+test("export reads an immutable predecessor-root Run without rewriting it", async () => {
+  const home = await mkdtemp(path.join(os.tmpdir(), "canopus-export-predecessor-"));
+  const fixture = await writeCurrentRunFixture({
+    root: path.join(home, "fixture"),
+    artifact: Buffer.from("{\"value\":42}\n"),
+    velaVersion: "0.930.0-rc.13",
+    velaSha256: `sha256:${"9".repeat(64)}`,
+    gitCommit: "b".repeat(40),
+    gitTree: "c".repeat(40),
+    roots: {
+      git_commit: "b".repeat(40),
+      git_tree: "c".repeat(40),
+      vela_repository: `sha256:${"a".repeat(64)}`,
+    },
+    candidateClaim:
+      "The bounded result completed; independent verifier replay remains pending.",
+  });
+  const missionFile = path.join(
+    path.dirname(path.dirname(fixture.runFile)),
+    "mission",
+    "mission.json",
+  );
+  const mission = JSON.parse(await readFile(missionFile, "utf8")) as Record<string, unknown>;
+  const predecessorRoots = {
+    git_commit: "b".repeat(40),
+    git_tree: "c".repeat(40),
+    vela_event_log: `sha256:${"d".repeat(64)}`,
+    vela_snapshot: `sha256:${"e".repeat(64)}`,
+  };
+  mission.roots = predecessorRoots;
+  mission.strict_baseline = {
+    status: "fail",
+    blocker_count: 1,
+    blockers_root: `sha256:${"f".repeat(64)}`,
+    rule_counts: [{ count: 1, rule: "legacy_fixture" }],
+  };
+  await writeFile(missionFile, canonicalJson(mission));
+
+  const run = JSON.parse(await readFile(fixture.runFile, "utf8")) as Record<string, unknown>;
+  const runMission = run.mission as Record<string, unknown>;
+  const reproduction = run.reproduction as Record<string, unknown>;
+  runMission.digest = contentDigest(mission);
+  runMission.starting_roots = predecessorRoots;
+  reproduction.roots = predecessorRoots;
+  await writeFile(fixture.runFile, canonicalJson(run));
+  const exactRunBytes = await readFile(fixture.runFile);
+
+  const result = await exportSubmission({
+    runFile: fixture.runFile,
+    outputRoot: path.join(home, "submission"),
+    correctedClaim: "The exact bounded predecessor-era fixture returned 42.",
+    scopeLimit: "This establishes only the exact retained fixture.",
+    now: new Date("2026-07-28T12:00:00.000Z"),
+  });
+  const manifest = JSON.parse(await readFile(result.manifest, "utf8")) as {
+    run_root: string;
+    source: Record<string, string>;
+  };
+  assert.equal(manifest.run_root, sha256Bytes(exactRunBytes));
+  assert.deepEqual(manifest.source, {
+    git_commit: "b".repeat(40),
+    git_tree: "c".repeat(40),
+    vela_version: "0.930.0-rc.13",
+    vela_sha256: `sha256:${"9".repeat(64)}`,
+  });
+  assert.deepEqual(await readFile(fixture.runFile), exactRunBytes);
 });

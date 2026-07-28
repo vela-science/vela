@@ -71,8 +71,8 @@ or interprets verifier success as acceptance.
 
 ## Exact product contract
 
-Current source is Canopus `0.8.0-rc.5`, composed with released Vela
-`0.940.5`, Codex CLI `0.145.0`, Bun `1.3.12`, Git, and a pinned verifier
+Current source is Canopus `0.8.0-rc.6`, composed with Vela
+`0.940.6`, Codex CLI `0.145.0`, Bun `1.3.12`, Git, and a pinned verifier
 container. Historical releases remain available for exact replay; they are not
 current writers.
 

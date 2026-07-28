@@ -18,7 +18,20 @@ import path from "node:path";
 
 import { finalizeWorkerCaveat } from "../candidate/finalize.js";
 import { parseMission, type MissionV1 } from "../contracts/mission.js";
+import {
+  arrayAt,
+  enumAt,
+  exactKeys,
+  integerAt,
+  objectAt,
+  sha256At,
+  stringAt,
+} from "../contracts/validation.js";
 import { parseCurrentRunRecord, projectCurrentRun } from "../projection/current-run.js";
+import {
+  normalizeRetainedRunRoots,
+  parseRetainedRunRecord,
+} from "../projection/retained-run.js";
 import { canonicalJcs, canonicalJson, protocolDigest, sha256Bytes } from "../util/canonical.js";
 import { readBoundedRegularFile } from "../util/files.js";
 
@@ -172,6 +185,70 @@ function missionFileFor(runFile: string): string {
   return path.join(runRoot, "..", "mission", "mission.json");
 }
 
+function retainedMissionForExport(value: unknown): {
+  mission: MissionV1;
+  exactRoot: string;
+  exactRoots: string;
+} {
+  const raw = objectAt(value, "retained Mission");
+  const roots = objectAt(raw.roots, "retained Mission.roots");
+  if (raw.strict_baseline !== undefined) {
+    const baseline = objectAt(raw.strict_baseline, "retained Mission.strict_baseline");
+    exactKeys(
+      baseline,
+      ["status", "blocker_count", "blockers_root", "rule_counts"],
+      [],
+      "retained Mission.strict_baseline",
+    );
+    enumAt(
+      baseline.status,
+      "retained Mission.strict_baseline.status",
+      ["pass", "fail"] as const,
+    );
+    integerAt(
+      baseline.blocker_count,
+      "retained Mission.strict_baseline.blocker_count",
+      0,
+      1_000_000,
+    );
+    sha256At(
+      baseline.blockers_root,
+      "retained Mission.strict_baseline.blockers_root",
+    );
+    arrayAt(
+      baseline.rule_counts,
+      "retained Mission.strict_baseline.rule_counts",
+      { min: 0, max: 256 },
+      (item, at) => {
+        const count = objectAt(item, at);
+        exactKeys(count, ["count", "rule"], [], at);
+        integerAt(count.count, `${at}.count`, 0, 1_000_000);
+        stringAt(count.rule, `${at}.rule`, {
+          min: 1,
+          max: 128,
+          pattern: /^[a-z][a-z0-9_]*$/u,
+        });
+        return true;
+      },
+    );
+  }
+  const parseable = { ...raw };
+  delete parseable.strict_baseline;
+  const normalized = {
+    ...parseable,
+    roots: normalizeRetainedRunRoots(roots, "retained Mission.roots"),
+  };
+  const mission = parseMission(normalized);
+  if (mission.schema !== "canopus.mission.v1") {
+    throw new Error("current export requires canopus.mission.v1");
+  }
+  return {
+    mission,
+    exactRoot: sha256Bytes(canonicalJson(raw)),
+    exactRoots: canonicalJcs(roots),
+  };
+}
+
 export async function exportSubmission(options: {
   runFile: string;
   outputRoot: string;
@@ -190,17 +267,19 @@ export async function exportSubmission(options: {
 }> {
   const runFile = await realpath(options.runFile);
   const runRoot = path.dirname(runFile);
-  const record = parseCurrentRunRecord(JSON.parse(
+  const retainedRun = parseRetainedRunRecord(JSON.parse(
     (await readBoundedRegularFile(runFile, 8 * 1024 * 1024)).toString("utf8"),
   ) as unknown);
-  const mission = parseMission(JSON.parse(
+  const retainedMission = retainedMissionForExport(JSON.parse(
     (await readBoundedRegularFile(missionFileFor(runFile), 8 * 1024 * 1024)).toString("utf8"),
   ) as unknown);
-  if (mission.schema !== "canopus.mission.v1") {
-    throw new Error("current export requires canopus.mission.v1");
-  }
-  if (record.mission.digest !== sha256Bytes(canonicalJson(mission))) {
+  const record = retainedRun.record;
+  const mission = retainedMission.mission;
+  if (record.mission.digest !== retainedMission.exactRoot) {
     throw new Error("run and mission roots disagree");
+  }
+  if (retainedRun.exactStartingRoots !== retainedMission.exactRoots) {
+    throw new Error("run and mission exact starting roots disagree");
   }
   if (record.candidate.status !== "success" || record.verifier.status !== "passed") {
     throw new Error("only a successful, verifier-passing Run can export a Submission");
@@ -335,7 +414,7 @@ export async function exportSubmission(options: {
     const manifest: SubmissionBundleManifest = {
       schema: "canopus.submission-bundle.v1",
       run_id: record.run_id,
-      run_root: sha256Bytes(canonicalJson(record)),
+      run_root: retainedRun.exactRoot,
       source: {
         git_commit: mission.roots.git_commit,
         git_tree: mission.roots.git_tree,

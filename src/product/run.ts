@@ -14,6 +14,7 @@ import { runCommand, type CommandRunner } from "../util/command.js";
 import { readBoundedRegularFile } from "../util/files.js";
 import { VelaClient } from "../vela/cli.js";
 import { doctorProduct, type ProductDoctorResult } from "./doctor.js";
+import { assertMissionNotCovered } from "./coverage.js";
 import {
   loadProfileDraft,
   loadProfileResultContract,
@@ -134,7 +135,6 @@ export async function runProduct(options: {
   const runner = options.runner ?? runCommand;
   const source = await realpath(options.frontier);
   const outputRoot = path.resolve(options.outputRoot ?? defaultProductOutput(source));
-  await assertFreshOutput(outputRoot, source);
   try {
     const diagnosis = await doctorProduct({
       frontier: source,
@@ -147,6 +147,9 @@ export async function runProduct(options: {
     if (!diagnosis.public.worker.mission_ready || codexRuntime === null || dockerRuntime === null) {
       throw new Error(diagnosis.public.next_action);
     }
+    const draft = await loadProfileDraft(diagnosis.profile);
+    await assertMissionNotCovered({ draft, frontier: source });
+    await assertFreshOutput(outputRoot, source);
     const staging = path.join(outputRoot, ".profile-staging");
     await mkdir(staging, { mode: 0o700 });
     await stageProfileCapsule({
@@ -154,7 +157,6 @@ export async function runProduct(options: {
       stagingRoot: staging,
     });
     const bundleRoot = path.join(outputRoot, "mission");
-    const draft = await loadProfileDraft(diagnosis.profile);
     const resultContract = await loadProfileResultContract(diagnosis.profile);
     const prepared = await prepareMission({
       draft: options.requestedTarget === undefined

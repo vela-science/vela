@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Advance Canopus `0.8.0-rc.6` for the Vela `0.940.6` retained-Artifact
+  repair. Current registration may reuse exact retained Artifact bytes and
+  canonical paths, while path substitution remains fail-closed.
+- Refuse a duplicate verifier-passing mission before output creation or model
+  execution. Historical schemas remain replayable but do not weaken the
+  current Mission v1 coverage gate.
+- Export immutable predecessor-root Run v2 records without rewriting their
+  bytes, and allow their authenticated Submission bundles to register only
+  against an exact source commit or its current descendant.
+- Add a rooted, source-only framework-neutral evaluation contract. Optional
+  engine experiments and metadata-only trace export remain outside the npm
+  payload and cannot change Vela Standing or authority.
 - Advance Canopus `0.8.0-rc.5` after real Erdős dogfood exposed stale
   post-verifier wording at the Submission waist. New workers keep verifier
   status out of the Claim, verifier-pending caveats are normalized after the

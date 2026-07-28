@@ -13,10 +13,10 @@ test("current product release pins the tested Vela and Codex boundaries", async 
     "utf8",
   );
 
-  assert.equal(SUPPORTED_VELA_VERSION, "0.940.5");
+  assert.equal(SUPPORTED_VELA_VERSION, "0.940.6");
   assert.equal(SUPPORTED_CODEX_VERSION, "0.145.0");
-  assert.match(workflow, /releases\/download\/v0\.940\.5/u);
-  assert.match(workflow, /CANOPUS_VELA_VERSION="0\.940\.5"/u);
+  assert.match(workflow, /releases\/download\/v0\.940\.6/u);
+  assert.match(workflow, /CANOPUS_VELA_VERSION="0\.940\.6"/u);
   assert.match(workflow, /codex-0\.145\.0-linux-x64\.tgz/u);
   assert.doesNotMatch(workflow, /releases\/download\/v0\.915\.1/u);
   assert.doesNotMatch(workflow, /codex-0\.144\.6-linux-x64\.tgz/u);
@@ -75,7 +75,7 @@ test("current source stays product-only while historical release evidence remain
     readFile(new URL("../../README.md", import.meta.url), "utf8"),
   ]);
   const packageJson = JSON.parse(packageText) as { files?: string[]; version?: string };
-  assert.equal(packageJson.version, "0.8.0-rc.5");
+  assert.equal(packageJson.version, "0.8.0-rc.6");
   for (const file of [
     "README.md",
     "THIRD_PARTY.md",
@@ -92,6 +92,7 @@ test("current source stays product-only while historical release evidence remain
     "evidence/build-week",
     "evidence/erdos",
     "scripts/run-claim-fidelity-advisory.mjs",
+    "evaluation",
   ]) {
     assert.equal(
       packageJson.files?.includes(historical),
@@ -106,7 +107,7 @@ test("current source stays product-only while historical release evidence remain
   );
   assert.match(
     readme,
-    /Current source is Canopus `0\.8\.0-rc\.5`, composed with released Vela[\s\S]+`0\.940\.5`/u,
+    /Current source is Canopus `0\.8\.0-rc\.6`, composed with Vela[\s\S]+`0\.940\.6`/u,
   );
   assert.match(readme, /A Run is nonmutating/u);
   assert.match(readme, /only the separate `submit` command registers/u);

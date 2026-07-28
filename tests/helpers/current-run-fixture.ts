@@ -18,6 +18,8 @@ export async function writeCurrentRunFixture(options: {
   includeExecutionBinding?: boolean;
   candidateClaim?: string;
   candidateCaveats?: string[];
+  missionTarget?: string;
+  missionObjective?: string;
 }): Promise<{ runFile: string; mission: MissionV1 }> {
   const actor = options.actor ?? "agent:canopus-export-fixture";
   const artifactDigest = sha256Bytes(options.artifact);
@@ -37,7 +39,7 @@ export async function writeCurrentRunFixture(options: {
   const mission: MissionV1 = {
     schema: "canopus.mission.v1",
     id: "mission_submission_export_fixture",
-    target: "fixture:1",
+    target: options.missionTarget ?? "fixture:1",
     vela_version: options.velaVersion,
     vela_sha256: options.velaSha256,
     frontier: ".",
@@ -45,7 +47,7 @@ export async function writeCurrentRunFixture(options: {
     role: "producer",
     claim_type: "computational",
     replayability: "exact",
-    objective: "Produce the exact bounded fixture output.",
+    objective: options.missionObjective ?? "Produce the exact bounded fixture output.",
     completion_condition: "The frozen verifier accepts the witness.",
     roots: {
       ...options.roots,

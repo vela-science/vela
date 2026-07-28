@@ -124,6 +124,7 @@ test("Canopus Submission crosses the released Vela writer with zero accepted del
     outputRoot: bundle,
     now: new Date("2026-07-27T12:00:00Z"),
   });
+  command("git", ["commit", "--allow-empty", "-q", "-m", "Advance current Frontier"], frontier, env);
 
   const saved = {
     HOME: process.env.HOME,
@@ -147,6 +148,8 @@ test("Canopus Submission crosses the released Vela writer with zero accepted del
   assert.equal(result.accepted_event_delta, 0);
   assert.equal(result.route, "pending_review");
   assert.notEqual(result.source_commit_before, result.source_commit_after);
+  assert.equal(result.registration_binary_version, `vela ${version}`);
+  assert.equal(result.registration_binary_sha256, sha256Bytes(await readFile(vela)));
   assert.equal(command("git", ["status", "--porcelain=v1", "--untracked-files=all"], frontier, env), "");
 
   const after = JSON.parse(command(vela, ["status", frontier, "--json"], root, env)) as {

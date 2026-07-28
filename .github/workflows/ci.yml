@@ -15,12 +15,12 @@ jobs:
         include:
           - runner: macos-15
             archive: vela-macos-aarch64.zip
-            archive_sha256: 882f93c788eb22b892d777613c3afd1890ade4862d47d802a7fa806e300d3d11
-            binary_sha256: e5d8dfaa2a9aa60060579115ebdf730f0297cd5b8059f08fc063f4fdfd10cb25
+            archive_sha256: 1e5c10bb1d4667dce396bd2995e9c7e908e9a05b0043dd697467482b735c9e9a
+            binary_sha256: eae9c73822647a0f4b8b7e85ad10ba46bf1b0b181f96641b67dec689e9aeac2b
           - runner: ubuntu-24.04
             archive: vela-linux-x86_64.tar.gz
-            archive_sha256: 80d80a7aaaefbf981158bf985b8840d81a98afa84e54f803c1a53ef6bd1ade80
-            binary_sha256: f607fda46e110935b753a4158fbea76e79cbb60286e15bc1cef3ca369e50ec20
+            archive_sha256: 502e5056b2dcd1b8872e6d96928593340d9e9a0ceec6222a044cee47d8e76e52
+            binary_sha256: ff4a5d2901a93afa10bdfcb1e64a62db6d1e1f225834f9231508392b6568c224
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     steps:
@@ -52,7 +52,7 @@ jobs:
           VELA_SHA256: ${{ matrix.binary_sha256 }}
         run: |
           curl --fail --location --silent --show-error \
-            "https://github.com/vela-science/vela/releases/download/v0.940.5/$VELA_ARCHIVE" \
+            "https://github.com/vela-science/vela/releases/download/v0.940.6/$VELA_ARCHIVE" \
             --output "$RUNNER_TEMP/$VELA_ARCHIVE"
           printf '%s  %s\n' "$VELA_ARCHIVE_SHA256" "$RUNNER_TEMP/$VELA_ARCHIVE" \
             | shasum -a 256 -c -
@@ -69,7 +69,7 @@ jobs:
           if [ "${{ runner.os }}" = macOS ]; then
             CANOPUS_VELA_BIN="$RUNNER_TEMP/vela-release/vela" \
               CANOPUS_VELA_SHA256="sha256:$VELA_SHA256" \
-              CANOPUS_VELA_VERSION="0.940.5" \
+              CANOPUS_VELA_VERSION="0.940.6" \
               node --test dist/tests/integration/released-vela.test.js
           fi
       - name: Run real Linux sandbox custody preflight
@@ -140,15 +140,15 @@ jobs:
         run: |
           $archive = "$env:RUNNER_TEMP\vela-windows-x86_64.zip"
           Invoke-WebRequest `
-            -Uri "https://github.com/vela-science/vela/releases/download/v0.940.1/vela-windows-x86_64.zip" `
+            -Uri "https://github.com/vela-science/vela/releases/download/v0.940.6/vela-windows-x86_64.zip" `
             -OutFile $archive
           if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLower() -ne `
-              "aceff963ffea10400df4cd73b15a13b3d9765a8509fd42c9bf78f1559661d938") {
+              "d7dc3322e21312b89532d0c0b70c821d0e5a571d15c9634c2177f22184a9d0d4") {
             throw "Vela archive checksum mismatch"
           }
           Expand-Archive $archive "$env:RUNNER_TEMP\vela"
           if ((Get-FileHash "$env:RUNNER_TEMP\vela\vela.exe" -Algorithm SHA256).Hash.ToLower() -ne `
-              "be872e8057904c399cca05f74c569036e48d07d5ab6f82f8be7cb1c43d13541f") {
+              "20c2b6a440ed408e4ff5a79d6f8672c32dd5c0424ad0e3155132c9966b15eb73") {
             throw "Vela binary checksum mismatch"
           }
           & "$env:RUNNER_TEMP\vela\vela.exe" --version
