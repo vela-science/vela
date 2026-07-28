@@ -12,6 +12,7 @@
   <a href="https://www.vela.space">Website</a> ·
   <a href="https://app.vela.space">Observatory</a> ·
   <a href="docs/QUICKSTART.md">Quickstart</a> ·
+  <a href="docs/ARCHITECTURE.md">Architecture</a> ·
   <a href="docs/PROTOCOL.md">Protocol</a> ·
   <a href="docs/THREAT_MODEL.md">Security</a>
 </p>
@@ -68,7 +69,7 @@ it does not prove that a Claim is true.
 Install the released CLI from crates.io:
 
 ```bash
-cargo install vela-cli --version 0.940.5 --locked
+cargo install vela-cli --version 0.940.7 --locked
 vela --version
 ```
 
