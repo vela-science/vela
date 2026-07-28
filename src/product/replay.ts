@@ -5,9 +5,7 @@ import path from "node:path";
 import { BudgetTracker } from "../budget/enforce.js";
 import { parseMission } from "../contracts/mission.js";
 import { validateMissionBundle } from "../mission/prepare.js";
-import { parseDiagnosticRunRecord } from "../projection/diagnostic.js";
 import { parseCurrentRunRecord } from "../projection/current-run.js";
-import { parseRunRecord } from "../projection/run.js";
 import { contentDigest } from "../util/canonical.js";
 import { readBoundedRegularFile } from "../util/files.js";
 import { runVerifier } from "../verifier/run.js";
@@ -31,11 +29,12 @@ export async function replayProduct(runFile: string, dockerBinary = "docker"): P
   const schema = typeof raw === "object" && raw !== null && !Array.isArray(raw)
     ? (raw as Record<string, unknown>).schema
     : undefined;
-  const record = schema === "canopus.run.v2"
-    ? parseCurrentRunRecord(raw)
-    : schema === "canopus.diagnostic-run.v1"
-      ? parseDiagnosticRunRecord(raw)
-      : parseRunRecord(raw);
+  if (schema !== "canopus.run.v2") {
+    throw new Error(
+      "current Canopus replays only canopus.run.v2; use the exact historical release for older Run schemas",
+    );
+  }
+  const record = parseCurrentRunRecord(raw);
   const bundleRoot = await realpath(path.join(runRoot, "..", "mission"));
   const mission = parseMission(JSON.parse(
     (await readBoundedRegularFile(path.join(bundleRoot, "mission.json"), 8 * 1024 * 1024)).toString("utf8"),

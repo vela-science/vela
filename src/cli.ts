@@ -8,10 +8,8 @@ import { readdir, stat } from "node:fs/promises";
 
 import { parseMission } from "./contracts/mission.js";
 import { prepareMission, validateMissionBundle } from "./mission/prepare.js";
-import { parseDiagnosticRunRecord, projectDiagnosticRun } from "./projection/diagnostic.js";
 import { parseCurrentRunRecord, projectCurrentRun } from "./projection/current-run.js";
 import { parseFailureRecord, projectFailure } from "./projection/failure.js";
-import { parseRunRecord, projectRun } from "./projection/run.js";
 import { doctorProduct } from "./product/doctor.js";
 import { replayProduct } from "./product/replay.js";
 import { runProduct } from "./product/run.js";
@@ -80,7 +78,8 @@ function showUsage(): string {
   canopus show [run.json | failure.json | latest]
 
 Shows the newest completed or safely stopped non-authoritative Run without
-mutating Vela. Historical run formats remain readable.`;
+mutating Vela. Historical formats remain readable through their exact Canopus
+release; the current product accepts only Run v2 and failure records.`;
 }
 
 function doctorUsage(): string {
@@ -379,11 +378,13 @@ async function showCommand(value: string | undefined, rest: string[]): Promise<v
     : undefined;
   const projection = schema === "canopus.run.v2"
     ? projectCurrentRun(parseCurrentRunRecord(raw))
-    : schema === "canopus.diagnostic-run.v1"
-      ? projectDiagnosticRun(parseDiagnosticRunRecord(raw))
-      : schema === "canopus.failure.v0" || schema === "canopus.failure.v1"
-        ? projectFailure(parseFailureRecord(raw))
-        : projectRun(parseRunRecord(raw));
+    : schema === "canopus.failure.v0" || schema === "canopus.failure.v1"
+      ? projectFailure(parseFailureRecord(raw))
+      : (() => {
+          throw new Error(
+            "current Canopus accepts only canopus.run.v2 and retained failure records; use the exact historical release for older Run schemas",
+          );
+        })();
   process.stdout.write(`${JSON.stringify({ ok: true, command: "show", run_file: file, projection })}\n`);
 }
 

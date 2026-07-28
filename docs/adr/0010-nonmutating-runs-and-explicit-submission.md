@@ -51,12 +51,13 @@ There is no `--no-land` switch because the safe behavior is not optional.
 
 ### Show and replay
 
-`canopus show` reads current Run v2, historical diagnostic Run v1, historical
-landed Run v1, and historical failure records through separate parsers. It
-never normalizes historical bytes into the current schema.
+`canopus show` reads current Run v2 and retained failure records. Historical
+diagnostic and landed Run formats remain readable through their exact tagged
+Canopus releases; the current package does not ship their parsers or schemas
+and never normalizes their bytes into the current schema.
 
 `canopus replay` reruns the frozen verifier without a model call or Frontier
-mutation.
+mutation. The current command accepts Run v2 only.
 
 ### Export
 
@@ -109,8 +110,10 @@ Standing.
 
 ## Compatibility and migration
 
-Historical Run, Receipt, landing, and activity schemas remain parseable. Their
-writers are removed from the installed product and ordinary help.
+Historical Run, Receipt, landing, and activity bytes remain immutable in Git
+history, releases, and retained run evidence. Their exact releases remain the
+corresponding readers. The current package contains neither their writers nor
+their readers.
 
 Mission v1 and profile v2 remain advanced, content-addressed input contracts.
 Their historical `landing` field is interpreted only as a bounded legacy

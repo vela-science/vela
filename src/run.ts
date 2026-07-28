@@ -14,7 +14,6 @@ import { finalizeCandidate } from "./candidate/finalize.js";
 import type { Mission, MissionRoots } from "./contracts/mission.js";
 import type { Engine } from "./engines/engine.js";
 import { engineManifest, verifierManifest } from "./evidence/manifests.js";
-import type { RunRecord } from "./projection/run.js";
 import { canonicalJson, contentDigest } from "./util/canonical.js";
 import type { CommandRunner } from "./util/command.js";
 import type { VelaClient } from "./vela/cli.js";
@@ -42,6 +41,37 @@ export interface CanopusRunOptions {
   verifierRunner?: CommandRunner;
 }
 
+export interface VerifierRun {
+  status: "passed" | "failed" | "error";
+  sandbox: "macos_sandbox" | "container_network_denied";
+  record: {
+    argv: string[];
+    executable_digest: string;
+    exit_code: number;
+    stdout_digest: string;
+    stderr_digest: string;
+    duration_ms: number;
+  };
+}
+
+export interface ReproductionResult {
+  matched: boolean;
+  roots: MissionRoots;
+  verifier_status: "passed" | "failed" | "error";
+  stdout_digest: string;
+  stderr_digest: string;
+}
+
+export interface RunBudget {
+  research_elapsed_ms: number;
+  research_processes: number;
+  research_output_bytes: number;
+  prompt_bytes: number;
+  artifact_bytes: number;
+  attempts: number;
+  observed_tokens: number;
+}
+
 export interface CurrentRunRecord {
   schema: "canopus.run.v2";
   run_id: string;
@@ -62,10 +92,10 @@ export interface CurrentRunRecord {
     artifacts: Array<{ path: string; kind: string; digest: string; bytes: number }>;
     caveats: string[];
   };
-  verifier: RunRecord["verifier"];
+  verifier: VerifierRun;
   submission: null;
-  reproduction: RunRecord["reproduction"];
-  budget: RunRecord["budget"];
+  reproduction: ReproductionResult;
+  budget: RunBudget;
 }
 
 export interface CanopusCurrentRunResult {

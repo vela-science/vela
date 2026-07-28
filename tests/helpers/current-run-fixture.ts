@@ -137,7 +137,18 @@ export async function writeCurrentRunFixture(options: {
       }],
       caveats: ["This establishes only the exact bounded fixture."],
     },
-    verifier: { status: "passed", sandbox: {}, record: {} },
+    verifier: {
+      status: "passed",
+      sandbox: "macos_sandbox",
+      record: {
+        argv: ["capsule/verifier", "result.json"],
+        executable_digest: capsuleRoot,
+        exit_code: 0,
+        stdout_digest: digest,
+        stderr_digest: digest,
+        duration_ms: 1,
+      },
+    },
     submission: null,
     reproduction: {
       matched: true,
@@ -146,7 +157,15 @@ export async function writeCurrentRunFixture(options: {
       stdout_digest: digest,
       stderr_digest: digest,
     },
-    budget: {},
+    budget: {
+      research_elapsed_ms: 1,
+      research_processes: 1,
+      research_output_bytes: options.artifact.length,
+      prompt_bytes: 1,
+      artifact_bytes: options.artifact.length,
+      attempts: 1,
+      observed_tokens: 1,
+    },
   };
   await writeFile(path.join(missionRoot, "mission.json"), canonicalJson(mission));
   await writeFile(path.join(runRoot, "run.json"), canonicalJson(run));

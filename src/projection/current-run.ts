@@ -1,8 +1,11 @@
 import type { CurrentRunRecord } from "../run.js";
+import type { MissionRoots } from "../contracts/mission.js";
 import {
   arrayAt,
   enumAt,
   exactKeys,
+  gitObjectAt,
+  integerAt,
   objectAt,
   relativePathAt,
   sha256At,
@@ -16,6 +19,16 @@ function literal<const T extends string | boolean | null>(
 ): T {
   if (value !== expected) throw new Error(`${at} must be ${String(expected)}`);
   return expected;
+}
+
+function rootsAt(value: unknown, at: string): MissionRoots {
+  const roots = objectAt(value, at);
+  exactKeys(roots, ["git_commit", "git_tree", "vela_repository"], [], at);
+  return {
+    git_commit: gitObjectAt(roots.git_commit, `${at}.git_commit`),
+    git_tree: gitObjectAt(roots.git_tree, `${at}.git_tree`),
+    vela_repository: sha256At(roots.vela_repository, `${at}.vela_repository`),
+  };
 }
 
 export function parseCurrentRunRecord(value: unknown): CurrentRunRecord {
@@ -35,6 +48,13 @@ export function parseCurrentRunRecord(value: unknown): CurrentRunRecord {
   exactKeys(candidate, ["digest", "status", "claim", "artifacts", "caveats"], [], "run.candidate");
   const verifier = objectAt(record.verifier, "run.verifier");
   exactKeys(verifier, ["status", "sandbox", "record"], [], "run.verifier");
+  const verifierRecord = objectAt(verifier.record, "run.verifier.record");
+  exactKeys(
+    verifierRecord,
+    ["argv", "executable_digest", "exit_code", "stdout_digest", "stderr_digest", "duration_ms"],
+    [],
+    "run.verifier.record",
+  );
   const reproduction = objectAt(record.reproduction, "run.reproduction");
   exactKeys(
     reproduction,
@@ -42,9 +62,18 @@ export function parseCurrentRunRecord(value: unknown): CurrentRunRecord {
     [],
     "run.reproduction",
   );
-  objectAt(mission.starting_roots, "run.mission.starting_roots");
-  objectAt(reproduction.roots, "run.reproduction.roots");
-  objectAt(record.budget, "run.budget");
+  const budget = objectAt(record.budget, "run.budget");
+  exactKeys(
+    budget,
+    [
+      "research_elapsed_ms", "research_processes", "research_output_bytes",
+      "prompt_bytes", "artifact_bytes", "attempts", "observed_tokens",
+    ],
+    [],
+    "run.budget",
+  );
+  rootsAt(mission.starting_roots, "run.mission.starting_roots");
+  rootsAt(reproduction.roots, "run.reproduction.roots");
   literal(record.schema, "canopus.run.v2", "run.schema");
   literal(record.status, "completed", "run.status");
   literal(record.effect, "none", "run.effect");
@@ -64,12 +93,39 @@ export function parseCurrentRunRecord(value: unknown): CurrentRunRecord {
     relativePathAt(artifact.path, `${at}.path`);
     stringAt(artifact.kind, `${at}.kind`, { min: 1, max: 128 });
     sha256At(artifact.digest, `${at}.digest`);
+    integerAt(artifact.bytes, `${at}.bytes`, 0, 1_073_741_824);
     return true;
   });
   arrayAt(candidate.caveats, "run.candidate.caveats", { min: 1, max: 10 }, (item, at) =>
     stringAt(item, at, { min: 1, max: 4096 }));
   literal(verifier.status, "passed", "run.verifier.status");
+  enumAt(
+    verifier.sandbox,
+    "run.verifier.sandbox",
+    ["macos_sandbox", "container_network_denied"] as const,
+  );
+  arrayAt(verifierRecord.argv, "run.verifier.record.argv", { min: 1, max: 64 }, (item, at) =>
+    stringAt(item, at, { max: 4096 }));
+  sha256At(verifierRecord.executable_digest, "run.verifier.record.executable_digest");
+  integerAt(verifierRecord.exit_code, "run.verifier.record.exit_code", -1, 255);
+  sha256At(verifierRecord.stdout_digest, "run.verifier.record.stdout_digest");
+  sha256At(verifierRecord.stderr_digest, "run.verifier.record.stderr_digest");
+  integerAt(verifierRecord.duration_ms, "run.verifier.record.duration_ms", 0, 3_600_000);
   literal(reproduction.matched, true, "run.reproduction.matched");
+  enumAt(
+    reproduction.verifier_status,
+    "run.reproduction.verifier_status",
+    ["passed", "failed", "error"] as const,
+  );
+  sha256At(reproduction.stdout_digest, "run.reproduction.stdout_digest");
+  sha256At(reproduction.stderr_digest, "run.reproduction.stderr_digest");
+  integerAt(budget.research_elapsed_ms, "run.budget.research_elapsed_ms", 0, 3_600_000);
+  integerAt(budget.research_processes, "run.budget.research_processes", 0, 64);
+  integerAt(budget.research_output_bytes, "run.budget.research_output_bytes", 0, 67_108_864);
+  integerAt(budget.prompt_bytes, "run.budget.prompt_bytes", 0, 8_388_608);
+  integerAt(budget.artifact_bytes, "run.budget.artifact_bytes", 0, 1_073_741_824);
+  integerAt(budget.attempts, "run.budget.attempts", 0, 8);
+  integerAt(budget.observed_tokens, "run.budget.observed_tokens", 0, 1_000_000);
   return value as CurrentRunRecord;
 }
 
