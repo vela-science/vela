@@ -43,19 +43,20 @@ fn run_in(dir: &std::path::Path, args: &[&str]) -> std::process::Output {
         .expect("spawn vela")
 }
 
-/// Malformed invocations across the command families must be exit 2
-/// (usage), not the generic exit 1 — the same class fixed in `state`,
-/// swept through cli_state / cli_admin / cli_check.
+/// Malformed invocations use exit 2; a well-formed request rejected by the
+/// current repository contract uses the domain-error exit 1.
 #[test]
-fn usage_errors_are_exit_2() {
+fn command_errors_use_stable_exit_codes() {
     let tmp = tempfile::TempDir::new().unwrap();
     init_frontier(tmp.path());
-    // `check --json` with no frontier source is a usage error.
+    // `init` creates a Profile v2 shell. Until repository authority is
+    // initialized, `check` rejects it as a domain error rather than falling
+    // through to a retired profile loader.
     let out = run_in(tmp.path(), &["check", "--json"]);
     assert_eq!(
         out.status.code(),
-        Some(2),
-        "check --json no source: {out:?}"
+        Some(1),
+        "check current repository refusal: {out:?}"
     );
     // Retired state writers fail as usage errors before touching the frontier.
     let out = run_in(tmp.path(), &["state", "anchor", ".", "vf_x", "--json"]);
