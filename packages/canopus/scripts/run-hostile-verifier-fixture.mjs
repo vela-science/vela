@@ -13,13 +13,22 @@ const args = process.argv.slice(2);
 const options = new Map();
 for (let index = 0; index < args.length; index += 2) {
   const key = args[index];
-  if (key !== "--image" && key !== "--docker") throw new Error(`unknown option ${key}`);
+  if (!["--image", "--docker", "--platform"].includes(key)) {
+    throw new Error(`unknown option ${key}`);
+  }
   if (args[index + 1] === undefined || options.has(key)) throw new Error(`invalid option ${key}`);
   options.set(key, args[index + 1]);
 }
 const image = options.get("--image");
 if (image === undefined) throw new Error("--image is required");
 const docker = options.get("--docker") ?? "docker";
+const platform = options.get("--platform");
+if (
+  platform !== undefined &&
+  !["linux/amd64", "linux/arm64"].includes(platform)
+) {
+  throw new Error("--platform must be linux/amd64 or linux/arm64");
+}
 const probe = fileURLToPath(new URL("../tests/fixtures/hostile-verifier/probe.py", import.meta.url));
 const runtime = await mkdtemp(path.join(os.tmpdir(), "canopus-hostile-verifier-"));
 
@@ -31,6 +40,7 @@ try {
   await writeFile(artifact, "candidate\n", { mode: 0o444 });
   const { stdout, stderr } = await exec(docker, [
     "run", "--rm", "--init", "--read-only", "--network=none",
+    ...(platform === undefined ? [] : ["--platform", platform]),
     "--cap-drop=ALL", "--security-opt=no-new-privileges",
     "--memory=1024m", "--cpus=1", "--pids-limit=64",
     "--env", "HOME=/nonexistent", "--env", "PYTHONDONTWRITEBYTECODE=1",
@@ -38,7 +48,13 @@ try {
     "--mount", `type=bind,src=${input},dst=/input/source,readonly`,
     "--mount", `type=bind,src=${probe},dst=/capsule/probe.py,readonly`,
     "--mount", `type=bind,src=${artifact},dst=/artifacts/0,readonly`,
-    image, "python3", "/capsule/probe.py",
+    image,
+    "sh",
+    "-c",
+    "if command -v python3 >/dev/null 2>&1; then " +
+      "exec python3 /capsule/probe.py; " +
+      "elif command -v python >/dev/null 2>&1; then " +
+      "exec python /capsule/probe.py; else exit 127; fi",
   ], { cwd: runtime, env: { PATH: process.env.PATH, HOME: runtime }, maxBuffer: 1024 * 1024 });
   if (stderr !== "") throw new Error("hostile verifier wrote to stderr");
   const verdict = JSON.parse(stdout);
@@ -56,6 +72,7 @@ try {
     ok: true,
     fixture: "hostile-verifier.v1",
     image,
+    platform: platform ?? null,
     verdict,
   })}\n`);
 } finally {

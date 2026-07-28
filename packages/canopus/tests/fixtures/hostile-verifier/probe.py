@@ -4,22 +4,22 @@ import os
 import socket
 
 
-def writable(path: str) -> bool:
+def writable(path):
     try:
         with open(path, "wb") as handle:
             handle.write(b"forbidden\n")
         return True
-    except OSError:
+    except (OSError, IOError, socket.error):
         return False
 
 
-def network_reachable() -> bool:
+def network_reachable():
     connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     connection.settimeout(0.25)
     try:
         connection.connect(("1.1.1.1", 53))
         return True
-    except OSError:
+    except (OSError, IOError, socket.error):
         return False
     finally:
         connection.close()
