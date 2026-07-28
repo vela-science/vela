@@ -149,6 +149,24 @@ async function version(binary) {
     .trim();
 }
 
+async function bundleBunEntrypoint(source, target) {
+  await execute([
+    process.execPath,
+    "build",
+    source,
+    "--target",
+    "bun",
+    "--outfile",
+    target,
+  ], packageRoot);
+  const bytes = await readFile(target);
+  if (bytes.length === 0 || bytes.length > 4 * 1024 * 1024) {
+    throw new Error(`${source} bundled verifier violates its byte contract`);
+  }
+  await chmod(target, 0o500);
+  return { bytes, root: sha256(bytes) };
+}
+
 function identity(name, versionValue, root) {
   return { name, version: versionValue, sha256: root };
 }
@@ -222,18 +240,13 @@ const erdosVerifierBinaryCopy = await copyExact(
     maxBytes: 16 * 1024 * 1024,
   },
 );
-const erdosVerifierCopy = await copyExact(
-  path.join(
-    packageRoot,
-    "evaluation/tasks/erdos-1056-10429401-10429600/verify.mjs",
-  ),
+const erdosVerifierCopy = await bundleBunEntrypoint(
+  "evaluation/tasks/erdos-1056-10429401-10429600/verify.mjs",
   path.join(output, "verifiers/erdos-1056.mjs"),
-  { maxBytes: 1_048_576 },
 );
-const scientificVerifierCopy = await copyExact(
-  path.join(packageRoot, "evaluation/tasks/core-bench-1108125/verify.mjs"),
+const scientificVerifierCopy = await bundleBunEntrypoint(
+  "evaluation/tasks/core-bench-1108125/verify.mjs",
   path.join(output, "verifiers/core-bench-1108125.mjs"),
-  { maxBytes: 1_048_576 },
 );
 const codexCopy = await copyExact(codex, path.join(output, "resources/codex"), {
   executable: true,
