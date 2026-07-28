@@ -104,7 +104,7 @@ test("export fails closed on stale verifier wording and preserves an explicit bo
   const fixture = await writeCurrentRunFixture({
     root: path.join(home, "product"),
     artifact,
-    velaVersion: "0.940.6",
+    velaVersion: "0.940.7",
     velaSha256: sha256Bytes(artifact),
     gitCommit: "e".repeat(40),
     gitTree: "f".repeat(40),
@@ -162,7 +162,7 @@ test("export rejects arbitrary Claim replacement and control characters", async 
   const fixture = await writeCurrentRunFixture({
     root: path.join(home, "product"),
     artifact,
-    velaVersion: "0.940.6",
+    velaVersion: "0.940.7",
     velaSha256: sha256Bytes(artifact),
     gitCommit: "e".repeat(40),
     gitTree: "f".repeat(40),
@@ -185,7 +185,7 @@ test("export rejects arbitrary Claim replacement and control characters", async 
   const controlFixture = await writeCurrentRunFixture({
     root: path.join(home, "control-product"),
     artifact,
-    velaVersion: "0.940.6",
+    velaVersion: "0.940.7",
     velaSha256: sha256Bytes(artifact),
     gitCommit: "e".repeat(40),
     gitTree: "f".repeat(40),

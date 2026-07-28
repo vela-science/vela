@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -97,6 +97,50 @@ test("Canopus Submission crosses the released Vela writer with zero accepted del
     "--record-root", initialized.authority_record_root,
     "--json",
   ], root, env);
+  command("git", ["push", "-q", "origin", "main"], frontier, env);
+  await mkdir(path.join(frontier, "domain"), { recursive: true });
+  await writeFile(path.join(frontier, "domain", "source.json"), "{\"open\":[1056]}");
+  command("git", ["add", "domain/source.json"], frontier, env);
+  command("git", ["commit", "-q", "-m", "Add target source"], frontier, env);
+  const targetSourceCommit = command("git", ["rev-parse", "HEAD^{commit}"], frontier, env);
+  await mkdir(path.join(frontier, "site", "problems"), { recursive: true });
+  await writeFile(
+    path.join(frontier, "site", "problems", "1056.json"),
+    "{\"problem\":1056,\"schema\":\"erdos-frontier.problem-work.v1\"}",
+  );
+  const candidateDirectory = path.join(frontier, ".vela", "tmp");
+  const candidate = path.join(candidateDirectory, "target-index-candidate.json");
+  await mkdir(candidateDirectory, { recursive: true });
+  await writeFile(candidate, JSON.stringify({
+    schema: "vela.target-index-candidate.v1",
+    frontier_id: initialized.frontier_id,
+    source: {
+      git_commit: targetSourceCommit,
+      input_paths: ["domain/source.json"],
+    },
+    targets: [{
+      id: "erdos:1056",
+      title: "Erdős 1056",
+      why: "Exercise registration with an exact current Target Index.",
+      state: "open",
+      rank: 1,
+      objective: "Produce one bounded artifact.",
+      labels: ["erdos", "open"],
+      packet: {
+        schema: "erdos-frontier.problem-work.v1",
+        path: "site/problems/1056.json",
+      },
+    }],
+  }, null, 2));
+  command(vela, [
+    "target-index", "seal", frontier,
+    "--candidate", candidate,
+    "--apply",
+    "--json",
+  ], root, env);
+  await rm(candidate);
+  command("git", ["add", "targets.json", "site/problems/1056.json"], frontier, env);
+  command("git", ["commit", "-q", "-m", "Seal target index"], frontier, env);
   command("git", ["push", "-q", "origin", "main"], frontier, env);
 
   const before = JSON.parse(command(vela, ["status", frontier, "--json"], root, env)) as {

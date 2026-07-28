@@ -20,7 +20,7 @@ test("a verifier-passing retained Run blocks the same exact mission", async () =
   const fixture = await writeCurrentRunFixture({
     root: path.join(runs, "first"),
     artifact: Buffer.from("{\"value\":42}\n"),
-    velaVersion: "0.940.6",
+    velaVersion: "0.940.7",
     velaSha256: root,
     gitCommit: "b".repeat(40),
     gitTree: "c".repeat(40),
@@ -65,7 +65,7 @@ test("a renamed Mission cannot repeat the same exact Erdős range", async () => 
   const fixture = await writeCurrentRunFixture({
     root: path.join(runs, "first"),
     artifact: Buffer.from("{\"value\":42}\n"),
-    velaVersion: "0.940.6",
+    velaVersion: "0.940.7",
     velaSha256: root,
     gitCommit: "b".repeat(40),
     gitTree: "c".repeat(40),

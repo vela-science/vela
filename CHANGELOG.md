@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Advance Canopus `0.8.0-rc.7` for the Vela `0.940.7` current Target Index
+  writer repair.
+- Keep retained Run and Submission source identities unchanged while requiring
+  registration through the exact repaired Vela release.
+
 - Advance Canopus `0.8.0-rc.6` for the Vela `0.940.6` retained-Artifact
   repair. Current registration may reuse exact retained Artifact bytes and
   canonical paths, while path substitution remains fail-closed.

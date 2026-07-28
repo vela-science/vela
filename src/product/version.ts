@@ -13,5 +13,5 @@ if (typeof packageJson.version !== "string" || packageJson.version.length === 0)
 }
 
 export const CANOPUS_VERSION = packageJson.version;
-export const SUPPORTED_VELA_VERSION = "0.940.6";
+export const SUPPORTED_VELA_VERSION = "0.940.7";
 export const SUPPORTED_CODEX_VERSION = "0.145.0";

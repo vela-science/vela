@@ -52,7 +52,7 @@ jobs:
           VELA_SHA256: ${{ matrix.binary_sha256 }}
         run: |
           curl --fail --location --silent --show-error \
-            "https://github.com/vela-science/vela/releases/download/v0.940.6/$VELA_ARCHIVE" \
+            "https://github.com/vela-science/vela/releases/download/v0.940.7/$VELA_ARCHIVE" \
             --output "$RUNNER_TEMP/$VELA_ARCHIVE"
           printf '%s  %s\n' "$VELA_ARCHIVE_SHA256" "$RUNNER_TEMP/$VELA_ARCHIVE" \
             | shasum -a 256 -c -
@@ -69,7 +69,7 @@ jobs:
           if [ "${{ runner.os }}" = macOS ]; then
             CANOPUS_VELA_BIN="$RUNNER_TEMP/vela-release/vela" \
               CANOPUS_VELA_SHA256="sha256:$VELA_SHA256" \
-              CANOPUS_VELA_VERSION="0.940.6" \
+              CANOPUS_VELA_VERSION="0.940.7" \
               node --test dist/tests/integration/released-vela.test.js
           fi
       - name: Run real Linux sandbox custody preflight
@@ -140,7 +140,7 @@ jobs:
         run: |
           $archive = "$env:RUNNER_TEMP\vela-windows-x86_64.zip"
           Invoke-WebRequest `
-            -Uri "https://github.com/vela-science/vela/releases/download/v0.940.6/vela-windows-x86_64.zip" `
+            -Uri "https://github.com/vela-science/vela/releases/download/v0.940.7/vela-windows-x86_64.zip" `
             -OutFile $archive
           if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLower() -ne `
               "d7dc3322e21312b89532d0c0b70c821d0e5a571d15c9634c2177f22184a9d0d4") {
