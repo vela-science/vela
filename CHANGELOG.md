@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## v0.940.4 — 2026-07-28 — Agent Decision boundary guidance repair
+
+- Remove the retired protected-request language from the generated Frontier
+  skill and state the current repository contract precisely: agents may
+  prepare or explain one exact Decision command, but may not invoke it.
+- Keep the authored plugin skill and both generated skill adapters
+  byte-identical, with a regression rejecting the stale authority language.
+- No protocol, repository, object, authority, or CLI execution semantics
+  change.
+
 ## v0.940.3 — 2026-07-27 — Migrated Verification lineage repair
 
 - Resolve retained predecessor-scoped Verification Records through the exact

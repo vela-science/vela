@@ -51,8 +51,8 @@ next -> start -> submit
   Proposals remain inspectable; they do not create accepted Claim standing.
 - `vela review accept . <vpr_id> --reason <text> --json` or
   `vela review reject . <vpr_id> --reason <text> --json` prepares one exact
-  Decision Plan. An agent may invoke the protected request, but only the
-  registered human may authorize its decision card.
+  Decision Plan and executes it through repository authority. An agent may
+  prepare or explain the exact command, but may not invoke either action.
 
 For a frozen-verifier witness, run `vela reproduce <witness>` first, then
 submit the result through the active Attempt with `vela submit --attempt <vat_id>
@@ -111,8 +111,9 @@ never imply acceptance.
 ## Custody
 
 - Never run legacy `sign`. You may inspect `review list` and `review show`, and
-  prepare one exact `review accept` or `review reject` request. Never authorize
-  its decision card or claim that requesting it caused acceptance.
+  prepare or explain one exact `review accept` or `review reject` command.
+  Never invoke either action, access repository-authority credentials, or
+  claim that preparing a command caused a Decision.
 - Every write carries an explicit acting identity: `--as agent:<you>`, or set
   `VELA_ACTOR_ID=agent:<you>` for the session. Never write as a human.
 - Never sign anything, never read or handle key material, never sit in a

@@ -3,10 +3,10 @@
 # Consume from a frontier repository:
 #
 #   - uses: actions/checkout@v5
-#   - uses: vela-science/vela@v0.940.3
+#   - uses: vela-science/vela@v0.940.4
 #     with:
 #       frontier: .
-#       vela-version: v0.940.3
+#       vela-version: v0.940.4
 #       authority-record-root: ${{ vars.VELA_AUTHORITY_RECORD_ROOT }}
 #
 # For a current Profile v2 repository, the sequence-1 authority-record root
@@ -27,7 +27,7 @@ inputs:
     default: "."
   vela-version:
     description: >-
-      Required reviewed Vela release tag (e.g. v0.940.3). The consumer chooses
+      Required reviewed Vela release tag (e.g. v0.940.4). The consumer chooses
       this pin; proposed Frontier bytes cannot select or downgrade the verifier.
     required: true
   authority-record-root:
