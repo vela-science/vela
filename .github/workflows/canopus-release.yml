@@ -1,11 +1,15 @@
-name: Release
+name: Canopus release
 
 on:
   push:
     tags:
-      - "v*"
+      - "canopus-v*"
 
 permissions: {}
+
+defaults:
+  run:
+    working-directory: packages/canopus
 
 jobs:
   validate:
@@ -21,6 +25,7 @@ jobs:
         with:
           node-version: 24
       - run: bun install --frozen-lockfile
+      - run: bun run --cwd ../protocol build
       - run: bun run check
       - run: bun run pack:check
 
@@ -42,6 +47,7 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
       - run: bun install --frozen-lockfile
+      - run: bun run --cwd ../protocol build
       - name: Run portable release checks
         run: |
           bun run typecheck
@@ -53,7 +59,7 @@ jobs:
             dist/tests/product-profile.test.js \
             dist/tests/release-contract.test.js
       - name: Verify tag matches package version
-        run: test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
+        run: test "canopus-v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
       - name: Pack source-bound package
         run: |
           mkdir release
@@ -61,7 +67,7 @@ jobs:
           (cd release && shasum -a 256 *.tgz > SHA256SUMS)
       - uses: actions/attest-build-provenance@78e6cbd37d0ac1a40113c04f2037dacf1ea3f12e # v4
         with:
-          subject-path: release/*.tgz
+          subject-path: packages/canopus/release/*.tgz
       - name: Verify the exact GitHub build attestation
         env:
           GH_TOKEN: ${{ github.token }}
@@ -70,7 +76,7 @@ jobs:
           test "$#" -eq 1
           gh attestation verify "$1" \
             --repo "$GITHUB_REPOSITORY" \
-            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/canopus-release.yml" \
             --source-ref "$GITHUB_REF" \
             --source-digest "$GITHUB_SHA" \
             --deny-self-hosted-runners

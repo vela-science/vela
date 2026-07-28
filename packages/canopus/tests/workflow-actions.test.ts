@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
-const workflows = new URL("../../.github/workflows/", import.meta.url);
+const workflows = new URL("../../../../.github/workflows/", import.meta.url);
 const expectedNode24Pins = new Map([
   ["actions/checkout", "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"],
   ["actions/setup-node", "820762786026740c76f36085b0efc47a31fe5020"],
@@ -34,7 +34,7 @@ test("workflow actions are immutable and Node tooling uses maintained runtimes",
 });
 
 test("release validates the complete macOS product before the portable OIDC publisher", async () => {
-  const value = await readFile(new URL("release.yml", workflows), "utf8");
+  const value = await readFile(new URL("canopus-release.yml", workflows), "utf8");
   const validateStart = value.indexOf("  validate:\n");
   const publishStart = value.indexOf("  publish:\n");
   assert.ok(validateStart >= 0, "release validate job is missing");

@@ -8,23 +8,29 @@ import {
 } from "../src/product/version.js";
 
 test("current product release pins the tested Vela and Codex boundaries", async () => {
-  const workflow = await readFile(
-    new URL("../../.github/workflows/ci.yml", import.meta.url),
-    "utf8",
-  );
+  const [workflow, lockText] = await Promise.all([
+    readFile(new URL("../../../../.github/workflows/canopus-ci.yml", import.meta.url), "utf8"),
+    readFile(new URL("../../toolchain.lock.json", import.meta.url), "utf8"),
+  ]);
+  const lock = JSON.parse(lockText) as {
+    vela?: { version?: string; tag?: string; source_commit?: string; assets?: object };
+    codex?: { version?: string };
+  };
 
-  assert.equal(SUPPORTED_VELA_VERSION, "0.940.7");
-  assert.equal(SUPPORTED_CODEX_VERSION, "0.145.0");
-  assert.match(workflow, /releases\/download\/v0\.940\.7/u);
-  assert.match(workflow, /CANOPUS_VELA_VERSION="0\.940\.7"/u);
-  assert.match(workflow, /codex-0\.145\.0-linux-x64\.tgz/u);
-  assert.doesNotMatch(workflow, /releases\/download\/v0\.915\.1/u);
-  assert.doesNotMatch(workflow, /codex-0\.144\.6-linux-x64\.tgz/u);
+  assert.equal(SUPPORTED_VELA_VERSION, lock.vela?.version);
+  assert.equal(SUPPORTED_CODEX_VERSION, lock.codex?.version);
+  assert.equal(lock.vela?.tag, `v${SUPPORTED_VELA_VERSION}`);
+  assert.match(lock.vela?.source_commit ?? "", /^[0-9a-f]{40}$/u);
+  assert.equal(Object.keys(lock.vela?.assets ?? {}).length, 3);
+  assert.match(workflow, /scripts\/export-toolchain-env\.mjs/u);
+  assert.doesNotMatch(workflow, /releases\/download\/v0\.\d+\.\d+/u);
+  assert.doesNotMatch(workflow, /archive_sha256:/u);
+  assert.doesNotMatch(workflow, /binary_sha256:/u);
 });
 
 test("installed-package smoke validates the current packaged Erdős profile", async () => {
   const workflow = await readFile(
-    new URL("../../.github/workflows/ci.yml", import.meta.url),
+    new URL("../../../../.github/workflows/canopus-ci.yml", import.meta.url),
     "utf8",
   );
   const currentProfile = "erdos1056-k15-10429201-10429400";
@@ -44,14 +50,14 @@ test("installed-package smoke validates the current packaged Erdős profile", as
 
 test("release binds tag, GitHub attestation, and npm trusted provenance", async () => {
   const workflow = await readFile(
-    new URL("../../.github/workflows/release.yml", import.meta.url),
+    new URL("../../../../.github/workflows/canopus-release.yml", import.meta.url),
     "utf8",
   );
 
   for (const contract of [
     "environment: npm",
     "id-token: write",
-    "test \"v$(node -p 'require(\"./package.json\").version')\" = \"$GITHUB_REF_NAME\"",
+    "test \"canopus-v$(node -p 'require(\"./package.json\").version')\" = \"$GITHUB_REF_NAME\"",
     "actions/attest-build-provenance@",
     "gh attestation verify",
     "--signer-workflow",
@@ -75,7 +81,7 @@ test("current source stays product-only while historical release evidence remain
     readFile(new URL("../../README.md", import.meta.url), "utf8"),
   ]);
   const packageJson = JSON.parse(packageText) as { files?: string[]; version?: string };
-  assert.equal(packageJson.version, "0.8.0-rc.8");
+  assert.equal(packageJson.version, "0.8.0");
   for (const file of [
     "README.md",
     "THIRD_PARTY.md",
@@ -107,7 +113,7 @@ test("current source stays product-only while historical release evidence remain
   );
   assert.match(
     readme,
-    /Current source is Canopus `0\.8\.0-rc\.8`, composed with Vela[\s\S]+`0\.940\.7`/u,
+    /Current source is Canopus `0\.8\.0`[\s\S]+toolchain\.lock\.json/u,
   );
   assert.match(readme, /A Run is nonmutating/u);
   assert.match(readme, /only the separate `submit` command registers/u);

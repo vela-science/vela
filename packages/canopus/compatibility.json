@@ -1,0 +1,25 @@
+{
+  "schema": "canopus.compatibility.v1",
+  "repository_epoch": "current",
+  "required_schemas": [
+    "vela.repository.v1",
+    "vela.status.v1",
+    "vela.offer.v1",
+    "vela.submission.v1",
+    "vela.verification-record.v1"
+  ],
+  "required_commands": [
+    "status",
+    "next",
+    "start",
+    "submit",
+    "verification import",
+    "check",
+    "reproduce"
+  ],
+  "forbidden_authority_capabilities": [
+    "review accept",
+    "review reject",
+    "repository authority"
+  ]
+}

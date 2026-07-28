@@ -1,4 +1,4 @@
-name: Verifier image candidate
+name: Canopus verifier image candidate
 
 on:
   workflow_dispatch:
@@ -6,8 +6,8 @@ on:
     branches:
       - main
     paths:
-      - containers/verifier/**
-      - .github/workflows/verifier-image.yml
+      - packages/canopus/containers/verifier/**
+      - .github/workflows/canopus-verifier-image.yml
 
 permissions:
   contents: read
@@ -27,8 +27,8 @@ jobs:
       - id: build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
-          context: .
-          file: containers/verifier/Dockerfile
+          context: packages/canopus
+          file: packages/canopus/containers/verifier/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           provenance: mode=max

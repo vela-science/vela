@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
-test("published Canopus is one self-contained inert tarball", async () => {
+test("published Canopus is one inert product with one authority-free protocol dependency", async () => {
   const manifest = JSON.parse(
     await readFile(new URL("../../package.json", import.meta.url), "utf8"),
   ) as {
@@ -17,7 +17,9 @@ test("published Canopus is one self-contained inert tarball", async () => {
   };
 
   assert.equal(manifest.name, "@vela-science/canopus");
-  assert.deepEqual(manifest.dependencies ?? {}, {});
+  assert.deepEqual(manifest.dependencies ?? {}, {
+    "@vela-science/protocol": "workspace:*",
+  });
   assert.deepEqual(manifest.optionalDependencies ?? {}, {});
   assert.deepEqual(manifest.peerDependencies ?? {}, {});
   for (const lifecycle of ["preinstall", "install", "postinstall", "prepare"] as const) {

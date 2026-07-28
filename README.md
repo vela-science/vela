@@ -168,6 +168,24 @@ Event. Workbenches can emit Submission bytes without importing the Vela
 runtime. Verifiers can emit scoped Verification Records without receiving
 review or repository authority.
 
+## Product packages
+
+The public product now develops from one repository while retaining separate
+runtime boundaries:
+
+```text
+crates/             Vela protocol, replay, repository authority, and CLI
+packages/protocol/  Authority-free TypeScript contracts and validators
+packages/canopus/   Optional bounded producer and evaluation harness
+schema/             Language-neutral public schemas
+conformance/        Shared cross-implementation fixtures
+```
+
+`@vela-science/canopus` may use `@vela-science/protocol`; it cannot import
+repository-authority or Decision internals. Vela Web and canonical Frontier
+repositories remain separate because they have independent deployment and
+scientific-history lifecycles.
+
 ## Security model
 
 Repository authority is a service identity. It records the authenticated
@@ -187,12 +205,16 @@ See [Authority and attribution](docs/SIGNING.md) and the
 
 ## Development
 
-Requires a current stable Rust toolchain.
+Requires a current stable Rust toolchain. TypeScript package work uses the
+root Bun workspace.
 
 ```bash
 cargo check -p vela-cli
 cargo clippy -p vela-cli --all-targets -- -D warnings
 python3 conformance/verify.py
+bun install --frozen-lockfile
+bun run check
+bun run pack:check
 ```
 
 Use focused tests for ordinary changes. The deterministic release union runs
@@ -209,6 +231,7 @@ once per actual release boundary.
 - [Threat model](docs/THREAT_MODEL.md)
 - [Current repository epoch ADR](docs/adr/0022-current-repository-epoch-and-legacy-runtime-retirement.md)
 - [Native current repository genesis ADR](docs/adr/0023-native-current-repository-genesis.md)
+- [Product monorepo and transition-repository retirement ADR](docs/adr/0024-repository-ownership-and-integration-repository-retirement.md)
 
 ## Project status
 

@@ -1,8 +1,7 @@
 import {
-  createPublicKey,
   generateKeyPairSync,
   sign,
-  verify,
+  type KeyObject,
 } from "node:crypto";
 import { constants } from "node:fs";
 import {
@@ -15,6 +14,21 @@ import {
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
+
+import type {
+  IdentityBinding,
+  SubmissionV1,
+} from "@vela-science/protocol";
+import {
+  identityBindingPreimage,
+  submissionPreimage,
+  verifySubmission,
+} from "@vela-science/protocol";
+export {
+  verifySubmission,
+  type IdentityBinding,
+  type SubmissionV1,
+} from "@vela-science/protocol";
 
 import { finalizeWorkerCaveat } from "../candidate/finalize.js";
 import { parseCurrentRunRecord, projectCurrentRun } from "../projection/current-run.js";
@@ -29,54 +43,6 @@ const STALE_VERIFIER_LANGUAGE =
 const CONTROL_CHARACTER = /[\u0000-\u001f\u007f]/u;
 const CORRECTION_NOTICE =
   "The Submission wording corrects a stale post-run Claim after verifier passage; the immutable Run remains unchanged.";
-
-export interface IdentityBinding {
-  schema: "vela.identity_binding.v0.1";
-  binding_id: string;
-  actor_id: string;
-  actor_class: "agent";
-  public_key_hex: string;
-  created_at: string;
-  signature: string;
-}
-
-export interface SubmissionV1 {
-  schema: "vela.submission.v1";
-  submission_id: string;
-  claim: {
-    assertion: string;
-    type: "computational" | "theoretical" | "empirical" | "negative" | "contradiction";
-    conditions: string[];
-  };
-  artifacts: Array<{ kind: string; path: string; digest: string }>;
-  caveats: string[];
-  replayability: "exact" | "bounded" | "approximate" | "unavailable" | "unknown";
-  producer_checks: Array<{
-    method: string;
-    outcome: "pass" | "fail" | "error" | "skipped" | "unknown";
-    authority: "producer_reported";
-  }>;
-  verification_requirements: string[];
-  requested_change: { kind: "add_claim" };
-  provenance: {
-    producer: string;
-    source_system: "canopus";
-    source_run: string;
-    emitted_at: string;
-  };
-  execution_binding?: {
-    schema: "vela.execution-binding.v1";
-    packet_root: string;
-    profile_root: string;
-    verifier_capsule_root: string;
-    result_contract_root: string;
-  };
-  authentication: {
-    algorithm: "ed25519";
-    identity_binding: IdentityBinding;
-    signature: string;
-  };
-}
 
 export interface SubmissionBundleManifest {
   schema: "canopus.submission-bundle.v1";
@@ -100,7 +66,7 @@ export interface SubmissionBundleManifest {
   }>;
 }
 
-function rawPublicKey(publicKey: ReturnType<typeof createPublicKey>): Buffer {
+function rawPublicKey(publicKey: KeyObject): Buffer {
   const der = publicKey.export({ type: "spki", format: "der" });
   if (!Buffer.isBuffer(der) || der.length !== ED25519_SPKI_PREFIX.length + 32) {
     throw new Error("generated Ed25519 public key has an unexpected encoding");
@@ -109,53 +75,6 @@ function rawPublicKey(publicKey: ReturnType<typeof createPublicKey>): Buffer {
     throw new Error("generated public key is not Ed25519");
   }
   return der.subarray(ED25519_SPKI_PREFIX.length);
-}
-
-function identityPreimage(binding: IdentityBinding): string {
-  return canonicalJcs({ ...binding, binding_id: "", signature: "" });
-}
-
-function submissionPreimage(submission: SubmissionV1): string {
-  return canonicalJcs({
-    ...submission,
-    submission_id: "",
-    authentication: { ...submission.authentication, signature: "" },
-  });
-}
-
-export function verifySubmission(submission: SubmissionV1): void {
-  if (submission.schema !== "vela.submission.v1") {
-    throw new Error("Submission schema must be vela.submission.v1");
-  }
-  const binding = submission.authentication.identity_binding;
-  const publicBytes = Buffer.from(binding.public_key_hex, "hex");
-  if (publicBytes.length !== 32) throw new Error("Submission public key is not Ed25519");
-  const publicKey = createPublicKey({
-    key: Buffer.concat([ED25519_SPKI_PREFIX, publicBytes]),
-    format: "der",
-    type: "spki",
-  });
-  const expectedBinding = `vib_${sha256Bytes(identityPreimage(binding)).slice(7, 23)}`;
-  if (binding.binding_id !== expectedBinding) throw new Error("identity binding id mismatch");
-  if (!verify(null, Buffer.from(identityPreimage(binding)), publicKey, Buffer.from(binding.signature, "hex"))) {
-    throw new Error("identity binding signature does not verify");
-  }
-  if (
-    binding.actor_class !== "agent" ||
-    binding.actor_id !== submission.provenance.producer
-  ) {
-    throw new Error("Submission producer does not match its agent identity binding");
-  }
-  const expectedSubmission = `vsb_${sha256Bytes(submissionPreimage(submission)).slice(7, 23)}`;
-  if (submission.submission_id !== expectedSubmission) throw new Error("Submission id mismatch");
-  if (!verify(
-    null,
-    Buffer.from(submissionPreimage(submission)),
-    publicKey,
-    Buffer.from(submission.authentication.signature, "hex"),
-  )) {
-    throw new Error("Submission signature does not verify");
-  }
 }
 
 async function assertFreshDirectory(directory: string): Promise<void> {
@@ -258,7 +177,7 @@ export async function exportSubmission(options: {
       created_at: emittedAt,
       signature: "",
     };
-    const bindingBytes = identityPreimage(binding);
+    const bindingBytes = identityBindingPreimage(binding);
     binding = {
       ...binding,
       binding_id: `vib_${sha256Bytes(bindingBytes).slice(7, 23)}`,

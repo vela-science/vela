@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.8.0 - 2026-07-28
+
+- Release the nonmutating Run, explicit Submission, and framework-neutral
+  evaluation boundary from the Vela product monorepo.
+- Depend on the shared authority-free `@vela-science/protocol` package instead
+  of copying canonical JSON and validation primitives.
+- Drive exact Vela and Codex composition from one toolchain lock rather than
+  copied source, test, documentation, and workflow versions.
+- Preserve and reproduce the corrected Erdős Submission and scoped Verification
+  through the completed human Decision loop.
+
 - Advance Canopus `0.8.0-rc.8` after real campaign replay exposed a retained
   predecessor-epoch compatibility defect. Current readers now validate and
   replay immutable Run and Mission bytes through bounded in-memory projections;

@@ -1,6 +1,6 @@
 # ADR 0010: Nonmutating Runs and explicit Submission
 
-- Status: Proposed
+- Status: Accepted
 - Candidate release: Canopus `v0.8.0`
 - Protocol effect: None
 - Vela requirement: current `vela.submission.v1` and `vela submit`

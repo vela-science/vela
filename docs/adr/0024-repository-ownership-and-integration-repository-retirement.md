@@ -98,9 +98,10 @@ README and is archived without deleting history.
 
 ### 3. Absorb Canopus without collapsing its product boundary
 
-After Canopus `0.8.0` and the current Erdős loop are verified, import the
-public `vela-research-harness` history without squashing under
-`packages/canopus/`.
+After the current Erdős loop and Canopus `0.8.0` package qualification are
+verified, import the public `vela-research-harness` history without squashing
+under `packages/canopus/`. Release `0.8.0` from the monorepo so the first stable
+artifact already carries its permanent source and provenance identity.
 
 ```text
 vela-science/vela-research-harness
@@ -166,7 +167,8 @@ tests stay beside their owner.
 1. A checked inventory classifies every active parent script, fixture,
    workflow, and current document as move, retire, or historical.
 2. Owner repositories pass focused and clean-clone checks without the parent.
-3. Canopus `0.8.0` is released before its history is imported without squash.
+3. Canopus history is imported without squash before `0.8.0` is released from
+   its permanent monorepo path.
 4. Rust and TypeScript pass the same public conformance fixtures.
 5. Canopus clean-clone build, package, replay, and provenance checks pass from
    `packages/canopus` without importing authority internals.

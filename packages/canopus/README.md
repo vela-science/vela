@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@vela-science/canopus"><img alt="npm" src="https://img.shields.io/npm/v/@vela-science/canopus?style=flat-square&color=C9A664&labelColor=081224" /></a>
-  <a href="https://github.com/vela-science/vela-research-harness/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/vela-science/vela-research-harness/ci.yml?branch=main&style=flat-square&label=build&labelColor=081224" /></a>
+  <a href="https://github.com/vela-science/vela/actions/workflows/canopus-ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/vela-science/vela/canopus-ci.yml?branch=main&style=flat-square&label=build&labelColor=081224" /></a>
   <a href="LICENSE-APACHE"><img alt="Apache-2.0 OR MIT" src="https://img.shields.io/badge/license-Apache--2.0%20OR%20MIT-4F8F8B?style=flat-square&labelColor=081224" /></a>
 </p>
 
@@ -71,10 +71,10 @@ or interprets verifier success as acceptance.
 
 ## Exact product contract
 
-Current source is Canopus `0.8.0-rc.8`, composed with Vela
-`0.940.7`, Codex CLI `0.145.0`, Bun `1.3.12`, Git, and a pinned verifier
-container. Historical releases remain available for exact replay; they are not
-current writers.
+Current source is Canopus `0.8.0`. Its exact Vela, Codex, and platform
+composition is declared once in `toolchain.lock.json`; compatible public
+contracts are declared separately in `compatibility.json`. Historical releases
+remain available for exact replay; they are not current writers.
 
 Mission v1 and profile v2 remain the advanced portable interfaces:
 
@@ -95,7 +95,8 @@ bun run check
 bun run pack:check
 ```
 
-The installed package has no runtime npm dependencies.
+The installed package has one runtime dependency:
+`@vela-science/protocol`, Vela's authority-free public TypeScript contract.
 
 ## Documentation
 

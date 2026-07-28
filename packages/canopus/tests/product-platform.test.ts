@@ -7,6 +7,7 @@ import test from "node:test";
 import { doctorProduct } from "../src/product/doctor.js";
 import { executableNames, findExecutable } from "../src/product/runtime.js";
 import { assertToolUsingMissionPlatform } from "../src/product/run.js";
+import { SUPPORTED_VELA_VERSION } from "../src/product/version.js";
 import type { CommandOptions, CommandResult } from "../src/util/command.js";
 
 test("native Windows tool missions fail before work with an exact WSL2 handoff", () => {
@@ -80,7 +81,9 @@ test("native Windows doctor remains read-only and does not probe worker runtimes
         if (options.argv[1] === "--version") {
           return commandResult(
             options,
-            executable === "vela" ? "vela 0.940.7\n" : "git version 2.50.0\n",
+            executable === "vela"
+              ? `vela ${SUPPORTED_VELA_VERSION}\n`
+              : "git version 2.50.0\n",
           );
         }
         if (executable === "vela" && options.argv[1] === "status") {

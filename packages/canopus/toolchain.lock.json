@@ -1,0 +1,31 @@
+{
+  "schema": "canopus.toolchain-lock.v1",
+  "vela": {
+    "version": "0.940.9",
+    "tag": "v0.940.9",
+    "source_commit": "4de04a553f139911b3c061883f60d9734f73c0f2",
+    "release_base_url": "https://github.com/vela-science/vela/releases/download/v0.940.9",
+    "assets": {
+      "darwin-arm64": {
+        "archive": "vela-macos-aarch64.zip",
+        "archive_sha256": "0d9c139552e0d12cbb0f2e387897d3135652ec72757f8b9bf3ba8ae2fa2ca20f",
+        "binary_sha256": "8d5b8745efaa176d980371d7a6fad633ac53c1c5245e5feb7c4f98a12bc2c02f"
+      },
+      "linux-x64": {
+        "archive": "vela-linux-x86_64.tar.gz",
+        "archive_sha256": "fc21a58e10d2d6dc9b0b066250d864ecfa055ca044046194fe47d035931d5585",
+        "binary_sha256": "232b4c96b79014e6220a3557ef161b81616a911f6794be09dcea42299716509a"
+      },
+      "win32-x64": {
+        "archive": "vela-windows-x86_64.zip",
+        "archive_sha256": "cd2cec3815234aabf17d7466a63588b079aa404d5f0d6f491403d094331c8a32",
+        "binary_sha256": "47c85b5af0178ae3a49cf98b832048533bf7c404799c951f6725f03ed69eca5a"
+      }
+    }
+  },
+  "codex": {
+    "version": "0.145.0",
+    "linux_x64_tarball_sha256": "11239480f8e3efd1430f23bbe91c1a397856b8bbe6185ccbaee2382d25e03df2",
+    "linux_x64_binary_sha256": "a2a05dafaa1acb002a45eaec0a462de5b13694fcfcd7bc43305f14781ce7be14"
+  }
+}

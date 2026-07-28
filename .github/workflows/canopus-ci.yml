@@ -1,11 +1,27 @@
-name: CI
+name: Canopus CI
 
 on:
   push:
+    paths:
+      - "package.json"
+      - "bun.lock"
+      - "packages/protocol/**"
+      - "packages/canopus/**"
+      - ".github/workflows/canopus-ci.yml"
   pull_request:
+    paths:
+      - "package.json"
+      - "bun.lock"
+      - "packages/protocol/**"
+      - "packages/canopus/**"
+      - ".github/workflows/canopus-ci.yml"
 
 permissions:
   contents: read
+
+defaults:
+  run:
+    working-directory: packages/canopus
 
 jobs:
   check:
@@ -14,13 +30,7 @@ jobs:
       matrix:
         include:
           - runner: macos-15
-            archive: vela-macos-aarch64.zip
-            archive_sha256: e48607239c584d70d7583e25c07991af047e5a031478bd7665f37510d270fbda
-            binary_sha256: 599ca6d3bb02b4fef06adbe5717d227bf356096431d734c4c65b05d7a6a5610b
           - runner: ubuntu-24.04
-            archive: vela-linux-x86_64.tar.gz
-            archive_sha256: c4103e772db7e6bb22624cce6710927ea7c854eb747fed01ad92d139a2ab6c05
-            binary_sha256: d89eea3aa64890ce5145fb3d219f5b8f702a7675465a477e0ab1ed0a6d91265f
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     steps:
@@ -31,7 +41,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+      - name: Load the exact tested toolchain
+        shell: bash
+        run: node scripts/export-toolchain-env.mjs "$RUNNER_OS" >> "$GITHUB_ENV"
       - run: bun install --frozen-lockfile
+      - run: bun run --cwd ../protocol build
       - name: Run platform-appropriate checks
         run: |
           if [ "${{ runner.os }}" = macOS ]; then
@@ -46,13 +60,9 @@ jobs:
               dist/tests/product-profile.test.js
           fi
       - name: Verify released Vela composition
-        env:
-          VELA_ARCHIVE: ${{ matrix.archive }}
-          VELA_ARCHIVE_SHA256: ${{ matrix.archive_sha256 }}
-          VELA_SHA256: ${{ matrix.binary_sha256 }}
         run: |
           curl --fail --location --silent --show-error \
-            "https://github.com/vela-science/vela/releases/download/v0.940.7/$VELA_ARCHIVE" \
+            "$VELA_URL" \
             --output "$RUNNER_TEMP/$VELA_ARCHIVE"
           printf '%s  %s\n' "$VELA_ARCHIVE_SHA256" "$RUNNER_TEMP/$VELA_ARCHIVE" \
             | shasum -a 256 -c -
@@ -67,16 +77,13 @@ jobs:
           chmod +x "$RUNNER_TEMP/vela-release/vela"
           "$RUNNER_TEMP/vela-release/vela" --version
           if [ "${{ runner.os }}" = macOS ]; then
-            CANOPUS_VELA_BIN="$RUNNER_TEMP/vela-release/vela" \
+              CANOPUS_VELA_BIN="$RUNNER_TEMP/vela-release/vela" \
               CANOPUS_VELA_SHA256="sha256:$VELA_SHA256" \
-              CANOPUS_VELA_VERSION="0.940.7" \
+              CANOPUS_VELA_VERSION="$VELA_VERSION" \
               node --test dist/tests/integration/released-vela.test.js
           fi
       - name: Run real Linux sandbox custody preflight
         if: runner.os == 'Linux'
-        env:
-          CODEX_TARBALL_SHA256: 11239480f8e3efd1430f23bbe91c1a397856b8bbe6185ccbaee2382d25e03df2
-          CODEX_BINARY_SHA256: a2a05dafaa1acb002a45eaec0a462de5b13694fcfcd7bc43305f14781ce7be14
         run: |
           sudo apt-get update
           sudo apt-get install --yes apparmor-profiles apparmor-utils bubblewrap
@@ -85,17 +92,17 @@ jobs:
             /etc/apparmor.d/bwrap-userns-restrict
           sudo apparmor_parser -r /etc/apparmor.d/bwrap-userns-restrict
           curl --fail --location --silent --show-error \
-            "https://registry.npmjs.org/@openai/codex/-/codex-0.145.0-linux-x64.tgz" \
-            --output "$RUNNER_TEMP/codex-0.145.0-linux-x64.tgz"
+            "https://registry.npmjs.org/@openai/codex/-/codex-$CODEX_VERSION-linux-x64.tgz" \
+            --output "$RUNNER_TEMP/codex-$CODEX_VERSION-linux-x64.tgz"
           printf '%s  %s\n' "$CODEX_TARBALL_SHA256" \
-            "$RUNNER_TEMP/codex-0.145.0-linux-x64.tgz" | shasum -a 256 -c -
-          mkdir "$RUNNER_TEMP/codex-0.145.0-linux-x64"
-          tar -xzf "$RUNNER_TEMP/codex-0.145.0-linux-x64.tgz" \
-            -C "$RUNNER_TEMP/codex-0.145.0-linux-x64"
-          codex_bin="$RUNNER_TEMP/codex-0.145.0-linux-x64/package/vendor/x86_64-unknown-linux-musl/bin/codex"
+            "$RUNNER_TEMP/codex-$CODEX_VERSION-linux-x64.tgz" | shasum -a 256 -c -
+          mkdir "$RUNNER_TEMP/codex-$CODEX_VERSION-linux-x64"
+          tar -xzf "$RUNNER_TEMP/codex-$CODEX_VERSION-linux-x64.tgz" \
+            -C "$RUNNER_TEMP/codex-$CODEX_VERSION-linux-x64"
+          codex_bin="$RUNNER_TEMP/codex-$CODEX_VERSION-linux-x64/package/vendor/x86_64-unknown-linux-musl/bin/codex"
           printf '%s  %s\n' "$CODEX_BINARY_SHA256" "$codex_bin" | shasum -a 256 -c -
           chmod +x "$codex_bin"
-          test "$("$codex_bin" --version)" = "codex-cli 0.145.0"
+          test "$("$codex_bin" --version)" = "codex-cli $CODEX_VERSION"
           node scripts/run-native-sandbox-preflight.mjs --codex "$codex_bin"
       - name: Pull frozen verifier anonymously by exact digest
         if: runner.os == 'Linux'
@@ -130,7 +137,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+      - name: Load the exact tested toolchain
+        shell: pwsh
+        run: node scripts/export-toolchain-env.mjs "$env:RUNNER_OS" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - run: bun install --frozen-lockfile
+      - run: bun run --cwd ../protocol build
       - run: bun run typecheck
       - run: bun run build
       - name: Verify native Windows platform contracts
@@ -140,15 +151,15 @@ jobs:
         run: |
           $archive = "$env:RUNNER_TEMP\vela-windows-x86_64.zip"
           Invoke-WebRequest `
-            -Uri "https://github.com/vela-science/vela/releases/download/v0.940.7/vela-windows-x86_64.zip" `
+            -Uri $env:VELA_URL `
             -OutFile $archive
           if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLower() -ne `
-              "846177f5a09bbbcfc3e7470a0329772025c92a1661b1b9b1e3aa258560f04edf") {
+              $env:VELA_ARCHIVE_SHA256) {
             throw "Vela archive checksum mismatch"
           }
           Expand-Archive $archive "$env:RUNNER_TEMP\vela"
           if ((Get-FileHash "$env:RUNNER_TEMP\vela\vela.exe" -Algorithm SHA256).Hash.ToLower() -ne `
-              "1615e195c50a331052eddd28c535b3164cd062a4d3b8540163ece73792e72af6") {
+              $env:VELA_SHA256) {
             throw "Vela binary checksum mismatch"
           }
           & "$env:RUNNER_TEMP\vela\vela.exe" --version

@@ -1,13 +1,14 @@
 {
   "name": "@vela-science/canopus",
-  "version": "0.8.0-rc.8",
+  "version": "0.8.0",
   "description": "A bounded, replaceable research harness over released Vela interfaces",
   "type": "module",
   "private": false,
   "license": "Apache-2.0 OR MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vela-science/vela-research-harness.git"
+    "url": "git+https://github.com/vela-science/vela.git",
+    "directory": "packages/canopus"
   },
   "publishConfig": {
     "access": "public",
@@ -52,6 +53,8 @@
     "capsules/erdos1056-k15/bin/linux-x86_64/10429201-10429400/verifier",
     "missions",
     "profiles",
+    "compatibility.json",
+    "toolchain.lock.json",
     "runtime",
     "scripts/run-hostile-native-custody-fixture.mjs",
     "scripts/run-hostile-verifier-fixture.mjs",
@@ -86,5 +89,8 @@
   "devDependencies": {
     "@types/node": "^24.0.0",
     "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "@vela-science/protocol": "workspace:*"
   }
 }
