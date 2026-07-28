@@ -1,7 +1,9 @@
 # ADR 0024: Product monorepo and integration-repository retirement
 
-- Status: Proposed
-- Target release: accept after the history-import and owner-check gates
+- Status: Accepted
+- Accepted: 2026-07-28
+- Release evidence: Vela `0.940.9`, `@vela-science/protocol@0.1.0`,
+  `@vela-science/canopus@0.8.0`
 - Protocol effect: none
 - Product effect: one public source repository for Vela, the TypeScript
   protocol SDK, Canopus, shared schemas, fixtures, and product CI
@@ -96,40 +98,38 @@ no supported workflow depends on a sibling checkout or the parent, and the
 load-bearing inventory is empty. The parent then receives a final archival
 README and is archived without deleting history.
 
-### 3. Absorb Canopus without collapsing its product boundary
+### 3. Preserve Canopus history without collapsing its product boundary
 
-After the current Erdős loop and Canopus `0.8.0` package qualification are
-verified, import the public `vela-research-harness` history without squashing
-under `packages/canopus/`. Release `0.8.0` from the monorepo so the first stable
-artifact already carries its permanent source and provenance identity.
+The public `vela-research-harness` history is imported without squashing under
+`packages/canopus/`. Canopus `0.8.0` is released from the monorepo so the
+stable artifact carries its permanent source and provenance identity.
 
 ```text
 vela-science/vela-research-harness
     -> vela-science/vela/packages/canopus
 ```
 
-The npm package remains `@vela-science/canopus`. Once clean-clone package,
-provenance, and compatibility checks pass from the monorepo, the old repository
-receives a final archival README and is archived. Its tags, Releases, issues,
-and history remain available; it is not kept as a writable mirror.
+The npm package remains `@vela-science/canopus`. The old repository carries a
+final archival README and is archived. Its tags, Releases, issues, and history
+remain available; it is not kept as a writable mirror.
 
 ### 4. Separate compatibility, releases, and exact execution
 
 Compatibility is expressed by schema and capability, not a copied exact patch
-number. Add:
+number. The published package carries:
 
 ```text
-vela capabilities --json
-vela.release-manifest.v1
 packages/canopus/compatibility.json
 packages/canopus/toolchain.lock.json
 ```
 
 `compatibility.json` declares required repository epochs, schemas, and Vela
-capabilities. `toolchain.lock.json` is generated from immutable Vela and Codex
-release manifests and drives CI, installers, and Mission preparation. Source,
-README examples, and workflows do not copy the current Vela patch or platform
-hash matrix.
+capabilities. `toolchain.lock.json` binds immutable Vela and Codex release
+identities for exact execution, CI, and Mission preparation. Source, README
+examples, and workflows do not copy a current Vela patch or platform hash
+matrix. A separate `vela capabilities` command or release-manifest schema is
+deferred until an external consumer demonstrates that the existing public
+schemas and compatibility file are insufficient.
 
 Every exact Run continues to pin its Vela binary, source, Codex runtime,
 verifier, packet, and artifact identities. Component versions remain
@@ -137,10 +137,9 @@ independent; the monorepo does not create an ecosystem version.
 
 ### 5. Generate releases and share fixtures
 
-After the history import is stable, use manifest-driven release automation for
-the Cargo workspace, protocol npm package, and Canopus npm package. One release
-PR may update independently versioned artifacts and changelogs; publication
-workflows publish only the components actually released.
+The Cargo workspace and npm packages use owner-local release automation. One
+release change may update independently versioned artifacts and changelogs;
+publication workflows publish only the components actually released.
 
 One conformance corpus drives Rust, TypeScript, Canopus, Web-reader, and
 external-implementation checks. Cross-repository reusable workflows live in
@@ -162,23 +161,28 @@ tests stay beside their owner.
 - **Delete transition repositories immediately.** Rejected because unique
   history and load-bearing checks must first move or be explicitly retired.
 
-## Acceptance gates
+## Acceptance evidence
 
-1. A checked inventory classifies every active parent script, fixture,
-   workflow, and current document as move, retire, or historical.
-2. Owner repositories pass focused and clean-clone checks without the parent.
-3. Canopus history is imported without squash before `0.8.0` is released from
-   its permanent monorepo path.
-4. Rust and TypeScript pass the same public conformance fixtures.
-5. Canopus clean-clone build, package, replay, and provenance checks pass from
-   `packages/canopus` without importing authority internals.
-6. The old Canopus repository and `vela-internal` have no load-bearing
-   consumer, carry final archival READMEs, and are archived without deleting
-   history.
-7. Component releases use independent tags and versions, and exact Runs retain
-   their original binary identities.
-8. No protocol bytes, Frontier history, release tag, or package identity is
-   rewritten.
-
-Until all eight pass, this ADR remains Proposed. Existing repositories are
-transition sources, not permanent parallel owners.
+1. `vela-internal@14e8ebfc2` carries the checked 1,037-path retirement
+   inventory and final archival README. Its complete predecessor is retained
+   at `pre-decomposition/2026-07-28`.
+2. Product packages CI, conformance, and CodeQL passed in the public monorepo
+   at `8d35b7278f8eaf9f45e000f6836cc92585d99d87` without the parent.
+3. Canopus history was imported without squash under `packages/canopus`
+   before the permanent-source `0.8.0` release.
+4. Rust and TypeScript consume the public conformance corpus, and the product
+   package checks passed from the monorepo.
+5. Protocol and Canopus package build, replay, boundary, pack, npm provenance,
+   and GitHub release checks passed from `product-v0.8.0` at
+   `5df4c0cdd1e049d80c7ea0be00ee96fc4307c681`.
+6. `vela-research-harness` and `vela-internal` carry archival tombstones and
+   are archived. The 15 private-parent source objects referenced by public
+   Erdős records are mirrored byte-for-byte at
+   `erdos-frontier@1dd56de918ba35347b5cc3b1a657a27c33f7fbe5`;
+   strict repository verification passes without changing scientific or
+   authority roots.
+7. Vela, Protocol, and Canopus retain independent artifact versions and
+   immutable release identities. Exact historical Runs retain their original
+   binary roots.
+8. No protocol bytes, Frontier Event, Decision, release tag, package identity,
+   or historical Git object was rewritten.

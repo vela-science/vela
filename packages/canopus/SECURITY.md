@@ -1,7 +1,7 @@
 # Security
 
 Report vulnerabilities privately through GitHub Security Advisories for
-`vela-science/vela-research-harness`.
+`vela-science/vela`.
 
 Canopus does not accept human signing keys. Do not place a human Vela key,
 provider credential, or unpublished scientific secret inside a run root.

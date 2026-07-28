@@ -4,36 +4,18 @@ Vela is proving one compact thesis: exact scientific state should survive
 different producers, verifiers, decisions, corrections, and readers without
 turning any workbench or database into authority.
 
-## P0 — complete the real loop
+## Completed foundation
 
-1. Complete one bounded Erdős
-   Submission → Verification → human Decision loop.
-2. Require exact replay, zero accepted-state mutation before Decision, and
-   clean-clone reproduction.
-3. Release Canopus `0.8.0` only after its package, custody, verifier, replay,
-   and provenance gates pass.
-4. Refresh the read-only Observatory only from the verified Frontier head.
+- One bounded Erdős
+  Submission → Verification → human Decision loop is complete and replayed.
+- Vela `0.940.9`, `@vela-science/protocol@0.1.0`, and
+  `@vela-science/canopus@0.8.0` are released with provenance.
+- Canopus history is imported without squash into this monorepo.
+- The old Canopus and private integration repositories are archived.
+- The four Frontiers, Vela Web, and organization workflows retain their
+  independent ownership boundaries.
 
-The Decision may accept, reject, or cancel. Engineering completion does not
-depend on acceptance.
-
-## P0 — simplify repository ownership
-
-1. Keep public architecture and roadmap here in `vela`.
-2. Consolidate the TypeScript protocol SDK, shared conformance fixtures, and
-   independently versioned Canopus package into the public Vela monorepo.
-3. Preserve the public executable boundary: Canopus may consume protocol
-   contracts but never authority internals.
-4. Keep exact replay, Target Index checks, and domain verifiers in each
-   Frontier.
-5. Keep projection and read-only-boundary checks in `vela-web`.
-6. Move reusable security and provenance workflows to
-   `vela-science/.github`.
-7. Import Canopus history without squash after `0.8.0`, then archive the old
-   repository rather than maintaining a mirror.
-8. Archive `vela-internal` after its load-bearing inventory reaches zero.
-
-Do not create a replacement assembly or lab repository.
+No replacement assembly or lab repository was created.
 
 ## P1 — measure before expanding
 
@@ -55,6 +37,9 @@ result and delete the integration.
   plus the same verifier.
 - Keep kernel verification, statement fidelity, and scientific acceptance
   distinct.
+- Test the current `status` → `show` → `why` read path before adding a
+  scientific-state comparison surface. Add one only if it materially reduces
+  reviewer evidence-location or correction time.
 
 ## P2 — one computational transfer
 

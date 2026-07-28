@@ -50,7 +50,7 @@ RUN rm -rf /home/lean/.cache /home/lean/mathlib/.git \
 
 FROM ghcr.io/leanprover-community/mathlib4/lean@sha256:d64b66663cba8c517b2314d59bbde8864460ae2ef513b0e8cbca1278cd1229f6
 
-LABEL org.opencontainers.image.source="https://github.com/vela-science/vela-research-harness"
+LABEL org.opencontainers.image.source="https://github.com/vela-science/vela"
 LABEL org.opencontainers.image.description="Frozen minimal Lean verifier environment for formal:erdos-505-test-dim-one"
 LABEL org.opencontainers.image.licenses="Apache-2.0 OR MIT"
 

@@ -2,6 +2,13 @@
 
 Vela is version control for scientific state.
 
+Its product category is an open scientific-state substrate: the portable
+layer that records what is claimed, evidenced, verified, decided, corrected,
+and safe to continue from. The longer-range direction is a federated merge
+and inheritance layer for science. That direction remains a hypothesis until
+different producers and readers demonstrate cheaper continuation and
+correction handling.
+
 The product story is:
 
 ```text
@@ -64,15 +71,16 @@ The target public topology is intentionally small:
 | `vela-science/quantum-codes-frontier` | Canonical quantum-codes Frontier |
 | `vela-science/.github` | Organization profile, reusable workflows, security policy, repository templates |
 
-`vela-science/vela-research-harness` is the transition source for Canopus.
-After the `0.8.0` gate, its unsquashed history moves to
-`vela-science/vela/packages/canopus`; the old repository is archived rather
-than maintained as a mirror.
+The former `vela-science/vela-research-harness` history is preserved
+unsquashed under `packages/canopus`; that repository is archived rather than
+maintained as a mirror.
 
-`vela-science/vela-internal` is a transition repository, not a product
-component. It is being decomposed and will be archived after every
-load-bearing check and current document has moved to its owner. No supported
-Vela, Canopus, Frontier, or Observatory workflow may depend on it.
+The former private `vela-science/vela-internal` integration repository is
+archived at its final tombstone commit. Its load-bearing checks and current
+documents moved to their owners, and its historical Git tree remains
+reachable through `pre-decomposition/2026-07-28`. The public Erdős Frontier
+contains byte-exact mirrors for every historical source object that cited the
+private repository.
 
 ## Release boundaries
 
@@ -107,3 +115,18 @@ The architecture does not add:
 
 Private memos and exploratory work remain noncanonical and non-release-gating.
 They do not become product infrastructure merely because they are useful.
+
+## Product performance
+
+Vela is not evaluated by record count, graph size, workflow completion, or
+model activity. The useful performance functions remain separate:
+
+1. verified bounded artifacts per all-in cost and expert-minute;
+2. correct Decisions and correction comprehension per reviewer-minute; and
+3. time to the first useful downstream action after changing producer,
+   runtime, or reader.
+
+`status`, `show`, and `why` are the current read path. A scientific-state
+comparison surface is worth adding only when a registered cold-use test shows
+that it reduces evidence-location or correction time without inventing a new
+canonical object or authority layer.

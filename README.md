@@ -24,6 +24,12 @@ tracks the missing state between them: what is claimed, what evidence supports
 it, what was independently verified, what was accepted, what was corrected,
 and why the current result stands.
 
+Vela is an open scientific-state substrate. Its long-range direction is a
+federated merge and inheritance layer for science: different workbenches can
+produce evidence, different verifiers can report scoped checks, and each
+Frontier can decide and replay its own state without a hosted authority or
+universal ontology.
+
 With Vela you can:
 
 - inspect one scientific state from exact Git bytes and full roots;
@@ -189,8 +195,8 @@ scientific-history lifecycles.
 The Protocol package and Canopus publish together, in dependency order, from
 one `product-v*` release tag. Routine development does not advance versions or
 copy release facts across the workspace; package versions change only when a
-public contract ships. The next full Vela product train will use one release
-tag for the Rust and npm artifacts as well.
+public contract ships. Rust and npm artifacts retain independent versions and
+immutable tags even when one monorepo release change coordinates them.
 
 ## Security model
 
