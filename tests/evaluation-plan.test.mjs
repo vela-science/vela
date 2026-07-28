@@ -69,7 +69,12 @@ function plan() {
       post_output_retries: 0,
     },
     stopping_rules: ["Stop on any credential exposure."],
-    scorers: [root("c")],
+    scorers: [root("c"), root("d"), root("e")],
+    performance_functions: {
+      execution_lift: root("c"),
+      state_lift: root("d"),
+      inheritance_lift: root("e"),
+    },
     exclusions: [],
     custody: {
       human_keys: "forbidden",
@@ -151,5 +156,29 @@ test("evaluation plan permits the required same-packet native control and caps c
       },
     })),
     /1\.\.36 entries/u,
+  );
+});
+
+test("evaluation plan binds distinct execution, state, and inheritance scorers", () => {
+  const registered = plan();
+  assert.throws(
+    () => parseEvaluationPlan(rootEvaluationPlan({
+      ...registered,
+      performance_functions: {
+        ...registered.performance_functions,
+        inheritance_lift: registered.performance_functions.state_lift,
+      },
+    })),
+    /three distinct scorer roots/u,
+  );
+  assert.throws(
+    () => parseEvaluationPlan(rootEvaluationPlan({
+      ...registered,
+      performance_functions: {
+        ...registered.performance_functions,
+        inheritance_lift: root("f"),
+      },
+    })),
+    /absent from plan\.scorers/u,
   );
 });

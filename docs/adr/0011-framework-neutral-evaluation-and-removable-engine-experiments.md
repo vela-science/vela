@@ -107,9 +107,11 @@ Otherwise remove the supported runtime integration, retain the rooted
 evaluation evidence, and do not release Canopus `v0.9.0`.
 
 The evaluation reports execution lift, state lift, and inheritance lift
-separately. Its north star is genuine reusable scientific progress per scarce
-human judgment. A verifier pass, a successful workflow, and a correct
-scientific disposition remain different outcomes.
+separately. The registered plan binds each function to a distinct scorer root;
+one scorer cannot silently stand in for all three. Its north star is genuine
+reusable scientific progress per scarce human judgment. A verifier pass, a
+successful workflow, and a correct scientific disposition remain different
+outcomes.
 
 If native Codex with the same packet and verifier matches Canopus, remove the
 Canopus machinery that did not create lift. If Git plus the same signed

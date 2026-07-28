@@ -23,6 +23,6 @@ Decision.
 
 Stage A must retain both native controls: ordinary native Codex and native
 Codex with the exact packet and frozen verifier used by Canopus. Execution,
-state, and inheritance lift are reported separately. Matching the native
-same-packet arm is a deletion signal for Canopus complexity, not permission to
-invent another layer.
+state, and inheritance lift are bound to three distinct scorer roots and
+reported separately. Matching the native same-packet arm is a deletion signal
+for Canopus complexity, not permission to invent another layer.

@@ -185,7 +185,8 @@ export function parseEvaluationPlan(value) {
     [
       "schema", "plan_id", "status", "created_at", "campaign", "identities",
       "tasks", "arms", "assignments", "budgets", "retry_policy",
-      "stopping_rules", "scorers", "exclusions", "custody", "publication",
+      "stopping_rules", "scorers", "performance_functions", "exclusions",
+      "custody", "publication",
       "amends_root", "amendment_reason", "plan_root",
     ],
     [],
@@ -282,7 +283,47 @@ export function parseEvaluationPlan(value) {
     throw new Error("plan publication contract is not evidence-complete");
   }
   array(plan.stopping_rules, "plan.stopping_rules", 1, 32, (entry, at) => text(entry, at));
-  array(plan.scorers, "plan.scorers", 1, 16, (entry, at) => root(entry, at));
+  const scorers = array(
+    plan.scorers,
+    "plan.scorers",
+    3,
+    16,
+    (entry, at) => root(entry, at),
+  );
+  const performanceFunctions = object(
+    plan.performance_functions,
+    "plan.performance_functions",
+  );
+  exactKeys(
+    performanceFunctions,
+    ["execution_lift", "state_lift", "inheritance_lift"],
+    [],
+    "plan.performance_functions",
+  );
+  const performanceRoots = [
+    root(
+      performanceFunctions.execution_lift,
+      "plan.performance_functions.execution_lift",
+    ),
+    root(
+      performanceFunctions.state_lift,
+      "plan.performance_functions.state_lift",
+    ),
+    root(
+      performanceFunctions.inheritance_lift,
+      "plan.performance_functions.inheritance_lift",
+    ),
+  ];
+  if (new Set(performanceRoots).size !== performanceRoots.length) {
+    throw new Error("plan performance functions must use three distinct scorer roots");
+  }
+  for (const performanceRoot of performanceRoots) {
+    if (!scorers.includes(performanceRoot)) {
+      throw new Error(
+        `plan performance function ${performanceRoot} is absent from plan.scorers`,
+      );
+    }
+  }
   array(plan.exclusions, "plan.exclusions", 0, 32, (entry, at) => text(entry, at));
   parseIdentity(identities.model, "plan.identities.model");
   for (const key of ["codex", "canopus", "vela", "git", "environment"]) {
