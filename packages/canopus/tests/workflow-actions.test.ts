@@ -47,5 +47,5 @@ test("release validates the complete macOS product before the portable OIDC publ
   assert.match(publish, /needs: validate/u);
   assert.doesNotMatch(publish, /- run: bun run check/u);
   assert.match(publish, /bun run typecheck/u);
-  assert.match(publish, /dist\/tests\/release-contract\.test\.js/u);
+  assert.match(publish, /packages\/canopus\/dist\/tests\/release-contract\.test\.js/u);
 });

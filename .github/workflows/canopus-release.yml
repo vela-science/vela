@@ -1,4 +1,4 @@
-name: Canopus release
+name: Vela product packages release
 
 on:
   push:
@@ -6,10 +6,6 @@ on:
       - "canopus-v*"
 
 permissions: {}
-
-defaults:
-  run:
-    working-directory: packages/canopus
 
 jobs:
   validate:
@@ -25,7 +21,6 @@ jobs:
         with:
           node-version: 24
       - run: bun install --frozen-lockfile
-      - run: bun run --cwd ../protocol build
       - run: bun run check
       - run: bun run pack:check
 
@@ -47,70 +42,91 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
       - run: bun install --frozen-lockfile
-      - run: bun run --cwd ../protocol build
       - name: Run portable release checks
         run: |
           bun run typecheck
           bun run build
           node --test \
-            dist/tests/engine-tools.test.js \
-            dist/tests/mission-v1.test.js \
-            dist/tests/product-cli.test.js \
-            dist/tests/product-profile.test.js \
-            dist/tests/release-contract.test.js
+            packages/canopus/dist/tests/engine-tools.test.js \
+            packages/canopus/dist/tests/mission-v1.test.js \
+            packages/canopus/dist/tests/product-cli.test.js \
+            packages/canopus/dist/tests/product-profile.test.js \
+            packages/canopus/dist/tests/release-contract.test.js
       - name: Verify tag matches package version
-        run: test "canopus-v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
-      - name: Pack source-bound package
+        run: test "canopus-v$(node -p 'require("./packages/canopus/package.json").version')" = "$GITHUB_REF_NAME"
+      - name: Pack source-bound packages
         run: |
           mkdir release
-          bun pm pack --destination release
+          bun pm pack --cwd packages/protocol --destination "$GITHUB_WORKSPACE/release"
+          bun pm pack --cwd packages/canopus --destination "$GITHUB_WORKSPACE/release"
           (cd release && shasum -a 256 *.tgz > SHA256SUMS)
       - uses: actions/attest-build-provenance@78e6cbd37d0ac1a40113c04f2037dacf1ea3f12e # v4
         with:
-          subject-path: packages/canopus/release/*.tgz
-      - name: Verify the exact GitHub build attestation
+          subject-path: release/*.tgz
+      - name: Verify exact GitHub build attestations
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -- release/*.tgz
-          test "$#" -eq 1
-          gh attestation verify "$1" \
-            --repo "$GITHUB_REPOSITORY" \
-            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/canopus-release.yml" \
-            --source-ref "$GITHUB_REF" \
-            --source-digest "$GITHUB_SHA" \
-            --deny-self-hosted-runners
-      - name: Publish with npm trusted publishing provenance
-        run: npm publish ./release/*.tgz --provenance --access public
-      - name: Verify the published npm signature and provenance
-        run: |
-          package=$(node -p 'require("./package.json").name')
-          version=$(node -p 'require("./package.json").version')
-          spec="$package@$version"
-          predicate=""
-          for attempt in 1 2 3 4 5; do
-            predicate=$(npm view "$spec" dist.attestations.provenance.predicateType 2>/dev/null || true)
-            test -n "$predicate" && break
-            sleep 3
+          for archive in release/*.tgz; do
+            gh attestation verify "$archive" \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/canopus-release.yml" \
+              --source-ref "$GITHUB_REF" \
+              --source-digest "$GITHUB_SHA" \
+              --deny-self-hosted-runners
           done
-          test "$predicate" = "https://slsa.dev/provenance/v1"
+      - name: Publish Protocol then Canopus with npm trusted publishing
+        run: |
+          for package_dir in packages/protocol packages/canopus; do
+            package=$(node -p "require('./$package_dir/package.json').name")
+            version=$(node -p "require('./$package_dir/package.json').version")
+            spec="$package@$version"
+            archive=$(find release -maxdepth 1 -name "*-$(basename "$package_dir")-$version.tgz" -print)
+            test -n "$archive"
+            if npm view "$spec" version >/dev/null 2>&1; then
+              test "$(npm view "$spec" version)" = "$version"
+            else
+              npm publish "$archive" --provenance --access public
+            fi
+          done
+      - name: Verify published npm provenance and installation
+        run: |
+          specs=""
+          for package_dir in packages/protocol packages/canopus; do
+            package=$(node -p "require('./$package_dir/package.json').name")
+            version=$(node -p "require('./$package_dir/package.json').version")
+            spec="$package@$version"
+            specs="$specs $spec"
+            predicate=""
+            for attempt in 1 2 3 4 5; do
+              predicate=$(npm view "$spec" dist.attestations.provenance.predicateType 2>/dev/null || true)
+              test -n "$predicate" && break
+              sleep 3
+            done
+            test "$predicate" = "https://slsa.dev/provenance/v1"
+          done
           audit_root=$(mktemp -d)
           trap 'rm -rf "$audit_root"' EXIT
           cd "$audit_root"
           npm init -y >/dev/null
-          npm install --ignore-scripts --save-exact "$spec" >/dev/null
+          npm install --ignore-scripts --save-exact $specs >/dev/null
           audit_ok=false
           for attempt in $(seq 1 24); do
             if npm audit signatures --json --include-attestations > audit.json 2> audit.err; then
-              if node - "$package" "$version" <<'NODE'
+              if node - $specs <<'NODE'
           const fs = require("node:fs");
           const audit = JSON.parse(fs.readFileSync("audit.json", "utf8"));
           if (audit.invalid?.length || audit.missing?.length) process.exit(1);
-          if (!audit.verified?.some((entry) =>
-            entry.name === process.argv[2] &&
-            entry.version === process.argv[3] &&
-            entry.attestationBundles?.some((bundle) =>
-              bundle.predicateType === "https://slsa.dev/provenance/v1"))) process.exit(1);
+          for (const spec of process.argv.slice(2)) {
+            const split = spec.lastIndexOf("@");
+            const name = spec.slice(0, split);
+            const version = spec.slice(split + 1);
+            if (!audit.verified?.some((entry) =>
+              entry.name === name &&
+              entry.version === version &&
+              entry.attestationBundles?.some((bundle) =>
+                bundle.predicateType === "https://slsa.dev/provenance/v1"))) process.exit(1);
+          }
           NODE
               then
                 audit_ok=true
