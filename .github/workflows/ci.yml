@@ -15,11 +15,11 @@ jobs:
         include:
           - runner: macos-15
             archive: vela-macos-aarch64.zip
-            archive_sha256: 1e5c10bb1d4667dce396bd2995e9c7e908e9a05b0043dd697467482b735c9e9a
+            archive_sha256: e48607239c584d70d7583e25c07991af047e5a031478bd7665f37510d270fbda
             binary_sha256: eae9c73822647a0f4b8b7e85ad10ba46bf1b0b181f96641b67dec689e9aeac2b
           - runner: ubuntu-24.04
             archive: vela-linux-x86_64.tar.gz
-            archive_sha256: 502e5056b2dcd1b8872e6d96928593340d9e9a0ceec6222a044cee47d8e76e52
+            archive_sha256: c4103e772db7e6bb22624cce6710927ea7c854eb747fed01ad92d139a2ab6c05
             binary_sha256: ff4a5d2901a93afa10bdfcb1e64a62db6d1e1f225834f9231508392b6568c224
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
@@ -143,7 +143,7 @@ jobs:
             -Uri "https://github.com/vela-science/vela/releases/download/v0.940.7/vela-windows-x86_64.zip" `
             -OutFile $archive
           if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLower() -ne `
-              "d7dc3322e21312b89532d0c0b70c821d0e5a571d15c9634c2177f22184a9d0d4") {
+              "846177f5a09bbbcfc3e7470a0329772025c92a1661b1b9b1e3aa258560f04edf") {
             throw "Vela archive checksum mismatch"
           }
           Expand-Archive $archive "$env:RUNNER_TEMP\vela"
