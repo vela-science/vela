@@ -236,6 +236,13 @@ fn reviewed_tags_publish_provenance_labeled_cross_platform_bundles() {
     assert!(RELEASE_WORKFLOW.contains("needs.registry-smoke.result == 'success'"));
     assert!(RELEASE_WORKFLOW.contains("needs.registry-smoke.result == 'skipped'"));
     assert!(RELEASE_WORKFLOW.contains("needs.metadata.outputs.prerelease == 'true'"));
+    assert!(RELEASE_WORKFLOW.contains("fail-fast: false"));
+    assert!(RELEASE_WORKFLOW.contains("https://crates.io/api/v1/crates/vela-cli/$VERSION"));
+    assert!(RELEASE_WORKFLOW.contains("for _ in $(seq 1 60)"));
+    assert!(
+        RELEASE_WORKFLOW
+            .contains("vela-cli $VERSION was not readable from crates.io within 300 seconds")
+    );
     assert!(RELEASE_WORKFLOW.contains("cargo install --locked vela-cli --version \"$VERSION\""));
     assert!(RELEASE_WORKFLOW.contains("github.event_name == 'push'"));
     assert!(RELEASE_WORKFLOW.contains("--verify-tag"));

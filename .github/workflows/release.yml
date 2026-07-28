@@ -256,7 +256,10 @@ jobs:
     needs: metadata
     name: registry-smoke-${{ matrix.os }}
     strategy:
-      fail-fast: true
+      # Registry indexes and CDN edges do not expose a newly published crate at
+      # exactly the same instant on every platform. Preserve every platform's
+      # evidence instead of cancelling the matrix when one edge is slower.
+      fail-fast: false
       matrix:
         os: [ubuntu-24.04, macos-15, windows-2025]
     runs-on: ${{ matrix.os }}
@@ -267,6 +270,23 @@ jobs:
         env:
           VERSION: ${{ needs.metadata.outputs.version }}
         run: |
+          package_url="https://crates.io/api/v1/crates/vela-cli/$VERSION"
+          ready=false
+          for _ in $(seq 1 60); do
+            if curl \
+              --user-agent "vela-release-smoke/$VERSION (https://github.com/vela-science/vela)" \
+              --fail --silent --show-error \
+              "$package_url" >/dev/null
+            then
+              ready=true
+              break
+            fi
+            sleep 5
+          done
+          "$ready" || {
+            echo "vela-cli $VERSION was not readable from crates.io within 300 seconds" >&2
+            exit 1
+          }
           root="$RUNNER_TEMP/vela-registry-install"
           cargo install --locked vela-cli --version "$VERSION" --root "$root"
           "$root/bin/vela" --version | grep -F "vela $VERSION"
