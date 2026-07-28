@@ -75,7 +75,7 @@ test("current source stays product-only while historical release evidence remain
     readFile(new URL("../../README.md", import.meta.url), "utf8"),
   ]);
   const packageJson = JSON.parse(packageText) as { files?: string[]; version?: string };
-  assert.equal(packageJson.version, "0.8.0-rc.7");
+  assert.equal(packageJson.version, "0.8.0-rc.8");
   for (const file of [
     "README.md",
     "THIRD_PARTY.md",
@@ -107,7 +107,7 @@ test("current source stays product-only while historical release evidence remain
   );
   assert.match(
     readme,
-    /Current source is Canopus `0\.8\.0-rc\.7`, composed with Vela[\s\S]+`0\.940\.7`/u,
+    /Current source is Canopus `0\.8\.0-rc\.8`, composed with Vela[\s\S]+`0\.940\.7`/u,
   );
   assert.match(readme, /A Run is nonmutating/u);
   assert.match(readme, /only the separate `submit` command registers/u);

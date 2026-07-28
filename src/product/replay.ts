@@ -3,10 +3,9 @@ import os from "node:os";
 import path from "node:path";
 
 import { BudgetTracker } from "../budget/enforce.js";
-import { parseMission } from "../contracts/mission.js";
 import { validateMissionBundle } from "../mission/prepare.js";
-import { parseCurrentRunRecord } from "../projection/current-run.js";
-import { contentDigest } from "../util/canonical.js";
+import { parseRetainedMission } from "../projection/retained-mission.js";
+import { parseRetainedRunRecord } from "../projection/retained-run.js";
 import { readBoundedRegularFile } from "../util/files.js";
 import { runVerifier } from "../verifier/run.js";
 import { cleanupWorkspace, prepareWorkspace } from "../workspace/prepare.js";
@@ -34,14 +33,16 @@ export async function replayProduct(runFile: string, dockerBinary = "docker"): P
       "current Canopus replays only canopus.run.v2; use the exact historical release for older Run schemas",
     );
   }
-  const record = parseCurrentRunRecord(raw);
+  const record = parseRetainedRunRecord(raw).record;
   const bundleRoot = await realpath(path.join(runRoot, "..", "mission"));
-  const mission = parseMission(JSON.parse(
+  const retainedMission = parseRetainedMission(JSON.parse(
     (await readBoundedRegularFile(path.join(bundleRoot, "mission.json"), 8 * 1024 * 1024)).toString("utf8"),
   ) as unknown);
-  if (mission.schema !== "canopus.mission.v1") throw new Error("product replay requires Mission v1");
-  await validateMissionBundle(mission, bundleRoot);
-  if (contentDigest(mission) !== record.mission.digest) throw new Error("run and mission roots disagree");
+  const mission = retainedMission.mission;
+  await validateMissionBundle(mission, bundleRoot, retainedMission.exactRoot);
+  if (retainedMission.exactRoot !== record.mission.digest) {
+    throw new Error("run and mission roots disagree");
+  }
   const artifacts: FrozenArtifactLocation[] = record.candidate.artifacts.map((artifact: FrozenArtifact) => ({
     artifact,
     frozenPath: path.join(runRoot, "artifacts", artifact.digest.slice("sha256:".length)),

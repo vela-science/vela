@@ -8,7 +8,8 @@ import { readdir, stat } from "node:fs/promises";
 
 import { parseMission } from "./contracts/mission.js";
 import { prepareMission, validateMissionBundle } from "./mission/prepare.js";
-import { parseCurrentRunRecord, projectCurrentRun } from "./projection/current-run.js";
+import { projectCurrentRun } from "./projection/current-run.js";
+import { parseRetainedRunRecord } from "./projection/retained-run.js";
 import { parseFailureRecord, projectFailure } from "./projection/failure.js";
 import { doctorProduct } from "./product/doctor.js";
 import { replayProduct } from "./product/replay.js";
@@ -381,7 +382,7 @@ async function showCommand(value: string | undefined, rest: string[]): Promise<v
     ? (raw as Record<string, unknown>).schema
     : undefined;
   const projection = schema === "canopus.run.v2"
-    ? projectCurrentRun(parseCurrentRunRecord(raw))
+    ? projectCurrentRun(parseRetainedRunRecord(raw).record)
     : schema === "canopus.failure.v0" || schema === "canopus.failure.v1"
       ? projectFailure(parseFailureRecord(raw))
       : (() => {

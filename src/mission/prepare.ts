@@ -89,6 +89,7 @@ export async function assertVerifierWorkingDirectory(
 export async function validateMissionBundle(
   mission: MissionV1,
   bundleRoot: string,
+  expectedMissionRoot = contentDigest(mission),
 ): Promise<void> {
   const root = await realpath(bundleRoot);
   const capsule = await sourceFile(root, mission.verifier.capsule_path, "verifier capsule");
@@ -140,7 +141,7 @@ export async function validateMissionBundle(
   if (
     manifest.schema !== "canopus.mission-bundle.v1" ||
     manifest.authority !== "non_authoritative" ||
-    manifest.mission_sha256 !== contentDigest(mission)
+    manifest.mission_sha256 !== expectedMissionRoot
   ) {
     throw new Error("mission bundle manifest does not bind the mission");
   }

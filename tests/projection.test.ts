@@ -5,6 +5,7 @@ import {
   parseCurrentRunRecord,
   projectCurrentRun,
 } from "../src/projection/current-run.js";
+import { parseRetainedRunRecord } from "../src/projection/retained-run.js";
 import type { CurrentRunRecord } from "../src/run.js";
 
 const digest = `sha256:${"a".repeat(64)}`;
@@ -94,4 +95,26 @@ test("current run inspection rejects nested drift instead of casting it", () => 
     () => parseCurrentRunRecord(legacy),
     /run\.schema must be canopus\.run\.v2/u,
   );
+});
+
+test("retained run inspection preserves predecessor roots without rewriting bytes", () => {
+  const retained = structuredClone(record()) as unknown as Record<string, unknown>;
+  const predecessorRoots = {
+    git_commit: "b".repeat(40),
+    git_tree: "c".repeat(40),
+    vela_event_log: `sha256:${"d".repeat(64)}`,
+    vela_snapshot: `sha256:${"e".repeat(64)}`,
+  };
+  (retained.mission as Record<string, unknown>).starting_roots = predecessorRoots;
+  (retained.reproduction as Record<string, unknown>).roots = predecessorRoots;
+  const exact = JSON.stringify(retained);
+
+  const parsed = parseRetainedRunRecord(JSON.parse(exact));
+
+  assert.deepEqual(parsed.record.mission.starting_roots, {
+    git_commit: "b".repeat(40),
+    git_tree: "c".repeat(40),
+    vela_repository: `sha256:${"e".repeat(64)}`,
+  });
+  assert.equal(JSON.stringify(retained), exact);
 });

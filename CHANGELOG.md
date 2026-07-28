@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Advance Canopus `0.8.0-rc.8` after real campaign replay exposed a retained
+  predecessor-epoch compatibility defect. Current readers now validate and
+  replay immutable Run and Mission bytes through bounded in-memory projections;
+  the retained records and their exact roots remain unchanged.
 - Advance Canopus `0.8.0-rc.7` for the Vela `0.940.7` current Target Index
   writer repair.
 - Keep retained Run and Submission source identities unchanged while requiring
