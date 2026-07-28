@@ -202,21 +202,21 @@ test("evaluation plan is closed and rooted before execution", () => {
   );
 });
 
-test("evaluation plan accepts a registered 300k per-assignment ceiling", () => {
+test("evaluation plan accepts a registered 2m per-assignment safety ceiling", () => {
   const draft = registeredStageA();
   const amended = rootEvaluationPlan({
     ...draft,
     tasks: draft.tasks.map((task) => ({
       ...task,
-      max_observed_tokens: 300_000,
+      max_observed_tokens: 2_000_000,
     })),
     budgets: {
       ...draft.budgets,
-      max_total_observed_tokens: 3_600_000,
+      max_total_observed_tokens: 24_000_000,
     },
     amends_root: draft.plan_root,
     amendment_reason:
-      "Registered 100k and 200k ceilings stopped the first cell after 113985 and 224005 observed tokens before candidate ingestion; preserve both and run fresh assignments under a 300k ceiling.",
+      "Registered 100k, 200k, and 300k ceilings stopped the first cell before candidate ingestion; preserve them and run fresh assignments under a 2m safety ceiling.",
     plan_root: "",
   });
   assert.deepEqual(parseEvaluationPlan(amended), amended);

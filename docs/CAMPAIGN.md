@@ -262,10 +262,23 @@ its report root is
 `sha256:559c37f77697f59881efeebd9da06b5fa8ab55bd56cc8df8090c95de2479ba8e`.
 
 Both stopped plans and runs remain campaign evidence. They are not retried or
-overwritten. A second root-linked amendment may register fresh `A3-*`
-assignments at a bounded 300,000-token ceiling, with all task facts, model,
-tools, verifiers, custody, retry, scorer, and publication rules unchanged.
-The cumulative campaign remains below its 32-model-call ceiling.
+overwritten. The second root-linked amendment registered fresh `A3-*`
+assignments at a bounded 300,000-token ceiling. Its first native cell completed
+provider output at 511,024 observed tokens, so the post-run budget guard again
+rejected the result before candidate ingestion or verifier execution. Its
+stopped run root is
+`sha256:c764d57b1de22216afb46a334c1dcd085de692c7fc442203e38f5483aeb35758`;
+its report root is
+`sha256:3fc5cb5716e137e4cb10496e9073685e315b37599497473f936ddd2e3ba9df8c`.
+
+The three stopped provider outputs show that a tight post-run ceiling prevents
+diagnosis because usage is known only after Codex exits and before Canopus
+ingests the candidate. A final root-linked `A4-*` amendment may therefore use
+a 2,000,000-token safety ceiling per assignment and a 24,000,000-token total
+ceiling. Actual observed usage, not the ceiling, remains the efficiency score.
+All task facts, model, tools, verifiers, custody, retry, scorer, and publication
+rules remain unchanged. The cumulative campaign remains below its
+32-model-call ceiling.
 
 ### Stage B
 

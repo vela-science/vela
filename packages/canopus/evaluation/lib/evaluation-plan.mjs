@@ -234,7 +234,7 @@ function parseTask(value, at) {
       item.max_observed_tokens,
       `${at}.max_observed_tokens`,
       1,
-      500_000,
+      2_000_000,
     ),
   };
 }
@@ -481,7 +481,7 @@ export function parseEvaluationPlan(value) {
     budgets.max_total_observed_tokens,
     "plan.budgets.max_total_observed_tokens",
     1,
-    3_600_000,
+    24_000_000,
   );
   if (assignments.length > budgets.max_model_calls) {
     throw new Error("assignments exceed the registered model-call budget");
