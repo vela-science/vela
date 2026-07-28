@@ -215,10 +215,14 @@ const {
   plan,
   executable_paths: executablePaths,
   wrapper_paths: wrapperPaths,
+  arm_dependency_lock_paths: armDependencyLockPaths,
+  arm_environment_paths: armEnvironmentPaths,
+  arm_resource_paths: armResourcePaths,
   task_source_paths: taskSourcePaths,
   task_packet_paths: taskPacketPaths,
   task_verifier_paths: taskVerifierPaths,
   task_verifier_runtime_paths: taskVerifierRuntimePaths,
+  task_verifier_resource_paths: taskVerifierResourcePaths,
 } = await verifyEvaluationPlanFiles(
   JSON.parse(await readFile(planFile, "utf8")),
   planFile,
@@ -242,12 +246,18 @@ for (const assignment of assignments) {
   const assignmentRoot = path.join(output, assignment.id);
   await mkdir(assignmentRoot, { mode: 0o700 });
   const argv = arm.argv.map((entry) =>
-    entry
+    Object.entries(armResourcePaths[arm.id]).reduce(
+      (value, [name, resource]) =>
+        value.replaceAll(`{resource:${name}}`, resource),
+      entry
       .replaceAll("{task_packet}", packet)
       .replaceAll("{wrapper}", wrapperPaths[arm.id])
       .replaceAll("{output}", assignmentRoot)
       .replaceAll("{assignment_id}", assignment.id)
-      .replaceAll("{seed}", String(assignment.seed)));
+      .replaceAll("{seed}", String(assignment.seed))
+      .replaceAll("{dependency_lock}", armDependencyLockPaths[arm.id])
+      .replaceAll("{environment}", armEnvironmentPaths[arm.id]),
+    ));
   const startedAt = new Date();
   const started = process.hrtime.bigint();
   const outcome = await execute(
@@ -329,9 +339,13 @@ for (const assignment of assignments) {
         throw new Error(`task ${task.id} verifier runtime root drifted`);
       }
       const verifierArgv = task.verifier_args.map((entry) =>
-        entry
-          .replaceAll("{artifact}", artifact.path)
-          .replaceAll("{source}", source));
+        Object.entries(taskVerifierResourcePaths[task.id]).reduce(
+          (value, [name, resource]) =>
+            value.replaceAll(`{resource:${name}}`, resource),
+          entry
+            .replaceAll("{artifact}", artifact.path)
+            .replaceAll("{source}", source),
+        ));
       verifierOutcome = await executeVerifier(
         [
           taskVerifierRuntimePaths[task.id],

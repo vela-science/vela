@@ -43,6 +43,11 @@ Standing. The analogy stops at the authority boundary. A Git merge, signature,
 registration, workflow completion, or verifier pass is not a scientific
 Decision.
 
+The product control point is the transition from abundant candidate activity
+to exact state that another human or agent may safely inherit. Vela does not
+need to own the workbench, model, trace store, database, or publication venue
+to own that transition.
+
 ## Performance functions
 
 The north star is genuine reusable scientific progress per scarce human
@@ -78,6 +83,19 @@ Only canonical Frontier Git, Vela's replay rules, and the authorized Decision
 boundary are durable product architecture. Canopus, evaluator bridges, traces,
 Observatory projections, orchestration frameworks, and external-format
 adapters must remain removable.
+
+The activity and state planes remain deliberately separate:
+
+```text
+models, tools, sessions, attempts, traces, artifacts
+                     |
+               bounded Submission
+                     v
+Claim -> Verification -> Proposal -> Decision -> Event -> Standing
+```
+
+A rich work episode may be retained as evidence. It is never promoted wholesale
+into the portable scientific-state contract.
 
 The repository topology is:
 
@@ -240,6 +258,37 @@ TypeScript. Otherwise preserve the result and delete the integration.
    replication with a source-local adapter and a root-bound RO-Crate export.
 5. Require a second genuinely different external format before proposing
    shared adapter infrastructure.
+
+## Product evidence gates
+
+The first reader contract is not a graph or dashboard. It is an exact,
+human-readable answer to:
+
+```text
+What is claimed?
+What changed?
+What exact evidence and scoped checks bear on it?
+Who decided?
+Why does it have this Standing?
+What remains safe to do next?
+```
+
+Treat the Proposal Scientific Diff and `vela why` as the highest-leverage
+product surfaces. Test them against Git plus the same evidence and verifier
+before expanding the Observatory. A new read surface must reduce
+evidence-location, correction, or continuation time by at least 20 percent in a
+frozen cold-use comparison. A new write surface must close a reproduced
+authority or workflow gap that the current CLI cannot close safely.
+
+For every proposed feature, record:
+
+1. which transition from activity to inherited state it improves;
+2. whether it is canonical or disposable;
+3. which existing standard or tool already owns adjacent behavior;
+4. the matched test that could falsify its value; and
+5. the deletion rule if it does not improve verified output or expert leverage.
+
+Failure deletes or narrows the feature. It does not create a new abstraction.
 
 ## Invariants and stop conditions
 

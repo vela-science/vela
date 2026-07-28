@@ -44,6 +44,8 @@ result and delete the integration.
 - Test the current `status` → `show` → `why` read path before adding a
   scientific-state comparison surface. Add one only if it materially reduces
   reviewer evidence-location or correction time.
+- Treat the exact Proposal Scientific Diff and `why` explanation as the first
+  product surfaces to improve; prove read value before adding more write UX.
 
 ## P2 — one computational transfer
 

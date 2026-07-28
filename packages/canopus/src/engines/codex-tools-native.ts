@@ -44,6 +44,7 @@ export interface CodexToolsNativeOptions {
   authHome: string;
   outputSchema: string;
   permissionProfile: string;
+  prompt?: (mission: MissionV1) => string;
   runner?: CommandRunner;
 }
 
@@ -425,7 +426,10 @@ export class CodexToolsNativeEngine implements Engine {
         timeoutMs: context.budget.remainingTimeMs(),
       });
 
-      const workerPrompt = prompt(mission);
+      const workerPrompt = this.#options.prompt?.(mission) ?? prompt(mission);
+      if (workerPrompt.trim().length === 0) {
+        throw new Error("native Codex worker prompt must be nonempty");
+      }
       context.budget.addPrompt(Buffer.byteLength(workerPrompt));
       context.budget.beginProcess();
       const started = performance.now();

@@ -64,6 +64,7 @@ function plan() {
       verifier_runtime: "direct",
       verifier_runtime_root: root("9"),
       verifier_args: ["{artifact}"],
+      verifier_resources: [],
       artifact_path: "artifacts/result.txt",
       max_artifact_bytes: 65_536,
       license: "MIT",
@@ -84,6 +85,7 @@ function plan() {
       environment_path: "environments/native.json",
       environment_root: root("b"),
       executable_root: root("f"),
+      resources: [],
     }],
     assignments: [{
       id: "A-math-native-r1",
@@ -252,6 +254,16 @@ test("evaluation plan closes candidate artifact and verifier invocation", () => 
       }],
     })),
     /unsupported placeholder/u,
+  );
+  assert.throws(
+    () => parseEvaluationPlan(rootEvaluationPlan({
+      ...draft,
+      arms: [{
+        ...draft.arms[0],
+        argv: ["codex", "{wrapper}", "{resource:missing}"],
+      }],
+    })),
+    /unsupported placeholder \{resource:missing\}/u,
   );
 });
 

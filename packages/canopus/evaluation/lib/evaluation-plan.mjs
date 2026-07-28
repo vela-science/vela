@@ -124,7 +124,7 @@ function parseTask(value, at) {
     [
       "id", "class", "source", "source_path", "source_root", "packet_path", "packet_root",
       "verifier_path", "verifier_root", "verifier_runtime", "verifier_runtime_root",
-      "verifier_args", "artifact_path",
+      "verifier_args", "verifier_resources", "artifact_path",
       "max_artifact_bytes", "license", "cpu_only", "network",
       "max_wall_time_ms", "max_observed_tokens",
     ],
@@ -136,6 +136,31 @@ function parseTask(value, at) {
   }
   if (item.cpu_only !== true || item.network !== "deny") {
     throw new Error(`${at} must be CPU-only and network-denied`);
+  }
+  const verifierResources = array(
+    item.verifier_resources,
+    `${at}.verifier_resources`,
+    0,
+    16,
+    (entry, entryAt) => {
+      const resource = object(entry, entryAt);
+      exactKeys(resource, ["name", "path", "root"], [], entryAt);
+      const name = text(resource.name, `${entryAt}.name`, 64);
+      if (!/^[a-z][a-z0-9_]*$/u.test(name)) {
+        throw new Error(`${entryAt}.name must be a lowercase resource name`);
+      }
+      return {
+        name,
+        path: relative(resource.path, `${entryAt}.path`),
+        root: root(resource.root, `${entryAt}.root`),
+      };
+    },
+  );
+  if (
+    new Set(verifierResources.map((resource) => resource.name)).size !==
+      verifierResources.length
+  ) {
+    throw new Error(`${at}.verifier_resources contains duplicate names`);
   }
   const verifierArgs = array(
     item.verifier_args,
@@ -151,8 +176,17 @@ function parseTask(value, at) {
     throw new Error(`${at}.verifier_args may contain at most one {source}`);
   }
   for (const entry of verifierArgs) {
-    if (entry.includes("{") && !["{artifact}", "{source}"].includes(entry)) {
-      throw new Error(`${at}.verifier_args contains an unsupported placeholder`);
+    for (const placeholder of entry.match(/\{[^{}]+\}/gu) ?? []) {
+      if (["{artifact}", "{source}"].includes(placeholder)) continue;
+      const match = placeholder.match(/^\{resource:([a-z][a-z0-9_]*)\}$/u);
+      if (
+        match?.[1] === undefined ||
+        !verifierResources.some((resource) => resource.name === match[1])
+      ) {
+        throw new Error(
+          `${at}.verifier_args contains unsupported placeholder ${placeholder}`,
+        );
+      }
     }
   }
   if (!["direct", "bun"].includes(item.verifier_runtime)) {
@@ -179,6 +213,7 @@ function parseTask(value, at) {
     verifier_runtime: item.verifier_runtime,
     verifier_runtime_root: verifierRuntimeRoot,
     verifier_args: verifierArgs,
+    verifier_resources: verifierResources,
     artifact_path: relative(item.artifact_path, `${at}.artifact_path`),
     max_artifact_bytes: integer(
       item.max_artifact_bytes,
@@ -211,7 +246,7 @@ function parseArm(value, at) {
     [
       "id", "kind", "argv", "cwd", "wrapper_path", "wrapper_root", "dependency_lock_path",
       "dependency_lock_root", "environment_path", "environment_root",
-      "executable_root",
+      "executable_root", "resources",
     ],
     [],
     at,
@@ -228,10 +263,47 @@ function parseArm(value, at) {
   ) {
     throw new Error(`${at}.kind is unsupported`);
   }
+  const resources = array(item.resources, `${at}.resources`, 0, 16, (entry, entryAt) => {
+    const resource = object(entry, entryAt);
+    exactKeys(resource, ["name", "path", "root"], [], entryAt);
+    const name = text(resource.name, `${entryAt}.name`, 64);
+    if (!/^[a-z][a-z0-9_]*$/u.test(name)) {
+      throw new Error(`${entryAt}.name must be a lowercase resource name`);
+    }
+    return {
+      name,
+      path: relative(resource.path, `${entryAt}.path`),
+      root: root(resource.root, `${entryAt}.root`),
+    };
+  });
+  if (new Set(resources.map((resource) => resource.name)).size !== resources.length) {
+    throw new Error(`${at}.resources contains duplicate names`);
+  }
   const argv = array(item.argv, `${at}.argv`, 1, 64, (entry, entryAt) =>
     text(entry, entryAt, 4096));
   if (argv.filter((entry) => entry === "{wrapper}").length !== 1) {
     throw new Error(`${at}.argv must contain exactly one {wrapper} control entrypoint`);
+  }
+  const standardPlaceholders = new Set([
+    "{task_packet}",
+    "{wrapper}",
+    "{output}",
+    "{assignment_id}",
+    "{seed}",
+    "{dependency_lock}",
+    "{environment}",
+  ]);
+  for (const entry of argv) {
+    for (const placeholder of entry.match(/\{[^{}]+\}/gu) ?? []) {
+      if (standardPlaceholders.has(placeholder)) continue;
+      const match = placeholder.match(/^\{resource:([a-z][a-z0-9_]*)\}$/u);
+      if (
+        match?.[1] === undefined ||
+        !resources.some((resource) => resource.name === match[1])
+      ) {
+        throw new Error(`${at}.argv contains unsupported placeholder ${placeholder}`);
+      }
+    }
   }
   return {
     id: text(item.id, `${at}.id`, 128),
@@ -248,6 +320,7 @@ function parseArm(value, at) {
     environment_path: relative(item.environment_path, `${at}.environment_path`),
     environment_root: root(item.environment_root, `${at}.environment_root`),
     executable_root: root(item.executable_root, `${at}.executable_root`),
+    resources,
   };
 }
 
@@ -879,10 +952,14 @@ export async function verifyEvaluationPlanFiles(plan, planFile) {
   let verifiedFiles = 0;
   const executablePaths = {};
   const wrapperPaths = {};
+  const armDependencyLockPaths = {};
+  const armEnvironmentPaths = {};
+  const armResourcePaths = {};
   const taskSourcePaths = {};
   const taskPacketPaths = {};
   const taskVerifierPaths = {};
   const taskVerifierRuntimePaths = {};
+  const taskVerifierResourcePaths = {};
   for (const task of parsed.tasks) {
     taskSourcePaths[task.id] = await verifyFile(
       planDirectory,
@@ -913,7 +990,16 @@ export async function verifyEvaluationPlanFiles(plan, planFile) {
         `task ${task.id} verifier runtime`,
       );
     }
-    verifiedFiles += 3;
+    taskVerifierResourcePaths[task.id] = {};
+    for (const resource of task.verifier_resources) {
+      taskVerifierResourcePaths[task.id][resource.name] = await verifyFile(
+        planDirectory,
+        resource.path,
+        resource.root,
+        `task ${task.id} verifier resource ${resource.name}`,
+      );
+    }
+    verifiedFiles += 3 + task.verifier_resources.length;
   }
   for (const arm of parsed.arms) {
     const cwd = await verifyDirectory(planDirectory, arm.cwd, `arm ${arm.id} cwd`);
@@ -929,19 +1015,28 @@ export async function verifyEvaluationPlanFiles(plan, planFile) {
       arm.wrapper_root,
       `arm ${arm.id} wrapper`,
     );
-    await verifyFile(
+    armDependencyLockPaths[arm.id] = await verifyFile(
       planDirectory,
       arm.dependency_lock_path,
       arm.dependency_lock_root,
       `arm ${arm.id} dependency lock`,
     );
-    await verifyFile(
+    armEnvironmentPaths[arm.id] = await verifyFile(
       planDirectory,
       arm.environment_path,
       arm.environment_root,
       `arm ${arm.id} environment`,
     );
-    verifiedFiles += 4;
+    armResourcePaths[arm.id] = {};
+    for (const resource of arm.resources) {
+      armResourcePaths[arm.id][resource.name] = await verifyFile(
+        planDirectory,
+        resource.path,
+        resource.root,
+        `arm ${arm.id} resource ${resource.name}`,
+      );
+    }
+    verifiedFiles += 4 + arm.resources.length;
   }
   for (const scorer of parsed.scorers) {
     await verifyFile(
@@ -957,9 +1052,13 @@ export async function verifyEvaluationPlanFiles(plan, planFile) {
     verified_files: verifiedFiles,
     executable_paths: executablePaths,
     wrapper_paths: wrapperPaths,
+    arm_dependency_lock_paths: armDependencyLockPaths,
+    arm_environment_paths: armEnvironmentPaths,
+    arm_resource_paths: armResourcePaths,
     task_source_paths: taskSourcePaths,
     task_packet_paths: taskPacketPaths,
     task_verifier_paths: taskVerifierPaths,
     task_verifier_runtime_paths: taskVerifierRuntimePaths,
+    task_verifier_resource_paths: taskVerifierResourcePaths,
   };
 }
