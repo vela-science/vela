@@ -2,8 +2,8 @@
 //!
 //! The manifest indexes active content-addressed objects and the authority
 //! material that can change their standing. It carries no decision or
-//! acceptance power by itself; the sequence-1 repository-authority record
-//! covers its exact root.
+//! acceptance power by itself; its exact root follows the signed
+//! repository-manifest delta chain.
 
 use std::collections::BTreeSet;
 

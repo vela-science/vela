@@ -1414,7 +1414,6 @@ fn verify_current_epoch_authority(
             event.root()?,
         ),
         (".vela/epoch.json".into(), epoch.canonical_root()?),
-        (".vela/repository.json".into(), repository.canonical_root()?),
     ];
     for (path, after_root) in required_delta {
         let matching = first
@@ -1428,6 +1427,73 @@ fn verify_current_epoch_authority(
                 "current epoch authority record does not cover exact postimage {path}"
             ));
         }
+    }
+    let mut repository_records = Vec::with_capacity(loaded.history.authority_envelopes.len());
+    for envelope in &loaded.history.authority_envelopes {
+        repository_records.push(crate::cli::authority_record_from_envelope(envelope)?);
+    }
+    verify_repository_manifest_delta_chain(
+        repository_records.iter().map(|record| {
+            (
+                record.content.sequence,
+                record.content.object_delta.as_slice(),
+            )
+        }),
+        &repository.canonical_root()?,
+    )?;
+    Ok(())
+}
+
+fn verify_repository_manifest_delta_chain<'a>(
+    records: impl IntoIterator<Item = (u64, &'a [vela_protocol::authority::ObjectDeltaV1])>,
+    current_repository_root: &str,
+) -> Result<(), String> {
+    let mut active_root: Option<String> = None;
+    let mut saw_initial = false;
+    for (sequence, deltas) in records {
+        let matching = deltas
+            .iter()
+            .filter(|delta| delta.path == ".vela/repository.json")
+            .collect::<Vec<_>>();
+        if matching.len() > 1 {
+            return Err(format!(
+                "authority record {sequence} repeats the repository manifest delta"
+            ));
+        }
+        let Some(delta) = matching.first() else {
+            if sequence == 1 {
+                return Err(
+                    "current epoch authority record does not cover initial repository manifest"
+                        .into(),
+                );
+            }
+            continue;
+        };
+        let recognized_kind = delta.object_kind == "repository_manifest"
+            || (sequence == 1 && delta.object_kind == "canonical_evidence");
+        if !recognized_kind || delta.after_root.is_none() {
+            return Err(format!(
+                "authority record {sequence} breaks repository manifest root continuity"
+            ));
+        }
+        if sequence == 1 {
+            saw_initial = true;
+        } else if delta.before_root != active_root {
+            return Err(format!(
+                "authority record {sequence} breaks repository manifest root continuity"
+            ));
+        }
+        active_root.clone_from(&delta.after_root);
+    }
+    if !saw_initial {
+        return Err(
+            "current epoch authority history lacks its initial repository manifest delta".into(),
+        );
+    }
+    if active_root.as_deref() != Some(current_repository_root) {
+        return Err(
+            "current repository manifest root is not the final signed authority postimage".into(),
+        );
     }
     Ok(())
 }
@@ -1620,5 +1686,54 @@ mod tests {
             None,
         );
         assert!(current_proposal_decisions(&[first, second]).is_err());
+    }
+
+    #[test]
+    fn repository_manifest_root_follows_the_signed_delta_chain() {
+        use vela_protocol::authority::ObjectDeltaV1;
+
+        let initial = root('1');
+        let submitted = root('2');
+        let first = vec![ObjectDeltaV1 {
+            path: ".vela/repository.json".into(),
+            before_root: None,
+            after_root: Some(initial.clone()),
+            object_kind: "canonical_evidence".into(),
+        }];
+        let second = vec![ObjectDeltaV1 {
+            path: ".vela/repository.json".into(),
+            before_root: Some(initial.clone()),
+            after_root: Some(submitted.clone()),
+            object_kind: "repository_manifest".into(),
+        }];
+        verify_repository_manifest_delta_chain(
+            [(1, first.as_slice()), (2, second.as_slice())],
+            &submitted,
+        )
+        .unwrap();
+
+        assert_eq!(
+            verify_repository_manifest_delta_chain(
+                [(1, first.as_slice()), (2, second.as_slice())],
+                &root('3'),
+            )
+            .unwrap_err(),
+            "current repository manifest root is not the final signed authority postimage"
+        );
+
+        let broken = vec![ObjectDeltaV1 {
+            path: ".vela/repository.json".into(),
+            before_root: Some(root('4')),
+            after_root: Some(submitted),
+            object_kind: "repository_manifest".into(),
+        }];
+        assert_eq!(
+            verify_repository_manifest_delta_chain(
+                [(1, first.as_slice()), (2, broken.as_slice())],
+                &root('3'),
+            )
+            .unwrap_err(),
+            "authority record 2 breaks repository manifest root continuity"
+        );
     }
 }

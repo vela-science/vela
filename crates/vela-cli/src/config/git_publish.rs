@@ -2321,18 +2321,32 @@ fn frontier_specs(frontier: &Path, root: &Path) -> Result<Vec<String>, String> {
         "witnesses".to_string(),
         "records".to_string(),
     ];
-    match vela_protocol::frontier_repo::read_repository_profile(frontier)? {
-        Some(vela_protocol::frontier_repo::FrontierProfileFile::LegacyV0_1(manifest)) => {
-            names.push(manifest.paths.state);
-            names.push(manifest.paths.sources);
-            names.push(manifest.paths.artifacts);
-            names.push(manifest.paths.review);
-            names.push(manifest.paths.proof);
+    let profile_source = fs::read_to_string(frontier.join("frontier.yaml"))
+        .map_err(|error| format!("read frontier.yaml for publication: {error}"))?;
+    let profile_schema = serde_yaml::from_str::<serde_yaml::Value>(&profile_source)
+        .map_err(|error| format!("parse frontier.yaml for publication: {error}"))?
+        .get("schema")
+        .and_then(serde_yaml::Value::as_str)
+        .ok_or_else(|| "frontier.yaml must contain a string schema field".to_string())?
+        .to_string();
+    if profile_schema == vela_protocol::current_repository::CURRENT_FRONTIER_PROFILE_SCHEMA_V2 {
+        vela_protocol::current_repository::CurrentFrontierProfileV2::from_yaml_str(
+            &profile_source,
+        )?;
+    } else {
+        match vela_protocol::frontier_repo::read_repository_profile(frontier)? {
+            Some(vela_protocol::frontier_repo::FrontierProfileFile::LegacyV0_1(manifest)) => {
+                names.push(manifest.paths.state);
+                names.push(manifest.paths.sources);
+                names.push(manifest.paths.artifacts);
+                names.push(manifest.paths.review);
+                names.push(manifest.paths.proof);
+            }
+            // Profiles v1 and v2 have one fixed repository layout. The fixed
+            // specs above are complete; legacy caller-selected path fields
+            // must never cross either closed profile boundary.
+            Some(vela_protocol::frontier_repo::FrontierProfileFile::V1(_)) | None => {}
         }
-        // Profile v1 has one fixed repository layout. The fixed specs above
-        // are complete; legacy caller-selected path fields must never be
-        // inferred from or applied to the closed v1 profile.
-        Some(vela_protocol::frontier_repo::FrontierProfileFile::V1(_)) | None => {}
     }
     let mut specs = BTreeSet::new();
     for name in names {
@@ -5021,6 +5035,37 @@ mod tests {
         assert!(specs.contains(&"proof".to_string()));
         assert!(specs.contains(&"records".to_string()));
         assert!(specs.contains(&"witnesses".to_string()));
+    }
+
+    #[test]
+    fn profile_v2_publication_uses_only_the_fixed_repository_specs() {
+        let temporary = tempfile::tempdir().unwrap();
+        fs::write(
+            temporary.path().join("frontier.yaml"),
+            r#"schema: vela.frontier-profile.v2
+frontier_id: vfr_0123456789abcdef
+name: Current publication fixture
+summary: Verify current Profile v2 publication uses the fixed repository layout.
+scope:
+  question: Can a current Submission be committed exactly?
+  includes:
+  - Current Submission publication.
+  excludes:
+  - Accepted-state mutation.
+maintainers:
+- fixture
+license:
+  content: CC-BY-4.0
+  code: Apache-2.0
+  data: varies
+"#,
+        )
+        .unwrap();
+        let root = temporary.path().canonicalize().unwrap();
+        let specs = frontier_specs(&root, &root).unwrap();
+        for required in [".vela", "frontier.yaml", "records", "sources", "artifacts"] {
+            assert!(specs.contains(&required.to_string()));
+        }
     }
 
     fn operation_from(outcome: &PublicationOutcome) -> String {

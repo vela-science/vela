@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## v0.940.2 — 2026-07-27 — Current Submission integration repair
+
+- Admit current Claim records through the canonical-evidence write boundary
+  while preserving the separate Proposal and review classes.
+- Verify every mutable repository-manifest root through its signed authority
+  delta chain instead of comparing current bytes with the initialization
+  record.
+- Publish Profile v2 Submission transactions as exact local Git commits.
+- Add an end-to-end authenticated Submission regression proving pending
+  Standing, zero accepted-state delta, strict replay, and clean-clone
+  reproduction.
+
 ## v0.940.1 — 2026-07-27 — GitHub Action attestation fix
 
 - Expose the implicit workflow token to the composite action's release

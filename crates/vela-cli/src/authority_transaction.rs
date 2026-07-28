@@ -1554,6 +1554,7 @@ fn validate_authority_object_path(
             (value.starts_with(".vela/")
                 && !value.starts_with(".vela/authority/")
                 && !value.starts_with(".vela/proposals/"))
+                || value.starts_with("records/claims/")
                 || value.starts_with("records/artifacts/")
         }
         WriteClass::Derived | WriteClass::PrivateCoordination => false,
@@ -3976,6 +3977,29 @@ mod tests {
         assert_eq!(
             fs::read(fixture.temporary.path().join("frontier.json")).unwrap(),
             b"after\n"
+        );
+    }
+
+    #[test]
+    fn current_claim_and_artifact_paths_are_canonical_evidence() {
+        for path in [
+            "records/claims/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.json",
+            "records/artifacts/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        ] {
+            validate_authority_object_path(
+                &RepoPath::parse(path.to_string()).unwrap(),
+                WriteClass::CanonicalEvidence,
+            )
+            .unwrap();
+        }
+        let proposal = RepoPath::parse(
+            "records/proposals/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.json"
+                .to_string(),
+        )
+        .unwrap();
+        assert!(
+            validate_authority_object_path(&proposal, WriteClass::CanonicalEvidence).is_err(),
+            "review objects must not be relabeled canonical evidence"
         );
     }
 
