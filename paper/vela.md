@@ -376,7 +376,29 @@ sets, omitted independent routes, connected cycles, and resource bounds.
 This result establishes implementation readiness only. It is not scientific
 evidence or external independence.
 
-### 6.5 Registered benchmark matrix
+### 6.5 Removability qualification
+
+A separately frozen first-party test cloned the exact pending Erdős repository,
+set an empty home directory, denied all network access with the operating
+system sandbox, and ran strict repository verification, status derivation, and
+proposal inspection using only the pinned Vela binary and Git bytes. Canopus,
+Vela Web, the Observatory, Neon, hosted APIs, the original producer session,
+and repository-authority credentials were absent.
+
+The three commands reproduced repository root
+`sha256:69bbc0d35b0f422f9df8e3f9c720ae3c855ab858c5667434fc57e30f11af5553`,
+2,771 accepted Claims, one pending Claim, and the exact pending Proposal.
+Canonical path-normalized command outputs reproduced byte-for-byte on a
+second run. The frozen plan root is
+`sha256:659146f45e9c02aa1c1771e9ebdb5a19fce663f1d54b41852262ea478de994d4`;
+the result root is
+`sha256:979995062e655597084f15ae8e265e6660393e127a38a1da46641cbf57c3ab96`.
+
+This is positive local evidence for B5 and B6. It does not complete those
+families for a real correction fixture, test cross-Frontier transfer, measure
+cold-user value, or establish independent reproduction.
+
+### 6.6 Registered benchmark matrix
 
 | Family | Primary | Held-out | Required |
 | --- | --- | --- | --- |
@@ -384,8 +406,8 @@ evidence or external independence.
 | B2 affected set | pending | pending | 100% precision/recall |
 | B3 route survival | pending | pending | exact |
 | B4 authority containment | pending | pending | zero unauthorized delta |
-| B5 removability | pending | pending | replay unchanged |
-| B6 hosted-service failure | pending | pending | replay succeeds |
+| B5 removability | local qualification pass; correction pending | pending | replay unchanged |
+| B6 hosted-service failure | local qualification pass; correction pending | pending | replay succeeds |
 | B7 support diversity | pending | pending | exact route accounting |
 | B8 second Frontier | pending | pending | zero imported authority |
 | B9 observability | synthetic pass only | pending | no silent truncation |

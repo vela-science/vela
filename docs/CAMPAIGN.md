@@ -897,6 +897,28 @@ external independence, or advance the maturity level beyond Level 0. The
 reader remains deletable until a real correction and matched Git baseline
 demonstrate value.
 
+#### Removability and hosted-service-loss qualification
+
+The first B5/B6 qualification is frozen in
+`paper/artifacts/removability/plan.v1.json` at root
+`sha256:659146f45e9c02aa1c1771e9ebdb5a19fce663f1d54b41852262ea478de994d4`.
+It uses Erdős commit `9af3be808ee24dbc82a883cf125918e0aaff8406`, tree
+`d77a0576e6366380f5071a1125e71a46a61ac10b`, repository root
+`sha256:69bbc0d35b0f422f9df8e3f9c720ae3c855ab858c5667434fc57e30f11af5553`,
+and Vela `0.940.9` binary root
+`sha256:bdb7345bad89e734d6b5458de20ba1e1aec5f62ecaf4f6aca0f5c839fb1e9721`.
+
+With an empty home directory and network denied, a fresh exact clone passed
+strict verification and reproduced status and Proposal inspection without
+Canopus, Vela Web, the Observatory, Neon, a hosted Vela API, the original
+producer session, or repository-authority credentials. A second execution
+reproduced every normalized output byte. The retained result root is
+`sha256:979995062e655597084f15ae8e265e6660393e127a38a1da46641cbf57c3ab96`.
+
+This establishes only first-party local removability qualification. It does
+not complete B5 or B6 for a real correction fixture, earn external
+reproduction credit, or establish transfer or inheritance value.
+
 ### Gate 3: test a source-local Vela Math profile
 
 Do not reopen rejected ADR 0019 or publish `@vela/math` merely because the
