@@ -344,10 +344,14 @@ implementation would require byte-equivalent conformance evidence before
 replacing this reference behavior.
 
 Measured authoring, validation, replay, storage, and review costs remain a
-registered evaluation output rather than an estimate in this draft. The paper
-will report exact inputs, repetitions, warm-up policy, machine identity, raw
-samples, and medians. Until those observations exist, no performance claim is
-made.
+registered evaluation output rather than an estimate in this draft. We will
+report exact inputs, repetitions, warm-up policy, machine identity, raw
+samples, and medians. We make no performance claim before those observations
+exist. The frozen plan root is
+`sha256:59e400d03b794736c673443f40abcb783e6f9d70e3454502ebd4c639119f8e24`;
+its credential-free measurement implementation has source root
+`sha256:46ad4963a3dab362161496321ae036c1577784d3f57243691121da85b10bab98`.
+We run it only after the Erdős correction reaches terminal Standing.
 
 ## 5. Implementation
 
@@ -780,6 +784,7 @@ Current implementation qualification:
 ```bash
 cargo test -p vela-edge --test correction_impact
 python3 conformance/verify_correction_impact.py
+python3 -m unittest paper/artifacts/cost/test_measure.py
 python3 -m unittest paper/artifacts/state-lift/test_score.py
 ./conformance/check-core.sh
 ```

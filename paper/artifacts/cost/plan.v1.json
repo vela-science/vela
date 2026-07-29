@@ -1,0 +1,74 @@
+{
+  "schema": "vela.cost-evaluation-plan.v1",
+  "benchmark_id": "vela-paper-cost-v1",
+  "frozen_at": "2026-07-29T09:36:12Z",
+  "entry_gate": {
+    "erdos_proposal_id": "vpr_23f32f95d4f073e8",
+    "required_standing": [
+      "accepted",
+      "rejected"
+    ],
+    "all_frontiers_clean": true,
+    "exact_heads_bound_at_execution": true
+  },
+  "frontiers": [
+    "erdos",
+    "formal",
+    "sidon",
+    "quantum"
+  ],
+  "operations": {
+    "all_frontiers": [
+      "status --json",
+      "check --strict --json"
+    ],
+    "erdos_only": [
+      "review show <proposal> --json",
+      "reproduce"
+    ]
+  },
+  "sampling": {
+    "warmups": 1,
+    "repetitions": 7,
+    "order": "frontier order, then declared operation order",
+    "clock": "monotonic wall clock",
+    "summary": [
+      "minimum_ms",
+      "median_ms",
+      "maximum_ms"
+    ]
+  },
+  "environment": {
+    "empty_home": true,
+    "credential_environment_removed": true,
+    "network": "denied with the operating-system sandbox when available",
+    "locale": "C",
+    "cache_policy": "one unreported warmup followed by seven warm-cache samples"
+  },
+  "storage": {
+    "measure": [
+      "tracked_file_count",
+      "tracked_file_bytes",
+      "top_level_tracked_bytes"
+    ],
+    "excludes": [
+      "Git object database bytes",
+      "ignored files",
+      "untracked files",
+      "reinstallable build outputs"
+    ]
+  },
+  "publication": {
+    "retain_all_samples": true,
+    "retain_normalized_output_roots": true,
+    "report_failures": true,
+    "no_outlier_exclusion": true,
+    "no_cross_machine_speed_claim": true
+  },
+  "does_not_establish": [
+    "These first-party samples do not establish independent performance.",
+    "Warm-cache latency does not measure clone, network, build, or human review time.",
+    "Tracked working-tree bytes do not measure compressed Git storage or hosted-service cost.",
+    "A faster operation cannot compensate for incorrect replay or unauthorized Standing change."
+  ]
+}

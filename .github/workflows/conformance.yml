@@ -34,6 +34,7 @@ jobs:
         run: |
           python3 -m unittest \
             paper/artifacts/erdos-424/test_verify_source_transition.py \
+            paper/artifacts/cost/test_measure.py \
             paper/artifacts/state-lift/test_materialize.py \
             paper/artifacts/state-lift/test_score.py
       - name: current Submission and Verification interoperability waist

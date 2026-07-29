@@ -1006,6 +1006,23 @@ the pinned Pandoc 3.9 and pdfLaTeX 1.40.26 renderer produced two identical
 Visual inspection confirmed that long roots wrap and wide evidence tables no
 longer overlap. This qualifies deterministic rendering only.
 
+#### Protocol cost plan
+
+`paper/artifacts/cost/plan.v1.json` freezes a descriptive cost observation at
+root
+`sha256:59e400d03b794736c673443f40abcb783e6f9d70e3454502ebd4c639119f8e24`.
+We will collect seven warm-cache samples after one warmup for `status` and
+strict repository verification on all four Frontiers, plus proposal inspection
+and frozen-witness replay on Erdős. The result retains every sample, normalized
+output root, exact Frontier head, repository root, tracked byte count, binary
+root, and machine identity. The credential-free implementation source root is
+`sha256:46ad4963a3dab362161496321ae036c1577784d3f57243691121da85b10bab98`.
+
+The entry gate requires a terminal Decision for Proposal
+`vpr_23f32f95d4f073e8`; running it now exits before timing or writing output.
+The result will be a first-party local observation, not an independent or
+cross-machine performance claim.
+
 #### Foreign-transfer contract gap
 
 The B8 source audit is frozen in `paper/artifacts/transfer/plan.v1.json` at
