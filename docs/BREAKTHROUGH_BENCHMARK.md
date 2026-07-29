@@ -247,8 +247,12 @@ Level 4  routine compounding across scientific systems
 
 Current evidence is Level 0. The active Formal slice tests product and
 statement-fidelity handling; it does not itself advance the correction
-benchmark. The correction fixture, clean-room reader, second Frontier, held-out
-replication, and cold-use evidence must be earned in that order.
+benchmark. Rust and clean-room Python readers now agree on one synthetic
+diamond projection at root
+`sha256:935e084f8c5c45bcee234d2e9752062ba54493aa1b14f731e0efbbb1ecc01df6`.
+That is implementation qualification only. The real correction fixture,
+second Frontier, held-out replication, and cold-use evidence must still be
+earned in that order.
 
 The 2026-07-29 source audit found no qualifying historical fixture. The four
 current Frontiers retain 2,831 Claim records and no current correction,

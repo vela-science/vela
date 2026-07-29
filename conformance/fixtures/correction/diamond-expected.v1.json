@@ -1,0 +1,88 @@
+{
+  "schema": "vela.correction-impact-expected.v1",
+  "projection_root": "sha256:935e084f8c5c45bcee234d2e9752062ba54493aa1b14f731e0efbbb1ecc01df6",
+  "projection": {
+    "schema": "vela.correction-impact-projection.v1",
+    "fixture_id": "synthetic-correction-diamond-v1",
+    "status": "complete",
+    "transition": {
+      "kind": "supersede_claim",
+      "predecessor": {
+        "claim_id": "vcl_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "claim_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "successor": {
+        "claim_id": "vcl_1111111111111111111111111111111111111111111111111111111111111111",
+        "claim_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      }
+    },
+    "retained_predecessor": {
+      "claim_id": "vcl_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "claim_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "affected_claims": [
+      {
+        "claim_id": "vcl_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "claim_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "classification": "repair_required",
+        "causal_relation_ids": [
+          "relation-b-depends-on-a"
+        ]
+      },
+      {
+        "claim_id": "vcl_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "claim_root": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "classification": "route_changed",
+        "causal_relation_ids": [
+          "relation-c-supported-by-a"
+        ]
+      }
+    ],
+    "unaffected_claims": [
+      {
+        "claim_id": "vcl_dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "claim_root": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      {
+        "claim_id": "vcl_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "claim_root": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      }
+    ],
+    "lost_support_routes": [
+      {
+        "relation_id": "relation-c-supported-by-a",
+        "relation_root": "sha256:0202020202020202020202020202020202020202020202020202020202020202",
+        "source_claim_id": "vcl_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "target_claim_id": "vcl_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "target_claim_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ],
+    "surviving_support_routes": [
+      {
+        "relation_id": "relation-c-supported-by-e",
+        "relation_root": "sha256:0303030303030303030303030303030303030303030303030303030303030303",
+        "source_claim_id": "vcl_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "target_claim_id": "vcl_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "target_claim_root": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      }
+    ],
+    "repair_obligations": [
+      {
+        "obligation_root": "sha256:3e4f3e7abcc64663f792e9d76a30923033c91f0c54920bbe03ea3408a18ac000",
+        "claim_id": "vcl_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "claim_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "causal_relation_ids": [
+          "relation-b-depends-on-a"
+        ],
+        "discharge_condition": "Re-evaluate Claim B against the exact successor Claim and retain a scoped Verification Record."
+      }
+    ],
+    "diagnostics": [],
+    "bounds": {
+      "max_claims": 16,
+      "max_relations": 32,
+      "complete_claim_set": true,
+      "complete_relation_set": true
+    }
+  }
+}

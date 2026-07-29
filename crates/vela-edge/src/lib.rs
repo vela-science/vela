@@ -6,5 +6,5 @@
 //! derived Target Index.
 
 mod analysis;
-pub use analysis::{repository_write, target_index};
+pub use analysis::{correction_impact, repository_write, target_index};
 pub mod agent_identity;

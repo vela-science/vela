@@ -20,7 +20,7 @@ cargo test --quiet -p vela-protocol --lib \
   --test current_object_interop \
   --test exact_witness_floor_fixture \
   --test frontier_settings_v1
-cargo test --quiet -p vela-edge --lib
+cargo test --quiet -p vela-edge --lib --test correction_impact
 cargo test --quiet -p vela-cli --lib \
   --test current_genesis \
   --test env_isolation \

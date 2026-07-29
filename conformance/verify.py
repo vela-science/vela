@@ -121,6 +121,7 @@ def main() -> int:
         "verify_attempt_id.py",
         "verify_principal_capability.py",
         "verify_current_objects.py",
+        "verify_correction_impact.py",
     )
     for script in checks:
         print(f"\n== {script.removeprefix('verify_').removesuffix('.py')} ==")
@@ -132,7 +133,7 @@ def main() -> int:
     if verify_exact_witness_floor() != 0:
         print("vela conformance: FAIL (exact-witness-floor)", file=sys.stderr)
         return 1
-    print("\nvela conformance: ok (5 current contracts)")
+    print("\nvela conformance: ok (6 current contracts)")
     return 0
 
 

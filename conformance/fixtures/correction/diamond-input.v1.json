@@ -1,0 +1,93 @@
+{
+  "schema": "vela.correction-impact-input.v1",
+  "fixture_id": "synthetic-correction-diamond-v1",
+  "transition": {
+    "kind": "supersede_claim",
+    "predecessor": {
+      "claim_id": "vcl_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "claim_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "successor": {
+      "claim_id": "vcl_1111111111111111111111111111111111111111111111111111111111111111",
+      "claim_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    }
+  },
+  "claims": [
+    {
+      "claim_id": "vcl_1111111111111111111111111111111111111111111111111111111111111111",
+      "claim_root": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    {
+      "claim_id": "vcl_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "claim_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "claim_id": "vcl_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "claim_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "repair_condition": "Re-evaluate Claim B against the exact successor Claim and retain a scoped Verification Record."
+    },
+    {
+      "claim_id": "vcl_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "claim_root": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "repair_condition": "Establish at least one exact support route independent of the superseded predecessor."
+    },
+    {
+      "claim_id": "vcl_dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "claim_root": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+      "claim_id": "vcl_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "claim_root": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    }
+  ],
+  "relations": [
+    {
+      "relation_id": "relation-b-depends-on-a",
+      "relation_root": "sha256:0101010101010101010101010101010101010101010101010101010101010101",
+      "kind": "depends_on",
+      "source_claim_id": "vcl_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "target_claim_id": "vcl_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "relation_id": "relation-c-supported-by-a",
+      "relation_root": "sha256:0202020202020202020202020202020202020202020202020202020202020202",
+      "kind": "supports",
+      "source_claim_id": "vcl_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "target_claim_id": "vcl_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "relation_id": "relation-c-supported-by-e",
+      "relation_root": "sha256:0303030303030303030303030303030303030303030303030303030303030303",
+      "kind": "supports",
+      "source_claim_id": "vcl_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "target_claim_id": "vcl_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    },
+    {
+      "relation_id": "relation-d-discovered-from-a",
+      "relation_root": "sha256:0404040404040404040404040404040404040404040404040404040404040404",
+      "kind": "discovery",
+      "source_claim_id": "vcl_dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "target_claim_id": "vcl_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "relation_rules": [
+    {
+      "kind": "depends_on",
+      "effect": "hard_dependency"
+    },
+    {
+      "kind": "discovery",
+      "effect": "discovery_only"
+    },
+    {
+      "kind": "supports",
+      "effect": "support_route"
+    }
+  ],
+  "bounds": {
+    "max_claims": 16,
+    "max_relations": 32,
+    "complete_claim_set": true,
+    "complete_relation_set": true
+  }
+}

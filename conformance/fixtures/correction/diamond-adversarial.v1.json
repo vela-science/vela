@@ -1,0 +1,101 @@
+{
+  "schema": "vela.correction-impact-adversarial.v1",
+  "base_input_root": "sha256:68a5094a5a98d60ab1d34c11c5306a202ea44d126f6dc95f33e20d31b5b1f8da",
+  "cases": [
+    {
+      "id": "unknown-consequential-relation",
+      "mutation": {
+        "op": "set_relation_kind",
+        "relation_id": "relation-b-depends-on-a",
+        "value": "generic_link"
+      },
+      "expected_error": "correction_relation_unknown"
+    },
+    {
+      "id": "discovery-rebound-as-dependency",
+      "mutation": {
+        "op": "set_rule_effect",
+        "kind": "discovery",
+        "value": "hard_dependency"
+      },
+      "expected_error": "correction_relation_rule_conflict"
+    },
+    {
+      "id": "missing-premise",
+      "mutation": {
+        "op": "set_relation_target",
+        "relation_id": "relation-b-depends-on-a",
+        "value": "vcl_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "expected_error": "correction_relation_endpoint_missing"
+    },
+    {
+      "id": "shortened-root",
+      "mutation": {
+        "op": "set_predecessor_root",
+        "value": "sha256:aaaa"
+      },
+      "expected_error": "correction_sha256_invalid"
+    },
+    {
+      "id": "incomplete-relation-set",
+      "mutation": {
+        "op": "set_complete_relation_set",
+        "value": false
+      },
+      "expected_projection": {
+        "status": "incomplete",
+        "diagnostics": [
+          "relation_set_incomplete"
+        ],
+        "affected_claim_ids": []
+      }
+    },
+    {
+      "id": "independent-route-omitted",
+      "mutation": {
+        "op": "remove_relation",
+        "relation_id": "relation-c-supported-by-e"
+      },
+      "expected_projection": {
+        "status": "complete",
+        "diagnostics": [],
+        "affected_claim_ids": [
+          "vcl_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "vcl_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "repair_required_claim_ids": [
+          "vcl_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "vcl_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "surviving_support_routes": 0
+      }
+    },
+    {
+      "id": "connected-hard-cycle",
+      "mutation": {
+        "op": "add_connected_cycle"
+      },
+      "expected_projection": {
+        "status": "complete",
+        "diagnostics": [],
+        "affected_claim_ids": [
+          "vcl_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "vcl_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "repair_required_claim_ids": [
+          "vcl_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "vcl_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ]
+      }
+    },
+    {
+      "id": "relation-bound-exceeded",
+      "mutation": {
+        "op": "set_max_relations",
+        "value": 1
+      },
+      "expected_error": "correction_relation_bound_exceeded"
+    }
+  ]
+}

@@ -359,8 +359,8 @@ scientific acceptance.
 
 This is useful product evidence, not breakthrough evidence. It leaves the
 [protocol breakthrough benchmark](BREAKTHROUGH_BENCHMARK.md) at Level 0:
-there is no correction fixture, clean-room consequence reader, second
-Frontier, held-out replication, or external cold-use result in this slice.
+there is no qualifying real correction fixture, second Frontier, held-out
+replication, or external cold-use result in this slice.
 
 ### Completed real loop
 
@@ -840,6 +840,30 @@ It permits attempt-less authoring only for an exact correction or
 supersession. New Claims still require an Attempt. The implementation remains
 an exact, single-target CLI path over the existing schema. No Event, target,
 reducer, authority, accepted-state rule, or hosted writer is authorized.
+
+#### Synthetic reader qualification
+
+The first derived correction-impact reader is implemented in Rust under
+`vela-edge`. A clean-room Python reader consumes only the language-neutral
+fixture contract. Both independently derive the canonical projection root
+`sha256:935e084f8c5c45bcee234d2e9752062ba54493aa1b14f731e0efbbb1ecc01df6`.
+
+The synthetic diamond proves only implementation readiness:
+
+- Claim B is `repair_required` through one hard dependency;
+- Claim C is `route_changed`, with the route through the predecessor lost and
+  its independent support route preserved;
+- discovery-only Claim D and independent support Claim E remain unaffected;
+- one root-bound repair Obligation is opened for B; and
+- incomplete input, unknown relations, semantic rebinding, missing premises,
+  shortened roots, omitted independent routes, connected cycles, and bound
+  violations have deterministic fail-closed or explicitly incomplete results.
+
+These vectors are synthetic conformance material. They do not repair a
+scientific Claim, change Standing, satisfy the primary fixture, establish
+external independence, or advance the maturity level beyond Level 0. The
+reader remains deletable until a real correction and matched Git baseline
+demonstrate value.
 
 ### Gate 3: test a source-local Vela Math profile
 
