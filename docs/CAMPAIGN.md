@@ -950,6 +950,13 @@ This qualifies deterministic packaging only. The final paper artifact root
 must bind the eventual terminal correction, held-out evidence, baselines, and
 paper source, and still requires external reproduction.
 
+At clean Vela commit `94a9450be33cb51497ca0c7700826c8e384f49e0`,
+the pinned Pandoc 3.9 and pdfLaTeX 1.40.26 renderer produced two identical
+11-page PDFs at root
+`sha256:b7e0c01e208b68d680d7218b29804552e4edbe2bac2ece0ba6f313a847059b6a`.
+Visual inspection confirmed that long roots wrap and wide evidence tables no
+longer overlap. This qualifies deterministic rendering only.
+
 #### Foreign-transfer contract gap
 
 The B8 source audit is frozen in `paper/artifacts/transfer/plan.v1.json` at

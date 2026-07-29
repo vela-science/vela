@@ -670,6 +670,14 @@ The verifier rehashed every member and rejected unmanifested paths. This is
 packaging qualification, not independent reproduction or the final release
 artifact.
 
+The same source rendered twice from clean Vela commit
+`94a9450be33cb51497ca0c7700826c8e384f49e0` with pinned Pandoc 3.9 and
+pdfLaTeX 1.40.26. Both 11-page PDFs had root
+`sha256:b7e0c01e208b68d680d7218b29804552e4edbe2bac2ece0ba6f313a847059b6a`.
+The renderer derives PDF timestamps from the Git commit and wraps exact roots
+at presentation time without changing source bytes. This qualifies
+deterministic rendering, not the paper's scientific claims.
+
 The final artifact package will include:
 
 - frozen plans and amendments;
