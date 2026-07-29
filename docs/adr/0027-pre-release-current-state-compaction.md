@@ -100,6 +100,27 @@ shapes, rejects every mixture, requires a compaction origin for v3, and binds
 the Frontier, Profile, origin ID/root, and retained object-set root before a
 commit marker can exist.
 
+The third protected invocation reached signing but still stopped before its
+commit marker. The initial authorization correctly recognized the empty
+post-removal bootstrap. After the compactor materialized and read-bound the
+retained records, marker-time revalidation incorrectly reapplied that native
+empty-bootstrap predicate and rejected the exact compaction surface. No
+origin, repository manifest, canonical commit, source update, or remote update
+occurred. One signed sequence-1 record exists only inside an aborted private
+journal, retained under
+`failed-activations/erdos-vop-b95ad35c6197622e/` in the candidate archive. Its
+payload-manifest root is
+`sha256:1e4b21bb5ba42d1c90710080bb4aafc6745865f7ef554122179eb2d74b89e750`.
+All 2,805 materialized records match the rooted candidate bytes exactly.
+
+Compaction initialization now has its own closed authorization surface. It
+accepts only the complete expected `records/` set, binds its canonical
+object-set root into the authorization context, requires the compact-v3
+transaction delta to carry the same root, and repeats the same exact check
+before the marker. Missing, substituted, duplicate, outside-`records/`, or
+unexplained files fail closed. The native bootstrap predicate remains
+unchanged and continues to reject any pre-authority records.
+
 The disk cost is immaterial. The cost is a larger protocol vocabulary and
 trust base before Vela has external users. Keeping compatibility indefinitely
 would optimize for a release history that does not yet exist.

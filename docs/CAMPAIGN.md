@@ -222,13 +222,34 @@ gate's obsolete assumption that every initialization creates
 but rejected the exact compact-origin v3 pair. The gate now admits only the
 native-v2 and compact-v3 closed shapes, cross-binds the origin and manifest,
 and rejects mixed versions, a genesis origin in the compaction lane, identity
-substitution, and object-set drift. All 169 CLI tests, all 88 protocol tests,
-and strict CLI Clippy pass. Each failed worktree was removed only after proving
-it contained no unique signed postimage; in the second audit all 2,803 staged
-candidate objects matched the rooted candidate package exactly. The next gate
-remains the human invocation of the four exact candidate roots followed by
-read-only `repository finalize-compaction --check`; compatibility removal
-cannot begin until all four resulting clean clones replay.
+substitution, and object-set drift.
+
+A third protected invocation reached signing but failed before its commit
+marker. Marker-time revalidation reused the native empty-bootstrap predicate
+after the exact retained records had already been materialized and read-bound,
+so it rejected the compaction surface it had authorized. The source and remote
+again remained at
+`c25e11d332cfbc12b048c314880662d507df53e0`; no origin, repository manifest,
+canonical commit, or publication was installed. Unlike the first two failures,
+this attempt produced one signed but aborted sequence-1 authority record. Its
+complete private journal is retained at
+`~/Desktop/Constellate/Archives/vela-current-compaction-candidates-2026-07-29-final-v2/failed-activations/erdos-vop-b95ad35c6197622e/`
+under payload-manifest root
+`sha256:1e4b21bb5ba42d1c90710080bb4aafc6745865f7ef554122179eb2d74b89e750`.
+All 2,805 materialized records match the rooted Erdős candidate byte-for-byte;
+Git reported 2,803 as untracked because two paths already existed in the
+predecessor checkout.
+
+The authorization boundary now distinguishes native empty bootstrap from an
+exact compaction bootstrap. The latter binds the full expected record set and
+its canonical object-set root, rejects missing, substituted, or unexplained
+records, requires the planned compact-v3 delta to carry the same object-set
+root, and re-runs that exact predicate at marker time. Native initialization
+continues to reject every pre-authority record path. All 170 CLI tests, all 88
+protocol tests, and strict CLI Clippy pass. The next gate remains the human
+invocation of the four exact candidate roots followed by read-only
+`repository finalize-compaction --check`; compatibility removal cannot begin
+until all four resulting clean clones replay.
 
 Six protocol and operating planes remain deliberately separate:
 

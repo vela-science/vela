@@ -366,13 +366,21 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
     }
 }
 
-pub(crate) fn verify_current_bootstrap_at(root: &Path) -> Result<CurrentFrontierProfileV2, String> {
+pub(crate) fn verify_current_profile_at(root: &Path) -> Result<CurrentFrontierProfileV2, String> {
     let profile_source = fs::read_to_string(root.join("frontier.yaml"))
         .map_err(|error| format!("read current frontier.yaml: {error}"))?;
-    let profile = CurrentFrontierProfileV2::from_yaml_str(&profile_source)?;
-    if root.join(".vela/epoch.json").exists() || root.join(".vela/repository.json").exists() {
+    CurrentFrontierProfileV2::from_yaml_str(&profile_source)
+}
+
+pub(crate) fn verify_current_bootstrap_at(root: &Path) -> Result<CurrentFrontierProfileV2, String> {
+    let profile = verify_current_profile_at(root)?;
+    if root.join(".vela/epoch.json").exists()
+        || root.join(".vela/origin.json").exists()
+        || root.join(".vela/repository.json").exists()
+    {
         return Err(
-            "current repository bootstrap cannot contain an epoch or repository manifest".into(),
+            "current repository bootstrap cannot contain an epoch, origin, or repository manifest"
+                .into(),
         );
     }
     for relative in [
@@ -390,6 +398,89 @@ pub(crate) fn verify_current_bootstrap_at(root: &Path) -> Result<CurrentFrontier
                 "current repository bootstrap contains canonical object path {relative} before authority initialization"
             ));
         }
+    }
+    Ok(profile)
+}
+
+pub(crate) fn verify_compaction_bootstrap_at(
+    root: &Path,
+    expected_objects: &[RepositoryObjectRefV1],
+) -> Result<CurrentFrontierProfileV2, String> {
+    let profile = verify_current_profile_at(root)?;
+    if root.join(".vela/epoch.json").exists()
+        || root.join(".vela/origin.json").exists()
+        || root.join(".vela/repository.json").exists()
+        || root.join(".vela/authority").exists()
+    {
+        return Err(
+            "repository compaction bootstrap cannot contain an authority boundary or manifest"
+                .into(),
+        );
+    }
+    for relative in [
+        ".vela/claims",
+        ".vela/proposals",
+        ".vela/submissions",
+        ".vela/registrations",
+        ".vela/verifications",
+        ".vela/artifacts",
+    ] {
+        if root.join(relative).exists() {
+            return Err(format!(
+                "repository compaction bootstrap contains retired canonical object path {relative}"
+            ));
+        }
+    }
+
+    let mut expected_paths = BTreeMap::new();
+    for reference in expected_objects {
+        let path = crate::frontier_txn::RepoPath::parse(reference.path.clone())
+            .map_err(|error| format!("invalid compaction object path: {error}"))?;
+        if !path.as_str().starts_with("records/") {
+            return Err(format!(
+                "repository compaction object {} is outside records/",
+                path.as_str()
+            ));
+        }
+        if expected_paths
+            .insert(path.as_str().to_string(), reference.root.clone())
+            .is_some()
+        {
+            return Err(format!(
+                "repository compaction repeats object path {}",
+                path.as_str()
+            ));
+        }
+        let bytes = fs::read(root.join(path.as_str()))
+            .map_err(|error| format!("read compaction object {}: {error}", path.as_str()))?;
+        if root_bytes(&bytes) != reference.root {
+            return Err(format!(
+                "repository compaction object {} does not match {}",
+                path.as_str(),
+                reference.root
+            ));
+        }
+    }
+    let records = root.join("records");
+    let observed_paths = if records.exists() {
+        files_recursive(&records)?
+            .into_iter()
+            .map(|path| {
+                path.strip_prefix(root)
+                    .map(|path| {
+                        path.to_string_lossy()
+                            .replace(std::path::MAIN_SEPARATOR, "/")
+                    })
+                    .map_err(|_| "repository compaction object escaped its Frontier".to_string())
+            })
+            .collect::<Result<BTreeSet<_>, _>>()?
+    } else {
+        BTreeSet::new()
+    };
+    if observed_paths != expected_paths.keys().cloned().collect::<BTreeSet<_>>() {
+        return Err(
+            "repository compaction bootstrap contains missing or unexplained record files".into(),
+        );
     }
     Ok(profile)
 }

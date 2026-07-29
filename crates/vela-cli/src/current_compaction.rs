@@ -901,9 +901,6 @@ fn apply_compaction_in_worktree(
 
     remove_predecessor_current_state(worktree)?;
     let journal_dir = crate::workflow::frontier_transaction_journal_dir(worktree)?;
-    let barrier =
-        FrontierTxn::acquire_repository_authority_initialization_barrier(worktree, &journal_dir)
-            .map_err(|error| error.to_string())?;
 
     let mut read_set = Vec::with_capacity(manifest.objects.len() + 2);
     for reference in &manifest.objects {
@@ -920,6 +917,12 @@ fn apply_compaction_in_worktree(
         );
     }
     read_set.sort_by(|left, right| left.name.cmp(&right.name));
+    let barrier = FrontierTxn::acquire_repository_compaction_initialization_barrier(
+        worktree,
+        &journal_dir,
+        &manifest.objects,
+    )
+    .map_err(|error| error.to_string())?;
 
     let recorded_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
     let local = crate::cli::local_session(&recorded_at)?;
