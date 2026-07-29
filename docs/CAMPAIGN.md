@@ -1023,6 +1023,28 @@ The entry gate requires a terminal Decision for Proposal
 The result will be a first-party local observation, not an independent or
 cross-machine performance claim.
 
+#### Whitepaper release-gate status
+
+The working paper remains an engineering draft. The release contract has ten
+gates, and no packaging or rendering result substitutes for them:
+
+| Gate | Current status | Controlling evidence |
+| --- | --- | --- |
+| ADR 0026 Accepted | Not met | ADR 0026 remains Proposed |
+| Primary and held-out plans frozen before confirmatory runs | Partial | synthetic primary and canonical held-out selection plans are frozen; the real correction has not reached its terminal task instance |
+| Two implementations agree | Partial | Rust and clean-room Python agree on the synthetic vector only |
+| All hard safety gates pass | Not met | local authority and removability checks pass; B8 fails on the missing foreign-reference contract |
+| Both fixtures pass B1 through B10 | Not met | most real-fixture and all held-out cells remain pending |
+| One external participant completes each cold-use fixture | Not met | all current sessions are first-party |
+| Public artifact reproduces every reported result | Partial | deterministic source packaging and PDF rendering pass; terminal and external evidence do not exist |
+| Mathematical reviewer checks fixture interpretation | Not met | no qualified external review retained |
+| Systems reviewer checks protocol, threat model, and evaluation | Not met | no qualified external review retained |
+| Title, abstract, and conclusion stay within the evidence ladder | Met for the draft | the draft reports Level 0, the B8 failure, and pending stronger claims |
+
+The protocol-paper release stays closed until every row is met. If the
+campaign ends with failed rows, publish a narrower engineering or falsification
+report under a title and conclusion that name the achieved level.
+
 #### Foreign-transfer contract gap
 
 The B8 source audit is frozen in `paper/artifacts/transfer/plan.v1.json` at
