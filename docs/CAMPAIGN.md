@@ -291,8 +291,8 @@ not copied into this product repository.
 | Vela product | `0.940.9`; the repository's pinned conformance workflow verifies the current `main` head, so this campaign document does not duplicate a mutable self-commit pin |
 | TypeScript protocol | `@vela-science/protocol@0.1.0`, owned by this monorepo |
 | Canopus | `@vela-science/canopus@0.8.0`, owned by `packages/canopus` with unsquashed source history |
-| Erdős Frontier | strict replay passes at `b696ececbf1dfb249dadbbc86f211e9445a09cc6`; corrected Erdős 424 Proposal `vpr_23f32f95d4f073e8` has one scoped passing Verification, remains pending, and has zero accepted-state change |
-| Formal Frontier | strict replay passes at `d5f5355de3588a9a558ee9505e2960e7d138acaf` |
+| Erdős Frontier | strict replay and clean-clone reproduction pass at `c25e11d332cfbc12b048c314880662d507df53e0`; corrected Erdős 424 Proposal `vpr_23f32f95d4f073e8` is accepted by the terminal human Decision, and the predecessor Claim is retained as superseded |
+| Formal Frontier | strict replay passes at `aca6076afe184cec8f0a5ecdca25815b0d4111ef`; exact Submission `vsb_c50dc7e85cb76684` is registered as Proposal `vpr_6c71e12b28f095c9`, pending review with zero accepted-state delta |
 | Sidon Frontier | strict replay passes at `410fd680e1d27a185617b7cf06cd940ef0016369` |
 | Quantum Frontier | strict replay passes at `790f255c394b7900e7a1e36a740406d16b783165` |
 | Web | read-only clean-clone checks and projection-bound build pass at `bdb10ed92edba5ea1a0e75d44bfb457e0b806f5f`; no web-code release is required by the current campaign |
@@ -309,7 +309,7 @@ prejudge the separate Erdős 424 correction benchmark.
 ### Formal product dogfood
 
 The first mechanically checkable Formal offer is now a reproduced local
-success, but it has not yet been registered in the canonical Frontier:
+success registered in the canonical Frontier:
 
 - target `formal:erdos-505-test-dim-one`;
 - source Frontier commit
@@ -358,13 +358,15 @@ through that repaired handoff succeeded:
 - exact verifier pass and matching clean-clone replay;
 - source Frontier commit and tree unchanged.
 
-The exported, still-unregistered producer bundle is Submission
+The exported producer bundle is Submission
 `vsb_c50dc7e85cb76684`, root
 `sha256:9adecb4649fa99a7b0945e99f3197cb72489e17b4bd08fe2bfcdff7d0f1c67d3`.
 Its Claim is limited to elaboration of the exact retained declaration and
 standard-axiom audit. It does not establish statement fidelity beyond the
 source-bound packet, solve the general Borsuk conjecture, or constitute
-scientific acceptance.
+scientific acceptance. It was registered at Frontier commit
+`aca6076afe184cec8f0a5ecdca25815b0d4111ef` as pending Proposal
+`vpr_6c71e12b28f095c9`, accepted-event delta zero.
 
 The first registration preflight reproduced a local trust-pin lifecycle
 defect after the signed repository-epoch transition: the independently stored
@@ -377,8 +379,15 @@ existing exact-preimage compare-and-swap through
 to
 `sha256:446b63d23b99dbbf39159484303c8a4ee5a75907c64518845064c5b8dace9ad4`;
 an immediate retry wrote nothing, `doctor --all` passed, and no key or Frontier
-byte was touched. Submission registration now waits only for the human-run
-repository service credential.
+byte was touched.
+
+Fresh replay through the exact network-denied capsule now produces deterministic
+report root
+`sha256:ca35b7bb266abb68aeab9705a3f5386af4001b61a018861c6667f4cdf977e795`.
+Signed Verification `vvr_17e26be39ee459da` binds the exact Claim, Submission,
+Proposal, three retained Artifacts, Run, Mission, capsule, implementation, and
+scope. It remains prepared, not imported; importing it is a non-authorizing
+repository transaction and cannot change Standing.
 
 This is useful product evidence, not breakthrough evidence. It leaves the
 [protocol breakthrough benchmark](BREAKTHROUGH_BENCHMARK.md) at Level 0:

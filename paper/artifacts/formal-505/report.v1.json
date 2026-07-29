@@ -1,0 +1,14 @@
+{
+  "authority_effect": "none",
+  "canopus_cli_root": "sha256:19e4642e5ca165786a6aa7bf8e352b4461935eb42273c19114818b057c71559d",
+  "canopus_version": "canopus 0.8.0",
+  "matched": true,
+  "mission_root": "sha256:a22cd3b32b08ea7f54fd684535765d83a934d7321a0943dd330b32eeab5b95ed",
+  "run_id": "run_585c951f-ed51-49b9-805d-02e7e5a8a0e9",
+  "run_root": "sha256:57a535047c30fbd003900452e5f73af17de47d13f4a2865bb32597a087731db0",
+  "schema": "vela.formal-505-replay-report.v1",
+  "stderr_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_root": "sha256:7e91245afe87fd56f70ed396b2f1754b40f1f4c610486f0b27bcb12918c44662",
+  "verifier_capsule_root": "sha256:c1ef5a0914e9d537d2acba2b74a27f139d37414629c7676937515e99438b58dd",
+  "verifier_status": "passed"
+}
