@@ -516,9 +516,6 @@ const FRONTIER_FILE_INPUT_PREFIX: &str = "frontier_file:";
 const FRONTIER_FILE_INPUT_SCHEMA: &str = "vela.frontier-file-input.internal.v1";
 const FRONTIER_DIRECTORY_INPUT_PREFIX: &str = "frontier_directory:";
 const FRONTIER_DIRECTORY_INPUT_SCHEMA: &str = "vela.frontier-directory-input.internal.v1";
-const FRONTIER_PROJECT_INPUT_NAME: &str = "frontier_project:vela.project-snapshot.internal.v1";
-const ENGINE_POLICY_INPUT_NAME: &str =
-    "frontier_observation:vela.engine-policy-summary-observation.v1";
 
 #[derive(Serialize)]
 struct FrontierFileInputCommitment<'a> {
@@ -700,24 +697,6 @@ impl InputBinding {
         Self::from_directory_state(path, state)
     }
 
-    /// Bind the complete typed Project loaded under the recovery barrier.
-    /// Event-log binding alone is insufficient: proposal answers, actor
-    /// authority/revocation, and derived verifier state can change without
-    /// changing the accepted event head.
-    pub(crate) fn project_snapshot(
-        project: &vela_protocol::project::Project,
-    ) -> Result<Self, FrontierTxnError> {
-        let bytes = vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
-            "schema": "vela.project-snapshot.internal.v1",
-            "project": project,
-        }))
-        .map_err(FrontierTxnError::Canonicalize)?;
-        Ok(Self {
-            name: FRONTIER_PROJECT_INPUT_NAME.to_string(),
-            digest: ContentDigest::hash(bytes),
-        })
-    }
-
     fn from_frontier_state(path: RepoPath, state: FileState) -> Result<Self, FrontierTxnError> {
         Ok(Self {
             name: format!("{FRONTIER_FILE_INPUT_PREFIX}{}", path.as_str()),
@@ -762,33 +741,6 @@ impl InputBinding {
     }
 
     fn verify_current(&self, root: &Path) -> Result<(), FrontierTxnError> {
-        if self.name == FRONTIER_PROJECT_INPUT_NAME {
-            let project = vela_protocol::repo::load_from_path(root).map_err(|error| {
-                FrontierTxnError::Io(format!("reload bound Project snapshot: {error}"))
-            })?;
-            let actual = Self::project_snapshot(&project)?.digest;
-            if actual != self.digest {
-                return Err(FrontierTxnError::StaleSnapshot {
-                    name: self.name.clone(),
-                    expected: self.digest.clone(),
-                    actual,
-                });
-            }
-            return Ok(());
-        }
-        if self.name == ENGINE_POLICY_INPUT_NAME {
-            let actual = ContentDigest::parse(
-                vela_protocol::frontier_policy::engine_policy_summary_root(root),
-            )?;
-            if actual != self.digest {
-                return Err(FrontierTxnError::StaleSnapshot {
-                    name: self.name.clone(),
-                    expected: self.digest.clone(),
-                    actual,
-                });
-            }
-            return Ok(());
-        }
         if let Some(path) = self.frontier_directory_path()? {
             let state = inspect_directory_state(root, &path)?;
             let actual = frontier_directory_input_digest(&path, &state)?;
@@ -3874,8 +3826,8 @@ mod tests {
     fn fixture_plan(root: &Path, draft: &DeltaDraft, identity: &[u8]) -> FrontierTxnPlan {
         let operation_id = OperationId::derive("submission", identity);
         let request_root = ContentDigest::hash(identity);
-        let frontier_id = vela_protocol::repo::load_from_path(root)
-            .map(|project| project.frontier_id().to_string())
+        let frontier_id = crate::current_repository::verify_current_repository_at(root, false)
+            .map(|repository| repository.frontier_id)
             .unwrap_or_else(|_| "vfr_test".to_string());
         let resulting_event_ids = current_event_log_events(root)
             .unwrap()

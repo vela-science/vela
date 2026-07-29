@@ -2308,7 +2308,7 @@ fn frontier_specs(frontier: &Path, root: &Path) -> Result<Vec<String>, String> {
     let prefix = frontier
         .strip_prefix(root)
         .map_err(|_| "frontier is outside the Git root".to_string())?;
-    let mut names = vec![
+    let names = vec![
         ".vela".to_string(),
         "frontier.json".to_string(),
         "frontier.yaml".to_string(),
@@ -2324,31 +2324,7 @@ fn frontier_specs(frontier: &Path, root: &Path) -> Result<Vec<String>, String> {
     ];
     let profile_source = fs::read_to_string(frontier.join("frontier.yaml"))
         .map_err(|error| format!("read frontier.yaml for publication: {error}"))?;
-    let profile_schema = serde_yaml::from_str::<serde_yaml::Value>(&profile_source)
-        .map_err(|error| format!("parse frontier.yaml for publication: {error}"))?
-        .get("schema")
-        .and_then(serde_yaml::Value::as_str)
-        .ok_or_else(|| "frontier.yaml must contain a string schema field".to_string())?
-        .to_string();
-    if profile_schema == vela_protocol::current_repository::CURRENT_FRONTIER_PROFILE_SCHEMA_V2 {
-        vela_protocol::current_repository::CurrentFrontierProfileV2::from_yaml_str(
-            &profile_source,
-        )?;
-    } else {
-        match vela_protocol::frontier_repo::read_repository_profile(frontier)? {
-            Some(vela_protocol::frontier_repo::FrontierProfileFile::LegacyV0_1(manifest)) => {
-                names.push(manifest.paths.state);
-                names.push(manifest.paths.sources);
-                names.push(manifest.paths.artifacts);
-                names.push(manifest.paths.review);
-                names.push(manifest.paths.proof);
-            }
-            // Profiles v1 and v2 have one fixed repository layout. The fixed
-            // specs above are complete; legacy caller-selected path fields
-            // must never cross either closed profile boundary.
-            Some(vela_protocol::frontier_repo::FrontierProfileFile::V1(_)) | None => {}
-        }
-    }
+    vela_protocol::current_repository::CurrentFrontierProfileV2::from_yaml_str(&profile_source)?;
     let mut specs = BTreeSet::new();
     for name in names {
         let normalized_name = name.trim_end_matches(['/', '\\']);
@@ -5002,45 +4978,29 @@ mod tests {
     fn frontier() -> tempfile::TempDir {
         let temporary = tempfile::tempdir().unwrap();
         let path = temporary.path();
-        sh(path, &["init", "-q", "-b", "main"]);
-        sh(path, &["config", "user.email", "test@example.test"]);
-        sh(path, &["config", "user.name", "Vela Test"]);
-        let project = vela_protocol::project::assemble("publication", vec![], 0, 0, "test");
-        vela_protocol::repo::init_repo(path, &project).unwrap();
-        vela_protocol::frontier_repo::materialize(path).unwrap();
-        fs::write(
-            path.join(".vela/settings.toml"),
-            "schema = \"vela.frontier-settings.v1\"\n",
+        vela_protocol::frontier_repo::initialize_current_minimal(
+            path,
+            vela_protocol::frontier_repo::CurrentInitOptions {
+                name: "publication",
+                scope: "exercise exact Git publication",
+                initialize_git: true,
+            },
         )
         .unwrap();
+        sh(path, &["config", "user.email", "test@example.test"]);
+        sh(path, &["config", "user.name", "Vela Test"]);
+        fs::write(
+            path.join(".vela/actors.json"),
+            "[{\"id\":\"fixture:publisher\"}]\n",
+        )
+        .unwrap();
+        fs::write(path.join(".vela/config.toml"), "# publication fixture\n").unwrap();
+        fs::write(path.join("frontier.json"), "{}\n").unwrap();
         fs::write(path.join(".gitignore"), "/.vela/work/\n/records/\n").unwrap();
         fs::write(path.join("unrelated.txt"), "base\n").unwrap();
         sh(path, &["add", "-A"]);
         sh(path, &["commit", "-q", "-m", "base"]);
         temporary
-    }
-
-    #[test]
-    fn profile_v1_publication_uses_only_the_fixed_repository_specs() {
-        let temporary = tempfile::tempdir().unwrap();
-        vela_protocol::frontier_repo::initialize_profile_v1_minimal(
-            temporary.path(),
-            vela_protocol::frontier_repo::ProfileV1InitOptions {
-                name: "publication v1 fixture",
-                scope: "prove publication does not parse v1 as a legacy manifest",
-                initialize_git: false,
-            },
-        )
-        .unwrap();
-        let root = temporary.path().canonicalize().unwrap();
-        let specs = frontier_specs(&root, &root).unwrap();
-        assert!(specs.contains(&".vela".to_string()));
-        assert!(specs.contains(&"frontier.json".to_string()));
-        assert!(specs.contains(&"frontier.yaml".to_string()));
-        assert!(specs.contains(&"vela.lock".to_string()));
-        assert!(specs.contains(&"proof".to_string()));
-        assert!(specs.contains(&"records".to_string()));
-        assert!(specs.contains(&"witnesses".to_string()));
     }
 
     #[test]
