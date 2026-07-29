@@ -936,6 +936,28 @@ This qualifies deterministic packaging only. The final paper artifact root
 must bind the eventual terminal correction, held-out evidence, baselines, and
 paper source, and still requires external reproduction.
 
+#### Foreign-transfer contract gap
+
+The B8 source audit is frozen in `paper/artifacts/transfer/plan.v1.json` at
+root
+`sha256:03b774402311a080f6491aa3bf83c336d96aaeebcc08dad706ea373d028d1be3`.
+Its deterministic result root is
+`sha256:1e0ed787c155677a908ee1c006355b5ae18aef2394bec39b5174675284008c15`.
+
+The current `ClaimRecordV1.imported_from` and
+`ProposalV1.imported_from` blocks retain predecessor-epoch migration lineage.
+They do not bind a source Frontier, source repository root, source Decision,
+source authority anchor, completeness status, or explicit local
+non-authority. The current public CLI has no foreign-transfer surface, and its
+release contract deliberately rejects a `federation` command.
+
+This is a reproduced gap and a current B8 failure. Reinterpreting migration
+fields would be an unsafe semantic rebind. The result does not justify a Hub,
+Registry, resolver, global namespace, graph database, or second writer. After
+the real correction is terminal, two independent readers must reproduce the
+same inability from the exact public bytes before the smallest derived
+transfer envelope is designed.
+
 ### Gate 3: test a source-local Vela Math profile
 
 Do not reopen rejected ADR 0019 or publish `@vela/math` merely because the

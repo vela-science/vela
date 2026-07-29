@@ -398,7 +398,37 @@ This is positive local evidence for B5 and B6. It does not complete those
 families for a real correction fixture, test cross-Frontier transfer, measure
 cold-user value, or establish independent reproduction.
 
-### 6.6 Registered benchmark matrix
+### 6.6 Foreign-transfer contract audit
+
+A frozen source audit tested whether the current public objects and CLI can
+retain one exact foreign accepted Claim and its authority evidence in a second
+Frontier without changing local Standing. The audit found only
+predecessor-epoch migration lineage:
+
+```text
+Claim imported_from    = era, object_id, object_root, predecessor_commit
+Proposal imported_from = proposal_id, proposal_root, predecessor_commit
+```
+
+The current contract does not bind a source Frontier ID, source repository
+root, source Decision, source authority anchor, completeness status, or an
+explicit declaration that foreign Standing has no local authority. The public
+CLI deliberately exposes no federation or foreign-import command. Reusing the
+migration fields would change their meaning and would still omit required
+inputs.
+
+The audit plan root is
+`sha256:03b774402311a080f6491aa3bf83c336d96aaeebcc08dad706ea373d028d1be3`;
+the deterministic result root is
+`sha256:1e0ed787c155677a908ee1c006355b5ae18aef2394bec39b5174675284008c15`.
+
+This is a negative result: the audited Vela revision cannot pass B8. It does
+not show that a hosted Registry, resolver, global namespace, or federation
+service is needed. A minimal derived envelope is eligible for experiment only
+after the real correction is terminal and two independent readers reproduce
+the same missing contract.
+
+### 6.7 Registered benchmark matrix
 
 | Family | Primary | Held-out | Required |
 | --- | --- | --- | --- |
@@ -409,7 +439,7 @@ cold-user value, or establish independent reproduction.
 | B5 removability | local qualification pass; correction pending | pending | replay unchanged |
 | B6 hosted-service failure | local qualification pass; correction pending | pending | replay succeeds |
 | B7 support diversity | pending | pending | exact route accounting |
-| B8 second Frontier | pending | pending | zero imported authority |
+| B8 second Frontier | fail: portable foreign-reference contract absent | not run | zero imported authority |
 | B9 observability | synthetic pass only | pending | no silent truncation |
 | B10 cold inheritance | pending | pending | at least 20% median lift |
 
@@ -499,6 +529,12 @@ inheritance, federation, or recurring external use. SHA-256 and Ed25519 are
 assumed secure. Git hosting availability is operationally useful but not
 canonical.
 
+The current public contract cannot express the registered non-escalating
+second-Frontier transfer. That is a direct protocol-benchmark failure at this
+revision, not merely missing product polish. Any repair must remain smaller
+than a hosted federation system and must be justified by independent readers
+over the terminal real correction.
+
 If the real correction, second-Frontier, held-out, or cold-use gates fail, the
 paper must report that failure and narrow its claim. A failed correction-impact
 reader should be deleted rather than promoted into a protocol primitive.
@@ -540,9 +576,11 @@ The final artifact package will include:
 Vela currently demonstrates a compact, replayable separation among
 authenticated producer input, scoped Verification, local human Decision, and
 scientific Standing. Two implementations also agree on a bounded synthetic
-correction-impact projection. The stronger claim, that this mechanism
-preserves useful scientific inheritance across real corrections and plural
-authorities better than Git alone, remains unproven.
+correction-impact projection. The current revision lacks the portable
+foreign-reference contract required for non-escalating second-Frontier
+transfer. The stronger claim, that this mechanism preserves useful scientific
+inheritance across real corrections and plural authorities better than Git
+alone, is therefore not satisfied by the audited system.
 
 The registered experiments decide the conclusion. If they pass, the paper
 will state the exact measured result. If they fail, the paper will publish the

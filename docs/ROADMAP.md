@@ -85,6 +85,14 @@ in a second Frontier without importing its authority. The current legacy
 depth-capped Finding cascade is historical behavior, not the future protocol
 contract.
 
+The frozen B8 audit now shows that the current public contract cannot express
+that second-Frontier retention: migration-only `imported_from` fields omit the
+source Frontier, repository root, Decision, authority anchor, completeness,
+and explicit local non-authority. This is a benchmark failure, not permission
+to revive federation services. After the real correction is terminal, require
+two independent readers to reproduce the gap before designing the smallest
+derived transfer envelope.
+
 The historical entry gate is closed. Across 2,831 current Claim records, the
 four Frontiers contain no current correction relation. Erdős 281 has the
 needed dependency diamond but no correction. Erdős 128 has a real upstream
