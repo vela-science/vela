@@ -897,6 +897,20 @@ external independence, or advance the maturity level beyond Level 0. The
 reader remains deletable until a real correction and matched Git baseline
 demonstrate value.
 
+#### Held-out selection
+
+The held-out selection rule is frozen at canonical root
+`sha256:b9dbf4b86b841b7b09a79e865ae0187a3ed6dcead896cc2446edcacb836af6a8`
+in `paper/artifacts/heldout-selection/plan.v1.json`. It scans accepted
+correction transitions after the four pinned Frontier baselines and selects
+the first candidate in canonical Decision order that satisfies the exact
+scientific, topology, identity, independence, and removability gates.
+
+No matching case is a failed held-out entry gate. The campaign may not
+substitute a synthetic fixture or a preferred case. After selection, a
+root-linked amendment must freeze the expected impact projection before
+either reader runs.
+
 #### Removability and hosted-service-loss qualification
 
 The first B5/B6 qualification is frozen in

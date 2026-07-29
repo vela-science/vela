@@ -379,6 +379,14 @@ sets, omitted independent routes, connected cycles, and resource bounds.
 This result establishes implementation readiness only. It is not scientific
 evidence or external independence.
 
+The held-out selection plan was frozen after both readers existed and before a
+held-out case was known. Its canonical root is
+`sha256:b9dbf4b86b841b7b09a79e865ae0187a3ed6dcead896cc2446edcacb836af6a8`.
+It scans accepted correction transitions after four pinned Frontier baselines
+and selects the first qualifying case in canonical Decision order. If no case
+qualifies, the benchmark records a failed held-out entry gate rather than
+substituting a synthetic or preferred fixture.
+
 ### 6.5 Removability qualification
 
 A separately frozen first-party test cloned the exact pending Erdős repository,

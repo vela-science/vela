@@ -1,0 +1,82 @@
+{
+  "schema": "vela.heldout-correction-selection-plan.v1",
+  "status": "frozen_before_selection",
+  "frozen_at": "2026-07-29T08:11:11Z",
+  "benchmark": "Vela correction-impact and inheritance benchmark",
+  "classification": {
+    "fixture_role": "held_out",
+    "confirmatory_credit_requires_external_participant": true,
+    "synthetic_fixture_eligible": false,
+    "no_fixture_is_a_valid_result": true
+  },
+  "implementation_freeze": {
+    "rust_reader": "crates/vela-edge/src/correction_impact.rs",
+    "clean_room_reader": "conformance/verify_correction_impact.py",
+    "shared_primary_projection_root": "sha256:935e084f8c5c45bcee234d2e9752062ba54493aa1b14f731e0efbbb1ecc01df6"
+  },
+  "frontier_baselines": [
+    {
+      "frontier": "erdos",
+      "repository": "https://github.com/vela-science/erdos-frontier",
+      "commit": "9af3be808ee24dbc82a883cf125918e0aaff8406"
+    },
+    {
+      "frontier": "formal-conjectures",
+      "repository": "https://github.com/vela-science/formal-conjectures-frontier",
+      "commit": "d5f5355de3588a9a558ee9505e2960e7d138acaf"
+    },
+    {
+      "frontier": "sidon",
+      "repository": "https://github.com/vela-science/sidon-frontier",
+      "commit": "410fd680e1d27a185617b7cf06cd940ef0016369"
+    },
+    {
+      "frontier": "quantum-codes",
+      "repository": "https://github.com/vela-science/quantum-codes-frontier",
+      "commit": "790f255c394b7900e7a1e36a740406d16b783165"
+    }
+  ],
+  "eligibility": [
+    "The correction reaches terminal accepted Standing after the pinned baseline through an ordinary Submission, scoped Verification, and authorized human Decision.",
+    "The successor explicitly corrects, supersedes, narrows, or retracts one exact accepted predecessor Claim by full identifier and root.",
+    "Retained evidence binds the exact scientific source commit, path, and content root for both predecessor and successor.",
+    "A closed, root-bound causal slice contains at least one hard dependent of the predecessor.",
+    "The slice contains one Claim with a support route through the predecessor and a distinct surviving support route.",
+    "The slice contains one relation to the predecessor whose declared semantics are non-consequential.",
+    "The candidate shares no Claim, Artifact, source transition, or expected output with the Erdős 424 writer-qualification case or the synthetic qualification vector.",
+    "No Claim, relation, or evidence object was invented or mislabeled to satisfy the benchmark topology.",
+    "The candidate is reproducible from clean Git without Canopus, Observatory, Neon, a hosted Vela service, or authority credentials."
+  ],
+  "selection": {
+    "scan_scope": "All accepted correction transitions after the four pinned baseline commits.",
+    "total_order": [
+      "terminal Decision recorded_at ascending",
+      "frontier_id ascending",
+      "successor Claim ID ascending"
+    ],
+    "choice": "Select the first candidate in total order that satisfies every eligibility rule.",
+    "no_match": "Record a failed held-out entry gate. Do not substitute a synthetic or hand-preferred case."
+  },
+  "answer_freeze": {
+    "timing": "After deterministic selection and before either implementation runs on the selected case.",
+    "required": [
+      "predecessor and successor roots",
+      "complete Claim and relation-set roots",
+      "relation consequence map",
+      "affected and unaffected Claim sets",
+      "lost and surviving support routes",
+      "repair Obligations and discharge conditions",
+      "resource and completeness bounds",
+      "scope limits and explicit nonclaims"
+    ],
+    "amendment_rule": "Any change after output exists retains the prior plan root and invalidates confirmatory credit when it changes selection, expected answers, metrics, or gates."
+  },
+  "stop_conditions": [
+    "root or history drift",
+    "unknown consequential relation",
+    "incomplete input presented as complete",
+    "foreign or verifier authority presented as local Standing",
+    "hidden hosted-service dependence",
+    "selection rule changed after a candidate becomes known"
+  ]
+}
