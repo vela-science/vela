@@ -230,6 +230,10 @@ pub fn verify_authority_history(
         )?;
     }
     if input.authority_events.is_empty() && input.authority_envelopes.is_empty() {
+        let final_event_log_root = input
+            .archived_predecessor
+            .map(|predecessor| predecessor.event_log_root.to_string())
+            .unwrap_or_else(|| prefixed_legacy_root(input.legacy_events));
         return Ok(AuthorityHistoryVerification {
             era: AuthorityHistoryEra::LegacyOnly,
             frontier_id: input.frontier_id.into(),
@@ -237,7 +241,7 @@ pub fn verify_authority_history(
             authority_event_count: 0,
             authority_record_count: 0,
             initialization_event_id: None,
-            final_event_log_root: prefixed_legacy_root(input.legacy_events),
+            final_event_log_root,
             first_authority_record_root: None,
             final_authority_record_root: None,
             final_authority_keyset_root: None,
@@ -1054,5 +1058,32 @@ mod tests {
         let mut invalid = value.clone();
         invalid.initial_event_log_root = "sha256:short".into();
         assert!(invalid.validate().is_err());
+    }
+
+    #[test]
+    fn empty_archived_predecessor_preserves_its_event_root() {
+        let archived_event_root = root('a');
+        let archived_actor_root = root('b');
+        let verification = verify_authority_history(AuthorityHistoryInput {
+            frontier_id: "vfr_fixture",
+            legacy_events: &[],
+            legacy_actor_registry_bytes: &[],
+            archived_predecessor: Some(ArchivedAuthorityPredecessor {
+                event_log_root: &archived_event_root,
+                actor_registry_root: &archived_actor_root,
+            }),
+            legacy_active_policy_head_root: NULL_HASH,
+            legacy_policy_store_manifest_root: NULL_HASH,
+            authority_keysets: &[],
+            policy_bundles: &[],
+            authority_events: &[],
+            authority_envelopes: &[],
+        })
+        .unwrap();
+
+        assert_eq!(verification.era, AuthorityHistoryEra::LegacyOnly);
+        assert_eq!(verification.final_event_log_root, archived_event_root);
+        assert_eq!(verification.authority_event_count, 0);
+        assert_eq!(verification.authority_record_count, 0);
     }
 }

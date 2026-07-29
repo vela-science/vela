@@ -2144,6 +2144,23 @@ mod tests {
                         }
                     }
                 };
+                action "authority_initialize" appliesTo {
+                    principal: Human,
+                    resource: Frontier,
+                    context: {
+                        exact: Bool,
+                        authentication: {
+                            method: String,
+                            assurance: String,
+                            authenticated_at: String,
+                            observed_at: String,
+                            expires_at: String,
+                            user_presence: Bool,
+                            user_verification: Bool,
+                            recovery_recent: Bool
+                        }
+                    }
+                };
                 action "authority_rotate" appliesTo {
                     principal: Human,
                     resource: Frontier,
@@ -2781,6 +2798,41 @@ mod tests {
             serde_json::Value::String(root('c'));
         let error = validate_fresh_initialization_request(&stale).unwrap_err();
         assert!(error.to_string().contains("predecessor_event_log_root"));
+
+        let history = verify_authority_history(AuthorityHistoryInput {
+            frontier_id: &fixture.request.history.frontier_id,
+            legacy_events: &fixture.request.history.legacy_events,
+            legacy_actor_registry_bytes: &fixture.request.history.legacy_actor_registry_bytes,
+            archived_predecessor: archived_predecessor(&fixture.request.history).unwrap(),
+            legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
+            legacy_policy_store_manifest_root: &fixture
+                .request
+                .history
+                .legacy_policy_store_manifest_root,
+            authority_keysets: &fixture.request.history.retained_authority_keysets,
+            policy_bundles: &fixture.request.history.retained_policy_bundles,
+            authority_events: &fixture.request.history.authority_events,
+            authority_envelopes: &fixture.request.history.authority_envelopes,
+        })
+        .unwrap();
+        assert_eq!(history.final_event_log_root, archived_event_root);
+
+        fs::remove_dir_all(fixture.temporary.path().join(".vela/events")).unwrap();
+        fs::remove_dir_all(fixture.temporary.path().join(".vela/authority/events")).unwrap();
+        fs::remove_dir_all(fixture.temporary.path().join(".vela/authority/records")).unwrap();
+        fs::remove_file(fixture.temporary.path().join(".vela/actors.json")).unwrap();
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let result = execute_authority_transaction(
+            fixture.barrier(),
+            fixture.temporary.path(),
+            fixture.request.clone(),
+            &mut adapter,
+            &mut signer,
+        )
+        .unwrap();
+        assert_eq!(result.before_event_log_root, archived_event_root);
+        assert_eq!(signer.calls, 1);
     }
 
     fn prepared_journal_absent(fixture: &Fixture) -> bool {
