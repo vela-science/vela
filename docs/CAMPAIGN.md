@@ -291,7 +291,7 @@ not copied into this product repository.
 | Vela product | `0.940.9`; the repository's pinned conformance workflow verifies the current `main` head, so this campaign document does not duplicate a mutable self-commit pin |
 | TypeScript protocol | `@vela-science/protocol@0.1.0`, owned by this monorepo |
 | Canopus | `@vela-science/canopus@0.8.0`, owned by `packages/canopus` with unsquashed source history |
-| Erdős Frontier | strict replay passes at `6a2b20a4623c0aa3ec667e65452c7aae6210b306` |
+| Erdős Frontier | strict replay passes at `9af3be808ee24dbc82a883cf125918e0aaff8406`; corrected Erdős 424 Proposal `vpr_23f32f95d4f073e8` remains pending with zero accepted-state change |
 | Formal Frontier | strict replay passes at `d5f5355de3588a9a558ee9505e2960e7d138acaf` |
 | Sidon Frontier | strict replay passes at `410fd680e1d27a185617b7cf06cd940ef0016369` |
 | Quantum Frontier | strict replay passes at `790f255c394b7900e7a1e36a740406d16b783165` |
