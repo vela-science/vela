@@ -65,6 +65,9 @@ claim id agents config verification authority target-index repository
 
 - `claim` provides current Claim record, standing, evidence, and attribution
   views.
+- `why` also resolves a retained superseded Claim through covered authority
+  history and returns its exact predecessor, successor, Proposal, applied
+  event, and terminal Decision bindings.
 - `id` manages optional file-backed producer identities.
 - `agents` regenerates agent adapters from `VELA.md`.
 - `config` manages closed local and Frontier configuration.

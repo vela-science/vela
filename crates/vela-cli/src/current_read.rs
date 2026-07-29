@@ -146,6 +146,43 @@ fn proposal_claim(
     Ok(Some((claim, standing)))
 }
 
+fn supersession_event<'a>(
+    authority_events: &'a [AuthorityEventV1],
+    claim_id: &str,
+) -> Option<&'a AuthorityEventV1> {
+    authority_events.iter().rev().find(|event| {
+        event.content.kind.as_str() == "finding.superseded"
+            && event.content.target.r#type == "claim"
+            && event.content.target.id == claim_id
+    })
+}
+
+fn superseded_claim(
+    frontier: &Path,
+    context: &CurrentReadContext,
+    claim_id: &str,
+) -> Result<Option<(ClaimRecordV1, String, String)>, String> {
+    let Some(event) = supersession_event(&context.authority_events, claim_id) else {
+        return Ok(None);
+    };
+    let root = event.content.before_hash.clone();
+    if !root.starts_with("sha256:") || root == "sha256:null" {
+        return Err(format!(
+            "supersession event {} has no exact predecessor Claim root",
+            event.id
+        ));
+    }
+    let path = crate::current_submission::rooted_path("records/claims/sha256", &root)?;
+    let claim = ClaimRecordV1::parse(&read_exact(frontier, &path, &root)?)?;
+    if claim.claim_id != claim_id {
+        return Err(format!(
+            "supersession event {} resolves to the wrong predecessor Claim",
+            event.id
+        ));
+    }
+    Ok(Some((claim, root, "superseded".into())))
+}
+
 fn load_claim(
     frontier: &Path,
     context: &CurrentReadContext,
@@ -163,7 +200,44 @@ fn load_claim(
         let root = canonical_root(&claim)?;
         return Ok((claim, root, standing));
     }
-    Err(format!("no current Claim '{claim_id}' in this frontier"))
+    if let Some(claim) = superseded_claim(frontier, context, claim_id)? {
+        return Ok(claim);
+    }
+    Err(format!(
+        "no current or retained superseded Claim '{claim_id}' in this frontier"
+    ))
+}
+
+fn supersession_view(
+    context: &CurrentReadContext,
+    claim_id: &str,
+) -> Result<Option<Value>, String> {
+    let Some(event) = supersession_event(&context.authority_events, claim_id) else {
+        return Ok(None);
+    };
+    let successor_claim_id = event
+        .content
+        .payload
+        .get("claim_id")
+        .and_then(Value::as_str)
+        .ok_or_else(|| format!("supersession event {} has no successor Claim id", event.id))?;
+    let proposal_id = event
+        .content
+        .payload
+        .get("proposal_id")
+        .and_then(Value::as_str)
+        .ok_or_else(|| format!("supersession event {} has no Proposal id", event.id))?;
+    Ok(Some(json!({
+        "predecessor_claim_id": claim_id,
+        "predecessor_claim_root": event.content.before_hash,
+        "successor_claim_id": successor_claim_id,
+        "successor_claim_root": event.content.after_hash,
+        "proposal_id": proposal_id,
+        "applied_authority_event_id": event.id,
+        "applied_authority_event_root": event.root()?,
+        "applied_semantic_event_id": event.semantic_event_id()?,
+        "decision": context.decisions.get(proposal_id),
+    })))
 }
 
 fn proposal_views(context: &CurrentReadContext, claim_id: &str) -> Vec<Value> {
@@ -457,6 +531,7 @@ pub(crate) fn why_payload(frontier: &Path, claim_id: &str) -> Result<Value, Stri
             "proposals": proposal_views(&context, claim_id),
             "verification_records": verification_views(frontier, &context, claim_id)?,
             "authority_events": related_authority_events(&context, claim_id)?,
+            "supersession": supersession_view(&context, claim_id)?,
         },
         "interpretation": {
             "submission_is_acceptance": false,
@@ -594,7 +669,7 @@ pub(crate) fn cmd_why(frontier: &Path, claim_id: &str, json_out: bool) {
     if !claim_id.starts_with("vcl_") {
         crate::ui::fail_with(
             crate::ui::ErrorKind::Usage,
-            "why requires a full current Claim id",
+            "why requires a full Claim id",
             Some("use `vela why <frontier> vcl_... --json`"),
         );
     }
@@ -613,6 +688,8 @@ pub(crate) fn cmd_why(frontier: &Path, claim_id: &str, json_out: bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use vela_protocol::authority::{AUTHORITY_MODE, AuthorityEventContentV1};
+    use vela_protocol::events::{EventKind, StateActor, StateTarget};
 
     #[test]
     fn byte_root_is_full_sha256() {
@@ -627,5 +704,43 @@ mod tests {
         let filter = "review.";
         assert!("review.accepted".contains(filter));
         assert!(!"finding.asserted".contains(filter));
+    }
+
+    #[test]
+    fn supersession_lookup_uses_covered_authority_history() {
+        let event = AuthorityEventV1::new(AuthorityEventContentV1 {
+            transaction_id: "vtx_fixture".into(),
+            principal_id: "local:fixture|uid:501".into(),
+            authority_mode: AUTHORITY_MODE.into(),
+            kind: EventKind::FindingSuperseded,
+            target: StateTarget {
+                r#type: "claim".into(),
+                id: "vcl_predecessor".into(),
+            },
+            actor: StateActor {
+                r#type: "human".into(),
+                id: "local:fixture|uid:501".into(),
+            },
+            timestamp: "2026-07-29T00:00:00Z".into(),
+            reason: "Accept the exact replacement.".into(),
+            before_hash: "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                .into(),
+            after_hash: "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+                .into(),
+            payload: json!({
+                "claim_id": "vcl_successor",
+                "proposal_id": "vpr_fixture",
+            }),
+            caveats: Vec::new(),
+        })
+        .unwrap();
+
+        assert_eq!(
+            supersession_event(&[event], "vcl_predecessor")
+                .expect("supersession")
+                .content
+                .after_hash,
+            "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+        );
     }
 }

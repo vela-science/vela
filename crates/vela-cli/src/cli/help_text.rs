@@ -154,8 +154,9 @@ pub const WHY: &str = "\
 EXAMPLES
   vela why . vcl_0123456789abcdef --json
 
-Why derives current Claim standing from its Proposal, Verification, and
-Decision chain and binds the explanation to current roots.";
+Why derives current or retained superseded Claim standing from covered
+Proposal, Verification, Decision, and authority history and binds the
+explanation to current roots.";
 
 pub const AGENTS: &str = "\
 EXAMPLES
