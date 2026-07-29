@@ -14,6 +14,7 @@ use vela_edge::repository_write::{
     AUTHORITY_TRUST_ANCHOR_SCHEMA_V1, AuthorityTrustAnchorV1,
     load_authority_trust_anchor_from_home, rebind_authority_trust_anchor_from_home,
 };
+use vela_protocol::authority::AuthorityEnvelopeV1;
 use vela_protocol::authority::{PrincipalSnapshotV1, SemanticApprovalV1};
 use vela_protocol::authority_history::{
     AUTHORITY_INITIALIZATION_SCHEMA_V1, AUTHORITY_INITIALIZE_ACTION,
@@ -296,6 +297,8 @@ pub(crate) fn cmd_finalize_compaction(
         vela_protocol::canonical::sha256_canonical(&entries)
             .unwrap_or_else(|error| crate::cli::fail_return(&error))
     );
+    preflight_verified_activations(&activations)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
     if publish {
         let confirmed = confirm_root.unwrap_or_else(|| {
             crate::cli::fail_return(
@@ -601,13 +604,77 @@ fn remote_main_head(source: &Path) -> Result<String, String> {
     Ok(head.to_string())
 }
 
-fn publish_verified_activations(activations: &mut [VerifiedActivation]) -> Result<(), String> {
+fn predecessor_authority_anchor_roots(
+    source: &Path,
+    predecessor_commit: &str,
+) -> Result<BTreeSet<String>, String> {
+    let spec = format!("{predecessor_commit}:.vela/epoch.json");
+    let output = Command::new("git")
+        .args(["show", &spec])
+        .current_dir(source)
+        .output()
+        .map_err(|error| format!("read predecessor repository boundary: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "read predecessor repository boundary: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    let epoch = RepositoryBoundaryV1::parse(&output.stdout)?;
+    let archived = epoch
+        .predecessor_roots()
+        .ok_or_else(|| "compaction predecessor boundary has no predecessor roots".to_string())?
+        .authority_head
+        .clone();
+    let listing = git_output(
+        source,
+        &[
+            "ls-tree",
+            "-r",
+            "--name-only",
+            predecessor_commit,
+            "--",
+            ".vela/authority/records",
+        ],
+    )?;
+    let mut roots = BTreeSet::from([archived]);
+    let mut current_first = None;
+    for path in listing.lines() {
+        let spec = format!("{predecessor_commit}:{path}");
+        let output = Command::new("git")
+            .args(["show", &spec])
+            .current_dir(source)
+            .output()
+            .map_err(|error| format!("read predecessor authority record {path}: {error}"))?;
+        if !output.status.success() {
+            return Err(format!(
+                "read predecessor authority record {path}: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ));
+        }
+        let envelope: AuthorityEnvelopeV1 = serde_json::from_slice(&output.stdout)
+            .map_err(|error| format!("parse predecessor authority record {path}: {error}"))?;
+        let record = crate::cli::authority_record_from_envelope(&envelope)?;
+        if record.content.sequence == 1 {
+            if record.content.previous_authority_record_root.is_some() || current_first.is_some() {
+                return Err(
+                    "predecessor authority history has an invalid sequence-1 record".into(),
+                );
+            }
+            current_first = Some(record.root()?);
+        }
+    }
+    roots.insert(
+        current_first
+            .ok_or_else(|| "predecessor authority history has no sequence-1 record".to_string())?,
+    );
+    Ok(roots)
+}
+
+fn preflight_verified_activations(activations: &[VerifiedActivation]) -> Result<(), String> {
     let user_home =
         crate::frontier_txn::operating_system_account_home().map_err(|error| error.to_string())?;
 
-    // Perform every local and remote preflight before the first write. A
-    // partially completed prior invocation is accepted only at the exact
-    // compacted commit and can be resumed safely.
     for activation in activations.iter() {
         let loaded =
             load_authority_trust_anchor_from_home(&user_home, &activation.entry.frontier_id)?
@@ -617,19 +684,13 @@ fn publish_verified_activations(activations: &mut [VerifiedActivation]) -> Resul
                         activation.entry.frontier_id
                     )
                 })?;
-        let origin = RepositoryOriginV1::parse(
-            &fs::read(activation.worktree.join(".vela/origin.json"))
-                .map_err(|error| format!("read compacted origin during preflight: {error}"))?,
+        let predecessor_anchors = predecessor_authority_anchor_roots(
+            &activation.source,
+            &activation.entry.source_commit,
         )?;
-        let predecessor = origin
-            .predecessor
-            .as_ref()
-            .ok_or_else(|| "compacted origin has no predecessor".to_string())?;
-        let expected_roots = [
-            predecessor.authority_head_root.as_str(),
-            activation.entry.authority_record_root.as_str(),
-        ];
-        if !expected_roots.contains(&loaded.anchor.first_authority_record_root.as_str()) {
+        if !predecessor_anchors.contains(&loaded.anchor.first_authority_record_root)
+            && loaded.anchor.first_authority_record_root != activation.entry.authority_record_root
+        {
             return Err(format!(
                 "installed authority pin for {} is neither predecessor nor compacted root",
                 activation.entry.frontier_id
@@ -654,6 +715,17 @@ fn publish_verified_activations(activations: &mut [VerifiedActivation]) -> Resul
             ));
         }
     }
+    Ok(())
+}
+
+fn publish_verified_activations(activations: &mut [VerifiedActivation]) -> Result<(), String> {
+    let user_home =
+        crate::frontier_txn::operating_system_account_home().map_err(|error| error.to_string())?;
+
+    // Repeat every local and remote preflight immediately before the first
+    // write. A partially completed prior invocation is accepted only at the
+    // exact compacted commit and can be resumed safely.
+    preflight_verified_activations(activations)?;
 
     for activation in activations.iter_mut() {
         if remote_main_head(&activation.source)? == activation.entry.source_commit {
@@ -691,19 +763,10 @@ fn publish_verified_activations(activations: &mut [VerifiedActivation]) -> Resul
         }
         crate::current_repository::verify_compacted_repository_at(&activation.source, true)?;
 
-        let origin = RepositoryOriginV1::parse(
-            &fs::read(activation.source.join(".vela/origin.json"))
-                .map_err(|error| format!("read published compacted origin: {error}"))?,
+        let predecessor_anchors = predecessor_authority_anchor_roots(
+            &activation.source,
+            &activation.entry.source_commit,
         )?;
-        let predecessor = origin
-            .predecessor
-            .as_ref()
-            .ok_or_else(|| "published compacted origin has no predecessor".to_string())?;
-        let expected = AuthorityTrustAnchorV1 {
-            schema: AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.into(),
-            frontier_id: activation.entry.frontier_id.clone(),
-            first_authority_record_root: predecessor.authority_head_root.clone(),
-        };
         let replacement = AuthorityTrustAnchorV1 {
             schema: AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.into(),
             frontier_id: activation.entry.frontier_id.clone(),
@@ -717,8 +780,8 @@ fn publish_verified_activations(activations: &mut [VerifiedActivation]) -> Resul
                         activation.entry.frontier_id
                     )
                 })?;
-        if loaded.anchor == expected {
-            rebind_authority_trust_anchor_from_home(&user_home, &expected, &replacement)?;
+        if predecessor_anchors.contains(&loaded.anchor.first_authority_record_root) {
+            rebind_authority_trust_anchor_from_home(&user_home, &loaded.anchor, &replacement)?;
         } else if loaded.anchor != replacement {
             return Err(format!(
                 "authority pin for {} changed during publication",
