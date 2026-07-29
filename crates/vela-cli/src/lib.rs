@@ -17,6 +17,7 @@ pub(crate) use write::cli_write;
 mod tools;
 pub(crate) use tools::cli_check;
 mod config;
+pub(crate) mod current_compaction;
 pub(crate) mod current_doctor;
 pub(crate) mod current_init;
 pub(crate) mod current_read;

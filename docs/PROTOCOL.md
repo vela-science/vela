@@ -150,6 +150,12 @@ Imported Claims retain a `source` block naming the predecessor object ID,
 object root, era, and commit. Historical signatures are never copied into a
 current authentication field.
 
+During the bounded pre-release compaction, an evidence reference accepts either
+its retained `va_` identifier or the exact full lowercase content hash used by
+the current repository. Both forms require an exact Artifact root and
+repository membership. ADR 0027 removes the legacy form after every controlled
+Frontier has moved.
+
 ### 3.3 Submission
 
 `vela.submission.v1` is the portable producer boundary. It binds:
@@ -176,6 +182,9 @@ one repository-authority transaction.
 It binds unchanged authority-event before/after roots for object-only intake,
 the repository roots, object roots, principal attribution, and transaction
 identity. Registration proves intake, not truth, verification, or acceptance.
+Its Artifact list follows the same exact-ID transition: retained `va_`
+identifiers replay during compaction, while current writers use full content
+hashes.
 
 ### 3.5 Verification Record
 

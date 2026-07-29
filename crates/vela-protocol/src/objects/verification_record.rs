@@ -8,6 +8,7 @@ use ed25519_dalek::SigningKey;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use super::artifact_reference::require_artifact_reference_id;
 use crate::identity::IdentityBinding;
 
 pub const VERIFICATION_RECORD_V1_SCHEMA: &str = "vela.verification-record.v1";
@@ -207,7 +208,7 @@ impl VerificationRecordV1 {
             .iter()
             .chain(self.output_artifact_ids.iter())
         {
-            require_artifact_reference_id(artifact_id)?;
+            require_artifact_reference_id("Verification Record", "artifact id", artifact_id)?;
         }
         require_text("method.profile", &self.method.profile)?;
         require_text("method.implementation", &self.method.implementation)?;
@@ -284,21 +285,6 @@ fn require_sha256(field: &str, value: &str) -> Result<(), String> {
         ));
     }
     Ok(())
-}
-
-fn require_artifact_reference_id(value: &str) -> Result<(), String> {
-    require_text("artifact id", value)?;
-    let is_current_content_hash = value.len() == 64
-        && value
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte));
-    if value.starts_with("va_") || is_current_content_hash {
-        return Ok(());
-    }
-    Err(
-        "Verification Record artifact id must be a legacy va_ identifier or a full lowercase content hash"
-            .into(),
-    )
 }
 
 #[cfg(test)]

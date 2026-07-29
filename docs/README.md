@@ -19,6 +19,7 @@
 - [Native current repository genesis ADR](adr/0023-native-current-repository-genesis.md)
 - [Math-first compounding product architecture ADR](adr/0025-math-first-compounding-product-architecture.md)
 - [Proposed correction benchmark and whitepaper evidence contract ADR](adr/0026-correction-benchmark-and-whitepaper-evidence-contract.md)
+- [Proposed pre-release current-state compaction ADR](adr/0027-pre-release-current-state-compaction.md)
 
 ## Project documents
 

@@ -37,7 +37,10 @@
     "producer_identity_binding_id": { "type": "string", "pattern": "^vib_.+" },
     "artifact_ids": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^va_.+" }
+      "items": {
+        "type": "string",
+        "pattern": "^(va_.+|[0-9a-f]{64})$"
+      }
     },
     "claim_id": { "type": "string", "pattern": "^(vcl|vf)_.+" },
     "proposal_id": { "type": "string", "pattern": "^vpr_.+" },

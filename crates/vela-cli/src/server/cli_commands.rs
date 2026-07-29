@@ -537,6 +537,16 @@ pub(crate) enum RepositoryAction {
         #[arg(long)]
         json: bool,
     },
+    /// Preview the one-time pre-release Artifact compaction without writing.
+    Compact {
+        #[arg(default_value = ".")]
+        frontier: PathBuf,
+        /// Require the command to remain read-only.
+        #[arg(long, required = true)]
+        check: bool,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 // Claim and artifact nouns stay on the compact current surface.

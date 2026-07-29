@@ -71,6 +71,11 @@ pub async fn run_command() {
             RepositoryAction::Verify { frontier, json } => {
                 crate::current_repository::cmd_repository_verify(&frontier, json)
             }
+            RepositoryAction::Compact {
+                frontier,
+                check,
+                json,
+            } => crate::current_compaction::cmd_compaction_check(&frontier, check, json),
         },
         Commands::Check {
             source,

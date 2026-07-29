@@ -14,6 +14,7 @@ mod computed;
 pub use computed::frontier_settings;
 mod objects;
 pub use objects::{
-    claim_record, cli_style, current_repository, execution_binding, identity, proposal_v1,
-    registration_record, repository_epoch, repository_inputs, submission_v1, verification_record,
+    claim_record, cli_style, current_repository, current_state_equivalence, execution_binding,
+    identity, proposal_v1, registration_record, repository_epoch, repository_inputs,
+    repository_origin, submission_v1, verification_record,
 };

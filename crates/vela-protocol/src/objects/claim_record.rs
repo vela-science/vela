@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
+use super::artifact_reference::require_artifact_reference_id;
+
 pub const CLAIM_RECORD_V1_SCHEMA: &str = "vela.claim-record.v1";
 pub const LEGACY_FINDING_EXTENSION: &str = "vela.legacy-finding.v1";
 
@@ -185,7 +187,7 @@ impl ClaimRecordV1 {
         for evidence in &self.evidence {
             require_text("evidence.relation", &evidence.relation)?;
             if let Some(artifact_id) = &evidence.artifact_id {
-                require_prefixed("evidence.artifact_id", artifact_id, "va_")?;
+                require_artifact_reference_id("Claim Record", "evidence.artifact_id", artifact_id)?;
             }
             require_sha256("evidence.artifact_root", &evidence.artifact_root)?;
             if let Some(path) = &evidence.artifact_path {
@@ -274,14 +276,6 @@ fn require_scientific_text(field: &str, value: &str) -> Result<(), String> {
         return Err(format!(
             "Claim Record {field} must be non-empty, trimmed scientific text"
         ));
-    }
-    Ok(())
-}
-
-fn require_prefixed(field: &str, value: &str, prefix: &str) -> Result<(), String> {
-    require_text(field, value)?;
-    if !value.starts_with(prefix) {
-        return Err(format!("Claim Record {field} must start with `{prefix}`"));
     }
     Ok(())
 }
@@ -428,5 +422,61 @@ mod tests {
         .unwrap();
         assert!(record.assertion.text.contains("\n\n"));
         ClaimRecordV1::parse(&record.canonical_bytes().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn current_content_hash_evidence_is_valid() {
+        let record = ClaimRecordV1::build(
+            1,
+            ClaimAssertion {
+                text: "A retained verifier reproduced the bounded result.".into(),
+                kind: "computational".into(),
+            },
+            vec!["Exact retained inputs only.".into()],
+            vec![ClaimEvidenceRef {
+                relation: "supports".into(),
+                artifact_id: Some("a".repeat(64)),
+                artifact_root: root('a'),
+                artifact_path: Some(format!("records/artifacts/sha256/{}", "a".repeat(64))),
+            }],
+            vec![ClaimSource {
+                kind: "repository".into(),
+                title: "Current content-addressed evidence".into(),
+                locator: None,
+                authors: vec![],
+                year: None,
+            }],
+            vec![],
+            "2026-07-29T00:00:00Z".into(),
+            None,
+            BTreeMap::new(),
+        )
+        .unwrap();
+        assert!(record.claim_id.starts_with("vcl_"));
+    }
+
+    #[test]
+    fn malformed_evidence_artifact_id_fails_closed() {
+        let error = ClaimRecordV1::build(
+            1,
+            ClaimAssertion {
+                text: "A retained verifier reproduced the bounded result.".into(),
+                kind: "computational".into(),
+            },
+            vec![],
+            vec![ClaimEvidenceRef {
+                relation: "supports".into(),
+                artifact_id: Some("sha256:short".into()),
+                artifact_root: root('a'),
+                artifact_path: None,
+            }],
+            vec![],
+            vec![],
+            "2026-07-29T00:00:00Z".into(),
+            None,
+            BTreeMap::new(),
+        )
+        .unwrap_err();
+        assert!(error.contains("legacy va_ identifier or a full lowercase content hash"));
     }
 }

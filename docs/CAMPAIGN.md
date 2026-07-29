@@ -147,6 +147,15 @@ Observatory projections, orchestration frameworks, domain packages, and
 external-format adapters must remain removable until their evidence gates
 pass.
 
+ADR 0027 adds one bounded pre-release contraction to this campaign. The four
+controlled Frontiers will be compacted from imported `va_` Artifact wrappers
+to full-hash evidence under one aggregate plan. The gate is exact equivalence
+of accepted assertions, conditions, evidence content, provenance, relations,
+and Standing. Once all four compacted repositories replay from clean clones,
+the one-time compactor and every old reader are removed before Vela `0.950.0`.
+Historical replay remains available only through exact archives and the pinned
+old binary, not through compatibility in the current product.
+
 Six protocol and operating planes remain deliberately separate:
 
 ```text

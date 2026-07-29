@@ -7,6 +7,8 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use super::artifact_reference::require_artifact_reference_id;
+
 pub const REGISTRATION_RECORD_V1_SCHEMA: &str = "vela.registration-record.v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -151,7 +153,7 @@ impl RegistrationRecordV1 {
             "vib_",
         )?;
         for artifact_id in &self.artifact_ids {
-            require_prefixed("artifact_ids", artifact_id, "va_")?;
+            require_artifact_reference_id("Registration Record", "artifact_ids", artifact_id)?;
         }
         if !(self.claim_id.starts_with("vcl_") || self.claim_id.starts_with("vf_")) {
             return Err("Registration Record claim_id must be vcl_ or historical vf_".into());
@@ -272,5 +274,30 @@ mod tests {
             error.contains("cannot report accepted_state_changed"),
             "{error}"
         );
+    }
+
+    #[test]
+    fn current_content_hash_artifact_ids_are_valid() {
+        RegistrationRecordV1::build(
+            "vfr_fixture".into(),
+            "vsb_fixture".into(),
+            root('a'),
+            format!("records/submissions/sha256/{}.json", "a".repeat(64)),
+            "2026-07-29T00:00:00Z".into(),
+            "vela-cli@0.940.9".into(),
+            "vib_fixture".into(),
+            vec!["f".repeat(64)],
+            "vcl_fixture".into(),
+            "vpr_fixture".into(),
+            "pending_review".into(),
+            root('b'),
+            RegistrationRoots {
+                event_log_before: root('c'),
+                event_log_after: root('c'),
+                proposal_after: root('d'),
+            },
+            false,
+        )
+        .unwrap();
     }
 }
