@@ -55,11 +55,15 @@ The public Vela repository contains:
 crates/                  Rust protocol, authority, replay, verification, CLI
 packages/protocol/       generated TypeScript public contracts and validators
 packages/canopus/        optional bounded producer and evaluation harness
-schema/                  language-neutral public schemas
 conformance/             shared positive, hostile, and mutation fixtures
 actions/                 consumer actions
 docs/                    architecture, protocol, product, and release guidance
 ```
+
+The current authority-free contracts have one TypeScript implementation under
+`packages/protocol/`. Vela does not retain a parallel handwritten JSON Schema
+copy. Historical schema identifiers remain inside their pinned fixtures and
+predecessor Git history.
 
 The product artifacts release independently:
 

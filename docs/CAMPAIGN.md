@@ -808,6 +808,9 @@ The audit retires:
   superseded scientific witnesses; the complete current records remain in
   their Erdős and Sidon Frontiers, while `vela-verify` retains one synthetic
   CLI smoke witness plus focused positive and hostile unit coverage;
+- the orphaned top-level Finding-bundle JSON Schema; current Submission and
+  Verification contracts have one authority-free TypeScript implementation,
+  with language-neutral behavior proven by `conformance/`;
 - predecessor product-language, governance, portability, signer, Receipt, and
   dated-assessment documents from the active documentation root into
   `docs/history/`;

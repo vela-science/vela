@@ -57,6 +57,10 @@ jobs:
         run: cargo build --release -p vela-cli --bin vela
       - name: focused core protocol and task-first tests
         run: ./scripts/check-core-surface.sh
+      - name: current Submission and Verification interoperability waist
+        env:
+          VELA_EPHEMERAL_ACCOUNT_HOME: "1"
+        run: ./scripts/check-current-object-waist.sh
       - name: independent authority foundation verifier
         run: python3 conformance/verify.py
       - name: reproduce (CLI re-derives the synthetic valid corpus)

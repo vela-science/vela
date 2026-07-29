@@ -37,7 +37,7 @@ crate_exists() {
 case "$MODE" in
   check)
     preflight_package_graph
-    printf '%s\n' "Complete six-crate package graph is publishable."
+    printf '%s\n' "Complete five-crate package graph is publishable."
     ;;
   --execute)
     [[ "$VERSION" != *-* ]] || {

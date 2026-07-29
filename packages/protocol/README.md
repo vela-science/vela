@@ -11,6 +11,7 @@ mutation APIs.
 import { canonicalJcs, protocolDigest, type SubmissionV1 } from "@vela-science/protocol";
 ```
 
-Rust remains the normative implementation. The language-neutral schemas and
-cross-implementation fixtures live at the repository root under `schema/` and
-`conformance/`.
+Rust remains the normative implementation. This package is the single
+authority-free TypeScript contract surface; Vela does not maintain a parallel
+handwritten JSON Schema copy. Cross-implementation fixtures and small
+independent readers live at the repository root under `conformance/`.

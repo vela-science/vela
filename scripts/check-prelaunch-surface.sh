@@ -29,7 +29,7 @@ absent_paths=(
   docs/HUB.md
   examples/carina-kernel
   integrations/claude-plugin
-  schema/carina.artifact-packet.v0.1.json
+  schema
   scripts/seed-erdos-formalization.sh
   templates/frontier
   "tools/receipt-v${retired_receipt_version}"
@@ -208,12 +208,6 @@ if grep -nE -- "$retired_external_lean_packet_pattern" "$external_lean_surface" 
   grep -nE -- "$retired_external_lean_packet_pattern" "$external_lean_surface" >&2
   fail "retired external-Lean packet compatibility returned"
 fi
-
-current_finding_schemas=(schema/finding-bundle.v*.json)
-[[ ${#current_finding_schemas[@]} -eq 1 ]] \
-  || fail "expected exactly one finding-bundle schema"
-[[ ${current_finding_schemas[0]} == schema/finding-bundle.v0.10.0.json ]] \
-  || fail "unexpected current finding-bundle schema: ${current_finding_schemas[*]}"
 
 # Operational guidance exposes the one task-first producer loop. Historical
 # ADRs and replay notes may still name retired surfaces as history.

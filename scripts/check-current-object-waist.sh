@@ -3,6 +3,11 @@ set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 vela="${VELA_BIN:-$repo/target/debug/vela}"
+[[ "${VELA_EPHEMERAL_ACCOUNT_HOME:-}" == 1 ]] || {
+  echo "refusing to write a synthetic trust pin outside an explicitly ephemeral account" >&2
+  echo "run this check only with VELA_EPHEMERAL_ACCOUNT_HOME=1 on a disposable CI account" >&2
+  exit 2
+}
 for executable in "$vela" git jq node ssh-agent ssh-add ssh-keygen; do
   command -v "$executable" >/dev/null 2>&1 || {
     echo "missing required executable: $executable" >&2
@@ -12,7 +17,13 @@ done
 
 root="$(mktemp -d "${TMPDIR:-/tmp}/vela-current-waist.XXXXXX")"
 agent_started=false
+trust_pin_path=""
 cleanup() {
+  case "$trust_pin_path" in
+    */.vela/trust/authorities/vfr_*.json)
+      /bin/rm -f -- "$trust_pin_path"
+      ;;
+  esac
   if [[ "$agent_started" == true ]]; then
     ssh-agent -k >/dev/null 2>&1 || true
   fi
@@ -44,6 +55,15 @@ publish_fixture_delta() {
   git -C "$frontier" push -q origin main
 }
 
+run_json() {
+  local output="$1"
+  shift
+  if ! "$@" >"$output"; then
+    cat "$output" >&2
+    return 1
+  fi
+}
+
 "$vela" init "$frontier" \
   --name 'Interop Frontier' \
   --scope 'Exercise current Submission and Verification Record interoperability.' \
@@ -61,12 +81,19 @@ git --git-dir="$remote" symbolic-ref HEAD refs/heads/main
   --reason 'Establish ephemeral authority for a disposable interoperability Frontier.' \
   --json >"$root/authority-init.json"
 publish_fixture_delta 'Initialize disposable repository authority'
+run_json "$root/trust-pin.json" \
+  "$vela" authority trust pin "$frontier" \
+  --record-root "$(jq -r '.authority_record_root' "$root/authority-init.json")" \
+  --json
+trust_pin_path="$(jq -er '.authority_trust_anchor_path' "$root/trust-pin.json")"
 
-event_root_before="$("$vela" status "$frontier" --json | jq -r '.roots.event_log')"
-"$vela" submit "$repo/conformance/current-objects/submission.json" \
+"$vela" status "$frontier" --json >"$root/status-before.json"
+accepted_claims_before="$(jq -r '.counts.accepted_claims' "$root/status-before.json")"
+run_json "$root/submit.json" \
+  "$vela" submit "$repo/conformance/current-objects/submission.json" \
   --frontier "$frontier" \
   --as agent:independent-js \
-  --json >"$root/submit.json"
+  --json
 publish_fixture_delta 'Register independent Submission'
 
 claim_id="$(jq -r '.claim_id' "$root/submit.json")"
@@ -85,9 +112,11 @@ jq \
    | .subject.artifact_ids=[]' \
   "$repo/conformance/current-objects/verification-draft.json" \
   >"$root/verification-draft.json"
+cp "$repo/conformance/current-objects/verifier.seed.hex" "$root/verifier.seed.hex"
+chmod 0600 "$root/verifier.seed.hex"
 node "$repo/conformance/emitters/javascript.mjs" verification \
   --draft "$root/verification-draft.json" \
-  --seed-file "$repo/conformance/current-objects/verifier.seed.hex" \
+  --seed-file "$root/verifier.seed.hex" \
   --output "$root/verification.json" \
   >"$root/emission.json"
 "$vela" verification import "$frontier" "$root/verification.json" \
@@ -97,22 +126,25 @@ publish_fixture_delta 'Retain independent Verification Record'
 
 "$vela" review show "$frontier" "$proposal_id" --json >"$root/review.json"
 "$vela" status "$frontier" --json >"$root/status.json"
-event_root_after="$(jq -r '.roots.event_log' "$root/status.json")"
+repository_root_after="$(jq -r '.roots.repository' "$root/status.json")"
 
-[[ "$event_root_before" == "$event_root_after" ]]
+[[ "$(jq -r '.counts.accepted_claims' "$root/status.json")" == "$accepted_claims_before" ]]
+[[ "$(jq -r '.counts.pending_claims' "$root/status.json")" == 1 ]]
+[[ "$(jq -r '.counts.pending_review' "$root/status.json")" == 1 ]]
 [[ "$(jq -r '.accepted_event_delta' "$root/submit.json")" == 0 ]]
 [[ "$(jq -r '.accepted_event_delta' "$root/import.json")" == 0 ]]
 [[ "$(jq -r '.accepted_state_changed' "$root/submit.json")" == false ]]
 [[ "$(jq -r '.verification_records | length' "$root/review.json")" == 1 ]]
-[[ "$(jq -r '.review.brief.authority.actions[] | select(.action=="accept") | .eligibility' "$root/review.json")" == blocked ]]
-[[ "$(jq -r '.review.brief.authority.actions[] | select(.action=="reject") | .eligibility' "$root/review.json")" == available ]]
+[[ "$(jq -r '.standing' "$root/review.json")" == pending_review ]]
+[[ "$(jq -r '.decision' "$root/review.json")" == null ]]
+[[ "$(jq -r '.authority_boundary' "$root/review.json")" == "Verification records report bounded checks. Only a repository-authority Decision can change standing." ]]
 [[ -z "$(git -C "$frontier" status --porcelain=v1 --untracked-files=all)" ]]
 
 git clone -q --no-hardlinks "$remote" "$replay"
 "$vela" status "$replay" --json >"$root/replay-status.json"
 "$vela" review show "$replay" "$proposal_id" --json >"$root/replay-review.json"
-[[ "$(jq -r '.roots.event_log' "$root/replay-status.json")" == "$event_root_after" ]]
-[[ "$(jq -r '.verification_records[0].verification_record_id' "$root/replay-review.json")" == "$(jq -r '.verification_record_id' "$root/import.json")" ]]
+[[ "$(jq -r '.roots.repository' "$root/replay-status.json")" == "$repository_root_after" ]]
+[[ "$(jq -r '.verification_records[0].record.verification_record_id' "$root/replay-review.json")" == "$(jq -r '.verification_record_id' "$root/import.json")" ]]
 [[ -z "$(git -C "$replay" status --porcelain=v1 --untracked-files=all)" ]]
 
 jq -cn \
@@ -124,7 +156,8 @@ jq -cn \
   --arg claim_id "$claim_id" \
   --arg verification_record_id "$(jq -r '.verification_record_id' "$root/import.json")" \
   --arg verification_record_root "$(jq -r '.verification_record_root' "$root/import.json")" \
-  --arg event_log_root "$event_root_after" \
+  --arg repository_root "$repository_root_after" \
+  --argjson accepted_claims "$accepted_claims_before" \
   '{
     schema:"vela.current-object-waist-check.v1",
     ok:true,
@@ -136,7 +169,8 @@ jq -cn \
     claim_id:$claim_id,
     verification_record_id:$verification_record_id,
     verification_record_root:$verification_record_root,
-    event_log_root:$event_log_root,
+    repository_root:$repository_root,
+    accepted_claims:$accepted_claims,
     accepted_event_delta:0,
     standing:"pending_review",
     clean_clone_replayed:true
