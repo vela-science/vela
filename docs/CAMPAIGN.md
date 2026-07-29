@@ -954,9 +954,13 @@ release contract deliberately rejects a `federation` command.
 This is a reproduced gap and a current B8 failure. Reinterpreting migration
 fields would be an unsafe semantic rebind. The result does not justify a Hub,
 Registry, resolver, global namespace, graph database, or second writer. After
-the real correction is terminal, two independent readers must reproduce the
-same inability from the exact public bytes before the smallest derived
-transfer envelope is designed.
+the source audit, implementation-diverse Rust and clean-room Python readers
+now reproduce the same inventory from compiled public types and public source.
+Their shared language-neutral fixture root is
+`sha256:fffb66f5afa69b8a47824a45bc382d97e4c655dc282a3b3d6ba339f2b70906ae`.
+This earns implementation-diversity credit, not organizational independence.
+The smallest derived transfer envelope becomes eligible for design only after
+the real correction is terminal.
 
 #### Matched state-lift pilot
 

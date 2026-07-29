@@ -1,0 +1,27 @@
+{
+  "schema": "vela.foreign-transfer-contract-inventory.v1",
+  "claim_import_fields": [
+    "era",
+    "object_id",
+    "object_root",
+    "predecessor_commit"
+  ],
+  "proposal_import_fields": [
+    "predecessor_commit",
+    "proposal_id",
+    "proposal_root"
+  ],
+  "migration_lineage_only": true,
+  "public_foreign_transfer_command": false,
+  "federation_deliberately_absent_from_help": true,
+  "required_binding_presence": {
+    "source_frontier_id": false,
+    "source_repository_root": false,
+    "source_claim_root": true,
+    "source_decision_root": false,
+    "source_authority_root": false,
+    "completeness_status": false,
+    "foreign_has_no_local_authority": false
+  },
+  "outcome": "gap_reproduced"
+}

@@ -19,6 +19,7 @@ cargo test --quiet -p vela-protocol --lib \
   --test cli_release_contract \
   --test current_object_interop \
   --test exact_witness_floor_fixture \
+  --test foreign_transfer_contract_gap \
   --test frontier_settings_v1
 cargo test --quiet -p vela-edge --lib --test correction_impact
 cargo test --quiet -p vela-cli --lib \

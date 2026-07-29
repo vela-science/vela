@@ -424,9 +424,13 @@ the deterministic result root is
 
 This is a negative result: the audited Vela revision cannot pass B8. It does
 not show that a hosted Registry, resolver, global namespace, or federation
-service is needed. A minimal derived envelope is eligible for experiment only
-after the real correction is terminal and two independent readers reproduce
-the same missing contract.
+service is needed. Rust and clean-room Python readers independently reproduce
+the same current-contract inventory from compiled public types and public
+source. Their shared fixture root is
+`sha256:fffb66f5afa69b8a47824a45bc382d97e4c655dc282a3b3d6ba339f2b70906ae`.
+That is implementation diversity, not organizational independence. A minimal
+derived envelope is eligible for experiment only after the real correction is
+terminal.
 
 The matched Git-versus-Vela reviewer protocol is frozen at root
 `sha256:68fb039088302d19f02cf2628c16004e174649b1f952a63a0fd35210c0dd0ef8`.

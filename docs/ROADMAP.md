@@ -89,9 +89,10 @@ The frozen B8 audit now shows that the current public contract cannot express
 that second-Frontier retention: migration-only `imported_from` fields omit the
 source Frontier, repository root, Decision, authority anchor, completeness,
 and explicit local non-authority. This is a benchmark failure, not permission
-to revive federation services. After the real correction is terminal, require
-two independent readers to reproduce the gap before designing the smallest
-derived transfer envelope.
+to revive federation services. Rust and clean-room Python readers now
+reproduce the same gap from compiled types and public source. After the real
+correction is terminal, design only the smallest derived transfer envelope;
+the colocated readers earn no external-independence credit.
 
 The historical entry gate is closed. Across 2,831 current Claim records, the
 four Frontiers contain no current correction relation. Erdős 281 has the
