@@ -111,21 +111,19 @@ pub(crate) enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// v0.42: Recent canonical events in human-readable form. The
-    /// `git log` analogue. Default newest-first; cap on count.
+    /// Recent covered repository-authority events, newest first.
     #[command(after_long_help = crate::cli::help_text::LOG)]
     Log {
         frontier: Option<PathBuf>,
-        /// A finding id (`vf_…`): show that finding's state-transition
-        /// history instead of the frontier-wide event log.
-        finding_id: Option<String>,
-        /// How many recent events to show (frontier-wide mode).
+        /// A full current object id: restrict the log to its covered history.
+        object_id: Option<String>,
+        /// How many recent events to show.
         #[arg(long, default_value = "20")]
         limit: usize,
         /// Filter to events matching this kind (substring match).
         #[arg(long)]
         kind: Option<String>,
-        /// Finding mode: state as of this RFC3339 instant.
+        /// Include events no later than this RFC3339 instant.
         #[arg(long = "as-of", help = HELP_AS_OF)]
         as_of: Option<String>,
         /// Output stable JSON.
@@ -203,7 +201,7 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         action: TargetIndexAction,
     },
-    /// Inspect one current Claim or historical Finding-era record.
+    /// Inspect one current Claim.
     #[command(after_long_help = crate::cli::help_text::CLAIM)]
     Claim {
         #[command(subcommand)]
@@ -214,20 +212,20 @@ pub(crate) enum Commands {
     Show {
         /// Frontier repository directory.
         frontier: PathBuf,
-        /// A Claim/Finding, Submission, Registration Record, Verification
-        /// Record, Proposal, Event, Artifact, or historical record id.
+        /// A Claim, Submission, Registration Record, Verification Record,
+        /// Proposal, Artifact, or covered authority Event id.
         object_id: String,
         #[arg(long)]
         json: bool,
     },
-    /// Explain why one Claim/Finding currently has its derived standing.
+    /// Explain why one current Claim has its derived standing.
     ///
     /// This is a root-bound read projection. It never changes authority.
     #[command(after_long_help = crate::cli::help_text::WHY)]
     Why {
         /// Frontier repository directory.
         frontier: PathBuf,
-        /// Current Claim id (`vcl_...`) or historical Finding id (`vf_...`).
+        /// Current Claim id (`vcl_...`).
         claim_id: String,
         #[arg(long)]
         json: bool,
@@ -525,11 +523,11 @@ pub(crate) enum RepositoryAction {
 // Claim and artifact nouns stay on the compact current surface.
 #[derive(Subcommand)]
 pub(crate) enum ClaimCommands {
-    /// Read-only projection of one Claim or historical Finding-era record.
+    /// Read-only projection of one current Claim.
     Show {
-        /// Frontier JSON file or Vela repo
+        /// Current Frontier repository
         frontier: PathBuf,
-        /// Current Claim (`vcl_<hex>`) or historical Finding (`vf_<hex>`) id
+        /// Current Claim (`vcl_<hex>`) id
         claim_id: String,
         /// record | standing | evidence | attribution
         #[arg(long, default_value = "record")]

@@ -207,7 +207,8 @@ pub fn header(command: &str, subject: &str, note: Option<&str>) {
 /// Resolve the frontier argument: an explicit path wins; otherwise walk
 /// upward from cwd for a frontier-shaped `.vela` (the git discovery
 /// pattern — `vela status` from anywhere inside a frontier just works).
-/// The config dir `~/.vela` never matches (it has no event log).
+/// Discover only a current repository epoch; predecessor layouts require their
+/// pinned historical Vela release.
 pub fn resolve_frontier(explicit: Option<std::path::PathBuf>) -> std::path::PathBuf {
     if let Some(path) = explicit {
         return path;
@@ -223,9 +224,8 @@ pub fn resolve_frontier(explicit: Option<std::path::PathBuf>) -> std::path::Path
     loop {
         let store = cur.join(".vela");
         if store.is_dir()
-            && (store.join("events").is_dir()
-                || store.join("proposals").is_dir()
-                || store.join("genesis.json").is_file())
+            && store.join("epoch.json").is_file()
+            && store.join("repository.json").is_file()
         {
             return cur;
         }
@@ -240,24 +240,6 @@ pub fn resolve_frontier(explicit: Option<std::path::PathBuf>) -> std::path::Path
             );
         }
     }
-}
-
-/// For verbs shaped `[frontier] [id]`: when the user omits the frontier,
-/// clap binds the id into the frontier slot. If the first positional
-/// looks like an object id (known prefix) and is not an existing path,
-/// shift it into the id slot and discover the frontier upward.
-pub fn resolve_frontier_with_id(
-    frontier: Option<std::path::PathBuf>,
-    id: Option<String>,
-    id_prefixes: &[&str],
-) -> (std::path::PathBuf, Option<String>) {
-    if let Some(first) = &frontier {
-        let s = first.display().to_string();
-        if id.is_none() && id_prefixes.iter().any(|p| s.starts_with(p)) && !first.exists() {
-            return (resolve_frontier(None), Some(s));
-        }
-    }
-    (resolve_frontier(frontier), id)
 }
 
 #[cfg(test)]

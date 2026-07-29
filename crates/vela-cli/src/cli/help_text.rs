@@ -113,7 +113,7 @@ EXAMPLES
 
 Layered: flag > VELA_* env > user config > Frontier convention > default.
 Checked-in publish.git_push = off is narrowing-only and may override user auto.
-Frontier v1 uses .vela/settings.toml; legacy .vela/config.toml remains readable.";
+Frontiers use the single closed .vela/settings.toml contract.";
 
 pub const ID: &str = "\
 EXAMPLES
@@ -126,15 +126,13 @@ not create or store a human signing identity.";
 
 pub const CLAIM: &str = "\
 EXAMPLES
-  vela claim show . vf_6d4a…       read one historical Finding-era claim
+  vela claim show . vcl_6d4a…      read one current Claim
   vela submit --claim \"…\" --artifact result.json:witness --as agent:demo
                                     register new work as Submission v1
 
-Claim inspection is read-only. A `vf_` result discloses its historical Finding
-source era; Vela does not relabel it as a current Claim Record. Submission v1
-plus `vela submit` is the producer write path; current authority registers it
-pending review, then one direct `vela review accept` or `vela review reject`
-action.";
+Claim inspection is read-only. Historical Finding bytes remain available from
+the repository's pinned predecessor and historical Vela release. Submission v1
+plus `vela submit` is the current producer write path.";
 
 pub const SHOW: &str = "\
 EXAMPLES
@@ -146,10 +144,10 @@ root, source era, and authority effect without changing the frontier.";
 
 pub const WHY: &str = "\
 EXAMPLES
-  vela why . vf_0123456789abcdef --json
+  vela why . vcl_0123456789abcdef --json
 
-Why derives the Claim or historical Finding standing from its Proposal,
-Verification, and Decision chain and binds the explanation to current roots.";
+Why derives current Claim standing from its Proposal, Verification, and
+Decision chain and binds the explanation to current roots.";
 
 pub const AGENTS: &str = "\
 EXAMPLES

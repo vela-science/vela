@@ -355,31 +355,11 @@ pub(crate) struct PlannedWrite {
 }
 
 impl PlannedWrite {
-    pub(crate) fn class(&self) -> WriteClass {
-        self.class
-    }
-
     pub(crate) fn write(path: RepoPath, class: WriteClass, bytes: Vec<u8>) -> Self {
         Self {
             path,
             class,
             postimage: PlannedPostimage::File { bytes, mode: None },
-        }
-    }
-
-    pub(crate) fn write_with_mode(
-        path: RepoPath,
-        class: WriteClass,
-        bytes: Vec<u8>,
-        mode: FileMode,
-    ) -> Self {
-        Self {
-            path,
-            class,
-            postimage: PlannedPostimage::File {
-                bytes,
-                mode: Some(mode),
-            },
         }
     }
 
@@ -389,23 +369,6 @@ impl PlannedWrite {
             class,
             postimage: PlannedPostimage::Absent,
         }
-    }
-
-    pub(crate) fn from_managed_files(
-        managed: vela_protocol::repo::ManagedFileSet,
-    ) -> Result<Vec<Self>, FrontierTxnError> {
-        let mut writes = Vec::with_capacity(managed.writes.len() + managed.deletes.len());
-        for (path, bytes) in managed.writes {
-            let path = RepoPath::parse(path)?;
-            let class = managed_write_class(&path);
-            writes.push(Self::write(path, class, bytes));
-        }
-        for path in managed.deletes {
-            let path = RepoPath::parse(path)?;
-            let class = managed_write_class(&path);
-            writes.push(Self::delete(path, class));
-        }
-        Ok(writes)
     }
 
     /// Consume one already-bounded planned write for inclusion in an Era-1
@@ -433,33 +396,10 @@ impl PlannedWrite {
     }
 }
 
-fn managed_write_class(path: &RepoPath) -> WriteClass {
-    if path.as_str().starts_with(".vela/events/") {
-        WriteClass::Authority
-    } else if path.as_str().starts_with(".vela/proposals/") {
-        WriteClass::PublicReview
-    } else if path.as_str() == ".vela/proof-state.json" {
-        // Proof export bookkeeping is excluded from the scientific snapshot
-        // root and is legitimately regenerated after an accepted event.
-        WriteClass::Derived
-    } else if path.as_str().starts_with(".vela/") {
-        WriteClass::CanonicalEvidence
-    } else {
-        WriteClass::Derived
-    }
-}
-
 #[derive(Debug, Clone)]
 pub(crate) struct DeltaDraft {
     pub(crate) delta: CanonicalDelta,
     blobs: BTreeMap<ContentDigest, Vec<u8>>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct CompletedFrontierTxn {
-    pub(crate) operation_id: String,
-    pub(crate) plan_root: String,
-    pub(crate) canonical_delta_root: String,
 }
 
 impl DeltaDraft {
@@ -517,139 +457,6 @@ impl DeltaDraft {
         blobs.retain(|digest, _| referenced.contains(digest));
         Ok(Self { delta, blobs })
     }
-
-    pub(crate) fn resolved_public_writes(&self) -> Result<Vec<ResolvedWrite>, FrontierTxnError> {
-        resolve_public_writes(&self.delta, |expected| {
-            let bytes = self
-                .blobs
-                .get(&expected.digest)
-                .cloned()
-                .ok_or_else(|| FrontierTxnError::MissingBlob(expected.digest.clone()))?;
-            validate_blob_bytes(expected, &bytes)?;
-            Ok(bytes)
-        })
-    }
-}
-
-/// Execute one non-event canonical transaction under an already-authorized
-/// write barrier. The intent-specific delta contract remains the authority;
-/// this helper only removes legacy direct filesystem writers for derived and
-/// registry maintenance.
-pub(crate) fn execute_no_event_transaction(
-    barrier: CanonicalWriteBarrier,
-    frontier_root: &Path,
-    operation_domain: &str,
-    request_root: ContentDigest,
-    fixed_time: &str,
-    project: &vela_protocol::project::Project,
-    writes: Vec<PlannedWrite>,
-    mut read_set: Vec<InputBinding>,
-    result: serde_json::Value,
-) -> Result<Option<CompletedFrontierTxn>, FrontierTxnError> {
-    let preimage_project = vela_protocol::repo::load_from_path(frontier_root).map_err(|error| {
-        FrontierTxnError::Io(format!(
-            "load repository preimage for non-event transaction: {error}"
-        ))
-    })?;
-    if preimage_project.frontier_id() != project.frontier_id()
-        || vela_protocol::events::event_log_hash(&preimage_project.events)
-            != vela_protocol::events::event_log_hash(&project.events)
-    {
-        return Err(FrontierTxnError::CorruptPlan(
-            "non-event transaction cannot change frontier identity or event history".to_string(),
-        ));
-    }
-    let draft = DeltaDraft::prepare(frontier_root, writes)?;
-    if draft.delta.writes().is_empty() {
-        return Ok(None);
-    }
-    if !read_set
-        .iter()
-        .any(|binding| binding.name == FRONTIER_PROJECT_INPUT_NAME)
-    {
-        read_set.insert(0, InputBinding::project_snapshot(&preimage_project)?);
-    }
-    let layout_identity = vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
-        "schema": "vela.frontier-layout.internal.v1",
-        "frontier_id": project.frontier_id(),
-        "paths": draft
-            .delta
-            .writes()
-            .iter()
-            .map(|write| write.path.as_str())
-            .collect::<Vec<_>>(),
-    }))
-    .map_err(FrontierTxnError::Canonicalize)?;
-    let event_root = ContentDigest::parse(format!(
-        "sha256:{}",
-        vela_protocol::events::event_log_hash(&preimage_project.events)
-    ))?;
-    let mut event_ids = preimage_project
-        .events
-        .iter()
-        .map(|event| event.id.clone())
-        .collect::<Vec<_>>();
-    event_ids.sort();
-    event_ids.dedup();
-    if event_ids.len() != project.events.len() {
-        return Err(FrontierTxnError::CorruptPlan(
-            "non-event transaction refuses duplicate event identifiers".to_string(),
-        ));
-    }
-    // A no-event request such as materialization can retain the same
-    // frontier/event identity while its derived preimage or renderer output
-    // changes. Binding the operation id to `request_root` alone therefore
-    // collided with a valid completed journal from an earlier materialization.
-    // Include the complete transition identity and fixed planning time: exact
-    // retries still share an id, while a later maintenance pass cannot be
-    // mistaken for the prior completed plan.
-    let operation_id = no_event_operation_id(
-        operation_domain,
-        &request_root,
-        draft.delta.root(),
-        fixed_time,
-    )?;
-    let plan = FrontierTxnPlan::new(
-        FrontierTxnPlanSpec {
-            kind: OperationKind::Maintenance,
-            operation_id: operation_id.clone(),
-            request_root,
-            frontier: FrontierBinding::new(frontier_root, project.frontier_id(), &layout_identity)?,
-            fixed_time: fixed_time.to_string(),
-            expected_event_log_root: event_root.clone(),
-            resulting_event_log_root: event_root,
-            resulting_event_ids: event_ids,
-            read_set,
-            result,
-        },
-        draft.delta.clone(),
-    )?;
-    let completed = CompletedFrontierTxn {
-        operation_id: operation_id.as_str().to_string(),
-        plan_root: plan.root().as_str().to_string(),
-        canonical_delta_root: draft.delta.root().as_str().to_string(),
-    };
-    let mut transaction = FrontierTxn::prepare_with_barrier(barrier, plan, draft)?;
-    transaction.mark_committed()?;
-    transaction.install()?;
-    transaction.complete()?;
-    Ok(Some(completed))
-}
-
-fn no_event_operation_id(
-    operation_domain: &str,
-    request_root: &ContentDigest,
-    canonical_delta_root: &ContentDigest,
-    fixed_time: &str,
-) -> Result<OperationId, FrontierTxnError> {
-    let operation_identity = vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
-        "schema": "vela.no-event-operation-identity.internal.v1",
-        "request_root": request_root,
-        "canonical_delta_root": canonical_delta_root,
-        "fixed_time": fixed_time,
-    }))
-    .map_err(FrontierTxnError::Canonicalize)?;
-    Ok(OperationId::derive(operation_domain, &operation_identity))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -773,6 +580,7 @@ impl InputBinding {
     /// Bind a regular frontier file as a mutable planning input. The path tag
     /// is encoded in the existing `name` field so old digest-only journal
     /// records remain wire-compatible and continue to deserialize unchanged.
+    #[cfg(test)]
     pub(crate) fn existing_file(
         frontier_root: &Path,
         path: RepoPath,
@@ -809,6 +617,7 @@ impl InputBinding {
     /// Bind the exact bytes already loaded by a caller without reading the
     /// path a second time. Marker-time verification still inspects the path,
     /// so any drift between that snapshot and commit fails closed.
+    #[cfg(test)]
     pub(crate) fn file_snapshot(
         path: RepoPath,
         bytes: Option<&[u8]>,
@@ -906,18 +715,6 @@ impl InputBinding {
         Ok(Self {
             name: FRONTIER_PROJECT_INPUT_NAME.to_string(),
             digest: ContentDigest::hash(bytes),
-        })
-    }
-
-    /// Bind the exact present/absent/invalid Engine-policy observation used
-    /// during Decision Plan derivation. Marker-time verification re-runs the
-    /// same bounded observation, closing the post-key/pre-marker policy race.
-    pub(crate) fn engine_policy_observation(
-        observation_root: &str,
-    ) -> Result<Self, FrontierTxnError> {
-        Ok(Self {
-            name: ENGINE_POLICY_INPUT_NAME.to_string(),
-            digest: ContentDigest::parse(observation_root.to_string())?,
         })
     }
 
@@ -1161,6 +958,7 @@ impl FrontierTxnPlan {
         Ok(())
     }
 
+    #[cfg(test)]
     pub(crate) fn root(&self) -> &ContentDigest {
         &self.root
     }
@@ -1830,26 +1628,12 @@ pub(crate) fn operating_system_account_home() -> Result<PathBuf, FrontierTxnErro
 }
 
 impl FrontierRecoveryBarrier {
-    /// Re-verify a caller's complete bound read set while retaining the
-    /// frontier write lock. The lock coordinates Vela writers; it is advisory
-    /// with respect to arbitrary filesystem processes, so this is a pre-key
-    /// early-abort check rather than the authority boundary. Marker-time
-    /// verification in [`FrontierTxn::mark_committed`] remains authoritative.
-    pub(crate) fn verify_read_set(
-        &self,
-        read_set: &[InputBinding],
-    ) -> Result<(), FrontierTxnError> {
-        for binding in read_set {
-            binding.verify_current(&self.root)?;
-        }
-        Ok(())
-    }
-
     /// Return the already-verified completed plan for one operation while this
     /// barrier owns the frontier lock. This closes the race where another
     /// process completes the same operation between an unlocked exact-retry
     /// lookup and barrier acquisition; callers can return the durable result
     /// without rederiving stale applied proposals or touching a private key.
+    #[cfg(test)]
     pub(crate) fn completed_plan(
         &self,
         operation_id: &OperationId,
@@ -1896,13 +1680,7 @@ impl FrontierRecoveryBarrier {
 }
 
 impl CanonicalWriteBarrier {
-    pub(crate) fn verify_read_set(
-        &self,
-        read_set: &[InputBinding],
-    ) -> Result<(), FrontierTxnError> {
-        self.recovery.verify_read_set(read_set)
-    }
-
+    #[cfg(test)]
     pub(crate) fn completed_plan(
         &self,
         operation_id: &OperationId,
@@ -2313,140 +2091,6 @@ fn verify_completed_history(
     Ok(())
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub(crate) struct RecoveryCompactionReport {
-    pub(crate) completed_journals: usize,
-    pub(crate) newly_compacted_journals: usize,
-    pub(crate) removed_blobs: usize,
-    pub(crate) removed_bytes: u64,
-    pub(crate) retained_blobs: usize,
-}
-
-fn prune_unreferenced_blobs(
-    journal_dir: &Path,
-    journals: &[(FrontierTxnPaths, FrontierTxnJournal)],
-) -> Result<(usize, u64, usize), FrontierTxnError> {
-    let retained = journals
-        .iter()
-        .filter(|(_, journal)| journal.blob_retention == BlobRetention::Retained)
-        .flat_map(|(_, journal)| journal.plan.canonical_delta.writes())
-        .filter_map(|write| write.payload.as_ref())
-        .map(|blob| blob.digest.clone())
-        .collect::<BTreeSet<_>>();
-    let blob_dir = journal_dir.join("frontier").join("blobs");
-    let metadata = match fs::symlink_metadata(&blob_dir) {
-        Ok(metadata) => metadata,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Ok((0, 0, retained.len()));
-        }
-        Err(error) => {
-            return Err(FrontierTxnError::Journal(format!(
-                "inspect frontier transaction blob directory {}: {error}",
-                blob_dir.display()
-            )));
-        }
-    };
-    if metadata.file_type().is_symlink() || !metadata.is_dir() {
-        return Err(FrontierTxnError::Journal(format!(
-            "frontier transaction blob directory is not a regular non-symlink directory: {}",
-            blob_dir.display()
-        )));
-    }
-
-    let mut entries = fs::read_dir(&blob_dir)
-        .map_err(|error| {
-            FrontierTxnError::Journal(format!(
-                "read frontier transaction blob directory {}: {error}",
-                blob_dir.display()
-            ))
-        })?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|error| {
-            FrontierTxnError::Journal(format!(
-                "enumerate frontier transaction blob directory {}: {error}",
-                blob_dir.display()
-            ))
-        })?;
-    entries.sort_by_key(|entry| entry.file_name());
-
-    let mut removed_blobs = 0;
-    let mut removed_bytes = 0_u64;
-    for entry in entries {
-        let path = entry.path();
-        let metadata = fs::symlink_metadata(&path).map_err(|error| {
-            FrontierTxnError::Journal(format!(
-                "inspect frontier transaction blob {}: {error}",
-                path.display()
-            ))
-        })?;
-        if metadata.file_type().is_symlink() || !metadata.is_file() {
-            return Err(FrontierTxnError::Journal(format!(
-                "unexpected non-file frontier transaction blob: {}",
-                path.display()
-            )));
-        }
-        let digest = path
-            .file_stem()
-            .and_then(|stem| stem.to_str())
-            .and_then(|stem| ContentDigest::parse(format!("sha256:{stem}")).ok())
-            .ok_or_else(|| {
-                FrontierTxnError::Journal(format!(
-                    "unexpected frontier transaction blob name: {}",
-                    path.display()
-                ))
-            })?;
-        if retained.contains(&digest) {
-            continue;
-        }
-        removed_bytes = removed_bytes.saturating_add(metadata.len());
-        operation_journal::remove(&path).map_err(FrontierTxnError::Journal)?;
-        removed_blobs += 1;
-    }
-    Ok((removed_blobs, removed_bytes, retained.len()))
-}
-
-fn compact_completed_history_locked(
-    root: &Path,
-    journal_dir: &Path,
-) -> Result<RecoveryCompactionReport, FrontierTxnError> {
-    let mut journals = frontier_journals(root, journal_dir)?;
-    let mut completed = Vec::new();
-    for (paths, journal) in &journals {
-        match journal.recovery {
-            RecoveryState::Aborted => verify_aborted_without_marker(paths, journal)?,
-            RecoveryState::Completed => completed.push((paths.clone(), journal.clone())),
-            ref state => {
-                return Err(FrontierTxnError::RecoveryRequired {
-                    operation_id: journal.plan.operation_id.as_str().to_string(),
-                    state: state.clone(),
-                });
-            }
-        }
-    }
-    verify_completed_history(root, &completed)?;
-
-    let mut newly_compacted_journals = 0;
-    for (paths, journal) in &mut journals {
-        if matches!(journal.recovery, RecoveryState::Completed)
-            && journal.blob_retention == BlobRetention::Retained
-        {
-            journal.blob_retention = BlobRetention::Pruned;
-            operation_journal::write_json(&paths.plan, journal)
-                .map_err(FrontierTxnError::Journal)?;
-            newly_compacted_journals += 1;
-        }
-    }
-    let (removed_blobs, removed_bytes, retained_blobs) =
-        prune_unreferenced_blobs(journal_dir, &journals)?;
-    Ok(RecoveryCompactionReport {
-        completed_journals: completed.len(),
-        newly_compacted_journals,
-        removed_blobs,
-        removed_bytes,
-        retained_blobs,
-    })
-}
-
 fn ensure_recovery_barrier_locked(
     root: &Path,
     journal_dir: &Path,
@@ -2551,6 +2195,7 @@ impl FrontierTxnAuthorization {
     }
 }
 
+#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum RecoveryOutcome {
     Prepared,
@@ -2621,28 +2266,13 @@ impl FrontierTxnFailpoints for FailAtFrontierTxnStep {
 }
 
 impl FrontierTxn {
-    /// Verify recovery state without creating a frontier lock or any other
-    /// file. Read projections call this before and after loading their inputs.
-    /// An overlapping writer is therefore observed as either an active journal
-    /// or a completed postimage change; a writer that starts after the second
-    /// check simply follows the returned snapshot.
+    #[cfg(test)]
     pub(crate) fn verify_recovery_barrier_read_only(
         frontier_root: &Path,
         journal_dir: &Path,
     ) -> Result<(), FrontierTxnError> {
         let root = canonical_frontier_root(frontier_root)?;
         ensure_recovery_barrier_locked(&root, journal_dir, None)
-    }
-
-    /// Compact verified completed recovery history without touching canonical
-    /// frontier bytes. Active or incomplete transactions still fail closed.
-    pub(crate) fn compact_completed_history(
-        frontier_root: &Path,
-        journal_dir: &Path,
-    ) -> Result<RecoveryCompactionReport, FrontierTxnError> {
-        let root = canonical_frontier_root(frontier_root)?;
-        let _lock = FrontierWriteLock::acquire(journal_dir, &root)?;
-        compact_completed_history_locked(&root, journal_dir)
     }
 
     /// Acquire the frontier-wide recovery barrier before loading mutable
@@ -2869,6 +2499,7 @@ impl FrontierTxn {
         )
     }
 
+    #[cfg(test)]
     pub(crate) fn open(
         frontier_root: &Path,
         journal_dir: &Path,
@@ -2882,6 +2513,7 @@ impl FrontierTxn {
         })
     }
 
+    #[cfg(test)]
     pub(crate) fn open_if_present(
         frontier_root: &Path,
         journal_dir: &Path,
@@ -2946,10 +2578,12 @@ impl FrontierTxn {
         Ok(Some(txn))
     }
 
+    #[cfg(test)]
     pub(crate) fn plan(&self) -> &FrontierTxnPlan {
         &self.journal.plan
     }
 
+    #[cfg(test)]
     pub(crate) fn recovery_state(&self) -> &RecoveryState {
         &self.journal.recovery
     }
@@ -3223,6 +2857,7 @@ impl FrontierTxn {
         self.complete_with_failpoints(&mut FailAtFrontierTxnStep { target: step })
     }
 
+    #[cfg(test)]
     pub(crate) fn recover(
         frontier_root: &Path,
         journal_dir: &Path,
@@ -3534,6 +3169,7 @@ pub(crate) enum FrontierTxnError {
     WriteAuthorizationRequired {
         operation_id: String,
     },
+    #[cfg(test)]
     WriteAuthorizationNotApplicable {
         state: RecoveryState,
     },
@@ -3641,6 +3277,7 @@ impl fmt::Display for FrontierTxnError {
                 formatter,
                 "frontier transaction {operation_id} is Prepared without an in-memory canonical write authorization; explicitly reauthorize before commit"
             ),
+            #[cfg(test)]
             Self::WriteAuthorizationNotApplicable { state } => write!(
                 formatter,
                 "canonical write reauthorization applies only to a marker-free Prepared transaction, found {state:?}"
@@ -3951,6 +3588,7 @@ fn event_log_root_for_ids(
     event_log_root(&selected).map(Some)
 }
 
+#[cfg(test)]
 fn current_event_log_root(root: &Path) -> Result<ContentDigest, FrontierTxnError> {
     event_log_root(&current_event_log_events(root)?)
 }
@@ -4231,50 +3869,6 @@ mod tests {
             &current,
             &predecessor
         ));
-    }
-
-    #[test]
-    fn no_event_operation_identity_binds_delta_and_planning_time() {
-        let request = ContentDigest::hash(b"same logical maintenance request");
-        let first_delta = ContentDigest::hash(b"first derived transition");
-        let second_delta = ContentDigest::hash(b"second derived transition");
-        let first = no_event_operation_id(
-            "frontier-materialize",
-            &request,
-            &first_delta,
-            "2026-07-25T00:00:00Z",
-        )
-        .unwrap();
-        assert_eq!(
-            first,
-            no_event_operation_id(
-                "frontier-materialize",
-                &request,
-                &first_delta,
-                "2026-07-25T00:00:00Z",
-            )
-            .unwrap()
-        );
-        assert_ne!(
-            first,
-            no_event_operation_id(
-                "frontier-materialize",
-                &request,
-                &second_delta,
-                "2026-07-25T00:00:00Z",
-            )
-            .unwrap()
-        );
-        assert_ne!(
-            first,
-            no_event_operation_id(
-                "frontier-materialize",
-                &request,
-                &first_delta,
-                "2026-07-25T00:00:01Z",
-            )
-            .unwrap()
-        );
     }
 
     fn fixture_plan(root: &Path, draft: &DeltaDraft, identity: &[u8]) -> FrontierTxnPlan {
@@ -4590,52 +4184,6 @@ mod tests {
             fs::read(root.join("review/pending.json")).unwrap(),
             b"pending"
         );
-    }
-
-    #[test]
-    fn draft_and_journal_public_projections_are_identical() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(&root).unwrap();
-        fs::write(root.join("old.json"), b"old").unwrap();
-        let draft = DeltaDraft::prepare(
-            &root,
-            vec![
-                PlannedWrite::write(
-                    RepoPath::parse("z-event.json").unwrap(),
-                    WriteClass::Authority,
-                    b"event".to_vec(),
-                ),
-                PlannedWrite::write(
-                    RepoPath::parse("a-receipt.json").unwrap(),
-                    WriteClass::CanonicalEvidence,
-                    b"receipt".to_vec(),
-                ),
-                PlannedWrite::delete(
-                    RepoPath::parse("old.json").unwrap(),
-                    WriteClass::PublicReview,
-                ),
-                PlannedWrite::write(
-                    RepoPath::parse(".vela/work/session.json").unwrap(),
-                    WriteClass::PrivateCoordination,
-                    b"private".to_vec(),
-                ),
-            ],
-        )
-        .unwrap();
-        let draft_projection = draft.resolved_public_writes().unwrap();
-        assert_eq!(
-            draft_projection
-                .iter()
-                .map(|write| write.staged.path.as_str())
-                .collect::<Vec<_>>(),
-            vec!["a-receipt.json", "old.json", "z-event.json"]
-        );
-        let plan = fixture_plan(&root, &draft, b"projection equality");
-        let txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
-
-        assert_eq!(txn.resolved_public_writes().unwrap(), draft_projection);
     }
 
     #[test]
@@ -5229,18 +4777,6 @@ mod tests {
     }
 
     #[test]
-    fn managed_proof_state_is_derived() {
-        assert_eq!(
-            managed_write_class(&RepoPath::parse(".vela/proof-state.json").unwrap()),
-            WriteClass::Derived
-        );
-        assert_eq!(
-            managed_write_class(&RepoPath::parse(".vela/receipts/example.json").unwrap()),
-            WriteClass::CanonicalEvidence
-        );
-    }
-
-    #[test]
     fn completed_legacy_journal_allows_proof_state_reexport() {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().join("frontier");
@@ -5562,112 +5098,6 @@ mod tests {
             FrontierTxn::open(&root, &journals, &operation_id),
             Err(FrontierTxnError::CorruptBlob(_))
         ));
-    }
-
-    #[test]
-    fn completed_history_compacts_private_blobs_and_keeps_exact_replay_checks() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(&root).unwrap();
-        let draft = DeltaDraft::prepare(
-            &root,
-            vec![PlannedWrite::write(
-                RepoPath::parse("records/receipt.json").unwrap(),
-                WriteClass::CanonicalEvidence,
-                vec![b'x'; 64 * 1024],
-            )],
-        )
-        .unwrap();
-        let plan = fixture_plan(&root, &draft, b"compact completed recovery");
-        let operation_id = plan.operation_id.clone();
-        let mut txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
-        let blob_path = txn.paths.blob(
-            &txn.plan()
-                .canonical_delta
-                .writes()
-                .first()
-                .unwrap()
-                .payload
-                .as_ref()
-                .unwrap()
-                .digest,
-        );
-        assert!(blob_path.is_file());
-        txn.mark_committed().unwrap();
-        txn.install().unwrap();
-        txn.complete().unwrap();
-        assert_eq!(txn.journal.blob_retention, BlobRetention::Retained);
-        assert!(blob_path.is_file());
-        drop(txn);
-
-        let report = FrontierTxn::compact_completed_history(&root, &journals).unwrap();
-        assert_eq!(report.completed_journals, 1);
-        assert_eq!(report.newly_compacted_journals, 1);
-        assert_eq!(report.removed_blobs, 1);
-        assert!(report.removed_bytes > 0);
-        assert_eq!(report.retained_blobs, 0);
-        assert!(!blob_path.exists());
-
-        let reopened = FrontierTxn::open(&root, &journals, &operation_id).unwrap();
-        assert_eq!(reopened.recovery_state(), &RecoveryState::Completed);
-        assert_eq!(reopened.journal.blob_retention, BlobRetention::Pruned);
-        let public = reopened.resolved_public_writes().unwrap();
-        assert_eq!(public.len(), 1);
-        assert_eq!(
-            public[0].postimage_bytes.as_deref(),
-            Some(vec![b'x'; 64 * 1024].as_slice())
-        );
-        drop(reopened);
-        FrontierTxn::verify_recovery_barrier_read_only(&root, &journals).unwrap();
-
-        fs::write(root.join("records/receipt.json"), b"corrupt").unwrap();
-        assert!(matches!(
-            FrontierTxn::verify_recovery_barrier_read_only(&root, &journals),
-            Err(FrontierTxnError::CompletedPostimageMismatch { .. })
-        ));
-    }
-
-    #[test]
-    fn recovery_compaction_refuses_incomplete_transactions_and_keeps_their_blobs() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(&root).unwrap();
-        let draft = DeltaDraft::prepare(
-            &root,
-            vec![PlannedWrite::write(
-                RepoPath::parse("records/receipt.json").unwrap(),
-                WriteClass::CanonicalEvidence,
-                b"still needed for recovery".to_vec(),
-            )],
-        )
-        .unwrap();
-        let plan = fixture_plan(&root, &draft, b"incomplete recovery compaction");
-        let operation_id = plan.operation_id.clone();
-        let txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
-        let blob_path = txn.paths.blob(
-            &txn.plan()
-                .canonical_delta
-                .writes()
-                .first()
-                .unwrap()
-                .payload
-                .as_ref()
-                .unwrap()
-                .digest,
-        );
-        assert!(blob_path.is_file());
-        drop(txn);
-
-        assert!(matches!(
-            FrontierTxn::compact_completed_history(&root, &journals),
-            Err(FrontierTxnError::RecoveryRequired {
-                operation_id: blocked,
-                state: RecoveryState::Prepared,
-            }) if blocked == operation_id.as_str()
-        ));
-        assert!(blob_path.is_file());
     }
 
     #[test]

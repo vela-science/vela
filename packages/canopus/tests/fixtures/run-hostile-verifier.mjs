@@ -29,7 +29,7 @@ if (
 ) {
   throw new Error("--platform must be linux/amd64 or linux/arm64");
 }
-const probe = fileURLToPath(new URL("../tests/fixtures/hostile-verifier/probe.py", import.meta.url));
+const probe = fileURLToPath(new URL("./hostile-verifier/probe.py", import.meta.url));
 const runtime = await mkdtemp(path.join(os.tmpdir(), "canopus-hostile-verifier-"));
 
 try {

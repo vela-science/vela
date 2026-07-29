@@ -8,13 +8,12 @@
 // The standard repository-authority transaction core used by fresh setup,
 // producer registration, verification import, and exact review decisions.
 pub(crate) mod authority_transaction;
-#[allow(dead_code)]
 mod bounded_file;
 mod frontier;
 pub(crate) mod repository_authority_provider;
 pub(crate) use frontier::cli_read;
 mod write;
-pub(crate) use write::{claim_view, cli_object, cli_write};
+pub(crate) use write::cli_write;
 mod tools;
 pub(crate) use tools::cli_check;
 mod config;
@@ -28,7 +27,6 @@ pub(crate) mod git_hardened;
 pub(crate) use config::{cli_admin, cli_agents, cli_identity};
 // Current repository verification and object projections.
 pub(crate) mod current_repository;
-#[allow(dead_code)]
 pub(crate) mod frontier_txn;
 mod operation_journal;
 mod server;

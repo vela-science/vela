@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+// Repository-only package boundary check; excluded from the published product.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 

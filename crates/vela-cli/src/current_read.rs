@@ -20,6 +20,7 @@ use vela_protocol::current_repository::{
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::repository_epoch::RepositoryBoundaryV1;
 
+use crate::cli::{fail_return, print_json};
 use crate::current_repository::CurrentProposalDecision;
 
 struct CurrentReadContext {
@@ -467,15 +468,61 @@ pub(crate) fn why_payload(frontier: &Path, claim_id: &str) -> Result<Value, Stri
 
 pub(crate) fn log_payload(
     frontier: &Path,
+    object_id: Option<&str>,
     limit: usize,
     kind_filter: Option<&str>,
+    as_of: Option<&str>,
 ) -> Result<Value, String> {
     let context = load_context(frontier)?;
+    let as_of = as_of
+        .map(|value| {
+            chrono::DateTime::parse_from_rfc3339(value)
+                .map_err(|error| format!("invalid --as-of timestamp {value:?}: {error}"))
+        })
+        .transpose()?;
+    let proposal_ids = object_id
+        .map(|object_id| {
+            context
+                .proposals
+                .iter()
+                .filter(|(_, proposal)| {
+                    proposal.proposal_id == object_id || proposal.subject.id == object_id
+                })
+                .map(|(_, proposal)| proposal.proposal_id.as_str())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
     let mut events = context
         .authority_events
         .iter()
         .filter(|event| {
             kind_filter.is_none_or(|filter| event.content.kind.as_str().contains(filter))
+        })
+        .filter(|event| {
+            object_id.is_none_or(|object_id| {
+                event.id == object_id
+                    || event.content.target.id == object_id
+                    || event
+                        .content
+                        .payload
+                        .get("claim_id")
+                        .and_then(Value::as_str)
+                        == Some(object_id)
+                    || event
+                        .content
+                        .payload
+                        .get("proposal_id")
+                        .and_then(Value::as_str)
+                        .is_some_and(|proposal_id| {
+                            proposal_id == object_id || proposal_ids.contains(&proposal_id)
+                        })
+            })
+        })
+        .filter(|event| {
+            as_of.as_ref().is_none_or(|bound| {
+                chrono::DateTime::parse_from_rfc3339(&event.content.timestamp)
+                    .is_ok_and(|timestamp| timestamp <= *bound)
+            })
         })
         .collect::<Vec<_>>();
     events.sort_by(|left, right| {
@@ -509,8 +556,58 @@ pub(crate) fn log_payload(
         "frontier_id": context.repository.frontier_id,
         "repository_root": context.repository_root,
         "source_era": "current",
+        "object_id": object_id,
+        "as_of": as_of.map(|value| value.to_rfc3339()),
         "events": events,
     }))
+}
+
+pub(crate) fn cmd_show(frontier: &Path, object_id: &str, json_out: bool) {
+    crate::ui::set_mode("show", json_out);
+    let projection = show_payload(frontier, object_id).unwrap_or_else(|error| fail_return(&error));
+    if json_out {
+        print_json(&projection);
+    } else {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&projection).expect("serialize current object projection")
+        );
+    }
+}
+
+pub(crate) fn cmd_claim_show(frontier: &Path, claim_id: &str, view: &str, json_out: bool) {
+    crate::ui::set_mode("claim.show", json_out);
+    let projection =
+        claim_payload(frontier, claim_id, view).unwrap_or_else(|error| fail_return(&error));
+    if json_out {
+        print_json(&projection);
+    } else {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&projection).expect("serialize current Claim projection")
+        );
+    }
+}
+
+pub(crate) fn cmd_why(frontier: &Path, claim_id: &str, json_out: bool) {
+    crate::ui::set_mode("why", json_out);
+    if !claim_id.starts_with("vcl_") {
+        crate::ui::fail_with(
+            crate::ui::ErrorKind::Usage,
+            "why requires a full current Claim id",
+            Some("use `vela why <frontier> vcl_... --json`"),
+        );
+    }
+    let projection = why_payload(frontier, claim_id).unwrap_or_else(|error| fail_return(&error));
+    if json_out {
+        print_json(&projection);
+    } else {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&projection)
+                .expect("serialize current standing explanation")
+        );
+    }
 }
 
 #[cfg(test)]

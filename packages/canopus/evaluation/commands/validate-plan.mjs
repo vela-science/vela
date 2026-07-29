@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
+// Source-only evaluation command; excluded from the npm payload.
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";

@@ -521,7 +521,7 @@ test("evaluation runner preserves every registered result after process failures
     const run = spawnSync(
       process.execPath,
       [
-        path.join(packageRoot, "evaluation/scripts/run-plan.mjs"),
+        path.join(packageRoot, "evaluation/commands/run-plan.mjs"),
         "--plan",
         planFile,
         "--stage",
@@ -548,7 +548,7 @@ test("evaluation runner preserves every registered result after process failures
     assert.equal(index.runs.length, 12);
     const report = spawnSync(
       process.execPath,
-      [path.join(packageRoot, "evaluation/scripts/report.mjs"), output],
+      [path.join(packageRoot, "evaluation/commands/report.mjs"), output],
       {
         cwd: packageRoot,
         encoding: "utf8",
@@ -646,7 +646,7 @@ test("evaluation runner rejects worker-created arm result files", () => {
     const run = spawnSync(
       process.execPath,
       [
-        path.join(packageRoot, "evaluation/scripts/run-plan.mjs"),
+        path.join(packageRoot, "evaluation/commands/run-plan.mjs"),
         "--plan",
         planFile,
         "--stage",

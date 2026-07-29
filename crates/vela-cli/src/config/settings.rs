@@ -15,7 +15,7 @@
 //! operator (git's "protected configuration", Codex's project-scope
 //! key blocking):
 //!   1. The v1 Frontier file is a closed typed value; anything else fails
-//!      validation. The legacy mixed config remains allowlist-read-only.
+//!      validation. No predecessor configuration file is read.
 //!   2. Safety-adjacent keys allowed there may only NARROW: a frontier
 //!      can turn publishing off, never on.
 //!
@@ -28,9 +28,7 @@ use std::path::{Path, PathBuf};
 use vela_edge::repository_write::{
     PreparedRepositoryFileReplacement, RepositoryFileReplacementMode,
 };
-use vela_protocol::frontier_repo::{
-    FrontierProfileFile, read_repository_control_text, read_repository_profile,
-};
+use vela_protocol::frontier_repo::read_repository_control_text;
 use vela_protocol::frontier_settings::{
     FRONTIER_SETTINGS_SCHEMA, FrontierGitPush, FrontierSettingsV1,
 };
@@ -126,22 +124,13 @@ fn user_config_path() -> Option<PathBuf> {
     std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".vela").join("config.toml"))
 }
 
-fn frontier_config_path(frontier: &Path) -> PathBuf {
-    frontier.join(".vela").join("config.toml")
-}
-
 fn frontier_settings_path(frontier: &Path) -> PathBuf {
     frontier.join(".vela").join("settings.toml")
 }
 
-fn uses_frontier_profile_v1(frontier: &Path) -> Result<bool, String> {
-    read_repository_profile(frontier)
-        .map(|profile| matches!(profile, Some(FrontierProfileFile::V1(_))))
-}
-
 fn missing_v1_settings_error(frontier: &Path) -> String {
     format!(
-        "Frontier Profile v1 repository '{}' is missing required .vela/settings.toml; restore the exact typed settings file from its current repository history",
+        "current Frontier '{}' is missing required .vela/settings.toml; restore the exact typed settings file from its repository history",
         frontier.display()
     )
 }
@@ -177,10 +166,8 @@ fn load_flat(path: &Path) -> BTreeMap<String, String> {
     out
 }
 
-/// Load the closed v1 Frontier settings file when present. A v1 file is an
-/// explicit format boundary: malformed or unknown content fails closed and we
-/// never fall through to the mixed legacy config. When it is absent, retain
-/// the v0.1 allowlisted reader so existing Frontiers remain usable.
+/// Load the single closed Frontier settings file. Missing, malformed, or
+/// unknown content fails closed; predecessor configuration is never consulted.
 fn load_frontier_flat(frontier: &Path) -> Result<BTreeMap<String, String>, String> {
     let settings_path = frontier_settings_path(frontier);
     let raw = read_repository_control_text(
@@ -189,10 +176,7 @@ fn load_frontier_flat(frontier: &Path) -> Result<BTreeMap<String, String>, Strin
         ".vela/settings.toml",
     )?;
     let Some(raw) = raw else {
-        if uses_frontier_profile_v1(frontier)? {
-            return Err(missing_v1_settings_error(frontier));
-        }
-        return Ok(load_flat(&frontier_config_path(frontier)));
+        return Err(missing_v1_settings_error(frontier));
     };
     let settings = FrontierSettingsV1::from_toml(&raw).map_err(|error| {
         format!(
@@ -288,32 +272,9 @@ fn try_resolve_with(
     Ok((spec.default.to_string(), Origin::Default))
 }
 
-/// Validate v1 settings, or warn about ignored keys in the legacy mixed file.
-/// Silence is how configuration becomes a trust hole.
+/// Validate the one current Frontier settings file.
 pub(crate) fn validate_frontier_settings(frontier: &Path) -> Result<(), String> {
-    let settings_path = frontier_settings_path(frontier);
-    if settings_path.exists() {
-        load_frontier_flat(frontier)?;
-        return Ok(());
-    }
-
-    if uses_frontier_profile_v1(frontier)? {
-        return Err(missing_v1_settings_error(frontier));
-    }
-
-    let path = frontier_config_path(frontier);
-    if !path.exists() {
-        return Ok(());
-    }
-    for key in load_flat(&path).keys() {
-        match spec(key) {
-            Some(s) if s.frontier.is_some() => {}
-            _ => eprintln!(
-                "  warning: frontier config key `{key}` is not frontier-scoped; ignored \
-                 (routing/identity/UI keys are user-scope only)"
-            ),
-        }
-    }
+    load_frontier_flat(frontier)?;
     Ok(())
 }
 
@@ -361,14 +322,11 @@ pub(crate) fn set(key: &str, value: &str, frontier: Option<&Path>) -> Result<Pat
                 ));
             }
             let settings_path = frontier_settings_path(dir);
-            if settings_path.exists() {
-                set_frontier_v1_at(dir, key, Some(value))?;
-                return Ok(settings_path);
-            }
-            if uses_frontier_profile_v1(dir)? {
+            if !settings_path.exists() {
                 return Err(missing_v1_settings_error(dir));
             }
-            frontier_config_path(dir)
+            set_frontier_v1_at(dir, key, Some(value))?;
+            return Ok(settings_path);
         }
         None => user_config_path().ok_or("no HOME")?,
     };
@@ -420,7 +378,7 @@ fn set_frontier_v1_at_with_hook(
     )
 }
 
-/// Install one Profile v1 settings update without reopening the repository
+/// Install one current settings update without reopening the repository
 /// path at the write edge. The settings file is read through
 /// `read_repository_control_text`; the replacement is then created and
 /// renamed relative to a pinned `.vela` directory descriptor. This prevents a
@@ -485,14 +443,10 @@ pub(crate) fn unset(key: &str, frontier: Option<&Path>) -> Result<(), String> {
                      drop --frontier"
                 ));
             }
-            let settings_path = frontier_settings_path(dir);
-            if settings_path.exists() {
-                return set_frontier_v1_at(dir, key, None);
-            }
-            if uses_frontier_profile_v1(dir)? {
+            if !frontier_settings_path(dir).exists() {
                 return Err(missing_v1_settings_error(dir));
             }
-            frontier_config_path(dir)
+            return set_frontier_v1_at(dir, key, None);
         }
         None => user_config_path().ok_or("no HOME")?,
     };
@@ -632,6 +586,11 @@ mod tests {
         let tmp = tempfile::TempDir::new().unwrap();
         let frontier = tmp.path().join("f");
         std::fs::create_dir_all(frontier.join(".vela")).unwrap();
+        std::fs::write(
+            frontier.join(".vela/settings.toml"),
+            "schema = \"vela.frontier-settings.v1\"\n",
+        )
+        .unwrap();
         // User-only keys refuse frontier scope outright; narrowing keys refuse
         // widening values.
         assert!(set("ui.color", "never", Some(&frontier)).is_err());
@@ -639,12 +598,6 @@ mod tests {
         set("publish.git_push", "off", Some(&frontier)).unwrap();
         let (v, o) = try_resolve_with("publish.git_push", Some(&frontier), |_| None, None).unwrap();
         assert_eq!((v.as_str(), o), ("off", Origin::Frontier));
-        // A hand-written user-only key in legacy frontier config is ignored.
-        std::fs::write(
-            frontier.join(".vela/config.toml"),
-            "[ui]\ncolor = \"never\"\n[publish]\ngit_push = \"off\"\n",
-        )
-        .unwrap();
         let (v, o) = try_resolve_with("ui.color", Some(&frontier), |_| None, None).unwrap();
         assert_ne!(v, "never");
         assert_ne!(o, Origin::Frontier);
@@ -682,8 +635,8 @@ mod tests {
         let user = tmp.path().join("user.toml");
         std::fs::create_dir_all(frontier.join(".vela")).unwrap();
         std::fs::write(
-            frontier.join(".vela/config.toml"),
-            "[work]\nlease_ttl_seconds = 7200\n",
+            frontier.join(".vela/settings.toml"),
+            "schema = \"vela.frontier-settings.v1\"\n[work]\nlease_ttl_seconds = 7200\n",
         )
         .unwrap();
         std::fs::write(&user, "[work]\nlease_ttl_seconds = 3600\n").unwrap();
@@ -717,13 +670,6 @@ lease_ttl_seconds = 7200
 "#,
         )
         .unwrap();
-        // These legacy values must not leak through once the v1 boundary is
-        // present, even while a repository checkout is incomplete.
-        std::fs::write(
-            frontier.join(".vela/config.toml"),
-            "[work]\nlease_ttl_seconds = 5\n",
-        )
-        .unwrap();
         std::fs::write(
             &user,
             "[publish]\ngit_push = \"auto\"\n[work]\nlease_ttl_seconds = 3600\n",
@@ -750,7 +696,7 @@ lease_ttl_seconds = 7200
     }
 
     #[test]
-    fn invalid_v1_settings_fail_without_legacy_fallback() {
+    fn invalid_settings_fail_closed() {
         let tmp = tempfile::TempDir::new().unwrap();
         let frontier = tmp.path().join("frontier");
         std::fs::create_dir_all(frontier.join(".vela")).unwrap();
@@ -759,43 +705,16 @@ lease_ttl_seconds = 7200
             "schema = \"vela.frontier-settings.v1\"\n[policy]\nauto_accept = true\n",
         )
         .unwrap();
-        std::fs::write(
-            frontier.join(".vela/config.toml"),
-            "[publish]\ngit_push = \"off\"\n",
-        )
-        .unwrap();
-
         let error =
             try_resolve_with("publish.git_push", Some(&frontier), |_| None, None).unwrap_err();
         assert!(error.contains("invalid Frontier settings"), "{error}");
     }
 
     #[test]
-    fn profile_v1_missing_settings_never_falls_back_to_legacy_config() {
+    fn missing_settings_fail_closed() {
         let tmp = tempfile::TempDir::new().unwrap();
         let frontier = tmp.path().join("frontier");
         std::fs::create_dir_all(frontier.join(".vela")).unwrap();
-        std::fs::write(
-            frontier.join("frontier.yaml"),
-            r#"schema: vela.frontier-profile.v1
-frontier_id: vfr_0123456789abcdef
-name: Settings boundary fixture
-summary: Prove that Profile v1 never reads legacy runtime configuration.
-scope:
-  question: Does a missing typed settings file fail closed?
-  includes: []
-  excludes: []
-maintainers: []
-license:
-  content: CC-BY-4.0
-  code: Apache-2.0
-  data: varies
-"#,
-        )
-        .unwrap();
-        let legacy_path = frontier.join(".vela/config.toml");
-        let legacy = b"[work]\nlease_ttl_seconds = 5\n";
-        std::fs::write(&legacy_path, legacy).unwrap();
 
         let error = try_resolve_with("work.lease_ttl_seconds", Some(&frontier), |_| None, None)
             .unwrap_err();
@@ -806,19 +725,15 @@ license:
         assert!(validate_frontier_settings(&frontier).is_err());
         assert!(set("work.lease_ttl_seconds", "7200", Some(&frontier)).is_err());
         assert!(unset("work.lease_ttl_seconds", Some(&frontier)).is_err());
-        assert_eq!(std::fs::read(legacy_path).unwrap(), legacy);
     }
 
     #[test]
-    fn v1_set_and_unset_keep_typed_schema_and_leave_legacy_bytes_alone() {
+    fn settings_set_and_unset_keep_the_typed_schema() {
         let tmp = tempfile::TempDir::new().unwrap();
         let frontier = tmp.path().join("frontier");
         std::fs::create_dir_all(frontier.join(".vela")).unwrap();
         let settings_path = frontier.join(".vela/settings.toml");
-        let legacy_path = frontier.join(".vela/config.toml");
-        let legacy = b"[project]\nname = \"legacy\"\n";
         std::fs::write(&settings_path, "schema = \"vela.frontier-settings.v1\"\n").unwrap();
-        std::fs::write(&legacy_path, legacy).unwrap();
 
         assert_eq!(
             set("work.lease_ttl_seconds", "43200", Some(&frontier)).unwrap(),
@@ -830,7 +745,6 @@ license:
                 .unwrap();
         assert_eq!(parsed.work.unwrap().lease_ttl_seconds, 43_200);
         assert_eq!(parsed.publish.unwrap().git_push, FrontierGitPush::Off);
-        assert_eq!(std::fs::read(legacy_path).unwrap(), legacy);
     }
 
     #[cfg(unix)]

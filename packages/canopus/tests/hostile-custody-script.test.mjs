@@ -69,7 +69,7 @@ process.stdout.write(JSON.stringify({ type: "item.completed", item: { id: "messa
 
   const result = await command([
     process.execPath,
-    path.join(repository, "scripts/run-hostile-native-custody-fixture.mjs"),
+    path.join(repository, "tests/fixtures/run-hostile-native-custody.mjs"),
     "--codex", fake,
     "--codex-home", codexHome,
     "--model", "fixture",
@@ -106,7 +106,7 @@ process.exit(99);
 
   const result = await command([
     process.execPath,
-    path.join(repository, "scripts/run-hostile-native-custody-fixture.mjs"),
+    path.join(repository, "tests/fixtures/run-hostile-native-custody.mjs"),
     "--codex", fake,
     "--codex-home", codexHome,
     "--model", "fixture",

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+// CI preflight for the supported native worker sandbox.
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 

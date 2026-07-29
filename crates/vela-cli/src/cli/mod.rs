@@ -1,12 +1,10 @@
 use vela_protocol::frontier_repo;
 use vela_protocol::sign;
-use vela_protocol::state;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use clap::Parser;
-use serde::Serialize;
-use serde_json::{Value, json};
+use serde_json::json;
 use vela_protocol::cli_style as style;
 
 #[derive(Parser)]
@@ -20,7 +18,6 @@ struct Cli {
     command: Commands,
 }
 
-pub(crate) use crate::claim_view::*;
 pub(crate) use crate::cli_admin::*;
 pub(crate) use crate::cli_check::*;
 use crate::cli_commands::*;
@@ -91,25 +88,21 @@ pub async fn run_command() {
         }
         Commands::Log {
             frontier,
-            finding_id,
+            object_id,
             limit,
             kind,
             as_of,
             json,
         } => {
-            let (frontier, finding_id) =
-                crate::ui::resolve_frontier_with_id(frontier, finding_id, &["vf_"]);
-            if let Some(vf) = finding_id {
-                let payload = state::history_as_of(&frontier, &vf, as_of.as_deref())
-                    .unwrap_or_else(|e| fail_return(&e));
-                if json {
-                    print_json(&payload);
-                } else {
-                    print_history(&payload);
-                }
-            } else {
-                cmd_log(&frontier, limit, kind.as_deref(), json);
-            }
+            let frontier = crate::ui::resolve_frontier(frontier);
+            cmd_log(
+                &frontier,
+                object_id.as_deref(),
+                limit,
+                kind.as_deref(),
+                as_of.as_deref(),
+                json,
+            );
         }
         Commands::Verification { action } => cmd_verify_evidence(action),
         Commands::Agents { action } => crate::cli_agents::cmd_agents(action),
@@ -165,17 +158,17 @@ pub async fn run_command() {
                     view,
                     json,
                 },
-        } => cmd_claim_show(&frontier, &claim_id, &view, json),
+        } => crate::current_read::cmd_claim_show(&frontier, &claim_id, &view, json),
         Commands::Show {
             frontier,
             object_id,
             json,
-        } => crate::cli_object::cmd_show(&frontier, &object_id, json),
+        } => crate::current_read::cmd_show(&frontier, &object_id, json),
         Commands::Why {
             frontier,
             claim_id,
             json,
-        } => crate::cli_object::cmd_why(&frontier, &claim_id, json),
+        } => crate::current_read::cmd_why(&frontier, &claim_id, json),
         Commands::Next {
             frontier,
             limit,

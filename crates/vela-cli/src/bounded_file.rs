@@ -8,7 +8,6 @@
 use std::io::Read;
 use std::path::{Component, Path};
 
-pub(crate) const RECEIPT_MAX_BYTES: u64 = 8 * 1024 * 1024;
 pub(crate) const PUBLIC_ARTIFACT_MAX_BYTES: u64 = 8 * 1024 * 1024;
 pub(crate) const PUBLIC_ARTIFACT_TOTAL_MAX_BYTES: u64 = 64 * 1024 * 1024;
 
@@ -18,6 +17,7 @@ pub(crate) struct BoundedFileError {
     pub(crate) message: String,
     /// True only when a descriptor was successfully opened. Tests use this to
     /// prove pagination selects IDs before it touches retained material.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) opened: bool,
 }
 

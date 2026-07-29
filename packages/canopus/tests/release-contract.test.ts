@@ -22,7 +22,7 @@ test("current product release pins the tested Vela and Codex boundaries", async 
   assert.equal(lock.vela?.tag, `v${SUPPORTED_VELA_VERSION}`);
   assert.match(lock.vela?.source_commit ?? "", /^[0-9a-f]{40}$/u);
   assert.equal(Object.keys(lock.vela?.assets ?? {}).length, 3);
-  assert.match(workflow, /scripts\/export-toolchain-env\.mjs/u);
+  assert.match(workflow, /tooling\/export-toolchain-env\.mjs/u);
   assert.doesNotMatch(workflow, /releases\/download\/v0\.\d+\.\d+/u);
   assert.doesNotMatch(workflow, /archive_sha256:/u);
   assert.doesNotMatch(workflow, /binary_sha256:/u);

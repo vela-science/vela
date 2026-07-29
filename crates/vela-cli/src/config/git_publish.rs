@@ -5008,6 +5008,11 @@ mod tests {
         let project = vela_protocol::project::assemble("publication", vec![], 0, 0, "test");
         vela_protocol::repo::init_repo(path, &project).unwrap();
         vela_protocol::frontier_repo::materialize(path).unwrap();
+        fs::write(
+            path.join(".vela/settings.toml"),
+            "schema = \"vela.frontier-settings.v1\"\n",
+        )
+        .unwrap();
         fs::write(path.join(".gitignore"), "/.vela/work/\n/records/\n").unwrap();
         fs::write(path.join("unrelated.txt"), "base\n").unwrap();
         sh(path, &["add", "-A"]);

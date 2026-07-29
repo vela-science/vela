@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
+// Source-only evaluation command; excluded from the npm payload.
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import {

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+// Translate the checked toolchain lock into CI environment variables.
 import { readFileSync } from "node:fs";
 
 const lock = JSON.parse(

@@ -1,5 +1,6 @@
 import path from "node:path";
 
+// Deterministic command normalization for source-only evaluations.
 const separators = new Set(["&&", "||", ";", "|", "\n"]);
 
 function isWhitespace(character) {

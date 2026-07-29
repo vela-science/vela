@@ -5,7 +5,7 @@ import {
   commandTraceArgv,
   reportedCommandMatchesTrace,
   tokenizeShellCommand,
-} from "../scripts/lib/command-trace.mjs";
+} from "../evaluation/lib/command-trace.mjs";
 
 test("adjacent shell quotes normalize to the same argv token", () => {
   assert.deepEqual(

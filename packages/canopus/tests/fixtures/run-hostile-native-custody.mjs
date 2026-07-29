@@ -17,8 +17,8 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-import { summarizeCodexStructure } from "../dist/src/engines/codex-events.js";
-import { runNativeCustodyPreflight } from "../dist/src/product/custody.js";
+import { summarizeCodexStructure } from "../../dist/src/engines/codex-events.js";
+import { runNativeCustodyPreflight } from "../../dist/src/product/custody.js";
 
 const MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 const MAX_AUTH_BYTES = 2 * 1024 * 1024;
@@ -162,12 +162,12 @@ const binary = await realpath(options.get("--codex"));
 const binaryBytes = await readFile(binary);
 const sourceHome = await realpath(options.get("--codex-home"));
 const unrelated = await realpath(options.get("--unrelated"));
-const fixture = fileURLToPath(new URL("../tests/fixtures/native-worker/", import.meta.url));
+const fixture = fileURLToPath(new URL("./native-worker/", import.meta.url));
 const permissionProfile = fileURLToPath(
   new URL(
     process.platform === "linux"
-      ? "../runtime/native-worker/config-linux.toml"
-      : "../runtime/native-worker/config.toml",
+      ? "../../runtime/native-worker/config-linux.toml"
+      : "../../runtime/native-worker/config.toml",
     import.meta.url,
   ),
 );

@@ -7,7 +7,7 @@ on:
     paths:
       - "package.json"
       - "bun.lock"
-      - "packages/canopus/scripts/check-authority-boundary.mjs"
+      - "packages/canopus/tooling/check-authority-boundary.mjs"
       - "packages/protocol/**"
       - "packages/canopus/**"
       - ".github/workflows/product-ci.yml"
@@ -15,7 +15,7 @@ on:
     paths:
       - "package.json"
       - "bun.lock"
-      - "packages/canopus/scripts/check-authority-boundary.mjs"
+      - "packages/canopus/tooling/check-authority-boundary.mjs"
       - "packages/protocol/**"
       - "packages/canopus/**"
       - ".github/workflows/product-ci.yml"
@@ -47,7 +47,7 @@ jobs:
           node-version: 22
       - name: Load the exact tested toolchain
         shell: bash
-        run: node packages/canopus/scripts/export-toolchain-env.mjs "$RUNNER_OS" >> "$GITHUB_ENV"
+        run: node packages/canopus/tooling/export-toolchain-env.mjs "$RUNNER_OS" >> "$GITHUB_ENV"
       - run: bun install --frozen-lockfile
       - run: bun run --cwd packages/protocol build
       - name: Run platform-appropriate checks
@@ -107,7 +107,7 @@ jobs:
           printf '%s  %s\n' "$CODEX_BINARY_SHA256" "$codex_bin" | shasum -a 256 -c -
           chmod +x "$codex_bin"
           test "$("$codex_bin" --version)" = "codex-cli $CODEX_VERSION"
-          node packages/canopus/scripts/run-native-sandbox-preflight.mjs --codex "$codex_bin"
+          node packages/canopus/tooling/run-native-sandbox-preflight.mjs --codex "$codex_bin"
       - name: Pull frozen verifier anonymously by exact digest
         if: runner.os == 'Linux'
         env:
@@ -149,7 +149,7 @@ jobs:
           node-version: 22
       - name: Load the exact tested toolchain
         shell: pwsh
-        run: node packages/canopus/scripts/export-toolchain-env.mjs "$env:RUNNER_OS" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        run: node packages/canopus/tooling/export-toolchain-env.mjs "$env:RUNNER_OS" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - run: bun install --frozen-lockfile
       - run: bun run --cwd packages/protocol build
       - run: bun run --cwd packages/canopus typecheck
