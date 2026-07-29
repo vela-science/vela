@@ -1203,17 +1203,32 @@ longer overlap. This qualifies deterministic rendering only.
 `paper/artifacts/cost/plan.v1.json` freezes a descriptive cost observation at
 root
 `sha256:59e400d03b794736c673443f40abcb783e6f9d70e3454502ebd4c639119f8e24`.
-We will collect seven warm-cache samples after one warmup for `status` and
-strict repository verification on all four Frontiers, plus proposal inspection
-and frozen-witness replay on Erdős. The result retains every sample, normalized
-output root, exact Frontier head, repository root, tracked byte count, binary
-root, and machine identity. The credential-free implementation source root is
+The registered run began after the terminal Erdős 424 Decision. It retained
+seven warm-cache samples after one warmup for `status` and strict repository
+verification on all four Frontiers, plus proposal inspection and
+frozen-witness replay on Erdős. Result root
+`sha256:1ba33ce4387c624c7c0381091140db34bb7ff4bf933ce56d0abe5479cf495acd`
+binds every sample, normalized output root, exact Frontier head, repository
+root, tracked byte count, binary root, and machine identity. The
+credential-free implementation source root is
 `sha256:46ad4963a3dab362161496321ae036c1577784d3f57243691121da85b10bab98`.
 
-The entry gate requires a terminal Decision for Proposal
-`vpr_23f32f95d4f073e8`; running it now exits before timing or writing output.
-The result will be a first-party local observation, not an independent or
-cross-machine performance claim.
+A second execution from detached clean clones matched every deterministic
+field at projection root
+`sha256:f30d4c3464618e0159603ae8adaf58eb7addd63a4ce00f7a1d3fec18d2f85bd3`.
+Its raw result root is
+`sha256:8ee2588e3745324555862a14a7559d2374984661aa5ce783d6ed7c400b02599b`.
+Both executions used the same arm64 machine, Vela binary, operator, and
+implementation. They establish local reproducibility, not independent or
+cross-machine performance.
+
+Registered median latencies ranged from 47.502 ms for strict verification of
+the 90,770-byte Quantum Frontier to 1,583.397 ms for frozen-witness
+reproduction in the 40,672,878-byte Erdős Frontier. Erdős `status`, strict
+verification, and Proposal inspection measured 1,443.580 ms, 1,463.935 ms,
+and 1,479.464 ms. These timings exclude clone, network, compilation, model
+execution, and human review. The observation describes current first-party
+cost; it does not set a product performance claim.
 
 #### Whitepaper release-gate status
 

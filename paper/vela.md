@@ -346,15 +346,38 @@ fixtures; it is not a claim to provide a general graph engine. A future queue
 implementation would require byte-equivalent conformance evidence before
 replacing this reference behavior.
 
-Measured authoring, validation, replay, storage, and review costs remain a
-registered evaluation output rather than an estimate in this draft. We will
-report exact inputs, repetitions, warm-up policy, machine identity, raw
-samples, and medians. We make no performance claim before those observations
-exist. The frozen plan root is
-`sha256:59e400d03b794736c673443f40abcb783e6f9d70e3454502ebd4c639119f8e24`;
-its credential-free measurement implementation has source root
-`sha256:46ad4963a3dab362161496321ae036c1577784d3f57243691121da85b10bab98`.
-We run it only after the Erdős correction reaches terminal Standing.
+The registered cost observation used one arm64 macOS machine, Vela 0.940.9 at
+binary root
+`sha256:b4b85550aed52134ad2e21a3b1a163390ca1f16673811274b55b3b0f2089ed9c`,
+an empty home, no credential environment, and a network-denied process
+sandbox. Plan root
+`sha256:59e400d03b794736c673443f40abcb783e6f9d70e3454502ebd4c639119f8e24`
+fixed one warmup followed by seven retained warm-cache samples. The terminal
+Erdős 424 Decision preceded the run.
+
+| Frontier | Tracked bytes | `status` median | strict median |
+| --- | ---: | ---: | ---: |
+| Erdős | 40,672,878 | 1,443.580 ms | 1,463.935 ms |
+| Formal | 200,725 | 200.597 ms | 191.449 ms |
+| Sidon | 8,133,169 | 194.618 ms | 159.933 ms |
+| Quantum | 90,770 | 54.029 ms | 47.502 ms |
+
+Erdős Proposal inspection measured a 1,479.464 ms median. Frozen-witness
+reproduction measured 1,583.397 ms. Result root
+`sha256:1ba33ce4387c624c7c0381091140db34bb7ff4bf933ce56d0abe5479cf495acd`
+retains all samples, normalized outputs, exact source heads, repository roots,
+tracked inventory, and machine identity.
+
+A second execution from detached clean clones matched the plan, binary,
+source heads, repository roots, counts, tracked inventory, normalized output
+roots, and limits. The shared deterministic projection root is
+`sha256:f30d4c3464618e0159603ae8adaf58eb7addd63a4ce00f7a1d3fec18d2f85bd3`;
+the second raw result root is
+`sha256:8ee2588e3745324555862a14a7559d2374984661aa5ce783d6ed7c400b02599b`.
+Both executions used the same machine, operator, and implementation. The
+numbers describe warm-cache local cost. They exclude clone, network,
+compilation, model execution, and human review, and support no independent or
+cross-machine performance claim.
 
 ## 5. Implementation
 
@@ -855,11 +878,11 @@ benchmark has not measured federation or recurring external use. SHA-256 and
 Ed25519 are assumed secure. Git hosting availability is operationally useful
 but not canonical.
 
-The current public contract cannot express the registered non-escalating
-second-Frontier transfer. This revision fails a protocol benchmark; product
-polish cannot repair it. Any repair must remain smaller than a hosted
-federation system and must be justified by independent readers over the
-terminal real correction.
+The public protocol has no foreign-reference object. The derived edge-layer
+envelope passes a synthetic containment vector, but no second Frontier has
+retained and verified the terminal source correction. This revision fails B8.
+A successful repair must remain smaller than a hosted federation
+system and must survive the real transfer experiment.
 
 If the real correction, second-Frontier, held-out, or cold-use gates fail, the
 paper must report that failure and narrow its claim. A failed correction-impact
