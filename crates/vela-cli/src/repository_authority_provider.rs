@@ -240,8 +240,8 @@ fn push_string(output: &mut Vec<u8>, value: &[u8]) -> Result<(), String> {
 /// keys, and algorithm substitution are rejected because
 /// `vela.authority-keyset.v1` currently admits only raw Ed25519 verification.
 pub(crate) struct SshAgentRepositoryAuthoritySigner {
-    connection: AgentConnection,
-    identity: AgentIdentity,
+    connection: Option<AgentConnection>,
+    identity: Option<AgentIdentity>,
     key_id: String,
     expected_public_key: [u8; 32],
 }
@@ -273,21 +273,45 @@ impl SshAgentRepositoryAuthoritySigner {
             ));
         };
         Ok(Self {
-            connection,
-            identity: identity.clone(),
+            connection: Some(connection),
+            identity: Some(identity.clone()),
             key_id,
             expected_public_key,
         })
     }
 
-    /// Resolve the platform's standard OpenSSH agent endpoint.
+    /// Prepare the platform's standard OpenSSH agent signer.
     ///
-    /// The endpoint itself is process-local configuration and never enters a
-    /// Frontier, an authority record, a journal, or a diagnostic payload.
+    /// This constructor validates only the static authority-key configuration.
+    /// It deliberately defers endpoint resolution, identity enumeration, and
+    /// agent access until `sign`, after transaction authentication and Cedar
+    /// authorization have passed. The endpoint itself is process-local
+    /// configuration and never enters a Frontier, an authority record, a
+    /// journal, or a diagnostic payload.
     pub(crate) fn from_environment(
         key_id: impl Into<String>,
         expected_public_key_hex: &str,
     ) -> Result<Self, String> {
+        let key_id = key_id.into();
+        if key_id.trim().is_empty() {
+            return Err("repository-authority key ID is empty".into());
+        }
+        let expected_public_key = decode_ed25519_public_key(expected_public_key_hex)?;
+        Ok(Self {
+            connection: None,
+            identity: None,
+            key_id,
+            expected_public_key,
+        })
+    }
+
+    fn connect_from_environment(&mut self) -> Result<(), String> {
+        if self.connection.is_some() && self.identity.is_some() {
+            return Ok(());
+        }
+        if self.connection.is_some() || self.identity.is_some() {
+            return Err("repository-authority signer has partial agent state".into());
+        }
         let socket = env::var_os("SSH_AUTH_SOCK")
             .or({
                 #[cfg(windows)]
@@ -300,7 +324,14 @@ impl SshAgentRepositoryAuthoritySigner {
                 }
             })
             .ok_or_else(|| "SSH_AUTH_SOCK is not set".to_string())?;
-        Self::connect(Path::new(&socket), key_id, expected_public_key_hex)
+        let connected = Self::connect(
+            Path::new(&socket),
+            self.key_id.clone(),
+            &hex::encode(self.expected_public_key),
+        )?;
+        self.connection = connected.connection;
+        self.identity = connected.identity;
+        Ok(())
     }
 }
 
@@ -389,11 +420,19 @@ impl RepositoryAuthoritySigner for SshAgentRepositoryAuthoritySigner {
                 "repository authority refuses payload type {payload_type}"
             ));
         }
+        self.connect_from_environment()?;
         let pae = dsse_pae(payload_type, canonical_payload);
+        let connection = self
+            .connection
+            .as_mut()
+            .ok_or_else(|| "repository-authority signer has no agent connection".to_string())?;
+        let identity = self
+            .identity
+            .as_ref()
+            .ok_or_else(|| "repository-authority signer has no selected identity".to_string())?;
         let signature = Signature::from_bytes(
-            &self
-                .connection
-                .sign(&self.identity.key_blob, &pae)
+            &connection
+                .sign(&identity.key_blob, &pae)
                 .map_err(|error| format!("SSH agent signing failed: {error}"))?,
         );
         let verifying_key = VerifyingKey::from_bytes(&self.expected_public_key)
@@ -569,5 +608,23 @@ mod tests {
         .err()
         .expect("wrong key length must fail");
         assert!(error.contains("expected 32"), "{error}");
+    }
+
+    #[test]
+    fn environment_provider_defers_agent_access_until_signing() {
+        let mut provider = SshAgentRepositoryAuthoritySigner::from_environment(
+            "repository-key-1",
+            &hex::encode([42; 32]),
+        )
+        .unwrap();
+        assert!(provider.connection.is_none());
+        assert!(provider.identity.is_none());
+
+        let error = provider
+            .sign("application/json", br#"{"schema":"not-authority"}"#)
+            .unwrap_err();
+        assert!(error.contains("payload type"), "{error}");
+        assert!(provider.connection.is_none());
+        assert!(provider.identity.is_none());
     }
 }

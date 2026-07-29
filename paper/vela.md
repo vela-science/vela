@@ -33,8 +33,11 @@ external independence required by the registered benchmark. The frozen
 held-out selector subsequently found no qualifying candidate, so confirmatory
 two-fixture credit is unavailable in this campaign. The evidence therefore
 supports local admission, scoped verification, Decision, replay, and
-supersession, not the registered protocol claim. This draft reports the failed
-entry gate rather than substituting a synthetic case.
+supersession. It now also supports one bounded, first-party cross-Frontier
+transfer with exact receiver Verification, clean-clone replay, and zero
+authority escalation. It does not support the full registered protocol claim.
+This draft reports the failed entry gate rather than substituting a synthetic
+case.
 
 ## 1. Introduction
 
@@ -82,9 +85,10 @@ The paper makes four contributions only if their evidence gates pass:
 3. a two-implementation, adversarial, cross-Frontier evaluation; and
 4. a matched cold-use comparison against Git plus identical evidence.
 
-At present, only the first contribution and synthetic implementation
-qualification are demonstrated. The remaining claims are registered
-experiments.
+At present, the first contribution, one bounded cross-Frontier transfer, and
+synthetic implementation qualification are demonstrated. Real
+correction-impact propagation, held-out confirmation, external independence,
+and cold-use lift remain registered experiments.
 
 ## 2. Scope and system model
 
@@ -586,8 +590,21 @@ silent truncation, source and semantic substitution, object-byte drift, path
 and symlink escape, and signature tampering. Formal Conjectures has retained
 the exact archive through corrected Submission `vsb_bb9b64f5d93b8cad` and
 pending Proposal `vpr_7aba66544ffefd99` with accepted-event delta zero.
-Receiver Verification and clean-clone replay remain incomplete, so B8 still
-fails.
+A credential-free import preflight verified the signed receiver record, every
+exact subject, repository, authority history, trust anchor, Cedar
+authorization, and canonical transaction set, then stopped at signing without
+changing Git or operation journals. Its result root is
+`sha256:00b135a27088af1049ffe86cc329a5bec10fde098e32ac8342900c84a8a95c09`.
+Repository authority then imported scoped Verification
+`vvr_ebc29eae4f5f4edf`. Remote commit
+`3fe6bf62afd587b9cdeac39f5eb3c62a28fbc0aa` reproduces repository root
+`sha256:5e59e05a5639ac0ec4331ec40fec9f50229b795a1a08d983ba96834d4777b58a`
+from a clean clone. The Proposal remains `pending_review`, no Decision exists,
+and local accepted Standing is unchanged. Receiver audit root
+`sha256:a5867554d4dc9ea4dcd6d415a2be263c84dc0f6fbbe497fb86b427104368d75c`
+therefore passes B8 and authority non-escalation. It does not demonstrate
+external independence, performance lift, or readiness for a Registry or
+Atlas.
 
 The matched Git-versus-Vela reviewer protocol is frozen at root
 `sha256:68fb039088302d19f02cf2628c16004e174649b1f952a63a0fd35210c0dd0ef8`.
@@ -691,7 +708,7 @@ framework was evaluated or retained.
 | B5 removability | writer qualification pass; primary pending | entry gate failed | replay unchanged |
 | B6 hosted-service failure | writer qualification pass; primary pending | entry gate failed | replay succeeds |
 | B7 support diversity | pending | entry gate failed | exact route accounting |
-| B8 second Frontier | gap reproduced; source package passes two readers; receiver registration passes with zero accepted delta; Verification pending | entry gate failed | zero imported authority |
+| B8 second Frontier | exact receiver retention, scoped Verification, and clean-clone replay pass with zero accepted delta | entry gate failed | zero imported authority |
 | B9 observability | synthetic pass only | entry gate failed | no silent truncation |
 | B10 cold inheritance | first pilot failed hard budget | entry gate failed | at least 20% median lift |
 
@@ -753,9 +770,10 @@ The evaluation includes:
 - **Foreign Frontier:** foreign state must be attributed information with no
   imported local authority. A derived edge-layer envelope passes real-source
   semantic, signature, and containment checks without changing the protocol.
-  Formal Conjectures has retained it as a pending local Proposal with zero
-  accepted-state delta, but the scoped receiver Verification and clean-clone
-  replay remain incomplete; B8 therefore remains unsatisfied.
+  Formal Conjectures retained it as a pending local Proposal, imported a
+  scoped Verification, and reproduced the resulting root from a clean clone
+  with zero accepted-state delta. B8 passes; external independence and
+  performance lift remain unestablished.
 - **Implementation:** Rust and clean-room Python reduce shared-code defects but
   share the same specification, fixtures, operator, and project incentives.
   Agreement is implementation diversity, not organizational independence.
@@ -904,9 +922,10 @@ but not canonical.
 
 The public protocol has no foreign-reference object. The derived edge-layer
 envelope passes the real Erdős source qualification in two implementations,
-but no second Frontier has retained and verified the terminal source
-correction. This revision fails B8. A successful repair must remain smaller
-than a hosted federation system and must survive the receiver-side experiment.
+and a second Frontier retained and verified the terminal source correction
+without importing authority. This passes B8 for one first-party case. It does
+not establish external independence, recurring transfer, or value over a plain
+rooted manifest.
 
 If the real correction, second-Frontier, held-out, or cold-use gates fail, the
 paper must report that failure and narrow its claim. A failed correction-impact
@@ -965,9 +984,11 @@ directionally cheaper and more accurate with Vela but failed its preregistered
 token budget and exact-answer requirement. A derived foreign-reference
 envelope now qualifies the real source package in two colocated readers,
 including its authority signature. A second Frontier retained that exact
-package through a pending, non-authoritative Submission, but its scoped
-Verification remains unpublished. The frozen held-out selector found no
-qualifying candidate. The stronger claim, that this
+package through a pending, non-authoritative Submission, imported a scoped
+Verification, and replayed the resulting repository from a clean clone with
+zero accepted-state delta. This passes the bounded transfer and authority
+containment gate. The frozen held-out selector found no qualifying candidate.
+The stronger claim, that this
 mechanism preserves useful scientific inheritance across real corrections and
 plural authorities better than Git alone, is therefore not satisfied by the
 audited system.

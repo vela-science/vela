@@ -8,7 +8,7 @@
 - Service effect: none
 - Builds on:
   [ADR 0026](0026-correction-benchmark-and-whitepaper-evidence-contract.md)
-  and the B8 failure in the
+  and the original B8 failure in the
   [protocol breakthrough benchmark](../BREAKTHROUGH_BENCHMARK.md)
 
 ## Context
@@ -29,10 +29,14 @@ dependency-free Python readers at reference root
 `sha256:b7b330ae6ea4915d5bac218233f0a272ee961060682be6d22f6a8ea1b78c4ed6`.
 Formal Conjectures retained that exact archive through corrected Submission
 `vsb_bb9b64f5d93b8cad` and Proposal `vpr_7aba66544ffefd99`. Registration left
-accepted Standing unchanged. A signed, explicitly non-independent scoped
-Verification is prepared but not yet imported, so the experiment remains
-incomplete. It is not eligible to add a federation service, global identifier
-system, resolver, Registry, second writer, distributed transaction, or
+accepted Standing unchanged. It then imported signed, explicitly
+non-independent Verification `vvr_ebc29eae4f5f4edf` and reproduced repository
+root
+`sha256:5e59e05a5639ac0ec4331ec40fec9f50229b795a1a08d983ba96834d4777b58a`
+from clean remote commit `3fe6bf62afd587b9cdeac39f5eb3c62a28fbc0aa`.
+The Proposal remains pending, no Decision exists, and the experiment passes
+B8. It is not eligible to add a federation service, global identifier system,
+resolver, Registry, second writer, distributed transaction, or
 imported authority.
 
 ## Decision proposed
@@ -197,6 +201,7 @@ Accept only after:
 - B8 changes from an unimplemented gap to a bounded, falsifiable experiment.
 - The current public protocol and CLI remain unchanged.
 - The source package, two-reader qualification, and ordinary receiver
-  registration are complete; receiver Verification and clean-clone replay
-  remain pending.
+  registration, scoped Verification, and clean-clone replay are complete.
+- Promotion remains gated on a held-out second case, an independently governed
+  consumer, and measured value over a plain rooted manifest.
 - Failure removes code rather than expanding architecture.

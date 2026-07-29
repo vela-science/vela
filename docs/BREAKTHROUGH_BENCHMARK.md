@@ -212,15 +212,32 @@ property inside an aggregate score.
 Report execution lift, state lift, inheritance lift, and adoption separately.
 No combined score can compensate for a hard-gate failure.
 
-Current B8 status is source-qualified but incomplete. The real Erdős 424
+Current B8 status is passed for exact retained transfer. The real Erdős 424
 reference passes the Rust and dependency-free Python readers at root
 `sha256:b7b330ae6ea4915d5bac218233f0a272ee961060682be6d22f6a8ea1b78c4ed6`,
 including repository-authority signature verification and explicit local
 Standing effect `none`. Formal retained the exact archive through corrected
 Submission `vsb_bb9b64f5d93b8cad` and pending Proposal
-`vpr_7aba66544ffefd99`, with accepted-event delta zero. The scoped receiver
-Verification and clean-clone replay remain incomplete, so B8 remains failed
-rather than partial credit being reported as transfer.
+`vpr_7aba66544ffefd99`, imported scoped Verification
+`vvr_ebc29eae4f5f4edf`, and reproduced repository root
+`sha256:5e59e05a5639ac0ec4331ec40fec9f50229b795a1a08d983ba96834d4777b58a`
+from clean remote commit `3fe6bf62afd587b9cdeac39f5eb3c62a28fbc0aa`.
+The Proposal remains `pending_review`, no Decision exists, and accepted-event
+delta is zero. Receiver audit
+`paper/artifacts/transfer/erdos-424/receiver-publication.v1.json`, byte root
+`sha256:a5867554d4dc9ea4dcd6d415a2be263c84dc0f6fbbe497fb86b427104368d75c`,
+therefore passes B8 and authority non-escalation. It does not claim external
+independence, performance lift, or eligibility for a Registry or Atlas.
+
+The receiver preflight is complete. After deferring SSH-agent access until the
+signature boundary, Vela verified the signed record, every exact subject,
+repository, authority history, trust anchor, Cedar authorization, and
+canonical transaction set. With `SSH_AUTH_SOCK` absent it then stopped at
+signing without changing Git, the worktree, or operation journals. The
+observation is rooted at
+`sha256:00b135a27088af1049ffe86cc329a5bec10fde098e32ac8342900c84a8a95c09`.
+It proves fail-closed readiness and signer ordering; the separately rooted
+publication audit above proves B8.
 
 The frozen held-out selector has also produced a negative result. Its
 four-Frontier audit found only the already excluded Erdős 424

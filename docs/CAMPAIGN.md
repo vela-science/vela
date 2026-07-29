@@ -1260,13 +1260,13 @@ gates, and no packaging or rendering result substitutes for them:
 | ADR 0026 Accepted | Not met | ADR 0026 remains Proposed |
 | Primary and held-out plans frozen before confirmatory runs | Met | both plans predate confirmatory execution; the held-out selector subsequently returned `no_qualifying_candidate` at result root `sha256:f80cf6b81c9b056535ccf17a24b1631d8f3e57d3bc3ecea65d7516c1b831be5b` |
 | Two implementations agree | Partial | Rust and clean-room Python agree on the real Erdős reference and verify its complete semantic and authority-signature chain; no held-out candidate exists for confirmatory agreement |
-| All hard safety gates pass | Not met | the real source package passes containment and tamper checks, but Formal has not yet retained and verified it |
+| All hard safety gates pass | Partial | the real source and receiver transfer pass containment, tamper, and authority-non-escalation checks; the held-out entry gate has no qualifying candidate |
 | Both fixtures pass B1 through B10 | Failed | the held-out entry gate produced no qualifying candidate, so a two-fixture breakthrough result is unavailable in this campaign |
 | One external participant completes each cold-use fixture | Not met | all current sessions are first-party |
 | Public artifact reproduces every reported result | Partial | deterministic source packaging and PDF rendering pass; terminal and external evidence do not exist |
 | Mathematical reviewer checks fixture interpretation | Not met | no qualified external review retained |
 | Systems reviewer checks protocol, threat model, and evaluation | Not met | no qualified external review retained |
-| Title, abstract, and conclusion stay within the evidence ladder | Met for the draft | the draft reports Level 0, the B8 failure, the failed held-out entry gate, and pending stronger claims |
+| Title, abstract, and conclusion stay within the evidence ladder | Met for the draft | the draft reports the bounded B8 pass, failed held-out entry gate, absent external independence, and pending stronger claims |
 
 The protocol-paper release stays closed until every row is met. If the
 campaign ends with failed rows, publish a narrower engineering or falsification
@@ -1286,9 +1286,11 @@ or explicit local non-authority. They have now been removed from the current
 Claim and Proposal schemas. The public CLI still has no foreign-transfer
 surface, and its release contract deliberately rejects a `federation` command.
 
-This is a reproduced gap and a current B8 failure. Reinterpreting migration
-fields would be an unsafe semantic rebind. The result does not justify a Hub,
-Registry, resolver, global namespace, graph database, or second writer. Rust
+This reproduced the gap that originally failed B8. Reinterpreting migration
+fields would have been an unsafe semantic rebind. The later edge-layer
+reference and receiver experiment repaired that bounded case without changing
+the protocol. Neither result justifies a Hub, Registry, resolver, global
+namespace, graph database, or second writer. Rust
 and clean-room Python reproduced the same negative inventory at fixture root
 `sha256:fffb66f5afa69b8a47824a45bc382d97e4c655dc282a3b3d6ba339f2b70906ae`.
 That earned implementation-diversity credit, not organizational independence.
@@ -1317,21 +1319,40 @@ package, not B8 or external independence.
 Formal now exposes exact Target `formal:retain-erdos-424-correction`. Corrected
 Submission `vsb_bb9b64f5d93b8cad` retained the archive under Proposal
 `vpr_7aba66544ffefd99` with accepted-event delta zero and strict repository
-root
+root before Verification
 `sha256:df94b3853e62d035844863d0289db4a26f0849d209976028b9bea95f79943915`.
 The prior pending Proposal `vpr_b81d87fce0d9c81c` contains a one-character
 reference-root typo, has no Verification, and must not be accepted. A signed
 scoped Verification over the corrected Proposal passes the exact archive
-reader and explicitly claims no producer independence. Its import remains the
-last receiver-side write before clean-clone replay. The current import path
-uses the repository-authority SSH signer even for this non-authorizing
-evidence action; the agent therefore prepared the exact record but did not
-trigger that credential. The implementation now contradicts the agent
-contract: VELA.md permits an agent verifier to import a scoped record but
-forbids the agent from triggering the repository-authority credential. Resolve
-that contradiction without adding a second writer or weakening local
-authority. No federation command, service, resolver, Registry, second writer,
-or imported authority is authorized.
+reader and explicitly claims no producer independence. Repository authority
+imported it as Verification `vvr_ebc29eae4f5f4edf` without a Decision or
+accepted-state change. Remote commit
+`3fe6bf62afd587b9cdeac39f5eb3c62a28fbc0aa` replays cleanly at repository
+root
+`sha256:5e59e05a5639ac0ec4331ec40fec9f50229b795a1a08d983ba96834d4777b58a`.
+The Proposal remains `pending_review`. No federation command, service,
+resolver, Registry, second writer, or imported authority was added.
+
+A narrow implementation repair now defers SSH-agent endpoint resolution and
+identity enumeration until the signed transaction is actually needed. A
+credential-free execution with `SSH_AUTH_SOCK` removed verified the signed
+record, its exact subjects, current repository, authority history, trust
+anchor, Cedar authorization, and canonical transaction sets, then stopped at
+signing with `SSH_AUTH_SOCK is not set`. Git head, tree, status, and the
+complete operation journal set remained byte-identical. The rooted preflight
+`paper/artifacts/transfer/erdos-424/receiver-preflight.v1.json`, byte root
+`sha256:00b135a27088af1049ffe86cc329a5bec10fde098e32ac8342900c84a8a95c09`,
+binds the signed Verification root, Formal repository root, local binary,
+expected error, output roots, and zero-write audit.
+
+The completed receiver audit is
+`paper/artifacts/transfer/erdos-424/receiver-publication.v1.json`, byte root
+`sha256:a5867554d4dc9ea4dcd6d415a2be263c84dc0f6fbbe497fb86b427104368d75c`.
+It binds the source reference, corrected receiver Submission and Proposal,
+scoped Verification, authority record file, pushed commit, strict repository
+root, proposal standing, and clean-clone counts. The result passes B8 and
+authority non-escalation. It does not claim external independence, performance
+lift, or readiness for a Registry or Atlas.
 
 #### Matched state-lift pilot
 

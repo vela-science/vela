@@ -1,0 +1,61 @@
+{
+  "schema": "vela.foreign-reference-receiver-publication.v1",
+  "source": {
+    "frontier_id": "vfr_0a25edabc16db143",
+    "commit": "81e79f008b4fc653888efda810dd8eb48e50cffa",
+    "reference_root": "sha256:b7b330ae6ea4915d5bac218233f0a272ee961060682be6d22f6a8ea1b78c4ed6",
+    "object_set_root": "sha256:f9cc936b42f7ee624d98583332454dbb46b68c00fa2819d990cea4d6d7daec8a",
+    "archive_sha256": "sha256:3a1f083e55ead5818b3dad5eca163155cab1f8d8905be2b61ab58e3823a2b26c"
+  },
+  "receiver": {
+    "frontier_id": "vfr_97d7d25957384f80",
+    "commit": "3fe6bf62afd587b9cdeac39f5eb3c62a28fbc0aa",
+    "tree": "a27407e5dbfb6cd9fd8fe2423deeb242b6e1860e",
+    "repository_root": "sha256:5e59e05a5639ac0ec4331ec40fec9f50229b795a1a08d983ba96834d4777b58a",
+    "origin_id": "vro_3fd736a06a2c448f",
+    "origin_root": "sha256:aabcbd3a660e5992a13485257df4c8e038c75af2a3e68bf37df16980d390e80a",
+    "proposal_id": "vpr_7aba66544ffefd99",
+    "proposal_root": "sha256:ef45bd71f04ebcadb922017065436ac49843fc129411812b4bf77a1b2a8e177c",
+    "claim_id": "vcl_1b3e297c552170bc608ac84bc7e19d1ec234125aa77be7959708f18566d7bb45",
+    "submission_id": "vsb_bb9b64f5d93b8cad",
+    "submission_root": "sha256:7db8d8e15229be98ced55e4d9e70d80a4da5c6b7a7eafbbfa85f4a400d268a03",
+    "verification_record_id": "vvr_ebc29eae4f5f4edf",
+    "verification_record_root": "sha256:4fe6e7d6dd361ec4ebe70cb9aba2d4570da27a0a4b10fe0f42f59cbf14b92200",
+    "verification_outcome": "pass",
+    "verification_independent_of_producer": false,
+    "proposal_standing": "pending_review",
+    "decision": null,
+    "accepted_event_delta": 0,
+    "authority_record_id": "var_dba47d7c16351090",
+    "authority_record_file_sha256": "sha256:a41667cfcc52cd6e3a0ca57dc253d6f1d37b3e1aaff73834fdc2f516429b0053"
+  },
+  "publication": {
+    "operation_id": "vop_667d0fba28c4778294add0696aa94b8a015c37950a15ddbca86f80b99be1b747",
+    "state": "pushed",
+    "remote": "https://github.com/vela-science/formal-conjectures-frontier.git",
+    "remote_ref": "refs/heads/main",
+    "remote_commit": "3fe6bf62afd587b9cdeac39f5eb3c62a28fbc0aa"
+  },
+  "clean_clone_replay": {
+    "ok": true,
+    "clean": true,
+    "commit": "3fe6bf62afd587b9cdeac39f5eb3c62a28fbc0aa",
+    "tree": "a27407e5dbfb6cd9fd8fe2423deeb242b6e1860e",
+    "repository_root": "sha256:5e59e05a5639ac0ec4331ec40fec9f50229b795a1a08d983ba96834d4777b58a",
+    "accepted_claims": 14,
+    "pending_claims": 2,
+    "proposals": 2,
+    "submissions": 2,
+    "registrations": 2,
+    "verifications": 1,
+    "artifacts": 4
+  },
+  "assessment": {
+    "transfer": "pass",
+    "authority_non_escalation": "pass",
+    "local_standing_effect": "none",
+    "external_independence": "not_claimed",
+    "performance_lift": "not_measured",
+    "registry_or_atlas_earned": false
+  }
+}

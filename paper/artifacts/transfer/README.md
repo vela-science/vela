@@ -26,6 +26,29 @@ This qualifies the source package and the two implementations. It does not
 complete B8 until a second Frontier retains and verifies the package through
 its ordinary non-authoritative producer path.
 
+Formal Conjectures retained the exact archive under corrected Proposal
+`vpr_7aba66544ffefd99`. A credential-free import preflight then verified the
+signed receiver Verification, its actor, Proposal, Submission, Claim,
+Artifacts, current repository, authority history, trust anchor, Cedar
+authorization, and canonical transaction sets. With `SSH_AUTH_SOCK`
+deliberately absent, execution stopped when the already-authorized transaction
+needed its signature and left Git, the worktree, and every operation journal
+byte-identical. The rooted observation is
+`erdos-424/receiver-preflight.v1.json`, byte root
+`sha256:00b135a27088af1049ffe86cc329a5bec10fde098e32ac8342900c84a8a95c09`.
+This proves readiness and fail-closed behavior, not receiver publication.
+
+Receiver publication is recorded separately in
+`erdos-424/receiver-publication.v1.json`, byte root
+`sha256:a5867554d4dc9ea4dcd6d415a2be263c84dc0f6fbbe497fb86b427104368d75c`.
+Formal Conjectures imported scoped Verification `vvr_ebc29eae4f5f4edf`,
+pushed commit `3fe6bf62afd587b9cdeac39f5eb3c62a28fbc0aa`, and reproduced repository
+root
+`sha256:5e59e05a5639ac0ec4331ec40fec9f50229b795a1a08d983ba96834d4777b58a`
+from a clean clone. The Proposal remains `pending_review`, no Decision exists,
+and accepted-event delta is zero. This completes B8 without importing source
+authority. It does not establish external independence or measured lift.
+
 Rebuild and verify the source package:
 
 ```bash
