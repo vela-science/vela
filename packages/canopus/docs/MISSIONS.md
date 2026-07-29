@@ -11,6 +11,22 @@ plus the Vela, Codex, container, packet, profile, and capsule identities.
 profile → mission → run → replay → optional export → optional submit
 ```
 
+Current runnable profiles are deliberately few:
+
+- `erdos1056-k15-10429201-10429400` performs one bounded deterministic
+  computation; and
+- `formal-erdos-505-test-dim-one` produces one raw Lean term and checks it in
+  the exact source-bound Lean 4.27.0 environment.
+
+The Formal profile's kernel and axiom result is a scoped Verification input.
+It does not establish statement fidelity or scientific Standing.
+
+Repair missions bind both `parent_candidate` and `repair_reason`. They must be
+invoked with `--repair-from <exact-candidate-file>`. Canopus verifies that the
+file bytes match the full parent root, stages them at the single contracted
+artifact path, and records `repair.input_bound` before the worker starts. A
+hash without the corresponding bytes is not a repair handoff.
+
 - A **Run** is local orchestration evidence. It never mutates a frontier.
 - A successful Run may **export** one authenticated Vela Submission.
 - **Submit** is a separate explicit action that asks Vela to register the

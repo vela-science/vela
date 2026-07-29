@@ -22,6 +22,7 @@
 ## Project documents
 
 - [Active evidence campaign](CAMPAIGN.md)
+- [Protocol breakthrough benchmark](BREAKTHROUGH_BENCHMARK.md)
 - [Roadmap](ROADMAP.md)
 - [Interoperability boundary](INTEROPERABILITY.md)
 - [Theory](THEORY.md)

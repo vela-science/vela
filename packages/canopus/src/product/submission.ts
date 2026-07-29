@@ -43,6 +43,8 @@ const STALE_VERIFIER_LANGUAGE =
 const CONTROL_CHARACTER = /[\u0000-\u001f\u007f]/u;
 const CORRECTION_NOTICE =
   "The Submission wording corrects a stale post-run Claim after verifier passage; the immutable Run remains unchanged.";
+const REFINEMENT_NOTICE =
+  "The Submission wording refines the retained Run Claim after verifier passage; the immutable Run remains unchanged.";
 
 export interface SubmissionBundleManifest {
   schema: "canopus.submission-bundle.v1";
@@ -141,9 +143,6 @@ export async function exportSubmission(options: {
       "Run Claim is stale after verifier passage or contains control bytes; export requires --claim and --scope-limit to author one corrected bounded Submission without changing the Run",
     );
   }
-  if (!retainedClaimNeedsCorrection && options.correctedClaim !== undefined) {
-    throw new Error("Submission correction is allowed only for a retained Run Claim that is stale or contains control bytes");
-  }
   const assertion = options.correctedClaim ?? record.candidate.claim;
   if (CONTROL_CHARACTER.test(assertion)) {
     throw new Error("Submission Claim contains a control character");
@@ -156,7 +155,12 @@ export async function exportSubmission(options: {
   }
   const caveats = [...new Set([
     ...record.candidate.caveats.map(finalizeWorkerCaveat),
-    ...(options.scopeLimit === undefined ? [] : [options.scopeLimit, CORRECTION_NOTICE]),
+    ...(options.scopeLimit === undefined
+      ? []
+      : [
+          options.scopeLimit,
+          retainedClaimNeedsCorrection ? CORRECTION_NOTICE : REFINEMENT_NOTICE,
+        ]),
   ])];
   const actor = options.actor ?? mission.actor;
   if (!actor.startsWith("agent:")) {

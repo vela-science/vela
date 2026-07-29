@@ -55,6 +55,11 @@ export interface EngineContext {
   briefing: Record<string, unknown>;
   paths: WorkspacePaths;
   budget: BudgetTracker;
+  repairInput?: {
+    path: string;
+    digest: string;
+    bytes: Buffer;
+  };
 }
 
 export interface Engine {

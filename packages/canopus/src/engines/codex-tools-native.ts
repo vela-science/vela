@@ -64,6 +64,11 @@ function prompt(mission: MissionV1): string {
       ? [
           "This registered formal mission exposes exactly one packet file. Do not enumerate the workspace or use rg, find, Python, package managers, or external tools.",
           `Use one narrow jq command to read only repair_context, source.statement, and output_contract from ${mission.target_packet.path}.`,
+          ...(mission.parent_candidate === undefined
+            ? []
+            : [
+                `The exact parent candidate named by mission.parent_candidate is already present at ${mission.allowed_paths[0]}. Read and patch those bytes instead of reconstructing the proof from scratch.`,
+              ]),
           "Then write the single raw Lean term with apply_patch. An optional wc -c check is the only useful shell follow-up; do not print the finished artifact.",
           "Return the artifact path and kind exactly as output_contract specifies. Status success means only that those complete candidate bytes exist; the separate frozen Lean capsule owns elaboration and the axiom audit.",
           "Use at most four shell or patch tool calls. A token-efficient handoff is part of this mission's product contract.",
@@ -372,6 +377,24 @@ export class CodexToolsNativeEngine implements Engine {
 
     const workspace = path.join(context.paths.work, "native-worker");
     await prepareTargetPacketWorkspace(context.paths.input, workspace, mission);
+    if (mission.parent_candidate !== undefined) {
+      const repair = context.repairInput;
+      if (repair === undefined) {
+        throw new Error("repair mission requires the exact parent candidate bytes");
+      }
+      if (
+        repair.digest !== mission.parent_candidate ||
+        !mission.allowed_paths.includes(repair.path) ||
+        sha256Bytes(repair.bytes) !== repair.digest
+      ) {
+        throw new Error("repair input does not match the mission parent candidate");
+      }
+      const repairTarget = path.join(workspace, repair.path);
+      await mkdir(path.dirname(repairTarget), { recursive: true, mode: 0o700 });
+      await writeFile(repairTarget, repair.bytes, { flag: "wx", mode: 0o600 });
+    } else if (context.repairInput !== undefined) {
+      throw new Error("non-repair mission cannot receive parent candidate bytes");
+    }
     const runtimeBinary = await stageLinuxSandboxBinary(workspace, binary, binaryDigest);
     const canaryDirectory = path.join(context.paths.work, "custody-canary");
     await mkdir(canaryDirectory, { mode: 0o700 });

@@ -89,7 +89,10 @@ test("portable verifier images require a closed public repository and full diges
 test("profile v2 binds exact platform custody and packs only portable contract resources", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "canopus-profile-pack-parent-"));
   const name = "erdos1056-k15-10429201-10429400";
-  assert.deepEqual(await listProductProfiles(), [name]);
+  assert.deepEqual(await listProductProfiles(), [
+    name,
+    "formal-erdos-505-test-dim-one",
+  ]);
   const mac = await loadProductProfile(name, { platform: "darwin-arm64" });
   const linux = await loadProductProfile(name, { platform: "linux-x86_64" });
   assert.equal(mac.target_packet_schema, "erdos-frontier.problem-work.v1");
@@ -116,6 +119,55 @@ test("profile v2 binds exact platform custody and packs only portable contract r
     "capsules/erdos1056-k15/bin/linux-arm64/10429201-10429400/verifier",
     "capsules/erdos1056-k15/bin/linux-x86_64/10429201-10429400/verifier",
     "missions/erdos1056-k15-next/mission.draft.json",
+    `profiles/${name}.json`,
+    "runtime/native-worker/config-linux.toml",
+    "runtime/native-worker/config.toml",
+  ]);
+});
+
+test("formal profile reuses the audited capsule and binds one exact Lean environment", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "canopus-formal-profile-pack-parent-"));
+  const name = "formal-erdos-505-test-dim-one";
+  const mac = await loadProductProfile(name, { platform: "darwin-arm64" });
+  const linux = await loadProductProfile(name, { platform: "linux-x86_64" });
+  assert.equal(mac.target, "formal:erdos-505-test-dim-one");
+  assert.equal(mac.target_packet_schema, "formal-conjectures.lean-proof-work.v1");
+  assert.equal(mac.capsule_sha256, linux.capsule_sha256);
+  assert.equal(mac.verifier_platform, "linux/amd64");
+  assert.equal(linux.verifier_platform, "linux/amd64");
+  assert.equal(mac.landing.max_accepted_delta, 0);
+  assert.deepEqual(mac.landing.expected_routes, ["defer"]);
+  const draft = await loadProfileDraft(mac) as {
+    budgets: { max_observed_tokens: number };
+    verifier: { cwd: string };
+    worker: { model: string };
+  };
+  assert.equal(draft.budgets.max_observed_tokens, 300_000);
+  assert.equal(draft.verifier.cwd, "targets");
+  assert.equal(draft.worker.model, "gpt-5.4");
+
+  const validation = await validateProductProfile(name);
+  assert.equal(validation.schema, "canopus.profile-validation.v1");
+  assert.equal(
+    validation.platforms["darwin-arm64"].verifier_capsule_sha256,
+    mac.capsule_sha256,
+  );
+  assert.equal(
+    validation.platforms["linux-x86_64"].verifier_capsule_sha256,
+    linux.capsule_sha256,
+  );
+
+  const output = path.join(root, "bundle");
+  const packed = await packProductProfile(name, output);
+  const manifest = JSON.parse(await readFile(packed.manifest, "utf8")) as {
+    schema: string;
+    files: Array<{ path: string }>;
+  };
+  assert.equal(manifest.schema, "canopus.profile-pack.v1");
+  assert.equal(packed.files, 5);
+  assert.deepEqual(manifest.files.map((file) => file.path), [
+    "capsules/formal-erdos-505-test-dim-one/verifier",
+    "missions/formal-erdos-505-test-dim-one/mission.draft.json",
     `profiles/${name}.json`,
     "runtime/native-worker/config-linux.toml",
     "runtime/native-worker/config.toml",

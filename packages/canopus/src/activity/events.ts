@@ -6,6 +6,7 @@ export const WRITABLE_ACTIVITY_TYPES = [
   "roots.verified",
   "target.offered",
   "work.skipped",
+  "repair.input_bound",
   "work.claimed",
   "engine.started",
   "engine.completed",

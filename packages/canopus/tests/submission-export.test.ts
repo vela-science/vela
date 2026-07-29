@@ -156,7 +156,7 @@ test("export fails closed on stale verifier wording and preserves an explicit bo
   assert.deepEqual(await readFile(fixture.runFile), originalRun);
 });
 
-test("export rejects arbitrary Claim replacement and control characters", async () => {
+test("export preserves an explicit bounded Claim refinement and rejects control characters", async () => {
   const home = await mkdtemp(path.join(os.tmpdir(), "canopus-export-guard-"));
   const artifact = Buffer.from("{\"value\":42}\n");
   const fixture = await writeCurrentRunFixture({
@@ -172,14 +172,25 @@ test("export rejects arbitrary Claim replacement and control characters", async 
       vela_repository: `sha256:${"a".repeat(64)}`,
     },
   });
-  await assert.rejects(
-    exportSubmission({
-      runFile: fixture.runFile,
-      outputRoot: path.join(home, "arbitrary"),
-      correctedClaim: "A different Claim.",
-      scopeLimit: "A limit.",
-    }),
-    /allowed only for a retained Run Claim/u,
+  const refined = path.join(home, "refined");
+  await exportSubmission({
+    runFile: fixture.runFile,
+    outputRoot: refined,
+    correctedClaim: "The retained bounded computation returned 42.",
+    scopeLimit: "This Claim is limited to the exact retained input and verifier.",
+  });
+  const refinedSubmission = JSON.parse(
+    await readFile(path.join(refined, "submission.json"), "utf8"),
+  ) as SubmissionV1;
+  verifySubmission(refinedSubmission);
+  assert.equal(
+    refinedSubmission.claim.assertion,
+    "The retained bounded computation returned 42.",
+  );
+  assert.ok(
+    refinedSubmission.caveats.includes(
+      "The Submission wording refines the retained Run Claim after verifier passage; the immutable Run remains unchanged.",
+    ),
   );
 
   const controlFixture = await writeCurrentRunFixture({

@@ -167,6 +167,14 @@ Frontiers decide what they recognize.
 
 ## Protocol-breakthrough hypothesis
 
+The binary north-star contract is
+[Vela protocol breakthrough benchmark](BREAKTHROUGH_BENCHMARK.md). This
+campaign may complete useful first-party engineering without passing that
+benchmark. It may not claim the protocol breakthrough until the frozen primary
+and held-out correction fixtures, clean-room implementation, non-escalating
+second Frontier, adversarial suite, cold-use threshold, and external
+participant gates all pass.
+
 The category-level hypothesis is narrower than a universal science platform:
 
 > Different scientific systems can exchange one exact proposed transition,
@@ -247,6 +255,71 @@ replacement integration repository exists.
 | Sidon Frontier | strict replay passes at `410fd680e1d27a185617b7cf06cd940ef0016369` |
 | Quantum Frontier | strict replay passes at `790f255c394b7900e7a1e36a740406d16b783165` |
 | Web | read-only clean-clone checks and projection-bound build pass at `bdb10ed92edba5ea1a0e75d44bfb457e0b806f5f`; GitHub runner allocation is externally blocked by the organization billing state |
+
+### Formal product dogfood
+
+The first mechanically checkable Formal offer is now a reproduced local
+success, but it has not yet been registered in the canonical Frontier:
+
+- target `formal:erdos-505-test-dim-one`;
+- source Frontier commit
+  `d5f5355de3588a9a558ee9505e2960e7d138acaf`, tree
+  `ef73bfa8602d45b8ca0b8c0a163bbf651f095059`;
+- packet root
+  `sha256:d25c32caec95c3127a9e7aed3d0addd9a5c9a26ac18a658dd129dc94d93b7be6`;
+- Lean 4.27.0, Mathlib
+  `a3a10db0e9d66acbebf76c5e6a135066525ac900`;
+- verifier capsule
+  `sha256:c1ef5a0914e9d537d2acba2b74a27f139d37414629c7676937515e99438b58dd`;
+- verifier image
+  `sha256:a9df828f9480d79e10a9707847fdf99a6a27287cf4281256d79f17be7f3d9f39`.
+
+Four verifier-rejected Runs remain retained rather than hidden:
+
+| Run | Candidate root | Result |
+| --- | --- | --- |
+| `run_b2fe4659-fbcb-4e10-bb9c-12abc6484212` | `sha256:9983f6e91e086faf6c55c8b6a3ab30c4534e5bc1dca6e5958a290b564565f273` | initial term did not elaborate |
+| `run_50a25fbb-56d0-495c-a0c7-4e572a4c30da` | `sha256:718df05d5c082624023e668e4d5abe4e84a8f998fdf946eef4ba256674621bf9` | first reconstruction retained multiple Lean errors |
+| `run_0fe1e3d5-8cee-4e70-bee0-08a61194f29c` | `sha256:3137ca4d2c3e93c3a5439ae06f489bdf75545ce9fa2da83835c4deecd4254bdc` | reduced to two missing interval-order proofs |
+| `run_d8eb6662-279c-4779-aea2-e1928c28e9be` | `sha256:47cc933fb3a64cea92ce4601779c1cb91594e256b7d4204ffe102e673fd42755` | fresh reconstruction regressed |
+
+That sequence reproduced a Canopus product defect: `parent_candidate` bound a
+hash and reason but did not supply the parent bytes to the next worker. The
+small repair is now explicit and fail-closed:
+
+```text
+canopus run ... --repair-from <exact-candidate-file>
+```
+
+Canopus verifies the full parent root, stages those bytes at the sole
+contracted artifact path, and records `repair.input_bound`. The first Run
+through that repaired handoff succeeded:
+
+- Run `run_585c951f-ed51-49b9-805d-02e7e5a8a0e9`;
+- mission root
+  `sha256:a22cd3b32b08ea7f54fd684535765d83a934d7321a0943dd330b32eeab5b95ed`;
+- candidate root
+  `sha256:9786e3d7bcc2fe98d9e54a57a6aad077ef8a140a05e9d6cea5fca7780b5fa81b`;
+- Lean proof Artifact
+  `sha256:3da877391685fb738d4fc1c93c83996a7f8c58dd895d1f4b5762faceba874025`;
+- evidence root
+  `sha256:b32f3cc5db043fe1ac4c5d2deb02bf250d5d21b4cf34b097e5fd60fedce553b8`;
+- 44,423 observed tokens and 24.638 seconds of model execution;
+- exact verifier pass and matching clean-clone replay;
+- source Frontier commit and tree unchanged.
+
+The exported, still-unregistered producer bundle is Submission
+`vsb_c50dc7e85cb76684`, root
+`sha256:9adecb4649fa99a7b0945e99f3197cb72489e17b4bd08fe2bfcdff7d0f1c67d3`.
+Its Claim is limited to elaboration of the exact retained declaration and
+standard-axiom audit. It does not establish statement fidelity beyond the
+source-bound packet, solve the general Borsuk conjecture, or constitute
+scientific acceptance.
+
+This is useful product evidence, not breakthrough evidence. It leaves the
+[protocol breakthrough benchmark](BREAKTHROUGH_BENCHMARK.md) at Level 0:
+there is no correction fixture, clean-room consequence reader, second
+Frontier, held-out replication, or external cold-use result in this slice.
 
 ### Completed real loop
 
@@ -484,8 +557,10 @@ vertical slice at a time.
 
 ### Gate 1 — one complete Vela Math slice
 
-Run the first named mechanically checkable Formal Conjectures offer with its
-already frozen:
+The first named mechanically checkable Formal Conjectures offer has produced a
+verifier-passing, clean-clone-replayed local Run after a real repair-handoff
+defect was fixed. Complete the canonical Submission and Verification path with
+its already frozen:
 
 - source statement and exact upstream revision;
 - Lean version, Mathlib revision, and dependency roots;

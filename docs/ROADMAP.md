@@ -41,7 +41,11 @@ registered call ceiling cannot fit it. No framework runtime was added.
 
 ## P1 — complete one Vela Math vertical slice
 
-- Run one named mechanically checkable Formal Conjectures mission.
+- Register the verifier-passing Formal Run
+  `run_585c951f-ed51-49b9-805d-02e7e5a8a0e9` as pending review, import one
+  independently scoped Verification Record, and preserve zero accepted-state
+  change until an optional human Decision. The local Run and clean-clone replay
+  are complete; the canonical Frontier has not yet changed.
 - Keep kernel acceptance, statement fidelity, scientific review, and Frontier
   Standing distinct.
 - Measure evidence-location, correction, replay, and continuation against Git
@@ -58,6 +62,12 @@ Demonstrate one exact accepted-Claim dependency cascade through correction,
 affected-state discovery, an opened repair Obligation, and repair or
 retraction. Measure correction localization and continuation lift. This is the
 first required proof that Vela adds state value beyond Git plus files.
+
+Use the binary gates in
+[the protocol breakthrough benchmark](BREAKTHROUGH_BENCHMARK.md). The current
+campaign may establish Level 1 with first-party evidence; Level 2 additionally
+requires a held-out fixture, non-escalating second Frontier, clean-room
+implementation, and valid external cold-use evidence.
 
 Require one clean-room reader to derive the same bounded impact while
 preserving an independent surviving route. Then retain the source correction

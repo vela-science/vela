@@ -30,7 +30,7 @@ function usage(): string {
 
 Primary workflow:
   canopus doctor [frontier] [--profile <name>]
-  canopus run [frontier] [--first | --target <id>] [--profile <name>] [--output <dir>]
+  canopus run [frontier] [--first | --target <id>] [--profile <name>] [--output <dir>] [--repair-from <candidate>]
   canopus show [run.json | failure.json | latest]
   canopus replay <run.json>
   canopus export <run.json | latest> [--output <new-directory>] [--as <agent:id>] \\
@@ -68,11 +68,13 @@ remain replay-only; new tool-using missions require a validated version 2 profil
 function runUsage(): string {
   return `Usage:
   canopus run [frontier] [--first | --target <id>] [--profile <name>] \\
-    [--output <dir>]
+    [--output <dir>] [--repair-from <exact-candidate-file>]
 
 Discovers and binds Vela, Codex, Git, Docker, the exact frontier roots, and the
 registered verifier profile. Runs the worker and verifier in disposable clones
-and always leaves the source frontier unchanged.`;
+and always leaves the source frontier unchanged. Repair missions require the
+exact parent bytes named by their root; Canopus stages them into the bounded
+workspace instead of asking a fresh worker to reconstruct them.`;
 }
 
 function showUsage(): string {
@@ -108,8 +110,8 @@ function exportUsage(): string {
 
 Creates a signed portable vela.submission.v1 bundle from a successful Run.
 Export does not touch a frontier and does not create Verification or Standing.
-The correction pair is accepted only when the retained Run Claim has stale
-verifier wording or control bytes; the immutable Run remains unchanged.`;
+A corrected Claim and scope limit may refine the worker's pre-verifier wording;
+the immutable Run remains unchanged and the Submission records the refinement.`;
 }
 
 function submitUsage(): string {
@@ -301,7 +303,7 @@ async function doctorCommand(args: string[]): Promise<void> {
 async function productRunCommand(args: string[]): Promise<void> {
   const parsed = productOptions(
     args,
-    ["--target", "--profile", "--output", "--codex-home"],
+    ["--target", "--profile", "--output", "--codex-home", "--repair-from"],
     ["--first"],
   );
   if (parsed.positional.length > 1) throw new Error("run accepts at most one frontier");
@@ -313,12 +315,14 @@ async function productRunCommand(args: string[]): Promise<void> {
   const profileName = parsed.values.get("--profile");
   const outputRoot = parsed.values.get("--output");
   const codexHome = parsed.values.get("--codex-home");
+  const repairFrom = parsed.values.get("--repair-from");
   const result = await runProduct({
     frontier,
     ...(profileName === undefined ? {} : { profileName }),
     ...(requested === undefined ? {} : { requestedTarget: requested }),
     ...(outputRoot === undefined ? {} : { outputRoot: path.resolve(outputRoot) }),
     ...(codexHome === undefined ? {} : { codexHome: path.resolve(codexHome) }),
+    ...(repairFrom === undefined ? {} : { repairFrom: path.resolve(repairFrom) }),
   });
   process.stdout.write(`${JSON.stringify({
     ok: true,

@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Make repair a real handoff rather than a hash-only annotation. `canopus run
+  --repair-from <exact-candidate-file>` now requires the full parent root,
+  stages the retained bytes at the single contracted artifact path, and
+  records the binding before a fresh worker starts. This closes a reproduced
+  Formal dogfood failure where successive workers reconstructed and regressed
+  an almost-valid Lean term.
+- Allow a verifier-passing Run to export one explicitly bounded scientific
+  Claim refinement plus scope limit while retaining the immutable worker Run
+  and an automatic wording-change notice. Stale verifier-pending wording
+  remains fail-closed.
+- Restore the audited, target-specific Lean 4.27.0 verifier capsule as one
+  current closed profile for `formal:erdos-505-test-dim-one`. The profile
+  binds the exact Formal Conjectures source, Mathlib commit, raw proof-term
+  contract, standard-axiom allowlist, Defer route, and zero accepted-state
+  delta; kernel passage remains distinct from statement fidelity and
+  scientific Standing.
+
 ## 0.8.0 - 2026-07-28
 
 - Release the nonmutating Run, explicit Submission, and framework-neutral

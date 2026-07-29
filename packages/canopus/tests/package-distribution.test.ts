@@ -30,6 +30,7 @@ test("published Canopus is one inert product with one authority-free protocol de
   for (const capsule of [
     "capsules/erdos1056-k15/bin/linux-arm64/10429201-10429400/verifier",
     "capsules/erdos1056-k15/bin/linux-x86_64/10429201-10429400/verifier",
+    "capsules/formal-erdos-505-test-dim-one/verifier",
   ]) {
     assert.equal(manifest.files?.includes(capsule), true, `${capsule} must ship in the tarball`);
   }

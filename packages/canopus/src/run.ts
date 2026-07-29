@@ -39,6 +39,11 @@ export interface CanopusRunOptions {
   bundleRoot?: string;
   dockerBinary?: string;
   verifierRunner?: CommandRunner;
+  repairInput?: {
+    path: string;
+    digest: string;
+    bytes: Buffer;
+  };
 }
 
 export interface VerifierRun {
@@ -209,6 +214,13 @@ export async function runCanopus(
       mode: "no_submit",
       reason: "Canopus run is nonmutating by contract",
     });
+    if (options.repairInput !== undefined) {
+      await activity.append("repair.input_bound", {
+        path: options.repairInput.path,
+        digest: options.repairInput.digest,
+        bytes: options.repairInput.bytes.length,
+      });
+    }
 
     await activity.append("engine.started", {
       engine: options.engine.name,
@@ -219,6 +231,7 @@ export async function runCanopus(
       briefing: workBriefing,
       paths,
       budget,
+      ...(options.repairInput === undefined ? {} : { repairInput: options.repairInput }),
     });
     await activity.append("engine.completed", {
       status: engine.draft.status,

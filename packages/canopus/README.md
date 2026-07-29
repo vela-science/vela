@@ -35,6 +35,7 @@ bun run build
 
 canopus doctor /path/to/frontier
 canopus run /path/to/frontier --first
+canopus run /path/to/frontier --first --repair-from /path/to/exact-candidate
 canopus show latest
 canopus replay /path/to/run.json
 canopus export /path/to/run.json --output /path/to/submission-bundle
@@ -44,12 +45,16 @@ canopus submit /path/to/submission-bundle /path/to/frontier
 - `doctor` binds the exact frontier, target, Vela, Codex, profile, packet, and
   verifier identities.
 - `run` executes in disposable workspaces and leaves the frontier unchanged.
+  A repair mission requires the exact parent candidate named by its root and
+  stages those bytes into the bounded workspace; a fresh worker patches rather
+  than reconstructs them.
 - `show` inspects current and historical run records.
 - `replay` reruns the frozen verifier without a model call.
 - `export` creates a signed portable Submission and retains no producer key.
-  If a retained Run from an older worker contract still says verification is
-  pending after its verifier passed, export fails closed until the producer
-  supplies one corrected bounded Claim and explicit scope limit.
+  A producer may refine the worker's pre-verifier wording with one bounded
+  Claim and explicit scope limit; the immutable Run and an automatic
+  refinement notice preserve the wording change. Stale verifier-pending
+  wording still fails closed until corrected.
 - `submit` explicitly registers that Submission through Vela. The expected
   result is `pending_review` with accepted-event delta zero.
 

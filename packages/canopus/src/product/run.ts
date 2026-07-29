@@ -106,6 +106,55 @@ export function defaultProductOutput(frontier: string): string {
   return path.join(os.homedir(), ".canopus", "runs", path.basename(path.resolve(frontier)), stamp);
 }
 
+export async function loadRepairInput(options: {
+  mission: unknown;
+  source?: string;
+}): Promise<{ path: string; digest: string; bytes: Buffer } | undefined> {
+  if (
+    typeof options.mission !== "object" ||
+    options.mission === null ||
+    Array.isArray(options.mission)
+  ) {
+    throw new Error("repair input requires one mission object");
+  }
+  const mission = options.mission as Record<string, unknown>;
+  const parent = mission.parent_candidate;
+  const reason = mission.repair_reason;
+  if ((parent === undefined) !== (reason === undefined)) {
+    throw new Error("repair mission must bind both parent_candidate and repair_reason");
+  }
+  if (parent === undefined) {
+    if (options.source !== undefined) {
+      throw new Error("--repair-from is valid only for a repair mission");
+    }
+    return undefined;
+  }
+  if (typeof parent !== "string" || typeof reason !== "string") {
+    throw new Error("repair mission has malformed parent metadata");
+  }
+  if (options.source === undefined) {
+    throw new Error("repair mission requires --repair-from <exact-candidate-file>");
+  }
+  const allowed = mission.allowed_paths;
+  if (!Array.isArray(allowed) || allowed.length !== 1 || typeof allowed[0] !== "string") {
+    throw new Error("repair input currently requires exactly one allowed artifact path");
+  }
+  const budgets =
+    typeof mission.budgets === "object" && mission.budgets !== null && !Array.isArray(mission.budgets)
+      ? mission.budgets as Record<string, unknown>
+      : {};
+  const maximum =
+    typeof budgets.max_artifact_bytes === "number"
+      ? budgets.max_artifact_bytes
+      : 8 * 1024 * 1024;
+  const bytes = await readBoundedRegularFile(path.resolve(options.source), maximum);
+  const digest = sha256Bytes(bytes);
+  if (digest !== parent) {
+    throw new Error(`repair input root mismatch: expected ${parent}, observed ${digest}`);
+  }
+  return { path: allowed[0], digest, bytes };
+}
+
 export function assertToolUsingMissionPlatform(
   platform: NodeJS.Platform = process.platform,
 ): void {
@@ -127,6 +176,7 @@ export async function runProduct(options: {
   requestedTarget?: string;
   outputRoot?: string;
   codexHome?: string;
+  repairFrom?: string;
   runner?: CommandRunner;
 }): Promise<ProductRunResult> {
   // Refuse unsupported custody before creating an output directory or probing
@@ -148,6 +198,10 @@ export async function runProduct(options: {
       throw new Error(diagnosis.public.next_action);
     }
     const draft = await loadProfileDraft(diagnosis.profile);
+    const repairInput = await loadRepairInput({
+      mission: draft,
+      ...(options.repairFrom === undefined ? {} : { source: options.repairFrom }),
+    });
     await assertMissionNotCovered({ draft, frontier: source });
     await assertFreshOutput(outputRoot, source);
     const staging = path.join(outputRoot, ".profile-staging");
@@ -214,6 +268,7 @@ export async function runProduct(options: {
       bundleRoot,
       dockerBinary: dockerRuntime.binary,
       verifierRunner: runner,
+      ...(repairInput === undefined ? {} : { repairInput }),
     };
     const run = await runCanopus(commonRun);
     const evidence = await writeEvidenceManifest(run, contentDigest(prepared.mission));

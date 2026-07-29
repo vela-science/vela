@@ -23,6 +23,11 @@ The run root retains:
 - clean-clone reproduction;
 - exact mission, source, runtime, budget, and evidence roots.
 
+For a repair Run, `repair.input_bound` records the exact parent digest, path,
+and byte count. The worker receives those root-checked bytes at the contracted
+artifact path. Canopus refuses a repair mission without `--repair-from` or
+when the supplied bytes do not match `parent_candidate`.
+
 `canopus show` projects these records. `canopus replay` reruns the frozen
 verifier. Deleting Canopus or its run directory cannot change Vela replay or
 Standing.
@@ -42,12 +47,13 @@ submission-bundle/
 Independent verifier output is named only as a verification requirement; it is
 not mislabeled as producer authority or a Vela Verification Record.
 
-The current worker contract keeps verifier status out of the Claim. Export
-fails closed if a retained older Run says verification is pending after its
-verifier passed or contains control bytes. In that narrow case the producer may
-pass `--claim` with `--scope-limit`; Canopus signs a corrected Submission,
-records that the wording changed after the run, and leaves the Run byte-for-byte
-unchanged. Arbitrary Claim replacement on a non-stale Run is refused.
+The current worker contract keeps verifier status out of the Claim. After a
+passing verifier result, the producer may pass `--claim` with `--scope-limit`
+to refine that pre-verifier wording into one bounded scientific Claim. Canopus
+signs the new Submission, records the refinement, and leaves the Run
+byte-for-byte unchanged. A retained older Run that says verification is still
+pending fails closed until this explicit correction is supplied. Control
+characters remain forbidden.
 
 The producer key is ephemeral. It is not placed in run evidence, the portable
 bundle, or a retained capability store. A producer that independently keeps its

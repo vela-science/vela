@@ -159,6 +159,7 @@ test("native tool worker pins Codex and permission-profile identities", async ()
     'enabled = false',
   ].join("\n") + "\n");
   const calls: string[][] = [];
+  const parentCandidate = Buffer.from("parent candidate\n");
   const runner: CommandRunner = async (options) => {
     calls.push([...options.argv]);
     if (options.argv[1] === "--version") {
@@ -181,6 +182,7 @@ test("native tool worker pins Codex and permission-profile identities", async ()
     const finalPath = options.argv[outputIndex + 1];
     assert.ok(finalPath);
     assert.equal((await readFile(path.join(options.cwd, "packet.json"), "utf8")), "{}\n");
+    assert.deepEqual(await readFile(path.join(options.cwd, "result.json")), parentCandidate);
     const prompt = String(options.stdin);
     assert.match(prompt, /packet\.json/u);
     assert.match(prompt, /repair_context object/u);
@@ -191,6 +193,7 @@ test("native tool worker pins Codex and permission-profile identities", async ()
     assert.match(prompt, /read only repair_context, source\.statement, and output_contract/u);
     assert.match(prompt, /Return the artifact path and kind exactly as output_contract specifies/u);
     assert.match(prompt, /Use at most four shell or patch tool calls/u);
+    assert.match(prompt, /exact parent candidate.*already present at result\.json/u);
     assert.doesNotMatch(prompt, /WORK_BRIEFING_MUST_NOT_ENTER_MODEL_CONTEXT/u);
     const runtimeConfig = await readFile(path.join(options.env.CODEX_HOME ?? "", "config.toml"));
     assert.deepEqual(runtimeConfig, await readFile(permissionProfile));
@@ -210,6 +213,8 @@ test("native tool worker pins Codex and permission-profile identities", async ()
   active.worker.codex_sha256 = sha256Bytes(await readFile(binary));
   active.worker.output_schema_sha256 = sha256Bytes(await readFile(outputSchema));
   active.worker.permission_profile_sha256 = sha256Bytes(await readFile(permissionProfile));
+  active.parent_candidate = sha256Bytes(parentCandidate);
+  active.repair_reason = "Repair the exact retained candidate.";
   const result = await new CodexToolsNativeEngine({
     binary: binaryLink,
     authHome,
@@ -221,6 +226,11 @@ test("native tool worker pins Codex and permission-profile identities", async ()
     briefing: { sentinel: "WORK_BRIEFING_MUST_NOT_ENTER_MODEL_CONTEXT" },
     paths,
     budget: new BudgetTracker(active.budgets),
+    repairInput: {
+      path: "result.json",
+      digest: active.parent_candidate,
+      bytes: parentCandidate,
+    },
   });
   assert.deepEqual(result.draft, draft);
   assert.deepEqual(result.actionTypes, ["command_execution"]);
