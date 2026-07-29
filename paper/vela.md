@@ -532,8 +532,16 @@ the same current-contract inventory from compiled public types and public
 source. Their shared fixture root is
 `sha256:fffb66f5afa69b8a47824a45bc382d97e4c655dc282a3b3d6ba339f2b70906ae`.
 That is implementation diversity, not organizational independence. A minimal
-derived envelope is eligible for experiment only after the real correction is
-terminal.
+derived envelope became eligible after the real correction reached a terminal
+Decision. The resulting non-protocol `vela.foreign-reference.v1` experiment
+binds the exact source repository, Claim, Proposal, Decision, authority record,
+retained object set, completeness, and explicit local Standing effect
+`none`. Rust and clean-room Python emit the same synthetic qualification
+assessment at root
+`sha256:a6534a1f9b21b934c00c7a3274c0459a33bef988700736dbd99aafa730a60531`.
+They reject authority escalation, silent truncation, source substitution, and
+object-byte drift. No second Frontier has retained the real correction, so B8
+still fails.
 
 The matched Git-versus-Vela reviewer protocol is frozen at root
 `sha256:68fb039088302d19f02cf2628c16004e174649b1f952a63a0fd35210c0dd0ef8`.
@@ -637,7 +645,7 @@ framework was evaluated or retained.
 | B5 removability | writer qualification pass; primary pending | pending | replay unchanged |
 | B6 hosted-service failure | writer qualification pass; primary pending | pending | replay succeeds |
 | B7 support diversity | pending | pending | exact route accounting |
-| B8 second Frontier | fail: portable foreign-reference contract absent | not run | zero imported authority |
+| B8 second Frontier | gap reproduced; derived synthetic qualification only | not run | zero imported authority |
 | B9 observability | synthetic pass only | pending | no silent truncation |
 | B10 cold inheritance | first pilot failed hard budget | pending | at least 20% median lift |
 
@@ -697,8 +705,10 @@ The evaluation includes:
   require the projection. Users can still be misled if they never inspect its
   source root.
 - **Foreign Frontier:** foreign state must be attributed information with no
-  imported local authority. The current protocol cannot yet express the
-  benchmark's complete foreign-reference contract and therefore fails B8.
+  imported local authority. A derived edge-layer envelope passes synthetic
+  containment checks without changing the protocol, but no second Frontier
+  has retained and verified the real source transition; B8 therefore remains
+  unsatisfied.
 - **Implementation:** Rust and clean-room Python reduce shared-code defects but
   share the same specification, fixtures, operator, and project incentives.
   Agreement is implementation diversity, not organizational independence.
@@ -905,11 +915,12 @@ scientific Standing, including one accepted supersession whose predecessor
 remains explainable. Two implementations also agree on a bounded synthetic
 correction-impact projection. The first matched reviewer pilot was
 directionally cheaper and more accurate with Vela but failed its preregistered
-token budget and exact-answer requirement. The current revision also lacks the
-portable foreign-reference contract required for non-escalating
-second-Frontier transfer. The stronger claim, that this mechanism preserves
-useful scientific inheritance across real corrections and plural authorities
-better than Git alone, is therefore not satisfied by the audited system.
+token budget and exact-answer requirement. A derived foreign-reference
+envelope now qualifies two colocated readers, but no second Frontier has
+retained and checked the real source transition. The stronger claim, that this
+mechanism preserves useful scientific inheritance across real corrections and
+plural authorities better than Git alone, is therefore not satisfied by the
+audited system.
 
 The registered experiments decide the conclusion. If they pass, the paper
 will state the exact measured result. If they fail, the paper will publish the

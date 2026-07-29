@@ -130,8 +130,12 @@ source Frontier, repository root, Decision, authority anchor, completeness,
 and explicit local non-authority. This is a benchmark failure, not permission
 to revive federation services. Rust and clean-room Python readers now
 reproduce the same gap from compiled types and public source. After the real
-correction is terminal, design only the smallest derived transfer envelope;
-the colocated readers earn no external-independence credit.
+correction became terminal, ADR 0029 proposed the smallest derived transfer
+envelope in the replaceable edge layer. Rust and clean-room Python now agree
+on a synthetic qualification vector with explicit completeness and zero local
+Standing effect. Real Erdős-to-Formal retention waits for the four exact
+current-state compactions so the package binds the current repository root.
+The colocated readers earn no external-independence credit.
 
 The historical entry gate is closed. Across 2,831 current Claim records, the
 four Frontiers contain no current correction relation. Erdős 281 has the
@@ -145,12 +149,12 @@ source commit, path, and content roots before any correction-impact reader is
 implemented. Do not manufacture a false Claim or reinterpret a discovery edge
 to satisfy the benchmark shape.
 
-The Erdős 424 writer-qualification fixture is now registered as pending
-Proposal `vpr_23f32f95d4f073e8` with zero accepted-state change. Its
-deterministic source verifier passes and its signed first-party Verification is
-imported with accepted-state delta zero. The separate human Decision is the
-next step. This remains writer qualification, not the topology-sensitive
-protocol benchmark.
+The Erdős 424 writer-qualification fixture reached a terminal accepted
+Decision under Proposal `vpr_23f32f95d4f073e8`. Its deterministic source
+verifier passes, registration and Verification had zero accepted-state delta,
+and strict clean-clone replay passes. This qualifies the writer and the source
+side of the transfer experiment. It remains distinct from the
+topology-sensitive correction benchmark and does not establish B8.
 
 ## P2: earn a reusable math profile
 

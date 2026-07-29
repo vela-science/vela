@@ -1225,7 +1225,7 @@ gates, and no packaging or rendering result substitutes for them:
 | ADR 0026 Accepted | Not met | ADR 0026 remains Proposed |
 | Primary and held-out plans frozen before confirmatory runs | Partial | synthetic primary and canonical held-out selection plans are frozen; the real correction has not reached its terminal task instance |
 | Two implementations agree | Partial | Rust and clean-room Python agree on the synthetic vector only |
-| All hard safety gates pass | Not met | local authority and removability checks pass; B8 fails on the missing foreign-reference contract |
+| All hard safety gates pass | Not met | the derived foreign-reference contract passes synthetic containment checks; the real B8 second-Frontier transfer has not run |
 | Both fixtures pass B1 through B10 | Not met | most real-fixture and all held-out cells remain pending |
 | One external participant completes each cold-use fixture | Not met | all current sessions are first-party |
 | Public artifact reproduces every reported result | Partial | deterministic source packaging and PDF rendering pass; terminal and external evidence do not exist |
@@ -1260,8 +1260,26 @@ now reproduce the same inventory from compiled public types and public source.
 Their shared language-neutral fixture root is
 `sha256:fffb66f5afa69b8a47824a45bc382d97e4c655dc282a3b3d6ba339f2b70906ae`.
 This earns implementation-diversity credit, not organizational independence.
-The smallest derived transfer envelope becomes eligible for design only after
-the real correction is terminal.
+The real correction is now terminal. Proposed
+[ADR 0029](adr/0029-derived-foreign-reference-and-local-authority-containment.md)
+therefore defines `vela.foreign-reference.v1` only in the replaceable edge
+layer. The envelope binds the exact source repository, Claim, Proposal,
+Decision, authority record, retained object set, completeness, explicit
+nonclaims, and local Standing effect `none`. Rust and dependency-free Python
+readers agree on the synthetic qualification assessment at reference root
+`sha256:a6534a1f9b21b934c00c7a3274c0459a33bef988700736dbd99aafa730a60531`.
+They also reject authority escalation, silent truncation, source substitution,
+and object-byte drift. This is implementation qualification, not B8 or
+external independence.
+
+The real Erdős-to-Formal package is deliberately not materialized yet. It must
+bind the compacted current Erdős repository root, and retaining it now would
+invalidate the exact Formal compaction candidate. After all four protected
+compactions pass, the ordinary producer path will retain the envelope as a
+bounded Artifact in Formal with accepted-event delta zero; a scoped
+Verification will check every byte and the source authority chain. No
+federation command, service, resolver, Registry, second writer, or imported
+authority is authorized.
 
 #### Matched state-lift pilot
 

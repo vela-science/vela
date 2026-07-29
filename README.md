@@ -281,6 +281,7 @@ once per actual release boundary.
 - [Product monorepo and transition-repository retirement ADR](docs/adr/0024-repository-ownership-and-integration-repository-retirement.md)
 - [Math-first compounding product architecture ADR](docs/adr/0025-math-first-compounding-product-architecture.md)
 - [Living Frontier map and native-system boundary ADR](docs/adr/0028-living-frontier-map-and-native-system-boundary.md)
+- [Proposed derived foreign reference ADR](docs/adr/0029-derived-foreign-reference-and-local-authority-containment.md)
 - [Protocol breakthrough benchmark](docs/BREAKTHROUGH_BENCHMARK.md)
 - [Whitepaper evidence contract](docs/WHITEPAPER_CONTRACT.md)
 
