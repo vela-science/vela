@@ -138,6 +138,22 @@ Events, and execution claim.
 Pinning writes only local consumer configuration. It reads no private key,
 grants no authority, and changes no Frontier byte.
 
+After a separately verified repository-epoch transition establishes a new
+sequence-one authority record for the same Frontier, advance the local pin
+with an exact compare-and-swap:
+
+```bash
+vela authority trust pin . \
+  --record-root sha256:<new-sequence-1-root> \
+  --previous-record-root sha256:<exact-installed-root> \
+  --json
+```
+
+The new root must match the current repository's sequence-one record, and the
+previous root must match the installed local pin. Repeating an already applied
+pin is idempotent. This operation still reads no authority key, grants no
+authority, and changes no Frontier byte.
+
 ## Failure behavior
 
 Vela refuses a repository-authority transaction when any required input is

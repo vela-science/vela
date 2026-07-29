@@ -520,6 +520,9 @@ pub(crate) enum AuthorityTrustAction {
         /// Full sequence-1 authority-record root from an independent channel.
         #[arg(long)]
         record_root: String,
+        /// Exact currently installed root when advancing a verified epoch pin.
+        #[arg(long)]
+        previous_record_root: Option<String>,
         #[arg(long)]
         json: bool,
     },

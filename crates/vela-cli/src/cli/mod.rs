@@ -137,8 +137,14 @@ pub async fn run_command() {
                 AuthorityTrustAction::Pin {
                     frontier,
                     record_root,
+                    previous_record_root,
                     json,
-                } => cmd_authority_trust_pin(&frontier, &record_root, json),
+                } => cmd_authority_trust_pin(
+                    &frontier,
+                    &record_root,
+                    previous_record_root.as_deref(),
+                    json,
+                ),
             },
         },
         Commands::Init {

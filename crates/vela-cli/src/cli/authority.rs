@@ -18,7 +18,8 @@ use vela_authority::runtime_authentication::{
 use vela_authority::{CedarEvaluationInput, CedarPolicyMaterial};
 use vela_edge::repository_write::{
     AUTHORITY_TRUST_ANCHOR_SCHEMA_V1, AuthorityTrustAnchorV1,
-    install_authority_trust_anchor_from_home,
+    install_authority_trust_anchor_from_home, load_authority_trust_anchor_from_home,
+    rebind_authority_trust_anchor_from_home,
 };
 use vela_protocol::authority::{
     AUTHORITY_KEY_ALGORITHM, AUTHORITY_KEY_PURPOSE, AUTHORITY_KEYSET_SCHEMA_V1,
@@ -571,10 +572,15 @@ pub(crate) fn cmd_authority_init(
     }
 }
 
-pub(crate) fn cmd_authority_trust_pin(frontier: &Path, record_root: &str, json_out: bool) {
+pub(crate) fn cmd_authority_trust_pin(
+    frontier: &Path,
+    record_root: &str,
+    previous_record_root: Option<&str>,
+    json_out: bool,
+) {
     crate::ui::set_mode("authority trust pin", json_out);
-    let result =
-        pin_repository_authority(frontier, record_root).unwrap_or_else(|error| fail_return(&error));
+    let result = pin_repository_authority(frontier, record_root, previous_record_root)
+        .unwrap_or_else(|error| fail_return(&error));
     if json_out {
         print_json(&result);
     } else {
@@ -585,11 +591,16 @@ pub(crate) fn cmd_authority_trust_pin(frontier: &Path, record_root: &str, json_o
             result["first_authority_record_root"]
         );
         println!("  local anchor: {}", result["authority_trust_anchor_root"]);
+        println!("  operation: {}", result["operation"]);
         println!("  authority granted: none");
     }
 }
 
-fn pin_repository_authority(frontier: &Path, record_root: &str) -> Result<Value, String> {
+fn pin_repository_authority(
+    frontier: &Path,
+    record_root: &str,
+    previous_record_root: Option<&str>,
+) -> Result<Value, String> {
     let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
     let epoch = RepositoryBoundaryV1::parse(
         &std::fs::read(frontier.join(".vela/epoch.json"))
@@ -623,7 +634,38 @@ fn pin_repository_authority(frontier: &Path, record_root: &str) -> Result<Value,
     };
     let user_home =
         crate::frontier_txn::operating_system_account_home().map_err(|error| error.to_string())?;
-    let installed = install_authority_trust_anchor_from_home(&user_home, &anchor)?;
+    let existing = load_authority_trust_anchor_from_home(&user_home, &repository.frontier_id)?;
+    let (installed, operation, writes) = match existing {
+        Some(existing) if existing.anchor == anchor => (existing, "unchanged", Vec::new()),
+        Some(existing) => {
+            let previous_root = previous_record_root.ok_or_else(|| {
+                format!(
+                    "authority trust anchor already pins {}; to advance it, repeat with \
+                     --previous-record-root {}",
+                    existing.anchor.first_authority_record_root,
+                    existing.anchor.first_authority_record_root,
+                )
+            })?;
+            let expected = AuthorityTrustAnchorV1 {
+                schema: AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.to_string(),
+                frontier_id: repository.frontier_id.clone(),
+                first_authority_record_root: previous_root.to_string(),
+            };
+            let rebound = rebind_authority_trust_anchor_from_home(&user_home, &expected, &anchor)?;
+            let path = rebound.path.display().to_string();
+            (rebound, "rebound", vec![path])
+        }
+        None => {
+            if previous_record_root.is_some() {
+                return Err(
+                    "--previous-record-root requires an existing exact local pin".to_string(),
+                );
+            }
+            let installed = install_authority_trust_anchor_from_home(&user_home, &anchor)?;
+            let path = installed.path.display().to_string();
+            (installed, "installed", vec![path])
+        }
+    };
     let boundary_event_id = authority
         .verification
         .initialization_event_id
@@ -642,7 +684,8 @@ fn pin_repository_authority(frontier: &Path, record_root: &str) -> Result<Value,
         "boundary_event_id": boundary_event_id,
         "authority_trust_anchor_root": installed.root,
         "authority_trust_anchor_path": installed.path.display().to_string(),
-        "writes": [installed.path.display().to_string()],
+        "operation": operation,
+        "writes": writes,
         "frontier_writes": [],
         "authority_granted": false
     }))

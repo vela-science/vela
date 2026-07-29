@@ -200,6 +200,20 @@ vela authority trust pin . --record-root sha256:... --json
 The pin is local public trust configuration. It reads no key, grants no
 authority, and changes no Frontier byte.
 
+Pinning the already installed root is idempotent. After independently
+verifying a repository-epoch transition, advance an existing pin only by
+supplying its exact current root:
+
+```bash
+vela authority trust pin . \
+  --record-root sha256:<new-sequence-1-root> \
+  --previous-record-root sha256:<exact-installed-root> \
+  --json
+```
+
+Vela compares the installed preimage atomically and verifies the new root
+against the current sequence-one authority record.
+
 ## Repository verification
 
 ```bash

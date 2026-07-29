@@ -373,6 +373,27 @@ fn current_submission_commits_and_replays_without_changing_accepted_state() {
             "--json",
         ],
     ));
+    assert_eq!(pinned["operation"], "installed");
+    let repeated_pin = success_json(&run(
+        &frontier,
+        None,
+        &[
+            "authority",
+            "trust",
+            "pin",
+            ".",
+            "--record-root",
+            record_root,
+            "--json",
+        ],
+    ));
+    assert_eq!(repeated_pin["operation"], "unchanged");
+    assert!(
+        repeated_pin["writes"]
+            .as_array()
+            .expect("idempotent pin writes")
+            .is_empty()
+    );
     let _anchor = RemoveOnDrop(std::path::PathBuf::from(
         pinned["authority_trust_anchor_path"]
             .as_str()

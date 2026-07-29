@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Make `authority trust pin` idempotent and allow a migrated Frontier's public
+  local pin to advance only through an exact
+  `--previous-record-root` compare-and-swap. The new root must still match the
+  current sequence-one authority record; no key is read and no Frontier byte
+  changes.
 - Retire orphan Atlas summaries, derived discovery catalogs, predecessor-era
   research prototypes, the unrefined top-level Lean model suite, and its dead
   manual CI lane. Git history remains the archive.
