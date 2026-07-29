@@ -1,0 +1,230 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "task_instance_root",
+    "session_id",
+    "arm",
+    "answers"
+  ],
+  "properties": {
+    "schema": {
+      "const": "vela.state-lift-answer.v1"
+    },
+    "task_instance_root": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "arm": {
+      "enum": [
+        "git",
+        "vela"
+      ]
+    },
+    "answers": {
+      "$ref": "#/$defs/answers"
+    }
+  },
+  "$defs": {
+    "root": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "answers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "predecessor",
+        "replacement",
+        "source_transition",
+        "evidence",
+        "accepted_state_delta",
+        "authority",
+        "next_action_code",
+        "scope_limit_codes"
+      ],
+      "properties": {
+        "predecessor": {
+          "$ref": "#/$defs/claim"
+        },
+        "replacement": {
+          "$ref": "#/$defs/claim"
+        },
+        "source_transition": {
+          "$ref": "#/$defs/source_transition"
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "accepted_state_delta": {
+          "$ref": "#/$defs/accepted_state_delta"
+        },
+        "authority": {
+          "$ref": "#/$defs/authority"
+        },
+        "next_action_code": {
+          "enum": [
+            "inspect_dependents_and_repair_or_revalidate",
+            "preserve_predecessor_and_prepare_new_bounded_revision"
+          ]
+        },
+        "scope_limit_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "not_erdos_424_proof",
+              "not_unique_informal_interpretation",
+              "verification_not_acceptance"
+            ]
+          }
+        }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_id",
+        "claim_root",
+        "standing"
+      ],
+      "properties": {
+        "claim_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "claim_root": {
+          "$ref": "#/$defs/root"
+        },
+        "standing": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "source_transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "predecessor_commit",
+        "predecessor_file_root",
+        "predecessor_predicate",
+        "successor_commit",
+        "successor_file_root",
+        "successor_predicate"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "predecessor_commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "predecessor_file_root": {
+          "$ref": "#/$defs/root"
+        },
+        "predecessor_predicate": {
+          "type": "string",
+          "minLength": 1
+        },
+        "successor_commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "successor_file_root": {
+          "$ref": "#/$defs/root"
+        },
+        "successor_predicate": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "submission_id",
+        "submission_root",
+        "verification_ids",
+        "decision_id",
+        "decision_root",
+        "event_ids"
+      ],
+      "properties": {
+        "submission_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "submission_root": {
+          "$ref": "#/$defs/root"
+        },
+        "verification_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "decision_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "decision_root": {
+          "$ref": "#/$defs/root"
+        },
+        "event_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "accepted_state_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registration",
+        "verification"
+      ],
+      "properties": {
+        "registration": {
+          "type": "integer"
+        },
+        "verification": {
+          "type": "integer"
+        }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verification_changed_standing",
+        "model_or_tool_has_decision_authority"
+      ],
+      "properties": {
+        "verification_changed_standing": {
+          "type": "boolean"
+        },
+        "model_or_tool_has_decision_authority": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "schema": "vela.state-lift-execution.v1",
+  "frozen_at": "2026-07-29T14:12:00Z",
+  "task_instance_root": "sha256:a95a505fee521c811c44f91f78e5e4ac8e903f77b1e4d9ec99794444188bca89",
+  "runner_root": "sha256:ae56f656491d77d135d2351bd3b0385f6893bfb56bb8067b02c021a4a246beb3",
+  "answer_schema_root": "sha256:b407d632ac4b0f71c476a26d2f68cb68a8bd56481b327831f3a62ce9a2daadec",
+  "arm_order": [
+    "git",
+    "vela",
+    "vela",
+    "git",
+    "vela",
+    "git",
+    "git",
+    "vela"
+  ],
+  "session_ids": [
+    "git-01",
+    "vela-01",
+    "vela-02",
+    "git-02",
+    "vela-03",
+    "git-03",
+    "git-04",
+    "vela-04"
+  ],
+  "custody": {
+    "fresh_exact_clone_per_session": true,
+    "workspace_read_only": true,
+    "clone_remote_removed": true,
+    "network_available_to_model_tools": false,
+    "repository_authority_credentials_available": false,
+    "model_authentication": "supervisor-owned auth-only ephemeral CODEX_HOME",
+    "shell_environment_inheritance": "none"
+  },
+  "retry_policy": "One infrastructure retry only before model output. Retain every attempt.",
+  "model_output_started": false
+}

@@ -52,6 +52,14 @@ retain the same three scope limits: the result is not a proof of Erdős 424,
 does not establish a unique informal interpretation, and does not turn
 Verification into acceptance.
 
+`execution.v1.json` freezes the eight-session arm order, session IDs,
+structured-answer schema, runner bytes, and custody rules before the first
+model output. `run_session.py` creates a fresh exact clone, removes its remote,
+makes it read-only, strips the model-tool environment, and retains the raw
+JSONL event stream, final answer, stderr, timing, and post-run cleanliness for
+one session. The Git arm cannot use Vela. The Vela arm receives one copied
+binary whose root must match the task instance.
+
 ```bash
 python3 -m unittest paper/artifacts/state-lift/test_score.py
 python3 -m unittest paper/artifacts/state-lift/test_materialize.py
