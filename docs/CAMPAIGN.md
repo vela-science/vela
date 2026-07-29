@@ -958,6 +958,23 @@ the real correction is terminal, two independent readers must reproduce the
 same inability from the exact public bytes before the smallest derived
 transfer envelope is designed.
 
+#### Matched state-lift pilot
+
+The Git-versus-Vela reviewer protocol is frozen in
+`paper/artifacts/state-lift/protocol.v1.json` at root
+`sha256:68fb039088302d19f02cf2628c16004e174649b1f952a63a0fd35210c0dd0ef8`.
+Both arms receive the same terminal Frontier clone, evidence, verifier, Git,
+`jq`, `rg`, and ordinary documentation. Only the Vela arm receives the exact
+read-only CLI. The task measures correct predecessor and replacement Standing,
+source transition, controlling lineage, accepted-state delta, next action, and
+scope limits before speed.
+
+No model call may begin until the Erdős 424 Proposal has a terminal human
+Decision and an amendment roots the exact answer key, runtime, model, binary,
+repositories, and scorer. The eight planned fresh first-party sessions can
+qualify the method and test the 20-percent product threshold. They cannot earn
+external-participant or protocol-breakthrough credit.
+
 ### Gate 3: test a source-local Vela Math profile
 
 Do not reopen rejected ADR 0019 or publish `@vela/math` merely because the

@@ -428,6 +428,14 @@ service is needed. A minimal derived envelope is eligible for experiment only
 after the real correction is terminal and two independent readers reproduce
 the same missing contract.
 
+The matched Git-versus-Vela reviewer protocol is frozen at root
+`sha256:68fb039088302d19f02cf2628c16004e174649b1f952a63a0fd35210c0dd0ef8`.
+It gives both arms identical terminal repository, evidence, verifier, Git, and
+documentation bytes; only the Vela arm receives the exact read-only CLI.
+Execution remains gated on the terminal Erdős 424 Decision and a rooted task
+instance. The planned first-party sessions can qualify the method but cannot
+earn external-participant credit.
+
 ### 6.7 Registered benchmark matrix
 
 | Family | Primary | Held-out | Required |
