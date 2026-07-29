@@ -440,8 +440,13 @@ The matched Git-versus-Vela reviewer protocol is frozen at root
 It gives both arms identical terminal repository, evidence, verifier, Git, and
 documentation bytes; only the Vela arm receives the exact read-only CLI.
 Execution remains gated on the terminal Erdős 424 Decision and a rooted task
-instance. The planned first-party sessions can qualify the method but cannot
-earn external-participant credit.
+instance. A dependency-free exact-field scorer is frozen at source root
+`sha256:c949f9dec835cbe97bb89a22ccc006e8e767f88b86dfc6c4a0083732ff3fcd63`.
+It rejects task-instance drift and reports false authority statements as hard
+failures. The terminal amendment must still bind that scorer, the answer key,
+model, runtime, repository, and binary before any model output. The planned
+first-party sessions can qualify the method but cannot earn
+external-participant credit.
 
 ### 6.7 Registered benchmark matrix
 
@@ -641,6 +646,7 @@ Current implementation qualification:
 ```bash
 cargo test -p vela-edge --test correction_impact
 python3 conformance/verify_correction_impact.py
+python3 -m unittest paper/artifacts/state-lift/test_score.py
 ./conformance/check-core.sh
 ```
 

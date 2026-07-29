@@ -16,9 +16,12 @@ python3 paper/artifact.py build \
   --output /tmp/vela-paper-artifact.tar.gz
 
 python3 paper/artifact.py verify /tmp/vela-paper-artifact.tar.gz
+
+python3 -m unittest paper/artifacts/state-lift/test_score.py
 ```
 
 The build refuses a dirty Vela worktree or any external commit, tree, or
 content-root mismatch. Tar order, ownership, permissions, and timestamps are
 normalized so repeated builds from the same inputs produce the same archive
-root.
+root. The state-lift scorer is frozen before the terminal task instance and
+compares exact structured answers without model-based interpretation.

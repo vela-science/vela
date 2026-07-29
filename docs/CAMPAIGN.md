@@ -973,6 +973,12 @@ read-only CLI. The task measures correct predecessor and replacement Standing,
 source transition, controlling lineage, accepted-state delta, next action, and
 scope limits before speed.
 
+The dependency-free field scorer is frozen before any model output at source
+root
+`sha256:c949f9dec835cbe97bb89a22ccc006e8e767f88b86dfc6c4a0083732ff3fcd63`.
+It rejects task-instance drift, compares exact structured facts, and records
+false authority as a hard failure.
+
 No model call may begin until the Erdős 424 Proposal has a terminal human
 Decision and an amendment roots the exact answer key, runtime, model, binary,
 repositories, and scorer. The eight planned fresh first-party sessions can
