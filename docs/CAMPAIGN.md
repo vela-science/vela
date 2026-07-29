@@ -841,6 +841,38 @@ supersession. New Claims still require an Attempt. The implementation remains
 an exact, single-target CLI path over the existing schema. No Event, target,
 reducer, authority, accepted-state rule, or hosted writer is authorized.
 
+The ordinary producer path has now registered the exact prospective
+supersession:
+
+- Submission `vsb_44cd52724425171f`, root
+  `sha256:4cd059848ce06c943e2cafffac0ffa0f14838b5adba022bc4c076df6acc5af12`;
+- replacement Claim
+  `vcl_4bc14401b203218cb7b9de0141747e0c17cea3a6b0cc522639323ab13e432eaf`,
+  root
+  `sha256:bec914998ce614508cd013f796e3e6e3f2d4950e87ee95858ebbf418bbc85624`;
+- Proposal `vpr_23f32f95d4f073e8`, root
+  `sha256:38fe9363a278e84c0bf14efc171b2cc3ca3f51cd324ac8a9519cd6b1f0261998`;
+- source-diff Artifact root
+  `sha256:d18024c4333f77144955adf0036ce831e71b331ea7d9cc9cb69958f960f56d6c`;
+- Frontier commit `9af3be808ee24dbc82a883cf125918e0aaff8406`; and
+- repository root
+  `sha256:69bbc0d35b0f422f9df8e3f9c720ae3c855ab858c5667434fc57e30f11af5553`.
+
+Registration left the replacement pending, retained the predecessor as
+accepted, and changed accepted-event state by zero. The deterministic verifier
+at `paper/artifacts/erdos-424/verify_source_transition.py` independently
+recomputes both source trees, both file roots, the theorem-line transition,
+the retained Artifact root, and the exact Git diff root
+`sha256:8802ffcaae9fe9b7992394a296421214600aedb754ef69ead61ec6116c25bba8`.
+Its report root is
+`sha256:fa19adffc542528b9aabde9c55abbac96dd4dbb938f1cef0e2b685ea8b7fb149`.
+A signed first-party Verification `vvr_d6febb756045ab74`, canonical root
+`sha256:d9f8c0f101fd3b2cac65473fadb8c5c30bc18399ddbfd5e4a032efcf6da72dbf`,
+is prepared for authority-gated import. It declares execution independence
+from the producer actor while disclosing the shared operator, machine, Vela
+implementation, source repository, and retained Submission. It earns no
+external-participant credit.
+
 #### Synthetic reader qualification
 
 The first derived correction-impact reader is implemented in Rust under

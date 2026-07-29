@@ -97,6 +97,13 @@ source commit, path, and content roots before any correction-impact reader is
 implemented. Do not manufacture a false Claim or reinterpret a discovery edge
 to satisfy the benchmark shape.
 
+The Erdős 424 writer-qualification fixture is now registered as pending
+Proposal `vpr_23f32f95d4f073e8` with zero accepted-state change. Its
+deterministic source verifier passes and its signed first-party Verification is
+prepared; authority-gated import and the separate human Decision are the next
+two steps. This remains writer qualification, not the topology-sensitive
+protocol benchmark.
+
 ## P2: earn a reusable math profile
 
 Prototype the smallest Vela Math mapping source-locally. Do not publish a
