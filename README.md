@@ -24,7 +24,8 @@ Vela tracks the missing state between them: what is claimed, what exact
 evidence bears on it, what was independently checked, what a named Frontier
 decided, what was corrected, and what the next researcher can safely inherit.
 
-Vela is an open scientific-state and compounding layer. Its product loop is:
+Vela is a Git-native protocol and CLI for governed, replayable
+scientific-state transitions. Its product loop is:
 
 ```text
 map -> target -> run -> verify -> commit -> compound

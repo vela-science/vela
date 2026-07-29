@@ -2,12 +2,13 @@
 
 Vela is version control for living science.
 
-Its product category is an open scientific-state and compounding layer: the
-portable boundary that records what is claimed, evidenced, checked, decided,
-corrected, inherited, and safe to do next. The longer-range direction is a
-federated inheritance layer for science. That direction remains a hypothesis
-until different producers and readers demonstrate cheaper continuation,
-correction handling, and downstream reuse.
+Its technical category is a Git-native protocol and CLI for governed,
+replayable scientific-state transitions: the portable boundary that records
+what is claimed, evidenced, checked, decided, corrected, inherited, and safe
+to do next. Its long-range strategic category is scientific state and
+inheritance infrastructure. That direction remains a hypothesis until
+different producers and readers demonstrate cheaper continuation, correction
+handling, and downstream reuse.
 
 The product story is:
 

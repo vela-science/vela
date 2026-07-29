@@ -14,9 +14,9 @@
   <a href="LICENSE-APACHE"><img alt="Apache-2.0 OR MIT" src="https://img.shields.io/badge/license-Apache--2.0%20OR%20MIT-4F8F8B?style=flat-square&labelColor=081224" /></a>
 </p>
 
-Canopus is a removable research runner over Vela and Git. It gives Codex one
-rooted target, freezes the produced bytes, runs a separate verifier, and
-reproduces the result from a clean clone.
+Canopus, the Vela research runner, is a removable producer over Vela and Git.
+It gives Codex one rooted target, freezes the produced bytes, runs a separate
+verifier, and reproduces the result from a clean clone.
 
 A Run is nonmutating. It does not create a Proposal, Verification Record,
 Decision, Event, or scientific Standing. A successful Run may be exported as an
