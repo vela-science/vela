@@ -7,12 +7,9 @@
 //! leaves. The deletion test holds: delete every adapter, run `agents sync`,
 //! the same rules regenerate from VELA.md.
 //!
-//! The skill adapter is the one exception to "derived from VELA.md": its text
-//! is the Vela frontier skill template, embedded below as a const and mirrored
-//! byte-for-byte from `integrations/claude-plugin/skills/vela-frontier/SKILL.md`
-//! (a test pins the parity). VELA.md stays the charter for THIS worktree; the
-//! skill teaches the protocol-level loop, receipt, and custody rules that are
-//! the same in every frontier.
+//! The skill adapter is the one exception to "derived from VELA.md": its
+//! protocol-level loop and custody rules are embedded below as the single
+//! authored template. VELA.md stays the charter for this worktree.
 
 use crate::cli::{fail_return, print_json};
 use crate::cli_commands::AgentsAction;
@@ -97,28 +94,24 @@ draft until a key-holding human accepts it. The full charter is VELA.md.\n\
 
 /// Frontmatter of the Vela frontier skill (Claude Code / Codex shared format:
 /// Claude Code discovers it at `.claude/skills/`, Codex at `.agents/skills/`
-/// per the open agent-skills standard). Mirrored byte-for-byte from
-/// `integrations/claude-plugin/skills/vela-frontier/SKILL.md`; a test pins the
-/// parity. Edit the plugin file and this const together.
+/// per the open agent-skills standard).
 const SKILL_FRONTMATTER: &str = r##"---
 name: vela-frontier
 description: Working in a repository that has a .vela/ directory (a Vela Frontier). Use when inspecting standing, starting Attempts, submitting evidence, importing Verification Records, or reviewing exact Proposals. The producer loop is next → start → submit; only authorized Decisions change standing.
 ---
 "##;
 
-/// Body of the Vela frontier skill. See [`SKILL_FRONTMATTER`] for the mirror
-/// rule.
+/// Body of the single Vela frontier skill template.
 const SKILL_BODY: &str = r##"
 # Vela frontier work
 
 Vela is Git-native, authority-scoped state for scientific work. Claims,
-evidence, provenance, and proofs are bound to content-addressed, signed,
-replayable events; everything else (frontier.json, proof packets, rollups) is a
-derived view. Activity is not state: a script that ran is activity; a witness
-plus a declared frozen verifier is evidence for that verifier's scoped result;
-only an authorized accepted event changes frontier state. A repository with a
-`.vela/` directory is a frontier, and this skill is how an agent works inside
-one.
+Submissions, Verification Records, Decisions, and repository-authority
+transitions bind exact content and replay deterministically. Activity is not
+state: a script that ran is activity; a witness plus a declared frozen
+verifier is evidence for one scoped result; only an authorized Decision
+changes Standing. A repository with a `.vela/` directory is a Frontier, and
+this skill is how an agent works inside one.
 
 ## The loop
 
@@ -146,9 +139,6 @@ next -> start -> submit
 - `vela start <target> --drop --reason <why> --as agent:<you> --json` — sign a
   same-owner zero-TTL lease update, then remove private scratch. Deleting files
   by hand does not release a lease.
-- `vela artifact retract <frontier> <va_id> --as agent:<you> --reason <why>
-  --json` — draft retirement of a malformed or obsolete artifact. It remains
-  pending; only the human ceremony may remove its active proof-readiness weight.
 - `vela review list . --json` — the pending queue, newest first. Each compact
   row includes `created_at`; use `vela review show . <vpr_id> --json` for one
   exact pending Review Packet or signed terminal Decision record.
@@ -222,16 +212,13 @@ never imply acceptance.
   claim that preparing a command caused a Decision.
 - Every write carries an explicit acting identity: `--as agent:<you>`, or set
   `VELA_ACTOR_ID=agent:<you>` for the session. Never write as a human.
-- Never sign anything, never read or handle key material, never sit in a
-  trust path. A model may produce a candidate witness; only a frozen verifier
-  may check it, and only a key-holding human accepts a truth-bearing proposal.
+- Never sign anything, read or handle key material, or sit in a trust path. A
+  model may produce a candidate witness; a frozen verifier may report its
+  scoped result; only an authorized principal may make the Decision.
 - Never pre-fill a verdict the human did not explicitly give. Presenting
   evidence is yours; the judgment is not.
-- Artifact retirement preserves the record and its historical audit issues. It
-  does not retract or judge the truth or quality of linked findings.
-- Never hand-edit accepted events or derived views (`frontier.json`, proof
-  packets); regenerate with `vela frontier materialize`. Never bulk-move
-  Vela-canonical paths (`examples/`, `.vela/`).
+- Never hand-edit canonical objects, repository-authority history, or derived
+  views. Use the exact current CLI and never bulk-move `.vela/`.
 
 ## The gate
 
@@ -242,10 +229,10 @@ paths. Release certification runs the deterministic full Vela union. Live
 network and platform-pinned adapter checks stay explicit and cannot block an
 unrelated Vela release. A selected suite fails if a required verifier toolchain
 is absent; a non-selected suite is not a pass.
-`vela check . --strict` is the same frontier-state bar the hub's ingestor
-enforces. `vela reproduce <frontier>` re-runs the frozen verifiers over stored
-witnesses from scratch. Run it before claiming a reproduction, and never
-silently break the reproduction of a banked result.
+`vela check . --strict` is the current repository integrity bar. `vela
+reproduce <frontier>` re-runs the frozen verifiers over stored witnesses from
+scratch. Run it before claiming a reproduction, and never silently break the
+reproduction of a retained result.
 
 ## Reading state
 
@@ -258,10 +245,8 @@ Canopus remain optional producers and do not become part of Vela's authority
 or repository state.
 "##;
 
-/// The note stamped into the EMITTED skill adapter (after the frontmatter, so
-/// the skill still parses). The plugin's copy of the skill carries no note —
-/// there it is authored source.
-const SKILL_NOTE: &str = "<!-- GENERATED BY `vela agents sync`. The skill template ships inside the vela\n     binary (mirror of integrations/claude-plugin/skills/vela-frontier/SKILL.md).\n     Do not edit here; upgrade vela and re-run `vela agents sync`. -->";
+/// The note stamped into the emitted skill adapter after its frontmatter.
+const SKILL_NOTE: &str = "<!-- GENERATED BY `vela agents sync`. The canonical skill template ships inside the vela binary.\n     Do not edit here; upgrade vela and re-run `vela agents sync`. -->";
 
 fn skill_adapter() -> String {
     format!("{SKILL_FRONTMATTER}\n{SKILL_NOTE}\n{SKILL_BODY}")
@@ -435,26 +420,10 @@ pub(crate) fn cmd_agents_diff(root: &Path, json_output: bool) {
 mod tests {
     use super::*;
 
-    /// One source of truth, three copies: the plugin's authored SKILL.md, the
-    /// `.claude/skills/` adapter, and the `.agents/skills/` (Codex) adapter
-    /// must all carry byte-identical skill text. Edit them together or this
-    /// fails.
+    /// One source of truth produces byte-identical Claude Code and Codex
+    /// adapters.
     #[test]
-    fn skill_template_mirrors_plugin_skill() {
-        let plugin: &str = include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../integrations/claude-plugin/skills/vela-frontier/SKILL.md"
-        ));
-        let embedded = format!("{SKILL_FRONTMATTER}{SKILL_BODY}");
-        assert_eq!(
-            plugin, embedded,
-            "integrations/claude-plugin/skills/vela-frontier/SKILL.md and the \
-             SKILL_* consts in cli_agents.rs drifted apart"
-        );
-
-        // Both skill targets are declared, and both emit the same string via
-        // `skill_adapter()`: build the adapters against a minimal VELA.md and
-        // compare the two emitted copies byte-for-byte.
+    fn skill_template_emits_identical_agent_adapters() {
         for path in [
             ".claude/skills/vela-frontier/SKILL.md",
             ".agents/skills/vela-frontier/SKILL.md",

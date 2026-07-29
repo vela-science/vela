@@ -1195,7 +1195,7 @@ because it is no decision. Any action that changes a field after the final set
 was shown forces a new set and a new confirmation.
 
 Hardware-backed raw Ed25519 remains a compatible future signer, as described in
-`docs/HARDWARE_SIGNING_PROPOSAL.md`. Passkeys, OIDC, and keyless signatures do
+`docs/history/HARDWARE_SIGNING_PROPOSAL.md`. Passkeys, OIDC, and keyless signatures do
 not become acceptance authority through this ADR.
 
 ### 8. Derive policy context in one place

@@ -28,7 +28,7 @@ absent_paths=(
   docs/CARINA.md
   docs/HUB.md
   examples/carina-kernel
-  integrations/claude-plugin/commands/sign-prep.md
+  integrations/claude-plugin
   schema/carina.artifact-packet.v0.1.json
   scripts/seed-erdos-formalization.sh
   templates/frontier
@@ -43,26 +43,6 @@ for path in "${absent_paths[@]}"; do
     fail "retired path returned: $path"
   fi
 done
-
-# Active agent integrations are read/produce surfaces, never a second authority
-# ceremony. Historical ADRs and protocol replay retain the old batch-signing
-# vocabulary, but the installed Claude plugin must not recreate it.
-claude_plugin_surfaces=(
-  integrations/claude-plugin/README.md
-  integrations/claude-plugin/commands
-  integrations/claude-plugin/scripts
-)
-retired_claude_authority_pattern='vela sign|sign-session\.json|id pin-binary|sign-prep'
-if grep -RInE "$retired_claude_authority_pattern" "${claude_plugin_surfaces[@]}" >/dev/null; then
-  grep -RInE "$retired_claude_authority_pattern" "${claude_plugin_surfaces[@]}" >&2
-  fail "retired Claude authority workflow returned"
-fi
-
-retired_claude_product_pattern='vela land|/vela:land|Receipt v1|review preview|finding count|nonfinalizing `work` tool'
-if grep -RInE "$retired_claude_product_pattern" "${claude_plugin_surfaces[@]}" >/dev/null; then
-  grep -RInE "$retired_claude_product_pattern" "${claude_plugin_surfaces[@]}" >&2
-  fail "retired Claude product language returned"
-fi
 
 # Generated first-run guidance is executable product surface. It must not
 # resurrect commands removed by the prelaunch hard cut.
@@ -145,7 +125,7 @@ receipt_binding_surfaces=(
   crates/vela-protocol/src/objects/receipt_v1.rs
   crates/vela-cli/resources/vela_receipt_v1.py
   crates/vela-edge/src/analysis/decision_brief.rs
-  docs/RECEIPTS.md
+  docs/history/RECEIPTS.md
 )
 retired_receipt_binding_pattern='AttestationBinding|LegacyUnbound|legacy[-_ ]unbound'
 if grep -nE "$retired_receipt_binding_pattern" "${receipt_binding_surfaces[@]}" >/dev/null; then
@@ -293,8 +273,6 @@ done
 # the retired deposit writer.
 work_surfaces=(
   crates/vela-cli/src/config/cli_agents.rs
-  integrations/claude-plugin/README.md
-  integrations/claude-plugin/skills/vela-frontier/SKILL.md
   docs/AGENT_QUICKSTART.md
 )
 retired_work_pattern='Some\("deposit"\)|action=deposit|claim/land/drop/deposit|claim\|land\|drop\|deposit|deposit an attempt'
@@ -306,8 +284,6 @@ fi
 retired_mcp_propose_pattern='`propose`|"propose"'
 mcp_propose_surfaces=(
   crates/vela-cli/src/config/cli_agents.rs
-  integrations/claude-plugin/README.md
-  integrations/claude-plugin/skills/vela-frontier/SKILL.md
   docs/AGENT_QUICKSTART.md
 )
 if grep -nE "$retired_mcp_propose_pattern" "${mcp_propose_surfaces[@]}" >/dev/null; then

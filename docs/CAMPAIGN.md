@@ -804,6 +804,17 @@ consumer remains.
 The audit retires:
 
 - the derived `atlas/` and `frontiers/` catalogues;
+- the top-level `examples/` product surface and its 41 duplicated or
+  superseded scientific witnesses; the complete current records remain in
+  their Erdős and Sidon Frontiers, while `vela-verify` retains one synthetic
+  CLI smoke witness plus focused positive and hostile unit coverage;
+- predecessor product-language, governance, portability, signer, Receipt, and
+  dated-assessment documents from the active documentation root into
+  `docs/history/`;
+- the unreleased Claude plugin wrapper, commands, hook, MCP declaration, and
+  duplicated skill file; `vela agents sync` remains the single
+  framework-neutral generator for Claude Code, Codex, Cursor, and Copilot
+  repository guidance;
 - predecessor research rehearsals and the unused top-level Lean model;
 - inactive client packaging, preserving only the independent conformance
   readers and emitter;

@@ -74,7 +74,7 @@ EXAMPLES
 
 pub const REPRODUCE: &str = "\
 EXAMPLES
-  vela reproduce examples/sidon-a309370   re-verify every witness from scratch
+  vela reproduce .                         re-verify this Frontier from scratch
 
 No trust required: the frozen verifiers re-derive each stored witness.";
 

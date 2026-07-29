@@ -82,7 +82,8 @@ pub struct PolicyContext {
     /// The evaluator saw a field it does not recognize → never permit (monotonic).
     pub has_unknown_fields: bool,
     /// The originating receipt's honest replay classification (`exact` | `bounded`
-    /// | `approximate` | `unavailable` | `unknown`; docs/RECEIPTS.md). Hosts set
+    /// | `approximate` | `unavailable` | `unknown`; docs/history/RECEIPTS.md).
+    /// Hosts set
     /// `unknown` explicitly for non-receipt transitions. A policy MAY require
     /// `exact` to auto-admit a serious claim class.
     pub replayability: String,

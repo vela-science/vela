@@ -39,12 +39,11 @@ verifier attachments (`vva_`) and the human key.
 
 ## The shape: `vela.receipt.v1`
 
-The schema is versioned at
-[`docs/schemas/vela.receipt.v1.schema.json`](schemas/vela.receipt.v1.schema.json).
-External producers should validate against that file before handing a receipt to
-`vela land`. The dependency-free production core and its command harness live
-in [`crates/vela-cli/resources`](../crates/vela-cli/resources) and are embedded
-byte-for-byte in the installed CLI. Copy `receipt_v1.py`,
+The retired schema remains available from the Git revision that published this
+document; it is intentionally absent from the current writer surface. The
+historical dependency-free core and command harness remain in
+[`crates/vela-cli/resources`](../../crates/vela-cli/resources) for exact replay.
+Copy `receipt_v1.py`,
 `vela_receipt_v1.py`, and `receipt_json.py` together for a cold-start emitter;
 there is no checkout-only second implementation.
 

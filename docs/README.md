@@ -28,9 +28,9 @@
 - [Theory](THEORY.md)
 - [Publishing](PUBLISHING.md)
 
-The remaining top-level documents are retained design, governance, assessment,
-or predecessor-era records. Their first paragraph states their status. They do
-not define the current command surface.
+[Historical documents](history/README.md) retain predecessor language,
+rejected designs, and dated assessments outside the current documentation
+surface.
 
 Accepted ADRs preserve decisions. Proposed ADRs describe candidates and their
 evidence gates. Git history preserves superseded text; active documents do not

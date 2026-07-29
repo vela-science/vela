@@ -30,7 +30,7 @@ jobs:
         run: |
           tmp="$(mktemp -d)"
           trap 'rm -rf "$tmp"' EXIT
-          cp examples/sidon-a309370/witnesses/sidon-a08.witness.json "$tmp/witness.json"
+          cp crates/vela-verify/corpus/valid/smoke/sidon.witness.json "$tmp/witness.json"
           cp crates/vela-cli/resources/receipt_v1.py "$tmp/receipt_v1.py"
           cp crates/vela-cli/resources/vela_receipt_v1.py "$tmp/vela_receipt_v1.py"
           cp crates/vela-cli/resources/receipt_json.py "$tmp/receipt_json.py"
@@ -59,7 +59,5 @@ jobs:
         run: ./scripts/check-core-surface.sh
       - name: independent authority foundation verifier
         run: python3 conformance/verify.py
-      - name: reproduce (frozen verifiers re-derive every shipped witness)
-        run: |
-          ./target/release/vela reproduce examples/sidon-a309370
-          ./target/release/vela reproduce examples/erdos-problems
+      - name: reproduce (CLI re-derives the synthetic valid corpus)
+        run: ./target/release/vela reproduce crates/vela-verify/corpus/valid/smoke

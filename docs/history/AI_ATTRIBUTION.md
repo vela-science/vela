@@ -4,7 +4,7 @@
 > Finding-era event kinds and early actor terminology. Current producers emit
 > authenticated Submissions; current verifiers emit scoped Verification
 > Records; repository authority records one authorized human Decision. See
-> [TERMINOLOGY.md](TERMINOLOGY.md).
+> [TERMINOLOGY.md](../TERMINOLOGY.md).
 
 This doc names the doctrine Vela's substrate already enforces:
 **proposals can be drafted by anyone, including AI agents;
@@ -29,7 +29,7 @@ Vela's substrate has carried `actor.type: "human" | "agent"` on
 every event since v0.55. The v0.75 protocol adds a `Proof`
 primitive (Lean / Coq / Isabelle / Agda / Metamath /
 Rocq) for the formalization slot. v0.76 adds an Agent4Science
-review-packet adapter and the `examples/sidon-a309370/` frozen-verifier
+review-packet adapter and the Sidon frozen-verifier
 example. This doc makes the
 doctrine explicit so a reader knows what the substrate
 guarantees and what it leaves open.
@@ -117,11 +117,11 @@ repair; the human (`reviewer:will-blair`) accepts. The
 before/after hashes weld byte-for-byte across the chain.
 Replay re-derives the same finding state from the events alone.
 
-The Sidon-set example (`examples/sidon-a309370/`) is deliberately narrower:
-it carries frozen witness inputs and demonstrates deterministic re-verification,
-not an actor decision chain. Accepted-state provenance belongs in a standalone
-frontier's signed `.vela/events`; a verifier example must not imply that
-re-running evidence also certifies or accepts it.
+The Sidon verifier corpus is deliberately narrower: it carries frozen witness
+inputs and demonstrates deterministic re-verification, not an actor decision
+chain. Accepted-state provenance belongs in the standalone Sidon Frontier; a
+verifier fixture must not imply that re-running evidence also certifies or
+accepts it.
 
 ## The certification model
 
@@ -240,4 +240,4 @@ substrate questions:
   gowers.wordpress.com, 2026-05-08.
 - `docs/PROTOCOL.md`. Normative event semantics.
 - `docs/PROTOCOL.md`. The canonical event log walkthrough.
-- `examples/sidon-a309370/`. The frozen-verifier reference inputs.
+- `vela-science/sidon-frontier`. Canonical Sidon records and witnesses.

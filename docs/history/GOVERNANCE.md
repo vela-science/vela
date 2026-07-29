@@ -1,7 +1,7 @@
 # Governance and incentives
 
 > **Historical design record.** Current repository authority and direct
-> Decisions are defined in [SIGNING.md](SIGNING.md).
+> Decisions are defined in [SIGNING.md](../SIGNING.md).
 
 > The structure that keeps the protocol neutral while the operation can
 > sustain itself, and the incentives that make a producer want to leave verified state behind. This
