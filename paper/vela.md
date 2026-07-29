@@ -652,11 +652,11 @@ python3 -m unittest paper/artifacts/state-lift/test_score.py
 
 The working source-only artifact builder refuses dirty Vela input and mismatched
 external commits, trees, or content roots. At Vela commit
-`eed1c87027e4a4bb74e1f1c2b73b5fd2f0c04ba2`, two independent invocations
-produced identical 416-member archives at root
-`sha256:537c23ab906480c7c6299f484f694d70e78f705fd693286ef009b42109253d81`
+`79c3d3e6d777f7734b4a82b9e82cd0c53dec4ba5`, two independent invocations
+produced identical 428-member archives at root
+`sha256:bad77d78c47f14799422965ce4742b01ec5f0bbca73e19ad5b99044595b45e0e`
 and manifest root
-`sha256:b7c3c0fded6e082c85a83fae3fba3fccabb6e150edee4184537b723e3b24cc8f`.
+`sha256:a2aee9988d2d1b6692a360092ebcbdc402964fa7e708835be06e66a047d5a0a4`.
 The verifier rehashed every member and rejected unmanifested paths. This is
 packaging qualification, not independent reproduction or the final release
 artifact.
