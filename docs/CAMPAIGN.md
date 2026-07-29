@@ -297,6 +297,15 @@ not copied into this product repository.
 | Quantum Frontier | strict replay passes at `790f255c394b7900e7a1e36a740406d16b783165` |
 | Web | read-only clean-clone checks and projection-bound build pass at `bdb10ed92edba5ea1a0e75d44bfb457e0b806f5f`; no web-code release is required by the current campaign |
 
+The Canopus release is independently identifiable rather than inferred from
+the workspace version. Tag `product-v0.8.0` resolves to
+`5df4c0cdd1e049d80c7ea0be00ee96fc4307c681`; GitHub release workflow
+`30391398049` passed at that commit; its Canopus archive has SHA-256
+`29b653c2e69b402f4b606fbc3374a504bc706ce61814e63f70c7b90b5aacf039`;
+and npm reports SLSA provenance for `@vela-science/canopus@0.8.0`. This release
+closed the bounded Erdős 1056 loop recorded by Canopus ADR 0010. It does not
+prejudge the separate Erdős 424 correction benchmark.
+
 ### Formal product dogfood
 
 The first mechanically checkable Formal offer is now a reproduced local
