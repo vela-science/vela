@@ -544,6 +544,9 @@ pub(crate) enum RepositoryAction {
         /// Require the command to remain read-only.
         #[arg(long, required = true)]
         check: bool,
+        /// Materialize the verified candidate object set outside the Frontier.
+        #[arg(long)]
+        output: Option<PathBuf>,
         #[arg(long)]
         json: bool,
     },

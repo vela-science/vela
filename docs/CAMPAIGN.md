@@ -156,6 +156,14 @@ the one-time compactor and every old reader are removed before Vela `0.950.0`.
 Historical replay remains available only through exact archives and the pinned
 old binary, not through compatibility in the current product.
 
+As of 2026-07-29, the read-only audit and source-external candidate
+materialization pass for all four Frontiers. Each package was re-read from
+disk, and its canonical plan, object manifest, object bytes, rebuilt Claims,
+and equivalence report agree exactly. No source Frontier changed. The next
+engineering gate is the single-origin candidate repository and exact
+repository-authority postimage; compatibility removal cannot begin until all
+four resulting clean clones replay.
+
 Six protocol and operating planes remain deliberately separate:
 
 ```text

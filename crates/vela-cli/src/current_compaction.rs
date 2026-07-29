@@ -2,9 +2,10 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::path::{Component, Path};
+use std::path::{Component, Path, PathBuf};
+use std::process::Command;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use vela_protocol::claim_record::{ClaimEvidenceRef, ClaimRecordV1, LEGACY_FINDING_EXTENSION};
 use vela_protocol::current_repository::{
@@ -13,13 +14,51 @@ use vela_protocol::current_repository::{
 use vela_protocol::current_state_equivalence::{
     ArtifactCompactionMapV1, ClaimCompactionMapV1, CompactedArtifactForm, CurrentStateEquivalenceV1,
 };
+use vela_protocol::repository_epoch::RepositoryBoundaryV1;
 
 struct ClaimCompactionAudit {
     report: CurrentStateEquivalenceV1,
     claim_map_root: String,
+    candidate_claims: Vec<ClaimRecordV1>,
+    candidate_objects: Vec<RepositoryObjectRefV1>,
 }
 
-pub(crate) fn cmd_compaction_check(frontier: &Path, check: bool, json_out: bool) {
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CandidateObjectManifestV1 {
+    schema: String,
+    frontier_id: String,
+    objects: Vec<RepositoryObjectRefV1>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CompactionCandidatePlanV1 {
+    schema: String,
+    frontier_id: String,
+    source_remote: String,
+    source_commit: String,
+    source_tree: String,
+    predecessor_repository_root: String,
+    predecessor_boundary_id: String,
+    predecessor_boundary_root: String,
+    predecessor_authority_head_root: String,
+    predecessor_tag: String,
+    artifact_map_root: String,
+    claim_map_root: String,
+    equivalence_report_root: String,
+    candidate_object_manifest_root: String,
+    candidate_object_set_root: String,
+    touched_paths: Vec<String>,
+    reason: String,
+}
+
+pub(crate) fn cmd_compaction_check(
+    frontier: &Path,
+    check: bool,
+    output: Option<&Path>,
+    json_out: bool,
+) {
     crate::ui::set_mode("repository compact", json_out);
     if !check {
         crate::cli::fail_return::<()>(
@@ -50,6 +89,17 @@ pub(crate) fn cmd_compaction_check(frontier: &Path, check: bool, json_out: bool)
         .report
         .canonical_root()
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let materialized = output.map(|output| {
+        materialize_candidate(
+            &frontier,
+            output,
+            &mappings,
+            &claim_audit,
+            &map_root,
+            &equivalence_report_root,
+        )
+        .unwrap_or_else(|error| crate::cli::fail_return(&error))
+    });
     let payload = serde_json::json!({
         "schema": "vela.repository-compaction-check.v1",
         "ok": true,
@@ -69,7 +119,12 @@ pub(crate) fn cmd_compaction_check(frontier: &Path, check: bool, json_out: bool)
         "archived_live_objects": claim_audit.report.archived_live_object_roots.len(),
         "candidate_object_set_root": claim_audit.report.candidate_object_set_root,
         "equivalent": claim_audit.report.equivalent,
-        "next_action": "bind the exact candidate files and repository-origin plan before any authority action",
+        "candidate": materialized,
+        "next_action": if output.is_some() {
+            "verify the isolated candidate and bind its repository-origin plan before any authority action"
+        } else {
+            "rerun with --output outside the Frontier to materialize the exact isolated candidate"
+        },
     });
     if json_out {
         crate::cli::print_json(&payload);
@@ -84,7 +139,11 @@ pub(crate) fn cmd_compaction_check(frontier: &Path, check: bool, json_out: bool)
             claim_audit.report.accepted_count_before
         );
         println!("  equivalence report: {}", equivalence_report_root);
-        println!("  writes: no");
+        if let Some(materialized) = materialized {
+            println!("  candidate: {}", materialized["output"]);
+            println!("  candidate plan: {}", materialized["plan_root"]);
+        }
+        println!("  source writes: no");
     }
 }
 
@@ -337,7 +396,471 @@ fn audit_claim_compaction(
     Ok(ClaimCompactionAudit {
         report,
         claim_map_root,
+        candidate_claims,
+        candidate_objects,
     })
+}
+
+fn materialize_candidate(
+    frontier: &Path,
+    output: &Path,
+    artifact_map: &[ArtifactCompactionMapV1],
+    claim_audit: &ClaimCompactionAudit,
+    artifact_map_root: &str,
+    equivalence_report_root: &str,
+) -> Result<serde_json::Value, String> {
+    let output = absolute_output_path(output)?;
+    if output.starts_with(frontier) {
+        return Err("compaction candidate output must be outside the source Frontier".into());
+    }
+    if output.exists() {
+        return Err(format!(
+            "compaction candidate output already exists at {}",
+            output.display()
+        ));
+    }
+    let parent = output
+        .parent()
+        .ok_or_else(|| "compaction candidate output has no parent".to_string())?;
+    fs::create_dir_all(parent)
+        .map_err(|error| format!("create candidate parent {}: {error}", parent.display()))?;
+    let file_name = output
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| "compaction candidate output has no UTF-8 file name".to_string())?;
+    let temporary = parent.join(format!(".{file_name}.tmp-{}", std::process::id()));
+    if temporary.exists() {
+        fs::remove_dir_all(&temporary).map_err(|error| {
+            format!(
+                "remove stale candidate temporary directory {}: {error}",
+                temporary.display()
+            )
+        })?;
+    }
+    fs::create_dir(&temporary).map_err(|error| {
+        format!(
+            "create candidate temporary directory {}: {error}",
+            temporary.display()
+        )
+    })?;
+    let result = materialize_candidate_inner(
+        frontier,
+        &temporary,
+        artifact_map,
+        claim_audit,
+        artifact_map_root,
+        equivalence_report_root,
+    );
+    let value = match result {
+        Ok(value) => value,
+        Err(error) => {
+            let _ = fs::remove_dir_all(&temporary);
+            return Err(error);
+        }
+    };
+    fs::rename(&temporary, &output).map_err(|error| {
+        let _ = fs::remove_dir_all(&temporary);
+        format!("publish candidate directory {}: {error}", output.display())
+    })?;
+    Ok(serde_json::json!({
+        "output": output,
+        "plan_root": value["plan_root"],
+        "object_manifest_root": value["object_manifest_root"],
+        "file_count": value["file_count"],
+        "verified": value["verified"],
+    }))
+}
+
+fn materialize_candidate_inner(
+    frontier: &Path,
+    output: &Path,
+    artifact_map: &[ArtifactCompactionMapV1],
+    claim_audit: &ClaimCompactionAudit,
+    artifact_map_root: &str,
+    equivalence_report_root: &str,
+) -> Result<serde_json::Value, String> {
+    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let epoch_bytes = fs::read(frontier.join(".vela/epoch.json"))
+        .map_err(|error| format!("read current repository boundary: {error}"))?;
+    let epoch = RepositoryBoundaryV1::parse(&epoch_bytes)?;
+    let authority = crate::cli::load_current_repository_authority(frontier, &repository, &epoch)?;
+    let authority_head = authority
+        .verification
+        .final_authority_record_root
+        .clone()
+        .ok_or_else(|| "current repository authority has no final record root".to_string())?;
+
+    let mapping_by_candidate = artifact_map
+        .iter()
+        .map(|mapping| (mapping.candidate_artifact_id.as_str(), mapping))
+        .collect::<BTreeMap<_, _>>();
+    let current_by_id = repository
+        .artifacts
+        .iter()
+        .map(|reference| (reference.id.as_str(), reference))
+        .collect::<BTreeMap<_, _>>();
+
+    for reference in claim_audit
+        .candidate_objects
+        .iter()
+        .filter(|reference| reference.schema == "content-addressed-artifact")
+    {
+        let mapping = mapping_by_candidate
+            .get(reference.id.as_str())
+            .ok_or_else(|| format!("candidate Artifact {} has no compaction map", reference.id))?;
+        let predecessor = current_by_id
+            .get(mapping.predecessor_artifact_id.as_str())
+            .ok_or_else(|| {
+                format!(
+                    "compaction map names absent predecessor Artifact {}",
+                    mapping.predecessor_artifact_id
+                )
+            })?;
+        let predecessor_bytes = fs::read(frontier.join(&predecessor.path))
+            .map_err(|error| format!("read {}: {error}", predecessor.path))?;
+        let record = CurrentArtifactRecordV1::parse(&predecessor_bytes)?;
+        let bytes = match mapping.form {
+            CompactedArtifactForm::LocalBlob => {
+                let locator = record
+                    .artifact
+                    .get("locator")
+                    .and_then(serde_json::Value::as_str)
+                    .ok_or_else(|| {
+                        format!(
+                            "predecessor Artifact {} has no local locator",
+                            predecessor.id
+                        )
+                    })?;
+                fs::read(frontier.join(locator)).map_err(|error| {
+                    format!("read retained Artifact bytes at {locator}: {error}")
+                })?
+            }
+            CompactedArtifactForm::ExternalReference => predecessor_bytes,
+        };
+        write_exact_candidate(output, &reference.path, &bytes, &reference.root)?;
+    }
+
+    for reference in claim_audit.candidate_objects.iter().filter(|reference| {
+        reference.schema != "content-addressed-artifact"
+            && reference.schema != vela_protocol::claim_record::CLAIM_RECORD_V1_SCHEMA
+    }) {
+        let bytes = fs::read(frontier.join(&reference.path))
+            .map_err(|error| format!("read retained current object {}: {error}", reference.path))?;
+        write_exact_candidate(output, &reference.path, &bytes, &reference.root)?;
+    }
+    let claims_by_id = claim_audit
+        .candidate_claims
+        .iter()
+        .map(|claim| (claim.claim_id.as_str(), claim))
+        .collect::<BTreeMap<_, _>>();
+    for reference in claim_audit
+        .candidate_objects
+        .iter()
+        .filter(|reference| reference.schema == vela_protocol::claim_record::CLAIM_RECORD_V1_SCHEMA)
+    {
+        let claim = claims_by_id
+            .get(reference.id.as_str())
+            .ok_or_else(|| format!("candidate Claim {} has no rebuilt bytes", reference.id))?;
+        write_exact_candidate(
+            output,
+            &reference.path,
+            &claim.canonical_bytes()?,
+            &reference.root,
+        )?;
+    }
+
+    let object_manifest = CandidateObjectManifestV1 {
+        schema: "vela.repository-compaction-object-manifest.v1".into(),
+        frontier_id: repository.frontier_id.clone(),
+        objects: claim_audit.candidate_objects.clone(),
+    };
+    let object_manifest_bytes = vela_protocol::canonical::to_canonical_bytes(&object_manifest)?;
+    let object_manifest_root = root_bytes(&object_manifest_bytes);
+    write_relative(output, "object-manifest.json", &object_manifest_bytes)?;
+    write_relative(
+        output,
+        "equivalence.json",
+        &claim_audit.report.canonical_bytes()?,
+    )?;
+
+    let source_commit = git_output(frontier, &["rev-parse", "HEAD"])?;
+    let source_tree = git_output(frontier, &["rev-parse", "HEAD^{tree}"])?;
+    let source_remote = canonical_remote(&git_output(frontier, &["remote", "get-url", "origin"])?);
+    let tag = format!("pre-compaction/{}", &source_commit[..12]);
+    let mut touched_paths = claim_audit
+        .candidate_objects
+        .iter()
+        .map(|reference| reference.path.clone())
+        .collect::<Vec<_>>();
+    touched_paths.extend([
+        ".vela/origin.json".into(),
+        ".vela/repository.json".into(),
+        "equivalence.json".into(),
+        "object-manifest.json".into(),
+    ]);
+    touched_paths.sort();
+    touched_paths.dedup();
+    let predecessor_repository_root = repository.canonical_root()?;
+    let plan = CompactionCandidatePlanV1 {
+        schema: "vela.repository-compaction-candidate.v1".into(),
+        frontier_id: repository.frontier_id,
+        source_remote,
+        source_commit,
+        source_tree,
+        predecessor_repository_root,
+        predecessor_boundary_id: epoch.epoch_id().to_string(),
+        predecessor_boundary_root: epoch.canonical_root()?,
+        predecessor_authority_head_root: authority_head,
+        predecessor_tag: tag,
+        artifact_map_root: artifact_map_root.into(),
+        claim_map_root: claim_audit.claim_map_root.clone(),
+        equivalence_report_root: equivalence_report_root.into(),
+        candidate_object_manifest_root: object_manifest_root.clone(),
+        candidate_object_set_root: claim_audit.report.candidate_object_set_root.clone(),
+        touched_paths,
+        reason: "Adopt one current pre-release repository origin and content-addressed evidence contract.".into(),
+    };
+    let plan_bytes = vela_protocol::canonical::to_canonical_bytes(&plan)?;
+    let plan_root = root_bytes(&plan_bytes);
+    write_relative(output, "plan.json", &plan_bytes)?;
+    let file_count = verify_materialized_candidate(output)?;
+    Ok(serde_json::json!({
+        "plan_root": plan_root,
+        "object_manifest_root": object_manifest_root,
+        "file_count": file_count,
+        "verified": true,
+    }))
+}
+
+fn verify_materialized_candidate(root: &Path) -> Result<usize, String> {
+    let plan_bytes = fs::read(root.join("plan.json"))
+        .map_err(|error| format!("read candidate plan: {error}"))?;
+    let plan: CompactionCandidatePlanV1 = serde_json::from_slice(&plan_bytes)
+        .map_err(|error| format!("parse candidate plan: {error}"))?;
+    if vela_protocol::canonical::to_canonical_bytes(&plan)? != plan_bytes {
+        return Err("candidate plan is not canonical JSON".into());
+    }
+    let manifest_bytes = fs::read(root.join("object-manifest.json"))
+        .map_err(|error| format!("read candidate object manifest: {error}"))?;
+    let manifest: CandidateObjectManifestV1 = serde_json::from_slice(&manifest_bytes)
+        .map_err(|error| format!("parse candidate object manifest: {error}"))?;
+    if vela_protocol::canonical::to_canonical_bytes(&manifest)? != manifest_bytes {
+        return Err("candidate object manifest is not canonical JSON".into());
+    }
+    if manifest.frontier_id != plan.frontier_id
+        || root_bytes(&manifest_bytes) != plan.candidate_object_manifest_root
+    {
+        return Err("candidate object manifest disagrees with its plan".into());
+    }
+    let object_set_root = format!(
+        "sha256:{}",
+        vela_protocol::canonical::sha256_canonical(&manifest.objects)?
+    );
+    if object_set_root != plan.candidate_object_set_root {
+        return Err("candidate object set disagrees with its plan".into());
+    }
+
+    let equivalence_bytes = fs::read(root.join("equivalence.json"))
+        .map_err(|error| format!("read candidate equivalence report: {error}"))?;
+    let report = CurrentStateEquivalenceV1::parse(&equivalence_bytes)?;
+    if report.frontier_id != plan.frontier_id
+        || report.predecessor_repository_root != plan.predecessor_repository_root
+        || report.candidate_object_set_root != plan.candidate_object_set_root
+        || report.canonical_root()? != plan.equivalence_report_root
+    {
+        return Err("candidate equivalence report disagrees with its plan".into());
+    }
+
+    let objects_by_id = manifest
+        .objects
+        .iter()
+        .map(|reference| (reference.id.as_str(), reference))
+        .collect::<BTreeMap<_, _>>();
+    for mapping in &report.artifact_map {
+        let reference = objects_by_id
+            .get(mapping.candidate_artifact_id.as_str())
+            .ok_or_else(|| {
+                format!(
+                    "candidate manifest lacks compacted Artifact {}",
+                    mapping.candidate_artifact_id
+                )
+            })?;
+        if reference.root != mapping.candidate_artifact_root
+            || reference.schema != "content-addressed-artifact"
+        {
+            return Err(format!(
+                "candidate Artifact {} disagrees with the equivalence map",
+                mapping.candidate_artifact_id
+            ));
+        }
+    }
+    for mapping in &report.claim_map {
+        let reference = objects_by_id
+            .get(mapping.candidate_claim_id.as_str())
+            .ok_or_else(|| {
+                format!(
+                    "candidate manifest lacks compacted Claim {}",
+                    mapping.candidate_claim_id
+                )
+            })?;
+        if reference.root != mapping.candidate_claim_root
+            || reference.schema != vela_protocol::claim_record::CLAIM_RECORD_V1_SCHEMA
+        {
+            return Err(format!(
+                "candidate Claim {} disagrees with the equivalence map",
+                mapping.candidate_claim_id
+            ));
+        }
+    }
+
+    for reference in &manifest.objects {
+        let bytes = fs::read(root.join(&reference.path))
+            .map_err(|error| format!("read candidate object {}: {error}", reference.path))?;
+        if root_bytes(&bytes) != reference.root {
+            return Err(format!(
+                "candidate object {} does not match {}",
+                reference.path, reference.root
+            ));
+        }
+        if reference.schema == vela_protocol::claim_record::CLAIM_RECORD_V1_SCHEMA {
+            let claim = ClaimRecordV1::parse(&bytes)?;
+            if claim.claim_id != reference.id
+                || claim
+                    .evidence
+                    .iter()
+                    .filter_map(|evidence| evidence.artifact_id.as_deref())
+                    .any(|artifact_id| artifact_id.starts_with("va_"))
+            {
+                return Err(format!(
+                    "candidate Claim {} retains a legacy Artifact identity",
+                    reference.id
+                ));
+            }
+        }
+        if reference.schema == CURRENT_ARTIFACT_RECORD_SCHEMA_V1 || reference.id.starts_with("va_")
+        {
+            return Err(format!(
+                "candidate manifest retains legacy Artifact wrapper {}",
+                reference.id
+            ));
+        }
+    }
+
+    let files = walk_files(root)?;
+    let expected = manifest
+        .objects
+        .iter()
+        .map(|reference| root.join(&reference.path))
+        .chain(
+            ["plan.json", "object-manifest.json", "equivalence.json"]
+                .into_iter()
+                .map(|path| root.join(path)),
+        )
+        .collect::<BTreeSet<_>>();
+    let observed = files.iter().cloned().collect::<BTreeSet<_>>();
+    if observed != expected {
+        return Err("candidate package contains missing or unexplained files".into());
+    }
+    Ok(files.len())
+}
+
+fn write_exact_candidate(
+    output: &Path,
+    relative: &str,
+    bytes: &[u8],
+    expected_root: &str,
+) -> Result<(), String> {
+    let observed = root_bytes(bytes);
+    if observed != expected_root {
+        return Err(format!(
+            "candidate object {relative} has root {observed}, expected {expected_root}"
+        ));
+    }
+    write_relative(output, relative, bytes)
+}
+
+fn write_relative(output: &Path, relative: &str, bytes: &[u8]) -> Result<(), String> {
+    let path = Path::new(relative);
+    if path.is_absolute()
+        || path
+            .components()
+            .any(|component| matches!(component, Component::ParentDir))
+    {
+        return Err(format!("candidate path `{relative}` is not safe"));
+    }
+    let destination = output.join(path);
+    if let Some(parent) = destination.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("create candidate path {}: {error}", parent.display()))?;
+    }
+    fs::write(&destination, bytes)
+        .map_err(|error| format!("write candidate object {}: {error}", destination.display()))
+}
+
+fn root_bytes(bytes: &[u8]) -> String {
+    format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
+}
+
+fn absolute_output_path(path: &Path) -> Result<PathBuf, String> {
+    if path.is_absolute() {
+        return Ok(path.to_path_buf());
+    }
+    std::env::current_dir()
+        .map(|current| current.join(path))
+        .map_err(|error| format!("resolve candidate output: {error}"))
+}
+
+fn git_output(root: &Path, args: &[&str]) -> Result<String, String> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(args)
+        .output()
+        .map_err(|error| format!("run git {}: {error}", args.join(" ")))?;
+    if !output.status.success() {
+        return Err(format!(
+            "git {} failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    String::from_utf8(output.stdout)
+        .map_err(|error| format!("decode git {} output: {error}", args.join(" ")))
+        .map(|value| value.trim().to_string())
+}
+
+fn canonical_remote(remote: &str) -> String {
+    if let Some(path) = remote.strip_prefix("git@github.com:") {
+        return format!("https://github.com/{path}");
+    }
+    remote.to_string()
+}
+
+fn walk_files(root: &Path) -> Result<Vec<PathBuf>, String> {
+    let mut pending = vec![root.to_path_buf()];
+    let mut files = Vec::new();
+    while let Some(directory) = pending.pop() {
+        for entry in fs::read_dir(&directory)
+            .map_err(|error| format!("read candidate directory {}: {error}", directory.display()))?
+        {
+            let entry = entry.map_err(|error| format!("read candidate entry: {error}"))?;
+            let file_type = entry
+                .file_type()
+                .map_err(|error| format!("inspect candidate entry: {error}"))?;
+            if file_type.is_dir() {
+                pending.push(entry.path());
+            } else if file_type.is_file() {
+                files.push(entry.path());
+            } else {
+                return Err(format!(
+                    "candidate contains unsupported path {}",
+                    entry.path().display()
+                ));
+            }
+        }
+    }
+    files.sort();
+    Ok(files)
 }
 
 fn retained_claim_ids(frontier: &Path) -> Result<BTreeSet<String>, String> {
