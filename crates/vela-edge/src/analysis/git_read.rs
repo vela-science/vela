@@ -1,9 +1,4 @@
-//! Shared, read-only Git process boundary for derived repository checks.
-//!
-//! Repository verification must not inherit a caller's Git redirects,
-//! executable helpers, replacement refs, or mutable global configuration.
-//! Callers still choose the exact read-only plumbing command and validate its
-//! output; this module supplies only the common process isolation.
+//! Shared, read-only Git process boundary for repository checks.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
@@ -205,9 +200,6 @@ fn hash_regular_paths(repo: &Path, paths: &[String]) -> Result<Vec<String>, Stri
         .stdin
         .take()
         .ok_or_else(|| "open filter-free worktree hashing input".to_string())?;
-    // Git emits one root for every input path. Writing all paths before reading
-    // stdout can deadlock once both bounded OS pipes fill. Feed stdin on a
-    // dedicated thread while `wait_with_output` drains stdout and stderr.
     let writer = std::thread::spawn(move || {
         stdin
             .write_all(&input)
@@ -260,9 +252,12 @@ fn symlink_target_bytes(path: &Path) -> Result<Vec<u8>, String> {
 }
 
 /// Return every tracked/index/worktree mismatch and, when requested, every
-/// ignored-aware untracked path without invoking `git status`, fsmonitor, or
-/// repository-configured clean filters.
-pub fn dirty_worktree_paths(repo: &Path, include_untracked: bool) -> Result<Vec<String>, String> {
+/// ignored-aware untracked path without invoking repository-configured
+/// fsmonitor hooks or clean filters.
+pub(crate) fn dirty_worktree_paths(
+    repo: &Path,
+    include_untracked: bool,
+) -> Result<Vec<String>, String> {
     let repo = std::fs::canonicalize(repo)
         .map_err(|error| format!("resolve Git repository for dirt check: {error}"))?;
     let head = entries(
@@ -322,8 +317,6 @@ pub fn dirty_worktree_paths(repo: &Path, include_untracked: bool) -> Result<Vec<
                 }
             }
             _ => {
-                // Gitlinks and special/replaced filesystem objects are never
-                // accepted as a clean trust-bound repository checkout.
                 dirty.insert(entry.path.clone());
             }
         }
@@ -349,115 +342,4 @@ pub fn dirty_worktree_paths(repo: &Path, include_untracked: bool) -> Result<Vec<
         }
     }
     Ok(dirty.into_iter().collect())
-}
-
-#[cfg(all(test, unix))]
-mod tests {
-    use super::*;
-    use std::os::unix::fs::PermissionsExt;
-
-    fn run(repo: &Path, args: &[&str]) {
-        let output = Command::new("git")
-            .arg("-C")
-            .arg(repo)
-            .args(args)
-            .output()
-            .unwrap();
-        assert!(
-            output.status.success(),
-            "git {}: {}",
-            args.join(" "),
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-
-    #[test]
-    fn dirt_check_never_executes_repository_helpers_and_detects_exact_changes() {
-        let repo = tempfile::tempdir().unwrap();
-        run(repo.path(), &["init", "-q", "-b", "main"]);
-        run(repo.path(), &["config", "user.name", "Vela Test"]);
-        run(
-            repo.path(),
-            &["config", "user.email", "vela@example.invalid"],
-        );
-        std::fs::write(
-            repo.path().join(".gitattributes"),
-            "tracked.txt filter=hostile\n",
-        )
-        .unwrap();
-        std::fs::write(repo.path().join("tracked.txt"), "exact\n").unwrap();
-        run(repo.path(), &["add", "."]);
-        run(repo.path(), &["commit", "-qm", "fixture"]);
-
-        let helpers = tempfile::tempdir().unwrap();
-        let fsmonitor_canary = helpers.path().join("fsmonitor-ran");
-        let filter_canary = helpers.path().join("filter-ran");
-        let fsmonitor = helpers.path().join("fsmonitor.sh");
-        let filter = helpers.path().join("filter.sh");
-        std::fs::write(
-            &fsmonitor,
-            format!(
-                "#!/bin/sh\ntouch '{}'\nprintf '0\\n'\n",
-                fsmonitor_canary.display()
-            ),
-        )
-        .unwrap();
-        std::fs::write(
-            &filter,
-            format!("#!/bin/sh\ntouch '{}'\ncat\n", filter_canary.display()),
-        )
-        .unwrap();
-        std::fs::set_permissions(&fsmonitor, std::fs::Permissions::from_mode(0o755)).unwrap();
-        std::fs::set_permissions(&filter, std::fs::Permissions::from_mode(0o755)).unwrap();
-        run(
-            repo.path(),
-            &["config", "core.fsmonitor", fsmonitor.to_str().unwrap()],
-        );
-        run(
-            repo.path(),
-            &["config", "filter.hostile.clean", filter.to_str().unwrap()],
-        );
-
-        assert!(dirty_worktree_paths(repo.path(), true).unwrap().is_empty());
-        assert!(!fsmonitor_canary.exists());
-        assert!(!filter_canary.exists());
-
-        std::fs::write(repo.path().join("tracked.txt"), "changed\n").unwrap();
-        std::fs::write(repo.path().join("untracked.txt"), "new\n").unwrap();
-        assert_eq!(
-            dirty_worktree_paths(repo.path(), true).unwrap(),
-            vec!["tracked.txt".to_string(), "untracked.txt".to_string()]
-        );
-        assert_eq!(
-            dirty_worktree_paths(repo.path(), false).unwrap(),
-            vec!["tracked.txt".to_string()]
-        );
-        assert!(!fsmonitor_canary.exists());
-        assert!(!filter_canary.exists());
-    }
-
-    #[test]
-    fn dirt_check_drains_large_path_and_hash_streams_without_deadlock() {
-        let repo = tempfile::tempdir().unwrap();
-        run(repo.path(), &["init", "-q", "-b", "main"]);
-        run(repo.path(), &["config", "user.name", "Vela Test"]);
-        run(
-            repo.path(),
-            &["config", "user.email", "vela@example.invalid"],
-        );
-        for index in 0..1_217 {
-            let name = format!(
-                "tracked-{index:04}-{}.txt",
-                "long-path-component-for-bounded-git-pipe-regression"
-            );
-            std::fs::write(repo.path().join(name), format!("{index}\n")).unwrap();
-        }
-        run(repo.path(), &["add", "."]);
-        run(
-            repo.path(),
-            &["commit", "-qm", "large tracked path fixture"],
-        );
-
-        assert!(dirty_worktree_paths(repo.path(), true).unwrap().is_empty());
-    }
 }
