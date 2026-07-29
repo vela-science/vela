@@ -4,11 +4,11 @@
   "doctrine": "Every content-addressed id in the protocol (vf_ finding, vev_ canonical event, vpr_ proposal, the snapshot hash, the event-log leaf) is the SHA-256 of the canonical JSON bytes of a value. Two implementations derive the same id from the same logical content only if their canonicalization is byte-identical. These vectors pin vela.canonical-json/v1 so any implementation can verify byte-for-byte: keys sorted lexicographically at every depth, no inter-token whitespace, UTF-8 preserved verbatim (NOT \\u-escaped), floats in serde_json/Ryu shortest-round-trip form (1.0 keeps its decimal point), array order preserved, non-finite floats rejected.",
   "scope": {
     "conforming_implementations": [
-      "Rust: vela_protocol::canonical::to_canonical_bytes / to_canonical_string / sha256_canonical (crates/vela-protocol/src/canonical.rs)",
+      "Rust: vela_protocol::canonical::to_canonical_bytes / to_canonical_string / sha256_canonical (crates/vela-protocol/src/kernel/canonical.rs)",
       "Python: conformance/readers/python/canonical.py -- json.dumps(sort_keys=True, separators=(',',':'), ensure_ascii=False)."
     ],
     "explicitly_out_of_scope": [
-      "TypeScript: canonicalJson in conformance/readers/typescript/reducer.ts is NOT a content-addressing function and does NOT conform. It is used only to compare reducer effect-rows for cross-impl parity, where both sides are canonicalized by the same function so any divergence cancels. It diverges on floats (JSON.stringify renders 1.0 as `1`, no int/float distinction) and MUST NOT be used to derive or check a content-addressed id. The effect-row shape deliberately types numeric fields (e.g. confidence_score) as strings so no float ever enters that comparison.",
+      "JavaScript and TypeScript number encoders use the ECMAScript numeric model and do not preserve the Rust distinction between 1 and 1.0. Current portable protocol objects therefore forbid non-integer numeric fields in content-address preimages unless their schema defines an exact string representation.",
       "Python default json.dumps WITHOUT ensure_ascii=False renders non-ASCII as \\uXXXX (e.g. amyloid-\\u03b2) and therefore does NOT conform. Any Python content-addressing path MUST pass ensure_ascii=False."
     ]
   },

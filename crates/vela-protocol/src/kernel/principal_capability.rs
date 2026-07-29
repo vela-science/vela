@@ -919,12 +919,13 @@ mod tests {
             .as_object_mut()
             .unwrap()
             .insert("fixture_root".into(), json!(fixture_root));
-        let bytes = format!("{}\n", serde_json::to_string_pretty(&fixture).unwrap());
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../conformance/fixtures/principal-capability-v1.json");
-        if std::env::var_os("VELA_UPDATE_PRINCIPAL_CAPABILITY_FIXTURE").is_some() {
-            std::fs::write(&path, &bytes).unwrap();
-        }
-        assert_eq!(std::fs::read_to_string(path).unwrap(), bytes);
+        let retained: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+        assert_eq!(
+            crate::canonical::to_canonical_bytes(&retained).unwrap(),
+            crate::canonical::to_canonical_bytes(&fixture).unwrap()
+        );
     }
 }

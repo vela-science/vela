@@ -1,6 +1,6 @@
 [workspace]
 # The consolidated Vela workspace:
-#   vela-protocol       the protocol kernel (events, reducer, objects)
+#   vela-protocol       current object, root, event, and authority contracts
 #   vela-authority      restricted standard authorization evaluation
 #   vela-edge           derived views and adapters over kernel state
 #   vela-cli            the `vela` product binary
@@ -31,29 +31,17 @@ publish = false
 
 [workspace.dependencies]
 # Shared dependencies
-dotenvy = "0.15"
 clap = { version = "4", features = ["derive"] }
 clap_complete = "4"
-# rustls-tls (not the default native-tls) so the tree builds a single
-# TLS stack — sqlx already uses rustls — and drops the openssl C build.
-reqwest = { version = "0.12", default-features = false, features = ["json", "blocking", "rustls-tls", "charset", "http2"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-serde_json_canonicalizer = "0.3.2"
 serde_yaml = "0.9"
 sha2 = "0.10"
 tokio = { version = "1", features = ["full"] }
 chrono = { version = "0.4", features = ["serde"] }
 hex = "0.4"
-regex = "1"
-urlencoding = "2"
 colored = "3"
-axum = "0.8"
-tower-http = { version = "0.6", features = ["cors", "fs"] }
-# Workspace SQL is sqlite-only and used by replaceable local derived indexes.
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "sqlite"] }
 ed25519-dalek = { version = "2", features = ["rand_core", "zeroize"] }
-zeroize = "1"
 base64 = "0.22"
 cedar-policy = { version = "=4.11.2", default-features = false }
 unicode-normalization = "0.1"

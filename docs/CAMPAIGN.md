@@ -827,19 +827,18 @@ The audit retires:
 - the unused `vela-protocol-core` Conjecture and ProofPacket surface; and
 - obsolete local index, Frontier release, and agent-attestation record types.
 
-The audit retains old files when they are load-bearing:
+The audit retains files when they protect a current boundary:
 
-- canonical reducer fixtures and their integrity manifests;
 - active Erdős and Sidon verifier witnesses;
-- the invalid-verifier corpus;
-- canonical hashing, Attempt ID, signature parity, and old-replay vectors;
-- licenses, the pinned Rust toolchain, historical ADRs, and canonical evidence.
+- canonical hashing, Attempt ID, principal-capability, and current-object
+  vectors;
+- the independent JavaScript Submission and Verification emitter;
+- licenses, the pinned toolchains, historical ADRs, and canonical evidence.
 
-The reducer fixtures remain in two intentionally different forms for now. The
-public `conformance/fixtures` corpus preserves the external reader contract,
-while the Rust generator corpus includes its current serializer output. Their
-byte difference is real, so collapsing them without first freezing a shared
-generation law would erase a compatibility check rather than remove a copy.
+The predecessor Finding reducer, cascade fixtures, duplicate Python and
+TypeScript readers, policy-shadow corpus, and their integrity manifest are
+retired from the active tree. Signed repository epochs and Git history preserve
+their historical evidence; current Frontiers no longer execute that runtime.
 
 ### Vela and Canopus ownership
 

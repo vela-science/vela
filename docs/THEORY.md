@@ -1,353 +1,247 @@
-# Vela theory: the formal boundary
+# Vela theory: the current boundary
 
-Status: current candidate boundary. Historical object semantics remain
-replayable but are not current writer guidance.
+Status: current pre-1.0 boundary.
 
-This document says exactly what can be inferred from Vela's protocol, code,
-and conformance vectors. It is intentionally smaller than the
-research program that preceded it. Vela is an authority-aware, replayable state
-layer for scientific work. It is not a mathematical theory of science and does
-not turn recorded evidence into truth.
+Vela records a narrow chain of scientific state:
 
-The normative wire and storage contract is [the protocol](PROTOCOL.md). The Rust
-implementation is the executable reference. Conformance vectors test byte and
-replay agreement. Neither silently upgrades the assurance of another.
+```text
+Target -> Attempt -> Submission -> Verification -> Decision -> Standing
+```
 
-## 1. The guarantee ladder
+It does not decide whether science is true. It preserves the exact objects,
+actors, checks, and authorized transition needed to understand why a Claim has
+its current Standing.
+
+The normative wire and storage contract is [PROTOCOL.md](PROTOCOL.md). The Rust
+implementation is the executable reference. The TypeScript package and
+language-neutral vectors check the portable producer boundary.
+
+## 1. Guarantee ladder
 
 | Layer | Establishes | Does not establish |
 | --- | --- | --- |
-| Protocol | the objects, byte rules, authority boundary, and replay obligations an implementation claims | that an implementation follows them |
-| Rust checks | that the inspected frontier satisfies the checks implemented by this version | scientific truth or absence of implementation bugs |
-| Conformance vectors | agreement on the covered bytes and cases | correctness outside the vectors |
-| Named verifier | a result for exact artifacts under a named method and environment | significance, generality, or acceptance |
-| Signed policy or human decision | authority to admit a bounded transition | correctness of the underlying scientific claim |
+| Canonical object | exact schema, bytes, identity, and root | truth or authority |
+| Repository verification | exact object membership and authority-chain validity | scientific correctness |
+| Verification Record | one named verifier's result over exact inputs | acceptance or generality |
+| Human Decision | an authorized accept or reject action over one Proposal | universal truth |
+| Git publication | that exact repository bytes reached a ref | acceptance by itself |
 
-The system should use the narrowest accurate sentence. “The Submission parsed,”
-“the reducer replayed,” “the named verifier passed,” and “a human accepted the
-proposal” are different claims.
+Use the narrow sentence supported by the evidence. “The Submission parsed,”
+“the named verifier passed,” “the Proposal was accepted,” and “the commit was
+published” are different statements.
 
-## 2. Mathematical objects
+## 2. Canonical objects
 
-### 2.1 Canonical bytes and roots
-
-For each protocol type `τ`, let
+For protocol object type `τ`, let:
 
 ```text
 C_τ : Object_τ -> Bytes
-```
-
-be the canonical byte function specified for that type. The subscript matters:
-historical Receipt v1 uses its strict JCS whole-body contract, while current
-Submission v1 and other current objects use their versioned canonical contracts.
-Vela must not pretend every object shares one serializer.
-
-Let
-
-```text
 H(b) = SHA-256(b)
 root_τ(x) = H(C_τ(x))
 ```
 
-where a particular object may add a domain tag, prefix, projection, or truncation
-defined by its schema. Therefore:
+The type subscript matters. Each schema defines its own closed projection,
+canonical bytes, identity preimage, and size bounds. A readable `vcl_`, `vsb_`,
+`vvr_`, or `vpr_` handle is not a security digest. Security-sensitive bindings
+use the full `sha256:` root and retained bytes.
 
-- byte equality implies root equality;
-- recomputing a different root detects changed bytes, subject to the hash and
-  implementation assumptions below; and
-- identifier equality is not a mathematical proof of semantic equality.
+The current implementations are:
 
-The current implementations are
-[`canonical.rs`](../crates/vela-protocol/src/kernel/canonical.rs) and
-[`receipt_v1.rs`](../crates/vela-protocol/src/objects/receipt_v1.rs). The portable
-examples are
-[`canonical-hashing.json`](../conformance/canonical-hashing.json) and
-[`decision-binding.json`](../conformance/decision-binding.json).
+- Rust canonicalization in
+  [`canonical.rs`](../crates/vela-protocol/src/kernel/canonical.rs);
+- authority-free TypeScript encoding in
+  [`packages/protocol`](../packages/protocol); and
+- portable vectors in [`conformance`](../conformance).
 
-### 2.2 Submissions, registrations, and proposals
+## 3. Repository state
 
-A Submission is an authenticated producer package
+A current Frontier is one Git repository whose active scientific index is the
+closed `vela.repository.v2` manifest.
 
-```text
-s = (claim, type, replayability, artifacts, caveats,
-     conditions, producer checks, provenance, authentication)
-```
-
-bound to its complete canonical body. It is evidence, not a decision.
-Registration maps a valid Submission to retained bytes, artifacts, a
-Registration Record, and a pending Proposal:
+Let:
 
 ```text
-Register(s, S) = (retained(s), registration(s, S), proposal(s, S))
+M = (
+  profile_root,
+  epoch_root,
+  accepted_claims,
+  pending_claims,
+  submissions,
+  registrations,
+  verifications,
+  proposals,
+  artifacts,
+  authority_keyset_root,
+  authority_policy_root
+)
 ```
 
-Registration changes no accepted Claim standing. Producer checks remain
-producer-reported. Independent Verification Records and an authorized Decision
-are separate records with separate actors and roots.
+Every member is an exact path, object identity, and full root. Verification
+re-reads every indexed object, checks its closed schema and canonical bytes,
+recomputes the set roots and repository root, and verifies the repository
+authority chain from an independently installed sequence-one trust anchor.
 
-A human acceptance follows the same semantic boundary through a terminal key
-ceremony. The private Decision Plan binds the exact proposal and current facts;
-it is not a second protocol authority. See
-[`decision_plan.rs`](../crates/vela-cli/src/decision_plan.rs).
+There is no generic predecessor Finding reducer in the current runtime.
+Predecessor histories are bound once by the signed repository epoch and
+preserved by their tag, Git objects, archive digest, imported-source
+commitments, and authority record. Current Standing is represented directly by
+the manifest's accepted and pending Claim sets and the terminal Proposal and
+Decision evidence that justifies them.
 
-### 2.3 Events and state
+## 4. Submission and verification
 
-Let an event be
+A Submission is an authenticated producer package:
 
 ```text
-e = (schema, id, kind, target, actor, time, reason,
-     before, after, payload, caveats, signature_or_certificate)
+s = (
+  target,
+  requested Claim,
+  artifacts,
+  conditions,
+  caveats,
+  replayability,
+  verification requirements,
+  provenance,
+  producer authentication
+)
 ```
 
-and let `E` be the finite set of retained event bytes. Current replay orders
-events by `(timestamp, id)`:
+Registering `s` retains the exact Submission, Artifacts, Claim Record,
+Registration Record, and pending Proposal in one repository-authority
+transaction:
 
 ```text
-L(E) = sort_(timestamp,id)(E)
+Register(s, M) -> (M', pending Proposal)
 ```
 
-Let `δ : State × Event -> Result State Error` be the reducer step and `S0` the
-validated genesis state. Materialized state is
+Registration changes no accepted Claim.
+
+A Verification Record binds the exact Frontier, Claim, Submission, Proposal,
+Artifacts, verifier, method, environment, scoped property, outcome, and
+explicit nonclaims:
 
 ```text
-R(S0, [])       = S0
-R(S0, e :: es)  = R(δ(S0, e), es)
-S               = R(S0, L(E))
+Verify(v, s) -> observation
 ```
 
-The event-log commitment is a separate construction: current code sorts event
-content by event ID and excludes signatures before hashing. This keeps content
-addressing orthogonal to legitimate re-signing. It must not be confused with
-replay order or the materialized-state root.
+Importing that observation changes no accepted Claim. A passing verifier is
+evidence available to a reviewer, not a Decision.
 
-Current definitions live in
-[`events.rs`](../crates/vela-protocol/src/kernel/events.rs),
-[`reducer.rs`](../crates/vela-protocol/src/kernel/reducer.rs), and
-[`sign.rs`](../crates/vela-protocol/src/kernel/sign.rs).
+## 5. Decision and authority
 
-### 2.4 Authority
-
-Let `K` be the actor registry and `P` the retained policy state. For a
-truth-bearing transition, authority is a predicate over the exact causal input:
+One human semantic action targets one exact pending Proposal:
 
 ```text
-Authorized(e, S_pre, K, P) :=
-    ValidHumanSignature(e, K, S_pre)
-    or ValidPolicyCertificate(e, P, S_pre)
+d = (
+  action,
+  proposal_root,
+  claim_root,
+  submission_root,
+  verification_set_root,
+  repository_root,
+  authority_event_log_root,
+  policy_bundle_root,
+  principal,
+  reason,
+  observed_at
+)
 ```
 
-The second disjunct does not make a service or model a signer. It means a human
-previously signed a bounded policy and the deterministic evaluator re-derived
-the historical policy result for the exact Proposal, historical Receipt,
-evidence set, policy head, and parent event-log root. The current writer uses
-the attributed repository-authority Decision path. Unknown, stale, revoked,
-expired, widened, backdated, or otherwise mismatched inputs fail closed.
+The Decision Plan root commits to all of those values. The human authenticates
+the semantic action through the local runtime session. A separate
+repository-authority key signs the complete transaction envelope. Neither the
+model nor the repository-authority signer supplies scientific judgment.
 
-The executable policy boundary is in
-[`acceptance_policy.rs`](../crates/vela-protocol/src/policy/acceptance_policy.rs)
-and
-[`policy_accept.rs`](../crates/vela-protocol/src/proposals/policy_accept.rs).
+The transaction must revalidate all inputs immediately before writing. It then
+atomically commits:
 
-### 2.5 Verification, gate, acceptance, and publication
+- the terminal Proposal;
+- the accepted or rejected Claim Standing;
+- the semantic Decision event;
+- the repository manifest;
+- the authority record and its exact write-set root; and
+- the recoverable publication journal.
 
-These predicates are independent:
+Cancellation or drift writes nothing. Verification never selects the Decision.
+
+## 6. Core invariants
+
+### Exact membership
+
+Every current object indexed by the repository manifest must exist at its exact
+path and rederive its identity and full root. Unindexed canonical objects,
+missing members, path substitution, and shortened roots fail closed.
+
+### Authority containment
+
+Producer authentication can submit evidence. Verifier authentication can
+report a scoped result. Only an authenticated human action authorized by the
+current repository policy can decide a Proposal. The repository authority key
+can attest the transaction but cannot choose its semantics.
+
+### Evidence is not Standing
 
 ```text
-Integrity(x)      -- canonical bytes, roots, signatures, and replay agree
-Reproduced(x, v)  -- named verifier v reproduced its bound result
-Gate(x, A)        -- retained claim-matched attachments A satisfy a rule
-Accepted(x)       -- an authorized decision admitted x
-Published(x, ref) -- the exact delta reached the intended Git ref
+VerifierPass(x) does not imply Accepted(x)
+Published(x)    does not imply Accepted(x)
+Accepted(x)     does not imply universally true(x)
 ```
 
-No implication is valid without an explicit rule. In particular:
+### Append-only correction
 
-```text
-Reproduced(x, v) does not imply Accepted(x)
-Accepted(x)      does not imply True(x)
-Published(x, r)  does not imply Accepted(x)
-```
+Prior canonical records are not edited into a new conclusion. A corrected
+Claim, Submission, Verification, Proposal, or Decision is a new exact object
+with explicit relations to the earlier record.
 
-## 3. Current invariants
+### Derived-state non-authority
 
-The current contract is organized around the following invariants.
+Targets, rankings, graphs, search indexes, web projections, packets, summaries,
+and caches are rebuildable readers. They can suggest work but cannot change
+Standing.
 
-### 3.1 Deterministic replay
+### Transaction and publication separation
 
-Given the same validated genesis inputs, event bytes, schemas, and reducer
-version, implementations must produce the same covered projection. Replay reads
-no wall clock. Timestamps already present in events may determine order or
-expiry semantics; the reducer does not mint new time.
+The scientific transaction first creates an exact candidate repository state.
+Git publication then moves the intended ref only if its expected head still
+matches. A push failure cannot change the semantic outcome, and the recovery
+journal preserves the exact publication operation.
 
-This is a determinism claim, not a liveness claim. It says nothing about whether
-all desired events arrive or whether two Git histories contain the same set.
+## 7. Conformance
 
-### 3.2 Complete state-transition evidence
+The current finite corpus checks:
 
-Every projected mutation must be justified by a recognized event kind and its
-validated payload. Mutating a materialized file without a corresponding event
-does not create authority and should fail replay comparison.
+- canonical JSON and content roots;
+- retained Attempt IDs;
+- principals and delegated capabilities;
+- independent JavaScript emission of Submission and Verification bytes; and
+- exact witness and bounded-Claim agreement.
 
-For a target mutation, `before_hash` must match the prior target state and
-`after_hash` the resulting target state. Audit-only events use the explicit null
-boundary and do not masquerade as scientific mutations.
-
-### 3.3 Proposal-decision parity
-
-A proposal status is a projection, not authority. Acceptance, rejection, and
-revision status must agree with the signed decision events that bind the exact
-proposal. An accepted domain transition and its decision record are committed
-atomically by the current decision transaction.
-
-The parity check is implemented in
-[`proposals`](../crates/vela-protocol/src/proposals/mod.rs).
-
-### 3.4 Authority containment
-
-Producer activity can create evidence and proposals but cannot cross the
-decision boundary. A policy can authorize only its signed scope and causal
-head. A policy cannot authorize its own replacement. A model can prepare review
-material but cannot supply a human signature or become a verifier merely by
-reporting a pass.
-
-### 3.5 Evidence is not a verdict
-
-Submission claims, producer checks, Verification Records, gate projections,
-human Decisions, and publication records retain their separate provenance.
-Derived displays must not collapse them into an unqualified “verified” flag.
-
-### 3.6 Correction without erasure
-
-Correction is append-only:
-
-```text
-S_old --correction event--> S_new
-```
-
-Retraction, supersession, caveat, and repair change the current projection while
-preserving the prior event and its authority record. A Git force-push or manual
-edit is not a scientific correction.
-
-### 3.7 Derived-state non-authority
-
-`frontier.json`, proof packets, indexes, graphs, reader rows, wikis, rankings, and
-AI summaries are functions of committed inputs. They may be deleted and rebuilt.
-An inferred relation enters accepted state only by returning through a
-Submission, Proposal, and authorized Decision.
-
-### 3.8 Transaction separation
-
-A scientific transaction and Git publication are distinct. The prepared
-frontier delta has one commit marker and private recovery journal. Publication
-builds an isolated candidate tree and moves a ref only if the expected ref still
-matches. A push failure cannot change the scientific route.
-
-The implementation boundaries are
-[`frontier_txn.rs`](../crates/vela-cli/src/frontier_txn.rs) and
-[`git_publish.rs`](../crates/vela-cli/src/config/git_publish.rs).
-
-## 4. What conformance establishes
-
-Conformance is executable agreement over finite vectors. The current focused
-surfaces include:
-
-- canonical JSON and content hashing;
-- proposal and decision binding;
-- event reducer effects across the shipped fixtures;
-- cross-language replay readers;
-- signature and proposal parity;
-- trust-boundary invariants; and
-- current Submission wire parity and repository-authority transaction laws.
-
-Relevant entry points are
-[`conformance/`](../conformance/),
-[`canonical_hashing_conformance.rs`](../crates/vela-protocol/tests/canonical_hashing_conformance.rs),
-[`cross_impl_reducer_fixtures.rs`](../crates/vela-protocol/tests/cross_impl_reducer_fixtures.rs),
-[`proposal_signature_parity.rs`](../crates/vela-protocol/tests/proposal_signature_parity.rs),
-[`trust_invariants.rs`](../crates/vela-protocol/tests/trust_invariants.rs), and
-[`submission_surface_parity.rs`](../crates/vela-cli/tests/submission_surface_parity.rs).
-
-Focused commands are:
+Run:
 
 ```bash
-cargo test -p vela-protocol --test canonical_hashing_conformance
-cargo test -p vela-protocol --test cross_impl_reducer_fixtures
-cargo test -p vela-protocol --test proposal_signature_parity
-cargo test -p vela-protocol --test trust_invariants
-cargo test -p vela-cli --test submission_surface_parity
+cargo test -p vela-protocol
 python3 conformance/verify.py
+./conformance/check-core.sh
 ```
 
-The independent reader may require its documented local runtime. These are
-repository checks, not live partner tests. No external network, public mirror,
-or reader deployment is part of this formal boundary.
+Conformance proves agreement on these vectors, not correctness outside them.
+Historical reducer, policy, Receipt, and Finding experiments remain in Git
+history rather than the active runtime or conformance package.
 
-## 5. Assumptions and trusted computing base
+## 8. Trusted assumptions
 
-The guarantees above are conditional on at least these assumptions:
+Vela's guarantees depend on:
 
-1. **Canonicalization.** Each implementation emits and parses the schema's exact
-   canonical byte form, rejects ambiguity such as duplicate names where required,
-   and uses the correct preimage projection.
-2. **Hash security.** SHA-256 has adequate collision and second-preimage
-   resistance for the use. Truncated object IDs retain less collision margin than
-   full roots; retained bytes and full bindings remain necessary.
-3. **Signature security.** Ed25519 verification and the versioned signing input
-   behave as assumed, and private keys remain under the stated custodian's
-   control.
-4. **Reducer correctness.** The Rust and independent reducers correctly
-   implement every current event arm and reject unsupported shapes.
-5. **Verifier soundness.** A named verifier, solver, proof assistant, instrument,
-   or replay environment is sound for the exact claim it reports.
-6. **Environment fidelity.** Frozen code, dependencies, configuration, hardware
-   assumptions, and artifact bytes are sufficient to reproduce the result.
-7. **Storage and Git.** Filesystem durability, locking, atomic replacement, and
-   Git compare-and-swap behavior meet the transaction model. Detecting a deleted
-   history also requires a retained trusted root, ref, or copy to compare against.
-8. **Governance configuration.** Actor keys, revocations, policy heads, scopes,
-   and eligibility rules were established correctly by the authorized humans.
-9. **Human judgment.** Human reviewers understand the evidence and protect their
-   keys. Vela records their decision; it does not prove the decision wise.
+1. correct canonicalization and schema validation;
+2. adequate SHA-256 and Ed25519 security;
+3. correct repository and authority-chain verification;
+4. sound named verifiers for their exact scoped properties;
+5. sufficient environment and artifact capture for replay;
+6. filesystem and Git behavior matching the transaction model;
+7. correct trust-anchor and policy installation; and
+8. humans protecting their authentication session and applying judgment.
 
-## 6. Explicit non-guarantees
-
-Vela does not prove:
-
-- that a scientific claim is true, novel, important, ethical, or complete;
-- that a paper, dataset, experiment, model, or person is honest;
-- that passing one verifier generalizes beyond its exact claim and environment;
-- that a reviewer or signed policy chose the right scientific outcome;
-- personhood, Sybil resistance, institutional identity, or social consensus;
-- one global canon, distributed consensus, CRDT convergence across different
-  event sets, or a federation authority protocol;
-- confidentiality merely because a public descriptor is opaque;
-- availability of remote artifacts or long-term operation of a Git host;
-- correctness of inferred graph edges, generated summaries, rankings, or model
-  outputs until separately evidenced and accepted;
-- completeness of the scientific frontier or discovery of unknown unknowns;
-- the soundness of SHA-256, Ed25519, a named proof kernel, its libraries, the compiler, the
-  operating system, or hardware from first principles; or
-- end-to-end formal refinement of every executable code path.
-
-In particular, presheaves, graded epistemic calculi, provenance semirings,
-proof-carrying knowledge, generalized transfer categories, Atlas/Constellate
-object systems, and autonomous federation may remain useful research ideas.
-They are not current protocol guarantees unless they return as small, implemented,
-tested objects at the Submission-to-Decision boundary.
-
-## 7. The boundary in one statement
-
-For exact committed inputs and under the assumptions above, Vela aims to make
-the following independently checkable:
-
-```text
-what bytes were offered,
-what verification was reported or reproduced,
-what transition was proposed,
-which key or prior signed policy authorized it,
-what event entered the log,
-and what state deterministic replay derives now.
-```
-
-That is the formal core. Scientific truth remains corrigible, plural, and
-outside the software's authority.
+Vela does not prove novelty, importance, ethics, completeness, personhood,
+institutional legitimacy, global consensus, verifier soundness, or the truth
+of a scientific Claim. It makes the evidence and authority path inspectable,
+replayable, and correctable.

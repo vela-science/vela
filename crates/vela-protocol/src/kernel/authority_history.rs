@@ -10,7 +10,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::actor_registration::require_sha256_root;
 use crate::authority::{
     AuthorityEnvelopeV1, AuthorityEventV1, AuthorityKeysetV1, CedarDecision, PolicyBundleV1,
     VerifiedAuthorityRecord, verify_authority_envelope, verify_authority_keyset_transition,
@@ -18,7 +17,6 @@ use crate::authority::{
 };
 use crate::canonical::sha256_canonical;
 use crate::events::{NULL_HASH, StateEvent, compute_event_id, event_log_hash};
-use crate::sign::ActorRecord;
 
 pub const AUTHORITY_INITIALIZATION_SCHEMA_V1: &str = "vela.authority-initialization.v1";
 pub const AUTHORITY_EVENT_LOG_SCHEMA_V1: &str = "vela.authority-event-log.v1";
@@ -32,6 +30,20 @@ pub const AUTHORITY_CLOSED_EVENT_KIND: &str = "authority.closed";
 
 fn is_false(value: &bool) -> bool {
     !*value
+}
+
+fn require_sha256_root(field: &str, value: &str) -> Result<(), String> {
+    let digest = value
+        .strip_prefix("sha256:")
+        .ok_or_else(|| format!("{field} must use the sha256:<64hex> form"))?;
+    if digest.len() != 64
+        || !digest
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(format!("{field} must be 64 lowercase hex characters"));
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -726,8 +738,9 @@ pub fn verify_authority_initialization(
                     .into(),
             );
         }
-        let actors: Vec<ActorRecord> = serde_json::from_slice(initial_actor_registry_bytes)
-            .map_err(|error| format!("fresh actor registry is invalid: {error}"))?;
+        let actors: Vec<serde_json::Value> =
+            serde_json::from_slice(initial_actor_registry_bytes)
+                .map_err(|error| format!("fresh actor registry is invalid: {error}"))?;
         if !actors.is_empty() {
             return Err("fresh authority initialization requires an empty actor registry".into());
         }

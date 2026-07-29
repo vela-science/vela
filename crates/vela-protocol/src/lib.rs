@@ -1,51 +1,19 @@
-//! The Vela protocol kernel: the typed, content-addressed substrate that turns
-//! scientific activity into signed, replayable state.
+//! Closed values and deterministic validation for current Vela repositories.
 //!
-//! Layering (a module's tier, not its file location):
-//! - **kernel** — the trust-critical core: `events` (canonical event types),
-//!   `reducer` (the deterministic frontier state machine), `sign` (Ed25519),
-//!   `bundle` (proof packets), `canonical` (canonical bytes/ids), `repo` (I/O).
-//! - **state** — computed views over the log: `state`, `registry`, `frontier_repo`.
-//! - **analysis** — derived, non-authoritative projections: `transfer`,
-//!   `verifier_attachment`, `status_provenance`, `frontier_graph`, `boundary`,
-//!   `contradiction`, `evidence_diff`.
-//! - **policy** — governance: `acceptance_policy`, `frontier_policy`, `tcb_policy`,
-//!   `access_tier`.
-//! - **domains** — external-verifier bridges: `lean_verification`,
-//!   `proof_verification`.
-//!
-//! Id prefixes (content-addressed unless noted): `vf_` finding, `vev_` signed
-//! event, `vfr_` frontier, `vpr_` proposal, `val_` signed anchor, `vtr_` signed
-//! transfer, `vva_` verifier attachment, `vsa_` statement attestation. Authority
-//! is key custody: an agent may draft, only a key-holding human signs an accept.
+//! The protocol crate performs no filesystem writes, Git publication, runtime
+//! authentication, or scientific Decision. Those capabilities live at explicit
+//! edge crates. Pre-epoch implementations remain available through Git history
+//! and pinned Frontier predecessor archives, not through the current runtime.
 
 mod kernel;
 pub use kernel::{
-    actor_registration, authentication, authority, authority_history, bundle, canonical, detached,
-    events, frontier_repository, principal_capability, reducer, repo, sign, signing_input,
+    authentication, authority, authority_history, canonical, events, principal_capability, sign,
+    signing_input,
 };
 mod computed;
-pub use computed::{
-    frontier_profile, frontier_repo, frontier_settings, project, scientific_state, sources, state,
-};
-mod analysis;
-pub use analysis::{
-    contradiction, credit, diff, diff_pack_review, evidence_ci, evidence_diff, evidence_polarity,
-    frontier_graph, independence, inspect_adapter, propagate, released_diff_pack, scientific_diff,
-    status_provenance, transfer, verdict_conflict, verifier_attachment,
-};
-mod policy;
-pub use policy::{acceptance_policy, access_tier, endorsement, frontier_policy, tcb_policy};
-mod domains;
-pub use domains::{lean_verification, proof_verification};
+pub use computed::frontier_settings;
 mod objects;
 pub use objects::{
-    activity, anchor, attempt, claim_record, cli_style, current_repository, execution_binding,
-    identity, merkle, proposal_v1, provenance, receipt_v1, record, registration_record,
-    repository_epoch, repository_inputs, statement_attestation, submission_v1, verification_record,
+    claim_record, cli_style, current_repository, execution_binding, identity, proposal_v1,
+    registration_record, repository_epoch, repository_inputs, submission_v1, verification_record,
 };
-
-pub mod proposals;
-
-#[cfg(any(test, feature = "test-support"))]
-pub mod test_support;

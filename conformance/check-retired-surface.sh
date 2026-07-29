@@ -29,6 +29,20 @@ absent_paths=(
   crates/vela-hub
   conformance/fixtures/decision-brief-testing-v1
   conformance/target-index-v2
+  conformance/readers/python/reducer.py
+  conformance/readers/typescript/reducer.ts
+  conformance/actor-registration-boundary-v1.json
+  conformance/decision-binding.json
+  conformance/erdos-actor-registration-preview-v1.json
+  conformance/gate-vectors.json
+  conformance/spec-surface.v1.json
+  conformance/test_verify_manifest.py
+  crates/vela-protocol/src/analysis
+  crates/vela-protocol/src/domains
+  crates/vela-protocol/src/kernel/actor_registration.rs
+  crates/vela-protocol/src/kernel/reducer.rs
+  crates/vela-protocol/src/policy
+  crates/vela-protocol/src/proposals
 )
 
 for path in "${absent_paths[@]}"; do
@@ -36,6 +50,15 @@ for path in "${absent_paths[@]}"; do
     fail "retired path returned: $path"
   fi
 done
+
+if find conformance/fixtures -maxdepth 1 -type f \
+  \( -name 'cascade-fixture-*.json' -o -name 'fixtures.manifest.json' \
+     -o -name 'permit-shadow-v1.json' \
+     -o -name 'policy-scoped-producer-credential-v1.json' \
+     -o -name 'routine-work-policy-v1.json' \) \
+  | grep -q .; then
+  fail "retired reducer or policy fixture returned"
+fi
 
 # Current product code has one Submission writer, one Verification import
 # edge, and repository-authority Decisions. Keep removed alternate writers

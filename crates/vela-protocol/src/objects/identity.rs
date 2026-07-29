@@ -1,15 +1,10 @@
 //! Producer identity binding (`vib_`): a self-signed proof that a key controls
 //! an actor id, plus authoritative revocation.
 //!
-//! ## What this adds over `ActorRecord`
-//!
-//! `sign::ActorRecord` is a *registry entry*: it maps `actor.id -> public_key`,
-//! but the binding is asserted by whoever writes the registry, not proven by the
-//! key-holder. An [`IdentityBinding`] closes that gap. It is signed **by the very
-//! key it binds**, so the signature is a proof of possession: only the holder of
-//! `public_key_hex` could have produced it. It also records `actor_class`
-//! (human / agent / org), which the substrate previously only inferred from the
-//! id prefix.
+//! An [`IdentityBinding`] is signed by the key it binds, so it proves
+//! possession rather than trusting a mutable actor registry. It also records
+//! `actor_class` (human / agent / org), which must never be interpreted as
+//! repository or review authority.
 //!
 //! ## Revocation is authoritative because it is self-signed
 //!
