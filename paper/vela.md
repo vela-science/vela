@@ -360,9 +360,13 @@ the exact Git diff in two object-database contexts. The first verifier draft
 was rejected before import because default Git diff output abbreviated blob
 IDs differently across those contexts. The repaired implementation forces
 full blob identities; its signed first-party Verification
-`vvr_ed3383c1cd640d43` is prepared but not yet imported. Verification import
-and the separate human Decision remain pending. This first-party check earns
-no external-participant credit.
+`vvr_ed3383c1cd640d43` was imported with outcome `pass` and accepted-event
+delta zero at Frontier commit
+`b696ececbf1dfb249dadbbc86f211e9445a09cc6`, repository root
+`sha256:b70da05f7fdb93925dc2fed3d7a680b65ef3ac6d68ed51cd2985bd61c1b06cb9`.
+Strict verification and a clean clone reproduce that state. The separate
+human Decision remains pending. This first-party check earns no
+external-participant credit and does not change Standing.
 
 ### 6.4 Synthetic reader qualification
 

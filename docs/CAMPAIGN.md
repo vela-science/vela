@@ -291,7 +291,7 @@ not copied into this product repository.
 | Vela product | `0.940.9`; the repository's pinned conformance workflow verifies the current `main` head, so this campaign document does not duplicate a mutable self-commit pin |
 | TypeScript protocol | `@vela-science/protocol@0.1.0`, owned by this monorepo |
 | Canopus | `@vela-science/canopus@0.8.0`, owned by `packages/canopus` with unsquashed source history |
-| Erdős Frontier | strict replay passes at `9af3be808ee24dbc82a883cf125918e0aaff8406`; corrected Erdős 424 Proposal `vpr_23f32f95d4f073e8` remains pending with zero accepted-state change |
+| Erdős Frontier | strict replay passes at `b696ececbf1dfb249dadbbc86f211e9445a09cc6`; corrected Erdős 424 Proposal `vpr_23f32f95d4f073e8` has one scoped passing Verification, remains pending, and has zero accepted-state change |
 | Formal Frontier | strict replay passes at `d5f5355de3588a9a558ee9505e2960e7d138acaf` |
 | Sidon Frontier | strict replay passes at `410fd680e1d27a185617b7cf06cd940ef0016369` |
 | Quantum Frontier | strict replay passes at `790f255c394b7900e7a1e36a740406d16b783165` |
@@ -877,9 +877,13 @@ supersession:
   `sha256:38fe9363a278e84c0bf14efc171b2cc3ca3f51cd324ac8a9519cd6b1f0261998`;
 - source-diff Artifact root
   `sha256:d18024c4333f77144955adf0036ce831e71b331ea7d9cc9cb69958f960f56d6c`;
-- Frontier commit `9af3be808ee24dbc82a883cf125918e0aaff8406`; and
-- repository root
-  `sha256:69bbc0d35b0f422f9df8e3f9c720ae3c855ab858c5667434fc57e30f11af5553`.
+- Submission commit `9af3be808ee24dbc82a883cf125918e0aaff8406`.
+
+The scoped Verification was imported and published at Frontier commit
+`b696ececbf1dfb249dadbbc86f211e9445a09cc6`, with repository root
+`sha256:b70da05f7fdb93925dc2fed3d7a680b65ef3ac6d68ed51cd2985bd61c1b06cb9`.
+The Submission-time repository root was
+`sha256:69bbc0d35b0f422f9df8e3f9c720ae3c855ab858c5667434fc57e30f11af5553`.
 
 Registration left the replacement pending, retained the predecessor as
 accepted, and changed accepted-event state by zero. The deterministic verifier
@@ -891,10 +895,12 @@ Its report root is
 `sha256:37f30dcf177f8820c73d7dc4ba30949b944887f5468e7b8d4a555947745de966`.
 A signed first-party Verification `vvr_ed3383c1cd640d43`, canonical root
 `sha256:dc4fb781b6bf0817afaad258571419e4fabb1c3868b62dc67415e7d70af99fa5`,
-is prepared for authority-gated import. It declares execution independence
-from the producer actor while disclosing the shared operator, machine, Vela
-implementation, source repository, and retained Submission. It earns no
-external-participant credit.
+was imported with outcome `pass` and accepted-event delta zero. It declares
+execution independence from the producer actor while disclosing the shared
+operator, machine, Vela implementation, source repository, and retained
+Submission. Strict verification and a clean clone reproduce the resulting
+Frontier commit and repository root. It earns no external-participant credit
+and does not change Standing.
 
 The first prepared Verification was rejected before import when replay in a
 fuller Git object database produced eight-character blob abbreviations instead

@@ -109,8 +109,8 @@ to satisfy the benchmark shape.
 The Erdős 424 writer-qualification fixture is now registered as pending
 Proposal `vpr_23f32f95d4f073e8` with zero accepted-state change. Its
 deterministic source verifier passes and its signed first-party Verification is
-prepared; authority-gated import and the separate human Decision are the next
-two steps. This remains writer qualification, not the topology-sensitive
+imported with accepted-state delta zero. The separate human Decision is the
+next step. This remains writer qualification, not the topology-sensitive
 protocol benchmark.
 
 ## P2: earn a reusable math profile
