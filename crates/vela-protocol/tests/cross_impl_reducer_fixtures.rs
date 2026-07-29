@@ -1936,10 +1936,8 @@ fn export_one(
 
 #[test]
 fn export_cross_impl_reducer_fixtures() {
-    let out_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("fixtures");
-    std::fs::create_dir_all(&out_dir).expect("create fixtures dir");
+    let generated = tempfile::tempdir().expect("create fixture generation directory");
+    let out_dir = generated.path().to_path_buf();
 
     // Fixtures 00..02 — cascade scenario (the original 3).
     for frontier_idx in 0..FIXTURE_FRONTIER_COUNT {
@@ -2238,6 +2236,36 @@ fn export_cross_impl_reducer_fixtures() {
     // verify.py reads the manifest and refuses to run if any
     // fixture's bytes drift from the recorded digest.
     write_fixtures_manifest(&out_dir);
+
+    let published = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../conformance/fixtures");
+    let mut generated_names = std::fs::read_dir(&out_dir)
+        .expect("read generated fixtures")
+        .map(|entry| entry.expect("read generated fixture entry").file_name())
+        .collect::<Vec<_>>();
+    generated_names.sort();
+    let mut published_names = std::fs::read_dir(&published)
+        .expect("read published fixtures")
+        .filter_map(|entry| {
+            let name = entry.ok()?.file_name();
+            let text = name.to_str()?;
+            (text == "fixtures.manifest.json"
+                || (text.starts_with("cascade-fixture-") && text.ends_with(".json")))
+            .then_some(name)
+        })
+        .collect::<Vec<_>>();
+    published_names.sort();
+    assert_eq!(
+        generated_names, published_names,
+        "published conformance fixture inventory drifted; update the one canonical corpus explicitly"
+    );
+    for name in generated_names {
+        assert_eq!(
+            std::fs::read(out_dir.join(&name)).expect("read generated fixture"),
+            std::fs::read(published.join(&name)).expect("read published fixture"),
+            "published conformance fixture {} drifted from the Rust generator",
+            name.to_string_lossy()
+        );
+    }
 }
 
 /// v0.107.4: produce a fixtures.manifest.json alongside the

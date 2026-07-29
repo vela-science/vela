@@ -11,16 +11,16 @@
       "caveats": [
         "fixture only"
       ],
-      "id": "vev_353c32e294f37b10",
+      "id": "vev_6c8cf77ae72a421f",
       "kind": "proposal.withdrawn",
       "payload": {
         "identity_binding_id": "vib_dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
         "proposal_id": "vpr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "proposal_root": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        "receipt_root": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-        "schema": "vela.proposal-withdrawal.v1"
+        "schema": "vela.proposal-withdrawal.v2",
+        "submission_root": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
       },
-      "reason": "fixture: producer withdrew a Receipt-bound pending proposal",
+      "reason": "fixture: producer withdrew a Submission-bound pending proposal",
       "schema": "vela.event.v0.1",
       "signature": "v1:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
       "target": {
