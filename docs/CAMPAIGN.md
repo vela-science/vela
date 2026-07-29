@@ -1159,6 +1159,19 @@ substitute a synthetic fixture or a preferred case. After selection, a
 root-linked amendment must freeze the expected impact projection before
 either reader runs.
 
+The executable audit in
+`paper/artifacts/heldout-selection/audit.py` has now scanned the four exact
+heads through their retained compaction predecessors. It found one accepted
+correction transition after the frozen baselines: the Erdős 424
+writer-qualification case. That transition is excluded by construction and
+also has no hard dependent, support diamond, or non-consequential incoming
+relation. No other Frontier supplied a candidate. The rooted result
+`paper/artifacts/heldout-selection/result.v1.json`, byte root
+`sha256:f80cf6b81c9b056535ccf17a24b1631d8f3e57d3bc3ecea65d7516c1b831be5b`,
+therefore records `no_qualifying_candidate`. This is a failed held-out entry
+gate, not permission to substitute a synthetic case or claim confirmatory
+success.
+
 #### Removability and hosted-service-loss qualification
 
 The first B5/B6 qualification is frozen in
@@ -1245,15 +1258,15 @@ gates, and no packaging or rendering result substitutes for them:
 | Gate | Current status | Controlling evidence |
 | --- | --- | --- |
 | ADR 0026 Accepted | Not met | ADR 0026 remains Proposed |
-| Primary and held-out plans frozen before confirmatory runs | Partial | the source correction is terminal and source-qualified; the matched primary and held-out correction-impact task instances remain pending |
-| Two implementations agree | Partial | Rust and clean-room Python agree on the real Erdős reference and verify its complete semantic and authority-signature chain; held-out agreement remains pending |
+| Primary and held-out plans frozen before confirmatory runs | Met | both plans predate confirmatory execution; the held-out selector subsequently returned `no_qualifying_candidate` at result root `sha256:f80cf6b81c9b056535ccf17a24b1631d8f3e57d3bc3ecea65d7516c1b831be5b` |
+| Two implementations agree | Partial | Rust and clean-room Python agree on the real Erdős reference and verify its complete semantic and authority-signature chain; no held-out candidate exists for confirmatory agreement |
 | All hard safety gates pass | Not met | the real source package passes containment and tamper checks, but Formal has not yet retained and verified it |
-| Both fixtures pass B1 through B10 | Not met | most real-fixture and all held-out cells remain pending |
+| Both fixtures pass B1 through B10 | Failed | the held-out entry gate produced no qualifying candidate, so a two-fixture breakthrough result is unavailable in this campaign |
 | One external participant completes each cold-use fixture | Not met | all current sessions are first-party |
 | Public artifact reproduces every reported result | Partial | deterministic source packaging and PDF rendering pass; terminal and external evidence do not exist |
 | Mathematical reviewer checks fixture interpretation | Not met | no qualified external review retained |
 | Systems reviewer checks protocol, threat model, and evaluation | Not met | no qualified external review retained |
-| Title, abstract, and conclusion stay within the evidence ladder | Met for the draft | the draft reports Level 0, the B8 failure, and pending stronger claims |
+| Title, abstract, and conclusion stay within the evidence ladder | Met for the draft | the draft reports Level 0, the B8 failure, the failed held-out entry gate, and pending stronger claims |
 
 The protocol-paper release stays closed until every row is met. If the
 campaign ends with failed rows, publish a narrower engineering or falsification

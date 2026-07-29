@@ -29,10 +29,12 @@ qualification vector, but that result does not satisfy the scientific,
 federation, external-reproduction, or user-value gates. The current evidence
 also includes one accepted, first-party source-statement supersession and one
 failed matched reviewer pilot. Neither has the consequential topology or
-external independence required by the registered benchmark. The evidence
-therefore supports local admission, scoped verification, Decision, replay, and
-supersession, not the registered protocol claim. This draft will report either
-the completed benchmark or its falsification.
+external independence required by the registered benchmark. The frozen
+held-out selector subsequently found no qualifying candidate, so confirmatory
+two-fixture credit is unavailable in this campaign. The evidence therefore
+supports local admission, scoped verification, Decision, replay, and
+supersession, not the registered protocol claim. This draft reports the failed
+entry gate rather than substituting a synthetic case.
 
 ## 1. Introduction
 
@@ -502,6 +504,17 @@ and selects the first qualifying case in canonical Decision order. If no case
 qualifies, the benchmark records a failed held-out entry gate rather than
 substituting a synthetic or preferred fixture.
 
+The source-only selector was then run against the four exact current heads and
+their retained compaction predecessors. It found one accepted transition after
+the baselines: the Erdős 424 writer-qualification case. That case is excluded
+from held-out use and has no hard dependent, support diamond, or
+non-consequential incoming relation. No other Frontier supplied a candidate.
+The deterministic result at
+`paper/artifacts/heldout-selection/result.v1.json`, byte root
+`sha256:f80cf6b81c9b056535ccf17a24b1631d8f3e57d3bc3ecea65d7516c1b831be5b`,
+therefore records `no_qualifying_candidate`. The held-out entry gate failed;
+the experiment did not substitute a synthetic case.
+
 ### 6.5 Removability qualification
 
 A separately frozen first-party test cloned the exact pending Erdős repository,
@@ -671,16 +684,16 @@ framework was evaluated or retained.
 
 | Family | Primary | Held-out | Required |
 | --- | --- | --- | --- |
-| B1 transition bytes | writer qualification pass; primary pending | pending | exact |
-| B2 affected set | pending | pending | 100% precision/recall |
-| B3 route survival | pending | pending | exact |
-| B4 authority containment | writer qualification pass; primary pending | pending | zero unauthorized delta |
-| B5 removability | writer qualification pass; primary pending | pending | replay unchanged |
-| B6 hosted-service failure | writer qualification pass; primary pending | pending | replay succeeds |
-| B7 support diversity | pending | pending | exact route accounting |
-| B8 second Frontier | gap reproduced; source package passes two readers; receiver registration passes with zero accepted delta; Verification pending | not run | zero imported authority |
-| B9 observability | synthetic pass only | pending | no silent truncation |
-| B10 cold inheritance | first pilot failed hard budget | pending | at least 20% median lift |
+| B1 transition bytes | writer qualification pass; primary pending | entry gate failed | exact |
+| B2 affected set | pending | entry gate failed | 100% precision/recall |
+| B3 route survival | pending | entry gate failed | exact |
+| B4 authority containment | writer qualification pass; primary pending | entry gate failed | zero unauthorized delta |
+| B5 removability | writer qualification pass; primary pending | entry gate failed | replay unchanged |
+| B6 hosted-service failure | writer qualification pass; primary pending | entry gate failed | replay succeeds |
+| B7 support diversity | pending | entry gate failed | exact route accounting |
+| B8 second Frontier | gap reproduced; source package passes two readers; receiver registration passes with zero accepted delta; Verification pending | entry gate failed | zero imported authority |
+| B9 observability | synthetic pass only | entry gate failed | no silent truncation |
+| B10 cold inheritance | first pilot failed hard budget | entry gate failed | at least 20% median lift |
 
 No aggregate score is reported.
 
@@ -951,15 +964,19 @@ correction-impact projection. The first matched reviewer pilot was
 directionally cheaper and more accurate with Vela but failed its preregistered
 token budget and exact-answer requirement. A derived foreign-reference
 envelope now qualifies the real source package in two colocated readers,
-including its authority signature, but no second Frontier has retained and
-checked the source transition. The stronger claim, that this
+including its authority signature. A second Frontier retained that exact
+package through a pending, non-authoritative Submission, but its scoped
+Verification remains unpublished. The frozen held-out selector found no
+qualifying candidate. The stronger claim, that this
 mechanism preserves useful scientific inheritance across real corrections and
 plural authorities better than Git alone, is therefore not satisfied by the
 audited system.
 
-The registered experiments decide the conclusion. If they pass, the paper
-will state the exact measured result. If they fail, the paper will publish the
-failure and retain only the mechanisms that remain useful.
+This result narrows the next experiment. Vela retains the admission and replay
+mechanisms already shown useful. It does not promote the synthetic
+correction-impact reader or claim a protocol breakthrough without a real
+consequential correction, a qualifying second fixture, and measured cold-user
+lift.
 
 ## 12. References
 

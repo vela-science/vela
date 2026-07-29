@@ -222,6 +222,15 @@ Submission `vsb_bb9b64f5d93b8cad` and pending Proposal
 Verification and clean-clone replay remain incomplete, so B8 remains failed
 rather than partial credit being reported as transfer.
 
+The frozen held-out selector has also produced a negative result. Its
+four-Frontier audit found only the already excluded Erdős 424
+writer-qualification transition, which lacks the required hard dependent,
+support diamond, and non-consequential incoming relation. Result
+`paper/artifacts/heldout-selection/result.v1.json`, byte root
+`sha256:f80cf6b81c9b056535ccf17a24b1631d8f3e57d3bc3ecea65d7516c1b831be5b`,
+records `no_qualifying_candidate`. The held-out entry gate therefore fails
+until a later accepted correction satisfies the preregistered rule.
+
 ## Required release evidence
 
 A valid benchmark release publishes:
@@ -261,8 +270,8 @@ benchmark. Rust and clean-room Python readers now agree on one synthetic
 diamond projection at root
 `sha256:935e084f8c5c45bcee234d2e9752062ba54493aa1b14f731e0efbbb1ecc01df6`.
 That is implementation qualification only. The real correction fixture,
-second Frontier, held-out replication, and cold-use evidence must still be
-earned in that order.
+second Frontier, and cold-use evidence remain incomplete. The held-out entry
+gate has failed because the frozen selector found no qualifying candidate.
 
 The 2026-07-29 source audit found no qualifying historical fixture. The four
 current Frontiers retain 2,831 Claim records and no current correction,
