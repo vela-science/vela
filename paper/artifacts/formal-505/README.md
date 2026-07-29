@@ -19,7 +19,13 @@ python3 paper/artifacts/formal-505/verify_replay.py \
 ```
 
 `verification-draft.v1.json` and `verification.v1.json` bind that report to the
-exact pending Claim, Submission, Proposal, and all three retained Artifacts.
+exact pending Claim, Submission, and Proposal. The exact Submission root binds
+all three retained Artifact digests. The redundant Verification v1
+`artifact_ids` field is empty because that field accepts legacy `va_` object
+identifiers while the current repository stores Artifacts by full content
+hash. The incompatibility is recorded as a campaign contract gap; it is not
+hidden by an invented identifier.
+
 The signed record uses an ephemeral verifier-only key; no human or repository
 authority key is embedded. `import.sh` replays the verifier and checks every
 file, binary, and Frontier-head pin before asking the human-controlled

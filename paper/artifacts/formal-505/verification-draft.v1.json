@@ -1,11 +1,7 @@
 {
   "subject": {
     "claim_id": "vcl_1e9903e492a2053276cf6a2b79564c6f9da4ba9dfb4ff0cfe455461c0103a67c",
-    "artifact_ids": [
-      "3da877391685fb738d4fc1c93c83996a7f8c58dd895d1f4b5762faceba874025",
-      "8f4ee224002451c631b406e47ee188ddaf991472d75911681ec78eef4ccc5884",
-      "f3c460749838799ff7c81c4af91b94883f90f741c27bdfd04df76c567301f760"
-    ],
+    "artifact_ids": [],
     "submission_id": "vsb_c50dc7e85cb76684",
     "submission_root": "sha256:9adecb4649fa99a7b0945e99f3197cb72489e17b4bd08fe2bfcdff7d0f1c67d3",
     "proposal_id": "vpr_6c71e12b28f095c9"
