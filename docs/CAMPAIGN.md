@@ -18,11 +18,19 @@ are rooted, replayable, and honestly scoped.
 
 The active execution objective is:
 
-> Complete the math-first evidence campaign, prove or falsify one
-> correction-aware compounding transition through an independent reader, and
-> earn each package, interoperability, and discovery layer through measured
-> reuse while keeping the Vela monorepo, canonical Frontiers, and Vela Web
-> small and separately owned.
+> Prove or falsify Vela's protocol thesis through registered, reproducible
+> benchmarks and real scientific correction and transfer loops; simplify the
+> product around the evidence that survives; and publish a technically
+> rigorous, independently reproducible Vela whitepaper whose claims, threat
+> model, algorithms, measurements, limitations, and artifact roots meet the
+> standard of foundational systems papers without claiming equivalence to
+> Git, Linux, Bitcoin, or any other precedent absent evidence.
+
+[ADR 0026](adr/0026-correction-benchmark-and-whitepaper-evidence-contract.md)
+defines the proposed experiment and publication gate. The
+[whitepaper evidence contract](WHITEPAPER_CONTRACT.md) keeps the paper's
+claims behind the benchmark rather than selecting evidence to fit a finished
+narrative.
 
 ## Product thesis
 
@@ -272,7 +280,9 @@ being copied into the public monorepo. Its final head is
 `94da90dbbd5a2fada21ab0da0c4bebfc3f76c6da` remains its ancestor. The 15
 load-bearing source objects referenced by the public Erdős evidence are
 content-addressed mirrors in `erdos-frontier` and are checked there by
-`bun scripts/verify-source-archive.ts`.
+`cd <erdos-frontier-checkout> && bun scripts/verify-source-archive.ts`.
+That script belongs to the Frontier whose source archive it verifies. It is
+not copied into this product repository.
 
 ## Current evidence
 
@@ -586,7 +596,7 @@ TypeScript. Otherwise preserve the result and delete the integration.
 The long-range ecosystem is a hypothesis. The build order earns it one
 vertical slice at a time.
 
-### Gate 1 — one complete Vela Math slice
+### Gate 1: one complete Vela Math slice
 
 The first named mechanically checkable Formal Conjectures offer has produced a
 verifier-passing, clean-clone-replayed local Run after a real repair-handoff
@@ -614,7 +624,7 @@ What remains unresolved?
 What exact action is useful next?
 ```
 
-### Gate 2 — prove correction-aware compounding
+### Gate 2: prove correction-aware compounding
 
 Select a real accepted mathematical Claim with at least two downstream
 dependents and an alternative support route somewhere in the bounded graph.
@@ -653,7 +663,109 @@ The first implementation may perform full deterministic recomputation. An
 incremental engine, graph database, relay, resolver, or fixed-point service is
 not justified until the complete bounded semantics are correct and measured.
 
-### Gate 3 — test a source-local Vela Math profile
+#### Primary-fixture selection audit
+
+The first structural scan of the current Erdős Claim graph found several
+dependency diamonds. It did not yet find a qualifying real correction.
+
+Erdős problem 281 was examined as the first plausible candidate:
+
+- Claim
+  `vcl_801c5d29963dfad675787bc4a8e64f9220fbfa393d1c28f33d1dd16f1ec9d80a`
+  records the plby Lean proof;
+- it depends on
+  `vcl_58f20364ac3937fbf8caa942fc56b4688d389757f7054e4650848571cc00a41d`,
+  the `Erdos281Hyp` premise;
+- it supports problem Claim
+  `vcl_e47e710f93f902e6680da792548721617a6b49abf0f92cf209229f2602fd804f`;
+  and
+- independent proof Claim
+  `vcl_cd929cbdc60b3f786031d61d9b8126125eb7d33136689c4bbe6d4dc34e1c0d57`
+  supplies another support route.
+
+That graph shape is useful, but it is not a correction. The upstream Formal
+Conjectures review explicitly confirms that `Erdos281Hyp` is the problem's
+own premise and that the hosted theorem proves the intended implication.
+Problem 281 is therefore rejected as the primary correction fixture. This
+negative selection result prevents the campaign from converting a legitimate
+theorem premise into an invented overclaim.
+
+Erdős problem 128 supplies the complementary result:
+
+- accepted formalization Claim
+  `vcl_c06f27de5151f06e3dce938748a43859fd635f2bcc9e2b0d8a1b69156ad99b92`
+  at root
+  `sha256:e846d99715cc12a039f6a45f68c3721e0571a8877abe81a3102e85259227d9ff`
+  was imported from the predecessor Frontier;
+- upstream
+  [Formal Conjectures PR 4501](https://github.com/google-deepmind/formal-conjectures/pull/4501)
+  later corrected a real quantifier error;
+- the old statement required one selected large dense induced subgraph, while
+  the source problem requires every sufficiently large induced subgraph to be
+  dense; and
+- the upstream validation gives a Lean-checked two-vertex counterexample to
+  the old statement.
+
+The upstream source correction is genuine. The accepted Frontier Claim is not
+an exact correction target. It names a mutable theorem URL and does not bind
+the source commit, path, or statement bytes. Retained source material exposes
+the ambiguity:
+
+| Retained object | Source identity | `128.lean` SHA-256 | Meaning |
+| --- | --- | --- | --- |
+| Formal Conjectures ingest | `c9ffa0be07e8a60116630c8119aa3a04495c0032` | `97c08dffffd345b043208e8710cd41d970f700a8d98487818aacc1fde2141896` | Correct universal premise |
+| Formal activity inventory | `8f6648ff0fbd771db53859cd436d37a8d6a68a57` | `845c6f1c3a6e2f95b8ee813deb6b874ba4af26ba73b6e35803bf3148650d1b98` | Incorrect outer subset quantifier |
+| Upstream correction head | `44025ecde40da70df4b459660eb43b9e09633ac4` | `4e95cb275ef07ed46a8fa206def1e59e175c1763d3a9dde416c121e10ac2ffce` | Corrected current statement |
+
+The import source file is rooted at
+`sha256:08d8614789a86624eca2c87b5b72b3518ac1b225ee2a7488fd629e07be93b3aa`.
+The activity inventory is rooted at
+`sha256:d2b3d68c1eb4034b74c6f88a4a08b3abc21928235f6195412104e56a2479760c`.
+Both are retained, but neither identity is part of the accepted Claim. A reader
+cannot determine which theorem bytes the Claim asserts without an out-of-band
+choice.
+
+Problem 128 also has no consequential dependent on the formalization Claim
+and no alternative support route through which to test survival. It therefore
+fails both the exact-target and topology gates.
+
+The combined audit result is exact:
+
+```text
+problem 281  required topology, no genuine correction
+problem 128  genuine source correction, ambiguous Claim target, incomplete topology
+```
+
+An exhaustive relation scan at the clean Frontier commits recorded above found
+2,831 Claim records and zero current `corrects`, `supersedes`, or `retracts`
+relations:
+
+| Frontier | Claim records | Current correction relations |
+| --- | ---: | ---: |
+| Erdős | 2,772 | 0 |
+| Formal Conjectures | 14 | 0 |
+| Quantum Codes | 5 | 0 |
+| Sidon | 40 | 0 |
+
+The historical entry gate has failed. The campaign has not earned a primary
+fixture, a correction-impact implementation, or a protocol claim.
+
+The next audit applies this fixed entry rule:
+
+1. start from an accepted current Claim;
+2. require exact external or mechanically checked evidence of a substantive
+   narrowing, supersession, or retraction;
+3. require one consequential dependent, one independent surviving route, and
+   one non-consequential discovery relation;
+4. record every rejected candidate and reason; and
+5. freeze the first qualifying candidate before implementing a correction
+   impact reader.
+
+If no existing case qualifies, create a prospective fixture through ordinary
+Submission, Verification, and human Decision. Report it as prospective
+evidence rather than historical recurrence.
+
+### Gate 3: test a source-local Vela Math profile
 
 Do not reopen rejected ADR 0019 or publish `@vela/math` merely because the
 memo supplies an attractive object model. First prototype the smallest
@@ -684,7 +796,7 @@ requires all of:
 If these conditions fail, retain the useful source-local mapping and publish
 no package.
 
-### Gate 4 — scientific diff and cold inheritance
+### Gate 4: scientific diff and cold inheritance
 
 Compare the current `status -> show -> why` path and exact Proposal data
 against Git plus the same evidence and verifier. Treat the scientific state
@@ -709,7 +821,7 @@ define its minimum envelope only after the fixture. Do not add a canonical
 `Frontier Commit` object merely to bundle objects already addressed by full
 roots.
 
-### Gate 5 — one standards-compatible transfer
+### Gate 5: one standards-compatible transfer
 
 After measured math value, package one public CPU-only computational
 replication with a source-local adapter and a root-bound RO-Crate export. Keep
@@ -792,7 +904,7 @@ Failure deletes or narrows the feature. It does not create a new abstraction.
 Failure to demonstrate lift causes simplification and deletion, not another
 architecture layer.
 
-## Tracked-file retirement audit — 2026-07-28
+## Tracked-file retirement audit: 2026-07-28
 
 The cleanup pass inventories every path tracked at the pre-cleanup commit by
 its most recent Git commit date, exact byte size, current build and test

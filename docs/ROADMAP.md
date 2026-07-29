@@ -16,7 +16,8 @@ exact root transition. It is not a new protocol primitive.
 
 The detailed gates, exact current evidence, budgets, and stop conditions live
 in the [active evidence campaign](CAMPAIGN.md). This roadmap stays deliberately
-short.
+short. The [whitepaper evidence contract](WHITEPAPER_CONTRACT.md) prevents the
+paper from outrunning those results.
 
 ## Completed foundation
 
@@ -48,7 +49,7 @@ crate.
 Stage B orchestration shopping is closed for this campaign because the
 registered call ceiling cannot fit it. No framework runtime was added.
 
-## P1 — complete one Vela Math vertical slice
+## P1: complete one Vela Math vertical slice
 
 - Register the verifier-passing Formal Run
   `run_585c951f-ed51-49b9-805d-02e7e5a8a0e9` as pending review, import one
@@ -65,7 +66,7 @@ registered call ceiling cannot fit it. No framework runtime was added.
 - Treat the exact Proposal Scientific Diff and `why` explanation as the first
   product surfaces to improve; prove read value before adding more write UX.
 
-## P1 — prove correction-aware compounding
+## P1: prove correction-aware compounding
 
 Demonstrate one exact accepted-Claim dependency cascade through correction,
 affected-state discovery, an opened repair Obligation, and repair or
@@ -84,7 +85,19 @@ in a second Frontier without importing its authority. The current legacy
 depth-capped Finding cascade is historical behavior, not the future protocol
 contract.
 
-## P2 — earn a reusable math profile
+The historical entry gate is closed. Across 2,831 current Claim records, the
+four Frontiers contain no current correction relation. Erdős 281 has the
+needed dependency diamond but no correction. Erdős 128 has a real upstream
+source correction, but its accepted Claim does not bind exact statement bytes
+and its consequence topology is incomplete.
+
+The next admissible path is a prospective fixture created through ordinary
+Submission, Verification, and human Decision. Its Claims must bind exact
+source commit, path, and content roots before any correction-impact reader is
+implemented. Do not manufacture a false Claim or reinterpret a discovery edge
+to satisfy the benchmark shape.
+
+## P2: earn a reusable math profile
 
 Prototype the smallest Vela Math mapping source-locally. Do not publish a
 package until two maintained consumers use the same stable contract and
@@ -103,7 +116,7 @@ source-local profile
 
 Package publication never changes Standing.
 
-## P2 — one computational transfer
+## P2: one computational transfer
 
 After the math campaign demonstrates measurable value, package one bounded
 public computational replication with a source-local Canopus adapter and a
@@ -123,3 +136,8 @@ propagation, and cold-user lift. Attractive architecture is not an entry gate.
 
 Failure to demonstrate lift causes simplification and deletion, not another
 architecture layer.
+
+The flagship whitepaper is also deferred behind evidence. A working draft may
+track the system and methods, but the protocol-breakthrough title and claims
+require two frozen fixtures, independent implementation, non-escalating
+federation, external cold use, and a reproducible public artifact package.

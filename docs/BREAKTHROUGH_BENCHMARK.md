@@ -1,6 +1,6 @@
 # Vela protocol breakthrough benchmark
 
-Status: **north-star contract; fixture roots not yet preregistered**
+Status: **north-star contract; historical fixture entry gate failed**
 
 This benchmark is the binary test for Vela's protocol-scale claim:
 
@@ -191,6 +191,27 @@ no Standing effect for:
 17. shortened-digest collision; and
 18. replay with an omitted canonical Event.
 
+## Benchmark families
+
+The release report uses stable family labels so a result cannot hide a failed
+property inside an aggregate score.
+
+| ID | Property | Required result |
+| --- | --- | --- |
+| B1 | Transition-channel fidelity | Exact bytes and roots agree |
+| B2 | Correction detection, localization, repair, and propagation | 100% affected-set precision and recall within the frozen bound |
+| B3 | Causal integrity | Independent support survives and no route is invented |
+| B4 | Authority non-escalation | Zero unauthorized Standing change |
+| B5 | Modularity | Removing optional producers and readers leaves replay unchanged |
+| B6 | Hosted-service robustness | Hub or read-model loss does not prevent verification |
+| B7 | Support diversity | Declared route diversity changes blast radius exactly as specified |
+| B8 | Transfer | Exact foreign state is retained without importing authority |
+| B9 | Observability | Missing, inaccessible, unknown, and truncated inputs remain distinct |
+| B10 | Inheritance lift | At least 20% median improvement over Git on both fixtures |
+
+Report execution lift, state lift, inheritance lift, and adoption separately.
+No combined score can compensate for a hard-gate failure.
+
 ## Required release evidence
 
 A valid benchmark release publishes:
@@ -228,3 +249,11 @@ Current evidence is Level 0. The active Formal slice tests product and
 statement-fidelity handling; it does not itself advance the correction
 benchmark. The correction fixture, clean-room reader, second Frontier, held-out
 replication, and cold-use evidence must be earned in that order.
+
+The 2026-07-29 source audit found no qualifying historical fixture. The four
+current Frontiers retain 2,831 Claim records and no current correction,
+supersession, or retraction relation. Erdős 281 has the required dependency
+shape without a real correction. Erdős 128 has a real upstream statement
+correction, but the accepted Claim binds a mutable theorem URL rather than the
+statement's source commit, path, and content root. No implementation work may
+convert either case into a passing fixture.

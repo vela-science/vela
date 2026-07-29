@@ -204,7 +204,8 @@ repositories remain separate because they have independent deployment and
 scientific-history lifecycles.
 
 Package-local tooling stays with its package. The repository has no catch-all
-top-level `scripts/` directory.
+top-level `scripts/` directory. The root `install.sh` is the public product
+installer, not a tooling bucket.
 
 The Protocol package and Canopus publish together, in dependency order, from
 one `product-v*` release tag. Routine development does not advance versions or
@@ -259,6 +260,8 @@ once per actual release boundary.
 - [Native current repository genesis ADR](docs/adr/0023-native-current-repository-genesis.md)
 - [Product monorepo and transition-repository retirement ADR](docs/adr/0024-repository-ownership-and-integration-repository-retirement.md)
 - [Math-first compounding product architecture ADR](docs/adr/0025-math-first-compounding-product-architecture.md)
+- [Protocol breakthrough benchmark](docs/BREAKTHROUGH_BENCHMARK.md)
+- [Whitepaper evidence contract](docs/WHITEPAPER_CONTRACT.md)
 
 ## Project status
 
