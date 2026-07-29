@@ -66,6 +66,14 @@ JSON subset does not support. The amended schema removes that annotation
 without changing the prompt, task, scorer, answer fields, or scientific facts;
 `score.py` still rejects duplicate arrays.
 
+That retry then failed on a second response-schema incompatibility before model
+output, exhausting v1's registered retry allowance. `protocol-v2.json`
+therefore records v1 as an infrastructure-null study rather than silently
+continuing it. V2 preserves the task instance, scientific questions, arms,
+budgets, order, scorer, and publication rule. It binds
+`validate_output_schema.py` and a schema checked against OpenAI's documented
+strict Structured Outputs subset before resetting the eight-call assignment.
+
 ```bash
 python3 -m unittest paper/artifacts/state-lift/test_score.py
 python3 -m unittest paper/artifacts/state-lift/test_materialize.py

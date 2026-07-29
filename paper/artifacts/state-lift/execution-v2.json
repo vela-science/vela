@@ -1,0 +1,34 @@
+{
+  "schema": "vela.state-lift-execution.v2",
+  "frozen_at": "2026-07-29T14:16:00Z",
+  "protocol": "vela.state-lift-study-protocol.v2",
+  "task_instance_root": "sha256:a95a505fee521c811c44f91f78e5e4ac8e903f77b1e4d9ec99794444188bca89",
+  "runner_root": "sha256:ae56f656491d77d135d2351bd3b0385f6893bfb56bb8067b02c021a4a246beb3",
+  "answer_schema_root": "sha256:7bb23ba1e02f95d84e0aaefcd3aefb147bb6868c41b3457e18c14292137d5440",
+  "schema_validator_root": "sha256:7e18f90629065f1193acbce4d239edc3dd8451191b3c42040a2a785c1baf140f",
+  "schema_validation": {
+    "ok": true,
+    "profile": "OpenAI strict Structured Outputs documented subset",
+    "checked_before_model_output": true
+  },
+  "session_ids": [
+    "git-v2-01",
+    "vela-v2-01",
+    "vela-v2-02",
+    "git-v2-02",
+    "vela-v2-03",
+    "git-v2-03",
+    "git-v2-04",
+    "vela-v2-04"
+  ],
+  "custody": {
+    "fresh_exact_clone_per_session": true,
+    "workspace_read_only": true,
+    "clone_remote_removed": true,
+    "network_available_to_model_tools": false,
+    "repository_authority_credentials_available": false,
+    "model_authentication": "supervisor-owned auth-only ephemeral CODEX_HOME",
+    "shell_environment_inheritance": "none"
+  },
+  "model_output_started": false
+}

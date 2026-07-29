@@ -11,6 +11,7 @@
   ],
   "properties": {
     "schema": {
+      "type": "string",
       "const": "vela.state-lift-answer.v1"
     },
     "task_instance_root": {
@@ -18,10 +19,10 @@
       "pattern": "^sha256:[0-9a-f]{64}$"
     },
     "session_id": {
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "arm": {
+      "type": "string",
       "enum": [
         "git",
         "vela"
@@ -69,6 +70,7 @@
           "$ref": "#/$defs/authority"
         },
         "next_action_code": {
+          "type": "string",
           "enum": [
             "inspect_dependents_and_repair_or_revalidate",
             "preserve_predecessor_and_prepare_new_bounded_revision"
@@ -77,6 +79,7 @@
         "scope_limit_codes": {
           "type": "array",
           "items": {
+            "type": "string",
             "enum": [
               "not_erdos_424_proof",
               "not_unique_informal_interpretation",
@@ -96,15 +99,13 @@
       ],
       "properties": {
         "claim_id": {
-          "type": "string",
-          "minLength": 1
+          "type": "string"
         },
         "claim_root": {
           "$ref": "#/$defs/root"
         },
         "standing": {
-          "type": "string",
-          "minLength": 1
+          "type": "string"
         }
       }
     },
@@ -122,8 +123,7 @@
       ],
       "properties": {
         "path": {
-          "type": "string",
-          "minLength": 1
+          "type": "string"
         },
         "predecessor_commit": {
           "type": "string",
@@ -133,8 +133,7 @@
           "$ref": "#/$defs/root"
         },
         "predecessor_predicate": {
-          "type": "string",
-          "minLength": 1
+          "type": "string"
         },
         "successor_commit": {
           "type": "string",
@@ -144,8 +143,7 @@
           "$ref": "#/$defs/root"
         },
         "successor_predicate": {
-          "type": "string",
-          "minLength": 1
+          "type": "string"
         }
       }
     },
@@ -162,8 +160,7 @@
       ],
       "properties": {
         "submission_id": {
-          "type": "string",
-          "minLength": 1
+          "type": "string"
         },
         "submission_root": {
           "$ref": "#/$defs/root"
@@ -171,13 +168,11 @@
         "verification_ids": {
           "type": "array",
           "items": {
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           }
         },
         "decision_id": {
-          "type": "string",
-          "minLength": 1
+          "type": "string"
         },
         "decision_root": {
           "$ref": "#/$defs/root"
@@ -185,8 +180,7 @@
         "event_ids": {
           "type": "array",
           "items": {
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           }
         }
       }
