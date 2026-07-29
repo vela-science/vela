@@ -300,8 +300,9 @@ pub async fn run_command() {
                         Some(verifier_capsule_root),
                         Some(result_contract_root),
                     ) => {
-                        let binding = vela_protocol::receipt_v1::ExecutionBindingV1 {
-                            schema: vela_protocol::receipt_v1::EXECUTION_BINDING_SCHEMA.to_string(),
+                        let binding = vela_protocol::execution_binding::ExecutionBindingV1 {
+                            schema: vela_protocol::execution_binding::EXECUTION_BINDING_SCHEMA
+                                .to_string(),
                             packet_root,
                             profile_root,
                             verifier_capsule_root,

@@ -8,8 +8,8 @@ use ed25519_dalek::SigningKey;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use crate::execution_binding::ExecutionBindingV1;
 use crate::identity::{ActorClass, IdentityBinding};
-use crate::receipt_v1::ExecutionBindingV1;
 
 pub const SUBMISSION_V1_SCHEMA: &str = "vela.submission.v1";
 pub const SUBMISSION_V1_AUTH_ALGORITHM: &str = "ed25519";

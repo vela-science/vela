@@ -40,9 +40,9 @@ mod domains;
 pub use domains::{lean_verification, proof_verification};
 mod objects;
 pub use objects::{
-    activity, anchor, attempt, claim_record, cli_style, current_repository, identity, merkle,
-    proposal_v1, provenance, receipt_v1, record, registration_record, repository_epoch,
-    statement_attestation, submission_v1, verification_record,
+    activity, anchor, attempt, claim_record, cli_style, current_repository, execution_binding,
+    identity, merkle, proposal_v1, provenance, receipt_v1, record, registration_record,
+    repository_epoch, repository_inputs, statement_attestation, submission_v1, verification_record,
 };
 
 pub mod proposals;

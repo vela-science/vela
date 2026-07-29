@@ -28,6 +28,8 @@ use serde::de::{self, DeserializeSeed, MapAccess, SeqAccess, Visitor};
 use serde::{Deserialize, Serialize, Serializer};
 use serde_json::{Map, Value, json};
 
+use crate::execution_binding::{EXECUTION_BINDING_SCHEMA, ExecutionBindingV1, is_full_sha256_root};
+
 const RECEIPT_V1_SCHEMA: &str = "vela.receipt.v1";
 const MAX_RECEIPT_V1_BYTES: usize = 8 * 1024 * 1024;
 const MAX_RECEIPT_V1_DEPTH: usize = 64;
@@ -53,7 +55,6 @@ const RECEIPT_PREDICATE_SCHEMA: &str = "vela.receipt.predicate.v1";
 const NEUTRAL_RECEIPT_GENERATOR: &str = "vela-protocol/neutral-receipt-v1";
 const NO_ACTIVE_POLICY_REF: &str = "urn:vela:policy:none";
 const SCIENTIFIC_CHAIN_SCHEMA: &str = "vela.scientific-chain.producer.v1";
-pub const EXECUTION_BINDING_SCHEMA: &str = "vela.execution-binding.v1";
 const TARGET_TASK_BINDING_SCHEMA: &str = "vela.target-task-binding.v1";
 const SCIENTIFIC_CHAIN_MAX_TEXT_BYTES: usize = 16 * 1024;
 const SCIENTIFIC_CHAIN_MAX_REFERENCE_BYTES: usize = 16 * 1024;
@@ -194,49 +195,6 @@ impl fmt::Display for ReceiptV1Error {
 }
 
 impl std::error::Error for ReceiptV1Error {}
-
-/// Closed, body-bound execution identity used only by AcceptancePolicy v0.2.
-///
-/// This is a namespaced Receipt v1 extension, not a new receipt or authority
-/// object. Every field is a full SHA-256 root; mutable names and short handles
-/// cannot cross the Permit boundary.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ExecutionBindingV1 {
-    pub schema: String,
-    pub packet_root: String,
-    pub profile_root: String,
-    pub verifier_capsule_root: String,
-    pub result_contract_root: String,
-}
-
-impl ExecutionBindingV1 {
-    pub fn validate(&self) -> Result<(), String> {
-        if self.schema != EXECUTION_BINDING_SCHEMA {
-            return Err(format!("schema must be {EXECUTION_BINDING_SCHEMA}"));
-        }
-        for (field, value) in [
-            ("packet_root", &self.packet_root),
-            ("profile_root", &self.profile_root),
-            ("verifier_capsule_root", &self.verifier_capsule_root),
-            ("result_contract_root", &self.result_contract_root),
-        ] {
-            if !is_full_sha256_root(value) {
-                return Err(format!("{field} must be a full lowercase sha256 root"));
-            }
-        }
-        Ok(())
-    }
-}
-
-pub fn is_full_sha256_root(value: &str) -> bool {
-    value.strip_prefix("sha256:").is_some_and(|digest| {
-        digest.len() == 64
-            && digest
-                .bytes()
-                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    })
-}
 
 /// A validated Receipt v1 retaining the complete producer JSON value.
 ///

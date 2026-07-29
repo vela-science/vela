@@ -16,7 +16,7 @@ use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 use vela_protocol::canonical;
 use vela_protocol::current_repository::CurrentRepositoryV2;
-use vela_protocol::frontier_repository::{
+use vela_protocol::repository_inputs::{
     GitObjectFormat, RetainedObjectEntryV1, RetainedObjectManifestV1,
 };
 
@@ -300,7 +300,7 @@ fn canonical_root<T: Serialize + ?Sized>(value: &T) -> Result<String, String> {
 }
 
 fn require_sha256_root(field: &str, value: &str) -> Result<(), String> {
-    if vela_protocol::receipt_v1::is_full_sha256_root(value) {
+    if vela_protocol::execution_binding::is_full_sha256_root(value) {
         Ok(())
     } else {
         Err(format!(

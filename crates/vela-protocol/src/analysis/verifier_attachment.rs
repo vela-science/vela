@@ -443,7 +443,7 @@ impl VerifierAttachment {
 
     /// Bind the full exact-claim digest and re-derive the attachment id.
     pub fn with_claim_root(mut self, root: &str) -> Result<Self, String> {
-        if !crate::receipt_v1::is_full_sha256_root(root) {
+        if !crate::execution_binding::is_full_sha256_root(root) {
             return Err(format!(
                 "claim root must be a full lowercase sha256 root, got '{root}'"
             ));
@@ -469,7 +469,7 @@ impl VerifierAttachment {
     /// Bind retained execution evidence and re-derive the attachment id.
     pub fn with_execution_evidence_roots(mut self, roots: Vec<String>) -> Result<Self, String> {
         for root in &roots {
-            if !crate::receipt_v1::is_full_sha256_root(root) {
+            if !crate::execution_binding::is_full_sha256_root(root) {
                 return Err(format!(
                     "execution evidence root must be a full lowercase sha256 root, got '{root}'"
                 ));
@@ -538,7 +538,8 @@ impl VerifierAttachment {
                 self.id
             ));
         }
-        if !self.claim_root.is_empty() && !crate::receipt_v1::is_full_sha256_root(&self.claim_root)
+        if !self.claim_root.is_empty()
+            && !crate::execution_binding::is_full_sha256_root(&self.claim_root)
         {
             return Err(format!(
                 "attachment claim_root must be a full lowercase sha256 root, got '{}'",
@@ -546,7 +547,7 @@ impl VerifierAttachment {
             ));
         }
         for root in &self.execution_evidence_roots {
-            if !crate::receipt_v1::is_full_sha256_root(root) {
+            if !crate::execution_binding::is_full_sha256_root(root) {
                 return Err(format!(
                     "attachment execution_evidence_roots contains invalid root '{root}'"
                 ));
@@ -554,7 +555,7 @@ impl VerifierAttachment {
         }
         for probe in &self.adversarial_probes {
             if !probe.evidence_root.is_empty()
-                && !crate::receipt_v1::is_full_sha256_root(&probe.evidence_root)
+                && !crate::execution_binding::is_full_sha256_root(&probe.evidence_root)
             {
                 return Err(format!(
                     "attachment adversarial probe contains invalid evidence_root '{}'",

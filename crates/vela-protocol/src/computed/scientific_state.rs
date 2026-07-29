@@ -227,7 +227,7 @@ fn prefixed_canonical_root<T: Serialize + ?Sized>(value: &T) -> Result<String, S
 }
 
 fn require_sha256_root(field: &str, value: &str) -> Result<(), String> {
-    if crate::receipt_v1::is_full_sha256_root(value) {
+    if crate::execution_binding::is_full_sha256_root(value) {
         Ok(())
     } else {
         Err(format!(

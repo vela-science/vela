@@ -651,7 +651,7 @@ pub(crate) fn cmd_start(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vela_protocol::frontier_repository::GitObjectFormat;
+    use vela_protocol::repository_inputs::GitObjectFormat;
 
     #[test]
     fn current_attempt_identity_binds_actor_target_contract_and_offer() {

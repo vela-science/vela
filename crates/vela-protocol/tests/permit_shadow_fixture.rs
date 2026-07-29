@@ -3,7 +3,7 @@ use sha2::{Digest, Sha256};
 use vela_protocol::acceptance_policy::{
     AcceptancePolicy, Outcome, PolicyContext, evaluate, policy_signature_preimage,
 };
-use vela_protocol::receipt_v1::ExecutionBindingV1;
+use vela_protocol::execution_binding::ExecutionBindingV1;
 
 const FIXTURE: &str = include_str!("../../../conformance/fixtures/permit-shadow-v1.json");
 

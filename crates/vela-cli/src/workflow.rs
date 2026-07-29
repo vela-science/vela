@@ -79,7 +79,7 @@ pub(crate) fn author_submission(
     caveats: Vec<String>,
     producer_checks: Vec<String>,
     verification_requirements: Vec<String>,
-    execution_binding: Option<vela_protocol::receipt_v1::ExecutionBindingV1>,
+    execution_binding: Option<vela_protocol::execution_binding::ExecutionBindingV1>,
 ) -> Result<SubmissionV1, String> {
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
 

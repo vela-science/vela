@@ -390,7 +390,7 @@ pub struct PolicyContextInputs<'a> {
     pub finding: &'a FindingBundle,
     pub attachments: &'a [crate::verifier_attachment::VerifierAttachment],
     pub replayability: Option<&'a str>,
-    pub execution_binding: Option<&'a crate::receipt_v1::ExecutionBindingV1>,
+    pub execution_binding: Option<&'a crate::execution_binding::ExecutionBindingV1>,
     pub receipt_is_body_bound: bool,
     pub credential_valid: bool,
     pub target_contested: bool,
@@ -3115,7 +3115,7 @@ mod tests {
 
     #[test]
     fn policy_v0_2_raises_only_the_exact_native_witness_floor() {
-        use crate::receipt_v1::ExecutionBindingV1;
+        use crate::execution_binding::ExecutionBindingV1;
 
         let tmp = TempDir::new().unwrap();
         crate::frontier_repo::initialize(

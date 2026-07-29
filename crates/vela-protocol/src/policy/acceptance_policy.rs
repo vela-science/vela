@@ -27,7 +27,7 @@ use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use std::{collections::HashSet, fmt};
 
-use crate::receipt_v1::{ExecutionBindingV1, is_full_sha256_root};
+use crate::execution_binding::{ExecutionBindingV1, is_full_sha256_root};
 
 /// The three routing outcomes. `defer` is the safe default and carries the reason
 /// the transition needs a named human; `deny` is a structural/authority/explicit
@@ -897,7 +897,7 @@ mod tests {
     fn policy_scoped_producer_credential_is_exact_and_narrower_than_registry_status() {
         let root = |digit: char| format!("sha256:{}", digit.to_string().repeat(64));
         let binding = ExecutionBindingV1 {
-            schema: crate::receipt_v1::EXECUTION_BINDING_SCHEMA.to_string(),
+            schema: crate::execution_binding::EXECUTION_BINDING_SCHEMA.to_string(),
             packet_root: root('1'),
             profile_root: root('2'),
             verifier_capsule_root: root('3'),
@@ -1042,7 +1042,7 @@ mod tests {
         variants.push(value);
         let mut value = baseline.clone();
         value.execution_binding = Some(ExecutionBindingV1 {
-            schema: crate::receipt_v1::EXECUTION_BINDING_SCHEMA.to_string(),
+            schema: crate::execution_binding::EXECUTION_BINDING_SCHEMA.to_string(),
             packet_root: format!("sha256:{}", "1".repeat(64)),
             profile_root: format!("sha256:{}", "2".repeat(64)),
             verifier_capsule_root: format!("sha256:{}", "3".repeat(64)),

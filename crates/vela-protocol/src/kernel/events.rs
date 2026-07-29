@@ -1565,7 +1565,7 @@ pub fn validate_event_payload(kind: &str, payload: &Value) -> Result<(), String>
                     );
                 }
                 let dependency_root = require_str("dependency_root")?;
-                if !crate::receipt_v1::is_full_sha256_root(dependency_root) {
+                if !crate::execution_binding::is_full_sha256_root(dependency_root) {
                     return Err(
                         "payload.dependency_root must use sha256:<64 lowercase hex>".to_string()
                     );
