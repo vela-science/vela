@@ -1,0 +1,15 @@
+{
+  "schema": "vela.state-lift-materialization-attempt.v1",
+  "attempt": 1,
+  "started_at": "2026-07-29T14:08:30Z",
+  "completed_at": "2026-07-29T14:09:01Z",
+  "model_output_started": false,
+  "result": "infrastructure_failure",
+  "error_code": "superseded_predecessor_not_current",
+  "error": "The terminal materializer invoked `vela why` for predecessor Claim vcl_5d2858542f6882556bb7652c908708913fadd7ced61014cd5842ae0954ddfe09 after the accepted Decision. The current-only read surface correctly returned no current Claim.",
+  "resolution": "Validate the retained predecessor from its exact content-addressed Claim record and derive its terminal Standing from the already-bound Decision outcome.",
+  "scientific_inputs_changed": false,
+  "task_questions_changed": false,
+  "scoring_changed": false,
+  "model_calls_consumed": 0
+}

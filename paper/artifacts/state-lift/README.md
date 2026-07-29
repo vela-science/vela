@@ -37,6 +37,14 @@ repository. A successful invocation writes:
 - `amendment.v1.json`, which root-links both documents to the preregistered
   protocol.
 
+After an accepted correction, `vela why` no longer resolves the superseded
+predecessor because it is not a current Claim. The materializer therefore
+validates that predecessor directly from its exact retained
+content-addressed record and derives `superseded` only from the terminal
+accepted Decision. The first post-Decision materialization attempt exposed
+this harness defect before any model output; its failure is retained in
+`materialization-attempt-001.v1.json`.
+
 For an accepted correction, the next action is
 `inspect_dependents_and_repair_or_revalidate`. For a rejected correction, it
 is `preserve_predecessor_and_prepare_new_bounded_revision`. Both outcomes

@@ -332,6 +332,46 @@ def validate_review(review: dict[str, Any]) -> tuple[dict[str, Any], dict[str, A
     return decision, verification
 
 
+def retained_predecessor_state(
+    frontier: Path,
+    terminal_standing: str,
+) -> dict[str, str]:
+    """Validate the retained predecessor and derive its terminal Standing.
+
+    `vela why` intentionally exposes only current Claims. After an accepted
+    correction the predecessor remains retained but is no longer current, so
+    its identity must be checked from its content-addressed record instead.
+    """
+
+    path = (
+        frontier
+        / "records/claims/sha256"
+        / f"{PREDECESSOR_CLAIM_ROOT.removeprefix('sha256:')}.json"
+    )
+    require(path.is_file(), "retained predecessor Claim is missing")
+    require(
+        sha256_file(path) == PREDECESSOR_CLAIM_ROOT,
+        "retained predecessor Claim root drift",
+    )
+    claim = json.loads(path.read_text(encoding="utf-8"))
+    require(
+        claim.get("schema") == "vela.claim-record.v1"
+        and claim.get("claim_id") == PREDECESSOR_CLAIM_ID,
+        "retained predecessor Claim identity drift",
+    )
+    require(
+        terminal_standing in NEXT_ACTION_BY_STANDING,
+        "Decision is not terminal",
+    )
+    return {
+        "claim_id": PREDECESSOR_CLAIM_ID,
+        "claim_root": PREDECESSOR_CLAIM_ROOT,
+        "standing": (
+            "superseded" if terminal_standing == "accepted" else "accepted"
+        ),
+    }
+
+
 def build_documents(
     *,
     frozen_at: str,
@@ -637,14 +677,9 @@ def main() -> int:
         [str(args.vela), "check", str(args.frontier), "--strict", "--json"]
     )
     verify_clean_clone(args.frontier, args.vela, check)
-    predecessor_why = run_json(
-        [
-            str(args.vela),
-            "why",
-            str(args.frontier),
-            PREDECESSOR_CLAIM_ID,
-            "--json",
-        ]
+    predecessor_why = retained_predecessor_state(
+        args.frontier,
+        review.get("standing"),
     )
     replacement_why = run_json(
         [

@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import copy
 import importlib.util
+import json
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 SOURCE = Path(__file__).with_name("materialize.py")
@@ -125,6 +128,61 @@ def inputs(standing: str = "accepted") -> dict:
 
 
 class MaterializeTests(unittest.TestCase):
+    def test_retained_predecessor_is_read_after_accepted_correction(self) -> None:
+        claim = {
+            "schema": "vela.claim-record.v1",
+            "claim_id": materialize.PREDECESSOR_CLAIM_ID,
+        }
+        payload = (json.dumps(claim, sort_keys=True) + "\n").encode()
+        root = materialize.sha256_bytes(payload)
+        with tempfile.TemporaryDirectory() as temporary:
+            frontier = Path(temporary)
+            path = (
+                frontier
+                / "records/claims/sha256"
+                / f"{root.removeprefix('sha256:')}.json"
+            )
+            path.parent.mkdir(parents=True)
+            path.write_bytes(payload)
+            with mock.patch.object(
+                materialize,
+                "PREDECESSOR_CLAIM_ROOT",
+                root,
+            ):
+                observed = materialize.retained_predecessor_state(
+                    frontier,
+                    "accepted",
+                )
+        self.assertEqual(observed["standing"], "superseded")
+        self.assertEqual(observed["claim_root"], root)
+
+    def test_retained_predecessor_stays_accepted_after_rejection(self) -> None:
+        claim = {
+            "schema": "vela.claim-record.v1",
+            "claim_id": materialize.PREDECESSOR_CLAIM_ID,
+        }
+        payload = (json.dumps(claim, sort_keys=True) + "\n").encode()
+        root = materialize.sha256_bytes(payload)
+        with tempfile.TemporaryDirectory() as temporary:
+            frontier = Path(temporary)
+            path = (
+                frontier
+                / "records/claims/sha256"
+                / f"{root.removeprefix('sha256:')}.json"
+            )
+            path.parent.mkdir(parents=True)
+            path.write_bytes(payload)
+            with mock.patch.object(
+                materialize,
+                "PREDECESSOR_CLAIM_ROOT",
+                root,
+            ):
+                observed = materialize.retained_predecessor_state(
+                    frontier,
+                    "rejected",
+                )
+        self.assertEqual(observed["standing"], "accepted")
+
     def test_accepted_outcome_is_frozen(self) -> None:
         task, answer, amendment = materialize.build_documents(**inputs())
         self.assertEqual(
