@@ -5,8 +5,8 @@ const INSTALLER: &str = include_str!("../../../install.sh");
 const WINDOWS_INSTALLER: &str = include_str!("../../../install.ps1");
 const RELEASE_WORKFLOW: &str = include_str!("../../../.github/workflows/release.yml");
 const CONFORMANCE_WORKFLOW: &str = include_str!("../../../.github/workflows/conformance.yml");
-const UNIX_RELEASE_SMOKE: &str = include_str!("../../../scripts/smoke-release-bundle.sh");
-const WINDOWS_RELEASE_SMOKE: &str = include_str!("../../../scripts/smoke-release-bundle.ps1");
+const UNIX_RELEASE_SMOKE: &str = include_str!("../../../.github/release/smoke-bundle.sh");
+const WINDOWS_RELEASE_SMOKE: &str = include_str!("../../../.github/release/smoke-bundle.ps1");
 
 fn parse_action(source: &str) -> Value {
     serde_yaml::from_str(source).expect("action source must be valid YAML")
@@ -267,8 +267,8 @@ fn reviewed_tags_publish_provenance_labeled_cross_platform_bundles() {
 #[test]
 fn fresh_runner_smoke_precedes_publication_and_preserves_platform_checks() {
     assert!(RELEASE_WORKFLOW.contains("name: smoke-${{ matrix.asset }}"));
-    assert!(RELEASE_WORKFLOW.contains("scripts/smoke-release-bundle.sh"));
-    assert!(RELEASE_WORKFLOW.contains("scripts/smoke-release-bundle.ps1"));
+    assert!(RELEASE_WORKFLOW.contains(".github/release/smoke-bundle.sh"));
+    assert!(RELEASE_WORKFLOW.contains(".github/release/smoke-bundle.ps1"));
     for asset in [
         "vela-linux-x86_64.tar.gz",
         "vela-macos-aarch64.zip",

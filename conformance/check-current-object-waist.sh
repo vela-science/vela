@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# This repository-wide check exercises the public cross-implementation waist.
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 vela="${VELA_BIN:-$repo/target/debug/vela}"
 [[ "${VELA_EPHEMERAL_ACCOUNT_HOME:-}" == 1 ]] || {

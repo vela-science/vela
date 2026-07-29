@@ -8,7 +8,7 @@ cd "$ROOT"
 # frozen exact verifiers, and read-only derived projections. External Lean is
 # an optional integration lane and must never be pulled into this gate
 # accidentally.
-./scripts/check-prelaunch-surface.sh
+./conformance/check-retired-surface.sh
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest conformance.test_verify_manifest
 PYTHONDONTWRITEBYTECODE=1 python3 conformance/verify_principal_capability.py
 cargo test --quiet -p vela-verify --lib

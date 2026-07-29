@@ -1,3 +1,4 @@
+# Release-workflow implementation; not part of the installed product.
 param(
   [Parameter(Mandatory = $true)][string]$Archive,
   [Parameter(Mandatory = $true)][string]$ExpectedVersion,

@@ -7,7 +7,7 @@ on:
     paths:
       - "package.json"
       - "bun.lock"
-      - "scripts/check-package-boundaries.mjs"
+      - "packages/canopus/scripts/check-authority-boundary.mjs"
       - "packages/protocol/**"
       - "packages/canopus/**"
       - ".github/workflows/product-ci.yml"
@@ -15,7 +15,7 @@ on:
     paths:
       - "package.json"
       - "bun.lock"
-      - "scripts/check-package-boundaries.mjs"
+      - "packages/canopus/scripts/check-authority-boundary.mjs"
       - "packages/protocol/**"
       - "packages/canopus/**"
       - ".github/workflows/product-ci.yml"

@@ -7,7 +7,7 @@ cd "$ROOT"
 retired_receipt_version=0
 
 fail() {
-  printf 'prelaunch surface drift: %s\n' "$1" >&2
+  printf 'retired surface drift: %s\n' "$1" >&2
   exit 1
 }
 
@@ -45,7 +45,7 @@ for path in "${absent_paths[@]}"; do
 done
 
 # Generated first-run guidance is executable product surface. It must not
-# resurrect commands removed by the prelaunch hard cut.
+# resurrect commands removed by the current product cut.
 generated_guidance_surfaces=(
   crates/vela-cli/src/cli/help_text.rs
   crates/vela-protocol/src/computed/frontier_repo.rs
@@ -67,7 +67,7 @@ if ! grep -nF 'creates no MCP configuration' docs/AGENT_QUICKSTART.md >/dev/null
   fail "agent quickstart does not document minimal initialization"
 fi
 
-# Carina was a prelaunch duplicate kernel. It must not survive in either the
+# Carina was a duplicate kernel. It must not survive in either the
 # maintained manifests or their regenerable materialized views.
 while IFS= read -r path; do
   carina_pattern='(^|[^[:alnum:]_])carina(_kernel)?([^[:alnum:]_]|$)'
@@ -107,17 +107,17 @@ do
 done
 if git grep -nE 'from receipt_v1 import' -- \
   crates/vela-cli/resources scripts \
-  ':(exclude)scripts/check-prelaunch-surface.sh' >/dev/null
+  ':(exclude)conformance/check-retired-surface.sh' >/dev/null
 then
   fail "installed code imports the command harness instead of the Receipt v1 core"
 fi
 
 retired_receipt_pattern="receipt-v${retired_receipt_version}|vela_receipt_v${retired_receipt_version}|vela-receipt-v${retired_receipt_version}"
 if git grep -nE "$retired_receipt_pattern" -- \
-  . ':(exclude)scripts/check-prelaunch-surface.sh' >/dev/null
+  . ':(exclude)conformance/check-retired-surface.sh' >/dev/null
 then
   git grep -nE "$retired_receipt_pattern" -- \
-    . ':(exclude)scripts/check-prelaunch-surface.sh' >&2
+    . ':(exclude)conformance/check-retired-surface.sh' >&2
   fail "retired Receipt tool naming returned"
 fi
 
@@ -284,4 +284,4 @@ if grep -nE "$retired_mcp_propose_pattern" "${mcp_propose_surfaces[@]}" >/dev/nu
   grep -nE "$retired_mcp_propose_pattern" "${mcp_propose_surfaces[@]}" >&2
   fail "retired MCP propose tool returned"
 fi
-printf 'prelaunch surface: ok\n'
+printf 'retired surface: ok\n'

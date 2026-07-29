@@ -3,7 +3,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
-const root = path.resolve(import.meta.dirname, "..");
+const root = path.resolve(import.meta.dirname, "../../..");
 const canopusSource = path.join(root, "packages", "canopus", "src");
 const forbidden = [
   /from\s+["'][^"']*crates\//u,

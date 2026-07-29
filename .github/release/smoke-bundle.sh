@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ARCHIVE="${1:?usage: smoke-release-bundle.sh <archive> <version> <require-platform-signature>}"
-EXPECTED_VERSION="${2:?usage: smoke-release-bundle.sh <archive> <version> <require-platform-signature>}"
-REQUIRE_PLATFORM_SIGNATURE="${3:?usage: smoke-release-bundle.sh <archive> <version> <require-platform-signature>}"
+ARCHIVE="${1:?usage: .github/release/smoke-bundle.sh <archive> <version> <require-platform-signature>}"
+EXPECTED_VERSION="${2:?usage: .github/release/smoke-bundle.sh <archive> <version> <require-platform-signature>}"
+REQUIRE_PLATFORM_SIGNATURE="${3:?usage: .github/release/smoke-bundle.sh <archive> <version> <require-platform-signature>}"
 
 case "$REQUIRE_PLATFORM_SIGNATURE" in
   true|false) ;;

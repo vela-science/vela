@@ -271,8 +271,8 @@ being copied into the public monorepo. Its final head is
 `14e8ebfc22bc7ff0ce6767c6973337c62be6feae`; the pre-decomposition source tag
 `94da90dbbd5a2fada21ab0da0c4bebfc3f76c6da` remains its ancestor. The 15
 load-bearing source objects referenced by the public Erdős evidence are
-content-addressed mirrors in `erdos-frontier` and are checked by
-`scripts/verify-source-archive.ts`.
+content-addressed mirrors in `erdos-frontier` and are checked there by
+`bun scripts/verify-source-archive.ts`.
 
 ## Current evidence
 

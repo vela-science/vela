@@ -842,7 +842,7 @@ workflow before the final active migration. `/vela:sign-prep`, saved
 `.vela/sign-session.json` answers, binary-pin preflight, and every plugin
 invocation of legacy batch `vela sign` are gone. The surviving plugin has only
 producer commands plus read-only `review list`, `show`, and `preview`.
-`scripts/check-prelaunch-surface.sh` prevents the retired workflow from
+`conformance/check-retired-surface.sh` prevents the retired workflow from
 returning. A real Erdős session-hook smoke reads the current 2,770 findings,
 reproduced replay, strict-blocked state, and 15 pending proposals without
 entering a signing path. No protocol, Frontier, proposal, Receipt, event,

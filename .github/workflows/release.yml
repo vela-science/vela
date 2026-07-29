@@ -241,7 +241,7 @@ jobs:
           ASSET: ${{ matrix.asset }}
           EXPECTED_VERSION: ${{ needs.metadata.outputs.version }}
           REQUIRE_PLATFORM_SIGNATURE: false
-        run: scripts/smoke-release-bundle.sh "dist/$ASSET" "$EXPECTED_VERSION" "$REQUIRE_PLATFORM_SIGNATURE"
+        run: .github/release/smoke-bundle.sh "dist/$ASSET" "$EXPECTED_VERSION" "$REQUIRE_PLATFORM_SIGNATURE"
       - name: Smoke exact Windows bundle in a fresh prefix
         if: runner.os == 'Windows'
         shell: pwsh
@@ -249,7 +249,7 @@ jobs:
           ASSET: ${{ matrix.asset }}
           EXPECTED_VERSION: ${{ needs.metadata.outputs.version }}
           REQUIRE_PLATFORM_SIGNATURE: false
-        run: scripts/smoke-release-bundle.ps1 -Archive "dist/$env:ASSET" -ExpectedVersion $env:EXPECTED_VERSION -RequirePlatformSignature ($env:REQUIRE_PLATFORM_SIGNATURE -eq "true")
+        run: .github/release/smoke-bundle.ps1 -Archive "dist/$env:ASSET" -ExpectedVersion $env:EXPECTED_VERSION -RequirePlatformSignature ($env:REQUIRE_PLATFORM_SIGNATURE -eq "true")
 
   registry-smoke:
     if: github.event_name == 'push' && needs.metadata.outputs.prerelease != 'true'

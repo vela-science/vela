@@ -194,13 +194,17 @@ crates/             Vela protocol, replay, repository authority, and CLI
 packages/protocol/  Authority-free TypeScript contracts and validators
 packages/canopus/   Optional bounded producer and evaluation harness
 conformance/        Shared cross-implementation fixtures
-                     and small independent readers/emitters
+                     plus repository-wide protocol checks
+.github/release/    Rust artifact publication and smoke tooling
 ```
 
 `@vela-science/canopus` may use `@vela-science/protocol`; it cannot import
 repository-authority or Decision internals. Vela Web and canonical Frontier
 repositories remain separate because they have independent deployment and
 scientific-history lifecycles.
+
+Package-local tooling stays with its package. The repository has no catch-all
+top-level `scripts/` directory.
 
 The Protocol package and Canopus publish together, in dependency order, from
 one `product-v*` release tag. Routine development does not advance versions or

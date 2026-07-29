@@ -2,7 +2,7 @@
 set -euo pipefail
 
 MODE="${1:-check}"
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
 VERSION="$(python3 - <<'PY'
@@ -86,7 +86,7 @@ case "$MODE" in
     done
     ;;
   *)
-    printf '%s\n' "usage: scripts/publish-crates.sh [check|--execute]" >&2
+    printf '%s\n' "usage: .github/release/publish-crates.sh [check|--execute]" >&2
     exit 2
     ;;
 esac
