@@ -138,32 +138,45 @@ Observatory projections, orchestration frameworks, domain packages, and
 external-format adapters must remain removable until their evidence gates
 pass.
 
-Four planes remain deliberately separate:
+Six protocol and operating planes remain deliberately separate:
 
 ```text
-activity
-  models, tools, sessions, Runs, traces, branches, raw artifacts
-      |
-      | bounded Submission
-      v
 scientific state
-  Claims, Verification Records, Proposals, Decisions, Events, Standing
-
-package
-  optional versioned schemas, corpora, verifiers, mappings, and adapters
-
-discovery
-  disposable Observatory, search, graphs, rankings, and explanations
+  Claims, Proposals, Decisions, Events, Standing, corrections
+evidence
+  Submissions, Artifacts, Verification Records, explicit nonclaims
+assurance
+  hashing, replay, conformance, frozen verifiers, clean-room readers
+authority
+  local repository policy and exact human Decisions
+execution
+  models, tools, Attempts, Runs, traces, branches, retries, budgets
+federation
+  root-bound foreign references interpreted under local authority
 ```
 
-A rich work episode may be retained as evidence. It is never promoted wholesale
-into the portable scientific-state contract.
+Cross-plane links are explicit and typed; the planes do not collapse into one
+global graph, database, workflow engine, or reputation score. A rich work
+episode may be retained as evidence. It is never promoted wholesale into the
+portable scientific-state contract. A verifier may report on evidence but
+cannot decide Standing. A foreign Frontier may retain and check a source
+transition but cannot import the source authority.
 
 Packages distribute reusable language or capability; they never confer
-Standing. Discovery surfaces explain rooted state; they never become a second
-writer. Native systems remain sovereign: Lean checks Lean, Lake resolves Lean
-packages, Git hosts bytes and ancestry, workbenches run activity, and named
-Frontiers decide what they recognize.
+Standing. The disposable Observatory, search, rankings, and explanations are
+read projections over those planes, never a seventh canonical plane or a
+second writer. Native systems remain sovereign: Lean checks Lean, Lake
+resolves Lean packages, Git hosts bytes and ancestry, workbenches run activity,
+and named Frontiers decide what they recognize.
+
+This is the network thesis under test: modular participation, polycentric
+authority, bounded cooperation, and error correction without global
+consensus. Network effects are earned in order. The campaign must first pass
+the local mathematical correction fixture, then an independent consequence
+reader, then a non-escalating second Frontier, then the 20 percent cold-user
+continuation threshold. Until those gates pass there is no Vela network
+service, global namespace, universal ontology, CRDT Decision model, or
+protocol-owned reputation system.
 
 ## Protocol-breakthrough hypothesis
 
@@ -249,6 +262,17 @@ sidon-frontier
 The former `vela-research-harness`, `vela-internal`, `vela-site`,
 `vela-frontiers`, and `prover-lane-frontier` repositories are archived. No
 replacement integration repository exists.
+
+The archived Canopus repository's final head
+`12e8b42e409019e94644d44493d8c9b5b9eb1c4f` is reachable from this
+monorepo through the unsquashed history-retention merge. The private
+`vela-internal` history remains in its private archived repository rather than
+being copied into the public monorepo. Its final head is
+`14e8ebfc22bc7ff0ce6767c6973337c62be6feae`; the pre-decomposition source tag
+`94da90dbbd5a2fada21ab0da0c4bebfc3f76c6da` remains its ancestor. The 15
+load-bearing source objects referenced by the public Erdős evidence are
+content-addressed mirrors in `erdos-frontier` and are checked by
+`scripts/verify-source-archive.ts`.
 
 ## Current evidence
 

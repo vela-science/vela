@@ -636,12 +636,10 @@ pub fn initialize_minimal(
 ) -> Result<serde_json::Value, String> {
     let name = options.name.to_string();
     let mut payload = initialize(path, options)?;
-    for relative in [".github/workflows/vela-frontier.yml"] {
-        let candidate = path.join(relative);
-        if candidate.is_file() {
-            fs::remove_file(&candidate)
-                .map_err(|error| format!("remove {}: {error}", candidate.display()))?;
-        }
+    let workflow = path.join(".github/workflows/vela-frontier.yml");
+    if workflow.is_file() {
+        fs::remove_file(&workflow)
+            .map_err(|error| format!("remove {}: {error}", workflow.display()))?;
     }
     let proof_dir = path.join("proof");
     if proof_dir.exists() {

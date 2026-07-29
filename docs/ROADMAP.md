@@ -24,8 +24,11 @@ short.
   Submission → Verification → human Decision loop is complete and replayed.
 - Vela `0.940.9`, `@vela-science/protocol@0.1.0`, and
   `@vela-science/canopus@0.8.0` are released with provenance.
-- Canopus history is imported without squash into this monorepo.
-- The old Canopus and private integration repositories are archived.
+- Canopus history, including its archived final head, is reachable without
+  squash from this monorepo.
+- The old Canopus and private integration repositories are archived. Private
+  integration history remains private; its 15 public evidence dependencies
+  are exact, checked mirrors in the Erdős Frontier.
 - The four Frontiers, Vela Web, and organization workflows retain their
   independent ownership boundaries.
 - A repaired registered Stage A completed all 12 matched cells: Canopus passed
