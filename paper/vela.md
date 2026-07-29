@@ -27,9 +27,12 @@ mathematical Frontiers found no qualifying historical correction fixture among
 2,831 retained Claims. Rust and clean-room Python readers agree on a synthetic
 qualification vector, but that result does not satisfy the scientific,
 federation, external-reproduction, or user-value gates. The current evidence
-therefore supports local admission and replay, not the registered protocol
-claim. This draft will report either the completed benchmark or its
-falsification.
+also includes one accepted, first-party source-statement supersession and one
+failed matched reviewer pilot. Neither has the consequential topology or
+external independence required by the registered benchmark. The evidence
+therefore supports local admission, scoped verification, Decision, replay, and
+supersession, not the registered protocol claim. This draft will report either
+the completed benchmark or its falsification.
 
 ## 1. Introduction
 
@@ -419,23 +422,32 @@ This fixture tests exact correction authoring and the human Decision boundary.
 It lacks the consequential diamond and cannot satisfy the primary protocol
 benchmark.
 
-**Current status:** the exact Submission is registered as
+**Current status:** the exact Submission was registered as
 `vsb_44cd52724425171f` at root
 `sha256:4cd059848ce06c943e2cafffac0ffa0f14838b5adba022bc4c076df6acc5af12`.
 Its replacement Claim `vcl_4bc14401b203218cb7b9de0141747e0c17cea3a6b0cc522639323ab13e432eaf`
-is pending under Proposal `vpr_23f32f95d4f073e8`; registration changed no
-accepted state. A deterministic source verifier reproduced both file roots and
-the exact Git diff in two object-database contexts. The first verifier draft
-was rejected before import because default Git diff output abbreviated blob
-IDs differently across those contexts. The repaired implementation forces
-full blob identities; its signed first-party Verification
+entered Proposal `vpr_23f32f95d4f073e8`; registration changed no accepted
+state. A deterministic source verifier reproduced both file roots and the exact
+Git diff in two object-database contexts. The first verifier draft was rejected
+before import because default Git diff output abbreviated blob IDs differently
+across those contexts. The repaired implementation forces full blob identities;
+its signed first-party Verification
 `vvr_ed3383c1cd640d43` was imported with outcome `pass` and accepted-event
 delta zero at Frontier commit
 `b696ececbf1dfb249dadbbc86f211e9445a09cc6`, repository root
 `sha256:b70da05f7fdb93925dc2fed3d7a680b65ef3ac6d68ed51cd2985bd61c1b06cb9`.
-Strict verification and a clean clone reproduce that state. The separate
-human Decision remains pending. This first-party check earns no
-external-participant credit and does not change Standing.
+The human then accepted that exact Proposal. Event
+`vev_c9edac512e2b3307`, root
+`sha256:1562259dcbb48e03bf9850da2e2f7b7e145b4cca544c056e8271c281f0cfae23`,
+records the terminal Decision, and applied Event `vev_7b5ae15a99689064`
+supersedes the predecessor without erasing it. Strict verification and a clean
+clone reproduce repository root
+`sha256:391c2acb12ea1251b6614803d973fd7785826977b664bebcd7091d261133d8fc`
+at commit `c25e11d332cfbc12b048c314880662d507df53e0`. This first-party
+qualification proves the current writer, verifier, Decision, and replay path.
+It earns no external-participant credit and lacks the consequential diamond,
+surviving route, second Frontier, and cold-successor evidence required by the
+primary benchmark.
 
 ### 6.4 Synthetic reader qualification
 
@@ -526,15 +538,11 @@ terminal.
 The matched Git-versus-Vela reviewer protocol is frozen at root
 `sha256:68fb039088302d19f02cf2628c16004e174649b1f952a63a0fd35210c0dd0ef8`.
 It gives both arms identical terminal repository, evidence, verifier, Git, and
-documentation bytes; only the Vela arm receives the exact read-only CLI.
-Execution remains gated on the terminal Erdős 424 Decision and a rooted task
-instance. A dependency-free exact-field scorer is frozen at source root
+documentation bytes; only the Vela arm receives the exact read-only CLI. A
+dependency-free exact-field scorer is frozen at source root
 `sha256:c949f9dec835cbe97bb89a22ccc006e8e767f88b86dfc6c4a0083732ff3fcd63`.
 It rejects task-instance drift and reports false authority statements as hard
-failures. The terminal amendment must still bind that scorer, the answer key,
-model, runtime, repository, and binary before any model output. The planned
-first-party sessions can qualify the method but cannot earn
-external-participant credit.
+failures.
 
 The terminal materializer was frozen while the Proposal remained pending. A
 pre-execution amendment at root
@@ -550,20 +558,86 @@ Registration, source transition, repositories, binaries, runtime, and model
 bindings agree. This prevents selection of an answer key after the Decision
 outcome or after model output.
 
-### 6.7 Registered benchmark matrix
+The first matched pair is a registered negative result, root
+`sha256:af9af17824e15b14ea77aa2e9afec135b997cdcf026beb050b80cc51563e753a`.
+The Git-only arm answered 22 of 25 exact fields in 268.040 seconds using
+2,401,939 observed tokens. The Vela arm answered 24 of 25 in 146.425 seconds
+using 655,122 observed tokens. Vela was directionally better by two fields,
+72.725 percent fewer observed tokens, and 45.372 percent less wall time.
+However, both arms exceeded the preregistered 50,000-token hard limit and
+neither answer was fully correct. The registered study therefore failed; the six
+remaining repetitions were not run. This pilot establishes neither state lift
+nor external user value. It identifies a narrower product task: reduce the
+question surface and remove evidence ambiguity before registering another
+reviewer study.
+
+### 6.7 Formal vertical slice
+
+A separate product slice tested the ordinary math path rather than the
+correction-impact benchmark. Canopus Run
+`run_585c951f-ed51-49b9-805d-02e7e5a8a0e9` produced a Lean proof Artifact
+under a frozen Lean 4.27.0 and Mathlib environment after four retained failed
+Runs. Exact replay through the network-denied verifier reproduced kernel
+elaboration and an axiom set limited to `propext`, `Classical.choice`, and
+`Quot.sound`.
+
+Submission `vsb_c50dc7e85cb76684`, root
+`sha256:9adecb4649fa99a7b0945e99f3197cb72489e17b4bd08fe2bfcdff7d0f1c67d3`,
+registered Proposal `vpr_6c71e12b28f095c9` without changing accepted state.
+Scoped Verification `vvr_a898f5218acb57e9`, root
+`sha256:70a2f95366d1f9e55fa46c84d3ffa61f54d957427cdf0bf282017a5d26b324a4`,
+replayed the exact Run and retained its limitations: kernel acceptance does
+not establish informal statement fidelity, novelty, importance, or scientific
+acceptance. Strict replay and a clean clone agree at Formal Frontier commit
+`84d3064cd7d9170985d04360b579c3c45fc96a80`, repository root
+`sha256:66f2244045500eb5838d116a57ef16499b96775d76a77c9e383e8b322734ceab`.
+The Proposal remains pending and accepted-event delta is zero.
+
+This slice also reproduced an object-contract mismatch. Current repositories
+identify retained Artifacts by full content hash, whereas the optional
+Verification Record v1 `artifact_ids` field accepts only legacy `va_`
+identifiers. The Verification binds the exact Submission root, which already
+binds all three Artifact digests, and leaves the redundant list empty. This is
+a concrete compatibility gap, not a reason to invent aliases or change the
+protocol during the experiment.
+
+### 6.8 Framework-neutral execution evaluation
+
+A preregistered Stage A comparison held task facts, verifiers, model family,
+custody rules, and publication rules constant across Canopus, native Codex,
+and native Codex with the same packet. Two tasks and two fresh repetitions per
+arm produced 12 retained outcomes. Eleven passed their frozen verifier. The
+repaired report root is
+`sha256:43be5378169f2911eb09773b2a9ffbbf8364c080e37dc874b13188ccff144bfb`.
+
+| Arm | Passes | Observed tokens | Wall time | Passes / 1M tokens | Passes / hour |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Canopus | 4 / 4 | 853,514 | 324.375 s | 4.687 | 44.393 |
+| Native Codex | 3 / 4 | 1,207,939 | 616.799 s | 2.484 | 17.510 |
+| Same-packet native | 4 / 4 | 2,253,673 | 449.045 s | 1.775 | 32.068 |
+
+Canopus improved passes per observed token by 88.7 percent over native Codex
+and 164.0 percent over same-packet native. It improved passes per hour by
+153.5 percent and 38.4 percent, respectively. This is two repetitions per task
+and arm, all first-party. It supports baseline utility for the bounded runner,
+not a stable population estimate, external adoption, or the protocol claim.
+The registered call ceiling could not fit Stage B, so no orchestration
+framework was evaluated or retained.
+
+### 6.9 Registered benchmark matrix
 
 | Family | Primary | Held-out | Required |
 | --- | --- | --- | --- |
-| B1 transition bytes | pending | pending | exact |
+| B1 transition bytes | writer qualification pass; primary pending | pending | exact |
 | B2 affected set | pending | pending | 100% precision/recall |
 | B3 route survival | pending | pending | exact |
-| B4 authority containment | pending | pending | zero unauthorized delta |
-| B5 removability | local qualification pass; correction pending | pending | replay unchanged |
-| B6 hosted-service failure | local qualification pass; correction pending | pending | replay succeeds |
+| B4 authority containment | writer qualification pass; primary pending | pending | zero unauthorized delta |
+| B5 removability | writer qualification pass; primary pending | pending | replay unchanged |
+| B6 hosted-service failure | writer qualification pass; primary pending | pending | replay succeeds |
 | B7 support diversity | pending | pending | exact route accounting |
 | B8 second Frontier | fail: portable foreign-reference contract absent | not run | zero imported authority |
 | B9 observability | synthetic pass only | pending | no silent truncation |
-| B10 cold inheritance | pending | pending | at least 20% median lift |
+| B10 cold inheritance | first pilot failed hard budget | pending | at least 20% median lift |
 
 No aggregate score is reported.
 
@@ -755,17 +829,19 @@ lineage, and replayable Standing.
 
 ## 9. Limitations
 
-The current corpus is mathematical and first-party. It contains no qualifying
-historical correction fixture. The synthetic graph fixes relation meanings in
-advance and cannot show that real scientific repositories encode them
+The current corpus is mathematical and first-party. It contains one accepted
+source-statement supersession, but no qualifying correction fixture with the
+registered consequential topology. The synthetic graph fixes relation meanings
+in advance and cannot show that real scientific repositories encode them
 correctly. The clean-room implementation is colocated and does not establish
 organizational independence.
 
 Repository authority remains operationally heavier than ordinary producer
-authentication. The benchmark has not yet measured reviewer time, cold
-inheritance, federation, or recurring external use. SHA-256 and Ed25519 are
-assumed secure. Git hosting availability is operationally useful but not
-canonical.
+authentication. The first reviewer pilot failed its hard token budget and
+therefore does not establish reviewer-time or cold-inheritance lift. The
+benchmark has not measured federation or recurring external use. SHA-256 and
+Ed25519 are assumed secure. Git hosting availability is operationally useful
+but not canonical.
 
 The current public contract cannot express the registered non-escalating
 second-Frontier transfer. This revision fails a protocol benchmark; product
@@ -823,12 +899,15 @@ The final artifact package will include:
 
 Vela currently demonstrates a compact, replayable separation among
 authenticated producer input, scoped Verification, local human Decision, and
-scientific Standing. Two implementations also agree on a bounded synthetic
-correction-impact projection. The current revision lacks the portable
-foreign-reference contract required for non-escalating second-Frontier
-transfer. The stronger claim, that this mechanism preserves useful scientific
-inheritance across real corrections and plural authorities better than Git
-alone, is therefore not satisfied by the audited system.
+scientific Standing, including one accepted supersession whose predecessor
+remains explainable. Two implementations also agree on a bounded synthetic
+correction-impact projection. The first matched reviewer pilot was
+directionally cheaper and more accurate with Vela but failed its preregistered
+token budget and exact-answer requirement. The current revision also lacks the
+portable foreign-reference contract required for non-escalating
+second-Frontier transfer. The stronger claim, that this mechanism preserves
+useful scientific inheritance across real corrections and plural authorities
+better than Git alone, is therefore not satisfied by the audited system.
 
 The registered experiments decide the conclusion. If they pass, the paper
 will state the exact measured result. If they fail, the paper will publish the

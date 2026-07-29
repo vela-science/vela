@@ -51,11 +51,12 @@ registered call ceiling cannot fit it. No framework runtime was added.
 
 ## P1: complete one Vela Math vertical slice
 
-- Register the verifier-passing Formal Run
-  `run_585c951f-ed51-49b9-805d-02e7e5a8a0e9` as pending review, import one
-  independently scoped Verification Record, and preserve zero accepted-state
-  change until an optional human Decision. The local Run and clean-clone replay
-  are complete; the canonical Frontier has not yet changed.
+- Preserve and use the completed Formal slice: Run
+  `run_585c951f-ed51-49b9-805d-02e7e5a8a0e9`, Submission
+  `vsb_c50dc7e85cb76684`, scoped Verification `vvr_a898f5218acb57e9`,
+  pending Proposal `vpr_6c71e12b28f095c9`, and zero accepted-state delta at
+  Frontier commit `84d3064cd7d9170985d04360b579c3c45fc96a80`. A later human
+  Decision is optional and is not an engineering release gate.
 - Keep kernel acceptance, statement fidelity, scientific review, and Frontier
   Standing distinct.
 - Measure evidence-location, correction, replay, and continuation against Git

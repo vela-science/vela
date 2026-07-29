@@ -6,7 +6,8 @@ Prove or falsify Vela's value through one bounded campaign:
 
 ```text
 complete and replay a real Submission -> Verification -> Decision loop
-compare native Codex, Canopus, and removable orchestration under matched budgets
+compare native Codex, Canopus (the Vela research runner), and removable orchestration
+under matched budgets
 prove one math-first correction and continuation slice
 retain only components that improve verified work or reviewer efficiency
 earn one standards-compatible computational transfer
@@ -292,7 +293,7 @@ not copied into this product repository.
 | TypeScript protocol | `@vela-science/protocol@0.1.0`, owned by this monorepo |
 | Canopus | `@vela-science/canopus@0.8.0`, owned by `packages/canopus` with unsquashed source history |
 | Erdős Frontier | strict replay and clean-clone reproduction pass at `c25e11d332cfbc12b048c314880662d507df53e0`; corrected Erdős 424 Proposal `vpr_23f32f95d4f073e8` is accepted by the terminal human Decision, and the predecessor Claim is retained as superseded |
-| Formal Frontier | strict replay passes at `aca6076afe184cec8f0a5ecdca25815b0d4111ef`; exact Submission `vsb_c50dc7e85cb76684` is registered as Proposal `vpr_6c71e12b28f095c9`, pending review with zero accepted-state delta |
+| Formal Frontier | strict replay and a clean clone pass at `84d3064cd7d9170985d04360b579c3c45fc96a80`; exact Submission `vsb_c50dc7e85cb76684` and scoped Verification `vvr_a898f5218acb57e9` are retained under Proposal `vpr_6c71e12b28f095c9`, pending review with zero accepted-state delta |
 | Sidon Frontier | strict replay passes at `410fd680e1d27a185617b7cf06cd940ef0016369` |
 | Quantum Frontier | strict replay passes at `790f255c394b7900e7a1e36a740406d16b783165` |
 | Web | read-only clean-clone checks and projection-bound build pass at `bdb10ed92edba5ea1a0e75d44bfb457e0b806f5f`; no web-code release is required by the current campaign |
@@ -394,10 +395,16 @@ byte was touched.
 Fresh replay through the exact network-denied capsule now produces deterministic
 report root
 `sha256:ca35b7bb266abb68aeab9705a3f5386af4001b61a018861c6667f4cdf977e795`.
-Signed Verification `vvr_17e26be39ee459da` binds the exact Claim, Submission,
-Proposal, three retained Artifacts, Run, Mission, capsule, implementation, and
-scope. It remains prepared, not imported; importing it is a non-authorizing
-repository transaction and cannot change Standing.
+Signed Verification `vvr_a898f5218acb57e9`, root
+`sha256:70a2f95366d1f9e55fa46c84d3ffa61f54d957427cdf0bf282017a5d26b324a4`,
+binds the exact Claim, Submission root, Proposal, Run, Mission, capsule,
+implementation, and scope. The Submission root binds the three retained
+Artifact digests. It was imported at Formal Frontier commit
+`84d3064cd7d9170985d04360b579c3c45fc96a80`, repository root
+`sha256:66f2244045500eb5838d116a57ef16499b96775d76a77c9e383e8b322734ceab`.
+Strict replay and a fresh clone both reproduce the retained Verification.
+Proposal Standing remains `pending_review` and accepted-event delta remains
+zero. No human Decision is required to complete this engineering slice.
 
 This is useful product evidence, not breakthrough evidence. It leaves the
 [protocol breakthrough benchmark](BREAKTHROUGH_BENCHMARK.md) at Level 0:
