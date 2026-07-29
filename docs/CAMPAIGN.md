@@ -886,24 +886,35 @@ accepted, and changed accepted-event state by zero. The deterministic verifier
 at `paper/artifacts/erdos-424/verify_source_transition.py` independently
 recomputes both source trees, both file roots, the theorem-line transition,
 the retained Artifact root, and the exact Git diff root
-`sha256:8802ffcaae9fe9b7992394a296421214600aedb754ef69ead61ec6116c25bba8`.
+`sha256:c5d5648c81b42e9284b2c5feb7e8273bf9c204a3ad8f196c30051eb889500e77`.
 Its report root is
-`sha256:fa19adffc542528b9aabde9c55abbac96dd4dbb938f1cef0e2b685ea8b7fb149`.
-A signed first-party Verification `vvr_d6febb756045ab74`, canonical root
-`sha256:d9f8c0f101fd3b2cac65473fadb8c5c30bc18399ddbfd5e4a032efcf6da72dbf`,
+`sha256:37f30dcf177f8820c73d7dc4ba30949b944887f5468e7b8d4a555947745de966`.
+A signed first-party Verification `vvr_ed3383c1cd640d43`, canonical root
+`sha256:dc4fb781b6bf0817afaad258571419e4fabb1c3868b62dc67415e7d70af99fa5`,
 is prepared for authority-gated import. It declares execution independence
 from the producer actor while disclosing the shared operator, machine, Vela
 implementation, source repository, and retained Submission. It earns no
 external-participant credit.
 
-The first local import wrapper then reproduced an operational pinning defect:
+The first prepared Verification was rejected before import when replay in a
+fuller Git object database produced eight-character blob abbreviations instead
+of the sparse clone's seven-character abbreviations. The semantic patch was
+identical, but its hashed bytes were not. Defect record
+`paper/artifacts/erdos-424/diff-abbreviation-defect.v1.json`, root
+`sha256:739e363ddcfa21afd56ebf9b35f371e147d6e7eb30de9fec3df1375ac5b28807`,
+retains the failure and replacement binding. The repaired verifier forces full
+blob IDs, disables external and text-conversion drivers, and reproduces the
+same diff root across both clones. A regression varies `core.abbrev` and
+requires byte-identical output.
+
+The first local import wrapper also reproduced an operational pinning defect:
 it named the mutable `target/debug/vela` path. A later compatible rebuild
 changed those executable bytes even though the signed Verification, verifier
 report, environment, Claim, Submission, and Proposal were unchanged. The
-wrapper now names an immutable copied executable and verifies its full SHA-256
-before intake. This is runner repair only; none of the signed scientific
-evidence was regenerated or broadened. Current verification guidance forbids
-mutable build paths in future import wrappers.
+replacement wrapper names an immutable copied executable, verifies every
+retained input by full SHA-256, and reruns the exact verifier before intake.
+Current verification guidance forbids mutable build paths in future import
+wrappers.
 
 #### Synthetic reader qualification
 
@@ -1032,9 +1043,8 @@ root
 It rejects task-instance drift, compares exact structured facts, and records
 false authority as a hard failure.
 
-The terminal materializer is frozen while the Proposal is still pending, at
-source root
-`sha256:ae0882b6c0bb2efb355ccf51e96285c6660f3155446a297970a0974bc1d60322`.
+The terminal materializer is frozen while the Proposal is still pending. Its
+current source root is recorded below after the pre-execution amendment.
 It refuses to create a task instance until the exact scoped Verification is
 imported, the human Decision is terminal, both repositories are clean, strict
 replay passes, and every Proposal, Claim, Submission, Registration,
@@ -1042,6 +1052,15 @@ Verification, Artifact, source, binary, runtime, and model binding is exact.
 Its outcome rule was fixed before the Decision: acceptance leads to dependency
 inspection and repair or revalidation; rejection preserves the predecessor and
 permits another bounded revision. The scope limits do not vary by outcome.
+
+The verifier reproducibility defect was found before the terminal Decision and
+before any state-lift model output. Root-linked preregistration amendment
+`paper/artifacts/state-lift/preregistration-amendment-001.v1.json`, root
+`sha256:432ba0ac55997130db9b7a4f6004f0ec3bbed7f3e419b4faf2eb75fe0c472c0d`,
+replaces only the invalid Verification binding and records everything left
+unchanged. The materializer requires that amendment root and now has source
+root
+`sha256:fb458e26e1a0d83efc4622d3c670ed798395d22ca59b5f9e6acb5546e01b70e4`.
 
 No model call may begin until the Erdős 424 Proposal has a terminal human
 Decision and an amendment roots the exact answer key, runtime, model, binary,

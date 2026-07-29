@@ -56,7 +56,7 @@ def review(standing: str) -> dict:
                         "submission_id": materialize.SUBMISSION_ID,
                         "submission_root": materialize.SUBMISSION_ROOT,
                     },
-                    "method": {"profile": "exact-source-transition-v1"},
+                    "method": {"profile": "erdos-424-exact-source-transition-v2"},
                 },
             }
         ],
@@ -67,6 +67,9 @@ def inputs(standing: str = "accepted") -> dict:
     return {
         "frozen_at": "2026-07-29T12:00:00Z",
         "protocol_root": "sha256:" + "1" * 64,
+        "preregistration_amendment_root": (
+            materialize.PREREGISTRATION_AMENDMENT_ROOT
+        ),
         "scorer_root": "sha256:" + "2" * 64,
         "verifier_source_root": "sha256:" + "3" * 64,
         "frontier_check": {
@@ -143,6 +146,10 @@ class MaterializeTests(unittest.TestCase):
         self.assertEqual(
             amendment["bindings"]["answer_key_root"],
             materialize.sha256_bytes(materialize.canonical_bytes(answer)),
+        )
+        self.assertEqual(
+            task["protocol_amendment_roots"],
+            [materialize.PREREGISTRATION_AMENDMENT_ROOT],
         )
 
     def test_rejected_outcome_is_frozen(self) -> None:

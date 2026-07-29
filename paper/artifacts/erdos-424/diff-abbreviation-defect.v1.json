@@ -1,0 +1,42 @@
+{
+  "schema": "vela.verifier-defect-record.v1",
+  "fixture": "erdos-424-exact-source-transition",
+  "detected_before_import": true,
+  "accepted_state_delta": 0,
+  "inputs": {
+    "predecessor_commit": "e751934294a381afd2d5fc1124c5953c8e25f9fa",
+    "successor_commit": "8046fbff7b6c801d8debd4a85bf67a0541b78dda",
+    "predecessor_file_root": "sha256:05876ee2a0d7e75f72af414dbb6c415212cfa04ef3941dfbd5d9f7c87e6a30d9",
+    "successor_file_root": "sha256:6b425608614ac52f32a09bfa2a8ad989edef9fb21bbd599ef7bdcc2814b373a2"
+  },
+  "observed": {
+    "sparse_clone_diff_root": "sha256:8802ffcaae9fe9b7992394a296421214600aedb754ef69ead61ec6116c25bba8",
+    "full_clone_diff_root": "sha256:0f071b07599633898e41958458eff183026d5dbb4c3858859a86e7e8698641fe",
+    "only_byte_difference": "The Git patch index line used seven-character blob abbreviations in the sparse clone and eight-character abbreviations in the fuller object database."
+  },
+  "cause": "The verifier hashed default git diff output, whose abbreviated blob identity length depends on the repository object database.",
+  "repair": {
+    "contract": [
+      "--no-ext-diff",
+      "--no-textconv",
+      "--no-color",
+      "--full-index"
+    ],
+    "reproduced_diff_root": "sha256:c5d5648c81b42e9284b2c5feb7e8273bf9c204a3ad8f196c30051eb889500e77",
+    "independent_clone_count": 2,
+    "implementation_root": "sha256:11a8b2ab94026da5708ca638112a576984446a47473c97ba009adf7ae96cedd5",
+    "regression": "paper/artifacts/erdos-424/test_verify_source_transition.py"
+  },
+  "disposition": {
+    "superseded_verification_id": "vvr_d6febb756045ab74",
+    "superseded_verification_root": "sha256:d9f8c0f101fd3b2cac65473fadb8c5c30bc18399ddbfd5e4a032efcf6da72dbf",
+    "replacement_verification_id": "vvr_ed3383c1cd640d43",
+    "replacement_verification_root": "sha256:dc4fb781b6bf0817afaad258571419e4fabb1c3868b62dc67415e7d70af99fa5",
+    "canonical_frontier_mutated": false
+  },
+  "nonclaims": [
+    "The defect does not invalidate the two exact file hashes or the observed predicate transition.",
+    "The replacement Verification does not prove Erdős problem 424 or establish scientific acceptance.",
+    "First-party detection and repair earn no external verification credit."
+  ]
+}

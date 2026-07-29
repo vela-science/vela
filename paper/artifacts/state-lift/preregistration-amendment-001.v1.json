@@ -1,0 +1,38 @@
+{
+  "schema": "vela.state-lift-preregistration-amendment.v1",
+  "prior_protocol_root": "sha256:68fb039088302d19f02cf2628c16004e174649b1f952a63a0fd35210c0dd0ef8",
+  "prior_materializer_source_root": "sha256:ae0882b6c0bb2efb355ccf51e96285c6660f3155446a297970a0974bc1d60322",
+  "recorded_at": "2026-07-29T09:02:35Z",
+  "phase": "before_terminal_decision_and_before_any_state_lift_model_output",
+  "cause": {
+    "defect_record_path": "paper/artifacts/erdos-424/diff-abbreviation-defect.v1.json",
+    "defect_record_root": "sha256:739e363ddcfa21afd56ebf9b35f371e147d6e7eb30de9fec3df1375ac5b28807",
+    "summary": "The first prepared Verification hashed context-dependent abbreviated Git blob IDs and was superseded before import."
+  },
+  "superseded_binding": {
+    "verification_record_id": "vvr_d6febb756045ab74",
+    "verification_record_root": "sha256:d9f8c0f101fd3b2cac65473fadb8c5c30bc18399ddbfd5e4a032efcf6da72dbf",
+    "imported": false
+  },
+  "replacement_binding": {
+    "verification_record_id": "vvr_ed3383c1cd640d43",
+    "verification_record_root": "sha256:dc4fb781b6bf0817afaad258571419e4fabb1c3868b62dc67415e7d70af99fa5",
+    "verifier_implementation_root": "sha256:11a8b2ab94026da5708ca638112a576984446a47473c97ba009adf7ae96cedd5",
+    "verifier_report_root": "sha256:37f30dcf177f8820c73d7dc4ba30949b944887f5468e7b8d4a555947745de966",
+    "canonical_diff_root": "sha256:c5d5648c81b42e9284b2c5feb7e8273bf9c204a3ad8f196c30051eb889500e77"
+  },
+  "unchanged": [
+    "task questions",
+    "arm assignment",
+    "scoring contract",
+    "outcome-dependent next-action rules",
+    "scope limits",
+    "Proposal, Claim, Submission, Registration, and source Artifact identities",
+    "model-call ceiling and publication policy"
+  ],
+  "authorization": {
+    "state_lift_model_output_exists": false,
+    "standing_changed": false,
+    "scientific_authority_effect": "none"
+  }
+}

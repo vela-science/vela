@@ -354,9 +354,13 @@ benchmark.
 Its replacement Claim `vcl_4bc14401b203218cb7b9de0141747e0c17cea3a6b0cc522639323ab13e432eaf`
 is pending under Proposal `vpr_23f32f95d4f073e8`; registration changed no
 accepted state. A deterministic source verifier reproduced both file roots and
-the exact Git diff in a fresh clone. Its signed first-party Verification
-`vvr_d6febb756045ab74` is prepared but not yet imported. Verification import
-and the separate human Decision remain pending.
+the exact Git diff in two object-database contexts. The first verifier draft
+was rejected before import because default Git diff output abbreviated blob
+IDs differently across those contexts. The repaired implementation forces
+full blob identities; its signed first-party Verification
+`vvr_ed3383c1cd640d43` is prepared but not yet imported. Verification import
+and the separate human Decision remain pending. This first-party check earns
+no external-participant credit.
 
 ### 6.4 Synthetic reader qualification
 
@@ -457,9 +461,13 @@ model, runtime, repository, and binary before any model output. The planned
 first-party sessions can qualify the method but cannot earn
 external-participant credit.
 
-The terminal materializer was frozen while the Proposal remained pending, at
-source root
-`sha256:ae0882b6c0bb2efb355ccf51e96285c6660f3155446a297970a0974bc1d60322`.
+The terminal materializer was frozen while the Proposal remained pending. A
+pre-execution amendment at root
+`sha256:432ba0ac55997130db9b7a4f6004f0ec3bbed7f3e419b4faf2eb75fe0c472c0d`
+replaces only a non-reproducible prepared Verification binding discovered
+before import, Decision, or model output. The amended materializer source root
+is
+`sha256:fb458e26e1a0d83efc4622d3c670ed798395d22ca59b5f9e6acb5546e01b70e4`.
 It has separate, precommitted accepted and rejected next-action rules and a
 shared set of scope limits. It refuses to emit the task instance, answer key,
 or amendment unless the exact terminal Decision, scoped Verification,

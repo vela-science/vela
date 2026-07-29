@@ -29,7 +29,10 @@ python3 paper/artifact.py build \
 
 python3 paper/artifact.py verify /tmp/vela-paper-artifact.tar.gz
 
-python3 -m unittest paper/artifacts/state-lift/test_score.py
+python3 -m unittest \
+  paper/artifacts/erdos-424/test_verify_source_transition.py \
+  paper/artifacts/state-lift/test_materialize.py \
+  paper/artifacts/state-lift/test_score.py
 ```
 
 The build refuses a dirty Vela worktree or any external commit, tree, or

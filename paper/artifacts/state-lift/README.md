@@ -12,6 +12,12 @@ repositories, and scorer bytes. Eight first-party fresh sessions can qualify
 the study method, but cannot earn external-participant or protocol-breakthrough
 credit.
 
+Preregistration amendment
+`preregistration-amendment-001.v1.json` replaces a prepared Verification that
+failed cross-clone replay before import. It changes no task question, scorer,
+outcome rule, scope limit, or model budget, and it predates any state-lift
+model output. The terminal materializer requires its exact root.
+
 `score.py` is the dependency-free preregistered scorer. It accepts one exact
 `vela.state-lift-answer-key.v1` and one `vela.state-lift-answer.v1`, rejects
 schema or task-instance drift, compares every factual field, and reports

@@ -18,6 +18,9 @@ PROTOCOL_SCHEMA = "vela.state-lift-study-protocol.v1"
 TASK_SCHEMA = "vela.state-lift-task-instance.v1"
 ANSWER_KEY_SCHEMA = "vela.state-lift-answer-key.v1"
 AMENDMENT_SCHEMA = "vela.state-lift-study-amendment.v1"
+PREREGISTRATION_AMENDMENT_ROOT = (
+    "sha256:432ba0ac55997130db9b7a4f6004f0ec3bbed7f3e419b4faf2eb75fe0c472c0d"
+)
 
 PROPOSAL_ID = "vpr_23f32f95d4f073e8"
 PROPOSAL_ROOT = (
@@ -43,9 +46,9 @@ REGISTRATION_ID = "vrr_6660762458eb85e3"
 REGISTRATION_ROOT = (
     "sha256:76f7f627dcdadd3b5431a1b5ad29154b74cac046bf3fdc159531544bc67a9ad7"
 )
-VERIFICATION_ID = "vvr_d6febb756045ab74"
+VERIFICATION_ID = "vvr_ed3383c1cd640d43"
 VERIFICATION_ROOT = (
-    "sha256:d9f8c0f101fd3b2cac65473fadb8c5c30bc18399ddbfd5e4a032efcf6da72dbf"
+    "sha256:dc4fb781b6bf0817afaad258571419e4fabb1c3868b62dc67415e7d70af99fa5"
 )
 SOURCE_ARTIFACT_ROOT = (
     "sha256:d18024c4333f77144955adf0036ce831e71b331ea7d9cc9cb69958f960f56d6c"
@@ -333,6 +336,7 @@ def build_documents(
     *,
     frozen_at: str,
     protocol_root: str,
+    preregistration_amendment_root: str,
     scorer_root: str,
     verifier_source_root: str,
     frontier_check: dict[str, Any],
@@ -396,6 +400,7 @@ def build_documents(
         "schema": TASK_SCHEMA,
         "frozen_at": frozen_at,
         "protocol_root": protocol_root,
+        "protocol_amendment_roots": [preregistration_amendment_root],
         "classification": {
             "study": "first-party cold-session pilot",
             "external_participant_credit": False,
@@ -537,6 +542,7 @@ def build_documents(
         "bindings": {
             "task_instance_root": task_root,
             "answer_key_root": answer_key_root,
+            "preregistration_amendment_root": preregistration_amendment_root,
             "scorer_root": scorer_root,
             "frontier_repository_root": frontier_check["repository_root"],
             "vela_binary_root": vela_binary_root,
@@ -575,6 +581,10 @@ def main() -> int:
     args = parse_args()
     root = Path(__file__).resolve().parents[3]
     protocol_path = root / "paper/artifacts/state-lift/protocol.v1.json"
+    preregistration_amendment_path = (
+        root
+        / "paper/artifacts/state-lift/preregistration-amendment-001.v1.json"
+    )
     scorer_path = root / "paper/artifacts/state-lift/score.py"
     verifier_path = root / "paper/artifacts/erdos-424/verify_source_transition.py"
     registration_record_path = (
@@ -608,6 +618,11 @@ def main() -> int:
 
     protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
     require(protocol.get("schema") == PROTOCOL_SCHEMA, "protocol schema drift")
+    require(
+        sha256_file(preregistration_amendment_path)
+        == PREREGISTRATION_AMENDMENT_ROOT,
+        "preregistration amendment root drift",
+    )
     review = run_json(
         [
             str(args.vela),
@@ -653,6 +668,7 @@ def main() -> int:
     task, answer_key, amendment = build_documents(
         frozen_at=args.frozen_at,
         protocol_root=sha256_file(protocol_path),
+        preregistration_amendment_root=PREREGISTRATION_AMENDMENT_ROOT,
         scorer_root=sha256_file(scorer_path),
         verifier_source_root=sha256_file(verifier_path),
         frontier_check=check,

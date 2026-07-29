@@ -38,6 +38,27 @@ def git(repo: Path, *args: str) -> bytes:
     ).stdout
 
 
+def canonical_diff(
+    repo: Path,
+    old_commit: str,
+    new_commit: str,
+    source_path: str,
+) -> bytes:
+    """Return a diff whose blob identities do not depend on the object database."""
+    return git(
+        repo,
+        "diff",
+        "--no-ext-diff",
+        "--no-textconv",
+        "--no-color",
+        "--full-index",
+        old_commit,
+        new_commit,
+        "--",
+        source_path,
+    )
+
+
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise ValueError(message)
@@ -86,7 +107,7 @@ def verify(repo: Path, artifact_path: Path) -> dict[str, object]:
     require(successor.get("file_sha256") == NEW_FILE_ROOT, "source-diff successor file root mismatch")
     require(successor.get("statement") == NEW_STATEMENT, "source-diff successor statement mismatch")
 
-    diff = git(repo, "diff", OLD_COMMIT, NEW_COMMIT, "--", SOURCE_PATH)
+    diff = canonical_diff(repo, OLD_COMMIT, NEW_COMMIT, SOURCE_PATH)
     require(b"HasPosDensity" in diff, "diff does not remove the predecessor predicate")
     require(b"HasPosLowerDensity" in diff, "diff does not add the successor predicate")
 
