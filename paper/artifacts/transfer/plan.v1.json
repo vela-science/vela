@@ -1,0 +1,64 @@
+{
+  "schema": "vela.foreign-transfer-contract-audit-plan.v1",
+  "status": "frozen",
+  "frozen_at": "2026-07-29T07:55:00Z",
+  "objective": "Determine whether the current public Vela contract can retain one exact foreign accepted Claim and its source authority evidence in a second Frontier without changing local Standing.",
+  "source": {
+    "repository": "https://github.com/vela-science/vela",
+    "commit": "45624212694d700487427f9d9138f60fdafdca5c",
+    "tree": "c8cfb8074704f33bc5e6384ef1f3e083134b5410"
+  },
+  "audited_surfaces": [
+    {
+      "path": "crates/vela-protocol/src/objects/claim_record.rs",
+      "root": "sha256:80ce2c9e43909e47a09d0b33594bf540c47ec13aede9d6973d054ed3a369e63e"
+    },
+    {
+      "path": "crates/vela-protocol/src/objects/proposal_v1.rs",
+      "root": "sha256:0fce4623902f9430779029e00d4b00bec3f5594ee21baa42aeb8d249be6f64d4"
+    },
+    {
+      "path": "crates/vela-protocol/src/objects/repository_epoch.rs",
+      "root": "sha256:3e4a7ab588dcc70244640f7b060e677af0030a2049154c368420cfb56b0a4f92"
+    },
+    {
+      "path": "crates/vela-cli/src/current_read.rs",
+      "root": "sha256:74baf0d38b3a752e691f60adf800f0bc677855bc251496a12f2498c1d351b2ac"
+    },
+    {
+      "path": "crates/vela-cli/src/server/cli_commands.rs",
+      "root": "sha256:cb381a121fdebff161ddcd36092fe89821dcb281676dff070f599aee4307c72d"
+    },
+    {
+      "path": "crates/vela-protocol/tests/cli_release_contract.rs",
+      "root": "sha256:94fec61465695cf9c39025a8473f76f84fc3e02176fa963dacd6c13a3a992bfc"
+    }
+  ],
+  "required_foreign_reference_bindings": [
+    "source Frontier ID",
+    "source repository commit and tree",
+    "source repository root",
+    "source Claim ID and root",
+    "source Proposal or Decision ID and root",
+    "source authority anchor or authority-record root",
+    "completeness and retrieval status",
+    "explicit declaration that foreign Standing has no local authority"
+  ],
+  "decision_rule": {
+    "contract_present": "Every required binding has a current public schema and a read or import surface that preserves local Standing.",
+    "gap_reproduced": "Any required binding or public non-escalating transfer surface is absent.",
+    "unsafe_reuse": "A migration-only or local-authority field would need semantic rebinding to simulate transfer."
+  },
+  "implementation_ceiling": [
+    "Record the exact missing contract.",
+    "Do not add a hosted service, Registry, global namespace, resolver, graph database, or second writer.",
+    "Do not reinterpret repository-epoch migration fields as federation.",
+    "Do not implement a protocol primitive before the real source correction is terminal and two independent readers reproduce the gap."
+  ],
+  "nonclaims": [
+    "A missing contract proves that federation is useful.",
+    "A foreign accepted Claim should become locally accepted.",
+    "A global consensus or universal ontology is required.",
+    "This source audit completes benchmark family B8."
+  ]
+}
