@@ -1000,6 +1000,17 @@ root
 It rejects task-instance drift, compares exact structured facts, and records
 false authority as a hard failure.
 
+The terminal materializer is frozen while the Proposal is still pending, at
+source root
+`sha256:ae0882b6c0bb2efb355ccf51e96285c6660f3155446a297970a0974bc1d60322`.
+It refuses to create a task instance until the exact scoped Verification is
+imported, the human Decision is terminal, both repositories are clean, strict
+replay passes, and every Proposal, Claim, Submission, Registration,
+Verification, Artifact, source, binary, runtime, and model binding is exact.
+Its outcome rule was fixed before the Decision: acceptance leads to dependency
+inspection and repair or revalidation; rejection preserves the predecessor and
+permits another bounded revision. The scope limits do not vary by outcome.
+
 No model call may begin until the Erdős 424 Proposal has a terminal human
 Decision and an amendment roots the exact answer key, runtime, model, binary,
 repositories, and scorer. The eight planned fresh first-party sessions can

@@ -457,6 +457,16 @@ model, runtime, repository, and binary before any model output. The planned
 first-party sessions can qualify the method but cannot earn
 external-participant credit.
 
+The terminal materializer was frozen while the Proposal remained pending, at
+source root
+`sha256:ae0882b6c0bb2efb355ccf51e96285c6660f3155446a297970a0974bc1d60322`.
+It has separate, precommitted accepted and rejected next-action rules and a
+shared set of scope limits. It refuses to emit the task instance, answer key,
+or amendment unless the exact terminal Decision, scoped Verification,
+Registration, source transition, repositories, binaries, runtime, and model
+bindings agree. This prevents selection of an answer key after the Decision
+outcome or after model output.
+
 ### 6.7 Registered benchmark matrix
 
 | Family | Primary | Held-out | Required |

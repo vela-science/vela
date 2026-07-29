@@ -18,12 +18,44 @@ schema or task-instance drift, compares every factual field, and reports
 authority errors separately from ordinary wrong answers. The terminal
 task-instance amendment will bind its SHA-256 before any model output exists.
 
+`materialize.py` is the terminal gate. Its accepted and rejected outcome rules
+were frozen while the Proposal was still pending. It refuses a missing or
+nonterminal Decision, the wrong Proposal, Claim, Submission, Registration,
+Verification, Artifact, source transition, repository root, or dirty input
+repository. A successful invocation writes:
+
+- `task-instance.v1.json`, which binds the terminal Frontier, correction,
+  toolchain, model, isolation, and arm contracts;
+- `answer-key.v1.json`, which binds the exact expected facts to that task
+  instance; and
+- `amendment.v1.json`, which root-links both documents to the preregistered
+  protocol.
+
+For an accepted correction, the next action is
+`inspect_dependents_and_repair_or_revalidate`. For a rejected correction, it
+is `preserve_predecessor_and_prepare_new_bounded_revision`. Both outcomes
+retain the same three scope limits: the result is not a proof of Erdős 424,
+does not establish a unique informal interpretation, and does not turn
+Verification into acceptance.
+
 ```bash
 python3 -m unittest paper/artifacts/state-lift/test_score.py
+python3 -m unittest paper/artifacts/state-lift/test_materialize.py
 
 python3 paper/artifacts/state-lift/score.py \
   --answer-key <terminal-answer-key.json> \
   --answer <session-answer.json>
+
+python3 paper/artifacts/state-lift/materialize.py \
+  --frontier <terminal-erdos-frontier> \
+  --source-repository <formal-conjectures> \
+  --vela <exact-vela-binary> \
+  --runtime-binary <exact-runtime-binary> \
+  --runtime-name codex \
+  --runtime-version '<exact-version>' \
+  --model-id '<exact-model-id>' \
+  --frozen-at '<RFC3339>' \
+  --output <empty-output-directory>
 ```
 
 The scorer does not interpret prose or judge scientific merit. Session
