@@ -513,6 +513,17 @@ python3 conformance/verify_correction_impact.py
 ./conformance/check-core.sh
 ```
 
+The working source-only artifact builder refuses dirty Vela input and mismatched
+external commits, trees, or content roots. At Vela commit
+`eed1c87027e4a4bb74e1f1c2b73b5fd2f0c04ba2`, two independent invocations
+produced identical 416-member archives at root
+`sha256:537c23ab906480c7c6299f484f694d70e78f705fd693286ef009b42109253d81`
+and manifest root
+`sha256:b7c3c0fded6e082c85a83fae3fba3fccabb6e150edee4184537b723e3b24cc8f`.
+The verifier rehashed every member and rejected unmanifested paths. This is
+packaging qualification, not independent reproduction or the final release
+artifact.
+
 The final artifact package will include:
 
 - frozen plans and amendments;

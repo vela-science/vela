@@ -919,6 +919,23 @@ This establishes only first-party local removability qualification. It does
 not complete B5 or B6 for a real correction fixture, earn external
 reproduction credit, or establish transfer or inheritance value.
 
+#### Paper artifact qualification
+
+`paper/artifact.py` builds a deterministic source-only package from one clean
+Vela commit plus the exact retained Erdős correction Artifact and predecessor
+and successor Formal Conjectures source files. It verifies every external
+commit, tree, and content root before packaging and emits a manifest covering
+every archive member.
+
+At Vela commit `eed1c87027e4a4bb74e1f1c2b73b5fd2f0c04ba2`, two builds produced
+identical 416-member archives at root
+`sha256:537c23ab906480c7c6299f484f694d70e78f705fd693286ef009b42109253d81`
+and manifest root
+`sha256:b7c3c0fded6e082c85a83fae3fba3fccabb6e150edee4184537b723e3b24cc8f`.
+This qualifies deterministic packaging only. The final paper artifact root
+must bind the eventual terminal correction, held-out evidence, baselines, and
+paper source, and still requires external reproduction.
+
 ### Gate 3: test a source-local Vela Math profile
 
 Do not reopen rejected ADR 0019 or publish `@vela/math` merely because the
