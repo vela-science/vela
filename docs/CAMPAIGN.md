@@ -204,10 +204,16 @@ old binary, not through compatibility in the current product.
 As of 2026-07-29, the read-only audit and source-external candidate
 materialization pass for all four Frontiers. Each package was re-read from
 disk, and its canonical plan, object manifest, object bytes, rebuilt Claims,
-and equivalence report agree exactly. No source Frontier changed. The next
-engineering gate is the single-origin candidate repository and exact
-repository-authority postimage; compatibility removal cannot begin until all
-four resulting clean clones replay.
+and equivalence report agree exactly. The source-only activation command now
+preflights the full plan root and source identity before authentication,
+stages only in an isolated worktree, binds the retained object set through the
+transaction read set and repository origin, and emits a bounded sequence-1
+authority transaction over the origin and repository manifest. A
+credential-disabled Quantum rehearsal proved root mismatch refusal, exact
+staging, source isolation, and safe signer unavailability. No source Frontier
+changed. The next gate is the human invocation of the four exact candidate
+roots followed by aggregate verification; compatibility removal cannot begin
+until all four resulting clean clones replay.
 
 Six protocol and operating planes remain deliberately separate:
 

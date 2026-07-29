@@ -537,16 +537,22 @@ pub(crate) enum RepositoryAction {
         #[arg(long)]
         json: bool,
     },
-    /// Preview the one-time pre-release Artifact compaction without writing.
+    /// Preview or activate the one-time pre-release current-state compaction.
     Compact {
         #[arg(default_value = ".")]
         frontier: PathBuf,
         /// Require the command to remain read-only.
-        #[arg(long, required = true)]
+        #[arg(long, conflicts_with = "activate")]
         check: bool,
         /// Materialize the verified candidate object set outside the Frontier.
-        #[arg(long)]
+        #[arg(long, requires = "check")]
         output: Option<PathBuf>,
+        /// Prepare a signed compact-origin commit in an isolated worktree.
+        #[arg(long, value_name = "CANDIDATE", conflicts_with = "check")]
+        activate: Option<PathBuf>,
+        /// Confirm the full candidate plan root before authentication.
+        #[arg(long, requires = "activate")]
+        confirm_root: Option<String>,
         #[arg(long)]
         json: bool,
     },

@@ -5,8 +5,16 @@ use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 
+use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use vela_authority::CedarEvaluationInput;
+use vela_authority::runtime_authentication::{AuthenticationRequest, RuntimeSessionState};
+use vela_protocol::authority::{PrincipalSnapshotV1, SemanticApprovalV1};
+use vela_protocol::authority_history::{
+    AUTHORITY_INITIALIZATION_SCHEMA_V1, AUTHORITY_INITIALIZE_ACTION,
+    AUTHORITY_INITIALIZED_EVENT_KIND, AuthorityInitializationV1,
+};
 use vela_protocol::claim_record::{ClaimEvidenceRef, ClaimRecordV1, LEGACY_FINDING_EXTENSION};
 use vela_protocol::current_repository::{
     CURRENT_ARTIFACT_RECORD_SCHEMA_V1, CURRENT_REPOSITORY_SCHEMA_V3, ClaimStandingRefV1,
@@ -17,6 +25,20 @@ use vela_protocol::current_state_equivalence::{
 };
 use vela_protocol::repository_epoch::RepositoryBoundaryV1;
 use vela_protocol::repository_origin::{RepositoryOriginPredecessorV1, RepositoryOriginV1};
+use vela_protocol::{
+    events::{EventKind, NULL_HASH, StateActor, StateTarget},
+    principal_capability::PrincipalClass,
+};
+
+use crate::authority_transaction::{
+    AuthorityEventDraft, AuthorityHistorySnapshot, AuthorityObjectDraft,
+    AuthorityTransactionRequest, execute_authority_transaction, execution_binary_sha256,
+};
+use crate::frontier_txn::{FrontierTxn, InputBinding, RepoPath, WriteClass};
+use crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner;
+
+const COMPACTION_REASON: &str =
+    "Adopt one current pre-release repository origin and content-addressed evidence contract.";
 
 struct ClaimCompactionAudit {
     report: CurrentStateEquivalenceV1,
@@ -62,17 +84,37 @@ struct CompactionCandidatePlanV1 {
     reason: String,
 }
 
-pub(crate) fn cmd_compaction_check(
+pub(crate) fn cmd_compaction(
     frontier: &Path,
     check: bool,
     output: Option<&Path>,
+    activate: Option<&Path>,
+    confirm_root: Option<&str>,
     json_out: bool,
 ) {
     crate::ui::set_mode("repository compact", json_out);
+    if let Some(candidate) = activate {
+        let confirm_root = confirm_root.unwrap_or_else(|| {
+            crate::cli::fail_return(
+                "repository compact --activate requires the full --confirm-root",
+            )
+        });
+        let result = activate_compaction_candidate(frontier, candidate, confirm_root)
+            .unwrap_or_else(|error| crate::cli::fail_return(&error));
+        if json_out {
+            crate::cli::print_json(&result);
+        } else {
+            println!("compacted repository prepared");
+            println!("  frontier: {}", result["frontier_id"]);
+            println!("  plan: {}", result["plan_root"]);
+            println!("  commit: {}", result["commit"]);
+            println!("  isolated worktree: {}", result["worktree"]);
+            println!("  source writes: no");
+        }
+        return;
+    }
     if !check {
-        crate::cli::fail_return::<()>(
-            "repository compact is currently preview-only and requires --check",
-        );
+        crate::cli::fail_return::<()>("repository compact requires either --check or --activate");
     }
     let frontier = frontier.canonicalize().unwrap_or_else(|error| {
         crate::cli::fail_return(&format!(
@@ -154,6 +196,394 @@ pub(crate) fn cmd_compaction_check(
         }
         println!("  source writes: no");
     }
+}
+
+fn activate_compaction_candidate(
+    frontier: &Path,
+    candidate: &Path,
+    confirm_root: &str,
+) -> Result<serde_json::Value, String> {
+    let frontier = frontier
+        .canonicalize()
+        .map_err(|error| format!("resolve source Frontier {}: {error}", frontier.display()))?;
+    let candidate = candidate.canonicalize().map_err(|error| {
+        format!(
+            "resolve compaction candidate {}: {error}",
+            candidate.display()
+        )
+    })?;
+    verify_materialized_candidate(&candidate)?;
+    let plan_bytes = fs::read(candidate.join("plan.json"))
+        .map_err(|error| format!("read candidate plan: {error}"))?;
+    let plan: CompactionCandidatePlanV1 = serde_json::from_slice(&plan_bytes)
+        .map_err(|error| format!("parse candidate plan: {error}"))?;
+    let plan_root = root_bytes(&plan_bytes);
+    if confirm_root != plan_root {
+        return Err(format!(
+            "confirmed compaction root {confirm_root} does not match exact candidate {plan_root}"
+        ));
+    }
+    require_clean_source(&frontier, &plan)?;
+    let repository = crate::current_repository::verify_current_repository_at(&frontier, true)?;
+    let epoch = RepositoryBoundaryV1::parse(
+        &fs::read(frontier.join(".vela/epoch.json"))
+            .map_err(|error| format!("read source repository boundary: {error}"))?,
+    )?;
+    let authority = crate::cli::load_current_repository_authority(&frontier, &repository, &epoch)?;
+    if repository.frontier_id != plan.frontier_id
+        || repository.canonical_root()? != plan.predecessor_repository_root
+        || epoch.epoch_id() != plan.predecessor_boundary_id
+        || epoch.canonical_root()? != plan.predecessor_boundary_root
+        || authority
+            .verification
+            .final_authority_record_root
+            .as_deref()
+            != Some(plan.predecessor_authority_head_root.as_str())
+        || authority.verification.final_event_log_root != plan.predecessor_event_log_root
+        || epoch
+            .predecessor_roots()
+            .map(|roots| roots.actor_registry.as_str())
+            != Some(plan.predecessor_actor_registry_root.as_str())
+    {
+        return Err(
+            "source Frontier no longer matches the confirmed compaction predecessor".into(),
+        );
+    }
+
+    let worktree_parent = candidate
+        .parent()
+        .ok_or_else(|| "candidate directory has no parent".to_string())?
+        .join("activation-worktrees");
+    fs::create_dir_all(&worktree_parent)
+        .map_err(|error| format!("create activation worktree directory: {error}"))?;
+    let frontier_name = frontier
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("frontier");
+    let worktree = worktree_parent.join(format!(
+        "{frontier_name}-{}",
+        plan_root
+            .trim_start_matches("sha256:")
+            .get(..16)
+            .unwrap_or("compaction")
+    ));
+    if worktree.exists() {
+        return Err(format!(
+            "preserved compaction worktree already exists at {}; inspect or remove it before retrying",
+            worktree.display()
+        ));
+    }
+    git_success(
+        &frontier,
+        &[
+            "worktree",
+            "add",
+            "--detach",
+            &worktree.display().to_string(),
+            &plan.source_commit,
+        ],
+        "create isolated compaction worktree",
+    )?;
+    let result = apply_compaction_in_worktree(
+        &worktree,
+        &candidate,
+        &plan,
+        &plan_root,
+        repository,
+        authority,
+    )
+    .map_err(|error| {
+        format!(
+            "{error}\nThe isolated worktree is preserved at {}. The source Frontier and remote were not changed.",
+            worktree.display()
+        )
+    })?;
+    Ok(result)
+}
+
+fn apply_compaction_in_worktree(
+    worktree: &Path,
+    candidate: &Path,
+    plan: &CompactionCandidatePlanV1,
+    plan_root: &str,
+    predecessor_repository: vela_protocol::current_repository::CurrentRepositoryV2,
+    predecessor_authority: crate::cli::LoadedRepositoryAuthority,
+) -> Result<serde_json::Value, String> {
+    let manifest_bytes = fs::read(candidate.join("object-manifest.json"))
+        .map_err(|error| format!("read candidate object manifest: {error}"))?;
+    let manifest: CandidateObjectManifestV1 = serde_json::from_slice(&manifest_bytes)
+        .map_err(|error| format!("parse candidate object manifest: {error}"))?;
+    let origin_bytes = fs::read(candidate.join(".vela/origin.json"))
+        .map_err(|error| format!("read candidate origin: {error}"))?;
+    let origin = RepositoryOriginV1::parse(&origin_bytes)?;
+    let repository_bytes = fs::read(candidate.join(".vela/repository.json"))
+        .map_err(|error| format!("read candidate repository: {error}"))?;
+    let repository = CurrentRepositoryV3::parse(&repository_bytes)?;
+    if repository.authority_keyset_root != predecessor_repository.authority_keyset_root
+        || repository.authority_policy_root != predecessor_repository.authority_policy_root
+        || origin.canonical_root()? != plan.candidate_origin_root
+        || repository.canonical_root()? != plan.candidate_repository_root
+    {
+        return Err("candidate changed before activation".into());
+    }
+
+    remove_predecessor_current_state(worktree)?;
+    let journal_dir = crate::workflow::frontier_transaction_journal_dir(worktree)?;
+    let barrier =
+        FrontierTxn::acquire_repository_authority_initialization_barrier(worktree, &journal_dir)
+            .map_err(|error| error.to_string())?;
+
+    let mut read_set = Vec::with_capacity(manifest.objects.len() + 2);
+    for reference in &manifest.objects {
+        let bytes = fs::read(candidate.join(&reference.path))
+            .map_err(|error| format!("read candidate object {}: {error}", reference.path))?;
+        write_exact_candidate(worktree, &reference.path, &bytes, &reference.root)?;
+        read_set.push(
+            InputBinding::exact_file(
+                worktree,
+                RepoPath::parse(reference.path.clone()).map_err(|error| error.to_string())?,
+                &bytes,
+            )
+            .map_err(|error| error.to_string())?,
+        );
+    }
+    read_set.sort_by(|left, right| left.name.cmp(&right.name));
+
+    let recorded_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
+    let local = crate::cli::local_session(&recorded_at)?;
+    let principal = PrincipalSnapshotV1 {
+        principal_id: local.principal_id.clone(),
+        principal_class: PrincipalClass::Human,
+        display_name: Some("Repository administrator".into()),
+        affiliation: None,
+        account_links: vec![local.principal_id.clone()],
+    };
+    let authorization = CedarEvaluationInput {
+        schema: predecessor_authority.policy_material.schema.clone(),
+        policies: predecessor_authority.policy_material.policies.clone(),
+        entities: predecessor_authority.policy_material.entities.clone(),
+        principal: format!(
+            "Human::{}",
+            serde_json::to_string(&principal.principal_id)
+                .map_err(|error| format!("encode repository principal: {error}"))?
+        ),
+        principal_class: PrincipalClass::Human,
+        action: AUTHORITY_INITIALIZE_ACTION.into(),
+        resource: format!(
+            "Frontier::{}",
+            serde_json::to_string(&plan.frontier_id)
+                .map_err(|error| format!("encode Frontier identity: {error}"))?
+        ),
+        context: serde_json::json!({"exact": true}),
+    };
+    let initialization = AuthorityInitializationV1 {
+        schema: AUTHORITY_INITIALIZATION_SCHEMA_V1.into(),
+        frontier_id: plan.frontier_id.clone(),
+        initial_event_log_root: plan.predecessor_event_log_root.clone(),
+        initial_actor_registry_root: plan.predecessor_actor_registry_root.clone(),
+        new_authority_keyset_root: repository.authority_keyset_root.clone(),
+        new_policy_bundle_root: repository.authority_policy_root.clone(),
+        new_principal_id: principal.principal_id.clone(),
+        minimum_writer_version: env!("CARGO_PKG_VERSION").into(),
+        reason: plan.reason.clone(),
+    };
+    initialization.validate()?;
+    let (key_id, public_key) =
+        crate::workflow::active_repository_signing_key(&predecessor_authority)?;
+    let mut signer = SshAgentRepositoryAuthoritySigner::from_environment(key_id, &public_key)?;
+    let executable =
+        std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
+    let binary_sha256 = execution_binary_sha256(&executable)?;
+    let mut authentication = local;
+    let transaction = execute_authority_transaction(
+        barrier,
+        worktree,
+        AuthorityTransactionRequest {
+            history: AuthorityHistorySnapshot {
+                frontier_id: plan.frontier_id.clone(),
+                legacy_events: Vec::new(),
+                legacy_actor_registry_bytes: Vec::new(),
+                archived_predecessor_event_log_root: Some(
+                    plan.predecessor_event_log_root.clone(),
+                ),
+                archived_predecessor_actor_registry_root: Some(
+                    plan.predecessor_actor_registry_root.clone(),
+                ),
+                legacy_active_policy_head_root: NULL_HASH.into(),
+                legacy_policy_store_manifest_root: NULL_HASH.into(),
+                authority_keyset: predecessor_authority.history.authority_keyset,
+                policy_bundle: predecessor_authority.history.policy_bundle,
+                retained_authority_keysets: Vec::new(),
+                retained_policy_bundles: Vec::new(),
+                authority_events: Vec::new(),
+                authority_envelopes: Vec::new(),
+            },
+            intent_digest: plan_root.into(),
+            principal: principal.clone(),
+            authentication_request: AuthenticationRequest {
+                principal_id: principal.principal_id.clone(),
+                principal_class: PrincipalClass::Human,
+                transaction_at: recorded_at.clone(),
+            },
+            runtime_session_state: RuntimeSessionState::default(),
+            authorization_input: authorization,
+            delegation: None,
+            semantic_approvals: vec![SemanticApprovalV1 {
+                principal_id: principal.principal_id.clone(),
+                role: "frontier_administrator".into(),
+                action: AUTHORITY_INITIALIZE_ACTION.into(),
+                reason: plan.reason.clone(),
+                approved_at: recorded_at.clone(),
+                intent_digest: plan_root.into(),
+            }],
+            event_drafts: vec![AuthorityEventDraft {
+                kind: EventKind::Other(AUTHORITY_INITIALIZED_EVENT_KIND.into()),
+                target: StateTarget {
+                    r#type: "frontier".into(),
+                    id: plan.frontier_id.clone(),
+                },
+                actor: StateActor {
+                    r#type: "human".into(),
+                    id: principal.principal_id.clone(),
+                },
+                timestamp: recorded_at.clone(),
+                reason: plan.reason.clone(),
+                before_hash: NULL_HASH.into(),
+                after_hash: NULL_HASH.into(),
+                payload: serde_json::to_value(&initialization)
+                    .map_err(|error| format!("encode compaction initialization: {error}"))?,
+                caveats: vec![
+                    "Repository authority authenticates the compacted origin; it does not establish scientific truth.".into(),
+                    "The predecessor remains auditable through the exact bound archive and tag.".into(),
+                ],
+            }],
+            object_drafts: vec![
+                AuthorityObjectDraft {
+                    path: ".vela/origin.json".into(),
+                    object_kind: "repository_origin".into(),
+                    class: WriteClass::CanonicalEvidence,
+                    postimage: Some(origin_bytes),
+                },
+                AuthorityObjectDraft {
+                    path: ".vela/repository.json".into(),
+                    object_kind: "repository_manifest".into(),
+                    class: WriteClass::CanonicalEvidence,
+                    postimage: Some(repository_bytes),
+                },
+            ],
+            derived_drafts: Vec::new(),
+            next_authority_keyset: None,
+            next_policy_bundle: None,
+            next_policy_material: None,
+            read_set,
+            vela_version: env!("CARGO_PKG_VERSION").into(),
+            binary_sha256,
+            recorded_at,
+        },
+        &mut authentication,
+        &mut signer,
+    )
+    .map_err(|error| error.to_string())?;
+    crate::current_repository::verify_compacted_repository_at(worktree, true)?;
+
+    git_success(worktree, &["add", "--all"], "stage compacted repository")?;
+    git_success(
+        worktree,
+        &[
+            "-c",
+            "commit.gpgsign=false",
+            "-c",
+            "user.name=Vela Agent",
+            "-c",
+            "user.email=agent@vela.space",
+            "commit",
+            "-m",
+            "Adopt the compact current Vela repository",
+        ],
+        "commit compacted repository",
+    )?;
+    let commit = git_output(worktree, &["rev-parse", "HEAD^{commit}"])?;
+    if git_output(worktree, &["rev-parse", "HEAD^1^{commit}"])? != plan.source_commit {
+        return Err("compaction commit is not the direct child of its confirmed source".into());
+    }
+    if !git_output(
+        worktree,
+        &["status", "--porcelain=v1", "--untracked-files=all"],
+    )?
+    .is_empty()
+    {
+        return Err("isolated compaction worktree is not clean after commit".into());
+    }
+    Ok(serde_json::json!({
+        "schema": "vela.repository-compaction-activation.v1",
+        "ok": true,
+        "command": "repository compact",
+        "frontier_id": plan.frontier_id,
+        "plan_root": plan_root,
+        "origin_id": origin.origin_id,
+        "origin_root": plan.candidate_origin_root,
+        "repository_root": plan.candidate_repository_root,
+        "authority_event_ids": transaction.event_ids,
+        "authority_record_id": transaction.authority_record_id,
+        "authority_record_root": transaction.authority_record_root,
+        "commit": commit,
+        "worktree": worktree.display().to_string(),
+        "source_writes": false,
+        "remote_writes": false,
+        "next_action": "prepare all controlled Frontiers, verify the aggregate result, then publish them together",
+    }))
+}
+
+fn require_clean_source(frontier: &Path, plan: &CompactionCandidatePlanV1) -> Result<(), String> {
+    let status = git_output(
+        frontier,
+        &["status", "--porcelain=v1", "--untracked-files=all"],
+    )?;
+    if !status.is_empty() {
+        return Err("source Frontier has tracked or untracked dirt".into());
+    }
+    if git_output(frontier, &["rev-parse", "HEAD^{commit}"])? != plan.source_commit
+        || git_output(frontier, &["rev-parse", "HEAD^{tree}"])? != plan.source_tree
+        || canonical_remote(&git_output(frontier, &["remote", "get-url", "origin"])?)
+            != plan.source_remote
+    {
+        return Err("source Git identity changed after candidate materialization".into());
+    }
+    Ok(())
+}
+
+fn remove_predecessor_current_state(worktree: &Path) -> Result<(), String> {
+    for relative in [
+        "records",
+        "targets.json",
+        ".vela/actors.json",
+        ".vela/artifact-blobs",
+        ".vela/artifacts",
+        ".vela/authority",
+        ".vela/claims",
+        ".vela/epoch.json",
+        ".vela/events",
+        ".vela/findings",
+        ".vela/origin.json",
+        ".vela/policies",
+        ".vela/proposals",
+        ".vela/registrations",
+        ".vela/repository.json",
+        ".vela/submissions",
+        ".vela/verifications",
+    ] {
+        let path = worktree.join(relative);
+        match fs::symlink_metadata(&path) {
+            Ok(metadata) if metadata.is_dir() => fs::remove_dir_all(&path)
+                .map_err(|error| format!("remove predecessor path {relative}: {error}"))?,
+            Ok(_) => fs::remove_file(&path)
+                .map_err(|error| format!("remove predecessor path {relative}: {error}"))?,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(format!("inspect predecessor path {relative}: {error}")),
+        }
+    }
+    crate::current_repository::verify_current_bootstrap_at(worktree)?;
+    Ok(())
 }
 
 pub(crate) fn audit_artifact_compaction(
@@ -626,7 +1056,7 @@ fn materialize_candidate_inner(
             object_manifest_root: predecessor_object_manifest_root.clone(),
             equivalence_report_root: equivalence_report_root.into(),
         },
-        "Compact the unreleased repository into the single current origin and content-addressed evidence contract.".into(),
+        COMPACTION_REASON.into(),
     )?;
     let origin_root = origin.canonical_root()?;
     write_relative(output, ".vela/origin.json", &origin.canonical_bytes()?)?;
@@ -715,7 +1145,7 @@ fn materialize_candidate_inner(
         candidate_origin_root: origin_root,
         candidate_repository_root,
         touched_paths,
-        reason: "Adopt one current pre-release repository origin and content-addressed evidence contract.".into(),
+        reason: COMPACTION_REASON.into(),
     };
     let plan_bytes = vela_protocol::canonical::to_canonical_bytes(&plan)?;
     let plan_root = root_bytes(&plan_bytes);
@@ -779,6 +1209,7 @@ fn verify_materialized_candidate(root: &Path) -> Result<usize, String> {
         || origin.origin_id != plan.candidate_origin_id
         || origin.canonical_root()? != plan.candidate_origin_root
         || origin.initial_object_set_root != plan.candidate_object_set_root
+        || origin.reason != plan.reason
     {
         return Err("candidate repository origin disagrees with its plan".into());
     }
@@ -1008,6 +1439,22 @@ fn git_output(root: &Path, args: &[&str]) -> Result<String, String> {
     String::from_utf8(output.stdout)
         .map_err(|error| format!("decode git {} output: {error}", args.join(" ")))
         .map(|value| value.trim().to_string())
+}
+
+fn git_success(root: &Path, args: &[&str], action: &str) -> Result<(), String> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(args)
+        .output()
+        .map_err(|error| format!("{action}: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "{action}: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    Ok(())
 }
 
 fn git_archive(root: &Path, destination: &Path) -> Result<(), String> {

@@ -57,16 +57,23 @@ the exact predecessor commit/tree/remote/tag binding, predecessor
 object manifest, single origin, v3 repository manifest, rebuilt objects, and
 equivalence report. Two independent materializations produced identical plan
 roots. The first rooted set is retained under
-`~/Desktop/Constellate/Archives/vela-current-compaction-candidates-2026-07-29-tar-a/`:
+`~/Desktop/Constellate/Archives/vela-current-compaction-candidates-2026-07-29-final-v2/`:
 
 | Frontier | Candidate plan root | Origin root | Repository root | Files |
 | --- | --- | --- | --- | ---: |
-| Erdős | `sha256:b6f77828df6e94e14c342b5488eb30540cc2257edb1299086c1d981de7625d23` | `sha256:500845f209cb527587ce88bae5645d2eb3e6fba2b3c80c79e03d007d27a02405` | `sha256:1cd16496c740d71bfe50e3eaf40a6637578eec11846836babeeab05876a64488` | 2,811 |
-| Formal Conjectures | `sha256:9e44e062564879d9909fc4cec10a1a54800889578c419fcf3d2daecc865a0d55` | `sha256:decf16565a7cd4c188fb7b12925427b03569733538e2457f8943f34cf735158d` | `sha256:b775b469532b288a71022f2af1b92643442e121fdfdbcc096a582243f9966cf3` | 23 |
-| Quantum Codes | `sha256:e3ae75e4527516b9a8c0c48a65309ae51113849f0bf881ebc658b7cf4ee6cfe0` | `sha256:f6a8cd5809d18a31307151767ee364db830afd60420ec44c2664eb4c0ce627dd` | `sha256:794fd809da3ac0e2c04070eebcd441f1072bb238e3f3c32d65e8ae43b80a5b63` | 12 |
-| Sidon | `sha256:b5bf3cc4f628615158a271481e02ea49a2af0be977454411a6a2413257cba81b` | `sha256:262c52bf24a07feeef9729d43ff15ccfb7272b7d943f0761045cb5779a01d03c` | `sha256:3ca35241e9de5316e116c84fe9b8a6e1f2385cbacf5dde3efef1b253dc35e8ee` | 69 |
+| Erdős | `sha256:56499890c7f302575bb1ef411c93145bfad985f4e3abf852e2872cfafdf108c6` | `sha256:49969ef6059e636718da4f5b7d200ef421ed17fc60b8e490d493ea71f7b2f77d` | `sha256:8a98ff1c632232c7b227d87a0f1015aaa3429d38c83592ca66f8e465b06b0ee5` | 2,811 |
+| Formal Conjectures | `sha256:c53a6f19accb5f4bcdb6a2d67626c112a809ab159ff2703c0b0cc600c7384922` | `sha256:aabcbd3a660e5992a13485257df4c8e038c75af2a3e68bf37df16980d390e80a` | `sha256:323269c21ce66b1521d00987ddba2442d69eacfb38bd67d1eb7a96e7644516ca` | 23 |
+| Quantum Codes | `sha256:1e18fc5bd40f46d126088098175909c4153979c369bb1d6ff2eb48cfea371c0c` | `sha256:a52c0aea26726a94b7307b7d07a3ba10b4d6bf4ef1b813cadfebbe69cecb78f1` | `sha256:22a0ef52195d713ddc68c271c5a29de51b54e9b62280103f8acb3f3bcd6b8f1b` | 12 |
+| Sidon | `sha256:f9d083627ac05920d6555c013611ef0c2200f20deaecdf6fbcd0cd74272e0a2c` | `sha256:32f743244662048879454a80edc2f1ee915276500ae1f488b1fc1f8e819ae1ac` | `sha256:d047416cce0e569145ae38ae73b8a92102d5c5f63bb46602dff80398cada9a0d` | 69 |
 
-Materialization writes no source-Frontier byte. These plan roots still stop
+Materialization writes no source-Frontier byte. Every origin now binds the
+final archived authority event-log root rather than the predecessor epoch's
+initial root, and the plan and origin share one canonical reason. A
+credential-disabled activation rehearsal on Quantum Codes proved that a wrong
+confirmation root creates no worktree, while a correct root stages the six
+candidate records, removes every predecessor-only path, and fails safely
+before signing when `SSH_AUTH_SOCK` is absent. The rehearsal worktree was
+removed and the source checkout remained clean. These plan roots still stop
 before the repository-authority transaction postimage; they are candidate
 evidence, not authorization to publish.
 

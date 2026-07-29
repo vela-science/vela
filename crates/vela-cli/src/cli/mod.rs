@@ -75,11 +75,15 @@ pub async fn run_command() {
                 frontier,
                 check,
                 output,
+                activate,
+                confirm_root,
                 json,
-            } => crate::current_compaction::cmd_compaction_check(
+            } => crate::current_compaction::cmd_compaction(
                 &frontier,
                 check,
                 output.as_deref(),
+                activate.as_deref(),
+                confirm_root.as_deref(),
                 json,
             ),
         },
