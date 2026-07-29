@@ -1,20 +1,14 @@
-# Current foreign-transfer contract gap
+# Foreign-transfer conformance evidence
 
-This fixture is a negative conformance inventory, not a transfer schema.
+The frozen negative inventory remains under
+`paper/artifacts/transfer/{plan,result}.v1.json`. It established that migration
+lineage cannot safely represent a foreign accepted transition.
 
-The Rust reader derives current migration-lineage fields from compiled public
-types. The clean-room Python reader derives them from the public Rust source.
-Both also confirm that the product CLI deliberately exposes no federation
-surface.
-
-Agreement qualifies the reproduced B8 gap. It does not authorize an import
-command, transfer envelope, resolver, Registry, hosted service, or local
-Standing change.
-
-`foreign-reference-input.v1.json` is the language-neutral qualification
-fixture for the smallest derived response to that gap. It binds exact source
-repository, Claim, Proposal, Decision, authority, and retained-object roots;
-declares completeness; and fixes local Standing effect to `none`.
-`foreign-reference-expected.v1.json` is the byte-identical assessment expected
-from both readers. These synthetic vectors qualify implementations only. They
-do not establish real second-Frontier retention or external independence.
+The conformance input and expected assessment live with the single real
+retained package under `paper/artifacts/transfer/erdos-424/`. Keeping one
+package prevents synthetic vectors from drifting away from the source
+transition that benchmark B8 actually evaluates. Rust and clean-room Python
+verify the same exact object, semantic, and signature chain. The package
+qualifies implementations and the source side of first-party transfer only;
+it does not authorize a writer command, change local Standing, complete B8, or
+establish external independence.

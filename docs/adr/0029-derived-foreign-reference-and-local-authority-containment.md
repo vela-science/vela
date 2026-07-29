@@ -24,10 +24,13 @@ clean-room Python readers agree on that inventory. Reinterpreting migration
 fields would be an unsafe semantic rebind.
 
 The real Erdős 424 source correction is now terminal, verified, accepted, and
-clean-clone replayed. The experiment is therefore eligible to test the
-smallest response to the reproduced gap. It is not eligible to add a
-federation service, global identifier system, resolver, Registry, second
-writer, distributed transaction, or imported authority.
+clean-clone replayed. Its real reference package now passes both the Rust and
+dependency-free Python readers at reference root
+`sha256:b7b330ae6ea4915d5bac218233f0a272ee961060682be6d22f6a8ea1b78c4ed6`.
+The experiment is therefore eligible for receiver-side retention through the
+ordinary producer path. It is not eligible to add a federation service,
+global identifier system, resolver, Registry, second writer, distributed
+transaction, or imported authority.
 
 ## Decision proposed
 
@@ -38,12 +41,18 @@ Define non-protocol `vela.foreign-reference.v1` in the replaceable
 source bytes. It binds:
 
 - source Frontier ID;
-- source Git commit and tree;
-- source repository root;
+- current source Git commit, tree, and repository root;
+- transition Git commit, tree, and repository root;
+- repository-origin ID and root linking the compacted repository to the
+  transition repository;
 - accepted Claim ID and root;
+- signed Submission ID and root;
 - Proposal ID and root;
+- signed Verification ID and root;
 - Decision Event ID and root;
+- applied storage Event ID and root plus its semantic Event ID;
 - source authority-record ID and root;
+- source authority-keyset root;
 - the exact retained object set and its canonical root;
 - completeness and every missing required role;
 - source Standing;
@@ -54,7 +63,9 @@ source bytes. It binds:
 The minimum complete object set is:
 
 ```text
-repository manifest
+current repository manifest
+repository origin
+transition repository manifest
 Claim
 Submission
 Proposal
@@ -62,6 +73,7 @@ Verification
 Decision Event
 applied semantic Event
 authority record
+authority keyset
 ```
 
 Every object path is relative and every root is a full lowercase SHA-256.
@@ -71,7 +83,9 @@ envelope whose payload has its own root. Objects are sorted and unique by role,
 ID, semantic root, byte root, and path. Package verification rehashes every
 retained byte. Missing inputs produce an explicitly incomplete assessment;
 substitution, shortened roots, path escape, object-set drift,
-source-binding drift, or authority escalation fail closed.
+source-binding drift, invalid producer or verifier signatures, invalid
+repository-authority DSSE signatures, broken semantic Event links, or
+authority escalation fail closed.
 
 ### 2. Keep the result non-authoritative
 
@@ -95,31 +109,36 @@ boundary.
 ### 3. Qualify two readers before real retention
 
 The Rust edge reader and dependency-free Python clean-room reader consume the
-same language-neutral fixture and must emit byte-identical assessments. The
-fixture includes an explicit authority-escalation adversary. This establishes
-implementation qualification only, not organizational independence or B8.
+same language-neutral package and must emit byte-identical assessments. Both
+rehash the retained bytes, rederive object identities, verify producer and
+verifier signatures, traverse the current compaction origin to the transition
+repository, and verify the repository-authority DSSE signature against the
+retained keyset. Adversarial cases cover authority escalation, truncation,
+byte tampering, semantic substitution, path and symlink escape, and authority
+signature tampering. This establishes implementation qualification only, not
+organizational independence or B8.
 
-The real envelope is materialized only after the four current-state
-compactions succeed. This avoids binding new evidence to a predecessor
-repository root that the current product is about to retire and avoids
-invalidating the already authorized compaction candidates.
+The real envelope was materialized after the four current-state compactions.
+It binds the current Erdős repository root
+`sha256:8a98ff1c632232c7b227d87a0f1015aaa3429d38c83592ca66f8e465b06b0ee5`,
+the transition root
+`sha256:391c2acb12ea1251b6614803d973fd7785826977b664bebcd7091d261133d8fc`,
+and all 11 required retained roles. Its object-set root is
+`sha256:f9cc936b42f7ee624d98583332454dbb46b68c00fa2819d990cea4d6d7daec8a`.
 
 ### 4. Use one first-party second-Frontier experiment
 
 After compaction:
 
-1. materialize the exact Erdős 424 accepted correction package from the
-   compacted Erdős repository;
-2. require Rust and clean-room assessment agreement;
-3. register the envelope as a bounded producer Artifact in the Formal
+1. register the qualified envelope as a bounded producer Artifact in the Formal
    Conjectures Frontier, because that Frontier owns the referenced Lean source;
-4. require `pending_review`, accepted-event delta zero, strict replay, and a
+2. require `pending_review`, accepted-event delta zero, strict replay, and a
    clean clone;
-5. import a scoped Verification that checks every retained byte and the source
+3. import a scoped Verification that checks every retained byte and the source
    repository authority chain;
-6. confirm that neither registration nor Verification changes local accepted
+4. confirm that neither registration nor Verification changes local accepted
    Standing; and
-7. leave the resulting local Proposal pending unless a human independently
+5. leave the resulting local Proposal pending unless a human independently
    chooses to decide it.
 
 The two repositories currently share one operator. This experiment is
@@ -174,6 +193,6 @@ Accept only after:
 
 - B8 changes from an unimplemented gap to a bounded, falsifiable experiment.
 - The current public protocol and CLI remain unchanged.
-- Actual second-Frontier retention waits for the already authorized
-  compaction boundary.
+- The source package and two-reader qualification are complete; actual
+  second-Frontier retention remains pending.
 - Failure removes code rather than expanding architecture.

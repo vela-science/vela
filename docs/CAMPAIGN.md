@@ -161,12 +161,22 @@ environment for reproduction. Admission requires a scoped Verification and an
 authorized local Decision. These operations must never be collapsed into an
 ingest-all pipeline or a global truth table.
 
-The 2026-07-29 thesis, math-package, Registry, and Atlas memos sharpen
+The 2026-07-29 thesis, math-package, Registry, Atlas, and landscape memos
+sharpen
 [ADR 0025](adr/0025-math-first-compounding-product-architecture.md) and
 [ADR 0028](adr/0028-living-frontier-map-and-native-system-boundary.md); they
 do not authorize another ADR, protocol object, repository, or service. Their
 package and network proposals remain hypotheses behind the evidence gates
 below.
+
+The category claim is correspondingly narrow: **scientific state and
+inheritance infrastructure**. “Version control for living science” is the
+developer shorthand. Synthetic/OpenScience, Git, Hugging Face, workflow
+engines, formal systems, and research-memory tools are integration references,
+not product surfaces to copy. Vela owns the integrity and handoff boundary
+between them. A system becomes “Vela-compatible” through exact publication,
+verification, correction, and non-escalating reuse before any shared Registry
+or Atlas is considered.
 
 ## Performance functions
 
@@ -1235,9 +1245,9 @@ gates, and no packaging or rendering result substitutes for them:
 | Gate | Current status | Controlling evidence |
 | --- | --- | --- |
 | ADR 0026 Accepted | Not met | ADR 0026 remains Proposed |
-| Primary and held-out plans frozen before confirmatory runs | Partial | synthetic primary and canonical held-out selection plans are frozen; the real correction has not reached its terminal task instance |
-| Two implementations agree | Partial | Rust and clean-room Python agree on the synthetic vector only |
-| All hard safety gates pass | Not met | the derived foreign-reference contract passes synthetic containment checks; the real B8 second-Frontier transfer has not run |
+| Primary and held-out plans frozen before confirmatory runs | Partial | the source correction is terminal and source-qualified; the matched primary and held-out correction-impact task instances remain pending |
+| Two implementations agree | Partial | Rust and clean-room Python agree on the real Erdős reference and verify its complete semantic and authority-signature chain; held-out agreement remains pending |
+| All hard safety gates pass | Not met | the real source package passes containment and tamper checks, but Formal has not yet retained and verified it |
 | Both fixtures pass B1 through B10 | Not met | most real-fixture and all held-out cells remain pending |
 | One external participant completes each cold-use fixture | Not met | all current sessions are first-party |
 | Public artifact reproduces every reported result | Partial | deterministic source packaging and PDF rendering pass; terminal and external evidence do not exist |
@@ -1265,31 +1275,40 @@ surface, and its release contract deliberately rejects a `federation` command.
 
 This is a reproduced gap and a current B8 failure. Reinterpreting migration
 fields would be an unsafe semantic rebind. The result does not justify a Hub,
-Registry, resolver, global namespace, graph database, or second writer. After
-the source audit, implementation-diverse Rust and clean-room Python readers
-now reproduce the same inventory from compiled public types and public source.
-Their shared language-neutral fixture root is
+Registry, resolver, global namespace, graph database, or second writer. Rust
+and clean-room Python reproduced the same negative inventory at fixture root
 `sha256:fffb66f5afa69b8a47824a45bc382d97e4c655dc282a3b3d6ba339f2b70906ae`.
-This earns implementation-diversity credit, not organizational independence.
+That earned implementation-diversity credit, not organizational independence.
 The real correction is now terminal. Proposed
 [ADR 0029](adr/0029-derived-foreign-reference-and-local-authority-containment.md)
 therefore defines `vela.foreign-reference.v1` only in the replaceable edge
-layer. The envelope binds the exact source repository, Claim, Proposal,
-Decision, authority record, retained object set, completeness, explicit
-nonclaims, and local Standing effect `none`. Rust and dependency-free Python
-readers agree on the synthetic qualification assessment at reference root
-`sha256:a6534a1f9b21b934c00c7a3274c0459a33bef988700736dbd99aafa730a60531`.
-They also reject authority escalation, silent truncation, source substitution,
-and object-byte drift. This is implementation qualification, not B8 or
-external independence.
+layer. The envelope binds the compacted repository, exact predecessor
+transition and origin, Claim, signed Submission, Proposal, signed
+Verification, applied and Decision Events, authority record, authority keyset,
+retained object set, completeness, explicit nonclaims, and local Standing
+effect `none`.
 
-The real Erdős-to-Formal package is now unblocked and must bind current Erdős
-repository root
-`sha256:8a98ff1c632232c7b227d87a0f1015aaa3429d38c83592ca66f8e465b06b0ee5`.
-The ordinary producer path may retain the envelope as a bounded Artifact in
-Formal with accepted-event delta zero; a scoped Verification must check every
-byte and the source authority chain. No federation command, service, resolver,
-Registry, second writer, or imported authority is authorized.
+The real Erdős package is materialized at reference root
+`sha256:b7b330ae6ea4915d5bac218233f0a272ee961060682be6d22f6a8ea1b78c4ed6`
+and object-set root
+`sha256:f9cc936b42f7ee624d98583332454dbb46b68c00fa2819d990cea4d6d7daec8a`.
+Its deterministic portable archive has SHA-256
+`3a1f083e55ead5818b3dad5eca163155cab1f8d8905be2b61ab58e3823a2b26c`.
+Both readers rederive every identity, verify producer and verifier signatures,
+traverse the compaction origin, and verify the repository-authority DSSE
+signature against the retained keyset. Adversarial tests reject authority
+escalation, truncation, source and semantic substitution, byte drift, path and
+symlink escape, and signature tampering. This qualifies the real source
+package, not B8 or external independence.
+
+The remaining B8 step is ordinary non-authoritative retention in Formal. That
+path must register the archive as a bounded Artifact with accepted-event delta
+zero, then import a scoped Verification of every byte and the source authority
+chain. Formal currently has no active Target Index, so the agent rules forbid
+inventing an unranked Submission. The receiver-side experiment waits for one
+exact non-authoritative Target rather than bypassing the repository work
+contract. No federation command, service, resolver, Registry, second writer,
+or imported authority is authorized.
 
 #### Matched state-lift pilot
 

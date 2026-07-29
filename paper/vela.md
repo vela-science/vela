@@ -548,23 +548,30 @@ The audit plan root is
 the deterministic result root is
 `sha256:1e0ed787c155677a908ee1c006355b5ae18aef2394bec39b5174675284008c15`.
 
-This is a negative result: the audited Vela revision cannot pass B8. It does
+This is a negative result: the audited protocol alone cannot pass B8. It does
 not show that a hosted Registry, resolver, global namespace, or federation
-service is needed. Rust and clean-room Python readers independently reproduce
+service is needed. Rust and clean-room Python readers independently reproduced
 the same current-contract inventory from compiled public types and public
-source. Their shared fixture root is
+source. Their shared negative-inventory fixture root is
 `sha256:fffb66f5afa69b8a47824a45bc382d97e4c655dc282a3b3d6ba339f2b70906ae`.
 That is implementation diversity, not organizational independence. A minimal
 derived envelope became eligible after the real correction reached a terminal
 Decision. The resulting non-protocol `vela.foreign-reference.v1` experiment
-binds the exact source repository, Claim, Proposal, Decision, authority record,
-retained object set, completeness, and explicit local Standing effect
-`none`. Rust and clean-room Python emit the same synthetic qualification
-assessment at root
-`sha256:a6534a1f9b21b934c00c7a3274c0459a33bef988700736dbd99aafa730a60531`.
-They reject authority escalation, silent truncation, source substitution, and
-object-byte drift. No second Frontier has retained the real correction, so B8
-still fails.
+binds the compacted repository, predecessor transition and origin, Claim,
+signed Submission, Proposal, signed Verification, applied and Decision Events,
+authority record and keyset, retained object set, completeness, and explicit
+local Standing effect `none`.
+
+The real Erdős reference has 11 required objects, reference root
+`sha256:b7b330ae6ea4915d5bac218233f0a272ee961060682be6d22f6a8ea1b78c4ed6`,
+and object-set root
+`sha256:f9cc936b42f7ee624d98583332454dbb46b68c00fa2819d990cea4d6d7daec8a`.
+Both readers rederive every identity, verify producer and verifier signatures,
+follow the compaction origin, and verify the repository-authority DSSE
+signature against the retained keyset. They reject authority escalation,
+silent truncation, source and semantic substitution, object-byte drift, path
+and symlink escape, and signature tampering. No second Frontier has retained
+the real correction, so B8 still fails.
 
 The matched Git-versus-Vela reviewer protocol is frozen at root
 `sha256:68fb039088302d19f02cf2628c16004e174649b1f952a63a0fd35210c0dd0ef8`.
@@ -668,7 +675,7 @@ framework was evaluated or retained.
 | B5 removability | writer qualification pass; primary pending | pending | replay unchanged |
 | B6 hosted-service failure | writer qualification pass; primary pending | pending | replay succeeds |
 | B7 support diversity | pending | pending | exact route accounting |
-| B8 second Frontier | gap reproduced; derived synthetic qualification only | not run | zero imported authority |
+| B8 second Frontier | gap reproduced; real source package passes two readers; receiver retention pending | not run | zero imported authority |
 | B9 observability | synthetic pass only | pending | no silent truncation |
 | B10 cold inheritance | first pilot failed hard budget | pending | at least 20% median lift |
 
@@ -728,10 +735,10 @@ The evaluation includes:
   require the projection. Users can still be misled if they never inspect its
   source root.
 - **Foreign Frontier:** foreign state must be attributed information with no
-  imported local authority. A derived edge-layer envelope passes synthetic
-  containment checks without changing the protocol, but no second Frontier
-  has retained and verified the real source transition; B8 therefore remains
-  unsatisfied.
+  imported local authority. A derived edge-layer envelope passes real-source
+  semantic, signature, and containment checks without changing the protocol,
+  but no second Frontier has retained and verified the source transition; B8
+  therefore remains unsatisfied.
 - **Implementation:** Rust and clean-room Python reduce shared-code defects but
   share the same specification, fixtures, operator, and project incentives.
   Agreement is implementation diversity, not organizational independence.
@@ -879,10 +886,10 @@ Ed25519 are assumed secure. Git hosting availability is operationally useful
 but not canonical.
 
 The public protocol has no foreign-reference object. The derived edge-layer
-envelope passes a synthetic containment vector, but no second Frontier has
-retained and verified the terminal source correction. This revision fails B8.
-A successful repair must remain smaller than a hosted federation
-system and must survive the real transfer experiment.
+envelope passes the real Erdős source qualification in two implementations,
+but no second Frontier has retained and verified the terminal source
+correction. This revision fails B8. A successful repair must remain smaller
+than a hosted federation system and must survive the receiver-side experiment.
 
 If the real correction, second-Frontier, held-out, or cold-use gates fail, the
 paper must report that failure and narrow its claim. A failed correction-impact
@@ -939,8 +946,9 @@ remains explainable. Two implementations also agree on a bounded synthetic
 correction-impact projection. The first matched reviewer pilot was
 directionally cheaper and more accurate with Vela but failed its preregistered
 token budget and exact-answer requirement. A derived foreign-reference
-envelope now qualifies two colocated readers, but no second Frontier has
-retained and checked the real source transition. The stronger claim, that this
+envelope now qualifies the real source package in two colocated readers,
+including its authority signature, but no second Frontier has retained and
+checked the source transition. The stronger claim, that this
 mechanism preserves useful scientific inheritance across real corrections and
 plural authorities better than Git alone, is therefore not satisfied by the
 audited system.

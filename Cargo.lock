@@ -1832,6 +1832,7 @@ dependencies = [
 name = "vela-edge"
 version = "0.940.9"
 dependencies = [
+ "base64",
  "ed25519-dalek",
  "hex",
  "rand",

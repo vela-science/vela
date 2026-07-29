@@ -128,10 +128,15 @@ explicit local non-authority and are no longer part of current schemas. This
 is a benchmark failure, not permission to revive federation services. Rust and
 clean-room Python readers reproduce the same absence from compiled types and
 public source. ADR 0029 proposes the smallest derived transfer envelope in the
-replaceable edge layer. The four current-state compactions are complete, so a
-real Erdős-to-Formal retention fixture may now be prepared against the exact
-current source root. The colocated readers earn no external-independence
-credit.
+replaceable edge layer. The four current-state compactions are complete. The
+real Erdős package now binds the current root, predecessor transition, origin,
+Claim, signed Submission and Verification, applied and Decision Events,
+authority record, and keyset. Rust and clean-room Python agree at reference
+root
+`sha256:b7b330ae6ea4915d5bac218233f0a272ee961060682be6d22f6a8ea1b78c4ed6`
+and verify the repository-authority signature. The remaining B8 step is
+ordinary non-authoritative retention and Verification in Formal. The
+colocated readers earn no external-independence credit.
 
 The historical entry gate is closed. Across 2,831 current Claim records, the
 four Frontiers contain no current correction relation. Erdős 281 has the

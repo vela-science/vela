@@ -73,7 +73,8 @@ def main() -> int:
             return 1
         print(
             "foreign-transfer-contract-gap: ok "
-            "(two readers agree migration fields are retired and no portable contract exists)"
+            "(two readers agree migration fields are retired and "
+            "the canonical protocol has no foreign-transfer contract)"
         )
         return 0
     except (OSError, ValueError, json.JSONDecodeError) as error:
