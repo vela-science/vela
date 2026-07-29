@@ -245,7 +245,9 @@ exact compaction bootstrap. The latter binds the full expected record set and
 its canonical object-set root, rejects missing, substituted, or unexplained
 records, requires the planned compact-v3 delta to carry the same object-set
 root, and re-runs that exact predicate at marker time. Native initialization
-continues to reject every pre-authority record path. All 170 CLI tests, all 88
+continues to reject every pre-authority record path. A full nonempty compact-v3
+fixture now crosses prepare, marker-time reauthorization, installation, and
+completion under the exact surface. All 171 CLI tests, all 88
 protocol tests, and strict CLI Clippy pass. The next gate remains the human
 invocation of the four exact candidate roots followed by read-only
 `repository finalize-compaction --check`; compatibility removal cannot begin

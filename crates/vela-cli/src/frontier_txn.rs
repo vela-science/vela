@@ -4485,6 +4485,102 @@ license:
     }
 
     #[test]
+    fn compaction_authorization_survives_marker_and_installs_exact_delta() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        fs::create_dir_all(root.join("records/artifacts/sha256")).unwrap();
+        write_fixture_profile(&root);
+        let artifact_bytes = b"exact retained artifact";
+        let artifact_root = ContentDigest::hash(artifact_bytes);
+        let artifact_id = artifact_root.file_stem().to_string();
+        let artifact_path = format!("records/artifacts/sha256/{artifact_id}");
+        fs::write(root.join(&artifact_path), artifact_bytes).unwrap();
+        let objects = vec![vela_protocol::current_repository::RepositoryObjectRefV1 {
+            schema: "content-addressed-artifact".into(),
+            id: artifact_id,
+            root: artifact_root.as_str().into(),
+            path: artifact_path,
+        }];
+        let profile = crate::current_repository::verify_current_profile_at(&root).unwrap();
+        let profile_root = profile.profile_root().unwrap();
+        let object_set_root = format!(
+            "sha256:{}",
+            vela_protocol::canonical::sha256_canonical(&objects).unwrap()
+        );
+        let origin = fixture_compaction_origin(
+            &profile.frontier_id,
+            &profile_root,
+            &object_set_root,
+            "Compact exact retained state.",
+        );
+        let mut repository = fixture_repository_v3(&origin);
+        repository.artifacts = objects.clone();
+        let writes = vec![
+            PlannedWrite::write(
+                RepoPath::parse(".vela/origin.json").unwrap(),
+                WriteClass::CanonicalEvidence,
+                origin.canonical_bytes().unwrap(),
+            ),
+            PlannedWrite::write(
+                RepoPath::parse(".vela/repository.json").unwrap(),
+                WriteClass::CanonicalEvidence,
+                repository.canonical_bytes().unwrap(),
+            ),
+            fixture_authority_initialization_write(&profile.frontier_id),
+            fixture_covering_authority_record_write(),
+        ];
+        let draft = DeltaDraft::prepare(&root, writes).unwrap();
+        let empty_event_root = event_log_root(&[]).unwrap();
+        let operation_id = OperationId::derive("repository_compaction", b"exact marker fixture");
+        let plan = FrontierTxnPlan::new(
+            FrontierTxnPlanSpec {
+                kind: OperationKind::Decision,
+                operation_id,
+                request_root: ContentDigest::hash(b"exact marker fixture"),
+                frontier: FrontierBinding::new(
+                    &root,
+                    profile.frontier_id,
+                    b"compact-v3 marker fixture",
+                )
+                .unwrap(),
+                fixed_time: "2026-07-29T00:00:00Z".into(),
+                expected_event_log_root: empty_event_root.clone(),
+                resulting_event_log_root: empty_event_root,
+                resulting_event_ids: Vec::new(),
+                read_set: Vec::new(),
+                result: json!({"schema": "vela.compaction-marker-fixture.v1"}),
+            },
+            draft.delta.clone(),
+        )
+        .unwrap();
+        let journal_dir = root.join(".vela/operation-journals/frontier");
+        let barrier = FrontierTxn::acquire_repository_compaction_initialization_barrier(
+            &root,
+            &journal_dir,
+            &objects,
+        )
+        .unwrap();
+        let mut transaction = FrontierTxn::prepare_with_barrier(barrier, plan, draft).unwrap();
+
+        transaction.mark_committed().unwrap();
+        transaction.install().unwrap();
+        transaction.complete().unwrap();
+
+        assert_eq!(
+            fs::read(root.join(".vela/origin.json")).unwrap(),
+            origin.canonical_bytes().unwrap()
+        );
+        assert_eq!(
+            fs::read(root.join(".vela/repository.json")).unwrap(),
+            repository.canonical_bytes().unwrap()
+        );
+        assert_eq!(
+            fs::read(root.join(&objects[0].path)).unwrap(),
+            artifact_bytes
+        );
+    }
+
+    #[test]
     fn current_epoch_trust_accepts_current_or_one_record_predecessor_only() {
         let frontier_id = "vfr_0123456789abcdef";
         let current = format!("sha256:{}", "1".repeat(64));

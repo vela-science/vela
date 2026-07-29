@@ -119,7 +119,9 @@ object-set root into the authorization context, requires the compact-v3
 transaction delta to carry the same root, and repeats the same exact check
 before the marker. Missing, substituted, duplicate, outside-`records/`, or
 unexplained files fail closed. The native bootstrap predicate remains
-unchanged and continues to reject any pre-authority records.
+unchanged and continues to reject any pre-authority records. A deterministic
+nonempty compact-v3 transaction now exercises prepare, marker-time
+reauthorization, exact installation, and completion without a real credential.
 
 The disk cost is immaterial. The cost is a larger protocol vocabulary and
 trust base before Vela has external users. Keeping compatibility indefinitely
