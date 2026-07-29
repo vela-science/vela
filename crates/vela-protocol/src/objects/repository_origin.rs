@@ -21,6 +21,8 @@ pub struct RepositoryOriginPredecessorV1 {
     pub tree: String,
     pub repository_root: String,
     pub authority_head_root: String,
+    pub archived_event_log_root: String,
+    pub archived_actor_registry_root: String,
     pub archive_sha256: String,
     pub object_manifest_root: String,
     pub equivalence_report_root: String,
@@ -200,6 +202,14 @@ impl RepositoryOriginPredecessorV1 {
         for (field, value) in [
             ("predecessor.repository_root", &self.repository_root),
             ("predecessor.authority_head_root", &self.authority_head_root),
+            (
+                "predecessor.archived_event_log_root",
+                &self.archived_event_log_root,
+            ),
+            (
+                "predecessor.archived_actor_registry_root",
+                &self.archived_actor_registry_root,
+            ),
             ("predecessor.archive_sha256", &self.archive_sha256),
             (
                 "predecessor.object_manifest_root",
@@ -287,9 +297,11 @@ mod tests {
             tree: "b".repeat(40),
             repository_root: root('1'),
             authority_head_root: root('2'),
-            archive_sha256: root('3'),
-            object_manifest_root: root('4'),
-            equivalence_report_root: root('5'),
+            archived_event_log_root: root('3'),
+            archived_actor_registry_root: root('4'),
+            archive_sha256: root('5'),
+            object_manifest_root: root('6'),
+            equivalence_report_root: root('7'),
         }
     }
 

@@ -9,12 +9,14 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use vela_protocol::claim_record::{ClaimEvidenceRef, ClaimRecordV1, LEGACY_FINDING_EXTENSION};
 use vela_protocol::current_repository::{
-    CURRENT_ARTIFACT_RECORD_SCHEMA_V1, CurrentArtifactRecordV1, RepositoryObjectRefV1,
+    CURRENT_ARTIFACT_RECORD_SCHEMA_V1, CURRENT_REPOSITORY_SCHEMA_V3, ClaimStandingRefV1,
+    CurrentArtifactRecordV1, CurrentRepositoryV3, RepositoryObjectRefV1,
 };
 use vela_protocol::current_state_equivalence::{
     ArtifactCompactionMapV1, ClaimCompactionMapV1, CompactedArtifactForm, CurrentStateEquivalenceV1,
 };
 use vela_protocol::repository_epoch::RepositoryBoundaryV1;
+use vela_protocol::repository_origin::{RepositoryOriginPredecessorV1, RepositoryOriginV1};
 
 struct ClaimCompactionAudit {
     report: CurrentStateEquivalenceV1,
@@ -44,11 +46,16 @@ struct CompactionCandidatePlanV1 {
     predecessor_boundary_root: String,
     predecessor_authority_head_root: String,
     predecessor_tag: String,
+    predecessor_archive_root: String,
+    predecessor_object_manifest_root: String,
     artifact_map_root: String,
     claim_map_root: String,
     equivalence_report_root: String,
     candidate_object_manifest_root: String,
     candidate_object_set_root: String,
+    candidate_origin_id: String,
+    candidate_origin_root: String,
+    candidate_repository_root: String,
     touched_paths: Vec<String>,
     reason: String,
 }
@@ -587,6 +594,85 @@ fn materialize_candidate_inner(
     let source_tree = git_output(frontier, &["rev-parse", "HEAD^{tree}"])?;
     let source_remote = canonical_remote(&git_output(frontier, &["remote", "get-url", "origin"])?);
     let tag = format!("pre-compaction/{}", &source_commit[..12]);
+    let archive_path = output.join("predecessor.tar");
+    git_archive(frontier, &archive_path)?;
+    let predecessor_archive_root = root_bytes(
+        &fs::read(&archive_path)
+            .map_err(|error| format!("read predecessor Git bundle: {error}"))?,
+    );
+    let predecessor_object_manifest_root = predecessor_object_manifest_root(&repository)?;
+    let predecessor_roots = epoch.predecessor_roots().ok_or_else(|| {
+        "pre-release compaction requires a predecessor-bound current repository".to_string()
+    })?;
+    let origin = RepositoryOriginV1::compaction(
+        repository.frontier_id.clone(),
+        2,
+        repository.profile_root.clone(),
+        claim_audit.report.candidate_object_set_root.clone(),
+        RepositoryOriginPredecessorV1 {
+            remote: source_remote.clone(),
+            tag: tag.clone(),
+            commit: source_commit.clone(),
+            tree: source_tree.clone(),
+            repository_root: repository.canonical_root()?,
+            authority_head_root: authority_head.clone(),
+            archived_event_log_root: predecessor_roots.event_log.clone(),
+            archived_actor_registry_root: predecessor_roots.actor_registry.clone(),
+            archive_sha256: predecessor_archive_root.clone(),
+            object_manifest_root: predecessor_object_manifest_root.clone(),
+            equivalence_report_root: equivalence_report_root.into(),
+        },
+        "Compact the unreleased repository into the single current origin and content-addressed evidence contract.".into(),
+    )?;
+    let origin_root = origin.canonical_root()?;
+    write_relative(output, ".vela/origin.json", &origin.canonical_bytes()?)?;
+
+    let mut accepted_claims = claim_audit
+        .candidate_claims
+        .iter()
+        .map(|claim| {
+            let root = claim.canonical_root()?;
+            Ok(ClaimStandingRefV1 {
+                claim_id: claim.claim_id.clone(),
+                claim_root: root.clone(),
+                standing: "accepted".into(),
+                path: format!(
+                    "records/claims/sha256/{}.json",
+                    root.trim_start_matches("sha256:")
+                ),
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    accepted_claims.sort_by(|left, right| left.claim_id.cmp(&right.claim_id));
+    let mut artifacts = claim_audit
+        .candidate_objects
+        .iter()
+        .filter(|reference| reference.schema != vela_protocol::claim_record::CLAIM_RECORD_V1_SCHEMA)
+        .cloned()
+        .collect::<Vec<_>>();
+    artifacts.sort_by(|left, right| left.id.cmp(&right.id));
+    let candidate_repository = CurrentRepositoryV3 {
+        schema: CURRENT_REPOSITORY_SCHEMA_V3.into(),
+        frontier_id: repository.frontier_id.clone(),
+        profile_root: repository.profile_root.clone(),
+        origin_id: origin.origin_id.clone(),
+        origin_root: origin_root.clone(),
+        accepted_claims,
+        pending_claims: Vec::new(),
+        proposals: Vec::new(),
+        submissions: Vec::new(),
+        registrations: Vec::new(),
+        verifications: Vec::new(),
+        artifacts,
+        authority_keyset_root: repository.authority_keyset_root.clone(),
+        authority_policy_root: repository.authority_policy_root.clone(),
+    };
+    let candidate_repository_root = candidate_repository.canonical_root()?;
+    write_relative(
+        output,
+        ".vela/repository.json",
+        &candidate_repository.canonical_bytes()?,
+    )?;
     let mut touched_paths = claim_audit
         .candidate_objects
         .iter()
@@ -612,11 +698,16 @@ fn materialize_candidate_inner(
         predecessor_boundary_root: epoch.canonical_root()?,
         predecessor_authority_head_root: authority_head,
         predecessor_tag: tag,
+        predecessor_archive_root,
+        predecessor_object_manifest_root,
         artifact_map_root: artifact_map_root.into(),
         claim_map_root: claim_audit.claim_map_root.clone(),
         equivalence_report_root: equivalence_report_root.into(),
         candidate_object_manifest_root: object_manifest_root.clone(),
         candidate_object_set_root: claim_audit.report.candidate_object_set_root.clone(),
+        candidate_origin_id: origin.origin_id,
+        candidate_origin_root: origin_root,
+        candidate_repository_root,
         touched_paths,
         reason: "Adopt one current pre-release repository origin and content-addressed evidence contract.".into(),
     };
@@ -669,6 +760,63 @@ fn verify_materialized_candidate(root: &Path) -> Result<usize, String> {
         || report.canonical_root()? != plan.equivalence_report_root
     {
         return Err("candidate equivalence report disagrees with its plan".into());
+    }
+    let archive_bytes = fs::read(root.join("predecessor.tar"))
+        .map_err(|error| format!("read candidate predecessor archive: {error}"))?;
+    if root_bytes(&archive_bytes) != plan.predecessor_archive_root {
+        return Err("candidate predecessor archive disagrees with its plan".into());
+    }
+    let origin_bytes = fs::read(root.join(".vela/origin.json"))
+        .map_err(|error| format!("read candidate origin: {error}"))?;
+    let origin = RepositoryOriginV1::parse(&origin_bytes)?;
+    if origin.frontier_id != plan.frontier_id
+        || origin.origin_id != plan.candidate_origin_id
+        || origin.canonical_root()? != plan.candidate_origin_root
+        || origin.initial_object_set_root != plan.candidate_object_set_root
+    {
+        return Err("candidate repository origin disagrees with its plan".into());
+    }
+    let repository_bytes = fs::read(root.join(".vela/repository.json"))
+        .map_err(|error| format!("read candidate repository: {error}"))?;
+    let repository = CurrentRepositoryV3::parse(&repository_bytes)?;
+    if repository.frontier_id != plan.frontier_id
+        || repository.profile_root != origin.profile_root
+        || repository.origin_id != origin.origin_id
+        || repository.origin_root != plan.candidate_origin_root
+        || repository.canonical_root()? != plan.candidate_repository_root
+    {
+        return Err("candidate repository manifest disagrees with its plan".into());
+    }
+    let mut manifest_claims = manifest
+        .objects
+        .iter()
+        .filter(|reference| reference.schema == vela_protocol::claim_record::CLAIM_RECORD_V1_SCHEMA)
+        .map(|reference| ClaimStandingRefV1 {
+            claim_id: reference.id.clone(),
+            claim_root: reference.root.clone(),
+            standing: "accepted".into(),
+            path: reference.path.clone(),
+        })
+        .collect::<Vec<_>>();
+    manifest_claims.sort_by(|left, right| left.claim_id.cmp(&right.claim_id));
+    let mut manifest_artifacts = manifest
+        .objects
+        .iter()
+        .filter(|reference| reference.schema != vela_protocol::claim_record::CLAIM_RECORD_V1_SCHEMA)
+        .cloned()
+        .collect::<Vec<_>>();
+    manifest_artifacts.sort_by(|left, right| left.id.cmp(&right.id));
+    if repository.accepted_claims != manifest_claims
+        || repository.artifacts != manifest_artifacts
+        || !repository.pending_claims.is_empty()
+        || !repository.proposals.is_empty()
+        || !repository.submissions.is_empty()
+        || !repository.registrations.is_empty()
+        || !repository.verifications.is_empty()
+    {
+        return Err(
+            "candidate repository object sets disagree with the exact candidate manifest".into(),
+        );
     }
 
     let objects_by_id = manifest
@@ -756,6 +904,15 @@ fn verify_materialized_candidate(root: &Path) -> Result<usize, String> {
                 .into_iter()
                 .map(|path| root.join(path)),
         )
+        .chain(
+            [
+                "predecessor.tar",
+                ".vela/origin.json",
+                ".vela/repository.json",
+            ]
+            .into_iter()
+            .map(|path| root.join(path)),
+        )
         .collect::<BTreeSet<_>>();
     let observed = files.iter().cloned().collect::<BTreeSet<_>>();
     if observed != expected {
@@ -827,6 +984,83 @@ fn git_output(root: &Path, args: &[&str]) -> Result<String, String> {
     String::from_utf8(output.stdout)
         .map_err(|error| format!("decode git {} output: {error}", args.join(" ")))
         .map(|value| value.trim().to_string())
+}
+
+fn git_archive(root: &Path, destination: &Path) -> Result<(), String> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["archive", "--format=tar", "--output"])
+        .arg(destination)
+        .arg("HEAD")
+        .output()
+        .map_err(|error| format!("create predecessor Git archive: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "create predecessor Git archive: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    Ok(())
+}
+
+fn predecessor_object_manifest_root(
+    repository: &vela_protocol::current_repository::CurrentRepositoryV2,
+) -> Result<String, String> {
+    #[derive(Serialize)]
+    struct RootedObject<'a> {
+        kind: &'a str,
+        id: &'a str,
+        root: &'a str,
+        path: &'a str,
+    }
+    let mut objects = repository
+        .accepted_claims
+        .iter()
+        .map(|reference| RootedObject {
+            kind: "accepted_claim",
+            id: &reference.claim_id,
+            root: &reference.claim_root,
+            path: &reference.path,
+        })
+        .chain(
+            repository
+                .pending_claims
+                .iter()
+                .map(|reference| RootedObject {
+                    kind: "pending_claim",
+                    id: &reference.claim_id,
+                    root: &reference.claim_root,
+                    path: &reference.path,
+                }),
+        )
+        .chain(
+            [
+                ("proposal", &repository.proposals),
+                ("submission", &repository.submissions),
+                ("registration", &repository.registrations),
+                ("verification", &repository.verifications),
+                ("artifact", &repository.artifacts),
+            ]
+            .into_iter()
+            .flat_map(|(kind, references)| {
+                references.iter().map(move |reference| RootedObject {
+                    kind,
+                    id: &reference.id,
+                    root: &reference.root,
+                    path: &reference.path,
+                })
+            }),
+        )
+        .collect::<Vec<_>>();
+    objects.sort_by(|left, right| {
+        (left.kind, left.id, left.root, left.path)
+            .cmp(&(right.kind, right.id, right.root, right.path))
+    });
+    Ok(format!(
+        "sha256:{}",
+        vela_protocol::canonical::sha256_canonical(&objects)?
+    ))
 }
 
 fn canonical_remote(remote: &str) -> String {

@@ -13,6 +13,7 @@ use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 
 pub const CURRENT_REPOSITORY_SCHEMA_V2: &str = "vela.repository.v2";
+pub const CURRENT_REPOSITORY_SCHEMA_V3: &str = "vela.repository.v3";
 pub const CURRENT_FRONTIER_PROFILE_SCHEMA_V2: &str = "vela.frontier-profile.v2";
 pub const CURRENT_ARTIFACT_RECORD_SCHEMA_V1: &str = "vela.artifact-record.v1";
 const PROFILE_NAME_MAX_BYTES: usize = 256;
@@ -231,6 +232,99 @@ pub struct CurrentRepositoryV2 {
     pub artifacts: Vec<RepositoryObjectRefV1>,
     pub authority_keyset_root: String,
     pub authority_policy_root: String,
+}
+
+/// Final pre-release repository manifest. The origin replaces the temporary
+/// predecessor epoch vocabulary; scientific and operational object sets stay
+/// explicit and content addressed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CurrentRepositoryV3 {
+    pub schema: String,
+    pub frontier_id: String,
+    pub profile_root: String,
+    pub origin_id: String,
+    pub origin_root: String,
+    pub accepted_claims: Vec<ClaimStandingRefV1>,
+    pub pending_claims: Vec<ClaimStandingRefV1>,
+    pub proposals: Vec<RepositoryObjectRefV1>,
+    pub submissions: Vec<RepositoryObjectRefV1>,
+    pub registrations: Vec<RepositoryObjectRefV1>,
+    pub verifications: Vec<RepositoryObjectRefV1>,
+    pub artifacts: Vec<RepositoryObjectRefV1>,
+    pub authority_keyset_root: String,
+    pub authority_policy_root: String,
+}
+
+impl CurrentRepositoryV3 {
+    pub fn parse(bytes: &[u8]) -> Result<Self, String> {
+        if bytes.len() > 8 * 1024 * 1024 {
+            return Err("current repository exceeds the 8 MiB encoded limit".into());
+        }
+        let value: Self = serde_json::from_slice(bytes)
+            .map_err(|error| format!("parse current repository v3: {error}"))?;
+        value.verify()?;
+        if value.canonical_bytes()? != bytes {
+            return Err("current repository bytes are not canonical JSON".into());
+        }
+        Ok(value)
+    }
+
+    pub fn verify(&self) -> Result<(), String> {
+        if self.schema != CURRENT_REPOSITORY_SCHEMA_V3 {
+            return Err(format!(
+                "current repository schema must be `{CURRENT_REPOSITORY_SCHEMA_V3}`"
+            ));
+        }
+        require_prefixed("frontier_id", &self.frontier_id, "vfr_")?;
+        require_sha256("profile_root", &self.profile_root)?;
+        require_prefixed("origin_id", &self.origin_id, "vro_")?;
+        require_sha256("origin_root", &self.origin_root)?;
+        require_sha256("authority_keyset_root", &self.authority_keyset_root)?;
+        require_sha256("authority_policy_root", &self.authority_policy_root)?;
+
+        verify_claim_refs("accepted_claims", &self.accepted_claims, "accepted")?;
+        verify_claim_refs("pending_claims", &self.pending_claims, "pending_review")?;
+        verify_object_refs("proposals", &self.proposals)?;
+        verify_object_refs("submissions", &self.submissions)?;
+        verify_object_refs("registrations", &self.registrations)?;
+        verify_object_refs("verifications", &self.verifications)?;
+        verify_object_refs("artifacts", &self.artifacts)?;
+
+        let mut paths = BTreeSet::new();
+        for path in self
+            .accepted_claims
+            .iter()
+            .chain(&self.pending_claims)
+            .map(|reference| reference.path.as_str())
+            .chain(
+                self.proposals
+                    .iter()
+                    .chain(&self.submissions)
+                    .chain(&self.registrations)
+                    .chain(&self.verifications)
+                    .chain(&self.artifacts)
+                    .map(|reference| reference.path.as_str()),
+            )
+        {
+            if !paths.insert(path) {
+                return Err(format!("current repository repeats object path `{path}`"));
+            }
+        }
+        Ok(())
+    }
+
+    pub fn canonical_bytes(&self) -> Result<Vec<u8>, String> {
+        self.verify()?;
+        crate::canonical::to_canonical_bytes(self)
+    }
+
+    pub fn canonical_root(&self) -> Result<String, String> {
+        Ok(format!(
+            "sha256:{}",
+            hex::encode(Sha256::digest(self.canonical_bytes()?))
+        ))
+    }
 }
 
 impl CurrentRepositoryV2 {
@@ -663,6 +757,33 @@ mod tests {
         assert!(repository.canonical_root().unwrap().starts_with("sha256:"));
         let mut tampered = repository;
         tampered.accepted_claims[0].standing = "verified".into();
+        assert!(tampered.verify().is_err());
+    }
+
+    #[test]
+    fn current_repository_v3_binds_one_origin() {
+        let predecessor = fixture();
+        let repository = CurrentRepositoryV3 {
+            schema: CURRENT_REPOSITORY_SCHEMA_V3.into(),
+            frontier_id: predecessor.frontier_id,
+            profile_root: predecessor.profile_root,
+            origin_id: "vro_0123456789abcdef".into(),
+            origin_root: root('b'),
+            accepted_claims: predecessor.accepted_claims,
+            pending_claims: Vec::new(),
+            proposals: Vec::new(),
+            submissions: Vec::new(),
+            registrations: Vec::new(),
+            verifications: Vec::new(),
+            artifacts: Vec::new(),
+            authority_keyset_root: predecessor.authority_keyset_root,
+            authority_policy_root: predecessor.authority_policy_root,
+        };
+        repository.verify().unwrap();
+        let bytes = repository.canonical_bytes().unwrap();
+        assert_eq!(CurrentRepositoryV3::parse(&bytes).unwrap(), repository);
+        let mut tampered = repository;
+        tampered.origin_id = "vre_0123456789abcdef".into();
         assert!(tampered.verify().is_err());
     }
 

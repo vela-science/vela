@@ -50,21 +50,25 @@ These are preview roots. They remain non-authoritative and may change when the
 candidate-file and repository-origin layers become part of the rooted plan.
 
 The source-only compactor now also materializes and independently re-reads the
-complete candidate object package outside each Frontier. It rejects extra,
+complete candidate repository outside each Frontier. It rejects extra,
 missing, substituted, non-canonical, legacy-wrapper, or `va_`-referencing
-files. The first verified candidate set is retained under
-`~/Desktop/Constellate/Archives/vela-current-compaction-candidates-2026-07-29-verified/`:
+files. Every candidate includes its deterministic predecessor Git archive,
+the exact predecessor commit/tree/remote/tag binding, predecessor
+object manifest, single origin, v3 repository manifest, rebuilt objects, and
+equivalence report. Two independent materializations produced identical plan
+roots. The first rooted set is retained under
+`~/Desktop/Constellate/Archives/vela-current-compaction-candidates-2026-07-29-tar-a/`:
 
-| Frontier | Candidate plan root | Object-manifest root | Files |
-| --- | --- | --- | ---: |
-| Erdős | `sha256:565e6005f17db69864b17bcf698452b774efc3b92c566670211a46e2e5245163` | `sha256:a1b238e510711cd380ba59c47a3a6a006be634a291566d8a3c1ac652af6f5d19` | 2,808 |
-| Formal Conjectures | `sha256:7ebe6bbbf267ab67661de84867d5105ba0aa96f86db017bbe33238fec24c6f8f` | `sha256:f24372d9ae4a228ba32433132e1486364aeeb0d49cc6d103d50ee70764155352` | 20 |
-| Quantum Codes | `sha256:b3c83085b38a5caa9e1d86a6ef8e178c4d9c8da2e3fc7a0ec4cab89f12e873ca` | `sha256:0c1dd6546156b8bfe0970ab7e1d865e25f51905796871d6ea694d39cebd806a8` | 9 |
-| Sidon | `sha256:c686365e7bd77a71d5c12b51ce6bcf0919e8996387dc05170d370be7f24bf886` | `sha256:8c91f3fc79c2c5215b6932384f1b4bfe9b03fb6e58a5483877f9a8e8755eb9ca` | 66 |
+| Frontier | Candidate plan root | Origin root | Repository root | Files |
+| --- | --- | --- | --- | ---: |
+| Erdős | `sha256:b6f77828df6e94e14c342b5488eb30540cc2257edb1299086c1d981de7625d23` | `sha256:500845f209cb527587ce88bae5645d2eb3e6fba2b3c80c79e03d007d27a02405` | `sha256:1cd16496c740d71bfe50e3eaf40a6637578eec11846836babeeab05876a64488` | 2,811 |
+| Formal Conjectures | `sha256:9e44e062564879d9909fc4cec10a1a54800889578c419fcf3d2daecc865a0d55` | `sha256:decf16565a7cd4c188fb7b12925427b03569733538e2457f8943f34cf735158d` | `sha256:b775b469532b288a71022f2af1b92643442e121fdfdbcc096a582243f9966cf3` | 23 |
+| Quantum Codes | `sha256:e3ae75e4527516b9a8c0c48a65309ae51113849f0bf881ebc658b7cf4ee6cfe0` | `sha256:f6a8cd5809d18a31307151767ee364db830afd60420ec44c2664eb4c0ce627dd` | `sha256:794fd809da3ac0e2c04070eebcd441f1072bb238e3f3c32d65e8ae43b80a5b63` | 12 |
+| Sidon | `sha256:b5bf3cc4f628615158a271481e02ea49a2af0be977454411a6a2413257cba81b` | `sha256:262c52bf24a07feeef9729d43ff15ccfb7272b7d943f0761045cb5779a01d03c` | `sha256:3ca35241e9de5316e116c84fe9b8a6e1f2385cbacf5dde3efef1b253dc35e8ee` | 69 |
 
 Materialization writes no source-Frontier byte. These plan roots still stop
-before the repository-origin and authority transaction postimage; they are
-candidate evidence, not authorization to publish.
+before the repository-authority transaction postimage; they are candidate
+evidence, not authorization to publish.
 
 The disk cost is immaterial. The cost is a larger protocol vocabulary and
 trust base before Vela has external users. Keeping compatibility indefinitely
