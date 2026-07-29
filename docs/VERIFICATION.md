@@ -80,6 +80,14 @@ Durable independent evidence is retained with:
 vela verification import . verification-record.json --json
 ```
 
+An import wrapper may pin the Vela executable used for repository intake, but
+it must pin immutable copied bytes or a released artifact. It must not pin a
+mutable build path such as `target/debug/vela`: rebuilding the same source can
+replace those bytes and turn an otherwise unchanged signed Verification into
+an avoidable operational failure. The intake-binary pin is separate from the
+Verification Record's method, implementation, environment, and report roots;
+changing one must never silently rewrite the other.
+
 The current Verification Record requires the exact Claim, Submission,
 Proposal, and Artifact bindings it bears on; a named method and implementation;
 full execution-evidence roots; an outcome; scope; and explicit nonclaims. It

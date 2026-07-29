@@ -896,6 +896,15 @@ from the producer actor while disclosing the shared operator, machine, Vela
 implementation, source repository, and retained Submission. It earns no
 external-participant credit.
 
+The first local import wrapper then reproduced an operational pinning defect:
+it named the mutable `target/debug/vela` path. A later compatible rebuild
+changed those executable bytes even though the signed Verification, verifier
+report, environment, Claim, Submission, and Proposal were unchanged. The
+wrapper now names an immutable copied executable and verifies its full SHA-256
+before intake. This is runner repair only; none of the signed scientific
+evidence was regenerated or broadened. Current verification guidance forbids
+mutable build paths in future import wrappers.
+
 #### Synthetic reader qualification
 
 The first derived correction-impact reader is implemented in Rust under
