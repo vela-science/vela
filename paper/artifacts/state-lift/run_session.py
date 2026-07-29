@@ -23,6 +23,7 @@ VELA_ROOT = "sha256:b4b85550aed52134ad2e21a3b1a163390ca1f16673811274b55b3b0f2089
 RUNTIME_ROOT = "sha256:1da3f4e0e96028b8a771814293c3033dafd1971f943f6c7e79b0897fe705f590"
 MODEL_ID = "gpt-5.6-sol"
 ARMS = {"git", "vela"}
+TOKEN_LIMIT = 50_000
 
 
 class SessionError(ValueError):
@@ -40,6 +41,66 @@ def sha256_file(path: Path) -> str:
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise SessionError(message)
+
+
+def extract_answer_from_events(events: bytes) -> tuple[bytes, int]:
+    """Recover the final structured answer from a completed Codex event stream."""
+    final_text: str | None = None
+    final_line = 0
+    for line_number, line in enumerate(events.splitlines(), start=1):
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError as error:
+            raise SessionError(
+                f"Codex event stream has invalid JSON at line {line_number}"
+            ) from error
+        if (
+            event.get("type") == "item.completed"
+            and isinstance(event.get("item"), dict)
+            and event["item"].get("type") == "agent_message"
+            and isinstance(event["item"].get("text"), str)
+        ):
+            final_text = event["item"]["text"]
+            final_line = line_number
+
+    require(final_text is not None, "Codex event stream contains no final answer")
+    try:
+        parsed = json.loads(final_text)
+    except json.JSONDecodeError as error:
+        raise SessionError("final Codex answer is not a JSON object") from error
+    require(isinstance(parsed, dict), "final Codex answer is not a JSON object")
+    return (final_text.strip() + "\n").encode(), final_line
+
+
+def extract_usage_from_events(events: bytes) -> dict[str, int]:
+    """Return the terminal usage counters from a completed Codex event stream."""
+    final_usage: dict[str, int] | None = None
+    for line_number, line in enumerate(events.splitlines(), start=1):
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError as error:
+            raise SessionError(
+                f"Codex event stream has invalid JSON at line {line_number}"
+            ) from error
+        if event.get("type") == "turn.completed":
+            usage = event.get("usage")
+            require(isinstance(usage, dict), "completed turn has no usage object")
+            required = (
+                "input_tokens",
+                "cached_input_tokens",
+                "output_tokens",
+                "reasoning_output_tokens",
+            )
+            require(
+                all(isinstance(usage.get(key), int) for key in required),
+                "completed turn has invalid usage counters",
+            )
+            final_usage = {key: usage[key] for key in required}
+    require(final_usage is not None, "Codex event stream contains no completed turn")
+    final_usage["observed_tokens"] = (
+        final_usage["input_tokens"] + final_usage["output_tokens"]
+    )
+    return final_usage
 
 
 def run(
@@ -116,11 +177,12 @@ def main() -> int:
     parser.add_argument("--frontier", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    output = args.output.resolve()
 
     here = Path(__file__).resolve().parent
     schema = here / "answer.schema.json"
     require(args.session_id.startswith(f"{args.arm}-"), "session ID/arm mismatch")
-    require(not args.output.exists(), "output already exists")
+    require(not output.exists(), "output already exists")
     require((args.codex_home / "auth.json").is_file(), "ephemeral model auth is missing")
     require(args.codex.is_file(), "Codex binary is missing")
     require(args.vela.is_file(), "Vela binary is missing")
@@ -137,7 +199,7 @@ def main() -> int:
     )
     require(status.returncode == 0 and not status.stdout.strip(), "source Frontier is dirty")
 
-    args.output.mkdir(parents=True)
+    output.mkdir(parents=True)
     with tempfile.TemporaryDirectory(prefix=f"vela-state-lift-{args.session_id}-") as temp:
         temporary = Path(temp)
         clone = temporary / "frontier"
@@ -173,9 +235,9 @@ def main() -> int:
             require(sha256_file(session_vela) == VELA_ROOT, "session Vela root drift")
 
         make_read_only(clone)
-        events_path = args.output / "events.jsonl"
-        answer_path = args.output / "answer.v1.json"
-        stderr_path = args.output / "stderr.txt"
+        events_path = output / "events.jsonl"
+        answer_path = output / "answer.v1.json"
+        stderr_path = output / "stderr.txt"
         command = [
             str(args.codex),
             "exec",
@@ -217,6 +279,19 @@ def main() -> int:
         completed = time.time()
         events_path.write_bytes(result.stdout)
         stderr_path.write_bytes(result.stderr)
+        usage = (
+            extract_usage_from_events(result.stdout)
+            if result.returncode == 0
+            else None
+        )
+        answer_capture = "output_last_message"
+        answer_event_line: int | None = None
+        if result.returncode == 0 and not answer_path.is_file():
+            recovered_answer, answer_event_line = extract_answer_from_events(
+                result.stdout
+            )
+            answer_path.write_bytes(recovered_answer)
+            answer_capture = "final_agent_message_event"
 
         post_status = run(
             ["git", "status", "--porcelain=v1", "--untracked-files=all"],
@@ -235,18 +310,29 @@ def main() -> int:
             "events_root": sha256_file(events_path),
             "stderr_root": sha256_file(stderr_path),
             "answer_root": answer_root,
+            "answer_capture": answer_capture,
+            "answer_event_line": answer_event_line,
+            "usage": usage,
+            "observed_token_limit": TOKEN_LIMIT,
+            "within_observed_token_limit": (
+                usage is not None and usage["observed_tokens"] <= TOKEN_LIMIT
+            ),
             "workspace_dirty_after": bool(post_status.stdout.strip()),
             "network_allowed_to_tools": False,
             "authority_credentials_available": False,
             "model_auth_custody": "supervisor-owned ephemeral CODEX_HOME",
         }
-        (args.output / "record.v1.json").write_text(
+        (output / "record.v1.json").write_text(
             json.dumps(record, sort_keys=True, indent=2) + "\n",
             encoding="utf-8",
         )
         require(result.returncode == 0, "Codex session failed")
         require(answer_path.is_file(), "Codex session emitted no answer")
         require(not post_status.stdout.strip(), "session changed the Frontier")
+        require(
+            usage is not None and usage["observed_tokens"] <= TOKEN_LIMIT,
+            "session exceeded the registered observed-token limit",
+        )
 
     print(
         json.dumps(
@@ -254,7 +340,7 @@ def main() -> int:
                 "ok": True,
                 "session_id": args.session_id,
                 "arm": args.arm,
-                "output": str(args.output.resolve()),
+                "output": str(output),
                 "answer_root": answer_root,
             },
             sort_keys=True,
