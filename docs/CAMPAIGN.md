@@ -1274,6 +1274,54 @@ For every proposed feature, record:
 
 Failure deletes or narrows the feature. It does not create a new abstraction.
 
+### Product and adoption contract
+
+The product is one exact state model presented through four deliberately
+different surfaces:
+
+1. the public Observatory is a credential-free read-only explanation and
+   reproduction surface;
+2. the released local CLI is the current operator surface for exact previews
+   and human-controlled repository transactions;
+3. Git forges carry collaboration, checks, distribution, and notifications but
+   never confer scientific Standing; and
+4. JSON, CLI, and bounded task packets give machines the same rooted objects
+   under a lower authority ceiling.
+
+The two signature interactions are **Why this stands** and **Scientific
+Diff**. The first returns the shortest exact route from Standing through the
+terminal Decision, scoped Verification, Submission, and evidence. The second
+shows the semantic before/after state, verifier scope and nonclaims, downstream
+impact, unresolved obligations, and expected authority effect. Both begin as
+derived, root-bound reads over current objects. Neither authorizes a new
+canonical schema or hosted writer.
+
+Evaluate them with five frozen tasks:
+
+1. explain one Claim's Standing, evidence route, verifier scope, Decision, and
+   open caveat;
+2. review one Proposal's requested transition, missing check, downstream
+   impact, and authority effect;
+3. continue one failed Run without repeating the retained failed route;
+4. localize one correction into affected, surviving, and repair-required
+   paths; and
+5. compare human and agent answers for exact object, root, Standing, caveat,
+   relation-path, and next-action parity.
+
+The matched baseline is Git plus the same files, evidence, verifier, and
+ordinary documentation. Expansion requires at least 20 percent improvement in
+the relevant evidence-location, review, correction, or continuation measure,
+zero false inference that Verification or Git merge equals acceptance, and no
+loss of exactness or accessibility. Adoption additionally requires a
+non-maintainer to complete a cold workflow without live coaching; first-party
+sessions do not count.
+
+Compatibility should compose existing standards rather than duplicate them:
+MCP and A2A may transport tools and tasks, RO-Crate may carry exact research
+objects, W3C PROV may receive an explicit projection, and SLSA, in-toto,
+Sigstore, DSSE, OpenSSH, or Cedar may cover supply-chain, signing, or policy
+mechanics. None of those transports or envelopes creates Vela Standing.
+
 ## Invariants and stop conditions
 
 - Canonical Git Frontiers remain the scientific source of truth.

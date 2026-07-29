@@ -65,6 +65,11 @@ registered call ceiling cannot fit it. No framework runtime was added.
   reviewer evidence-location or correction time.
 - Treat the exact Proposal Scientific Diff and `why` explanation as the first
   product surfaces to improve; prove read value before adding more write UX.
+- Run the five matched comprehension tasks in
+  [CAMPAIGN.md](CAMPAIGN.md#product-and-adoption-contract) before expanding the
+  Observatory or adding a visual local operator. Require at least 20 percent
+  task lift, zero false acceptance inference, and one uncoached non-maintainer
+  workflow before making an adoption claim.
 
 ## P1: prove correction-aware compounding
 
