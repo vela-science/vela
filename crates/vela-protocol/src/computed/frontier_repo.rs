@@ -13,7 +13,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
-use crate::current_repository::{CURRENT_FRONTIER_PROFILE_SCHEMA_V2, CurrentFrontierProfileV2};
+use crate::current_repository::{
+    CURRENT_FRONTIER_PROFILE_SCHEMA_V2, CurrentFrontierProfileV2, FrontierProfileLicenseV2,
+    FrontierProfileScopeV2,
+};
 use crate::events;
 use crate::frontier_profile::{
     FRONTIER_PROFILE_SCHEMA_V1, FrontierProfileLicenseV1, FrontierProfileScopeV1, FrontierProfileV1,
@@ -528,13 +531,13 @@ fn initialize_current_minimal_in_place(
         frontier_id: frontier_id.clone(),
         name: name.to_string(),
         summary: scope.to_string(),
-        scope: FrontierProfileScopeV1 {
+        scope: FrontierProfileScopeV2 {
             question: scope.to_string(),
             includes: Vec::new(),
             excludes: Vec::new(),
         },
         maintainers: Vec::new(),
-        license: FrontierProfileLicenseV1 {
+        license: FrontierProfileLicenseV2 {
             content: "CC-BY-4.0".to_string(),
             code: "Apache-2.0".to_string(),
             data: "varies".to_string(),

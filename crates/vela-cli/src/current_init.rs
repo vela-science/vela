@@ -11,9 +11,9 @@ use serde::Serialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vela_protocol::current_repository::{
-    CURRENT_FRONTIER_PROFILE_SCHEMA_V2, CurrentFrontierProfileV2,
+    CURRENT_FRONTIER_PROFILE_SCHEMA_V2, CurrentFrontierProfileV2, FrontierProfileLicenseV2,
+    FrontierProfileScopeV2,
 };
-use vela_protocol::frontier_profile::{FrontierProfileLicenseV1, FrontierProfileScopeV1};
 use vela_protocol::frontier_settings::{FRONTIER_SETTINGS_SCHEMA, FrontierSettingsV1};
 
 #[derive(Debug, Clone)]
@@ -155,13 +155,13 @@ fn initialize_in_place(path: &Path, options: &CurrentInitOptions<'_>) -> Result<
         frontier_id: frontier_id.clone(),
         name: name.into(),
         summary: scope.into(),
-        scope: FrontierProfileScopeV1 {
+        scope: FrontierProfileScopeV2 {
             question: scope.into(),
             includes: Vec::new(),
             excludes: Vec::new(),
         },
         maintainers: Vec::new(),
-        license: FrontierProfileLicenseV1 {
+        license: FrontierProfileLicenseV2 {
             content: "CC-BY-4.0".into(),
             code: "Apache-2.0".into(),
             data: "varies".into(),

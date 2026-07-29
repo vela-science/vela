@@ -8,17 +8,19 @@
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sha2::{Digest, Sha256};
-
-use crate::bundle::Artifact;
-use crate::frontier_profile::{
-    FrontierProfileLicenseV1, FrontierProfileScopeV1, reject_yaml_indirection,
-    validate_profile_metadata, validate_yaml_structure,
-};
+use unicode_normalization::UnicodeNormalization;
 
 pub const CURRENT_REPOSITORY_SCHEMA_V2: &str = "vela.repository.v2";
 pub const CURRENT_FRONTIER_PROFILE_SCHEMA_V2: &str = "vela.frontier-profile.v2";
 pub const CURRENT_ARTIFACT_RECORD_SCHEMA_V1: &str = "vela.artifact-record.v1";
+const PROFILE_NAME_MAX_BYTES: usize = 256;
+const PROFILE_SUMMARY_MAX_BYTES: usize = 2 * 1024;
+const PROFILE_QUESTION_MAX_BYTES: usize = 4 * 1024;
+const PROFILE_SCOPE_ITEM_MAX_BYTES: usize = 2 * 1024;
+const PROFILE_MAINTAINER_MAX_BYTES: usize = 256;
+const PROFILE_LICENSE_MAX_BYTES: usize = 256;
 
 /// Exact current wrapper for an Artifact descriptor imported from Era 0.
 ///
@@ -30,28 +32,18 @@ pub const CURRENT_ARTIFACT_RECORD_SCHEMA_V1: &str = "vela.artifact-record.v1";
 pub struct CurrentArtifactRecordV1 {
     pub schema: String,
     pub artifact_id: String,
-    pub artifact: Artifact,
+    /// Exact descriptor imported at the repository epoch boundary.
+    ///
+    /// Imported descriptors are immutable evidence, not a live protocol
+    /// object model. Keeping their closed record wrapper while treating the
+    /// nested predecessor descriptor as canonical JSON avoids retaining the
+    /// entire historical Finding bundle runtime.
+    pub artifact: Value,
     pub imported_object_root: String,
     pub predecessor_commit: String,
 }
 
 impl CurrentArtifactRecordV1 {
-    pub fn build(
-        artifact: Artifact,
-        imported_object_root: String,
-        predecessor_commit: String,
-    ) -> Result<Self, String> {
-        let value = Self {
-            schema: CURRENT_ARTIFACT_RECORD_SCHEMA_V1.into(),
-            artifact_id: artifact.id.clone(),
-            artifact,
-            imported_object_root,
-            predecessor_commit,
-        };
-        value.verify()?;
-        Ok(value)
-    }
-
     pub fn parse(bytes: &[u8]) -> Result<Self, String> {
         let value: Self = serde_json::from_slice(bytes)
             .map_err(|error| format!("parse current Artifact Record v1: {error}"))?;
@@ -68,10 +60,19 @@ impl CurrentArtifactRecordV1 {
                 "current Artifact Record schema must be `{CURRENT_ARTIFACT_RECORD_SCHEMA_V1}`"
             ));
         }
-        self.artifact.validate_reference_axes()?;
-        if self.artifact_id != self.artifact.id {
+        let descriptor = self
+            .artifact
+            .as_object()
+            .ok_or_else(|| "current Artifact Record descriptor must be an object".to_string())?;
+        let descriptor_id = descriptor
+            .get("id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| "current Artifact Record descriptor lacks its ID".to_string())?;
+        if self.artifact_id != descriptor_id {
             return Err("current Artifact Record ID does not match its descriptor".into());
         }
+        require_prefixed("artifact.artifact_id", &self.artifact_id, "va_")?;
+        validate_imported_artifact_axes(descriptor)?;
         require_sha256("artifact.imported_object_root", &self.imported_object_root)?;
         require_git_oid("artifact.predecessor_commit", &self.predecessor_commit)?;
         Ok(())
@@ -90,6 +91,22 @@ impl CurrentArtifactRecordV1 {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct FrontierProfileScopeV2 {
+    pub question: String,
+    pub includes: Vec<String>,
+    pub excludes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct FrontierProfileLicenseV2 {
+    pub content: String,
+    pub code: String,
+    pub data: String,
+}
+
 /// Current-only repository metadata.
 ///
 /// Profile v2 deliberately keeps the small, human-editable field set from
@@ -103,9 +120,9 @@ pub struct CurrentFrontierProfileV2 {
     pub frontier_id: String,
     pub name: String,
     pub summary: String,
-    pub scope: FrontierProfileScopeV1,
+    pub scope: FrontierProfileScopeV2,
     pub maintainers: Vec<String>,
-    pub license: FrontierProfileLicenseV1,
+    pub license: FrontierProfileLicenseV2,
 }
 
 impl CurrentFrontierProfileV2 {
@@ -128,13 +145,48 @@ impl CurrentFrontierProfileV2 {
                 "profile.schema must be `{CURRENT_FRONTIER_PROFILE_SCHEMA_V2}`"
             ));
         }
-        validate_profile_metadata(
-            &self.frontier_id,
-            &self.name,
-            &self.summary,
-            &self.scope,
+        validate_frontier_id(&self.frontier_id)?;
+        validate_profile_text("profile.name", &self.name, PROFILE_NAME_MAX_BYTES)?;
+        validate_profile_text("profile.summary", &self.summary, PROFILE_SUMMARY_MAX_BYTES)?;
+        validate_profile_text(
+            "profile.scope.question",
+            &self.scope.question,
+            PROFILE_QUESTION_MAX_BYTES,
+        )?;
+        let includes = validate_unique_profile_text(
+            "profile.scope.includes",
+            &self.scope.includes,
+            PROFILE_SCOPE_ITEM_MAX_BYTES,
+        )?;
+        let excludes = validate_unique_profile_text(
+            "profile.scope.excludes",
+            &self.scope.excludes,
+            PROFILE_SCOPE_ITEM_MAX_BYTES,
+        )?;
+        if includes.intersection(&excludes).next().is_some() {
+            return Err(
+                "profile.scope cannot contain the same statement in includes and excludes".into(),
+            );
+        }
+        validate_unique_profile_text(
+            "profile.maintainers",
             &self.maintainers,
-            &self.license,
+            PROFILE_MAINTAINER_MAX_BYTES,
+        )?;
+        validate_profile_text(
+            "profile.license.content",
+            &self.license.content,
+            PROFILE_LICENSE_MAX_BYTES,
+        )?;
+        validate_profile_text(
+            "profile.license.code",
+            &self.license.code,
+            PROFILE_LICENSE_MAX_BYTES,
+        )?;
+        validate_profile_text(
+            "profile.license.data",
+            &self.license.data,
+            PROFILE_LICENSE_MAX_BYTES,
         )
     }
 
@@ -308,6 +360,196 @@ fn verify_object_refs(field: &str, references: &[RepositoryObjectRefV1]) -> Resu
     Ok(())
 }
 
+fn validate_imported_artifact_axes(
+    descriptor: &serde_json::Map<String, Value>,
+) -> Result<(), String> {
+    let disclosure = descriptor
+        .get("disclosure")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown");
+    let content_hash = descriptor
+        .get("content_hash")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "current Artifact descriptor lacks content_hash".to_string())?;
+    let locator = descriptor.get("locator").and_then(Value::as_str);
+    match disclosure {
+        "public" => require_sha256("artifact.content_hash", content_hash)?,
+        "restricted" => {
+            if !content_hash.is_empty() {
+                return Err(
+                    "restricted artifact must use an opaque custodian reference; public digest disclosure requires a separately reviewed commitment scheme"
+                        .into(),
+                );
+            }
+            if !locator.is_some_and(|value| {
+                value.starts_with("custodian:") || value.starts_with("opaque:")
+            }) {
+                return Err(
+                    "restricted artifact requires an opaque custodian: or opaque: locator".into(),
+                );
+            }
+        }
+        "unknown" => {}
+        _ => return Err("current Artifact descriptor has an invalid disclosure".into()),
+    }
+    let storage_mode = descriptor
+        .get("storage_mode")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "current Artifact descriptor lacks storage_mode".to_string())?;
+    let availability = descriptor
+        .get("availability")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown");
+    if storage_mode == "local_blob" && availability == "unavailable" {
+        return Err("local_blob artifact cannot be declared unavailable".into());
+    }
+    Ok(())
+}
+
+fn validate_frontier_id(value: &str) -> Result<(), String> {
+    let suffix = value
+        .strip_prefix("vfr_")
+        .ok_or_else(|| "profile.frontier_id must be vfr_<16 lowercase hex>".to_string())?;
+    if suffix.len() != 16 || !suffix.bytes().all(is_lower_hex) {
+        return Err("profile.frontier_id must be vfr_<16 lowercase hex>".into());
+    }
+    Ok(())
+}
+
+fn validate_profile_text(field: &str, value: &str, max_bytes: usize) -> Result<(), String> {
+    if value.trim().is_empty() {
+        return Err(format!("{field} must not be empty"));
+    }
+    if value.len() > max_bytes {
+        return Err(format!("{field} must be at most {max_bytes} UTF-8 bytes"));
+    }
+    if value.nfc().collect::<String>() != value {
+        return Err(format!("{field} must use Unicode NFC normalization"));
+    }
+    if value
+        .chars()
+        .any(|character| character.is_control() && character != '\n')
+    {
+        return Err(format!("{field} contains a forbidden control character"));
+    }
+    Ok(())
+}
+
+fn validate_unique_profile_text(
+    field: &str,
+    values: &[String],
+    max_item_bytes: usize,
+) -> Result<BTreeSet<String>, String> {
+    let mut observed = BTreeSet::new();
+    for (index, value) in values.iter().enumerate() {
+        validate_profile_text(&format!("{field}[{index}]"), value, max_item_bytes)?;
+        if !observed.insert(value.nfc().collect()) {
+            return Err(format!("{field} must not contain duplicate values"));
+        }
+    }
+    Ok(observed)
+}
+
+/// Reject YAML anchors, aliases, and explicit tags before Serde resolves them.
+fn reject_yaml_indirection(source: &str) -> Result<(), String> {
+    let characters = source.chars().collect::<Vec<_>>();
+    let mut index = 0;
+    let mut single_quoted = false;
+    let mut double_quoted = false;
+    let mut double_escape = false;
+    let mut comment = false;
+    while index < characters.len() {
+        let character = characters[index];
+        if comment {
+            comment = character != '\n';
+            index += 1;
+            continue;
+        }
+        if single_quoted {
+            if character == '\'' {
+                if characters.get(index + 1) == Some(&'\'') {
+                    index += 2;
+                    continue;
+                }
+                single_quoted = false;
+            }
+            index += 1;
+            continue;
+        }
+        if double_quoted {
+            if double_escape {
+                double_escape = false;
+            } else if character == '\\' {
+                double_escape = true;
+            } else if character == '"' {
+                double_quoted = false;
+            }
+            index += 1;
+            continue;
+        }
+        let previous = index
+            .checked_sub(1)
+            .and_then(|offset| characters.get(offset));
+        match character {
+            '\'' => single_quoted = true,
+            '"' => double_quoted = true,
+            '#' if previous.is_none_or(|value| value.is_whitespace()) => comment = true,
+            '&' | '*'
+                if previous.is_none_or(|value| {
+                    value.is_whitespace() || matches!(value, '-' | '[' | '{' | ',' | ':')
+                }) && characters.get(index + 1).is_some_and(|value| {
+                    !value.is_whitespace() && !matches!(value, ']' | '}' | ',' | '#')
+                }) =>
+            {
+                return Err(format!(
+                    "{CURRENT_FRONTIER_PROFILE_SCHEMA_V2} forbids YAML anchors and aliases"
+                ));
+            }
+            '!' if previous.is_none_or(|value| {
+                value.is_whitespace() || matches!(value, '-' | '[' | '{' | ',' | ':')
+            }) && characters.get(index + 1).is_some_and(|value| {
+                !value.is_whitespace() && !matches!(value, ']' | '}' | ',' | '#')
+            }) =>
+            {
+                return Err(format!(
+                    "{CURRENT_FRONTIER_PROFILE_SCHEMA_V2} forbids explicit YAML tags"
+                ));
+            }
+            _ => {}
+        }
+        index += 1;
+    }
+    Ok(())
+}
+
+fn validate_yaml_structure(value: &serde_yaml::Value) -> Result<(), String> {
+    match value {
+        serde_yaml::Value::Mapping(mapping) => {
+            for (key, value) in mapping {
+                if key.as_str() == Some("<<") {
+                    return Err(format!(
+                        "{CURRENT_FRONTIER_PROFILE_SCHEMA_V2} forbids YAML merge keys"
+                    ));
+                }
+                validate_yaml_structure(key)?;
+                validate_yaml_structure(value)?;
+            }
+        }
+        serde_yaml::Value::Sequence(sequence) => {
+            for value in sequence {
+                validate_yaml_structure(value)?;
+            }
+        }
+        serde_yaml::Value::Tagged(_) => {
+            return Err(format!(
+                "{CURRENT_FRONTIER_PROFILE_SCHEMA_V2} forbids explicit YAML tags"
+            ));
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
 fn require_text(field: &str, value: &str) -> Result<(), String> {
     if value.trim().is_empty() || value != value.trim() || value.chars().any(char::is_control) {
         return Err(format!(
@@ -431,13 +673,13 @@ mod tests {
             frontier_id: "vfr_0123456789abcdef".into(),
             name: "Example".into(),
             summary: "A bounded example Frontier.".into(),
-            scope: FrontierProfileScopeV1 {
+            scope: FrontierProfileScopeV2 {
                 question: "What is true?".into(),
                 includes: vec!["Exact claims.".into()],
                 excludes: vec!["Unbounded claims.".into()],
             },
             maintainers: vec!["Example Maintainer".into()],
-            license: FrontierProfileLicenseV1 {
+            license: FrontierProfileLicenseV2 {
                 content: "CC-BY-4.0".into(),
                 code: "Apache-2.0 OR MIT".into(),
                 data: "CC0-1.0".into(),
