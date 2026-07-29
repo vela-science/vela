@@ -366,6 +366,20 @@ standard-axiom audit. It does not establish statement fidelity beyond the
 source-bound packet, solve the general Borsuk conjecture, or constitute
 scientific acceptance.
 
+The first registration preflight reproduced a local trust-pin lifecycle
+defect after the signed repository-epoch transition: the independently stored
+GitHub root and current sequence-one record agreed, but the public CLI could
+neither reuse nor safely advance the predecessor local pin. Commit
+`a06aee0c` makes an identical pin idempotent and exposes the edge layer's
+existing exact-preimage compare-and-swap through
+`--previous-record-root`. The real Formal pin advanced from
+`sha256:4f6a35939bf14cee6b1fdcbf66c798dec17a8450bf779d33f912d44f36fe8a41`
+to
+`sha256:446b63d23b99dbbf39159484303c8a4ee5a75907c64518845064c5b8dace9ad4`;
+an immediate retry wrote nothing, `doctor --all` passed, and no key or Frontier
+byte was touched. Submission registration now waits only for the human-run
+repository service credential.
+
 This is useful product evidence, not breakthrough evidence. It leaves the
 [protocol breakthrough benchmark](BREAKTHROUGH_BENCHMARK.md) at Level 0:
 there is no qualifying real correction fixture, second Frontier, held-out
