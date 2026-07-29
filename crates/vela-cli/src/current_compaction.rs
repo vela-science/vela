@@ -402,17 +402,11 @@ fn verify_activation_result(result_path: &Path) -> Result<VerifiedActivation, St
     let worktree = PathBuf::from(&result.worktree)
         .canonicalize()
         .map_err(|error| format!("resolve activation worktree {}: {error}", result.worktree))?;
-    if !git_output(
-        &worktree,
-        &["status", "--porcelain=v1", "--untracked-files=all"],
-    )?
-    .is_empty()
-    {
-        return Err(format!(
-            "activation worktree {} is not clean",
-            worktree.display()
-        ));
-    }
+    // Publication names the already-created commit object, not the activation
+    // worktree or its index. Deep verification below re-reads every canonical
+    // object that the commit binds. Scanning unrelated worktree files here is
+    // both irrelevant to the published bytes and pathologically slow for the
+    // preserved audit worktrees on cold archival storage.
     let compacted_commit = git_output(&worktree, &["rev-parse", "HEAD^{commit}"])?;
     if compacted_commit != result.commit {
         return Err(format!(
@@ -796,7 +790,7 @@ fn activate_compaction_candidate(
         ));
     }
     require_clean_source(&frontier, &plan)?;
-    let repository = crate::current_repository::verify_current_repository_at(&frontier, true)?;
+    let repository = crate::current_repository::verify_predecessor_repository_at(&frontier, true)?;
     let epoch = RepositoryBoundaryV1::parse(
         &fs::read(frontier.join(".vela/epoch.json"))
             .map_err(|error| format!("read source repository boundary: {error}"))?,
@@ -1164,7 +1158,7 @@ fn remove_predecessor_current_state(worktree: &Path) -> Result<(), String> {
 pub(crate) fn audit_artifact_compaction(
     frontier: &Path,
 ) -> Result<Vec<ArtifactCompactionMapV1>, String> {
-    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let repository = crate::current_repository::verify_predecessor_repository_at(frontier, true)?;
     let mut mappings = Vec::new();
     for reference in &repository.artifacts {
         if reference.schema != CURRENT_ARTIFACT_RECORD_SCHEMA_V1 {
@@ -1186,7 +1180,7 @@ fn audit_claim_compaction(
     frontier: &Path,
     artifact_map: &[ArtifactCompactionMapV1],
 ) -> Result<ClaimCompactionAudit, String> {
-    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let repository = crate::current_repository::verify_predecessor_repository_at(frontier, true)?;
     let artifact_by_predecessor = artifact_map
         .iter()
         .map(|mapping| (mapping.predecessor_artifact_id.as_str(), mapping))
@@ -1493,7 +1487,7 @@ fn materialize_candidate_inner(
     artifact_map_root: &str,
     equivalence_report_root: &str,
 ) -> Result<serde_json::Value, String> {
-    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let repository = crate::current_repository::verify_predecessor_repository_at(frontier, true)?;
     let epoch_bytes = fs::read(frontier.join(".vela/epoch.json"))
         .map_err(|error| format!("read current repository boundary: {error}"))?;
     let epoch = RepositoryBoundaryV1::parse(&epoch_bytes)?;
@@ -1891,17 +1885,13 @@ fn verify_materialized_candidate(root: &Path) -> Result<usize, String> {
         }
     }
 
+    let candidate_objects = read_candidate_objects(root, &manifest.objects)?;
     for reference in &manifest.objects {
-        let bytes = fs::read(root.join(&reference.path))
-            .map_err(|error| format!("read candidate object {}: {error}", reference.path))?;
-        if root_bytes(&bytes) != reference.root {
-            return Err(format!(
-                "candidate object {} does not match {}",
-                reference.path, reference.root
-            ));
-        }
+        let bytes = candidate_objects
+            .get(&reference.path)
+            .ok_or_else(|| format!("candidate object {} was not loaded", reference.path))?;
         if reference.schema == vela_protocol::claim_record::CLAIM_RECORD_V1_SCHEMA {
-            let claim = ClaimRecordV1::parse(&bytes)?;
+            let claim = ClaimRecordV1::parse(bytes)?;
             if claim.claim_id != reference.id
                 || claim
                     .evidence
@@ -1949,6 +1939,58 @@ fn verify_materialized_candidate(root: &Path) -> Result<usize, String> {
         return Err("candidate package contains missing or unexplained files".into());
     }
     Ok(files.len())
+}
+
+fn read_candidate_objects(
+    root: &Path,
+    references: &[RepositoryObjectRefV1],
+) -> Result<BTreeMap<String, Vec<u8>>, String> {
+    if references.is_empty() {
+        return Ok(BTreeMap::new());
+    }
+    let parallelism = std::thread::available_parallelism()
+        .map(|value| usize::from(value).saturating_mul(8))
+        .unwrap_or(32)
+        .clamp(1, 64);
+    let chunk_size = references.len().div_ceil(parallelism);
+    let batches = std::thread::scope(|scope| {
+        let mut handles = Vec::new();
+        for chunk in references.chunks(chunk_size) {
+            handles.push(scope.spawn(move || {
+                chunk
+                    .iter()
+                    .map(|reference| {
+                        let bytes = fs::read(root.join(&reference.path)).map_err(|error| {
+                            format!("read candidate object {}: {error}", reference.path)
+                        })?;
+                        if root_bytes(&bytes) != reference.root {
+                            return Err(format!(
+                                "candidate object {} does not match {}",
+                                reference.path, reference.root
+                            ));
+                        }
+                        Ok((reference.path.clone(), bytes))
+                    })
+                    .collect::<Vec<Result<(String, Vec<u8>), String>>>()
+            }));
+        }
+        handles
+            .into_iter()
+            .map(|handle| {
+                handle
+                    .join()
+                    .map_err(|_| "candidate object reader thread panicked".to_string())
+            })
+            .collect::<Result<Vec<_>, _>>()
+    })?;
+    let mut loaded = BTreeMap::new();
+    for batch in batches {
+        for result in batch {
+            let (path, bytes) = result?;
+            loaded.insert(path, bytes);
+        }
+    }
+    Ok(loaded)
 }
 
 fn write_exact_candidate(

@@ -270,7 +270,7 @@ fn current_check_refuses_retired_repositories_before_parsing_them() {
         assert!(
             payload["error"]["message"]
                 .as_str()
-                .is_some_and(|message| message.contains("current repository epochs"))
+                .is_some_and(|message| message.contains("current repository origins"))
         );
     }
 }

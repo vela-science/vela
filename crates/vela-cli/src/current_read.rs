@@ -15,16 +15,16 @@ use sha2::{Digest, Sha256};
 use vela_protocol::authority::AuthorityEventV1;
 use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::current_repository::{
-    ClaimStandingRefV1, CurrentRepositoryV2, RepositoryObjectRefV1,
+    ClaimStandingRefV1, CurrentRepositoryV3, RepositoryObjectRefV1,
 };
 use vela_protocol::proposal_v1::ProposalV1;
-use vela_protocol::repository_epoch::RepositoryBoundaryV1;
+use vela_protocol::repository_origin::RepositoryOriginV1;
 
 use crate::cli::{fail_return, print_json};
 use crate::current_repository::CurrentProposalDecision;
 
 struct CurrentReadContext {
-    repository: CurrentRepositoryV2,
+    repository: CurrentRepositoryV3,
     repository_root: String,
     proposals: Vec<(RepositoryObjectRefV1, ProposalV1)>,
     decisions: BTreeMap<String, CurrentProposalDecision>,
@@ -63,12 +63,13 @@ fn read_value(frontier: &Path, reference: &RepositoryObjectRefV1) -> Result<Valu
 }
 
 fn load_context(frontier: &Path) -> Result<CurrentReadContext, String> {
-    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let repository = crate::current_repository::load_compacted_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
-    let epoch_bytes = fs::read(frontier.join(".vela/epoch.json"))
-        .map_err(|error| format!("read current repository epoch: {error}"))?;
-    let epoch = RepositoryBoundaryV1::parse(&epoch_bytes)?;
-    let authority = crate::cli::load_current_repository_authority(frontier, &repository, &epoch)?;
+    let origin_bytes = fs::read(frontier.join(".vela/origin.json"))
+        .map_err(|error| format!("read current repository origin: {error}"))?;
+    let origin = RepositoryOriginV1::parse(&origin_bytes)?;
+    let authority =
+        crate::cli::load_compacted_repository_authority(frontier, &repository, &origin)?;
     let decisions =
         crate::current_repository::load_current_proposal_decisions(frontier, &repository)?;
     let proposals = repository

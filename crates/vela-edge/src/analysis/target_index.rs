@@ -15,15 +15,16 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 use vela_protocol::canonical;
-use vela_protocol::current_repository::CurrentRepositoryV2;
+use vela_protocol::current_repository::CurrentRepositoryV3;
 use vela_protocol::repository_inputs::{
     GitObjectFormat, RetainedObjectEntryV1, RetainedObjectManifestV1,
 };
 
-pub const TARGET_INDEX_SCHEMA_V3: &str = "vela.target-index.v3";
+pub const TARGET_INDEX_SCHEMA_V4: &str = "vela.target-index.v4";
+pub const PREDECESSOR_TARGET_INDEX_SCHEMA_V3: &str = "vela.target-index.v3";
 pub const TARGET_INDEX_CANDIDATE_SCHEMA_V1: &str = "vela.target-index-candidate.v1";
 pub const TARGET_INDEX_INPUT_MANIFEST_SCHEMA_V1: &str = "vela.target-index-input-manifest.v1";
-pub const TARGET_TASK_BINDING_SCHEMA_V2: &str = "vela.target-task-binding.v2";
+pub const TARGET_TASK_BINDING_SCHEMA_V3: &str = "vela.target-task-binding.v3";
 
 pub const TARGET_INDEX_JSON_MAX_BYTES: u64 = 4 * 1024 * 1024;
 pub const TARGET_PACKET_MAX_BYTES: u64 = 1024 * 1024;
@@ -115,20 +116,43 @@ pub struct TargetIndexEntryV2 {
 /// manifest is the sole scientific-state read boundary.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct TargetIndexRepositoryV3 {
+pub struct TargetIndexRepositoryV4 {
+    pub origin_id: String,
+    pub repository_root: String,
+}
+
+/// Read-only predecessor shape retained solely for the bounded compaction
+/// finalizer. Shipping work paths never construct or assess this value.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct PredecessorTargetIndexRepositoryV3 {
     pub epoch_id: String,
     pub repository_root: String,
 }
 
-/// Event-free Target Index for Profile v2/current repository epochs.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct TargetIndexV3 {
+pub struct PredecessorTargetIndexV3 {
     pub schema: String,
     pub frontier_id: String,
     pub source: TargetIndexSourceV2,
     pub inputs: TargetIndexInputManifestV1,
-    pub repository: TargetIndexRepositoryV3,
+    pub repository: PredecessorTargetIndexRepositoryV3,
+    pub claim_boundary: TargetIndexClaimBoundaryV2,
+    pub generated_by: TargetIndexGeneratorV2,
+    pub targets: Vec<TargetIndexEntryV2>,
+    pub index_root: String,
+}
+
+/// Event-free Target Index for current repository origins.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct TargetIndexV4 {
+    pub schema: String,
+    pub frontier_id: String,
+    pub source: TargetIndexSourceV2,
+    pub inputs: TargetIndexInputManifestV1,
+    pub repository: TargetIndexRepositoryV4,
     pub claim_boundary: TargetIndexClaimBoundaryV2,
     pub generated_by: TargetIndexGeneratorV2,
     pub targets: Vec<TargetIndexEntryV2>,
@@ -137,7 +161,7 @@ pub struct TargetIndexV3 {
 
 #[derive(Debug, Clone)]
 pub struct CurrentTargetIndexAssessment {
-    pub index: TargetIndexV3,
+    pub index: TargetIndexV4,
     pub global_issues: Vec<TargetIndexIssue>,
     pub target_issues: BTreeMap<String, Vec<TargetIndexIssue>>,
     packet_values: BTreeMap<String, Value>,
@@ -195,7 +219,7 @@ pub struct TargetTaskClaimReadSetV2 {
 /// reproducible starting point without becoming an authority surface.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct TargetTaskBindingV2 {
+pub struct TargetTaskBindingV3 {
     pub schema: String,
     pub frontier_id: String,
     pub target_id: String,
@@ -203,7 +227,7 @@ pub struct TargetTaskBindingV2 {
     pub source: TargetIndexSourceV2,
     pub input_root: String,
     pub packet: TargetPacketRefV2,
-    pub repository: TargetIndexRepositoryV3,
+    pub repository: TargetIndexRepositoryV4,
     pub claim_read_set: TargetTaskClaimReadSetV2,
     pub binding_root: String,
 }
@@ -250,7 +274,7 @@ pub struct TargetIndexSealPlan {
     pub index_path: &'static str,
     pub index_root: String,
     pub canonical_json: String,
-    pub index: TargetIndexV3,
+    pub index: TargetIndexV4,
     pub touched_paths: Vec<String>,
     #[serde(skip)]
     allowed_dirty_paths: BTreeSet<String>,
@@ -324,9 +348,9 @@ fn require_frontier_id(value: &str) -> Result<(), String> {
     }
 }
 
-fn require_epoch_id(field: &str, value: &str) -> Result<(), String> {
-    let Some(suffix) = value.strip_prefix("vre_") else {
-        return Err(format!("{field} must use the vre_<16 lowercase hex> form"));
+fn require_origin_id(field: &str, value: &str) -> Result<(), String> {
+    let Some(suffix) = value.strip_prefix("vro_") else {
+        return Err(format!("{field} must use the vro_<16 lowercase hex> form"));
     };
     if suffix.len() == 16
         && suffix
@@ -335,7 +359,7 @@ fn require_epoch_id(field: &str, value: &str) -> Result<(), String> {
     {
         Ok(())
     } else {
-        Err(format!("{field} must use the vre_<16 lowercase hex> form"))
+        Err(format!("{field} must use the vro_<16 lowercase hex> form"))
     }
 }
 
@@ -755,10 +779,10 @@ fn validate_target_index_common(
     Ok(())
 }
 
-impl TargetIndexV3 {
+impl TargetIndexV4 {
     pub fn validate(&self) -> Result<(), String> {
-        if self.schema != TARGET_INDEX_SCHEMA_V3 {
-            return Err(format!("schema must be {TARGET_INDEX_SCHEMA_V3}"));
+        if self.schema != TARGET_INDEX_SCHEMA_V4 {
+            return Err(format!("schema must be {TARGET_INDEX_SCHEMA_V4}"));
         }
         validate_target_index_common(
             &self.frontier_id,
@@ -768,7 +792,7 @@ impl TargetIndexV3 {
             &self.generated_by,
             &self.targets,
         )?;
-        require_epoch_id("repository.epoch_id", &self.repository.epoch_id)?;
+        require_origin_id("repository.origin_id", &self.repository.origin_id)?;
         require_sha256_root(
             "repository.repository_root",
             &self.repository.repository_root,
@@ -786,6 +810,57 @@ impl TargetIndexV3 {
             .as_object_mut()
             .ok_or_else(|| "target index did not serialize as an object".to_string())?;
         object.remove("index_root");
+        canonical_root(&value)
+    }
+
+    pub fn canonical_bytes(&self) -> Result<Vec<u8>, String> {
+        self.validate()?;
+        canonical::to_canonical_bytes(self).map_err(|error| error.to_string())
+    }
+}
+
+impl PredecessorTargetIndexV3 {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.schema != PREDECESSOR_TARGET_INDEX_SCHEMA_V3 {
+            return Err(format!(
+                "schema must be {PREDECESSOR_TARGET_INDEX_SCHEMA_V3}"
+            ));
+        }
+        validate_target_index_common(
+            &self.frontier_id,
+            &self.source,
+            &self.inputs,
+            &self.claim_boundary,
+            &self.generated_by,
+            &self.targets,
+        )?;
+        let Some(suffix) = self.repository.epoch_id.strip_prefix("vre_") else {
+            return Err("repository.epoch_id must use the vre_<16 lowercase hex> form".into());
+        };
+        if suffix.len() != 16
+            || !suffix
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        {
+            return Err("repository.epoch_id must use the vre_<16 lowercase hex> form".into());
+        }
+        require_sha256_root(
+            "repository.repository_root",
+            &self.repository.repository_root,
+        )?;
+        require_sha256_root("index_root", &self.index_root)?;
+        if self.computed_index_root()? != self.index_root {
+            return Err("index_root does not match the canonical index preimage".into());
+        }
+        Ok(())
+    }
+
+    pub fn computed_index_root(&self) -> Result<String, String> {
+        let mut value = serde_json::to_value(self).map_err(|error| error.to_string())?;
+        value
+            .as_object_mut()
+            .ok_or_else(|| "target index did not serialize as an object".to_string())?
+            .remove("index_root");
         canonical_root(&value)
     }
 
@@ -886,11 +961,11 @@ impl TargetIndexCandidateV1 {
     }
 }
 
-impl TargetTaskBindingV2 {
+impl TargetTaskBindingV3 {
     pub fn validate(&self) -> Result<(), String> {
-        if self.schema != TARGET_TASK_BINDING_SCHEMA_V2 {
+        if self.schema != TARGET_TASK_BINDING_SCHEMA_V3 {
             return Err(format!(
-                "binding.schema must be {TARGET_TASK_BINDING_SCHEMA_V2}"
+                "binding.schema must be {TARGET_TASK_BINDING_SCHEMA_V3}"
             ));
         }
         require_frontier_id(&self.frontier_id)?;
@@ -908,7 +983,7 @@ impl TargetTaskBindingV2 {
         )?;
         require_sha256_root("input_root", &self.input_root)?;
         self.packet.validate()?;
-        require_epoch_id("repository.epoch_id", &self.repository.epoch_id)?;
+        require_origin_id("repository.origin_id", &self.repository.origin_id)?;
         require_sha256_root(
             "repository.repository_root",
             &self.repository.repository_root,
@@ -943,9 +1018,9 @@ impl TargetTaskBindingV2 {
 fn exact_current_repository(
     repo_path: &Path,
     frontier_id: &str,
-    epoch_id: &str,
+    origin_id: &str,
     repository_root: &str,
-) -> Result<CurrentRepositoryV2, String> {
+) -> Result<CurrentRepositoryV3, String> {
     let path = repo_path.join(".vela/repository.json");
     let bytes = read_regular_file(&path, 8 * 1024 * 1024, "current repository manifest")?;
     let tracked = exact_tracked_head_bytes(repo_path, ".vela/repository.json", 8 * 1024 * 1024)?;
@@ -954,13 +1029,13 @@ fn exact_current_repository(
             "current repository manifest differs from the exact tracked HEAD blob".to_string(),
         );
     }
-    let repository = CurrentRepositoryV2::parse(&bytes)?;
+    let repository = CurrentRepositoryV3::parse(&bytes)?;
     if repository.frontier_id != frontier_id
-        || repository.epoch_id != epoch_id
+        || repository.origin_id != origin_id
         || repository.canonical_root()? != repository_root
     {
         return Err(
-            "current repository manifest does not match the requested Frontier epoch and root"
+            "current repository manifest does not match the requested Frontier origin and root"
                 .to_string(),
         );
     }
@@ -975,10 +1050,10 @@ pub fn build_current_target_task_binding(
     repo_path: &Path,
     assessment: &CurrentTargetIndexAssessment,
     frontier_id: &str,
-    epoch_id: &str,
+    origin_id: &str,
     repository_root: &str,
     target_id: &str,
-) -> Result<TargetTaskBindingV2, String> {
+) -> Result<TargetTaskBindingV3, String> {
     if !assessment.global_issues.is_empty()
         || assessment
             .target_issues
@@ -1002,7 +1077,7 @@ pub fn build_current_target_task_binding(
         ));
     }
     if assessment.index.frontier_id != frontier_id
-        || assessment.index.repository.epoch_id != epoch_id
+        || assessment.index.repository.origin_id != origin_id
         || assessment.index.repository.repository_root != repository_root
     {
         return Err(
@@ -1010,15 +1085,15 @@ pub fn build_current_target_task_binding(
                 .to_string(),
         );
     }
-    exact_current_repository(repo_path, frontier_id, epoch_id, repository_root)?;
+    exact_current_repository(repo_path, frontier_id, origin_id, repository_root)?;
 
     let git_object_format = repository_object_format(repo_path)?;
     let git_commit = git_text(repo_path, &["rev-parse", "HEAD^{commit}"])?;
     require_git_object("claim_read_set.git_commit", &git_commit, git_object_format)?;
     let git_tree = git_text(repo_path, &["rev-parse", "HEAD^{tree}"])?;
     require_git_object("claim_read_set.git_tree", &git_tree, git_object_format)?;
-    let mut binding = TargetTaskBindingV2 {
-        schema: TARGET_TASK_BINDING_SCHEMA_V2.to_string(),
+    let mut binding = TargetTaskBindingV3 {
+        schema: TARGET_TASK_BINDING_SCHEMA_V3.to_string(),
         frontier_id: frontier_id.to_string(),
         target_id: target.id.clone(),
         target_index_root: assessment.index.index_root.clone(),
@@ -1044,13 +1119,13 @@ pub fn build_current_target_task_binding(
 /// index, packet, source, and original claim tree must remain available.
 pub fn revalidate_current_target_task_binding(
     repo_path: &Path,
-    binding: &TargetTaskBindingV2,
+    binding: &TargetTaskBindingV3,
 ) -> Result<(), String> {
     binding.validate()?;
     exact_current_repository(
         repo_path,
         &binding.frontier_id,
-        &binding.repository.epoch_id,
+        &binding.repository.origin_id,
         &binding.repository.repository_root,
     )?;
     let resolved = git_text(
@@ -1076,7 +1151,7 @@ pub fn revalidate_current_target_task_binding(
     let assessment = assess_current_target_index(
         repo_path,
         &binding.frontier_id,
-        &binding.repository.epoch_id,
+        &binding.repository.origin_id,
         &binding.repository.repository_root,
     )?
     .ok_or_else(|| "current target binding Target Index is unavailable".to_string())?;
@@ -1653,7 +1728,7 @@ fn source_input_entry(
     })
 }
 
-/// Derive a complete Target Index v3 for one current repository.
+/// Derive a complete Target Index v4 for one current repository.
 ///
 /// This function performs no writes. Candidate semantics come only from the
 /// closed domain-owned candidate. Vela derives the exact Git input manifest,
@@ -1663,14 +1738,14 @@ pub fn prepare_current_target_index_seal(
     candidate_path: &Path,
     binary_version: &str,
     frontier_id: &str,
-    epoch_id: &str,
+    origin_id: &str,
     repository_root: &str,
 ) -> Result<TargetIndexSealPlan, String> {
     validate_semver(binary_version)?;
     require_frontier_id(frontier_id)?;
-    require_epoch_id("epoch_id", epoch_id)?;
+    require_origin_id("origin_id", origin_id)?;
     require_sha256_root("repository_root", repository_root)?;
-    exact_current_repository(repo_path, frontier_id, epoch_id, repository_root)?;
+    exact_current_repository(repo_path, frontier_id, origin_id, repository_root)?;
 
     let candidate_path = exact_candidate_path(repo_path, candidate_path);
     let candidate_bytes = read_regular_file(
@@ -1801,13 +1876,13 @@ pub fn prepare_current_target_index_seal(
         });
     }
 
-    let mut index = TargetIndexV3 {
-        schema: TARGET_INDEX_SCHEMA_V3.to_string(),
+    let mut index = TargetIndexV4 {
+        schema: TARGET_INDEX_SCHEMA_V4.to_string(),
         frontier_id: frontier_id.to_string(),
         source: source.clone(),
         inputs,
-        repository: TargetIndexRepositoryV3 {
-            epoch_id: epoch_id.to_string(),
+        repository: TargetIndexRepositoryV4 {
+            origin_id: origin_id.to_string(),
             repository_root: repository_root.to_string(),
         },
         claim_boundary: TargetIndexClaimBoundaryV2 {
@@ -2069,7 +2144,7 @@ fn validate_input_git_bytes_for(
     Ok(issues)
 }
 
-/// Assess the event-free Target Index used by Profile v2 repositories.
+/// Assess the event-free Target Index used by current repository origins.
 ///
 /// Scientific standing is bound only through the exact current repository
 /// root. Git source/input checks and packet checks retain the same fail-closed
@@ -2077,11 +2152,11 @@ fn validate_input_git_bytes_for(
 pub fn assess_current_target_index(
     repo_path: &Path,
     frontier_id: &str,
-    epoch_id: &str,
+    origin_id: &str,
     repository_root: &str,
 ) -> Result<Option<CurrentTargetIndexAssessment>, String> {
     require_frontier_id(frontier_id)?;
-    require_epoch_id("epoch_id", epoch_id)?;
+    require_origin_id("origin_id", origin_id)?;
     require_sha256_root("repository_root", repository_root)?;
     let path = repo_path.join("targets.json");
     let metadata = match std::fs::symlink_metadata(&path) {
@@ -2101,13 +2176,13 @@ pub fn assess_current_target_index(
         .get("schema")
         .and_then(Value::as_str)
         .ok_or_else(|| format!("{CODE_SCHEMA_INVALID}: targets.json has no string schema"))?;
-    if schema != TARGET_INDEX_SCHEMA_V3 {
+    if schema != TARGET_INDEX_SCHEMA_V4 {
         return Err(format!(
-            "{CODE_PROFILE_UPGRADE_REQUIRED}: current repository requires {TARGET_INDEX_SCHEMA_V3}, found {schema}"
+            "{CODE_PROFILE_UPGRADE_REQUIRED}: current repository requires {TARGET_INDEX_SCHEMA_V4}, found {schema}"
         ));
     }
-    let index: TargetIndexV3 = serde_json::from_value(envelope)
-        .map_err(|error| format!("{CODE_SCHEMA_INVALID}: parse v3 index: {error}"))?;
+    let index: TargetIndexV4 = serde_json::from_value(envelope)
+        .map_err(|error| format!("{CODE_SCHEMA_INVALID}: parse v4 index: {error}"))?;
     index.validate()?;
     if index.canonical_bytes()? != bytes {
         return Err(format!(
@@ -2124,7 +2199,8 @@ pub fn assess_current_target_index(
             "index Frontier differs from the current repository",
         ));
     }
-    if index.repository.epoch_id != epoch_id || index.repository.repository_root != repository_root
+    if index.repository.origin_id != origin_id
+        || index.repository.repository_root != repository_root
     {
         global_issues.push(issue(
             CODE_STATE_ROOT_MISMATCH,

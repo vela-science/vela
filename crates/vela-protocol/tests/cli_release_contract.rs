@@ -60,11 +60,11 @@ fn check_missing_frontier_reports_error_without_panic() {
     let tmp = TempDir::new().unwrap();
     let missing = tmp.path().join("missing-frontier.json");
 
-    // `check` rejects anything that is not a current repository epoch through
+    // `check` rejects anything that is not a current repository origin through
     // one bounded product error. It must not fall through to a legacy loader.
     let error = run_expect_failure(&["check", missing.to_str().unwrap()]);
 
-    assert!(error.contains("verifies only current repository epochs"));
+    assert!(error.contains("verifies only current repository origins"));
     assert!(!error.contains("panicked at"));
 }
 

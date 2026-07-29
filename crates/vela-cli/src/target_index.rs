@@ -69,14 +69,14 @@ fn frontier_display(frontier: &Path) -> String {
     frontier.display().to_string()
 }
 
-fn load_current(frontier: &Path) -> vela_protocol::current_repository::CurrentRepositoryV2 {
+fn load_current(frontier: &Path) -> vela_protocol::current_repository::CurrentRepositoryV3 {
     crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)
         .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None))
 }
 
 fn assess_current(
     frontier: &Path,
-    repository: &vela_protocol::current_repository::CurrentRepositoryV2,
+    repository: &vela_protocol::current_repository::CurrentRepositoryV3,
 ) -> CurrentTargetIndexAssessment {
     let repository_root = repository
         .canonical_root()
@@ -84,7 +84,7 @@ fn assess_current(
     assess_current_target_index(
         frontier,
         &repository.frontier_id,
-        &repository.epoch_id,
+        &repository.origin_id,
         &repository_root,
     )
     .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None))
@@ -129,7 +129,7 @@ fn cmd_seal(frontier: &Path, candidate: &Path, apply: bool, json: bool) {
         candidate,
         env!("CARGO_PKG_VERSION"),
         &repository.frontier_id,
-        &repository.epoch_id,
+        &repository.origin_id,
         &repository_root,
     )
     .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));

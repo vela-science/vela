@@ -20,12 +20,12 @@ use vela_protocol::claim_record::{
     ClaimAssertion, ClaimEvidenceRef, ClaimRecordV1, ClaimRelation, ClaimSource,
 };
 use vela_protocol::current_repository::{
-    ClaimStandingRefV1, CurrentRepositoryV2, RepositoryObjectRefV1,
+    ClaimStandingRefV1, CurrentRepositoryV3, RepositoryObjectRefV1,
 };
 use vela_protocol::principal_capability::PrincipalClass;
 use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject, ProposalV1};
 use vela_protocol::registration_record::{RegistrationRecordV1, RegistrationRoots};
-use vela_protocol::repository_epoch::RepositoryBoundaryV1;
+use vela_protocol::repository_origin::RepositoryOriginV1;
 use vela_protocol::submission_v1::SubmissionV1;
 
 use crate::authority_transaction::{
@@ -112,7 +112,7 @@ fn add_artifact_ref(
 }
 
 fn add_pending_claim(
-    repository: &mut CurrentRepositoryV2,
+    repository: &mut CurrentRepositoryV3,
     claim: &ClaimRecordV1,
     root: &str,
     path: &str,
@@ -142,7 +142,7 @@ fn add_pending_claim(
 
 fn load_target_claim(
     frontier: &Path,
-    repository: &CurrentRepositoryV2,
+    repository: &CurrentRepositoryV3,
     submission: &SubmissionV1,
 ) -> Result<Option<ClaimRecordV1>, String> {
     let Some(target) = submission.requested_change.target.as_ref() else {
@@ -182,7 +182,7 @@ struct ProposedChange {
 
 fn proposed_change(
     frontier: &Path,
-    repository: &CurrentRepositoryV2,
+    repository: &CurrentRepositoryV3,
     submission: &SubmissionV1,
 ) -> Result<ProposedChange, String> {
     let target = load_target_claim(frontier, repository, submission)?;
@@ -285,18 +285,18 @@ fn proposed_change(
 
 pub(crate) fn rebind_target_index(
     frontier: &Path,
-    repository: &CurrentRepositoryV2,
+    repository: &CurrentRepositoryV3,
 ) -> Result<Vec<AuthorityDerivedDraft>, String> {
     let path = frontier.join("targets.json");
     if !path.is_file() {
         return Ok(Vec::new());
     }
     let bytes = fs::read(&path).map_err(|error| format!("read current Target Index: {error}"))?;
-    let mut index: vela_edge::target_index::TargetIndexV3 = serde_json::from_slice(&bytes)
-        .map_err(|error| format!("parse Target Index v3: {error}"))?;
+    let mut index: vela_edge::target_index::TargetIndexV4 = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("parse Target Index v4: {error}"))?;
     index.validate()?;
-    if index.canonical_bytes()? != bytes || index.repository.epoch_id != repository.epoch_id {
-        return Err("current Target Index is not an exact canonical epoch member".into());
+    if index.canonical_bytes()? != bytes || index.repository.origin_id != repository.origin_id {
+        return Err("current Target Index is not an exact canonical origin member".into());
     }
     index.repository.repository_root = repository.canonical_root()?;
     index.index_root = index.computed_index_root()?;
@@ -308,7 +308,7 @@ pub(crate) fn rebind_target_index(
 
 fn existing_outcome(
     frontier: &Path,
-    repository: &CurrentRepositoryV2,
+    repository: &CurrentRepositoryV3,
     submission: &SubmissionV1,
     submission_root: &str,
 ) -> Result<Option<SubmitOutcome>, String> {
@@ -393,7 +393,7 @@ pub(crate) fn submit(
         );
     }
 
-    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let repository = crate::current_repository::verify_compacted_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
     let submission_root = submission.canonical_root()?;
     if let Some(outcome) = existing_outcome(frontier, &repository, submission, &submission_root)? {
@@ -411,7 +411,8 @@ pub(crate) fn submit(
         &journal_dir,
     )
     .map_err(|error| error.to_string())?;
-    let held_repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let held_repository =
+        crate::current_repository::verify_compacted_repository_at(frontier, true)?;
     if held_repository.canonical_root()? != repository_root {
         return Err("current repository changed while acquiring the submit barrier".into());
     }
@@ -421,14 +422,14 @@ pub(crate) fn submit(
             &resolved.attempt.target_task_binding,
         )?;
     }
-    let epoch_bytes = fs::read(frontier.join(".vela/epoch.json"))
-        .map_err(|error| format!("read current repository epoch: {error}"))?;
-    let epoch = RepositoryBoundaryV1::parse(&epoch_bytes)?;
-    if epoch.canonical_bytes()? != epoch_bytes {
-        return Err("current repository epoch is not canonical JSON".into());
+    let origin_bytes = fs::read(frontier.join(".vela/origin.json"))
+        .map_err(|error| format!("read current repository origin: {error}"))?;
+    let origin = RepositoryOriginV1::parse(&origin_bytes)?;
+    if origin.canonical_bytes()? != origin_bytes {
+        return Err("current repository origin is not canonical JSON".into());
     }
     let authority =
-        crate::cli::load_current_repository_authority(frontier, &held_repository, &epoch)?;
+        crate::cli::load_compacted_repository_authority(frontier, &held_repository, &origin)?;
 
     let registration_action = if authority
         .policy_material
@@ -538,7 +539,7 @@ pub(crate) fn submit(
         vela_protocol::canonical::sha256_canonical(&json!({
             "schema": "vela.current-submit-request.v1",
             "frontier_id": held_repository.frontier_id,
-            "epoch_id": held_repository.epoch_id,
+            "origin_id": held_repository.origin_id,
             "repository_before": repository_root,
             "submission_root": submission_root,
             "attempt_binding_root": resolved_attempt
@@ -781,7 +782,7 @@ pub(crate) fn submit(
             | PublicationState::CommittedLocal { .. }
             | PublicationState::Pushed { .. }
     ) {
-        crate::current_repository::verify_current_repository_at(frontier, true).map_err(
+        crate::current_repository::verify_compacted_repository_at(frontier, true).map_err(
             |error| {
                 format!(
                     "Submission was published but strict post-publication verification failed: \
@@ -812,7 +813,7 @@ pub(crate) fn submit(
 mod tests {
     use ed25519_dalek::SigningKey;
     use tempfile::TempDir;
-    use vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V2;
+    use vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V3;
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::submission_v1::{
         RequestedChange, RequestedChangeTarget, SubmissionArtifact, SubmissionClaim,
@@ -825,13 +826,13 @@ mod tests {
         format!("sha256:{}", byte.to_string().repeat(64))
     }
 
-    fn repository() -> CurrentRepositoryV2 {
-        CurrentRepositoryV2 {
-            schema: CURRENT_REPOSITORY_SCHEMA_V2.into(),
+    fn repository() -> CurrentRepositoryV3 {
+        CurrentRepositoryV3 {
+            schema: CURRENT_REPOSITORY_SCHEMA_V3.into(),
             frontier_id: "vfr_0123456789abcdef".into(),
             profile_root: root('a'),
-            epoch_id: "vre_0123456789abcdef".into(),
-            epoch_root: root('b'),
+            origin_id: "vro_0123456789abcdef".into(),
+            origin_root: root('b'),
             accepted_claims: Vec::new(),
             pending_claims: Vec::new(),
             proposals: Vec::new(),
@@ -896,7 +897,7 @@ mod tests {
 
     fn install_accepted_claim(
         frontier: &Path,
-        repository: &mut CurrentRepositoryV2,
+        repository: &mut CurrentRepositoryV3,
         claim: &ClaimRecordV1,
     ) -> String {
         let claim_root = claim.canonical_root().unwrap();

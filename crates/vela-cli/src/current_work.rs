@@ -1,4 +1,4 @@
-//! Private producer work for current repository epochs.
+//! Private producer work for current repository origins.
 //!
 //! A current Attempt is ignored authoring state. It binds one exact Target
 //! Offer and repository read set, but creates no canonical lease, Event,
@@ -14,8 +14,8 @@ use serde_json::{Value, json};
 
 use crate::cli::safe_text;
 
-const ATTEMPT_SCHEMA: &str = "vela.attempt.v2";
-const TASK_CONTRACT_SCHEMA: &str = "vela.task-contract.internal.v2";
+const ATTEMPT_SCHEMA: &str = "vela.attempt.v3";
+const TASK_CONTRACT_SCHEMA: &str = "vela.task-contract.internal.v3";
 const ATTEMPT_MAX_BYTES: usize = 2 * 1024 * 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,7 +44,7 @@ pub(crate) struct CurrentAttempt {
     pub(crate) expires_at: String,
     task_contract: CurrentTaskContract,
     pub(crate) task_contract_root: String,
-    pub(crate) target_task_binding: vela_edge::target_index::TargetTaskBindingV2,
+    pub(crate) target_task_binding: vela_edge::target_index::TargetTaskBindingV3,
     briefing: Value,
 }
 
@@ -411,7 +411,7 @@ fn result(attempt: &CurrentAttempt, path: &Path, idempotent: bool) -> Value {
             "expires_at": attempt.expires_at,
         },
         "starting_roots": {
-            "epoch": attempt.target_task_binding.repository.epoch_id,
+            "origin": attempt.target_task_binding.repository.origin_id,
             "repository": attempt.target_task_binding.repository.repository_root,
             "target_index": attempt.target_task_binding.target_index_root,
             "task_contract": attempt.task_contract_root,
@@ -443,12 +443,12 @@ fn open(frontier: &Path, target_id: &str, actor: &str, ttl_seconds: u64) -> Resu
             vela_protocol::events::MAX_ATTEMPT_LEASE_TTL_SECONDS
         ));
     }
-    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let repository = crate::current_repository::load_compacted_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
     let assessment = vela_edge::target_index::assess_current_target_index(
         frontier,
         &repository.frontier_id,
-        &repository.epoch_id,
+        &repository.origin_id,
         &repository_root,
     )?
     .ok_or_else(|| "current repository has no Target Index".to_string())?;
@@ -463,7 +463,7 @@ fn open(frontier: &Path, target_id: &str, actor: &str, ttl_seconds: u64) -> Resu
         frontier,
         &assessment,
         &repository.frontier_id,
-        &repository.epoch_id,
+        &repository.origin_id,
         &repository_root,
         target_id,
     )?;
@@ -535,7 +535,7 @@ fn drop_attempt(frontier: &Path, target: &str, actor: &str, reason: &str) -> Res
     if reason.is_empty() {
         return Err("start --drop requires a non-empty reason".to_string());
     }
-    crate::current_repository::verify_current_repository_at(frontier, true)?;
+    crate::current_repository::load_compacted_repository_at(frontier, true)?;
     let _lock = lock_attempt(frontier, target)?;
     let path = attempt_path(frontier, target);
     let attempt = read(&path)?;
@@ -563,7 +563,7 @@ fn drop_attempt(frontier: &Path, target: &str, actor: &str, reason: &str) -> Res
 }
 
 fn list(frontier: &Path) -> Result<Value, String> {
-    crate::current_repository::verify_current_repository_at(frontier, true)?;
+    crate::current_repository::load_compacted_repository_at(frontier, true)?;
     let root = frontier.join(".vela/work");
     let mut attempts = fs::read_dir(&root)
         .into_iter()
@@ -679,8 +679,8 @@ mod tests {
     fn current_attempt_round_trips_as_private_state_without_event_fields() {
         let directory = tempfile::tempdir().unwrap();
         fs::create_dir(directory.path().join(".vela")).unwrap();
-        let mut binding = vela_edge::target_index::TargetTaskBindingV2 {
-            schema: vela_edge::target_index::TARGET_TASK_BINDING_SCHEMA_V2.to_string(),
+        let mut binding = vela_edge::target_index::TargetTaskBindingV3 {
+            schema: vela_edge::target_index::TARGET_TASK_BINDING_SCHEMA_V3.to_string(),
             frontier_id: "vfr_1234567890abcdef".to_string(),
             target_id: "erdos:1056".to_string(),
             target_index_root: format!("sha256:{}", "1".repeat(64)),
@@ -696,8 +696,8 @@ mod tests {
                 size: 42,
                 sha256: format!("sha256:{}", "5".repeat(64)),
             },
-            repository: vela_edge::target_index::TargetIndexRepositoryV3 {
-                epoch_id: "vre_1234567890abcdef".to_string(),
+            repository: vela_edge::target_index::TargetIndexRepositoryV4 {
+                origin_id: "vro_1234567890abcdef".to_string(),
                 repository_root: format!("sha256:{}", "6".repeat(64)),
             },
             claim_read_set: vela_edge::target_index::TargetTaskClaimReadSetV2 {

@@ -14,10 +14,10 @@ use vela_authority::runtime_authentication::{
     AuthenticationRequest, RuntimeSessionState, SignedVerificationRecordSession,
 };
 use vela_protocol::authority::PrincipalSnapshotV1;
-use vela_protocol::current_repository::{CurrentRepositoryV2, RepositoryObjectRefV1};
+use vela_protocol::current_repository::{CurrentRepositoryV3, RepositoryObjectRefV1};
 use vela_protocol::principal_capability::PrincipalClass;
 use vela_protocol::proposal_v1::ProposalV1;
-use vela_protocol::repository_epoch::RepositoryBoundaryV1;
+use vela_protocol::repository_origin::RepositoryOriginV1;
 use vela_protocol::submission_v1::SubmissionV1;
 use vela_protocol::verification_record::VerificationRecordV1;
 
@@ -53,7 +53,7 @@ fn read_exact_object<T>(
 
 fn load_subject(
     frontier: &Path,
-    repository: &CurrentRepositoryV2,
+    repository: &CurrentRepositoryV3,
     record: &VerificationRecordV1,
 ) -> Result<(ProposalV1, String, SubmissionV1), String> {
     let proposal_reference = repository
@@ -132,7 +132,7 @@ fn load_subject(
 
 fn existing_outcome(
     frontier: &Path,
-    repository: &CurrentRepositoryV2,
+    repository: &CurrentRepositoryV3,
     record: &VerificationRecordV1,
     record_root: &str,
     operation_id: &str,
@@ -190,7 +190,7 @@ pub(crate) fn import(
         return Err("verification import actor must match the Verification Record verifier".into());
     }
 
-    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let repository = crate::current_repository::verify_compacted_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
     let (_proposal, proposal_root, _submission) = load_subject(frontier, &repository, record)?;
     let record_bytes = record.canonical_bytes()?;
@@ -200,7 +200,7 @@ pub(crate) fn import(
         vela_protocol::canonical::sha256_canonical(&json!({
             "schema": "vela.current-verification-import-request.v1",
             "frontier_id": repository.frontier_id,
-            "epoch_id": repository.epoch_id,
+            "origin_id": repository.origin_id,
             "repository_before": repository_root,
             "verification_record_root": record_root,
         }))?
@@ -223,7 +223,8 @@ pub(crate) fn import(
         &journal_dir,
     )
     .map_err(|error| error.to_string())?;
-    let held_repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let held_repository =
+        crate::current_repository::verify_compacted_repository_at(frontier, true)?;
     if held_repository.canonical_root()? != repository_root {
         return Err(
             "current repository changed while acquiring the verification import barrier".into(),
@@ -231,14 +232,14 @@ pub(crate) fn import(
     }
     load_subject(frontier, &held_repository, record)?;
 
-    let epoch_bytes = fs::read(frontier.join(".vela/epoch.json"))
-        .map_err(|error| format!("read current repository epoch: {error}"))?;
-    let epoch = RepositoryBoundaryV1::parse(&epoch_bytes)?;
-    if epoch.canonical_bytes()? != epoch_bytes {
-        return Err("current repository epoch is not canonical JSON".into());
+    let origin_bytes = fs::read(frontier.join(".vela/origin.json"))
+        .map_err(|error| format!("read current repository origin: {error}"))?;
+    let origin = RepositoryOriginV1::parse(&origin_bytes)?;
+    if origin.canonical_bytes()? != origin_bytes {
+        return Err("current repository origin is not canonical JSON".into());
     }
     let authority =
-        crate::cli::load_current_repository_authority(frontier, &held_repository, &epoch)?;
+        crate::cli::load_compacted_repository_authority(frontier, &held_repository, &origin)?;
     if !authority
         .policy_material
         .schema
@@ -449,7 +450,7 @@ pub(crate) fn import(
             | PublicationState::CommittedLocal { .. }
             | PublicationState::Pushed { .. }
     ) {
-        crate::current_repository::verify_current_repository_at(frontier, true).map_err(
+        crate::current_repository::verify_compacted_repository_at(frontier, true).map_err(
             |error| {
                 format!(
                     "Verification Record was published but strict post-publication verification \
@@ -476,7 +477,7 @@ pub(crate) fn import(
 mod tests {
     use ed25519_dalek::SigningKey;
     use tempfile::TempDir;
-    use vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V2;
+    use vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V3;
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject};
     use vela_protocol::submission_v1::{
@@ -495,7 +496,7 @@ mod tests {
 
     struct Fixture {
         _directory: TempDir,
-        repository: CurrentRepositoryV2,
+        repository: CurrentRepositoryV3,
         record: VerificationRecordV1,
         proposal_root: String,
     }
@@ -633,12 +634,12 @@ mod tests {
             &verifier_key,
         )
         .unwrap();
-        let repository = CurrentRepositoryV2 {
-            schema: CURRENT_REPOSITORY_SCHEMA_V2.into(),
+        let repository = CurrentRepositoryV3 {
+            schema: CURRENT_REPOSITORY_SCHEMA_V3.into(),
             frontier_id: "vfr_0123456789abcdef".into(),
             profile_root: root('1'),
-            epoch_id: "vre_0123456789abcdef".into(),
-            epoch_root: root('2'),
+            origin_id: "vro_0123456789abcdef".into(),
+            origin_root: root('2'),
             accepted_claims: Vec::new(),
             pending_claims: Vec::new(),
             proposals: vec![RepositoryObjectRefV1 {

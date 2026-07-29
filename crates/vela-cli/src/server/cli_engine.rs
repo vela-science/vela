@@ -103,7 +103,7 @@ pub(crate) fn proposal_reproduction_files(
     path: &Path,
     proposal_id: &str,
 ) -> Result<Vec<PathBuf>, String> {
-    let repository = crate::current_repository::verify_current_repository_at(path, true)?;
+    let repository = crate::current_repository::load_compacted_repository_at(path, true)?;
     let proposal_reference = repository
         .proposals
         .iter()
@@ -207,13 +207,13 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
     crate::ui::set_mode("reproduce", json_output);
     if path.is_dir()
         && path.join("frontier.yaml").is_file()
-        && !path.join(".vela/epoch.json").is_file()
+        && !path.join(".vela/origin.json").is_file()
     {
         crate::ui::fail_with(
             crate::ui::ErrorKind::Domain,
-            "this Vela release reproduces only current repository epochs",
+            "this Vela release reproduces only current repository origins",
             Some(
-                "inspect a predecessor with its pinned historical Vela release; current repositories contain `.vela/epoch.json`",
+                "inspect a predecessor with its pinned historical Vela release; current repositories contain `.vela/origin.json`",
             ),
         );
     }

@@ -16,11 +16,11 @@ use vela_authority::CedarEvaluationInput;
 use vela_authority::runtime_authentication::{AuthenticationRequest, RuntimeSessionState};
 use vela_protocol::authority::{PrincipalSnapshotV1, SemanticApprovalV1};
 use vela_protocol::claim_record::ClaimRecordV1;
-use vela_protocol::current_repository::{ClaimStandingRefV1, CurrentRepositoryV2};
+use vela_protocol::current_repository::{ClaimStandingRefV1, CurrentRepositoryV3};
 use vela_protocol::events::{EventKind, NULL_HASH, StateActor, StateEvent, StateTarget};
 use vela_protocol::principal_capability::PrincipalClass;
 use vela_protocol::proposal_v1::ProposalV1;
-use vela_protocol::repository_epoch::RepositoryBoundaryV1;
+use vela_protocol::repository_origin::RepositoryOriginV1;
 use vela_protocol::submission_v1::SubmissionV1;
 use vela_protocol::verification_record::VerificationRecordV1;
 
@@ -74,7 +74,7 @@ pub(crate) struct CurrentReviewDecisionPlan {
 
 pub(crate) struct PreparedCurrentReviewDecision {
     pub(crate) plan: CurrentReviewDecisionPlan,
-    repository: CurrentRepositoryV2,
+    repository: CurrentRepositoryV3,
     authority: crate::cli::LoadedRepositoryAuthority,
     proposal: ProposalV1,
     claim: ClaimRecordV1,
@@ -100,7 +100,7 @@ fn read_exact<T>(
 
 fn claim_for_proposal(
     frontier: &Path,
-    repository: &CurrentRepositoryV2,
+    repository: &CurrentRepositoryV3,
     proposal: &ProposalV1,
 ) -> Result<ClaimRecordV1, String> {
     let reference = repository
@@ -131,7 +131,7 @@ fn claim_for_proposal(
 
 fn submission_for_proposal(
     frontier: &Path,
-    repository: &CurrentRepositoryV2,
+    repository: &CurrentRepositoryV3,
     proposal: &ProposalV1,
 ) -> Result<SubmissionV1, String> {
     let reference = repository
@@ -163,7 +163,7 @@ fn submission_for_proposal(
 
 fn exact_verifications(
     frontier: &Path,
-    repository: &CurrentRepositoryV2,
+    repository: &CurrentRepositoryV3,
     proposal: &ProposalV1,
     claim: &ClaimRecordV1,
     submission: &SubmissionV1,
@@ -229,10 +229,10 @@ fn require_acceptance_evidence(
     Ok(())
 }
 
-fn load_epoch(frontier: &Path) -> Result<RepositoryBoundaryV1, String> {
-    let bytes = fs::read(frontier.join(".vela/epoch.json"))
-        .map_err(|error| format!("read current repository epoch: {error}"))?;
-    RepositoryBoundaryV1::parse(&bytes)
+fn load_origin(frontier: &Path) -> Result<RepositoryOriginV1, String> {
+    let bytes = fs::read(frontier.join(".vela/origin.json"))
+        .map_err(|error| format!("read current repository origin: {error}"))?;
+    RepositoryOriginV1::parse(&bytes)
 }
 
 pub(crate) fn prepare(
@@ -247,10 +247,11 @@ pub(crate) fn prepare(
     }
     DateTime::parse_from_rfc3339(observed_at)
         .map_err(|error| format!("current review observation time is invalid: {error}"))?;
-    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let repository = crate::current_repository::verify_compacted_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
-    let epoch = load_epoch(frontier)?;
-    let authority = crate::cli::load_current_repository_authority(frontier, &repository, &epoch)?;
+    let origin = load_origin(frontier)?;
+    let authority =
+        crate::cli::load_compacted_repository_authority(frontier, &repository, &origin)?;
     if authority.history.authority_events.iter().any(|event| {
         event.content.target.r#type == "proposal"
             && event.content.target.id == proposal_id
@@ -322,12 +323,12 @@ pub(crate) fn prepare(
 }
 
 fn next_repository(
-    current: &CurrentRepositoryV2,
+    current: &CurrentRepositoryV3,
     proposal: &ProposalV1,
     subject_claim: &ClaimRecordV1,
     claim_root: &str,
     action: DecisionAction,
-) -> Result<CurrentRepositoryV2, String> {
+) -> Result<CurrentRepositoryV3, String> {
     let mut repository = current.clone();
     if action == DecisionAction::Reject {
         if proposal.action != "claim.withdraw" {
@@ -415,7 +416,7 @@ fn semantic_event_id(draft: &AuthorityEventDraft) -> String {
 
 fn decision_events(
     plan: &CurrentReviewDecisionPlan,
-    repository: &CurrentRepositoryV2,
+    repository: &CurrentRepositoryV3,
     proposal: &ProposalV1,
     claim: &ClaimRecordV1,
     next_repository_root: &str,
@@ -713,7 +714,7 @@ mod tests {
 
     use ed25519_dalek::SigningKey;
     use vela_protocol::claim_record::{ClaimAssertion, ClaimRelation, ClaimSource};
-    use vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V2;
+    use vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V3;
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject};
     use vela_protocol::submission_v1::{
@@ -730,13 +731,13 @@ mod tests {
         format!("sha256:{}", byte.to_string().repeat(64))
     }
 
-    fn repository() -> CurrentRepositoryV2 {
-        CurrentRepositoryV2 {
-            schema: CURRENT_REPOSITORY_SCHEMA_V2.into(),
+    fn repository() -> CurrentRepositoryV3 {
+        CurrentRepositoryV3 {
+            schema: CURRENT_REPOSITORY_SCHEMA_V3.into(),
             frontier_id: "vfr_0123456789abcdef".into(),
             profile_root: root('a'),
-            epoch_id: "vre_0123456789abcdef".into(),
-            epoch_root: root('b'),
+            origin_id: "vro_0123456789abcdef".into(),
+            origin_root: root('b'),
             accepted_claims: Vec::new(),
             pending_claims: Vec::new(),
             proposals: Vec::new(),

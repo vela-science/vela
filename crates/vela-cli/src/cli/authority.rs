@@ -32,10 +32,13 @@ use vela_protocol::authority_history::{
     verify_authority_history,
 };
 use vela_protocol::canonical::to_canonical_bytes;
-use vela_protocol::current_repository::{CURRENT_REPOSITORY_SCHEMA_V2, CurrentRepositoryV2};
+use vela_protocol::current_repository::{
+    CURRENT_REPOSITORY_SCHEMA_V3, CurrentRepositoryV2, CurrentRepositoryV3,
+};
 use vela_protocol::events::{EventKind, NULL_HASH, StateActor, StateTarget};
 use vela_protocol::principal_capability::PrincipalClass;
-use vela_protocol::repository_epoch::{RepositoryBoundaryV1, RepositoryGenesisV1};
+use vela_protocol::repository_epoch::RepositoryBoundaryV1;
+use vela_protocol::repository_origin::RepositoryOriginV1;
 
 use crate::authority_transaction::{
     AuthorityEventDraft, AuthorityHistorySnapshot, AuthorityObjectDraft,
@@ -601,12 +604,12 @@ fn pin_repository_authority(
     record_root: &str,
     previous_record_root: Option<&str>,
 ) -> Result<Value, String> {
-    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
-    let epoch = RepositoryBoundaryV1::parse(
-        &std::fs::read(frontier.join(".vela/epoch.json"))
-            .map_err(|error| format!("read current repository epoch: {error}"))?,
+    let repository = crate::current_repository::verify_compacted_repository_at(frontier, true)?;
+    let origin = vela_protocol::repository_origin::RepositoryOriginV1::parse(
+        &std::fs::read(frontier.join(".vela/origin.json"))
+            .map_err(|error| format!("read current repository origin: {error}"))?,
     )?;
-    let authority = load_current_repository_authority(frontier, &repository, &epoch)?;
+    let authority = load_compacted_repository_authority(frontier, &repository, &origin)?;
     let first_envelope = authority
         .history
         .authority_envelopes
@@ -746,22 +749,18 @@ fn initialize_current_repository_authority(
     )?;
     let keyset_root = authority_keyset.root()?;
     let policy_root = policy_bundle.root()?;
-    let initial_object_set_root = ContentDigest::hash(to_canonical_bytes(&Vec::<String>::new())?)
-        .as_str()
-        .to_string();
-    let genesis = RepositoryGenesisV1::build(
+    let origin = RepositoryOriginV1::genesis(
         profile.frontier_id.clone(),
         profile_root.clone(),
-        initial_object_set_root,
         reason.to_string(),
     )?;
-    let genesis_root = genesis.canonical_root()?;
-    let repository = CurrentRepositoryV2 {
-        schema: CURRENT_REPOSITORY_SCHEMA_V2.into(),
+    let origin_root = origin.canonical_root()?;
+    let repository = CurrentRepositoryV3 {
+        schema: CURRENT_REPOSITORY_SCHEMA_V3.into(),
         frontier_id: profile.frontier_id.clone(),
         profile_root: profile_root.clone(),
-        epoch_id: genesis.epoch_id.clone(),
-        epoch_root: genesis_root.clone(),
+        origin_id: origin.origin_id.clone(),
+        origin_root: origin_root.clone(),
         accepted_claims: Vec::new(),
         pending_claims: Vec::new(),
         proposals: Vec::new(),
@@ -777,8 +776,8 @@ fn initialize_current_repository_authority(
     let initialization = AuthorityInitializationV1 {
         schema: vela_protocol::authority_history::AUTHORITY_INITIALIZATION_SCHEMA_V1.into(),
         frontier_id: profile.frontier_id.clone(),
-        initial_event_log_root: genesis.initial_event_log_root.clone(),
-        initial_actor_registry_root: genesis.initial_actor_registry_root.clone(),
+        initial_event_log_root: empty_repository_event_log_root(),
+        initial_actor_registry_root: empty_repository_actor_registry_root(),
         new_authority_keyset_root: keyset_root.clone(),
         new_policy_bundle_root: policy_root.clone(),
         new_principal_id: local.principal_id.clone(),
@@ -787,10 +786,10 @@ fn initialize_current_repository_authority(
     };
     initialization.validate()?;
     let intent_digest = ContentDigest::hash(to_canonical_bytes(&json!({
-        "schema": "vela.repository-genesis-intent.v1",
+        "schema": "vela.repository-origin-intent.v1",
         "frontier_id": profile.frontier_id,
         "profile_root": profile_root,
-        "genesis_root": genesis_root,
+        "origin_root": origin_root,
         "repository_root": repository_root,
         "principal_id": principal.principal_id,
         "reason": reason,
@@ -869,10 +868,10 @@ fn initialize_current_repository_authority(
             }],
             object_drafts: vec![
                 AuthorityObjectDraft {
-                    path: ".vela/epoch.json".into(),
-                    object_kind: "repository_genesis".into(),
+                    path: ".vela/origin.json".into(),
+                    object_kind: "repository_origin".into(),
                     class: WriteClass::CanonicalEvidence,
-                    postimage: Some(genesis.canonical_bytes()?),
+                    postimage: Some(origin.canonical_bytes()?),
                 },
                 AuthorityObjectDraft {
                     path: ".vela/repository.json".into(),
@@ -894,7 +893,7 @@ fn initialize_current_repository_authority(
         &mut signer,
     )
     .map_err(|error| error.to_string())?;
-    let verified = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let verified = crate::current_repository::load_compacted_repository_at(frontier, true)?;
     if verified.canonical_root()? != repository_root {
         return Err("native repository genesis replay produced a different manifest".into());
     }
@@ -910,7 +909,7 @@ fn initialize_current_repository_authority(
             ".gitignore",
             ".gitattributes",
             ".vela/settings.toml",
-            ".vela/epoch.json",
+            ".vela/origin.json",
             ".vela/repository.json",
             ".vela/authority",
         ])
@@ -943,6 +942,10 @@ fn initialize_current_repository_authority(
             String::from_utf8_lossy(&commit.stderr).trim()
         ));
     }
+    let verified = crate::current_repository::verify_compacted_repository_at(frontier, true)?;
+    if verified.canonical_root()? != repository_root {
+        return Err("native repository genesis replay produced a different manifest".into());
+    }
     let git_commit = crate::git_hardened::text(frontier, &["rev-parse", "HEAD^{commit}"])?;
     let git_tree = crate::git_hardened::text(frontier, &["rev-parse", "HEAD^{tree}"])?;
     Ok(json!({
@@ -953,8 +956,8 @@ fn initialize_current_repository_authority(
         "principal_id": principal.principal_id,
         "repository_key_id": identity.key_id,
         "repository_key_fingerprint": identity.fingerprint,
-        "epoch_id": genesis.epoch_id,
-        "epoch_root": genesis_root,
+        "origin_id": origin.origin_id,
+        "origin_root": origin_root,
         "repository_root": repository_root,
         "git_commit": git_commit,
         "git_tree": git_tree,
@@ -1086,10 +1089,9 @@ pub(crate) fn load_current_repository_authority(
 
 /// Load repository authority for the final current-origin repository.
 ///
-/// A compacted origin starts a fresh sequence-1 authority history over the
-/// exact archived predecessor roots. The retained keyset and policy are the
-/// active snapshots for that new history; predecessor authority records stay
-/// in the bound archive rather than in the daily repository.
+/// A current origin starts a fresh sequence-1 authority history. A compacted
+/// origin starts over exact archived predecessor roots; a genesis origin
+/// starts over the protocol null roots.
 pub(crate) fn load_compacted_repository_authority(
     frontier: &Path,
     repository: &vela_protocol::current_repository::CurrentRepositoryV3,
@@ -1104,10 +1106,20 @@ pub(crate) fn load_compacted_repository_authority(
             "current repository authority loader received a mismatched repository origin".into(),
         );
     }
-    let predecessor = origin
+    let genesis_event_log_root = empty_repository_event_log_root();
+    let genesis_actor_registry_root = empty_repository_actor_registry_root();
+    let initial_event_log_root = origin
         .predecessor
         .as_ref()
-        .ok_or_else(|| "compacted repository origin has no archived predecessor".to_string())?;
+        .map_or(genesis_event_log_root.as_str(), |predecessor| {
+            predecessor.archived_event_log_root.as_str()
+        });
+    let initial_actor_registry_root = origin
+        .predecessor
+        .as_ref()
+        .map_or(genesis_actor_registry_root.as_str(), |predecessor| {
+            predecessor.archived_actor_registry_root.as_str()
+        });
     let authority_root = frontier.join(".vela/authority");
     let retained_authority_keysets =
         read_authority_json_directory::<AuthorityKeysetV1>(&authority_root.join("keysets"))?;
@@ -1131,8 +1143,8 @@ pub(crate) fn load_compacted_repository_authority(
         legacy_events: &[],
         legacy_actor_registry_bytes: &[],
         archived_predecessor: Some(ArchivedAuthorityPredecessor {
-            event_log_root: &predecessor.archived_event_log_root,
-            actor_registry_root: &predecessor.archived_actor_registry_root,
+            event_log_root: initial_event_log_root,
+            actor_registry_root: initial_actor_registry_root,
         }),
         legacy_active_policy_head_root: NULL_HASH,
         legacy_policy_store_manifest_root: NULL_HASH,
@@ -1172,10 +1184,8 @@ pub(crate) fn load_compacted_repository_authority(
             frontier_id: repository.frontier_id.clone(),
             legacy_events: Vec::new(),
             legacy_actor_registry_bytes: Vec::new(),
-            archived_predecessor_event_log_root: Some(predecessor.archived_event_log_root.clone()),
-            archived_predecessor_actor_registry_root: Some(
-                predecessor.archived_actor_registry_root.clone(),
-            ),
+            archived_predecessor_event_log_root: Some(initial_event_log_root.to_string()),
+            archived_predecessor_actor_registry_root: Some(initial_actor_registry_root.to_string()),
             legacy_active_policy_head_root: NULL_HASH.into(),
             legacy_policy_store_manifest_root: NULL_HASH.into(),
             authority_keyset,
@@ -1188,6 +1198,14 @@ pub(crate) fn load_compacted_repository_authority(
         policy_material,
         verification,
     })
+}
+
+fn empty_repository_event_log_root() -> String {
+    format!("sha256:{}", vela_protocol::events::event_log_hash(&[]))
+}
+
+fn empty_repository_actor_registry_root() -> String {
+    format!("sha256:{}", hex::encode(Sha256::digest([])))
 }
 
 fn authority_envelope_sequence(envelope: &AuthorityEnvelopeV1) -> Result<u64, String> {
