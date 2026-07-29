@@ -1301,13 +1301,23 @@ escalation, truncation, source and semantic substitution, byte drift, path and
 symlink escape, and signature tampering. This qualifies the real source
 package, not B8 or external independence.
 
-The remaining B8 step is ordinary non-authoritative retention in Formal. That
-path must register the archive as a bounded Artifact with accepted-event delta
-zero, then import a scoped Verification of every byte and the source authority
-chain. Formal currently has no active Target Index, so the agent rules forbid
-inventing an unranked Submission. The receiver-side experiment waits for one
-exact non-authoritative Target rather than bypassing the repository work
-contract. No federation command, service, resolver, Registry, second writer,
+Formal now exposes exact Target `formal:retain-erdos-424-correction`. Corrected
+Submission `vsb_bb9b64f5d93b8cad` retained the archive under Proposal
+`vpr_7aba66544ffefd99` with accepted-event delta zero and strict repository
+root
+`sha256:df94b3853e62d035844863d0289db4a26f0849d209976028b9bea95f79943915`.
+The prior pending Proposal `vpr_b81d87fce0d9c81c` contains a one-character
+reference-root typo, has no Verification, and must not be accepted. A signed
+scoped Verification over the corrected Proposal passes the exact archive
+reader and explicitly claims no producer independence. Its import remains the
+last receiver-side write before clean-clone replay. The current import path
+uses the repository-authority SSH signer even for this non-authorizing
+evidence action; the agent therefore prepared the exact record but did not
+trigger that credential. The implementation now contradicts the agent
+contract: VELA.md permits an agent verifier to import a scoped record but
+forbids the agent from triggering the repository-authority credential. Resolve
+that contradiction without adding a second writer or weakening local
+authority. No federation command, service, resolver, Registry, second writer,
 or imported authority is authorized.
 
 #### Matched state-lift pilot

@@ -570,8 +570,11 @@ Both readers rederive every identity, verify producer and verifier signatures,
 follow the compaction origin, and verify the repository-authority DSSE
 signature against the retained keyset. They reject authority escalation,
 silent truncation, source and semantic substitution, object-byte drift, path
-and symlink escape, and signature tampering. No second Frontier has retained
-the real correction, so B8 still fails.
+and symlink escape, and signature tampering. Formal Conjectures has retained
+the exact archive through corrected Submission `vsb_bb9b64f5d93b8cad` and
+pending Proposal `vpr_7aba66544ffefd99` with accepted-event delta zero.
+Receiver Verification and clean-clone replay remain incomplete, so B8 still
+fails.
 
 The matched Git-versus-Vela reviewer protocol is frozen at root
 `sha256:68fb039088302d19f02cf2628c16004e174649b1f952a63a0fd35210c0dd0ef8`.
@@ -675,7 +678,7 @@ framework was evaluated or retained.
 | B5 removability | writer qualification pass; primary pending | pending | replay unchanged |
 | B6 hosted-service failure | writer qualification pass; primary pending | pending | replay succeeds |
 | B7 support diversity | pending | pending | exact route accounting |
-| B8 second Frontier | gap reproduced; real source package passes two readers; receiver retention pending | not run | zero imported authority |
+| B8 second Frontier | gap reproduced; source package passes two readers; receiver registration passes with zero accepted delta; Verification pending | not run | zero imported authority |
 | B9 observability | synthetic pass only | pending | no silent truncation |
 | B10 cold inheritance | first pilot failed hard budget | pending | at least 20% median lift |
 
@@ -736,9 +739,10 @@ The evaluation includes:
   source root.
 - **Foreign Frontier:** foreign state must be attributed information with no
   imported local authority. A derived edge-layer envelope passes real-source
-  semantic, signature, and containment checks without changing the protocol,
-  but no second Frontier has retained and verified the source transition; B8
-  therefore remains unsatisfied.
+  semantic, signature, and containment checks without changing the protocol.
+  Formal Conjectures has retained it as a pending local Proposal with zero
+  accepted-state delta, but the scoped receiver Verification and clean-clone
+  replay remain incomplete; B8 therefore remains unsatisfied.
 - **Implementation:** Rust and clean-room Python reduce shared-code defects but
   share the same specification, fixtures, operator, and project incentives.
   Agreement is implementation diversity, not organizational independence.

@@ -135,8 +135,11 @@ authority record, and keyset. Rust and clean-room Python agree at reference
 root
 `sha256:b7b330ae6ea4915d5bac218233f0a272ee961060682be6d22f6a8ea1b78c4ed6`
 and verify the repository-authority signature. The remaining B8 step is
-ordinary non-authoritative retention and Verification in Formal. The
-colocated readers earn no external-independence credit.
+receiver Verification and clean-clone replay in Formal. Corrected Submission
+`vsb_bb9b64f5d93b8cad` and Proposal `vpr_7aba66544ffefd99` already retain the
+exact archive with accepted-event delta zero. The prepared verifier explicitly
+claims no producer independence. The colocated readers earn no
+external-independence credit.
 
 The historical entry gate is closed. Across 2,831 current Claim records, the
 four Frontiers contain no current correction relation. Erdős 281 has the

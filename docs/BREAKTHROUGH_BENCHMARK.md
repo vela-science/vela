@@ -216,8 +216,11 @@ Current B8 status is source-qualified but incomplete. The real Erdős 424
 reference passes the Rust and dependency-free Python readers at root
 `sha256:b7b330ae6ea4915d5bac218233f0a272ee961060682be6d22f6a8ea1b78c4ed6`,
 including repository-authority signature verification and explicit local
-Standing effect `none`. Formal has not yet retained and verified the package,
-so B8 remains failed rather than partial credit being reported as transfer.
+Standing effect `none`. Formal retained the exact archive through corrected
+Submission `vsb_bb9b64f5d93b8cad` and pending Proposal
+`vpr_7aba66544ffefd99`, with accepted-event delta zero. The scoped receiver
+Verification and clean-clone replay remain incomplete, so B8 remains failed
+rather than partial credit being reported as transfer.
 
 ## Required release evidence
 

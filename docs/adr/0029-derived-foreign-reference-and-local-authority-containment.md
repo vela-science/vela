@@ -27,10 +27,13 @@ The real Erdős 424 source correction is now terminal, verified, accepted, and
 clean-clone replayed. Its real reference package now passes both the Rust and
 dependency-free Python readers at reference root
 `sha256:b7b330ae6ea4915d5bac218233f0a272ee961060682be6d22f6a8ea1b78c4ed6`.
-The experiment is therefore eligible for receiver-side retention through the
-ordinary producer path. It is not eligible to add a federation service,
-global identifier system, resolver, Registry, second writer, distributed
-transaction, or imported authority.
+Formal Conjectures retained that exact archive through corrected Submission
+`vsb_bb9b64f5d93b8cad` and Proposal `vpr_7aba66544ffefd99`. Registration left
+accepted Standing unchanged. A signed, explicitly non-independent scoped
+Verification is prepared but not yet imported, so the experiment remains
+incomplete. It is not eligible to add a federation service, global identifier
+system, resolver, Registry, second writer, distributed transaction, or
+imported authority.
 
 ## Decision proposed
 
@@ -193,6 +196,7 @@ Accept only after:
 
 - B8 changes from an unimplemented gap to a bounded, falsifiable experiment.
 - The current public protocol and CLI remain unchanged.
-- The source package and two-reader qualification are complete; actual
-  second-Frontier retention remains pending.
+- The source package, two-reader qualification, and ordinary receiver
+  registration are complete; receiver Verification and clean-clone replay
+  remain pending.
 - Failure removes code rather than expanding architecture.
