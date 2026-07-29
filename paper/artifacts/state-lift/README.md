@@ -60,6 +60,12 @@ JSONL event stream, final answer, stderr, timing, and post-run cleanliness for
 one session. The Git arm cannot use Vela. The Vela arm receives one copied
 binary whose root must match the task instance.
 
+`execution-amendment-001.v1.json` records the only pre-output infrastructure
+retry: the response-format API rejected `uniqueItems`, which its structured
+JSON subset does not support. The amended schema removes that annotation
+without changing the prompt, task, scorer, answer fields, or scientific facts;
+`score.py` still rejects duplicate arrays.
+
 ```bash
 python3 -m unittest paper/artifacts/state-lift/test_score.py
 python3 -m unittest paper/artifacts/state-lift/test_materialize.py

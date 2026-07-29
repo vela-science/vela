@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019fae39-ac0b-7a72-a3e3-ee5259fab6f2"}
+{"type":"turn.started"}
+{"type":"error","message":"{\n  \"type\": \"error\",\n  \"error\": {\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_json_schema\",\n    \"message\": \"Invalid schema for response_format 'codex_output_schema': In context=('properties', 'scope_limit_codes'), 'uniqueItems' is not permitted.\",\n    \"param\": \"text.format.schema\"\n  },\n  \"status\": 400\n}"}
+{"type":"turn.failed","error":{"message":"{\n  \"type\": \"error\",\n  \"error\": {\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_json_schema\",\n    \"message\": \"Invalid schema for response_format 'codex_output_schema': In context=('properties', 'scope_limit_codes'), 'uniqueItems' is not permitted.\",\n    \"param\": \"text.format.schema\"\n  },\n  \"status\": 400\n}"}}

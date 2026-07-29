@@ -76,7 +76,6 @@
         },
         "scope_limit_codes": {
           "type": "array",
-          "uniqueItems": true,
           "items": {
             "enum": [
               "not_erdos_424_proof",
@@ -171,7 +170,6 @@
         },
         "verification_ids": {
           "type": "array",
-          "uniqueItems": true,
           "items": {
             "type": "string",
             "minLength": 1
@@ -186,7 +184,6 @@
         },
         "event_ids": {
           "type": "array",
-          "uniqueItems": true,
           "items": {
             "type": "string",
             "minLength": 1

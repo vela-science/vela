@@ -1,0 +1,21 @@
+{
+  "schema": "vela.state-lift-execution-amendment.v1",
+  "prior_execution_file_root": "sha256:25497ecfdb4bdb073f287c490dd0d63b096c246a0a10e58775935d6baf6b0bff",
+  "amended_at": "2026-07-29T14:14:20Z",
+  "reason": "The first git-01 infrastructure attempt was rejected before model output because the structured-output API subset does not permit JSON Schema uniqueItems.",
+  "model_output_started": false,
+  "scientific_prompt_changed": false,
+  "task_instance_root_changed": false,
+  "scorer_changed": false,
+  "runner_root_changed": false,
+  "prior_answer_schema_root": "sha256:b407d632ac4b0f71c476a26d2f68cb68a8bd56481b327831f3a62ce9a2daadec",
+  "answer_schema_root": "sha256:8637e0d3cc9cf86e265db058fe768b3a3eeb052d0c55a86dfe7e1d717a789c88",
+  "change": "Remove unsupported uniqueItems annotations. The preregistered deterministic scorer continues to reject duplicate arrays.",
+  "failed_attempt": {
+    "session_id": "git-01",
+    "events_root": "sha256:7afb8520b5af78747da159b5dbaeddbd2ba483b51dba7cc491f6e946442d10a9",
+    "result": "invalid_json_schema",
+    "model_calls_with_output": 0
+  },
+  "retry_authorized": true
+}
