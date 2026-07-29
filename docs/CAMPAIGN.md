@@ -63,6 +63,26 @@ Vela is version control for living science: an open state and compounding
 layer for what is claimed, checked, decided, corrected, inherited, and ready
 to do next.
 
+The long-range mission is:
+
+> Map the observable universe of scientific state and advance the endless
+> frontier of what is not yet observed, established, connected, or
+> understood.
+
+That sentence is directional, not a claim that Vela can enumerate all
+knowledge or unknown unknowns. In this campaign:
+
+- **observable** means exact, attributed, scoped, and inspectable state;
+- **unobservable** means explicit unresolved Obligations beyond that state;
+- **movement** means a verified, authorized, correction-aware transition; and
+- **compounding** means the next actor inherits better state and a safer next
+  action.
+
+The public product is the living Frontier map. The protocol is its integrity
+layer. Verified frontier movement is the outcome. A map that cannot expose
+coverage, disagreement, correction, absence, and the next bounded Target is
+not the product, no matter how many objects it renders.
+
 ```text
 map -> target -> run -> verify -> commit -> compound
 ```
@@ -128,9 +148,29 @@ dependency graphs make both success and failure unusually inspectable. Vela
 Math is a domain profile under test, not a second authority system and not
 Vela's permanent domain boundary.
 
+The source posture is:
+
+```text
+reference broadly
+snapshot selectively
+admit narrowly
+```
+
+A reference preserves native identity. A snapshot preserves exact bytes and
+environment for reproduction. Admission requires a scoped Verification and an
+authorized local Decision. These operations must never be collapsed into an
+ingest-all pipeline or a global truth table.
+
+The 2026-07-29 thesis, math-package, Registry, and Atlas memos sharpen
+[ADR 0025](adr/0025-math-first-compounding-product-architecture.md) and
+[ADR 0028](adr/0028-living-frontier-map-and-native-system-boundary.md); they
+do not authorize another ADR, protocol object, repository, or service. Their
+package and network proposals remain hypotheses behind the evidence gates
+below.
+
 ## Performance functions
 
-The north star is genuine reusable scientific progress per scarce human
+The north star is verified frontier expansion per unit of scarce expert
 judgment. Three measures stay separate:
 
 1. **Execution lift:** verifier-passing bounded artifacts per all-in cost and
@@ -1382,23 +1422,45 @@ infrastructure.
 
 ### Expansion gates
 
-The sequence after a successful local package is:
+The maturity sequence is:
 
 ```text
-source-local profile
--> exact lock
--> two maintained consumers
--> deleted duplication
--> read-only package index
--> minimum federated read map
--> external institutional recurrence
+0  source-local recurrence audit and profile
+1  immutable shared package
+2  static read-only package index
+3  hosted publishing Registry
+4  federated read-only Atlas
 ```
 
-A hosted Registry is not authorized before repeatable package reuse. A Vela
-Atlas is not authorized before exact cross-Frontier resolution and correction
-propagation outperform ordinary repository navigation. Actions, Spaces,
-Collections, Campaigns, relays, private registries, and institutional control
-rooms remain names for possible products, not scheduled components.
+Each level must earn the next:
+
+- **Level 0** is the only active package work. Record a repeated semantic or
+  adapter contract source-locally and prove that it is not better owned by a
+  native system.
+- **Level 1** requires two maintained consumers, deterministic offline
+  generation, exact roots and imports, explicit loss, no replay effect, an
+  independent reader, and deletion of more maintained duplication than the
+  package adds.
+- **Level 2** requires at least one released package to be reused and a frozen
+  test showing that the static index reduces integration or evidence-location
+  work.
+- **Level 3** requires external consumers and a real external publisher,
+  reproduced operational friction with Git releases, tested advisory and
+  namespace processes, and proof that hosting is not an authority dependency.
+- **Level 4** requires exact cross-Frontier identity resolution, a real
+  correction cascade with surviving support routes, non-escalating foreign
+  retention, independent reader agreement, disclosed coverage, stale-state
+  failure, and measured cold-user continuation lift.
+
+The first package must exist because it deletes maintained duplication and
+prevents semantic drift, not because a Registry roadmap needs inventory.
+Package publication never changes Standing. A Registry distributes reusable
+capability; an Atlas is a root-bound read projection; neither is a canonical
+writer or global truth authority.
+
+Actions, Spaces, Collections, Campaigns, relays, private registries, and
+institutional control rooms remain names for possible products, not scheduled
+components.
 
 No new astronomy brand is introduced. If earned, these remain descriptive
 Vela product surfaces. Canopus remains the one separately named optional

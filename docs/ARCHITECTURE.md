@@ -23,6 +23,12 @@ current, and actionable. The map must show what is accepted, checked,
 recorded, disputed, missing, and next. A transition compounds only when it
 changes that map and improves a later valid action.
 
+In product language, the observable universe is exact, attributed, scoped,
+inspectable scientific state. The unobservable frontier is the set of explicit
+Obligations that follow from that state. Unknown unknowns remain unknown; Vela
+does not manufacture completeness by turning missing source coverage into
+graph nodes.
+
 The product story is:
 
 ```text
@@ -124,6 +130,20 @@ Reference is not snapshot. Snapshot is not Verification. Verification is not
 admission. An external object may be broadly discoverable without being copied
 into Vela, and a reproducible artifact may remain unaccepted.
 
+The default integration posture is:
+
+```text
+reference broadly
+snapshot selectively
+admit narrowly
+```
+
+Adapters preserve native identifiers, source revisions, content roots,
+licenses, the exact interpreting implementation, and an explicit account of
+preserved, omitted, approximated, and unsupported meaning. They reconcile
+candidate identities without silently merging disagreement. Vela does not
+operate an ingest-all scientific warehouse.
+
 Vela Math is a domain profile over current objects, not a proof language,
 Kernel extension, universal ontology, or second package resolver. Its first
 source-local views may describe Problems, Mathematical Claims,
@@ -176,6 +196,21 @@ interface versions.
 An exact scientific Run still pins every binary and digest it used. Colocated
 source does not grant Canopus authority access, and component versions do not
 move in lockstep.
+
+Package and network surfaces follow a strict maturity ladder:
+
+| Level | Surface | Entry gate |
+| --- | --- | --- |
+| 0 | Source-local profile | One reproduced semantic or adapter recurrence |
+| 1 | Shared immutable package | Two maintained consumers and net deletion of maintained duplication |
+| 2 | Static read-only index | Released package reuse and measured integration benefit |
+| 3 | Hosted Registry | External publishing demand and Git-release friction |
+| 4 | Federated read-only Atlas | Exact cross-Frontier correction, independent agreement, and cold-user lift |
+
+Only level 0 is active. A package carries reusable language or capability but
+confers no Standing. A Registry distributes packages but is not scientific
+authority. An Atlas projects attributed Frontier state but is not a canonical
+database or writer.
 
 ## Non-goals
 

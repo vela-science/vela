@@ -5,6 +5,10 @@ correction-aware state that compounds across different producers, verifiers,
 decisions, and readers without turning any workbench, package, map, or database
 into authority.
 
+The long-range mission is to map exact, attributed, scoped, inspectable
+scientific state and advance the explicit Obligations at its boundary. This is
+an operational mission, not a promise to enumerate truth or unknown unknowns.
+
 The protocol is the integrity layer. The living Frontier map is the product.
 Verified frontier movement is the outcome.
 
@@ -150,9 +154,11 @@ topology-sensitive correction benchmark and does not establish B8.
 
 ## P2: earn a reusable math profile
 
-Prototype the smallest Vela Math mapping source-locally. Do not publish a
-package until two maintained consumers use the same stable contract and
-extraction deletes maintained duplication. Preserve Lean, Lake, Mathlib,
+First audit for one stable repeated contract across the Erdős projector,
+Observatory, and Formal reader. Prototype the smallest Vela Math mapping
+source-locally only if that recurrence is real. Do not publish a package until
+two maintained consumers use the same contract and extraction deletes more
+maintained duplication than the package adds. Preserve Lean, Lake, Mathlib,
 problem-corpus, and external identifier sovereignty.
 
 The package path is:
@@ -190,6 +196,20 @@ canonical commit control, and authority isolation.
 A read-only package index is earned only by repeated package reuse. A
 federated Atlas is earned only by exact cross-Frontier resolution, correction
 propagation, and cold-user lift. Attractive architecture is not an entry gate.
+
+The maturity ladder is explicit:
+
+```text
+source-local recurrence
+-> shared immutable package
+-> static read-only index
+-> hosted Registry
+-> federated read-only Atlas
+```
+
+Only the first step is active. Each later step requires the measured
+two-consumer, deletion, external-publisher, correction, and cold-use gates in
+the campaign.
 
 Failure to demonstrate lift causes simplification and deletion, not another
 architecture layer.
