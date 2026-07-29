@@ -88,6 +88,18 @@ preserves the archived root in its empty-history result, and a deterministic
 transaction test signs and re-verifies sequence 1 against that root. All four
 candidate packages re-verify unchanged; their plan roots above remain valid.
 
+The second protected invocation also failed before the commit marker. The
+fresh-authority write gate recognized only the native
+`repository-genesis + repository.v2` shape and rejected the planned
+`repository-origin(compaction) + repository.v3` shape. The preserved worktree
+contained no authority bytes, origin, repository manifest, or new commit; all
+2,803 untracked candidate objects matched the already rooted candidate
+package byte-for-byte, and the source and remote stayed at the predecessor
+commit. The write gate now accepts exactly those two complete initialization
+shapes, rejects every mixture, requires a compaction origin for v3, and binds
+the Frontier, Profile, origin ID/root, and retained object-set root before a
+commit marker can exist.
+
 The disk cost is immaterial. The cost is a larger protocol vocabulary and
 trust base before Vela has external users. Keeping compatibility indefinitely
 would optimize for a release history that does not yet exist.

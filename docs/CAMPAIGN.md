@@ -216,12 +216,19 @@ defect before commit or publication: the empty-history verifier discarded the
 archived predecessor event root while constructing sequence 1. The source and
 remote remained byte-identical, the isolated worktree retained no signed
 postimage, and the defect now has protocol- and transaction-level regression
-coverage. All 167 CLI tests, all 88 protocol tests, and strict CLI Clippy pass.
-The failed worktree was removed only after that audit, and all four candidate
-packages were independently re-read again. The next gate remains the human
-invocation of the four exact candidate roots followed by read-only
-`repository finalize-compaction --check`; compatibility removal cannot begin
-until all four resulting clean clones replay.
+coverage. A second protected invocation exposed the fresh-authority write
+gate's obsolete assumption that every initialization creates
+`repository-genesis + repository.v2`; it correctly stopped before the marker
+but rejected the exact compact-origin v3 pair. The gate now admits only the
+native-v2 and compact-v3 closed shapes, cross-binds the origin and manifest,
+and rejects mixed versions, a genesis origin in the compaction lane, identity
+substitution, and object-set drift. All 169 CLI tests, all 88 protocol tests,
+and strict CLI Clippy pass. Each failed worktree was removed only after proving
+it contained no unique signed postimage; in the second audit all 2,803 staged
+candidate objects matched the rooted candidate package exactly. The next gate
+remains the human invocation of the four exact candidate roots followed by
+read-only `repository finalize-compaction --check`; compatibility removal
+cannot begin until all four resulting clean clones replay.
 
 Six protocol and operating planes remain deliberately separate:
 
