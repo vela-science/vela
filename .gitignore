@@ -32,3 +32,6 @@ Cargo.lock.bak
 
 # Python build metadata
 *.egg-info/
+
+# Generated publication artifacts
+/output/

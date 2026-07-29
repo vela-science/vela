@@ -1,6 +1,7 @@
-# Vela: Correction-Aware Scientific State Across Plural Authorities
-
-**Working draft. Not a protocol-breakthrough claim.**
+---
+title: "Vela: Correction-Aware Scientific State Across Plural Authorities"
+subtitle: "Working draft. Not a protocol-breakthrough claim."
+---
 
 ## Abstract
 
