@@ -889,11 +889,20 @@ fn validate_fresh_initialization_request(
         .policy_bundle
         .root()
         .map_err(AuthorityTransactionError::Invalid)?;
-    let predecessor_event_root =
-        format!("sha256:{}", event_log_hash(&request.history.legacy_events));
-    let predecessor_actor_root = ContentDigest::hash(&request.history.legacy_actor_registry_bytes)
-        .as_str()
-        .to_string();
+    let predecessor_event_root = request
+        .history
+        .archived_predecessor_event_log_root
+        .clone()
+        .unwrap_or_else(|| format!("sha256:{}", event_log_hash(&request.history.legacy_events)));
+    let predecessor_actor_root = request
+        .history
+        .archived_predecessor_actor_registry_root
+        .clone()
+        .unwrap_or_else(|| {
+            ContentDigest::hash(&request.history.legacy_actor_registry_bytes)
+                .as_str()
+                .to_string()
+        });
     let mut mismatches = Vec::new();
     for (matches, field) in [
         (
@@ -2702,6 +2711,76 @@ mod tests {
                 bytes == to_canonical_bytes(&fixture.request.history.policy_bundle).unwrap()
             });
         event_count == 1 && record_count == 1 && keyset_unchanged && policy_unchanged
+    }
+
+    #[test]
+    fn fresh_initialization_binds_archived_predecessor_roots() {
+        let mut fixture = fixture();
+        let archived_event_root = root('a');
+        let archived_actor_root = root('b');
+        let reason = "Adopt the compacted current repository origin.";
+        let keyset_root = fixture.request.history.authority_keyset.root().unwrap();
+        let policy_root = fixture.request.history.policy_bundle.root().unwrap();
+
+        fixture.request.history.legacy_events.clear();
+        fixture.request.history.legacy_actor_registry_bytes.clear();
+        fixture.request.history.archived_predecessor_event_log_root =
+            Some(archived_event_root.clone());
+        fixture
+            .request
+            .history
+            .archived_predecessor_actor_registry_root = Some(archived_actor_root.clone());
+        fixture.request.history.retained_authority_keysets.clear();
+        fixture.request.history.retained_policy_bundles.clear();
+        fixture.request.history.authority_events.clear();
+        fixture.request.history.authority_envelopes.clear();
+        fixture.request.authorization_input.action = AUTHORITY_INITIALIZE_ACTION.into();
+        fixture.request.authorization_input.resource =
+            format!("Frontier::{}", serde_json::to_string(FRONTIER_ID).unwrap());
+        fixture.request.semantic_approvals = vec![SemanticApprovalV1 {
+            principal_id: REPOSITORY_PRINCIPAL.into(),
+            role: "frontier_administrator".into(),
+            action: AUTHORITY_INITIALIZE_ACTION.into(),
+            reason: reason.into(),
+            approved_at: RECORDED_AT.into(),
+            intent_digest: fixture.request.intent_digest.clone(),
+        }];
+        let initialization = AuthorityInitializationV1 {
+            schema: AUTHORITY_INITIALIZATION_SCHEMA_V1.into(),
+            frontier_id: FRONTIER_ID.into(),
+            initial_event_log_root: archived_event_root.clone(),
+            initial_actor_registry_root: archived_actor_root,
+            new_authority_keyset_root: keyset_root,
+            new_policy_bundle_root: policy_root,
+            new_principal_id: REPOSITORY_PRINCIPAL.into(),
+            minimum_writer_version: "0.940.9".into(),
+            reason: reason.into(),
+        };
+        fixture.request.event_drafts = vec![AuthorityEventDraft {
+            kind: EventKind::Other(AUTHORITY_INITIALIZED_EVENT_KIND.into()),
+            target: StateTarget {
+                r#type: "frontier".into(),
+                id: FRONTIER_ID.into(),
+            },
+            actor: StateActor {
+                r#type: "human".into(),
+                id: REPOSITORY_PRINCIPAL.into(),
+            },
+            timestamp: RECORDED_AT.into(),
+            reason: reason.into(),
+            before_hash: NULL_HASH.into(),
+            after_hash: NULL_HASH.into(),
+            payload: serde_json::to_value(&initialization).unwrap(),
+            caveats: Vec::new(),
+        }];
+
+        validate_fresh_initialization_request(&fixture.request).unwrap();
+
+        let mut stale = fixture.request.clone();
+        stale.event_drafts[0].payload["initial_event_log_root"] =
+            serde_json::Value::String(root('c'));
+        let error = validate_fresh_initialization_request(&stale).unwrap_err();
+        assert!(error.to_string().contains("predecessor_event_log_root"));
     }
 
     fn prepared_journal_absent(fixture: &Fixture) -> bool {

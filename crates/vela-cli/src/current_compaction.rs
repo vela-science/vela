@@ -45,6 +45,8 @@ struct CompactionCandidatePlanV1 {
     predecessor_boundary_id: String,
     predecessor_boundary_root: String,
     predecessor_authority_head_root: String,
+    predecessor_event_log_root: String,
+    predecessor_actor_registry_root: String,
     predecessor_tag: String,
     predecessor_archive_root: String,
     predecessor_object_manifest_root: String,
@@ -604,6 +606,8 @@ fn materialize_candidate_inner(
     let predecessor_roots = epoch.predecessor_roots().ok_or_else(|| {
         "pre-release compaction requires a predecessor-bound current repository".to_string()
     })?;
+    let predecessor_event_log_root = authority.verification.final_event_log_root.clone();
+    let predecessor_actor_registry_root = predecessor_roots.actor_registry.clone();
     let origin = RepositoryOriginV1::compaction(
         repository.frontier_id.clone(),
         2,
@@ -616,8 +620,8 @@ fn materialize_candidate_inner(
             tree: source_tree.clone(),
             repository_root: repository.canonical_root()?,
             authority_head_root: authority_head.clone(),
-            archived_event_log_root: predecessor_roots.event_log.clone(),
-            archived_actor_registry_root: predecessor_roots.actor_registry.clone(),
+            archived_event_log_root: predecessor_event_log_root.clone(),
+            archived_actor_registry_root: predecessor_actor_registry_root.clone(),
             archive_sha256: predecessor_archive_root.clone(),
             object_manifest_root: predecessor_object_manifest_root.clone(),
             equivalence_report_root: equivalence_report_root.into(),
@@ -697,6 +701,8 @@ fn materialize_candidate_inner(
         predecessor_boundary_id: epoch.epoch_id().to_string(),
         predecessor_boundary_root: epoch.canonical_root()?,
         predecessor_authority_head_root: authority_head,
+        predecessor_event_log_root,
+        predecessor_actor_registry_root,
         predecessor_tag: tag,
         predecessor_archive_root,
         predecessor_object_manifest_root,
@@ -775,6 +781,24 @@ fn verify_materialized_candidate(root: &Path) -> Result<usize, String> {
         || origin.initial_object_set_root != plan.candidate_object_set_root
     {
         return Err("candidate repository origin disagrees with its plan".into());
+    }
+    let predecessor = origin
+        .predecessor
+        .as_ref()
+        .ok_or_else(|| "candidate compaction origin has no predecessor".to_string())?;
+    if predecessor.repository_root != plan.predecessor_repository_root
+        || predecessor.authority_head_root != plan.predecessor_authority_head_root
+        || predecessor.archived_event_log_root != plan.predecessor_event_log_root
+        || predecessor.archived_actor_registry_root != plan.predecessor_actor_registry_root
+        || predecessor.tag != plan.predecessor_tag
+        || predecessor.commit != plan.source_commit
+        || predecessor.tree != plan.source_tree
+        || predecessor.remote != plan.source_remote
+        || predecessor.archive_sha256 != plan.predecessor_archive_root
+        || predecessor.object_manifest_root != plan.predecessor_object_manifest_root
+        || predecessor.equivalence_report_root != plan.equivalence_report_root
+    {
+        return Err("candidate repository origin predecessor disagrees with its plan".into());
     }
     let repository_bytes = fs::read(root.join(".vela/repository.json"))
         .map_err(|error| format!("read candidate repository: {error}"))?;
