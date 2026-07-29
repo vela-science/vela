@@ -20,9 +20,10 @@
 ---
 
 Research already has tools for code, papers, data, proofs, and computation.
-Vela tracks the missing state between them: what is claimed, what exact
-evidence bears on it, what was independently checked, what a named Frontier
-decided, what was corrected, and what the next researcher can safely inherit.
+Vela turns the state between them into a living map: what is known, contested,
+missing, and ready to attempt next; what exact evidence bears on each Claim;
+what was independently checked; what a named Frontier decided; and what a
+later researcher can safely inherit.
 
 Vela is a Git-native protocol and CLI for governed, replayable
 scientific-state transitions. Its product loop is:
@@ -35,10 +36,28 @@ Work can run anywhere. Checks remain scoped. Only an authorized Decision
 changes Standing. The accepted result, correction, or retained failed route
 then becomes a stronger starting point for the next person or agent.
 
+The product hierarchy is deliberate:
+
+```text
+protocol     integrity layer
+map          user-facing product
+movement     measurable outcome
+```
+
+The protocol is useful when it makes a Frontier legible and helps the next
+valid scientific action improve after a result, correction, or useful
+failure. Record count, graph size, workflow completion, and model activity are
+not product success.
+
 Its long-range direction is a federated inheritance layer for science:
 different workbenches can produce evidence, different verifiers can report
 scoped checks, and each Frontier can decide and replay its own state without a
 hosted authority or universal ontology.
+
+Native systems remain sovereign. Lean checks Lean proofs, Lake resolves Lean
+packages, Git preserves bytes and ancestry, and external activity recorders
+may preserve sessions. Vela binds exact native objects and governs only the
+bounded transition into locally accepted, correction-aware state.
 
 With Vela you can:
 
@@ -261,6 +280,7 @@ once per actual release boundary.
 - [Native current repository genesis ADR](docs/adr/0023-native-current-repository-genesis.md)
 - [Product monorepo and transition-repository retirement ADR](docs/adr/0024-repository-ownership-and-integration-repository-retirement.md)
 - [Math-first compounding product architecture ADR](docs/adr/0025-math-first-compounding-product-architecture.md)
+- [Living Frontier map and native-system boundary ADR](docs/adr/0028-living-frontier-map-and-native-system-boundary.md)
 - [Protocol breakthrough benchmark](docs/BREAKTHROUGH_BENCHMARK.md)
 - [Whitepaper evidence contract](docs/WHITEPAPER_CONTRACT.md)
 

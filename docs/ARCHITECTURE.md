@@ -10,6 +10,19 @@ inheritance infrastructure. That direction remains a hypothesis until
 different producers and readers demonstrate cheaper continuation, correction
 handling, and downstream reuse.
 
+The product hierarchy is:
+
+```text
+protocol  -> integrity layer
+map       -> product
+verified frontier movement -> outcome
+```
+
+The protocol earns its complexity by making a living Frontier map exact,
+current, and actionable. The map must show what is accepted, checked,
+recorded, disputed, missing, and next. A transition compounds only when it
+changes that map and improves a later valid action.
+
 The product story is:
 
 ```text
@@ -66,7 +79,8 @@ true.
 
 ```text
 Activity plane
-  Runs, branches, traces, notebooks, attempts, raw artifacts
+  Runs, branches, traces, notebooks, attempts, raw artifacts,
+  external agent-session checkpoints
 
 Scientific-state plane
   Claims, Submissions, Verification Records, Decisions, Events, Standing
@@ -82,12 +96,41 @@ Vela owns the scientific-state boundary. Workbenches own activity. Packages
 make language and capability reusable but confer no Standing. Discovery
 surfaces are root-bound, rebuildable readers.
 
+External activity recorders may preserve session context, prompts, traces,
+checkpoints, or workbench history. They remain non-authoritative
+activity-plane systems. Their records may support provenance, review, or
+continuation, but they cannot create a Verification Record, Decision, Event,
+or Standing and are never required for Vela replay.
+
 Mathematics is the first complete domain proving ground, not a second Kernel.
 Lean and other proof assistants retain proof checking, native package managers
 retain dependency resolution, source communities retain their identifiers and
 review processes, and each Frontier retains bounded authority. A future Vela
 Math profile must earn extraction through two maintained consumers and deleted
 duplication before it becomes a shared package.
+
+## Native-system interoperability
+
+Vela composes with mathematical and scientific systems through three distinct
+operations:
+
+```text
+reference  preserve an exact native identity
+snapshot   retain the exact bytes and environment needed for reproduction
+admit      let one named Frontier decide a bounded proposed transition
+```
+
+Reference is not snapshot. Snapshot is not Verification. Verification is not
+admission. An external object may be broadly discoverable without being copied
+into Vela, and a reproducible artifact may remain unaccepted.
+
+Vela Math is a domain profile over current objects, not a proof language,
+Kernel extension, universal ontology, or second package resolver. Its first
+source-local views may describe Problems, Mathematical Claims,
+Formalizations, Results, Obligations, and statement-fidelity reviews while
+binding native commits, paths, declarations, toolchains, manifests, and
+artifacts exactly. Consequential cross-system mappings require explicit scope
+and loss reports; similarity or graph proximity never transports Standing.
 
 ## Source and repository ownership
 
@@ -158,9 +201,12 @@ model activity. The useful performance functions remain separate:
 1. verified bounded artifacts per all-in cost and expert-minute;
 2. correct Decisions and correction comprehension per reviewer-minute; and
 3. time to the first useful downstream action after changing producer,
-   runtime, or reader.
+   runtime, or reader; and
+4. map correctness: coverage disclosure, stale-state rate, valid Target rate,
+   Decision-to-remap latency, and cold-user comprehension.
 
-`status`, `show`, and `why` are the current read path. A scientific-state
-comparison surface is worth adding only when a registered cold-use test shows
-that it reduces evidence-location or correction time without inventing a new
-canonical object or authority layer.
+The current read path is `status`, `show`, and `why`; the existing Observatory
+is the public map surface. A new map, diff, or comparison feature is worth
+adding only when it answers one named Frontier question and a registered
+cold-use test shows that it reduces evidence-location, correction, or
+continuation time without inventing a canonical object or authority layer.

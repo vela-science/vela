@@ -40,6 +40,7 @@ produce -> preserve -> check -> decide -> reuse
 | Term | Meaning | Authority effect |
 | --- | --- | ---: |
 | Frontier | One independently clonable Git repository with bounded scope, stable identity, canonical history, authority, and correction policy | Boundary only |
+| Frontier map | An exact, removable read projection of current territory, coverage, uncertainty, retained work, and next valid action | None |
 | Problem | A bounded scientific question organizing Claims, Obligations, Targets, and Attempts | None |
 | Obligation | One unresolved requirement needed to assess or advance a Claim | None |
 | Target | One machine-addressable, bounded unit of work | None |

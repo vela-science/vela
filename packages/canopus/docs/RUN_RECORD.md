@@ -32,6 +32,22 @@ when the supplied bytes do not match `parent_candidate`.
 verifier. Deleting Canopus or its run directory cannot change Vela replay or
 Standing.
 
+## External activity recorders
+
+A Canopus Run may originate from or be compared with work captured by an
+external activity recorder. Such records are supplemental and
+non-authoritative. They do not replace the exact mission, starting roots,
+worker events, frozen Artifacts, verifier result, budgets, or clean-clone
+reproduction retained by `canopus.run.v2`.
+
+The current Run schema does not require an external recorder, include raw
+external transcripts, or depend on an external checkpoint for replay.
+Deleting the recorder or its data cannot change the Run result, a Vela
+Verification Record, or Standing. Any future provider experiment begins as a
+private, metadata-only sidecar and must pass the measured gate in
+[ADR 0012](adr/0012-optional-external-activity-recorders.md) before changing a
+public Canopus contract.
+
 ## Export
 
 `canopus export` creates `canopus.submission-bundle.v1`:

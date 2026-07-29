@@ -109,6 +109,8 @@ The installed package has one runtime dependency:
 - [Run, export, and submit records](docs/RUN_RECORD.md)
 - [Evaluation gates](docs/EVALUATION.md)
 - [Nonmutating Runs and explicit Submission](docs/adr/0010-nonmutating-runs-and-explicit-submission.md)
+- [Framework-neutral evaluation and removable engines](docs/adr/0011-framework-neutral-evaluation-and-removable-engine-experiments.md)
+- [Optional external activity recorders](docs/adr/0012-optional-external-activity-recorders.md)
 - [Why Canopus stays removable](docs/adr/0001-harness-boundary-and-name.md)
 - [Historical Build Week evidence](https://github.com/vela-science/vela-research-harness/blob/v0.6.5/BUILD_WEEK.md)
 

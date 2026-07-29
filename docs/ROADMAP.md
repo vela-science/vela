@@ -5,6 +5,9 @@ correction-aware state that compounds across different producers, verifiers,
 decisions, and readers without turning any workbench, package, map, or database
 into authority.
 
+The protocol is the integrity layer. The living Frontier map is the product.
+Verified frontier movement is the outcome.
+
 The public product loop is:
 
 ```text
@@ -48,6 +51,36 @@ crate.
 
 Stage B orchestration shopping is closed for this campaign because the
 registered call ceiling cannot fit it. No framework runtime was added.
+
+## P0: finish the current repository boundary
+
+Activate the four independently materialized current-state compaction plans
+through the protected repository-authority path and verify each resulting
+Frontier from a clean clone. Then delete the one-time compactor, predecessor
+object readers, schemas, fixtures, and migration-only documentation before
+Vela `0.950.0`.
+
+This is bounded cleanup, not the public product milestone.
+
+## P0: ship one living Erdős map and advance
+
+- Build the minimum exact map projection from the canonical Erdős Frontier
+  and existing read-model package; add no canonical map object or service.
+- Expose all 1,217 catalogued problems with exact source root, Frontier root,
+  projector identity, coverage, and omissions.
+- Make Erdős 1056 legible in one problem map: statement, variants, accepted
+  and recorded Claims, finite witnesses, searched ranges, failed routes,
+  universal open core, current Target, verifier contract, Decision history,
+  and next-action handoff.
+- Complete the next non-overlapping bounded Target through Submission,
+  independent Verification, human Decision, replay, map rebuild, semantic
+  before/after diff, and regenerated next Target.
+- Fail stale map state deterministically.
+- Require one uncoached non-maintainer to reach a correct useful action before
+  describing the map as an adoption success.
+
+The detailed map gates are in
+[CAMPAIGN.md](CAMPAIGN.md#living-map-delivery-gates).
 
 ## P1: complete one Vela Math vertical slice
 
@@ -151,6 +184,12 @@ No `1.0.0` schedule, hosted authority, scheduler, graph database, universal
 ontology, shared adapter registry, mandatory orchestration framework, second
 writer, hosted package Registry, Atlas service, marketplace, control room, or
 science-factory platform is planned.
+
+Entire and other external activity recorders remain optional, private,
+metadata-only pilot candidates. No Canopus schema, CLI, or runtime integration
+is planned unless a preregistered comparison improves correct continuation or
+evidence location by at least 20 percent while preserving replay, privacy,
+canonical commit control, and authority isolation.
 
 A read-only package index is earned only by repeated package reuse. A
 federated Atlas is earned only by exact cross-Frontier resolution, correction

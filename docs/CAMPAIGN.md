@@ -33,6 +33,33 @@ defines the proposed experiment and publication gate. The
 claims behind the benchmark rather than selecting evidence to fit a finished
 narrative.
 
+### Current priority correction
+
+The three layers now have one explicit order:
+
+```text
+protocol  -> integrity layer
+map       -> product
+verified frontier movement -> outcome
+```
+
+The campaign previously risked optimizing transition machinery and benchmarks
+while the scientific territory remained difficult to understand and
+continue. The immediate public proof is now one visible
+`map -> advance -> remap` loop, beginning with the complete Erdős corpus and
+problem 1056. Protocol work is frozen except for blocking integrity defects
+and the already bounded current-state compaction.
+
+The compaction remains necessary because it removes predecessor vocabulary
+before the first public product and produces one exact current repository
+boundary. It is not itself a product milestone. After four protected
+activations and clean-clone replay, the migration writer and old readers are
+deleted and work returns to the map.
+
+[ADR 0028](adr/0028-living-frontier-map-and-native-system-boundary.md)
+defines this product order, the native-system interoperability boundary, and
+the deletion gates for speculative packages and activity integrations.
+
 ## Product thesis
 
 Vela is version control for living science: an open state and compounding
@@ -129,6 +156,17 @@ The campaign tests four claims independently: Canopus execution lift, Vela
 state lift, combined-system efficiency, and cold adoption. Evidence for one
 does not establish another.
 
+Map performance is evaluated separately from protocol conformance:
+
+- source and relation coverage are disclosed;
+- accepted, checked, recorded, disputed, rejected, and open state are
+  distinguishable;
+- stale or contradictory projections fail visibly;
+- closed work is not re-offered;
+- the next Target follows from the current accepted head;
+- Decision-to-remap latency and semantic before/after diffs are measured; and
+- a cold successor reaches one correct useful action without private context.
+
 ## Architecture under test
 
 ```text
@@ -146,6 +184,13 @@ boundary are durable product architecture. Canopus, evaluator bridges, traces,
 Observatory projections, orchestration frameworks, domain packages, and
 external-format adapters must remain removable until their evidence gates
 pass.
+
+External activity recorders are optional activity-plane inputs only. The
+current Run and Vela contracts do not reference them. A provider-specific
+experiment begins as a private, noncanonical, metadata-only comparison and
+must improve one preregistered continuation or evidence-location metric by at
+least 20 percent while preserving privacy, canonical commit control,
+authority isolation, and replay. Otherwise the integration is deleted.
 
 ADR 0027 adds one bounded pre-release contraction to this campaign. The four
 controlled Frontiers will be compacted from imported `va_` Artifact wrappers
@@ -203,6 +248,66 @@ reader, then a non-escalating second Frontier, then the 20 percent cold-user
 continuation threshold. Until those gates pass there is no Vela network
 service, global namespace, universal ontology, CRDT Decision model, or
 protocol-owned reputation system.
+
+## Living-map delivery gates
+
+These gates follow the current-state compaction and run sequentially. They do
+not authorize parallel ecosystem expansion.
+
+### Map gate 1: minimum exact projection
+
+Normalize the smallest read model that can answer:
+
+- what territory and source snapshot the Frontier covers;
+- which Claims are accepted, checked, recorded, disputed, rejected, or open;
+- which exact evidence and Decisions control current Standing;
+- which regions, parameters, or source relations are covered or missing;
+- which failed routes are retained; and
+- which bounded Target is valid next.
+
+Use existing Frontier objects, problem and graph projections, Target Index
+facts, and the existing `@vela/frontier-data` boundary. Add no canonical map
+object.
+
+### Map gate 2: complete Erdős corpus
+
+Expose all 1,217 catalogued problems at one exact source and Frontier root.
+Prefer a legible table or matrix over an unreadable graph. Every view discloses
+coverage, omissions, projection identity, and scientific-state vocabulary.
+
+### Map gate 3: complete Erdős 1056 problem map
+
+Integrate the exact statement and variants, finite witnesses, accepted and
+recorded Claims, searched ranges, retained obstructions, universal open core,
+current Target, verifier contract, Decision history, and next-action handoff
+without private maintainer context.
+
+### Map gate 4: live advance and remap
+
+Derive the first non-overlapping bounded Target from the current accepted
+head. Complete the ordinary producer, Verification, human Decision, Event,
+Standing, rebuild, semantic-diff, and next-Target sequence. The map must change
+deterministically or explain exactly why Standing was preserved.
+
+### Map gate 5: stale-state prevention
+
+Fail or visibly block when a root disagrees, accepted coverage is omitted, a
+closed Target remains offered, the next Target overlaps completed work without
+a reason, a current explanation cites superseded state, or a reader presents
+Verification as acceptance.
+
+### Map gate 6: uncoached continuation
+
+A non-maintainer must use the map to identify what problem 1056 asks, what
+stands, what remains open, what should not be repeated, what exact work is
+next, and how to begin it. Correctness is primary; then measure time, expert
+intervention, and evidence-location cost against Git plus the same files.
+
+### Map gate 7: qualitatively different math
+
+Repeat the pattern on the Formal Conjectures slice, keeping kernel acceptance,
+statement fidelity, scientific Decision, and open Obligations distinct. Only
+repeated common needs may reopen a shared Vela Math package or protocol change.
 
 ## Protocol-breakthrough hypothesis
 

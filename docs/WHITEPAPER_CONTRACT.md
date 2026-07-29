@@ -68,6 +68,13 @@ What storage, validation, authoring, review, and operational cost does Vela
 add? Does replay still work after Canopus, the Observatory, Neon, caches, and
 the original producer session are removed?
 
+### RQ6: Product legibility
+
+Can a cold user reconstruct the exact current Frontier map, distinguish
+accepted, checked, recorded, disputed, rejected, and open state, and select one
+valid next action without private maintainer context? Does the map update
+correctly after a Decision without becoming canonical authority?
+
 ## Evidence ladder
 
 | Level | Claim allowed | Evidence required |
@@ -145,8 +152,8 @@ orchestration separately. They do not substitute for the Git state baseline.
    bounded impact, and repair Obligations.
 6. **Implementation.** Rust reference, clean-room reader, Git custody, and
    removable producers and projections.
-7. **Evaluation.** B1 through B10, primary and held-out fixtures, baselines,
-   raw results, and statistical treatment.
+7. **Evaluation.** B1 through B10, map correctness and continuation, primary
+   and held-out fixtures, baselines, raw results, and statistical treatment.
 8. **Security and failure modes.** Producer, verifier, authority, publisher,
    reader, registry, truncation, and implementation threats.
 9. **Related systems.** Exact borrowed mechanisms and the boundary Vela adds.
