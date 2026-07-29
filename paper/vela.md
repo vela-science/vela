@@ -17,7 +17,7 @@ core design separates producer evidence, mechanical verification, and local
 scientific authority. Optional workers and read models remain removable.
 
 This paper asks whether that separation produces measurable inheritance and
-correction value rather than merely more metadata. We register a benchmark in
+correction value instead of metadata growth. We register a benchmark in
 which independent readers must derive the same bounded correction impact,
 preserve an independent support route, reject authority escalation, transfer
 exact state into a second independently governed Frontier, and improve cold
@@ -42,15 +42,16 @@ outputs, partial failures, and dependent continuations increases.
 Existing systems solve parts of the problem:
 
 - version control retains exact file history and supports decentralized byte
-  exchange;
+  exchange [1];
 - workflow engines execute dependency graphs;
 - formal systems check terms against fixed statements and kernels;
-- provenance formats package runs and artifacts;
+- provenance models and research-object formats exchange run and artifact
+  metadata [4, 6, 7];
 - repositories and review systems coordinate publication; and
 - databases make current projections searchable.
 
-None of those mechanisms should be replaced merely to give Vela a larger
-surface. The missing question is narrower:
+Vela should preserve those mechanisms and keep its own surface small. The
+paper tests a narrower question:
 
 > Can independently governed scientific repositories exchange exact proposed
 > state transitions, verify their causal inputs, apply local authority, replay
@@ -167,12 +168,14 @@ Current Vela objects use a bounded canonical JSON domain:
 
 Independent JavaScript fixtures reproduce the Rust Submission and Verification
 bytes. Canonical hashing vectors cover nested ordering, Unicode, numerical
-rendering, empty values, and realistic Event preimages.
+rendering, empty values, and realistic Event preimages. Vela's encoding is a
+protocol-specific bounded domain rather than a claim to invent JSON
+canonicalization; RFC 8785 supplies the relevant general precedent [2].
 
 ### 3.2 Authentication and repository authority
 
 Producer and verifier records carry Ed25519 identity bindings and whole-body
-signatures. Repository transactions are independently signed, root-bound
+signatures [3]. Repository transactions are independently signed, root-bound
 records. Scientific Decisions require local reviewer authority. The model and
 optional worker do not receive reviewer or repository-authority credentials.
 
@@ -496,11 +499,46 @@ lost authority keys, or make globally governed consensus desirable.
 
 ### Git
 
-Vela uses Git rather than replacing it. Git supplies decentralized transport,
-object history, trees, commits, and operational tooling. Vela adds typed
-scientific objects, scoped checks, local Decision semantics, and deterministic
-Standing. The evaluation must compare Vela against Git plus identical files
-and verifiers, not against an artificially weak baseline.
+Git is a content-addressable filesystem with a version-control
+interface [1]. Vela uses that substrate rather than replacing it. Git supplies
+decentralized transport, byte history, trees, commits, reachability, and mature
+operational tooling. Vela's narrower hypothesis is that typed scientific
+assertions, scoped checks, explicit local Decisions, correction relations, and
+deterministic Standing provide useful semantics that cannot be recovered
+reliably from arbitrary file history alone.
+
+This is an empirical boundary, not an assertion that Git is deficient. Every
+user-value experiment therefore compares Vela with **Git plus the same source,
+evidence, verifier, and documentation**. A result against a weaker baseline
+would not support the paper's claim.
+
+### Artifact identity and reproducible environments
+
+SWHIDs provide persistent, intrinsic identifiers for software artifacts and
+their version-control structure using a Merkle DAG [10]. Nix derives immutable
+software deployments from functional build descriptions [11]. Vela should use
+or interoperate with these mechanisms when they identify source and execution
+environments; it should not recreate them.
+
+Neither mechanism gives a scientific assertion local Standing. Conversely,
+Vela's Claim roots do not guarantee source availability, rebuild an
+environment, or replace an archival identifier. A Vela record may bind those
+identities, but the underlying system remains responsible for their semantics.
+
+### Process provenance and research objects
+
+W3C PROV defines interoperable provenance exchange around entities,
+activities, and agents [4]. DataLad captures command execution and dataset
+changes as provenance-bearing Git history [5]. RO-Crate packages research
+artifacts and metadata [6], while Workflow Run RO-Crate profiles describe
+workflow execution [7].
+
+These standards are complementary to Vela. They answer where an artifact came
+from, how a process ran, and how a portable package is described. Vela asks a
+different question: which exact assertion the artifact supports, which
+property a Verifier checked, and whether a local Decision changed the
+assertion's Standing. Export into an external provenance format must include a
+loss report because provenance and authority have different semantics.
 
 ### Build and workflow systems
 
@@ -509,23 +547,68 @@ Scientific correction additionally requires statement scope, evidential
 relations, plural authority, and explicit unknowns. Vela borrows dependency
 discipline but does not make every scientific relation a build edge.
 
-### Append-only and transparency systems
+### Supply-chain integrity and update trust
+
+in-toto cryptographically records the authorized steps and materials of a
+software supply chain [8]. The Update Framework protects software-update
+systems against repository and signing-key compromise using delegated roles
+and freshness rules [9]. Vela borrows their discipline of exact inputs,
+explicit roles, and signed transitions.
+
+The security goals remain different. A valid supply-chain layout or software
+update does not establish that a scientific Claim is correct. Vela likewise
+does not replace package signing, update freshness, threshold delegation, or
+software-build policy. Repository-authority signatures attest exact local
+transactions; they are not scientific truth certificates.
+
+### Append-only and verifiable semantic artifacts
 
 Append-only records make equivocation and erasure detectable. They do not
 determine scientific acceptance. Vela's authority layer records who authorized
-one local transition and retains prior state.
-
-### Provenance and research-object formats
-
-RO-Crate and workflow-run conventions package artifacts and execution context.
-Vela can export into such formats with an explicit loss report. It does not
-replace them with a universal package or ontology.
+one local transition and retains prior state. Trusty URIs demonstrate that
+cryptographic identifiers can make linked-data artifacts and their reference
+trees verifiable [13]. Nanopublication-style decomposition is a useful
+precedent for small attributed assertions, but cryptographic verifiability
+still does not define local scientific Standing.
 
 ### Formal verification
 
-A kernel can establish that a term checks against an exact formal statement
-under declared axioms. That result remains separate from statement fidelity,
-empirical support, importance, and local acceptance.
+Lean 4 is an interactive theorem prover and programming language with a small
+trusted kernel and extensible automation [12]. A kernel can establish that a
+term checks against an exact formal statement under declared axioms. That
+result remains separate from statement fidelity, empirical support, importance,
+and local acceptance. The prospective Erdős 424 case exists precisely because
+an exact source-statement correction matters even when no proof term changed.
+
+### Artifact evaluation and publication review
+
+ACM's artifact-badging policy separates artifact availability, functional or
+reusable evaluation, and independent validation of results [14]. USENIX
+artifact evaluation likewise treats artifacts as separately assessed
+companions to a paper and asks whether they conform to the paper's claims
+[15]. This separation is an important precedent for Vela's insistence that a
+Verification Record is not a scientific Decision.
+
+Vela does not replace peer review, publication, or an artifact-evaluation
+committee. Its narrower role is to retain the exact objects and local
+transitions so that those institutions can be inspected and replayed without
+collapsing their distinct judgments.
+
+### Boundary summary
+
+| Existing layer | It establishes | It does not establish for Vela |
+| --- | --- | --- |
+| Git / SWHID | exact byte or software-object identity | Claim meaning or Standing |
+| Nix / workflow engine | reproducible environment or execution | scientific acceptance |
+| PROV / DataLad / RO-Crate | provenance and portable run metadata | local authority semantics |
+| in-toto / TUF | software supply-chain or update integrity | scientific correctness |
+| Lean kernel | proof checks against an exact formal statement | statement fidelity or importance |
+| artifact evaluation | artifact availability, function, or reproduced results | a Frontier's local Decision |
+
+The registered benchmark is meaningful only if Vela's added column produces
+measurable value after all existing layers are held constant. That column
+contains an exact Claim, scoped Verification, local Decision, correction
+lineage, and replayable Standing.
 
 ## 9. Limitations
 
@@ -542,10 +625,10 @@ assumed secure. Git hosting availability is operationally useful but not
 canonical.
 
 The current public contract cannot express the registered non-escalating
-second-Frontier transfer. That is a direct protocol-benchmark failure at this
-revision, not merely missing product polish. Any repair must remain smaller
-than a hosted federation system and must be justified by independent readers
-over the terminal real correction.
+second-Frontier transfer. This revision fails a protocol benchmark; product
+polish cannot repair it. Any repair must remain smaller than a hosted
+federation system and must be justified by independent readers over the
+terminal real correction.
 
 If the real correction, second-Frontier, held-out, or cold-use gates fail, the
 paper must report that failure and narrow its claim. A failed correction-impact
@@ -597,3 +680,46 @@ alone, is therefore not satisfied by the audited system.
 The registered experiments decide the conclusion. If they pass, the paper
 will state the exact measured result. If they fail, the paper will publish the
 failure and retain only the mechanisms that remain useful.
+
+## 12. References
+
+1. Scott Chacon and Ben Straub. “Git Internals: Plumbing and Porcelain.”
+   *Pro Git*, 2nd edition. [git-scm.com/book/en/v2/Git-Internals-Plumbing-and-Porcelain](https://git-scm.com/book/en/v2/Git-Internals-Plumbing-and-Porcelain).
+2. Anders Rundgren, Benjamin Jordan, and Samuel Erdtman. “JSON
+   Canonicalization Scheme (JCS).” RFC 8785, 2020.
+   [rfc-editor.org/rfc/rfc8785](https://www.rfc-editor.org/rfc/rfc8785.html).
+3. Simon Josefsson and Ilari Liusvaara. “Edwards-Curve Digital Signature
+   Algorithm (EdDSA).” RFC 8032, 2017.
+   [rfc-editor.org/rfc/rfc8032](https://www.rfc-editor.org/rfc/rfc8032.html).
+4. Timothy Lebo, Satya Sahoo, and Deborah McGuinness, editors. “PROV-O: The
+   PROV Ontology.” W3C Recommendation, 2013.
+   [w3.org/TR/prov-o](https://www.w3.org/TR/prov-o/).
+5. Yaroslav O. Halchenko et al. “DataLad: distributed system for joint
+   management of code, data, and their relationship.” *Journal of Open Source
+   Software* 6(63), 3262, 2021.
+   [doi.org/10.21105/joss.03262](https://doi.org/10.21105/joss.03262).
+6. RO-Crate community. “RO-Crate Metadata Specification 1.3.”
+   [researchobject.org/ro-crate/specification.html](https://www.researchobject.org/ro-crate/specification.html).
+7. Workflow Run RO-Crate working group. “Workflow Run RO-Crate.”
+   [researchobject.org/workflow-run-crate](https://www.researchobject.org/workflow-run-crate/).
+8. Santiago Torres-Arias, Hammad Afzali, Trishank Karthik Kuppusamy, Reza
+   Curtmola, and Justin Cappos. “in-toto: Providing farm-to-table guarantees
+   for bits and bytes.” *USENIX Security 2019*.
+   [usenix.org/conference/usenixsecurity19/presentation/torres-arias](https://www.usenix.org/conference/usenixsecurity19/presentation/torres-arias).
+9. The Update Framework contributors. “The Update Framework Specification.”
+   [theupdateframework.io/spec](https://theupdateframework.io/spec/).
+10. SWHID Working Group. “SoftWare Hash IDentifier Specification.”
+    [swhid.org/swhid-specification](https://www.swhid.org/swhid-specification/).
+11. Eelco Dolstra, Merijn de Jonge, and Eelco Visser. “Nix: A Safe and
+    Policy-Free System for Software Deployment.” *LISA 2004*.
+    [usenix.org/publications/library/proceedings/lisa04/tech/full_papers/dolstra/dolstra.pdf](https://www.usenix.org/publications/library/proceedings/lisa04/tech/full_papers/dolstra/dolstra.pdf).
+12. Leonardo de Moura and Sebastian Ullrich. “The Lean 4 Theorem Prover and
+    Programming Language.” *CADE 28*, 2021.
+    [lean-lang.org/papers/lean4.pdf](https://lean-lang.org/papers/lean4.pdf).
+13. Tobias Kuhn and Michel Dumontier. “Trusty URIs: Verifiable, Immutable, and
+    Permanent Digital Artifacts for Linked Data.” 2014.
+    [arxiv.org/abs/1401.5775](https://arxiv.org/abs/1401.5775).
+14. Association for Computing Machinery. “Artifact Review and Badging.”
+    [acm.org/publications/policies/artifact-review-and-badging-current](https://www.acm.org/publications/policies/artifact-review-and-badging-current).
+15. USENIX. “NSDI '26 Call for Artifacts.”
+    [usenix.org/conference/nsdi26/call-for-artifacts](https://www.usenix.org/conference/nsdi26/call-for-artifacts).
