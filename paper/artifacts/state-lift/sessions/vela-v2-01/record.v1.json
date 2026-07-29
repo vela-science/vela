@@ -1,0 +1,28 @@
+{
+  "answer_capture": "output_last_message",
+  "answer_event_line": null,
+  "answer_root": "sha256:68ad6f2d4c7bb3054b2024bb8abfdba32b4d7dc8356bfa5a88b49307e0695a66",
+  "arm": "vela",
+  "authority_credentials_available": false,
+  "completed_at_unix": 1785335515.219638,
+  "duration_seconds": 146.425,
+  "events_root": "sha256:977836182e92f89826d384969f1933d4c9e4f9693ca29a9d7ddca5412467bcc5",
+  "exit_code": 0,
+  "model_auth_custody": "supervisor-owned ephemeral CODEX_HOME",
+  "network_allowed_to_tools": false,
+  "observed_token_limit": 50000,
+  "schema": "vela.state-lift-session-record.v1",
+  "session_id": "vela-v2-01",
+  "started_at_unix": 1785335368.794354,
+  "stderr_root": "sha256:1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721",
+  "task_instance_root": "sha256:a95a505fee521c811c44f91f78e5e4ac8e903f77b1e4d9ec99794444188bca89",
+  "usage": {
+    "cached_input_tokens": 565248,
+    "input_tokens": 649353,
+    "observed_tokens": 655122,
+    "output_tokens": 5769,
+    "reasoning_output_tokens": 2692
+  },
+  "within_observed_token_limit": false,
+  "workspace_dirty_after": false
+}

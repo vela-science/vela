@@ -74,9 +74,21 @@ budgets, order, scorer, and publication rule. It binds
 `validate_output_schema.py` and a schema checked against OpenAI's documented
 strict Structured Outputs subset before resetting the eight-call assignment.
 
+Protocol v2 stopped after its first matched pair. The Git arm answered 22 of
+25 fields correctly in 2,401,939 observed tokens and 268.040 seconds. The Vela
+arm answered 24 of 25 fields correctly in 655,122 observed tokens and 146.425
+seconds. Vela therefore used 72.725% fewer observed tokens, finished 45.372%
+faster, and recovered two more exact fields in this pair. Both arms still
+exceeded the registered 50,000-token hard limit and neither was fully correct,
+so `result.v2.json` records a registered negative result rather than method or
+protocol-breakthrough success. The remaining six repetitions were not run
+after both arms failed the common hard gate.
+
 ```bash
 python3 -m unittest paper/artifacts/state-lift/test_score.py
 python3 -m unittest paper/artifacts/state-lift/test_materialize.py
+python3 -m unittest paper/artifacts/state-lift/test_run_session.py
+python3 -m unittest paper/artifacts/state-lift/test_report.py
 
 python3 paper/artifacts/state-lift/score.py \
   --answer-key <terminal-answer-key.json> \
@@ -92,6 +104,11 @@ python3 paper/artifacts/state-lift/materialize.py \
   --model-id '<exact-model-id>' \
   --frozen-at '<RFC3339>' \
   --output <empty-output-directory>
+
+python3 paper/artifacts/state-lift/report.py \
+  --protocol paper/artifacts/state-lift/protocol-v2.json \
+  --sessions paper/artifacts/state-lift/sessions \
+  --output paper/artifacts/state-lift/result.v2.json
 ```
 
 The scorer does not interpret prose or judge scientific merit. Session

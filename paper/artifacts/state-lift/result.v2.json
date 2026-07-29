@@ -1,0 +1,64 @@
+{
+  "classification": "registered_negative_result",
+  "completed_sessions": [
+    {
+      "all_fields_correct": false,
+      "answer_root": "sha256:5319c377793923689a76d99796f2255eb5aa50a47da17b9633539a43e7f04712",
+      "arm": "git",
+      "authority_hard_failures": [],
+      "cached_input_tokens": 2260480,
+      "correct_fields": 22,
+      "duration_seconds": 268.04,
+      "events_root": "sha256:370e13a28e0b3506453f3d37058177016addb334f506629602ad92cb98f06d16",
+      "observed_tokens": 2401939,
+      "record_root": "sha256:0efd42d6cf492e46d2be5774688e21232c19b445f920584cb37ff4af98259c50",
+      "score_root": "sha256:28aaf4cc6569a24770fdd2520ef09471cdd982a1842c499607a18b42d051da24",
+      "session_id": "git-v2-01",
+      "total_fields": 25,
+      "within_observed_token_limit": false
+    },
+    {
+      "all_fields_correct": false,
+      "answer_root": "sha256:68ad6f2d4c7bb3054b2024bb8abfdba32b4d7dc8356bfa5a88b49307e0695a66",
+      "arm": "vela",
+      "authority_hard_failures": [],
+      "cached_input_tokens": 565248,
+      "correct_fields": 24,
+      "duration_seconds": 146.425,
+      "events_root": "sha256:977836182e92f89826d384969f1933d4c9e4f9693ca29a9d7ddca5412467bcc5",
+      "observed_tokens": 655122,
+      "record_root": "sha256:05a3df3208fa66db178dc4b94d8ea7db4c49b6618c1e4f60e421eb79b55fa3d2",
+      "score_root": "sha256:d673013911ad110230de57adda7d7b7a431e5778876fc3a643b1bbc4120fb4ae",
+      "session_id": "vela-v2-01",
+      "total_fields": 25,
+      "within_observed_token_limit": false
+    }
+  ],
+  "matched_pair": {
+    "both_all_fields_correct": false,
+    "both_within_registered_token_limit": false,
+    "correct_field_delta_vela_minus_git": 2,
+    "duration_reduction_percent_with_vela": 45.372,
+    "observed_token_reduction_percent_with_vela": 72.725
+  },
+  "outcome": {
+    "directional_result": "Vela improved evidence-location correctness and cost in the first matched pair, but the registered method failed because both arms exceeded the hard token budget and neither answer was fully correct.",
+    "external_participant_credit": false,
+    "next_action": "Reduce the task surface and CLI evidence ambiguity before registering a new pilot; do not continue the six invalidated repetitions.",
+    "protocol_breakthrough_credit": false,
+    "registered_method_success": false
+  },
+  "protocol_root": "sha256:758342620438c354e8d2a76ab2450baa6346b1fc8f4cdf74b493ca5a1e351e65",
+  "result_root": "sha256:af9af17824e15b14ea77aa2e9afec135b997cdcf026beb050b80cc51563e753a",
+  "schema": "vela.state-lift-study-result.v2",
+  "stop_reason": "first_matched_pair_both_exceeded_observed_token_limit",
+  "task_instance_root": "sha256:a95a505fee521c811c44f91f78e5e4ac8e903f77b1e4d9ec99794444188bca89",
+  "unrun_sessions": [
+    "vela-v2-02",
+    "git-v2-02",
+    "vela-v2-03",
+    "git-v2-03",
+    "git-v2-04",
+    "vela-v2-04"
+  ]
+}

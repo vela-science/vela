@@ -1113,6 +1113,29 @@ repositories, and scorer. The eight planned fresh first-party sessions can
 qualify the method and test the 20-percent product threshold. They cannot earn
 external-participant or protocol-breakthrough credit.
 
+The terminal Decision was accepted and clean-clone replayed. Protocol v1 then
+ended as an infrastructure-null result after its strict response schema was
+rejected twice before model output. Protocol v2 retained the same scientific
+task, scorer, arm order, and budgets with a documented-subset schema. Its first
+matched pair produced a registered negative result at
+`paper/artifacts/state-lift/result.v2.json`, result root
+`sha256:af9af17824e15b14ea77aa2e9afec135b997cdcf026beb050b80cc51563e753a`:
+
+- Git recovered 22/25 exact fields in 268.040 seconds and 2,401,939 observed
+  tokens.
+- Vela recovered 24/25 exact fields in 146.425 seconds and 655,122 observed
+  tokens.
+- Vela used 72.725% fewer observed tokens and finished 45.372% faster in this
+  pair, but neither arm was fully correct and both exceeded the registered
+  50,000-token hard limit.
+
+The remaining six calls are intentionally unrun. This is directional evidence
+that Vela reduces evidence-location cost, not method success, product-threshold
+success, external credit, or protocol-breakthrough evidence. Before another
+pilot, the task surface and the distinction among transaction ID, Decision
+Plan root, canonical Decision event, and applied scientific event must become
+less ambiguous without weakening exact provenance.
+
 ### Gate 3: test a source-local Vela Math profile
 
 Do not reopen rejected ADR 0019 or publish `@vela/math` merely because the
