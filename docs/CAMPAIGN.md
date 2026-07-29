@@ -211,8 +211,16 @@ transaction read set and repository origin, and emits a bounded sequence-1
 authority transaction over the origin and repository manifest. A
 credential-disabled Quantum rehearsal proved root mismatch refusal, exact
 staging, source isolation, and safe signer unavailability. No source Frontier
-changed. The next gate is the human invocation of the four exact candidate
-roots followed by aggregate verification; compatibility removal cannot begin
+changed. The first protected Erdős invocation exposed one implementation
+defect before commit or publication: the empty-history verifier discarded the
+archived predecessor event root while constructing sequence 1. The source and
+remote remained byte-identical, the isolated worktree retained no signed
+postimage, and the defect now has protocol- and transaction-level regression
+coverage. All 167 CLI tests, all 88 protocol tests, and strict CLI Clippy pass.
+The failed worktree was removed only after that audit, and all four candidate
+packages were independently re-read again. The next gate remains the human
+invocation of the four exact candidate roots followed by read-only
+`repository finalize-compaction --check`; compatibility removal cannot begin
 until all four resulting clean clones replay.
 
 Six protocol and operating planes remain deliberately separate:

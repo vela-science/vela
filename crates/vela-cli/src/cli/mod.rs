@@ -86,6 +86,19 @@ pub async fn run_command() {
                 confirm_root.as_deref(),
                 json,
             ),
+            RepositoryAction::FinalizeCompaction {
+                results,
+                check,
+                publish,
+                confirm_root,
+                json,
+            } => crate::current_compaction::cmd_finalize_compaction(
+                &results,
+                check,
+                publish,
+                confirm_root.as_deref(),
+                json,
+            ),
         },
         Commands::Check {
             source,

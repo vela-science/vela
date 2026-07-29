@@ -77,6 +77,17 @@ removed and the source checkout remained clean. These plan roots still stop
 before the repository-authority transaction postimage; they are candidate
 evidence, not authorization to publish.
 
+The first protected Erdős activation then failed its postcondition before
+commit or publication. The empty archived-predecessor history path returned
+the empty legacy event root instead of the exact archived event root, so the
+new sequence-1 record and the compact-origin verifier disagreed. The source
+checkout and remote remained at the exact predecessor commit. The preserved
+worktree contained no authority record, origin, repository manifest, commit
+marker, or new Git commit and was removed after that audit. The verifier now
+preserves the archived root in its empty-history result, and a deterministic
+transaction test signs and re-verifies sequence 1 against that root. All four
+candidate packages re-verify unchanged; their plan roots above remain valid.
+
 The disk cost is immaterial. The cost is a larger protocol vocabulary and
 trust base before Vela has external users. Keeping compatibility indefinitely
 would optimize for a release history that does not yet exist.
@@ -201,10 +212,17 @@ equivalence roots, and complete postimage. Its scientific before/after
 projection roots are equal even though canonical object roots differ. It does
 not make a new scientific Decision.
 
-The workspace command prepares all four isolated candidates and one aggregate
-plan root before any credential use. The human invokes the exact confirmed
-plan once. Publication begins only after every candidate signs and verifies;
-partial results remain isolated and recoverable.
+The workspace flow prepares all four isolated candidates before credential
+use. Each protected activation binds one exact plan and produces only an
+isolated signed commit. `repository finalize-compaction --check` then
+re-verifies every result, candidate, compacted repository, source checkout,
+authority root, and remote precondition and derives one aggregate root.
+Publication requires that exact aggregate root. It pushes the predecessor tag
+and compacted main update atomically per repository, supports exact resume
+after a cross-repository partial failure, fast-forwards clean source
+checkouts, advances independently retained authority pins from their exact
+preimages, and verifies fresh remote clones. No source or remote is changed
+until every supplied activation passes the aggregate preflight.
 
 ### 5. Remove the bridge before release
 

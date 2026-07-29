@@ -10,6 +10,10 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use vela_authority::CedarEvaluationInput;
 use vela_authority::runtime_authentication::{AuthenticationRequest, RuntimeSessionState};
+use vela_edge::repository_write::{
+    AUTHORITY_TRUST_ANCHOR_SCHEMA_V1, AuthorityTrustAnchorV1,
+    load_authority_trust_anchor_from_home, rebind_authority_trust_anchor_from_home,
+};
 use vela_protocol::authority::{PrincipalSnapshotV1, SemanticApprovalV1};
 use vela_protocol::authority_history::{
     AUTHORITY_INITIALIZATION_SCHEMA_V1, AUTHORITY_INITIALIZE_ACTION,
@@ -39,6 +43,12 @@ use crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner;
 
 const COMPACTION_REASON: &str =
     "Adopt one current pre-release repository origin and content-addressed evidence contract.";
+const CONTROLLED_COMPACTION_FRONTIERS: [&str; 4] = [
+    "vfr_001f148c07eebecb",
+    "vfr_0a25edabc16db143",
+    "vfr_496956067dc5ad79",
+    "vfr_97d7d25957384f80",
+];
 
 struct ClaimCompactionAudit {
     report: CurrentStateEquivalenceV1,
@@ -82,6 +92,49 @@ struct CompactionCandidatePlanV1 {
     candidate_repository_root: String,
     touched_paths: Vec<String>,
     reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CompactionActivationResultV1 {
+    schema: String,
+    ok: bool,
+    command: String,
+    frontier_id: String,
+    plan_root: String,
+    origin_id: String,
+    origin_root: String,
+    repository_root: String,
+    authority_event_ids: Vec<String>,
+    authority_record_id: String,
+    authority_record_root: String,
+    commit: String,
+    worktree: String,
+    source_writes: bool,
+    remote_writes: bool,
+    next_action: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct AggregateCompactionEntryV1 {
+    frontier_id: String,
+    source_remote: String,
+    source_commit: String,
+    source_tree: String,
+    plan_root: String,
+    origin_root: String,
+    repository_root: String,
+    authority_record_root: String,
+    compacted_commit: String,
+}
+
+struct VerifiedActivation {
+    result_path: PathBuf,
+    entry: AggregateCompactionEntryV1,
+    source: PathBuf,
+    worktree: PathBuf,
+    predecessor_tag: String,
+    remote_state: &'static str,
 }
 
 pub(crate) fn cmd_compaction(
@@ -196,6 +249,525 @@ pub(crate) fn cmd_compaction(
         }
         println!("  source writes: no");
     }
+}
+
+pub(crate) fn cmd_finalize_compaction(
+    result_paths: &[PathBuf],
+    check: bool,
+    publish: bool,
+    confirm_root: Option<&str>,
+    json_out: bool,
+) {
+    crate::ui::set_mode("repository finalize-compaction", json_out);
+    if check == publish {
+        crate::cli::fail_return::<()>(
+            "repository finalize-compaction requires exactly one of --check or --publish",
+        );
+    }
+    let mut activations = result_paths
+        .iter()
+        .map(|path| verify_activation_result(path))
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    activations.sort_by(|left, right| left.entry.frontier_id.cmp(&right.entry.frontier_id));
+    if activations
+        .windows(2)
+        .any(|pair| pair[0].entry.frontier_id == pair[1].entry.frontier_id)
+    {
+        crate::cli::fail_return::<()>(
+            "aggregate compaction repeats one Frontier activation result",
+        );
+    }
+    if !controlled_compaction_set_is_complete(
+        activations
+            .iter()
+            .map(|activation| activation.entry.frontier_id.as_str()),
+    ) {
+        crate::cli::fail_return::<()>(
+            "aggregate compaction requires the exact four controlled Frontier activation results",
+        );
+    }
+    let entries = activations
+        .iter()
+        .map(|activation| activation.entry.clone())
+        .collect::<Vec<_>>();
+    let aggregate_root = format!(
+        "sha256:{}",
+        vela_protocol::canonical::sha256_canonical(&entries)
+            .unwrap_or_else(|error| crate::cli::fail_return(&error))
+    );
+    if publish {
+        let confirmed = confirm_root.unwrap_or_else(|| {
+            crate::cli::fail_return(
+                "repository finalize-compaction --publish requires --confirm-root",
+            )
+        });
+        if confirmed != aggregate_root {
+            crate::cli::fail_return::<()>(&format!(
+                "confirmed aggregate root {confirmed} does not match {aggregate_root}"
+            ));
+        }
+        publish_verified_activations(&mut activations)
+            .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    }
+    let payload = serde_json::json!({
+        "schema": "vela.repository-compaction-aggregate.v1",
+        "ok": true,
+        "command": "repository finalize-compaction",
+        "writes_now": publish,
+        "aggregate_root": aggregate_root,
+        "count": entries.len(),
+        "entries": activations.iter().map(|activation| serde_json::json!({
+            "frontier_id": activation.entry.frontier_id,
+            "plan_root": activation.entry.plan_root,
+            "origin_root": activation.entry.origin_root,
+            "repository_root": activation.entry.repository_root,
+            "authority_record_root": activation.entry.authority_record_root,
+            "source_commit": activation.entry.source_commit,
+            "compacted_commit": activation.entry.compacted_commit,
+            "source": activation.source,
+            "worktree": activation.worktree,
+            "remote_state": activation.remote_state,
+            "result": activation.result_path,
+        })).collect::<Vec<_>>(),
+        "next_action": if publish {
+            "remove the one-time compactor and predecessor-only readers after clean-clone conformance"
+        } else {
+            "repeat with --publish and the exact aggregate root after human inspection"
+        },
+    });
+    if json_out {
+        crate::cli::print_json(&payload);
+    } else {
+        println!("aggregate compaction verified");
+        println!("  Frontiers: {}", entries.len());
+        println!("  root: {aggregate_root}");
+        println!("  published: {}", if publish { "yes" } else { "no" });
+    }
+}
+
+fn controlled_compaction_set_is_complete<'a>(
+    frontier_ids: impl IntoIterator<Item = &'a str>,
+) -> bool {
+    frontier_ids.into_iter().collect::<BTreeSet<_>>()
+        == CONTROLLED_COMPACTION_FRONTIERS
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>()
+}
+
+fn verify_activation_result(result_path: &Path) -> Result<VerifiedActivation, String> {
+    let result_path = result_path.canonicalize().map_err(|error| {
+        format!(
+            "resolve activation result {}: {error}",
+            result_path.display()
+        )
+    })?;
+    let result_bytes = fs::read(&result_path)
+        .map_err(|error| format!("read activation result {}: {error}", result_path.display()))?;
+    let value: serde_json::Value = serde_json::from_slice(&result_bytes).map_err(|error| {
+        format!(
+            "parse activation result {} as JSON: {error}",
+            result_path.display()
+        )
+    })?;
+    if value.get("ok").and_then(serde_json::Value::as_bool) != Some(true) {
+        let message = value
+            .pointer("/error/message")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("activation did not report success");
+        return Err(format!(
+            "activation result {} is failed: {message}",
+            result_path.display()
+        ));
+    }
+    let result: CompactionActivationResultV1 = serde_json::from_value(value).map_err(|error| {
+        format!(
+            "parse successful activation result {}: {error}",
+            result_path.display()
+        )
+    })?;
+    if result.schema != "vela.repository-compaction-activation.v1"
+        || !result.ok
+        || result.command != "repository compact"
+        || result.source_writes
+        || result.remote_writes
+    {
+        return Err(format!(
+            "activation result {} is not one isolated successful compaction",
+            result_path.display()
+        ));
+    }
+
+    let worktree = PathBuf::from(&result.worktree)
+        .canonicalize()
+        .map_err(|error| format!("resolve activation worktree {}: {error}", result.worktree))?;
+    if !git_output(
+        &worktree,
+        &["status", "--porcelain=v1", "--untracked-files=all"],
+    )?
+    .is_empty()
+    {
+        return Err(format!(
+            "activation worktree {} is not clean",
+            worktree.display()
+        ));
+    }
+    let compacted_commit = git_output(&worktree, &["rev-parse", "HEAD^{commit}"])?;
+    if compacted_commit != result.commit {
+        return Err(format!(
+            "activation result commit {} does not match worktree {compacted_commit}",
+            result.commit
+        ));
+    }
+
+    let candidate_root = worktree
+        .parent()
+        .and_then(Path::parent)
+        .ok_or_else(|| "activation worktree is not under its candidate root".to_string())?;
+    let mut candidate_match = None;
+    for entry in fs::read_dir(candidate_root).map_err(|error| {
+        format!(
+            "inspect candidate root {}: {error}",
+            candidate_root.display()
+        )
+    })? {
+        let entry = entry.map_err(|error| format!("inspect candidate entry: {error}"))?;
+        let path = entry.path();
+        if !path.is_dir() || path == worktree.parent().unwrap_or(candidate_root) {
+            continue;
+        }
+        let plan_path = path.join("plan.json");
+        let Ok(bytes) = fs::read(&plan_path) else {
+            continue;
+        };
+        if root_bytes(&bytes) == result.plan_root && candidate_match.replace(path).is_some() {
+            return Err(format!(
+                "activation plan {} matches more than one candidate",
+                result.plan_root
+            ));
+        }
+    }
+    let candidate = candidate_match.ok_or_else(|| {
+        format!(
+            "activation plan {} has no exact candidate beside {}",
+            result.plan_root,
+            worktree.display()
+        )
+    })?;
+    verify_materialized_candidate(&candidate)?;
+    let plan_bytes = fs::read(candidate.join("plan.json"))
+        .map_err(|error| format!("read activation candidate plan: {error}"))?;
+    let plan: CompactionCandidatePlanV1 = serde_json::from_slice(&plan_bytes)
+        .map_err(|error| format!("parse activation candidate plan: {error}"))?;
+    if result.frontier_id != plan.frontier_id
+        || result.plan_root != root_bytes(&plan_bytes)
+        || result.origin_id != plan.candidate_origin_id
+        || result.origin_root != plan.candidate_origin_root
+        || result.repository_root != plan.candidate_repository_root
+    {
+        return Err(format!(
+            "activation result {} differs from its exact candidate plan",
+            result_path.display()
+        ));
+    }
+    if git_output(&worktree, &["rev-parse", "HEAD^1^{commit}"])? != plan.source_commit {
+        return Err(format!(
+            "compacted commit {} is not the direct child of {}",
+            result.commit, plan.source_commit
+        ));
+    }
+
+    let compacted_repository =
+        crate::current_repository::verify_compacted_repository_at(&worktree, true)?;
+    let origin = RepositoryOriginV1::parse(
+        &fs::read(worktree.join(".vela/origin.json"))
+            .map_err(|error| format!("read compacted repository origin: {error}"))?,
+    )?;
+    let compacted_authority =
+        crate::cli::load_compacted_repository_authority(&worktree, &compacted_repository, &origin)?;
+    if compacted_repository.canonical_root()? != result.repository_root
+        || origin.canonical_root()? != result.origin_root
+        || compacted_authority
+            .verification
+            .final_authority_record_root
+            .as_deref()
+            != Some(result.authority_record_root.as_str())
+        || compacted_authority
+            .verification
+            .first_authority_record_root
+            .as_deref()
+            != Some(result.authority_record_root.as_str())
+    {
+        return Err(format!(
+            "activation result {} differs from the verified compacted repository",
+            result_path.display()
+        ));
+    }
+
+    let source = primary_worktree(&worktree)?;
+    if canonical_remote(&git_output(&source, &["remote", "get-url", "origin"])?)
+        != plan.source_remote
+    {
+        return Err(format!(
+            "source checkout {} no longer names the planned remote",
+            source.display()
+        ));
+    }
+    if !git_output(
+        &source,
+        &["status", "--porcelain=v1", "--untracked-files=all"],
+    )?
+    .is_empty()
+    {
+        return Err(format!("source checkout {} is not clean", source.display()));
+    }
+    let source_head = git_output(&source, &["rev-parse", "HEAD^{commit}"])?;
+    if source_head != plan.source_commit && source_head != result.commit {
+        return Err(format!(
+            "source checkout {} is neither the predecessor nor compacted commit",
+            source.display()
+        ));
+    }
+    if source_head == plan.source_commit
+        && git_output(&source, &["rev-parse", "HEAD^{tree}"])? != plan.source_tree
+    {
+        return Err(format!(
+            "source checkout {} predecessor tree changed",
+            source.display()
+        ));
+    }
+    let remote_head = remote_main_head(&source)?;
+    let remote_state = if remote_head == plan.source_commit {
+        "predecessor"
+    } else if remote_head == result.commit {
+        "published"
+    } else {
+        return Err(format!(
+            "remote main {remote_head} is neither predecessor {} nor compacted {}",
+            plan.source_commit, result.commit
+        ));
+    };
+
+    Ok(VerifiedActivation {
+        result_path,
+        entry: AggregateCompactionEntryV1 {
+            frontier_id: plan.frontier_id.clone(),
+            source_remote: plan.source_remote.clone(),
+            source_commit: plan.source_commit.clone(),
+            source_tree: plan.source_tree.clone(),
+            plan_root: result.plan_root.clone(),
+            origin_root: result.origin_root.clone(),
+            repository_root: result.repository_root.clone(),
+            authority_record_root: result.authority_record_root.clone(),
+            compacted_commit: result.commit.clone(),
+        },
+        source,
+        worktree,
+        predecessor_tag: plan.predecessor_tag,
+        remote_state,
+    })
+}
+
+fn primary_worktree(worktree: &Path) -> Result<PathBuf, String> {
+    let listing = git_output(worktree, &["worktree", "list", "--porcelain"])?;
+    let mut matches = Vec::new();
+    for block in listing.split("\n\n") {
+        let mut path = None;
+        let mut branch = None;
+        for line in block.lines() {
+            if let Some(value) = line.strip_prefix("worktree ") {
+                path = Some(PathBuf::from(value));
+            } else if let Some(value) = line.strip_prefix("branch ") {
+                branch = Some(value);
+            }
+        }
+        if branch == Some("refs/heads/main") {
+            let path = path.ok_or_else(|| "main worktree entry has no path".to_string())?;
+            matches.push(path);
+        }
+    }
+    let [source] = matches.as_slice() else {
+        return Err("activation repository must have exactly one main source worktree".into());
+    };
+    source
+        .canonicalize()
+        .map_err(|error| format!("resolve main source worktree {}: {error}", source.display()))
+}
+
+fn remote_main_head(source: &Path) -> Result<String, String> {
+    let listing = git_output(source, &["ls-remote", "origin", "refs/heads/main"])?;
+    let mut fields = listing.split_whitespace();
+    let head = fields
+        .next()
+        .ok_or_else(|| "origin has no refs/heads/main".to_string())?;
+    if fields.next() != Some("refs/heads/main") || fields.next().is_some() {
+        return Err("origin main advertisement is malformed".into());
+    }
+    Ok(head.to_string())
+}
+
+fn publish_verified_activations(activations: &mut [VerifiedActivation]) -> Result<(), String> {
+    let user_home =
+        crate::frontier_txn::operating_system_account_home().map_err(|error| error.to_string())?;
+
+    // Perform every local and remote preflight before the first write. A
+    // partially completed prior invocation is accepted only at the exact
+    // compacted commit and can be resumed safely.
+    for activation in activations.iter() {
+        let loaded =
+            load_authority_trust_anchor_from_home(&user_home, &activation.entry.frontier_id)?
+                .ok_or_else(|| {
+                    format!(
+                        "no independently installed authority pin for {}",
+                        activation.entry.frontier_id
+                    )
+                })?;
+        let origin = RepositoryOriginV1::parse(
+            &fs::read(activation.worktree.join(".vela/origin.json"))
+                .map_err(|error| format!("read compacted origin during preflight: {error}"))?,
+        )?;
+        let predecessor = origin
+            .predecessor
+            .as_ref()
+            .ok_or_else(|| "compacted origin has no predecessor".to_string())?;
+        let expected_roots = [
+            predecessor.authority_head_root.as_str(),
+            activation.entry.authority_record_root.as_str(),
+        ];
+        if !expected_roots.contains(&loaded.anchor.first_authority_record_root.as_str()) {
+            return Err(format!(
+                "installed authority pin for {} is neither predecessor nor compacted root",
+                activation.entry.frontier_id
+            ));
+        }
+        let source_head = git_output(&activation.source, &["rev-parse", "HEAD^{commit}"])?;
+        if source_head != activation.entry.source_commit
+            && source_head != activation.entry.compacted_commit
+        {
+            return Err(format!(
+                "source {} changed after aggregate verification",
+                activation.source.display()
+            ));
+        }
+        let advertised = remote_main_head(&activation.source)?;
+        if advertised != activation.entry.source_commit
+            && advertised != activation.entry.compacted_commit
+        {
+            return Err(format!(
+                "remote for {} changed after aggregate verification",
+                activation.entry.frontier_id
+            ));
+        }
+    }
+
+    for activation in activations.iter_mut() {
+        if remote_main_head(&activation.source)? == activation.entry.source_commit {
+            let tag_ref = format!(
+                "{}:refs/tags/{}",
+                activation.entry.source_commit, activation.predecessor_tag
+            );
+            let branch_ref = format!("{}:refs/heads/main", activation.entry.compacted_commit);
+            git_success(
+                &activation.source,
+                &["push", "--atomic", "origin", &tag_ref, &branch_ref],
+                &format!("publish compacted {}", activation.entry.frontier_id),
+            )?;
+        }
+        if remote_main_head(&activation.source)? != activation.entry.compacted_commit {
+            return Err(format!(
+                "remote for {} did not install the compacted commit",
+                activation.entry.frontier_id
+            ));
+        }
+        activation.remote_state = "published";
+    }
+
+    for activation in activations.iter() {
+        let source_head = git_output(&activation.source, &["rev-parse", "HEAD^{commit}"])?;
+        if source_head == activation.entry.source_commit {
+            git_success(
+                &activation.source,
+                &["merge", "--ff-only", &activation.entry.compacted_commit],
+                &format!(
+                    "fast-forward source checkout {}",
+                    activation.entry.frontier_id
+                ),
+            )?;
+        }
+        crate::current_repository::verify_compacted_repository_at(&activation.source, true)?;
+
+        let origin = RepositoryOriginV1::parse(
+            &fs::read(activation.source.join(".vela/origin.json"))
+                .map_err(|error| format!("read published compacted origin: {error}"))?,
+        )?;
+        let predecessor = origin
+            .predecessor
+            .as_ref()
+            .ok_or_else(|| "published compacted origin has no predecessor".to_string())?;
+        let expected = AuthorityTrustAnchorV1 {
+            schema: AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.into(),
+            frontier_id: activation.entry.frontier_id.clone(),
+            first_authority_record_root: predecessor.authority_head_root.clone(),
+        };
+        let replacement = AuthorityTrustAnchorV1 {
+            schema: AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.into(),
+            frontier_id: activation.entry.frontier_id.clone(),
+            first_authority_record_root: activation.entry.authority_record_root.clone(),
+        };
+        let loaded =
+            load_authority_trust_anchor_from_home(&user_home, &activation.entry.frontier_id)?
+                .ok_or_else(|| {
+                    format!(
+                        "authority pin disappeared for {}",
+                        activation.entry.frontier_id
+                    )
+                })?;
+        if loaded.anchor == expected {
+            rebind_authority_trust_anchor_from_home(&user_home, &expected, &replacement)?;
+        } else if loaded.anchor != replacement {
+            return Err(format!(
+                "authority pin for {} changed during publication",
+                activation.entry.frontier_id
+            ));
+        }
+
+        verify_remote_clean_clone(activation)?;
+    }
+    Ok(())
+}
+
+fn verify_remote_clean_clone(activation: &VerifiedActivation) -> Result<(), String> {
+    let temporary =
+        tempfile::tempdir().map_err(|error| format!("create clean-clone directory: {error}"))?;
+    let clone = temporary.path().join("frontier");
+    let output = Command::new("git")
+        .args(["clone", "--quiet", "--no-tags"])
+        .arg(&activation.entry.source_remote)
+        .arg(&clone)
+        .output()
+        .map_err(|error| format!("clone {}: {error}", activation.entry.source_remote))?;
+    if !output.status.success() {
+        return Err(format!(
+            "clone {}: {}",
+            activation.entry.source_remote,
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    if git_output(&clone, &["rev-parse", "HEAD^{commit}"])? != activation.entry.compacted_commit {
+        return Err(format!(
+            "clean clone of {} did not select the compacted commit",
+            activation.entry.frontier_id
+        ));
+    }
+    let repository = crate::current_repository::verify_compacted_repository_at(&clone, true)?;
+    if repository.canonical_root()? != activation.entry.repository_root {
+        return Err(format!(
+            "clean clone of {} has the wrong repository root",
+            activation.entry.frontier_id
+        ));
+    }
+    Ok(())
 }
 
 fn activate_compaction_candidate(
@@ -1912,5 +2484,21 @@ mod tests {
                 .unwrap_err()
                 .contains("disagree with content_hash")
         );
+    }
+
+    #[test]
+    fn aggregate_requires_the_exact_controlled_frontier_set() {
+        assert!(controlled_compaction_set_is_complete(
+            CONTROLLED_COMPACTION_FRONTIERS
+        ));
+        assert!(!controlled_compaction_set_is_complete(
+            CONTROLLED_COMPACTION_FRONTIERS[..3].iter().copied()
+        ));
+        assert!(!controlled_compaction_set_is_complete([
+            CONTROLLED_COMPACTION_FRONTIERS[0],
+            CONTROLLED_COMPACTION_FRONTIERS[1],
+            CONTROLLED_COMPACTION_FRONTIERS[2],
+            "vfr_uncontrolled",
+        ]));
     }
 }

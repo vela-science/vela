@@ -556,6 +556,23 @@ pub(crate) enum RepositoryAction {
         #[arg(long)]
         json: bool,
     },
+    /// Verify or publish a complete set of prepared compaction activations.
+    FinalizeCompaction {
+        /// Activation result JSON emitted by `repository compact --activate`.
+        #[arg(long = "result", required = true, num_args = 1..)]
+        results: Vec<PathBuf>,
+        /// Verify every isolated commit and remote precondition without writing.
+        #[arg(long, conflicts_with = "publish")]
+        check: bool,
+        /// Publish every verified commit and fast-forward its source checkout.
+        #[arg(long, conflicts_with = "check")]
+        publish: bool,
+        /// Confirm the full aggregate activation root before publication.
+        #[arg(long, requires = "publish")]
+        confirm_root: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 // Claim and artifact nouns stay on the compact current surface.
