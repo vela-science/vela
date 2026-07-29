@@ -4899,7 +4899,7 @@ mod tests {
             after_hash: vela_protocol::events::NULL_HASH.to_string(),
             payload: serde_json::json!({
                 "proposal_id": "vpr_0123456789abcdef",
-                "proposal_kind": "research_trace.review",
+                "proposal_kind": "correction_return.review",
                 "status": "accepted"
             }),
             caveats: Vec::new(),

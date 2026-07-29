@@ -11,8 +11,10 @@ cd "$ROOT"
 ./scripts/check-prelaunch-surface.sh
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest conformance.test_verify_manifest
 PYTHONDONTWRITEBYTECODE=1 python3 conformance/verify_principal_capability.py
-cargo test --quiet -p vela-protocol-core --lib
 cargo test --quiet -p vela-verify --lib
+# `cli_release_contract` executes the real product binary. Build it explicitly
+# so a clean checkout does not accidentally depend on a stale local artifact.
+cargo build --quiet -p vela-cli --bin vela
 cargo test --quiet -p vela-protocol --lib \
   --test action_contracts \
   --test canonical_hashing_conformance \

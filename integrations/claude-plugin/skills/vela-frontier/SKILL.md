@@ -125,7 +125,7 @@ never imply acceptance.
   does not retract or judge the truth or quality of linked findings.
 - Never hand-edit accepted events or derived views (`frontier.json`, proof
   packets); regenerate with `vela frontier materialize`. Never bulk-move
-  Vela-canonical paths (`examples/`, `projects/`, `lean/`, `.vela/`).
+  Vela-canonical paths (`examples/`, `.vela/`).
 
 ## The gate
 
@@ -146,8 +146,7 @@ silently break the reproduction of a banked result.
 `vela status --json` is the one-screen summary of Claims, replay integrity,
 policy state, review depth, and the next bounded action.
 `vela show <dir> <typed_id>` inspects an exact object; `vela why <dir>
-<claim_id>` explains its standing; `vela log <dir>` reads canonical history. The MCP
-server (`vela serve . --profile draft`) exposes the read surface plus the
-non-finalizing Attempt and Submission tools;
-`decide` is excluded by construction, so nothing an agent does through MCP
-finalizes state.
+<claim_id>` explains its standing; `vela log <dir>` reads canonical history.
+Agents invoke these exact CLI contracts directly. Execution harnesses such as
+Canopus remain optional producers and do not become part of Vela's authority
+or repository state.

@@ -48,7 +48,7 @@ fn actor_event(actor: &str, ordinal: u8, key: Option<&SigningKey>) -> StateEvent
     let mut event = StateEvent {
         schema: EVENT_SCHEMA.to_string(),
         id: String::new(),
-        kind: "research_trace.review".into(),
+        kind: "correction_return.review".into(),
         target: StateTarget {
             r#type: "frontier".to_string(),
             id: "vfr_test".to_string(),

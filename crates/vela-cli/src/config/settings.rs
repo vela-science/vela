@@ -32,7 +32,7 @@ use vela_protocol::frontier_repo::{
     FrontierProfileFile, read_repository_control_text, read_repository_profile,
 };
 use vela_protocol::frontier_settings::{
-    FRONTIER_SETTINGS_SCHEMA, FrontierGitPush, FrontierSettingsV1, McpProfileV1,
+    FRONTIER_SETTINGS_SCHEMA, FrontierGitPush, FrontierSettingsV1,
 };
 
 /// Where a resolved value came from — `list --origins` renders this.
@@ -115,14 +115,6 @@ pub(crate) const KEYS: &[KeySpec] = &[
         frontier: Some(false), // frontier may set its own convention outright
         allowed: &[],
         help: "default lease length for `work`/claim",
-    },
-    KeySpec {
-        key: "mcp.profile",
-        default: "read-only",
-        env: "VELA_MCP_PROFILE",
-        frontier: Some(false),
-        allowed: &["read-only", "draft"],
-        help: "default serve/agents-sync MCP profile",
     },
 ];
 
@@ -221,13 +213,6 @@ fn load_frontier_flat(frontier: &Path) -> Result<BTreeMap<String, String>, Strin
             work.lease_ttl_seconds.to_string(),
         );
     }
-    if let Some(mcp) = settings.mcp {
-        let value = match mcp.profile {
-            McpProfileV1::ReadOnly => "read-only",
-            McpProfileV1::Draft => "draft",
-        };
-        out.insert("mcp.profile".to_string(), value.to_string());
-    }
     Ok(out)
 }
 
@@ -290,9 +275,7 @@ fn try_resolve_with(
                 }
             } else {
                 // Plain frontier convention applies only when the operator has
-                // not set an explicit user preference. In particular, a
-                // cloned Frontier must not widen `mcp.profile = "read-only"`
-                // to `draft` behind the operator's back.
+                // not set an explicit user preference.
                 if user_val.is_none() {
                     return Ok((fv.clone(), Origin::Frontier));
                 }
@@ -424,15 +407,6 @@ fn set_frontier_v1_at_with_hook(
                 Some(vela_protocol::frontier_settings::WorkSettingsV1 { lease_ttl_seconds });
         }
         ("work.lease_ttl_seconds", None) => settings.work = None,
-        ("mcp.profile", Some(raw_profile)) => {
-            let profile = match raw_profile {
-                "read-only" => McpProfileV1::ReadOnly,
-                "draft" => McpProfileV1::Draft,
-                _ => return Err(format!("`{raw_profile}` is not a valid mcp.profile")),
-            };
-            settings.mcp = Some(vela_protocol::frontier_settings::McpSettingsV1 { profile });
-        }
-        ("mcp.profile", None) => settings.mcp = None,
         _ => {
             return Err(format!("`{key}` is not part of {FRONTIER_SETTINGS_SCHEMA}"));
         }
@@ -709,14 +683,10 @@ mod tests {
         std::fs::create_dir_all(frontier.join(".vela")).unwrap();
         std::fs::write(
             frontier.join(".vela/config.toml"),
-            "[work]\nlease_ttl_seconds = 7200\n[mcp]\nprofile = \"draft\"\n",
+            "[work]\nlease_ttl_seconds = 7200\n",
         )
         .unwrap();
-        std::fs::write(
-            &user,
-            "[work]\nlease_ttl_seconds = 3600\n[mcp]\nprofile = \"read-only\"\n",
-        )
-        .unwrap();
+        std::fs::write(&user, "[work]\nlease_ttl_seconds = 3600\n").unwrap();
 
         let (ttl, ttl_origin) = try_resolve_with(
             "work.lease_ttl_seconds",
@@ -726,13 +696,6 @@ mod tests {
         )
         .unwrap();
         assert_eq!((ttl.as_str(), ttl_origin), ("3600", Origin::User));
-
-        let (profile, profile_origin) =
-            try_resolve_with("mcp.profile", Some(&frontier), |_| None, Some(user)).unwrap();
-        assert_eq!(
-            (profile.as_str(), profile_origin),
-            ("read-only", Origin::User)
-        );
     }
 
     #[test]
@@ -751,8 +714,6 @@ git_push = "off"
 [work]
 lease_ttl_seconds = 7200
 
-[mcp]
-profile = "draft"
 "#,
         )
         .unwrap();
@@ -760,12 +721,12 @@ profile = "draft"
         // present, even while a repository checkout is incomplete.
         std::fs::write(
             frontier.join(".vela/config.toml"),
-            "[work]\nlease_ttl_seconds = 5\n[mcp]\nprofile = \"draft\"\n",
+            "[work]\nlease_ttl_seconds = 5\n",
         )
         .unwrap();
         std::fs::write(
             &user,
-            "[publish]\ngit_push = \"auto\"\n[work]\nlease_ttl_seconds = 3600\n[mcp]\nprofile = \"read-only\"\n",
+            "[publish]\ngit_push = \"auto\"\n[work]\nlease_ttl_seconds = 3600\n",
         )
         .unwrap();
 
@@ -786,13 +747,6 @@ profile = "draft"
         )
         .unwrap();
         assert_eq!((ttl.as_str(), ttl_origin), ("3600", Origin::User));
-
-        let (profile, profile_origin) =
-            try_resolve_with("mcp.profile", Some(&frontier), |_| None, Some(user)).unwrap();
-        assert_eq!(
-            (profile.as_str(), profile_origin),
-            ("read-only", Origin::User)
-        );
     }
 
     #[test]
@@ -870,20 +824,12 @@ license:
             set("work.lease_ttl_seconds", "43200", Some(&frontier)).unwrap(),
             settings_path
         );
-        set("mcp.profile", "draft", Some(&frontier)).unwrap();
         set("publish.git_push", "off", Some(&frontier)).unwrap();
         let parsed =
             FrontierSettingsV1::from_toml(&std::fs::read_to_string(&settings_path).unwrap())
                 .unwrap();
         assert_eq!(parsed.work.unwrap().lease_ttl_seconds, 43_200);
-        assert_eq!(parsed.mcp.unwrap().profile, McpProfileV1::Draft);
         assert_eq!(parsed.publish.unwrap().git_push, FrontierGitPush::Off);
-
-        unset("mcp.profile", Some(&frontier)).unwrap();
-        let parsed =
-            FrontierSettingsV1::from_toml(&std::fs::read_to_string(&settings_path).unwrap())
-                .unwrap();
-        assert!(parsed.mcp.is_none());
         assert_eq!(std::fs::read(legacy_path).unwrap(), legacy);
     }
 
@@ -927,7 +873,8 @@ license:
         let settings = vela.join("settings.toml");
         let displaced = vela.join("settings.original.toml");
         let original = b"schema = \"vela.frontier-settings.v1\"\n";
-        let substituted = b"schema = \"vela.frontier-settings.v1\"\n[mcp]\nprofile = \"draft\"\n";
+        let substituted =
+            b"schema = \"vela.frontier-settings.v1\"\n[work]\nlease_ttl_seconds = 7200\n";
         std::fs::write(&settings, original).unwrap();
 
         let error = set_frontier_v1_at_with_hook(

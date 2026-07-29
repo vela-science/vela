@@ -4,16 +4,14 @@ Status: current candidate boundary. Historical object semantics remain
 replayable but are not current writer guidance.
 
 This document says exactly what can be inferred from Vela's protocol, code,
-conformance vectors, and Lean models. It is intentionally smaller than the
+and conformance vectors. It is intentionally smaller than the
 research program that preceded it. Vela is an authority-aware, replayable state
 layer for scientific work. It is not a mathematical theory of science and does
 not turn recorded evidence into truth.
 
 The normative wire and storage contract is [the protocol](PROTOCOL.md). The Rust
-implementation is the executable reference. Lean proves selected structural
-lemmas about explicit models. Conformance vectors test byte and replay agreement.
-These layers support one another, but none silently upgrades the assurance of
-another.
+implementation is the executable reference. Conformance vectors test byte and
+replay agreement. Neither silently upgrades the assurance of another.
 
 ## 1. The guarantee ladder
 
@@ -22,7 +20,6 @@ another.
 | Protocol | the objects, byte rules, authority boundary, and replay obligations an implementation claims | that an implementation follows them |
 | Rust checks | that the inspected frontier satisfies the checks implemented by this version | scientific truth or absence of implementation bugs |
 | Conformance vectors | agreement on the covered bytes and cases | correctness outside the vectors |
-| Lean | the stated theorem for the stated abstract or concrete Lean model | equivalence between that model and all Rust, Git, OS, or network behavior |
 | Named verifier | a result for exact artifacts under a named method and environment | significance, generality, or acceptance |
 | Signed policy or human decision | authority to admit a bounded transition | correctness of the underlying scientific claim |
 
@@ -249,52 +246,7 @@ The implementation boundaries are
 [`frontier_txn.rs`](../crates/vela-cli/src/frontier_txn.rs) and
 [`git_publish.rs`](../crates/vela-cli/src/config/git_publish.rs).
 
-## 4. What Lean proves
-
-The Lean tree is a collection of structural and domain models. It is not a
-formalization of the complete Rust implementation. The most directly relevant
-current modules are:
-
-| Module | Checked statement | Boundary |
-| --- | --- | --- |
-| [`Protocol/ReducerModel.lean`](../lean/Vela/Protocol/ReducerModel.lean) | replay is a fold; append composes; a small concrete reducer grows its log and preserves descriptors | the event and state types are deliberately small, not the Rust `Project` |
-| [`Protocol/Log.lean`](../lean/Vela/Protocol/Log.lean) | equal finite model logs yield equal canonical sequences and replay; changed cores change IDs under injective hashing | canonical order and state are abstract; the file's `AtlasState` name is only a carrier name |
-| [`Protocol/ReplayAppend.lean`](../lean/Vela/Protocol/ReplayAppend.lean) | replay over `a ++ b` equals replay of `a` followed by `b` | a general `foldl` law, not proof of transaction recovery |
-| [`Crypto/CanonicalEventId.lean`](../lean/Vela/Crypto/CanonicalEventId.lean) | serializer-then-hash is injective if both functions are injective | SHA-256 and the Rust serializer are assumptions, not proved implementations |
-| [`Governance/ProposalIdempotency.lean`](../lean/Vela/Governance/ProposalIdempotency.lean) | repeated acceptance is idempotent under the stated deduplication hypothesis | the important deduplication property is a hypothesis |
-| [`Governance/GovernedQuorumSoundness.lean`](../lean/Vela/Governance/GovernedQuorumSoundness.lean) | the modeled acceptance predicate yields enough distinct eligible, unrevoked, valid signers | equivalence to every Rust governance path is not proved |
-| [`Crypto/Signing.lean`](../lean/Vela/Crypto/Signing.lean) | a historical finding-signing model is invariant to one excluded cache flag | useful regression history, not the current end-to-end key-custody theorem |
-
-The build root [`Vela.lean`](../lean/Vela.lean) imports a broad compatibility
-bundle plus a Sidon certificate. Historical accumulation, folding, and
-sum-check modules remain available at their exact paths but are excluded from
-that aggregate. Transfer, older diff-pack, frontier-calculus, and
-domain-construction modules are scoped models or domain proofs; their presence
-does not enlarge the current Vela protocol.
-
-Some modules state abstract hash or serializer injectivity as axioms, and some
-composition modules use opaque functions with preservation assumptions. This is
-legitimate only when surfaced as an assumption. One fail-closed
-[`AxiomAuditRegistry`](../lean/Vela/AxiomAuditRegistry.lean) classifies every
-publicly audited declaration. [`ProtocolAxiomAudit`](../lean/Vela/ProtocolAxiomAudit.lean)
-reports only the small structural surface above;
-[`ResearchAxiomAudit`](../lean/Vela/ResearchAxiomAudit.lean) reports compatibility
-models, governance lemmas, domain mathematics, and transfers. The historical
-[`AxiomAudit`](../lean/Vela/AxiomAudit.lean) remains their combined compatibility
-view. None should be summarized as “the whole implementation is axiom-free.”
-A compiler-checked `native_decide` certificate also has a different trusted
-computing base from a small kernel reduction.
-
-The honest Lean claim is:
-
-> Lean checks the listed statements for their listed models and assumptions.
-
-It is not:
-
-> Lean proves Vela, Git, SHA-256, Ed25519, every verifier, and every scientific
-> conclusion correct end to end.
-
-## 5. What conformance establishes
+## 4. What conformance establishes
 
 Conformance is executable agreement over finite vectors. The current focused
 surfaces include:
@@ -327,24 +279,10 @@ python3 conformance/verify.py
 ```
 
 The independent reader may require its documented local runtime. These are
-repository checks, not live partner tests. No Diderot service, external network,
-unrelated Lean campaign, public mirror, or reader deployment is part of this
-formal boundary.
+repository checks, not live partner tests. No external network, public mirror,
+or reader deployment is part of this formal boundary.
 
-For Lean itself:
-
-```bash
-cd lean
-lake build
-lake build Vela.ProtocolAxiomAudit Vela.ResearchAxiomAudit Vela.AxiomAudit
-python3 ../scripts/check-lean-axiom-audits.py --project .
-```
-
-Those commands may be expensive on a cold toolchain. A claim that a revision is
-green requires a recorded successful run; this document does not substitute for
-one.
-
-## 6. Assumptions and trusted computing base
+## 5. Assumptions and trusted computing base
 
 The guarantees above are conditional on at least these assumptions:
 
@@ -371,7 +309,7 @@ The guarantees above are conditional on at least these assumptions:
 9. **Human judgment.** Human reviewers understand the evidence and protect their
    keys. Vela records their decision; it does not prove the decision wise.
 
-## 7. Explicit non-guarantees
+## 6. Explicit non-guarantees
 
 Vela does not prove:
 
@@ -387,9 +325,9 @@ Vela does not prove:
 - correctness of inferred graph edges, generated summaries, rankings, or model
   outputs until separately evidenced and accepted;
 - completeness of the scientific frontier or discovery of unknown unknowns;
-- the soundness of SHA-256, Ed25519, Lean's kernel, Mathlib, the compiler, the
+- the soundness of SHA-256, Ed25519, a named proof kernel, its libraries, the compiler, the
   operating system, or hardware from first principles; or
-- end-to-end refinement between the Lean models and every executable code path.
+- end-to-end formal refinement of every executable code path.
 
 In particular, presheaves, graded epistemic calculi, provenance semirings,
 proof-carrying knowledge, generalized transfer categories, Atlas/Constellate
@@ -397,7 +335,7 @@ object systems, and autonomous federation may remain useful research ideas.
 They are not current protocol guarantees unless they return as small, implemented,
 tested objects at the Submission-to-Decision boundary.
 
-## 8. The boundary in one statement
+## 7. The boundary in one statement
 
 For exact committed inputs and under the assumptions above, Vela aims to make
 the following independently checkable:

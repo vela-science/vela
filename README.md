@@ -195,6 +195,7 @@ packages/protocol/  Authority-free TypeScript contracts and validators
 packages/canopus/   Optional bounded producer and evaluation harness
 schema/             Language-neutral public schemas
 conformance/        Shared cross-implementation fixtures
+                     and small independent readers/emitters
 ```
 
 `@vela-science/canopus` may use `@vela-science/protocol`; it cannot import

@@ -88,15 +88,12 @@ pub(crate) enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// Diagnose first-user checkout, frontier, proof, and serve readiness.
+    /// Diagnose the current Frontier and report one recovery action.
     #[command(after_long_help = crate::cli::help_text::DOCTOR)]
     Doctor {
         /// Frontier JSON file or Vela repo. Defaults to the release frontier
         /// when run from the repository root.
         frontier: Option<PathBuf>,
-        /// Local serve port to check.
-        #[arg(long, default_value_t = 3741)]
-        port: u16,
         /// Include tool inventory, setup diagnostics, and every suggested command.
         #[arg(long)]
         all: bool,
@@ -144,7 +141,7 @@ pub(crate) enum Commands {
     /// Generate vendor agent-config adapters from the canonical `VELA.md`
     /// (one source of truth; the adapter files are disposable, regenerable
     /// leaves). `AGENTS.md`, `CLAUDE.md`, `.cursor/rules/vela.mdc`,
-    /// `.github/copilot-instructions.md`, and `.mcp.json` regenerate from
+    /// `.github/copilot-instructions.md` regenerate from
     /// VELA.md; the deletion test holds (delete them, sync, they return).
     #[command(after_long_help = crate::cli::help_text::AGENTS)]
     Agents {

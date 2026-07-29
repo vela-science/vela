@@ -554,7 +554,7 @@ fn nonzero(value: usize) -> Option<usize> {
 fn local_repo_root(path: &Path) -> Option<PathBuf> {
     match repo::detect(path).ok()? {
         VelaSource::VelaRepo(root) => Some(root),
-        VelaSource::ProjectFile(_) | VelaSource::PacketDir(_) => None,
+        VelaSource::ProjectFile(_) => None,
     }
 }
 

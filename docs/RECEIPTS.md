@@ -169,10 +169,6 @@ marker. The proposal retains one typed evidence span for each explicit Receipt
 artifact and points it into the canonical Receipt; no span infers a verifier
 pass, independence, or acceptance.
 
-Atlas source adapters follow this boundary too: they emit their catalogue or
-graph output as Receipt v1 artifacts and call `vela land`; they never mint
-findings, anchors, or canonical events directly.
-
 - **Deny** returns before the marker and leaves no canonical Vela or Git delta.
 - **Defer** installs the pending proposal. This is the ordinary producer
   outcome and is success, not a failed or half-accepted submission.

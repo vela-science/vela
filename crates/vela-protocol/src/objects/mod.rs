@@ -9,7 +9,6 @@ pub mod cli_style;
 pub mod current_repository;
 pub mod identity;
 pub mod merkle;
-pub mod nanopub;
 pub mod proposal_v1;
 pub mod provenance;
 pub mod receipt_v1;
@@ -18,7 +17,4 @@ pub mod registration_record;
 pub mod repository_epoch;
 pub mod statement_attestation;
 pub mod submission_v1;
-#[path = "policy.rs"]
-pub mod verification_policy;
 pub mod verification_record;
-pub mod verification_summary;

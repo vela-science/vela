@@ -2822,7 +2822,6 @@ dependencies = [
  "vela-authority",
  "vela-edge",
  "vela-protocol",
- "vela-protocol-core",
  "vela-verify",
  "windows-sys 0.61.2",
 ]
@@ -2850,7 +2849,6 @@ dependencies = [
  "unicode-normalization",
  "urlencoding",
  "vela-protocol",
- "vela-protocol-core",
  "vela-verify",
 ]
 
@@ -2876,17 +2874,6 @@ dependencies = [
  "toml",
  "unicode-normalization",
  "vela-verify",
-]
-
-[[package]]
-name = "vela-protocol-core"
-version = "0.940.9"
-dependencies = [
- "ed25519-dalek",
- "hex",
- "serde",
- "serde_json",
- "sha2",
 ]
 
 [[package]]

@@ -13,7 +13,6 @@ name = "vela_edge"
 path = "src/lib.rs"
 [dependencies]
 vela-protocol.workspace = true
-vela-protocol-core = { workspace = true }
 vela-verify.workspace = true
 reqwest.workspace = true
 serde.workspace = true

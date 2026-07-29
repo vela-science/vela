@@ -1057,7 +1057,7 @@ mod tests {
     fn static_fixture() -> VectorFixture {
         let document: StaticFixtureDocument = serde_json::from_str(include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../research/verifiable-composition/fixtures/decision-inspection/fixture.json"
+            "/tests/fixtures/decision-inspection/fixture.json"
         )))
         .unwrap();
         let key_bytes: [u8; 32] = hex::decode(document.test_key_seed_hex)
@@ -1477,7 +1477,7 @@ mod tests {
     fn decision_inspection_registered_vectors_match_python_classifications() {
         let vectors: RegisteredVectors = serde_json::from_str(include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../research/verifiable-composition/vectors/decision-evidence-cases.json"
+            "/tests/fixtures/decision-inspection/decision-evidence-cases.json"
         )))
         .unwrap();
         assert_eq!(vectors.cases.len(), 29);

@@ -1,7 +1,6 @@
 [workspace]
 # The consolidated Vela workspace:
 #   vela-protocol       the protocol kernel (events, reducer, objects)
-#   vela-protocol-core  shared primitives under the kernel
 #   vela-authority      restricted standard authorization evaluation
 #   vela-edge           derived views and adapters over kernel state
 #   vela-cli            the `vela` product binary
@@ -12,7 +11,6 @@ members = [
     "crates/vela-protocol",
     "crates/vela-authority",
     "crates/vela-edge",
-    "crates/vela-protocol-core",
     "crates/vela-cli",
     "crates/vela-verify",
 ]
@@ -69,7 +67,6 @@ windows-sys = "0.61"
 # the dep against crates.io; `path` is used for in-workspace builds.
 vela-protocol = { path = "crates/vela-protocol", version = "0.940.9" }
 vela-authority = { path = "crates/vela-authority", version = "0.940.9" }
-vela-protocol-core = { path = "crates/vela-protocol-core", version = "0.940.9" }
 vela-verify = { path = "crates/vela-verify", version = "0.940.9" }
 vela-edge = { path = "crates/vela-edge", version = "0.940.9" }
 

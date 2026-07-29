@@ -228,4 +228,3 @@ Current evidence is Level 0. The active Formal slice tests product and
 statement-fidelity handling; it does not itself advance the correction
 benchmark. The correction fixture, clean-room reader, second Frontier, held-out
 replication, and cold-use evidence must be earned in that order.
-

@@ -443,7 +443,6 @@ pub fn new_proposal_at(
         decision_reason: None,
         applied_event_id: None,
         caveats,
-        agent_run: None,
     };
     proposal.id = proposal_id(&proposal);
     proposal
@@ -1459,9 +1458,6 @@ fn validate_proposal_shape(frontier: &Project, proposal: &StateProposal) -> Resu
                 ));
             }
         }
-        "research_trace.review" => {
-            validate_research_trace_review_payload(proposal)?;
-        }
         "correction_return.review" => {
             validate_correction_return_review_payload(proposal)?;
         }
@@ -1839,66 +1835,12 @@ fn validate_standalone_proposal(
                 .map_err(|e| format!("malformed contribution: {e}"))?;
             contribution.validate()?;
         }
-        "research_trace.review" => {
-            validate_research_trace_review_payload(proposal)?;
-        }
         "correction_return.review" => {
             validate_correction_return_review_payload(proposal)?;
         }
         other => return Err(format!("Unsupported proposal kind '{other}'")),
     }
     validate_decision_state(proposal)
-}
-
-fn validate_research_trace_review_payload(proposal: &StateProposal) -> Result<(), String> {
-    if proposal.target.r#type != "frontier_observation" {
-        return Err(format!(
-            "research_trace.review target.type must be 'frontier_observation', got '{}'",
-            proposal.target.r#type
-        ));
-    }
-    let trace_id = proposal
-        .payload
-        .get("trace_id")
-        .and_then(Value::as_str)
-        .ok_or("research_trace.review proposal missing payload.trace_id")?;
-    if !trace_id.starts_with("vrt_") {
-        return Err("research_trace.review payload.trace_id must start with `vrt_`".to_string());
-    }
-    let output_kind = proposal
-        .payload
-        .get("output_kind")
-        .and_then(Value::as_str)
-        .ok_or("research_trace.review proposal missing payload.output_kind")?;
-    if !matches!(output_kind, "candidate_finding" | "open_need") {
-        return Err(format!(
-            "research_trace.review payload.output_kind must be candidate_finding or open_need, got '{output_kind}'"
-        ));
-    }
-    if output_kind == "candidate_finding" && proposal.payload.get("candidate").is_none() {
-        return Err(
-            "research_trace.review candidate_finding missing payload.candidate".to_string(),
-        );
-    }
-    if output_kind == "open_need" && proposal.payload.get("open_need").is_none() {
-        return Err("research_trace.review open_need missing payload.open_need".to_string());
-    }
-    if proposal.payload.get("authority_boundary").is_none() {
-        return Err("research_trace.review missing payload.authority_boundary".to_string());
-    }
-    if proposal.payload.get("formalization_fidelity").is_none() {
-        return Err("research_trace.review missing payload.formalization_fidelity".to_string());
-    }
-    if !proposal
-        .source_refs
-        .iter()
-        .any(|source_ref| source_ref == trace_id)
-    {
-        return Err(format!(
-            "research_trace.review source_refs must include trace_id {trace_id}"
-        ));
-    }
-    Ok(())
 }
 
 fn validate_correction_return_review_payload(proposal: &StateProposal) -> Result<(), String> {
@@ -3511,7 +3453,7 @@ fn apply_proposal_at(
     let mut event = match proposal.kind.as_str() {
         "finding.add" => apply_add(frontier, proposal, reviewer, decision_reason)?,
         "finding.review" => apply_review(frontier, proposal, reviewer, decision_reason)?,
-        "research_trace.review" | "correction_return.review" => {
+        "correction_return.review" => {
             apply_frontier_observation_review(proposal, reviewer, decision_reason)?
         }
         "finding.caveat" => apply_caveat(
@@ -3585,7 +3527,6 @@ fn apply_frontier_observation_review(
     decision_reason: &str,
 ) -> Result<StateEvent, String> {
     match proposal.kind.as_str() {
-        "research_trace.review" => validate_research_trace_review_payload(proposal)?,
         "correction_return.review" => validate_correction_return_review_payload(proposal)?,
         other => {
             return Err(format!(

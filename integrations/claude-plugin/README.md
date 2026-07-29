@@ -95,15 +95,12 @@ Code and Codex the same rules from one source. Invoke it explicitly with
 `.vela/` repository. Codex custom prompts are deliberately not used: they are
 deprecated upstream in favor of skills.
 
-## MCP
+## Execution
 
-`.mcp.json` starts `vela serve . --profile draft` with
-`VELA_ACTOR_ID=agent:claude`. The draft profile is the read surface plus one
-nonfinalizing `attempt` tool (`start`, `submit`, or `abandon`). The CLI and MCP
-paths call the same Submission registration service. Successful ordinary
-intake creates a pending Proposal and no accepted-state change. Nothing on MCP
-finalizes a human or repository-authority Decision. The `decide` tool is absent
-from the registry and every profile.
+The skill calls Vela's exact CLI contracts directly. Optional execution
+harnesses such as Canopus may produce bounded evidence, but they do not become
+Vela plugins, writers, or authority surfaces. Successful ordinary intake
+creates a pending Proposal and no accepted-state change.
 
 ## Session brief
 

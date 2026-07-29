@@ -5,7 +5,6 @@ const INSTALLER: &str = include_str!("../../../install.sh");
 const WINDOWS_INSTALLER: &str = include_str!("../../../install.ps1");
 const RELEASE_WORKFLOW: &str = include_str!("../../../.github/workflows/release.yml");
 const CONFORMANCE_WORKFLOW: &str = include_str!("../../../.github/workflows/conformance.yml");
-const LEAN_WORKFLOW: &str = include_str!("../../../.github/workflows/lean.yml");
 const UNIX_RELEASE_SMOKE: &str = include_str!("../../../scripts/smoke-release-bundle.sh");
 const WINDOWS_RELEASE_SMOKE: &str = include_str!("../../../scripts/smoke-release-bundle.ps1");
 
@@ -310,7 +309,6 @@ fn fresh_runner_smoke_precedes_publication_and_preserves_platform_checks() {
 fn every_hosted_action_is_pinned_by_commit() {
     for (name, workflow) in [
         ("conformance", CONFORMANCE_WORKFLOW),
-        ("lean", LEAN_WORKFLOW),
         ("release", RELEASE_WORKFLOW),
     ] {
         assert_immutable_action_pins(name, workflow);

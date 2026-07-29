@@ -1905,7 +1905,6 @@ fn immutable_proposal_root(
         "payload": proposal.payload,
         "source_refs": proposal.source_refs,
         "caveats": proposal.caveats,
-        "agent_run": proposal.agent_run,
     }))
 }
 
@@ -1915,9 +1914,8 @@ fn immutable_proposal_root(
 /// projection: `status`, reviewer metadata, the decision reason, and the
 /// applied event id are caches derived from signed `review.*` or withdrawal
 /// events. The existing parity reducer is therefore the only allowed path for
-/// those fields to change. All proposal identity and producer provenance,
-/// including timestamps and agent-run traces that are deliberately excluded
-/// from the retry-stable proposal id, remain byte-semantically immutable.
+/// those fields to change. All proposal identity and timestamps remain
+/// byte-semantically immutable.
 fn verify_anchored_proposal_history(
     frontier: &Project,
     anchored: &Project,
@@ -2605,7 +2603,6 @@ mod tests {
                 schema: FRONTIER_SETTINGS_SCHEMA.to_string(),
                 publish: None,
                 work: None,
-                mcp: None,
             }
             .to_toml()
             .unwrap(),
@@ -2700,7 +2697,7 @@ mod tests {
             after_hash: NULL_HASH.to_string(),
             payload: json!({
                 "proposal_id": "vpr_0123456789abcdef",
-                "proposal_kind": "research_trace.review",
+                "proposal_kind": "correction_return.review",
                 "status": "accepted"
             }),
             caveats: vec![],
@@ -3415,7 +3412,7 @@ mod tests {
     }
 
     #[test]
-    fn anchored_proposal_provenance_cannot_be_rewritten() {
+    fn anchored_proposal_metadata_cannot_be_rewritten() {
         let fixture = fixture_with_anchored_proposal();
         let proposal_id = fixture.project.proposals[0].id.clone();
         let proposal_path = fixture
@@ -3423,18 +3420,13 @@ mod tests {
             .path()
             .join(format!(".vela/proposals/{proposal_id}.json"));
         let mut stored: Value = serde_json::from_slice(&fs::read(&proposal_path).unwrap()).unwrap();
-        stored["agent_run"] = json!({
-            "agent": "agent:forged",
-            "model": "forged-model",
-            "run_id": "forged-run",
-            "started_at": "2026-07-22T00:00:00Z"
-        });
+        stored["drafted_at"] = json!("2026-07-22T00:00:00Z");
         fs::write(&proposal_path, serde_json::to_vec_pretty(&stored).unwrap()).unwrap();
         let mut tampered = repo::load_from_path(fixture.directory.path()).unwrap();
         tampered.events.push(fixture.boundary.clone());
 
-        // Agent-run provenance is deliberately outside the retry-stable
-        // proposal id, so ordinary proposal parity alone accepts this edit.
+        // Draft metadata is deliberately outside the retry-stable proposal
+        // id, so ordinary proposal parity alone accepts this edit.
         assert!(
             proposals::verify_proposal_decision_parity(&tampered).is_empty(),
             "fixture must isolate anchored provenance rather than id parity"
@@ -3905,7 +3897,7 @@ mod tests {
             after_hash: NULL_HASH.to_string(),
             payload: json!({
                 "proposal_id": "vpr_1123456789abcdef",
-                "proposal_kind": "research_trace.review",
+                "proposal_kind": "correction_return.review",
                 "status": "accepted"
             }),
             caveats: vec![],

@@ -21,43 +21,6 @@ pub enum VelaSource {
     ProjectFile(PathBuf),
     /// A directory with a `.vela/` subdirectory containing individual finding files.
     VelaRepo(PathBuf),
-    /// A publishable frontier packet directory with `manifest.json` and payload files.
-    PacketDir(PathBuf),
-}
-
-#[derive(Debug, Deserialize)]
-struct PacketManifestHeader {
-    packet_format: String,
-    #[serde(default)]
-    source: Option<PacketSourceHeader>,
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct PacketSourceHeader {
-    #[serde(default)]
-    project_name: String,
-    #[serde(default)]
-    description: String,
-    #[serde(default)]
-    compiled_at: String,
-    #[serde(default)]
-    compiler: String,
-    #[serde(default)]
-    vela_version: String,
-    #[serde(default)]
-    schema: String,
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct PacketOverviewHeader {
-    #[serde(default)]
-    project_name: String,
-    #[serde(default)]
-    description: String,
-    #[serde(default)]
-    compiled_at: String,
-    #[serde(default)]
-    papers_processed: usize,
 }
 
 /// Detect the source type from a path.
@@ -70,9 +33,6 @@ pub fn detect(path: &Path) -> Result<VelaSource, String> {
         return Ok(VelaSource::ProjectFile(path.to_path_buf()));
     }
     if path.is_dir() {
-        if is_packet_dir(path) {
-            return Ok(VelaSource::PacketDir(path.to_path_buf()));
-        }
         let vela_dir = path.join(".vela");
         if vela_dir.is_dir() {
             return Ok(VelaSource::VelaRepo(path.to_path_buf()));
@@ -82,7 +42,7 @@ pub fn detect(path: &Path) -> Result<VelaSource, String> {
             return Ok(VelaSource::ProjectFile(path.to_path_buf()));
         }
         return Err(format!(
-            "Directory '{}' is not a Vela repository or frontier packet. Run `vela init` here, or clone an existing frontier's git repo.",
+            "Directory '{}' is not a Vela repository. Run `vela init` here, or clone an existing Frontier repository.",
             path.display()
         ));
     }
@@ -91,7 +51,7 @@ pub fn detect(path: &Path) -> Result<VelaSource, String> {
         return Ok(VelaSource::ProjectFile(path.to_path_buf()));
     }
     Err(format!(
-        "Path '{}' does not exist. Provide a .json file, frontier packet, or a directory with .vela/",
+        "Path '{}' does not exist. Provide a .json file or a directory with .vela/",
         path.display()
     ))
 }
@@ -211,7 +171,6 @@ pub fn load(source: &VelaSource) -> Result<Project, String> {
     match source {
         VelaSource::ProjectFile(path) => load_project_file(path),
         VelaSource::VelaRepo(dir) => load_vela_repo(dir),
-        VelaSource::PacketDir(dir) => load_packet_dir(dir),
     }
 }
 
@@ -222,168 +181,208 @@ pub(crate) fn load_project_file(path: &Path) -> Result<Project, String> {
         .map_err(|e| format!("Failed to parse project JSON '{}': {e}", path.display()))
 }
 
-fn load_packet_dir(dir: &Path) -> Result<Project, String> {
-    let manifest_path = dir.join("manifest.json");
-    let manifest_data = std::fs::read_to_string(&manifest_path).map_err(|e| {
-        format!(
-            "Failed to read packet manifest '{}': {e}",
-            manifest_path.display()
-        )
-    })?;
-    let manifest: PacketManifestHeader = serde_json::from_str(&manifest_data).map_err(|e| {
-        format!(
-            "Failed to parse packet manifest '{}': {e}",
-            manifest_path.display()
-        )
-    })?;
+// ── Save ─────────────────────────────────────────────────────────────
 
-    if manifest.packet_format != "vela.frontier-packet" {
+/// Save a project to a detected source.
+pub fn save(source: &VelaSource, project: &Project) -> Result<(), String> {
+    match source {
+        VelaSource::ProjectFile(path) => save_project_file(path, project),
+        VelaSource::VelaRepo(dir) => save_vela_repo(dir, project),
+    }
+}
+
+fn save_project_file(path: &Path, project: &Project) -> Result<(), String> {
+    let json = serde_json::to_string_pretty(project)
+        .map_err(|e| format!("Failed to serialize project: {e}"))?;
+    std::fs::write(path, json)
+        .map_err(|e| format!("Failed to write project file '{}': {e}", path.display()))
+}
+
+/// Exact generated-file postimages for a split Vela repository.
+///
+/// `writes` is keyed by normalized frontier-relative path. `deletes` contains
+/// only stale files in Vela-owned collections; user-owned and unknown files are
+/// never inferred as deletions. Rendering is read-only so a transaction can
+/// bind every preimage before installing any state.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ManagedFileSet {
+    pub writes: BTreeMap<String, Vec<u8>>,
+    pub deletes: BTreeSet<String>,
+}
+
+impl ManagedFileSet {
+    fn insert(&mut self, path: String, bytes: Vec<u8>) -> Result<(), String> {
+        if self.writes.insert(path.clone(), bytes).is_some() {
+            return Err(format!("duplicate generated Vela path: {path}"));
+        }
+        self.deletes.remove(&path);
+        Ok(())
+    }
+}
+
+/// Render all files owned by `save_vela_repo`, including visible derived
+/// views, without mutating `dir`.
+pub fn render_vela_repo_files(dir: &Path, project: &Project) -> Result<ManagedFileSet, String> {
+    let mut managed = ManagedFileSet::default();
+    let profile_is_v1 = matches!(
+        crate::frontier_repo::read_repository_profile(dir)?,
+        Some(crate::frontier_repo::FrontierProfileFile::V1(_))
+    );
+    if !profile_is_v1 {
+        let config = RepoConfig {
+            project: RepoProjectMeta {
+                name: project.project.name.clone(),
+                frontier_id: Some(project.frontier_id()),
+                compiled_at: project.project.compiled_at.clone(),
+                description: project.project.description.clone(),
+                compiler: project.project.compiler.clone(),
+                papers_processed: project.project.papers_processed,
+            },
+        };
+        managed.insert(
+            ".vela/config.toml".to_string(),
+            render_legacy_repo_config(&dir.join(".vela/config.toml"), &config)?,
+        )?;
+    }
+
+    for finding in &project.findings {
+        let path = managed_object_path("findings", &finding.id)?;
+        managed.insert(
+            path,
+            serde_json::to_vec_pretty(finding)
+                .map_err(|e| format!("Failed to serialize finding {}: {e}", finding.id))?,
+        )?;
+    }
+    for event in &project.events {
+        let path = managed_object_path("events", &event.id)?;
+        let rendered = serde_json::to_vec_pretty(event)
+            .map_err(|e| format!("Failed to serialize state event {}: {e}", event.id))?;
+        let bytes = match std::fs::read(dir.join(&path)) {
+            Ok(existing) => {
+                let existing_event: StateEvent =
+                    serde_json::from_slice(&existing).map_err(|error| {
+                        format!(
+                            "Existing immutable event {} cannot be decoded: {error}",
+                            event.id
+                        )
+                    })?;
+                let existing_value =
+                    serde_json::to_value(&existing_event).map_err(|error| error.to_string())?;
+                let candidate_value =
+                    serde_json::to_value(event).map_err(|error| error.to_string())?;
+                if existing_value == candidate_value {
+                    existing
+                } else {
+                    rendered
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => rendered,
+            Err(error) => {
+                return Err(format!(
+                    "Failed to read existing immutable event {}: {error}",
+                    event.id
+                ));
+            }
+        };
+        managed.insert(path, bytes)?;
+    }
+    for proposal in &project.proposals {
+        let path = managed_object_path("proposals", &proposal.id)?;
+        managed.insert(
+            path,
+            serde_json::to_vec_pretty(proposal)
+                .map_err(|e| format!("Failed to serialize proposal {}: {e}", proposal.id))?,
+        )?;
+    }
+    for artifact in &project.artifacts {
+        let path = managed_object_path("artifacts", &artifact.id)?;
+        managed.insert(
+            path,
+            serde_json::to_vec_pretty(artifact)
+                .map_err(|e| format!("Failed to serialize artifact {}: {e}", artifact.id))?,
+        )?;
+    }
+
+    managed.insert(
+        ".vela/proof-state.json".to_string(),
+        serde_json::to_vec_pretty(&project.proof_state)
+            .map_err(|e| format!("Failed to serialize proof state: {e}"))?,
+    )?;
+    managed.insert(
+        ".vela/actors.json".to_string(),
+        serde_json::to_vec_pretty(&project.actors)
+            .map_err(|e| format!("Failed to serialize actors: {e}"))?,
+    )?;
+    if project.signatures.is_empty() {
+        if dir.join(".vela/signatures.json").is_file() {
+            managed.deletes.insert(".vela/signatures.json".to_string());
+        }
+    } else {
+        managed.insert(
+            ".vela/signatures.json".to_string(),
+            serde_json::to_vec_pretty(&project.signatures)
+                .map_err(|e| format!("Failed to serialize signatures: {e}"))?,
+        )?;
+    }
+
+    for collection in ["findings", "events", "proposals", "artifacts"] {
+        collect_stale_managed_objects(dir, collection, &managed.writes, &mut managed.deletes)?;
+    }
+
+    for (path, bytes) in crate::frontier_repo::render_visible_repo_files(dir, project)? {
+        managed.insert(path, bytes)?;
+    }
+    Ok(managed)
+}
+
+fn managed_object_path(collection: &str, id: &str) -> Result<String, String> {
+    if id.is_empty()
+        || id == "."
+        || id == ".."
+        || id.contains('/')
+        || id.contains('\\')
+        || id.chars().any(char::is_control)
+    {
         return Err(format!(
-            "Unsupported packet format '{}' in {}",
-            manifest.packet_format,
-            manifest_path.display()
+            "invalid {collection} id for split-repository storage: {id:?}"
         ));
     }
+    Ok(format!(".vela/{collection}/{id}.json"))
+}
 
-    let findings_path = dir.join("findings/full.json");
-    let findings_data = std::fs::read_to_string(&findings_path).map_err(|e| {
-        format!(
-            "Failed to read packet findings '{}': {e}",
-            findings_path.display()
-        )
-    })?;
-    let findings: Vec<FindingBundle> = serde_json::from_str(&findings_data).map_err(|e| {
-        format!(
-            "Failed to parse packet findings '{}': {e}",
-            findings_path.display()
-        )
-    })?;
-
-    let reviews_path = dir.join("reviews/review-events.json");
-    let review_events: Vec<ReviewEvent> = if reviews_path.is_file() {
-        let reviews_data = std::fs::read_to_string(&reviews_path).map_err(|e| {
-            format!(
-                "Failed to read packet reviews '{}': {e}",
-                reviews_path.display()
-            )
-        })?;
-        serde_json::from_str(&reviews_data).map_err(|e| {
-            format!(
-                "Failed to parse packet reviews '{}': {e}",
-                reviews_path.display()
-            )
-        })?
-    } else {
-        Vec::new()
-    };
-    let confidence_updates_path = dir.join("reviews/confidence-updates.json");
-    let confidence_updates: Vec<ConfidenceUpdate> = if confidence_updates_path.is_file() {
-        let updates_data = std::fs::read_to_string(&confidence_updates_path).map_err(|e| {
-            format!(
-                "Failed to read packet confidence updates '{}': {e}",
-                confidence_updates_path.display()
-            )
-        })?;
-        serde_json::from_str(&updates_data).map_err(|e| {
-            format!(
-                "Failed to parse packet confidence updates '{}': {e}",
-                confidence_updates_path.display()
-            )
-        })?
-    } else {
-        Vec::new()
-    };
-    let events_path = dir.join("events/events.json");
-    let events: Vec<StateEvent> = if events_path.is_file() {
-        let events_data = std::fs::read_to_string(&events_path).map_err(|e| {
-            format!(
-                "Failed to read packet events '{}': {e}",
-                events_path.display()
-            )
-        })?;
-        serde_json::from_str(&events_data).map_err(|e| {
-            format!(
-                "Failed to parse packet events '{}': {e}",
-                events_path.display()
-            )
-        })?
-    } else {
-        Vec::new()
-    };
-    let proposals_path = dir.join("proposals/proposals.json");
-    let proposals: Vec<StateProposal> = if proposals_path.is_file() {
-        let proposals_data = std::fs::read_to_string(&proposals_path).map_err(|e| {
-            format!(
-                "Failed to read packet proposals '{}': {e}",
-                proposals_path.display()
-            )
-        })?;
-        serde_json::from_str(&proposals_data).map_err(|e| {
-            format!(
-                "Failed to parse packet proposals '{}': {e}",
-                proposals_path.display()
-            )
-        })?
-    } else {
-        Vec::new()
-    };
-
-    let overview_path = dir.join("overview.json");
-    let overview: PacketOverviewHeader = if overview_path.is_file() {
-        let overview_data = std::fs::read_to_string(&overview_path).map_err(|e| {
-            format!(
-                "Failed to read packet overview '{}': {e}",
-                overview_path.display()
-            )
-        })?;
-        serde_json::from_str(&overview_data).map_err(|e| {
-            format!(
-                "Failed to parse packet overview '{}': {e}",
-                overview_path.display()
-            )
-        })?
-    } else {
-        PacketOverviewHeader::default()
-    };
-
-    let source = manifest.source.unwrap_or_default();
-    let name = first_non_empty([
-        source.project_name.as_str(),
-        overview.project_name.as_str(),
-        dir.file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("packet"),
-    ]);
-    let description = first_non_empty([
-        source.description.as_str(),
-        overview.description.as_str(),
-        "",
-    ]);
-    let compiled_at = first_non_empty([
-        source.compiled_at.as_str(),
-        overview.compiled_at.as_str(),
-        "",
-    ]);
-
-    let mut project = project::assemble(name, findings, overview.papers_processed, 0, description);
-    if !compiled_at.is_empty() {
-        project.project.compiled_at = compiled_at.to_string();
+fn collect_stale_managed_objects(
+    dir: &Path,
+    collection: &str,
+    desired: &BTreeMap<String, Vec<u8>>,
+    deletes: &mut BTreeSet<String>,
+) -> Result<(), String> {
+    let collection_dir = dir.join(".vela").join(collection);
+    if !collection_dir.is_dir() {
+        return Ok(());
     }
-    if !source.compiler.is_empty() {
-        project.project.compiler = source.compiler;
+    let entries = std::fs::read_dir(&collection_dir)
+        .map_err(|e| format!("Failed to read {}: {e}", collection_dir.display()))?;
+    for entry in entries {
+        let entry =
+            entry.map_err(|e| format!("Failed to read {} entry: {e}", collection_dir.display()))?;
+        let file_type = entry
+            .file_type()
+            .map_err(|e| format!("Failed to inspect {}: {e}", entry.path().display()))?;
+        if !file_type.is_file() {
+            continue;
+        }
+        let Some(filename) = entry.file_name().to_str().map(str::to_string) else {
+            continue;
+        };
+        if !filename.ends_with(".json") {
+            continue;
+        }
+        let relative = format!(".vela/{collection}/{filename}");
+        if !desired.contains_key(&relative) {
+            deletes.insert(relative);
+        }
     }
-    if !source.vela_version.is_empty() {
-        project.vela_version = source.vela_version;
-    }
-    if !source.schema.is_empty() {
-        project.schema = source.schema;
-    }
-    project.review_events = review_events;
-    project.confidence_updates = confidence_updates;
-    project.events = events;
-    project.proposals = proposals;
-    project::recompute_stats(&mut project);
-    Ok(project)
+    Ok(())
 }
 
 fn load_vela_repo(dir: &Path) -> Result<Project, String> {
@@ -733,211 +732,6 @@ fn load_vela_repo(dir: &Path) -> Result<Project, String> {
 // ── Save ─────────────────────────────────────────────────────────────
 
 /// Save a project to a detected source.
-pub fn save(source: &VelaSource, project: &Project) -> Result<(), String> {
-    match source {
-        VelaSource::ProjectFile(path) => save_project_file(path, project),
-        VelaSource::VelaRepo(dir) => save_vela_repo(dir, project),
-        VelaSource::PacketDir(dir) => Err(format!(
-            "Cannot save directly into packet directory '{}'. Export a new packet instead.",
-            dir.display()
-        )),
-    }
-}
-
-fn save_project_file(path: &Path, project: &Project) -> Result<(), String> {
-    let json = serde_json::to_string_pretty(project)
-        .map_err(|e| format!("Failed to serialize project: {e}"))?;
-    std::fs::write(path, json)
-        .map_err(|e| format!("Failed to write project file '{}': {e}", path.display()))
-}
-
-/// Exact generated-file postimages for a split Vela repository.
-///
-/// `writes` is keyed by normalized frontier-relative path. `deletes` contains
-/// only stale files in Vela-owned collections; user-owned and unknown files are
-/// never inferred as deletions. Rendering is read-only so a transaction can
-/// bind every preimage before installing any state.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct ManagedFileSet {
-    pub writes: BTreeMap<String, Vec<u8>>,
-    pub deletes: BTreeSet<String>,
-}
-
-impl ManagedFileSet {
-    fn insert(&mut self, path: String, bytes: Vec<u8>) -> Result<(), String> {
-        if self.writes.insert(path.clone(), bytes).is_some() {
-            return Err(format!("duplicate generated Vela path: {path}"));
-        }
-        self.deletes.remove(&path);
-        Ok(())
-    }
-}
-
-/// Render all files owned by `save_vela_repo`, including visible derived
-/// views, without mutating `dir`.
-pub fn render_vela_repo_files(dir: &Path, project: &Project) -> Result<ManagedFileSet, String> {
-    let mut managed = ManagedFileSet::default();
-    let profile_is_v1 = matches!(
-        crate::frontier_repo::read_repository_profile(dir)?,
-        Some(crate::frontier_repo::FrontierProfileFile::V1(_))
-    );
-    if !profile_is_v1 {
-        let config = RepoConfig {
-            project: RepoProjectMeta {
-                name: project.project.name.clone(),
-                frontier_id: Some(project.frontier_id()),
-                compiled_at: project.project.compiled_at.clone(),
-                description: project.project.description.clone(),
-                compiler: project.project.compiler.clone(),
-                papers_processed: project.project.papers_processed,
-            },
-        };
-        managed.insert(
-            ".vela/config.toml".to_string(),
-            render_legacy_repo_config(&dir.join(".vela/config.toml"), &config)?,
-        )?;
-    }
-
-    for finding in &project.findings {
-        let path = managed_object_path("findings", &finding.id)?;
-        managed.insert(
-            path,
-            serde_json::to_vec_pretty(finding)
-                .map_err(|e| format!("Failed to serialize finding {}: {e}", finding.id))?,
-        )?;
-    }
-    for event in &project.events {
-        let path = managed_object_path("events", &event.id)?;
-        let rendered = serde_json::to_vec_pretty(event)
-            .map_err(|e| format!("Failed to serialize state event {}: {e}", event.id))?;
-        let bytes = match std::fs::read(dir.join(&path)) {
-            Ok(existing) => {
-                let existing_event: StateEvent =
-                    serde_json::from_slice(&existing).map_err(|error| {
-                        format!(
-                            "Existing immutable event {} cannot be decoded: {error}",
-                            event.id
-                        )
-                    })?;
-                let existing_value =
-                    serde_json::to_value(&existing_event).map_err(|error| error.to_string())?;
-                let candidate_value =
-                    serde_json::to_value(event).map_err(|error| error.to_string())?;
-                if existing_value == candidate_value {
-                    existing
-                } else {
-                    rendered
-                }
-            }
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => rendered,
-            Err(error) => {
-                return Err(format!(
-                    "Failed to read existing immutable event {}: {error}",
-                    event.id
-                ));
-            }
-        };
-        managed.insert(path, bytes)?;
-    }
-    for proposal in &project.proposals {
-        let path = managed_object_path("proposals", &proposal.id)?;
-        managed.insert(
-            path,
-            serde_json::to_vec_pretty(proposal)
-                .map_err(|e| format!("Failed to serialize proposal {}: {e}", proposal.id))?,
-        )?;
-    }
-    for artifact in &project.artifacts {
-        let path = managed_object_path("artifacts", &artifact.id)?;
-        managed.insert(
-            path,
-            serde_json::to_vec_pretty(artifact)
-                .map_err(|e| format!("Failed to serialize artifact {}: {e}", artifact.id))?,
-        )?;
-    }
-
-    managed.insert(
-        ".vela/proof-state.json".to_string(),
-        serde_json::to_vec_pretty(&project.proof_state)
-            .map_err(|e| format!("Failed to serialize proof state: {e}"))?,
-    )?;
-    managed.insert(
-        ".vela/actors.json".to_string(),
-        serde_json::to_vec_pretty(&project.actors)
-            .map_err(|e| format!("Failed to serialize actors: {e}"))?,
-    )?;
-    if project.signatures.is_empty() {
-        if dir.join(".vela/signatures.json").is_file() {
-            managed.deletes.insert(".vela/signatures.json".to_string());
-        }
-    } else {
-        managed.insert(
-            ".vela/signatures.json".to_string(),
-            serde_json::to_vec_pretty(&project.signatures)
-                .map_err(|e| format!("Failed to serialize signatures: {e}"))?,
-        )?;
-    }
-
-    for collection in ["findings", "events", "proposals", "artifacts"] {
-        collect_stale_managed_objects(dir, collection, &managed.writes, &mut managed.deletes)?;
-    }
-
-    for (path, bytes) in crate::frontier_repo::render_visible_repo_files(dir, project)? {
-        managed.insert(path, bytes)?;
-    }
-    Ok(managed)
-}
-
-fn managed_object_path(collection: &str, id: &str) -> Result<String, String> {
-    if id.is_empty()
-        || id == "."
-        || id == ".."
-        || id.contains('/')
-        || id.contains('\\')
-        || id.chars().any(char::is_control)
-    {
-        return Err(format!(
-            "invalid {collection} id for split-repository storage: {id:?}"
-        ));
-    }
-    Ok(format!(".vela/{collection}/{id}.json"))
-}
-
-fn collect_stale_managed_objects(
-    dir: &Path,
-    collection: &str,
-    desired: &BTreeMap<String, Vec<u8>>,
-    deletes: &mut BTreeSet<String>,
-) -> Result<(), String> {
-    let collection_dir = dir.join(".vela").join(collection);
-    if !collection_dir.is_dir() {
-        return Ok(());
-    }
-    let entries = std::fs::read_dir(&collection_dir)
-        .map_err(|e| format!("Failed to read {}: {e}", collection_dir.display()))?;
-    for entry in entries {
-        let entry =
-            entry.map_err(|e| format!("Failed to read {} entry: {e}", collection_dir.display()))?;
-        let file_type = entry
-            .file_type()
-            .map_err(|e| format!("Failed to inspect {}: {e}", entry.path().display()))?;
-        if !file_type.is_file() {
-            continue;
-        }
-        let Some(filename) = entry.file_name().to_str().map(str::to_string) else {
-            continue;
-        };
-        if !filename.ends_with(".json") {
-            continue;
-        }
-        let relative = format!(".vela/{collection}/{filename}");
-        if !desired.contains_key(&relative) {
-            deletes.insert(relative);
-        }
-    }
-    Ok(())
-}
-
 fn save_vela_repo(dir: &Path, project: &Project) -> Result<(), String> {
     let managed = render_vela_repo_files(dir, project)?;
     let vela_dir = dir.join(".vela");
@@ -996,27 +790,6 @@ fn save_vela_repo(dir: &Path, project: &Project) -> Result<(), String> {
 pub fn load_from_path(path: &Path) -> Result<Project, String> {
     let source = detect(path)?;
     load(&source)
-}
-
-fn is_packet_dir(path: &Path) -> bool {
-    let manifest_path = path.join("manifest.json");
-    if !manifest_path.is_file() {
-        return false;
-    }
-    let Ok(data) = std::fs::read_to_string(&manifest_path) else {
-        return false;
-    };
-    let Ok(manifest) = serde_json::from_str::<PacketManifestHeader>(&data) else {
-        return false;
-    };
-    manifest.packet_format == "vela.frontier-packet"
-}
-
-fn first_non_empty<'a>(values: impl IntoIterator<Item = &'a str>) -> &'a str {
-    values
-        .into_iter()
-        .find(|value| !value.is_empty())
-        .unwrap_or("")
 }
 
 /// Detect source type from path, then save.
@@ -1115,7 +888,7 @@ mod tests {
         let mut event = StateEvent {
             schema: EVENT_SCHEMA.to_string(),
             id: String::new(),
-            kind: "research_trace.review".into(),
+            kind: "correction_return.review".into(),
             target: StateTarget {
                 r#type: "frontier".to_string(),
                 id: original.frontier_id(),
@@ -1374,7 +1147,7 @@ mod tests {
         let result = detect(&dir);
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert!(error.contains("frontier packet"));
+        assert!(error.contains("not a Vela repository"));
         assert!(error.contains("vela init"));
     }
 

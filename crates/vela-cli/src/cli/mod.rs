@@ -83,10 +83,9 @@ pub async fn run_command() {
         } => cmd_check(source.as_deref(), strict, json),
         Commands::Doctor {
             frontier,
-            port,
             all,
             json,
-        } => cmd_doctor(frontier.as_deref(), port, all, json).await,
+        } => cmd_doctor(frontier.as_deref(), all, json).await,
         Commands::Status { frontier, json } => {
             cmd_status_compact(&crate::ui::resolve_frontier(frontier), json)
         }

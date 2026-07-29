@@ -6,12 +6,13 @@
 //!   `reducer` (the deterministic frontier state machine), `sign` (Ed25519),
 //!   `bundle` (proof packets), `canonical` (canonical bytes/ids), `repo` (I/O).
 //! - **state** — computed views over the log: `state`, `registry`, `frontier_repo`.
-//! - **analysis** — derived, non-authoritative projections: `atlas`, `transfer`,
+//! - **analysis** — derived, non-authoritative projections: `transfer`,
 //!   `verifier_attachment`, `status_provenance`, `frontier_graph`, `boundary`,
 //!   `contradiction`, `evidence_diff`.
 //! - **policy** — governance: `acceptance_policy`, `frontier_policy`, `tcb_policy`,
 //!   `access_tier`.
-//! - **domains** — domain profiles: `sidon_profile`, `lean_verification`.
+//! - **domains** — external-verifier bridges: `lean_verification`,
+//!   `proof_verification`.
 //!
 //! Id prefixes (content-addressed unless noted): `vf_` finding, `vev_` signed
 //! event, `vfr_` frontier, `vpr_` proposal, `val_` signed anchor, `vtr_` signed
@@ -26,25 +27,22 @@ pub use kernel::{
 mod computed;
 pub use computed::{
     frontier_profile, frontier_repo, frontier_settings, project, scientific_state, sources, state,
-    transfer_registry,
 };
 mod analysis;
 pub use analysis::{
-    atlas, boundary, contradiction, credit, diff, diff_pack_review, evidence_ci, evidence_diff,
-    evidence_polarity, frontier_bound, frontier_graph, frontier_identification, independence,
-    inspect_adapter, pathfind, propagate, released_diff_pack, scientific_diff, status_provenance,
-    transfer, verdict_conflict, verifier_attachment,
+    contradiction, credit, diff, diff_pack_review, evidence_ci, evidence_diff, evidence_polarity,
+    frontier_graph, independence, inspect_adapter, propagate, released_diff_pack, scientific_diff,
+    status_provenance, transfer, verdict_conflict, verifier_attachment,
 };
 mod policy;
 pub use policy::{acceptance_policy, access_tier, endorsement, frontier_policy, tcb_policy};
 mod domains;
-pub use domains::{lean_verification, proof_verification, sidon_profile};
+pub use domains::{lean_verification, proof_verification};
 mod objects;
 pub use objects::{
     activity, anchor, attempt, claim_record, cli_style, current_repository, identity, merkle,
-    nanopub, proposal_v1, provenance, receipt_v1, record, registration_record, repository_epoch,
-    statement_attestation, submission_v1, verification_policy, verification_record,
-    verification_summary,
+    proposal_v1, provenance, receipt_v1, record, registration_record, repository_epoch,
+    statement_attestation, submission_v1, verification_record,
 };
 
 pub mod proposals;

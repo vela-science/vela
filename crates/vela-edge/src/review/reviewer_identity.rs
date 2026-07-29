@@ -11,12 +11,12 @@ use serde::{Deserialize, Serialize};
 use vela_protocol::repo;
 
 /// Resolve the local `.vela/` repository root for a frontier path.
-/// Scientific attestations require a local repo; project files and
-/// packet directories are rejected.
+/// Scientific attestations require a local repository; project files are
+/// rejected.
 fn repo_root(frontier_path: &Path) -> Result<PathBuf, String> {
     match repo::detect(frontier_path)? {
         repo::VelaSource::VelaRepo(root) => Ok(root),
-        repo::VelaSource::ProjectFile(_) | repo::VelaSource::PacketDir(_) => Err(format!(
+        repo::VelaSource::ProjectFile(_) => Err(format!(
             "scientific attestations require a local .vela/ repository; got {}",
             frontier_path.display()
         )),

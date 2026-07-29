@@ -16,9 +16,6 @@
 //! Theorem 23 (Scientific Diff Pack id injectivity).
 //!
 //! Composition with later cycles:
-//!   - v0.195 vaa_*: Pack carries optional `agent_run: vaa_*` so
-//!     a pack produced by an LLM agent links to its signed
-//!     attestation envelope.
 //!   - v0.200 ver_*: an Evaluation Record can target a `vsd_*`,
 //!     letting "this pack was replicated by Lab X" be a first-
 //!     class statement.
@@ -44,8 +41,6 @@ pub struct ScientificDiffPack {
     pub summary: String,
     pub proposals: Vec<String>,
     pub aggregate_kind: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agent_run: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent_pack: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -146,7 +141,6 @@ pub struct PackDraft {
     pub summary: String,
     pub proposals: Vec<String>,
     pub aggregate_kind: String,
-    pub agent_run: Option<String>,
     pub parent_pack: Option<String>,
 }
 
@@ -164,7 +158,6 @@ impl ScientificDiffPack {
             summary: draft.summary,
             proposals: draft.proposals,
             aggregate_kind: draft.aggregate_kind,
-            agent_run: draft.agent_run,
             parent_pack: draft.parent_pack,
             applied_event_id: None,
             signature: None,
@@ -205,10 +198,6 @@ impl ScientificDiffPack {
         out.push(b'|');
         if let Some(parent) = &self.parent_pack {
             out.extend_from_slice(parent.as_bytes());
-        }
-        out.push(b'|');
-        if let Some(agent) = &self.agent_run {
-            out.extend_from_slice(agent.as_bytes());
         }
         out
     }
@@ -911,11 +900,6 @@ fn validate_draft(d: &PackDraft) -> Result<(), String> {
             "parent_pack must start with `vsd_`, got `{parent}`"
         ));
     }
-    if let Some(agent) = &d.agent_run
-        && !agent.starts_with("vaa_")
-    {
-        return Err(format!("agent_run must start with `vaa_`, got `{agent}`"));
-    }
     Ok(())
 }
 
@@ -935,7 +919,6 @@ mod tests {
             summary: "Test pack — bundles two proposals.".to_string(),
             proposals: vec!["vpr_a1".to_string(), "vpr_b2".to_string()],
             aggregate_kind: "finding.cluster_revision".to_string(),
-            agent_run: None,
             parent_pack: None,
         }
     }
@@ -988,7 +971,6 @@ mod tests {
             summary: "Review one confidence-moving operation.".to_string(),
             proposals: vec!["vpr_confidence".to_string()],
             aggregate_kind: "confidence.review".to_string(),
-            agent_run: None,
             parent_pack: None,
         })
         .unwrap();
@@ -1057,7 +1039,6 @@ mod tests {
             summary: "Review one incomplete confidence operation.".to_string(),
             proposals: vec!["vpr_confidence".to_string()],
             aggregate_kind: "confidence.review".to_string(),
-            agent_run: None,
             parent_pack: None,
         })
         .unwrap();
@@ -1144,11 +1125,10 @@ mod tests {
             summary: "Test pack — bundles two proposals.".to_string(),
             proposals: vec!["vpr_a1".to_string(), "vpr_b2".to_string()],
             aggregate_kind: "finding.cluster_revision".to_string(),
-            agent_run: None,
             parent_pack: None,
         })
         .unwrap();
-        assert_eq!(p.pack_id, "vsd_cd2a0071e7ffbffd");
+        assert_eq!(p.pack_id, "vsd_a9a4df3295a354ad");
     }
 
     #[test]

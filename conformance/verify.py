@@ -2,7 +2,7 @@
 """
 Vela conformance verifier.
 
-Runs the canonical Python reducer (`clients/python/vela_reducer.py`)
+Runs the canonical Python reducer (`conformance/readers/python/reducer.py`)
 against every fixture in `conformance/fixtures/` and reports per-fixture
 pass/fail.
 
@@ -202,7 +202,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Vela conformance verifier.")
     here = Path(__file__).resolve().parent
     repo_root = here.parent
-    default_reducer = repo_root / "clients" / "python" / "vela_reducer.py"
+    default_reducer = repo_root / "conformance" / "readers" / "python" / "reducer.py"
     parser.add_argument(
         "--reducer-script",
         default=str(default_reducer),
@@ -289,6 +289,12 @@ def main() -> int:
         return 1
     print("vela conformance: ok  [canonical-hashing]")
 
+    attempt_id_rc = _run_attempt_id(repo_root)
+    if attempt_id_rc != 0:
+        print("vela conformance: FAIL  [attempt-id]")
+        return 1
+    print("vela conformance: ok  [attempt-id]")
+
     permit_rc = _run_permit_shadow(repo_root)
     if permit_rc != 0:
         print("vela conformance: FAIL  [permit-shadow]")
@@ -364,6 +370,17 @@ def _run_canonical_hashing(repo_root: Path) -> int:
         result = subprocess.run([sys.executable, str(script)], cwd=repo_root)
     except Exception as e:  # noqa: BLE001
         print(f"  canonical-hashing invocation failed: {e}", file=sys.stderr)
+        return 1
+    return result.returncode
+
+
+def _run_attempt_id(repo_root: Path) -> int:
+    """Run the independent deterministic Attempt identifier check."""
+    script = repo_root / "conformance" / "verify_attempt_id.py"
+    try:
+        result = subprocess.run([sys.executable, str(script)], cwd=repo_root)
+    except Exception as error:  # noqa: BLE001
+        print(f"  attempt-id invocation failed: {error}", file=sys.stderr)
         return 1
     return result.returncode
 
@@ -751,7 +768,7 @@ def _run_exact_witness_floor(repo_root: Path) -> int:
 def _run_ts_reducer(repo_root: Path, fixtures_dir: Path) -> int:
     """Run the TypeScript reducer over the fixtures. Returns 0 (ok),
     1 (mismatch/error), or 2 (node unavailable → skip)."""
-    ts_reducer = repo_root / "clients" / "typescript" / "vela_reducer.ts"
+    ts_reducer = repo_root / "conformance" / "readers" / "typescript" / "reducer.ts"
     if not ts_reducer.exists():
         print(f"  note: typescript reducer not found at {ts_reducer}")
         return 2

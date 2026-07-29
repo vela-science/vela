@@ -11,7 +11,6 @@ use vela_protocol::cli_style as style;
 
 use crate::lint;
 use crate::normalize;
-use crate::packet;
 use vela_protocol::bundle::{
     FindingBundle, VALID_ASSERTION_TYPES, VALID_EVIDENCE_TYPES, VALID_LINK_TYPES,
     VALID_PROVENANCE_SOURCE_TYPES,
@@ -416,7 +415,6 @@ fn source_kind(source: &repo::VelaSource) -> &'static str {
     match source {
         repo::VelaSource::ProjectFile(_) => "project_file",
         repo::VelaSource::VelaRepo(_) => "vela_repo",
-        repo::VelaSource::PacketDir(_) => "packet_dir",
     }
 }
 
@@ -456,17 +454,6 @@ pub fn validate_loaded(source_path: &Path, frontier: &Project) -> ValidationRepo
         .cross_frontier_deps()
         .filter_map(|d| d.vfr_id.clone())
         .collect();
-
-    if matches!(
-        repo::detect(source_path),
-        Ok(repo::VelaSource::PacketDir(_))
-    ) && let Err(packet_err) = packet::validate(source_path)
-    {
-        errors.push(ValidationError {
-            file: source_label.clone(),
-            error: format!("Packet validation failed: {packet_err}"),
-        });
-    }
 
     validate_project_metadata(frontier, source_path, &mut errors);
 

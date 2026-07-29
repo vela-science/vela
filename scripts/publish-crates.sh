@@ -13,7 +13,6 @@ PY
 )"
 TAG="v$VERSION"
 CRATES=(
-  vela-protocol-core
   vela-verify
   vela-protocol
   vela-authority
@@ -24,7 +23,7 @@ CRATES_API_USER_AGENT="vela-release-publisher/$VERSION (https://github.com/vela-
 
 preflight_package_graph() {
   # Cargo 1.91+ assembles and verifies unpublished workspace dependencies in a
-  # temporary local registry. This proves the complete six-crate graph before
+  # temporary local registry. This proves the complete five-crate graph before
   # the first immutable upload.
   cargo package --workspace --locked
 }

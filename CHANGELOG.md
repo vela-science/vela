@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- Retire orphan Atlas summaries, derived discovery catalogs, predecessor-era
+  research prototypes, the unrefined top-level Lean model suite, and its dead
+  manual CI lane. Git history remains the archive.
+- Keep independent Python and TypeScript reducers plus the JavaScript current
+  object emitter as focused `conformance/` implementations rather than inactive
+  client SDK products.
+- Keep only the two active frozen-witness example sets used by public
+  reproduction CI.
+- Remove unconsumed source-adapter samples, predecessor schema experiments,
+  unused graph-analysis projections, and the superseded
+  `vela-protocol-core` Conjecture/ProofPacket crate. Current Claim, Submission,
+  Verification, and repository contracts remain in the protocol waist.
+- Remove Vela's abandoned research-trace, packet-export, agent-attestation,
+  proposal-embedded Run/tool/permission trace, Diff-Pack attestation link,
+  agent-object registry, and MCP-server configuration surfaces. Canopus owns
+  optional execution Runs, traces, capsules, and evaluation; Vela retains only
+  local producer identity plus exact CLI intake and canonical state.
+- Make the deterministic Attempt identifier vector part of the routine
+  cross-implementation conformance run instead of leaving it documented but
+  unexecuted.
+
 ## v0.940.9 — 2026-07-28 — Decision publication verification repair
 
 - Verify an accepted Decision's linked scientific event by its

@@ -271,7 +271,6 @@ pub const KNOWN_EVENT_KINDS: &[&str] = &[
     "anchor.retracted",
     "proposal.recommended",
     "correction_return.review",
-    "research_trace.review",
     "key.revoke",
     "review.accepted",
     "review.rejected",
@@ -395,7 +394,6 @@ event_kinds! {
     ProposalRecommended => "proposal.recommended",
     FrontierObservationReviewed => "frontier.observation_reviewed",
     CorrectionReturnReview => "correction_return.review",
-    ResearchTraceReview => "research_trace.review",
     KeyRevoke => "key.revoke",
     ReviewAccepted => "review.accepted",
     ReviewRejected => "review.rejected",
@@ -1588,10 +1586,10 @@ pub fn validate_event_payload(kind: &str, payload: &Value) -> Result<(), String>
             let proposal_kind = require_str("proposal_kind")?;
             if !matches!(
                 proposal_kind,
-                "research_trace.review" | "correction_return.review"
+                "correction_return.review" | "research_trace.review"
             ) {
                 return Err(format!(
-                    "payload.proposal_kind must be research_trace.review or correction_return.review, got '{proposal_kind}'"
+                    "payload.proposal_kind must name a retained frontier-observation proposal, got '{proposal_kind}'"
                 ));
             }
             let status = require_str("status")?;
@@ -2096,7 +2094,7 @@ pub fn validate_event_payload(kind: &str, payload: &Value) -> Result<(), String>
         // Historical audit-record kinds: the reducer replays them as
         // no-ops; the payload shape is whatever the retired surface
         // minted. Object-ness is already enforced above.
-        "correction_return.review" | "research_trace.review" => {}
+        "correction_return.review" => {}
 
         // policy.auto_admitted (Phase 1A): deterministic machine-verified admission
         // audit record. The audit record is the only accountability artifact for

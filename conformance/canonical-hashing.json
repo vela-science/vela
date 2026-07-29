@@ -5,11 +5,11 @@
   "scope": {
     "conforming_implementations": [
       "Rust: vela_protocol::canonical::to_canonical_bytes / to_canonical_string / sha256_canonical (crates/vela-protocol/src/canonical.rs)",
-      "Python: vela_verify_log.canonical_bytes (clients/python/vela_verify_log.py) -- json.dumps(sort_keys=True, separators=(',',':'), ensure_ascii=False). This is the load-bearing path: it recomputes each vev_ id and refuses to trust the hub's leaves."
+      "Python: conformance/readers/python/canonical.py -- json.dumps(sort_keys=True, separators=(',',':'), ensure_ascii=False)."
     ],
     "explicitly_out_of_scope": [
-      "TypeScript: canonicalJson in clients/typescript/vela_reducer.ts is NOT a content-addressing function and does NOT conform. It is used only to compare reducer effect-rows for cross-impl parity, where both sides are canonicalized by the same function so any divergence cancels. It diverges on floats (JSON.stringify renders 1.0 as `1`, no int/float distinction) and MUST NOT be used to derive or check a content-addressed id. The effect-row shape deliberately types numeric fields (e.g. confidence_score) as strings so no float ever enters that comparison.",
-      "Python default json.dumps WITHOUT ensure_ascii=False renders non-ASCII as \\uXXXX (e.g. amyloid-\\u03b2) and therefore does NOT conform. Any Python content-addressing path MUST pass ensure_ascii=False, as vela_verify_log.canonical_bytes does."
+      "TypeScript: canonicalJson in conformance/readers/typescript/reducer.ts is NOT a content-addressing function and does NOT conform. It is used only to compare reducer effect-rows for cross-impl parity, where both sides are canonicalized by the same function so any divergence cancels. It diverges on floats (JSON.stringify renders 1.0 as `1`, no int/float distinction) and MUST NOT be used to derive or check a content-addressed id. The effect-row shape deliberately types numeric fields (e.g. confidence_score) as strings so no float ever enters that comparison.",
+      "Python default json.dumps WITHOUT ensure_ascii=False renders non-ASCII as \\uXXXX (e.g. amyloid-\\u03b2) and therefore does NOT conform. Any Python content-addressing path MUST pass ensure_ascii=False."
     ]
   },
   "vectors": [

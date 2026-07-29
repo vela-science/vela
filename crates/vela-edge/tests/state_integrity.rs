@@ -276,7 +276,7 @@ fn legacy_proof_root_exempts_only_lease_drift() {
     frontier
         .events
         .push(events::new_finding_event(FindingEventInput {
-            kind: "research_trace.review",
+            kind: "correction_return.review",
             finding_id: &target,
             actor_id: "agent:legacy-proof",
             actor_type: "agent",

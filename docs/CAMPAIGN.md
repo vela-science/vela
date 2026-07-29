@@ -188,6 +188,13 @@ Records, direct authorized Decisions, append-only Events, deterministic replay,
 and correction without erasure. The next campaign must not pretend those
 properties already establish portable correction-aware federation.
 
+The repository itself follows the same evidence rule. Historical Atlas
+summaries, discovery catalogs, prototype research implementations, abstract
+Lean models without executable refinement, and predecessor replay fixtures are
+preserved by Git history rather than shipped as active product surface.
+Current verifier capsules and focused conformance fixtures stay with the
+package or crate that executes them.
+
 The current correction implementation is specifically insufficient as the
 network contract. Historical Finding-era propagation:
 
@@ -760,3 +767,62 @@ Failure deletes or narrows the feature. It does not create a new abstraction.
 
 Failure to demonstrate lift causes simplification and deletion, not another
 architecture layer.
+
+## Tracked-file retirement audit — 2026-07-28
+
+The cleanup pass inventories every path tracked at the pre-cleanup commit by
+its most recent Git commit date, exact byte size, current build and test
+references, runtime reachability, and evidence class. Files are not retired
+because they are old. They are retired only when Git history is the sufficient
+archive and no current product, protocol, conformance, or canonical Frontier
+consumer remains.
+
+The audit retires:
+
+- the derived `atlas/` and `frontiers/` catalogues;
+- predecessor research rehearsals and the unused top-level Lean model;
+- inactive client packaging, preserving only the independent conformance
+  readers and emitter;
+- unreferenced external-source samples and thirteen schema experiments;
+- unused golden-thread, boundary, frontier-identification, transfer-registry,
+  nanopublication, and verification-summary projections;
+- the unused `vela-protocol-core` Conjecture and ProofPacket surface; and
+- obsolete local index, Frontier release, and agent-attestation record types.
+
+The audit retains old files when they are load-bearing:
+
+- canonical reducer fixtures and their integrity manifests;
+- active Erdős and Sidon verifier witnesses;
+- the invalid-verifier corpus;
+- canonical hashing, Attempt ID, signature parity, and old-replay vectors;
+- licenses, the pinned Rust toolchain, historical ADRs, and canonical evidence.
+
+The reducer fixtures remain in two intentionally different forms for now. The
+public `conformance/fixtures` corpus preserves the external reader contract,
+while the Rust generator corpus includes its current serializer output. Their
+byte difference is real, so collapsing them without first freezing a shared
+generation law would erase a compatibility check rather than remove a copy.
+
+### Vela and Canopus ownership
+
+The same retirement pass removes the abandoned Vela-side execution harness.
+No current Frontier contains the old research-trace, agent-attestation,
+proposal-embedded agent Run, Diff-Pack attestation link, tool-descriptor, or
+evaluation data, while Canopus already owns the live worker, Run, trace,
+capsule, budget, and evaluation contracts. Maintaining both made one bounded
+producer episode look like two competing protocols.
+
+The surviving boundary is:
+
+| Vela | Canopus |
+| --- | --- |
+| Target and Attempt coordination | mission selection and bounded execution |
+| Claim, Submission, Registration Record, and Verification Record | Run, worker custody, tool trace, artifacts, and verifier capsule |
+| repository write validation and exact replay | model and engine adapters, budgets, retries, and evaluations |
+| Proposal, Decision, Event, and Standing | optional producer export and replay |
+| local agent identity used to authenticate a Submission | no human or repository-authority identity |
+
+Vela therefore generates no MCP server configuration and ships no parallel
+agent-object registry or embedded tool/permission trace. Agents and Canopus
+call the same exact CLI intake contracts. Canopus can be deleted without
+changing canonical state; Vela can replay state without Canopus.

@@ -551,7 +551,6 @@ fn initialize_current_minimal_in_place(
         schema: FRONTIER_SETTINGS_SCHEMA.to_string(),
         publish: None,
         work: None,
-        mcp: None,
     };
     fs::write(path.join(".vela/settings.toml"), settings.to_toml()?)
         .map_err(|error| format!("write .vela/settings.toml: {error}"))?;
@@ -621,8 +620,7 @@ pub fn initialize(path: &Path, options: InitOptions<'_>) -> Result<serde_json::V
             ".gitignore",
             ".gitattributes",
             ".github/workflows/vela-frontier.yml",
-            "VELA.md",
-            ".mcp.json"
+            "VELA.md"
         ],
         "next_commands": init_next_commands(path)
     });
@@ -638,7 +636,7 @@ pub fn initialize_minimal(
 ) -> Result<serde_json::Value, String> {
     let name = options.name.to_string();
     let mut payload = initialize(path, options)?;
-    for relative in [".mcp.json", ".github/workflows/vela-frontier.yml"] {
+    for relative in [".github/workflows/vela-frontier.yml"] {
         let candidate = path.join(relative);
         if candidate.is_file() {
             fs::remove_file(&candidate)
@@ -889,7 +887,6 @@ fn initialize_profile_v1_minimal_in_place(
         schema: FRONTIER_SETTINGS_SCHEMA.to_string(),
         publish: None,
         work: None,
-        mcp: None,
     };
     fs::write(path.join(".vela/settings.toml"), settings.to_toml()?)
         .map_err(|error| format!("Failed to write .vela/settings.toml: {error}"))?;
@@ -998,7 +995,7 @@ fn posix_shell_arg(value: &str) -> String {
 
 /// The git-native, AI-drivable scaffold: everything a fresh frontier needs
 /// so that `git push` is publication, CI is the gate, and any agent can
-/// drive it through MCP — written at init so the five-minute path is real.
+/// drive it through the CLI — written at init so the five-minute path is real.
 ///
 /// - `.gitignore` COMMITS `.vela/` (the event log IS the repo; only
 ///   per-machine scratch is ignored) — the git-native inversion.
@@ -1008,8 +1005,6 @@ fn posix_shell_arg(value: &str) -> String {
 ///   Action: every push re-derives the frontier from a clean checkout.
 /// - `VELA.md` is the canonical agent charter (`vela agents sync` generates
 ///   CLAUDE.md / AGENTS.md / editor adapters from it).
-/// - `.mcp.json` selects the nonfinalizing draft MCP profile so agents can use
-///   the task-first producer loop; no finalizer or human key is exposed.
 fn write_git_native_scaffold(
     path: &Path,
     name: &str,
@@ -1155,28 +1150,6 @@ git push                                         # publication; no authority
 "#
         ),
     )?;
-
-    if include_optional_integrations {
-        write(
-            ".mcp.json",
-            r#"{
-  "_generated_by": "vela agents sync (from VELA.md) — edit VELA.md, not this file",
-  "mcpServers": {
-    "vela-local": {
-      "args": [
-        "serve",
-        ".",
-        "--profile",
-        "draft"
-      ],
-      "command": "vela"
-    }
-  }
-}
-"#
-            .to_string(),
-        )?;
-    }
 
     Ok(())
 }

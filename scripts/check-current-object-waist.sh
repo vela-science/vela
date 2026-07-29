@@ -85,7 +85,7 @@ jq \
    | .subject.artifact_ids=[]' \
   "$repo/conformance/current-objects/verification-draft.json" \
   >"$root/verification-draft.json"
-node "$repo/clients/javascript/vela_emit.mjs" verification \
+node "$repo/conformance/emitters/javascript.mjs" verification \
   --draft "$root/verification-draft.json" \
   --seed-file "$repo/conformance/current-objects/verifier.seed.hex" \
   --output "$root/verification.json" \

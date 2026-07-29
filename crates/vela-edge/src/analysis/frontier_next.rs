@@ -921,7 +921,7 @@ mod tests {
             },
             Confidence::raw(0.5, "fixture", 0.5),
             Provenance {
-                source_type: "agent_run".into(),
+                source_type: "producer_submission".into(),
                 doi: None,
                 url: None,
                 title: "Producer offer separation fixture".into(),

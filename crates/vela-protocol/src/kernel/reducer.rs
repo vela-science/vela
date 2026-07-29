@@ -235,10 +235,9 @@ pub fn apply_event_indexed(
         // Audit-only / writerless kinds. Each is validated at emit time and
         // appended to the log, but mutates no projected state on replay:
         // their consumers read the events directly. The threshold,
-        // correction-return, research-trace, and prediction-expiry kinds had
-        // their CLI writers removed in the v0.700 surface cut (zero such
-        // events exist in any live log); `frontier.observation_reviewed` and
-        // `key.revoke` are audit records. `key.revoke` does not mutate the
+        // correction-return had its CLI writer removed in the v0.700 surface
+        // cut; `frontier.observation_reviewed` and `key.revoke` are audit
+        // records. `key.revoke` does not mutate the
         // repository actor registry; Profile v1 freezes that registry until
         // a separate governed rotation and recovery contract exists. Explicit
         // arms let historical logs containing either event replay.
@@ -247,7 +246,6 @@ pub fn apply_event_indexed(
         EventKind::ProposalRecommended
         | EventKind::FrontierObservationReviewed
         | EventKind::CorrectionReturnReview
-        | EventKind::ResearchTraceReview
         | EventKind::KeyRevoke
         // Reviewer decision records. Audit-only on the FINDING projection:
         // the accept's effect on state is the domain event it produced

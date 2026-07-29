@@ -20,8 +20,6 @@ pub struct FrontierSettingsV1 {
     pub publish: Option<PublishSettingsV1>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub work: Option<WorkSettingsV1>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub mcp: Option<McpSettingsV1>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -41,20 +39,6 @@ pub enum FrontierGitPush {
 #[serde(deny_unknown_fields)]
 pub struct WorkSettingsV1 {
     pub lease_ttl_seconds: u64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
-pub struct McpSettingsV1 {
-    pub profile: McpProfileV1,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub enum McpProfileV1 {
-    #[serde(rename = "read-only")]
-    ReadOnly,
-    #[serde(rename = "draft")]
-    Draft,
 }
 
 impl FrontierSettingsV1 {
@@ -104,8 +88,6 @@ git_push = "off"
 [work]
 lease_ttl_seconds = 86400
 
-[mcp]
-profile = "read-only"
 "#;
 
     #[test]
@@ -113,7 +95,6 @@ profile = "read-only"
         let settings = FrontierSettingsV1::from_toml(VALID).unwrap();
         assert_eq!(settings.publish.unwrap().git_push, FrontierGitPush::Off);
         assert_eq!(settings.work.unwrap().lease_ttl_seconds, 86_400);
-        assert_eq!(settings.mcp.unwrap().profile, McpProfileV1::ReadOnly);
     }
 
     #[test]
@@ -170,8 +151,8 @@ profile = "read-only"
             format!("schema = \"{FRONTIER_SETTINGS_SCHEMA}\"\n[work]\nlease_ttl_seconds = 0\n");
         assert!(FrontierSettingsV1::from_toml(&zero_ttl).is_err());
 
-        let unknown_profile =
-            format!("schema = \"{FRONTIER_SETTINGS_SCHEMA}\"\n[mcp]\nprofile = \"signing\"\n");
-        assert!(FrontierSettingsV1::from_toml(&unknown_profile).is_err());
+        let unknown_section =
+            format!("schema = \"{FRONTIER_SETTINGS_SCHEMA}\"\n[unknown]\nvalue = \"x\"\n");
+        assert!(FrontierSettingsV1::from_toml(&unknown_section).is_err());
     }
 }

@@ -1,5 +1,5 @@
 use vela_protocol::frontier_settings::{
-    FRONTIER_SETTINGS_SCHEMA, FrontierGitPush, FrontierSettingsV1, McpProfileV1,
+    FRONTIER_SETTINGS_SCHEMA, FrontierGitPush, FrontierSettingsV1,
 };
 
 #[test]
@@ -14,15 +14,12 @@ git_push = "off"
 [work]
 lease_ttl_seconds = 43200
 
-[mcp]
-profile = "draft"
 "#,
     )
     .unwrap();
     assert_eq!(parsed.schema, FRONTIER_SETTINGS_SCHEMA);
     assert_eq!(parsed.publish.unwrap().git_push, FrontierGitPush::Off);
     assert_eq!(parsed.work.unwrap().lease_ttl_seconds, 43_200);
-    assert_eq!(parsed.mcp.unwrap().profile, McpProfileV1::Draft);
 }
 
 #[test]

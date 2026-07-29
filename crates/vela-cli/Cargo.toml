@@ -25,7 +25,6 @@ path = "src/main.rs"
 
 [dependencies]
 vela-protocol = { workspace = true }
-vela-protocol-core = { workspace = true }
 vela-authority = { workspace = true }
 vela-edge.workspace = true
 vela-verify = { workspace = true }

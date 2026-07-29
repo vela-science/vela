@@ -4,7 +4,8 @@
 //! mutation rules per kind." The cascade test in
 //! `cascade_replay_at_scale.rs` already proves Rust agrees with Rust at
 //! scale. This test exports the same cascade fixtures to JSON files
-//! that a second-implementation reducer (e.g. `clients/python/vela_reducer.py`)
+//! that a second-implementation reducer
+//! (`conformance/readers/python/reducer.py`)
 //! can consume and verify byte-equivalently.
 //!
 //! What gets exported per fixture:

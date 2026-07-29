@@ -36,6 +36,12 @@ short.
 
 No replacement assembly or lab repository was created.
 
+The public repository no longer ships orphan Atlas summaries, discovery
+catalogs, prototype `research/` implementations, or the abstract top-level Lean
+model suite. Git history preserves those experiments. Current verifier
+capsules and focused conformance fixtures live with their owning package or
+crate.
+
 Stage B orchestration shopping is closed for this campaign because the
 registered call ceiling cannot fit it. No framework runtime was added.
 

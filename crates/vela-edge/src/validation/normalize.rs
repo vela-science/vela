@@ -60,20 +60,6 @@ pub struct NormalizeReport {
     pub changes: Vec<NormalizeChange>,
 }
 
-impl NormalizeReport {
-    fn refused(source: &Path, source_kind: &str, dry_run: bool, reason: String) -> Self {
-        Self {
-            source: source.display().to_string(),
-            source_kind: source_kind.to_string(),
-            dry_run,
-            refused: true,
-            refusal_reason: Some(reason),
-            summary: NormalizeSummary::default(),
-            changes: Vec::new(),
-        }
-    }
-}
-
 /// Normalize an entity type to canonical form. Domain-general: lower-case
 /// and collapse surrounding whitespace only. The pre-math-wedge biology
 /// type table (mapping LLM-invented types onto a fixed schema vocabulary)
@@ -262,8 +248,6 @@ pub fn plan_source(source_path: &Path) -> Result<NormalizeReport, String> {
 
 /// Apply safe normalization repairs to a source path.
 ///
-/// Packet directories are immutable review artifacts; applying directly to one
-/// returns a refused report instead of writing into the packet.
 pub fn apply_source(source_path: &Path) -> Result<NormalizeReport, String> {
     normalize_source(source_path, NormalizeOptions { dry_run: false })
 }
@@ -275,15 +259,6 @@ pub fn normalize_source(
 ) -> Result<NormalizeReport, String> {
     let source = repo::detect(source_path)?;
     let source_kind = source_kind(&source);
-
-    if matches!(source, VelaSource::PacketDir(_)) && !options.dry_run {
-        return Ok(NormalizeReport::refused(
-            source_path,
-            source_kind,
-            options.dry_run,
-            "Refusing to normalize a frontier packet directory in place; export a new packet from a normalized frontier instead.".to_string(),
-        ));
-    }
 
     let mut frontier = repo::load(&source)?;
     let changes = plan_project_changes(&frontier);
@@ -337,7 +312,6 @@ fn source_kind(source: &VelaSource) -> &'static str {
     match source {
         VelaSource::ProjectFile(_) => "project_file",
         VelaSource::VelaRepo(_) => "vela_repo",
-        VelaSource::PacketDir(_) => "packet_dir",
     }
 }
 
@@ -689,21 +663,5 @@ mod tests {
                 &saved.findings[0].provenance,
             )
         );
-    }
-
-    #[test]
-    fn source_apply_refuses_packet_directory() {
-        let tmp = tempfile::TempDir::new().unwrap();
-        std::fs::write(
-            tmp.path().join("manifest.json"),
-            r#"{"packet_format":"vela.frontier-packet"}"#,
-        )
-        .unwrap();
-
-        let report = apply_source(tmp.path()).unwrap();
-
-        assert!(report.refused);
-        assert_eq!(report.source_kind, "packet_dir");
-        assert!(report.refusal_reason.unwrap().contains("Refusing"));
     }
 }

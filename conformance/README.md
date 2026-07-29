@@ -26,10 +26,10 @@ that constant, so adding a reducer arm without a fixture fails.
 Reference implementations:
 
 - Rust: `crates/vela-protocol/src/kernel/reducer.rs`
-- Python: `clients/python/vela_reducer.py`
-- TypeScript: `clients/typescript/vela_reducer.ts`
+- Python: `conformance/readers/python/reducer.py`
+- TypeScript: `conformance/readers/typescript/reducer.ts`
 - JavaScript current-object emitter:
-  `clients/javascript/vela_emit.mjs`
+  `conformance/emitters/javascript.mjs`
 
 Run the focused checks:
 
@@ -90,18 +90,9 @@ missing parent, a fork, and anchor-count rollback. Only after that validation su
   recent-recovery context, and an optional revocation reference. Independent
   checks reject bearer retention, identity substitution, validity beyond 24
   hours, and revoked sessions.
-- `pre-adr-0003-replay.json` freezes every canonical `.vela` byte from one
-  pre-ADR 0003 frontier plus its strict replay roots and counts. The focused
-  CLI integration test replays a temporary copy; it performs no signing,
-  network access, external Lean invocation, or scientific decision.
 - `spec-surface.v1.json` lists the narrow public schema and command surface.
-- `vela_v09_sidon_kernel_fixture.py` and its JSON fixture exercise append,
-  restrict, and observe on a small Sidon instance.
-- `vela_no_hidden_state_check.py` and its pass/fail fixtures require every
-  authoritative displayed value to have one replayable observation packet.
-
-These executable vectors are protocol-surface checks. Formal claims live in
-the separately scoped Lean sources and are not implied by a vector pass.
+These executable vectors are protocol-surface checks. A vector pass does not
+prove the implementation beyond the cases it covers.
 
 ## Extending the set
 

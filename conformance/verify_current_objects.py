@@ -14,7 +14,7 @@ from pathlib import Path
 def main() -> int:
     root = Path(__file__).resolve().parent.parent
     fixtures = root / "conformance" / "current-objects"
-    emitter = root / "clients" / "javascript" / "vela_emit.mjs"
+    emitter = root / "conformance" / "emitters" / "javascript.mjs"
     node = shutil.which("node")
     if node is None:
         print("node is required for current-object interoperability", file=sys.stderr)

@@ -18,7 +18,6 @@ absent_paths=(
   .github/actions/vela-check
   .github/workflows/vela-check.yml
   bindings/python
-  clients/python/vela_agent
   crates/vela-cli/src/cli/links.rs
   crates/vela-cli/src/tools/cli_attempt.rs
   crates/vela-cli/src/write/cli_claim.rs
@@ -71,7 +70,7 @@ generated_guidance_surfaces=(
   crates/vela-cli/src/cli/help_text.rs
   crates/vela-protocol/src/computed/frontier_repo.rs
   crates/vela-protocol/src/analysis/evidence_diff.rs
-  crates/vela-edge/src/mcp/doctor.rs
+  crates/vela-cli/src/current_doctor.rs
   docs/AGENT_QUICKSTART.md
 )
 retired_generated_command_pattern='vela (inbox|integrity|stats|task|source-inbox|claim diff)([^[:alnum:]_-]|$)|vela gate \.|attempt the accept|--template adoption-frontier'
@@ -97,7 +96,7 @@ while IFS= read -r path; do
     fail "Carina metadata returned in a maintained frontier: $path"
   fi
 done < <(
-  find examples frontiers -type f \
+  find examples -type f \
     \( -name frontier.yaml -o -name frontier.json -o -name vela.lock -o -path '*/proof/latest.json' \) \
     | LC_ALL=C sort
 )
@@ -293,7 +292,6 @@ done
 # remain replayable, but no current MCP adapter or generated guidance may offer
 # the retired deposit writer.
 work_surfaces=(
-  crates/vela-edge/src/registry/tool_registry.rs
   crates/vela-cli/src/config/cli_agents.rs
   integrations/claude-plugin/README.md
   integrations/claude-plugin/skills/vela-frontier/SKILL.md
@@ -316,10 +314,4 @@ if grep -nE "$retired_mcp_propose_pattern" "${mcp_propose_surfaces[@]}" >/dev/nu
   grep -nE "$retired_mcp_propose_pattern" "${mcp_propose_surfaces[@]}" >&2
   fail "retired MCP propose tool returned"
 fi
-if sed '/#\[cfg(test)\]/,$d' crates/vela-edge/src/registry/tool_registry.rs \
-  | grep -nE '"propose"' >/dev/null
-then
-  fail "retired MCP propose descriptor returned"
-fi
-
 printf 'prelaunch surface: ok\n'

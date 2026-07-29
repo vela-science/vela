@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Canonical-hashing conformance for the Python content-addressing path.
 
-Pins the load-bearing Python function `vela_verify_log.canonical_bytes` (the
-one that recomputes each `vev_` id and refuses to trust the hub's leaves)
-against `conformance/canonical-hashing.json`, byte-for-byte and by SHA-256.
+Pins the small independent Python canonicalizer against
+`conformance/canonical-hashing.json`, byte-for-byte and by SHA-256.
 
 This is the Python mirror of `crates/vela-protocol/tests/canonical_hashing_conformance.rs`.
 Both pin the same vectors, so the Rust id-minter and the Python re-verifier
@@ -22,13 +21,11 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-REPO = HERE.parent
-# Import the REAL load-bearing canonicalizer, not a reimplementation.
-sys.path.insert(0, str(REPO / "clients" / "python"))
+sys.path.insert(0, str(HERE / "readers" / "python"))
 try:
-    from vela_verify_log import canonical_bytes  # type: ignore
+    from canonical import canonical_bytes  # type: ignore
 except Exception as e:  # noqa: BLE001
-    print(f"could not import vela_verify_log.canonical_bytes: {e}", file=sys.stderr)
+    print(f"could not import the Python canonicalizer: {e}", file=sys.stderr)
     sys.exit(2)
 
 

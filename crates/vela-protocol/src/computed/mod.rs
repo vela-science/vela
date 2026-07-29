@@ -8,4 +8,3 @@ pub mod project;
 pub mod scientific_state;
 pub mod sources;
 pub mod state;
-pub mod transfer_registry;

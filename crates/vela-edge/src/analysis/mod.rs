@@ -11,7 +11,6 @@ pub mod frontier_repository;
 pub mod git_read;
 pub mod provenance_compute;
 pub mod repository_write;
-pub mod research_trace;
 pub mod review_backpressure;
 pub mod sign_preview;
 pub mod sign_queue;
