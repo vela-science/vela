@@ -328,11 +328,13 @@ set, hidden truncation, lost route, or unauthorized Standing change.
 At the audited clean commits, four mathematical Frontiers retain 2,831 Claim
 records and no accepted correction, supersession, or retraction relation.
 
-| Candidate | Observation | Disposition |
-| --- | --- | --- |
-| Erdős 281 | required dependency shape | no genuine correction |
-| Erdős 128 | upstream source correction | retained Claim lacks exact source commit/path/root and topology is incomplete |
-| Erdős 1197 | exact kernel-clean complete proof plus conditional proof | independent completion, not scientific correction; relation labels conflict |
+- **Erdős 281:** has the required dependency shape, but no genuine
+  correction.
+- **Erdős 128:** has an upstream source correction, but the retained Claim
+  lacks an exact source commit, path, and root, and its topology is incomplete.
+- **Erdős 1197:** has an exact kernel-clean complete proof plus a conditional
+  proof, but this is independent completion rather than scientific correction,
+  and the retained relation labels conflict.
 
 This is a failed historical entry gate. The cases remain negative evidence and
 adversarial inputs; none may be relabeled into a positive fixture.
