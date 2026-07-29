@@ -1,6 +1,6 @@
 # ADR 0023: Native current repository genesis
 
-- Status: Accepted
+- Status: Superseded by accepted ADR 0027
 - Target release: Vela `v0.940.0`
 - Protocol effect: one native `vela.repository-genesis.v1` origin object
 - Product effect: `vela init` creates Profile v2 directly and the ordinary

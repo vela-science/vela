@@ -1,6 +1,6 @@
 # Vela protocol
 
-Status: pre-1.0 current repository-epoch candidate.
+Status: pre-1.0 current repository-origin contract.
 
 Vela is version control for scientific state. The protocol defines how exact
 Claims, evidence, Verification Records, Proposals, Decisions, and Standing are
@@ -56,7 +56,7 @@ A current Frontier contains:
 ```text
 frontier.yaml
 .vela/repository.json
-.vela/epoch.json
+.vela/origin.json
 .vela/authority/events/
 .vela/authority/records/
 .vela/authority/keysets/
@@ -72,58 +72,35 @@ targets.json
 ```
 
 `frontier.yaml` identifies the bounded repository. `.vela/repository.json`
-commits to the active object sets and current repository root.
-`.vela/epoch.json` binds the repository to either its native current genesis or
-its exact signed predecessor.
+is the closed `vela.repository.v3` index of active object sets.
+`.vela/origin.json` is the immutable `vela.repository-origin.v1` commitment.
 
 The active repository contains no predecessor scientific Event log, actor
 registry, AcceptancePolicy store, Finding bundle, Receipt store, legacy
 Proposal directory, or materialized Project snapshot.
 
-### 3.1 Native genesis and predecessor epoch
+### 3.1 Repository origin
 
-`vela.repository-genesis.v1` is the origin for a repository created directly
-by the current product. It binds:
+`vela.repository-origin.v1` binds:
 
 - Frontier identity and Profile v2 root;
-- epoch 1 and a content-derived `vre_` identity;
-- the exact empty current object-set root;
-- the exact empty event-log and actor-registry roots; and
-- the authority-initialization reason.
+- a content-derived `vro_` identity and full origin root;
+- generation and exact initial object-set root;
+- `kind = genesis | compaction`;
+- for a genesis, no predecessor and an empty initial object set; or
+- for a compacted pre-release repository, one exact predecessor remote, tag,
+  commit, tree, repository and authority roots, archive digest, object
+  manifest root, and equivalence-report root.
 
-It contains no predecessor, archive, imported set, compatibility snapshot, or
-equivalence report. `vela init` creates only Profile v2 and repository
-scaffolding. `vela authority init` installs the genesis, current manifest, and
-sequence-one authority history in one recoverable signed transaction. Until
-then, strict repository verification is blocked.
+`vela init` creates Profile v2 and repository scaffolding. `vela authority
+init` installs a genesis origin, repository v3 manifest, keyset, Cedar policy,
+and sequence-one authority history in one recoverable transaction. Until then,
+strict repository verification is blocked.
 
-`vela.repository-epoch.v1` binds:
-
-- Frontier identity and epoch;
-- predecessor remote, tag, commit, tree, and profile schema;
-- predecessor scientific, proposal, artifact, actor, and authority roots;
-- the predecessor Git-object manifest root;
-- the exact archive-bundle SHA-256;
-- imported Claim and retained current-object set roots;
-- archived-object index and equivalence-report roots; and
-- the migration reason.
-
-The predecessor tag, commit, tree, canonical roots, and object manifest are
-the protocol evidence. The archive bundle is an offline carrier.
-
-The transition uses one non-scientific `authority.initialized` Event and a
-fresh sequence-one repository-authority record. Its scientific before/after
-roots are null. The signed transaction covers the epoch, current repository
-manifest, imported Claims, retained current objects, retired predecessor paths,
-keyset, Cedar material, and exact postimages.
-
-Current replay begins at that sequence-one record. Retaining predecessor-era
-canonical paths inside the current repository is invalid.
-
-Readers dispatch on the exact origin schema. Both forms bind the manifest's
-full epoch ID and root; substitution or an unknown schema fails closed. The
-predecessor-epoch writer is retired, while existing signed epoch bytes remain
-replayable.
+The four controlled repositories use compacted origins whose predecessor
+fields are immutable provenance. The migration writer and alternate repository
+readers are not part of the current binary. Historical execution requires the
+predecessor tag or archive and its pinned historical Vela release.
 
 ### 3.2 Claim Record
 
@@ -131,30 +108,22 @@ replayable.
 
 ```text
 claim_id
-version
+revision
 assertion
 conditions
 evidence
 provenance
 relations
 created_at
-source
+extensions
 ```
 
 The content-derived Claim identity commits to the revision, assertion,
 conditions, evidence references, and provenance. Relations use full Claim
 identities. The full canonical record root additionally commits to relation
-metadata and source provenance.
-
-Imported Claims retain a `source` block naming the predecessor object ID,
-object root, era, and commit. Historical signatures are never copied into a
-current authentication field.
-
-During the bounded pre-release compaction, an evidence reference accepts either
-its retained `va_` identifier or the exact full lowercase content hash used by
-the current repository. Both forms require an exact Artifact root and
-repository membership. ADR 0027 removes the legacy form after every controlled
-Frontier has moved.
+metadata and namespaced non-authoritative extensions. Evidence identifiers are
+exact lowercase 64-hex content hashes; aliases and retired migration handles
+fail.
 
 ### 3.3 Submission
 
@@ -182,9 +151,7 @@ one repository-authority transaction.
 It binds unchanged authority-event before/after roots for object-only intake,
 the repository roots, object roots, principal attribution, and transaction
 identity. Registration proves intake, not truth, verification, or acceptance.
-Its Artifact list follows the same exact-ID transition: retained `va_`
-identifiers replay during compaction, while current writers use full content
-hashes.
+Its Artifact list uses full lowercase content hashes.
 
 ### 3.5 Verification Record
 
@@ -199,11 +166,9 @@ hashes.
 - outcome; and
 - verifier signature.
 
-Artifact references use the repository object's exact identifier: a full
-lowercase 64-hex content hash for current content-addressed Artifacts, or a
-retained historical `va_` identifier when replaying an imported legacy
-Artifact Record. Import resolves every non-empty reference against the exact
-current repository; aliases and short digests are not accepted.
+Artifact references use the repository object's full lowercase 64-hex content
+hash. Import resolves every non-empty reference against exact repository
+membership; aliases and short digests are not accepted.
 
 Outcomes are:
 
@@ -293,7 +258,7 @@ authority by signing producer objects.
 `review accept` and `review reject` are direct semantic actions. Their Decision
 Plan binds:
 
-- repository epoch and root;
+- repository origin and root;
 - Proposal, Claim, Submission, and ordered Verification Records;
 - action and reason;
 - authenticated principal;
@@ -329,7 +294,7 @@ authority record. It changes no scientific Standing.
 `vela start` creates `vela.attempt.v2` only in ignored local coordination. The
 Attempt closes over:
 
-- repository epoch and root;
+- repository origin and root;
 - Target Index root;
 - Target and packet;
 - source Git commit/tree;
@@ -365,9 +330,9 @@ Any drift or failure before the commit marker produces no canonical mutation.
 
 ## 6. Target Index
 
-`vela.target-index.v3` is derived and non-authoritative. It binds:
+`vela.target-index.v4` is derived and non-authoritative. It binds:
 
-- repository epoch and root;
+- repository origin and root;
 - exact source and input roots;
 - ordered Targets;
 - packet and task contracts;
@@ -384,7 +349,7 @@ Ranking and graph position never imply authority.
 
 Strict replay verifies:
 
-1. the repository epoch and exact predecessor commitment;
+1. the repository origin and any exact predecessor commitment;
 2. the independently pinned sequence-one authority root;
 3. contiguous authority records and valid DSSE signatures;
 4. activated keyset and Cedar material;
@@ -469,14 +434,14 @@ The deterministic full release union runs once per release boundary.
 
 ## 12. Predecessor verification
 
-The current binary verifies the signed repository-epoch boundary and current
-state. It does not retain predecessor writers or parse predecessor protocol
-objects as active state.
+The current binary verifies the repository-origin boundary and current state.
+It does not retain predecessor writers or parse predecessor protocol objects
+as active state.
 
-Exact predecessor verification uses the tagged source, commit, tree,
-Git-object manifest, archive digest, canonical roots, and pinned historical
-binary named by the epoch. Migration never reissues old signatures under new
-schemas.
+Exact historical execution uses the tagged source, commit, tree, Git-object
+manifest, archive digest, canonical roots, and pinned historical binary named
+by the compacted origin. Current verification confirms those commitments
+without reissuing old signatures under new schemas.
 
-See [ADR 0022](adr/0022-current-repository-epoch-and-legacy-runtime-retirement.md)
-for the transition contract.
+See [ADR 0027](adr/0027-pre-release-current-state-compaction.md) for the
+completed transition.

@@ -9,10 +9,10 @@ pub(crate) fn require_artifact_reference_id(
         && value
             .bytes()
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte));
-    if valid_text && (value.starts_with("va_") || is_content_hash) {
+    if valid_text && is_content_hash {
         return Ok(());
     }
     Err(format!(
-        "{record} {field} must be a legacy va_ identifier or a full lowercase content hash"
+        "{record} {field} must be a full lowercase content hash"
     ))
 }

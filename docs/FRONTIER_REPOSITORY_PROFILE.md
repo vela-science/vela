@@ -47,30 +47,26 @@ authority from the profile.
 
 ## Repository origin
 
-`.vela/epoch.json` has one of two closed schemas:
-
-- `vela.repository-genesis.v1` for a repository created directly by the
-  current product;
-- `vela.repository-epoch.v1` for one of the signed predecessor boundaries
-  produced before the migration writer was retired.
-
-Both bind the same `frontier_id`, `epoch_id`, and full `epoch_root` carried by
-`.vela/repository.json`. Unknown or substituted origins fail closed.
+`.vela/origin.json` has one closed schema: `vela.repository-origin.v1`.
+It binds the `frontier_id`, Profile root, generation, initial object-set root,
+and full origin identity carried by `vela.repository.v3`. Unknown or
+substituted origins fail closed.
 
 A native `vela init` writes Profile v2 and scaffolding only. `status` and
 `doctor` identify the repository as `authority_uninitialized`. One
 `vela authority init` transaction installs the genesis, manifest, keyset,
 policy, sequence-1 authority event and record, then creates the initial
-unsigned Git commit. No Era-0 event log or actor registry is invented.
+unsigned Git commit.
 
-Existing predecessor epochs remain exact read-only origin objects. There is no
-command that creates another migration epoch.
+The four compacted pre-release repositories retain one exact predecessor block
+inside their origin. It is provenance, not an alternate active schema. There
+is no current migration command.
 
 ## Current canonical layout
 
 ```text
 frontier.yaml
-.vela/epoch.json
+.vela/origin.json
 .vela/repository.json
 .vela/authority/events/
 .vela/authority/records/
@@ -124,7 +120,7 @@ Safety preferences may narrow behavior but may not widen repository authority.
 
 | Path | Class | Rule |
 | --- | --- | --- |
-| `.vela/epoch.json`, `.vela/repository.json` | Canonical repository identity | Change only through a released Vela transaction |
+| `.vela/origin.json`, `.vela/repository.json` | Canonical repository identity | Origin is immutable; manifest changes only through a Vela transaction |
 | `.vela/authority/` | Canonical authentication history | Append through repository authority only |
 | `records/**/sha256/` | Canonical content-addressed objects | Never hand-edit or rename |
 | `frontier.yaml` | Descriptive profile | Edit deliberately; any root change must be governed before canonical writes continue |

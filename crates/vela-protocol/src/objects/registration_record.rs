@@ -230,7 +230,7 @@ mod tests {
             "2026-07-26T00:00:00Z".into(),
             "vela-cli@0.940.0".into(),
             "vib_fixture".into(),
-            vec!["va_fixture".into()],
+            vec!["a".repeat(64)],
             "vf_fixture".into(),
             "vpr_fixture".into(),
             "pending_review".into(),

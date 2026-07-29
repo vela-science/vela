@@ -276,7 +276,7 @@ once per actual release boundary.
 - [Verification Records](docs/VERIFICATION.md)
 - [Terminology](docs/TERMINOLOGY.md)
 - [Threat model](docs/THREAT_MODEL.md)
-- [Current repository epoch ADR](docs/adr/0022-current-repository-epoch-and-legacy-runtime-retirement.md)
+- [Current repository origin ADR](docs/adr/0027-pre-release-current-state-compaction.md)
 - [Native current repository genesis ADR](docs/adr/0023-native-current-repository-genesis.md)
 - [Product monorepo and transition-repository retirement ADR](docs/adr/0024-repository-ownership-and-integration-repository-retirement.md)
 - [Math-first compounding product architecture ADR](docs/adr/0025-math-first-compounding-product-architecture.md)
@@ -288,7 +288,7 @@ once per actual release boundary.
 ## Project status
 
 Vela is pre-1.0. All controlled public Frontiers use the current repository
-object model. Existing signed predecessor epochs remain exact read-only
+object model. Existing signed predecessor origins remain exact read-only
 origins; newly created Frontiers use native current genesis. Historical Git
 revisions preserve earlier contracts, and the current binary exposes no
 migration writer.

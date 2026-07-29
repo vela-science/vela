@@ -1,4 +1,4 @@
-//! Era-1 repository-authority transaction writer.
+//! Current repository-authority transaction writer.
 //!
 //! The writer composes authority records, runtime authentication, retained
 //! Cedar material, and the existing recoverable Frontier transaction without
@@ -31,13 +31,13 @@ use vela_protocol::authority::{
 };
 use vela_protocol::authority_history::{
     AUTHORITY_CLOSE_ACTION, AUTHORITY_CLOSED_EVENT_KIND, AUTHORITY_INITIALIZE_ACTION,
-    AUTHORITY_INITIALIZED_EVENT_KIND, AUTHORITY_ROTATE_ACTION, ArchivedAuthorityPredecessor,
-    AuthorityCloseV1, AuthorityHistoryEra, AuthorityHistoryInput, AuthorityHistoryVerification,
+    AUTHORITY_INITIALIZED_EVENT_KIND, AUTHORITY_ROTATE_ACTION, AuthorityCloseV1,
+    AuthorityHistoryEra, AuthorityHistoryInput, AuthorityHistoryVerification,
     AuthorityInitializationV1, POLICY_ROTATE_ACTION, authority_event_log_root,
     verify_authority_history,
 };
 use vela_protocol::canonical::to_canonical_bytes;
-use vela_protocol::events::{EventKind, StateActor, StateEvent, StateTarget, event_log_hash};
+use vela_protocol::events::{EventKind, StateActor, StateTarget, event_log_hash};
 use vela_protocol::principal_capability::HUMAN_ONLY_AUTHORITY_ACTIONS_V1;
 
 use crate::frontier_txn::{
@@ -55,41 +55,20 @@ const OPERATION_DOMAIN: &str = "authority_transaction";
 
 /// Complete verified-history input for the next transaction.
 ///
-/// The writer re-runs dual-history verification itself. It does not accept a
+/// The writer re-runs repository-origin verification itself. It does not accept a
 /// caller-asserted head root or sequence.
 #[derive(Debug, Clone)]
 pub(crate) struct AuthorityHistorySnapshot {
     pub(crate) frontier_id: String,
-    pub(crate) legacy_events: Vec<StateEvent>,
-    pub(crate) legacy_actor_registry_bytes: Vec<u8>,
-    pub(crate) archived_predecessor_event_log_root: Option<String>,
-    pub(crate) archived_predecessor_actor_registry_root: Option<String>,
-    pub(crate) legacy_active_policy_head_root: String,
-    pub(crate) legacy_policy_store_manifest_root: String,
+    pub(crate) initial_event_log_root: String,
+    pub(crate) initial_actor_registry_root: String,
+    pub(crate) initial_snapshots_preexisting: bool,
     pub(crate) authority_keyset: AuthorityKeysetV1,
     pub(crate) policy_bundle: PolicyBundleV1,
     pub(crate) retained_authority_keysets: Vec<AuthorityKeysetV1>,
     pub(crate) retained_policy_bundles: Vec<PolicyBundleV1>,
     pub(crate) authority_events: Vec<AuthorityEventV1>,
     pub(crate) authority_envelopes: Vec<AuthorityEnvelopeV1>,
-}
-
-fn archived_predecessor(
-    history: &AuthorityHistorySnapshot,
-) -> Result<Option<ArchivedAuthorityPredecessor<'_>>, String> {
-    match (
-        history.archived_predecessor_event_log_root.as_deref(),
-        history.archived_predecessor_actor_registry_root.as_deref(),
-    ) {
-        (Some(event_log_root), Some(actor_registry_root)) => {
-            Ok(Some(ArchivedAuthorityPredecessor {
-                event_log_root,
-                actor_registry_root,
-            }))
-        }
-        (None, None) => Ok(None),
-        _ => Err("archived authority predecessor roots must be supplied together".to_string()),
-    }
 }
 
 /// Event fields whose transaction and principal attribution are derived by the
@@ -111,7 +90,7 @@ pub(crate) struct AuthorityEventDraft {
 ///
 /// `None` deletes an existing object. The writer derives before/after roots
 /// from the held Frontier and refuses no-ops, duplicate paths, derived views,
-/// private coordination, legacy events, or covering-record paths.
+/// private coordination, retired event paths, or covering-record paths.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub(crate) struct AuthorityObjectDraft {
     pub(crate) path: String,
@@ -259,7 +238,7 @@ impl std::error::Error for AuthorityTransactionError {}
 
 /// Prepare a signed transaction under an already-held canonical write barrier.
 ///
-/// Authentication, dual-history verification, authorization, transaction
+/// Authentication, repository-origin verification, authorization, transaction
 /// construction, and DSSE verification all complete before the first journal
 /// byte is created. The returned transaction still has no commit marker and no
 /// canonical postimage.
@@ -298,15 +277,11 @@ where
     normalize_object_drafts(frontier_root, &mut request)?;
     normalize_derived_drafts(frontier_root, &mut request)?;
     validate_request_shape(&request)?;
-    let archived_predecessor_before =
-        archived_predecessor(&request.history).map_err(AuthorityTransactionError::History)?;
     let history = verify_authority_history(AuthorityHistoryInput {
         frontier_id: &request.history.frontier_id,
-        legacy_events: &request.history.legacy_events,
-        legacy_actor_registry_bytes: &request.history.legacy_actor_registry_bytes,
-        archived_predecessor: archived_predecessor_before,
-        legacy_active_policy_head_root: &request.history.legacy_active_policy_head_root,
-        legacy_policy_store_manifest_root: &request.history.legacy_policy_store_manifest_root,
+        initial_event_log_root: &request.history.initial_event_log_root,
+        initial_actor_registry_root: &request.history.initial_actor_registry_root,
+        initial_snapshots_preexisting: request.history.initial_snapshots_preexisting,
         authority_keysets: &request.history.retained_authority_keysets,
         policy_bundles: &request.history.retained_policy_bundles,
         authority_events: &request.history.authority_events,
@@ -314,7 +289,7 @@ where
     })
     .map_err(AuthorityTransactionError::History)?;
     bind_repository_authority_history(frontier_root, &mut request)?;
-    let fresh_initialization = history.era == AuthorityHistoryEra::LegacyOnly;
+    let fresh_initialization = history.era == AuthorityHistoryEra::Uninitialized;
     if fresh_initialization {
         validate_fresh_initialization_request(&request)?;
     }
@@ -410,22 +385,17 @@ where
         .any(|pair| pair[0].id.as_str() == pair[1].id.as_str())
     {
         return Err(AuthorityTransactionError::Invalid(
-            "transaction derives duplicate Era-1 event IDs".into(),
+            "transaction derives duplicate authority event IDs".into(),
         ));
     }
     validate_semantic_event_links(&request.history, &events)?;
 
     let mut cumulative_events = request.history.authority_events.iter().collect::<Vec<_>>();
     cumulative_events.extend(events.iter());
-    let legacy_root_with_bridge = request
-        .history
-        .archived_predecessor_event_log_root
-        .clone()
-        .unwrap_or_else(|| format!("sha256:{}", event_log_hash(&request.history.legacy_events)));
     let after_event_log_root = if events.is_empty() {
         history.final_event_log_root.clone()
     } else {
-        authority_event_log_root(&legacy_root_with_bridge, &cumulative_events)
+        authority_event_log_root(&request.history.initial_event_log_root, &cumulative_events)
             .map_err(AuthorityTransactionError::History)?
     };
 
@@ -543,15 +513,11 @@ where
     candidate_events.extend(events.iter().cloned());
     let mut candidate_envelopes = request.history.authority_envelopes.clone();
     candidate_envelopes.push(envelope.clone());
-    let archived_predecessor_after =
-        archived_predecessor(&request.history).map_err(AuthorityTransactionError::History)?;
     let candidate_history = verify_authority_history(AuthorityHistoryInput {
         frontier_id: &request.history.frontier_id,
-        legacy_events: &request.history.legacy_events,
-        legacy_actor_registry_bytes: &request.history.legacy_actor_registry_bytes,
-        archived_predecessor: archived_predecessor_after,
-        legacy_active_policy_head_root: &request.history.legacy_active_policy_head_root,
-        legacy_policy_store_manifest_root: &request.history.legacy_policy_store_manifest_root,
+        initial_event_log_root: &request.history.initial_event_log_root,
+        initial_actor_registry_root: &request.history.initial_actor_registry_root,
+        initial_snapshots_preexisting: request.history.initial_snapshots_preexisting,
         authority_keysets: &candidate_keysets,
         policy_bundles: &candidate_policies,
         authority_events: &candidate_events,
@@ -626,23 +592,8 @@ where
         ));
     }
 
-    let legacy_event_root = ContentDigest::parse(format!(
-        "sha256:{}",
-        event_log_hash(&request.history.legacy_events)
-    ))
-    .map_err(AuthorityTransactionError::Transaction)?;
-    let mut legacy_event_ids = request
-        .history
-        .legacy_events
-        .iter()
-        .map(|event| event.id.clone())
-        .collect::<Vec<_>>();
-    legacy_event_ids.sort();
-    if legacy_event_ids.windows(2).any(|pair| pair[0] >= pair[1]) {
-        return Err(AuthorityTransactionError::Invalid(
-            "legacy event IDs are not unique".into(),
-        ));
-    }
+    let current_event_root = ContentDigest::parse(format!("sha256:{}", event_log_hash(&[])))
+        .map_err(AuthorityTransactionError::Transaction)?;
     let result = AuthorityTransactionResult {
         operation_id: record.content.operation_id.clone(),
         transaction_id: record.content.transaction_id.clone(),
@@ -674,8 +625,6 @@ where
         authority_record_path: &authority_record_path(&record.record_id),
     })
     .map_err(AuthorityTransactionError::Invalid)?;
-    let (resulting_event_log_root, resulting_event_ids) =
-        (legacy_event_root.clone(), legacy_event_ids);
     let plan = FrontierTxnPlan::new(
         FrontierTxnPlanSpec {
             kind: OperationKind::Decision,
@@ -689,9 +638,9 @@ where
             )
             .map_err(AuthorityTransactionError::Transaction)?,
             fixed_time: request.recorded_at,
-            expected_event_log_root: legacy_event_root.clone(),
-            resulting_event_log_root,
-            resulting_event_ids,
+            expected_event_log_root: current_event_root.clone(),
+            resulting_event_log_root: current_event_root,
+            resulting_event_ids: Vec::new(),
             read_set: request.read_set,
             result: serde_json::to_value(DurableAuthorityTransactionResult {
                 schema: RESULT_SCHEMA.into(),
@@ -780,11 +729,7 @@ fn validate_semantic_event_links(
     history: &AuthorityHistorySnapshot,
     events: &[AuthorityEventV1],
 ) -> Result<(), AuthorityTransactionError> {
-    let mut semantic_ids = history
-        .legacy_events
-        .iter()
-        .map(|event| (event.id.clone(), event.kind.clone()))
-        .collect::<BTreeMap<_, _>>();
+    let mut semantic_ids = BTreeMap::new();
     for event in history.authority_events.iter().chain(events) {
         if matches!(event.content.kind, EventKind::Other(_)) {
             continue;
@@ -801,7 +746,7 @@ fn validate_semantic_event_links(
             .is_some()
         {
             return Err(AuthorityTransactionError::Invalid(format!(
-                "semantic event identity {semantic_id} occurs more than once across the dual log"
+                "semantic event identity {semantic_id} occurs more than once in authority history"
             )));
         }
     }
@@ -865,7 +810,7 @@ fn validate_fresh_initialization_request(
         || request.event_drafts.len() != 1
     {
         return Err(AuthorityTransactionError::History(
-            "fresh authority initialization requires an empty Era-1 store and one initialization event"
+            "fresh authority initialization requires an empty authority store and one initialization event"
                 .into(),
         ));
     }
@@ -889,20 +834,6 @@ fn validate_fresh_initialization_request(
         .policy_bundle
         .root()
         .map_err(AuthorityTransactionError::Invalid)?;
-    let predecessor_event_root = request
-        .history
-        .archived_predecessor_event_log_root
-        .clone()
-        .unwrap_or_else(|| format!("sha256:{}", event_log_hash(&request.history.legacy_events)));
-    let predecessor_actor_root = request
-        .history
-        .archived_predecessor_actor_registry_root
-        .clone()
-        .unwrap_or_else(|| {
-            ContentDigest::hash(&request.history.legacy_actor_registry_bytes)
-                .as_str()
-                .to_string()
-        });
     let mut mismatches = Vec::new();
     for (matches, field) in [
         (
@@ -944,12 +875,12 @@ fn validate_fresh_initialization_request(
             "policy_bundle_root",
         ),
         (
-            payload.initial_event_log_root == predecessor_event_root,
-            "predecessor_event_log_root",
+            payload.initial_event_log_root == request.history.initial_event_log_root,
+            "initial_event_log_root",
         ),
         (
-            payload.initial_actor_registry_root == predecessor_actor_root,
-            "predecessor_actor_registry_root",
+            payload.initial_actor_registry_root == request.history.initial_actor_registry_root,
+            "initial_actor_registry_root",
         ),
         (payload.reason == draft.reason, "reason"),
         (
@@ -1408,13 +1339,6 @@ fn bind_repository_authority_history(
     request: &mut AuthorityTransactionRequest,
 ) -> Result<(), AuthorityTransactionError> {
     let mut bindings = Vec::new();
-    let mut legacy_event_paths = Vec::new();
-    for event in &request.history.legacy_events {
-        let path = RepoPath::parse(format!(".vela/events/{}.json", event.id))
-            .map_err(AuthorityTransactionError::Transaction)?;
-        bindings.push(exact_verified_json_input(frontier_root, &path, event)?);
-        legacy_event_paths.push(path);
-    }
     let mut authority_event_paths = Vec::new();
     for event in &request.history.authority_events {
         let path = RepoPath::parse(authority_event_path(&event.id))
@@ -1439,31 +1363,16 @@ fn bind_repository_authority_history(
         bindings.push(exact_verified_json_input(frontier_root, &path, envelope)?);
         authority_record_paths.push(path);
     }
-    let actor_registry_path = RepoPath::parse(".vela/actors.json".to_string())
-        .map_err(AuthorityTransactionError::Transaction)?;
-    if request
-        .history
-        .archived_predecessor_actor_registry_root
-        .is_some()
-        || (request.history.legacy_actor_registry_bytes.is_empty()
-            && !frontier_root.join(".vela/actors.json").exists())
-    {
-        bindings.push(
-            InputBinding::absent_file(frontier_root, actor_registry_path)
+    bindings.push(
+        InputBinding::absent_file(
+            frontier_root,
+            RepoPath::parse(".vela/actors.json".to_string())
                 .map_err(AuthorityTransactionError::Transaction)?,
-        );
-    } else {
-        bindings.push(
-            InputBinding::exact_file(
-                frontier_root,
-                actor_registry_path,
-                &request.history.legacy_actor_registry_bytes,
-            )
-            .map_err(AuthorityTransactionError::Transaction)?,
-        );
-    }
+        )
+        .map_err(AuthorityTransactionError::Transaction)?,
+    );
     for (directory, paths) in [
-        (".vela/events", legacy_event_paths),
+        (".vela/events", Vec::new()),
         (".vela/authority/events", authority_event_paths),
         (".vela/authority/records", authority_record_paths),
     ] {
@@ -2284,7 +2193,6 @@ mod tests {
         temporary: TempDir,
         request: AuthorityTransactionRequest,
         repository_key: SigningKey,
-        actor_registry_bytes: Vec<u8>,
     }
 
     impl Fixture {
@@ -2325,8 +2233,6 @@ mod tests {
         fs::create_dir_all(root_path.join(".vela/events")).unwrap();
 
         let repository_key = SigningKey::from_bytes(&[12; 32]);
-        let actor_registry_bytes = b"[]".to_vec();
-        fs::write(root_path.join(".vela/actors.json"), &actor_registry_bytes).unwrap();
         fs::write(root_path.join(".vela/input.json"), b"{\"fixture\":true}\n").unwrap();
 
         let authorization_input = fixture_authorization_input();
@@ -2369,42 +2275,15 @@ mod tests {
             authority_summary: "Repository authority may reject one exact proposal.".into(),
         };
 
-        let mut genesis = StateEvent {
-            schema: EVENT_SCHEMA.into(),
-            id: String::new(),
-            kind: EventKind::FrontierCreated,
-            target: StateTarget {
-                r#type: "frontier".into(),
-                id: FRONTIER_ID.into(),
-            },
-            actor: StateActor {
-                r#type: "system".into(),
-                id: "vela:init".into(),
-            },
-            timestamp: "2026-07-01T00:00:00Z".into(),
-            reason: "Create the disposable writer fixture.".into(),
-            before_hash: NULL_HASH.into(),
-            after_hash: NULL_HASH.into(),
-            payload: json!({}),
-            caveats: Vec::new(),
-            signature: None,
-        };
-        genesis.id = compute_event_id(&genesis);
-        let legacy_root = format!("sha256:{}", event_log_hash(&[genesis.clone()]));
-        fs::write(
-            root_path
-                .join(".vela/events")
-                .join(format!("{}.json", genesis.id)),
-            to_canonical_bytes(&genesis).unwrap(),
-        )
-        .unwrap();
+        let initial_event_log_root = format!("sha256:{}", event_log_hash(&[]));
+        let initial_actor_registry_root = format!("sha256:{}", hex::encode(Sha256::digest([])));
         let keyset_root = keyset.root().unwrap();
         let policy_bundle_root = policy_bundle.root().unwrap();
         let initialization = AuthorityInitializationV1 {
             schema: AUTHORITY_INITIALIZATION_SCHEMA_V1.into(),
             frontier_id: FRONTIER_ID.into(),
-            initial_event_log_root: legacy_root.clone(),
-            initial_actor_registry_root: ContentDigest::hash(&actor_registry_bytes).as_str().into(),
+            initial_event_log_root: initial_event_log_root.clone(),
+            initial_actor_registry_root: initial_actor_registry_root.clone(),
             new_authority_keyset_root: keyset.root().unwrap(),
             new_policy_bundle_root: policy_bundle.root().unwrap(),
             new_principal_id: REPOSITORY_PRINCIPAL.into(),
@@ -2435,7 +2314,7 @@ mod tests {
         let initialization_intent = canonical_root(&initialization);
         let initialization_event_root = initialization_event.root().unwrap();
         let initialized_event_log_root =
-            authority_event_log_root(&legacy_root, &[&initialization_event]).unwrap();
+            authority_event_log_root(&initial_event_log_root, &[&initialization_event]).unwrap();
 
         let first_record = AuthorityRecordV1::new(AuthorityRecordContentV1 {
             frontier_id: FRONTIER_ID.into(),
@@ -2444,7 +2323,7 @@ mod tests {
             operation_id: "vop_initialization".into(),
             transaction_id: "vtx_initialization".into(),
             intent_digest: initialization_intent.clone(),
-            before_event_log_root: legacy_root.clone(),
+            before_event_log_root: initial_event_log_root.clone(),
             after_event_log_root: initialized_event_log_root,
             event_ids: vec![initialization_event.id.clone()],
             object_delta: vec![
@@ -2586,12 +2465,9 @@ mod tests {
         let request = AuthorityTransactionRequest {
             history: AuthorityHistorySnapshot {
                 frontier_id: FRONTIER_ID.into(),
-                legacy_events: vec![genesis],
-                legacy_actor_registry_bytes: actor_registry_bytes.clone(),
-                archived_predecessor_event_log_root: None,
-                archived_predecessor_actor_registry_root: None,
-                legacy_active_policy_head_root: NULL_HASH.into(),
-                legacy_policy_store_manifest_root: NULL_HASH.into(),
+                initial_event_log_root,
+                initial_actor_registry_root,
+                initial_snapshots_preexisting: false,
                 authority_keyset: keyset.clone(),
                 policy_bundle: policy_bundle.clone(),
                 retained_authority_keysets: vec![keyset],
@@ -2655,7 +2531,6 @@ mod tests {
             temporary,
             request,
             repository_key,
-            actor_registry_bytes,
         }
     }
 
@@ -2670,14 +2545,9 @@ mod tests {
         authority_events.extend_from_slice(events);
         let result = verify_authority_history(AuthorityHistoryInput {
             frontier_id: FRONTIER_ID,
-            legacy_events: &fixture.request.history.legacy_events,
-            legacy_actor_registry_bytes: &fixture.actor_registry_bytes,
-            archived_predecessor: None,
-            legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
-            legacy_policy_store_manifest_root: &fixture
-                .request
-                .history
-                .legacy_policy_store_manifest_root,
+            initial_event_log_root: &fixture.request.history.initial_event_log_root,
+            initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
+            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &fixture.request.history.retained_authority_keysets,
             policy_bundles: &fixture.request.history.retained_policy_bundles,
             authority_events: &authority_events,
@@ -2691,14 +2561,9 @@ mod tests {
     fn verified_fixture_history(fixture: &Fixture) -> AuthorityHistoryVerification {
         verify_authority_history(AuthorityHistoryInput {
             frontier_id: FRONTIER_ID,
-            legacy_events: &fixture.request.history.legacy_events,
-            legacy_actor_registry_bytes: &fixture.actor_registry_bytes,
-            archived_predecessor: None,
-            legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
-            legacy_policy_store_manifest_root: &fixture
-                .request
-                .history
-                .legacy_policy_store_manifest_root,
+            initial_event_log_root: &fixture.request.history.initial_event_log_root,
+            initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
+            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &fixture.request.history.retained_authority_keysets,
             policy_bundles: &fixture.request.history.retained_policy_bundles,
             authority_events: &fixture.request.history.authority_events,
@@ -2731,7 +2596,7 @@ mod tests {
     }
 
     #[test]
-    fn fresh_initialization_binds_archived_predecessor_roots() {
+    fn fresh_initialization_binds_repository_origin_roots() {
         let mut fixture = fixture();
         let archived_event_root = root('a');
         let archived_actor_root = root('b');
@@ -2739,14 +2604,9 @@ mod tests {
         let keyset_root = fixture.request.history.authority_keyset.root().unwrap();
         let policy_root = fixture.request.history.policy_bundle.root().unwrap();
 
-        fixture.request.history.legacy_events.clear();
-        fixture.request.history.legacy_actor_registry_bytes.clear();
-        fixture.request.history.archived_predecessor_event_log_root =
-            Some(archived_event_root.clone());
-        fixture
-            .request
-            .history
-            .archived_predecessor_actor_registry_root = Some(archived_actor_root.clone());
+        fixture.request.history.initial_event_log_root = archived_event_root.clone();
+        fixture.request.history.initial_actor_registry_root = archived_actor_root.clone();
+        fixture.request.history.initial_snapshots_preexisting = true;
         fixture.request.history.retained_authority_keysets.clear();
         fixture.request.history.retained_policy_bundles.clear();
         fixture.request.history.authority_events.clear();
@@ -2797,18 +2657,13 @@ mod tests {
         stale.event_drafts[0].payload["initial_event_log_root"] =
             serde_json::Value::String(root('c'));
         let error = validate_fresh_initialization_request(&stale).unwrap_err();
-        assert!(error.to_string().contains("predecessor_event_log_root"));
+        assert!(error.to_string().contains("initial_event_log_root"));
 
         let history = verify_authority_history(AuthorityHistoryInput {
             frontier_id: &fixture.request.history.frontier_id,
-            legacy_events: &fixture.request.history.legacy_events,
-            legacy_actor_registry_bytes: &fixture.request.history.legacy_actor_registry_bytes,
-            archived_predecessor: archived_predecessor(&fixture.request.history).unwrap(),
-            legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
-            legacy_policy_store_manifest_root: &fixture
-                .request
-                .history
-                .legacy_policy_store_manifest_root,
+            initial_event_log_root: &fixture.request.history.initial_event_log_root,
+            initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
+            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &fixture.request.history.retained_authority_keysets,
             policy_bundles: &fixture.request.history.retained_policy_bundles,
             authority_events: &fixture.request.history.authority_events,
@@ -2820,7 +2675,6 @@ mod tests {
         fs::remove_dir_all(fixture.temporary.path().join(".vela/events")).unwrap();
         fs::remove_dir_all(fixture.temporary.path().join(".vela/authority/events")).unwrap();
         fs::remove_dir_all(fixture.temporary.path().join(".vela/authority/records")).unwrap();
-        fs::remove_file(fixture.temporary.path().join(".vela/actors.json")).unwrap();
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
         let result = execute_authority_transaction(
@@ -3092,7 +2946,7 @@ mod tests {
     }
 
     #[test]
-    fn dual_log_rejects_duplicate_semantic_event_identity() {
+    fn authority_history_rejects_duplicate_semantic_event_identity() {
         let fixture = self::fixture();
         let (_, semantic_domain, _) = acceptance_request(&fixture);
         let authority_event = |transaction_id: &str| {
@@ -3119,7 +2973,7 @@ mod tests {
         assert!(
             error
                 .to_string()
-                .contains("occurs more than once across the dual log"),
+                .contains("occurs more than once in authority history"),
             "{error}"
         );
     }
@@ -3328,14 +3182,9 @@ mod tests {
         envelopes.push(envelope);
         let replay = verify_authority_history(AuthorityHistoryInput {
             frontier_id: FRONTIER_ID,
-            legacy_events: &fixture.request.history.legacy_events,
-            legacy_actor_registry_bytes: &fixture.actor_registry_bytes,
-            archived_predecessor: None,
-            legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
-            legacy_policy_store_manifest_root: &fixture
-                .request
-                .history
-                .legacy_policy_store_manifest_root,
+            initial_event_log_root: &fixture.request.history.initial_event_log_root,
+            initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
+            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &keysets,
             policy_bundles: &fixture.request.history.retained_policy_bundles,
             authority_events: &events,
@@ -3432,14 +3281,9 @@ mod tests {
         final_envelopes.push(followup_envelope);
         let final_replay = verify_authority_history(AuthorityHistoryInput {
             frontier_id: FRONTIER_ID,
-            legacy_events: &fixture.request.history.legacy_events,
-            legacy_actor_registry_bytes: &fixture.actor_registry_bytes,
-            archived_predecessor: None,
-            legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
-            legacy_policy_store_manifest_root: &fixture
-                .request
-                .history
-                .legacy_policy_store_manifest_root,
+            initial_event_log_root: &fixture.request.history.initial_event_log_root,
+            initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
+            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &keysets,
             policy_bundles: &fixture.request.history.retained_policy_bundles,
             authority_events: &final_events,
@@ -3581,14 +3425,9 @@ mod tests {
         envelopes.push(envelope);
         let replay = verify_authority_history(AuthorityHistoryInput {
             frontier_id: FRONTIER_ID,
-            legacy_events: &fixture.request.history.legacy_events,
-            legacy_actor_registry_bytes: &fixture.actor_registry_bytes,
-            archived_predecessor: None,
-            legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
-            legacy_policy_store_manifest_root: &fixture
-                .request
-                .history
-                .legacy_policy_store_manifest_root,
+            initial_event_log_root: &fixture.request.history.initial_event_log_root,
+            initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
+            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &fixture.request.history.retained_authority_keysets,
             policy_bundles: &policies,
             authority_events: &events,
@@ -3723,14 +3562,9 @@ mod tests {
         envelopes.push(envelope.clone());
         let replay = verify_authority_history(AuthorityHistoryInput {
             frontier_id: FRONTIER_ID,
-            legacy_events: &fixture.request.history.legacy_events,
-            legacy_actor_registry_bytes: &fixture.actor_registry_bytes,
-            archived_predecessor: None,
-            legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
-            legacy_policy_store_manifest_root: &fixture
-                .request
-                .history
-                .legacy_policy_store_manifest_root,
+            initial_event_log_root: &fixture.request.history.initial_event_log_root,
+            initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
+            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &keysets,
             policy_bundles: &fixture.request.history.retained_policy_bundles,
             authority_events: &[
@@ -3751,14 +3585,9 @@ mod tests {
         envelopes.push(envelope);
         let error = verify_authority_history(AuthorityHistoryInput {
             frontier_id: FRONTIER_ID,
-            legacy_events: &fixture.request.history.legacy_events,
-            legacy_actor_registry_bytes: &fixture.actor_registry_bytes,
-            archived_predecessor: None,
-            legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
-            legacy_policy_store_manifest_root: &fixture
-                .request
-                .history
-                .legacy_policy_store_manifest_root,
+            initial_event_log_root: &fixture.request.history.initial_event_log_root,
+            initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
+            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &keysets,
             policy_bundles: &fixture.request.history.retained_policy_bundles,
             authority_events: &[
@@ -4283,11 +4112,11 @@ mod tests {
     #[test]
     fn repository_history_bytes_fail_closed_before_authentication_or_signing() {
         let fixture = self::fixture();
-        let legacy_path = fixture.temporary.path().join(format!(
-            ".vela/events/{}.json",
-            fixture.request.history.legacy_events[0].id
+        let event_path = fixture.temporary.path().join(format!(
+            ".vela/authority/events/{}.json",
+            fixture.request.history.authority_events[0].id
         ));
-        fs::write(legacy_path, b"tampered").unwrap();
+        fs::write(event_path, b"tampered").unwrap();
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
         let error = prepare_authority_transaction(
@@ -4497,14 +4326,9 @@ mod tests {
         envelopes.push(envelope);
         let verification = verify_authority_history(AuthorityHistoryInput {
             frontier_id: FRONTIER_ID,
-            legacy_events: &fixture.request.history.legacy_events,
-            legacy_actor_registry_bytes: &fixture.actor_registry_bytes,
-            archived_predecessor: None,
-            legacy_active_policy_head_root: &fixture.request.history.legacy_active_policy_head_root,
-            legacy_policy_store_manifest_root: &fixture
-                .request
-                .history
-                .legacy_policy_store_manifest_root,
+            initial_event_log_root: &fixture.request.history.initial_event_log_root,
+            initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
+            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &fixture.request.history.retained_authority_keysets,
             policy_bundles: &fixture.request.history.retained_policy_bundles,
             authority_events: &fixture.request.history.authority_events,

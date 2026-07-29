@@ -138,7 +138,7 @@ Events, and execution claim.
 Pinning writes only local consumer configuration. It reads no private key,
 grants no authority, and changes no Frontier byte.
 
-After a separately verified repository-epoch transition establishes a new
+After a separately verified repository-origin transition establishes a new
 sequence-one authority record for the same Frontier, advance the local pin
 with an exact compare-and-swap:
 

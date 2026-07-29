@@ -988,7 +988,7 @@ pub fn install_authority_trust_anchor_from_home(
 }
 
 /// Atomically move one independently retained authority pin to the exact
-/// sequence-one record established by a verified repository-epoch
+/// sequence-one record established by a verified repository-origin
 /// transition.
 ///
 /// This is not TOFU and does not derive trust from repository-controlled

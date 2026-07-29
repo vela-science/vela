@@ -76,7 +76,7 @@ fn trust_diagnostic(
     repository: &vela_protocol::current_repository::CurrentRepositoryV3,
     origin: &RepositoryOriginV1,
 ) -> Result<Value, String> {
-    let authority = crate::cli::load_compacted_repository_authority(frontier, repository, origin)?;
+    let authority = crate::cli::load_current_repository_authority(frontier, repository, origin)?;
     let first_root = authority
         .verification
         .first_authority_record_root
@@ -96,21 +96,6 @@ fn trust_diagnostic(
                 .is_ok() =>
         {
             ("pinned", "independent sequence-one root matches")
-        }
-        Some(anchor)
-            if origin.predecessor.as_ref().is_some_and(|predecessor| {
-                crate::frontier_txn::authority_anchor_selects_current_epoch(
-                    &anchor.anchor,
-                    &repository.frontier_id,
-                    first_root,
-                    &predecessor.authority_head_root,
-                )
-            }) =>
-        {
-            (
-                "predecessor_pinned",
-                "the independently pinned predecessor sequence-one record is also the signed origin authority head",
-            )
         }
         Some(_) => ("blocked", "local trust anchor does not match sequence one"),
         None => (
@@ -132,8 +117,7 @@ fn current_doctor_payload(frontier: &Path, all: bool) -> Result<Value, String> {
     let frontier = frontier
         .canonicalize()
         .map_err(|error| format!("resolve current Frontier {}: {error}", frontier.display()))?;
-    if !frontier.join(".vela/epoch.json").exists()
-        && !frontier.join(".vela/origin.json").exists()
+    if !frontier.join(".vela/origin.json").exists()
         && !frontier.join(".vela/repository.json").exists()
     {
         let profile = crate::current_repository::verify_current_bootstrap_at(&frontier)?;
@@ -166,7 +150,7 @@ fn current_doctor_payload(frontier: &Path, all: bool) -> Result<Value, String> {
             }
         }));
     }
-    let repository = crate::current_repository::load_compacted_repository_at(&frontier, true)?;
+    let repository = crate::current_repository::load_current_repository_at(&frontier, true)?;
     let repository_root = repository.canonical_root()?;
     let origin_bytes = std::fs::read(frontier.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;

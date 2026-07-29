@@ -8,89 +8,17 @@
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 
-pub const CURRENT_REPOSITORY_SCHEMA_V2: &str = "vela.repository.v2";
 pub const CURRENT_REPOSITORY_SCHEMA_V3: &str = "vela.repository.v3";
 pub const CURRENT_FRONTIER_PROFILE_SCHEMA_V2: &str = "vela.frontier-profile.v2";
-pub const CURRENT_ARTIFACT_RECORD_SCHEMA_V1: &str = "vela.artifact-record.v1";
 const PROFILE_NAME_MAX_BYTES: usize = 256;
 const PROFILE_SUMMARY_MAX_BYTES: usize = 2 * 1024;
 const PROFILE_QUESTION_MAX_BYTES: usize = 4 * 1024;
 const PROFILE_SCOPE_ITEM_MAX_BYTES: usize = 2 * 1024;
 const PROFILE_MAINTAINER_MAX_BYTES: usize = 256;
 const PROFILE_LICENSE_MAX_BYTES: usize = 256;
-
-/// Exact current wrapper for an Artifact descriptor imported from Era 0.
-///
-/// The nested descriptor is preserved field-for-field. The wrapper supplies a
-/// schema and predecessor root without pretending that the old descriptor was
-/// originally signed or emitted as a current record.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct CurrentArtifactRecordV1 {
-    pub schema: String,
-    pub artifact_id: String,
-    /// Exact descriptor imported at the repository epoch boundary.
-    ///
-    /// Imported descriptors are immutable evidence, not a live protocol
-    /// object model. Keeping their closed record wrapper while treating the
-    /// nested predecessor descriptor as canonical JSON avoids retaining the
-    /// entire historical Finding bundle runtime.
-    pub artifact: Value,
-    pub imported_object_root: String,
-    pub predecessor_commit: String,
-}
-
-impl CurrentArtifactRecordV1 {
-    pub fn parse(bytes: &[u8]) -> Result<Self, String> {
-        let value: Self = serde_json::from_slice(bytes)
-            .map_err(|error| format!("parse current Artifact Record v1: {error}"))?;
-        value.verify()?;
-        if value.canonical_bytes()? != bytes {
-            return Err("current Artifact Record bytes are not canonical JSON".into());
-        }
-        Ok(value)
-    }
-
-    pub fn verify(&self) -> Result<(), String> {
-        if self.schema != CURRENT_ARTIFACT_RECORD_SCHEMA_V1 {
-            return Err(format!(
-                "current Artifact Record schema must be `{CURRENT_ARTIFACT_RECORD_SCHEMA_V1}`"
-            ));
-        }
-        let descriptor = self
-            .artifact
-            .as_object()
-            .ok_or_else(|| "current Artifact Record descriptor must be an object".to_string())?;
-        let descriptor_id = descriptor
-            .get("id")
-            .and_then(Value::as_str)
-            .ok_or_else(|| "current Artifact Record descriptor lacks its ID".to_string())?;
-        if self.artifact_id != descriptor_id {
-            return Err("current Artifact Record ID does not match its descriptor".into());
-        }
-        require_prefixed("artifact.artifact_id", &self.artifact_id, "va_")?;
-        validate_imported_artifact_axes(descriptor)?;
-        require_sha256("artifact.imported_object_root", &self.imported_object_root)?;
-        require_git_oid("artifact.predecessor_commit", &self.predecessor_commit)?;
-        Ok(())
-    }
-
-    pub fn canonical_bytes(&self) -> Result<Vec<u8>, String> {
-        self.verify()?;
-        crate::canonical::to_canonical_bytes(self)
-    }
-
-    pub fn canonical_root(&self) -> Result<String, String> {
-        Ok(format!(
-            "sha256:{}",
-            hex::encode(Sha256::digest(self.canonical_bytes()?))
-        ))
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -110,10 +38,9 @@ pub struct FrontierProfileLicenseV2 {
 
 /// Current-only repository metadata.
 ///
-/// Profile v2 deliberately keeps the small, human-editable field set from
-/// Profile v1. The schema boundary says that repository identity and standing
-/// now come from `.vela/epoch.json` and `.vela/repository.json`, never from an
-/// Era-0 event log or generated lock file.
+/// Profile v2 deliberately keeps a small, human-editable field set. Repository
+/// identity and standing come from `.vela/origin.json` and
+/// `.vela/repository.json`, never from a generated compatibility view.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CurrentFrontierProfileV2 {
@@ -215,28 +142,8 @@ pub struct ClaimStandingRefV1 {
     pub path: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct CurrentRepositoryV2 {
-    pub schema: String,
-    pub frontier_id: String,
-    pub profile_root: String,
-    pub epoch_id: String,
-    pub epoch_root: String,
-    pub accepted_claims: Vec<ClaimStandingRefV1>,
-    pub pending_claims: Vec<ClaimStandingRefV1>,
-    pub proposals: Vec<RepositoryObjectRefV1>,
-    pub submissions: Vec<RepositoryObjectRefV1>,
-    pub registrations: Vec<RepositoryObjectRefV1>,
-    pub verifications: Vec<RepositoryObjectRefV1>,
-    pub artifacts: Vec<RepositoryObjectRefV1>,
-    pub authority_keyset_root: String,
-    pub authority_policy_root: String,
-}
-
-/// Final pre-release repository manifest. The origin replaces the temporary
-/// predecessor epoch vocabulary; scientific and operational object sets stay
-/// explicit and content addressed.
+/// Current repository manifest. Scientific and operational object sets remain
+/// explicit and content addressed behind one immutable repository origin.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CurrentRepositoryV3 {
@@ -280,77 +187,6 @@ impl CurrentRepositoryV3 {
         require_sha256("profile_root", &self.profile_root)?;
         require_prefixed("origin_id", &self.origin_id, "vro_")?;
         require_sha256("origin_root", &self.origin_root)?;
-        require_sha256("authority_keyset_root", &self.authority_keyset_root)?;
-        require_sha256("authority_policy_root", &self.authority_policy_root)?;
-
-        verify_claim_refs("accepted_claims", &self.accepted_claims, "accepted")?;
-        verify_claim_refs("pending_claims", &self.pending_claims, "pending_review")?;
-        verify_object_refs("proposals", &self.proposals)?;
-        verify_object_refs("submissions", &self.submissions)?;
-        verify_object_refs("registrations", &self.registrations)?;
-        verify_object_refs("verifications", &self.verifications)?;
-        verify_object_refs("artifacts", &self.artifacts)?;
-
-        let mut paths = BTreeSet::new();
-        for path in self
-            .accepted_claims
-            .iter()
-            .chain(&self.pending_claims)
-            .map(|reference| reference.path.as_str())
-            .chain(
-                self.proposals
-                    .iter()
-                    .chain(&self.submissions)
-                    .chain(&self.registrations)
-                    .chain(&self.verifications)
-                    .chain(&self.artifacts)
-                    .map(|reference| reference.path.as_str()),
-            )
-        {
-            if !paths.insert(path) {
-                return Err(format!("current repository repeats object path `{path}`"));
-            }
-        }
-        Ok(())
-    }
-
-    pub fn canonical_bytes(&self) -> Result<Vec<u8>, String> {
-        self.verify()?;
-        crate::canonical::to_canonical_bytes(self)
-    }
-
-    pub fn canonical_root(&self) -> Result<String, String> {
-        Ok(format!(
-            "sha256:{}",
-            hex::encode(Sha256::digest(self.canonical_bytes()?))
-        ))
-    }
-}
-
-impl CurrentRepositoryV2 {
-    pub fn parse(bytes: &[u8]) -> Result<Self, String> {
-        if bytes.len() > 8 * 1024 * 1024 {
-            return Err("current repository exceeds the 8 MiB encoded limit".into());
-        }
-        let value: Self = serde_json::from_slice(bytes)
-            .map_err(|error| format!("parse current repository v2: {error}"))?;
-        value.verify()?;
-        if value.canonical_bytes()? != bytes {
-            return Err("current repository bytes are not canonical JSON".into());
-        }
-        Ok(value)
-    }
-
-    pub fn verify(&self) -> Result<(), String> {
-        if self.schema != CURRENT_REPOSITORY_SCHEMA_V2 {
-            return Err(format!(
-                "current repository schema must be `{CURRENT_REPOSITORY_SCHEMA_V2}`"
-            ));
-        }
-        require_prefixed("frontier_id", &self.frontier_id, "vfr_")?;
-        require_sha256("profile_root", &self.profile_root)?;
-        require_prefixed("epoch_id", &self.epoch_id, "vre_")?;
-        require_sha256("epoch_root", &self.epoch_root)?;
         require_sha256("authority_keyset_root", &self.authority_keyset_root)?;
         require_sha256("authority_policy_root", &self.authority_policy_root)?;
 
@@ -450,52 +286,6 @@ fn verify_object_refs(field: &str, references: &[RepositoryObjectRefV1]) -> Resu
             ));
         }
         prior = Some(reference.id.as_str());
-    }
-    Ok(())
-}
-
-fn validate_imported_artifact_axes(
-    descriptor: &serde_json::Map<String, Value>,
-) -> Result<(), String> {
-    let disclosure = descriptor
-        .get("disclosure")
-        .and_then(Value::as_str)
-        .unwrap_or("unknown");
-    let content_hash = descriptor
-        .get("content_hash")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "current Artifact descriptor lacks content_hash".to_string())?;
-    let locator = descriptor.get("locator").and_then(Value::as_str);
-    match disclosure {
-        "public" => require_sha256("artifact.content_hash", content_hash)?,
-        "restricted" => {
-            if !content_hash.is_empty() {
-                return Err(
-                    "restricted artifact must use an opaque custodian reference; public digest disclosure requires a separately reviewed commitment scheme"
-                        .into(),
-                );
-            }
-            if !locator.is_some_and(|value| {
-                value.starts_with("custodian:") || value.starts_with("opaque:")
-            }) {
-                return Err(
-                    "restricted artifact requires an opaque custodian: or opaque: locator".into(),
-                );
-            }
-        }
-        "unknown" => {}
-        _ => return Err("current Artifact descriptor has an invalid disclosure".into()),
-    }
-    let storage_mode = descriptor
-        .get("storage_mode")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "current Artifact descriptor lacks storage_mode".to_string())?;
-    let availability = descriptor
-        .get("availability")
-        .and_then(Value::as_str)
-        .unwrap_or("unknown");
-    if storage_mode == "local_blob" && availability == "unavailable" {
-        return Err("local_blob artifact cannot be declared unavailable".into());
     }
     Ok(())
 }
@@ -687,15 +477,6 @@ fn require_sha256(field: &str, value: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn require_git_oid(field: &str, value: &str) -> Result<(), String> {
-    if !matches!(value.len(), 40 | 64) || !value.bytes().all(is_lower_hex) {
-        return Err(format!(
-            "current repository {field} must be a full lowercase Git object ID"
-        ));
-    }
-    Ok(())
-}
-
 fn require_path(field: &str, value: &str) -> Result<(), String> {
     require_text(field, value)?;
     if value.starts_with('/')
@@ -731,13 +512,13 @@ mod tests {
         }
     }
 
-    fn fixture() -> CurrentRepositoryV2 {
-        CurrentRepositoryV2 {
-            schema: CURRENT_REPOSITORY_SCHEMA_V2.into(),
+    fn fixture() -> CurrentRepositoryV3 {
+        CurrentRepositoryV3 {
+            schema: CURRENT_REPOSITORY_SCHEMA_V3.into(),
             frontier_id: "vfr_0123456789abcdef".into(),
             profile_root: root('a'),
-            epoch_id: "vre_0123456789abcdef".into(),
-            epoch_root: root('b'),
+            origin_id: "vro_0123456789abcdef".into(),
+            origin_root: root('b'),
             accepted_claims: vec![claim('c', "accepted")],
             pending_claims: vec![claim('d', "pending_review")],
             proposals: vec![],
@@ -762,23 +543,7 @@ mod tests {
 
     #[test]
     fn current_repository_v3_binds_one_origin() {
-        let predecessor = fixture();
-        let repository = CurrentRepositoryV3 {
-            schema: CURRENT_REPOSITORY_SCHEMA_V3.into(),
-            frontier_id: predecessor.frontier_id,
-            profile_root: predecessor.profile_root,
-            origin_id: "vro_0123456789abcdef".into(),
-            origin_root: root('b'),
-            accepted_claims: predecessor.accepted_claims,
-            pending_claims: Vec::new(),
-            proposals: Vec::new(),
-            submissions: Vec::new(),
-            registrations: Vec::new(),
-            verifications: Vec::new(),
-            artifacts: Vec::new(),
-            authority_keyset_root: predecessor.authority_keyset_root,
-            authority_policy_root: predecessor.authority_policy_root,
-        };
+        let repository = fixture();
         repository.verify().unwrap();
         let bytes = repository.canonical_bytes().unwrap();
         assert_eq!(CurrentRepositoryV3::parse(&bytes).unwrap(), repository);

@@ -1,14 +1,13 @@
 //! Read-only verification of current repository-authority history.
 //!
 //! Sequence 1 covers one exact authority initialization. For current
-//! repositories with a predecessor epoch, that initialization binds the roots
-//! retained by the signed repository epoch. This module exposes no writer or
+//! repositories with a predecessor origin, that initialization binds the roots
+//! retained by the signed origin. This module exposes no writer or
 //! key-custody surface.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 use crate::authority::{
     AuthorityEnvelopeV1, AuthorityEventV1, AuthorityKeysetV1, CedarDecision, PolicyBundleV1,
@@ -16,7 +15,7 @@ use crate::authority::{
     verify_policy_bundle_transition,
 };
 use crate::canonical::sha256_canonical;
-use crate::events::{NULL_HASH, StateEvent, compute_event_id, event_log_hash};
+use crate::events::NULL_HASH;
 
 pub const AUTHORITY_INITIALIZATION_SCHEMA_V1: &str = "vela.authority-initialization.v1";
 pub const AUTHORITY_EVENT_LOG_SCHEMA_V1: &str = "vela.authority-event-log.v1";
@@ -92,7 +91,7 @@ impl AuthorityCloseV1 {
     }
 }
 
-/// Fresh-repository bootstrap for Era-1 authority.
+/// Fresh-repository bootstrap for current repository authority.
 ///
 /// This object has no predecessor signer and grants no exemption to historical
 /// events. It is valid only over the exact
@@ -158,7 +157,7 @@ impl AuthorityInitializationV1 {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorityHistoryEra {
-    LegacyOnly,
+    Uninitialized,
     RepositoryAuthority,
 }
 
@@ -167,7 +166,6 @@ pub enum AuthorityHistoryEra {
 pub struct AuthorityHistoryVerification {
     pub era: AuthorityHistoryEra,
     pub frontier_id: String,
-    pub legacy_event_count: usize,
     pub authority_event_count: usize,
     pub authority_record_count: usize,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -183,65 +181,38 @@ pub struct AuthorityHistoryVerification {
     pub closure_event_id: Option<String>,
 }
 
-/// Complete read-side inputs. Registry bytes are the exact retained
-/// `.vela/actors.json` bytes so the bridge binds the immutable Era-0 object,
-/// including its formatting, rather than a lossy reconstruction.
+/// Complete current read-side inputs.
 pub struct AuthorityHistoryInput<'a> {
     pub frontier_id: &'a str,
-    pub legacy_events: &'a [StateEvent],
-    pub legacy_actor_registry_bytes: &'a [u8],
-    /// Exact predecessor roots for a current repository epoch whose retired
-    /// Era-0 bytes are available only through its pinned archive/tag.
-    ///
-    /// This mode is valid only with no retained legacy bytes and an
-    /// `authority.initialized` sequence-1 boundary that binds both roots.
-    pub archived_predecessor: Option<ArchivedAuthorityPredecessor<'a>>,
-    pub legacy_active_policy_head_root: &'a str,
-    pub legacy_policy_store_manifest_root: &'a str,
+    pub initial_event_log_root: &'a str,
+    pub initial_actor_registry_root: &'a str,
+    /// Compacted origins retained initial keyset and policy snapshots as
+    /// canonical evidence rather than sequence-one transition deltas.
+    pub initial_snapshots_preexisting: bool,
     pub authority_keysets: &'a [AuthorityKeysetV1],
     pub policy_bundles: &'a [PolicyBundleV1],
     pub authority_events: &'a [AuthorityEventV1],
     pub authority_envelopes: &'a [AuthorityEnvelopeV1],
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct ArchivedAuthorityPredecessor<'a> {
-    pub event_log_root: &'a str,
-    pub actor_registry_root: &'a str,
-}
-
-/// Verify a fresh structural boundary or a current repository predecessor
-/// boundary plus every later authority record.
+/// Verify one current repository-origin boundary and authority chain.
 pub fn verify_authority_history(
     input: AuthorityHistoryInput<'_>,
 ) -> Result<AuthorityHistoryVerification, String> {
     require_frontier(input.frontier_id)?;
-    if let Some(predecessor) = input.archived_predecessor {
-        if !input.legacy_events.is_empty() || !input.legacy_actor_registry_bytes.is_empty() {
-            return Err(
-                "archived authority predecessor cannot be combined with retained Era-0 bytes"
-                    .into(),
-            );
-        }
-        require_sha256_root("archived event_log_root", predecessor.event_log_root)?;
-        require_sha256_root(
-            "archived actor_registry_root",
-            predecessor.actor_registry_root,
-        )?;
-    }
+    require_sha256_root("initial event_log_root", input.initial_event_log_root)?;
+    require_sha256_root(
+        "initial actor_registry_root",
+        input.initial_actor_registry_root,
+    )?;
     if input.authority_events.is_empty() && input.authority_envelopes.is_empty() {
-        let final_event_log_root = input
-            .archived_predecessor
-            .map(|predecessor| predecessor.event_log_root.to_string())
-            .unwrap_or_else(|| prefixed_legacy_root(input.legacy_events));
         return Ok(AuthorityHistoryVerification {
-            era: AuthorityHistoryEra::LegacyOnly,
+            era: AuthorityHistoryEra::Uninitialized,
             frontier_id: input.frontier_id.into(),
-            legacy_event_count: input.legacy_events.len(),
             authority_event_count: 0,
             authority_record_count: 0,
             initialization_event_id: None,
-            final_event_log_root,
+            final_event_log_root: input.initial_event_log_root.into(),
             first_authority_record_root: None,
             final_authority_record_root: None,
             final_authority_keyset_root: None,
@@ -277,24 +248,14 @@ pub fn verify_authority_history(
         .get(&active_policy_root)
         .copied()
         .ok_or_else(|| "initial policy bundle is not retained".to_string())?;
-    if let Some(predecessor) = input.archived_predecessor {
-        verify_archived_authority_initialization(
-            input.frontier_id,
-            predecessor,
-            active_keyset,
-            active_policy,
-            initialization_event,
-        )?;
-    } else {
-        verify_authority_initialization(
-            input.frontier_id,
-            input.legacy_events,
-            input.legacy_actor_registry_bytes,
-            active_keyset,
-            active_policy,
-            initialization_event,
-        )?;
-    }
+    verify_origin_authority_initialization(
+        input.frontier_id,
+        input.initial_event_log_root,
+        input.initial_actor_registry_root,
+        active_keyset,
+        active_policy,
+        initialization_event,
+    )?;
     if active_keyset.generation != 1
         || active_keyset.previous_keyset_root.is_some()
         || active_keyset.activation_record_root.is_some()
@@ -307,23 +268,11 @@ pub fn verify_authority_history(
     let mut activated_keysets = BTreeSet::from([active_keyset_root.clone()]);
     let mut activated_policies = BTreeSet::from([active_policy_root.clone()]);
 
-    let mut legacy_ids = BTreeSet::new();
-    for event in input.legacy_events {
-        if event.id != compute_event_id(event) || !legacy_ids.insert(event.id.as_str()) {
-            return Err(format!(
-                "legacy event {} has an invalid or duplicate content address",
-                event.id
-            ));
-        }
-    }
-
     let mut era_one_by_id = BTreeMap::new();
     let mut era_one_by_transaction: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
     for event in input.authority_events {
         event.validate()?;
-        if legacy_ids.contains(event.id.as_str())
-            || era_one_by_id.insert(event.id.as_str(), event).is_some()
-        {
+        if era_one_by_id.insert(event.id.as_str(), event).is_some() {
             return Err(format!("duplicate event coverage identity {}", event.id));
         }
         era_one_by_transaction
@@ -332,10 +281,7 @@ pub fn verify_authority_history(
             .insert(event.id.as_str());
     }
 
-    let legacy_event_root = input
-        .archived_predecessor
-        .map(|predecessor| predecessor.event_log_root.to_string())
-        .unwrap_or_else(|| prefixed_legacy_root(input.legacy_events));
+    let initial_event_log_root = input.initial_event_log_root.to_string();
     let mut current_event_root = initialization.initial_event_log_root.clone();
     let mut previous_record_root: Option<String> = None;
     let mut covered_era_one: BTreeSet<String> = BTreeSet::new();
@@ -369,12 +315,13 @@ pub fn verify_authority_history(
                 &verified,
                 initialization_event,
                 &initialization,
-                &legacy_event_root,
-                input.archived_predecessor.is_some(),
+                &initial_event_log_root,
+                input.initial_snapshots_preexisting,
             )?;
             covered_era_one.insert(initialization_event.id.clone());
             cumulative_era_one.push(*initialization_event);
-            current_event_root = authority_event_log_root(&legacy_event_root, &cumulative_era_one)?;
+            current_event_root =
+                authority_event_log_root(&initial_event_log_root, &cumulative_era_one)?;
         } else {
             let transaction_id = verified.record.content.transaction_id.as_str();
             let actual_ids: BTreeSet<&str> = verified
@@ -401,14 +348,16 @@ pub fn verify_authority_history(
             let mut transaction_events = Vec::new();
             for event_id in actual_ids {
                 if !covered_era_one.insert(event_id.to_string()) {
-                    return Err(format!("Era-1 event {event_id} is covered more than once"));
+                    return Err(format!(
+                        "authority event {event_id} is covered more than once"
+                    ));
                 }
                 let event = era_one_by_id[event_id];
                 if event.content.principal_id != verified.record.content.principal.principal_id
                     || event.content.actor.id != event.content.principal_id
                 {
                     return Err(format!(
-                        "Era-1 event {event_id} attribution does not match its authority record"
+                        "authority event {event_id} attribution does not match its authority record"
                     ));
                 }
                 verify_event_object_delta(&verified, event_id, &event.root()?)?;
@@ -418,7 +367,7 @@ pub fn verify_authority_history(
             let expected_after = if transaction_events.is_empty() {
                 current_event_root.clone()
             } else {
-                authority_event_log_root(&legacy_event_root, &cumulative_era_one)?
+                authority_event_log_root(&initial_event_log_root, &cumulative_era_one)?
             };
             if verified.record.content.after_event_log_root != expected_after {
                 return Err(format!(
@@ -480,7 +429,7 @@ pub fn verify_authority_history(
             .filter(|event_id| !covered_era_one.contains(*event_id))
             .collect();
         return Err(format!(
-            "Era-1 history has events without unique authority-record coverage: {}",
+            "authority history has events without unique authority-record coverage: {}",
             missing.join(", ")
         ));
     }
@@ -499,7 +448,6 @@ pub fn verify_authority_history(
     Ok(AuthorityHistoryVerification {
         era: AuthorityHistoryEra::RepositoryAuthority,
         frontier_id: input.frontier_id.into(),
-        legacy_event_count: input.legacy_events.len(),
         authority_event_count: input.authority_events.len(),
         authority_record_count: verified_records.len(),
         initialization_event_id: Some(initialization_event.id.clone()),
@@ -707,99 +655,24 @@ fn verify_authority_close_record(
     Ok(event.id.clone())
 }
 
-/// Verify a fresh repository authority boundary.
-///
-/// A current native bootstrap has no predecessor events or actor registry.
-/// The historical Profile v1 bootstrap remains replayable only when it
-/// contains exactly the unsigned structural `frontier.created` event and an
-/// empty encoded actor registry. No scientific event can gain authority
-/// through either path.
-pub fn verify_authority_initialization(
+/// Verify sequence-one initialization against the immutable repository origin.
+pub fn verify_origin_authority_initialization(
     frontier_id: &str,
-    initial_events: &[StateEvent],
-    initial_actor_registry_bytes: &[u8],
+    initial_event_log_root: &str,
+    initial_actor_registry_root: &str,
     authority_keyset: &AuthorityKeysetV1,
     policy_bundle: &PolicyBundleV1,
     initialization_event: &AuthorityEventV1,
 ) -> Result<AuthorityInitializationV1, String> {
     require_frontier(frontier_id)?;
-    if initial_events.is_empty() && initial_actor_registry_bytes.is_empty() {
-        // Native current repository genesis. Its exact empty roots are checked
-        // against the signed initialization payload below.
-    } else {
-        let [created] = initial_events else {
-            return Err(
-                "historical fresh authority initialization requires exactly one structural frontier.created event"
-                    .into(),
-            );
-        };
-        if created.kind.as_str() != "frontier.created"
-            || created.id != compute_event_id(created)
-            || created.signature.is_some()
-        {
-            return Err(
-                "historical fresh authority initialization requires the exact unsigned frontier.created event"
-                    .into(),
-            );
-        }
-        let actors: Vec<serde_json::Value> =
-            serde_json::from_slice(initial_actor_registry_bytes)
-                .map_err(|error| format!("fresh actor registry is invalid: {error}"))?;
-        if !actors.is_empty() {
-            return Err("fresh authority initialization requires an empty actor registry".into());
-        }
-    }
+    require_sha256_root("initial event_log_root", initial_event_log_root)?;
+    require_sha256_root("initial actor_registry_root", initial_actor_registry_root)?;
     let payload = initialization_payload_from_event(initialization_event)?;
     if payload.frontier_id != frontier_id
-        || payload.initial_event_log_root != prefixed_legacy_root(initial_events)
-        || payload.initial_actor_registry_root != sha256_bytes(initial_actor_registry_bytes)
+        || payload.initial_event_log_root != initial_event_log_root
+        || payload.initial_actor_registry_root != initial_actor_registry_root
     {
-        return Err(
-            "fresh authority initialization does not bind the exact structural state".into(),
-        );
-    }
-    authority_keyset.validate()?;
-    policy_bundle.validate()?;
-    if authority_keyset.frontier_id != frontier_id
-        || policy_bundle.frontier_id != frontier_id
-        || payload.new_authority_keyset_root != authority_keyset.root()?
-        || payload.new_policy_bundle_root != policy_bundle.root()?
-    {
-        return Err(
-            "fresh authority initialization does not bind its initial authority inputs".into(),
-        );
-    }
-    Ok(payload)
-}
-
-/// Verify sequence-1 authority genesis after a repository epoch has removed
-/// active Era-0 bytes.
-///
-/// The exact predecessor remains independently replayable through the epoch's
-/// pinned tag/archive. The current chain authenticates only that it began from
-/// those full roots; it never claims that old signatures covered new schemas.
-pub fn verify_archived_authority_initialization(
-    frontier_id: &str,
-    predecessor: ArchivedAuthorityPredecessor<'_>,
-    authority_keyset: &AuthorityKeysetV1,
-    policy_bundle: &PolicyBundleV1,
-    initialization_event: &AuthorityEventV1,
-) -> Result<AuthorityInitializationV1, String> {
-    require_frontier(frontier_id)?;
-    require_sha256_root("archived event_log_root", predecessor.event_log_root)?;
-    require_sha256_root(
-        "archived actor_registry_root",
-        predecessor.actor_registry_root,
-    )?;
-    let payload = initialization_payload_from_event(initialization_event)?;
-    if payload.frontier_id != frontier_id
-        || payload.initial_event_log_root != predecessor.event_log_root
-        || payload.initial_actor_registry_root != predecessor.actor_registry_root
-    {
-        return Err(
-            "current authority initialization does not bind the exact archived predecessor roots"
-                .into(),
-        );
+        return Err("current authority initialization does not bind its exact origin roots".into());
     }
     authority_keyset.validate()?;
     policy_bundle.validate()?;
@@ -841,10 +714,10 @@ pub fn initialization_payload_from_event(
 }
 
 pub fn authority_event_log_root(
-    legacy_root_with_bridge: &str,
+    initial_event_log_root: &str,
     authority_events: &[&AuthorityEventV1],
 ) -> Result<String, String> {
-    require_sha256_root("legacy_root_with_bridge", legacy_root_with_bridge)?;
+    require_sha256_root("initial_event_log_root", initial_event_log_root)?;
     let mut roots = authority_events
         .iter()
         .map(|event| event.root().map(|root| (event.id.as_str(), root)))
@@ -852,7 +725,9 @@ pub fn authority_event_log_root(
     roots.sort_by(|left, right| left.0.cmp(right.0));
     let commitment = serde_json::json!({
         "schema": AUTHORITY_EVENT_LOG_SCHEMA_V1,
-        "legacy_event_log_root": legacy_root_with_bridge,
+        // Retained canonical field name: changing it would rewrite signed
+        // current authority records.
+        "legacy_event_log_root": initial_event_log_root,
         "authority_event_roots": roots.into_iter().map(|(_, root)| root).collect::<Vec<_>>(),
     });
     Ok(format!("sha256:{}", sha256_canonical(&commitment)?))
@@ -863,7 +738,7 @@ fn verify_first_initialization_record(
     initialization_event: &AuthorityEventV1,
     initialization: &AuthorityInitializationV1,
     initial_event_log_root: &str,
-    archived_predecessor: bool,
+    initial_snapshots_preexisting: bool,
 ) -> Result<(), String> {
     let record = &verified.record;
     let event_root = initialization_event.root()?;
@@ -900,13 +775,13 @@ fn verify_first_initialization_record(
     if event_matches != 1 {
         return Err("authority record 1 lacks one exact fresh initialization event delta".into());
     }
-    if archived_predecessor {
+    if initial_snapshots_preexisting {
         if record.content.authority_keyset_root != initialization.new_authority_keyset_root
             || record.content.authorization.policy_bundle_root
                 != initialization.new_policy_bundle_root
         {
             return Err(
-                "current repository epoch does not bind its retained authority snapshots".into(),
+                "current repository origin does not bind its retained authority snapshots".into(),
             );
         }
         return Ok(());
@@ -1016,14 +891,6 @@ fn verify_event_object_delta(
     Ok(())
 }
 
-fn prefixed_legacy_root(events: &[StateEvent]) -> String {
-    format!("sha256:{}", event_log_hash(events))
-}
-
-fn sha256_bytes(bytes: &[u8]) -> String {
-    format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
-}
-
 fn require_frontier(frontier_id: &str) -> Result<(), String> {
     if frontier_id.starts_with("vfr_") {
         Ok(())
@@ -1061,19 +928,14 @@ mod tests {
     }
 
     #[test]
-    fn empty_archived_predecessor_preserves_its_event_root() {
-        let archived_event_root = root('a');
-        let archived_actor_root = root('b');
+    fn uninitialized_origin_preserves_its_event_root() {
+        let initial_event_root = root('a');
+        let initial_actor_root = root('b');
         let verification = verify_authority_history(AuthorityHistoryInput {
             frontier_id: "vfr_fixture",
-            legacy_events: &[],
-            legacy_actor_registry_bytes: &[],
-            archived_predecessor: Some(ArchivedAuthorityPredecessor {
-                event_log_root: &archived_event_root,
-                actor_registry_root: &archived_actor_root,
-            }),
-            legacy_active_policy_head_root: NULL_HASH,
-            legacy_policy_store_manifest_root: NULL_HASH,
+            initial_event_log_root: &initial_event_root,
+            initial_actor_registry_root: &initial_actor_root,
+            initial_snapshots_preexisting: true,
             authority_keysets: &[],
             policy_bundles: &[],
             authority_events: &[],
@@ -1081,8 +943,8 @@ mod tests {
         })
         .unwrap();
 
-        assert_eq!(verification.era, AuthorityHistoryEra::LegacyOnly);
-        assert_eq!(verification.final_event_log_root, archived_event_root);
+        assert_eq!(verification.era, AuthorityHistoryEra::Uninitialized);
+        assert_eq!(verification.final_event_log_root, initial_event_root);
         assert_eq!(verification.authority_event_count, 0);
         assert_eq!(verification.authority_record_count, 0);
     }

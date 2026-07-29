@@ -25,7 +25,7 @@ stored witness bytes and environment pins. It must not consult an unpinned
 network resource or model judgment. The command reports the property each
 verifier checked and refuses malformed or mismatched inputs.
 
-`vela check <frontier> --strict --json` validates the current repository epoch:
+`vela check <frontier> --strict --json` validates the current repository origin:
 content addresses, authority-history continuity, admitted-event replay,
 required Artifacts, exact Git ancestry, retained canonical objects, derived
 parity, and the independently installed sequence-one authority trust root. It

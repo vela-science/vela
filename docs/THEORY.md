@@ -56,14 +56,14 @@ The current implementations are:
 ## 3. Repository state
 
 A current Frontier is one Git repository whose active scientific index is the
-closed `vela.repository.v2` manifest.
+closed `vela.repository.v3` manifest.
 
 Let:
 
 ```text
 M = (
   profile_root,
-  epoch_root,
+  origin_root,
   accepted_claims,
   pending_claims,
   submissions,
@@ -81,12 +81,11 @@ re-reads every indexed object, checks its closed schema and canonical bytes,
 recomputes the set roots and repository root, and verifies the repository
 authority chain from an independently installed sequence-one trust anchor.
 
-There is no generic predecessor Finding reducer in the current runtime.
-Predecessor histories are bound once by the signed repository epoch and
-preserved by their tag, Git objects, archive digest, imported-source
-commitments, and authority record. Current Standing is represented directly by
-the manifest's accepted and pending Claim sets and the terminal Proposal and
-Decision evidence that justifies them.
+There is no predecessor scientific reducer or alternate manifest reader in the
+current runtime. Compacted origin records bind their historical tag, Git
+objects, archive digest, equivalence report, and authority root. Current
+Standing is represented directly by the manifest's accepted and pending Claim
+sets and the terminal Proposal and Decision evidence that justifies them.
 
 ## 4. Submission and verification
 

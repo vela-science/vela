@@ -87,7 +87,7 @@ producer queue.
 `vela start` creates a local ignored Attempt bound to:
 
 - the exact target and packet;
-- the repository epoch and root;
+- the repository origin and root;
 - the Target Index root;
 - the Git commit and tree;
 - the completion contract;
@@ -204,7 +204,7 @@ The pin is local public trust configuration. It reads no key, grants no
 authority, and changes no Frontier byte.
 
 Pinning the already installed root is idempotent. After independently
-verifying a repository-epoch transition, advance an existing pin only by
+verifying a repository-origin transition, advance an existing pin only by
 supplying its exact current root:
 
 ```bash

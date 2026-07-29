@@ -1139,23 +1139,7 @@ struct FreshRepositoryAuthorization {
     frontier_id: String,
     context_root: ContentDigest,
     trusted_user_home: PathBuf,
-    surface: FreshRepositorySurface,
     delta_root: Option<ContentDigest>,
-}
-
-#[derive(Debug, Clone)]
-enum FreshRepositorySurface {
-    Native,
-    Compaction {
-        objects: Vec<vela_protocol::current_repository::RepositoryObjectRefV1>,
-        object_set_root: ContentDigest,
-    },
-}
-
-#[derive(Debug)]
-enum FreshRepositoryDelta {
-    Native,
-    Compaction { object_set_root: ContentDigest },
 }
 
 fn verify_fresh_repository_authorization(
@@ -1167,10 +1151,7 @@ fn verify_fresh_repository_authorization(
             "resolve operating-system account home for trust store: {error}"
         ))
     })?;
-    if root.join(".vela/epoch.json").exists()
-        || root.join(".vela/origin.json").exists()
-        || root.join(".vela/repository.json").exists()
-    {
+    if root.join(".vela/origin.json").exists() || root.join(".vela/repository.json").exists() {
         return Err(FrontierTxnError::RepositoryWriteIntentDenied {
             intent: "repository_authority_initialization",
             reason: "fresh repository authority requires an uninitialized current repository"
@@ -1191,64 +1172,12 @@ fn verify_fresh_repository_authorization(
                 intent: "repository_authority_initialization",
                 reason,
             })?;
-    let context_root = fresh_repository_context_root(
-        &profile.frontier_id,
-        &profile_root,
-        &trusted_user_home,
-        "native",
-        None,
-    )?;
+    let context_root =
+        fresh_repository_context_root(&profile.frontier_id, &profile_root, &trusted_user_home)?;
     Ok(FreshRepositoryAuthorization {
         frontier_id: profile.frontier_id,
         context_root,
         trusted_user_home,
-        surface: FreshRepositorySurface::Native,
-        delta_root: None,
-    })
-}
-
-fn verify_compaction_repository_authorization(
-    root: &Path,
-    trusted_user_home: &Path,
-    expected_objects: &[vela_protocol::current_repository::RepositoryObjectRefV1],
-) -> Result<FreshRepositoryAuthorization, FrontierTxnError> {
-    let trusted_user_home = fs::canonicalize(trusted_user_home).map_err(|error| {
-        FrontierTxnError::RepositoryTrustAnchor(format!(
-            "resolve operating-system account home for trust store: {error}"
-        ))
-    })?;
-    let profile = crate::current_repository::verify_compaction_bootstrap_at(root, expected_objects)
-        .map_err(|reason| FrontierTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority_initialization",
-            reason,
-        })?;
-    let profile_root =
-        profile
-            .profile_root()
-            .map_err(|reason| FrontierTxnError::RepositoryWriteIntentDenied {
-                intent: "repository_authority_initialization",
-                reason,
-            })?;
-    let object_set_root = ContentDigest::parse(format!(
-        "sha256:{}",
-        vela_protocol::canonical::sha256_canonical(&expected_objects)
-            .map_err(FrontierTxnError::Canonicalize)?
-    ))?;
-    let context_root = fresh_repository_context_root(
-        &profile.frontier_id,
-        &profile_root,
-        &trusted_user_home,
-        "compaction",
-        Some(&object_set_root),
-    )?;
-    Ok(FreshRepositoryAuthorization {
-        frontier_id: profile.frontier_id,
-        context_root,
-        trusted_user_home,
-        surface: FreshRepositorySurface::Compaction {
-            objects: expected_objects.to_vec(),
-            object_set_root,
-        },
         delta_root: None,
     })
 }
@@ -1257,17 +1186,13 @@ fn fresh_repository_context_root(
     frontier_id: &str,
     profile_root: &str,
     trusted_user_home: &Path,
-    surface: &str,
-    object_set_root: Option<&ContentDigest>,
 ) -> Result<ContentDigest, FrontierTxnError> {
     Ok(ContentDigest::hash(
         vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
-            "schema": "vela.repository-bootstrap-authorization.internal.v2",
+            "schema": "vela.repository-bootstrap-authorization.internal.v3",
             "frontier_id": frontier_id,
             "profile_root": profile_root,
             "trusted_user_home": trusted_user_home.to_string_lossy(),
-            "surface": surface,
-            "object_set_root": object_set_root.map(ContentDigest::as_str),
         }))
         .map_err(FrontierTxnError::Canonicalize)?,
     ))
@@ -1276,138 +1201,18 @@ fn fresh_repository_context_root(
 fn verify_repository_authority_write_era(
     root: &Path,
 ) -> Result<RepositoryAuthorityWriteAuthorization, FrontierTxnError> {
-    if root.join(".vela/origin.json").is_file() {
-        return verify_compacted_repository_authority_write_era(root);
-    }
-    if root.join(".vela/epoch.json").is_file() {
-        return verify_predecessor_repository_authority_write_era(root);
-    }
-    Err(FrontierTxnError::RepositoryWriteIntentDenied {
-        intent: "repository_authority",
-        reason: "repository-authority writes require a current repository origin".into(),
-    })
+    verify_current_repository_authority_write_era(root)
 }
 
-pub(crate) fn authority_anchor_selects_current_epoch(
-    anchor: &vela_edge::repository_write::AuthorityTrustAnchorV1,
-    frontier_id: &str,
-    current_sequence_one_root: &str,
-    predecessor_authority_head: &str,
-) -> bool {
-    anchor
-        .verify_sequence_one(frontier_id, current_sequence_one_root)
-        .is_ok()
-        || (anchor.frontier_id == frontier_id
-            && anchor.first_authority_record_root == predecessor_authority_head)
-}
-
-fn verify_predecessor_repository_authority_write_era(
+fn verify_current_repository_authority_write_era(
     root: &Path,
 ) -> Result<RepositoryAuthorityWriteAuthorization, FrontierTxnError> {
-    let repository = crate::current_repository::verify_predecessor_repository_at(root, true)
-        .map_err(|error| FrontierTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority",
-            reason: format!("predecessor repository epoch is invalid: {error}"),
-        })?;
-    let epoch_bytes = fs::read(root.join(".vela/epoch.json"))
-        .map_err(|error| FrontierTxnError::Io(format!("read current repository epoch: {error}")))?;
-    let epoch = vela_protocol::repository_epoch::RepositoryBoundaryV1::parse(&epoch_bytes)
-        .map_err(|error| FrontierTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority",
-            reason: format!("current repository epoch is invalid: {error}"),
-        })?;
-    let authority = crate::cli::load_current_repository_authority(root, &repository, &epoch)
-        .map_err(|error| FrontierTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority",
-            reason: format!("current repository-authority history is invalid: {error}"),
-        })?;
-    if authority.verification.closed {
-        return Err(FrontierTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority",
-            reason: "repository-authority history is closed".into(),
-        });
-    }
-    let first_root = authority
-        .verification
-        .first_authority_record_root
-        .as_deref()
-        .ok_or_else(|| FrontierTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority",
-            reason: "current repository-authority history has no sequence-one root".into(),
-        })?;
-    let trusted_user_home = operating_system_account_home()?;
-    let anchor =
-        load_authority_trust_anchor_from_home(&trusted_user_home, &repository.frontier_id)
-            .map_err(|error| FrontierTxnError::RepositoryWriteIntentDenied {
-                intent: "repository_authority",
-                reason: format!("load local authority trust anchor: {error}"),
-            })?
-            .ok_or_else(|| FrontierTxnError::RepositoryWriteIntentDenied {
-                intent: "repository_authority",
-                reason: format!(
-                    "current repository-authority writes require an independent sequence-one pin; run `vela authority trust pin . --record-root {first_root} --json`"
-                ),
-            })?;
-    let anchor_selects = anchor
-        .anchor
-        .verify_sequence_one(&repository.frontier_id, first_root)
-        .is_ok()
-        || epoch.predecessor_roots().is_some_and(|roots| {
-            authority_anchor_selects_current_epoch(
-                &anchor.anchor,
-                &repository.frontier_id,
-                first_root,
-                &roots.authority_head,
-            )
-        });
-    if !anchor_selects {
-        return Err(FrontierTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority",
-            reason: format!(
-                "local authority trust anchor does not select current sequence one {first_root}"
-            ),
-        });
-    }
-    let initialization_event_id = authority
-        .verification
-        .initialization_event_id
-        .as_deref()
-        .ok_or_else(|| FrontierTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority",
-            reason: "current repository authority has no epoch initialization event".into(),
-        })?;
-    let event = authority
-        .history
-        .authority_events
-        .iter()
-        .find(|event| event.id == initialization_event_id)
-        .ok_or_else(|| FrontierTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority",
-            reason: format!(
-                "current epoch initialization event {initialization_event_id} is missing"
-            ),
-        })?;
-    Ok(RepositoryAuthorityWriteAuthorization {
-        frontier_id: repository.frontier_id,
-        boundary_event_id: initialization_event_id.to_string(),
-        boundary_event_root: ContentDigest::parse(event.root().map_err(|error| {
+    let repository =
+        crate::current_repository::verify_current_repository_at(root, true).map_err(|error| {
             FrontierTxnError::RepositoryWriteIntentDenied {
                 intent: "repository_authority",
-                reason: format!(
-                    "current epoch initialization event {initialization_event_id} has no valid root: {error}"
-                ),
+                reason: format!("current repository origin is invalid: {error}"),
             }
-        })?)?,
-    })
-}
-
-fn verify_compacted_repository_authority_write_era(
-    root: &Path,
-) -> Result<RepositoryAuthorityWriteAuthorization, FrontierTxnError> {
-    let repository = crate::current_repository::verify_compacted_repository_at(root, true)
-        .map_err(|error| FrontierTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority",
-            reason: format!("current repository origin is invalid: {error}"),
         })?;
     let origin_bytes = fs::read(root.join(".vela/origin.json"))
         .map_err(|error| FrontierTxnError::Io(format!("read repository origin: {error}")))?;
@@ -1416,7 +1221,7 @@ fn verify_compacted_repository_authority_write_era(
             intent: "repository_authority",
             reason: format!("current repository origin is invalid: {error}"),
         })?;
-    let authority = crate::cli::load_compacted_repository_authority(root, &repository, &origin)
+    let authority = crate::cli::load_current_repository_authority(root, &repository, &origin)
         .map_err(|error| FrontierTxnError::RepositoryWriteIntentDenied {
             intent: "repository_authority",
             reason: format!("current repository-authority history is invalid: {error}"),
@@ -1448,22 +1253,10 @@ fn verify_compacted_repository_authority_write_era(
                     "current repository-authority writes require an independent sequence-one pin; run `vela authority trust pin . --record-root {first_root} --json`"
                 ),
             })?;
-    let predecessor_head = origin
-        .predecessor
-        .as_ref()
-        .map(|predecessor| predecessor.authority_head_root.as_str());
     let anchor_selects = anchor
         .anchor
         .verify_sequence_one(&repository.frontier_id, first_root)
-        .is_ok()
-        || predecessor_head.is_some_and(|head| {
-            authority_anchor_selects_current_epoch(
-                &anchor.anchor,
-                &repository.frontier_id,
-                first_root,
-                head,
-            )
-        });
+        .is_ok();
     if !anchor_selects {
         return Err(FrontierTxnError::RepositoryWriteIntentDenied {
             intent: "repository_authority",
@@ -1560,16 +1353,14 @@ fn staged_authority_event(
 fn verify_fresh_repository_delta(
     delta: &CanonicalDelta,
     mut read_blob: impl FnMut(&JournalBlobRef) -> Result<Vec<u8>, FrontierTxnError>,
-) -> Result<FreshRepositoryDelta, FrontierTxnError> {
+) -> Result<(), FrontierTxnError> {
     let deny = |reason: String| FrontierTxnError::RepositoryWriteIntentDenied {
         intent: "repository_authority_initialization",
         reason,
     };
     let mut authority_initializations = 0_usize;
     let mut authority_records = 0_usize;
-    let mut repository_geneses = 0_usize;
     let mut repository_origins = Vec::new();
-    let mut repository_v2_manifests = 0_usize;
     let mut repository_v3_manifests = Vec::new();
 
     for write in delta.writes() {
@@ -1590,22 +1381,6 @@ fn verify_fresh_repository_delta(
                 )));
             }
             authority_initializations += 1;
-        } else if path == ".vela/epoch.json" {
-            if write.class != WriteClass::CanonicalEvidence
-                || !matches!(write.preimage, FileState::Absent)
-                || !matches!(write.postimage, FileState::File { .. })
-            {
-                return Err(deny(
-                    "repository genesis must create one canonical epoch object".into(),
-                ));
-            }
-            let blob = write.payload.as_ref().ok_or_else(|| {
-                FrontierTxnError::CorruptPlan("repository genesis has no postimage blob".into())
-            })?;
-            let bytes = read_blob(blob)?;
-            vela_protocol::repository_epoch::RepositoryGenesisV1::parse(&bytes)
-                .map_err(FrontierTxnError::CorruptPlan)?;
-            repository_geneses += 1;
         } else if path == ".vela/origin.json" {
             if write.class != WriteClass::CanonicalEvidence
                 || !matches!(write.preimage, FileState::Absent)
@@ -1635,36 +1410,9 @@ fn verify_fresh_repository_delta(
                 FrontierTxnError::CorruptPlan("repository manifest has no postimage blob".into())
             })?;
             let bytes = read_blob(blob)?;
-            let schema = serde_json::from_slice::<serde_json::Value>(&bytes)
-                .map_err(|error| {
-                    FrontierTxnError::CorruptPlan(format!(
-                        "parse repository manifest schema: {error}"
-                    ))
-                })?
-                .get("schema")
-                .and_then(serde_json::Value::as_str)
-                .ok_or_else(|| {
-                    FrontierTxnError::CorruptPlan("repository manifest has no string schema".into())
-                })?
-                .to_string();
-            match schema.as_str() {
-                vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V2 => {
-                    vela_protocol::current_repository::CurrentRepositoryV2::parse(&bytes)
-                        .map_err(FrontierTxnError::CorruptPlan)?;
-                    repository_v2_manifests += 1;
-                }
-                vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V3 => {
-                    let repository =
-                        vela_protocol::current_repository::CurrentRepositoryV3::parse(&bytes)
-                            .map_err(FrontierTxnError::CorruptPlan)?;
-                    repository_v3_manifests.push(repository);
-                }
-                _ => {
-                    return Err(FrontierTxnError::CorruptPlan(format!(
-                        "unsupported fresh repository manifest schema {schema}"
-                    )));
-                }
-            }
+            let repository = vela_protocol::current_repository::CurrentRepositoryV3::parse(&bytes)
+                .map_err(FrontierTxnError::CorruptPlan)?;
+            repository_v3_manifests.push(repository);
         } else if !path.starts_with(".vela/authority/")
             || write.class != WriteClass::Authority
             || !matches!(write.preimage, FileState::Absent)
@@ -1684,102 +1432,44 @@ fn verify_fresh_repository_delta(
         )));
     }
 
-    let legacy_bootstrap = repository_geneses == 1
-        && repository_origins.is_empty()
-        && repository_v2_manifests == 1
-        && repository_v3_manifests.is_empty();
-    let current_origin = repository_geneses == 0
-        && repository_origins.len() == 1
-        && repository_v2_manifests == 0
-        && repository_v3_manifests.len() == 1;
-    if !legacy_bootstrap && !current_origin {
+    if repository_origins.len() != 1 || repository_v3_manifests.len() != 1 {
         return Err(deny(format!(
-            "fresh repository authority requires exactly predecessor genesis + repository v2 or current origin + repository v3; found {} genesis, {} origin, {} repository v2, and {} repository v3 object(s)",
-            repository_geneses,
+            "fresh repository authority requires exactly one origin and one repository manifest; found {} origin and {} repository object(s)",
             repository_origins.len(),
-            repository_v2_manifests,
             repository_v3_manifests.len()
         )));
     }
 
-    if current_origin {
-        let origin = repository_origins
-            .first()
-            .expect("current shape has one origin");
-        let repository = repository_v3_manifests
-            .first()
-            .expect("current shape has one repository v3");
-        let origin_root = origin
-            .canonical_root()
-            .map_err(FrontierTxnError::CorruptPlan)?;
-        if repository.frontier_id != origin.frontier_id
-            || repository.profile_root != origin.profile_root
-            || repository.origin_id != origin.origin_id
-            || repository.origin_root != origin_root
-        {
-            return Err(deny(
-                "repository origin and repository v3 do not bind the same exact identity".into(),
-            ));
-        }
-        if !repository.pending_claims.is_empty()
-            || !repository.proposals.is_empty()
-            || !repository.submissions.is_empty()
-            || !repository.registrations.is_empty()
-            || !repository.verifications.is_empty()
-        {
-            return Err(deny(
-                "repository origin may initialize only accepted Claims and exact Artifacts".into(),
-            ));
-        }
-        let mut objects = repository
-            .accepted_claims
-            .iter()
-            .map(
-                |reference| vela_protocol::current_repository::RepositoryObjectRefV1 {
-                    schema: vela_protocol::claim_record::CLAIM_RECORD_V1_SCHEMA.into(),
-                    id: reference.claim_id.clone(),
-                    root: reference.claim_root.clone(),
-                    path: reference.path.clone(),
-                },
-            )
-            .chain(repository.artifacts.iter().cloned())
-            .collect::<Vec<_>>();
-        objects.sort_by(|left, right| {
-            (&left.schema, &left.id, &left.root, &left.path).cmp(&(
-                &right.schema,
-                &right.id,
-                &right.root,
-                &right.path,
-            ))
-        });
-        objects.dedup();
-        let object_set_root = format!(
-            "sha256:{}",
-            vela_protocol::canonical::sha256_canonical(&objects)
-                .map_err(FrontierTxnError::Canonicalize)?
-        );
-        if object_set_root != origin.initial_object_set_root {
-            return Err(deny(
-                "repository manifest object set disagrees with its origin".into(),
-            ));
-        }
-        return match origin.kind {
-            vela_protocol::repository_origin::RepositoryOriginKind::Genesis => {
-                if !objects.is_empty() {
-                    return Err(deny(
-                        "repository genesis origin must initialize an empty object set".into(),
-                    ));
-                }
-                Ok(FreshRepositoryDelta::Native)
-            }
-            vela_protocol::repository_origin::RepositoryOriginKind::Compaction => {
-                Ok(FreshRepositoryDelta::Compaction {
-                    object_set_root: ContentDigest::parse(object_set_root)?,
-                })
-            }
-        };
+    let origin = repository_origins.first().expect("checked one origin");
+    let repository = repository_v3_manifests
+        .first()
+        .expect("checked one repository");
+    let origin_root = origin
+        .canonical_root()
+        .map_err(FrontierTxnError::CorruptPlan)?;
+    if repository.frontier_id != origin.frontier_id
+        || repository.profile_root != origin.profile_root
+        || repository.origin_id != origin.origin_id
+        || repository.origin_root != origin_root
+    {
+        return Err(deny(
+            "repository origin and manifest do not bind the same exact identity".into(),
+        ));
     }
-    Ok(FreshRepositoryDelta::Native)
+    if origin.kind != vela_protocol::repository_origin::RepositoryOriginKind::Genesis
+        || !repository.accepted_claims.is_empty()
+        || !repository.pending_claims.is_empty()
+        || !repository.proposals.is_empty()
+        || !repository.submissions.is_empty()
+        || !repository.registrations.is_empty()
+        || !repository.verifications.is_empty()
+        || !repository.artifacts.is_empty()
+    {
+        return Err(deny(
+            "fresh repository initialization requires a genesis origin and empty object set".into(),
+        ));
+    }
+    Ok(())
 }
 
 fn bind_fresh_repository_authorization(
@@ -1787,27 +1477,7 @@ fn bind_fresh_repository_authorization(
     delta: &CanonicalDelta,
     read_blob: impl FnMut(&JournalBlobRef) -> Result<Vec<u8>, FrontierTxnError>,
 ) -> Result<(), FrontierTxnError> {
-    let planned_surface = verify_fresh_repository_delta(delta, read_blob)?;
-    match (&authorization.surface, planned_surface) {
-        (FreshRepositorySurface::Native, FreshRepositoryDelta::Native) => {}
-        (
-            FreshRepositorySurface::Compaction {
-                object_set_root: authorized,
-                ..
-            },
-            FreshRepositoryDelta::Compaction {
-                object_set_root: planned,
-            },
-        ) if authorized == &planned => {}
-        _ => {
-            return Err(FrontierTxnError::RepositoryWriteIntentDenied {
-                intent: "repository_authority_initialization",
-                reason:
-                    "fresh repository authorization surface does not match its exact planned delta"
-                        .into(),
-            });
-        }
-    }
+    verify_fresh_repository_delta(delta, read_blob)?;
     if let Some(bound) = &authorization.delta_root
         && bound != delta.root()
     {
@@ -1968,22 +1638,6 @@ impl FrontierRecoveryBarrier {
         })
     }
 
-    fn authorize_for_compaction_repository(
-        self,
-        expected_objects: &[vela_protocol::current_repository::RepositoryObjectRefV1],
-    ) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
-        let trusted_user_home = operating_system_account_home()?;
-        let authorization = verify_compaction_repository_authorization(
-            &self.root,
-            &trusted_user_home,
-            expected_objects,
-        )?;
-        Ok(CanonicalWriteBarrier {
-            recovery: self,
-            authorization: FrontierTxnAuthorization::FreshRepository(authorization),
-        })
-    }
-
     #[cfg(test)]
     pub(crate) fn authorize_for_test(self) -> CanonicalWriteBarrier {
         CanonicalWriteBarrier {
@@ -2009,18 +1663,7 @@ fn reverify_transaction_authorization(
 ) -> Result<(), FrontierTxnError> {
     match authorization {
         FrontierTxnAuthorization::FreshRepository(expected) => {
-            let actual = match &expected.surface {
-                FreshRepositorySurface::Native => {
-                    verify_fresh_repository_authorization(root, &expected.trusted_user_home)?
-                }
-                FreshRepositorySurface::Compaction { objects, .. } => {
-                    verify_compaction_repository_authorization(
-                        root,
-                        &expected.trusted_user_home,
-                        objects,
-                    )?
-                }
-            };
+            let actual = verify_fresh_repository_authorization(root, &expected.trusted_user_home)?;
             if actual.context_root != expected.context_root {
                 return Err(FrontierTxnError::StaleWriteAuthorization {
                     expected: expected.context_root.clone(),
@@ -2636,18 +2279,6 @@ impl FrontierTxn {
         let trusted_user_home = operating_system_account_home()?;
         verify_fresh_repository_authorization(&root, &trusted_user_home)?;
         Self::acquire_recovery_barrier(&root, journal_dir)?.authorize_for_fresh_repository()
-    }
-
-    pub(crate) fn acquire_repository_compaction_initialization_barrier(
-        frontier_root: &Path,
-        journal_dir: &Path,
-        expected_objects: &[vela_protocol::current_repository::RepositoryObjectRefV1],
-    ) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
-        let root = canonical_frontier_root(frontier_root)?;
-        let trusted_user_home = operating_system_account_home()?;
-        verify_compaction_repository_authorization(&root, &trusted_user_home, expected_objects)?;
-        Self::acquire_recovery_barrier(&root, journal_dir)?
-            .authorize_for_compaction_repository(expected_objects)
     }
 
     #[cfg(test)]
@@ -3380,7 +3011,7 @@ impl FrontierTxn {
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
                 Err(error) => {
                     return Err(FrontierTxnError::Io(format!(
-                        "inspect compacted transaction postimage {}: {error}",
+                        "inspect pruned journal postimage {}: {error}",
                         target.display()
                     )));
                 }
@@ -3388,13 +3019,13 @@ impl FrontierTxn {
             if metadata.file_type().is_symlink() || !metadata.is_file() {
                 return Err(FrontierTxnError::UnsafeTarget {
                     path: write.path.clone(),
-                    reason: "compacted transaction postimage is not a regular, non-symlink file"
+                    reason: "pruned journal postimage is not a regular, non-symlink file"
                         .to_string(),
                 });
             }
             let bytes = fs::read(&target).map_err(|error| {
                 FrontierTxnError::Io(format!(
-                    "read compacted transaction postimage {}: {error}",
+                    "read pruned journal postimage {}: {error}",
                     target.display()
                 ))
             })?;
@@ -4172,7 +3803,6 @@ fn sync_directory(path: &Path) -> Result<(), FrontierTxnError> {
 mod tests {
     use super::*;
     use serde_json::json;
-    use vela_edge::repository_write::{AUTHORITY_TRUST_ANCHOR_SCHEMA_V1, AuthorityTrustAnchorV1};
 
     fn fixture_root(byte: char) -> String {
         format!("sha256:{}", byte.to_string().repeat(64))
@@ -4219,36 +3849,7 @@ mod tests {
         )
     }
 
-    fn fixture_compaction_origin(
-        frontier_id: &str,
-        profile_root: &str,
-        object_set_root: &str,
-        reason: &str,
-    ) -> vela_protocol::repository_origin::RepositoryOriginV1 {
-        vela_protocol::repository_origin::RepositoryOriginV1::compaction(
-            frontier_id.into(),
-            2,
-            profile_root.into(),
-            object_set_root.into(),
-            vela_protocol::repository_origin::RepositoryOriginPredecessorV1 {
-                remote: "https://github.com/vela-science/fixture-frontier.git".into(),
-                tag: "pre-compaction/0123456789ab".into(),
-                commit: "1".repeat(40),
-                tree: "2".repeat(40),
-                repository_root: fixture_root('3'),
-                authority_head_root: fixture_root('4'),
-                archived_event_log_root: fixture_root('5'),
-                archived_actor_registry_root: fixture_root('6'),
-                archive_sha256: fixture_root('7'),
-                object_manifest_root: fixture_root('8'),
-                equivalence_report_root: fixture_root('9'),
-            },
-            reason.into(),
-        )
-        .unwrap()
-    }
-
-    fn fixture_repository_v3(
+    fn fixture_repository(
         origin: &vela_protocol::repository_origin::RepositoryOriginV1,
     ) -> vela_protocol::current_repository::CurrentRepositoryV3 {
         vela_protocol::current_repository::CurrentRepositoryV3 {
@@ -4269,364 +3870,11 @@ mod tests {
         }
     }
 
-    fn fixture_repository_v2(
-        genesis: &vela_protocol::repository_epoch::RepositoryGenesisV1,
-    ) -> vela_protocol::current_repository::CurrentRepositoryV2 {
-        vela_protocol::current_repository::CurrentRepositoryV2 {
-            schema: vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V2.into(),
-            frontier_id: genesis.frontier_id.clone(),
-            profile_root: genesis.profile_root.clone(),
-            epoch_id: genesis.epoch_id.clone(),
-            epoch_root: genesis.canonical_root().unwrap(),
-            accepted_claims: Vec::new(),
-            pending_claims: Vec::new(),
-            proposals: Vec::new(),
-            submissions: Vec::new(),
-            registrations: Vec::new(),
-            verifications: Vec::new(),
-            artifacts: Vec::new(),
-            authority_keyset_root: fixture_root('a'),
-            authority_policy_root: fixture_root('b'),
-        }
-    }
-
     fn verify_fresh_fixture(
         root: &Path,
-        mut writes: Vec<PlannedWrite>,
+        origin: &vela_protocol::repository_origin::RepositoryOriginV1,
     ) -> Result<(), FrontierTxnError> {
-        writes.extend([
-            fixture_authority_initialization_write("vfr_fixture"),
-            fixture_covering_authority_record_write(),
-        ]);
-        let draft = DeltaDraft::prepare(root, writes).unwrap();
-        verify_fresh_repository_delta(&draft.delta, |blob| {
-            draft.blobs.get(&blob.digest).cloned().ok_or_else(|| {
-                FrontierTxnError::CorruptPlan(format!(
-                    "fixture has no blob {}",
-                    blob.digest.as_str()
-                ))
-            })
-        })
-        .map(|_| ())
-    }
-
-    fn write_fixture_profile(root: &Path) {
-        fs::write(
-            root.join("frontier.yaml"),
-            r#"schema: vela.frontier-profile.v2
-frontier_id: vfr_0123456789abcdef
-name: Compaction authorization fixture
-summary: Bind one exact retained object set before repository authority initializes.
-scope:
-  question: Does the exact compaction surface remain closed?
-  includes:
-  - Exact retained objects.
-  excludes:
-  - Unrelated canonical state.
-maintainers:
-- fixture
-license:
-  content: CC-BY-4.0
-  code: Apache-2.0
-  data: varies
-"#,
-        )
-        .unwrap();
-    }
-
-    #[test]
-    fn fresh_repository_delta_accepts_only_the_two_closed_initialization_shapes() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
-        fs::create_dir_all(&root).unwrap();
-        let empty_object_set_root = format!(
-            "sha256:{}",
-            vela_protocol::canonical::sha256_canonical(&Vec::<
-                vela_protocol::current_repository::RepositoryObjectRefV1,
-            >::new())
-            .unwrap()
-        );
-        let profile_root = fixture_root('c');
-
-        let origin = fixture_compaction_origin(
-            "vfr_fixture",
-            &profile_root,
-            &empty_object_set_root,
-            "Compact exact current state.",
-        );
-        let repository_v3 = fixture_repository_v3(&origin);
-        verify_fresh_fixture(
-            &root,
-            vec![
-                PlannedWrite::write(
-                    RepoPath::parse(".vela/origin.json").unwrap(),
-                    WriteClass::CanonicalEvidence,
-                    origin.canonical_bytes().unwrap(),
-                ),
-                PlannedWrite::write(
-                    RepoPath::parse(".vela/repository.json").unwrap(),
-                    WriteClass::CanonicalEvidence,
-                    repository_v3.canonical_bytes().unwrap(),
-                ),
-            ],
-        )
-        .unwrap();
-
-        let genesis = vela_protocol::repository_epoch::RepositoryGenesisV1::build(
-            "vfr_fixture".into(),
-            profile_root,
-            format!(
-                "sha256:{}",
-                vela_protocol::canonical::sha256_canonical(&Vec::<String>::new()).unwrap()
-            ),
-            "Create exact current state.".into(),
-        )
-        .unwrap();
-        let repository_v2 = fixture_repository_v2(&genesis);
-        verify_fresh_fixture(
-            &root,
-            vec![
-                PlannedWrite::write(
-                    RepoPath::parse(".vela/epoch.json").unwrap(),
-                    WriteClass::CanonicalEvidence,
-                    genesis.canonical_bytes().unwrap(),
-                ),
-                PlannedWrite::write(
-                    RepoPath::parse(".vela/repository.json").unwrap(),
-                    WriteClass::CanonicalEvidence,
-                    repository_v2.canonical_bytes().unwrap(),
-                ),
-            ],
-        )
-        .unwrap();
-    }
-
-    #[test]
-    fn fresh_repository_delta_rejects_compaction_shape_substitution() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
-        fs::create_dir_all(&root).unwrap();
-        let empty_object_set_root = format!(
-            "sha256:{}",
-            vela_protocol::canonical::sha256_canonical(&Vec::<
-                vela_protocol::current_repository::RepositoryObjectRefV1,
-            >::new())
-            .unwrap()
-        );
-        let profile_root = fixture_root('c');
-        let origin = fixture_compaction_origin(
-            "vfr_fixture",
-            &profile_root,
-            &empty_object_set_root,
-            "Compact exact current state.",
-        );
-        let repository_v3 = fixture_repository_v3(&origin);
-        let genesis = vela_protocol::repository_epoch::RepositoryGenesisV1::build(
-            "vfr_fixture".into(),
-            profile_root.clone(),
-            format!(
-                "sha256:{}",
-                vela_protocol::canonical::sha256_canonical(&Vec::<String>::new()).unwrap()
-            ),
-            "Create exact current state.".into(),
-        )
-        .unwrap();
-        let repository_v2 = fixture_repository_v2(&genesis);
-
-        for writes in [
-            vec![
-                PlannedWrite::write(
-                    RepoPath::parse(".vela/origin.json").unwrap(),
-                    WriteClass::CanonicalEvidence,
-                    origin.canonical_bytes().unwrap(),
-                ),
-                PlannedWrite::write(
-                    RepoPath::parse(".vela/repository.json").unwrap(),
-                    WriteClass::CanonicalEvidence,
-                    repository_v2.canonical_bytes().unwrap(),
-                ),
-            ],
-            vec![
-                PlannedWrite::write(
-                    RepoPath::parse(".vela/epoch.json").unwrap(),
-                    WriteClass::CanonicalEvidence,
-                    genesis.canonical_bytes().unwrap(),
-                ),
-                PlannedWrite::write(
-                    RepoPath::parse(".vela/repository.json").unwrap(),
-                    WriteClass::CanonicalEvidence,
-                    repository_v3.canonical_bytes().unwrap(),
-                ),
-            ],
-        ] {
-            assert!(matches!(
-                verify_fresh_fixture(&root, writes),
-                Err(FrontierTxnError::RepositoryWriteIntentDenied { .. })
-            ));
-        }
-
-        let genesis_origin = vela_protocol::repository_origin::RepositoryOriginV1::genesis(
-            "vfr_fixture".into(),
-            profile_root.clone(),
-            "Create exact current state.".into(),
-        )
-        .unwrap();
-        let genesis_repository_v3 = fixture_repository_v3(&genesis_origin);
-        verify_fresh_fixture(
-            &root,
-            vec![
-                PlannedWrite::write(
-                    RepoPath::parse(".vela/origin.json").unwrap(),
-                    WriteClass::CanonicalEvidence,
-                    genesis_origin.canonical_bytes().unwrap(),
-                ),
-                PlannedWrite::write(
-                    RepoPath::parse(".vela/repository.json").unwrap(),
-                    WriteClass::CanonicalEvidence,
-                    genesis_repository_v3.canonical_bytes().unwrap(),
-                ),
-            ],
-        )
-        .unwrap();
-
-        let other_origin = fixture_compaction_origin(
-            "vfr_fixture",
-            &profile_root,
-            &empty_object_set_root,
-            "Compact a substituted current state.",
-        );
-        assert!(matches!(
-            verify_fresh_fixture(
-                &root,
-                vec![
-                    PlannedWrite::write(
-                        RepoPath::parse(".vela/origin.json").unwrap(),
-                        WriteClass::CanonicalEvidence,
-                        other_origin.canonical_bytes().unwrap(),
-                    ),
-                    PlannedWrite::write(
-                        RepoPath::parse(".vela/repository.json").unwrap(),
-                        WriteClass::CanonicalEvidence,
-                        repository_v3.canonical_bytes().unwrap(),
-                    ),
-                ],
-            ),
-            Err(FrontierTxnError::RepositoryWriteIntentDenied { .. })
-        ));
-    }
-
-    #[test]
-    fn compaction_authorization_binds_exact_materialized_records_and_delta() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
-        fs::create_dir_all(root.join("records/artifacts/sha256")).unwrap();
-        write_fixture_profile(&root);
-        assert!(
-            crate::current_repository::verify_current_bootstrap_at(&root).is_err(),
-            "native bootstrap must continue to reject pre-authority records"
-        );
-        let artifact_bytes = b"exact retained artifact";
-        let artifact_root = ContentDigest::hash(artifact_bytes);
-        let artifact_id = artifact_root.file_stem().to_string();
-        let artifact_path = format!("records/artifacts/sha256/{artifact_id}");
-        fs::write(root.join(&artifact_path), artifact_bytes).unwrap();
-        let objects = vec![vela_protocol::current_repository::RepositoryObjectRefV1 {
-            schema: "content-addressed-artifact".into(),
-            id: artifact_id,
-            root: artifact_root.as_str().into(),
-            path: artifact_path,
-        }];
-        let trusted_home = temp.path();
-        let mut authorization =
-            verify_compaction_repository_authorization(&root, trusted_home, &objects).unwrap();
-        let profile = crate::current_repository::verify_current_profile_at(&root).unwrap();
-        let profile_root = profile.profile_root().unwrap();
-        let object_set_root = format!(
-            "sha256:{}",
-            vela_protocol::canonical::sha256_canonical(&objects).unwrap()
-        );
-        let origin = fixture_compaction_origin(
-            &profile.frontier_id,
-            &profile_root,
-            &object_set_root,
-            "Compact exact retained state.",
-        );
-        let mut repository = fixture_repository_v3(&origin);
-        repository.artifacts = objects.clone();
-        let mut writes = vec![
-            PlannedWrite::write(
-                RepoPath::parse(".vela/origin.json").unwrap(),
-                WriteClass::CanonicalEvidence,
-                origin.canonical_bytes().unwrap(),
-            ),
-            PlannedWrite::write(
-                RepoPath::parse(".vela/repository.json").unwrap(),
-                WriteClass::CanonicalEvidence,
-                repository.canonical_bytes().unwrap(),
-            ),
-            fixture_authority_initialization_write(&profile.frontier_id),
-            fixture_covering_authority_record_write(),
-        ];
-        let draft = DeltaDraft::prepare(&root, std::mem::take(&mut writes)).unwrap();
-        bind_fresh_repository_authorization(&mut authorization, &draft.delta, |blob| {
-            draft.blobs.get(&blob.digest).cloned().ok_or_else(|| {
-                FrontierTxnError::CorruptPlan(format!(
-                    "fixture has no blob {}",
-                    blob.digest.as_str()
-                ))
-            })
-        })
-        .unwrap();
-
-        fs::write(root.join("records/unrelated.json"), b"unrelated").unwrap();
-        assert!(matches!(
-            verify_compaction_repository_authorization(&root, trusted_home, &objects),
-            Err(FrontierTxnError::RepositoryWriteIntentDenied { .. })
-        ));
-        fs::remove_file(root.join("records/unrelated.json")).unwrap();
-        fs::write(root.join(&objects[0].path), b"substituted").unwrap();
-        assert!(matches!(
-            verify_compaction_repository_authorization(&root, trusted_home, &objects),
-            Err(FrontierTxnError::RepositoryWriteIntentDenied { .. })
-        ));
-        fs::remove_file(root.join(&objects[0].path)).unwrap();
-        assert!(matches!(
-            verify_compaction_repository_authorization(&root, trusted_home, &objects),
-            Err(FrontierTxnError::RepositoryWriteIntentDenied { .. })
-        ));
-    }
-
-    #[test]
-    fn compaction_authorization_survives_marker_and_installs_exact_delta() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
-        fs::create_dir_all(root.join("records/artifacts/sha256")).unwrap();
-        write_fixture_profile(&root);
-        let artifact_bytes = b"exact retained artifact";
-        let artifact_root = ContentDigest::hash(artifact_bytes);
-        let artifact_id = artifact_root.file_stem().to_string();
-        let artifact_path = format!("records/artifacts/sha256/{artifact_id}");
-        fs::write(root.join(&artifact_path), artifact_bytes).unwrap();
-        let objects = vec![vela_protocol::current_repository::RepositoryObjectRefV1 {
-            schema: "content-addressed-artifact".into(),
-            id: artifact_id,
-            root: artifact_root.as_str().into(),
-            path: artifact_path,
-        }];
-        let profile = crate::current_repository::verify_current_profile_at(&root).unwrap();
-        let profile_root = profile.profile_root().unwrap();
-        let object_set_root = format!(
-            "sha256:{}",
-            vela_protocol::canonical::sha256_canonical(&objects).unwrap()
-        );
-        let origin = fixture_compaction_origin(
-            &profile.frontier_id,
-            &profile_root,
-            &object_set_root,
-            "Compact exact retained state.",
-        );
-        let mut repository = fixture_repository_v3(&origin);
-        repository.artifacts = objects.clone();
+        let repository = fixture_repository(origin);
         let writes = vec![
             PlannedWrite::write(
                 RepoPath::parse(".vela/origin.json").unwrap(),
@@ -4638,103 +3886,66 @@ license:
                 WriteClass::CanonicalEvidence,
                 repository.canonical_bytes().unwrap(),
             ),
-            fixture_authority_initialization_write(&profile.frontier_id),
+            fixture_authority_initialization_write(&origin.frontier_id),
             fixture_covering_authority_record_write(),
         ];
-        let draft = DeltaDraft::prepare(&root, writes).unwrap();
-        let empty_event_root = event_log_root(&[]).unwrap();
-        let operation_id = OperationId::derive("repository_compaction", b"exact marker fixture");
-        let plan = FrontierTxnPlan::new(
-            FrontierTxnPlanSpec {
-                kind: OperationKind::Decision,
-                operation_id,
-                request_root: ContentDigest::hash(b"exact marker fixture"),
-                frontier: FrontierBinding::new(
-                    &root,
-                    profile.frontier_id,
-                    b"compact-v3 marker fixture",
-                )
-                .unwrap(),
-                fixed_time: "2026-07-29T00:00:00Z".into(),
-                expected_event_log_root: empty_event_root.clone(),
-                resulting_event_log_root: empty_event_root,
-                resulting_event_ids: Vec::new(),
-                read_set: Vec::new(),
-                result: json!({"schema": "vela.compaction-marker-fixture.v1"}),
-            },
-            draft.delta.clone(),
-        )
-        .unwrap();
-        let journal_dir = root.join(".vela/operation-journals/frontier");
-        let barrier = FrontierTxn::acquire_repository_compaction_initialization_barrier(
-            &root,
-            &journal_dir,
-            &objects,
-        )
-        .unwrap();
-        let mut transaction = FrontierTxn::prepare_with_barrier(barrier, plan, draft).unwrap();
-
-        transaction.mark_committed().unwrap();
-        transaction.install().unwrap();
-        transaction.complete().unwrap();
-
-        assert_eq!(
-            fs::read(root.join(".vela/origin.json")).unwrap(),
-            origin.canonical_bytes().unwrap()
-        );
-        assert_eq!(
-            fs::read(root.join(".vela/repository.json")).unwrap(),
-            repository.canonical_bytes().unwrap()
-        );
-        assert_eq!(
-            fs::read(root.join(&objects[0].path)).unwrap(),
-            artifact_bytes
-        );
+        let draft = DeltaDraft::prepare(root, writes).unwrap();
+        verify_fresh_repository_delta(&draft.delta, |blob| {
+            draft.blobs.get(&blob.digest).cloned().ok_or_else(|| {
+                FrontierTxnError::CorruptPlan(format!(
+                    "fixture has no blob {}",
+                    blob.digest.as_str()
+                ))
+            })
+        })
     }
 
     #[test]
-    fn current_epoch_trust_accepts_current_or_one_record_predecessor_only() {
+    fn fresh_repository_delta_accepts_only_empty_genesis_origin() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
         let frontier_id = "vfr_0123456789abcdef";
-        let current = format!("sha256:{}", "1".repeat(64));
-        let predecessor = format!("sha256:{}", "2".repeat(64));
-        let mut anchor = AuthorityTrustAnchorV1 {
-            schema: AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.into(),
-            frontier_id: frontier_id.into(),
-            first_authority_record_root: current.clone(),
-        };
-        assert!(authority_anchor_selects_current_epoch(
-            &anchor,
-            frontier_id,
-            &current,
-            &predecessor
-        ));
+        let profile_root = fixture_root('c');
+        let genesis = vela_protocol::repository_origin::RepositoryOriginV1::genesis(
+            frontier_id.into(),
+            profile_root.clone(),
+            "Establish current repository authority.".into(),
+        )
+        .unwrap();
+        verify_fresh_fixture(root, &genesis).unwrap();
 
-        anchor.first_authority_record_root = predecessor.clone();
-        assert!(authority_anchor_selects_current_epoch(
-            &anchor,
-            frontier_id,
-            &current,
-            &predecessor
-        ));
-
-        anchor.first_authority_record_root = format!("sha256:{}", "3".repeat(64));
-        assert!(!authority_anchor_selects_current_epoch(
-            &anchor,
-            frontier_id,
-            &current,
-            &predecessor
+        let compaction = vela_protocol::repository_origin::RepositoryOriginV1::compaction(
+            frontier_id.into(),
+            2,
+            profile_root,
+            genesis.initial_object_set_root.clone(),
+            vela_protocol::repository_origin::RepositoryOriginPredecessorV1 {
+                remote: "https://github.com/vela-science/fixture.git".into(),
+                tag: "pre-compaction/111111111111".into(),
+                commit: "1".repeat(40),
+                tree: "2".repeat(40),
+                repository_root: fixture_root('3'),
+                authority_head_root: fixture_root('4'),
+                archived_event_log_root: fixture_root('5'),
+                archived_actor_registry_root: fixture_root('6'),
+                archive_sha256: fixture_root('7'),
+                object_manifest_root: fixture_root('8'),
+                equivalence_report_root: fixture_root('9'),
+            },
+            "Historical compaction fixture.".into(),
+        )
+        .unwrap();
+        assert!(matches!(
+            verify_fresh_fixture(root, &compaction),
+            Err(FrontierTxnError::RepositoryWriteIntentDenied { .. })
         ));
     }
 
     fn fixture_plan(root: &Path, draft: &DeltaDraft, identity: &[u8]) -> FrontierTxnPlan {
         let operation_id = OperationId::derive("submission", identity);
         let request_root = ContentDigest::hash(identity);
-        let frontier_id = crate::current_repository::verify_compacted_repository_at(root, false)
+        let frontier_id = crate::current_repository::verify_current_repository_at(root, false)
             .map(|repository| repository.frontier_id)
-            .or_else(|_| {
-                crate::current_repository::verify_predecessor_repository_at(root, false)
-                    .map(|repository| repository.frontier_id)
-            })
             .unwrap_or_else(|_| "vfr_test".to_string());
         let resulting_event_ids = current_event_log_events(root)
             .unwrap()

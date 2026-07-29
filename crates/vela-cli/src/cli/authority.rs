@@ -27,17 +27,13 @@ use vela_protocol::authority::{
     POLICY_BUNDLE_SCHEMA_V1, PolicyBundleV1, PrincipalSnapshotV1, SemanticApprovalV1,
 };
 use vela_protocol::authority_history::{
-    AUTHORITY_INITIALIZE_ACTION, AUTHORITY_INITIALIZED_EVENT_KIND, ArchivedAuthorityPredecessor,
-    AuthorityHistoryInput, AuthorityHistoryVerification, AuthorityInitializationV1,
-    verify_authority_history,
+    AUTHORITY_INITIALIZE_ACTION, AUTHORITY_INITIALIZED_EVENT_KIND, AuthorityHistoryInput,
+    AuthorityHistoryVerification, AuthorityInitializationV1, verify_authority_history,
 };
 use vela_protocol::canonical::to_canonical_bytes;
-use vela_protocol::current_repository::{
-    CURRENT_REPOSITORY_SCHEMA_V3, CurrentRepositoryV2, CurrentRepositoryV3,
-};
+use vela_protocol::current_repository::{CURRENT_REPOSITORY_SCHEMA_V3, CurrentRepositoryV3};
 use vela_protocol::events::{EventKind, NULL_HASH, StateActor, StateTarget};
 use vela_protocol::principal_capability::PrincipalClass;
-use vela_protocol::repository_epoch::RepositoryBoundaryV1;
 use vela_protocol::repository_origin::RepositoryOriginV1;
 
 use crate::authority_transaction::{
@@ -604,12 +600,12 @@ fn pin_repository_authority(
     record_root: &str,
     previous_record_root: Option<&str>,
 ) -> Result<Value, String> {
-    let repository = crate::current_repository::verify_compacted_repository_at(frontier, true)?;
+    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
     let origin = vela_protocol::repository_origin::RepositoryOriginV1::parse(
         &std::fs::read(frontier.join(".vela/origin.json"))
             .map_err(|error| format!("read current repository origin: {error}"))?,
     )?;
-    let authority = load_compacted_repository_authority(frontier, &repository, &origin)?;
+    let authority = load_current_repository_authority(frontier, &repository, &origin)?;
     let first_envelope = authority
         .history
         .authority_envelopes
@@ -814,12 +810,9 @@ fn initialize_current_repository_authority(
         AuthorityTransactionRequest {
             history: AuthorityHistorySnapshot {
                 frontier_id: profile.frontier_id.clone(),
-                legacy_events: Vec::new(),
-                legacy_actor_registry_bytes: Vec::new(),
-                archived_predecessor_event_log_root: None,
-                archived_predecessor_actor_registry_root: None,
-                legacy_active_policy_head_root: NULL_HASH.into(),
-                legacy_policy_store_manifest_root: NULL_HASH.into(),
+                initial_event_log_root: empty_repository_event_log_root(),
+                initial_actor_registry_root: empty_repository_actor_registry_root(),
+                initial_snapshots_preexisting: false,
                 authority_keyset,
                 policy_bundle,
                 retained_authority_keysets: Vec::new(),
@@ -893,7 +886,7 @@ fn initialize_current_repository_authority(
         &mut signer,
     )
     .map_err(|error| error.to_string())?;
-    let verified = crate::current_repository::load_compacted_repository_at(frontier, true)?;
+    let verified = crate::current_repository::load_current_repository_at(frontier, true)?;
     if verified.canonical_root()? != repository_root {
         return Err("native repository genesis replay produced a different manifest".into());
     }
@@ -942,7 +935,7 @@ fn initialize_current_repository_authority(
             String::from_utf8_lossy(&commit.stderr).trim()
         ));
     }
-    let verified = crate::current_repository::verify_compacted_repository_at(frontier, true)?;
+    let verified = crate::current_repository::verify_current_repository_at(frontier, true)?;
     if verified.canonical_root()? != repository_root {
         return Err("native repository genesis replay produced a different manifest".into());
     }
@@ -981,118 +974,11 @@ fn initialize_current_repository_authority(
     }))
 }
 
-/// Load and replay repository authority after a current epoch has retired its
-/// active Era-0 bytes.
+/// Load repository authority for the current-origin repository.
 ///
-/// Sequence 1 must bind the exact predecessor event and actor-registry roots
-/// retained by the signed repository epoch. Later records replay normally.
+/// A current origin starts a sequence-1 authority history over either its
+/// archived predecessor roots or the protocol null roots.
 pub(crate) fn load_current_repository_authority(
-    frontier: &Path,
-    repository: &CurrentRepositoryV2,
-    epoch: &RepositoryBoundaryV1,
-) -> Result<LoadedRepositoryAuthority, String> {
-    if repository.frontier_id != epoch.frontier_id()
-        || repository.epoch_id != epoch.epoch_id()
-        || repository.epoch_root != epoch.canonical_root()?
-    {
-        return Err(
-            "current repository authority loader received a mismatched repository epoch".into(),
-        );
-    }
-    let authority_root = frontier.join(".vela/authority");
-    let retained_authority_keysets =
-        read_authority_json_directory::<AuthorityKeysetV1>(&authority_root.join("keysets"))?;
-    let retained_policy_bundles =
-        read_authority_json_directory::<PolicyBundleV1>(&authority_root.join("policies"))?;
-    let authority_events =
-        read_authority_json_directory::<AuthorityEventV1>(&authority_root.join("events"))?;
-    let authority_envelopes =
-        read_authority_json_directory::<AuthorityEnvelopeV1>(&authority_root.join("records"))?;
-    let mut authority_envelopes = authority_envelopes
-        .into_iter()
-        .map(|envelope| Ok((authority_envelope_sequence(&envelope)?, envelope)))
-        .collect::<Result<Vec<_>, String>>()?;
-    authority_envelopes.sort_by_key(|(sequence, _)| *sequence);
-    let authority_envelopes = authority_envelopes
-        .into_iter()
-        .map(|(_, envelope)| envelope)
-        .collect::<Vec<_>>();
-    let archived_predecessor =
-        epoch
-            .predecessor_roots()
-            .map(|roots| ArchivedAuthorityPredecessor {
-                event_log_root: roots.event_log.as_str(),
-                actor_registry_root: roots.actor_registry.as_str(),
-            });
-    let verification = verify_authority_history(AuthorityHistoryInput {
-        frontier_id: &repository.frontier_id,
-        legacy_events: &[],
-        legacy_actor_registry_bytes: &[],
-        archived_predecessor,
-        legacy_active_policy_head_root: NULL_HASH,
-        legacy_policy_store_manifest_root: NULL_HASH,
-        authority_keysets: &retained_authority_keysets,
-        policy_bundles: &retained_policy_bundles,
-        authority_events: &authority_events,
-        authority_envelopes: &authority_envelopes,
-    })?;
-    let active_keyset_root = verification
-        .final_authority_keyset_root
-        .as_deref()
-        .ok_or_else(|| "current repository authority has no active keyset root".to_string())?;
-    let active_policy_root = verification
-        .final_policy_bundle_root
-        .as_deref()
-        .ok_or_else(|| "current repository authority has no active policy root".to_string())?;
-    if active_keyset_root != repository.authority_keyset_root
-        || active_policy_root != repository.authority_policy_root
-    {
-        return Err(
-            "current repository manifest does not bind the verified authority heads".into(),
-        );
-    }
-    let authority_keyset = retained_authority_keysets
-        .iter()
-        .find(|keyset| keyset.root().is_ok_and(|root| root == active_keyset_root))
-        .cloned()
-        .ok_or_else(|| "current active repository-authority keyset is missing".to_string())?;
-    let policy_bundle = retained_policy_bundles
-        .iter()
-        .find(|bundle| bundle.root().is_ok_and(|root| root == active_policy_root))
-        .cloned()
-        .ok_or_else(|| "current active repository policy is missing".to_string())?;
-    let policy_material = load_retained_policy_material(frontier, &policy_bundle)?;
-    Ok(LoadedRepositoryAuthority {
-        history: AuthorityHistorySnapshot {
-            frontier_id: repository.frontier_id.clone(),
-            legacy_events: Vec::new(),
-            legacy_actor_registry_bytes: Vec::new(),
-            archived_predecessor_event_log_root: epoch
-                .predecessor_roots()
-                .map(|roots| roots.event_log.clone()),
-            archived_predecessor_actor_registry_root: epoch
-                .predecessor_roots()
-                .map(|roots| roots.actor_registry.clone()),
-            legacy_active_policy_head_root: NULL_HASH.into(),
-            legacy_policy_store_manifest_root: NULL_HASH.into(),
-            authority_keyset,
-            policy_bundle,
-            retained_authority_keysets,
-            retained_policy_bundles,
-            authority_events,
-            authority_envelopes,
-        },
-        policy_material,
-        verification,
-    })
-}
-
-/// Load repository authority for the final current-origin repository.
-///
-/// A current origin starts a fresh sequence-1 authority history. A compacted
-/// origin starts over exact archived predecessor roots; a genesis origin
-/// starts over the protocol null roots.
-pub(crate) fn load_compacted_repository_authority(
     frontier: &Path,
     repository: &vela_protocol::current_repository::CurrentRepositoryV3,
     origin: &vela_protocol::repository_origin::RepositoryOriginV1,
@@ -1140,14 +1026,9 @@ pub(crate) fn load_compacted_repository_authority(
         .collect::<Vec<_>>();
     let verification = verify_authority_history(AuthorityHistoryInput {
         frontier_id: &repository.frontier_id,
-        legacy_events: &[],
-        legacy_actor_registry_bytes: &[],
-        archived_predecessor: Some(ArchivedAuthorityPredecessor {
-            event_log_root: initial_event_log_root,
-            actor_registry_root: initial_actor_registry_root,
-        }),
-        legacy_active_policy_head_root: NULL_HASH,
-        legacy_policy_store_manifest_root: NULL_HASH,
+        initial_event_log_root,
+        initial_actor_registry_root,
+        initial_snapshots_preexisting: origin.predecessor.is_some(),
         authority_keysets: &retained_authority_keysets,
         policy_bundles: &retained_policy_bundles,
         authority_events: &authority_events,
@@ -1156,38 +1037,33 @@ pub(crate) fn load_compacted_repository_authority(
     let active_keyset_root = verification
         .final_authority_keyset_root
         .as_deref()
-        .ok_or_else(|| "compacted repository authority has no active keyset root".to_string())?;
+        .ok_or_else(|| "repository authority has no active keyset root".to_string())?;
     let active_policy_root = verification
         .final_policy_bundle_root
         .as_deref()
-        .ok_or_else(|| "compacted repository authority has no active policy root".to_string())?;
+        .ok_or_else(|| "repository authority has no active policy root".to_string())?;
     if active_keyset_root != repository.authority_keyset_root
         || active_policy_root != repository.authority_policy_root
     {
-        return Err(
-            "compacted repository manifest does not bind the verified authority heads".into(),
-        );
+        return Err("repository manifest does not bind the verified authority heads".into());
     }
     let authority_keyset = retained_authority_keysets
         .iter()
         .find(|keyset| keyset.root().is_ok_and(|root| root == active_keyset_root))
         .cloned()
-        .ok_or_else(|| "compacted repository active authority keyset is missing".to_string())?;
+        .ok_or_else(|| "active repository-authority keyset is missing".to_string())?;
     let policy_bundle = retained_policy_bundles
         .iter()
         .find(|bundle| bundle.root().is_ok_and(|root| root == active_policy_root))
         .cloned()
-        .ok_or_else(|| "compacted repository active policy is missing".to_string())?;
+        .ok_or_else(|| "active repository policy is missing".to_string())?;
     let policy_material = load_retained_policy_material(frontier, &policy_bundle)?;
     Ok(LoadedRepositoryAuthority {
         history: AuthorityHistorySnapshot {
             frontier_id: repository.frontier_id.clone(),
-            legacy_events: Vec::new(),
-            legacy_actor_registry_bytes: Vec::new(),
-            archived_predecessor_event_log_root: Some(initial_event_log_root.to_string()),
-            archived_predecessor_actor_registry_root: Some(initial_actor_registry_root.to_string()),
-            legacy_active_policy_head_root: NULL_HASH.into(),
-            legacy_policy_store_manifest_root: NULL_HASH.into(),
+            initial_event_log_root: initial_event_log_root.to_string(),
+            initial_actor_registry_root: initial_actor_registry_root.to_string(),
+            initial_snapshots_preexisting: origin.predecessor.is_some(),
             authority_keyset,
             policy_bundle,
             retained_authority_keysets,

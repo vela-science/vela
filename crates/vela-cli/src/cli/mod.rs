@@ -71,34 +71,6 @@ pub async fn run_command() {
             RepositoryAction::Verify { frontier, json } => {
                 crate::current_repository::cmd_repository_verify(&frontier, json)
             }
-            RepositoryAction::Compact {
-                frontier,
-                check,
-                output,
-                activate,
-                confirm_root,
-                json,
-            } => crate::current_compaction::cmd_compaction(
-                &frontier,
-                check,
-                output.as_deref(),
-                activate.as_deref(),
-                confirm_root.as_deref(),
-                json,
-            ),
-            RepositoryAction::FinalizeCompaction {
-                results,
-                check,
-                publish,
-                confirm_root,
-                json,
-            } => crate::current_compaction::cmd_finalize_compaction(
-                &results,
-                check,
-                publish,
-                confirm_root.as_deref(),
-                json,
-            ),
         },
         Commands::Check {
             source,

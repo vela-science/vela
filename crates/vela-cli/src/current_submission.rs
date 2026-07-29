@@ -268,7 +268,6 @@ fn proposed_change(
         }],
         relations,
         submission.provenance.emitted_at.clone(),
-        None,
         BTreeMap::new(),
     )?;
     let root = claim.canonical_root()?;
@@ -393,7 +392,7 @@ pub(crate) fn submit(
         );
     }
 
-    let repository = crate::current_repository::verify_compacted_repository_at(frontier, true)?;
+    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
     let submission_root = submission.canonical_root()?;
     if let Some(outcome) = existing_outcome(frontier, &repository, submission, &submission_root)? {
@@ -411,8 +410,7 @@ pub(crate) fn submit(
         &journal_dir,
     )
     .map_err(|error| error.to_string())?;
-    let held_repository =
-        crate::current_repository::verify_compacted_repository_at(frontier, true)?;
+    let held_repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
     if held_repository.canonical_root()? != repository_root {
         return Err("current repository changed while acquiring the submit barrier".into());
     }
@@ -429,7 +427,7 @@ pub(crate) fn submit(
         return Err("current repository origin is not canonical JSON".into());
     }
     let authority =
-        crate::cli::load_compacted_repository_authority(frontier, &held_repository, &origin)?;
+        crate::cli::load_current_repository_authority(frontier, &held_repository, &origin)?;
 
     let registration_action = if authority
         .policy_material
@@ -501,7 +499,6 @@ pub(crate) fn submit(
             path: submission_path.clone(),
         },
         submission.caveats.clone(),
-        None,
     )?;
     let proposal_root = proposal.canonical_root()?;
     let proposal_path = rooted_path("records/proposals/sha256", &proposal_root)?;
@@ -782,7 +779,7 @@ pub(crate) fn submit(
             | PublicationState::CommittedLocal { .. }
             | PublicationState::Pushed { .. }
     ) {
-        crate::current_repository::verify_compacted_repository_at(frontier, true).map_err(
+        crate::current_repository::verify_current_repository_at(frontier, true).map_err(
             |error| {
                 format!(
                     "Submission was published but strict post-publication verification failed: \
@@ -932,7 +929,6 @@ mod tests {
             }],
             Vec::new(),
             "2026-07-26T00:00:00Z".into(),
-            None,
             BTreeMap::new(),
         )
         .unwrap()

@@ -9,10 +9,10 @@ schemas. Vela owns the closed seal and freshness checks.
 
 ## Current contract
 
-Current repositories use `vela.target-index.v3`. The index binds:
+Current repositories use `vela.target-index.v4`. The index binds:
 
 - Frontier ID;
-- current repository epoch ID and root;
+- current repository origin ID and root;
 - source Git object format, commit, and tree;
 - a complete sorted input manifest and root;
 - sealing Vela version;
@@ -41,7 +41,7 @@ It declares:
 
 Vela validates the candidate, resolves every input from the source commit,
 reads each packet once, fills byte lengths and digests, binds the current
-repository epoch/root, and computes the index root. It never invents or
+repository origin/root, and computes the index root. It never invents or
 reranks domain semantics.
 
 ```bash
@@ -70,7 +70,7 @@ At inspection, Offer, and Attempt time Vela verifies:
   tree;
 - the source tree does not contain the sealed output blob;
 - every declared input path, mode, size, and digest matches;
-- the current epoch ID and repository root match;
+- the current origin ID and repository root match;
 - Target, packet, input, and index roots rederive; and
 - the selected Target is open and not under a live local Attempt lock.
 
@@ -92,7 +92,7 @@ returned   = offers after the requested limit
 `vela start` rechecks the selected entry and creates one ignored
 `vela.attempt.v2` bound to:
 
-- current repository epoch and root;
+- current repository origin and root;
 - Target Index and input roots;
 - source Git commit/tree;
 - exact Target and packet;

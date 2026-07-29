@@ -1,9 +1,7 @@
-//! Current-epoch object, standing, and authority-history readers.
+//! Current object, standing, and authority-history readers.
 //!
-//! A repository epoch retires the Era-0 project snapshot as an active read
-//! dependency. These projections therefore use only the verified current
-//! repository manifest, its content-addressed records, and covered repository
-//! authority history.
+//! These projections use only the verified repository manifest, its
+//! content-addressed records, and covered repository-authority history.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -63,13 +61,12 @@ fn read_value(frontier: &Path, reference: &RepositoryObjectRefV1) -> Result<Valu
 }
 
 fn load_context(frontier: &Path) -> Result<CurrentReadContext, String> {
-    let repository = crate::current_repository::load_compacted_repository_at(frontier, true)?;
+    let repository = crate::current_repository::load_current_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
     let origin_bytes = fs::read(frontier.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
     let origin = RepositoryOriginV1::parse(&origin_bytes)?;
-    let authority =
-        crate::cli::load_compacted_repository_authority(frontier, &repository, &origin)?;
+    let authority = crate::cli::load_current_repository_authority(frontier, &repository, &origin)?;
     let decisions =
         crate::current_repository::load_current_proposal_decisions(frontier, &repository)?;
     let proposals = repository
@@ -508,7 +505,6 @@ pub(crate) fn claim_payload(frontier: &Path, claim_id: &str, view: &str) -> Resu
             "source_era": "current",
             "created_at": claim.created_at,
             "provenance": claim.provenance,
-            "imported_from": claim.imported_from,
         }),
         other => return Err(format!("unsupported Claim view {other:?}")),
     };

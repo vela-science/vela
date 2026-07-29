@@ -10,7 +10,7 @@ true, novel, important, or ethical.
   Event, and Artifact bytes;
 - repository-authority keysets, policy material, and history;
 - the authenticated principal and semantic action behind each canonical write;
-- exact Git commit/tree, repository epoch, object sets, and roots;
+- exact Git commit/tree, repository origin, object sets, and roots;
 - the independently distributed sequence-one authority-record root;
 - Target, packet, Attempt, and Submission bindings; and
 - deterministic replay and frozen verifier contracts.
@@ -106,7 +106,7 @@ the full first authority-record root from an independent channel.
 
 ### Fork and rollback
 
-Strict checking verifies the repository epoch, predecessor commitment, Git
+Strict checking verifies the repository origin, predecessor commitment, Git
 commit/tree, authority-chain continuity, repository manifest, and current
 objects. A valid Git commit or authority signature alone does not prove that a
 consumer has the intended fork.
@@ -117,7 +117,7 @@ copy retains.
 
 ### Stale or malicious work projection
 
-The Target Index is derived but binds the current repository epoch/root,
+The Target Index is derived but binds the current repository origin/root,
 source inputs, packets, task contracts, and deterministic rank facts.
 `next` validates the full index; `start` revalidates the chosen Target.
 
@@ -151,16 +151,16 @@ Agreement among readers is corroboration, not authority.
 
 ### Repository predecessor substitution
 
-The current epoch binds the exact predecessor remote, tag, commit, tree,
-canonical roots, Git-object manifest, archive digest, imported Claim set,
-retained current objects, archived-object index, and equivalence report.
+The current origin binds the exact predecessor remote, tag, commit, tree,
+repository and authority roots, archived Event and actor roots, Git-object
+manifest, archive digest, and equivalence report.
 
 The transition is signed by repository authority with a null scientific
 before/after effect. Missing objects, changed mappings, partial archives,
 ambiguous Claims, altered Standing, or a mismatched plan fail before commit.
 
 The one-time transition tool has been removed. Current verification retains the
-signed epoch boundary and rejects any reintroduced predecessor path.
+signed origin boundary and rejects any reintroduced predecessor path.
 
 ## Partially mitigated risks
 

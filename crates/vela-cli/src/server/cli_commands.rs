@@ -65,7 +65,7 @@ pub enum ConfigAction {
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
-    /// Verify the current repository epoch and authority boundary.
+    /// Verify the current repository origin and authority boundary.
     #[command(hide = true)]
     Repository {
         #[command(subcommand)]
@@ -520,7 +520,7 @@ pub(crate) enum AuthorityTrustAction {
         /// Full sequence-1 authority-record root from an independent channel.
         #[arg(long)]
         record_root: String,
-        /// Exact currently installed root when advancing a verified epoch pin.
+        /// Exact currently installed root when advancing a verified origin pin.
         #[arg(long)]
         previous_record_root: Option<String>,
         #[arg(long)]
@@ -530,46 +530,10 @@ pub(crate) enum AuthorityTrustAction {
 
 #[derive(Subcommand)]
 pub(crate) enum RepositoryAction {
-    /// Verify one current-only repository epoch and its sequence-1 authority boundary.
+    /// Verify one current repository and its authority history.
     Verify {
         #[arg(default_value = ".")]
         frontier: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Preview or activate the one-time pre-release current-state compaction.
-    Compact {
-        #[arg(default_value = ".")]
-        frontier: PathBuf,
-        /// Require the command to remain read-only.
-        #[arg(long, conflicts_with = "activate")]
-        check: bool,
-        /// Materialize the verified candidate object set outside the Frontier.
-        #[arg(long, requires = "check")]
-        output: Option<PathBuf>,
-        /// Prepare a signed compact-origin commit in an isolated worktree.
-        #[arg(long, value_name = "CANDIDATE", conflicts_with = "check")]
-        activate: Option<PathBuf>,
-        /// Confirm the full candidate plan root before authentication.
-        #[arg(long, requires = "activate")]
-        confirm_root: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Verify or publish a complete set of prepared compaction activations.
-    FinalizeCompaction {
-        /// Activation result JSON emitted by `repository compact --activate`.
-        #[arg(long = "result", required = true, num_args = 1..)]
-        results: Vec<PathBuf>,
-        /// Verify every isolated commit and remote precondition without writing.
-        #[arg(long, conflicts_with = "publish")]
-        check: bool,
-        /// Publish every verified commit and fast-forward its source checkout.
-        #[arg(long, conflicts_with = "check")]
-        publish: bool,
-        /// Confirm the full aggregate activation root before publication.
-        #[arg(long, requires = "publish")]
-        confirm_root: Option<String>,
         #[arg(long)]
         json: bool,
     },

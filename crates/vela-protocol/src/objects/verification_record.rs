@@ -311,7 +311,7 @@ mod tests {
         let draft = VerificationRecordDraft {
             subject: VerificationSubject {
                 claim_id: "vf_fixture".into(),
-                artifact_ids: vec!["va_input".into()],
+                artifact_ids: vec!["a".repeat(64)],
                 submission_id: "vsb_fixture".into(),
                 submission_root: root('a'),
                 proposal_id: "vpr_fixture".into(),
@@ -331,7 +331,7 @@ mod tests {
                 declared_independent_of: vec!["agent:fixture".into()],
                 shared_dependencies: vec!["problem specification v1".into()],
             },
-            output_artifact_ids: vec!["va_log".into()],
+            output_artifact_ids: vec!["b".repeat(64)],
             started_at: "2026-07-26T00:00:00Z".into(),
             completed_at: "2026-07-26T00:00:01Z".into(),
         };
@@ -375,10 +375,7 @@ mod tests {
             let (mut draft, identity, key) = fixture();
             draft.subject.artifact_ids = vec![artifact_id];
             let error = VerificationRecordV1::build(draft, identity, &key).unwrap_err();
-            assert!(
-                error.contains("legacy va_ identifier or a full lowercase content hash"),
-                "{error}"
-            );
+            assert!(error.contains("full lowercase content hash"), "{error}");
         }
     }
 }

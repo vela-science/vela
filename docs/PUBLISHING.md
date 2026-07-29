@@ -1,7 +1,7 @@
 # Publishing a Frontier
 
 A published Frontier is one independently clonable Git repository with an
-exact current Vela repository epoch. Publication distributes bytes; it does
+exact current Vela repository origin. Publication distributes bytes; it does
 not create scientific acceptance.
 
 ## Before publishing
@@ -17,7 +17,7 @@ git status --short
 Require:
 
 - clean tracked state;
-- current repository epoch;
+- current repository origin;
 - valid sequence-one authority trust anchor;
 - contiguous repository-authority history;
 - canonical object and repository-root parity;
@@ -34,7 +34,7 @@ Use a normal Git commit and protected public ref. Record:
 - full commit and tree;
 - Vela version and binary SHA-256;
 - Frontier ID;
-- epoch ID and root;
+- origin ID and root;
 - repository root;
 - authority head and Event-log root;
 - accepted and pending Claim-set roots;
@@ -71,7 +71,7 @@ The trust pin reads no key, grants no authority, and changes no Frontier byte.
 The Observatory and other projections must bind:
 
 - exact Frontier source URL, commit, and tree;
-- repository epoch and root;
+- repository origin and root;
 - current authority head;
 - object-set counts and roots;
 - projection schema and root; and
@@ -88,8 +88,9 @@ Publishers do not amend, force-push, or regenerate old canonical bytes.
 A correction is a new Submission, Decision, and Event. It preserves the prior
 Claim and exposes the new Standing through replay.
 
-## Predecessor epochs
+## Predecessor origins
 
-The current epoch binds the predecessor tag, commit, tree, object manifest,
-archive digest, roots, imported Claim set, and equivalence report. Keep those
-objects reachable. Do not present the predecessor as a second live Frontier.
+The current origin binds the predecessor remote, tag, commit, tree, repository
+and authority roots, archived Event and actor roots, object manifest, archive
+digest, and equivalence report. Keep those objects reachable. Do not present
+the predecessor as a second live Frontier.

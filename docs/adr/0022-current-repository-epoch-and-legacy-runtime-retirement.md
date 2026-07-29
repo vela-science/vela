@@ -1,6 +1,6 @@
 # ADR 0022: Current repository epoch and legacy runtime retirement
 
-- Status: Accepted
+- Status: Superseded by accepted ADR 0027
 - Target release: Vela `v0.940.0`
 - Protocol effect: one current-only repository epoch, Claim Record v1,
   Proposal v1, and a signed predecessor boundary
@@ -13,6 +13,10 @@
   the retired protocol
 - Entry gate: satisfied; Quantum Codes, Formal Conjectures, Sidon, and Erdős
   replay as published current epochs with exact signed predecessor boundaries
+
+> Historical decision. ADR 0027 compacted these repositories into the sole
+> current `vela.repository-origin.v1` / `vela.repository.v3` boundary and
+> removed this epoch reader from the active runtime.
 
 ## Context
 

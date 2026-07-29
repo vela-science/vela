@@ -43,7 +43,7 @@ inputs. These profiles are not interchangeable.
 | Frontier ID `vfr_…` | Stable bounded repository identity | Git commit, repository root, or Standing |
 | Git commit | Exact commit object and ancestry | Tree, valid Vela state, or acceptance |
 | Git tree | Exact tracked paths and bytes | Commit ancestry or authority |
-| Epoch ID/root | Current repository epoch and predecessor boundary | Repository root or authority head |
+| Origin ID/root | Immutable repository origin and optional predecessor provenance | Repository root or authority head |
 | Repository root | Canonical current object-set commitment | Git commit, authority record, or Claim Standing |
 | Authority-record root | Full DSSE transaction record commitment | Trust-anchor choice or scientific truth |
 | Authority trust-anchor root | Local closed record selecting sequence one | Secret key, later freshness, or Standing |
@@ -98,22 +98,17 @@ The Event content root covers schema, kind, target, principal attribution,
 time, reason, before/after roots, payload, and caveats. The covering authority
 record signature remains a separate check.
 
-## Repository epoch commitments
+## Repository origin commitments
 
-`vela.repository-epoch.v1` binds the exact predecessor:
+`vela.repository-origin.v1` binds a native genesis or one exact compacted
+pre-release predecessor. A compacted origin commits to the predecessor remote,
+tag, commit, tree, repository and authority roots, archive digest, Git-object
+manifest root, and equivalence-report root.
 
-- remote, tag, commit, and tree;
-- predecessor canonical roots;
-- Git-object manifest root;
-- archive-bundle SHA-256;
-- imported Claim set root;
-- retained current-object set root;
-- archived-object index root; and
-- equivalence-report root.
-
-The current repository root commits to the current epoch and canonical object
-sets. Current bytes do not substitute for predecessor signatures. The epoch
-proves the mapping and retained Standing transition.
+The current `vela.repository.v3` root commits to that origin and every active
+canonical object set. Current bytes do not substitute for predecessor
+signatures; the predecessor remains independently inspectable through its tag,
+archive, and pinned historical release.
 
 ## Comparison contract
 

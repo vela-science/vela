@@ -14,7 +14,7 @@ vela status . --json
 vela reproduce .
 ```
 
-Strict checking validates the current repository epoch, exact Git anchors and
+Strict checking validates the current repository origin, exact Git anchors and
 ancestry, retained canonical objects, authority-history continuity, and the
 consumer's independent sequence-one trust anchor. Obtain the full first
 authority-record root through an independent channel and install it with:
@@ -43,7 +43,7 @@ vela submit --attempt <vat_id> \
   --json
 ```
 
-`next` returns Offers from the fresh Target Index v3. `start` binds one exact
+`next` returns Offers from the fresh Target Index v4. `start` binds one exact
 Target and packet into an Attempt. `submit` registers the resulting Submission,
 issues a Registration Record, and creates a pending Proposal. It does not
 create Verification, a Decision, an Event, or accepted scientific state.

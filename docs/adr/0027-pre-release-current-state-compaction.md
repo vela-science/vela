@@ -1,10 +1,9 @@
 # ADR 0027: Pre-release current-state compaction
 
-- Status: Proposed
-- Target release: Vela `v0.950.0`
-- Protocol effect: replace the two repository-boundary readers with one
-  current `vela.repository-origin.v1` contract after all controlled Frontiers
-  are compacted
+- Status: Accepted and implemented on `main`
+- Target release: next Vela release after `v0.940.9`
+- Protocol effect: the two repository-boundary readers were replaced by one
+  current `vela.repository-origin.v1` contract
 - Scientific effect: none; the accepted assertion, condition, evidence-content,
   provenance, relation, and Standing projection must be exactly equivalent
 - Authority effect: one exact repository-authority approval per Frontier,
@@ -14,6 +13,26 @@
   Era-0, `va_`, imported-wrapper, or old-origin reader
 - Entry gate: all four controlled Frontiers are current, clean, and replayable;
   there are no external users
+
+## Outcome
+
+The protected aggregate plan
+`sha256:f768c16acaaa2dcaa562a49b0e111a794f8983f1bff5783871f8c6f288daef8d`
+was published and verified:
+
+| Frontier | Current commit | Origin root | Repository root |
+| --- | --- | --- | --- |
+| Quantum Codes | `6bc3bacc78942d7d36df60794a211d4a4d750aa3` | `sha256:a52c0aea26726a94b7307b7d07a3ba10b4d6bf4ef1b813cadfebbe69cecb78f1` | `sha256:22a0ef52195d713ddc68c271c5a29de51b54e9b62280103f8acb3f3bcd6b8f1b` |
+| Erdős | `81e79f008b4fc653888efda810dd8eb48e50cffa` | `sha256:49969ef6059e636718da4f5b7d200ef421ed17fc60b8e490d493ea71f7b2f77d` | `sha256:8a98ff1c632232c7b227d87a0f1015aaa3429d38c83592ca66f8e465b06b0ee5` |
+| Sidon | `ec45b155355769b427f5486c617aad4f68b6ee19` | `sha256:32f743244662048879454a80edc2f1ee915276500ae1f488b1fc1f8e819ae1ac` | `sha256:d047416cce0e569145ae38ae73b8a92102d5c5f63bb46602dff80398cada9a0d` |
+| Formal Conjectures | `1ea018d2f5be93325c4e3c7f9b5d82d33e5ba142` | `sha256:aabcbd3a660e5992a13485257df4c8e038c75af2a3e68bf37df16980d390e80a` | `sha256:323269c21ce66b1521d00987ddba2442d69eacfb38bd67d1eb7a96e7644516ca` |
+
+For every Frontier, source `HEAD`, remote `main`, predecessor tag, strict
+replay, repository verification, independently retained trust pin, and a
+fresh finalizer clone agreed. The one-time compactor and publication commands,
+repository-epoch and repository-v2 readers, migration-only Claim and Proposal
+fields, and retired Artifact aliases were then removed from the current
+runtime.
 
 ## Context
 

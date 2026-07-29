@@ -40,6 +40,9 @@ paper from outrunning those results.
   fewer observed tokens and less wall time per verifier-passing artifact than
   both baselines. This is first-party baseline evidence, not a population or
   adoption claim.
+- All four controlled Frontiers now use one repository-origin and repository
+  v3 boundary. Exact predecessor tags and archives remain historical evidence;
+  the one-time compactor and alternate readers are removed.
 
 No replacement assembly or lab repository was created.
 
@@ -51,16 +54,6 @@ crate.
 
 Stage B orchestration shopping is closed for this campaign because the
 registered call ceiling cannot fit it. No framework runtime was added.
-
-## P0: finish the current repository boundary
-
-Activate the four independently materialized current-state compaction plans
-through the protected repository-authority path and verify each resulting
-Frontier from a clean clone. Then delete the one-time compactor, predecessor
-object readers, schemas, fixtures, and migration-only documentation before
-Vela `0.950.0`.
-
-This is bounded cleanup, not the public product milestone.
 
 ## P0: ship one living Erdős map and advance
 
@@ -124,18 +117,17 @@ in a second Frontier without importing its authority. The current legacy
 depth-capped Finding cascade is historical behavior, not the future protocol
 contract.
 
-The frozen B8 audit now shows that the current public contract cannot express
-that second-Frontier retention: migration-only `imported_from` fields omit the
-source Frontier, repository root, Decision, authority anchor, completeness,
-and explicit local non-authority. This is a benchmark failure, not permission
-to revive federation services. Rust and clean-room Python readers now
-reproduce the same gap from compiled types and public source. After the real
-correction became terminal, ADR 0029 proposed the smallest derived transfer
-envelope in the replaceable edge layer. Rust and clean-room Python now agree
-on a synthetic qualification vector with explicit completeness and zero local
-Standing effect. Real Erdős-to-Formal retention waits for the four exact
-current-state compactions so the package binds the current repository root.
-The colocated readers earn no external-independence credit.
+The frozen B8 audit shows that the current public contract cannot express that
+second-Frontier retention. Retired migration fields did not bind the source
+Frontier, repository root, Decision, authority anchor, completeness, or
+explicit local non-authority and are no longer part of current schemas. This
+is a benchmark failure, not permission to revive federation services. Rust and
+clean-room Python readers reproduce the same absence from compiled types and
+public source. ADR 0029 proposes the smallest derived transfer envelope in the
+replaceable edge layer. The four current-state compactions are complete, so a
+real Erdős-to-Formal retention fixture may now be prepared against the exact
+current source root. The colocated readers earn no external-independence
+credit.
 
 The historical entry gate is closed. Across 2,831 current Claim records, the
 four Frontiers contain no current correction relation. Erdős 281 has the

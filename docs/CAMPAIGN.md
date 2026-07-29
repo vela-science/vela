@@ -47,14 +47,11 @@ The campaign previously risked optimizing transition machinery and benchmarks
 while the scientific territory remained difficult to understand and
 continue. The immediate public proof is now one visible
 `map -> advance -> remap` loop, beginning with the complete Erdős corpus and
-problem 1056. Protocol work is frozen except for blocking integrity defects
-and the already bounded current-state compaction.
+problem 1056. Protocol work is frozen except for blocking integrity defects.
 
-The compaction remains necessary because it removes predecessor vocabulary
-before the first public product and produces one exact current repository
-boundary. It is not itself a product milestone. After four protected
-activations and clean-clone replay, the migration writer and old readers are
-deleted and work returns to the map.
+The bounded current-state compaction is complete. All four Frontiers replay
+from clean clones through one repository-origin contract, and the migration
+writer and alternate readers are removed. Work now returns to the map.
 
 [ADR 0028](adr/0028-living-frontier-map-and-native-system-boundary.md)
 defines this product order, the native-system interoperability boundary, and
@@ -192,66 +189,28 @@ must improve one preregistered continuation or evidence-location metric by at
 least 20 percent while preserving privacy, canonical commit control,
 authority isolation, and replay. Otherwise the integration is deleted.
 
-ADR 0027 adds one bounded pre-release contraction to this campaign. The four
-controlled Frontiers will be compacted from imported `va_` Artifact wrappers
-to full-hash evidence under one aggregate plan. The gate is exact equivalence
-of accepted assertions, conditions, evidence content, provenance, relations,
-and Standing. Once all four compacted repositories replay from clean clones,
-the one-time compactor and every old reader are removed before Vela `0.950.0`.
-Historical replay remains available only through exact archives and the pinned
-old binary, not through compatibility in the current product.
+ADR 0027 is complete. One protected aggregate plan published all four
+controlled Frontiers under
+`sha256:f768c16acaaa2dcaa562a49b0e111a794f8983f1bff5783871f8c6f288daef8d`.
+Exact accepted assertions, conditions, evidence content, provenance,
+relations, and Standing were preserved while active evidence identifiers were
+normalized to full content hashes.
 
-As of 2026-07-29, the read-only audit and source-external candidate
-materialization pass for all four Frontiers. Each package was re-read from
-disk, and its canonical plan, object manifest, object bytes, rebuilt Claims,
-and equivalence report agree exactly. The source-only activation command now
-preflights the full plan root and source identity before authentication,
-stages only in an isolated worktree, binds the retained object set through the
-transaction read set and repository origin, and emits a bounded sequence-1
-authority transaction over the origin and repository manifest. A
-credential-disabled Quantum rehearsal proved root mismatch refusal, exact
-staging, source isolation, and safe signer unavailability. No source Frontier
-changed. The first protected Erdős invocation exposed one implementation
-defect before commit or publication: the empty-history verifier discarded the
-archived predecessor event root while constructing sequence 1. The source and
-remote remained byte-identical, the isolated worktree retained no signed
-postimage, and the defect now has protocol- and transaction-level regression
-coverage. A second protected invocation exposed the fresh-authority write
-gate's obsolete assumption that every initialization creates
-`repository-genesis + repository.v2`; it correctly stopped before the marker
-but rejected the exact compact-origin v3 pair. The gate now admits only the
-native-v2 and compact-v3 closed shapes, cross-binds the origin and manifest,
-and rejects mixed versions, a genesis origin in the compaction lane, identity
-substitution, and object-set drift.
+| Frontier | Current commit | Repository root |
+| --- | --- | --- |
+| Quantum Codes | `6bc3bacc78942d7d36df60794a211d4a4d750aa3` | `sha256:22a0ef52195d713ddc68c271c5a29de51b54e9b62280103f8acb3f3bcd6b8f1b` |
+| Erdős | `81e79f008b4fc653888efda810dd8eb48e50cffa` | `sha256:8a98ff1c632232c7b227d87a0f1015aaa3429d38c83592ca66f8e465b06b0ee5` |
+| Sidon | `ec45b155355769b427f5486c617aad4f68b6ee19` | `sha256:d047416cce0e569145ae38ae73b8a92102d5c5f63bb46602dff80398cada9a0d` |
+| Formal Conjectures | `1ea018d2f5be93325c4e3c7f9b5d82d33e5ba142` | `sha256:323269c21ce66b1521d00987ddba2442d69eacfb38bd67d1eb7a96e7644516ca` |
 
-A third protected invocation reached signing but failed before its commit
-marker. Marker-time revalidation reused the native empty-bootstrap predicate
-after the exact retained records had already been materialized and read-bound,
-so it rejected the compaction surface it had authorized. The source and remote
-again remained at
-`c25e11d332cfbc12b048c314880662d507df53e0`; no origin, repository manifest,
-canonical commit, or publication was installed. Unlike the first two failures,
-this attempt produced one signed but aborted sequence-1 authority record. Its
-complete private journal is retained at
-`~/Desktop/Constellate/Archives/vela-current-compaction-candidates-2026-07-29-final-v2/failed-activations/erdos-vop-b95ad35c6197622e/`
-under payload-manifest root
-`sha256:1e4b21bb5ba42d1c90710080bb4aafc6745865f7ef554122179eb2d74b89e750`.
-All 2,805 materialized records match the rooted Erdős candidate byte-for-byte;
-Git reported 2,803 as untracked because two paths already existed in the
-predecessor checkout.
-
-The authorization boundary now distinguishes native empty bootstrap from an
-exact compaction bootstrap. The latter binds the full expected record set and
-its canonical object-set root, rejects missing, substituted, or unexplained
-records, requires the planned compact-v3 delta to carry the same object-set
-root, and re-runs that exact predicate at marker time. Native initialization
-continues to reject every pre-authority record path. A full nonempty compact-v3
-fixture now crosses prepare, marker-time reauthorization, installation, and
-completion under the exact surface. All 171 CLI tests, all 88
-protocol tests, and strict CLI Clippy pass. The next gate remains the human
-invocation of the four exact candidate roots followed by read-only
-`repository finalize-compaction --check`; compatibility removal cannot begin
-until all four resulting clean clones replay.
+Each source checkout, remote `main`, predecessor tag, strict replay,
+repository verification, and finalizer clean clone agreed. The current product
+now has one `vela.repository-origin.v1` reader and one
+`vela.repository.v3` manifest. The compactor, activation/finalization commands,
+alternate origin and manifest readers, migration lineage fields, and
+retired Artifact aliases have been removed. Historical execution remains
+available only through exact predecessor tags, archives, and pinned historical
+binaries.
 
 Six protocol and operating planes remain deliberately separate:
 
@@ -458,10 +417,10 @@ not copied into this product repository.
 | Vela product | `0.940.9`; the repository's pinned conformance workflow verifies the current `main` head, so this campaign document does not duplicate a mutable self-commit pin |
 | TypeScript protocol | `@vela-science/protocol@0.1.0`, owned by this monorepo |
 | Canopus | `@vela-science/canopus@0.8.0`, owned by `packages/canopus` with unsquashed source history |
-| Erdős Frontier | strict replay and clean-clone reproduction pass at `c25e11d332cfbc12b048c314880662d507df53e0`; corrected Erdős 424 Proposal `vpr_23f32f95d4f073e8` is accepted by the terminal human Decision, and the predecessor Claim is retained as superseded |
-| Formal Frontier | strict replay and a clean clone pass at `84d3064cd7d9170985d04360b579c3c45fc96a80`; exact Submission `vsb_c50dc7e85cb76684` and scoped Verification `vvr_a898f5218acb57e9` are retained under Proposal `vpr_6c71e12b28f095c9`, pending review with zero accepted-state delta |
-| Sidon Frontier | strict replay passes at `410fd680e1d27a185617b7cf06cd940ef0016369` |
-| Quantum Frontier | strict replay passes at `790f255c394b7900e7a1e36a740406d16b783165` |
+| Erdős Frontier | strict replay and clean-clone reproduction pass at `81e79f008b4fc653888efda810dd8eb48e50cffa`; 2,771 accepted Claims and 34 exact Artifacts are indexed by repository root `sha256:8a98ff1c632232c7b227d87a0f1015aaa3429d38c83592ca66f8e465b06b0ee5` |
+| Formal Frontier | strict replay and clean-clone reproduction pass at `1ea018d2f5be93325c4e3c7f9b5d82d33e5ba142`; 14 accepted Claims and 3 exact Artifacts are indexed by repository root `sha256:323269c21ce66b1521d00987ddba2442d69eacfb38bd67d1eb7a96e7644516ca`; the pre-compaction pending Submission remains in the predecessor and must be resubmitted if still useful |
+| Sidon Frontier | strict replay passes at `ec45b155355769b427f5486c617aad4f68b6ee19`, repository root `sha256:d047416cce0e569145ae38ae73b8a92102d5c5f63bb46602dff80398cada9a0d` |
+| Quantum Frontier | strict replay passes at `6bc3bacc78942d7d36df60794a211d4a4d750aa3`, repository root `sha256:22a0ef52195d713ddc68c271c5a29de51b54e9b62280103f8acb3f3bcd6b8f1b` |
 | Web | read-only clean-clone checks and projection-bound build pass at `bdb10ed92edba5ea1a0e75d44bfb457e0b806f5f`; no web-code release is required by the current campaign |
 
 The Canopus release is independently identifiable rather than inferred from
@@ -491,15 +450,13 @@ success registered in the canonical Frontier:
 - verifier image
   `sha256:a9df828f9480d79e10a9707847fdf99a6a27287cf4281256d79f17be7f3d9f39`.
 
-Preparing its scoped Verification reproduced a current object-contract
-mismatch: repositories identify retained Artifacts by full content hash, while
-the optional Verification Record v1 `artifact_ids` field accepted only legacy
-`va_` identifiers. The imported record therefore bound the exact Claim,
-Proposal, and Submission root, which already binds all three Artifact digests,
-and left the redundant list empty rather than inventing aliases. The compatible
-repair now on `main` accepts exact full lowercase content-hash identifiers while
-retaining historical `va_` replay. Exact repository membership remains
-mandatory. The imported record remains byte-identical.
+Preparing its scoped Verification reproduced an object-contract mismatch:
+repositories identified retained Artifacts by full content hash while the
+then-current optional `artifact_ids` field used retired aliases. The retained
+Verification safely left that redundant list empty and bound the exact Claim,
+Proposal, and Submission root, which already commits to all three Artifact
+digests. The current contract now accepts only full lowercase content hashes;
+exact repository membership remains mandatory.
 
 Four verifier-rejected Runs remain retained rather than hidden:
 
@@ -546,7 +503,7 @@ scientific acceptance. It was registered at Frontier commit
 `vpr_6c71e12b28f095c9`, accepted-event delta zero.
 
 The first registration preflight reproduced a local trust-pin lifecycle
-defect after the signed repository-epoch transition: the independently stored
+defect after the signed repository-origin transition: the independently stored
 GitHub root and current sequence-one record agreed, but the public CLI could
 neither reuse nor safely advance the predecessor local pin. Commit
 `a06aee0c` makes an identical pin idempotent and exposes the edge layer's
@@ -1260,12 +1217,11 @@ root
 Its deterministic result root is
 `sha256:1e0ed787c155677a908ee1c006355b5ae18aef2394bec39b5174675284008c15`.
 
-The current `ClaimRecordV1.imported_from` and
-`ProposalV1.imported_from` blocks retain predecessor-epoch migration lineage.
-They do not bind a source Frontier, source repository root, source Decision,
-source authority anchor, completeness status, or explicit local
-non-authority. The current public CLI has no foreign-transfer surface, and its
-release contract deliberately rejects a `federation` command.
+The retired migration fields could not bind a source Frontier, source
+repository root, source Decision, source authority anchor, completeness status,
+or explicit local non-authority. They have now been removed from the current
+Claim and Proposal schemas. The public CLI still has no foreign-transfer
+surface, and its release contract deliberately rejects a `federation` command.
 
 This is a reproduced gap and a current B8 failure. Reinterpreting migration
 fields would be an unsafe semantic rebind. The result does not justify a Hub,
@@ -1287,14 +1243,13 @@ They also reject authority escalation, silent truncation, source substitution,
 and object-byte drift. This is implementation qualification, not B8 or
 external independence.
 
-The real Erdős-to-Formal package is deliberately not materialized yet. It must
-bind the compacted current Erdős repository root, and retaining it now would
-invalidate the exact Formal compaction candidate. After all four protected
-compactions pass, the ordinary producer path will retain the envelope as a
-bounded Artifact in Formal with accepted-event delta zero; a scoped
-Verification will check every byte and the source authority chain. No
-federation command, service, resolver, Registry, second writer, or imported
-authority is authorized.
+The real Erdős-to-Formal package is now unblocked and must bind current Erdős
+repository root
+`sha256:8a98ff1c632232c7b227d87a0f1015aaa3429d38c83592ca66f8e465b06b0ee5`.
+The ordinary producer path may retain the envelope as a bounded Artifact in
+Formal with accepted-event delta zero; a scoped Verification must check every
+byte and the source authority chain. No federation command, service, resolver,
+Registry, second writer, or imported authority is authorized.
 
 #### Matched state-lift pilot
 
@@ -1593,7 +1548,7 @@ The audit retains files when they protect a current boundary:
 
 The predecessor Finding reducer, cascade fixtures, duplicate Python and
 TypeScript readers, policy-shadow corpus, and their integrity manifest are
-retired from the active tree. Signed repository epochs and Git history preserve
+retired from the active tree. Repository origins and Git history preserve
 their historical evidence; current Frontiers no longer execute that runtime.
 
 ### Vela and Canopus ownership

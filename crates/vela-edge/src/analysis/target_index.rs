@@ -21,7 +21,6 @@ use vela_protocol::repository_inputs::{
 };
 
 pub const TARGET_INDEX_SCHEMA_V4: &str = "vela.target-index.v4";
-pub const PREDECESSOR_TARGET_INDEX_SCHEMA_V3: &str = "vela.target-index.v3";
 pub const TARGET_INDEX_CANDIDATE_SCHEMA_V1: &str = "vela.target-index-candidate.v1";
 pub const TARGET_INDEX_INPUT_MANIFEST_SCHEMA_V1: &str = "vela.target-index-input-manifest.v1";
 pub const TARGET_TASK_BINDING_SCHEMA_V3: &str = "vela.target-task-binding.v3";
@@ -121,29 +120,6 @@ pub struct TargetIndexRepositoryV4 {
     pub repository_root: String,
 }
 
-/// Read-only predecessor shape retained solely for the bounded compaction
-/// finalizer. Shipping work paths never construct or assess this value.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
-pub struct PredecessorTargetIndexRepositoryV3 {
-    pub epoch_id: String,
-    pub repository_root: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
-pub struct PredecessorTargetIndexV3 {
-    pub schema: String,
-    pub frontier_id: String,
-    pub source: TargetIndexSourceV2,
-    pub inputs: TargetIndexInputManifestV1,
-    pub repository: PredecessorTargetIndexRepositoryV3,
-    pub claim_boundary: TargetIndexClaimBoundaryV2,
-    pub generated_by: TargetIndexGeneratorV2,
-    pub targets: Vec<TargetIndexEntryV2>,
-    pub index_root: String,
-}
-
 /// Event-free Target Index for current repository origins.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -212,7 +188,7 @@ pub struct TargetTaskClaimReadSetV2 {
     pub git_tree: String,
 }
 
-/// Exact producer-task binding for a current repository epoch.
+/// Exact producer-task binding for a current repository origin.
 ///
 /// The event-rooted read set in v1 is intentionally absent. Scientific state
 /// is the exact current repository manifest; Git retains the producer's
@@ -259,7 +235,7 @@ pub struct TargetIndexTargetInspection {
 /// candidate. The candidate supplies target semantics; every security- or
 /// integrity-bearing value in `index` is derived by Vela.
 /// Complete, write-free result of sealing one domain-owned candidate for a
-/// current Profile v2 repository. The exact repository epoch and manifest
+/// current Profile v2 repository. The exact repository origin and manifest
 /// root replace every Era-0 event/proposal root.
 #[derive(Debug, Clone, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -810,57 +786,6 @@ impl TargetIndexV4 {
             .as_object_mut()
             .ok_or_else(|| "target index did not serialize as an object".to_string())?;
         object.remove("index_root");
-        canonical_root(&value)
-    }
-
-    pub fn canonical_bytes(&self) -> Result<Vec<u8>, String> {
-        self.validate()?;
-        canonical::to_canonical_bytes(self).map_err(|error| error.to_string())
-    }
-}
-
-impl PredecessorTargetIndexV3 {
-    pub fn validate(&self) -> Result<(), String> {
-        if self.schema != PREDECESSOR_TARGET_INDEX_SCHEMA_V3 {
-            return Err(format!(
-                "schema must be {PREDECESSOR_TARGET_INDEX_SCHEMA_V3}"
-            ));
-        }
-        validate_target_index_common(
-            &self.frontier_id,
-            &self.source,
-            &self.inputs,
-            &self.claim_boundary,
-            &self.generated_by,
-            &self.targets,
-        )?;
-        let Some(suffix) = self.repository.epoch_id.strip_prefix("vre_") else {
-            return Err("repository.epoch_id must use the vre_<16 lowercase hex> form".into());
-        };
-        if suffix.len() != 16
-            || !suffix
-                .bytes()
-                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-        {
-            return Err("repository.epoch_id must use the vre_<16 lowercase hex> form".into());
-        }
-        require_sha256_root(
-            "repository.repository_root",
-            &self.repository.repository_root,
-        )?;
-        require_sha256_root("index_root", &self.index_root)?;
-        if self.computed_index_root()? != self.index_root {
-            return Err("index_root does not match the canonical index preimage".into());
-        }
-        Ok(())
-    }
-
-    pub fn computed_index_root(&self) -> Result<String, String> {
-        let mut value = serde_json::to_value(self).map_err(|error| error.to_string())?;
-        value
-            .as_object_mut()
-            .ok_or_else(|| "target index did not serialize as an object".to_string())?
-            .remove("index_root");
         canonical_root(&value)
     }
 

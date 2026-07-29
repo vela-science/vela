@@ -207,7 +207,7 @@ pub fn header(command: &str, subject: &str, note: Option<&str>) {
 /// Resolve the frontier argument: an explicit path wins; otherwise walk
 /// upward from cwd for a frontier-shaped `.vela` (the git discovery
 /// pattern — `vela status` from anywhere inside a frontier just works).
-/// Discover only a current repository epoch; predecessor layouts require their
+/// Discover only a current repository origin; predecessor layouts require their
 /// pinned historical Vela release.
 pub fn resolve_frontier(explicit: Option<std::path::PathBuf>) -> std::path::PathBuf {
     if let Some(path) = explicit {
@@ -224,7 +224,7 @@ pub fn resolve_frontier(explicit: Option<std::path::PathBuf>) -> std::path::Path
     loop {
         let store = cur.join(".vela");
         if store.is_dir()
-            && store.join("epoch.json").is_file()
+            && store.join("origin.json").is_file()
             && store.join("repository.json").is_file()
         {
             return cur;

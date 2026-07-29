@@ -4,23 +4,11 @@
 from __future__ import annotations
 
 import json
-import re
 import sys
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
-
-
-def struct_fields(source: str, name: str) -> list[str]:
-    match = re.search(
-        rf"pub struct {re.escape(name)} \{{(?P<body>.*?)\n\}}",
-        source,
-        re.DOTALL,
-    )
-    if match is None:
-        raise ValueError(f"{name} is missing")
-    return sorted(re.findall(r"pub ([a-z_]+):", match.group("body")))
 
 
 def main() -> int:
@@ -31,7 +19,7 @@ def main() -> int:
                 / "conformance"
                 / "fixtures"
                 / "transfer"
-                / "current-contract-gap.v1.json"
+                / "current-contract-gap.v2.json"
             ).read_text(encoding="utf-8")
         )
         claim_source = (
@@ -46,18 +34,14 @@ def main() -> int:
         release_contract = (
             ROOT / "crates" / "vela-protocol" / "tests" / "cli_release_contract.rs"
         ).read_text(encoding="utf-8")
-        claim_fields = struct_fields(claim_source, "ImportedClaimSource")
-        proposal_fields = struct_fields(proposal_source, "ImportedProposalSource")
+        retired_migration_fields_absent = all(
+            token not in source
+            for source in (claim_source, proposal_source)
+            for token in ("imported_from", "ImportedClaimSource", "ImportedProposalSource")
+        )
         observed = {
-            "schema": "vela.foreign-transfer-contract-inventory.v1",
-            "claim_import_fields": claim_fields,
-            "proposal_import_fields": proposal_fields,
-            "migration_lineage_only": (
-                claim_fields
-                == ["era", "object_id", "object_root", "predecessor_commit"]
-                and proposal_fields
-                == ["predecessor_commit", "proposal_id", "proposal_root"]
-            ),
+            "schema": "vela.foreign-transfer-contract-inventory.v2",
+            "retired_migration_fields_absent": retired_migration_fields_absent,
             "public_foreign_transfer_command": any(
                 candidate in cli_source
                 for candidate in ("Federation", "Foreign", "Transfer", "ImportClaim")
@@ -69,13 +53,13 @@ def main() -> int:
             "required_binding_presence": {
                 "source_frontier_id": False,
                 "source_repository_root": False,
-                "source_claim_root": "object_root" in claim_fields,
+                "source_claim_root": False,
                 "source_decision_root": False,
                 "source_authority_root": False,
                 "completeness_status": False,
                 "foreign_has_no_local_authority": False,
             },
-            "outcome": "gap_reproduced",
+            "outcome": "portable_contract_absent",
         }
         if observed != expected:
             print(
@@ -89,7 +73,7 @@ def main() -> int:
             return 1
         print(
             "foreign-transfer-contract-gap: ok "
-            "(two readers agree the current portable contract is absent)"
+            "(two readers agree migration fields are retired and no portable contract exists)"
         )
         return 0
     except (OSError, ValueError, json.JSONDecodeError) as error:

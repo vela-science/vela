@@ -57,7 +57,7 @@ Advanced verification and integration:
 Advanced setup:
   authority     initialize standard repository authority for a fresh Frontier
   target-index  inspect, diagnose, or seal derived producer targets
-  repository    verify the current repository epoch and authority boundary
+  repository    verify the current repository origin and authority boundary
 
 Hidden utility:
   completions   generate shell completion scripts

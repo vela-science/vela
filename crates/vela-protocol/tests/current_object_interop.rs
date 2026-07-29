@@ -29,7 +29,7 @@ fn independent_javascript_submission_matches_rust_contract() {
 fn independent_javascript_verification_matches_rust_contract() {
     let record = VerificationRecordV1::parse(&fixture("verification.json"))
         .expect("JavaScript Verification Record must satisfy the Rust parser");
-    assert_eq!(record.verification_record_id, "vvr_06d0f6bc21024964");
+    assert_eq!(record.verification_record_id, "vvr_5565bbc76e7b40ae");
     assert_eq!(record.subject.submission_id, "vsb_8a36cdb336823499");
     assert_eq!(
         record.subject.submission_root,
@@ -41,7 +41,7 @@ fn independent_javascript_verification_matches_rust_contract() {
     );
     assert_eq!(
         record.canonical_root().unwrap(),
-        "sha256:588595fd452109e0a5a2126a2a85169aaaace6a125cda43ad7bc718668d1ad8c"
+        "sha256:bc7c4231b91a747a0a28cacf96451ca3904cd3265f77a574ffb1fb962948467f"
     );
 }
 

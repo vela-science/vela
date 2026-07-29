@@ -443,7 +443,7 @@ fn open(frontier: &Path, target_id: &str, actor: &str, ttl_seconds: u64) -> Resu
             vela_protocol::events::MAX_ATTEMPT_LEASE_TTL_SECONDS
         ));
     }
-    let repository = crate::current_repository::load_compacted_repository_at(frontier, true)?;
+    let repository = crate::current_repository::load_current_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
     let assessment = vela_edge::target_index::assess_current_target_index(
         frontier,
@@ -535,7 +535,7 @@ fn drop_attempt(frontier: &Path, target: &str, actor: &str, reason: &str) -> Res
     if reason.is_empty() {
         return Err("start --drop requires a non-empty reason".to_string());
     }
-    crate::current_repository::load_compacted_repository_at(frontier, true)?;
+    crate::current_repository::load_current_repository_at(frontier, true)?;
     let _lock = lock_attempt(frontier, target)?;
     let path = attempt_path(frontier, target);
     let attempt = read(&path)?;
@@ -563,7 +563,7 @@ fn drop_attempt(frontier: &Path, target: &str, actor: &str, reason: &str) -> Res
 }
 
 fn list(frontier: &Path) -> Result<Value, String> {
-    crate::current_repository::load_compacted_repository_at(frontier, true)?;
+    crate::current_repository::load_current_repository_at(frontier, true)?;
     let root = frontier.join(".vela/work");
     let mut attempts = fs::read_dir(&root)
         .into_iter()

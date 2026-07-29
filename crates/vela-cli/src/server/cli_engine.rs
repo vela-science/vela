@@ -103,7 +103,7 @@ pub(crate) fn proposal_reproduction_files(
     path: &Path,
     proposal_id: &str,
 ) -> Result<Vec<PathBuf>, String> {
-    let repository = crate::current_repository::load_compacted_repository_at(path, true)?;
+    let repository = crate::current_repository::load_current_repository_at(path, true)?;
     let proposal_reference = repository
         .proposals
         .iter()

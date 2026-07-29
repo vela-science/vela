@@ -11,12 +11,10 @@ use vela_protocol::authority::AuthorityEventV1;
 use vela_protocol::authority_history::AuthorityInitializationV1;
 use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::current_repository::{
-    CURRENT_ARTIFACT_RECORD_SCHEMA_V1, CurrentArtifactRecordV1, CurrentFrontierProfileV2,
-    CurrentRepositoryV2, CurrentRepositoryV3, RepositoryObjectRefV1,
+    CurrentFrontierProfileV2, CurrentRepositoryV3, RepositoryObjectRefV1,
 };
 use vela_protocol::events::{EventKind, NULL_HASH};
 use vela_protocol::proposal_v1::ProposalV1;
-use vela_protocol::repository_epoch::RepositoryBoundaryV1;
 use vela_protocol::repository_origin::RepositoryOriginV1;
 use vela_protocol::verification_record::VerificationRecordV1;
 
@@ -56,76 +54,29 @@ pub(crate) fn cmd_repository_verify(frontier: &Path, json_out: bool) {
             "current repository contains sensitive-looking files: {listed}"
         ));
     }
-    if frontier.join(".vela/origin.json").is_file() {
-        let repository = verify_compacted_repository_at(&frontier, true)
-            .unwrap_or_else(|error| crate::cli::fail_return(&error));
-        let origin = RepositoryOriginV1::parse(
-            &fs::read(frontier.join(".vela/origin.json")).unwrap_or_else(|error| {
-                crate::cli::fail_return(&format!("read current repository origin: {error}"))
-            }),
-        )
+    let repository = verify_current_repository_at(&frontier, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
-        let commit = git_text(&frontier, &["rev-parse", "HEAD^{commit}"])
-            .unwrap_or_else(|error| crate::cli::fail_return(&error));
-        let tree = git_text(&frontier, &["rev-parse", "HEAD^{tree}"])
-            .unwrap_or_else(|error| crate::cli::fail_return(&error));
-        let payload = json!({
-            "schema": "vela.repository-verification.v2",
-            "ok": true,
-            "command": "repository verify",
-            "frontier": frontier.display().to_string(),
-            "frontier_id": repository.frontier_id,
-            "git_commit": commit,
-            "git_tree": tree,
-            "origin_id": origin.origin_id,
-            "origin_root": origin.canonical_root()
-                .unwrap_or_else(|error| crate::cli::fail_return(&error)),
-            "repository_root": repository.canonical_root()
-                .unwrap_or_else(|error| crate::cli::fail_return(&error)),
-            "authority_keyset_root": repository.authority_keyset_root,
-            "authority_policy_root": repository.authority_policy_root,
-            "counts": {
-                "accepted_claims": repository.accepted_claims.len(),
-                "pending_claims": repository.pending_claims.len(),
-                "proposals": repository.proposals.len(),
-                "submissions": repository.submissions.len(),
-                "registrations": repository.registrations.len(),
-                "verifications": repository.verifications.len(),
-                "artifacts": repository.artifacts.len()
-            },
-        });
-        if json_out {
-            crate::cli::print_json(&payload);
-        } else {
-            println!("current repository verified");
-            println!("  frontier: {}", payload["frontier_id"]);
-            println!("  origin: {}", payload["origin_id"]);
-            println!("  claims: {}", payload["counts"]["accepted_claims"]);
-            println!("  repository root: {}", payload["repository_root"]);
-        }
-        return;
-    }
-    let repository = verify_predecessor_repository_at(&frontier, true)
-        .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let epoch_bytes = fs::read(frontier.join(".vela/epoch.json")).unwrap_or_else(|error| {
-        crate::cli::fail_return(&format!("read current repository epoch: {error}"))
-    });
-    let epoch = RepositoryBoundaryV1::parse(&epoch_bytes)
-        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let origin = RepositoryOriginV1::parse(
+        &fs::read(frontier.join(".vela/origin.json")).unwrap_or_else(|error| {
+            crate::cli::fail_return(&format!("read current repository origin: {error}"))
+        }),
+    )
+    .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let commit = git_text(&frontier, &["rev-parse", "HEAD^{commit}"])
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let tree = git_text(&frontier, &["rev-parse", "HEAD^{tree}"])
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let payload = json!({
-        "schema": "vela.repository-verification.v1",
+        "schema": "vela.repository-verification.v2",
         "ok": true,
         "command": "repository verify",
         "frontier": frontier.display().to_string(),
         "frontier_id": repository.frontier_id,
         "git_commit": commit,
         "git_tree": tree,
-        "epoch_id": epoch.epoch_id(),
-        "epoch_root": epoch.canonical_root().unwrap_or_else(|error| crate::cli::fail_return(&error)),
+        "origin_id": origin.origin_id,
+        "origin_root": origin.canonical_root()
+            .unwrap_or_else(|error| crate::cli::fail_return(&error)),
         "repository_root": repository.canonical_root().unwrap_or_else(|error| crate::cli::fail_return(&error)),
         "authority_keyset_root": repository.authority_keyset_root,
         "authority_policy_root": repository.authority_policy_root,
@@ -144,7 +95,7 @@ pub(crate) fn cmd_repository_verify(frontier: &Path, json_out: bool) {
     } else {
         println!("current repository verified");
         println!("  frontier: {}", payload["frontier_id"]);
-        println!("  epoch: {}", payload["epoch_id"]);
+        println!("  origin: {}", payload["origin_id"]);
         println!("  claims: {}", payload["counts"]["accepted_claims"]);
         println!("  repository root: {}", payload["repository_root"]);
     }
@@ -208,7 +159,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         });
     let profile = CurrentFrontierProfileV2::from_yaml_str(&profile_source)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    if !frontier.join(".vela/epoch.json").exists()
+    if !frontier.join(".vela/origin.json").exists()
         && !frontier.join(".vela/repository.json").exists()
     {
         verify_current_bootstrap_at(&frontier)
@@ -237,7 +188,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
                 "blockers_by_code": {"repository_authority_uninitialized": 1}
             },
             "roots": {
-                "epoch": Value::Null,
+                "origin": Value::Null,
                 "repository": Value::Null,
                 "authority_keyset": Value::Null,
                 "authority_policy": Value::Null
@@ -267,7 +218,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         }
         return;
     }
-    let repository = load_compacted_repository_at(&frontier, true)
+    let repository = load_current_repository_at(&frontier, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let commit = git_text(&frontier, &["rev-parse", "HEAD^{commit}"])
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
@@ -374,14 +325,11 @@ pub(crate) fn verify_current_profile_at(root: &Path) -> Result<CurrentFrontierPr
 
 pub(crate) fn verify_current_bootstrap_at(root: &Path) -> Result<CurrentFrontierProfileV2, String> {
     let profile = verify_current_profile_at(root)?;
-    if root.join(".vela/epoch.json").exists()
-        || root.join(".vela/origin.json").exists()
-        || root.join(".vela/repository.json").exists()
-    {
-        return Err(
-            "current repository bootstrap cannot contain an epoch, origin, or repository manifest"
-                .into(),
-        );
+    if root.join(".vela/epoch.json").exists() {
+        return Err("repository retains the retired .vela/epoch.json path".into());
+    }
+    if root.join(".vela/origin.json").exists() || root.join(".vela/repository.json").exists() {
+        return Err("current repository bootstrap cannot contain an origin or manifest".into());
     }
     for relative in [
         ".vela/authority",
@@ -402,89 +350,6 @@ pub(crate) fn verify_current_bootstrap_at(root: &Path) -> Result<CurrentFrontier
     Ok(profile)
 }
 
-pub(crate) fn verify_compaction_bootstrap_at(
-    root: &Path,
-    expected_objects: &[RepositoryObjectRefV1],
-) -> Result<CurrentFrontierProfileV2, String> {
-    let profile = verify_current_profile_at(root)?;
-    if root.join(".vela/epoch.json").exists()
-        || root.join(".vela/origin.json").exists()
-        || root.join(".vela/repository.json").exists()
-        || root.join(".vela/authority").exists()
-    {
-        return Err(
-            "repository compaction bootstrap cannot contain an authority boundary or manifest"
-                .into(),
-        );
-    }
-    for relative in [
-        ".vela/claims",
-        ".vela/proposals",
-        ".vela/submissions",
-        ".vela/registrations",
-        ".vela/verifications",
-        ".vela/artifacts",
-    ] {
-        if root.join(relative).exists() {
-            return Err(format!(
-                "repository compaction bootstrap contains retired canonical object path {relative}"
-            ));
-        }
-    }
-
-    let mut expected_paths = BTreeMap::new();
-    for reference in expected_objects {
-        let path = crate::frontier_txn::RepoPath::parse(reference.path.clone())
-            .map_err(|error| format!("invalid compaction object path: {error}"))?;
-        if !path.as_str().starts_with("records/") {
-            return Err(format!(
-                "repository compaction object {} is outside records/",
-                path.as_str()
-            ));
-        }
-        if expected_paths
-            .insert(path.as_str().to_string(), reference.root.clone())
-            .is_some()
-        {
-            return Err(format!(
-                "repository compaction repeats object path {}",
-                path.as_str()
-            ));
-        }
-        let bytes = fs::read(root.join(path.as_str()))
-            .map_err(|error| format!("read compaction object {}: {error}", path.as_str()))?;
-        if root_bytes(&bytes) != reference.root {
-            return Err(format!(
-                "repository compaction object {} does not match {}",
-                path.as_str(),
-                reference.root
-            ));
-        }
-    }
-    let records = root.join("records");
-    let observed_paths = if records.exists() {
-        files_recursive(&records)?
-            .into_iter()
-            .map(|path| {
-                path.strip_prefix(root)
-                    .map(|path| {
-                        path.to_string_lossy()
-                            .replace(std::path::MAIN_SEPARATOR, "/")
-                    })
-                    .map_err(|_| "repository compaction object escaped its Frontier".to_string())
-            })
-            .collect::<Result<BTreeSet<_>, _>>()?
-    } else {
-        BTreeSet::new()
-    };
-    if observed_paths != expected_paths.keys().cloned().collect::<BTreeSet<_>>() {
-        return Err(
-            "repository compaction bootstrap contains missing or unexplained record files".into(),
-        );
-    }
-    Ok(profile)
-}
-
 pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
     crate::ui::set_mode("next", json_out);
     let frontier = frontier.canonicalize().unwrap_or_else(|error| {
@@ -493,7 +358,7 @@ pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
             frontier.display()
         ))
     });
-    let repository = load_compacted_repository_at(&frontier, true)
+    let repository = load_current_repository_at(&frontier, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let repository_root = repository
         .canonical_root()
@@ -726,7 +591,7 @@ pub(crate) fn load_current_proposal_decisions(
     let origin_bytes = fs::read(frontier.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
     let origin = RepositoryOriginV1::parse(&origin_bytes)?;
-    let authority = crate::cli::load_compacted_repository_authority(frontier, repository, &origin)?;
+    let authority = crate::cli::load_current_repository_authority(frontier, repository, &origin)?;
     current_proposal_decisions(&authority.history.authority_events)
 }
 
@@ -868,7 +733,7 @@ pub(crate) fn cmd_current_review_list(
             frontier.display()
         ))
     });
-    let repository = load_compacted_repository_at(&frontier, true)
+    let repository = load_current_repository_at(&frontier, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let decisions = load_current_proposal_decisions(&frontier, &repository)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
@@ -973,7 +838,7 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
             frontier.display()
         ))
     });
-    let repository = load_compacted_repository_at(&frontier, true)
+    let repository = load_current_repository_at(&frontier, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let decisions = load_current_proposal_decisions(&frontier, &repository)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
@@ -1081,13 +946,7 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
 }
 
 /// Return whether one authenticated Verification Record observes this exact
-/// current Proposal lineage and retained Submission.
-///
-/// Records created before a repository-epoch transition remain signed over
-/// their predecessor Proposal and Claim identities. ADR 0022 retains those
-/// bytes as usable observations only when both identities map through the
-/// current objects' exact `imported_from` blocks. New records bind the current
-/// identities directly.
+/// Proposal, Claim, and retained Submission.
 pub(crate) fn verification_targets_proposal(
     proposal: &ProposalV1,
     claim: &ClaimRecordV1,
@@ -1096,16 +955,8 @@ pub(crate) fn verification_targets_proposal(
     if claim.claim_id != proposal.subject.id {
         return false;
     }
-    let direct_subject = record.subject.proposal_id == proposal.proposal_id
-        && record.subject.claim_id == proposal.subject.id;
-    let imported_subject = proposal.imported_from.as_ref().is_some_and(|source| {
-        source.proposal_id == record.subject.proposal_id
-            && claim
-                .imported_from
-                .as_ref()
-                .is_some_and(|claim_source| claim_source.object_id == record.subject.claim_id)
-    });
-    (direct_subject || imported_subject)
+    record.subject.proposal_id == proposal.proposal_id
+        && record.subject.claim_id == proposal.subject.id
         && record.subject.submission_id == proposal.producer_package.id
         && record.subject.submission_root == proposal.producer_package.root
 }
@@ -1133,287 +984,8 @@ fn verification_targets_rooted_proposal(
     Ok(verification_targets_proposal(proposal, &claim, record))
 }
 
-pub(crate) fn verify_predecessor_repository_at(
-    root: &Path,
-    require_authority_record: bool,
-) -> Result<CurrentRepositoryV2, String> {
-    let profile_source = fs::read_to_string(root.join("frontier.yaml"))
-        .map_err(|error| format!("read current frontier.yaml: {error}"))?;
-    let profile = CurrentFrontierProfileV2::from_yaml_str(&profile_source)?;
-    let profile_root = profile.profile_root()?;
-
-    let epoch_bytes = fs::read(root.join(".vela/epoch.json"))
-        .map_err(|error| format!("read current repository epoch: {error}"))?;
-    let epoch = RepositoryBoundaryV1::parse(&epoch_bytes)?;
-    let epoch_root = epoch.canonical_root()?;
-
-    let repository_bytes = fs::read(root.join(".vela/repository.json"))
-        .map_err(|error| format!("read current repository manifest: {error}"))?;
-    let repository = CurrentRepositoryV2::parse(&repository_bytes)?;
-    if repository.frontier_id != profile.frontier_id
-        || repository.frontier_id != epoch.frontier_id()
-        || repository.profile_root != profile_root
-        || repository.epoch_id != epoch.epoch_id()
-        || repository.epoch_root != epoch_root
-    {
-        return Err(
-            "current Profile, repository manifest, and epoch do not bind the same identity".into(),
-        );
-    }
-    let repository_root = repository.canonical_root()?;
-    if root.join("targets.json").is_file() {
-        let bytes = fs::read(root.join("targets.json"))
-            .map_err(|error| format!("read current Target Index: {error}"))?;
-        let index: vela_edge::target_index::PredecessorTargetIndexV3 =
-            serde_json::from_slice(&bytes)
-                .map_err(|error| format!("parse current Target Index: {error}"))?;
-        index.validate()?;
-        if index.canonical_bytes()?.as_slice() != bytes.as_slice()
-            || index.frontier_id != repository.frontier_id
-            || index.repository.epoch_id != repository.epoch_id
-            || index.repository.repository_root != repository_root
-        {
-            return Err(
-                "current Target Index does not bind the exact current repository".to_string(),
-            );
-        }
-        // The predecessor index is inspected only while finalizing the
-        // one-time compaction. Its exact canonical bytes and repository
-        // binding are load-bearing here; source, packet, and worktree
-        // preconditions are separately bound by the signed compaction plan.
-    }
-
-    for reference in &repository.accepted_claims {
-        let bytes = read_rooted_object(root, &reference.path, &reference.claim_root)?;
-        let claim = ClaimRecordV1::parse(&bytes)?;
-        if claim.canonical_bytes()?.as_slice() != bytes.as_slice()
-            || claim.claim_id != reference.claim_id
-        {
-            return Err(format!(
-                "{} does not contain the declared canonical Claim",
-                reference.path
-            ));
-        }
-    }
-    for reference in &repository.pending_claims {
-        let bytes = read_rooted_object(root, &reference.path, &reference.claim_root)?;
-        let claim = ClaimRecordV1::parse(&bytes)?;
-        if claim.canonical_bytes()?.as_slice() != bytes.as_slice()
-            || claim.claim_id != reference.claim_id
-        {
-            return Err(format!(
-                "{} does not contain the declared canonical pending Claim",
-                reference.path
-            ));
-        }
-    }
-    for reference in &repository.proposals {
-        let bytes = read_rooted_object(root, &reference.path, &reference.root)?;
-        let proposal = ProposalV1::parse(&bytes)?;
-        if proposal.canonical_bytes()?.as_slice() != bytes.as_slice()
-            || proposal.proposal_id != reference.id
-        {
-            return Err(format!(
-                "{} does not contain the declared canonical Proposal",
-                reference.path
-            ));
-        }
-    }
-    for reference in &repository.submissions {
-        let bytes = read_rooted_object(root, &reference.path, &reference.root)?;
-        let submission = vela_protocol::submission_v1::SubmissionV1::parse(&bytes)?;
-        if submission.canonical_bytes()?.as_slice() != bytes.as_slice()
-            || submission.submission_id != reference.id
-        {
-            return Err(format!(
-                "{} does not contain the declared canonical Submission",
-                reference.path
-            ));
-        }
-    }
-    for reference in &repository.registrations {
-        let bytes = read_rooted_object(root, &reference.path, &reference.root)?;
-        let registration = vela_protocol::registration_record::RegistrationRecordV1::parse(&bytes)?;
-        if registration.canonical_bytes()?.as_slice() != bytes.as_slice()
-            || registration.registration_record_id != reference.id
-        {
-            return Err(format!(
-                "{} does not contain the declared canonical Registration Record",
-                reference.path
-            ));
-        }
-    }
-    for reference in &repository.verifications {
-        let bytes = read_rooted_object(root, &reference.path, &reference.root)?;
-        let verification = vela_protocol::verification_record::VerificationRecordV1::parse(&bytes)?;
-        if verification.canonical_bytes()?.as_slice() != bytes.as_slice()
-            || verification.verification_record_id != reference.id
-        {
-            return Err(format!(
-                "{} does not contain the declared canonical Verification Record",
-                reference.path
-            ));
-        }
-        let mut matching_proposals = Vec::new();
-        for proposal_reference in &repository.proposals {
-            let proposal_bytes =
-                read_rooted_object(root, &proposal_reference.path, &proposal_reference.root)?;
-            let proposal = ProposalV1::parse(&proposal_bytes)?;
-            if proposal.proposal_id == verification.subject.proposal_id
-                || proposal
-                    .imported_from
-                    .as_ref()
-                    .is_some_and(|source| source.proposal_id == verification.subject.proposal_id)
-            {
-                matching_proposals.push((proposal_reference, proposal));
-            }
-        }
-        let [(_, proposal)] = matching_proposals.as_slice() else {
-            return Err(format!(
-                "{} targets Proposal {} with {} current or imported matches",
-                reference.path,
-                verification.subject.proposal_id,
-                matching_proposals.len()
-            ));
-        };
-        let claim_matches = verification_targets_rooted_proposal(root, proposal, &verification)?;
-        if !claim_matches {
-            return Err(format!(
-                "{} does not bind its exact current/imported Proposal subject and producer package",
-                reference.path
-            ));
-        }
-        let submission_reference = repository
-            .submissions
-            .iter()
-            .find(|candidate| candidate.id == verification.subject.submission_id)
-            .ok_or_else(|| {
-                format!(
-                    "{} targets Submission {} outside the current repository",
-                    reference.path, verification.subject.submission_id
-                )
-            })?;
-        if submission_reference.root != verification.subject.submission_root
-            || submission_reference.path != proposal.producer_package.path
-        {
-            return Err(format!(
-                "{} does not bind the current Submission reference",
-                reference.path
-            ));
-        }
-        for artifact_id in verification
-            .subject
-            .artifact_ids
-            .iter()
-            .chain(&verification.output_artifact_ids)
-        {
-            if !repository
-                .artifacts
-                .iter()
-                .any(|artifact| artifact.id == *artifact_id)
-            {
-                return Err(format!(
-                    "{} names Artifact {} outside the current repository",
-                    reference.path, artifact_id
-                ));
-            }
-        }
-    }
-    for reference in &repository.artifacts {
-        let bytes = read_rooted_object(root, &reference.path, &reference.root)?;
-        if reference.schema == "content-addressed-artifact" {
-            continue;
-        }
-        let value: Value = serde_json::from_slice(&bytes)
-            .map_err(|error| format!("{} is not JSON: {error}", reference.path))?;
-        if value.get("schema").and_then(Value::as_str) != Some(reference.schema.as_str()) {
-            return Err(format!("{} has the wrong Artifact schema", reference.path));
-        }
-        if reference.schema == CURRENT_ARTIFACT_RECORD_SCHEMA_V1 {
-            let artifact = CurrentArtifactRecordV1::parse(&bytes)?;
-            if artifact.artifact_id != reference.id {
-                return Err(format!(
-                    "{} does not contain the declared canonical Artifact",
-                    reference.path
-                ));
-            }
-        }
-    }
-
-    let keyset_path = root.join(format!(
-        ".vela/authority/keysets/{}.json",
-        repository
-            .authority_keyset_root
-            .trim_start_matches("sha256:")
-    ));
-    let keyset_bytes = fs::read(&keyset_path)
-        .map_err(|error| format!("read current authority keyset: {error}"))?;
-    let keyset: vela_protocol::authority::AuthorityKeysetV1 = serde_json::from_slice(&keyset_bytes)
-        .map_err(|error| format!("parse current authority keyset: {error}"))?;
-    keyset.validate()?;
-    if keyset.frontier_id != repository.frontier_id
-        || keyset.root()? != repository.authority_keyset_root
-        || vela_protocol::canonical::to_canonical_bytes(&keyset)? != keyset_bytes
-    {
-        return Err("current repository authority keyset binding is invalid".into());
-    }
-
-    let policy_path = root.join(format!(
-        ".vela/authority/policies/{}.json",
-        repository
-            .authority_policy_root
-            .trim_start_matches("sha256:")
-    ));
-    let policy_bytes = fs::read(&policy_path)
-        .map_err(|error| format!("read current authority policy: {error}"))?;
-    let policy: vela_protocol::authority::PolicyBundleV1 = serde_json::from_slice(&policy_bytes)
-        .map_err(|error| format!("parse current authority policy: {error}"))?;
-    policy.validate()?;
-    if policy.frontier_id != repository.frontier_id
-        || policy.root()? != repository.authority_policy_root
-        || vela_protocol::canonical::to_canonical_bytes(&policy)? != policy_bytes
-    {
-        return Err("current repository policy binding is invalid".into());
-    }
-    let material_paths = crate::authority_transaction::authority_policy_material_paths(&policy)
-        .map_err(|error| error.to_string())?;
-    let material = vela_authority::CedarPolicyMaterial {
-        schema: fs::read_to_string(root.join(&material_paths[0]))
-            .map_err(|error| format!("read current Cedar schema: {error}"))?,
-        policies: fs::read_to_string(root.join(&material_paths[1]))
-            .map_err(|error| format!("read current Cedar policies: {error}"))?,
-        entities: serde_json::from_slice(
-            &fs::read(root.join(&material_paths[2]))
-                .map_err(|error| format!("read current Cedar entities: {error}"))?,
-        )
-        .map_err(|error| format!("parse current Cedar entities: {error}"))?,
-    };
-    material.validate_against(&policy)?;
-
-    for path in files_recursive(root)? {
-        let relative = path
-            .strip_prefix(root)
-            .map_err(|_| "current repository path escaped its root".to_string())?
-            .to_string_lossy();
-        if is_retired_current_path(&relative) {
-            return Err(format!(
-                "current repository retains retired protocol path {relative}"
-            ));
-        }
-    }
-    if require_authority_record {
-        verify_current_epoch_authority(root, &repository, &epoch)?;
-    }
-    Ok(repository)
-}
-
-/// Verify the final current-origin repository produced by the one-time
-/// pre-release compaction.
-///
-/// This verifier intentionally does not fall back to the predecessor epoch
-/// reader. It is used to prove the replacement repository before the bridge
-/// and all predecessor-only types are deleted.
-pub(crate) fn load_compacted_repository_at(
+/// Load and validate the current repository identity and authority chain.
+pub(crate) fn load_current_repository_at(
     root: &Path,
     require_authority_record: bool,
 ) -> Result<CurrentRepositoryV3, String> {
@@ -1443,7 +1015,7 @@ pub(crate) fn load_compacted_repository_at(
         );
     }
     if require_authority_record {
-        let loaded = crate::cli::load_compacted_repository_authority(root, &repository, &origin)?;
+        let loaded = crate::cli::load_current_repository_authority(root, &repository, &origin)?;
         validate_current_proposal_standing(
             root,
             &repository.accepted_claims,
@@ -1468,11 +1040,11 @@ pub(crate) fn load_compacted_repository_at(
     Ok(repository)
 }
 
-pub(crate) fn verify_compacted_repository_at(
+pub(crate) fn verify_current_repository_at(
     root: &Path,
     require_authority_record: bool,
 ) -> Result<CurrentRepositoryV3, String> {
-    let repository = load_compacted_repository_at(root, false)?;
+    let repository = load_current_repository_at(root, false)?;
     let origin_bytes = fs::read(root.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
     let origin = RepositoryOriginV1::parse(&origin_bytes)?;
@@ -1664,7 +1236,7 @@ pub(crate) fn verify_compacted_repository_at(
             || reference.root != format!("sha256:{}", reference.id)
         {
             return Err(format!(
-                "compacted Artifact {} is not identified by its full content root",
+                "Artifact {} is not identified by its full content root",
                 reference.id
             ));
         }
@@ -1686,12 +1258,12 @@ pub(crate) fn verify_compacted_repository_at(
             .to_string_lossy();
         if is_retired_current_path(&relative) {
             return Err(format!(
-                "compacted repository retains retired protocol path {relative}"
+                "current repository retains retired protocol path {relative}"
             ));
         }
     }
     if require_authority_record {
-        verify_compacted_repository_authority(root, &repository, &origin)?;
+        verify_current_repository_authority(root, &repository, &origin)?;
     }
     Ok(repository)
 }
@@ -1769,15 +1341,15 @@ fn read_current_object_set(
 pub(crate) fn verify_current_repository_allow_derived_drift_at(
     root: &Path,
 ) -> Result<CurrentRepositoryV3, String> {
-    let repository = verify_compacted_repository_at(root, false)?;
+    let repository = verify_current_repository_at(root, false)?;
     let origin_bytes = fs::read(root.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
     let origin = RepositoryOriginV1::parse(&origin_bytes)?;
-    verify_compacted_repository_authority(root, &repository, &origin)?;
+    verify_current_repository_authority(root, &repository, &origin)?;
     Ok(repository)
 }
 
-fn compacted_initial_repository(
+fn initial_repository(
     root: &Path,
     origin: &RepositoryOriginV1,
 ) -> Result<CurrentRepositoryV3, String> {
@@ -1806,7 +1378,7 @@ fn compacted_initial_repository(
         let output = crate::git_hardened::output(root, &["show", &spec])?;
         if !output.status.success() {
             return Err(format!(
-                "read compacted origin blob {spec}: {}",
+                "read origin blob {spec}: {}",
                 String::from_utf8_lossy(&output.stderr).trim()
             ));
         }
@@ -1829,9 +1401,7 @@ fn compacted_initial_repository(
         || !repository.registrations.is_empty()
         || !repository.verifications.is_empty()
     {
-        return Err(
-            "origin-introducing commit is not one exact compacted repository bootstrap".into(),
-        );
+        return Err("origin-introducing commit is not one exact repository bootstrap".into());
     }
     Ok(repository)
 }
@@ -1853,162 +1423,7 @@ fn read_rooted_object(root: &Path, path: &str, expected_root: &str) -> Result<Ve
     Ok(bytes)
 }
 
-fn verify_current_epoch_authority(
-    root: &Path,
-    repository: &CurrentRepositoryV2,
-    epoch: &RepositoryBoundaryV1,
-) -> Result<(), String> {
-    let loaded = crate::cli::load_current_repository_authority(root, repository, epoch)?;
-    validate_current_proposal_standing(
-        root,
-        &repository.accepted_claims,
-        &repository.pending_claims,
-        &repository.proposals,
-        &loaded.history.authority_events,
-    )?;
-    let initialization_event_id = loaded
-        .verification
-        .initialization_event_id
-        .as_deref()
-        .ok_or_else(|| "current repository authority lacks its initialization event".to_string())?;
-    let event = loaded
-        .history
-        .authority_events
-        .iter()
-        .find(|event| event.id == initialization_event_id)
-        .ok_or_else(|| {
-            "current repository authority initialization event is not retained".to_string()
-        })?;
-    let initialization: AuthorityInitializationV1 =
-        serde_json::from_value(event.content.payload.clone())
-            .map_err(|error| format!("parse current epoch initialization payload: {error}"))?;
-    initialization.validate()?;
-    let (initial_event_log_root, initial_actor_registry_root) = match epoch.predecessor_roots() {
-        Some(roots) => (roots.event_log.as_str(), roots.actor_registry.as_str()),
-        None => {
-            let genesis = epoch
-                .genesis()
-                .ok_or_else(|| "repository boundary has no origin".to_string())?;
-            (
-                genesis.initial_event_log_root.as_str(),
-                genesis.initial_actor_registry_root.as_str(),
-            )
-        }
-    };
-    if initialization.frontier_id != repository.frontier_id
-        || initialization.initial_event_log_root != initial_event_log_root
-        || initialization.initial_actor_registry_root != initial_actor_registry_root
-        || initialization.new_authority_keyset_root != repository.authority_keyset_root
-        || initialization.new_policy_bundle_root != repository.authority_policy_root
-        || initialization.new_principal_id != event.content.principal_id
-        || initialization.reason != epoch.reason()
-    {
-        return Err(
-            "current epoch authority initialization does not bind the exact predecessor and current roots"
-                .into(),
-        );
-    }
-
-    let event_paths = authority_store_files(&root.join(".vela/authority/events"), ".json")?;
-    if event_paths.len() != loaded.history.authority_events.len() {
-        return Err("current authority event store contains unverified objects".into());
-    }
-    for path in event_paths {
-        let bytes =
-            fs::read(&path).map_err(|error| format!("read current authority event: {error}"))?;
-        let stored: vela_protocol::authority::AuthorityEventV1 = serde_json::from_slice(&bytes)
-            .map_err(|error| format!("parse current authority event: {error}"))?;
-        stored.validate()?;
-        if vela_protocol::canonical::to_canonical_bytes(&stored)? != bytes
-            || path.file_name().and_then(|value| value.to_str())
-                != Some(format!("{}.json", stored.id).as_str())
-        {
-            return Err(
-                "current authority event store contains a non-canonical or misnamed object".into(),
-            );
-        }
-    }
-
-    let record_paths = authority_store_files(&root.join(".vela/authority/records"), ".dsse.json")?;
-    if record_paths.len() != loaded.history.authority_envelopes.len() {
-        return Err("current authority record store contains unverified objects".into());
-    }
-    for path in record_paths {
-        let bytes =
-            fs::read(&path).map_err(|error| format!("read current authority record: {error}"))?;
-        let envelope: vela_protocol::authority::AuthorityEnvelopeV1 =
-            serde_json::from_slice(&bytes)
-                .map_err(|error| format!("parse current authority envelope: {error}"))?;
-        if vela_protocol::canonical::to_canonical_bytes(&envelope)? != bytes {
-            return Err("current authority envelope is not canonical JSON".into());
-        }
-        let record = crate::cli::authority_record_from_envelope(&envelope)?;
-        if path.file_name().and_then(|value| value.to_str())
-            != Some(format!("{}.dsse.json", record.record_id).as_str())
-        {
-            return Err("current authority record filename does not match its identity".into());
-        }
-    }
-
-    let first_envelope =
-        loaded.history.authority_envelopes.first().ok_or_else(|| {
-            "current repository authority has no initialization record".to_string()
-        })?;
-    let first = crate::cli::authority_record_from_envelope(first_envelope)?;
-    if first.content.sequence != 1
-        || first.content.event_ids != vec![event.id.clone()]
-        || first.content.before_event_log_root != initial_event_log_root
-        || first.content.principal.principal_id != event.content.principal_id
-        || first.content.authorization.policy_bundle_root != initialization.new_policy_bundle_root
-    {
-        return Err(
-            "current epoch authority record does not bind its exact event and roots".into(),
-        );
-    }
-    let expected_after = vela_protocol::authority_history::authority_event_log_root(
-        initial_event_log_root,
-        &[event],
-    )?;
-    if first.content.after_event_log_root != expected_after {
-        return Err("current epoch authority record has the wrong after-event root".into());
-    }
-    let required_delta = [
-        (
-            crate::authority_transaction::authority_event_path(&event.id),
-            event.root()?,
-        ),
-        (".vela/epoch.json".into(), epoch.canonical_root()?),
-    ];
-    for (path, after_root) in required_delta {
-        let matching = first
-            .content
-            .object_delta
-            .iter()
-            .filter(|delta| delta.path == path && delta.after_root.as_deref() == Some(&after_root))
-            .count();
-        if matching != 1 {
-            return Err(format!(
-                "current epoch authority record does not cover exact postimage {path}"
-            ));
-        }
-    }
-    let mut repository_records = Vec::with_capacity(loaded.history.authority_envelopes.len());
-    for envelope in &loaded.history.authority_envelopes {
-        repository_records.push(crate::cli::authority_record_from_envelope(envelope)?);
-    }
-    verify_repository_manifest_delta_chain(
-        repository_records.iter().map(|record| {
-            (
-                record.content.sequence,
-                record.content.object_delta.as_slice(),
-            )
-        }),
-        &repository.canonical_root()?,
-    )?;
-    Ok(())
-}
-
-fn verify_compacted_repository_authority(
+fn verify_current_repository_authority(
     root: &Path,
     repository: &CurrentRepositoryV3,
     origin: &RepositoryOriginV1,
@@ -2027,7 +1442,7 @@ fn verify_compacted_repository_authority(
         .map_or(genesis_actor_registry_root.as_str(), |predecessor| {
             predecessor.archived_actor_registry_root.as_str()
         });
-    let loaded = crate::cli::load_compacted_repository_authority(root, repository, origin)?;
+    let loaded = crate::cli::load_current_repository_authority(root, repository, origin)?;
     validate_current_proposal_standing(
         root,
         &repository.accepted_claims,
@@ -2094,7 +1509,7 @@ fn verify_compacted_repository_authority(
     if first.content.after_event_log_root != expected_after {
         return Err("current authority record has the wrong after-event root".into());
     }
-    let initial_repository = compacted_initial_repository(root, origin)?;
+    let initial_repository = initial_repository(root, origin)?;
     let mut initial_objects = initial_repository
         .accepted_claims
         .iter()
@@ -2248,8 +1663,7 @@ fn verify_repository_manifest_delta_chain<'a>(
         let Some(delta) = matching.first() else {
             if sequence == 1 {
                 return Err(
-                    "current epoch authority record does not cover initial repository manifest"
-                        .into(),
+                    "initial authority record does not cover the repository manifest".into(),
                 );
             }
             continue;
@@ -2271,9 +1685,7 @@ fn verify_repository_manifest_delta_chain<'a>(
         active_root.clone_from(&delta.after_root);
     }
     if !saw_initial {
-        return Err(
-            "current epoch authority history lacks its initial repository manifest delta".into(),
-        );
+        return Err("current authority history lacks its initial repository manifest delta".into());
     }
     if active_root.as_deref() != Some(current_repository_root) {
         return Err(
@@ -2346,12 +1758,10 @@ fn files_recursive(root: &Path) -> Result<Vec<PathBuf>, String> {
 mod tests {
     use ed25519_dalek::SigningKey;
     use vela_protocol::authority::{AUTHORITY_MODE, AuthorityEventContentV1};
-    use vela_protocol::claim_record::{ClaimAssertion, ImportedClaimSource};
+    use vela_protocol::claim_record::ClaimAssertion;
     use vela_protocol::events::{NULL_HASH, StateActor, StateTarget};
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
-    use vela_protocol::proposal_v1::{
-        ImportedProposalSource, ProposalProducerPackage, ProposalSubject,
-    };
+    use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject};
     use vela_protocol::verification_record::{
         IndependenceDisclosure, VerificationMethod, VerificationRecordDraft, VerificationScope,
         VerificationSubject,
@@ -2363,10 +1773,7 @@ mod tests {
         format!("sha256:{}", byte.to_string().repeat(64))
     }
 
-    fn imported_review_lineage() -> (ProposalV1, ClaimRecordV1, VerificationRecordV1) {
-        let predecessor_commit = "1".repeat(40);
-        let legacy_claim_id = "vf_6e8f08edac62ff26".to_string();
-        let legacy_proposal_id = "vpr_a983c9305332b0a8".to_string();
+    fn current_review_lineage() -> (ProposalV1, ClaimRecordV1, VerificationRecordV1) {
         let submission_id = "vsb_ce7f0f4d4b6a4c40".to_string();
         let submission_root = root('2');
         let claim = ClaimRecordV1::build(
@@ -2380,12 +1787,6 @@ mod tests {
             Vec::new(),
             Vec::new(),
             "2026-07-27T00:00:00Z".into(),
-            Some(ImportedClaimSource {
-                era: "era0".into(),
-                object_id: legacy_claim_id.clone(),
-                object_root: root('3'),
-                predecessor_commit: predecessor_commit.clone(),
-            }),
             BTreeMap::new(),
         )
         .unwrap();
@@ -2406,11 +1807,6 @@ mod tests {
                 path: "records/submissions/sha256/fixture.json".into(),
             },
             vec!["The bounded result is not universal.".into()],
-            Some(ImportedProposalSource {
-                proposal_id: legacy_proposal_id.clone(),
-                proposal_root: root('4'),
-                predecessor_commit,
-            }),
         )
         .unwrap();
         let key = SigningKey::from_bytes(&[73_u8; 32]);
@@ -2427,11 +1823,11 @@ mod tests {
         let verification = VerificationRecordV1::build(
             VerificationRecordDraft {
                 subject: VerificationSubject {
-                    claim_id: legacy_claim_id,
-                    artifact_ids: vec!["va_fixture".into()],
+                    claim_id: claim.claim_id.clone(),
+                    artifact_ids: vec!["a".repeat(64)],
                     submission_id,
                     submission_root,
-                    proposal_id: legacy_proposal_id,
+                    proposal_id: proposal.proposal_id.clone(),
                 },
                 method: VerificationMethod {
                     profile: "fixture-v1".into(),
@@ -2658,8 +2054,8 @@ mod tests {
     }
 
     #[test]
-    fn migrated_verification_targets_exact_imported_lineage() {
-        let (proposal, claim, verification) = imported_review_lineage();
+    fn verification_targets_exact_current_lineage() {
+        let (proposal, claim, verification) = current_review_lineage();
         assert!(verification_targets_proposal(
             &proposal,
             &claim,
@@ -2696,7 +2092,7 @@ mod tests {
         ));
 
         let mut unrelated_claim = claim.clone();
-        unrelated_claim.imported_from = None;
+        unrelated_claim.claim_id = format!("vcl_{}", "9".repeat(64));
         assert!(!verification_targets_proposal(
             &proposal,
             &unrelated_claim,
@@ -2705,9 +2101,9 @@ mod tests {
     }
 
     #[test]
-    fn terminal_imported_verification_uses_retained_rooted_claim() {
+    fn terminal_verification_uses_retained_rooted_claim() {
         let temporary = tempfile::tempdir().unwrap();
-        let (proposal, claim, verification) = imported_review_lineage();
+        let (proposal, claim, verification) = current_review_lineage();
         let claim_root = claim.canonical_root().unwrap();
         let claim_path =
             crate::current_submission::rooted_path("records/claims/sha256", &claim_root).unwrap();

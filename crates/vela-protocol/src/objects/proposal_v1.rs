@@ -24,14 +24,6 @@ pub struct ProposalProducerPackage {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct ImportedProposalSource {
-    pub proposal_id: String,
-    pub proposal_root: String,
-    pub predecessor_commit: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct ProposalV1 {
     pub schema: String,
     pub proposal_id: String,
@@ -42,8 +34,6 @@ pub struct ProposalV1 {
     pub reason: String,
     pub producer_package: ProposalProducerPackage,
     pub caveats: Vec<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub imported_from: Option<ImportedProposalSource>,
 }
 
 impl ProposalV1 {
@@ -56,7 +46,6 @@ impl ProposalV1 {
         reason: String,
         producer_package: ProposalProducerPackage,
         caveats: Vec<String>,
-        imported_from: Option<ImportedProposalSource>,
     ) -> Result<Self, String> {
         let mut value = Self {
             schema: PROPOSAL_V1_SCHEMA.to_string(),
@@ -68,7 +57,6 @@ impl ProposalV1 {
             reason,
             producer_package,
             caveats,
-            imported_from,
         };
         value.validate_semantics()?;
         value.proposal_id = value.derive_id()?;
@@ -141,14 +129,6 @@ impl ProposalV1 {
         for caveat in &self.caveats {
             require_text("caveats", caveat)?;
         }
-        if let Some(source) = &self.imported_from {
-            require_prefixed("imported_from.proposal_id", &source.proposal_id, "vpr_")?;
-            require_sha256("imported_from.proposal_root", &source.proposal_root)?;
-            require_git_oid(
-                "imported_from.predecessor_commit",
-                &source.predecessor_commit,
-            )?;
-        }
         Ok(())
     }
 }
@@ -178,17 +158,6 @@ fn require_sha256(field: &str, value: &str) -> Result<(), String> {
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
     {
         return Err(format!("Proposal {field} must be a full sha256: digest"));
-    }
-    Ok(())
-}
-
-fn require_git_oid(field: &str, value: &str) -> Result<(), String> {
-    if !matches!(value.len(), 40 | 64)
-        || !value
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
-        return Err(format!("Proposal {field} must be a full Git object id"));
     }
     Ok(())
 }
@@ -228,11 +197,6 @@ mod tests {
                 path: format!("records/submissions/sha256/{}.json", "b".repeat(64)),
             },
             vec!["Bounded result only.".into()],
-            Some(ImportedProposalSource {
-                proposal_id: "vpr_legacy".into(),
-                proposal_root: root('c'),
-                predecessor_commit: "d".repeat(40),
-            }),
         )
         .unwrap();
         assert!(value.proposal_id.starts_with("vpr_"));
@@ -258,7 +222,6 @@ mod tests {
                 path: "records/receipts/sha256/fixture.json".into(),
             },
             vec![],
-            None,
         )
         .unwrap_err();
         assert!(error.contains("submission_v1"));

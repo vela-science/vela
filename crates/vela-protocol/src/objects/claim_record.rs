@@ -13,7 +13,6 @@ use sha2::{Digest, Sha256};
 use super::artifact_reference::require_artifact_reference_id;
 
 pub const CLAIM_RECORD_V1_SCHEMA: &str = "vela.claim-record.v1";
-pub const LEGACY_FINDING_EXTENSION: &str = "vela.legacy-finding.v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -53,15 +52,6 @@ pub struct ClaimRelation {
     pub target_claim_id: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ImportedClaimSource {
-    pub era: String,
-    pub object_id: String,
-    pub object_root: String,
-    pub predecessor_commit: String,
-}
-
 /// A versioned Claim body. The full canonical root is security identity; the
 /// readable `vcl_` prefix is routing only.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -76,9 +66,7 @@ pub struct ClaimRecordV1 {
     pub provenance: Vec<ClaimSource>,
     pub relations: Vec<ClaimRelation>,
     pub created_at: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub imported_from: Option<ImportedClaimSource>,
-    /// Closed protocol fields remain small. Domain or migration detail is
+    /// Closed protocol fields remain small. Domain detail is
     /// namespaced and canonical but cannot carry Standing or authority.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub extensions: BTreeMap<String, Value>,
@@ -94,7 +82,6 @@ impl ClaimRecordV1 {
         provenance: Vec<ClaimSource>,
         relations: Vec<ClaimRelation>,
         created_at: String,
-        imported_from: Option<ImportedClaimSource>,
         extensions: BTreeMap<String, Value>,
     ) -> Result<Self, String> {
         let mut value = Self {
@@ -107,7 +94,6 @@ impl ClaimRecordV1 {
             provenance,
             relations,
             created_at,
-            imported_from,
             extensions,
         };
         value.validate_semantics()?;
@@ -210,15 +196,6 @@ impl ClaimRecordV1 {
         }
         chrono::DateTime::parse_from_rfc3339(&self.created_at)
             .map_err(|_| "Claim Record created_at must be RFC 3339".to_string())?;
-        if let Some(source) = &self.imported_from {
-            require_text("imported_from.era", &source.era)?;
-            require_text("imported_from.object_id", &source.object_id)?;
-            require_sha256("imported_from.object_root", &source.object_root)?;
-            require_git_oid(
-                "imported_from.predecessor_commit",
-                &source.predecessor_commit,
-            )?;
-        }
         for (namespace, value) in &self.extensions {
             if !namespace.contains('.') || namespace.starts_with('.') || namespace.ends_with('.') {
                 return Err(format!(
@@ -310,17 +287,6 @@ fn require_sha256(field: &str, value: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn require_git_oid(field: &str, value: &str) -> Result<(), String> {
-    if !matches!(value.len(), 40 | 64)
-        || !value
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
-        return Err(format!("Claim Record {field} must be a full Git object id"));
-    }
-    Ok(())
-}
-
 fn require_relative_path(field: &str, value: &str) -> Result<(), String> {
     require_text(field, value)?;
     if value.starts_with('/') || value.split('/').any(|segment| segment == "..") {
@@ -348,7 +314,7 @@ mod tests {
             vec!["Range 1..100 inclusive.".into()],
             vec![ClaimEvidenceRef {
                 relation: "supports".into(),
-                artifact_id: Some("va_fixture".into()),
+                artifact_id: Some("a".repeat(64)),
                 artifact_root: root('a'),
                 artifact_path: Some(format!("records/artifacts/sha256/{}", "a".repeat(64))),
             }],
@@ -361,12 +327,6 @@ mod tests {
             }],
             vec![],
             "2026-07-27T00:00:00Z".into(),
-            Some(ImportedClaimSource {
-                era: "finding_v0_10".into(),
-                object_id: "vf_fixture".into(),
-                object_root: root('b'),
-                predecessor_commit: "c".repeat(40),
-            }),
             BTreeMap::new(),
         )
         .unwrap();
@@ -382,7 +342,7 @@ mod tests {
     fn extension_cannot_smuggle_standing_or_authority() {
         let mut extensions = BTreeMap::new();
         extensions.insert(
-            LEGACY_FINDING_EXTENSION.into(),
+            "example.extension.v1".into(),
             serde_json::json!({"standing": "accepted"}),
         );
         let error = ClaimRecordV1::build(
@@ -396,7 +356,6 @@ mod tests {
             vec![],
             vec![],
             "2026-07-27T00:00:00Z".into(),
-            None,
             extensions,
         )
         .unwrap_err();
@@ -416,7 +375,6 @@ mod tests {
             vec![],
             vec![],
             "2026-07-27T00:00:00Z".into(),
-            None,
             BTreeMap::new(),
         )
         .unwrap();
@@ -448,7 +406,6 @@ mod tests {
             }],
             vec![],
             "2026-07-29T00:00:00Z".into(),
-            None,
             BTreeMap::new(),
         )
         .unwrap();
@@ -473,10 +430,9 @@ mod tests {
             vec![],
             vec![],
             "2026-07-29T00:00:00Z".into(),
-            None,
             BTreeMap::new(),
         )
         .unwrap_err();
-        assert!(error.contains("legacy va_ identifier or a full lowercase content hash"));
+        assert!(error.contains("full lowercase content hash"));
     }
 }

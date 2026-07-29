@@ -47,7 +47,7 @@ The current CLI exposes closed JSON for:
 - authority and repository verification.
 
 Readers must preserve object IDs, full roots, source commit/tree, repository
-epoch, source schema, and authority effect.
+origin, source schema, and authority effect.
 
 ## Adapter rule
 
@@ -106,7 +106,7 @@ separate exact governed transition in the target Frontier.
 
 Git bundles, ordinary clones, OCI artifacts, archives, and content-addressed
 stores may carry Vela bytes. Transport integrity does not create Vela
-authority. The consumer verifies the exact Git objects, repository epoch,
+authority. The consumer verifies the exact Git objects, repository origin,
 sequence-one authority trust root, canonical objects, and replay.
 
 Derived databases, Web pages, graphs, and search indexes are rebuildable and

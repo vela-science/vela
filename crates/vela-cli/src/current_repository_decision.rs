@@ -247,11 +247,10 @@ pub(crate) fn prepare(
     }
     DateTime::parse_from_rfc3339(observed_at)
         .map_err(|error| format!("current review observation time is invalid: {error}"))?;
-    let repository = crate::current_repository::verify_compacted_repository_at(frontier, true)?;
+    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
     let origin = load_origin(frontier)?;
-    let authority =
-        crate::cli::load_compacted_repository_authority(frontier, &repository, &origin)?;
+    let authority = crate::cli::load_current_repository_authority(frontier, &repository, &origin)?;
     if authority.history.authority_events.iter().any(|event| {
         event.content.target.r#type == "proposal"
             && event.content.target.id == proposal_id
@@ -768,7 +767,6 @@ mod tests {
             }],
             relations,
             "2026-07-27T00:00:00Z".into(),
-            None,
             BTreeMap::new(),
         )
         .unwrap()
@@ -807,7 +805,6 @@ mod tests {
                 path: format!("records/submissions/sha256/{}.json", "e".repeat(64)),
             },
             vec!["Fixture caveat.".into()],
-            None,
         )
         .unwrap()
     }
@@ -879,7 +876,7 @@ mod tests {
             VerificationRecordDraft {
                 subject: VerificationSubject {
                     claim_id: format!("vcl_{}", "a".repeat(64)),
-                    artifact_ids: vec!["va_fixture".into()],
+                    artifact_ids: vec!["a".repeat(64)],
                     submission_id: submission.submission_id.clone(),
                     submission_root: submission.canonical_root().unwrap(),
                     proposal_id: "vpr_fixture".into(),

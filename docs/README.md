@@ -15,11 +15,9 @@
 - [Roots](ROOTS.md)
 - [Target Index](TARGET_INDEX.md)
 - [Threat model](THREAT_MODEL.md)
-- [Current repository epoch ADR](adr/0022-current-repository-epoch-and-legacy-runtime-retirement.md)
-- [Native current repository genesis ADR](adr/0023-native-current-repository-genesis.md)
+- [Current repository origin ADR](adr/0027-pre-release-current-state-compaction.md)
 - [Math-first compounding product architecture ADR](adr/0025-math-first-compounding-product-architecture.md)
 - [Proposed correction benchmark and whitepaper evidence contract ADR](adr/0026-correction-benchmark-and-whitepaper-evidence-contract.md)
-- [Proposed pre-release current-state compaction ADR](adr/0027-pre-release-current-state-compaction.md)
 - [Living Frontier map and native-system boundary ADR](adr/0028-living-frontier-map-and-native-system-boundary.md)
 - [Proposed derived foreign reference and authority containment ADR](adr/0029-derived-foreign-reference-and-local-authority-containment.md)
 

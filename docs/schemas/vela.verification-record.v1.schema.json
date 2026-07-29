@@ -31,7 +31,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "pattern": "^(va_.+|[0-9a-f]{64})$"
+            "pattern": "^[0-9a-f]{64}$"
           }
         },
         "submission_id": { "type": "string", "pattern": "^vsb_.+" },
@@ -83,7 +83,7 @@
       "type": "array",
       "items": {
         "type": "string",
-        "pattern": "^(va_.+|[0-9a-f]{64})$"
+        "pattern": "^[0-9a-f]{64}$"
       }
     },
     "started_at": { "type": "string", "format": "date-time" },

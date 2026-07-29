@@ -190,7 +190,7 @@ pub(crate) fn import(
         return Err("verification import actor must match the Verification Record verifier".into());
     }
 
-    let repository = crate::current_repository::verify_compacted_repository_at(frontier, true)?;
+    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
     let (_proposal, proposal_root, _submission) = load_subject(frontier, &repository, record)?;
     let record_bytes = record.canonical_bytes()?;
@@ -223,8 +223,7 @@ pub(crate) fn import(
         &journal_dir,
     )
     .map_err(|error| error.to_string())?;
-    let held_repository =
-        crate::current_repository::verify_compacted_repository_at(frontier, true)?;
+    let held_repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
     if held_repository.canonical_root()? != repository_root {
         return Err(
             "current repository changed while acquiring the verification import barrier".into(),
@@ -239,7 +238,7 @@ pub(crate) fn import(
         return Err("current repository origin is not canonical JSON".into());
     }
     let authority =
-        crate::cli::load_compacted_repository_authority(frontier, &held_repository, &origin)?;
+        crate::cli::load_current_repository_authority(frontier, &held_repository, &origin)?;
     if !authority
         .policy_material
         .schema
@@ -450,7 +449,7 @@ pub(crate) fn import(
             | PublicationState::CommittedLocal { .. }
             | PublicationState::Pushed { .. }
     ) {
-        crate::current_repository::verify_compacted_repository_at(frontier, true).map_err(
+        crate::current_repository::verify_current_repository_at(frontier, true).map_err(
             |error| {
                 format!(
                     "Verification Record was published but strict post-publication verification \
@@ -574,7 +573,6 @@ mod tests {
                 path: submission_path.clone(),
             },
             Vec::new(),
-            None,
         )
         .unwrap();
         let proposal_root = proposal.canonical_root().unwrap();

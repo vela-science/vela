@@ -2,7 +2,7 @@
   "subject": {
     "claim_id": "vcl_0123456789abcdef",
     "artifact_ids": [
-      "va_bbbbbbbbbbbbbbbb"
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
     ],
     "submission_id": "vsb_8a36cdb336823499",
     "submission_root": "sha256:81fd3abb891383dfc985d213b01b779f2edd51e6da23a68d3f85e0c8f6c41b82",
