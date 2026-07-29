@@ -1,8 +1,6 @@
-# Public conformance CI for the Vela substrate. Runs on the PUBLIC repo
-# (vela-science/vela), where GitHub Actions is free + unlimited, so it
-# sidesteps the private-repo billing block. A green badge here is itself a
-# trust signal: anyone can see the substrate builds, lints, tests, and that
-# the frozen verifiers re-derive their witnesses from scratch.
+# Public conformance CI for the Vela product monorepo. A green run shows that
+# the current Rust boundary, portable object vectors, and frozen verifiers
+# reproduce from the checked-out source.
 name: conformance
 
 on:
@@ -26,31 +24,6 @@ jobs:
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: format
         run: cargo fmt --all -- --check
-      - name: portable and installed Receipt v1 surfaces
-        run: |
-          tmp="$(mktemp -d)"
-          trap 'rm -rf "$tmp"' EXIT
-          cp crates/vela-verify/corpus/valid/smoke/sidon.witness.json "$tmp/witness.json"
-          cp crates/vela-cli/resources/receipt_v1.py "$tmp/receipt_v1.py"
-          cp crates/vela-cli/resources/vela_receipt_v1.py "$tmp/vela_receipt_v1.py"
-          cp crates/vela-cli/resources/receipt_json.py "$tmp/receipt_json.py"
-          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$tmp" \
-            python3 "$tmp/receipt_v1.py" emit \
-              --claim "portable Receipt v1 package check" \
-              --artifact "witness.json:witness" \
-              --base-dir "$tmp" \
-              --caveat "Package wiring check only; no acceptance." \
-              --out "$tmp/receipt.json"
-          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$tmp" \
-            python3 "$tmp/receipt_v1.py" validate "$tmp/receipt.json"
-          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$tmp" python3 -c \
-            'import vela_receipt_v1; vela_receipt_v1.validate_safe_public_artifact_descriptors({"artifacts": []})'
-      - name: package contains installed Receipt resources
-        run: |
-          cargo package -p vela-cli --list > /tmp/vela-cli-package-files
-          grep -Fx resources/receipt_v1.py /tmp/vela-cli-package-files
-          grep -Fx resources/vela_receipt_v1.py /tmp/vela-cli-package-files
-          grep -Fx resources/receipt_json.py /tmp/vela-cli-package-files
       - name: clippy (deny warnings)
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: build

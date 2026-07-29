@@ -27,6 +27,7 @@ absent_paths=(
   crates/vela-edge/src/review
   crates/vela-edge/src/validation
   crates/vela-hub
+  crates/vela-cli/resources
   conformance/fixtures/decision-brief-testing-v1
   conformance/target-index-v2
   conformance/readers/python/reducer.py

@@ -63,7 +63,15 @@ fn install_current_target_index(frontier: &Path, socket: &Path) {
     assert!(committed.success());
     let committed = Command::new("git")
         .current_dir(frontier)
-        .args(["commit", "-qm", "target source"])
+        .args([
+            "-c",
+            "user.name=Vela Test",
+            "-c",
+            "user.email=vela@example.invalid",
+            "commit",
+            "-qm",
+            "target source",
+        ])
         .status()
         .expect("commit target source");
     assert!(committed.success());
@@ -140,7 +148,15 @@ fn install_current_target_index(frontier: &Path, socket: &Path) {
     assert!(committed.success());
     let committed = Command::new("git")
         .current_dir(frontier)
-        .args(["commit", "-qm", "seal target index"])
+        .args([
+            "-c",
+            "user.name=Vela Test",
+            "-c",
+            "user.email=vela@example.invalid",
+            "commit",
+            "-qm",
+            "seal target index",
+        ])
         .status()
         .expect("commit sealed Target Index");
     assert!(committed.success());

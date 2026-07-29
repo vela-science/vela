@@ -278,14 +278,14 @@ content-addressed mirrors in `erdos-frontier` and are checked there by
 
 | Surface | Current evidence |
 | --- | --- |
-| Vela product | `0.940.9`; product packages and conformance are green at `13a404bfe7b7f91d900f0e6bad3a4dc0dc0d6342` |
+| Vela product | `0.940.9`; the repository's pinned conformance workflow verifies the current `main` head, so this campaign document does not duplicate a mutable self-commit pin |
 | TypeScript protocol | `@vela-science/protocol@0.1.0`, owned by this monorepo |
 | Canopus | `@vela-science/canopus@0.8.0`, owned by `packages/canopus` with unsquashed source history |
 | Erdős Frontier | strict replay passes at `6a2b20a4623c0aa3ec667e65452c7aae6210b306` |
 | Formal Frontier | strict replay passes at `d5f5355de3588a9a558ee9505e2960e7d138acaf` |
 | Sidon Frontier | strict replay passes at `410fd680e1d27a185617b7cf06cd940ef0016369` |
 | Quantum Frontier | strict replay passes at `790f255c394b7900e7a1e36a740406d16b783165` |
-| Web | read-only clean-clone checks and projection-bound build pass at `bdb10ed92edba5ea1a0e75d44bfb457e0b806f5f`; GitHub runner allocation is externally blocked by the organization billing state |
+| Web | read-only clean-clone checks and projection-bound build pass at `bdb10ed92edba5ea1a0e75d44bfb457e0b806f5f`; no web-code release is required by the current campaign |
 
 ### Formal product dogfood
 

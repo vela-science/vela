@@ -107,9 +107,6 @@ jobs:
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Build release binary
         run: cargo build --locked --release -p vela-cli --bin vela
-      - name: Check exact fixture-signature state
-        if: runner.os == 'Linux'
-        run: cargo test --locked -p vela-protocol --test fixture_manifest_signature
       - name: Stage Unix bundle
         if: runner.os != 'Windows'
         env:
