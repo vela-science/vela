@@ -1,7 +1,7 @@
 # ADR 0027: Pre-release current-state compaction
 
 - Status: Accepted and implemented on `main`
-- Target release: next Vela release after `v0.940.9`
+- Release: `v0.950.0`
 - Protocol effect: the two repository-boundary readers were replaced by one
   current `vela.repository-origin.v1` contract
 - Scientific effect: none; the accepted assertion, condition, evidence-content,

@@ -104,11 +104,10 @@ fn root_action_is_consumer_pinned_strict_and_nonfinalizing() {
             .as_object()
             .expect("action inputs must be an object")
             .len(),
-        3,
-        "the public action accepts only frontier, release, and one exact boundary root"
+        2,
+        "the public action accepts only frontier and one exact release"
     );
     assert_eq!(action["inputs"]["vela-version"]["required"], true);
-    assert_eq!(action["inputs"]["authority-record-root"]["required"], false);
 
     let install = script_named(
         &action,
@@ -143,13 +142,6 @@ fn root_action_is_consumer_pinned_strict_and_nonfinalizing() {
     assert!(install.contains("installed Vela $installed does not match requested Vela $requested"));
     assert!(!install.contains("vela.lock"));
 
-    let trust = script_named(&action, "Install the exact consumer authority pin");
-    assert!(trust.contains("AUTHORITY_RECORD_ROOT"));
-    assert!(trust.contains("vela authority trust pin \"$FRONTIER\""));
-    assert!(trust.contains("--record-root \"$AUTHORITY_RECORD_ROOT\""));
-    assert!(!trust.contains("--confirm-root"));
-    assert!(!trust.contains("--confirm-at"));
-
     let strict = script_named(&action, "Strict read-only repository verification");
     assert!(strict.contains("vela check \"$FRONTIER\" --strict"));
     assert!(!strict.contains("--strict --json"));
@@ -169,7 +161,8 @@ fn root_action_is_consumer_pinned_strict_and_nonfinalizing() {
             "root action retains obsolete or mutating contract `{forbidden}`"
         );
     }
-    assert!(ROOT_ACTION.contains("vars.VELA_AUTHORITY_RECORD_ROOT"));
+    assert!(!ROOT_ACTION.contains("VELA_AUTHORITY_RECORD_ROOT"));
+    assert!(!ROOT_ACTION.contains("authority trust pin"));
 
     assert!(!ROOT_ACTION.contains("constellate-science/vela"));
     assert!(!ROOT_ACTION.contains("/main/install.sh"));

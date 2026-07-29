@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## v0.950.0 — 2026-07-29 — One compact current repository
+
+- Replace the predecessor epoch and repository-v2 readers with one signed
+  repository-origin and repository-v3 boundary after all four controlled
+  Frontiers passed exact state-equivalence compaction.
+- Remove retired Artifact wrappers, imported-object compatibility fields,
+  migration commands, one-time compaction code, and predecessor-only runtime
+  schemas. Exact predecessor tags and archives remain the historical reader.
+- Simplify the public verification action to verify the closed current
+  repository directly. It no longer installs an obsolete out-of-band epoch
+  trust pin.
+- Preserve accepted Claim meaning, evidence content, relations, Standing, and
+  repository authority while reducing the live protocol and operational
+  surface.
+
 - Make `authority trust pin` idempotent and allow a migrated Frontier's public
   local pin to advance only through an exact
   `--previous-record-root` compare-and-swap. The new root must still match the

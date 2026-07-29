@@ -3,22 +3,18 @@
 # Consume from a frontier repository:
 #
 #   - uses: actions/checkout@v5
-#   - uses: vela-science/vela@v0.940.9
+#   - uses: vela-science/vela@v0.950.0
 #     with:
 #       frontier: .
-#       vela-version: v0.940.9
-#       authority-record-root: ${{ vars.VELA_AUTHORITY_RECORD_ROOT }}
+#       vela-version: v0.950.0
 #
-# For a current Profile v2 repository, the sequence-1 authority-record root
-# must come from protected GitHub repository or organization configuration,
-# never from the proposed checkout. The action installs that public consumer
-# pin in the ephemeral runner account and runs the strict read-only verifier.
-# It never signs, decides, or changes Frontier state.
+# Current repositories carry one signed repository origin and authority
+# initialization record. The action verifies that closed boundary directly
+# with the pinned released binary. It never installs trust state, signs,
+# decides, or changes Frontier state.
 
 name: vela-check
-description: >-
-  Strictly verifies a clean Git-native Vela frontier with an optional exact
-  out-of-band repository-boundary pin.
+description: Strictly verifies one clean current Git-native Vela Frontier.
 
 inputs:
   frontier:
@@ -27,18 +23,9 @@ inputs:
     default: "."
   vela-version:
     description: >-
-      Required reviewed Vela release tag (e.g. v0.940.9). The consumer chooses
+      Required reviewed Vela release tag (e.g. v0.950.0). The consumer chooses
       this pin; proposed Frontier bytes cannot select or downgrade the verifier.
     required: true
-  authority-record-root:
-    description: >-
-      Full sha256 content root of the sequence-1 authority record. Required
-      for a current Profile v2 repository. Supply it from a
-      protected GitHub repository or organization variable, not from a file in
-      the proposed checkout. Omit it only when the runner already has the exact
-      local pin.
-    required: false
-    default: ""
 
 runs:
   using: composite
@@ -87,20 +74,6 @@ runs:
         fi
         echo "$install_root/bin" >> "$GITHUB_PATH"
         echo "$version_output (matches the consumer pin)"
-
-    - name: Install the exact consumer authority pin
-      shell: bash
-      env:
-        FRONTIER: ${{ inputs.frontier }}
-        AUTHORITY_RECORD_ROOT: ${{ inputs.authority-record-root }}
-      run: |
-        set -euo pipefail
-        if [ -z "$AUTHORITY_RECORD_ROOT" ]; then
-          echo "No authority-record root supplied; strict verification will use an existing exact local pin or fail closed."
-          exit 0
-        fi
-        vela authority trust pin "$FRONTIER" \
-          --record-root "$AUTHORITY_RECORD_ROOT" --json
 
     - name: Strict read-only repository verification
       shell: bash
