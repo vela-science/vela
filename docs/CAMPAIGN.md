@@ -990,19 +990,19 @@ and successor Formal Conjectures source files. It verifies every external
 commit, tree, and content root before packaging and emits a manifest covering
 every archive member.
 
-At Vela commit `79c3d3e6d777f7734b4a82b9e82cd0c53dec4ba5`, two builds produced
-identical 428-member archives at root
-`sha256:bad77d78c47f14799422965ce4742b01ec5f0bbca73e19ad5b99044595b45e0e`
+At Vela commit `2267ab27d0a0822231fa12098c1e98b1cde046f7`, two builds produced
+identical 438-member archives at root
+`sha256:d10fa6348cf180c77579e7c3fb528067cc2521fc86875c674a4dd9c933d0e000`
 and manifest root
-`sha256:a2aee9988d2d1b6692a360092ebcbdc402964fa7e708835be06e66a047d5a0a4`.
+`sha256:06ec06ae9329bb3096c123f8ff6998f0ce57de979549d2511d2facc370fcb3c6`.
 This qualifies deterministic packaging only. The final paper artifact root
 must bind the eventual terminal correction, held-out evidence, baselines, and
 paper source, and still requires external reproduction.
 
-At clean Vela commit `94a9450be33cb51497ca0c7700826c8e384f49e0`,
+At clean Vela commit `2267ab27d0a0822231fa12098c1e98b1cde046f7`,
 the pinned Pandoc 3.9 and pdfLaTeX 1.40.26 renderer produced two identical
 11-page PDFs at root
-`sha256:b7e0c01e208b68d680d7218b29804552e4edbe2bac2ece0ba6f313a847059b6a`.
+`sha256:8b9e2f89cad06ab8e8bb3c46cd78cf8183d9afd99f6e2c5dea7076728ad0bf4f`.
 Visual inspection confirmed that long roots wrap and wide evidence tables no
 longer overlap. This qualifies deterministic rendering only.
 

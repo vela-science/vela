@@ -208,6 +208,40 @@ Git remains the transport and custody layer. A foreign workbench may emit
 these objects without importing Vela's reducer, authority implementation, web
 application, or worker runtime.
 
+### 3.5 Transition validation
+
+The reference implementation separates validation from publication. Given a
+Frontier `F` and proposed transaction `T`, it derives the complete post-state
+before installing any canonical bytes:
+
+```text
+VALIDATE-AND-DERIVE(F, T):
+  require T.before_repository_root = ROOT(F)
+  decode every input under its declared closed schema
+  recompute every full object root and resolve every retained reference
+  verify producer and verifier signatures over their canonical preimages
+  replay the authority keyset and policy to T.before_authority_head
+
+  if T contains no Decision:
+    require accepted-event delta = 0
+    require every proposed Claim remains pending
+  else:
+    require one exact pending Proposal
+    bind its Claim, Submission, ordered Verification Records, action, and reason
+    verify the reviewer principal and local policy at the bound authority head
+    derive exactly one semantic Event
+
+  replay the ordered Event log and derive Standing
+  derive every canonical postimage and the next repository root
+  require T's declared postimages and root equal the derived values
+  return the immutable write plan
+```
+
+Publication executes that immutable plan through a recoverable Git/filesystem
+transaction. A failure before its commit marker installs no canonical
+postimage. Recovery after the marker installs the same bytes; it does not
+rerun scientific judgment.
+
 ## 4. Bounded correction impact
 
 ### 4.1 Input
@@ -283,6 +317,37 @@ Within the declared closed bound:
 5. **explicit incompleteness:** incomplete inputs never produce a complete
    affected or unaffected set; and
 6. **authority containment:** no projection changes Standing.
+
+### 4.4 Cost bounds
+
+Let `b` be the total canonical input bytes, `n` the number of retained
+objects, `r` the number of retained references, `s` the number of signatures,
+and `e` the number of accepted Events. Full strict replay must inspect every
+canonical byte and Event, giving a lower bound of
+`Omega(b + n + r + e + s)`. For already decoded objects, one root-indexing and
+reference-resolution pass with the reference implementation's ordered maps and
+sets costs `O(b + (n + r + e) log n + s)` time and `O(b + n + r)` working
+state. This cost model excludes Git object access, schema-specific checks,
+operating-system caches, and repeated full-state derivations.
+Incremental transaction validation replaces those totals with the exact
+transaction read set and postimages, but the final repository-root check still
+binds the complete declared state.
+
+For the experimental correction reader, let `c` be the number of Claims and
+`m` the number of causal relations in the declared closed slice. The current
+fixed-point implementation stores at most `O(c m)` propagated
+Claim--relation causes. Its conservative worst-case bound is
+`O(c^2 m^2)` time and `O(c m)` memory because a pass scans the relation set
+and compares the monotone cause state. This is adequate only for bounded
+fixtures; it is not a claim to provide a general graph engine. A future queue
+implementation would require byte-equivalent conformance evidence before
+replacing this reference behavior.
+
+Measured authoring, validation, replay, storage, and review costs remain a
+registered evaluation output rather than an estimate in this draft. The paper
+will report exact inputs, repetitions, warm-up policy, machine identity, raw
+samples, and medians. Until those observations exist, no performance claim is
+made.
 
 ## 5. Implementation
 
@@ -526,7 +591,43 @@ The evaluation includes:
 - mutable URLs substituted for exact source identity; and
 - loss of optional services and projections.
 
-### 7.3 Out of scope
+### 7.3 Containment and residual risk
+
+- **Producer:** a producer can submit a false or overstated Claim. Whole-body
+  authentication preserves attribution, closed schemas reject substitution,
+  and registration leaves Standing unchanged. Only scientific review can
+  address a plausible but false Claim.
+- **Verifier:** a verifier can run an unsound method or lie about its result.
+  The record binds the verifier, exact scope, implementation, environment, and
+  nonclaims, while Verification has no authority. Vela does not prove the
+  verifier implementation sound.
+- **Repository writer:** a writer can publish an authorized transaction but
+  cannot supply the separate reviewer Decision required for Standing.
+  Corrupt or incomplete postimages fail strict replay. Compromise of both
+  roles is equivalent to compromise of that Frontier's local governance.
+- **Reviewer:** an authorized reviewer can make a poor or malicious Decision.
+  Vela preserves its exact inputs, actor, reason, and resulting Event; it
+  cannot make the judgment scientifically correct.
+- **Publisher or Git host:** a host can censor, delay, or serve an old valid
+  history. A reader who retains a known head can detect substitution and
+  rollback. Without that head, the reader cannot distinguish a stale
+  authentic clone from the latest authentic clone.
+- **Read model:** a database or website can omit or misrender records. Readers
+  bind projections to canonical Git roots, and canonical replay does not
+  require the projection. Users can still be misled if they never inspect its
+  source root.
+- **Foreign Frontier:** foreign state must be attributed information with no
+  imported local authority. The current protocol cannot yet express the
+  benchmark's complete foreign-reference contract and therefore fails B8.
+- **Implementation:** Rust and clean-room Python reduce shared-code defects but
+  share the same specification, fixtures, operator, and project incentives.
+  Agreement is implementation diversity, not organizational independence.
+- **Credential compromise:** signatures identify the compromised key, not
+  human intent. The current paper assumes SHA-256 and Ed25519 security and does
+  not claim automatic recovery from a stolen reviewer or repository-authority
+  credential.
+
+### 7.4 Out of scope
 
 Vela does not prevent an authorized reviewer from making a poor scientific
 Decision. It does not prove source statement fidelity without an appropriate
@@ -685,19 +786,19 @@ python3 -m unittest paper/artifacts/state-lift/test_score.py
 
 The working source-only artifact builder refuses dirty Vela input and mismatched
 external commits, trees, or content roots. At Vela commit
-`79c3d3e6d777f7734b4a82b9e82cd0c53dec4ba5`, two independent invocations
-produced identical 428-member archives at root
-`sha256:bad77d78c47f14799422965ce4742b01ec5f0bbca73e19ad5b99044595b45e0e`
+`2267ab27d0a0822231fa12098c1e98b1cde046f7`, two independent invocations
+produced identical 438-member archives at root
+`sha256:d10fa6348cf180c77579e7c3fb528067cc2521fc86875c674a4dd9c933d0e000`
 and manifest root
-`sha256:a2aee9988d2d1b6692a360092ebcbdc402964fa7e708835be06e66a047d5a0a4`.
+`sha256:06ec06ae9329bb3096c123f8ff6998f0ce57de979549d2511d2facc370fcb3c6`.
 The verifier rehashed every member and rejected unmanifested paths. This is
 packaging qualification, not independent reproduction or the final release
 artifact.
 
 The same source rendered twice from clean Vela commit
-`94a9450be33cb51497ca0c7700826c8e384f49e0` with pinned Pandoc 3.9 and
+`2267ab27d0a0822231fa12098c1e98b1cde046f7` with pinned Pandoc 3.9 and
 pdfLaTeX 1.40.26. Both 11-page PDFs had root
-`sha256:b7e0c01e208b68d680d7218b29804552e4edbe2bac2ece0ba6f313a847059b6a`.
+`sha256:8b9e2f89cad06ab8e8bb3c46cd78cf8183d9afd99f6e2c5dea7076728ad0bf4f`.
 The renderer derives PDF timestamps from the Git commit and wraps exact roots
 at presentation time without changing source bytes. This qualifies
 deterministic rendering, not the paper's scientific claims.
