@@ -605,7 +605,7 @@ mod tests {
             VerificationRecordDraft {
                 subject: VerificationSubject {
                     claim_id,
-                    artifact_ids: vec!["va_input".into()],
+                    artifact_ids: vec!["e".repeat(64)],
                     submission_id: submission.submission_id.clone(),
                     submission_root: submission_root.clone(),
                     proposal_id: proposal.proposal_id.clone(),
@@ -656,10 +656,10 @@ mod tests {
             registrations: Vec::new(),
             verifications: Vec::new(),
             artifacts: vec![RepositoryObjectRefV1 {
-                schema: "vela.artifact-record.v1".into(),
-                id: "va_input".into(),
+                schema: "content-addressed-artifact".into(),
+                id: "e".repeat(64),
                 root: root('e'),
-                path: format!("records/artifacts/sha256/{}.json", "e".repeat(64)),
+                path: format!("records/artifacts/sha256/{}", "e".repeat(64)),
             }],
             authority_keyset_root: root('3'),
             authority_policy_root: root('4'),

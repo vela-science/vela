@@ -207,7 +207,7 @@ impl VerificationRecordV1 {
             .iter()
             .chain(self.output_artifact_ids.iter())
         {
-            require_prefixed("artifact id", artifact_id, "va_")?;
+            require_artifact_reference_id(artifact_id)?;
         }
         require_text("method.profile", &self.method.profile)?;
         require_text("method.implementation", &self.method.implementation)?;
@@ -286,6 +286,21 @@ fn require_sha256(field: &str, value: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn require_artifact_reference_id(value: &str) -> Result<(), String> {
+    require_text("artifact id", value)?;
+    let is_current_content_hash = value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte));
+    if value.starts_with("va_") || is_current_content_hash {
+        return Ok(());
+    }
+    Err(
+        "Verification Record artifact id must be a legacy va_ identifier or a full lowercase content hash"
+            .into(),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -354,5 +369,30 @@ mod tests {
         let mut record = VerificationRecordV1::build(draft, identity, &key).unwrap();
         record.subject.submission_root = root('c');
         assert!(record.verify().is_err());
+    }
+
+    #[test]
+    fn current_content_hash_artifact_ids_are_valid() {
+        let (mut draft, identity, key) = fixture();
+        draft.subject.artifact_ids = vec!["a".repeat(64)];
+        draft.output_artifact_ids = vec!["f".repeat(64)];
+        VerificationRecordV1::build(draft, identity, &key).unwrap();
+    }
+
+    #[test]
+    fn malformed_artifact_ids_fail_closed() {
+        for artifact_id in [
+            "sha256:aaaaaaaa".to_string(),
+            "A".repeat(64),
+            "artifact".to_string(),
+        ] {
+            let (mut draft, identity, key) = fixture();
+            draft.subject.artifact_ids = vec![artifact_id];
+            let error = VerificationRecordV1::build(draft, identity, &key).unwrap_err();
+            assert!(
+                error.contains("legacy va_ identifier or a full lowercase content hash"),
+                "{error}"
+            );
+        }
     }
 }

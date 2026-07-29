@@ -595,11 +595,13 @@ The Proposal remains pending and accepted-event delta is zero.
 
 This slice also reproduced an object-contract mismatch. Current repositories
 identify retained Artifacts by full content hash, whereas the optional
-Verification Record v1 `artifact_ids` field accepts only legacy `va_`
-identifiers. The Verification binds the exact Submission root, which already
-binds all three Artifact digests, and leaves the redundant list empty. This is
-a concrete compatibility gap, not a reason to invent aliases or change the
-protocol during the experiment.
+Verification Record v1 `artifact_ids` field accepted only legacy `va_`
+identifiers. The imported Verification binds the exact Submission root, which
+already binds all three Artifact digests, and leaves the redundant list empty.
+A compatible repair now accepts exact full lowercase content-hash identifiers
+while retaining historical `va_` replay and exact repository-membership
+checks. The imported record remains byte-identical; no alias or canonical
+history rewrite was required.
 
 ### 6.8 Framework-neutral execution evaluation
 

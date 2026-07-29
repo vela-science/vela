@@ -326,14 +326,14 @@ success registered in the canonical Frontier:
   `sha256:a9df828f9480d79e10a9707847fdf99a6a27287cf4281256d79f17be7f3d9f39`.
 
 Preparing its scoped Verification reproduced a current object-contract
-mismatch. Current repositories identify retained Artifacts by full content
-hash, while the optional Verification Record v1 `artifact_ids` field accepts
-only legacy `va_` identifiers. The exact Verification therefore binds the
-Claim, Proposal, and Submission root; that Submission root already binds all
-three Artifact digests. Its redundant `artifact_ids` list remains empty rather
-than inventing aliases. This closes the present loop without weakening any
-check and records a concrete candidate for a future compatible object-contract
-repair. It does not justify changing the protocol during this experiment.
+mismatch: repositories identify retained Artifacts by full content hash, while
+the optional Verification Record v1 `artifact_ids` field accepted only legacy
+`va_` identifiers. The imported record therefore bound the exact Claim,
+Proposal, and Submission root, which already binds all three Artifact digests,
+and left the redundant list empty rather than inventing aliases. The compatible
+repair now on `main` accepts exact full lowercase content-hash identifiers while
+retaining historical `va_` replay. Exact repository membership remains
+mandatory. The imported record remains byte-identical.
 
 Four verifier-rejected Runs remain retained rather than hidden:
 

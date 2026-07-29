@@ -29,7 +29,10 @@
         "claim_id": { "type": "string", "pattern": "^(vcl|vf)_.+" },
         "artifact_ids": {
           "type": "array",
-          "items": { "type": "string", "pattern": "^va_.+" }
+          "items": {
+            "type": "string",
+            "pattern": "^(va_.+|[0-9a-f]{64})$"
+          }
         },
         "submission_id": { "type": "string", "pattern": "^vsb_.+" },
         "submission_root": { "$ref": "#/$defs/sha256" },
@@ -78,7 +81,10 @@
     },
     "output_artifact_ids": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^va_.+" }
+      "items": {
+        "type": "string",
+        "pattern": "^(va_.+|[0-9a-f]{64})$"
+      }
     },
     "started_at": { "type": "string", "format": "date-time" },
     "completed_at": { "type": "string", "format": "date-time" },

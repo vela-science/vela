@@ -190,6 +190,12 @@ identity. Registration proves intake, not truth, verification, or acceptance.
 - outcome; and
 - verifier signature.
 
+Artifact references use the repository object's exact identifier: a full
+lowercase 64-hex content hash for current content-addressed Artifacts, or a
+retained historical `va_` identifier when replaying an imported legacy
+Artifact Record. Import resolves every non-empty reference against the exact
+current repository; aliases and short digests are not accepted.
+
 Outcomes are:
 
 ```text
