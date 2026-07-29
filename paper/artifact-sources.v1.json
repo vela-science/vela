@@ -1,0 +1,35 @@
+{
+  "schema": "vela.paper-artifact-sources.v1",
+  "vela": {
+    "repository": "https://github.com/vela-science/vela"
+  },
+  "erdos_frontier": {
+    "repository": "https://github.com/vela-science/erdos-frontier",
+    "commit": "9af3be808ee24dbc82a883cf125918e0aaff8406",
+    "tree": "d77a0576e6366380f5071a1125e71a46a61ac10b",
+    "members": [
+      {
+        "path": ".vela/work/correction-erdos-424/source-diff.json",
+        "root": "sha256:d18024c4333f77144955adf0036ce831e71b331ea7d9cc9cb69958f960f56d6c"
+      }
+    ]
+  },
+  "formal_conjectures": {
+    "repository": "https://github.com/google-deepmind/formal-conjectures",
+    "path": "FormalConjectures/ErdosProblems/424.lean",
+    "versions": [
+      {
+        "label": "predecessor",
+        "commit": "e751934294a381afd2d5fc1124c5953c8e25f9fa",
+        "tree": "571f59471e87f66e33dd734eb6794125b0c1f8c8",
+        "root": "sha256:05876ee2a0d7e75f72af414dbb6c415212cfa04ef3941dfbd5d9f7c87e6a30d9"
+      },
+      {
+        "label": "successor",
+        "commit": "8046fbff7b6c801d8debd4a85bf67a0541b78dda",
+        "tree": "774933a12da7926492e0e08cbd46ccbf99178cf8",
+        "root": "sha256:6b425608614ac52f32a09bfa2a8ad989edef9fb21bbd599ef7bdcc2814b373a2"
+      }
+    ]
+  }
+}
