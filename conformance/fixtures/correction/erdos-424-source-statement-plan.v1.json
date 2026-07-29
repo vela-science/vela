@@ -1,0 +1,104 @@
+{
+  "schema": "vela.correction-evaluation-plan.v1",
+  "fixture_id": "erdos-424-source-statement",
+  "status": "frozen",
+  "frozen_at": "2026-07-29T06:53:21Z",
+  "classification": "prospective_writer_qualification",
+  "protocol_primary_fixture": false,
+  "objective": "Exercise one honest exact-source supersession through the ordinary Submission, Verification, and human Decision boundary before implementing correction-impact semantics.",
+  "frontier": {
+    "repository": "https://github.com/vela-science/erdos-frontier",
+    "commit": "6a2b20a4623c0aa3ec667e65452c7aae6210b306",
+    "tree": "701b2d50d6fd8fe317a15a53fc8f5eaf530919b7",
+    "frontier_id": "vfr_0a25edabc16db143",
+    "repository_root": "sha256:29393904ff811289dd3ae5c36b63fafa3b71f3712f761688fa6fd96617988d4c"
+  },
+  "predecessor_claim": {
+    "claim_id": "vcl_5d2858542f6882556bb7652c908708913fadd7ced61014cd5842ae0954ddfe09",
+    "claim_root": "sha256:eaca8077dd44632849567faea6074026c76c78eb7e0ea3e8129cfe2d56d54e51",
+    "standing": "accepted",
+    "assertion": "Formal-Conjectures statement: Erdos424.erdos_424 https://google-deepmind.github.io/formal-conjectures/theorem/?name=Erdos424.erdos_424."
+  },
+  "source_transition": {
+    "repository": "https://github.com/google-deepmind/formal-conjectures",
+    "path": "FormalConjectures/ErdosProblems/424.lean",
+    "before": {
+      "commit": "e751934294a381afd2d5fc1124c5953c8e25f9fa",
+      "content_root": "sha256:05876ee2a0d7e75f72af414dbb6c415212cfa04ef3941dfbd5d9f7c87e6a30d9",
+      "statement": "answer(sorry) ↔ generatedSet.HasPosDensity"
+    },
+    "after": {
+      "commit": "8046fbff7b6c801d8debd4a85bf67a0541b78dda",
+      "tree": "774933a12da7926492e0e08cbd46ccbf99178cf8",
+      "content_root": "sha256:6b425608614ac52f32a09bfa2a8ad989edef9fb21bbd599ef7bdcc2814b373a2",
+      "statement": "answer(sorry) ↔ generatedSet.HasPosLowerDensity"
+    },
+    "change": "The formalization no longer requires natural density to exist; it asks only for positive lower density."
+  },
+  "requested_change": {
+    "kind": "supersede_claim",
+    "target_claim_id": "vcl_5d2858542f6882556bb7652c908708913fadd7ced61014cd5842ae0954ddfe09",
+    "target_claim_root": "sha256:eaca8077dd44632849567faea6074026c76c78eb7e0ea3e8129cfe2d56d54e51",
+    "replacement_assertion": "At Formal Conjectures commit 8046fbff7b6c801d8debd4a85bf67a0541b78dda, Erdos424.erdos_424 formalizes positive density as generatedSet.HasPosLowerDensity. This supersedes the retained mutable source label, which does not identify the corrected statement.",
+    "conditions": [
+      "Source repository, commit, path, and content root must match this plan.",
+      "The earlier HasPosDensity and later HasPosLowerDensity statements must be reproduced from the exact retained source bytes."
+    ],
+    "caveat": "This establishes exact source identity and the formal statement at one commit. It does not prove Erdős problem 424, establish that positive lower density is the only valid informal interpretation, or change Standing without an authorized human Decision."
+  },
+  "verification_contract": {
+    "outcome_on_match": "pass",
+    "checks": [
+      "The predecessor Claim ID, root, assertion, and accepted Standing match.",
+      "Both Formal Conjectures commits contain the expected file bytes.",
+      "The exact theorem statement changes from HasPosDensity to HasPosLowerDensity.",
+      "The replacement Claim binds the after commit, path, and content root.",
+      "The Submission requests supersession of exactly the predecessor Claim and root.",
+      "Registration and Verification have accepted-event delta zero."
+    ],
+    "nonclaims": [
+      "The source theorem is proved.",
+      "The source interpretation is scientifically accepted by the Frontier.",
+      "This fixture satisfies the protocol breakthrough topology.",
+      "This first-party verification is organizationally independent."
+    ]
+  },
+  "expected_transition": {
+    "before_human_decision": {
+      "proposal_standing": "pending_review",
+      "accepted_event_delta": 0,
+      "predecessor_standing": "accepted"
+    },
+    "after_human_acceptance": {
+      "predecessor_retained": true,
+      "predecessor_standing": "superseded",
+      "replacement_standing": "accepted",
+      "accepted_event_delta": 1
+    },
+    "after_human_rejection": {
+      "predecessor_standing": "accepted",
+      "replacement_standing": "rejected",
+      "accepted_event_delta": 1
+    }
+  },
+  "known_gap": {
+    "kind": "reference_cli_authoring",
+    "observation": "Submission v1 and repository replay support exact correction and supersession, but the ordinary attempt-based vela submit command cannot author requested_change.target.",
+    "permitted_fix": "Expose one exact-target correction or supersession option that reuses Submission v1, requires full Claim ID and root, and changes no protocol schema or authority rule.",
+    "forbidden_expansions": [
+      "new Event kind",
+      "new canonical relation algebra",
+      "automatic Decision",
+      "batch or wildcard correction",
+      "mutable URL as identity",
+      "hosted writer"
+    ]
+  },
+  "stopping_rules": [
+    "Stop if either source identity or content root differs.",
+    "Stop if the predecessor is no longer accepted at the frozen Frontier root.",
+    "Stop if authoring requires a protocol schema change.",
+    "Stop if any producer or verifier action changes accepted state.",
+    "Stop before authority and present one exact Decision packet to the human."
+  ]
+}

@@ -98,9 +98,26 @@ a file import, each declared Artifact travels beside the Submission at
 `artifacts/sha256/<digest>`. Vela verifies those bytes before installing the
 canonical content-addressed objects in the repository transaction.
 
-Corrective Submissions bind the full historical Claim identity and exact
-Finding root. Missing, shortened, stale, or mismatched targets fail before
-intake.
+Corrective Submissions bind the full historical Claim identity and exact Claim
+root:
+
+```bash
+vela submit --frontier . \
+  --claim "<replacement bounded claim>" \
+  --type theoretical \
+  --replayability exact \
+  --artifact <path>:<kind> \
+  --caveat "<scope limit>" \
+  --supersedes <full_vcl_id> \
+  --target-root <full_sha256_root> \
+  --as agent:<name> \
+  --json
+```
+
+An observed correction or supersession does not need a synthetic work target.
+New Claims still require an active Attempt. Missing, shortened, stale, or
+mismatched targets fail before intake. Registration creates a pending Proposal
+and cannot decide it.
 
 ## Verification
 

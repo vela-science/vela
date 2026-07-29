@@ -255,5 +255,9 @@ current Frontiers retain 2,831 Claim records and no current correction,
 supersession, or retraction relation. Erdős 281 has the required dependency
 shape without a real correction. Erdős 128 has a real upstream statement
 correction, but the accepted Claim binds a mutable theorem URL rather than the
-statement's source commit, path, and content root. No implementation work may
-convert either case into a passing fixture.
+statement's source commit, path, and content root. Erdős 1197 has an exact,
+kernel-clean complete proof alongside an explicitly conditional proof, but
+that is independent completion rather than correction; its conflicting
+`replicates` and `contradicts` labels are an adversarial relation-semantics
+case. No implementation work may convert any of these cases into a passing
+fixture.

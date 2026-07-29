@@ -136,6 +136,11 @@ next -> start -> submit
   --as agent:<you> --json` — build and register Submission v1 from the exact
   Attempt. Registration creates a pending Proposal and no accepted-state
   change. A foreign producer may pass one signed `submission.json`.
+- `vela submit --claim <replacement> --type <type> --replayability <class>
+  --artifact <path>:<kind> --caveat <limit> --supersedes <full_vcl_id>
+  --target-root <full_sha256_root> --as agent:<you> --json` — request one exact
+  supersession without inventing a ranked work target. New Claims still
+  require an Attempt. This producer action cannot decide the Proposal.
 - `vela start <target> --drop --reason <why> --as agent:<you> --json` — sign a
   same-owner zero-TTL lease update, then remove private scratch. Deleting files
   by hand does not release a lease.

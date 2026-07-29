@@ -112,7 +112,12 @@ its accepted Frontier Claim names a mutable theorem URL without binding the
 source commit, path, or content root. Different retained derived sources point
 to both the correct and incorrect theorem revisions. That ambiguity is an
 integration defect and a benchmark result. It is not evidence that the
-protocol's correction transition is ambiguous.
+protocol's correction transition is ambiguous. Erdős problem 1197 retains an
+exact, kernel-clean complete proof alongside an accurately labeled conditional
+proof. The completion does not correct the conditional result, while retained
+`replicates` and `contradicts` relations disagree about their relationship.
+That case tests relation fidelity but does not qualify as scientific
+correction.
 
 The held-out fixture is selected after both implementations are frozen by a
 deterministic rule registered before selection. It must use a different

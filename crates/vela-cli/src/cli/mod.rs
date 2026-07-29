@@ -210,6 +210,9 @@ pub async fn run_command() {
             caveat,
             producer_check,
             verification_requirement,
+            corrects,
+            supersedes,
+            target_root,
             packet_root,
             profile_root,
             verifier_capsule_root,
@@ -236,6 +239,9 @@ pub async fn run_command() {
                     "caveats": caveat,
                     "producer_checks": producer_check,
                     "verification_requirements": verification_requirement,
+                    "corrects": corrects,
+                    "supersedes": supersedes,
+                    "target_root": target_root,
                     "packet_root": packet_root,
                     "profile_root": profile_root,
                     "verifier_capsule_root": verifier_capsule_root,
@@ -321,6 +327,9 @@ pub async fn run_command() {
                         "exact execution binding requires all four full roots".to_string(),
                     ),
                 };
+                let requested_change =
+                    crate::workflow::submission_requested_change(corrects, supersedes, target_root)
+                        .unwrap_or_else(|error| fail_preflight(crate::ui::ErrorKind::Usage, error));
                 let authored = crate::workflow::author_submission(
                     &dir,
                     &actor,
@@ -333,6 +342,7 @@ pub async fn run_command() {
                     caveat,
                     producer_check,
                     verification_requirement,
+                    requested_change,
                     execution_binding,
                 )
                 .unwrap_or_else(|error| {

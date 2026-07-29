@@ -6,9 +6,45 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use vela_protocol::submission_v1::{
-    ProducerCheck, RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft,
-    SubmissionProvenance, SubmissionV1,
+    ProducerCheck, RequestedChange, RequestedChangeTarget, SubmissionArtifact, SubmissionClaim,
+    SubmissionDraft, SubmissionProvenance, SubmissionV1,
 };
+
+pub(crate) fn submission_requested_change(
+    corrects: Option<String>,
+    supersedes: Option<String>,
+    target_root: Option<String>,
+) -> Result<RequestedChange, String> {
+    match (corrects, supersedes, target_root) {
+        (None, None, None) => Ok(RequestedChange {
+            kind: "add_claim".to_string(),
+            target: None,
+        }),
+        (Some(claim_id), None, Some(claim_root)) => Ok(RequestedChange {
+            kind: "correct_claim".to_string(),
+            target: Some(RequestedChangeTarget {
+                claim_id,
+                claim_root,
+            }),
+        }),
+        (None, Some(claim_id), Some(claim_root)) => Ok(RequestedChange {
+            kind: "supersede_claim".to_string(),
+            target: Some(RequestedChangeTarget {
+                claim_id,
+                claim_root,
+            }),
+        }),
+        (Some(_), Some(_), _) => {
+            Err("--corrects and --supersedes are mutually exclusive".to_string())
+        }
+        (Some(_), None, None) | (None, Some(_), None) => {
+            Err("--corrects and --supersedes require --target-root".to_string())
+        }
+        (None, None, Some(_)) => {
+            Err("--target-root requires --corrects or --supersedes".to_string())
+        }
+    }
+}
 
 pub(crate) fn active_repository_signing_key(
     authority: &crate::cli::LoadedRepositoryAuthority,
@@ -79,6 +115,7 @@ pub(crate) fn author_submission(
     caveats: Vec<String>,
     producer_checks: Vec<String>,
     verification_requirements: Vec<String>,
+    requested_change: RequestedChange,
     execution_binding: Option<vela_protocol::execution_binding::ExecutionBindingV1>,
 ) -> Result<SubmissionV1, String> {
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
@@ -86,12 +123,29 @@ pub(crate) fn author_submission(
     if !(actor.starts_with("agent:") || actor.starts_with("ci:")) {
         return Err("Submission authoring requires an agent: or ci: producer".to_string());
     }
-    let attempt_id = requested_attempt.ok_or_else(|| {
-        "current Submission authoring requires --attempt from `vela start <target> --json`"
-            .to_string()
-    })?;
-    let work = crate::current_work::resolve_submission_attempt(frontier, actor, Some(attempt_id))?
-        .ok_or_else(|| format!("current Attempt {attempt_id} disappeared during authoring"))?;
+    let (emitted_at, source_attempt) = match requested_attempt {
+        Some(attempt_id) => {
+            let work =
+                crate::current_work::resolve_submission_attempt(frontier, actor, Some(attempt_id))?
+                    .ok_or_else(|| {
+                        format!("current Attempt {attempt_id} disappeared during authoring")
+                    })?;
+            (
+                work.attempt.created_at.clone(),
+                Some(work.attempt.attempt_id),
+            )
+        }
+        None if requested_change.kind == "add_claim" => {
+            return Err(
+                "new Claim authoring requires --attempt from `vela start <target> --json`"
+                    .to_string(),
+            );
+        }
+        None => (
+            chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+            None,
+        ),
+    };
     let mut artifacts = Vec::new();
     let mut total_artifact_bytes = 0_u64;
     for (index, flag) in artifact_flags.iter().enumerate() {
@@ -139,7 +193,7 @@ pub(crate) fn author_submission(
         IdentityBindingDraft {
             actor_id: actor.to_string(),
             actor_class: ActorClass::Agent,
-            created_at: work.attempt.created_at.clone(),
+            created_at: emitted_at.clone(),
         },
         &key,
     )?;
@@ -155,16 +209,13 @@ pub(crate) fn author_submission(
             replayability,
             producer_checks: checks,
             verification_requirements,
-            requested_change: RequestedChange {
-                kind: "add_claim".to_string(),
-                target: None,
-            },
+            requested_change,
             provenance: SubmissionProvenance {
                 producer: actor.to_string(),
                 source_system: "vela-cli".to_string(),
-                source_attempt: Some(work.attempt.attempt_id),
+                source_attempt,
                 source_run: None,
-                emitted_at: work.attempt.created_at,
+                emitted_at,
             },
             execution_binding,
         },
@@ -512,4 +563,71 @@ pub(crate) fn publication_delta(
         root: root.to_string(),
         entries,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::submission_requested_change;
+
+    fn root(character: char) -> String {
+        format!("sha256:{}", character.to_string().repeat(64))
+    }
+
+    #[test]
+    fn submission_requested_change_defaults_to_add_claim() {
+        let change = submission_requested_change(None, None, None).expect("add claim");
+
+        assert_eq!(change.kind, "add_claim");
+        assert!(change.target.is_none());
+    }
+
+    #[test]
+    fn submission_requested_change_binds_exact_correction_target() {
+        let claim_id = "vcl_exact_correction".to_string();
+        let claim_root = root('a');
+        let change =
+            submission_requested_change(Some(claim_id.clone()), None, Some(claim_root.clone()))
+                .expect("correction");
+        let target = change.target.expect("correction target");
+
+        assert_eq!(change.kind, "correct_claim");
+        assert_eq!(target.claim_id, claim_id);
+        assert_eq!(target.claim_root, claim_root);
+    }
+
+    #[test]
+    fn submission_requested_change_binds_exact_supersession_target() {
+        let claim_id = "vcl_exact_supersession".to_string();
+        let claim_root = root('b');
+        let change =
+            submission_requested_change(None, Some(claim_id.clone()), Some(claim_root.clone()))
+                .expect("supersession");
+        let target = change.target.expect("supersession target");
+
+        assert_eq!(change.kind, "supersede_claim");
+        assert_eq!(target.claim_id, claim_id);
+        assert_eq!(target.claim_root, claim_root);
+    }
+
+    #[test]
+    fn submission_requested_change_rejects_ambiguous_or_incomplete_targets() {
+        assert_eq!(
+            submission_requested_change(
+                Some("vcl_one".to_string()),
+                Some("vcl_two".to_string()),
+                Some(root('c')),
+            )
+            .expect_err("mutually exclusive"),
+            "--corrects and --supersedes are mutually exclusive"
+        );
+        assert_eq!(
+            submission_requested_change(Some("vcl_one".to_string()), None, None)
+                .expect_err("missing root"),
+            "--corrects and --supersedes require --target-root"
+        );
+        assert_eq!(
+            submission_requested_change(None, None, Some(root('d'))).expect_err("orphan root"),
+            "--target-root requires --corrects or --supersedes"
+        );
+    }
 }

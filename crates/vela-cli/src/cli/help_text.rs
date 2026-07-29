@@ -35,11 +35,19 @@ EXAMPLES
   vela submit --attempt vat_0123… --claim \"a(7) >= 22\" --type computational \
     --replayability exact --artifact w.json:witness --caveat \"bounded search\"
                                                author from one active Attempt
+  vela submit --attempt vat_0123… --claim \"corrected bounded result\" \
+    --type theoretical --replayability exact --artifact diff.json:source-diff \
+    --caveat \"exact source revision only\" --supersedes vcl_0123… \
+    --target-root sha256:0123…
+                                               request one exact supersession; no synthetic work target is required
   vela submit submission.json --push           commit locally AND publish now
 
 Submission registers authenticated producer input as a pending Proposal. It
 does not create a Verification Record, Decision, Event, or accepted-state
-change. --check records only producer-reported checks.
+change. --corrects and --supersedes bind one full accepted Claim ID and root;
+they never decide the Proposal and may describe an observed correction without
+inventing a ranked work target. New Claims still require an active Attempt.
+--check records only producer-reported checks.
 
 SEE ALSO
   vela review show     inspect one exact deferred Proposal";

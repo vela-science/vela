@@ -1,0 +1,29 @@
+{
+  "schema": "vela.correction-evaluation-plan-amendment.v1",
+  "status": "frozen",
+  "frozen_at": "2026-07-29T07:12:00Z",
+  "prior_plan": {
+    "path": "conformance/fixtures/correction/erdos-424-source-statement-plan.v1.json",
+    "root": "sha256:43d37c927e2e2b616770f21d18946e85d0f831d8e048c097c71bc554a8e6b3f1"
+  },
+  "reason": "The exact current Erdős Target Index contains only erdos:1056. Creating an erdos:424 target would invent ranked work or require an unrelated authority mutation.",
+  "observed_target_index": {
+    "frontier_commit": "6a2b20a4623c0aa3ec667e65452c7aae6210b306",
+    "target_index_root": "sha256:50abd4abe414d7af8b1d8acaf536e9b4f5093036469a93f886db8f7c0a946696",
+    "configured_open": 1,
+    "available": 1,
+    "only_target_id": "erdos:1056"
+  },
+  "amendment": {
+    "old_constraint": "Use the ordinary attempt-based Submission authoring path.",
+    "new_constraint": "Use the ordinary authenticated Submission authoring path without a source Attempt for this exact correction or supersession. New Claims continue to require a current Attempt.",
+    "implementation_ceiling": "Expose only the existing Submission v1 requested_change target through --corrects or --supersedes plus --target-root. Do not add an event, schema, target, authority rule, accepted-state rule, or writer.",
+    "unchanged_gates": [
+      "The predecessor must be accepted and match the full Claim ID and root.",
+      "The new Submission must bind at least one exact Artifact and state its limits.",
+      "Registration must create pending_review with accepted-event delta zero.",
+      "Verification and human Decision remain separate.",
+      "The fixture is writer qualification only and cannot satisfy the primary topology-sensitive correction benchmark."
+    ]
+  }
+}

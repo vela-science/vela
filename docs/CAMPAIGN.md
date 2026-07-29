@@ -729,11 +729,50 @@ Problem 128 also has no consequential dependent on the formalization Claim
 and no alternative support route through which to test survival. It therefore
 fails both the exact-target and topology gates.
 
+Erdős problem 1197 tests a different failure mode:
+
+- conditional plby proof Claim
+  `vcl_28c2428053b37489c2f8d8da4685acddad9a157cdba9536d6e1322c359151691`
+  explicitly says `state conditional`, depends on the
+  `bm_approx_data` premise, and supports the problem Claim;
+- complete Jayyhk proof Claim
+  `vcl_8a86f1d7c5be8e7c498a6a50e795c5d3c406ece6ba9d9bb342eac311c15c6976`
+  supports the same problem and declares that it replicates the conditional
+  proof;
+- a wiki-derived Claim declares that the complete solution contradicts the
+  conditional proof; and
+- the problem Claim records the declared status as disproved.
+
+The complete proof was checked from exact source rather than inferred from the
+retained label:
+
+| Input | Exact identity |
+| --- | --- |
+| Source repository | `Jayyhk/erdos-lean` |
+| Source commit | `295f623fd0f8a6292f1415b99d81860170135147` |
+| Source path | `problems/1197/Erdos1197.lean` |
+| Source SHA-256 | `9ae6dfabcd1c7f3585e7273a6d03c5b89a54dcee98a558e80e259b5a397e8acd` |
+| Lean | `v4.30.0` |
+| Mathlib | `c5ea00351c28e24afc9f0f84379aa41082b1188f` |
+| Build result | success in 70.79 seconds after installing the exact Mathlib cache |
+| Reported axioms | `propext`, `Classical.choice`, `Quot.sound` |
+
+This is not a scientific correction. The earlier Claim accurately states that
+its proof is conditional. The later Claim supplies a complete independent
+proof and is already retained as a separate accepted Claim. Replacing
+`replicates` or `contradicts` with a more accurate relation would repair graph
+semantics, but would not narrow, supersede, or retract scientific content.
+There is also no downstream at-risk cascade to repair. Problem 1197 is
+therefore rejected as the primary fixture. Retain it as an adversarial case
+for distinguishing conditional support, independent completion, replication,
+and contradiction.
+
 The combined audit result is exact:
 
 ```text
 problem 281  required topology, no genuine correction
 problem 128  genuine source correction, ambiguous Claim target, incomplete topology
+problem 1197 exact complete proof, no scientific correction, conflicting relation labels
 ```
 
 An exhaustive relation scan at the clean Frontier commits recorded above found
@@ -764,6 +803,43 @@ The next audit applies this fixed entry rule:
 If no existing case qualifies, create a prospective fixture through ordinary
 Submission, Verification, and human Decision. Report it as prospective
 evidence rather than historical recurrence.
+
+#### Prospective writer-qualification fixture
+
+The first prospective experiment is frozen in
+`conformance/fixtures/correction/erdos-424-source-statement-plan.v1.json` at
+root
+`sha256:43d37c927e2e2b616770f21d18946e85d0f831d8e048c097c71bc554a8e6b3f1`.
+
+It addresses accepted Erdős Claim
+`vcl_5d2858542f6882556bb7652c908708913fadd7ced61014cd5842ae0954ddfe09`,
+which names a mutable Formal Conjectures theorem page. Exact source changed
+from `generatedSet.HasPosDensity` at commit
+`e751934294a381afd2d5fc1124c5953c8e25f9fa` to
+`generatedSet.HasPosLowerDensity` at commit
+`8046fbff7b6c801d8debd4a85bf67a0541b78dda`.
+
+This is an honest source-statement supersession, but it is not the primary
+protocol fixture. It lacks the required consequential diamond and tests only:
+
+1. exact predecessor and source binding;
+2. ordinary producer authoring of one targeted supersession;
+3. scoped Verification with zero accepted-state change;
+4. one exact human Decision boundary; and
+5. predecessor retention and deterministic replay.
+
+The plan records a reference-CLI gap: `Submission v1` and repository replay
+already support targeted correction and supersession, while `vela submit`
+cannot author `requested_change.target`. The exact Target Index audit then
+found only `erdos:1056`; inventing an `erdos:424` work target would corrupt the
+ranked producer queue. Amendment 001 is frozen in
+`conformance/fixtures/correction/erdos-424-source-statement-plan-amendment-001.v1.json`
+at root
+`sha256:3969bcce5045f4054d2de46a4ecaec5ccea897876b7b4acc11394fdeaeeca85e`.
+It permits attempt-less authoring only for an exact correction or
+supersession. New Claims still require an Attempt. The implementation remains
+an exact, single-target CLI path over the existing schema. No Event, target,
+reducer, authority, accepted-state rule, or hosted writer is authorized.
 
 ### Gate 3: test a source-local Vela Math profile
 

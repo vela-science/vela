@@ -271,10 +271,16 @@ pub(crate) enum Commands {
     /// Register one authenticated Submission and create a pending Proposal.
     /// This producer action cannot create Verification, a Decision, an Event,
     /// or accepted scientific state.
+    #[command(group(
+        ArgGroup::new("submission_change")
+            .multiple(false)
+            .args(["corrects", "supersedes"])
+    ))]
     #[command(after_long_help = crate::cli::help_text::SUBMIT)]
     Submit {
-        /// Path to a signed Submission v1. Or author one from an active Attempt
-        /// with --claim, --type, --artifact, and --caveat.
+        /// Path to a signed Submission v1. Or author a new Claim from an active
+        /// Attempt; exact corrections and supersessions may be authored without
+        /// inventing a work target.
         submission: Option<PathBuf>,
         #[arg(long)]
         frontier: Option<PathBuf>,
@@ -300,6 +306,16 @@ pub(crate) enum Commands {
         /// Independent verification required before acceptance.
         #[arg(long = "requires-verification")]
         verification_requirement: Vec<String>,
+        /// Full accepted Claim ID that this Submission corrects.
+        #[arg(long, conflicts_with = "submission", requires = "target_root")]
+        corrects: Option<String>,
+        /// Full accepted Claim ID that this Submission supersedes.
+        #[arg(long, conflicts_with = "submission", requires = "target_root")]
+        supersedes: Option<String>,
+        /// Full root of the exact accepted Claim named by --corrects or
+        /// --supersedes.
+        #[arg(long, conflicts_with = "submission", requires = "submission_change")]
+        target_root: Option<String>,
         /// Full root of the exact target packet executed by this producer.
         #[arg(long, conflicts_with = "submission", requires_all = ["profile_root", "verifier_capsule_root", "result_contract_root"])]
         packet_root: Option<String>,
@@ -312,8 +328,8 @@ pub(crate) enum Commands {
         /// Full root of the exact positive result contract checked by the capsule.
         #[arg(long, conflicts_with = "submission", requires_all = ["packet_root", "profile_root", "verifier_capsule_root"])]
         result_contract_root: Option<String>,
-        /// Select the active Attempt explicitly. Required when this actor owns
-        /// more than one active Attempt.
+        /// Select the active Attempt explicitly. Required for add_claim
+        /// authoring; optional for an exact correction or supersession.
         #[arg(long)]
         attempt: Option<String>,
         #[arg(long, help = HELP_AS)]
