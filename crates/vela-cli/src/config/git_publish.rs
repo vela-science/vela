@@ -4978,9 +4978,9 @@ mod tests {
     fn frontier() -> tempfile::TempDir {
         let temporary = tempfile::tempdir().unwrap();
         let path = temporary.path();
-        vela_protocol::frontier_repo::initialize_current_minimal(
+        crate::current_init::initialize_current_minimal(
             path,
-            vela_protocol::frontier_repo::CurrentInitOptions {
+            crate::current_init::CurrentInitOptions {
                 name: "publication",
                 scope: "exercise exact Git publication",
                 initialize_git: true,

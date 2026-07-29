@@ -18,6 +18,7 @@ mod tools;
 pub(crate) use tools::cli_check;
 mod config;
 pub(crate) mod current_doctor;
+pub(crate) mod current_init;
 pub(crate) mod current_read;
 pub(crate) mod current_repository_decision;
 pub(crate) mod current_submission;

@@ -1,4 +1,3 @@
-use vela_protocol::frontier_repo;
 use vela_protocol::sign;
 
 use std::path::Path;

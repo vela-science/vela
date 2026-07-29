@@ -23,15 +23,116 @@
 //! git's unbounded sprawl). `set` validates; unknown keys are refused.
 
 use std::collections::BTreeMap;
+use std::fs;
+use std::io::Read;
+use std::path::Component;
 use std::path::{Path, PathBuf};
 
 use vela_edge::repository_write::{
     PreparedRepositoryFileReplacement, RepositoryFileReplacementMode,
 };
-use vela_protocol::frontier_repo::read_repository_control_text;
 use vela_protocol::frontier_settings::{
     FRONTIER_SETTINGS_SCHEMA, FrontierGitPush, FrontierSettingsV1,
 };
+
+fn read_repository_control_text(
+    repository: &Path,
+    relative: &Path,
+    label: &str,
+) -> Result<Option<String>, String> {
+    let components = relative.components().collect::<Vec<_>>();
+    if components.is_empty()
+        || components
+            .iter()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return Err(format!(
+            "{label} must use a normalized repository-relative path"
+        ));
+    }
+
+    let mut directories = Vec::with_capacity(components.len());
+    let mut current = repository.to_path_buf();
+    directories.push(current.clone());
+    for component in &components[..components.len() - 1] {
+        let Component::Normal(name) = component else {
+            unreachable!("closed component check above")
+        };
+        current.push(name);
+        directories.push(current.clone());
+    }
+
+    let mut pinned = Vec::with_capacity(directories.len());
+    for directory in &directories {
+        let metadata = fs::symlink_metadata(directory)
+            .map_err(|error| format!("inspect parent of {label}: {error}"))?;
+        if metadata.file_type().is_symlink() || !metadata.is_dir() {
+            return Err(format!(
+                "{label} must be beneath real non-symlink repository directories"
+            ));
+        }
+        pinned.push(
+            same_file::Handle::from_path(directory)
+                .map_err(|error| format!("identify parent of {label}: {error}"))?,
+        );
+    }
+
+    let value = read_regular_nonsymlink_text(&repository.join(relative), label)?;
+    for (directory, expected) in directories.iter().zip(&pinned) {
+        let metadata = fs::symlink_metadata(directory)
+            .map_err(|error| format!("reinspect parent of {label}: {error}"))?;
+        let actual = same_file::Handle::from_path(directory)
+            .map_err(|error| format!("reidentify parent of {label}: {error}"))?;
+        if metadata.file_type().is_symlink() || !metadata.is_dir() || &actual != expected {
+            return Err(format!(
+                "repository parent of {label} changed while it was read"
+            ));
+        }
+    }
+    Ok(value)
+}
+
+fn read_regular_nonsymlink_text(path: &Path, label: &str) -> Result<Option<String>, String> {
+    const MAX_CONTROL_FILE_BYTES: u64 = 16 * 1024 * 1024;
+
+    let linked = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(format!("inspect {label}: {error}")),
+    };
+    if linked.file_type().is_symlink() || !linked.is_file() {
+        return Err(format!("{label} must be a regular non-symlink file"));
+    }
+    let inspected =
+        same_file::Handle::from_path(path).map_err(|error| format!("identify {label}: {error}"))?;
+    let mut file = fs::File::open(path).map_err(|error| format!("open {label}: {error}"))?;
+    let opened = same_file::Handle::from_file(
+        file.try_clone()
+            .map_err(|error| format!("clone open {label} descriptor: {error}"))?,
+    )
+    .map_err(|error| format!("identify open {label}: {error}"))?;
+    if inspected != opened {
+        return Err(format!("{label} changed while it was opened"));
+    }
+    let mut bytes = Vec::new();
+    file.by_ref()
+        .take(MAX_CONTROL_FILE_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("read {label}: {error}"))?;
+    if bytes.len() as u64 > MAX_CONTROL_FILE_BYTES {
+        return Err(format!("{label} exceeds the 16 MiB control-file limit"));
+    }
+    let data =
+        String::from_utf8(bytes).map_err(|error| format!("{label} is not UTF-8: {error}"))?;
+    let final_link =
+        fs::symlink_metadata(path).map_err(|error| format!("reinspect {label}: {error}"))?;
+    let final_identity = same_file::Handle::from_path(path)
+        .map_err(|error| format!("reidentify {label}: {error}"))?;
+    if final_link.file_type().is_symlink() || !final_link.is_file() || opened != final_identity {
+        return Err(format!("{label} changed while it was read"));
+    }
+    Ok(Some(data))
+}
 
 /// Where a resolved value came from — `list --origins` renders this.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
