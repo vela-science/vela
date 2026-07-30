@@ -1689,6 +1689,16 @@ pub fn prepare_current_target_index_seal(
             candidate.frontier_id
         ));
     }
+    if candidate
+        .source
+        .input_paths
+        .iter()
+        .any(|path| path == ".vela/repository.json")
+    {
+        return Err(format!(
+            "{CODE_INVALID_PATH}: candidate input \".vela/repository.json\" duplicates the Target Index repository binding and would create a mutable self-dependency"
+        ));
+    }
     let candidate_root = sha256_root(&candidate_bytes);
 
     let mut allowed_dirty_paths = candidate

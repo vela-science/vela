@@ -337,6 +337,28 @@ fn candidate_is_closed_and_cannot_supply_seal_owned_fields() {
 }
 
 #[test]
+fn candidate_cannot_duplicate_the_mutable_repository_binding_as_an_input() {
+    let fixture = Fixture::new();
+    let mut candidate = fixture.candidate.clone();
+    candidate["source"]["input_paths"] = json!([".vela/repository.json", "domain/source.json"]);
+    write(
+        &fixture.path().join(".vela/tmp/target-index-candidate.json"),
+        serde_json::to_vec(&candidate).unwrap(),
+    );
+
+    let output = fixture.command(&fixture.check_args());
+    let payload = failure_json(&output);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        payload["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("duplicates the Target Index repository binding")
+    );
+    assert!(!fixture.path().join("targets.json").exists());
+}
+
+#[test]
 fn repair_is_read_only_and_stale_exact_id_inspection_is_never_actionable() {
     let fixture = Fixture::new();
     fixture.apply();
