@@ -2,6 +2,9 @@ use crate::cli_commands::ReviewAction;
 
 pub(crate) fn cmd_review(action: ReviewAction) {
     match action {
+        ReviewAction::Inbox { frontier, json } => {
+            crate::decision_inbox::cmd_decision_inbox(&frontier, json)
+        }
         ReviewAction::List {
             frontier,
             status,

@@ -389,6 +389,56 @@ pub(crate) fn submit(
     bundle_root: Option<&Path>,
     push: bool,
 ) -> Result<SubmitOutcome, String> {
+    submit_with_optional_repository_signer(
+        frontier,
+        submission,
+        executor,
+        requested_attempt,
+        bundle_root,
+        push,
+        None,
+    )
+}
+
+/// Register one exact Submission with a caller-owned repository signer.
+///
+/// This is an internal controller seam, not a second writer. The ordinary CLI
+/// continues to use [`submit`], while a bounded long-running controller may
+/// reuse one already-selected signer across routine evidence transactions.
+/// Authentication, Cedar authorization, object normalization, journaling,
+/// replay, and publication all remain in the existing transaction path.
+#[allow(dead_code)] // Consumed by the forthcoming internal campaign controller.
+pub(crate) fn submit_with_repository_signer(
+    frontier: &Path,
+    submission: &SubmissionV1,
+    executor: &str,
+    requested_attempt: Option<&str>,
+    bundle_root: Option<&Path>,
+    push: bool,
+    repository_signer: &mut dyn crate::authority_transaction::RepositoryAuthoritySigner,
+) -> Result<SubmitOutcome, String> {
+    submit_with_optional_repository_signer(
+        frontier,
+        submission,
+        executor,
+        requested_attempt,
+        bundle_root,
+        push,
+        Some(repository_signer),
+    )
+}
+
+fn submit_with_optional_repository_signer(
+    frontier: &Path,
+    submission: &SubmissionV1,
+    executor: &str,
+    requested_attempt: Option<&str>,
+    bundle_root: Option<&Path>,
+    push: bool,
+    injected_repository_signer: Option<
+        &mut dyn crate::authority_transaction::RepositoryAuthoritySigner,
+    >,
+) -> Result<SubmitOutcome, String> {
     submission.verify()?;
     let executor = executor.trim();
     if executor != submission.provenance.producer
@@ -409,7 +459,14 @@ pub(crate) fn submit(
     if let Some(outcome) = existing_outcome(frontier, &repository, submission, &submission_root)? {
         let resolved_attempt =
             crate::current_work::resolve_submission_attempt(frontier, executor, requested_attempt)?;
-        crate::current_work::close_submission_attempt(resolved_attempt)?;
+        let artifact_bytes =
+            crate::current_work::retained_submission_artifact_bytes(frontier, submission)?;
+        crate::current_work::record_submission_attempt(
+            frontier,
+            resolved_attempt,
+            submission,
+            artifact_bytes,
+        )?;
         return Ok(outcome);
     }
     let resolved_attempt =
@@ -462,7 +519,13 @@ pub(crate) fn submit(
     let PreparedSubmissionArtifacts {
         writes: artifact_writes,
         mut read_set,
+        total_bytes: artifact_bytes,
     } = prepare_submission_artifacts(frontier, submission, bundle_root)?;
+    crate::current_work::authorize_submission(
+        resolved_attempt.as_ref(),
+        submission,
+        artifact_bytes,
+    )?;
     read_set.push(InputBinding {
         name: "submission".into(),
         digest: ContentDigest::parse(submission_root.clone()).map_err(|error| error.to_string())?,
@@ -648,12 +711,20 @@ pub(crate) fn submit(
         ),
         context: json!({"exact": true}),
     };
-    let (key_id, public_key) = active_repository_signing_key(&authority)?;
-    let mut repository_signer =
-        crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner::from_environment(
-            key_id,
-            &public_key,
-        )?;
+    let mut environment_repository_signer;
+    let repository_signer: &mut dyn crate::authority_transaction::RepositoryAuthoritySigner =
+        match injected_repository_signer {
+            Some(repository_signer) => repository_signer,
+            None => {
+                let (key_id, public_key) = active_repository_signing_key(&authority)?;
+                environment_repository_signer =
+                    crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner::from_environment(
+                        key_id,
+                        &public_key,
+                    )?;
+                &mut environment_repository_signer
+            }
+        };
     let executable =
         std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
     let binary_sha256 = crate::authority_transaction::execution_binary_sha256(&executable)?;
@@ -692,7 +763,7 @@ pub(crate) fn submit(
             recorded_at: fixed_time,
         },
         &mut authentication,
-        &mut repository_signer,
+        repository_signer,
     )
     .map_err(|error| error.to_string())?;
 
@@ -734,7 +805,12 @@ pub(crate) fn submit(
             prepared.install().map_err(|error| error.to_string())?;
             prepared.complete().map_err(|error| error.to_string())?;
             crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)?;
-            crate::current_work::close_submission_attempt(resolved_attempt)?;
+            crate::current_work::record_submission_attempt(
+                frontier,
+                resolved_attempt,
+                submission,
+                artifact_bytes,
+            )?;
             return Ok(SubmitOutcome {
                 schema: "vela.submit-result.v1",
                 operation_id: operation_id.as_str().into(),
@@ -759,7 +835,12 @@ pub(crate) fn submit(
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
     crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)?;
-    crate::current_work::close_submission_attempt(resolved_attempt)?;
+    crate::current_work::record_submission_attempt(
+        frontier,
+        resolved_attempt,
+        submission,
+        artifact_bytes,
+    )?;
     let publication = match (delta.as_ref(), preflight) {
         (Some(delta), Some(preflight)) => publish_exact_delta(
             frontier,
@@ -821,6 +902,7 @@ pub(crate) fn submit(
 mod tests {
     use ed25519_dalek::SigningKey;
     use tempfile::TempDir;
+    use vela_protocol::authority::DsseSignatureV1;
     use vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V3;
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::submission_v1::{
@@ -829,6 +911,22 @@ mod tests {
     };
 
     use super::*;
+
+    #[derive(Default)]
+    struct CountingSigner {
+        calls: usize,
+    }
+
+    impl crate::authority_transaction::RepositoryAuthoritySigner for CountingSigner {
+        fn sign(
+            &mut self,
+            _payload_type: &str,
+            _canonical_payload: &[u8],
+        ) -> Result<Vec<DsseSignatureV1>, String> {
+            self.calls += 1;
+            Err("fixture signer must not be reached".into())
+        }
+    }
 
     fn root(byte: char) -> String {
         format!("sha256:{}", byte.to_string().repeat(64))
@@ -980,6 +1078,28 @@ mod tests {
         .unwrap_err();
 
         assert!(error.contains("collides with path"));
+    }
+
+    #[test]
+    fn injected_repository_signer_does_not_bypass_submission_identity_checks() {
+        let frontier = TempDir::new().unwrap();
+        let mut signer = CountingSigner::default();
+        let error = submit_with_repository_signer(
+            frontier.path(),
+            &submission("add_claim", None, "New bounded assertion."),
+            "agent:substituted",
+            None,
+            None,
+            false,
+            &mut signer,
+        )
+        .unwrap_err();
+
+        assert!(
+            error.contains("must match the Submission producer"),
+            "{error}"
+        );
+        assert_eq!(signer.calls, 0);
     }
 
     #[test]

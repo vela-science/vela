@@ -80,7 +80,7 @@ pub(crate) struct PreparedCurrentReviewDecision {
     claim: ClaimRecordV1,
 }
 
-fn read_exact<T>(
+pub(crate) fn read_exact<T>(
     frontier: &Path,
     path: &str,
     expected_root: &str,
@@ -98,7 +98,7 @@ fn read_exact<T>(
     Ok(value)
 }
 
-fn claim_for_proposal(
+pub(crate) fn claim_for_proposal(
     frontier: &Path,
     repository: &CurrentRepositoryV3,
     proposal: &ProposalV1,
@@ -129,7 +129,7 @@ fn claim_for_proposal(
     Ok(claim)
 }
 
-fn submission_for_proposal(
+pub(crate) fn submission_for_proposal(
     frontier: &Path,
     repository: &CurrentRepositoryV3,
     proposal: &ProposalV1,
@@ -161,7 +161,7 @@ fn submission_for_proposal(
     Ok(submission)
 }
 
-fn exact_verifications(
+pub(crate) fn exact_verifications(
     frontier: &Path,
     repository: &CurrentRepositoryV3,
     proposal: &ProposalV1,
@@ -187,7 +187,9 @@ fn exact_verifications(
     Ok(records)
 }
 
-fn verification_set_root(records: &[(String, VerificationRecordV1)]) -> Result<String, String> {
+pub(crate) fn verification_set_root(
+    records: &[(String, VerificationRecordV1)],
+) -> Result<String, String> {
     Ok(format!(
         "sha256:{}",
         vela_protocol::canonical::sha256_canonical(&json!({
@@ -200,7 +202,7 @@ fn verification_set_root(records: &[(String, VerificationRecordV1)]) -> Result<S
     ))
 }
 
-fn require_acceptance_evidence(
+pub(crate) fn require_acceptance_evidence(
     submission: &SubmissionV1,
     records: &[(String, VerificationRecordV1)],
 ) -> Result<(), String> {
@@ -321,7 +323,7 @@ pub(crate) fn prepare(
     })
 }
 
-fn next_repository(
+pub(crate) fn next_repository(
     current: &CurrentRepositoryV3,
     proposal: &ProposalV1,
     subject_claim: &ClaimRecordV1,

@@ -128,9 +128,11 @@ next -> start -> submit
   Trust the ranking; it already encodes what the frontier knows.
 - `vela start <target> --as agent:<you> --json` — claim the lease, load the
   briefing, and write one typed private Attempt under `.vela/work/`.
-  A same-actor retry returns that exact active Attempt without another lease
-  event. Read the returned briefing before working; do not edit the Attempt
-  record.
+  The Attempt binds the controller and runner builds, allowed Artifact
+  classes, expiry, evidence budgets, and a pending-review ceiling. A
+  same-actor retry returns that exact active Attempt. Successful Submissions
+  consume its private counters but do not end it. Read the returned briefing
+  before working; do not edit the Attempt record.
 - `vela submit --attempt <vat_id> --claim <result> --type <type>
   --replayability <class> --artifact <path>:<kind> --caveat <limit>
   --as agent:<you> --json` — build and register Submission v1 from the exact
@@ -141,9 +143,9 @@ next -> start -> submit
   --target-root <full_sha256_root> --as agent:<you> --json` — request one exact
   supersession without inventing a ranked work target. New Claims still
   require an Attempt. This producer action cannot decide the Proposal.
-- `vela start <target> --drop --reason <why> --as agent:<you> --json` — sign a
-  same-owner zero-TTL lease update, then remove private scratch. Deleting files
-  by hand does not release a lease.
+- `vela start <target> --drop --reason <why> --as agent:<you> --json` — revoke
+  the same-owner private Attempt and remove its scratch. It writes no Event or
+  scientific state.
 - `vela review list . --json` — the pending queue, newest first. Each compact
   row includes `created_at`; use `vela review show . <vpr_id> --json` for one
   exact pending Review Packet or signed terminal Decision record.

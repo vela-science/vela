@@ -255,6 +255,31 @@ pub(crate) enum Commands {
         /// Lease seconds (default from work.lease_ttl_seconds config).
         #[arg(long)]
         ttl: Option<u64>,
+        /// Exact sha256 build root of the external runner. Defaults to this
+        /// Vela binary when Vela is the runner.
+        #[arg(long, conflicts_with = "drop")]
+        runner_build: Option<String>,
+        /// Additional Artifact class authorized for this private Attempt.
+        #[arg(long, conflicts_with = "drop")]
+        artifact_class: Vec<String>,
+        /// Maximum registered Submissions retained through this Attempt.
+        #[arg(long, conflicts_with = "drop")]
+        max_submissions: Option<u64>,
+        /// Maximum total Artifacts retained through this Attempt.
+        #[arg(long, conflicts_with = "drop")]
+        max_artifacts: Option<u64>,
+        /// Maximum total Artifact bytes retained through this Attempt.
+        #[arg(long, conflicts_with = "drop")]
+        max_artifact_bytes: Option<u64>,
+        /// Highest permitted consequence: private evidence only, or a pending
+        /// Proposal awaiting independent review.
+        #[arg(
+            long,
+            default_value = "pending_review",
+            value_parser = ["evidence_only", "pending_review"],
+            conflicts_with = "drop"
+        )]
+        consequence_ceiling: String,
         /// Release the lease/session instead of opening one.
         #[arg(long)]
         drop: bool,
@@ -611,6 +636,12 @@ pub(crate) enum ClaimCommands {
 
 #[derive(Subcommand)]
 pub(crate) enum ReviewAction {
+    /// Derive the current consequence-only Decision Inbox.
+    Inbox {
+        frontier: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
     /// List compact proposal summaries. Defaults to pending review.
     List {
         frontier: PathBuf,

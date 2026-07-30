@@ -91,10 +91,29 @@ producer queue.
 - the Target Index root;
 - the Git commit and tree;
 - the completion contract;
-- the verifier profile; and
+- the current Vela controller binary and exact runner build root;
+- a closed set of routine operations and Artifact classes;
+- enforced Submission, Artifact, and retained-byte budgets;
+- an `evidence_only` or `pending_review` consequence ceiling; and
 - local expiry.
 
 It appends no canonical Event and reads no authority key.
+
+The default remains one short command:
+
+```bash
+vela start <target> --as agent:<name> --json
+```
+
+An external runner supplies `--runner-build sha256:<digest>`. Target packets
+that declare typed outputs contribute those Artifact classes; otherwise the
+private fallback is `other`. Repeat `--artifact-class <kind>` once for each
+real producer output class, such as `text/plain`, `engine-manifest`, and
+`verifier-manifest`. `--max-submissions`, `--max-artifacts`, and
+`--max-artifact-bytes` narrow the fixed defaults. A successful Submission
+increments the private counters but does not delete the Attempt. Every later
+Submission revalidates the exact current Target read set. Expiry or `start
+<target> --drop` stops future use without changing retained evidence.
 
 `vela submit` accepts either explicit flags or a portable Submission file. For
 a file import, each declared Artifact travels beside the Submission at
@@ -154,9 +173,17 @@ or inconclusive records do not count.
 Inspect before acting:
 
 ```bash
+vela review inbox . --json
 vela review list . --json
 vela review show . <vpr_id> --json
 ```
+
+`review inbox` derives a consequence-only queue from exact current repository
+objects. Each entry binds the Proposal, Claim, Submission, Verification set,
+policy, authority heads, hypothetical accept/reject repository roots, limits,
+blockers, and one deterministic entry root. It writes nothing and cannot
+accept or reject. `review list` remains the compact record queue; `review
+show` remains the complete source packet.
 
 An authorized human performs one semantic action:
 
@@ -244,6 +271,7 @@ active paths. The one-time migration writer is not part of the current binary.
 - `next --json` returns ranked producer Targets only.
 - `start --json` returns one exact Attempt contract.
 - `review list --json` returns compact Proposal summaries.
+- `review inbox --json` returns rooted consequence-only decision summaries.
 - `review show --json` returns one pending Review Packet or terminal Decision.
 
 Default JSON does not embed full packet bodies, review collections, private

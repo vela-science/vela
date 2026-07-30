@@ -260,6 +260,7 @@ pub(crate) struct VerificationImportOutcome {
 pub(crate) struct PreparedSubmissionArtifacts {
     pub(crate) writes: Vec<crate::frontier_txn::PlannedWrite>,
     pub(crate) read_set: Vec<crate::frontier_txn::InputBinding>,
+    pub(crate) total_bytes: u64,
 }
 
 pub(crate) fn prepare_submission_artifacts(
@@ -382,7 +383,11 @@ pub(crate) fn prepare_submission_artifacts(
         })
         .collect::<Result<Vec<_>, crate::frontier_txn::FrontierTxnError>>()
         .map_err(|error| error.to_string())?;
-    Ok(PreparedSubmissionArtifacts { writes, read_set })
+    Ok(PreparedSubmissionArtifacts {
+        writes,
+        read_set,
+        total_bytes: total,
+    })
 }
 
 pub(crate) fn submission_publication_inputs(

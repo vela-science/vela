@@ -251,7 +251,7 @@ pub(crate) fn prepare_authority_transaction<A, S>(
 ) -> Result<PreparedAuthorityTransaction, AuthorityTransactionError>
 where
     A: AuthenticationAdapter,
-    S: RepositoryAuthoritySigner,
+    S: RepositoryAuthoritySigner + ?Sized,
 {
     if request.event_drafts.is_empty()
         && request.object_drafts.is_empty()
@@ -672,7 +672,7 @@ pub(crate) fn execute_authority_transaction<A, S>(
 ) -> Result<AuthorityTransactionResult, AuthorityTransactionError>
 where
     A: AuthenticationAdapter,
-    S: RepositoryAuthoritySigner,
+    S: RepositoryAuthoritySigner + ?Sized,
 {
     let mut prepared = prepare_authority_transaction(
         barrier,
@@ -2691,6 +2691,25 @@ mod tests {
 
     fn prepared_journal_absent(fixture: &Fixture) -> bool {
         !fixture.journal_dir().join("frontier").exists()
+    }
+
+    #[test]
+    fn authority_transaction_accepts_a_reusable_trait_object_signer() {
+        let fixture = self::fixture();
+        let mut adapter = fixture.adapter();
+        let mut signer = fixture.signer();
+        let injected: &mut dyn RepositoryAuthoritySigner = &mut signer;
+        let result = execute_authority_transaction(
+            fixture.barrier(),
+            fixture.temporary.path(),
+            fixture.request.clone(),
+            &mut adapter,
+            injected,
+        )
+        .unwrap();
+
+        assert_eq!(signer.calls, 1);
+        assert_eq!(result.event_ids.len(), 1);
     }
 
     #[test]

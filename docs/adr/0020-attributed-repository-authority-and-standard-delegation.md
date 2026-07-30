@@ -392,9 +392,11 @@ The invariant does not change:
 
 Most of the required substrate already exists:
 
-- `vela.attempt.v3` privately binds one Target, actor, task contract, exact
-  repository read set, and expiry while creating no Event, authority record, or
-  Standing;
+- `vela.attempt.v4` privately binds one Target, actor, starting and current
+  repository read sets, controller and runner builds, closed evidence
+  operations and Artifact classes, enforced counters, expiry, and a
+  pending-review consequence ceiling while creating no Event, authority
+  record, or Standing;
 - `canopus.activity.v0` and `canopus.run.v2` retain non-authoritative activity,
   artifacts, verifier results, failures, and clean-clone reproduction;
 - Submission and Verification Record signatures authenticate their exact
@@ -962,7 +964,9 @@ This amendment does not rewrite existing Attempts, Runs, Submissions,
 Verification Records, Proposals, Decisions, Events, authority records, or
 Standing.
 
-- Existing Attempt v3 records remain readable private authoring state.
+- Attempt v4 replaces the pre-release private v3 file. Because `.vela/work/`
+  is ignored, local v3 scratch is revoked and restarted rather than entering a
+  canonical compatibility or migration surface.
 - Existing Run v2 records remain immutable campaign inputs.
 - Existing authority-signed Submission and Verification transactions replay
   unchanged.

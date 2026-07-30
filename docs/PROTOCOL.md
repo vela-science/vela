@@ -291,7 +291,7 @@ authority record. It changes no scientific Standing.
 
 ### 5.2 Start
 
-`vela start` creates `vela.attempt.v2` only in ignored local coordination. The
+`vela start` creates `vela.attempt.v4` only in ignored local coordination. The
 Attempt closes over:
 
 - repository origin and root;
@@ -299,7 +299,10 @@ Attempt closes over:
 - Target and packet;
 - source Git commit/tree;
 - completion contract;
-- verifier profile; and
+- controller and runner build identities;
+- closed routine operations and Artifact classes;
+- enforced Submission, Artifact, and byte budgets;
+- an `evidence_only` or `pending_review` consequence ceiling; and
 - local expiry.
 
 It creates no canonical Event, repository record, or authority-key read.
@@ -310,8 +313,11 @@ It creates no canonical Event, repository record, or authority-key read.
 derived Claim Record, Registration Record, and pending Proposal in one
 recoverable object-only authority transaction.
 
-New Claims enter `pending_claims`. Accepted Standing does not change. A private
-Attempt is removed only after the committed transaction verifies.
+New Claims enter `pending_claims`. Accepted Standing does not change. A
+successful Submission increments the ignored Attempt counters and leaves the
+authorization active. Every later Submission revalidates the current exact
+Target binding. The Attempt ends only through expiry or explicit `start
+--drop`; it cannot accept or reject a Proposal.
 
 ### 5.4 Import verification
 

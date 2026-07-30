@@ -365,12 +365,12 @@ The existing normalized Neon schema remains the sole hosted read model.
 Projection writes occur only in the exact refresh workflow. The web role
 remains SELECT-only and scoped to the observatory schema.
 
-Neon uses one durable production branch. The refresh workflow may create one
-temporary migration branch or one temporary benchmark branch. It deletes that
-branch after apply, discard, or evidence capture. Release rollback lives in
-immutable release rows and the atomic `current_release` pointer, not in
-standing database branches. Do not maintain parallel staging, archival,
-event-era, or per-release branches.
+Neon uses one branch: `main`. Pre-release refresh and migration checks use
+local or ephemeral PostgreSQL, then apply directly. Release rollback lives in
+immutable release rows and the atomic `current_release` pointer, not database
+branches. Do not maintain migration, benchmark, staging, archival, event-era,
+or per-release Neon branches unless a reproduced Neon-specific failure proves
+the local gate insufficient.
 
 Prefer bounded SQL views and deterministic queries to duplicate stored
 objects. Add a persisted projection only when:

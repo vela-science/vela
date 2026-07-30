@@ -182,10 +182,10 @@ ID. Each cursor binds the release root and filters. Graph reads return bounded
 typed neighborhoods with returned and hidden counts, plus an equivalent
 keyset-paginated ledger. Ordinary routes never load the full graph.
 
-Neon has one durable production branch. A schema rehearsal or scale benchmark
-may use one temporary branch, which the workflow deletes after apply, discard,
-or evidence capture. Immutable release rows and the atomic release pointer
-provide rollback.
+Neon has one branch: `main`. Schema rehearsal and scale benchmarks use local
+or ephemeral PostgreSQL. Immutable release rows and the atomic release pointer
+provide rollback; database branch ceremony is not part of the pre-release
+product.
 
 The current alpha gate includes a rooted 100,000-record load and read
 benchmark. A separate 1,000,000-record benchmark must pass before Vela makes a

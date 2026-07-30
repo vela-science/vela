@@ -21,9 +21,18 @@ SEE ALSO
 pub const START: &str = "\
 EXAMPLES
   vela start erdos:443 --as agent:demo --json
-                                claim the lease and start one bounded Attempt
+                                start one bounded multi-Submission Attempt
+  vela start erdos:443 --runner-build sha256:0123… \
+    --artifact-class verification-report --max-submissions 4 \
+    --as agent:demo --json
+                                bind an external runner and explicit evidence budget
   vela start erdos:443 --drop --reason \"switching approaches\" --as agent:demo
-                                abandon the Attempt and release its lease
+                                revoke the private Attempt
+
+The private Attempt survives successful Submissions until expiry or explicit
+revocation. Each Submission revalidates the exact Target read set and consumes
+the retained Submission, Artifact, and byte budgets. The default consequence
+ceiling is pending_review; it can never accept or reject scientific Standing.
 
 SEE ALSO
   vela next   the ranked offer this claims from
@@ -59,6 +68,7 @@ EXAMPLES
 
 pub const REVIEW: &str = "\
 EXAMPLES
+  vela review inbox . --json          exact consequence-only Decision Inbox
   vela review list . --json           compact pending queue
   vela review show . vpr_8b49… --json one pending Review Packet or terminal Decision
   vela review reject . vpr_8b49… --reason \"insufficient evidence\" --json

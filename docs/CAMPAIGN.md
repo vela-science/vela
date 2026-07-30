@@ -187,12 +187,17 @@ claims. Execution evidence remains first-party and directional, state lift and
 cold-successor lift remain unproved, correction propagation has no qualifying
 fixture, and external interoperability and cold-use gates remain open.
 
-ADR 0020 now records the proposed Agent Campaign seam and consequence-only
-Decision Inbox. It remains design-only. Current Submission and Verification
-commands still use the repository-authority transaction path; the campaign
-must not claim prompt-free evidence work until the constrained campaign signer
-session, routine evidence allowlist, prompted/session replay equivalence,
-Inbox, and twelve-hour dogfood gates pass.
+ADR 0020 remains Proposed, but two narrow implementation seams now exist:
+private Attempt v4 retains exact scope and evidence budgets across successful
+Submissions, and `vela review inbox` derives a rooted, consequence-only,
+write-free queue from current Proposal evidence. Routine Submission and
+Verification commands still use the repository-authority transaction path.
+An internal writer can reuse a caller-owned signer without bypassing identity,
+policy, journaling, or replay, but no persistent campaign controller invokes
+that seam yet. The campaign must not claim prompt-free evidence work until the
+controller-held signer session, prompted/session replay equivalence, and
+twelve-hour dogfood gates pass. Homogeneous batch Decision planning remains
+unimplemented and unearned.
 
 ## Product contract
 
@@ -320,10 +325,11 @@ existing Vela Observatory = working Math Atlas
 Do not create `vela-atlas`, `vela-math`, `vela-registry`, a graph database, a
 second database, or another application.
 
-Neon has one durable production branch. A migration or scale benchmark may use
-one temporary branch, deleted after apply, discard, or evidence capture. The
-retained release rows and atomic `current_release` pointer provide rollback;
-branch sprawl does not.
+Neon has one branch: `main`. Pre-release schema changes apply there after a
+local or ephemeral-Postgres check; scale experiments stay local. Immutable
+release rows and the atomic `current_release` pointer provide rollback. Do not
+create migration, benchmark, staging, archival, or per-release Neon branches
+without a reproduced Neon-specific failure that cannot be tested locally.
 
 The deployed normalized Neon model, atomic release pointer, release retention,
 read-only application role, `/api/search`, and `/api/graph` remain. The active

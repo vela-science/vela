@@ -90,19 +90,27 @@ returned   = offers after the requested limit
 ```
 
 `vela start` rechecks the selected entry and creates one ignored
-`vela.attempt.v2` bound to:
+`vela.attempt.v4` bound to:
 
 - current repository origin and root;
 - Target Index and input roots;
 - source Git commit/tree;
 - exact Target and packet;
-- completion contract and verifier profile; and
+- completion contract;
+- controller and runner build identity;
+- closed operations and Artifact classes;
+- enforced evidence counters and budgets;
+- an evidence-only or pending-review consequence ceiling; and
 - local expiry.
 
 It writes no canonical object and reads no authority key.
 
-`vela submit` copies the byte-identical Target-task binding into the
-Submission. Later index changes cannot rewrite the retained work context.
+Each `vela submit` revalidates the exact current Target-task binding and binds
+it into the repository transaction read set. A successful registration
+increments the private Attempt counters rather than deleting the Attempt.
+Starting roots remain exact; the current private read set advances only when
+the same Target source, inputs, and packet remain unchanged. Expiry or
+explicit `start --drop` revokes future use.
 
 ## Inspection
 

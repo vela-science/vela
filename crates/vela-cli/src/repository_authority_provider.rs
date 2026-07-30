@@ -564,6 +564,22 @@ mod tests {
             .verify(&dsse_pae(AUTHORITY_PAYLOAD_TYPE_V1, payload), &signature)
             .unwrap();
 
+        let second_payload = br#"{"schema":"vela.authority-record.v1","sequence":2}"#;
+        let second = provider
+            .sign(AUTHORITY_PAYLOAD_TYPE_V1, second_payload)
+            .unwrap();
+        assert_eq!(second.len(), 1);
+        let second_signature =
+            Signature::try_from(BASE64_STANDARD.decode(&second[0].sig).unwrap().as_slice())
+                .unwrap();
+        VerifyingKey::from_bytes(&public_key)
+            .unwrap()
+            .verify(
+                &dsse_pae(AUTHORITY_PAYLOAD_TYPE_V1, second_payload),
+                &second_signature,
+            )
+            .unwrap();
+
         let error = provider.sign("application/json", payload).unwrap_err();
         assert!(error.contains("payload type"), "{error}");
     }
