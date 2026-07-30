@@ -14,7 +14,7 @@ import { sha256Bytes } from "../src/util/canonical.js";
 const gitCommit = "b".repeat(40);
 const gitTree = "c".repeat(40);
 const repositoryRoot = `sha256:${"a".repeat(64)}`;
-const epochRoot = `sha256:${"d".repeat(64)}`;
+const originRoot = `sha256:${"d".repeat(64)}`;
 const keysetRoot = `sha256:${"e".repeat(64)}`;
 const policyRoot = `sha256:${"f".repeat(64)}`;
 const velaBinaryDigest = sha256Bytes(readFileSync(process.execPath));
@@ -108,7 +108,7 @@ function validStatus(): Record<string, unknown> {
       blockers_by_code: {},
     },
     roots: {
-      epoch: epochRoot,
+      origin: originRoot,
       repository: repositoryRoot,
       authority_keyset: keysetRoot,
       authority_policy: policyRoot,
@@ -120,15 +120,15 @@ function validStatus(): Record<string, unknown> {
 
 function validRepository(): Record<string, unknown> {
   return {
-    schema: "vela.repository-verification.v1",
+    schema: "vela.repository-verification.v2",
     ok: true,
     command: "repository verify",
     frontier: "frontier",
     frontier_id: "vfr_fixture",
     git_commit: gitCommit,
     git_tree: gitTree,
-    epoch_id: "vre_fixture",
-    epoch_root: epochRoot,
+    origin_id: "vor_fixture",
+    origin_root: originRoot,
     repository_root: repositoryRoot,
     authority_keyset_root: keysetRoot,
     authority_policy_root: policyRoot,
@@ -197,7 +197,7 @@ test("Vela client binds Git to one strict-passing current repository root", asyn
   const inspection = await client(fake.runner).assertRoots("/repo", "frontier", mission().roots);
   assert.deepEqual(inspection.roots, mission().roots);
   assert.equal(inspection.status.schema, "vela.status.v1");
-  assert.equal(inspection.repository.schema, "vela.repository-verification.v1");
+  assert.equal(inspection.repository.schema, "vela.repository-verification.v2");
   assert.equal(fake.calls.some((argv) => argv.includes("sign")), false);
   assert.equal(fake.calls.some((argv) => argv[1] === "check" || argv[1] === "proof"), false);
   assert.equal(fake.environments.some((env) => env.VELA_AGENT_KEY_HEX !== undefined), false);

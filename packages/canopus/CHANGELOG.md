@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Compose against the exact attested Vela `0.950.0` archives and current
+  `vela.repository-verification.v2` origin contract. Remove Canopus's stale
+  predecessor-epoch parser assumption; the released-binary integration now
+  proves a nonmutating Run and clean-clone verifier against one compact
+  repository.
 - Make repair a real handoff rather than a hash-only annotation. `canopus run
   --repair-from <exact-candidate-file>` now requires the full parent root,
   stages the retained bytes at the single contracted artifact path, and

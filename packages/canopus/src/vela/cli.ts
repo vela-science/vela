@@ -293,7 +293,7 @@ export class VelaClient {
       throw new VelaClientError("malformed_output", "vela status contract identity is invalid");
     }
     if (
-      repository.schema !== "vela.repository-verification.v1" ||
+      repository.schema !== "vela.repository-verification.v2" ||
       repository.ok !== true ||
       repository.command !== "repository verify"
     ) {
@@ -362,7 +362,7 @@ export class VelaClient {
       "status/repository root",
     );
     for (const [statusKey, repositoryKey, label] of [
-      ["epoch", "epoch_root", "epoch"],
+      ["origin", "origin_root", "origin"],
       ["authority_keyset", "authority_keyset_root", "authority keyset"],
       ["authority_policy", "authority_policy_root", "authority policy"],
     ] as const) {
