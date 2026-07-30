@@ -525,6 +525,7 @@ vela.agent-campaign.v1
   campaign ID and root
   execution-lease root
   approved campaign-plan root
+  exact controller and runner build identities
   append-only steering directive roots
   baseline source commit and tree
   experiment nodes[]
@@ -625,6 +626,7 @@ vela.review-outbox.v1
   Frontier and repository roots
   Standing, policy, keyset, and authority heads
   entries[]
+    entry ID derived from the full entry root
     sealed candidate and campaign roots
     exact draft and evidence roots
     consequence class and requested disposition
@@ -663,6 +665,22 @@ Vela differs in three load-bearing ways:
 - editing evidence is forbidden—an edit derives a new intent and root; and
 - resuming an execution thread is not a scientific Decision.
 
+The current Agent Inbox is useful prior art, not Vela's product model. It
+groups generic interruptions by agent thread and submits one response shape
+back to the runtime. Vela instead groups by Frontier, Target, and Claim or
+Proposal lineage, and maps every disposition to an exact outbox entry ID and
+full root. The response protocol must never rely on array position. This
+follows the stronger correlation rule in the
+[Agent Protocol batch-resume contract](https://github.com/langchain-ai/agent-protocol/blob/0ff7cd3962e8b4b3e347b76203be7dfeba003928/streaming/protocol.cddl),
+where every response names its interrupt ID and one batch resumes atomically.
+
+Other agent products expose “always approve” for a tool or the remainder of a
+run. Vela must not. The only reusable autonomy grant is the exact, expiring,
+budgeted execution lease. No inbox action may create a persistent tool
+approval, wildcard, remembered answer, or classifier exception. A repeated
+consequence either remains inside the existing lease or receives a newly
+rooted review item.
+
 The local review UI or CLI groups entries by campaign and consequence class.
 Each row shows:
 
@@ -676,8 +694,9 @@ Each row shows:
 
 Selecting an entry opens the exact scientific diff and evidence chain.
 Multi-select is enabled only for one Frontier and one authority domain. The
-available dispositions are Accept, Reject, Request revision, and Defer. The
-public Observatory remains credential-free and read-only. It may display
+available consequence dispositions are Accept, Reject, and Request revision;
+Save for later and Snooze are local triage actions rather than dispositions.
+The public Observatory remains credential-free and read-only. It may display
 committed Decision and retained campaign evidence, but unresolved outbox state
 stays in the private local reviewer surface.
 
@@ -694,6 +713,26 @@ agent thread, tool, or verifier. Multiple Verification Records for one
 Proposal appear under one decision. Competing Proposals remain separately
 actionable. The UI may deduplicate identical presentation, but it must retain
 and disclose every distinct underlying root.
+
+Inbox submission uses a keyed request, never a positional response list:
+
+```text
+vela.review-selection.v1
+  inbox_snapshot_root
+  selected_entry_ids[]
+  decisions
+    <entry_id>
+      expected_entry_root
+      disposition
+      reason
+```
+
+The selected-entry set may be a strict subset of the Inbox. Every selected
+entry requires exactly one keyed decision; omission inside that set is invalid.
+Unselected entries remain pending and do not block the selected subset.
+Validation rejects unknown or duplicate IDs, wrong roots, extra decisions, and
+positional substitutions before deriving the deterministic canonical batch
+order.
 
 Every entry answers five questions before internal machinery:
 
@@ -730,12 +769,50 @@ informational digest in the Cockpit. They never appear as Decision Inbox rows.
 Pause, resume, or in-scope guidance is available from the Cockpit and appends
 to the steering log without changing the lease.
 
+Inbox triage state is a versioned local sidecar keyed by reviewer ID, entry ID,
+and exact entry root. It may contain only read state, saved state, snooze time,
+follow preference, draft disposition, and selected batch. `Snooze` may carry an
+explicit wake time or state condition but cannot extend beyond a real deadline
+or lease expiry. `Request revision` appends reviewer guidance and requires a
+new candidate root; `Dismiss` removes only a local reminder for an abandoned
+candidate. None changes the deterministic outbox projection, campaign roots,
+authority read set, or Standing. Any changed entry root creates a successor
+that does not inherit selection, draft reason, dismissal, or snooze. “Follow”
+belongs to Cockpit notification preferences, not to scientific disposition.
+
+The UI says `Save for later` or `Snooze`, not `Defer`, because Defer could be
+mistaken for a scientific disposition. Done, Dismiss, Unfollow, and Snooze
+change reminder presentation only. They cannot remove a required Decision,
+correction, policy action, or lease-expiry condition from the authoritative
+unresolved view.
+
 The durable interaction model follows the narrow useful boundary in the
 [OpenAI Agents SDK human-in-the-loop flow](https://openai.github.io/openai-agents-python/human_in_the_loop/):
 approval policy attaches to action classes, ordinary trusted actions continue,
 multiple pending sensitive actions may coexist, and serialized run state can
 resume later. Vela does not make tool approval scientific authority; it uses
 that durability only for the execution plane.
+
+Persisted resumable state uses an activity-plane envelope:
+
+```text
+vela.agent-campaign-resume.v1
+  resume schema and serializer or adapter version
+  checkpoint ID and full root
+  campaign and lease roots
+  controller and runner build identities
+  agent-definition root
+  tool-schema and policy roots
+  model and configuration root
+  pending interruption IDs and payload roots
+  last activity root
+```
+
+It excludes bearer credentials, human or repository-authority material,
+private prompts, raw provider session secrets, and serialized sticky approval.
+If any bound input drifts, the campaign remains inspectable and exportable but
+does not silently resume under changed semantics. Lease-root change, expiry, or
+revocation also invalidates any pending runtime approval.
 
 The local UI uses a semantic list or table with native selection controls,
 visible keyboard focus, and an equivalent non-visual reading order. Opening
@@ -748,13 +825,14 @@ Workflow state is distinct from scientific disposition:
 
 ```text
 candidate active -> superseded
-outbox item pending -> deferred | revision_requested | dismissed | batched | stale
+outbox item pending -> saved | snoozed | revision_requested | dismissed | batched | stale
 Proposal unregistered -> pending_review only after canonical registration
 Proposal pending_review -> accepted | rejected through an authorized Decision
 ```
 
-Dismiss and Defer affect only the local review workflow. They never masquerade
-as a canonical rejection or delete the candidate.
+Save, Snooze, Dismiss, and Follow affect only the local review workflow. They
+never masquerade as a canonical disposition, delete a candidate, or hide a
+mandatory unresolved obligation.
 
 #### Batched review plan
 
@@ -817,9 +895,9 @@ idempotent executor after authorization.
 
 `review_batch_commit` is an internal transaction action. It does not revive a
 generic public `review apply` command or erase the direct Accept, Reject,
-Request revision, Defer, correct, retract, or supersede disposition reviewed
-for each item. The visible commit control names the exact selection, such as
-`Accept 2 and reject 1`, rather than `Approve all`.
+Request revision, correct, retract, or supersede disposition reviewed for each
+item. The visible commit control names the exact selection, such as `Accept 2
+and reject 1`, rather than `Approve all`.
 
 Immediately before confirmation, the planner rebases the complete candidate
 set onto current Standing and reruns every required check. This adopts the
@@ -863,7 +941,7 @@ lease       proposed -> active -> exhausted | expired | revoked
 campaign    open -> sealed -> superseded by child
 candidate   open -> sealed -> superseded | selected
 run         starting -> running -> completed | failed | cancelled
-outbox item pending -> deferred | revision_requested | dismissed | batched | stale
+outbox item pending -> saved | snoozed | revision_requested | dismissed | batched | stale
 batch       prepared -> applied | rejected | expired | stale
 Standing    unchanged until one authorized batch is applied
 ```
@@ -935,6 +1013,19 @@ Focused conformance must prove:
 - outbox entry roots change on classifier, head, sealed-candidate, requested
   action, evidence, or semantic-diff drift, but not on unrelated continuing
   campaign activity;
+- every selected review response maps an explicit entry ID to its full root;
+  queue reorder cannot misapply it; unknown, duplicate, wrong-root, extra,
+  omitted-selected, or positionally substituted responses fail;
+- a selected subset commits while unselected entries remain pending;
+- save, snooze, revision-request, dismissal, and notification preferences
+  change no deterministic outbox entry or Standing, cannot suppress a
+  mandatory unresolved obligation, and do not carry to a successor root;
+- no persistent, wildcard, tool-wide, “always approve,” saved-answer, or
+  classifier-exception path exists outside a newly reviewed execution lease;
+- resumable campaign state fails closed on serializer, controller, runner,
+  agent, tool, policy, model, configuration, interruption, lease, or
+  activity-root drift and contains no credential or authority material;
+- lease-root change, expiry, or revocation rejects serialized sticky approval;
 - batch roots and ordering are deterministic;
 - mixed Frontier or authority domains, duplicate Proposals, ambiguous order,
   and write conflicts fail closed;
