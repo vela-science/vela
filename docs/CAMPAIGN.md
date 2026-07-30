@@ -327,11 +327,13 @@ projected bytes have not changed. Frontier bindings remain separate,
 release-scoped relations between one observed native record and one Frontier
 object.
 
-Candidate ingestion uses PostgreSQL `COPY FROM STDIN` in bounded chunks and
-checks counts and table roots before activation. Collection reads use
-root-bound keyset cursors over stable sort keys and full IDs. Graph reads return
-bounded typed neighborhoods plus an equivalent keyset-paginated ledger; an
-ordinary route never fetches the full graph.
+Candidate ingestion uses the simplest bounded bulk writer that passes the
+frozen budget and checks counts and table roots before activation. The current
+path uses deterministic 1,000-row JSONB recordset chunks. `COPY FROM STDIN`
+is added only if that path fails a measured budget. Collection reads use
+root-bound keyset cursors over stable sort keys and full IDs. Graph reads
+return bounded typed neighborhoods plus an equivalent keyset-paginated ledger;
+an ordinary route never fetches the full graph.
 
 The alpha must pass a rooted 100,000-record ingestion and read benchmark. A
 1,000,000-record benchmark is required before any scalability claim. Do not add
@@ -592,8 +594,8 @@ Offline projection:
 1. consume only the checked-in typed source declarations, immutable observation
    bundles, released Vela binary, and exact clean Frontier checkouts;
 2. revalidate every adapter, bundle, record, coverage, and binding root;
-3. load the complete candidate read model with PostgreSQL `COPY FROM STDIN` in
-   bounded chunks inside one transaction;
+3. load the complete candidate read model with deterministic bounded bulk
+   chunks inside one transaction;
 4. recompute every public table and release root; and
 5. activate only after source, reader, product, and benchmark checks pass.
 
@@ -612,8 +614,8 @@ under `@vela/frontier-data`; Neon never authors them.
 Use the existing observatory schema and release pointer. Add one additive
 migration with checked source declarations, immutable observation and
 native-record tables, release-to-observation membership, and release-scoped
-Frontier bindings. Each bounded `COPY` chunk declares its table, schema, row
-count, and deterministic row-root input. Include every table in candidate
+Frontier bindings. Each bounded ingestion chunk declares its table, schema,
+row count, and deterministic row-root input. Include every table in candidate
 insertion, table-root verification, manifest normalization, retained release
 readers, and skew tests. Grant the Vercel role only curated public tables or
 views; operational acquisition evidence and restricted source details remain
@@ -1071,8 +1073,8 @@ Release Vela Web `0.430.0` only when:
 
 The deterministic local 100,000-record synthetic generator is a harness, not
 this qualification: it explicitly makes no product or database-scale claim and
-does not exercise Neon `COPY`, database latency, egress, concurrent readers, or
-production behavior.
+does not exercise Neon ingestion, database latency, egress, concurrent
+readers, or production behavior.
 
 #### ADR 0030 acceptance and alpha gate
 
@@ -1193,7 +1195,7 @@ Projection and paper-benchmark tests must prove:
 - atomic candidate insertion and activation;
 - failed refresh cannot move the current pointer;
 - empty, full, incremental, deletion, and malformed-source ingestion behavior;
-- bounded `COPY` chunks preserve exact counts and table roots;
+- bounded ingestion chunks preserve exact counts and table roots;
 - deterministic registry, snapshot, adapter, coverage, and binding roots;
 - unchanged observation roots are reused across web releases while Frontier
   bindings remain release-scoped;
@@ -1216,9 +1218,9 @@ candidate. It records:
 - missing, omitted, inaccessible, duplicate, and silently lost record counts;
 - observation-bundle, table, manifest, and clean-rebuild root agreement;
 - stale, overlapping, closed, and valid Target counts;
-- acquisition bytes and time, `COPY` chunk sizes, offline projection time,
-  incremental changed-row ratio, database storage, query transfer, and p50/p95
-  latency;
+- acquisition bytes and time, ingestion method and chunk sizes, offline
+  projection time, incremental changed-row ratio, database storage, query
+  transfer, and p50/p95 latency;
 - keyset page correctness and bounded graph-neighborhood response sizes;
 - reader accuracy and time for Standing, decisive evidence, limitations, and
   next-action tasks against Git plus identical evidence; and

@@ -229,11 +229,14 @@ roots exclude the web release identity. The release manifest commits to the
 exact observation membership and Frontier bindings, so two releases may share
 one immutable observation without sharing a mutable row.
 
-Candidate loads use PostgreSQL `COPY FROM STDIN` in bounded chunks inside the
-candidate transaction. Every chunk has a declared table, schema, row count,
-and deterministic row-root input. The projector checks inserted counts and
-table roots before moving `current_release`. It does not issue one insert per
-record or store one source as a large JSONB document.
+Candidate loads use the simplest bounded bulk path that meets the frozen
+ingestion budget inside the candidate transaction. The current implementation
+uses deterministic 1,000-row JSONB recordset chunks. Every chunk has a
+declared table, schema, row count, and deterministic row-root input. The
+projector checks inserted counts and table roots before moving
+`current_release`. It does not issue one insert per record or store one source
+as a large JSONB document. `COPY FROM STDIN` is an optimization candidate only
+after this path fails a measured budget.
 
 Each table participates in table-root verification, manifest normalization,
 retained-version readers, and release-skew checks. The application reader has
@@ -395,7 +398,7 @@ The alpha release must pass a rooted 100,000-record benchmark. The frozen
 benchmark includes source-native records, immutable observations, Frontier
 bindings, and representative graph edges. It measures:
 
-- chunked `COPY` load, count and table-root verification, and atomic
+- bounded bulk ingestion, count and table-root verification, and atomic
   activation;
 - deterministic clean rebuild and failed-load pointer containment;
 - keyset page correctness, cursor stability, transferred bytes, and p50/p95
@@ -491,8 +494,12 @@ gated by the campaign and ADRs 0026 and 0029.
   observation identity belongs to the source revision; releases should bind it
   by root and keep Frontier bindings separate.
 - **Use row-at-a-time inserts or unbounded reads.** Rejected because bounded
-  `COPY`, keyset pagination, and explicit graph neighborhoods provide exact
-  performance contracts without another service.
+  bulk ingestion, keyset pagination, and explicit graph neighborhoods provide
+  exact performance contracts without another service.
+- **Require `COPY FROM STDIN` before measuring the existing writer.** Rejected
+  because an implementation-specific transport is not a product invariant.
+  Adopt it only if the frozen benchmark shows that the simpler bounded
+  recordset path misses an exact budget.
 - **Add partitioning, a graph database, or a vector stack preemptively.**
   Rejected until the 100,000-record benchmark exposes a measured limit and the
   1,000,000-record benchmark justifies a scalability claim.
