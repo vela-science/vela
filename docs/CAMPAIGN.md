@@ -658,6 +658,22 @@ unchanged and the Proposal remains `pending_review`. The model has not invoked
 a Decision. A post-Decision remap is forbidden until the human independently
 accepts, rejects, or cancels.
 
+The exact post-Verification map checkpoint is
+`paper/artifacts/map-target-loop/post-verification-map.v1.json`, byte root
+`sha256:439a804908890e4029922cc91cdd0a79122187d573530fc760a419d90786be21`.
+Read-only candidate release
+`sha256:fb2665dfaac61f4ba61d11cd4e7ea65421168bb292bf5f7a840ce3207599af02`
+binds Erdős commit `606f2f4b50193b1feccf1df4e1f31d50d3a8dd99`, repository
+root
+`sha256:8b1c2bbc99b9e9aade2bfb56d3493be02cdad954eefa3cd98a14ac41128ae0d4`,
+graph source
+`sha256:51e69b4d883f89c38b590ac8750753834f96f5abd073cba8ca87bddad7dbb659`,
+and 4,032 nodes with 2,528 edges. It was verified in the normalized Neon read
+model but not activated. The source-only
+`materialize_post_decision.py` command is frozen now so a later terminal
+Decision can be replayed and remapped without letting the evidence procedure
+invoke authority or change the live projection pointer.
+
 ## Completed registered framework-neutral evaluation
 
 The non-normative `canopus.evaluation-plan.v1` freezes tasks, arms, versions,

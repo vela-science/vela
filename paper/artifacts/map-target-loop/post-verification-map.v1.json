@@ -1,0 +1,50 @@
+{
+  "candidate": {
+    "activated": false,
+    "created_at": "2026-07-30T03:07:51.946Z",
+    "release_root": "sha256:fb2665dfaac61f4ba61d11cd4e7ea65421168bb292bf5f7a840ce3207599af02",
+    "schema": "vela.observatory-release-manifest.v6"
+  },
+  "current_release_at_recording": "sha256:5e34b24d33ed7034e2872f5731d7380afcc5ce2c0adea2fb833b8f98b557b42c",
+  "frontier": {
+    "accepted_claim_count": 2771,
+    "accepted_review_count": 0,
+    "authority_keyset_root": "sha256:c4a88730dead6074cce49cce6649b23874dfed41c598815852f62ca65741f328",
+    "authority_policy_root": "sha256:3c0743077d051b5a84e932dcfe6fc4e764fe39738a3040aebdc11276f53ee83f",
+    "claim_count": 2772,
+    "commit": "606f2f4b50193b1feccf1df4e1f31d50d3a8dd99",
+    "graph_edge_count": 2528,
+    "graph_finding_count": 2772,
+    "graph_layout_root": "sha256:bf814ada27a2ed0ffe17af7cfa5f52751357042bc76912b087815cf5a3e46eea",
+    "graph_node_count": 4032,
+    "graph_source_root": "sha256:51e69b4d883f89c38b590ac8750753834f96f5abd073cba8ca87bddad7dbb659",
+    "origin_id": "vro_49a273efaa690e56",
+    "origin_root": "sha256:49969ef6059e636718da4f5b7d200ef421ed17fc60b8e490d493ea71f7b2f77d",
+    "pending_claim_count": 1,
+    "pending_review_count": 1,
+    "problem_count": 1217,
+    "repository_root": "sha256:8b1c2bbc99b9e9aade2bfb56d3493be02cdad954eefa3cd98a14ac41128ae0d4",
+    "rejected_review_count": 0,
+    "review_count": 1,
+    "slug": "erdos",
+    "tree": "79c190d8f6fe899185494b52541b5df6d7677d41",
+    "verification_count": 1
+  },
+  "implementation": {
+    "commit": "6a4ae82442d396b053a1fbb8d804d1349e0e5747",
+    "repository": "https://github.com/vela-science/vela-web"
+  },
+  "nonclaims": [
+    "The candidate is a read-only projection and was not activated.",
+    "Verification passage does not imply scientific acceptance.",
+    "The graph layout is non-authoritative.",
+    "The candidate root is not a Vela protocol or scientific-state root."
+  ],
+  "recorded_at": "2026-07-30T03:07:51.946Z",
+  "released_vela": {
+    "binary_sha256": "sha256:e9bc81e1bb735ade94a529253bec96ea6a8c5618a524c0e4b3e53c5846e8535e",
+    "version": "0.950.1"
+  },
+  "schema": "vela.map-target-loop-post-verification-map.v1",
+  "status": "verified_candidate_not_activated"
+}
