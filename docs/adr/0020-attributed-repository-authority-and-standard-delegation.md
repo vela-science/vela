@@ -9,9 +9,10 @@
   transaction edge
 - Scientific authority effect: preserve human or governed scientific judgment;
   change how that judgment is authenticated, authorized, and recorded
-- Remaining acceptance gate: retain Proposed status until the current campaign
-  completes a real repository-authority Decision loop and a fresh-user
-  comprehension check on the released contract.
+- Evidence update: the real repository-authority Decision loop is complete at
+  Erdős commit `80606bdccb51fa86524111a1a61876bb08e45d79`.
+- Remaining acceptance gate: retain Proposed status until an uncoached fresh
+  user comprehends and safely completes the released Decision path.
 - Compatibility: all Vela `0.915` history remains byte-identical and
   read-verifiable; only the new authority model has a live writer after
   migration
@@ -350,6 +351,618 @@ Those actions are absent from the capability action enum and are also rejected
 by the shared application invariant before Cedar evaluation. The same closed
 list is used by `vela-protocol` and `vela-authority`, so policy text cannot
 manufacture an agent or workload decision path.
+
+### 7A. Proposed amendment: scoped Agent Campaigns and batched semantic review
+
+Status: **Proposed, design-only, 2026-07-30.**
+
+This amendment responds to a concrete dogfood failure: a multi-hour or
+multi-day agent run cannot stop for human verification or repository-signing
+prompts every few minutes. That interaction is not safer. It trains the user
+to approve mechanically, hides the few decisions that matter, and makes the
+scientific workflow materially worse than ordinary Codex, Claude Code, or
+research-workbench use.
+
+The product rule is:
+
+> Approve bounded execution once. Observe everything. Interrupt only for a
+> change in consequence. Apply reviewed scientific decisions in one exact
+> authority transaction.
+
+The cold-researcher flow is one coherent path:
+
+```text
+choose Frontier and Target
+  -> authorize one bounded campaign
+  -> agents run and append evidence without interruption
+  -> inspect the few meaningful outbox entries
+  -> apply one reviewed batch
+  -> see the exact new Standing and next obligation
+```
+
+The north-star dogfood case is one agent working for twelve hours after one
+campaign authorization and returning one or a few consequential review items,
+with no intervening human prompt unless the approved scope, budget, risk, or
+consequence changes.
+
+The invariant does not change:
+
+- evidence is not a verdict;
+- Verification is not acceptance;
+- an agent cannot accept, reject, or broaden its own authority;
+- accepted transitions replay from retained bytes; and
+- corrections append instead of replacing history.
+
+#### Existing seam
+
+Most of the required substrate already exists:
+
+- `vela.attempt.v3` binds one Target, actor, task contract, exact repository
+  read set, and expiry while creating no Event, authority record, or Standing;
+- `canopus.activity.v0` is an append-only, hash-linked run log, and
+  `canopus.run.v2` is explicitly non-authoritative;
+- Submission and Verification Record signatures already authenticate their
+  exact producer or verifier bytes without becoming scientific authority;
+- `AuthorityTransactionRequest` already accepts multiple Event and object
+  drafts, one exact read set, multiple semantic approvals, and one recoverable
+  journaled commit; and
+- the current Decision path already rederives the Proposal, Claim, Submission,
+  Verification set, policy, authority head, binary, reason, and action under
+  the write barrier before authentication or signing.
+
+The gap is product composition, not a second authority system. The generic
+`vela.capability-grant.v1` types exist in protocol fixtures, but no current
+Submission, Verification, or Decision writer uses them and the four active
+Frontiers retain no such canonical object. `AuthorityRecordV1` nevertheless
+has a typed reader for `VerifiedCapabilityClaimV1`, so implementation must not
+delete the retained v1 read shape.
+
+Before implementation, repeat that inventory. If it remains empty, section 7's
+generic capability proposal is superseded for current writers by the narrower
+execution lease below. Keep the v1 reader and conformance fixtures, remove the
+unused generic writer, and do not add an `AuthorityRecord` version merely to
+carry campaign activity. Campaign execution creates no authority record after
+lease issuance and before a reviewed Decision.
+
+#### Execution lease
+
+Add one non-scientific, repository-authority object:
+
+```text
+vela.execution-lease.v1
+  lease_id and full root
+  Frontier ID
+  exact Target IDs and roots
+  starting repository, packet, and execution roots
+  approved campaign-plan root
+  agent or workload principal and public identity
+  isolated readable and writable roots
+  allowed operations
+  allowed Artifact types
+  tool, network, sandbox, and publication constraints
+  wall-clock, model-call, token, compute, spend, storage, and parallelism budgets
+  issued_at, not_before, and expires_at
+  optional predecessor-lease root
+  revocation reference
+  consequence ceiling: evidence_only | pending_review
+```
+
+One human-only Cedar action, `execution_lease_issue`, may issue the lease
+through an object-only authority transaction. Acceptance of this amendment
+must add it to the closed structural human-only action list and Cedar schema
+and policy. Its `SemanticApprovalV1.intent_digest` binds the full exact lease
+root, including the approved campaign-plan root. The normal `start` flow
+should expose that action; this amendment does not justify another top-level
+CLI command.
+
+The lease authorizes only the execution plane:
+
+- inspect exact source and Frontier state;
+- create isolated baseline and child experiment worktrees;
+- run allowed tools and verifiers;
+- append run receipts and failures;
+- freeze allowed Artifacts;
+- draft Submissions and Verification Records; and
+- emit escalation intents that Vela deterministically classifies for the
+  review outbox.
+
+It never authorizes:
+
+- a canonical scientific Decision;
+- policy, schema, membership, quorum, or repository-authority change;
+- publication outside the approved local evidence store;
+- destructive or high-impact action;
+- a budget or risk increase;
+- access to a human or repository-authority key; or
+- creation, renewal, widening, or approval of its own lease.
+
+The execution controller may refresh short-lived provider credentials inside
+the exact active lease without human interaction. Those credentials and bearer
+bytes are runtime state, not canonical Vela objects. Refresh must fail after
+expiry, exhaustion, or revocation. Scope, budget, risk, publication, or
+consequence expansion produces a review item; it never silently widens the
+lease.
+
+One campaign controller is the only budget allocator for a lease. Parallel
+branches reserve, commit, or release bounded allocations through one
+hash-linked local ledger protected by the existing local work lock. A restarted
+controller replays and reconciles that ledger before issuing another
+allocation. An engine that cannot route a claimed budget dimension through the
+controller may not advertise or use that dimension as enforced. This avoids
+ceremonial budget fields that no component can actually police.
+
+The controller is a thin authorization, metering, and evidence adapter around
+Codex, OpenResearch, Canopus, or another native runner. It does not schedule
+research, replace the runner's durable execution, or normalize its complete
+internal state into Vela.
+
+The local-first, model-agnostic
+[OpenScience workbench](https://github.com/synthetic-sciences/openscience) is
+another representative execution plane: native sessions, files, runs, tools,
+and provenance remain in the workbench, while a thin adapter may bind exact
+candidate evidence into Vela. Vela does not copy its agent runtime, connector
+catalog, editor, terminal, compute layer, or project graph.
+
+The first profile permits at most seven days because that matches the bounded
+long-run lifecycle already used by research workbenches. A Frontier policy may
+set a shorter maximum. Longer work requires a new reviewed lease rather than
+an unbounded credential. The unused generic capability reader retains its
+historical 24-hour validation rule; it does not constrain the new lease.
+
+Lease v1 has no renewal or in-place extension. Continued work requires a new
+human-issued lease that names the predecessor root and exact remaining plan.
+
+Revocation appends a separately rooted, non-scientific revocation object
+covered by repository authority. It does not mutate or delete the original
+lease or invalidate evidence produced while the lease was active.
+
+#### Campaign bundle and experiment graph
+
+Add one portable, non-authoritative activity-plane manifest:
+
+```text
+vela.agent-campaign.v1
+  campaign ID and root
+  execution-lease root
+  approved campaign-plan root
+  append-only steering directive roots
+  baseline source commit and tree
+  experiment nodes[]
+    node ID and parent root
+    isolated worktree identity
+    exact diff root
+    Run and activity-log roots
+    evaluation and Artifact roots
+    verifier outputs
+    draft Submission and Verification roots
+    budget consumption
+    status: starting | running | completed | failed | cancelled
+  hidden-failure count and roots
+  selected candidate, if any
+  sealed_at
+```
+
+This is a bundle, not another canonical scientific graph. Native workbenches
+retain their exact logs and formats; the manifest binds those bytes instead of
+normalizing every tool event into Vela. Canopus may emit it, but Canopus is not
+required for replay or authority.
+
+[OpenResearch](https://openresearch.sh/docs/experiment-flow) is the execution
+reference: a baseline has child experiments, each child has its own isolated
+branch or worktree, run state, evaluation output, and exact code diff. Its run
+contract also demonstrates that a bounded run may last up to seven days and
+emit a structured evaluation artifact. Vela borrows that observable
+baseline-to-child shape, not OpenResearch's storage, scheduler, or authority.
+
+Campaign activity appends continuously without human approval. A sealed bundle
+is immutable. A repair or continuation creates a child bundle that names the
+parent root. Missing campaign bytes may make a proposed review incomplete, but
+they can never make accepted-state replay depend on Canopus, OpenResearch, a
+checkpoint database, or a network service.
+
+Raw prompts, private traces, credentials, and undisclosed research-process
+content remain local by default and are excluded from portable bundles.
+Exporting them for evaluation or model training requires a separate explicit
+consent and custody policy. Rooted metadata must not become a pretext for
+centralizing private workbench history.
+
+Before lease issuance, the user may edit the bounded campaign plan. During
+execution, pause and resume do not cancel or reauthorize the campaign, and
+steering inside the existing scope appends a non-authoritative directive.
+Changing Target, writable roots, tools, network, budget, risk, publication, or
+consequence ceiling requires a new reviewed lease or escalation. Reusable
+plans are unsigned templates only; a later campaign still requires its own
+fresh exact lease.
+
+This adapts the useful interaction boundary from
+[Magentic-UI](https://www.microsoft.com/en-us/research/blog/magentic-ui-an-experimental-human-centered-web-agent/):
+co-plan before work, observe and steer while it runs, pause without destroying
+state, guard consequential actions, and show parallel-task status. Vela does
+not import Magentic-UI's agent architecture or treat a learned plan as
+authority.
+
+#### Candidate sealing and non-standing writes
+
+The campaign path does not call the current repository-authority Submission or
+Verification writer after every result. Instead it stages a closed candidate
+graph:
+
+```text
+producer-signed Submission draft
+  -> deterministic Claim and Proposal draft
+  -> verifier-signed Verification Record draft over those exact roots
+  -> sealed candidate root
+  -> derived outbox entry
+```
+
+These bytes are append-only campaign evidence under producer or verifier
+authentication. They create no repository-authority transaction, canonical
+Proposal, Event, or Standing, and therefore require no human or
+repository-authority prompt. The UI calls them candidates, not
+`pending_review`.
+
+The sealed candidate root binds every draft byte, Artifact, source commit and
+tree, verifier environment and limitation, campaign node, and evidence-set
+root. Later activity does not mutate or stale it. A better result creates a
+new candidate root and explicitly supersedes the old candidate in the
+campaign.
+
+At an authorized batch commit, the planner deterministically derives and
+installs the ordinary Submission, Registration Record, Claim, Proposal, and
+Verification Record objects together with each ordinary Decision Event in the
+same authority transaction. Existing direct `submit` and single-Proposal
+review remain compatibility paths. This candidate-sealing path is what removes
+per-step signing from a long-running campaign without granting an agent
+repository authority.
+
+#### Review outbox
+
+Add one local, root-bound derived projection:
+
+```text
+vela.review-outbox.v1
+  classifier rules and version
+  Frontier and repository roots
+  Standing, policy, keyset, and authority heads
+  entries[]
+    sealed candidate and campaign roots
+    exact draft and evidence roots
+    consequence class and requested disposition
+    semantic diff and next-Obligation roots
+```
+
+Each entry has its own full root over those inputs. The outbox index root is the
+ordered root of its entries and classifier. Ongoing campaign activity cannot
+change an entry because review begins only from a sealed candidate. A later
+candidate, changed repository head, or changed policy creates a new entry and
+marks the prior one stale rather than mutating it.
+
+The outbox contains only consequence-bearing entries:
+
+1. accept, reject, retract an accepted Claim, correct, or supersede canonical
+   scientific state;
+2. contradict current accepted state;
+3. change policy, schema, membership, quorum, or repository authority;
+4. publish externally;
+5. perform a destructive or otherwise high-impact action; or
+6. increase approved budget, tools, network access, writable roots, or risk.
+
+Routine tool calls, checkpoints, progress messages, run receipts, Artifact
+freezes, verifier passes or failures, drafts, and experiment branches never
+enter the outbox. They remain visible in the activity timeline.
+
+The interaction should follow the useful part of
+[LangGraph interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts)
+and the open-source
+[Agent Inbox example](https://github.com/langchain-ai/agent-inbox-langgraphjs-example):
+persist exact work before the interruption, surface a queue of items with
+enough context to decide, and support accept, reject, revise, or defer.
+Vela differs in three load-bearing ways:
+
+- the agent does not choose which scientific actions are safe to auto-approve;
+- editing evidence is forbidden—an edit derives a new intent and root; and
+- resuming an execution thread is not a scientific Decision.
+
+The local review UI or CLI groups entries by campaign and consequence class.
+Each row shows:
+
+- action and exact target;
+- why human judgment is required now;
+- proposed scientific or external effect;
+- decisive evidence and verifier scope;
+- caveats and explicit nonclaims;
+- current conflicts or missing checks; and
+- age, expiry, and budget impact.
+
+Selecting an entry opens the exact scientific diff and evidence chain.
+Multi-select is enabled only for one Frontier and one authority domain. The
+available dispositions are Accept, Reject, Request revision, and Defer. The
+public Observatory remains credential-free and read-only. It may display
+committed Decision and retained campaign evidence, but unresolved outbox state
+stays in the private local reviewer surface.
+
+Review validity binds the exact candidate, source, and evidence bytes. A
+changed source hash is visibly stale and cannot inherit a prior review. A
+reviewer may still export a draft packet for inspection, but overriding a
+non-authoritative reviewer finding requires an attributed reason and never
+bypasses a deterministic verifier, policy, or Standing check. This borrows the
+useful exact-byte review discipline of local scientific workbenches without
+importing their project graph or provenance store as Vela authority.
+
+The primary grouping is Frontier -> Target -> Proposal or Claim lineage, not
+agent thread, tool, or verifier. Multiple Verification Records for one
+Proposal appear under one decision. Competing Proposals remain separately
+actionable. The UI may deduplicate identical presentation, but it must retain
+and disclose every distinct underlying root.
+
+Every entry answers five questions before internal machinery:
+
+1. What changed?
+2. What exact evidence supports or limits it?
+3. What decision is requested?
+4. What consequence would that decision have?
+5. What Obligation or Target follows?
+
+The queue adopts the useful parts of GitHub review and notification patterns:
+filter and group unresolved work, collect pending dispositions before one
+submission, keep approve and request-changes distinct, and invalidate review
+when the reviewed diff changes. A stale entry is automatically deselected,
+shows which exact inputs changed, and requires re-review. It is never silently
+carried into a batch.
+
+The interaction has two surfaces, not a raw agent outbox or stream of modal
+prompts:
+
+- **Campaign Cockpit** shows the approved and current plan, active baseline and
+  child branches, live status, retained failures, Artifacts, verifier scope,
+  budget consumption, steering history, and next checkpoint without asking
+  for a decision; and
+- **Decision Inbox** shows only unresolved outbox entries, grouped by
+  consequence and campaign, with one persistent batch action bar.
+
+A blocked experiment branch may appear in Decisions while independent branches
+continue in the Campaign Cockpit. The product may notify once when the first
+unresolved entry appears and once before lease expiry; it must not notify on
+routine progress, every verifier completion, or credential refresh.
+
+Routine receipts, checkpoints, and verifier completions roll into a bounded
+informational digest in the Cockpit. They never appear as Decision Inbox rows.
+Pause, resume, or in-scope guidance is available from the Cockpit and appends
+to the steering log without changing the lease.
+
+The durable interaction model follows the narrow useful boundary in the
+[OpenAI Agents SDK human-in-the-loop flow](https://openai.github.io/openai-agents-python/human_in_the_loop/):
+approval policy attaches to action classes, ordinary trusted actions continue,
+multiple pending sensitive actions may coexist, and serialized run state can
+resume later. Vela does not make tool approval scientific authority; it uses
+that durability only for the execution plane.
+
+The local UI uses a semantic list or table with native selection controls,
+visible keyboard focus, and an equivalent non-visual reading order. Opening
+detail preserves and restores focus. Status changes are announced, and a
+destructive confirmation initially focuses the least destructive action.
+These are interaction requirements, not justification for a custom component
+library.
+
+Workflow state is distinct from scientific disposition:
+
+```text
+candidate active -> superseded
+outbox item pending -> deferred | revision_requested | dismissed | batched | stale
+Proposal unregistered -> pending_review only after canonical registration
+Proposal pending_review -> accepted | rejected through an authorized Decision
+```
+
+Dismiss and Defer affect only the local review workflow. They never masquerade
+as a canonical rejection or delete the candidate.
+
+#### Batched review plan
+
+Add one retained, non-standing review object:
+
+```text
+vela.review-batch.v1
+  batch ID and full root
+  Frontier ID
+  authority domain
+  ordered entries[]
+    outbox entry, campaign, and sealed-candidate roots
+    draft or retained Proposal, Claim, Submission, Verification-set, and Artifact roots
+    planned canonical roots when the candidate is not yet registered
+    explicit requested action
+    exact human reason and limits
+    proposed per-entry state diff
+    underlying policy evaluations
+  repository, authority, keyset, and policy heads
+  complete transaction read-set root
+  conflict and deterministic ordering proof
+  prepared_at and expires_at
+```
+
+The object records exactly what the human reviewed and is installed as a
+non-standing object by the same authority transaction that applies its
+ordinary Decision Events. It is not a prerequisite canonical write. Partial
+selection, revision, changed reason, changed evidence, or changed action
+derives a new batch root; it never mutates the old packet.
+
+The v1 batch planner handles only exact Accept or Reject dispositions for
+sealed campaign candidates or already registered pending Proposals. Correction,
+retraction, supersession, policy, authority, publication, budget, and
+destructive actions remain individually actionable in the same Decision Inbox
+but use their existing dedicated planners until separate atomic semantics and
+conformance are earned.
+
+One human-only Cedar action, `review_batch_commit`, authorizes commitment of
+one batch. Acceptance of this amendment must add that action to the closed
+structural human-only action list and Cedar schema and policy. Agent and
+workload denial is structural before policy evaluation. The planner must also
+evaluate every underlying `review_accept` or `review_reject` action for the
+same principal and retain those deterministic evaluations. A batch is invalid
+if it:
+
+- spans Frontiers;
+- mixes scientific review with policy, schema, authority, budget, publication,
+  or destructive effects;
+- repeats a Proposal;
+- has overlapping or order-dependent writes without one unique topological
+  order;
+- omits a failed or blocking Verification;
+- changes a reason or limitation after review; or
+- is stale against any read-set input.
+
+External publication and destructive effects may appear in the outbox, but
+they are never co-committed with scientific state. Their side effects are not
+atomically replayable Git state and therefore require their own explicit,
+idempotent executor after authorization.
+
+`review_batch_commit` is an internal transaction action. It does not revive a
+generic public `review apply` command or erase the direct Accept, Reject,
+Request revision, Defer, correct, retract, or supersede disposition reviewed
+for each item. The visible commit control names the exact selection, such as
+`Accept 2 and reject 1`, rather than `Approve all`.
+
+Immediately before confirmation, the planner rebases the complete candidate
+set onto current Standing and reruns every required check. This adopts the
+load-bearing property of
+[GitHub's merge queue](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/merging-a-pull-request-with-a-merge-queue):
+a once-valid change cannot enter shared state merely because its original
+checks passed. If the current heads change during or after review, the affected
+entry is deselected and must be reviewed again.
+
+#### One authority transaction
+
+`Commit reviewed decisions` performs one local OS authentication and one
+repository-authority signature:
+
+1. acquire the existing repository-authority write barrier;
+2. rederive every retained item, policy evaluation, state diff, dependency,
+   read-set input, and batch root;
+3. simulate the complete ordered transition;
+4. reject any stale, conflicting, ineligible, or partially verified item
+   before authentication, signing, or journaling;
+5. build the ordinary Submission, Registration, Claim, Proposal,
+   Verification, per-Proposal Decision Event, and canonical object postimages;
+6. execute the existing multi-event, multi-object authority transaction; and
+7. replay the resulting history and Standing before publication.
+
+One authority record covers every ordinary Event and object delta exactly once.
+The batch adds no new Standing rule. A one-entry batch must be byte-for-byte
+equivalent in scientific effect to the current single-Proposal path.
+
+Cancellation, authentication failure, authorization failure, signer failure,
+read-set drift, crash before commit, or any invalid item writes no canonical
+byte. A committed crash recovers all-or-none from the existing journal without
+another human approval or signature.
+
+#### State model
+
+The planes remain separate:
+
+```text
+lease       proposed -> active -> exhausted | expired | revoked
+campaign    open -> sealed -> superseded by child
+candidate   open -> sealed -> superseded | selected
+run         starting -> running -> completed | failed | cancelled
+outbox item pending -> deferred | revision_requested | dismissed | batched | stale
+batch       prepared -> applied | rejected | expired | stale
+Standing    unchanged until one authorized batch is applied
+```
+
+A branch blocked on one consequence-bearing item pauses at that boundary.
+Independent experiments may continue inside the same active lease. A passing
+verifier may change campaign evidence and outbox context; it never changes
+Standing.
+
+#### Migration and deletion
+
+Do not rewrite existing Attempts, Runs, Submissions, Verification Records,
+Decisions, Events, or authority records.
+
+- Existing single-Proposal review remains the one-entry compatibility path.
+- Existing Run v2 records remain immutable campaign-node inputs.
+- Lease expiry or revocation blocks future work but preserves prior evidence.
+- Accepted-state replay never requires the campaign bundle or review UI.
+- Corrections and review revisions append new bundles, batches, Decisions, and
+  Events.
+
+Before implementing this amendment:
+
+1. repeat the four-Frontier inventory for retained capability objects;
+2. if none exist, delete only the generic unused capability issuance and
+   writer surface instead of layering the lease beside it; retain the v1
+   types, reader, and conformance required by `AuthorityRecordV1`;
+3. retain only verification code required by an actual retained record;
+4. remove per-step human approval and repository signing from execution
+   receipts, progress, checkpoints, verifier runs, and draft creation;
+5. remove copied roots, timestamps, fingerprints, saved answers, and approval
+   session files from the campaign path; and
+6. keep a prompt only for lease issuance or expansion and meaningful outbox
+   decisions.
+
+This amendment does not add a scheduler, hosted authority, second writer,
+checkpoint database, work graph, public mutation API, or mandatory Canopus
+dependency.
+
+#### Conformance
+
+The entry gate is a twelve-hour dogfood trace showing no human prompt between
+lease issuance and a real consequence-bearing outbox item. A shorter run may
+exercise conformance but cannot satisfy the product-compression gate.
+
+Focused conformance must prove:
+
+- exact Target, root, principal, operation, Artifact-type, writable-root,
+  tool, network, budget, time, and consequence enforcement;
+- parallel budget reservation, commit, release, crash replay, and exhaustion
+  through one controller without overspend;
+- expiry, exhaustion, and revocation stop future work without invalidating
+  prior evidence;
+- no agent or workload can issue, widen, renew, approve, accept, reject,
+  publish, destroy, or change policy through the lease;
+- runtime credential refresh inside an active lease needs no semantic approval
+  and fails outside it;
+- campaign entries detect truncation, reordering, substitution, hidden failed
+  children, missing parents, cycles, changed diffs, and changed evaluations;
+- pause, resume, and in-scope steering append without reauthorization, while
+  scope-expanding plan changes fail into the Decision Inbox;
+- producer- and verifier-authenticated candidate sealing creates no repository
+  transaction, repository-authority signature, canonical Proposal, Event, or
+  Standing;
+- one candidate commit installs the same canonical scientific effect as the
+  current direct Submission, Verification, and single-Proposal review path;
+- Submission and Verification remain accepted-state delta zero;
+- the outbox excludes routine activity and includes every escalation class;
+- outbox entry roots change on classifier, head, sealed-candidate, requested
+  action, evidence, or semantic-diff drift, but not on unrelated continuing
+  campaign activity;
+- batch roots and ordering are deterministic;
+- mixed Frontier or authority domains, duplicate Proposals, ambiguous order,
+  and write conflicts fail closed;
+- stale Proposal, Claim, Submission, Verification set, policy, keyset,
+  authority head, binary, or read set fails before any provider prompt;
+- current-Standing rebase and every required check pass immediately before
+  review confirmation and again under the write barrier;
+- `review_batch_commit`, `review_accept`, and `review_reject` remain
+  structurally unavailable to agent and workload principals;
+- cancellation and authentication, authorization, or signer failure write
+  nothing;
+- exact retry is idempotent and committed recovery installs all or none
+  without reauthentication or resigning;
+- batch Standing equals valid sequential application in the same canonical
+  order while one authority record covers every Event exactly once; and
+- a clean clone replays accepted state with the campaign system, workbench,
+  runtime credentials, and network absent.
+
+Implementation order is deliberately narrow:
+
+1. prove one staged candidate can derive and atomically install the current
+   Submission, Verification, Proposal, and single-Proposal Decision effect;
+2. add candidate sealing, the root-bound outbox, and one-entry equivalence;
+3. add atomic homogeneous multi-Proposal review and current-Standing rebase;
+4. add the execution lease, budget controller, campaign bundle, and Cockpit;
+   and
+5. dogfood one real twelve-hour campaign before changing the daily product
+   surface or accepting this amendment.
 
 ### 8. Keep exact intent binding; remove root ceremonies
 
