@@ -1303,7 +1303,7 @@ pub(crate) fn publish_exact_delta(
 }
 
 /// Resume one journaled Git publication. This is the idempotent service seam
-/// for the CLI's `vela frontier recover-publication --operation <vop_…>`
+/// for the CLI's `vela repository recover-publication --operation <vop_…>`
 /// command; it
 /// performs no rendering and refuses checkout, index, worktree, or ref drift.
 pub(crate) fn recover_publication(
@@ -4477,7 +4477,7 @@ fn shell_quote(value: &str) -> String {
 
 fn publication_recovery_command(operation_id: &str, push: bool) -> String {
     format!(
-        "vela frontier recover-publication --operation {operation_id} --frontier .{}",
+        "vela repository recover-publication . --operation {operation_id}{}",
         if push { " --push" } else { "" }
     )
 }

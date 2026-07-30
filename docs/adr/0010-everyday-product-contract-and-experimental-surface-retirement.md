@@ -73,7 +73,7 @@ The core binary retires these surfaces:
 | frontier-to-frontier `diff` | `frontier diff` |
 | `state` | `finding show --view record` or `--view standing` |
 | `credit` | `finding show --view evidence` or `--view attribution` |
-| `publication` | `frontier recover-publication` |
+| `publication` | `repository recover-publication` |
 | `hub` | `vela serve` for local reads or an optional external reader |
 | `foundry` | parent scripts or Canopus profiles |
 | `atlas` | read-only projections outside the core CLI |

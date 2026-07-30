@@ -575,6 +575,20 @@ pub(crate) enum RepositoryAction {
         #[arg(long)]
         json: bool,
     },
+    /// Resume one exact journaled Git publication without repeating the
+    /// scientific operation.
+    RecoverPublication {
+        #[arg(default_value = ".")]
+        frontier: PathBuf,
+        /// Exact publication operation (`vop_...`).
+        #[arg(long)]
+        operation: String,
+        /// Push the recovered exact commit to its configured upstream.
+        #[arg(long)]
+        push: bool,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 // Claim and artifact nouns stay on the compact current surface.
