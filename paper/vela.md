@@ -95,8 +95,10 @@ The paper makes four contributions only if their evidence gates pass:
 
 At present, the first contribution, one bounded cross-Frontier transfer, and
 synthetic implementation qualification are demonstrated. One exact
-map-to-target loop has reached scoped Verification but not its human Decision.
-Real correction-impact propagation, held-out confirmation, external
+map-to-target loop reached a terminal human Decision, replayed Standing, and a
+deterministic remap. The loop also reproduced a product failure: the completed
+Target remains the first offered work item, so the next-action handoff is not
+complete. Real correction-impact propagation, held-out confirmation, external
 independence, and cold-use lift remain registered experiments.
 
 ## 2. Scope and system model
@@ -416,6 +418,28 @@ consume the same public JSON fixture bytes.
 The Observatory and its Neon projection are read-only conveniences. Removing
 them does not remove canonical Git state.
 
+The proposed Math Atlas read model keeps source semantics at the boundary.
+Each native source has its own adapter for identifiers, revisions, pagination,
+deletions, rights, snapshot policy, and completeness. Adapters emit immutable
+rooted observations whose identity does not depend on a web release. A release
+references those observations and stores separate Frontier bindings for
+reference, snapshot, or local admission. Rebuilding a website therefore does
+not relabel native source bytes or transport Standing.
+
+The projector loads candidate releases with PostgreSQL `COPY FROM STDIN` in
+bounded chunks, verifies counts and table roots, and then moves one atomic
+release pointer. Collection reads use release-bound keyset cursors. Graph reads
+return bounded typed neighborhoods and an equivalent ledger rather than the
+full graph. Neon has one durable production branch; migration and benchmark
+branches are temporary and deleted after use.
+
+This design does not justify a scalability claim by itself. The alpha requires
+a rooted 100,000-record ingestion and read benchmark. A separate
+1,000,000-record benchmark must pass before the paper describes the Atlas as
+scalable. Table partitioning, a graph database, vector or embedding
+infrastructure, streaming ingestion, or a second read store requires a measured
+failed budget in the simpler PostgreSQL implementation.
+
 ## 6. Evaluation
 
 ### 6.1 Research questions
@@ -590,13 +614,27 @@ graph source
 The materializer cannot invoke a Decision, push Git, activate the read model,
 read a human key, or mutate a Frontier.
 
-The loop did not produce a safe next handoff. The first offer still binds
-packet root
+The initial loop did not produce a safe next handoff. The first offer still
+bound packet root
 `sha256:6d1a2ca87851deb1fa2133f4f6cf7edb28ee843cb0eef57ea09e826b3fdca63b`
-for the completed range. The candidate remains inactive; this stale Target is
-a product defect, not fresh work. The complete Decision-to-remap transition is
-therefore positive integrity evidence but not evidence of cold-user lift or
-automatic target progression.
+for the completed range, so the first remap candidate remained inactive.
+
+A subsequent source-local closure pass repaired that defect without changing
+Standing. Erdős commit
+`f2f4a4f5d5c322f5c57f99d100fce97333f7aeb1` retains closure envelope
+`sha256:14e93d4cdbb65ddb3b389f8ea219b74340beca6014381fefe88deb64d2e59d7e`,
+revalidates the completed packet from exact ancestor Git bytes, and seals
+Target Index
+`sha256:84314593f22bbeae251090838273394db6685f7f437070154a085b1f403b7fd3`.
+The first actionable offer is now the contiguous range
+`10429601..10429800`, packet root
+`sha256:8d879e24a537de3b9b13ad7878dc98db8ce4f5273187c7f45d0d49a93e8fe8ad`.
+Formal commit `35fa12bb4115e1561b0865722580a7626ee79016`
+similarly closes the already-verified foreign-reference-retention Target with
+local Standing effect `none` and exposes zero current offers. This establishes
+source-local Target progression for the two demonstrated stale edges. It does
+not yet establish cold-user lift, automatic domain-generic closure, or a
+complete four-Frontier Atlas remap.
 
 ### 6.6 Removability qualification
 
@@ -999,6 +1037,12 @@ benchmark has not measured federation or recurring external use. SHA-256 and
 Ed25519 are assumed secure. Git hosting availability is operationally useful
 but not canonical.
 
+The Math Atlas has not yet published its required rooted 100,000-record
+qualification, and no 1,000,000-record result exists. This paper therefore
+makes no scalability claim for the read model. Current counts describe the
+audited corpus, not a capacity limit or a reason to add partitioning, a graph
+database, or vector infrastructure.
+
 The public protocol has no foreign-reference object. The derived edge-layer
 envelope passes the real Erdős source qualification in two implementations,
 and a second Frontier retained and verified the terminal source correction
@@ -1070,10 +1114,11 @@ including its authority signature. A second Frontier retained that exact
 package through a pending, non-authoritative Submission, imported a scoped
 Verification, and replayed the resulting repository from a clean clone with
 zero accepted-state delta. This passes the bounded transfer and authority
-containment gate. A prospective living-map loop has reached an exact
-Submission and scoped Verification, but its human Decision and resulting remap
-remain open. The frozen held-out selector found no qualifying candidate. The
-stronger claim, that this
+containment gate. A prospective living-map loop reached an exact Submission,
+scoped Verification, terminal human Decision, clean-clone replay, and
+deterministic remap. Its completed range nevertheless remains the first offered
+Target, so the product fails its own continuation gate. The frozen held-out
+selector found no qualifying candidate. The stronger claim, that this
 mechanism preserves useful scientific inheritance across real corrections and
 plural authorities better than Git alone, is therefore not satisfied by the
 audited system.

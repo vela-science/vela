@@ -6,6 +6,11 @@
 - Product effect: experiment only
 - Authority effect: none
 - Service effect: none
+- Evidence update: all enumerated first-party transfer steps pass at Formal
+  commit `dfaf16f96a4b4f520bd43aa129b0be91beac359b`; the Proposal remains pending
+  and local accepted Standing is unchanged.
+- Remaining promotion gate: a held-out case, independently controlled
+  consumer, and measured value over a plain rooted manifest.
 - Builds on:
   [ADR 0026](0026-correction-benchmark-and-whitepaper-evidence-contract.md)
   and the original B8 failure in the

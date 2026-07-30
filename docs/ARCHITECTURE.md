@@ -152,6 +152,47 @@ binding native commits, paths, declarations, toolchains, manifests, and
 artifacts exactly. Consequential cross-system mappings require explicit scope
 and loss reports; similarity or graph proximity never transports Standing.
 
+The Math Source Registry uses real source-native adapters. Each adapter owns
+the source's identifier, revision, pagination, completeness, deletion,
+tombstone, rights, and snapshot rules. Shared transport and hashing helpers may
+reduce code, but a generic mathematical-record importer cannot replace these
+source contracts.
+
+Adapters emit immutable rooted observations. Observation identity does not
+include a Vela Web release, so later read releases can reference the same
+observation without copying or rewriting it. Frontier bindings are separate,
+release-scoped relations that state whether one Frontier object references,
+snapshots, or admits a native record. They do not alter the observation or
+transport Standing.
+
+## Math Atlas read boundary
+
+The existing Observatory is the first-party Math Atlas. Git Frontiers remain
+canonical. `@vela/frontier-data` acquires and validates source-native
+observations, projects exact Frontier state, and loads one disposable
+PostgreSQL read model.
+
+Candidate loads use PostgreSQL `COPY FROM STDIN` in bounded chunks inside one
+transaction. The projector checks chunk counts, table roots, release
+membership, and Frontier bindings before moving `current_release`. It does not
+issue one insert per record or store a source as a giant JSONB document.
+
+Collection reads use keyset pagination over a stable sort key and full object
+ID. Each cursor binds the release root and filters. Graph reads return bounded
+typed neighborhoods with returned and hidden counts, plus an equivalent
+keyset-paginated ledger. Ordinary routes never load the full graph.
+
+Neon has one durable production branch. A schema rehearsal or scale benchmark
+may use one temporary branch, which the workflow deletes after apply, discard,
+or evidence capture. Immutable release rows and the atomic release pointer
+provide rollback.
+
+The current alpha gate includes a rooted 100,000-record load and read
+benchmark. A separate 1,000,000-record benchmark must pass before Vela makes a
+scalability claim. Table partitioning, graph databases, vector or embedding
+stacks, streaming ingestion, and a second read store require a measured failed
+budget in the simpler PostgreSQL design.
+
 ## Source and repository ownership
 
 The target public topology is intentionally small:
@@ -207,10 +248,19 @@ Package and network surfaces follow a strict maturity ladder:
 | 3 | Hosted Registry | External publishing demand and Git-release friction |
 | 4 | Federated read-only Atlas | Exact cross-Frontier correction, independent agreement, and cold-user lift |
 
-Only level 0 is active. A package carries reusable language or capability but
-confers no Standing. A Registry distributes packages but is not scientific
-authority. An Atlas projects attributed Frontier state but is not a canonical
-database or writer.
+Only level 0 of this **package** ladder is active. A package carries reusable
+language or capability but confers no Standing. A package Registry distributes
+packages but is not scientific authority.
+
+ADR 0030 separately proposes an active Math Source Registry because exact
+observation needs to bind native source identity, rights, snapshots, adapters,
+coverage, and omissions before any Atlas view is trustworthy. That inventory
+does not distribute semantic packages or confer Standing.
+
+The first-party Math Atlas is the existing Observatory over the four declared
+Frontiers and registered native sources. Level 4 means a later federated Atlas
+over independently governed external Frontiers. Both are read projections,
+never canonical databases or writers.
 
 ## Non-goals
 
@@ -220,6 +270,7 @@ The architecture does not add:
 - a canonical database or public mutation API;
 - a universal ontology or work graph;
 - a mandatory model runner;
+- preemptive partitioning, graph-database, vector, or streaming infrastructure;
 - a package Registry before reusable packages exist;
 - an Atlas service before exact cross-Frontier value is measured;
 - a private meta-repository that outsiders must understand;

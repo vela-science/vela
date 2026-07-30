@@ -2,9 +2,12 @@
 
 - Status: Proposed
 - Target release: Vela `v0.940.0`
-- Remaining acceptance gate: retain Proposed status until the current campaign
-  completes a real Submission, independent Verification, and human Decision
-  loop plus a second-producer replay.
+- Evidence update: the real Submission, scoped Verification, human Decision,
+  and clean-clone replay loop is complete at Erdős commit
+  `80606bdccb51fa86524111a1a61876bb08e45d79`.
+- Remaining acceptance gate: retain Proposed status until a second real
+  producer completes and replays the current contract without maintainer
+  coaching.
 - Protocol effect: one current producer era with Submission, Registration
   Record, Verification Record, and optionally Claim Record objects; historical
   Receipt-era bytes remain replayable

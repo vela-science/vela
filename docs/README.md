@@ -20,10 +20,11 @@
 - [Proposed correction benchmark and whitepaper evidence contract ADR](adr/0026-correction-benchmark-and-whitepaper-evidence-contract.md)
 - [Living Frontier map and native-system boundary ADR](adr/0028-living-frontier-map-and-native-system-boundary.md)
 - [Proposed derived foreign reference and authority containment ADR](adr/0029-derived-foreign-reference-and-local-authority-containment.md)
+- [Proposed Math Atlas, Math Source Registry, and Target-closure ADR](adr/0030-root-bound-math-source-registry-atlas-and-target-closure.md)
 
 ## Project documents
 
-- [Active evidence campaign](CAMPAIGN.md)
+- [Active usable Vela and Math Atlas campaign](CAMPAIGN.md)
 - [Protocol breakthrough benchmark](BREAKTHROUGH_BENCHMARK.md)
 - [Whitepaper evidence contract](WHITEPAPER_CONTRACT.md)
 - [Roadmap](ROADMAP.md)
