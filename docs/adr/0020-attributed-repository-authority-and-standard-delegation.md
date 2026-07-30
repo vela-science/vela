@@ -423,7 +423,8 @@ The smallest repair has four parts:
 2. make the existing authority-covered evidence writer prompt-free inside
    that exact authorization;
 3. derive a private Decision Inbox from real pending Proposals; and
-4. plan several ordinary Decisions for one existing authority transaction.
+4. plan one homogeneous same-action Proposal subset for one existing authority
+   transaction.
 
 No unsigned evidence chain, candidate, review-outbox, review-selection,
 review-batch, campaign, resume, or canonical lease schema is justified by the
@@ -891,7 +892,8 @@ campaign and resume manifests, sealed unregistered candidates, retained
 review-outbox and review-batch objects, and new Cedar actions for lease and
 batch commitment. The source audit rejected that composition because it:
 
-- preserved repository-authority signing on the routine evidence path;
+- surfaced repository-authority signing as a repeated human ceremony instead
+  of constraining and automating the current coverage signature;
 - created a second candidate lifecycle beside ordinary pending Proposals;
 - combined initial evidence registration with a later scientific Decision;
 - duplicated native runner durability and the existing authority transaction;
@@ -913,8 +915,9 @@ Standing.
 - Existing Run v2 records remain immutable campaign inputs.
 - Existing authority-signed Submission and Verification transactions replay
   unchanged.
-- New evidence transactions write the same ordinary current object schemas;
-  they add no accepted-state rule.
+- Campaign-session routine evidence transactions retain the same ordinary
+  current object schemas, repository-authority signatures, Authority Records,
+  strict coverage rule, and accepted-state semantics.
 - Existing single-Proposal review remains the direct one-entry path.
 - Campaign expiry or revocation blocks future work but preserves prior
   evidence.
@@ -922,10 +925,13 @@ Standing.
   Inbox, local staging sidecar, runner, credentials, network, or batch planner.
 - Corrections and review revisions append ordinary successor records.
 
-Before implementation, inventory retained generic capability objects. If none
-exist, remove only unused current writer surfaces rather than layering campaign
-authorization beside them; preserve any reader and conformance fixture needed
-for retained history.
+Before implementation, inventory retained generic capability objects.
+`vela.capability-grant.v1` currently has protocol and conformance fixtures but
+no runtime writer or consumer, and its action vocabulary predates the current
+Submission and Verification contract. Do not layer a second canonical campaign
+lease beside it. Extend private Attempt state first, then retire or reconcile
+only unused capability surfaces after retained-history inventory; preserve any
+reader and conformance fixture needed for retained history.
 
 This amendment adds no scheduler, hosted authority, second writer, checkpoint
 database, work graph, public mutation API, mandatory Canopus dependency, or new
@@ -947,19 +953,29 @@ Focused conformance must prove:
   reject, publish, destroy, or change policy through campaign authorization;
 - runtime credential refresh inside unchanged scope needs no semantic prompt
   and fails outside it;
+- one locally authenticated campaign start followed by any in-budget sequence
+  of allowed Submission and Verification transactions produces no further OS
+  prompt and exposes no signer credential;
 - pause, resume, and in-scope steering append without reauthorization, while
   scope expansion pauses the affected branch and creates a consequence item;
 - steering acknowledgement is correlated to exact campaign, run, prior
   activity, and directive roots, and unknown or transport-only success is not
   reported as applied;
-- an evidence transaction verifies actor, signature, campaign scope when
-  present, exact subjects, repository root, complete read set, object delta,
-  and postimages;
-- the evidence allowlist rejects unknown object kinds, paths, classes,
+- a routine evidence transaction verifies actor, producer or verifier
+  signature, campaign scope, exact subjects, repository root, complete read
+  set, object delta, postimages, and repository-authority coverage;
+- the constrained campaign signer accepts only `submission_register` and
+  `verification_import` with no Event drafts, no semantic approvals, and
+  accepted-state delta zero;
+- the routine evidence allowlist rejects unknown actions, object kinds, paths,
+  classes,
   deletions, and rewrites;
-- evidence transactions cannot change accepted Claims, Standing, Event log,
+- routine evidence transactions cannot change accepted Claims, Standing,
+  Event log,
   policy, schema, membership, quorum, keyset, authority record, authority head,
   or trust anchor;
+- the worker cannot receive signer key bytes, SSH agent access, bearer
+  material, or a general signing interface;
 - Submission and Verification remain accepted-state delta zero, and verifier
   pass never renders or replays as acceptance;
 - concurrent evidence and Decision writes serialize through the Frontier
@@ -1006,9 +1022,9 @@ Focused conformance must prove:
   extra, wrong-root, or positional substitution;
 - committing one valid selected subset leaves every unselected entry pending
   and independently actionable;
-- mixed Frontier or authority domains, duplicate Proposals, write conflicts,
-  ambiguous order, stale inputs, and ineligible actions fail before any OS
-  prompt;
+- mixed actions, mixed Frontier or authority domains, duplicate Proposals,
+  write conflicts, ambiguous order, stale inputs, and ineligible actions fail
+  before any OS prompt;
 - every selected item independently passes the current one-Proposal prepare,
   policy, Verification, and reducer checks;
 - the complete current-Standing simulation passes before confirmation and
@@ -1058,11 +1074,11 @@ dashboard layer.
 
 Implementation order is deliberately narrow:
 
-1. prove an evidence transaction can append one current Submission and one
-   current Verification with accepted-state delta zero and no
-   repository-authority key read;
-2. prove old and new evidence paths replay to the same ordinary object and
-   proposal semantics;
+1. prove one constrained signer session can append one current Submission and
+   one current Verification with accepted-state delta zero, no Event or
+   semantic-approval draft, and no second human prompt;
+2. prove prompted and campaign-session evidence paths replay with the same
+   ordinary object, Authority Record coverage, and Proposal semantics;
 3. derive the Inbox from real pending Proposals and add local staging;
 4. prove one-entry and homogeneous multi-Proposal batch equivalence using the
    existing authority transaction;

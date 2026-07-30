@@ -186,8 +186,9 @@ fixture, and external interoperability and cold-use gates remain open.
 ADR 0020 now records the proposed Agent Campaign seam and consequence-only
 Decision Inbox. It remains design-only. Current Submission and Verification
 commands still use the repository-authority transaction path; the campaign
-must not claim prompt-free evidence work until the focused evidence
-transaction, old-replay equivalence, Inbox, and twelve-hour dogfood gates pass.
+must not claim prompt-free evidence work until the constrained campaign signer
+session, routine evidence allowlist, prompted/session replay equivalence,
+Inbox, and twelve-hour dogfood gates pass.
 
 ## Product contract
 
