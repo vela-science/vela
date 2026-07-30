@@ -171,12 +171,14 @@ source lock and all four current Frontier heads:
 | Source adapter set | root `sha256:82df98241fc5e5f61b0790604a6ef7c3d6b5ce075e00c133e78ed64d0f8e186a`; 6,700 exact adapter records |
 | Source Registry projection | 9,537 native rows; 6,303 Frontier bindings; declaration root `sha256:51de765c4ab9e834ea726ef53bc0f7f87e8d1cb5eeffaba22728908619d2ee37` |
 | PLBY observation | exact `plby/lean-proofs` commit `d4476dd3535ec618dee4177915741017026d26bf`; tree `c34eff8727b9fe02ba11ed2eb30da361a1b026fb`; 201 records |
+| Bounded Neon capacity | qualification root `sha256:c1ad6d1a58c7c19665dd575e1ee5c95064e0bde16d3533a9714ebf27854b7960`; the existing schema and 1,000-row JSONB writer insert and root-verify 100,000 records in 19.94 seconds; the candidate was never activated and the temporary branch was deleted |
 
 The dry run and activated read model agree on the exact projection root. This
 is release-candidate data evidence, not a final web release or product-lift
-result. Web-tag and deployment-manifest reconciliation, visual review,
-cold-use, and remaining scale gates still apply, and a later human Decision
-requires another exact refresh.
+result. The bounded 100,000-record Neon capacity gate now passes without COPY
+or another storage layer. Web-tag and deployment-manifest reconciliation,
+clean empty-database reconstruction, visual review, cold-use, and a later
+post-Decision exact refresh still apply.
 
 These exact counts and reproductions do not upgrade the registered benchmark
 claims. Execution evidence remains first-party and directional, state lift and
@@ -1100,17 +1102,28 @@ this qualification: it explicitly makes no product or database-scale claim and
 does not exercise Neon ingestion, database latency, egress, concurrent
 readers, or production behavior.
 
-The first retained real Postgres read result is
-`vela.math-atlas-postgres-benchmark.v1`, artifact root
-`sha256:f1358b986b17043cc7a2700fe44e866fdddaa66c01ccc91b4a48104dd1d33a87`,
-over active release `sha256:d944fd9a…`. It observes 9,537 exact
-current-release native rows, so it truthfully fails only the 100,000-row
-qualification. The SELECT-only reader, manifest and source-root checks pass;
-all 12 bounded-concurrency reads succeed; and keyset, search, neighborhood,
-and concurrent p95 latency and canonical-response-payload budgets pass. This
-run does not claim wire-level byte measurement, ingestion, clean rebuild,
-failed-refresh containment, Target classification, product lift, or scale
-qualification.
+The retained live-head operational result is
+`vela.math-atlas-live-read-health.v1`, artifact root
+`sha256:457df1b7048f542e114f3e270b5687671be0324ae3cf6e18095119f1070eecf1`,
+over active release `sha256:d944fd9a…`. The SELECT-only reader, manifest,
+source roots, exact current-release row counts, keyset, search, neighborhood,
+payload, and bounded-concurrency budgets pass. This contract deliberately
+makes no ingestion, activation, Target-lifecycle, product-lift, or capacity
+claim.
+
+The separate
+`vela.math-atlas-neon-capacity-qualification.v1` result, artifact root
+`sha256:c1ad6d1a58c7c19665dd575e1ee5c95064e0bde16d3533a9714ebf27854b7960`,
+passes the frozen bounded 100,000-record ingestion/read contract on one
+disposable Neon branch. The existing schema and 1,000-row JSONB recordset
+writer inserted and root-verified 100,000 records in 19.94 seconds. Invalid
+candidate rollback, rollback-only activation atomicity, exact reader
+permissions, serial query budgets, 80/80 eight-way reads, response budgets,
+production-pointer preservation, and branch deletion passed. No COPY path,
+new dependency, partitioning, graph database, second read store, or streaming
+service was needed. The run does not establish one-million-object scale,
+general production performance, clean empty-database reconstruction, product
+lift, or scientific authority.
 
 #### ADR 0030 acceptance and alpha gate
 
@@ -1353,7 +1366,7 @@ Failure narrows or deletes the system. It does not earn another layer.
 | Cross-Frontier transfer | first-party pending B8 transfer passed with zero accepted delta | held-out independent value test passes or envelope is narrowed |
 | Quantum reproduction | current Vela independently reconstructs and verifies the exact retained `[[10,1,4]]` certificate; Proposal `vpr_8715dbb5e2a12442` remains pending and Decision remains null | human Decision or explicit cancellation, then clean-clone replay and remap |
 | Native-source inventory and observation | source adapter set root `sha256:82df9824…` contains 6,700 exact adapter records; the active projection contains 9,537 native rows; this is exact first-party data evidence, not adoption or scale qualification | finish scale, failure, and cold-use gates or narrow the alpha claim |
-| Math Atlas | active read-model root is `sha256:d944fd9a…` with Vela `0.950.1`; real Postgres read artifact `sha256:f1358b98…` passes exactness, reader, query, and bounded-concurrency budgets but fails the 100,000-row gate at 9,537 current rows; no final web release or product-lift claim is made | reconcile exact web tag and deployment manifest, complete ingestion, clean-room, 100,000-row, visual, product, and current-Decision refresh gates, then release or record the failed gate |
+| Math Atlas | active read-model root is `sha256:d944fd9a…` with Vela `0.950.1`; live-read-health artifact `sha256:457df1b7…` passes current-head reader and query budgets; capacity artifact `sha256:c1ad6d1a…` passes the bounded 100,000-record gate without COPY or another service; no final web release or product-lift claim is made | reconcile exact web tag and deployment manifest, complete clean-room, visual, product, and current-Decision refresh gates, then release or record the failed gate |
 | Shared Math package | not earned | two consumers plus net deletion, or no package |
 | Registry/global Atlas | not earned | remain deferred |
 | Whitepaper breakthrough | not earned | ADR 0026 gates pass or paper remains bounded |

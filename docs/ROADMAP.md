@@ -83,11 +83,14 @@ Decisions:
   `d4476dd3535ec618dee4177915741017026d26bf`, not the stale predecessor; and
 - exact web-tag and deployment-manifest reconciliation remains an alpha gate.
 
-The retained real Postgres read artifact `sha256:f1358b98…` passes exact
-reader, query, payload, and bounded-concurrency budgets. It is an honest
-negative on scale: the current release has 9,537 native rows, below the frozen
-100,000-row qualification, and the run does not claim ingestion or product
-lift.
+The retained live-read-health artifact `sha256:457df1b7…` passes exact
+current-head reader, query, payload, and bounded-concurrency budgets. The
+separate bounded capacity artifact `sha256:c1ad6d1a…` passes 100,000-record
+ingestion, exact root/count verification, rollback containment, transactional
+activation rollback, SELECT-only reader, and eight-way read budgets using the
+existing schema and JSONB writer. No COPY path or another storage layer was
+earned. Clean empty-database reconstruction, product lift, and the final web
+release remain open.
 
 This is release-candidate evidence. Final `0.430.0` still requires the
 remaining alpha gates and another exact refresh after any later human
