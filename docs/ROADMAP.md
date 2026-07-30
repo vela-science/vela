@@ -62,20 +62,24 @@ Each Proposal remains `pending_review`. The repository authority—not an
 agent—may accept, reject, or cancel each exact Decision.
 
 Sidon remains clean at commit
-`75b3392c5d2a4390065a3927914acdb552d69e8e`. Before the next production
-projection:
+`75b3392c5d2a4390065a3927914acdb552d69e8e`. The next production projection
+has now been rebuilt and activated without waiting for the three human
+Decisions:
 
-1. replace the stale PLBY observation at `82bb887…` with a verified adapter
-   over the locked `d4476dd…` revision;
-2. rebuild from all four current Frontier heads, including the exact pending
-   Proposals and Verifications, and all exact source locks;
-3. prove Vela, Canopus, Neon, search, and web agree on current work; and
-4. refresh again after any later human Decision without blocking the current
-   read-only Atlas reconstruction on authority.
+- Vela Web `v0.430.0-rc.3` is commit
+  `ad0493a22e7eb8a1d8a23b8b02c652a7317d8ea5`;
+- the exact active projection is
+  `sha256:780f0def732f997284870d8e82625dfe6411120fa6018e52c27e437c531b9817`;
+- the Registry contains 14 declared sources, 9,537 native records, and 6,303
+  Frontier bindings;
+- PLBY is observed from locked commit
+  `d4476dd3535ec618dee4177915741017026d26bf`, not the stale predecessor; and
+- the production manifest binds the exact Git commit, deployment, read-only
+  Neon role, and projection root.
 
-The active Neon release `sha256:e37cb1…` remains rollback-readable, but it is
-not the next Atlas release candidate because its PLBY observation predates the
-current exact source lock.
+This is release-candidate evidence. Final `0.430.0` still requires the
+remaining alpha gates and another exact refresh after any later human
+Decision.
 
 ## P0 — make everyday Vela obvious
 

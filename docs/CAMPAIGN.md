@@ -161,14 +161,23 @@ the repository authority may accept, reject, or cancel after inspection.
 Agents may prepare the Decision packet, but they do not choose or perform the
 Decision, and Verification alone has changed no accepted Standing.
 
-The current Neon release
-`sha256:e37cb1eea2950077331b31e6c277f2ae09428a05da563d3a8e2a935757428a69`
-is not the next Atlas release candidate. Its PLBY observation retains source
-commit `82bb8878962f3c986fb4da42bcc3bd7c6ef39326`, while the exact source lock
-pins `d4476dd3535ec618dee4177915741017026d26bf`. Rebuild and verify the PLBY
-adapter and all four current Frontier heads before activating another
-projection. The existing current release remains a rollback-readable
-projection, not current campaign evidence.
+The Math Source Registry and Atlas release candidate now use the exact PLBY
+source lock and all four current Frontier heads:
+
+| Surface | Current exact candidate |
+| --- | --- |
+| Vela Web | tag `v0.430.0-rc.3`; commit `ad0493a22e7eb8a1d8a23b8b02c652a7317d8ea5` |
+| Observatory deployment | `dpl_94U9zY1XZVXoNQxKBMUkJed2A8kT`; `vela.site-deployment.v3`; production Git source equals the tagged commit |
+| Active projection | `vela.observatory-release-manifest.v7`; root `sha256:780f0def732f997284870d8e82625dfe6411120fa6018e52c27e437c531b9817`; read model `observatory.v6` |
+| Source Registry | 14 declarations and observations; 9,537 native records; 6,303 Frontier bindings; declaration root `sha256:51de765c4ab9e834ea726ef53bc0f7f87e8d1cb5eeffaba22728908619d2ee37` |
+| PLBY observation | exact `plby/lean-proofs` commit `d4476dd3535ec618dee4177915741017026d26bf`; tree `c34eff8727b9fe02ba11ed2eb30da361a1b026fb`; 201 records |
+
+Two independent offline builds produced the same projection root. The active
+Neon pointer resolves to that root, the deployed reader identifies only the
+SELECT-scoped `observatory_projection_reader`, and the production manifest
+binds the exact Web commit and Vercel deployment. This is release-candidate
+evidence, not final alpha acceptance: visual, cold-use, and remaining scale
+gates still apply, and a later human Decision requires another exact refresh.
 
 ADR 0020 now records the proposed Agent Campaign seam and consequence-only
 Decision Inbox. It remains design-only. Current Submission and Verification
@@ -1303,8 +1312,8 @@ Failure narrows or deletes the system. It does not earn another layer.
 | Inheritance lift | Removability passed for one historical pending state; cold-successor lift unmeasured | cold successor reproduces change, surviving evidence, replay, and next action without private context |
 | Correction propagation | no qualifying real candidate | qualifying fixture passes or entry gate closes negative |
 | Cross-Frontier transfer | first-party pending B8 transfer passed with zero accepted delta | held-out independent value test passes or envelope is narrowed |
-| Native-source inventory and observation | current Neon release is stale against the PLBY `d4476dd…` lock and may not be promoted | versioned source inventory, deterministic full/applicable incremental rebuilds, explicit rights and coverage |
-| Math Atlas | four-Frontier projection exists but its current PLBY observation is stale | exact four-Frontier alpha rebuilt from current Frontier heads and exact source locks |
+| Native-source inventory and observation | release candidate contains 14 exact declarations/observations, 9,537 native records, and the corrected PLBY `d4476dd…` observation; deterministic offline rebuild and production activation pass | finish scale, failure, and cold-use gates or narrow the alpha claim |
+| Math Atlas | `v0.430.0-rc.3` is live from exact Git commit `ad0493a2…` at projection root `sha256:780f0def…`; final alpha gate remains open | complete visual, clean-room, scale, and current-Decision refresh gates, then release or record the failed gate |
 | Shared Math package | not earned | two consumers plus net deletion, or no package |
 | Registry/global Atlas | not earned | remain deferred |
 | Whitepaper breakthrough | not earned | ADR 0026 gates pass or paper remains bounded |
