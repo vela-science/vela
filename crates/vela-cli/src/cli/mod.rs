@@ -209,7 +209,7 @@ pub async fn run_command() {
             let actor = crate::cli_identity::resolve_actor(r#as.as_deref());
             crate::current_work::cmd_start(
                 &dir,
-                target.as_deref(),
+                &target,
                 ttl,
                 runner_build.as_deref(),
                 &artifact_class,

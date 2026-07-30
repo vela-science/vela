@@ -87,21 +87,6 @@ function nonnegative(value: unknown, at: string): number {
 }
 
 function noAvailableProducerTarget(offer: Record<string, unknown>): Error {
-  const leased = Array.isArray(offer.leased_targets) ? offer.leased_targets : [];
-  if (leased.length > 0) {
-    const summaries = leased.map((value, index) => {
-      const lease = objectAt(value, `vela next.leased_targets[${index}]`);
-      const target = stringAt(lease.target_id, "leased target id", { min: 1, max: 256 });
-      const actor = stringAt(lease.actor, "leased target actor", { min: 1, max: 256 });
-      const expires = lease.expires_at === undefined
-        ? "unknown expiry"
-        : stringAt(lease.expires_at, "leased target expiry", { min: 1, max: 64 });
-      return `${target} by ${actor} until ${expires}`;
-    });
-    return new Error(
-      `no producer target is currently available; configured work is leased: ${summaries.join(", ")}`,
-    );
-  }
   return new Error("vela next returned no producer target");
 }
 

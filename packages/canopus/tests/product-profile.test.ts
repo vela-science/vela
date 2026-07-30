@@ -245,15 +245,9 @@ test("ordinary profile discovery selects the unique first-offer profile", async 
   assert.equal(profile.name, "erdos1056-k15-10429601-10429800");
   await assert.rejects(
     resolveProductProfile({
-      availability: { configured_open: 1, available: 0, leased: 1 },
-      leased_targets: [{
-        target_id: "sidon:a24-improve",
-        actor: "agent:canopus-local",
-        expires_at: "2026-07-21T22:03:46Z",
-      }],
       targets: [],
     }),
-    /sidon:a24-improve by agent:canopus-local until 2026-07-21T22:03:46Z/u,
+    /vela next returned no producer target/u,
   );
   await assert.rejects(
     resolveProductProfile({ targets: [{ rank: 1, target_id: "unknown:target" }] }),

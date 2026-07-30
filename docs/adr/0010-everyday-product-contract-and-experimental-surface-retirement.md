@@ -122,7 +122,6 @@ title
 objective
 packet path and full root
 verifier profile
-lease state
 next command
 ```
 

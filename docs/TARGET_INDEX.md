@@ -72,7 +72,7 @@ At inspection, Offer, and Attempt time Vela verifies:
 - every declared input path, mode, size, and digest matches;
 - the current origin ID and repository root match;
 - Target, packet, input, and index roots rederive; and
-- the selected Target is open and not under a live local Attempt lock.
+- the selected Target is open.
 
 Any mismatch is a typed stale condition, not an advisory. There is no force or
 non-strict work bypass.
@@ -84,12 +84,13 @@ non-strict work bypass.
 ```text
 configured = open entries
 stale      = entries excluded by freshness failure
-leased     = fresh entries excluded by a live local Attempt
-available  = configured - stale - leased
+fresh      = configured - stale
 returned   = offers after the requested limit
 ```
 
-`vela start` rechecks the selected entry and creates one ignored
+`vela next` does not pretend that private local work is shared availability.
+`vela start` performs the exact local Attempt arbitration, rechecks the
+selected entry, and creates one ignored
 `vela.attempt.v4` bound to:
 
 - current repository origin and root;

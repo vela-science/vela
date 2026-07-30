@@ -243,13 +243,12 @@ pub(crate) enum Commands {
         json: bool,
     },
 
-    /// Start one bounded Attempt on a target: claim the lease, print the
+    /// Start one bounded private Attempt on an exact target, print the
     /// briefing, and bind the exact starting state.
     #[command(after_long_help = crate::cli::help_text::START)]
     Start {
-        /// The target (obligation id, e.g. erdos:617). Omit to list
-        /// open Attempts.
-        target: Option<String>,
+        /// The target (obligation id, e.g. erdos:617).
+        target: String,
         #[arg(long)]
         frontier: Option<PathBuf>,
         /// Lease seconds (default from work.lease_ttl_seconds config).

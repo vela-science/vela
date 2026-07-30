@@ -1062,7 +1062,7 @@ pub(crate) fn project_attempts(frontier: &Path) -> Result<Value, String> {
 
 pub(crate) fn cmd_start(
     frontier: &Path,
-    target: Option<&str>,
+    target: &str,
     ttl: Option<u64>,
     runner_build_root: Option<&str>,
     artifact_classes: &[String],
@@ -1076,19 +1076,15 @@ pub(crate) fn cmd_start(
     json_out: bool,
 ) {
     crate::ui::set_mode("start", json_out);
-    let result = match (target, drop_it) {
-        (None, false) => project_attempts(frontier),
-        (None, true) => Err("start --drop requires an exact target".to_string()),
-        (Some(target), true) => drop_attempt(
+    let result = match drop_it {
+        true => drop_attempt(
             frontier,
             target,
             actor,
             reason.unwrap_or("producer abandoned the private Attempt"),
         ),
-        (Some(_), false) if reason.is_some() => {
-            Err("--reason is valid only with start --drop".to_string())
-        }
-        (Some(target), false) => {
+        false if reason.is_some() => Err("--reason is valid only with start --drop".to_string()),
+        false => {
             let ttl = ttl.unwrap_or_else(|| {
                 crate::config::settings::try_resolve("work.lease_ttl_seconds", Some(frontier))
                     .unwrap_or_else(|error| crate::cli::fail_return(&error))
@@ -1121,7 +1117,7 @@ pub(crate) fn cmd_start(
         let command = result["command"].as_str().unwrap_or("start");
         println!(
             "{command} · {}",
-            result["target_id"].as_str().unwrap_or("Attempts")
+            result["target_id"].as_str().unwrap_or("unavailable")
         );
         if let Some(path) = result.pointer("/attempt/path").and_then(Value::as_str) {
             println!("  private {}", safe_text::inline(path));

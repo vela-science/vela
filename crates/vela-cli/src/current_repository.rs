@@ -556,8 +556,7 @@ pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
             "availability": {
                 "configured": 0,
                 "stale": 0,
-                "available": 0,
-                "leased": 0,
+                "fresh": 0,
                 "returned": 0
             },
             "targets": [],
@@ -572,7 +571,7 @@ pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
     };
     let configured = assessment.configured_open();
     let fresh = assessment.fresh_open_targets();
-    let available = fresh.len();
+    let fresh_count = fresh.len();
     let limit = limit.clamp(1, 128);
     let offers = fresh
         .into_iter()
@@ -591,7 +590,6 @@ pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
                     .and_then(|packet| packet.get("verifier_profile"))
                     .or_else(|| assessment.packet_value(&target.id)
                         .and_then(|packet| packet.get("verifier"))),
-                "lease_state": "available",
                 "next_command": format!(
                     "vela start {} --frontier {} --as agent:<name> --json",
                     target.id,
@@ -610,9 +608,8 @@ pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
         "target_index_root": assessment.index.index_root,
         "availability": {
             "configured": configured,
-            "stale": configured.saturating_sub(available),
-            "available": available,
-            "leased": 0,
+            "stale": configured.saturating_sub(fresh_count),
+            "fresh": fresh_count,
             "returned": offers.len()
         },
         "targets": offers,

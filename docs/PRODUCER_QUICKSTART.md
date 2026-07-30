@@ -14,7 +14,7 @@ vela next . --limit 1 --json
 ```
 
 Read the returned Offer. It binds the Target, packet, expected outputs,
-verifier profile, lease state, and exact next command.
+verifier profile, and exact next command.
 
 ## Start one Attempt
 

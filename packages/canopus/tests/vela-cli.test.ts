@@ -173,7 +173,7 @@ function fakeRunner(options: FakeOptions = {}): {
         epoch_id: "vre_fixture",
         repository_root: repositoryRoot,
         target_index_root: `sha256:${"1".repeat(64)}`,
-        availability: { configured: 1, stale: 0, available: 1, leased: 0, returned: 1 },
+        availability: { configured: 1, stale: 0, fresh: 1, returned: 1 },
         targets: [{ target_id: "target-1", rank: 1 }],
       });
     }
