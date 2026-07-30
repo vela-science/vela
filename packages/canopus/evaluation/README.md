@@ -6,13 +6,22 @@ package and creates no Vela state.
 `canopus.evaluation-plan.v1` registrations freeze exact source, task packet,
 verifier, executable, dependency lock, environment, arm, budget, scorer,
 custody, and publication bytes before usable model output.
-Canopus `0.8.0` and the first Erdős producer loop have passed. The next live
-registration is created only after both Stage A tasks, all three matched arms,
-and every source snapshot, packet, verifier, executable, scorer, dependency
-lock, and environment manifest are frozen and rehashed by `eval:validate`.
-Each arm also binds its trusted wrapper as a separate exact file. The wrapper
-is inserted only through the `{wrapper}` argv placeholder, so pinning the
-runtime executable cannot accidentally leave a mutable script outside the
+Canopus `0.8.0`, the first Erdős producer loop, and the repaired registered
+Stage A are complete. The retained plan root is
+`sha256:31268241f0f1ada92fd78d245643ad9274308a74d617a965e8e2bcb46195fd47`.
+Canopus passed four of four matched cells, ordinary native Codex passed three
+of four, and same-packet native Codex passed four of four. Stage B was not run:
+transparent diagnostics and repair consumed the registered campaign's
+remaining call budget. No framework integration is supported and no Canopus
+`0.9.0` release is justified.
+
+A future live registration is a new experiment, not unfinished Stage A. It
+may be created only after every task, arm, repetition, source snapshot,
+packet, verifier, executable, scorer, dependency lock, environment manifest,
+budget, and stopping rule is frozen and rehashed by `eval:validate`. Each arm
+also binds its trusted wrapper as a separate exact file. The wrapper is
+inserted only through the `{wrapper}` argv placeholder, so pinning the runtime
+executable cannot accidentally leave a mutable script outside the
 registration.
 
 ```bash
