@@ -1,0 +1,30 @@
+{
+  "schema": "vela.key-free-human-decision-packet.v1",
+  "status": "prepared_not_invoked",
+  "frontier": {
+    "repository": "https://github.com/vela-science/erdos-frontier",
+    "commit": "606f2f4b50193b1feccf1df4e1f31d50d3a8dd99",
+    "repository_root": "sha256:8b1c2bbc99b9e9aade2bfb56d3493be02cdad954eefa3cd98a14ac41128ae0d4"
+  },
+  "proposal": {
+    "proposal_id": "vpr_80759f390c4880c0",
+    "proposal_root": "sha256:34d366ca2efb69643b2d9ea6185c2cf678e7d304e4b4c247e675bff7454e5181",
+    "standing": "pending_review"
+  },
+  "claim": {
+    "claim_id": "vcl_5c740ebb758107f25179b096d9e1b680d0bc62186eb276c8b907a2c1226fd979",
+    "claim_root": "sha256:e5dda77fea872d0de9da96934d8c483d851fcfb8615e10fec9386e88d486452c",
+    "assertion": "An exhaustive bounded search of the 14 primes in the inclusive range 10429401..10429600 found no k=15 witness; the maximum multiplicity observed was 11 at p=10429427, residue 3828577."
+  },
+  "verification": {
+    "record_id": "vvr_eb80b766c730513b",
+    "record_root": "sha256:47b5e299e93d298e31da2b4c3c9352855b37e07500f03208eb7851efb4c24ea9",
+    "outcome": "pass",
+    "accepted_event_delta": 0
+  },
+  "suggested_action": "accept",
+  "suggested_reason": "Accept the exact bounded computational Claim because Verification vvr_eb80b766c730513b reproduced the retained Run for all 14 primes in 10429401..10429600 and byte-matched the declared artifact, including maximum multiplicity 11 at p=10429427, residue 3828577. This Decision is limited to the retained range, algorithm, artifacts, packet, and verifier capsule; it does not establish universal nonexistence, novelty, significance, or resolve Erdős problem 1056.",
+  "inspection_command": "vela review show <erdos-frontier> vpr_80759f390c4880c0 --json",
+  "decision_command": "vela review accept <erdos-frontier> vpr_80759f390c4880c0 --reason '<suggested_reason>' --json",
+  "authority_boundary": "Only the human may choose and invoke a Decision. This packet is key-free and creates no approval."
+}

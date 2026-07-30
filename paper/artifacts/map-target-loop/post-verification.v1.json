@@ -1,0 +1,51 @@
+{
+  "schema": "vela.map-target-loop-post-verification.v1",
+  "status": "verified_pending_human_decision",
+  "recorded_at": "2026-07-30T03:03:00Z",
+  "released_vela": {
+    "version": "0.950.1",
+    "release_tag": "v0.950.1",
+    "release_commit": "2fafd652c501cfd6be16f24cc13d6e173eccd58a",
+    "binary_platform": "macos-aarch64",
+    "binary_sha256": "sha256:e9bc81e1bb735ade94a529253bec96ea6a8c5618a524c0e4b3e53c5846e8535e",
+    "github_attestation": "verified"
+  },
+  "frontier": {
+    "repository": "https://github.com/vela-science/erdos-frontier",
+    "commit": "606f2f4b50193b1feccf1df4e1f31d50d3a8dd99",
+    "tree": "79c190d8f6fe899185494b52541b5df6d7677d41",
+    "frontier_id": "vfr_0a25edabc16db143",
+    "origin_root": "sha256:49969ef6059e636718da4f5b7d200ef421ed17fc60b8e490d493ea71f7b2f77d",
+    "repository_root": "sha256:8b1c2bbc99b9e9aade2bfb56d3493be02cdad954eefa3cd98a14ac41128ae0d4",
+    "strict_replay": "pass",
+    "clean_clone_replay": "pass",
+    "accepted_claims": 2771,
+    "pending_claims": 1,
+    "pending_review": 1,
+    "accepted_event_delta": 0
+  },
+  "producer": {
+    "run_id": "run_8510dd67-c1d7-4c0a-9724-f87192d1a709",
+    "submission_id": "vsb_b8ebcd819ac327db",
+    "submission_root": "sha256:0ef6bcf68411df02e4deb11b89df1cfa8ab197c133c38ae327dc19f89abfb822",
+    "proposal_id": "vpr_80759f390c4880c0",
+    "proposal_root": "sha256:34d366ca2efb69643b2d9ea6185c2cf678e7d304e4b4c247e675bff7454e5181",
+    "claim_id": "vcl_5c740ebb758107f25179b096d9e1b680d0bc62186eb276c8b907a2c1226fd979",
+    "claim_root": "sha256:e5dda77fea872d0de9da96934d8c483d851fcfb8615e10fec9386e88d486452c"
+  },
+  "verification": {
+    "record_id": "vvr_eb80b766c730513b",
+    "record_root": "sha256:47b5e299e93d298e31da2b4c3c9352855b37e07500f03208eb7851efb4c24ea9",
+    "signed_record_file_sha256": "sha256:4d6f4995caf85b3d8b966e286e4d9b50fecffc0e35b567173e8882346a10589d",
+    "outcome": "pass",
+    "independence_credit": "none",
+    "standing_change": "none"
+  },
+  "next_action": "A human may inspect the exact pending Review Packet and independently accept, reject, or cancel. No model, verifier, Run, or Submission has Decision authority.",
+  "nonclaims": [
+    "This Verification establishes universal nonexistence.",
+    "This Verification resolves Erdős problem 1056.",
+    "This first-party replay is organizationally independent.",
+    "Verifier passage is scientific acceptance."
+  ]
+}

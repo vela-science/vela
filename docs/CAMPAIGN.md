@@ -637,6 +637,27 @@ the same target ID with different bytes. Completed Runs retain their own
 Mission and capsule, so advancing this single runnable profile does not weaken
 historical replay.
 
+The producer and mechanical-Verification half of this loop is now complete.
+Canopus retained Run `run_8510dd67-c1d7-4c0a-9724-f87192d1a709` and registered
+Submission `vsb_b8ebcd819ac327db`, Proposal `vpr_80759f390c4880c0`, and Claim
+`vcl_5c740ebb758107f25179b096d9e1b680d0bc62186eb276c8b907a2c1226fd979`.
+Released Vela `0.950.1`, binary root
+`sha256:e9bc81e1bb735ade94a529253bec96ea6a8c5618a524c0e4b3e53c5846e8535e`,
+then imported signed Verification `vvr_eb80b766c730513b`, root
+`sha256:47b5e299e93d298e31da2b4c3c9352855b37e07500f03208eb7851efb4c24ea9`,
+with outcome `pass` and accepted-event delta zero. Erdős commit
+`606f2f4b50193b1feccf1df4e1f31d50d3a8dd99` passes strict and clean-clone
+replay at repository root
+`sha256:8b1c2bbc99b9e9aade2bfb56d3493be02cdad954eefa3cd98a14ac41128ae0d4`.
+The Verification discloses its shared operator, machine, implementation, Run,
+packet, and capsule, and therefore earns no independent-participant credit.
+
+The exact key-free inspection packet is
+`paper/artifacts/map-target-loop/decision-packet.v1.json`. Standing remains
+unchanged and the Proposal remains `pending_review`. The model has not invoked
+a Decision. A post-Decision remap is forbidden until the human independently
+accepts, rejects, or cancels.
+
 ## Completed registered framework-neutral evaluation
 
 The non-normative `canopus.evaluation-plan.v1` freezes tasks, arms, versions,
