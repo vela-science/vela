@@ -7,7 +7,7 @@
   Target packet root as well as its schema, so reusing a target ID with
   different bytes fails before output creation or model execution. Completed
   Runs remain replayable from their self-contained Mission bundles.
-- Compose against the exact attested Vela `0.950.0` archives and current
+- Compose against the exact attested Vela `0.950.1` archives and current
   `vela.repository-verification.v2` origin contract. Remove Canopus's stale
   predecessor-epoch parser assumption; the released-binary integration now
   proves a nonmutating Run and clean-clone verifier against one compact
