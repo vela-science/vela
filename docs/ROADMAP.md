@@ -43,23 +43,39 @@ The detailed work, evidence roots, benchmarks, and stop conditions live in the
 - Canopus, Neon, the Observatory, hosted APIs, and the original producer
   session are not required for canonical replay.
 
-## Immediate product checkpoint
+## Current checkpoint — 2026-07-30
 
-The two demonstrated stale-work edges are repaired. Erdős closes
-`10429401..10429600` against exact retained evidence and now offers the
-contiguous range `10429601..10429800`. Formal closes its verified
-foreign-reference-retention Target with local Standing effect `none` and has
-no current offer.
+All three planned result loops have reached scoped Verification with accepted
+state unchanged:
 
-Before the next production projection:
+- Erdős commit `af70d2cc1e9b98ee705e757fa773101ecfc17a01`,
+  Proposal `vpr_27bce8983810f3bd`, Verification `vvr_85596c5b83104888`;
+- Formal commit `b16fb5353935f7334ec171a46407bf35b10fa338`,
+  Proposal `vpr_08a91ee1b770f5cb`, Verification
+  `vvr_1f13018fb140c3c2`; its exact bounded producer Target is closed, but its
+  scientific Claim is not accepted; and
+- Quantum commit `72d72416dbafa46030c439a7f49a529de8b04c7e`, Proposal
+  `vpr_8715dbb5e2a12442`,
+  Verification `vvr_f0b28f5c257eabb4`.
 
-1. audit Quantum and Sidon Target state;
-2. require every externally declared Math Source to have a verified source
-   adapter or an explicit unavailable state;
-3. rebuild from the exact four current Frontier commits; and
-4. prove Vela, Canopus, projection, search, and web agree on current work.
+Each Proposal remains `pending_review`. The repository authority—not an
+agent—may accept, reject, or cancel each exact Decision.
 
-The older post-Decision projection remains evidence, not a release candidate.
+Sidon remains clean at commit
+`75b3392c5d2a4390065a3927914acdb552d69e8e`. Before the next production
+projection:
+
+1. replace the stale PLBY observation at `82bb887…` with a verified adapter
+   over the locked `d4476dd…` revision;
+2. rebuild from all four current Frontier heads, including the exact pending
+   Proposals and Verifications, and all exact source locks;
+3. prove Vela, Canopus, Neon, search, and web agree on current work; and
+4. refresh again after any later human Decision without blocking the current
+   read-only Atlas reconstruction on authority.
+
+The active Neon release `sha256:e37cb1…` remains rollback-readable, but it is
+not the next Atlas release candidate because its PLBY observation predates the
+current exact source lock.
 
 ## P0 — make everyday Vela obvious
 
@@ -127,20 +143,14 @@ Target release: Vela Web `0.430.0`. Accept ADR 0030 only at the exact alpha
 implementation and reconstruction gate; adoption and beta claims remain
 separate.
 
-## P1 — produce genuine results
+## P1 — complete genuine result Decisions and remap
 
-Run three ordinary scientific loops:
-
-1. Erdős 1056 interval `10429601..10429800`, the first exact uncovered range
-   after accepted coverage through `10429600`;
-2. the first mechanically checkable unresolved Formal target selected from a
-   fresh source clone by a frozen rule; and
-3. the retained quantum `[[10,1,4]]` witness if independent reconstruction
-   verifies it, otherwise an exact retained failure and corrected Target.
-
-Each loop preserves failures, scopes every Claim, imports a separate
-Verification, reaches a human Decision or explicit cancellation, replays from
-a clean clone, rebuilds the Atlas, and closes or advances its Target.
+The Erdős `10429601..10429800`, Formal Erdős 835, and retained quantum
+`[[10,1,4]]` missions have preserved their failures, scoped their Claims, and
+imported separate Verifications. Complete each through a human Decision or
+explicit cancellation, replay from clean clones, rebuild the Atlas, and prove
+that producer Targets close or advance without treating Verification as
+acceptance.
 
 ## P1 — measure whether the product works
 

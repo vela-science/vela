@@ -70,14 +70,16 @@ complete only when:
 controlled mathematical Frontiers. It is not a global truth database, hosted
 authority, universal ontology, or federated world registry.
 
-## Verified starting point
+## Frozen baseline (historical)
 
-All six repositories—Vela, Vela Web, and the four Frontiers—were clean and
-equal to their upstream `main` branches when this campaign was frozen. The
-Erdős and Formal rows below include the subsequently verified Phase 0 Target
-repair commits; their scientific repository roots did not change.
+This table records the campaign freeze. It is retained as the comparison
+baseline and is not a statement of current Frontier or projection state. All
+six repositories—Vela, Vela Web, and the four Frontiers—were clean and equal
+to their upstream `main` branches at that boundary. The Erdős and Formal rows
+include the Phase 0 Target-repair commits then available; their scientific
+repository roots had not changed at that point.
 
-| Surface | Exact current state |
+| Surface | Exact frozen state |
 | --- | --- |
 | Vela source | commit `3d26a26236867c3d4361ca78941542fffcfa36ab`; released Vela `0.950.1` |
 | Canopus | `@vela-science/canopus@0.8.0` in `packages/canopus` |
@@ -89,7 +91,7 @@ repair commits; their scientific repository roots did not change.
 | Sidon | commit `75b3392c5d2a4390065a3927914acdb552d69e8e`; repository root `sha256:d047416cce0e569145ae38ae73b8a92102d5c5f63bb46602dff80398cada9a0d` |
 | Quantum Codes | commit `0de3163277031f2337206e54127f3ecab5154c09`; repository root `sha256:45a6c4e68a300aff0839a4c7522fbe90d978f72e94cf93d272aefca24c4a5dc5`; exact witness Submission `vsb_c6d26cf8e7abeb9f` pending Verification and Decision; no current Target Index |
 
-The declared current mathematical inventory is:
+The mathematical inventory at the frozen baseline was:
 
 | Frontier | Claims | Accepted | Pending |
 | --- | ---: | ---: | ---: |
@@ -99,7 +101,7 @@ The declared current mathematical inventory is:
 | Quantum Codes | 6 | 5 | 1 |
 | **Total** | **2,834** | **2,831** | **3** |
 
-The current evidence establishes:
+At the frozen baseline, the evidence established:
 
 - authenticated Submission and scoped Verification do not change Standing;
 - one authorized human Decision changes Standing exactly once;
@@ -118,7 +120,7 @@ The current evidence establishes:
 - replay does not require Canopus, Neon, the Observatory, a hosted API, the
   producer session, or repository-authority credentials.
 
-The current evidence does **not** establish:
+At the frozen baseline, the evidence did **not** establish:
 
 - a complete four-Frontier Target-lifecycle audit;
 - a complete released Math Atlas;
@@ -129,7 +131,8 @@ The current evidence does **not** establish:
 - general adoption; or
 - the protocol-breakthrough whitepaper claim.
 
-Phase 0 has repaired the two demonstrated stale-work edges. Erdős closure
+At that boundary, Phase 0 had repaired the two demonstrated stale-work edges.
+Erdős closure
 `sha256:14e93d4cdbb65ddb3b389f8ea219b74340beca6014381fefe88deb64d2e59d7e`
 binds the exact completed packet, accepted Claim, Submission, Artifact,
 Verification, and Decision Event, then exposes packet
@@ -140,6 +143,38 @@ proves exact foreign-reference retention with local Standing effect `none` and
 seals an empty current Target queue. The old post-Decision projection
 candidate remains inactive because the Atlas must be rebuilt from these new
 exact Frontier commits.
+
+## Current checkpoint — 2026-07-30
+
+The three planned scientific missions have now reached independently scoped
+Verification without changing Standing. Their exact current heads are:
+
+| Frontier | Current exact state |
+| --- | --- |
+| Erdős | commit `af70d2cc1e9b98ee705e757fa773101ecfc17a01`; repository root `sha256:1964e610500eed9e9b916b0d3433e73401a2b33ae7657dde0f0a949235603caf`; Proposal `vpr_27bce8983810f3bd`; Verification `vvr_85596c5b83104888`; `pending_review` |
+| Formal Conjectures | commit `b16fb5353935f7334ec171a46407bf35b10fa338`; repository root `sha256:d4972f8db52e5f74b33c2e45b78d2195ef0d21b4789e58b388adc8b2bf6cf4ab`; Proposal `vpr_08a91ee1b770f5cb`; Verification `vvr_1f13018fb140c3c2`; `pending_review`; the bounded producer Target queue is closed after its Submission-bound completion, independently of scientific Standing |
+| Quantum Codes | commit `72d72416dbafa46030c439a7f49a529de8b04c7e`; repository root `sha256:52c7258b19e4a7b6281484ef83e765ea0ea83c964ce0f774b1525aab6055d88f`; Proposal `vpr_8715dbb5e2a12442`; Verification `vvr_f0b28f5c257eabb4`; `pending_review` |
+| Sidon | commit `75b3392c5d2a4390065a3927914acdb552d69e8e`; repository root `sha256:d047416cce0e569145ae38ae73b8a92102d5c5f63bb46602dff80398cada9a0d`; clean and unchanged |
+
+These are three separate human Decision checkpoints. For each exact Proposal,
+the repository authority may accept, reject, or cancel after inspection.
+Agents may prepare the Decision packet, but they do not choose or perform the
+Decision, and Verification alone has changed no accepted Standing.
+
+The current Neon release
+`sha256:e37cb1eea2950077331b31e6c277f2ae09428a05da563d3a8e2a935757428a69`
+is not the next Atlas release candidate. Its PLBY observation retains source
+commit `82bb8878962f3c986fb4da42bcc3bd7c6ef39326`, while the exact source lock
+pins `d4476dd3535ec618dee4177915741017026d26bf`. Rebuild and verify the PLBY
+adapter and all four current Frontier heads before activating another
+projection. The existing current release remains a rollback-readable
+projection, not current campaign evidence.
+
+ADR 0020 now records the proposed Agent Campaign seam and consequence-only
+Decision Inbox. It remains design-only. Current Submission and Verification
+commands still use the repository-authority transaction path; the campaign
+must not claim prompt-free evidence work until the focused evidence
+transaction, old-replay equivalence, Inbox, and twelve-hour dogfood gates pass.
 
 ## Product contract
 
@@ -378,11 +413,11 @@ to synchronize marketing.
      contiguous successor `10429601..10429800`;
    - **complete:** close Formal `retain-erdos-424-correction` with local
      Standing effect `none`;
-   - **source-local verification and Submission complete:** an independent
-     exact verifier reconstructs the retained Quantum `[[10,1,4]]` witness at
-     rank 9, encoded dimension 1, and exact distance 4; the retroactive Target
-     Index was removed, and Submission `vsb_c6d26cf8e7abeb9f` is pending one
-     scoped Verification Record and human Decision;
+   - **Submission and Verification complete; human Decision pending:** an
+     independent exact verifier reconstructs the retained Quantum
+     `[[10,1,4]]` witness at rank 9, encoded dimension 1, and exact distance 4;
+     the retroactive Target Index was removed, and Proposal
+     `vpr_8715dbb5e2a12442` remains `pending_review`;
    - record that Sidon has no configured current Target rather than implying
      zero unknowns.
 5. Derive the first uncovered Erdős interval from accepted exact coverage. It
@@ -692,34 +727,25 @@ Run these missions in order. Failed and negative results remain visible.
 
 #### Mission A: next Erdős 1056 interval
 
-1. Audit the union of accepted exact searched ranges.
-2. Freeze the first uncovered contiguous 200-integer interval, expected
-   `10429601..10429800` if no other retained coverage changes the result.
-3. Bind the exact algorithm, prime inventory, artifacts, verifier capsule,
-   budgets, scope limit, and nonclaims before execution.
-4. Run in an isolated exact-head clone.
-5. Retain one witness or one exact bounded-negative artifact.
-6. Import a separately scoped Verification.
-7. Prepare the human Decision; acceptance, rejection, or cancellation remains
-   the human's choice.
-8. Replay from a clean clone, rebuild the Atlas, expose the Scientific Diff,
-   and prove that the next Target advances again rather than repeating work.
+The exact range `10429601..10429800` has completed Run, Submission, and scoped
+Verification. Proposal `vpr_27bce8983810f3bd` remains `pending_review` at
+commit `af70d2cc1e9b98ee705e757fa773101ecfc17a01`. The remaining scientific
+checkpoint is a human accept, reject, or cancel Decision. After that choice,
+replay from a clean clone, rebuild the Atlas, expose the Scientific Diff, and
+prove that the next Target advances rather than repeating work.
 
 No result may claim universal nonexistence or resolve Erdős problem 1056.
 
 #### Mission B: exact Formal/Lean result
 
-1. Close the completed foreign-retention Target.
-2. Start from a fresh exact clone of the canonical Formal Conjectures source.
-3. Collision-check the problem list, source changes, and open pull requests.
-4. Select the first mechanically checkable unresolved target by a frozen
-   deterministic rule.
-5. Bind the declaration, source commit/tree/path/hash, Lean version,
-   dependencies, axioms policy, proof artifact, verifier, and statement
-   fidelity question before model output.
-6. Retain every failed Run and repair edge.
-7. Route the resulting proof or bounded failure through Submission,
-   Verification, human Decision, replay, and remap.
+The frozen Erdős 835 declaration now has an exact proof artifact, retained
+repair lineage, Submission, and scoped Verification. Proposal
+`vpr_08a91ee1b770f5cb` remains `pending_review` at commit
+`b16fb5353935f7334ec171a46407bf35b10fa338`. The bounded producer Target is
+closed because its exact Submission-bound completion contract is satisfied;
+that operational closure does not accept the Claim. The remaining scientific
+checkpoint is a human accept, reject, or cancel Decision, followed by replay
+and Atlas remap.
 
 Kernel acceptance proves elaboration under the frozen environment. It does not
 by itself prove statement fidelity, mathematical significance, or acceptance.
@@ -738,14 +764,15 @@ Submission `vsb_c6d26cf8e7abeb9f`, root
 `sha256:0d5d5e3a1e91b8003e925a047259f8f0fe0844f0fd9df7c14f786e2e77c96b75`,
 registered pending Proposal `vpr_8715dbb5e2a12442` and Claim
 `vcl_cdd52df280c6249b97daa2ce544a8ed260cae6a31d33fd519917bb33c51faa59`
-with accepted-event delta zero. No scoped Verification Record or Decision
-exists yet.
+with accepted-event delta zero. Scoped Verification
+`vvr_f0b28f5c257eabb4` passes at current commit
+`72d72416dbafa46030c439a7f49a529de8b04c7e`; no human Decision exists yet.
 
-Do not recreate a retroactive Target ceremony. Complete the ordinary scoped
-Verification, human Decision, clean-clone replay, and remap. This mission is
-admission of an independently reconstructed retained certificate, not a new
-discovery. Until those gates pass, the witness remains pending evidence rather
-than accepted Vela Standing.
+Do not recreate a retroactive Target ceremony. The remaining checkpoint is a
+human accept, reject, or cancel Decision, followed by clean-clone replay and
+remap. This mission is admission of an independently reconstructed retained
+certificate, not a new discovery. Until the human Decision changes Standing,
+the witness remains pending evidence rather than accepted Vela Standing.
 
 Sidon remains the held-out computational fallback. Do not run another Sidon
 search merely to increase campaign volume.
@@ -1212,7 +1239,9 @@ integrity failure, and every primary reader/producer/reviewer handoff.
 
 The only planned human actions are:
 
-1. accept, reject, or cancel each exact scientific Decision;
+1. accept, reject, or cancel the exact pending scientific Decisions for Erdős
+   `vpr_27bce8983810f3bd`, Formal `vpr_08a91ee1b770f5cb`, and Quantum
+   `vpr_8715dbb5e2a12442`;
 2. approve the exact production projection root after inspection;
 3. provide uncoached external participants or authorize outreach; and
 4. approve the final bounded release and paper claims.
@@ -1267,15 +1296,15 @@ Failure narrows or deletes the system. It does not earn another layer.
 
 | Claim or gate | Starting status | Campaign terminal condition |
 | --- | --- | --- |
-| Local Submission → Verification → Decision | Passed first-party | repeat on new Erdős and Formal results |
-| Map → advance → remap | Erdős and Formal Target advancement passed source-local validation; Atlas remap remains inactive | all four Frontiers audited, zero stale work, and exact rebuilt Atlas release |
+| Local Submission → Verification → Decision | New Erdős, Formal, and Quantum evidence loops have reached scoped Verification; all three Proposals remain `pending_review` | human Decision or explicit cancellation for each exact Proposal, then clean-clone replay |
+| Map → advance → remap | Formal producer work is closed without changing Standing; the three scientific Decisions and Atlas remap remain open | all four Frontiers audited, zero stale work, and exact rebuilt Atlas release |
 | Canopus execution lift | Directionally positive first-party repaired Stage A; predecessor and stopped runs retained; expert-minute metric unscored | contract-frozen Erdős, Formal, and quantum result or explicit narrowing |
 | State/Atlas lift | First-party Codex-session pilot failed hard budget and full correctness; no human-review credit | external matched test passes or negative result |
 | Inheritance lift | Removability passed for one historical pending state; cold-successor lift unmeasured | cold successor reproduces change, surviving evidence, replay, and next action without private context |
 | Correction propagation | no qualifying real candidate | qualifying fixture passes or entry gate closes negative |
 | Cross-Frontier transfer | first-party pending B8 transfer passed with zero accepted delta | held-out independent value test passes or envelope is narrowed |
-| Native-source inventory and observation | current sources are configured ad hoc by Frontier/projector | versioned source inventory, deterministic full/applicable incremental rebuilds, explicit rights and coverage |
-| Math Atlas | partial Erdős projection only | exact four-Frontier alpha and earned beta gates |
+| Native-source inventory and observation | current Neon release is stale against the PLBY `d4476dd…` lock and may not be promoted | versioned source inventory, deterministic full/applicable incremental rebuilds, explicit rights and coverage |
+| Math Atlas | four-Frontier projection exists but its current PLBY observation is stale | exact four-Frontier alpha rebuilt from current Frontier heads and exact source locks |
 | Shared Math package | not earned | two consumers plus net deletion, or no package |
 | Registry/global Atlas | not earned | remain deferred |
 | Whitepaper breakthrough | not earned | ADR 0026 gates pass or paper remains bounded |
