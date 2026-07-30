@@ -464,7 +464,7 @@ not copied into this product repository.
 
 | Surface | Current evidence |
 | --- | --- |
-| Vela product | `0.950.0`; the repository's pinned conformance workflow verifies the current `main` head, so this campaign document does not duplicate a mutable self-commit pin |
+| Vela product | `0.950.1`; the compatible patch repairs exact predecessor-journal recognition without changing protocol or Frontier state |
 | TypeScript protocol | `@vela-science/protocol@0.1.0`, owned by this monorepo |
 | Canopus | `@vela-science/canopus@0.8.0`, owned by `packages/canopus` with unsquashed source history |
 | Erdős Frontier | strict replay and clean-clone reproduction pass at `81e79f008b4fc653888efda810dd8eb48e50cffa`; 2,771 accepted Claims and 34 exact Artifacts are indexed by repository root `sha256:8a98ff1c632232c7b227d87a0f1015aaa3429d38c83592ca66f8e465b06b0ee5` |

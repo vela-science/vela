@@ -30,7 +30,7 @@ paper from outrunning those results.
 
 - One bounded Erdős
   Submission → Verification → human Decision loop is complete and replayed.
-- Vela `0.950.0`, `@vela-science/protocol@0.1.0`, and
+- Vela `0.950.1`, `@vela-science/protocol@0.1.0`, and
   `@vela-science/canopus@0.8.0` are released with provenance.
 - Canopus history, including its archived final head, is reachable without
   squash from this monorepo.

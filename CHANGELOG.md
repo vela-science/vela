@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## v0.950.1 — 2026-07-30 — Compacted journal-chain repair
+
+- Recognize every completed transaction in the exact repository-manifest
+  transition chain bound by a signed compaction origin, rather than only the
+  final predecessor transaction. This lets compact current repositories keep
+  operating after predecessor object records are intentionally archived.
+- Keep current-generation journals and unrelated missing postimages fail
+  closed. The regression covers an earlier archived predecessor Verification,
+  a mismatched compaction root, and current-generation evidence drift.
 - Publish the dependency-ordered Rust crate graph before registry install
   smokes using crates.io Trusted Publishing and a short-lived GitHub OIDC
   token. Stable release automation no longer depends on an out-of-band local

@@ -2013,20 +2013,60 @@ fn current_compaction_predecessor_repository_root(
         .transpose()
 }
 
-fn completed_journal_is_compacted_predecessor(
-    journal: &FrontierTxnJournal,
+fn compacted_predecessor_operation_ids(
+    completed: &[(FrontierTxnPaths, FrontierTxnJournal)],
     predecessor_repository_root: Option<&ContentDigest>,
-) -> bool {
+) -> BTreeSet<String> {
     let Some(predecessor_repository_root) = predecessor_repository_root else {
-        return false;
+        return BTreeSet::new();
     };
-    journal.plan.canonical_delta.writes().iter().any(|write| {
-        write.path.as_str() == ".vela/repository.json"
-            && matches!(
-                &write.postimage,
-                FileState::File { digest, .. } if digest == predecessor_repository_root
-            )
-    })
+
+    // The compaction origin binds the final predecessor repository manifest.
+    // Walk the exact completed manifest transition chain backwards from that
+    // digest so every transaction in the archived generation is recognized,
+    // not only the final transaction that happened to install the bound head.
+    // Current-generation journals cannot join this set unless their exact
+    // manifest bytes are part of that predecessor chain.
+    let mut predecessor_manifest_roots = BTreeSet::from([predecessor_repository_root.clone()]);
+    let mut operation_ids = BTreeSet::new();
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for (_, journal) in completed {
+            if operation_ids.contains(journal.plan.operation_id.as_str()) {
+                continue;
+            }
+            let Some(write) = journal
+                .plan
+                .canonical_delta
+                .writes()
+                .iter()
+                .find(|write| write.path.as_str() == ".vela/repository.json")
+            else {
+                continue;
+            };
+            let FileState::File {
+                digest: postimage_root,
+                ..
+            } = &write.postimage
+            else {
+                continue;
+            };
+            if !predecessor_manifest_roots.contains(postimage_root) {
+                continue;
+            }
+            operation_ids.insert(journal.plan.operation_id.as_str().to_string());
+            if let FileState::File {
+                digest: preimage_root,
+                ..
+            } = &write.preimage
+            {
+                predecessor_manifest_roots.insert(preimage_root.clone());
+            }
+            changed = true;
+        }
+    }
+    operation_ids
 }
 
 fn verify_completed_history(
@@ -2044,6 +2084,8 @@ fn verify_completed_history(
     let current_event_ids = event_ids(&current_events)?;
     let current_root = event_log_root(&current_events)?;
     let predecessor_repository_root = current_compaction_predecessor_repository_root(root)?;
+    let compacted_predecessor_operations =
+        compacted_predecessor_operation_ids(completed, predecessor_repository_root.as_ref());
     let mut current_head = Vec::new();
     let mut committed_root_cache = BTreeMap::<Vec<String>, Option<ContentDigest>>::new();
     for (paths, journal) in completed {
@@ -2075,10 +2117,7 @@ fn verify_completed_history(
         // exact: unrelated historical journals and every current-generation
         // journal remain subject to normal postimage reachability checks.
         if journal.plan.resulting_event_ids == current_event_ids
-            && !completed_journal_is_compacted_predecessor(
-                journal,
-                predecessor_repository_root.as_ref(),
-            )
+            && !compacted_predecessor_operations.contains(journal.plan.operation_id.as_str())
         {
             current_head.push((paths.clone(), journal.clone()));
         }
@@ -5003,9 +5042,43 @@ mod tests {
         .unwrap();
         let predecessor_repository = fixture_repository(&predecessor_origin);
         let predecessor_repository_bytes = predecessor_repository.canonical_bytes().unwrap();
-        let predecessor_repository_root = ContentDigest::hash(&predecessor_repository_bytes)
-            .as_str()
-            .to_string();
+        let earlier_archived_path =
+            RepoPath::parse("records/verifications/sha256/earlier-archived.json").unwrap();
+        let earlier_draft = DeltaDraft::prepare(
+            &root,
+            vec![
+                PlannedWrite::write(
+                    RepoPath::parse(".vela/repository.json").unwrap(),
+                    WriteClass::CanonicalEvidence,
+                    predecessor_repository_bytes,
+                ),
+                PlannedWrite::write(
+                    earlier_archived_path.clone(),
+                    WriteClass::CanonicalEvidence,
+                    b"earlier archived verification".to_vec(),
+                ),
+            ],
+        )
+        .unwrap();
+        let earlier_plan = fixture_plan(&root, &earlier_draft, b"earlier predecessor journal");
+        let mut earlier =
+            FrontierTxn::prepare(&root, &journals, earlier_plan, earlier_draft).unwrap();
+        earlier.mark_committed().unwrap();
+        earlier.install().unwrap();
+        earlier.complete().unwrap();
+        drop(earlier);
+
+        let mut final_predecessor_repository = predecessor_repository.clone();
+        final_predecessor_repository.verifications.push(
+            vela_protocol::current_repository::RepositoryObjectRefV1 {
+                id: "vvr_finalpredecessor".into(),
+                root: fixture_root('c'),
+                path: "records/verifications/sha256/final-predecessor.json".into(),
+                schema: "vela.repository-object-ref.v1".into(),
+            },
+        );
+        let final_predecessor_repository_bytes =
+            final_predecessor_repository.canonical_bytes().unwrap();
         let archived_path = RepoPath::parse("records/verifications/sha256/archived.json").unwrap();
         let predecessor_draft = DeltaDraft::prepare(
             &root,
@@ -5013,7 +5086,7 @@ mod tests {
                 PlannedWrite::write(
                     RepoPath::parse(".vela/repository.json").unwrap(),
                     WriteClass::CanonicalEvidence,
-                    predecessor_repository_bytes,
+                    final_predecessor_repository_bytes.clone(),
                 ),
                 PlannedWrite::write(
                     archived_path.clone(),
@@ -5032,6 +5105,9 @@ mod tests {
         predecessor.install().unwrap();
         predecessor.complete().unwrap();
         drop(predecessor);
+        let predecessor_repository_root = ContentDigest::hash(&final_predecessor_repository_bytes)
+            .as_str()
+            .to_string();
 
         let compaction_origin = |repository_root: String| {
             vela_protocol::repository_origin::RepositoryOriginV1::compaction(
@@ -5068,6 +5144,7 @@ mod tests {
             fixture_repository(&wrong_origin).canonical_bytes().unwrap(),
         )
         .unwrap();
+        fs::remove_file(root.join(earlier_archived_path.as_str())).unwrap();
         fs::remove_file(root.join(archived_path.as_str())).unwrap();
         assert!(matches!(
             FrontierTxn::acquire_recovery_barrier(&root, &journals),
