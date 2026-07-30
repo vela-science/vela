@@ -48,16 +48,13 @@ case "$MODE" in
       printf '%s\n' "refusing crates publication from a dirty worktree" >&2
       exit 1
     }
-    test "$(git branch --show-current)" = main || {
-      printf '%s\n' "refusing crates publication outside main" >&2
+    head="$(git rev-parse HEAD)"
+    test "$head" = "$(git rev-parse origin/main^{commit})" || {
+      printf '%s\n' "refusing crates publication unless the tagged commit is current origin/main" >&2
       exit 1
     }
-    test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" || {
-      printf '%s\n' "refusing crates publication before origin/main matches HEAD" >&2
-      exit 1
-    }
-    test "$(git rev-parse "$TAG^{commit}")" = "$(git rev-parse HEAD)" || {
-      printf '%s\n' "refusing crates publication unless local $TAG points to HEAD" >&2
+    test "$(git rev-parse "$TAG^{commit}")" = "$head" || {
+      printf '%s\n' "refusing crates publication unless $TAG points to the checked-out commit" >&2
       exit 1
     }
 

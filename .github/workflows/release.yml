@@ -248,9 +248,31 @@ jobs:
           REQUIRE_PLATFORM_SIGNATURE: false
         run: .github/release/smoke-bundle.ps1 -Archive "dist/$env:ASSET" -ExpectedVersion $env:EXPECTED_VERSION -RequirePlatformSignature ($env:REQUIRE_PLATFORM_SIGNATURE -eq "true")
 
+  publish-crates:
+    if: github.event_name == 'push' && needs.metadata.outputs.prerelease != 'true'
+    needs: [metadata, smoke]
+    runs-on: ubuntu-24.04
+    environment: crates-io
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable 2026-07-19
+      - name: Exchange GitHub OIDC identity for a short-lived crates.io token
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
+      - name: Publish the dependency-ordered immutable crate graph
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates-io-auth.outputs.token }}
+        run: .github/release/publish-crates.sh --execute
+
   registry-smoke:
     if: github.event_name == 'push' && needs.metadata.outputs.prerelease != 'true'
-    needs: metadata
+    needs: [metadata, publish-crates]
     name: registry-smoke-${{ matrix.os }}
     strategy:
       # Registry indexes and CDN edges do not expose a newly published crate at
@@ -304,7 +326,7 @@ jobs:
           )
         )
       }}
-    needs: [metadata, build, smoke, registry-smoke]
+    needs: [metadata, build, smoke, publish-crates, registry-smoke]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

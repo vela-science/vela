@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Publish the dependency-ordered Rust crate graph before registry install
+  smokes using crates.io Trusted Publishing and a short-lived GitHub OIDC
+  token. Stable release automation no longer depends on an out-of-band local
+  `cargo publish` ceremony or a long-lived registry secret.
+
 ## v0.950.0 — 2026-07-29 — One compact current repository
 
 - Replace the predecessor epoch and repository-v2 readers with one signed

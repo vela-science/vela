@@ -224,7 +224,22 @@ fn reviewed_tags_publish_provenance_labeled_cross_platform_bundles() {
     assert!(RELEASE_WORKFLOW.contains(
         "if: github.event_name == 'push' && needs.metadata.outputs.prerelease != 'true'"
     ));
-    assert!(RELEASE_WORKFLOW.contains("needs: [metadata, build, smoke, registry-smoke]"));
+    assert!(RELEASE_WORKFLOW.contains("environment: crates-io"));
+    assert!(RELEASE_WORKFLOW.contains("id-token: write"));
+    assert!(
+        RELEASE_WORKFLOW
+            .contains("rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18")
+    );
+    assert!(
+        RELEASE_WORKFLOW
+            .contains("CARGO_REGISTRY_TOKEN: ${{ steps.crates-io-auth.outputs.token }}")
+    );
+    assert!(RELEASE_WORKFLOW.contains(".github/release/publish-crates.sh --execute"));
+    assert!(RELEASE_WORKFLOW.contains("needs: [metadata, publish-crates]"));
+    assert!(
+        RELEASE_WORKFLOW
+            .contains("needs: [metadata, build, smoke, publish-crates, registry-smoke]")
+    );
     assert!(RELEASE_WORKFLOW.contains("needs.registry-smoke.result == 'success'"));
     assert!(RELEASE_WORKFLOW.contains("needs.registry-smoke.result == 'skipped'"));
     assert!(RELEASE_WORKFLOW.contains("needs.metadata.outputs.prerelease == 'true'"));
