@@ -1,5 +1,5 @@
 ---
-title: "Vela: Correction-Aware Scientific State Across Plural Authorities"
+title: "Vela: Replayable Scientific Standing from Bounded Evidence"
 subtitle: "Working draft. Not a protocol-breakthrough claim."
 ---
 
@@ -19,18 +19,18 @@ scientific authority. Optional workers and read models remain removable.
 
 This paper asks whether that separation produces measurable inheritance and
 correction value instead of metadata growth. We register a benchmark in
-which independent readers must derive the same bounded correction impact,
-preserve an independent support route, reject authority escalation, transfer
-exact state into a second independently governed Frontier, and improve cold
-continuation over Git plus the same evidence. The audit of four current
+which separately implemented readers must derive the same bounded correction
+impact, preserve an independent support route, reject authority escalation,
+transfer exact state into a second locally governed Frontier, and improve cold
+continuation over Git plus the same evidence. The pre-campaign audit of four
 mathematical Frontiers found no qualifying historical correction fixture among
 2,831 retained Claims. Rust and clean-room Python readers agree on a synthetic
 qualification vector, but that result does not satisfy the scientific,
 federation, external-reproduction, or user-value gates. The current evidence
 also includes one accepted, first-party source-statement supersession and one
-failed matched reviewer pilot. Neither has the consequential topology or
-external independence required by the registered benchmark. The frozen
-held-out selector subsequently found no qualifying candidate, so confirmatory
+failed matched first-party Codex-session pilot. Neither has the consequential
+topology or external independence required by the registered benchmark. The
+frozen held-out selector subsequently found no qualifying candidate, so confirmatory
 two-fixture credit is unavailable in this campaign. The evidence therefore
 supports local admission, scoped verification, Decision, replay, and
 supersession. It now also supports one bounded, first-party cross-Frontier
@@ -658,7 +658,8 @@ the result root is
 
 This is positive local evidence for B5 and B6. It does not complete those
 families for a real correction fixture, test cross-Frontier transfer, measure
-cold-user value, or establish independent reproduction.
+cold-user value, or establish independent reproduction. It proves replay
+removability for this one historical pending state, not inheritance lift.
 
 ### 6.7 Foreign-transfer contract audit
 
@@ -725,7 +726,7 @@ therefore passes B8 and authority non-escalation. It does not demonstrate
 external independence, performance lift, or readiness for a Registry or
 Atlas.
 
-The matched Git-versus-Vela reviewer protocol is frozen at root
+The matched Git-versus-Vela state-reading protocol is frozen at root
 `sha256:68fb039088302d19f02cf2628c16004e174649b1f952a63a0fd35210c0dd0ef8`.
 It gives both arms identical terminal repository, evidence, verifier, Git, and
 documentation bytes; only the Vela arm receives the exact read-only CLI. A
@@ -733,6 +734,10 @@ dependency-free exact-field scorer is frozen at source root
 `sha256:c949f9dec835cbe97bb89a22ccc006e8e767f88b86dfc6c4a0083732ff3fcd63`.
 It rejects task-instance drift and reports false authority statements as hard
 failures.
+
+The subjects were first-party Codex model sessions, not human reviewers. This
+protocol can debug the task and scorer but cannot establish human
+comprehension, reviewer efficiency, or external adoption.
 
 The terminal materializer was frozen while the Proposal remained pending. A
 pre-execution amendment at root
@@ -759,7 +764,7 @@ neither answer was fully correct. The registered study therefore failed; the six
 remaining repetitions were not run. This pilot establishes neither state lift
 nor external user value. It identifies a narrower product task: reduce the
 question surface and remove evidence ambiguity before registering another
-reviewer study.
+state-reading study.
 
 ### 6.8 Formal vertical slice
 
@@ -781,7 +786,15 @@ not establish informal statement fidelity, novelty, importance, or scientific
 acceptance. Strict replay and a clean clone agree at Formal Frontier commit
 `84d3064cd7d9170985d04360b579c3c45fc96a80`, repository root
 `sha256:66f2244045500eb5838d116a57ef16499b96775d76a77c9e383e8b322734ceab`.
-The Proposal remains pending and accepted-event delta is zero.
+At that retained predecessor commit, the Proposal was pending and
+accepted-event delta was zero. The current compact Formal epoch at commit
+`35fa12bb4115e1561b0865722580a7626ee79016` does not carry this Proposal as a
+current record. It remains recoverable through tag
+`pre-compaction/84d3064cd7d9`, archive root
+`sha256:88cc1b73546806aefb85839fbed5ae9181dc5a98ac44844567b5ced0ce83e4d1`,
+and equivalence-report root
+`sha256:2b96ac51fe3d6d9adca0d2394f43b8e07d294c6c8d5f06de5d843bee93a2b455`.
+This is historical vertical-slice evidence, not a current pending Proposal.
 
 This slice also reproduced an object-contract mismatch. Current repositories
 identify retained Artifacts by full content hash, whereas the optional
@@ -795,11 +808,18 @@ history rewrite was required.
 
 ### 6.9 Framework-neutral execution evaluation
 
-A preregistered Stage A comparison held task facts, verifiers, model family,
-custody rules, and publication rules constant across Canopus, native Codex,
-and native Codex with the same packet. Two tasks and two fresh repetitions per
-arm produced 12 retained outcomes. Eleven passed their frozen verifier. The
-repaired report root is
+Stage A was a registered repair replication, not an untouched preregistered
+comparison. Three earlier plans stopped on their registered token ceilings.
+Completed plan
+`sha256:9fbfd54fd40db4e2b02ded895365468c596f54e4dc0e19ae09630a80fb28125b`
+then produced 12 outcomes with six verifier passes. After those outputs
+exposed an answer-free task-contract defect, repair plan
+`sha256:31268241f0f1ada92fd78d245643ad9274308a74d617a965e8e2bcb46195fd47`
+amended that completed plan and registered 12 fresh assignments. The repaired
+run held task facts, verifiers, model family, custody rules, and publication
+rules constant across Canopus, native Codex, and native Codex with the same
+packet. Two tasks and two fresh repetitions per arm produced 12 retained
+outcomes. Eleven passed their frozen verifier. The repaired report root is
 `sha256:43be5378169f2911eb09773b2a9ffbbf8364c080e37dc874b13188ccff144bfb`.
 
 | Arm | Passes | Observed tokens | Wall time | Passes / 1M tokens | Passes / hour |
@@ -813,6 +833,10 @@ and 164.0 percent over same-packet native. It improved passes per hour by
 153.5 percent and 38.4 percent, respectively. This is two repetitions per task
 and arm, all first-party. It supports baseline utility for the bounded runner,
 not a stable population estimate, external adoption, or the protocol claim.
+The report does not score all-in cost or expert-minutes, so it does not satisfy
+the campaign's primary execution-lift metric. The stopped runs, the six-pass
+completed predecessor, and the repaired replication must all ship in any
+public artifact package.
 The registered call ceiling could not fit Stage B, so no orchestration
 framework was evaluated or retained.
 
@@ -1033,8 +1057,9 @@ correctly. The clean-room implementation is colocated and does not establish
 organizational independence.
 
 Repository authority remains operationally heavier than ordinary producer
-authentication. The first reviewer pilot failed its hard token budget and
-therefore does not establish reviewer-time or cold-inheritance lift. The
+authentication. The first state-reading pilot used first-party Codex model
+sessions and failed its hard token budget; it therefore does not establish
+human reviewer-time or cold-inheritance lift. The
 benchmark has not measured federation or recurring external use. SHA-256 and
 Ed25519 are assumed secure. Git hosting availability is operationally useful
 but not canonical.
@@ -1043,7 +1068,11 @@ The Math Atlas has not yet published its required rooted 100,000-record
 qualification, and no 1,000,000-record result exists. This paper therefore
 makes no scalability claim for the read model. Current counts describe the
 audited corpus, not a capacity limit or a reason to add partitioning, a graph
-database, or vector infrastructure.
+database, or vector infrastructure. The existing deterministic local
+100,000-record synthetic harness explicitly sets `product_claim=false` and
+`database_scale_claim=false`; it does not exercise Neon ingestion, database
+latency, egress, concurrent readers, or production behavior and therefore does
+not satisfy this gate.
 
 The public protocol has no foreign-reference object. The derived edge-layer
 envelope passes the real Erdős source qualification in two implementations,
@@ -1107,10 +1136,13 @@ The final artifact package will include:
 Vela currently demonstrates a compact, replayable separation among
 authenticated producer input, scoped Verification, local human Decision, and
 scientific Standing, including one accepted supersession whose predecessor
-remains explainable. Two implementations also agree on a bounded synthetic
-correction-impact projection. The first matched reviewer pilot was
-directionally cheaper and more accurate with Vela but failed its preregistered
-token budget and exact-answer requirement. A derived foreign-reference
+remains recoverable through its retained compaction origin, predecessor tag,
+and archive. The current compact epoch does not expose that full historical
+chain through the ordinary `show` and `why` path. Two implementations also
+agree on a bounded synthetic correction-impact projection. The first matched
+first-party Codex-session pilot was directionally cheaper and more accurate
+with Vela but failed its registered token budget and exact-answer requirement;
+it is not human-review evidence. A derived foreign-reference
 envelope now qualifies the real source package in two colocated readers,
 including its authority signature. A second Frontier retained that exact
 package through a pending, non-authoritative Submission, imported a scoped

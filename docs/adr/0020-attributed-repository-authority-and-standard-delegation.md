@@ -751,6 +751,22 @@ when the reviewed diff changes. A stale entry is automatically deselected,
 shows which exact inputs changed, and requires re-review. It is never silently
 carried into a batch.
 
+The queue also adopts the narrow useful interaction contract of
+[Linear's Inbox](https://linear.app/docs/inbox): keyboard traversal, quick
+filtering, explicit read state, and Snooze as a reminder action rather than a
+domain disposition. Saved filters are URL-addressable so a reviewer may return
+to or share one exact local view. Unlike an ordinary notification inbox, Vela
+does not let archive, mark-read, delete, or snooze remove a still-required
+scientific or authority obligation from the unresolved set.
+
+Every committed effect follows
+[Slack's agent-design guidance](https://docs.slack.dev/concepts/agent-design/)
+to make action provenance visible. The result names the human who decided, the
+repository authority that signed, and the agent or verifier that produced the
+underlying work. It never compresses those roles into “Vela approved” or
+implies that the requester acted with the human's identity. Rejection,
+staleness, and failed commitment always show the exact next recovery action.
+
 The interaction has two surfaces, not a raw agent outbox or stream of modal
 prompts:
 

@@ -87,7 +87,7 @@ repair commits; their scientific repository roots did not change.
 | Erdős | commit `f2f4a4f5d5c322f5c57f99d100fce97333f7aeb1`; repository root `sha256:9679827bc76de9f6433bfafa8e2e966b9780ca1273c7948d97c2ae042f5cab1a`; Target Index `sha256:84314593f22bbeae251090838273394db6685f7f437070154a085b1f403b7fd3` |
 | Formal Conjectures | commit `35fa12bb4115e1561b0865722580a7626ee79016`; repository root `sha256:5e59e05a5639ac0ec4331ec40fec9f50229b795a1a08d983ba96834d4777b58a`; Target Index `sha256:b580acbd63f2d31cc0751d0e81de9b97445c6952b1b2104b565b1118a55a4576` |
 | Sidon | commit `75b3392c5d2a4390065a3927914acdb552d69e8e`; repository root `sha256:d047416cce0e569145ae38ae73b8a92102d5c5f63bb46602dff80398cada9a0d` |
-| Quantum Codes | commit `b9416ad13398a86dcc9010b047e9660b5f34f3a5`; repository root `sha256:22a0ef52195d713ddc68c271c5a29de51b54e9b62280103f8acb3f3bcd6b8f1b` |
+| Quantum Codes | commit `0de3163277031f2337206e54127f3ecab5154c09`; repository root `sha256:45a6c4e68a300aff0839a4c7522fbe90d978f72e94cf93d272aefca24c4a5dc5`; exact witness Submission `vsb_c6d26cf8e7abeb9f` pending Verification and Decision; no current Target Index |
 
 The declared current mathematical inventory is:
 
@@ -96,8 +96,8 @@ The declared current mathematical inventory is:
 | Erdős | 2,772 | 2,772 | 0 |
 | Formal Conjectures | 16 | 14 | 2 |
 | Sidon | 40 | 40 | 0 |
-| Quantum Codes | 5 | 5 | 0 |
-| **Total** | **2,833** | **2,831** | **2** |
+| Quantum Codes | 6 | 5 | 1 |
+| **Total** | **2,834** | **2,831** | **3** |
 
 The current evidence establishes:
 
@@ -105,9 +105,11 @@ The current evidence establishes:
 - one authorized human Decision changes Standing exactly once;
 - strict replay and clean-clone replay agree;
 - the latest Erdős loop reached a terminal Decision and deterministic remap;
-- Canopus passed 4/4 first-party Stage A cells, native Codex 3/4, and
-  same-packet native Codex 4/4;
-- one exact Formal/Lean result kernel-checks under frozen inputs;
+- the repaired first-party Stage A replication passed 4/4 Canopus cells,
+  3/4 native Codex cells, and 4/4 same-packet native cells after a completed
+  predecessor exposed an answer-free task-contract defect;
+- one exact Formal/Lean result kernel-checks under frozen inputs in a retained
+  predecessor epoch;
 - one bounded Erdős-to-Formal foreign reference is retained and verified with
   local Standing effect `none`; and
 - the accepted Erdős range is closed against exact retained evidence, its
@@ -376,8 +378,11 @@ to synchronize marketing.
      contiguous successor `10429601..10429800`;
    - **complete:** close Formal `retain-erdos-424-correction` with local
      Standing effect `none`;
-   - determine whether Quantum `[[10,1,4]]` is valid current work or an
-     already-complete unpublished result;
+   - **source-local verification and Submission complete:** an independent
+     exact verifier reconstructs the retained Quantum `[[10,1,4]]` witness at
+     rank 9, encoded dimension 1, and exact distance 4; the retroactive Target
+     Index was removed, and Submission `vsb_c6d26cf8e7abeb9f` is pending one
+     scoped Verification Record and human Decision;
    - record that Sidon has no configured current Target rather than implying
      zero unknowns.
 5. Derive the first uncovered Erdős interval from accepted exact coverage. It
@@ -721,20 +726,26 @@ by itself prove statement fidelity, mathematical significance, or acceptance.
 
 #### Mission C: quantum certificate
 
-Audit the retained `quantum:[[10,1,4]]` target, witness, verifier manifest, and
-current open Claim.
+The retained `quantum:[[10,1,4]]` witness now passes a reconstructed independent
+source-local verifier. Witness byte root
+`sha256:f23ac24e932de13538ac842bc2a467648aa82628577cffff6c71411e59a06a3c`
+reconstructs generator rank 9, encoded dimension 1, centralizer size 2,048,
+1,536 non-stabilizer logical Paulis, and exact distance 4. The retained
+verifier output root is
+`sha256:9a2282be31eef1784304ae58aa5dc00e1871fb1ba2d46c0047153c7d04e3fc35`.
 
-- If the retained witness passes a reconstructed independent verifier, submit
-  it through the current path, verify generator validity, commutation, rank,
-  encoded dimension, and distance at least four, then route it through a human
-  Decision and remap.
-- If it fails, retain the exact failure, keep the existence question open, and
-  generate one honest corrected Target.
+Submission `vsb_c6d26cf8e7abeb9f`, root
+`sha256:0d5d5e3a1e91b8003e925a047259f8f0fe0844f0fd9df7c14f786e2e77c96b75`,
+registered pending Proposal `vpr_8715dbb5e2a12442` and Claim
+`vcl_cdd52df280c6249b97daa2ce544a8ed260cae6a31d33fd519917bb33c51faa59`
+with accepted-event delta zero. No scoped Verification Record or Decision
+exists yet.
 
-This mission is independent reconstruction and admission of a retained
-certificate, not a new discovery. The campaign does not count the checked-in
-witness as current evidence until the verifier, Submission, Verification,
-Decision, and clean-clone gates pass.
+Do not recreate a retroactive Target ceremony. Complete the ordinary scoped
+Verification, human Decision, clean-clone replay, and remap. This mission is
+admission of an independently reconstructed retained certificate, not a new
+discovery. Until those gates pass, the witness remains pending evidence rather
+than accepted Vela Standing.
 
 Sidon remains the held-out computational fallback. Do not run another Sidon
 search merely to increase campaign volume.
@@ -769,6 +780,13 @@ safety/replay gap with no material efficiency regression. Otherwise narrow or
 remove the extra Canopus surface. Do not evaluate orchestration frameworks
 unless plain fixed orchestration fails the same missing contract in two
 independent tasks.
+
+The completed A5 result is a repaired pilot, not confirmatory evidence for this
+gate. It amended a completed A4 run after A4 exposed an answer-free
+task-contract defect. It also omits all-in cost and expert-minute scoring. Any
+confirmatory run must freeze its contract before outputs, include the full
+stopped and failed-run lineage, cover Erdős plus Formal and quantum task
+shapes, and publish every retained Run.
 
 #### B. State and Atlas lift
 
@@ -1015,6 +1033,11 @@ Release Vela Web `0.430.0` only when:
 - mobile, keyboard, long-root, empty, and integrity-error paths pass; and
 - clean-clone reconstruction succeeds after Neon is deleted or unavailable.
 
+The deterministic local 100,000-record synthetic generator is a harness, not
+this qualification: it explicitly makes no product or database-scale claim and
+does not exercise Neon `COPY`, database latency, egress, concurrent readers, or
+production behavior.
+
 #### ADR 0030 acceptance and alpha gate
 
 Accept ADR 0030 and release Vela Web `0.430.0` together only after the bounded
@@ -1246,10 +1269,11 @@ Failure narrows or deletes the system. It does not earn another layer.
 | --- | --- | --- |
 | Local Submission → Verification → Decision | Passed first-party | repeat on new Erdős and Formal results |
 | Map → advance → remap | Erdős and Formal Target advancement passed source-local validation; Atlas remap remains inactive | all four Frontiers audited, zero stale work, and exact rebuilt Atlas release |
-| Canopus execution lift | Directionally positive first-party Stage A | matched multi-shape result or explicit narrowing |
-| State/Atlas lift | Registered pilot failed hard budget and full correctness | external matched test passes or negative result |
+| Canopus execution lift | Directionally positive first-party repaired Stage A; predecessor and stopped runs retained; expert-minute metric unscored | contract-frozen Erdős, Formal, and quantum result or explicit narrowing |
+| State/Atlas lift | First-party Codex-session pilot failed hard budget and full correctness; no human-review credit | external matched test passes or negative result |
+| Inheritance lift | Removability passed for one historical pending state; cold-successor lift unmeasured | cold successor reproduces change, surviving evidence, replay, and next action without private context |
 | Correction propagation | no qualifying real candidate | qualifying fixture passes or entry gate closes negative |
-| Cross-Frontier transfer | first-party B8 passed | held-out independent value test passes or envelope is narrowed |
+| Cross-Frontier transfer | first-party pending B8 transfer passed with zero accepted delta | held-out independent value test passes or envelope is narrowed |
 | Native-source inventory and observation | current sources are configured ad hoc by Frontier/projector | versioned source inventory, deterministic full/applicable incremental rebuilds, explicit rights and coverage |
 | Math Atlas | partial Erdős projection only | exact four-Frontier alpha and earned beta gates |
 | Shared Math package | not earned | two consumers plus net deletion, or no package |
