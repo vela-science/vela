@@ -558,8 +558,21 @@ The Cockpit shows:
 - a baseline and child-experiment tree;
 - selected-run diff, evaluation, Artifacts, verifier scope, and failures;
 - coalesced `verb -> object -> outcome` activity with exact retained roots;
-- pause, stop, and in-scope steering; and
+- pause, resume, graceful stop after the current atomic operation, emergency
+  revoke, and in-scope steering; and
 - the number of unresolved Decisions.
+
+Its private states are:
+
+```text
+queued | running | needs_input | paused | exhausted | expired
+revoked | stopped | failed | complete
+```
+
+`needs_input` is limited to execution steering that remains inside the
+authorized scope. A consequence-bearing request appears in the Decision Inbox
+instead. Stop, expiry, or revocation preserves every completed receipt,
+Artifact, failure, and verifier result.
 
 A steering directive binds the campaign, experiment, active run, prior
 activity root, issuer, time, and exact instruction. A correlated
@@ -584,6 +597,12 @@ The Decision Inbox is a private, deterministic projection of real pending
 Proposals, their Submissions and Verification Records, current Standing,
 policy, keyset, and authority heads. It has no retained outbox schema and no
 independent lifecycle.
+
+“Outbox” and “Inbox” name two perspectives on the same consequence
+projection. The agent or Campaign Cockpit may say that one consequence is
+waiting in its outbox. The reviewer sees that exact rooted entry in the
+Decision Inbox. There is no transport queue, copied review object, or second
+status model between them.
 
 The projection contains only meaningful consequences:
 
@@ -612,24 +631,70 @@ it, what Decision is requested, what consequence follows, and what obligation
 comes next. It shows the semantic diff and evidence chain, with exact roots one
 disclosure away.
 
-The scientific dispositions are Accept, Reject, and Request revision, each
-with an attributed reason. Request revision appends guidance and requires a
-successor Proposal; it never edits evidence. Save and Snooze are optional local
-triage actions. `Dismiss`, `Done`, `Ignore`, `Always approve`, wildcard
-approval, remembered answers, and classifier exceptions do not exist.
+The interaction contract is deliberately smaller than a generic agent
+approval dashboard:
+
+```text
+collection
+  -> filter by Frontier, consequence class, and readiness
+  -> inspect one rooted semantic diff and evidence chain
+  -> stage Accept, Reject, or optional Request revision with an exact reason
+  -> inspect the complete staged set and merged read set
+  -> commit the named consequences once
+```
+
+The collection uses a deterministic order and makes urgency, expiry, blocked
+checks, and stale inputs explicit. Search order, age, campaign ownership, and
+agent identity never imply scientific priority or authority. A pending entry
+shows how long it has waited, but campaign expiry stops future execution rather
+than silently expiring the Proposal.
+
+The Cockpit never embeds an Accept or Reject control in a run transcript. It
+shows the blocked branch, requested consequence, current entry root, and one
+link into the Inbox. Independent in-scope branches remain runnable. The Inbox
+may show campaign and experiment lineage as context, but its primary identity
+is the Proposal and exact scientific change.
+
+An entry remains visible after commitment by resolving to the ordinary
+canonical Decision and Event transcript. Vela does not retain a second
+“resolved card” solely to preserve UI history. If any Proposal, Claim,
+Submission, Verification set, policy, keyset, authority head, binary, or read
+set changes before commitment, the staged action is cleared and the entry
+shows the exact stale input. The reviewer must inspect the new root.
+
+The first UI uses semantic list or table structure before an interactive grid.
+It supports keyboard selection, filtering, inspection, cancellation, and
+focus restoration; announces result counts, committed Decisions, and drift
+failures; and pairs every status color with text and shape. Mobile uses stacked
+entries and a full-screen detail surface without hiding evidence behind hover
+or clipping long Claims, reasons, or roots.
+
+The scientific dispositions are Accept and Reject, each with an attributed
+reason. Request revision is non-standing coordination feedback that asks the
+producer for a successor Proposal and never edits evidence. The first
+implementation omits it unless an existing ordinary coordination channel can
+carry that feedback without adding a protocol object. Save and Snooze are
+optional local triage actions. `Dismiss`, `Done`, `Ignore`, `Always approve`,
+wildcard approval, remembered answers, and classifier exceptions do not
+exist.
 
 Local triage is a sidecar keyed by reviewer, Proposal ID, and exact entry root.
 It may contain only read state, saved state, snooze time, draft reason, and
 selection. It does not affect the deterministic projection, deadline,
 authority, pending Proposal, read set, or Standing, and it never carries to a
-successor root.
+successor root. A changed entry root clears Save, Snooze, draft, and selection
+for that entry.
 
 This keeps the useful queue interactions from
 [LangChain Agent Inbox](https://github.com/langchain-ai/agent-inbox/tree/081b2a30409304fa04bfcf7b01d035853b846ecd)
-without adopting its thread-centric or ignorable interruption semantics. It
-keeps durable, partially resolvable action state from the
-[OpenAI Agents SDK human-in-the-loop flow](https://openai.github.io/openai-agents-python/human_in_the_loop/)
-without adopting persistent `always_approve` policy or serializing secrets.
+without adopting its thread-centric, editable, or ignorable interruption
+semantics. LangChain's current frontend guidance usefully requires exact
+action context, persistent interruption state, visible wait time, attributed
+decision logs, and an explicit final submission for multiple pending actions.
+Vela applies those interaction properties to rooted Proposals, not arbitrary
+tool calls. It keeps durable, partially resolvable action state from the
+[OpenAI Agents SDK human-in-the-loop flow](https://openai.github.io/openai-agents-js/guides/human-in-the-loop/)
+without adopting persistent `alwaysApprove` policy or serializing secrets.
 It treats GitHub's
 [pending review](https://docs.github.com/en/pull-requests/how-tos/review-pull-requests/reviewing-proposed-changes-in-a-pull-request)
 as useful prior art for collecting comments before one review, and its
@@ -660,7 +725,8 @@ Selection may include only pending Proposals in one Frontier and one authority
 domain. Every selected Proposal has exactly one keyed action and reason.
 Unknown, duplicate, omitted-selected, extra, wrong-root, or positional
 responses fail before a canonical plan is derived. Unselected Proposals remain
-pending.
+pending. The reviewer may commit any nonempty valid subset; partially staged or
+unresolved entries remain in the Inbox without pausing unrelated execution.
 
 For each selected Proposal, the planner reuses the existing single-Proposal
 prepare and reducer logic. It rederives the Claim, Submission, complete
@@ -711,11 +777,12 @@ ephemeral batch plan     prepared -> committing -> applied | stale | failed
 Standing                 unchanged until an authorized Decision is applied
 ```
 
-`Request revision` appends guidance and a successor Proposal rather than
-mutating the current Proposal. An Inbox row blocked on consequence pauses only
-the affected run branch; independent in-scope branches may continue. A
-verifier result may change evidence and make an Inbox entry stale, but it
-never changes Standing.
+`Request revision`, when an ordinary coordination channel exists, records
+non-standing guidance and waits for a successor Proposal rather than mutating
+the current Proposal. An Inbox row blocked on consequence pauses only the
+affected run branch; independent in-scope branches may continue. A verifier
+result may change evidence and make an Inbox entry stale, but it never changes
+Standing.
 
 #### Rejected design alternatives
 
@@ -801,6 +868,10 @@ Focused conformance must prove:
   while exact retry is idempotent;
 - the derived Inbox includes every consequence class and excludes routine
   activity;
+- the Cockpit outbox count and Inbox collection derive the same exact entry
+  roots, while the Cockpit exposes no Accept or Reject action;
+- campaign expiry stops future execution without expiring, deciding, or
+  hiding a pending Proposal;
 - changed Proposal, Claim, Submission, Verification set, policy, keyset,
   authority head, binary, or read set changes the derived entry and clears
   local selection;
@@ -808,8 +879,13 @@ Focused conformance must prove:
   Inbox entry, deadline, authority input, or Standing;
 - no Dismiss, Done, Ignore, wildcard, persistent, tool-wide, remembered-answer,
   classifier-exception, or `always approve` path exists;
+- keyboard-only and mobile review can inspect every decisive field, stage and
+  clear an action, cancel, recover focus, and reach exact roots without
+  horizontal trapping or color-only state;
 - exact keyed selection prevents queue reorder, duplicate, omitted-selected,
   extra, wrong-root, or positional substitution;
+- committing one valid selected subset leaves every unselected entry pending
+  and independently actionable;
 - mixed Frontier or authority domains, duplicate Proposals, write conflicts,
   ambiguous order, stale inputs, and ineligible actions fail before any OS
   prompt;
@@ -826,7 +902,10 @@ Focused conformance must prove:
   deterministic order while one authority record covers every Event and
   object delta exactly once;
 - committed crash recovery installs all or none without reauthentication or
-  resigning; and
+  resigning;
+- a resolved Inbox entry renders from the ordinary canonical Decision and
+  Event transcript without a retained resolved-card or review-batch object;
+  and
 - a clean clone replays accepted state with campaign state, Cockpit, Inbox,
   triage, runner, credentials, and network absent.
 
