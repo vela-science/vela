@@ -172,13 +172,15 @@ source lock and all four current Frontier heads:
 | Source Registry projection | 9,537 native rows; 6,303 Frontier bindings; declaration root `sha256:51de765c4ab9e834ea726ef53bc0f7f87e8d1cb5eeffaba22728908619d2ee37` |
 | PLBY observation | exact `plby/lean-proofs` commit `d4476dd3535ec618dee4177915741017026d26bf`; tree `c34eff8727b9fe02ba11ed2eb30da361a1b026fb`; 201 records |
 | Bounded Neon capacity | qualification root `sha256:c1ad6d1a58c7c19665dd575e1ee5c95064e0bde16d3533a9714ebf27854b7960`; the existing schema and 1,000-row JSONB writer insert and root-verify 100,000 records in 19.94 seconds; the candidate was never activated and the temporary branch was deleted |
+| Clean-room reconstruction | qualification root `sha256:dfd38ca31994e6460e74dd96b2f8013a797fa74f8bb2c6a6affe3a3c9e879614`; two empty-database reconstructions produced release root `sha256:98a52be8a101eb79f2d7060a323ebec335fe5e46c28c08afca9ea606e2e595ce` and identical normalized manifest bytes; the one disposable branch was deleted and production remained on `sha256:d944fd9a…` |
 
 The dry run and activated read model agree on the exact projection root. This
 is release-candidate data evidence, not a final web release or product-lift
 result. The bounded 100,000-record Neon capacity gate now passes without COPY
-or another storage layer. Web-tag and deployment-manifest reconciliation,
-clean empty-database reconstruction, visual review, cold-use, and a later
-post-Decision exact refresh still apply.
+or another storage layer. Empty-database reconstruction and failure
+containment now also pass without retaining another Neon branch or migration
+service. Web-tag and deployment-manifest reconciliation, visual review,
+cold-use, and a later post-Decision exact refresh still apply.
 
 These exact counts and reproductions do not upgrade the registered benchmark
 claims. Execution evidence remains first-party and directional, state lift and
@@ -1136,6 +1138,19 @@ service was needed. The run does not establish one-million-object scale,
 general production performance, clean empty-database reconstruction, product
 lift, or scientific authority.
 
+The separate
+`vela.math-atlas-clean-room-qualification.v1` result, artifact root
+`sha256:dfd38ca31994e6460e74dd96b2f8013a797fa74f8bb2c6a6affe3a3c9e879614`,
+passes two empty-database reconstructions from the same frozen adapter set.
+Both produced release root `sha256:98a52be8a…`, identical table roots and
+counts, and normalized manifest root `sha256:0e146ddefd…`; only operational
+activation time differed. Tampered source bytes and a late transactional
+constraint failure both failed closed without moving the current pointer.
+The disposable branch was deleted, production remained on
+`sha256:d944fd9a…`, and no candidate rows survived. This proves bounded
+deterministic reconstruction, not future reacquisition, product lift, or
+scientific authority. Production retains one Neon branch.
+
 #### ADR 0030 acceptance and alpha gate
 
 Accept ADR 0030 and release Vela Web `0.430.0` together only after the bounded
@@ -1377,7 +1392,7 @@ Failure narrows or deletes the system. It does not earn another layer.
 | Cross-Frontier transfer | first-party pending B8 transfer passed with zero accepted delta | held-out independent value test passes or envelope is narrowed |
 | Quantum reproduction | current Vela independently reconstructs and verifies the exact retained `[[10,1,4]]` certificate; Proposal `vpr_8715dbb5e2a12442` remains pending and Decision remains null | human Decision or explicit cancellation, then clean-clone replay and remap |
 | Native-source inventory and observation | source adapter set root `sha256:82df9824…` contains 6,700 exact adapter records; the active projection contains 9,537 native rows; this is exact first-party data evidence, not adoption or scale qualification | finish scale, failure, and cold-use gates or narrow the alpha claim |
-| Math Atlas | active read-model root is `sha256:d944fd9a…` with Vela `0.950.1`; live-read-health artifact `sha256:457df1b7…` passes current-head reader and query budgets; capacity artifact `sha256:c1ad6d1a…` passes the bounded 100,000-record gate without COPY or another service; no final web release or product-lift claim is made | reconcile exact web tag and deployment manifest, complete clean-room, visual, product, and current-Decision refresh gates, then release or record the failed gate |
+| Math Atlas | active read-model root is `sha256:d944fd9a…` with Vela `0.950.1`; live-read-health artifact `sha256:457df1b7…` passes current-head reader and query budgets; capacity artifact `sha256:c1ad6d1a…` passes the bounded 100,000-record gate; clean-room artifact `sha256:dfd38ca3…` passes deterministic empty-database reconstruction and failure containment; production retains one Neon branch; no final web release or product-lift claim is made | reconcile exact web tag and deployment manifest, complete visual, product, and current-Decision refresh gates, then release or record the failed gate |
 | Shared Math package | not earned | two consumers plus net deletion, or no package |
 | Registry/global Atlas | not earned | remain deferred |
 | Whitepaper breakthrough | not earned | ADR 0026 gates pass or paper remains bounded |
