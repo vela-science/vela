@@ -85,13 +85,16 @@
     "eval:validate": "bun evaluation/commands/validate-plan.mjs",
     "eval:run": "bun evaluation/commands/run-plan.mjs",
     "eval:report": "bun evaluation/commands/report.mjs",
-    "eval:conformance": "node --test tests/evaluation-plan.test.mjs tests/evaluation-scientific-task.test.mjs tests/evaluation-erdos-task.test.mjs tests/evaluation-stage-a-wrapper.test.mjs",
+    "eval:conformance": "node --test tests/evaluation-plan.test.mjs tests/evaluation-scientific-task.test.mjs tests/evaluation-erdos-task.test.mjs tests/evaluation-erdos-held-out-task.test.mjs tests/evaluation-stage-a-wrapper.test.mjs",
     "eval:wrapper:build": "bun evaluation/wrappers/build-stage-a.mjs",
     "eval:stage:a": "bun evaluation/commands/stage-stage-a.mjs",
     "eval:task:prepare:scientific": "bun evaluation/tasks/core-bench-1108125/prepare.mjs",
     "eval:task:verify:scientific": "bun evaluation/tasks/core-bench-1108125/verify.mjs",
     "eval:task:prepare:erdos": "bun evaluation/tasks/erdos-1056-10429401-10429600/prepare.mjs",
     "eval:task:build-verifier:erdos": "bun evaluation/tasks/erdos-1056-10429401-10429600/build-verifier.mjs",
+    "eval:task:prepare:erdos-held-out": "bun evaluation/tasks/erdos-1056-10429801-10430000/prepare.mjs",
+    "eval:task:build-verifier:erdos-held-out": "bun evaluation/tasks/erdos-1056-10429801-10430000/build-verifier.mjs",
+    "eval:task:verify:erdos-held-out": "bun evaluation/tasks/erdos-1056-10429801-10430000/verify.mjs",
     "trace:export": "bun evaluation/commands/trace-export.mjs"
   },
   "devDependencies": {
