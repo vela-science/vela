@@ -2,17 +2,63 @@
 
 use std::path::{Path, PathBuf};
 
-/// Parse either a bare witness or a record with a `witness` field.
-pub(crate) fn parse_witness(raw: &str) -> Result<vela_verify::Witness, String> {
-    if let Ok(witness) = serde_json::from_str::<vela_verify::Witness>(raw) {
-        return Ok(witness);
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum ReproductionWitness {
+    Vela(vela_verify::Witness),
+    QuantumStabilizer(vela_verify::QuantumStabilizerWitnessV1),
+}
+
+impl ReproductionWitness {
+    pub(crate) fn kind(&self) -> &'static str {
+        match self {
+            Self::Vela(witness) => witness.kind(),
+            Self::QuantumStabilizer(_) => "quantum_stabilizer",
+        }
     }
+
+    pub(crate) fn verify(&self) -> vela_verify::VerifyResult {
+        match self {
+            Self::Vela(witness) => vela_verify::verify_witness(witness),
+            Self::QuantumStabilizer(witness) => {
+                vela_verify::verify_quantum_stabilizer_witness_v1(witness)
+            }
+        }
+    }
+
+    pub(crate) fn dominates(&self, prior: &Self) -> Result<bool, String> {
+        match (self, prior) {
+            (Self::Vela(current), Self::Vela(prior)) => vela_verify::dominates(current, prior),
+            _ => Err(format!(
+                "no dominance order defined between {} and {}",
+                self.kind(),
+                prior.kind()
+            )),
+        }
+    }
+}
+
+/// Parse either a bare witness or a record with a `witness` field.
+pub(crate) fn parse_witness(raw: &str) -> Result<ReproductionWitness, String> {
     let value: serde_json::Value = serde_json::from_str(raw).map_err(|error| error.to_string())?;
+    parse_witness_value(value)
+}
+
+fn parse_witness_value(value: serde_json::Value) -> Result<ReproductionWitness, String> {
+    if let Ok(witness) = serde_json::from_value::<vela_verify::Witness>(value.clone()) {
+        return Ok(ReproductionWitness::Vela(witness));
+    }
+    if value.get("schema").and_then(serde_json::Value::as_str)
+        == Some("canopus.quantum-stabilizer-witness.v1")
+    {
+        return serde_json::from_value(value)
+            .map(ReproductionWitness::QuantumStabilizer)
+            .map_err(|error| error.to_string());
+    }
     value
         .get("witness")
         .cloned()
         .ok_or_else(|| "not a witness (missing recognized `kind` and `witness`)".to_string())
-        .and_then(|witness| serde_json::from_value(witness).map_err(|error| error.to_string()))
+        .and_then(parse_witness_value)
 }
 
 /// Collect a single witness or every `*.witness.json` below a directory.
@@ -43,5 +89,47 @@ fn collect_witness_files_into(directory: &Path, files: &mut Vec<PathBuf>) {
         {
             files.push(path);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const QUANTUM_WITNESS: &str = r#"{
+        "schema": "canopus.quantum-stabilizer-witness.v1",
+        "target": "quantum:[[10,1,4]]",
+        "n": 10,
+        "k": 1,
+        "generators": [
+            "IXIZYXYXYZ",
+            "IXZXIXXIIZ",
+            "XXIYYZIZXZ",
+            "ZXIYZIXYXX",
+            "XXIYXXXIYY",
+            "YIIXYXZYYY",
+            "IZXYYYZIZX",
+            "ZXXZZIZZIY",
+            "IIZXXXIIYZ"
+        ]
+    }"#;
+
+    #[test]
+    fn parses_and_verifies_the_retained_quantum_schema() {
+        let witness = parse_witness(QUANTUM_WITNESS).unwrap();
+        assert_eq!(witness.kind(), "quantum_stabilizer");
+        let outcome = witness.verify();
+        assert!(outcome.ok, "{}", outcome.message);
+        assert_eq!(outcome.value, Some(4.0));
+    }
+
+    #[test]
+    fn quantum_schema_still_fails_closed_on_invalid_generators() {
+        let mut value: serde_json::Value = serde_json::from_str(QUANTUM_WITNESS).unwrap();
+        value["generators"][8] = value["generators"][0].clone();
+        let witness = parse_witness(&serde_json::to_string(&value).unwrap()).unwrap();
+        let outcome = witness.verify();
+        assert!(!outcome.ok);
+        assert!(outcome.message.contains("distinct"));
     }
 }

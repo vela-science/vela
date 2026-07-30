@@ -58,6 +58,20 @@ impl VerifyResult {
     }
 }
 
+/// The one externally produced quantum witness schema currently supported by
+/// `vela reproduce`. This remains separate from [`Witness`]: the retained
+/// Canopus bytes use `schema` and `target`, not Vela's `kind`-tagged witness
+/// wire format.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct QuantumStabilizerWitnessV1 {
+    pub schema: String,
+    pub target: String,
+    pub n: usize,
+    pub k: usize,
+    pub generators: Vec<String>,
+}
+
 /// A witness to verify. Tagged by `kind` on the wire, so a witness file
 /// is `{"kind": "sidon", "n": 8, "points": [[...], ...], ...}`.
 ///
@@ -2945,6 +2959,206 @@ pub fn verify_linear_code(generator: &[Vec<i64>], q: u64, claimed_d: usize) -> V
         ),
         value: Some(dmin as f64),
     }
+}
+
+/// Reconstruct the exact `[[10,1,4]]` stabilizer certificate retained by the
+/// quantum-codes Frontier. The verifier derives the complete binary
+/// symplectic centralizer and exhaustively computes the minimum logical Pauli
+/// weight. It deliberately supports only this bounded v1 schema.
+pub fn verify_quantum_stabilizer_witness_v1(witness: &QuantumStabilizerWitnessV1) -> VerifyResult {
+    const SCHEMA: &str = "canopus.quantum-stabilizer-witness.v1";
+    const TARGET: &str = "quantum:[[10,1,4]]";
+    const N: usize = 10;
+    const K: usize = 1;
+    const DISTANCE: usize = 4;
+
+    if witness.schema != SCHEMA || witness.target != TARGET {
+        return VerifyResult::fail("quantum witness schema or target is wrong");
+    }
+    if witness.n != N || witness.k != K {
+        return VerifyResult::fail(format!("quantum witness must declare n={N} and k={K}"));
+    }
+    if witness.generators.len() != N - K {
+        return VerifyResult::fail("quantum witness must contain exactly nine generators");
+    }
+    let distinct: HashSet<&String> = witness.generators.iter().collect();
+    if distinct.len() != witness.generators.len() {
+        return VerifyResult::fail("quantum witness generators must be distinct");
+    }
+
+    let generators = match witness
+        .generators
+        .iter()
+        .map(|generator| quantum_pauli_vector(generator, N))
+        .collect::<Result<Vec<_>, _>>()
+    {
+        Ok(generators) => generators,
+        Err(error) => return VerifyResult::fail(error),
+    };
+    if generators.contains(&0) {
+        return VerifyResult::fail("quantum witness identity is not a generator");
+    }
+    for (left_index, left) in generators.iter().enumerate() {
+        for right in &generators[left_index + 1..] {
+            if quantum_symplectic(*left, *right, N) {
+                return VerifyResult::fail("quantum witness generators do not commute");
+            }
+        }
+    }
+
+    let (stabilizer_basis, generator_pivots) = quantum_reduced_basis(generators.clone(), 2 * N);
+    let rank = generator_pivots.len();
+    if rank != N - K {
+        return VerifyResult::fail(format!(
+            "quantum witness generator rank is {rank}, expected {}",
+            N - K
+        ));
+    }
+    let stabilizer = quantum_binary_span(&stabilizer_basis);
+    if stabilizer.len() != 1usize << (N - K) {
+        return VerifyResult::fail("quantum witness stabilizer span has the wrong cardinality");
+    }
+
+    let centralizer_basis = match quantum_centralizer_basis(&generators, N) {
+        Ok(basis) => basis,
+        Err(error) => return VerifyResult::fail(error),
+    };
+    if centralizer_basis.len() != N + K {
+        return VerifyResult::fail(format!(
+            "quantum witness centralizer dimension is {}, expected {}",
+            centralizer_basis.len(),
+            N + K
+        ));
+    }
+    let centralizer = quantum_binary_span(&centralizer_basis);
+    if !stabilizer.is_subset(&centralizer) {
+        return VerifyResult::fail(
+            "quantum witness stabilizer is not contained in its centralizer",
+        );
+    }
+    let logical: Vec<u64> = centralizer.difference(&stabilizer).copied().collect();
+    let Some(distance) = logical
+        .iter()
+        .map(|vector| quantum_pauli_weight(*vector, N))
+        .min()
+    else {
+        return VerifyResult::fail(
+            "quantum witness centralizer contains no non-stabilizer logical Pauli",
+        );
+    };
+    if distance != DISTANCE {
+        return VerifyResult::fail(format!(
+            "quantum witness exact logical distance is {distance}, expected {DISTANCE}"
+        ));
+    }
+
+    VerifyResult {
+        ok: true,
+        message: format!(
+            "quantum stabilizer [[{N},{K},{distance}]] verified: {rank} linearly independent commuting generators, stabilizer size {}, complete centralizer size {}",
+            stabilizer.len(),
+            centralizer.len()
+        ),
+        value: Some(distance as f64),
+    }
+}
+
+fn quantum_pauli_vector(pauli: &str, n: usize) -> Result<u64, String> {
+    if pauli.len() != n || !pauli.bytes().all(|symbol| b"IXYZ".contains(&symbol)) {
+        return Err(format!(
+            "each quantum witness generator must be a length-{n} string over I, X, Y, Z"
+        ));
+    }
+    let mut x = 0u64;
+    let mut z = 0u64;
+    for (qubit, symbol) in pauli.bytes().enumerate() {
+        if matches!(symbol, b'X' | b'Y') {
+            x |= 1 << qubit;
+        }
+        if matches!(symbol, b'Z' | b'Y') {
+            z |= 1 << qubit;
+        }
+    }
+    Ok(x | (z << n))
+}
+
+fn quantum_symplectic(left: u64, right: u64, n: usize) -> bool {
+    let mask = (1u64 << n) - 1;
+    let (left_x, left_z) = (left & mask, left >> n);
+    let (right_x, right_z) = (right & mask, right >> n);
+    ((left_x & right_z).count_ones() + (left_z & right_x).count_ones()) % 2 == 1
+}
+
+fn quantum_reduced_basis(mut rows: Vec<u64>, width: usize) -> (Vec<u64>, Vec<usize>) {
+    rows.retain(|row| *row != 0);
+    let mut pivots = Vec::new();
+    let mut pivot_row = 0usize;
+    for column in 0..width {
+        let Some(selected) = (pivot_row..rows.len()).find(|row| ((rows[*row] >> column) & 1) == 1)
+        else {
+            continue;
+        };
+        rows.swap(pivot_row, selected);
+        let pivot = rows[pivot_row];
+        for (row_index, row) in rows.iter_mut().enumerate() {
+            if row_index != pivot_row && ((*row >> column) & 1) == 1 {
+                *row ^= pivot;
+            }
+        }
+        pivots.push(column);
+        pivot_row += 1;
+        if pivot_row == rows.len() {
+            break;
+        }
+    }
+    (rows, pivots)
+}
+
+fn quantum_binary_span(basis: &[u64]) -> HashSet<u64> {
+    let mut values = HashSet::from([0]);
+    for row in basis {
+        let existing: Vec<u64> = values.iter().copied().collect();
+        values.extend(existing.into_iter().map(|value| value ^ row));
+    }
+    values
+}
+
+fn quantum_centralizer_basis(generators: &[u64], n: usize) -> Result<Vec<u64>, String> {
+    let mask = (1u64 << n) - 1;
+    let constraints: Vec<u64> = generators
+        .iter()
+        .map(|generator| {
+            let generator_x = generator & mask;
+            let generator_z = generator >> n;
+            generator_z | (generator_x << n)
+        })
+        .collect();
+    let (rows, pivots) = quantum_reduced_basis(constraints.clone(), 2 * n);
+    let free_columns: Vec<usize> = (0..2 * n)
+        .filter(|column| !pivots.contains(column))
+        .collect();
+    let mut nullspace = Vec::new();
+    for free in free_columns {
+        let mut value = 1u64 << free;
+        for (row, pivot) in rows.iter().zip(&pivots) {
+            if (((row & !(1u64 << pivot)) & value).count_ones() % 2) == 1 {
+                value |= 1u64 << pivot;
+            }
+        }
+        if constraints
+            .iter()
+            .any(|constraint| (constraint & value).count_ones() % 2 == 1)
+        {
+            return Err("quantum centralizer reconstruction failed".to_string());
+        }
+        nullspace.push(value);
+    }
+    Ok(nullspace)
+}
+
+fn quantum_pauli_weight(vector: u64, n: usize) -> usize {
+    let mask = (1u64 << n) - 1;
+    ((vector & mask) | (vector >> n)).count_ones() as usize
 }
 
 // --- small numeric / combinatorial helpers -------------------------------

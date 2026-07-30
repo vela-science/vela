@@ -318,7 +318,7 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
                 continue;
             }
         };
-        let mut outcome = vela_verify::verify_witness(&witness);
+        let mut outcome = witness.verify();
         // Machine-checked novelty: a witness may declare `improves_on`
         // (a sibling witness path relative to its own directory). The
         // claim then verifies ONLY if it also strictly dominates the
@@ -334,7 +334,7 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
             match std::fs::read_to_string(&prior_path)
                 .map_err(|e| format!("improves_on read {}: {e}", prior_path.display()))
                 .and_then(|p| parse_witness(&p))
-                .and_then(|prior| vela_verify::dominates(&witness, &prior))
+                .and_then(|prior| witness.dominates(&prior))
             {
                 Ok(true) => {
                     outcome.message =
