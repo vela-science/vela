@@ -43,8 +43,12 @@ test("the active product profile stages exact platform capsules and one bounded 
   ];
   assert.equal(profiles[0]?.target, "erdos:1056");
   assert.notEqual(profiles[0]?.capsule_sha256, profiles[1]?.capsule_sha256);
+  const draft = await loadProfileDraft(profiles[0]!) as {
+    verifier: { cwd: string };
+  };
+  assert.equal(draft.verifier.cwd, "targets");
   assert.equal(
-    contentDigest(await loadProfileDraft(profiles[0]!)),
+    contentDigest(draft),
     contentDigest(await loadProfileDraft(profiles[1]!)),
   );
   for (const [index, profile] of profiles.entries()) {

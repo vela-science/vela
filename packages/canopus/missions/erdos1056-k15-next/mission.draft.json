@@ -28,7 +28,7 @@
       "capsule/verifier",
       "{artifact:artifacts/erdos1056-k15-range-10429601-10429800.txt}"
     ],
-    "cwd": "site",
+    "cwd": "targets",
     "timeout_ms": 300000,
     "max_output_bytes": 65536,
     "capsule_path": "capsule/verifier"
