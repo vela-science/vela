@@ -182,9 +182,22 @@ class AuthorityEvidenceTests(unittest.TestCase):
                 ("vev_decision", "review.accepted"),
             ]:
                 value = {
-                    "schema": "vela.authority-event.v1",
+                    "schema": "vela.event.v1",
                     "id": event_id,
-                    "content": {"kind": kind},
+                    "content": {
+                        "transaction_id": "vtx_test",
+                        "principal_id": "local:test",
+                        "authority_mode": "repository_authority",
+                        "kind": kind,
+                        "target": {"type": "claim", "id": "vcl_test"},
+                        "actor": {"type": "human", "id": "local:test"},
+                        "timestamp": "2026-07-30T00:00:00Z",
+                        "reason": "Exercise exact semantic event identity.",
+                        "before_hash": "sha256:null",
+                        "after_hash": "sha256:test",
+                        "payload": {"event": event_id},
+                        "caveats": [],
+                    },
                 }
                 path = event_dir / f"{event_id}.json"
                 path.write_bytes(subject.pretty_bytes(value))
@@ -198,6 +211,8 @@ class AuthorityEvidenceTests(unittest.TestCase):
             decision_root = subject.sha256_bytes(
                 subject.canonical_bytes(decision_event)
             )
+            applied_event = json.loads((event_dir / "vev_applied.json").read_text())
+            applied_semantic_id = subject.semantic_event_id(applied_event)
             payload = {
                 "schema": "vela.authority-record.v1",
                 "record_id": "var_test",
@@ -229,11 +244,15 @@ class AuthorityEvidenceTests(unittest.TestCase):
                 {
                     "event_id": "vev_decision",
                     "event_root": decision_root,
-                    "applied_event_id": "vev_applied",
+                    "applied_event_id": applied_semantic_id,
                 },
             )
             self.assertEqual(result["authority_record_id"], "var_test")
             self.assertEqual(len(result["events"]), 2)
+            self.assertIn(
+                applied_semantic_id,
+                {event["semantic_event_id"] for event in result["events"]},
+            )
 
 
 if __name__ == "__main__":

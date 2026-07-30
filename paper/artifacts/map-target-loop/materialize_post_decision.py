@@ -69,6 +69,32 @@ def sha256_file(path: Path) -> str:
         raise MaterializeError(f"cannot read {path}: {error}") from error
 
 
+def semantic_event_id(event: dict[str, Any]) -> str:
+    """Derive the transaction-independent StateEvent identity of an Era-1 event."""
+    require(event.get("schema") == "vela.event.v1", "authority event schema drift")
+    content = event.get("content")
+    require(isinstance(content, dict), "authority event content is missing")
+    fields = (
+        "kind",
+        "target",
+        "actor",
+        "timestamp",
+        "reason",
+        "before_hash",
+        "after_hash",
+        "payload",
+        "caveats",
+    )
+    require(
+        all(field in content for field in fields),
+        "authority event is missing semantic StateEvent fields",
+    )
+    preimage = {"schema": "vela.event.v0.1"}
+    preimage.update({field: content[field] for field in fields})
+    digest = hashlib.sha256(canonical_bytes(preimage)).hexdigest()
+    return f"vev_{digest[:16]}"
+
+
 def load_object(path: Path) -> dict[str, Any]:
     try:
         value = json.loads(path.read_bytes())
@@ -462,6 +488,7 @@ def read_authority_evidence(
         events.append(
             {
                 "event_id": event_id,
+                "semantic_event_id": semantic_event_id(value),
                 "event_root": sha256_bytes(canonical_bytes(value)),
                 "kind": value.get("content", {}).get("kind"),
                 "path": str(path.relative_to(frontier)),
@@ -471,9 +498,10 @@ def read_authority_evidence(
     require(set(covered_ids) == observed_ids, "authority record coverage drift")
     require(decision["event_id"] in observed_ids, "Decision event is not newly covered")
     if decision["applied_event_id"] is not None:
+        semantic_ids = {event["semantic_event_id"] for event in events}
         require(
-            decision["applied_event_id"] in observed_ids,
-            "applied scientific event is not newly covered",
+            decision["applied_event_id"] in semantic_ids,
+            "applied semantic scientific event is not newly covered",
         )
     matching = [event for event in events if event["event_id"] == decision["event_id"]]
     require(
