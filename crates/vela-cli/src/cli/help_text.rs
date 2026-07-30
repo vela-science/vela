@@ -61,7 +61,6 @@ pub const REVIEW: &str = "\
 EXAMPLES
   vela review list . --json           compact pending queue
   vela review show . vpr_8b49… --json one pending Review Packet or terminal Decision
-  vela review diff . vpr_8b49…        read-only proposed state change
   vela review reject . vpr_8b49… --reason \"insufficient evidence\" --json
                                         execute one exact attributed rejection
 
@@ -173,3 +172,13 @@ pub const AGENTS: &str = "\
 EXAMPLES
   vela agents sync .     regenerate CLAUDE.md/AGENTS.md/.cursor from VELA.md
   vela agents doctor .   assert the adapters are in sync (no drift)";
+
+#[cfg(test)]
+mod tests {
+    use super::REVIEW;
+
+    #[test]
+    fn review_help_does_not_advertise_unimplemented_diff() {
+        assert!(!REVIEW.contains("review diff"));
+    }
+}
