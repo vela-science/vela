@@ -655,6 +655,23 @@ pre-interrupt side effects idempotent. Vela does not serialize private prompts,
 credentials, human keys, repository-authority material, or sticky approval into
 a new protocol object.
 
+[Prefect's interactive-flow contract](https://docs.prefect.io/v3/advanced/interactive)
+draws a useful product distinction between typed input that pauses a run and
+typed input that can arrive while a long-running flow continues. Vela applies
+that distinction narrowly: in-scope steering is nonblocking whenever an
+independent branch can continue, while a consequence that exceeds the
+campaign authorization pauses only the affected branch. A scientific Decision
+never becomes ordinary runtime input.
+
+[Inngest's human-in-the-loop pattern](https://www.inngest.com/docs/ai-patterns/human-in-the-loop)
+adds two useful implementation constraints: every waiting action has one
+correlation identity, and timeout is an explicit outcome rather than an
+implicit success. Vela uses the exact campaign, Proposal, and entry roots for
+correlation. Campaign execution may expire, but an unanswered scientific
+Proposal remains pending; timeout never auto-accepts, auto-rejects, or changes
+Standing. Neither Prefect nor Inngest becomes a Vela runtime dependency. Native
+runners already own durable execution.
+
 The pinned
 [Block Buzz source at `4d47aa8`](https://github.com/block/buzz/tree/4d47aa83455a9fd024121a596154cd311dca1d76)
 contributes four interaction constraints, not an architecture: durable run
