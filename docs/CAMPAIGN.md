@@ -653,10 +653,19 @@ The Verification discloses its shared operator, machine, implementation, Run,
 packet, and capsule, and therefore earns no independent-participant credit.
 
 The exact key-free inspection packet is
-`paper/artifacts/map-target-loop/decision-packet.v1.json`. Standing remains
-unchanged and the Proposal remains `pending_review`. The model has not invoked
-a Decision. A post-Decision remap is forbidden until the human independently
-accepts, rejects, or cancels.
+`paper/artifacts/map-target-loop/decision-packet.v1.json`. The human accepted
+that exact bounded Claim through the local repository-authority path. Decision
+Event `vev_51abc098046d3423`, root
+`sha256:fb48df2660288285a8dd838e94e1969cef6da95a13a9f7b483641c7f54d1006e`,
+applied semantic Event `vev_7fa17589c00dd62b`, and authority record
+`var_ac64e1806e2a18b0`, root
+`sha256:769e2812ed6798f023152b9ff8370069a574670fc08f2062e3e7f7bea6d05504`,
+are retained at Erdős commit
+`80606bdccb51fa86524111a1a61876bb08e45d79`. The repository root changed
+exactly once to
+`sha256:9679827bc76de9f6433bfafa8e2e966b9780ca1273c7948d97c2ae042f5cab1a`;
+origin, authority keyset, and authority policy roots did not change. Strict
+and clean-clone replay pass.
 
 The exact post-Verification map checkpoint is
 `paper/artifacts/map-target-loop/post-verification-map.v1.json`, byte root
@@ -669,10 +678,21 @@ root
 graph source
 `sha256:51e69b4d883f89c38b590ac8750753834f96f5abd073cba8ca87bddad7dbb659`,
 and 4,032 nodes with 2,528 edges. It was verified in the normalized Neon read
-model but not activated. The source-only
-`materialize_post_decision.py` command is frozen now so a later terminal
-Decision can be replayed and remapped without letting the evidence procedure
-invoke authority or change the live projection pointer.
+model but not activated. The source-only `materialize_post_decision.py`
+subsequently replayed the exact terminal Decision and rebuilt candidate release
+`sha256:d0fc41a9e2d37b798975caa5b7f06a78e674e9da7e42b27f89685b6841558ff6`.
+The terminal evidence is retained in
+`paper/artifacts/map-target-loop/post-decision.v1.json`, byte root
+`sha256:b29e8cbb50aff3cc81a4ac6f4cf261b9a3ca9d80dbe69614d9a771116d80151c`.
+It records one accepted Claim, one terminal review, no graph cardinality
+change, and changed repository, graph-source, graph-layout, and projection
+roots. The materializer invoked no authority and did not activate Neon.
+
+The loop also exposed a concrete product defect: the first work offer still
+binds the already-completed packet root
+`sha256:6d1a2ca87851deb1fa2133f4f6cf7edb28ee843cb0eef57ea09e826b3fdca63b`.
+The next non-overlapping packet has not been curated, so the candidate remains
+inactive and another Run must not start from that stale offer.
 
 ## Completed registered framework-neutral evaluation
 

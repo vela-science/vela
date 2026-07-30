@@ -35,13 +35,17 @@ two-fixture credit is unavailable in this campaign. The evidence therefore
 supports local admission, scoped verification, Decision, replay, and
 supersession. It now also supports one bounded, first-party cross-Frontier
 transfer with exact receiver Verification, clean-clone replay, and zero
-authority escalation. A separate prospective product loop has also derived a
-4,032-node map from an exact compact repository, selected its first Target,
-retained and verified the resulting bounded Run, and rebuilt a read-only
-candidate map. That Proposal is still pending a human Decision, so the
-Decision-to-remap loop is not complete. The evidence does not support the full
-registered protocol claim. This draft reports the failed entry gate and open
-Decision boundary rather than substituting a synthetic or incomplete case.
+authority escalation. A separate prospective product loop derived a 4,032-node
+map from an exact compact repository, selected its first Target, retained and
+verified the resulting bounded Run, accepted the exact bounded Claim through a
+human Decision, clean-clone replayed the transition, and rebuilt a read-only
+candidate map. The map cardinality did not change, while the Claim Standing,
+repository root, graph roots, and projection root changed exactly. The Target
+packet did not advance and still names the completed range, so the candidate
+was not activated. The evidence does not support the full registered protocol
+claim or a complete automatic handoff. This draft reports the failed
+inheritance gate and stale-Target defect rather than hiding either behind a
+successful Decision.
 
 ## 1. Introduction
 
@@ -561,13 +565,38 @@ read projection but not activated. The exact checkpoint bytes are retained at
 `paper/artifacts/map-target-loop/post-verification-map.v1.json`, root
 `sha256:439a804908890e4029922cc91cdd0a79122187d573530fc760a419d90786be21`.
 
-The Proposal remains `pending_review`. A source-only materializer refuses to
-run until a terminal human Decision exists, then requires one exact Decision
-commit, authority-event coverage, strict and fresh-clone replay, and a dry-run
-remap. It cannot invoke a Decision, push Git, activate the read model, read a
-human key, or mutate a Frontier. This is a verified partial product loop, not
-evidence that a Decision occurred or that the map improves cold-user
-performance.
+The human accepted the exact bounded Claim. Decision Event
+`vev_51abc098046d3423`, root
+`sha256:fb48df2660288285a8dd838e94e1969cef6da95a13a9f7b483641c7f54d1006e`,
+references applied semantic Event `vev_7fa17589c00dd62b` and is covered by
+authority record `var_ac64e1806e2a18b0`, root
+`sha256:769e2812ed6798f023152b9ff8370069a574670fc08f2062e3e7f7bea6d05504`.
+The exact Decision commit
+`80606bdccb51fa86524111a1a61876bb08e45d79` clean-clone replays at repository
+root
+`sha256:9679827bc76de9f6433bfafa8e2e966b9780ca1273c7948d97c2ae042f5cab1a`.
+One Claim moved from pending review to accepted; Verification alone changed no
+Standing.
+
+The source-only materializer then required that one exact Decision commit,
+physical authority-event coverage, semantic applied-event identity, strict and
+fresh-clone replay, and a dry-run remap. It produced candidate release
+`sha256:d0fc41a9e2d37b798975caa5b7f06a78e674e9da7e42b27f89685b6841558ff6`,
+graph source
+`sha256:d22eddc7b486907204fc8197c4861e089808523c2993f3864ea1a46f8465cfcc`,
+4,032 nodes, and 2,528 edges. Exact terminal evidence is retained at
+`paper/artifacts/map-target-loop/post-decision.v1.json`, root
+`sha256:b29e8cbb50aff3cc81a4ac6f4cf261b9a3ca9d80dbe69614d9a771116d80151c`.
+The materializer cannot invoke a Decision, push Git, activate the read model,
+read a human key, or mutate a Frontier.
+
+The loop did not produce a safe next handoff. The first offer still binds
+packet root
+`sha256:6d1a2ca87851deb1fa2133f4f6cf7edb28ee843cb0eef57ea09e826b3fdca63b`
+for the completed range. The candidate remains inactive; this stale Target is
+a product defect, not fresh work. The complete Decision-to-remap transition is
+therefore positive integrity evidence but not evidence of cold-user lift or
+automatic target progression.
 
 ### 6.6 Removability qualification
 

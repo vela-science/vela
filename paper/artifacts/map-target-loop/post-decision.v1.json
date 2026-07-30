@@ -1,0 +1,218 @@
+{
+  "decision": {
+    "action": "accept",
+    "actor": "local:device-sha256:67fbb8e56377e6868e9f941524e0bf39cfb4fd2a4bfdd25c2edb93fc82f86213|uid:501",
+    "applied_event_id": "vev_7fa17589c00dd62b",
+    "authentication": {
+      "assurance": "local_session",
+      "authenticated_at": "2026-07-30T05:26:49Z",
+      "expires_at": "2026-07-30T06:26:49Z",
+      "issuer": "device-sha256:67fbb8e56377e6868e9f941524e0bf39cfb4fd2a4bfdd25c2edb93fc82f86213",
+      "method": "local_os_session",
+      "observed_at": "2026-07-30T05:26:49Z",
+      "principal_class": "human",
+      "principal_id": "local:device-sha256:67fbb8e56377e6868e9f941524e0bf39cfb4fd2a4bfdd25c2edb93fc82f86213|uid:501",
+      "recovery_recent": false,
+      "revocation_ref": null,
+      "schema": "vela.authentication-observation.v1",
+      "session_root": "sha256:f9fce8466363de3baf1a70fe7b9dbad97f7e620355cc06bec9065729d8b8248d",
+      "subject": "uid:501",
+      "user_presence": false,
+      "user_verification": false
+    },
+    "authority_record_id": "var_ac64e1806e2a18b0",
+    "authority_record_path": ".vela/authority/records/var_ac64e1806e2a18b0.dsse.json",
+    "authority_record_root": "sha256:769e2812ed6798f023152b9ff8370069a574670fc08f2062e3e7f7bea6d05504",
+    "decided_at": "2026-07-30T05:26:49Z",
+    "event_id": "vev_51abc098046d3423",
+    "event_root": "sha256:fb48df2660288285a8dd838e94e1969cef6da95a13a9f7b483641c7f54d1006e",
+    "events": [
+      {
+        "event_id": "vev_51abc098046d3423",
+        "event_root": "sha256:fb48df2660288285a8dd838e94e1969cef6da95a13a9f7b483641c7f54d1006e",
+        "kind": "review.accepted",
+        "path": ".vela/authority/events/vev_51abc098046d3423.json",
+        "semantic_event_id": "vev_dc7760ea1b606752"
+      },
+      {
+        "event_id": "vev_9441e9680fc2beee",
+        "event_root": "sha256:d0d8c70b2a35a87591fe3f29712ab878698d24266df895f7294f7d723c09c6d9",
+        "kind": "finding.asserted",
+        "path": ".vela/authority/events/vev_9441e9680fc2beee.json",
+        "semantic_event_id": "vev_7fa17589c00dd62b"
+      }
+    ],
+    "operation_id": "vop_004cbbb125536ad2f80df5d34261a43c1a69ece4befeb0297334755342cb115f",
+    "reason": "Accept the exact bounded computational Claim because Verification vvr_eb80b766c730513b reproduced the retained Run for all 14 primes in 10429401..10429600 and byte-matched the declared artifact, including maximum multiplicity 11 at p=10429427, residue 3828577. This Decision is limited to the retained range, algorithm, artifacts, packet, and verifier capsule; it does not establish universal nonexistence, novelty, significance, or resolve Erdős problem 1056.",
+    "standing": "accepted",
+    "transaction_id": "vtx_6b45dac5a072a81ad7750947d71f2e6fa767acfca718d374fd10aa23bc644c1f"
+  },
+  "frontier": {
+    "after_commit": "80606bdccb51fa86524111a1a61876bb08e45d79",
+    "after_repository_root": "sha256:9679827bc76de9f6433bfafa8e2e966b9780ca1273c7948d97c2ae042f5cab1a",
+    "after_tree": "fd233bf5ef27196dab3eaef5d4c664ed56f8ed92",
+    "before_commit": "606f2f4b50193b1feccf1df4e1f31d50d3a8dd99",
+    "before_repository_root": "sha256:8b1c2bbc99b9e9aade2bfb56d3493be02cdad954eefa3cd98a14ac41128ae0d4",
+    "changed_paths": [
+      {
+        "change": "A",
+        "path": ".vela/authority/events/vev_51abc098046d3423.json"
+      },
+      {
+        "change": "A",
+        "path": ".vela/authority/events/vev_9441e9680fc2beee.json"
+      },
+      {
+        "change": "A",
+        "path": ".vela/authority/records/var_ac64e1806e2a18b0.dsse.json"
+      },
+      {
+        "change": "M",
+        "path": ".vela/repository.json"
+      },
+      {
+        "change": "M",
+        "path": "targets.json"
+      }
+    ],
+    "clean_clone_replay": "pass",
+    "frontier_id": "vfr_0a25edabc16db143"
+  },
+  "map": {
+    "implementation_commit": "6a4ae82442d396b053a1fbb8d804d1349e0e5747",
+    "layout_authoritative": false,
+    "post_decision": {
+      "claim_count": 2772,
+      "graph_edge_count": 2528,
+      "graph_layout_root": "sha256:7ef6b26d3bb0cf722e8b063b5b7b0457908854d2c7b2ed3bae2b8ac55111cc72",
+      "graph_node_count": 4032,
+      "graph_source_root": "sha256:d22eddc7b486907204fc8197c4861e089808523c2993f3864ea1a46f8465cfcc",
+      "problem_count": 1217,
+      "release_root": "sha256:d0fc41a9e2d37b798975caa5b7f06a78e674e9da7e42b27f89685b6841558ff6",
+      "schema": "vela.observatory-release-manifest.v6",
+      "verification_count": 1
+    },
+    "post_verification": {
+      "accepted_claim_count": 2771,
+      "accepted_review_count": 0,
+      "authority_keyset_root": "sha256:c4a88730dead6074cce49cce6649b23874dfed41c598815852f62ca65741f328",
+      "authority_policy_root": "sha256:3c0743077d051b5a84e932dcfe6fc4e764fe39738a3040aebdc11276f53ee83f",
+      "claim_count": 2772,
+      "commit": "606f2f4b50193b1feccf1df4e1f31d50d3a8dd99",
+      "graph_edge_count": 2528,
+      "graph_finding_count": 2772,
+      "graph_layout_root": "sha256:bf814ada27a2ed0ffe17af7cfa5f52751357042bc76912b087815cf5a3e46eea",
+      "graph_node_count": 4032,
+      "graph_source_root": "sha256:51e69b4d883f89c38b590ac8750753834f96f5abd073cba8ca87bddad7dbb659",
+      "origin_id": "vro_49a273efaa690e56",
+      "origin_root": "sha256:49969ef6059e636718da4f5b7d200ef421ed17fc60b8e490d493ea71f7b2f77d",
+      "pending_claim_count": 1,
+      "pending_review_count": 1,
+      "problem_count": 1217,
+      "rejected_review_count": 0,
+      "repository_root": "sha256:8b1c2bbc99b9e9aade2bfb56d3493be02cdad954eefa3cd98a14ac41128ae0d4",
+      "review_count": 1,
+      "slug": "erdos",
+      "tree": "79c190d8f6fe899185494b52541b5df6d7677d41",
+      "verification_count": 1
+    },
+    "pre_run": {
+      "claim_count": 2771,
+      "edge_count": 2524,
+      "implementation_commit": "834598bf",
+      "implementation_repository": "https://github.com/vela-science/vela-web",
+      "layout_authoritative": false,
+      "layout_root": "sha256:d2a2120d331059f1ce4173c506f703c84186b89e5fb73f19fe1c337e2e3cdd57",
+      "node_count": 4027,
+      "problem_count": 1217,
+      "source_root": "sha256:a6d6d50d56a0c9c2955716998a2adc8387661e0772891fdad56af7434bb15e51",
+      "source_schema": "site.frontier-graph-source.v3"
+    }
+  },
+  "nonclaims": [
+    "The map and its layout are non-authoritative read projections.",
+    "Verification passage did not itself change scientific Standing.",
+    "The human Decision applies only to the exact bounded Claim and retained evidence.",
+    "No bounded result in this loop resolves Erdős problem 1056 or establishes universal nonexistence.",
+    "An unchanged Target packet after the Decision is recorded as a product defect, not silently treated as fresh work.",
+    "This materializer did not invoke authority, push Git, activate Neon, or mutate a Frontier."
+  ],
+  "recorded_at": "2026-07-30T05:26:49Z",
+  "released_vela": {
+    "binary_platform": "macos-aarch64",
+    "binary_sha256": "sha256:e9bc81e1bb735ade94a529253bec96ea6a8c5618a524c0e4b3e53c5846e8535e",
+    "github_attestation": "verified",
+    "release_commit": "2fafd652c501cfd6be16f24cc13d6e173eccd58a",
+    "release_tag": "v0.950.1",
+    "version": "0.950.1"
+  },
+  "root_delta": {
+    "changed": [
+      {
+        "after": "sha256:9679827bc76de9f6433bfafa8e2e966b9780ca1273c7948d97c2ae042f5cab1a",
+        "before": "sha256:8b1c2bbc99b9e9aade2bfb56d3493be02cdad954eefa3cd98a14ac41128ae0d4",
+        "name": "repository"
+      },
+      {
+        "after": "sha256:d22eddc7b486907204fc8197c4861e089808523c2993f3864ea1a46f8465cfcc",
+        "before": "sha256:51e69b4d883f89c38b590ac8750753834f96f5abd073cba8ca87bddad7dbb659",
+        "name": "graph_source"
+      },
+      {
+        "after": "sha256:7ef6b26d3bb0cf722e8b063b5b7b0457908854d2c7b2ed3bae2b8ac55111cc72",
+        "before": "sha256:bf814ada27a2ed0ffe17af7cfa5f52751357042bc76912b087815cf5a3e46eea",
+        "name": "graph_layout"
+      },
+      {
+        "after": "sha256:d0fc41a9e2d37b798975caa5b7f06a78e674e9da7e42b27f89685b6841558ff6",
+        "before": "sha256:fb2665dfaac61f4ba61d11cd4e7ea65421168bb292bf5f7a840ce3207599af02",
+        "name": "projection_release"
+      }
+    ],
+    "unchanged": [
+      {
+        "after": "sha256:49969ef6059e636718da4f5b7d200ef421ed17fc60b8e490d493ea71f7b2f77d",
+        "before": "sha256:49969ef6059e636718da4f5b7d200ef421ed17fc60b8e490d493ea71f7b2f77d",
+        "name": "origin"
+      },
+      {
+        "after": "sha256:c4a88730dead6074cce49cce6649b23874dfed41c598815852f62ca65741f328",
+        "before": "sha256:c4a88730dead6074cce49cce6649b23874dfed41c598815852f62ca65741f328",
+        "name": "authority_keyset"
+      },
+      {
+        "after": "sha256:3c0743077d051b5a84e932dcfe6fc4e764fe39738a3040aebdc11276f53ee83f",
+        "before": "sha256:3c0743077d051b5a84e932dcfe6fc4e764fe39738a3040aebdc11276f53ee83f",
+        "name": "authority_policy"
+      }
+    ]
+  },
+  "schema": "vela.map-target-loop-post-decision.v1",
+  "semantic_delta": {
+    "accepted_claim_count_delta": 1,
+    "accepted_review_count_delta": 1,
+    "claim_id": "vcl_5c740ebb758107f25179b096d9e1b680d0bc62186eb276c8b907a2c1226fd979",
+    "claim_standing_after": "accepted",
+    "claim_standing_before": "pending_review",
+    "first_target_after": {
+      "packet_root": "sha256:6d1a2ca87851deb1fa2133f4f6cf7edb28ee843cb0eef57ea09e826b3fdca63b",
+      "rank": 1,
+      "target_id": "erdos:1056",
+      "target_index_root": "sha256:e5a0c40cfcc6817215ae2fd81b2f4ae64cf1dcab74c1cb4d861baac11788aa8d"
+    },
+    "first_target_before": {
+      "packet_root": "sha256:6d1a2ca87851deb1fa2133f4f6cf7edb28ee843cb0eef57ea09e826b3fdca63b",
+      "rank": 1,
+      "target_id": "erdos:1056",
+      "target_index_root": "sha256:2e77609a3ce670abd1bf653a19c40d585f8f87d54ef6f21724b7b99470571372"
+    },
+    "graph_edge_count_delta": 0,
+    "graph_node_count_delta": 0,
+    "next_action": "curate a new non-overlapping Target packet before another Run",
+    "next_target_packet_advanced": false,
+    "pending_claim_count_delta": -1,
+    "pending_review_count_delta": -1,
+    "rejected_review_count_delta": 0
+  },
+  "status": "terminal_decision_replayed_and_remapped"
+}

@@ -791,6 +791,7 @@ def materialize(
         "target_index_root": pre["target"]["target_index_root"],
         "packet_root": pre["target"]["packet_sha256"],
     }
+    target_packet_advanced = offer["packet_root"] != target_before["packet_root"]
     return {
         "schema": "vela.map-target-loop-post-decision.v1",
         "status": "terminal_decision_replayed_and_remapped",
@@ -827,6 +828,12 @@ def materialize(
             ),
             "first_target_before": target_before,
             "first_target_after": offer,
+            "next_target_packet_advanced": target_packet_advanced,
+            "next_action": (
+                "inspect the advanced exact Target packet"
+                if target_packet_advanced
+                else "curate a new non-overlapping Target packet before another Run"
+            ),
         },
         "root_delta": root_delta(checkpoint, status, projection),
         "nonclaims": [
@@ -834,6 +841,7 @@ def materialize(
             "Verification passage did not itself change scientific Standing.",
             "The human Decision applies only to the exact bounded Claim and retained evidence.",
             "No bounded result in this loop resolves Erdős problem 1056 or establishes universal nonexistence.",
+            "An unchanged Target packet after the Decision is recorded as a product defect, not silently treated as fresh work.",
             "This materializer did not invoke authority, push Git, activate Neon, or mutate a Frontier.",
         ],
     }
