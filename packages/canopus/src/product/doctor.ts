@@ -138,6 +138,22 @@ export function selectProductOffer(
       `${profile.target}; Canopus will not skip rank 1, so freeze a verifier profile for ${targetId} before running`,
     );
   }
+  const packet = objectAt(target.packet, "vela next target packet");
+  const packetSchema = stringAt(packet.schema, "vela next target packet schema", {
+    min: 1,
+    max: 128,
+  });
+  const packetRoot = sha256At(packet.sha256, "vela next target packet root");
+  if (
+    packetSchema !== profile.target_packet_schema ||
+    packetRoot !== profile.target_packet_sha256
+  ) {
+    throw new Error(
+      `registered profile ${profile.name} is stale for ${targetId}: expected packet ` +
+      `${profile.target_packet_schema} ${profile.target_packet_sha256}, observed ` +
+      `${packetSchema} ${packetRoot}; freeze a new exact profile before running`,
+    );
+  }
   return {
     target,
     targetId,

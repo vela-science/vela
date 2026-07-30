@@ -40,6 +40,7 @@ export interface ProductProfile {
   name: string;
   target: string;
   target_packet_schema: string;
+  target_packet_sha256: string;
   draft: string;
   draft_sha256: string;
   objective_sha256: string;
@@ -163,6 +164,7 @@ function parseV2(
       "name",
       "target",
       "target_packet_schema",
+      "target_packet_sha256",
       "draft",
       "draft_sha256",
       "objective_sha256",
@@ -219,6 +221,10 @@ function parseV2(
       min: 1,
       max: 128,
     }),
+    target_packet_sha256: sha256At(
+      value.target_packet_sha256,
+      "profile.target_packet_sha256",
+    ),
     draft: relativePathAt(value.draft, "profile.draft"),
     draft_sha256: sha256At(value.draft_sha256, "profile.draft_sha256"),
     objective_sha256: sha256At(value.objective_sha256, "profile.objective_sha256"),

@@ -28,8 +28,8 @@ test("published Canopus is one inert product with one authority-free protocol de
   assert.equal(manifest.bin?.canopus, "dist/src/cli.js");
   assert.equal(manifest.engines?.node, ">=22 <23 || >=24 <25");
   for (const capsule of [
-    "capsules/erdos1056-k15/bin/linux-arm64/10429201-10429400/verifier",
-    "capsules/erdos1056-k15/bin/linux-x86_64/10429201-10429400/verifier",
+    "capsules/erdos1056-k15/bin/linux-arm64/10429401-10429600/verifier",
+    "capsules/erdos1056-k15/bin/linux-x86_64/10429401-10429600/verifier",
     "capsules/formal-erdos-505-test-dim-one/verifier",
   ]) {
     assert.equal(manifest.files?.includes(capsule), true, `${capsule} must ship in the tarball`);

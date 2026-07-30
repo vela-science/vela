@@ -1,0 +1,88 @@
+{
+  "schema": "vela.map-target-loop-pre-run.v1",
+  "status": "frozen",
+  "frozen_at": "2026-07-30T01:59:47Z",
+  "objective": "Run the first exact bounded producer target derived from the compact current Erdős repository, verify the retained result, leave accepted state unchanged until a separate human Decision, and compare the remapped state with this frozen baseline.",
+  "vela": {
+    "version": "0.950.0",
+    "release_tag": "v0.950.0",
+    "release_commit": "1e92da5078b9402b608f2ac5b77601014d642340",
+    "binary_platform": "macos-aarch64",
+    "binary_sha256": "sha256:8b317500e694168325975bc992d881240a3842d075e1d6a40f3c2043b80697fc"
+  },
+  "frontier": {
+    "repository": "https://github.com/vela-science/erdos-frontier",
+    "commit": "43c7a1418ccd16c304a3c9c0e62ba0ead26d06ab",
+    "tree": "bf2efb827bcaafe45feef1b26d95896467833972",
+    "frontier_id": "vfr_0a25edabc16db143",
+    "origin_root": "sha256:49969ef6059e636718da4f5b7d200ef421ed17fc60b8e490d493ea71f7b2f77d",
+    "repository_root": "sha256:8a98ff1c632232c7b227d87a0f1015aaa3429d38c83592ca66f8e465b06b0ee5",
+    "strict_replay": "pass",
+    "claim_count": 2771,
+    "artifact_count": 34,
+    "pending_review_count": 0
+  },
+  "map": {
+    "implementation_repository": "https://github.com/vela-science/vela-web",
+    "implementation_commit": "834598bf",
+    "source_schema": "site.frontier-graph-source.v3",
+    "source_root": "sha256:a6d6d50d56a0c9c2955716998a2adc8387661e0772891fdad56af7434bb15e51",
+    "layout_root": "sha256:d2a2120d331059f1ce4173c506f703c84186b89e5fb73f19fe1c337e2e3cdd57",
+    "node_count": 4027,
+    "edge_count": 2524,
+    "problem_count": 1217,
+    "claim_count": 2771,
+    "layout_authoritative": false
+  },
+  "target": {
+    "rank": 1,
+    "target_id": "erdos:1056",
+    "target_index_root": "sha256:2e77609a3ce670abd1bf653a19c40d585f8f87d54ef6f21724b7b99470571372",
+    "target_index_file_sha256": "sha256:3007dfc6b18fa279c040e169a6b4592419f57353b723eec62b46a2e1de4589cd",
+    "packet_schema": "erdos-frontier.problem-work.v2",
+    "packet_path": "targets/erdos-1056.json",
+    "packet_sha256": "sha256:6d1a2ca87851deb1fa2133f4f6cf7edb28ee843cb0eef57ea09e826b3fdca63b",
+    "range": {
+      "first": 10429401,
+      "last": 10429600,
+      "inclusive": true
+    },
+    "accepted_state_change_before_decision": "none"
+  },
+  "coverage_audit": {
+    "accepted_predecessor_claim_id": "vcl_d65fa34573c0a57dff8959ed6b4227999cc03e07fad5f2be9bef184677a7ef8a",
+    "accepted_predecessor_claim_root": "sha256:984621a2a8111c79d87922dfa06d78f44fb92a50f9942f49d7ea45dbafd91322",
+    "accepted_predecessor_artifact_root": "sha256:05fe0c9d4fcee762ca2fe9047fcafb49deaa40e8ef2ea41a055fff98e7e4fb80",
+    "accepted_predecessor_range": {
+      "first": 10429201,
+      "last": 10429400,
+      "inclusive": true
+    },
+    "next_range_starts_at_predecessor_last_plus_one": true,
+    "current_accepted_claims_matching_next_range": 0,
+    "duplicate_range_forbidden": true
+  },
+  "producer_profile": {
+    "name": "erdos1056-k15-10429401-10429600",
+    "schema": "canopus.profile.v2",
+    "profile_sha256": "sha256:bda4ba889fe4ac3c0866037a92734e7507ca133ec377971435a2decca337fdf8",
+    "mission_draft_sha256": "sha256:bd96431f07f77d214d9e98996aae2aed126784db94e6832064fa0b3411360dd4",
+    "darwin_arm64_capsule_sha256": "sha256:70baf5baaa44a5a955aea189b0c1393dca11d0731ca32537366460c697e5a255",
+    "linux_x86_64_capsule_sha256": "sha256:68f64c3dc4bc55e98927f65ba509e5c571944239337864bbf631546ac259cdf4",
+    "landing_route": "defer",
+    "max_accepted_delta": 0
+  },
+  "stop_conditions": [
+    "The current repository, map, target index, packet, profile, binary, or capsule root drifts.",
+    "The range duplicates accepted current coverage.",
+    "The worker or verifier escapes its bounded custody.",
+    "A verifier result is presented as scientific acceptance.",
+    "Canopus or an agent attempts a human Decision."
+  ],
+  "nonclaims": [
+    "Graph position or target rank implies scientific authority.",
+    "A bounded negative result establishes universal nonexistence.",
+    "Verifier success resolves Erdős problem 1056.",
+    "This first-party loop establishes external adoption or measured lift."
+  ]
+}

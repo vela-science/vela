@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Advance the single active Erdős profile to the current compact-repository
+  packet and exact range `10429401..10429600`. Profiles now bind the full
+  Target packet root as well as its schema, so reusing a target ID with
+  different bytes fails before output creation or model execution. Completed
+  Runs remain replayable from their self-contained Mission bundles.
 - Compose against the exact attested Vela `0.950.0` archives and current
   `vela.repository-verification.v2` origin contract. Remove Canopus's stale
   predecessor-epoch parser assumption; the released-binary integration now

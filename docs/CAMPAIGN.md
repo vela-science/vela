@@ -468,10 +468,10 @@ not copied into this product repository.
 | TypeScript protocol | `@vela-science/protocol@0.1.0`, owned by this monorepo |
 | Canopus | `@vela-science/canopus@0.8.0`, owned by `packages/canopus` with unsquashed source history |
 | Erdős Frontier | strict replay and clean-clone reproduction pass at `81e79f008b4fc653888efda810dd8eb48e50cffa`; 2,771 accepted Claims and 34 exact Artifacts are indexed by repository root `sha256:8a98ff1c632232c7b227d87a0f1015aaa3429d38c83592ca66f8e465b06b0ee5` |
-| Formal Frontier | strict replay and clean-clone reproduction pass at `1ea018d2f5be93325c4e3c7f9b5d82d33e5ba142`; 14 accepted Claims and 3 exact Artifacts are indexed by repository root `sha256:323269c21ce66b1521d00987ddba2442d69eacfb38bd67d1eb7a96e7644516ca`; the pre-compaction pending Submission remains in the predecessor and must be resubmitted if still useful |
+| Formal Frontier | strict replay and clean-clone reproduction pass at `dfaf16f96a4b4f520bd43aa129b0be91beac359b`, repository root `sha256:5e59e05a5639ac0ec4331ec40fec9f50229b795a1a08d983ba96834d4777b58a`; 14 Claims are accepted, 2 exact Submissions remain pending, 4 Artifacts are retained, and scoped cross-Frontier Verification `vvr_ebc29eae4f5f4edf` changes no accepted state |
 | Sidon Frontier | strict replay passes at `ec45b155355769b427f5486c617aad4f68b6ee19`, repository root `sha256:d047416cce0e569145ae38ae73b8a92102d5c5f63bb46602dff80398cada9a0d` |
 | Quantum Frontier | strict replay passes at `6bc3bacc78942d7d36df60794a211d4a4d750aa3`, repository root `sha256:22a0ef52195d713ddc68c271c5a29de51b54e9b62280103f8acb3f3bcd6b8f1b` |
-| Web | read-only clean-clone checks and projection-bound build pass at `bdb10ed92edba5ea1a0e75d44bfb457e0b806f5f`; no web-code release is required by the current campaign |
+| Web | compact-repository map derivation, focused tests, typecheck, lint, and exact four-Frontier dry run pass at `834598bf`; production activation remains gated on additive Neon migration approval, and no web-code release is required before that exact projection is verified |
 
 The Canopus release is independently identifiable rather than inferred from
 the workspace version. Tag `product-v0.8.0` resolves to
@@ -600,8 +600,42 @@ The first campaign loop is terminal and replayed:
 - accepted-event delta remained zero until the authorized Decision;
 - the Decision is explicitly bounded and does not resolve Erdős problem 1056.
 
-The current Erdős repository has 2,771 accepted Claims, one accepted review,
-one rejected review, no pending review, strict replay, and zero blockers.
+The compact current Erdős repository has 2,771 accepted Claims, no current
+Proposal or review rows, strict replay, and zero blockers. The accepted and
+rejected pre-compaction Decisions remain retained through the signed
+repository origin rather than being copied into current state.
+
+### Frozen live remap baseline
+
+The next map-to-target loop is frozen before a model call in
+`paper/artifacts/map-target-loop/pre-run.v1.json`, byte root
+`sha256:e0a517d543ce448917f6baa1a620727431caa53b0590f247bbf3fe9f5c3ed6d6`.
+It binds released Vela `0.950.0`, Erdős commit
+`43c7a1418ccd16c304a3c9c0e62ba0ead26d06ab`, repository root
+`sha256:8a98ff1c632232c7b227d87a0f1015aaa3429d38c83592ca66f8e465b06b0ee5`,
+and the compact-repository-derived map:
+
+- source root
+  `sha256:a6d6d50d56a0c9c2955716998a2adc8387661e0772891fdad56af7434bb15e51`;
+- layout root
+  `sha256:d2a2120d331059f1ce4173c506f703c84186b89e5fb73f19fe1c337e2e3cdd57`;
+- 4,027 nodes, 2,524 edges, 1,217 problems, and 2,771 Claims.
+
+The layout is explicitly non-authoritative. The source map contains current
+Claims, exact Claim relations, retained Artifacts, Proposal records, canonical
+problem records, and explicit historical-reference stubs. It no longer treats
+the stale pre-compaction activity snapshot or a 12-item ranking as graph
+membership.
+
+The first Target is `erdos:1056` at packet root
+`sha256:6d1a2ca87851deb1fa2133f4f6cf7edb28ee843cb0eef57ea09e826b3fdca63b`.
+Its exact inclusive range `10429401..10429600` begins immediately after the
+accepted `10429201..10429400` range, and no current accepted Claim contains the
+new range. The active Canopus profile now binds that packet root and both
+platform verifier capsules. Discovery fails closed if a later packet reuses
+the same target ID with different bytes. Completed Runs retain their own
+Mission and capsule, so advancing this single runnable profile does not weaken
+historical replay.
 
 ## Completed registered framework-neutral evaluation
 
