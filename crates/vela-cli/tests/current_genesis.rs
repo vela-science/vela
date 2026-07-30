@@ -741,8 +741,8 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert_eq!(status["integrity"]["strict"], "pass");
     assert_eq!(status["campaign"]["active_attempt_count"], 0);
     assert_eq!(status["decision_inbox"]["pending_count"], 1);
-    assert_eq!(status["decision_inbox"]["ready_count"], 1);
-    assert_eq!(status["decision_inbox"]["blocked_count"], 0);
+    assert_eq!(status["decision_inbox"]["protocol_ready_count"], 1);
+    assert_eq!(status["decision_inbox"]["protocol_blocked_count"], 0);
     assert!(
         status["decision_inbox"]["projection_root"]
             .as_str()
