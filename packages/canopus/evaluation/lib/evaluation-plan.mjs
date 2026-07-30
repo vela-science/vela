@@ -3,7 +3,8 @@ import { constants } from "node:fs";
 import { access, lstat, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 
-export const EVALUATION_PLAN_SCHEMA = "canopus.evaluation-plan.v1";
+export const LEGACY_EVALUATION_PLAN_SCHEMA = "canopus.evaluation-plan.v1";
+export const EVALUATION_PLAN_SCHEMA = "canopus.evaluation-plan.v2";
 export const EVALUATION_ARM_RESULT_SCHEMA = "canopus.evaluation-arm-result.v1";
 export const EVALUATION_RUN_SCHEMA = "canopus.evaluation-run.v1";
 export const EVALUATION_REPORT_SCHEMA = "canopus.evaluation-report.v1";
@@ -117,18 +118,20 @@ function parseIdentity(value, at) {
   };
 }
 
-function parseTask(value, at) {
+function parseTask(value, at, requireAnswerAccess = false) {
   const item = object(value, at);
+  const required = [
+    "id", "class", "source", "source_path", "source_root", "packet_path", "packet_root",
+    "verifier_path", "verifier_root", "verifier_runtime", "verifier_runtime_root",
+    "verifier_args", "verifier_resources", "artifact_path",
+    "max_artifact_bytes", "license", "cpu_only", "network",
+    "max_wall_time_ms", "max_observed_tokens",
+  ];
+  if (requireAnswerAccess) required.push("answer_access");
   exactKeys(
     item,
-    [
-      "id", "class", "source", "source_path", "source_root", "packet_path", "packet_root",
-      "verifier_path", "verifier_root", "verifier_runtime", "verifier_runtime_root",
-      "verifier_args", "verifier_resources", "artifact_path",
-      "max_artifact_bytes", "license", "cpu_only", "network",
-      "max_wall_time_ms", "max_observed_tokens",
-    ],
-    [],
+    required,
+    requireAnswerAccess ? [] : ["answer_access"],
     at,
   );
   if (!["math", "scientific_computing"].includes(item.class)) {
@@ -136,6 +139,12 @@ function parseTask(value, at) {
   }
   if (item.cpu_only !== true || item.network !== "deny") {
     throw new Error(`${at} must be CPU-only and network-denied`);
+  }
+  if (
+    item.answer_access !== undefined &&
+    !["held_out", "publicly_visible"].includes(item.answer_access)
+  ) {
+    throw new Error(`${at}.answer_access is unsupported`);
   }
   const verifierResources = array(
     item.verifier_resources,
@@ -236,6 +245,9 @@ function parseTask(value, at) {
       1,
       2_000_000,
     ),
+    ...(item.answer_access === undefined
+      ? {}
+      : { answer_access: item.answer_access }),
   };
 }
 
@@ -348,6 +360,147 @@ function parseAssignment(value, at) {
   };
 }
 
+function parseEvaluationMatrix(value, at) {
+  const item = object(value, at);
+  exactKeys(
+    item,
+    ["stage", "purpose", "task_ids", "arm_ids", "repetitions"],
+    [],
+    at,
+  );
+  if (!["A", "B", "C"].includes(item.stage)) {
+    throw new Error(`${at}.stage is unsupported`);
+  }
+  if (
+    !["confirmatory_generation", "reproduction", "scorer_calibration"]
+      .includes(item.purpose)
+  ) {
+    throw new Error(`${at}.purpose is unsupported`);
+  }
+  const taskIds = array(
+    item.task_ids,
+    `${at}.task_ids`,
+    1,
+    8,
+    (entry, entryAt) => text(entry, entryAt, 256),
+  );
+  const armIds = array(
+    item.arm_ids,
+    `${at}.arm_ids`,
+    1,
+    8,
+    (entry, entryAt) => text(entry, entryAt, 128),
+  );
+  const repetitions = array(
+    item.repetitions,
+    `${at}.repetitions`,
+    1,
+    16,
+    (entry, entryAt) => integer(entry, entryAt, 1, 16),
+  );
+  if (new Set(taskIds).size !== taskIds.length) {
+    throw new Error(`${at}.task_ids contains duplicates`);
+  }
+  if (new Set(armIds).size !== armIds.length) {
+    throw new Error(`${at}.arm_ids contains duplicates`);
+  }
+  if (new Set(repetitions).size !== repetitions.length) {
+    throw new Error(`${at}.repetitions contains duplicates`);
+  }
+  return {
+    stage: item.stage,
+    purpose: item.purpose,
+    task_ids: taskIds,
+    arm_ids: armIds,
+    repetitions,
+  };
+}
+
+function validatePlanDrivenMatrices(matrices, tasks, arms, assignments) {
+  if (new Set(matrices.map((matrix) => matrix.stage)).size !== matrices.length) {
+    throw new Error("plan.matrices contains duplicate stages");
+  }
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
+  const taskIds = new Set(tasks.map((task) => task.id));
+  const armIds = new Set(arms.map((arm) => arm.id));
+  const assignedStages = new Set(assignments.map((assignment) => assignment.stage));
+  const matrixStages = new Set(matrices.map((matrix) => matrix.stage));
+  if (
+    assignedStages.size !== matrixStages.size ||
+    [...assignedStages].some((stage) => !matrixStages.has(stage))
+  ) {
+    throw new Error("plan.matrices must declare every assigned stage exactly once");
+  }
+
+  const referencedTasks = new Set();
+  const referencedArms = new Set();
+  for (const matrix of matrices) {
+    for (const taskId of matrix.task_ids) {
+      if (!taskIds.has(taskId)) {
+        throw new Error(`matrix ${matrix.stage} names unknown task ${taskId}`);
+      }
+      referencedTasks.add(taskId);
+      if (
+        matrix.purpose === "confirmatory_generation" &&
+        taskById.get(taskId).answer_access !== "held_out"
+      ) {
+        throw new Error(
+          `confirmatory matrix ${matrix.stage} requires held-out task ${taskId}`,
+        );
+      }
+    }
+    for (const armId of matrix.arm_ids) {
+      if (!armIds.has(armId)) {
+        throw new Error(`matrix ${matrix.stage} names unknown arm ${armId}`);
+      }
+      referencedArms.add(armId);
+    }
+    if (
+      matrix.purpose === "confirmatory_generation" &&
+      (matrix.arm_ids.length < 2 || matrix.repetitions.length < 2)
+    ) {
+      throw new Error(
+        `confirmatory matrix ${matrix.stage} requires at least two arms and repetitions`,
+      );
+    }
+    const stageAssignments = assignments.filter(
+      (assignment) => assignment.stage === matrix.stage,
+    );
+    const expected = new Set(
+      matrix.task_ids.flatMap((taskId) =>
+        matrix.arm_ids.flatMap((armId) =>
+          matrix.repetitions.map(
+            (repetition) => `${taskId}/${armId}/${String(repetition)}`,
+          ))),
+    );
+    const observed = new Set(stageAssignments.map((assignment) => [
+      assignment.task_id,
+      assignment.arm_id,
+      assignment.repetition,
+    ].join("/")));
+    if (
+      expected.size !== observed.size ||
+      [...expected].some((tuple) => !observed.has(tuple))
+    ) {
+      throw new Error(
+        `assignments do not exactly cover the registered Stage ${matrix.stage} matrix`,
+      );
+    }
+  }
+  if (
+    referencedTasks.size !== taskIds.size ||
+    [...taskIds].some((taskId) => !referencedTasks.has(taskId))
+  ) {
+    throw new Error("plan.tasks contains entries absent from plan.matrices");
+  }
+  if (
+    referencedArms.size !== armIds.size ||
+    [...armIds].some((armId) => !referencedArms.has(armId))
+  ) {
+    throw new Error("plan.arms contains entries absent from plan.matrices");
+  }
+}
+
 function parseUsage(value, at) {
   const usage = object(value, at);
   exactKeys(
@@ -406,6 +559,10 @@ export function parseEvaluationArmResult(value) {
 
 export function parseEvaluationPlan(value) {
   const plan = object(value, "plan");
+  const schema = plan.schema;
+  if (![LEGACY_EVALUATION_PLAN_SCHEMA, EVALUATION_PLAN_SCHEMA].includes(schema)) {
+    throw new Error("plan.schema is unsupported");
+  }
   exactKeys(
     plan,
     [
@@ -413,12 +570,12 @@ export function parseEvaluationPlan(value) {
       "tasks", "arms", "assignments", "budgets", "retry_policy",
       "stopping_rules", "scorers", "performance_functions", "exclusions",
       "custody", "publication",
+      ...(schema === EVALUATION_PLAN_SCHEMA ? ["matrices"] : []),
       "amends_root", "amendment_reason", "plan_root",
     ],
     [],
     "plan",
   );
-  if (plan.schema !== EVALUATION_PLAN_SCHEMA) throw new Error("plan.schema is unsupported");
   if (!["draft", "registered", "stopped", "complete"].includes(plan.status)) {
     throw new Error("plan.status is unsupported");
   }
@@ -432,7 +589,13 @@ export function parseEvaluationPlan(value) {
     [],
     "plan.identities",
   );
-  const tasks = array(plan.tasks, "plan.tasks", 1, 8, parseTask);
+  const tasks = array(
+    plan.tasks,
+    "plan.tasks",
+    1,
+    8,
+    (entry, at) => parseTask(entry, at, schema === EVALUATION_PLAN_SCHEMA),
+  );
   const arms = array(plan.arms, "plan.arms", 1, 8, parseArm);
   const assignments = array(plan.assignments, "plan.assignments", 1, 36, parseAssignment);
   const taskIds = new Set(tasks.map((task) => task.id));
@@ -501,7 +664,18 @@ export function parseEvaluationPlan(value) {
   if (assignedTokens > budgets.max_total_observed_tokens) {
     throw new Error("assignment token ceilings exceed the registered total budget");
   }
-  if (plan.status === "registered") {
+  if (schema === EVALUATION_PLAN_SCHEMA) {
+    const matrices = array(
+      plan.matrices,
+      "plan.matrices",
+      1,
+      3,
+      parseEvaluationMatrix,
+    );
+    validatePlanDrivenMatrices(matrices, tasks, arms, assignments);
+  } else if (plan.status === "registered") {
+    // Retained v1 plans used one frozen two-task/three-arm Stage A contract.
+    // New execution is v2-only, but strict parsing preserves that evidence.
     const stageA = assignments.filter((assignment) => assignment.stage === "A");
     if (stageA.length > 0) {
       const stageATaskIds = new Set(stageA.map((assignment) => assignment.task_id));
@@ -672,6 +846,10 @@ export function rootEvaluationPlan(value) {
   return { ...rooted, plan_root: digest(rooted) };
 }
 
+export function isLiveEvaluationRegistration(plan) {
+  return plan.schema === EVALUATION_PLAN_SCHEMA && plan.status === "registered";
+}
+
 export function parseEvaluationRun(value) {
   const record = object(value, "run");
   exactKeys(
@@ -817,7 +995,7 @@ export function parseEvaluationRunSet(value) {
       "schema", "plan_root", "stage", "status", "stop_reason",
       "registered_assignment_ids", "runs",
     ],
-    [],
+    ["evaluation_use"],
     "run_set",
   );
   if (index.schema !== "canopus.evaluation-run-set.v1") {
@@ -828,6 +1006,13 @@ export function parseEvaluationRunSet(value) {
   }
   if (!["A", "B", "C"].includes(index.stage)) {
     throw new Error("run_set.stage is unsupported");
+  }
+  if (
+    index.evaluation_use !== undefined &&
+    !["confirmatory_generation", "reproduction", "scorer_calibration"]
+      .includes(index.evaluation_use)
+  ) {
+    throw new Error("run_set.evaluation_use is unsupported");
   }
   const registeredAssignmentIds = array(
     index.registered_assignment_ids,
@@ -869,6 +1054,7 @@ export function parseEvaluationRunSet(value) {
     schema: "canopus.evaluation-run-set.v1",
     plan_root: root(index.plan_root, "run_set.plan_root"),
     stage: index.stage,
+    evaluation_use: index.evaluation_use ?? null,
     status: index.status,
     stop_reason: nullableText(index.stop_reason, "run_set.stop_reason"),
     registered_assignment_ids: registeredAssignmentIds,

@@ -820,9 +820,11 @@ Measure five claims separately.
 
 #### A. Execution lift
 
-Use the real Erdős, Formal, and quantum packets. Compare native Codex with the
-current Canopus single-engine path under the same model, facts, tools,
-verifier, token ceiling, retry rule, and stopping condition.
+Use three newly frozen held-out task shapes—Erdős, Formal, and quantum—and
+compare same-packet native Codex with the current Canopus single-engine path
+under the same model, facts, tools, verifier, token ceiling, retry rule, and
+stopping condition. The exact matrix is declared by
+`canopus.evaluation-plan.v2`, not hard-coded by the runner.
 
 - two fresh repetitions per task and arm;
 - maximum 12 model calls;
@@ -851,6 +853,15 @@ task-contract defect. It also omits all-in cost and expert-minute scoring. Any
 confirmatory run must freeze its contract before outputs, include the full
 stopped and failed-run lineage, cover Erdős plus Formal and quantum task
 shapes, and publish every retained Run.
+
+The current Formal proof and quantum certificate are already visible. They
+may be used only for exact reproduction or scorer calibration and receive no
+generation-lift credit. The next Erdős interval is also ineligible if any
+candidate answer becomes visible before registration. A confirmatory plan must
+select new task bytes, declare each task `held_out`, root every input, and pass
+the full answer-access and matrix checks before the first model call. If no
+leakage-safe Formal or quantum task is available, narrow the execution claim
+instead of substituting a known answer.
 
 #### B. State and Atlas lift
 

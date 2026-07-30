@@ -15,6 +15,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
+  isLiveEvaluationRegistration,
   parseEvaluationPlan,
   rootEvaluationPlan,
   verifyEvaluationPlanFiles,
@@ -142,6 +143,7 @@ function registeredStageA() {
     ...base.tasks[0],
     id: "scientific:fixture",
     class: "scientific_computing",
+    answer_access: "held_out",
     packet_path: "packets/scientific.json",
     packet_root: root("f"),
     source_path: "sources/scientific.json",
@@ -163,7 +165,10 @@ function registeredStageA() {
       kind: "canopus",
     },
   ];
-  const tasks = [...base.tasks, scientificTask];
+  const tasks = [
+    { ...base.tasks[0], answer_access: "held_out" },
+    scientificTask,
+  ];
   const assignments = tasks.flatMap((task) =>
     arms.flatMap((arm) =>
       [1, 2].map((repetition) => ({
@@ -176,16 +181,34 @@ function registeredStageA() {
       }))));
   return rootEvaluationPlan({
     ...base,
+    schema: "canopus.evaluation-plan.v2",
     plan_id: "eval_fixture_stage_a",
     status: "registered",
     tasks,
     arms,
     assignments,
+    matrices: [{
+      stage: "A",
+      purpose: "confirmatory_generation",
+      task_ids: tasks.map((task) => task.id),
+      arm_ids: arms.map((arm) => arm.id),
+      repetitions: [1, 2],
+    }],
     budgets: {
       max_model_calls: 12,
       max_total_wall_time_ms: 12 * 60_000,
       max_total_observed_tokens: 12 * 10_000,
     },
+  });
+}
+
+function legacyRegisteredStageA() {
+  const current = registeredStageA();
+  const { matrices: _matrices, ...withoutMatrices } = current;
+  return rootEvaluationPlan({
+    ...withoutMatrices,
+    schema: "canopus.evaluation-plan.v1",
+    tasks: current.tasks.map(({ answer_access: _answerAccess, ...task }) => task),
   });
 }
 
@@ -287,23 +310,124 @@ test("evaluation plan closes candidate artifact and verifier invocation", () => 
   );
 });
 
-test("registered Stage A requires both task classes and all matched controls", () => {
+test("evaluation plan preserves the retained v1 Stage A contract", () => {
+  const legacy = legacyRegisteredStageA();
+  assert.deepEqual(parseEvaluationPlan(legacy), legacy);
+  assert.equal(isLiveEvaluationRegistration(legacy), false);
+  assert.equal(isLiveEvaluationRegistration(registeredStageA()), true);
+});
+
+test("evaluation runner keeps v1 registrations replay-only", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "canopus-evaluation-v1-"));
+  try {
+    const planFile = path.join(directory, "plan.json");
+    writeFileSync(planFile, `${JSON.stringify(legacyRegisteredStageA())}\n`);
+    const run = spawnSync(
+      process.execPath,
+      [
+        path.join(packageRoot, "evaluation/commands/run-plan.mjs"),
+        "--plan",
+        planFile,
+        "--stage",
+        "A",
+        "--output",
+        path.join(directory, "runs"),
+      ],
+      {
+        cwd: packageRoot,
+        encoding: "utf8",
+      },
+    );
+    assert.notEqual(run.status, 0);
+    assert.match(run.stderr, /v1 is retained for replay only/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("registered v2 matrix is plan-driven and exactly matched", () => {
   const registered = registeredStageA();
   assert.deepEqual(parseEvaluationPlan(registered), registered);
+  const formalTask = {
+    ...registered.tasks[0],
+    id: "formal:held-out",
+    source_path: "sources/formal.json",
+    source_root: root("2"),
+    packet_path: "packets/formal.json",
+    packet_root: root("3"),
+    verifier_path: "verifiers/formal",
+    verifier_root: root("4"),
+    verifier_runtime_root: root("4"),
+  };
+  const tasks = [...registered.tasks, formalTask];
+  const arms = registered.arms.filter((arm) =>
+    ["native_codex_packet", "canopus"].includes(arm.kind));
+  const assignments = tasks.flatMap((task) =>
+    arms.flatMap((arm) =>
+      [1, 2].map((repetition) => ({
+        id: `A-${task.id}-${arm.id}-r${repetition}`,
+        stage: "A",
+        task_id: task.id,
+        arm_id: arm.id,
+        repetition,
+        seed: repetition,
+      }))));
+  const campaign = rootEvaluationPlan({
+    ...registered,
+    tasks,
+    arms,
+    assignments,
+    matrices: [{
+      stage: "A",
+      purpose: "confirmatory_generation",
+      task_ids: tasks.map((task) => task.id),
+      arm_ids: arms.map((arm) => arm.id),
+      repetitions: [1, 2],
+    }],
+    budgets: {
+      max_model_calls: 12,
+      max_total_wall_time_ms: 12 * 60_000,
+      max_total_observed_tokens: 12 * 10_000,
+    },
+  });
+  assert.deepEqual(parseEvaluationPlan(campaign), campaign);
+  assert.throws(
+    () => parseEvaluationPlan(rootEvaluationPlan({
+      ...campaign,
+      assignments: campaign.assignments.slice(1),
+      budgets: {
+        max_model_calls: 11,
+        max_total_wall_time_ms: 11 * 60_000,
+        max_total_observed_tokens: 11 * 10_000,
+      },
+    })),
+    /do not exactly cover/u,
+  );
+});
+
+test("confirmatory generation fails closed on visible answers", () => {
+  const registered = registeredStageA();
   assert.throws(
     () => parseEvaluationPlan(rootEvaluationPlan({
       ...registered,
-      arms: registered.arms.filter((arm) => arm.kind !== "native_codex_packet"),
-      assignments: registered.assignments.filter((assignment) =>
-        assignment.arm_id !== "native-packet"),
-      budgets: {
-        max_model_calls: 8,
-        max_total_wall_time_ms: 8 * 60_000,
-        max_total_observed_tokens: 8 * 10_000,
-      },
+      tasks: registered.tasks.map((task, index) => index === 0
+        ? { ...task, answer_access: "publicly_visible" }
+        : task),
     })),
-    /same-packet native Codex/u,
+    /requires held-out task/u,
   );
+  const reproduction = rootEvaluationPlan({
+    ...registered,
+    tasks: registered.tasks.map((task) => ({
+      ...task,
+      answer_access: "publicly_visible",
+    })),
+    matrices: registered.matrices.map((matrix) => ({
+      ...matrix,
+      purpose: "reproduction",
+    })),
+  });
+  assert.deepEqual(parseEvaluationPlan(reproduction), reproduction);
 });
 
 test("evaluation plan rejects duplicate identities and underfunded totals", () => {
@@ -425,6 +549,50 @@ test("evaluation validation rehashes every bound input file", async () => {
     writeFileSync(planFile, `${JSON.stringify(rooted)}\n`);
     const verified = await verifyEvaluationPlanFiles(rooted, planFile);
     assert.equal(verified.verified_files, 10);
+    const legacyValidation = spawnSync(
+      process.execPath,
+      [
+        path.join(packageRoot, "evaluation/commands/validate-plan.mjs"),
+        planFile,
+      ],
+      { cwd: packageRoot, encoding: "utf8" },
+    );
+    assert.equal(legacyValidation.status, 0, legacyValidation.stderr);
+    assert.equal(
+      JSON.parse(legacyValidation.stdout).live_registration_ready,
+      false,
+    );
+    const v2 = rootEvaluationPlan({
+      ...rooted,
+      schema: "canopus.evaluation-plan.v2",
+      status: "registered",
+      tasks: rooted.tasks.map((task) => ({
+        ...task,
+        answer_access: "publicly_visible",
+      })),
+      matrices: [{
+        stage: "A",
+        purpose: "reproduction",
+        task_ids: rooted.tasks.map((task) => task.id),
+        arm_ids: rooted.arms.map((arm) => arm.id),
+        repetitions: [1],
+      }],
+    });
+    const v2PlanFile = path.join(directory, "plan-v2.json");
+    writeFileSync(v2PlanFile, `${JSON.stringify(v2)}\n`);
+    const v2Validation = spawnSync(
+      process.execPath,
+      [
+        path.join(packageRoot, "evaluation/commands/validate-plan.mjs"),
+        v2PlanFile,
+      ],
+      { cwd: packageRoot, encoding: "utf8" },
+    );
+    assert.equal(v2Validation.status, 0, v2Validation.stderr);
+    assert.equal(
+      JSON.parse(v2Validation.stdout).live_registration_ready,
+      true,
+    );
     writeFileSync(path.join(directory, "verifiers/math"), "drift\n");
     await assert.rejects(
       verifyEvaluationPlanFiles(rooted, planFile),
@@ -536,6 +704,7 @@ test("evaluation runner preserves every registered result after process failures
     );
     assert.equal(run.status, 0, run.stderr);
     const index = JSON.parse(readFileSync(path.join(output, "index.json"), "utf8"));
+    assert.equal(index.evaluation_use, "confirmatory_generation");
     const firstRun = JSON.parse(readFileSync(
       path.join(output, index.registered_assignment_ids[0], "run.json"),
       "utf8",
@@ -557,6 +726,8 @@ test("evaluation runner preserves every registered result after process failures
     assert.equal(report.status, 0, report.stderr);
     const summary = JSON.parse(readFileSync(path.join(output, "report.json"), "utf8"));
     assert.equal(summary.registered, 12);
+    assert.equal(summary.evaluation_use, "confirmatory_generation");
+    assert.equal(summary.confirmatory_eligible, true);
     assert.equal(summary.runs, 12);
     assert.equal(summary.completed, 8);
     assert.equal(summary.failed, 4);
@@ -566,6 +737,24 @@ test("evaluation runner preserves every registered result after process failures
     assert.equal(summary.observed_tokens, 120);
     assert.deepEqual(summary.unmeasured_token_runs, []);
     assert.deepEqual(summary.missing_assignment_ids, []);
+    const indexFile = path.join(output, "index.json");
+    writeFileSync(indexFile, `${JSON.stringify({
+      ...index,
+      evaluation_use: "reproduction",
+    })}\n`);
+    const tamperedReport = spawnSync(
+      process.execPath,
+      [path.join(packageRoot, "evaluation/commands/report.mjs"), output],
+      {
+        cwd: packageRoot,
+        encoding: "utf8",
+      },
+    );
+    assert.notEqual(tamperedReport.status, 0);
+    assert.match(
+      tamperedReport.stderr,
+      /evaluation use disagrees with its rooted plan matrix/u,
+    );
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

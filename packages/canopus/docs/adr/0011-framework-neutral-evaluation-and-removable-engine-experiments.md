@@ -56,7 +56,7 @@ Keep the published Canopus core framework-neutral and zero-runtime-dependency.
 
 ## Registered evaluation
 
-The non-normative `canopus.evaluation-plan.v1` binds exact:
+The retained non-normative `canopus.evaluation-plan.v1` binds exact:
 
 - task, model, Codex, Canopus, Vela, Git, environment, and dependency
   identities;
@@ -71,16 +71,33 @@ An amendment names the full root of its predecessor and states the reason.
 Usable output never permits a silent in-place plan edit.
 
 Registration is not merely a JSON root. Validation rehashes every bound input
-and the executable resolved for each arm before execution. A registered Stage
-A contains exactly one math task, one scientific-computing task, the ordinary
-native Codex control, the same-packet native Codex control, the Canopus arm,
-and repetitions one and two for every task/arm pair: 12 assignments total.
-The aggregate time and token ceilings must cover every assignment ceiling.
+and the executable resolved for each arm before execution. The completed
+`v1` Stage A contract remains strict replay evidence, but no new `v1`
+assignment may execute.
+
+New registrations use non-normative `canopus.evaluation-plan.v2`. Each plan
+binds a complete matrix per stage: exact task IDs, arm IDs, repetitions, and
+one purpose:
+
+- `confirmatory_generation`;
+- `reproduction`; or
+- `scorer_calibration`.
+
+The validator derives no favored framework topology. It instead proves that
+the registered assignments exactly cover each declared Cartesian matrix.
+Confirmatory generation requires at least two matched arms, two repetitions,
+and tasks declared `held_out` before any usable output. Tasks whose answers
+are already public may be reproduced or used for scorer calibration, but they
+cannot earn generation-lift credit. The aggregate time and token ceilings
+must cover every assignment ceiling.
 
 Every process result remains in the rooted run set, including nonzero exits.
 A hard runtime stop identifies unrun registered assignments explicitly.
 Reporting fails closed on a missing run-set index, a mixed plan root, an
-unregistered Run, or bytes that do not match the indexed Run root.
+unregistered Run, or bytes that do not match the indexed Run root. New run
+sets retain the exact rooted plan beside their Runs. Reporting revalidates the
+plan root and matrix purpose; the run-set label alone cannot confer
+confirmatory eligibility.
 
 Each trusted arm wrapper emits one rooted
 `canopus.evaluation-arm-result.v1` with the exact assignment and provider
@@ -101,16 +118,19 @@ They are not public Canopus commands and are excluded from package files.
 
 ## Stages and adoption gate
 
-Stage A compares three arms on one exact bounded Erdős task and one qualifying
-deterministic scientific-computing task:
+The completed historical Stage A compared three arms on one exact bounded
+Erdős task and one qualifying deterministic scientific-computing task:
+ordinary native Codex, same-packet native Codex, and Canopus. That retained
+pilot is not rewritten.
 
-1. native Codex with its ordinary task surface;
-2. native Codex with the exact same structured packet and frozen verifier
-   available to Canopus; and
-3. the current Canopus single-engine path.
-
-The second arm prevents Canopus from receiving credit for task packaging or a
-verifier that could have been composed directly with the native agent.
+The next confirmatory execution study, if registered, compares two arms—the
+same-packet native Codex control and the current Canopus single-engine
+path—on three newly frozen held-out task shapes: Erdős, Formal, and quantum.
+Two repetitions of each task/arm pair produce 12 assignments. Current Formal
+and quantum outputs are already visible, so they may calibrate scorers or
+test reproduction but may not be reused as confirmatory generation tasks.
+This is an evidence gate, not an instruction to run model calls before the
+new tasks and plan are rooted.
 
 Stage B runs only after a safe Stage A. It compares a plain TypeScript fixed
 graph, stateless LangGraph, and OpenAI Agents SDK on the same tasks.

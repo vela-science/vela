@@ -3,9 +3,11 @@
 This directory implements Canopus ADR 0011. It is not included in the npm
 package and creates no Vela state.
 
-`canopus.evaluation-plan.v1` registrations freeze exact source, task packet,
-verifier, executable, dependency lock, environment, arm, budget, scorer,
-custody, and publication bytes before usable model output.
+`canopus.evaluation-plan.v2` registrations freeze exact source, task packet,
+verifier, executable, dependency lock, environment, arm, plan-driven matrix,
+answer access, budget, scorer, custody, and publication bytes before usable
+model output. Retained `v1` plans remain parseable and reportable, but the
+runner will not start new `v1` assignments.
 Canopus `0.8.0`, the first Erdős producer loop, and the repaired registered
 Stage A are complete. The retained plan root is
 `sha256:31268241f0f1ada92fd78d245643ad9274308a74d617a965e8e2bcb46195fd47`.
@@ -16,13 +18,13 @@ remaining call budget. No framework integration is supported and no Canopus
 `0.9.0` release is justified.
 
 A future live registration is a new experiment, not unfinished Stage A. It
-may be created only after every task, arm, repetition, source snapshot,
-packet, verifier, executable, scorer, dependency lock, environment manifest,
-budget, and stopping rule is frozen and rehashed by `eval:validate`. Each arm
-also binds its trusted wrapper as a separate exact file. The wrapper is
-inserted only through the `{wrapper}` argv placeholder, so pinning the runtime
-executable cannot accidentally leave a mutable script outside the
-registration.
+may be created only after every task, arm, repetition, matrix purpose, source
+snapshot, packet, verifier, executable, scorer, dependency lock, environment
+manifest, budget, and stopping rule is frozen and rehashed by
+`eval:validate`. Each arm also binds its trusted wrapper as a separate exact
+file. The wrapper is inserted only through the `{wrapper}` argv placeholder,
+so pinning the runtime executable cannot accidentally leave a mutable script
+outside the registration.
 
 ```bash
 bun run eval:validate
@@ -57,19 +59,30 @@ the verifier with no Codex home or provider credential. Process completion,
 artifact identity, and verifier passage remain separate fields in the rooted
 Run.
 
-Stage A must retain both native controls: ordinary native Codex and native
-Codex with the exact packet and frozen verifier used by Canopus. Execution,
-state, and inheritance lift are bound to three distinct scorer roots and
-reported separately. Matching the native same-packet arm is a deletion signal
-for Canopus complexity, not permission to invent another layer.
+Each `v2` plan declares the exact Cartesian matrix for every registered stage:
+task IDs, arm IDs, repetitions, and whether the stage is confirmatory
+generation, reproduction, or scorer calibration. Validation rejects missing
+or extra cells. Confirmatory generation requires at least two matched arms,
+two repetitions, and tasks declared held out before any output. A task whose
+answer is already public may be reproduced or used to calibrate a scorer, but
+it cannot earn generation-lift credit.
 
-A registered Stage A plan contains exactly one math task, one
-scientific-computing task, the three matched arms, two repetitions of every
-task/arm pair, and 12 assignments. Its total time and token ceilings must cover
-the sum of all assignment ceilings. Process failures remain retained Runs; the
-runner does not stop merely because one arm exits nonzero.
+The next confirmatory execution study, if registered, uses three new held-out
+task shapes—Erdős, Formal, and quantum—with the same exact packet and verifier
+available to native Codex and Canopus, two repetitions per task and arm, and
+12 assignments. The already-visible current Formal and quantum answers are
+reproduction evidence only. Execution, state, and inheritance lift remain
+bound to distinct scorer roots and reported separately.
+
+Aggregate time and token ceilings must cover every assignment ceiling.
+Process failures remain retained Runs; the runner does not stop merely because
+one arm exits nonzero.
 
 The runner uses the exact executable resolved during validation. It writes an
-explicit stopped run set when a hard runtime bound prevents remaining cells.
+exact rooted plan snapshot beside the run set and writes an explicit stopped
+run set when a hard runtime bound prevents remaining cells.
 Reporting refuses missing indexes, mixed plan roots, unregistered Runs, and
-Run bytes that do not match the rooted run set.
+Run bytes that do not match the rooted run set. Reports carry the matrix
+purpose only after matching it to the retained rooted plan; a mutable run-set
+label cannot create confirmatory eligibility. Only held-out
+confirmatory-generation run sets are eligible for confirmatory interpretation.

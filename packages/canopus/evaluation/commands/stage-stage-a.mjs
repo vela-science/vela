@@ -478,6 +478,7 @@ const tasks = [
   {
     id: "erdos:1056:10429401-10429600",
     class: "math",
+    answer_access: "publicly_visible",
     source: "Erdős Frontier target erdos:1056 at exact current packet root.",
     source_path: "sources/erdos-1056.json",
     source_root: erdosSourceCopy.root,
@@ -514,6 +515,7 @@ const tasks = [
   {
     id: "core-bench:capsule-1108125",
     class: "scientific_computing",
+    answer_access: "publicly_visible",
     source: "CORE-Bench capsule-1108125, MIT code and CC0 data.",
     source_path: "sources/core-bench-1108125.tar.gz",
     source_root: scientificSourceCopy.root,
@@ -555,13 +557,14 @@ const assignments = tasks.flatMap((task) =>
     }))));
 const model = values.get("--model");
 const plan = rootEvaluationPlan({
-  schema: "canopus.evaluation-plan.v1",
+  schema: "canopus.evaluation-plan.v2",
   plan_id: amendsRoot === null
-    ? "vela-math-first-stage-a-2026-07-28"
-    : "vela-math-first-stage-a-amendment-2026-07-28",
+    ? "vela-math-first-stage-a-reproduction-2026-07-28"
+    : "vela-math-first-stage-a-reproduction-amendment-2026-07-28",
   status: "registered",
   created_at: values.get("--created-at"),
-  campaign: "Math-first framework-neutral Stage A evaluation.",
+  campaign:
+    "Math-first framework-neutral Stage A reproduction of publicly visible retained tasks.",
   identities: {
     model: identity("OpenAI model", model, sha256(Buffer.from(`${model}\n`))),
     codex: identity("Codex CLI", codexVersion, codexCopy.root),
@@ -581,6 +584,13 @@ const plan = rootEvaluationPlan({
   tasks,
   arms,
   assignments,
+  matrices: [{
+    stage: "A",
+    purpose: "reproduction",
+    task_ids: tasks.map((task) => task.id),
+    arm_ids: arms.map((arm) => arm.id),
+    repetitions: [1, 2],
+  }],
   budgets: {
     max_model_calls: 12,
     max_total_wall_time_ms: 43_200_000,

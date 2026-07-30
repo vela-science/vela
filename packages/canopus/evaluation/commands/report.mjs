@@ -6,9 +6,11 @@ import path from "node:path";
 import process from "node:process";
 
 import {
+  EVALUATION_PLAN_SCHEMA,
   EVALUATION_REPORT_SCHEMA,
   canonicalJson,
   digest,
+  parseEvaluationPlan,
   parseEvaluationRun,
   parseEvaluationRunSet,
 } from "../lib/evaluation-plan.mjs";
@@ -18,6 +20,37 @@ if (process.argv[2] === undefined) throw new Error("usage: eval:report <run-dire
 const index = parseEvaluationRunSet(
   JSON.parse(await readFile(path.join(root, "index.json"), "utf8")),
 );
+let plan = null;
+try {
+  plan = parseEvaluationPlan(
+    JSON.parse(await readFile(path.join(root, "plan.json"), "utf8")),
+  );
+} catch (error) {
+  if (error?.code !== "ENOENT") throw error;
+}
+if (plan !== null && plan.plan_root !== index.plan_root) {
+  throw new Error("run set and retained evaluation plan roots disagree");
+}
+const matrix = plan?.schema === EVALUATION_PLAN_SCHEMA
+  ? plan.matrices.find((candidate) => candidate.stage === index.stage)
+  : undefined;
+if (index.evaluation_use !== null) {
+  if (matrix === undefined) {
+    throw new Error(
+      "run set declares evaluation use without its rooted v2 plan matrix",
+    );
+  }
+  if (index.evaluation_use !== matrix.purpose) {
+    throw new Error("run set evaluation use disagrees with its rooted plan matrix");
+  }
+}
+if (matrix !== undefined && index.evaluation_use === null) {
+  throw new Error("v2 run set omits its rooted plan matrix purpose");
+}
+const evaluationUse = matrix?.purpose ?? "historical_unspecified";
+const confirmatoryEligible =
+  plan?.schema === EVALUATION_PLAN_SCHEMA &&
+  evaluationUse === "confirmatory_generation";
 const records = [];
 for (const entry of (await readdir(root, { withFileTypes: true }))
   .filter((item) => item.isDirectory())
@@ -59,6 +92,8 @@ const report = {
   schema: EVALUATION_REPORT_SCHEMA,
   plan_root: index.plan_root,
   stage: index.stage,
+  evaluation_use: evaluationUse,
+  confirmatory_eligible: confirmatoryEligible,
   run_set_status: index.status,
   stop_reason: index.stop_reason,
   registered: index.registered_assignment_ids.length,
@@ -83,7 +118,9 @@ const report = {
     .map((record) => record.assignment.id),
   run_roots: records.map((record) => digest(record)).sort(),
   interpretation:
-    "Verifier passage is recorded independently from process completion. Scientific disposition and expert-minute scoring still require the registered task scorers.",
+    confirmatoryEligible
+      ? "The plan declares held-out confirmatory generation. Verifier passage remains independent from process completion, scientific disposition, and expert-minute scoring."
+      : "This run is reproduction, calibration, or retained historical evidence and cannot establish generation lift. Verifier passage remains independent from process completion and scientific disposition.",
 };
 const file = path.join(root, "report.json");
 await writeFile(file, canonicalJson(report), { mode: 0o600, flag: "wx" });

@@ -8,10 +8,12 @@ import path from "node:path";
 import process from "node:process";
 
 import {
+  EVALUATION_PLAN_SCHEMA,
   EVALUATION_RUN_SCHEMA,
   canonicalJson,
   digest,
   parseEvaluationArmResult,
+  parseEvaluationPlan,
   verifyEvaluationPlanFiles,
 } from "../lib/evaluation-plan.mjs";
 
@@ -212,6 +214,17 @@ const planFile = await realpath(values.get("--plan"));
 const stage = values.get("--stage");
 if (!["A", "B", "C"].includes(stage)) throw new Error("--stage must be A, B, or C");
 const output = path.resolve(values.get("--output"));
+const unverifiedPlan = parseEvaluationPlan(
+  JSON.parse(await readFile(planFile, "utf8")),
+);
+if (unverifiedPlan.status !== "registered") {
+  throw new Error("evaluation execution requires a registered plan");
+}
+if (unverifiedPlan.schema !== EVALUATION_PLAN_SCHEMA) {
+  throw new Error(
+    "new evaluation execution requires canopus.evaluation-plan.v2; v1 is retained for replay only",
+  );
+}
 const {
   plan,
   executable_paths: executablePaths,
@@ -225,13 +238,20 @@ const {
   task_verifier_runtime_paths: taskVerifierRuntimePaths,
   task_verifier_resource_paths: taskVerifierResourcePaths,
 } = await verifyEvaluationPlanFiles(
-  JSON.parse(await readFile(planFile, "utf8")),
+  unverifiedPlan,
   planFile,
 );
-if (plan.status !== "registered") throw new Error("evaluation execution requires a registered plan");
 const assignments = plan.assignments.filter((assignment) => assignment.stage === stage);
 if (assignments.length === 0) throw new Error(`registered plan has no Stage ${stage} assignments`);
+const matrix = plan.matrices.find((candidate) => candidate.stage === stage);
+if (matrix === undefined) {
+  throw new Error(`registered plan has no Stage ${stage} matrix`);
+}
 await mkdir(output, { recursive: false, mode: 0o700 });
+await writeFile(path.join(output, "plan.json"), canonicalJson(plan), {
+  mode: 0o600,
+  flag: "wx",
+});
 const planDirectory = path.dirname(planFile);
 const results = [];
 let totalWallTimeMs = 0;
@@ -450,6 +470,7 @@ await writeFile(
     schema: "canopus.evaluation-run-set.v1",
     plan_root: plan.plan_root,
     stage,
+    evaluation_use: matrix.purpose,
     status: stopReason === null ? "complete" : "stopped",
     stop_reason: stopReason,
     registered_assignment_ids: registeredAssignmentIds,

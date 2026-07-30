@@ -50,9 +50,16 @@ rule, stopping rule, and primary outcome are frozen before usable model output.
 Both matched-capability and best-product comparisons may be reported, but must
 not be mixed.
 
-Registrations bind exact tasks, versions, roots, arms, assignment, seeds,
-budgets, scorers, audits, hard gates, exclusions, and publication rules.
+Registrations bind exact tasks, versions, roots, arms, assignments, seeds,
+plan-driven matrices, answer access, budgets, scorers, audits, hard gates,
+exclusions, and publication rules. New execution uses
+`canopus.evaluation-plan.v2`; retained `v1` plans remain replay evidence.
 Amendments after usable output are visible corrections, never silent edits.
+
+Every `v2` stage declares whether it measures held-out confirmatory generation,
+reproduction, or scorer calibration. Publicly visible answers are forbidden
+from confirmatory generation. Reproducing them can validate plumbing or
+scorers, but cannot establish model or harness lift.
 
 ## Outcomes and cost
 
