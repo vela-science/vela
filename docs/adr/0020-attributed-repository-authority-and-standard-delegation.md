@@ -402,28 +402,32 @@ Most of the required substrate already exists:
 - the Frontier transaction journal already provides serialization,
   postcondition verification, crash recovery, and idempotent publication;
 - `AuthorityTransactionRequest` already accepts multiple Event and object
-  drafts, one exact read set, multiple semantic approvals, and one recoverable
-  commit; and
+  drafts, one exact read set, same-action semantic approvals, and one
+  recoverable commit, while retaining exactly one authorization action and
+  resource; and
 - the current Decision path already rederives Proposal, Claim, Submission,
   Verification set, policy, authority head, binary, reason, and action under
   the write barrier before authentication or signing.
 
 The missing seam is not another candidate or approval protocol. The current
 Submission and Verification writers route routine, non-standing evidence
-through a repository-authority transaction. That makes the repository signer
-approve evidence retention even though producer or verifier authentication
-already identifies the author and accepted-state delta remains zero. This is
-the source of the repeated ceremony.
+through a repository-authority transaction. They therefore invoke the
+repository signer for each evidence write even though producer or verifier
+authentication already identifies the author, no semantic approval is
+required, and accepted-state delta remains zero. Repeated signer interaction,
+not missing scientific semantics, is the source of the ceremony.
 
 The smallest repair has four parts:
 
 1. extend the private Attempt into a controller-owned campaign authorization;
-2. add one narrow non-standing evidence transaction;
+2. make the existing authority-covered evidence writer prompt-free inside
+   that exact authorization;
 3. derive a private Decision Inbox from real pending Proposals; and
 4. plan several ordinary Decisions for one existing authority transaction.
 
-No new candidate, review-outbox, review-selection, review-batch, campaign,
-resume, or canonical lease schema is justified by the current evidence.
+No unsigned evidence chain, candidate, review-outbox, review-selection,
+review-batch, campaign, resume, or canonical lease schema is justified by the
+current evidence.
 
 #### Private campaign authorization
 
@@ -449,8 +453,11 @@ consequence ceiling: evidence_only | pending_review
 ```
 
 One explicit local start action creates it after the user inspects the scope.
-The local OS session may authenticate that action, but neither a human
-scientific key nor the repository-authority key is read. The authorization is
+The local OS session authenticates that action and starts one constrained
+campaign signer session. The controller may use the configured repository
+authority through that session, but no human scientific key is read and the
+worker receives neither key bytes, an SSH socket, bearer material, nor a
+general signing interface. The authorization and signer session state are
 stored outside worker-writable roots. The worker receives only an opaque
 campaign identity and the restricted runtime capabilities that the controller
 can enforce.
@@ -461,7 +468,7 @@ The authorization permits:
 - create isolated baseline and child experiment worktrees;
 - run allowed tools and verifiers;
 - append receipts, failures, Artifacts, Submissions, Proposals, and
-  Verification Records through the evidence transaction;
+  Verification Records through the routine evidence writer;
 - pause, resume, and accept steering inside the exact scope; and
 - request a broader consequence through the Decision Inbox.
 
@@ -481,6 +488,15 @@ hash-linked local ledger and the existing local work lock. A restarted
 controller replays the ledger before allocating again. A dimension the
 controller cannot enforce must be labelled observed rather than enforced.
 
+The signer session parses and revalidates every prepared transaction. It signs
+only current `submission_register` or `verification_import` operations whose
+campaign root matches, Event and semantic-approval drafts are empty,
+accepted-state delta is zero, object and path classes are allowlisted, and
+scope and budget remain valid. Any unknown action, widening, Event, accepted
+state mutation, deletion, rewrite, policy, schema, keyset, authority-head, or
+trust-anchor change closes or refuses the session and becomes an explicit
+consequence beside the affected branch.
+
 Runtime credential refresh inside the unchanged active scope requires no human
 prompt. It fails after expiry, exhaustion, or revocation. Widening any bound
 input creates a new explicit authorization request and pauses only the affected
@@ -492,15 +508,25 @@ authorization, metering, and evidence adapter around Codex, Claude Code,
 Canopus, OpenResearch, or another runner. Vela does not acquire a scheduler,
 checkpoint database, universal work graph, tool trace, or model runtime.
 
-#### Evidence transactions
+#### Routine evidence writer
 
-Add one internal `EvidenceTransaction` path that reuses the Frontier
-transaction journal and write barrier without invoking repository authority.
-It appends ordinary canonical evidence under producer or verifier
-authentication. It is not an Event, authority record, Decision, or alternative
-source of Standing.
+Keep the current Frontier transaction journal, write barrier, and
+repository-authority coverage. Strict clean-clone replay currently requires
+every canonical `records/**` object and every repository-manifest transition
+to be covered by an Authority Record. An unsigned `EvidenceTransaction` would
+therefore require a second tracked transaction chain plus verifier and
+protocol changes. It would remove a signature from retained history without
+removing any user ceremony that cannot be removed more simply.
 
-Every evidence transaction binds:
+Instead, add one controller-mediated routine evidence path over the existing
+authority transaction. The controller automatically invokes the repository
+signer only for the closed `submission_register` and `verification_import`
+actions after campaign, actor, policy, and delta checks pass. It requests no
+human semantic approval, reads no human scientific key, produces no scientific
+Event, and has accepted-state delta zero. The worker never receives repository
+authority credentials or a general signing interface.
+
+Every routine evidence transaction binds:
 
 ```text
 actor and authentication class
@@ -510,9 +536,10 @@ complete repository read set
 repository before root
 binary identity and recorded time
 deterministic transaction root
+repository-authority record and signature
 ```
 
-The write surface is a closed allowlist:
+The closed write surface remains:
 
 - producer-authenticated Artifact, Submission, Registration Record, Claim, and
   pending Proposal objects and their exact repository references;
@@ -520,7 +547,8 @@ The write surface is a closed allowlist:
   references; and
 - deterministic, non-authoritative derived indexes covered by the journal.
 
-An evidence transaction may create or extend `pending_review`. It may not:
+A routine evidence transaction may create or extend `pending_review`. It may
+not:
 
 - append a scientific or authority Event;
 - change an accepted Claim or scientific Standing;
@@ -532,14 +560,18 @@ An evidence transaction may create or extend `pending_review`. It may not:
 
 The producer or verifier signature, registered actor, exact subject roots,
 campaign scope when present, repository read set, and postimage are verified
-before the journal is prepared. The transaction rechecks its repository root
-under the barrier. Crash recovery installs all postimages or none, and exact
+before the journal is prepared. Cedar receives only the current closed routine
+action and exact campaign-scoped resource context. The transaction rechecks
+its repository root under the barrier. The controller then obtains the one
+repository-authority signature required by current replay without surfacing a
+semantic prompt. Crash recovery installs all postimages or none, and exact
 retry returns the retained result without another key read.
 
 This keeps evidence canonical as it is produced. It avoids a parallel
 draft-candidate lifecycle and avoids combining initial registration with a
-later scientific Decision. A passing Verification may strengthen a pending
-Proposal; it never changes Standing.
+later scientific Decision. It also preserves one authority-coverage rule
+instead of adding an unsigned evidence era. A passing Verification may
+strengthen a pending Proposal; it never changes Standing.
 
 #### Campaign Cockpit
 
@@ -551,6 +583,17 @@ Verifications, and failures. It is not a canonical graph.
 useful execution shape: one baseline, isolated child experiments, observable
 run state, evaluation output, and exact diffs. Vela adopts that shape for
 inspection but not OpenResearch's scheduler, storage, or authority.
+
+The preliminary
+[AgentGUI study](https://arxiv.org/abs/2607.26300) usefully separates an
+overview activity feed, selected-run detail, files, and debugging telemetry,
+then measures lookup time and accuracy rather than treating a visualizer as
+self-justifying. Its eight-person result is too small and task-specific to
+count as Vela evidence. It does justify preregistering the same questions for
+the Cockpit: what is running, what changed, which Artifact or failure matters,
+what remains in scope, and whether the next interruption is steering or a
+scientific Decision. Vela does not adopt AgentGUI's visual metaphor, automated
+manager, model switching, scheduler, or runtime.
 
 The Cockpit shows:
 
@@ -596,6 +639,19 @@ pre-interrupt side effects idempotent. Vela does not serialize private prompts,
 credentials, human keys, repository-authority material, or sticky approval into
 a new protocol object.
 
+The pinned
+[Block Buzz source at `4d47aa8`](https://github.com/block/buzz/tree/4d47aa83455a9fd024121a596154cd311dca1d76)
+contributes four interaction constraints, not an architecture: durable run
+state remains separate from decision state; every request and response binds
+one exact correlation identity; a requested action resolves its referenced
+canonical object before any effect; and a changed input makes the pending
+decision stale rather than silently applying it to successor state. A
+transport acknowledgement is not an applied steering result or Decision.
+Buzz's runner, relay and Nostr transport, generic approval surface, and any
+runner-side auto-approval are explicitly out of scope. Its approval work is
+also incomplete, so it supplies no evidence for weakening Vela's authority
+boundary.
+
 #### Derived Decision Inbox
 
 The Decision Inbox is a private, deterministic projection of real pending
@@ -606,11 +662,10 @@ An existing typed policy or authority planner may later expose an exact rooted
 input in the same inspection surface, but the Inbox never invents a generic
 high-impact-action record to make unlike actions look batchable.
 
-“Outbox” and “Inbox” name two perspectives on the same consequence
-projection. The agent or Campaign Cockpit may say that one consequence is
-waiting in its outbox. The reviewer sees that exact rooted entry in the
-Decision Inbox. There is no transport queue, copied review object, or second
-status model between them.
+The product name is **Decision Inbox**. The Campaign Cockpit may report that
+one scientific Decision is pending and link to the same exact rooted entry,
+but it does not expose a generic agent outbox. There is no transport queue,
+copied review object, or second status model between execution and review.
 
 The v1 projection contains only meaningful scientific consequences:
 
@@ -717,14 +772,18 @@ does not affect the deterministic projection, deadline, authority, pending
 Proposal, read set, or Standing, and it never carries to a successor root. A
 changed entry root clears the draft and staged disposition for that entry.
 
-This keeps the useful queue interactions from
-[LangChain Agent Inbox](https://github.com/langchain-ai/agent-inbox/tree/081b2a30409304fa04bfcf7b01d035853b846ecd)
-without adopting its thread-centric, editable, or ignorable interruption
-semantics. LangChain's current frontend guidance usefully requires exact
-action context, persistent interruption state, visible wait time, attributed
-decision logs, and an explicit final submission for multiple pending actions.
-Vela applies those interaction properties to rooted Proposals, not arbitrary
-tool calls. It keeps durable, partially resolvable action state from the
+This keeps the useful queue interactions from LangChain's
+[current human-in-the-loop frontend contract](https://docs.langchain.com/oss/python/langchain/frontend/human-in-the-loop)
+and the pinned
+[Agent Inbox implementation](https://github.com/langchain-ai/agent-inbox/tree/081b2a30409304fa04bfcf7b01d035853b846ecd)
+without adopting thread-centric, editable, or ignorable interruption
+semantics. The current contract usefully requires exact action context,
+persistent interruption state, visible wait time, attributed decision logs,
+and an explicit final submission for multiple pending actions. It also makes
+approval the easiest path and permits edited action arguments; Vela
+deliberately rejects both properties for scientific Decisions. Vela applies
+the durable review mechanics to rooted Proposals, not arbitrary tool calls. It
+keeps durable, partially resolvable action state from the
 [OpenAI Agents SDK human-in-the-loop flow](https://openai.github.io/openai-agents-js/guides/human-in-the-loop/)
 without adopting persistent `alwaysApprove` policy or serializing secrets.
 It treats GitHub's
@@ -747,17 +806,22 @@ The planner accepts a keyed selection:
 
 ```text
 Inbox snapshot root
+one action: accept | reject
 selected Proposal IDs and expected roots
 for each Proposal:
-  action: accept | reject
   exact reason
 ```
 
 Selection may include only pending Proposals in one Frontier and one authority
-domain. Every selected Proposal has exactly one keyed action and reason.
-Unknown, duplicate, omitted-selected, extra, wrong-root, or positional
-responses fail before a canonical plan is derived. Unselected Proposals remain
-pending. The reviewer may commit any nonempty valid subset; partially staged or
+domain with one action. Every selected Proposal has exactly one keyed reason.
+The planner derives an ephemeral content-addressed Proposal-set resource for
+that action because the current authority request authorizes exactly one
+action and resource. Unknown, duplicate, omitted-selected, extra, wrong-root,
+mixed-action, or positional responses fail before a canonical plan is
+derived. Unselected Proposals remain pending. Local staging may contain both
+Accept and Reject dispositions, but it exposes them as separate eligible
+transactions rather than pretending they are one atomic batch. The reviewer
+may commit any nonempty valid homogeneous subset; partially staged or
 unresolved entries remain in the Inbox without pausing unrelated execution.
 
 For each selected Proposal, the planner reuses the existing single-Proposal
@@ -775,11 +839,13 @@ and exact read set. It then:
    one existing multi-event, multi-object authority transaction; and
 7. replays the resulting history and Standing before publication.
 
-The visible action names the exact consequence, such as `Accept 2 and reject
-1`; it never says `Approve all`. A changed input automatically deselects the
-item. Correction, retraction, supersession, policy, authority, publication,
-budget, and destructive actions retain their dedicated planners until their
-atomic composition is separately justified.
+The visible action names the exact consequence, such as `Accept 2` or `Reject
+1`; it never says `Approve all`. A mixed staged set says that two commits are
+required and never implies atomicity across them. A changed input
+automatically deselects the item. Correction, retraction, supersession,
+contradiction, policy, authority, publication, budget, and destructive
+actions retain their dedicated planners until their atomic composition is
+separately justified.
 
 The transaction's existing Authority Record, semantic approvals, Event IDs,
 object delta, authorization context, and exact read/write roots are the
@@ -972,6 +1038,23 @@ The product gate is one real twelve-hour dogfood trace showing:
 - only meaningful consequence items in the Decision Inbox; and
 - one exact reviewed Decision commit or a user cancellation with zero
   scientific mutation.
+
+The Cockpit and Inbox also require a frozen cold-use comparison against the
+native runner transcript plus the same retained files and evidence. A
+participant must identify:
+
+1. the active scope and remaining enforceable budget;
+2. the decisive Artifact, verifier result, and important failure;
+3. which branch needs in-scope steering;
+4. which Proposal needs a scientific Decision and why; and
+5. the next correct action after the interruption.
+
+First-party sessions debug the task but earn no product credit. Promotion
+requires 100 percent correctness on authority-critical questions, zero
+confusion between steering, Verification, and acceptance, and at least 20
+percent median improvement in lookup and continuation time. If the interface
+does not beat the raw evidence, delete or narrow it rather than adding another
+dashboard layer.
 
 Implementation order is deliberately narrow:
 

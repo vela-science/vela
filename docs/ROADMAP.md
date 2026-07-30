@@ -48,15 +48,19 @@ The detailed work, evidence roots, benchmarks, and stop conditions live in the
 All three planned result loops have reached scoped Verification with accepted
 state unchanged:
 
-- Erdős commit `af70d2cc1e9b98ee705e757fa773101ecfc17a01`,
+- Erdős commit `e4acfab64e5e248dcf3ba029558027fab40579f1`,
   Proposal `vpr_27bce8983810f3bd`, Verification `vvr_85596c5b83104888`;
+  producer work for `10429601..10429800` is closed without accepting the
+  Claim, and the next nonduplicate range is `10429801..10430000`;
 - Formal commit `b16fb5353935f7334ec171a46407bf35b10fa338`,
   Proposal `vpr_08a91ee1b770f5cb`, Verification
   `vvr_1f13018fb140c3c2`; its exact bounded producer Target is closed, but its
   scientific Claim is not accepted; and
 - Quantum commit `72d72416dbafa46030c439a7f49a529de8b04c7e`, Proposal
   `vpr_8715dbb5e2a12442`,
-  Verification `vvr_f0b28f5c257eabb4`.
+  Verification `vvr_f0b28f5c257eabb4`; current Vela reproduction
+  independently verifies the exact `[[10,1,4]]` certificate, while Decision
+  remains null.
 
 Each Proposal remains `pending_review`. The repository authority—not an
 agent—may accept, reject, or cancel each exact Decision.
@@ -66,16 +70,18 @@ Sidon remains clean at commit
 has now been rebuilt and activated without waiting for the three human
 Decisions:
 
-- Vela Web `v0.430.0-rc.3` is commit
-  `ad0493a22e7eb8a1d8a23b8b02c652a7317d8ea5`;
+- Vela Web `v0.430.0-rc.3` remains the application release baseline; this
+  checkpoint advances no web release;
 - the exact active projection is
-  `sha256:780f0def732f997284870d8e82625dfe6411120fa6018e52c27e437c531b9817`;
-- the Registry contains 14 declared sources, 9,537 native records, and 6,303
-  Frontier bindings;
+  `sha256:d944fd9a14b59c0fbc433d407fe53db67b4c0cf8f7d32d4bbd4598fcfad3a355`
+  under Vela `0.950.1`;
+- source adapter set
+  `sha256:82df98241fc5e5f61b0790604a6ef7c3d6b5ce075e00c133e78ed64d0f8e186a`
+  contains 6,700 exact adapter records, and the Registry projection contains
+  9,537 native rows;
 - PLBY is observed from locked commit
   `d4476dd3535ec618dee4177915741017026d26bf`, not the stale predecessor; and
-- the production manifest binds the exact Git commit, deployment, read-only
-  Neon role, and projection root.
+- exact web-tag and deployment-manifest reconciliation remains an alpha gate.
 
 This is release-candidate evidence. Final `0.430.0` still requires the
 remaining alpha gates and another exact refresh after any later human
@@ -153,7 +159,9 @@ The Erdős `10429601..10429800`, Formal Erdős 835, and retained quantum
 `[[10,1,4]]` missions have preserved their failures, scoped their Claims, and
 imported separate Verifications. Complete each through a human Decision or
 explicit cancellation, replay from clean clones, rebuild the Atlas, and prove
-that producer Targets close or advance without treating Verification as
+that Standing changes only through Decision. Erdős producer work already
+closed independently of Standing and now offers `10429801..10430000`; do not
+regress that separation by making duplicate-work prevention wait on
 acceptance.
 
 ## P1 — measure whether the product works
