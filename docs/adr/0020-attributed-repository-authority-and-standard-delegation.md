@@ -469,6 +469,17 @@ session state are stored outside worker-writable roots. The worker receives
 only an opaque campaign identity and the restricted runtime capabilities that
 the controller can enforce.
 
+V1 makes the OpenSSH provider contract explicit. A dedicated plain Ed25519
+identity is loaded into a controller-only agent without the per-sign
+confirmation constraint and preferably with an agent lifetime no longer than
+the campaign, for example `ssh-add -t <campaign-duration>`. Unlocking or
+loading that identity once at campaign start is acceptable. Reusing one agent
+connection does not and must not bypass `ssh-add -c`: when the selected
+provider requires confirmation for every signature, the prompt-free gate
+fails unless the user deliberately chooses a separate lifetime-bounded agent.
+Vela never suppresses or misrepresents a provider confirmation policy, and
+the controller strips the agent endpoint from every worker process.
+
 The authorization permits:
 
 - inspect exact source and Frontier state;
