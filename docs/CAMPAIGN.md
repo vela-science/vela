@@ -1180,7 +1180,7 @@ bun run check
 bun run lint
 bun run typecheck
 bun run test
-bun run db:migrate:check
+bun run db:check
 bun run projection:verify
 bun run build
 bun run test:budgets
