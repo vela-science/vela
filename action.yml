@@ -3,10 +3,10 @@
 # Consume from a frontier repository:
 #
 #   - uses: actions/checkout@v5
-#   - uses: vela-science/vela@v0.950.0
+#   - uses: vela-science/vela@v0.950.1
 #     with:
 #       frontier: .
-#       vela-version: v0.950.0
+#       vela-version: v0.950.1
 #
 # Current repositories carry one signed repository origin and authority
 # initialization record. The action verifies that closed boundary directly
@@ -23,7 +23,7 @@ inputs:
     default: "."
   vela-version:
     description: >-
-      Required reviewed Vela release tag (e.g. v0.950.0). The consumer chooses
+      Required reviewed Vela release tag (e.g. v0.950.1). The consumer chooses
       this pin; proposed Frontier bytes cannot select or downgrade the verifier.
     required: true
 
