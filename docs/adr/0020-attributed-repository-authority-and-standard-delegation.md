@@ -675,6 +675,14 @@ full root. The response protocol must never rely on array position. This
 follows the stronger correlation rule in the
 [Agent Protocol batch-resume contract](https://github.com/langchain-ai/agent-protocol/blob/0ff7cd3962e8b4b3e347b76203be7dfeba003928/streaming/protocol.cddl),
 where every response names its interrupt ID and one batch resumes atomically.
+The source review at Agent Inbox commit
+[`081b2a30`](https://github.com/langchain-ai/agent-inbox/tree/081b2a30409304fa04bfcf7b01d035853b846ecd)
+also confirms that its primary queue is runtime-status centric—All,
+Interrupted, Idle, Busy, and Error—and may offer `Ignore Thread` as a fallback.
+Those are useful Cockpit states, not Decision Inbox dispositions. A malformed
+or unreadable Vela decision request fails closed and remains an explicit
+repair obligation; it cannot become ignorable merely because the UI cannot
+render its expected schema.
 
 Other agent products expose “always approve” for a tool or the remainder of a
 run. Vela must not. The only reusable autonomy grant is the exact, expiring,
