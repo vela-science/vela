@@ -192,10 +192,11 @@ refresh still apply.
 
 GitHub Actions rerun
 [`30583750317`](https://github.com/vela-science/vela-web/actions/runs/30583750317)
-was rejected before any step started because the account billing or spending
-limit still blocks runner allocation. Local checks and the exact dry rebuild
-pass, but the release does not bypass this external gate by inventing a branch
-or substituting local-only evidence.
+was rejected before any step started. That is a missing hosted repetition, not
+a scientific, product, or release blocker. Release evidence comes from the
+clean-checkout workflow, exact dry rebuild, deployed manifests, live projection
+root, and production smoke checks. An unavailable runner does not justify
+inventing a feature branch or staging database.
 
 These exact counts and reproductions do not upgrade the registered benchmark
 claims. Execution evidence remains first-party and directional, state lift and

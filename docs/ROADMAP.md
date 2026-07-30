@@ -100,10 +100,11 @@ earned. Clean empty-database reconstruction also passes at
 
 This is release-candidate evidence. Final `0.430.0` still requires the
 remaining alpha gates and another exact refresh after any later human
-Decision. GitHub Actions currently rejects the Vela Web jobs before runner
-startup on the account billing/spending-limit gate. Clear that external gate
-and rerun exact `main`; do not replace it with a feature branch, staging
-database, or local-only release claim.
+Decision. Hosted GitHub repetition is useful but is not a product or protocol
+gate. A clean checkout of exact `main` must pass the same local workflow, and
+the deployed manifests and live projection must then identify those exact
+bytes and roots. Do not add a feature branch or staging database merely to
+compensate for an unavailable hosted runner.
 
 ## P0 — make everyday Vela obvious
 
