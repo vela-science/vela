@@ -83,6 +83,12 @@ Decisions:
   `d4476dd3535ec618dee4177915741017026d26bf`, not the stale predecessor; and
 - exact web-tag and deployment-manifest reconciliation remains an alpha gate.
 
+The retained real Postgres read artifact `sha256:f1358b98…` passes exact
+reader, query, payload, and bounded-concurrency budgets. It is an honest
+negative on scale: the current release has 9,537 native rows, below the frozen
+100,000-row qualification, and the run does not claim ingestion or product
+lift.
+
 This is release-candidate evidence. Final `0.430.0` still requires the
 remaining alpha gates and another exact refresh after any later human
 Decision.

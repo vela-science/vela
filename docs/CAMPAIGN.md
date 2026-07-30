@@ -322,12 +322,12 @@ retained release rows and atomic `current_release` pointer provide rollback;
 branch sprawl does not.
 
 The deployed normalized Neon model, atomic release pointer, release retention,
-read-only application role, `/api/search`, and `/api/graph` remain. The current
-source candidate already contains `vela.observatory-release-manifest.v6` and
-`observatory.v5`; production remains on manifest v5 and read model v4. Evolve
-the source-candidate contracts for the registry and Atlas, then cut over only
-after exact migration and reconstruction. Do not introduce parallel Registry
-and Atlas manifests if the Observatory manifest can bind the facts once.
+read-only application role, `/api/search`, and `/api/graph` remain. The active
+read model is `observatory.v6`, bound by
+`vela.observatory-release-manifest.v7` at exact root
+`sha256:d944fd9a14b59c0fbc433d407fe53db67b4c0cf8f7d32d4bbd4598fcfad3a355`.
+Do not introduce parallel Registry and Atlas manifests when the Observatory
+manifest already binds the facts once.
 
 Prefer deterministic views and bounded queries over new persisted tables.
 Persist a new projection only when recomputing it would make exact builds or
@@ -1100,6 +1100,18 @@ this qualification: it explicitly makes no product or database-scale claim and
 does not exercise Neon ingestion, database latency, egress, concurrent
 readers, or production behavior.
 
+The first retained real Postgres read result is
+`vela.math-atlas-postgres-benchmark.v1`, artifact root
+`sha256:f1358b986b17043cc7a2700fe44e866fdddaa66c01ccc91b4a48104dd1d33a87`,
+over active release `sha256:d944fd9a…`. It observes 9,537 exact
+current-release native rows, so it truthfully fails only the 100,000-row
+qualification. The SELECT-only reader, manifest and source-root checks pass;
+all 12 bounded-concurrency reads succeed; and keyset, search, neighborhood,
+and concurrent p95 latency and canonical-response-payload budgets pass. This
+run does not claim wire-level byte measurement, ingestion, clean rebuild,
+failed-refresh containment, Target classification, product lift, or scale
+qualification.
+
 #### ADR 0030 acceptance and alpha gate
 
 Accept ADR 0030 and release Vela Web `0.430.0` together only after the bounded
@@ -1277,7 +1289,8 @@ The only planned human actions are:
 1. accept, reject, or cancel the exact pending scientific Decisions for Erdős
    `vpr_27bce8983810f3bd`, Formal `vpr_08a91ee1b770f5cb`, and Quantum
    `vpr_8715dbb5e2a12442`;
-2. approve the exact production projection root after inspection;
+2. approve any later post-Decision production projection root after
+   inspection;
 3. provide uncoached external participants or authorize outreach; and
 4. approve the final bounded release and paper claims.
 
@@ -1340,7 +1353,7 @@ Failure narrows or deletes the system. It does not earn another layer.
 | Cross-Frontier transfer | first-party pending B8 transfer passed with zero accepted delta | held-out independent value test passes or envelope is narrowed |
 | Quantum reproduction | current Vela independently reconstructs and verifies the exact retained `[[10,1,4]]` certificate; Proposal `vpr_8715dbb5e2a12442` remains pending and Decision remains null | human Decision or explicit cancellation, then clean-clone replay and remap |
 | Native-source inventory and observation | source adapter set root `sha256:82df9824…` contains 6,700 exact adapter records; the active projection contains 9,537 native rows; this is exact first-party data evidence, not adoption or scale qualification | finish scale, failure, and cold-use gates or narrow the alpha claim |
-| Math Atlas | active read-model root is `sha256:d944fd9a…` with Vela `0.950.1`; no final web release or product-lift claim is made | reconcile exact web tag and deployment manifest, complete visual, clean-room, scale, and current-Decision refresh gates, then release or record the failed gate |
+| Math Atlas | active read-model root is `sha256:d944fd9a…` with Vela `0.950.1`; real Postgres read artifact `sha256:f1358b98…` passes exactness, reader, query, and bounded-concurrency budgets but fails the 100,000-row gate at 9,537 current rows; no final web release or product-lift claim is made | reconcile exact web tag and deployment manifest, complete ingestion, clean-room, 100,000-row, visual, product, and current-Decision refresh gates, then release or record the failed gate |
 | Shared Math package | not earned | two consumers plus net deletion, or no package |
 | Registry/global Atlas | not earned | remain deferred |
 | Whitepaper breakthrough | not earned | ADR 0026 gates pass or paper remains bounded |
