@@ -117,3 +117,29 @@ fn advanced_help_uses_current_product_commands() {
         );
     }
 }
+
+#[test]
+fn verification_help_exposes_ordinary_authoring_without_key_flags() {
+    let help = run_text(&["verification", "record", "--help"]);
+
+    for flag in [
+        "--profile",
+        "--method",
+        "--property",
+        "--outcome",
+        "--does-not-establish",
+        "--independent-of",
+        "--shared-dependency",
+        "--as",
+        "--push",
+        "--json",
+    ] {
+        assert!(
+            help.contains(flag),
+            "verification record help omitted {flag}"
+        );
+    }
+    assert!(help.contains("<FRONTIER>"));
+    assert!(help.contains("<PROPOSAL>"));
+    assert!(!help.contains("--key"));
+}

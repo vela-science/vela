@@ -163,7 +163,12 @@ vela submit --frontier . \
   --as agent:<name> \
   --json
 
-vela verification import . verification.json \
+vela verification record . <vpr_id> \
+  --profile exact-replay-v1 \
+  --method verification/method.json \
+  --property "Replay the exact retained artifact." \
+  --outcome pass \
+  --does-not-establish "Scientific acceptance." \
   --as verifier:<name> \
   --json
 
@@ -180,7 +185,7 @@ does not create a Verification Record, Decision, Event, or accepted Standing.
 The ordinary CLI is intentionally small:
 
 ```text
-init status next start submit show why review check reproduce log doctor
+init status next start submit verification show why review check reproduce log doctor
 ```
 
 Current advanced surfaces:

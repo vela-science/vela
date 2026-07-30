@@ -32,6 +32,23 @@ fn run(cwd: &Path, socket: Option<&Path>, args: &[&str]) -> Output {
     command.output().expect("run vela")
 }
 
+fn run_with_home(cwd: &Path, socket: Option<&Path>, home: &Path, args: &[&str]) -> Output {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_vela"));
+    command
+        .current_dir(cwd)
+        .args(args)
+        .env("HOME", home)
+        .env("NO_COLOR", "1")
+        .env("VELA_ADVICE", "0")
+        .env_remove("VELA_AGENT_KEY_HEX");
+    if let Some(socket) = socket {
+        command.env("SSH_AUTH_SOCK", socket);
+    } else {
+        command.env_remove("SSH_AUTH_SOCK");
+    }
+    command.output().expect("run vela with isolated home")
+}
+
 fn success_json(output: &Output) -> Value {
     assert!(
         output.status.success(),
@@ -320,7 +337,7 @@ fn current_check_blocks_sensitive_local_files() {
 }
 
 #[test]
-fn current_submission_commits_and_replays_without_changing_accepted_state() {
+fn current_submission_and_verification_replay_without_changing_accepted_state() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let agent = EphemeralAgent::start(temporary.path(), "vela current submit test");
     let frontier = temporary.path().join("frontier");
@@ -403,11 +420,11 @@ fn current_submission_commits_and_replays_without_changing_accepted_state() {
 
     let artifact = b"{\"bounded\":true}\n";
     let artifact_digest = format!("sha256:{}", hex::encode(Sha256::digest(artifact)));
-    let artifact_stem = artifact_digest.trim_start_matches("sha256:");
+    let artifact_stem = artifact_digest.trim_start_matches("sha256:").to_string();
     let bundle = temporary.path().join("bundle");
     std::fs::create_dir_all(bundle.join("artifacts/sha256")).expect("artifact directory");
     std::fs::write(
-        bundle.join("artifacts/sha256").join(artifact_stem),
+        bundle.join("artifacts/sha256").join(&artifact_stem),
         artifact,
     )
     .expect("artifact bytes");
@@ -490,6 +507,202 @@ fn current_submission_commits_and_replays_without_changing_accepted_state() {
         "unexpected publication outcome: {submitted}"
     );
 
+    let method_path = "verification/exact-replay-v1.json";
+    std::fs::create_dir_all(frontier.join("verification")).expect("method directory");
+    std::fs::write(
+        frontier.join(method_path),
+        br#"{"command":"sha256sum records/artifacts/sha256/<digest>","schema":"vela.test-method.v1"}"#,
+    )
+    .expect("method manifest");
+    let staged = Command::new("git")
+        .current_dir(&frontier)
+        .args(["add", method_path])
+        .status()
+        .expect("stage method manifest");
+    assert!(staged.success());
+    let committed = Command::new("git")
+        .current_dir(&frontier)
+        .args([
+            "-c",
+            "user.name=Vela Test",
+            "-c",
+            "user.email=vela@example.invalid",
+            "commit",
+            "-qm",
+            "retain verification method",
+        ])
+        .status()
+        .expect("commit method manifest");
+    assert!(committed.success());
+
+    let verifier = format!(
+        "verifier:current-record-{}",
+        temporary
+            .path()
+            .file_name()
+            .and_then(|value| value.to_str())
+            .unwrap_or("fixture")
+    );
+    let verifier_home = temporary.path().join("verifier-home");
+    std::fs::create_dir_all(&verifier_home).expect("verifier home");
+    let missing_proposal = run_with_home(
+        &frontier,
+        Some(agent.socket()),
+        &verifier_home,
+        &[
+            "verification",
+            "record",
+            ".",
+            &format!("vpr_{}", "f".repeat(16)),
+            "--profile",
+            "exact-replay-v1",
+            "--method",
+            method_path,
+            "--property",
+            "Replay the retained artifact bytes.",
+            "--outcome",
+            "pass",
+            "--does-not-establish",
+            "Scientific acceptance.",
+            "--as",
+            &verifier,
+            "--json",
+        ],
+    );
+    assert!(!missing_proposal.status.success());
+    assert!(
+        !verifier_home.join(".vela/agents").exists(),
+        "Proposal preflight must fail before verifier key creation"
+    );
+    let missing_method = run_with_home(
+        &frontier,
+        Some(agent.socket()),
+        &verifier_home,
+        &[
+            "verification",
+            "record",
+            ".",
+            submitted["proposal_id"].as_str().expect("proposal id"),
+            "--profile",
+            "exact-replay-v1",
+            "--method",
+            "verification/missing.json",
+            "--property",
+            "Replay the retained artifact bytes.",
+            "--outcome",
+            "pass",
+            "--does-not-establish",
+            "Scientific acceptance.",
+            "--as",
+            &verifier,
+            "--json",
+        ],
+    );
+    assert!(!missing_method.status.success());
+    assert!(
+        !verifier_home.join(".vela/agents").exists(),
+        "method preflight must fail before verifier key creation"
+    );
+
+    let verified = success_json(&run_with_home(
+        &frontier,
+        Some(agent.socket()),
+        &verifier_home,
+        &[
+            "verification",
+            "record",
+            ".",
+            submitted["proposal_id"].as_str().expect("proposal id"),
+            "--profile",
+            "exact-replay-v1",
+            "--method",
+            method_path,
+            "--property",
+            "Replay the retained artifact bytes.",
+            "--outcome",
+            "pass",
+            "--does-not-establish",
+            "Scientific acceptance.",
+            "--independent-of",
+            actor,
+            "--as",
+            &verifier,
+            "--json",
+        ],
+    ));
+    assert_eq!(verified["schema"], "vela.verification-import-result.v1");
+    assert_eq!(verified["proposal_id"], submitted["proposal_id"]);
+    assert_eq!(verified["claim_id"], submitted["claim_id"]);
+    assert_eq!(verified["outcome"], "pass");
+    assert_eq!(verified["accepted_event_delta"], 0);
+    assert_eq!(verified["idempotent"], false);
+    assert_eq!(verified["publication"]["state"], "committed_local");
+
+    let verification_root = verified["verification_record_root"]
+        .as_str()
+        .expect("Verification Record root");
+    let verification_path = format!(
+        "records/verifications/sha256/{}.json",
+        verification_root
+            .strip_prefix("sha256:")
+            .expect("full Verification Record root")
+    );
+    let retained: Value = serde_json::from_slice(
+        &std::fs::read(frontier.join(&verification_path)).expect("retained Verification Record"),
+    )
+    .expect("Verification Record JSON");
+    assert_eq!(retained["verifier"], verifier);
+    assert_eq!(retained["subject"]["proposal_id"], submitted["proposal_id"]);
+    assert_eq!(
+        retained["subject"]["submission_id"],
+        submitted["submission_id"]
+    );
+    assert_eq!(
+        retained["subject"]["submission_root"],
+        submitted["submission_root"]
+    );
+    assert_eq!(retained["subject"]["artifact_ids"][0], artifact_stem);
+    assert_eq!(retained["method"]["implementation"], method_path);
+    assert_eq!(
+        retained["method"]["environment_root"],
+        format!(
+            "sha256:{}",
+            hex::encode(Sha256::digest(
+                std::fs::read(frontier.join(method_path)).expect("method bytes")
+            ))
+        )
+    );
+    assert_eq!(
+        retained["independence"]["declared_independent_of"][0],
+        actor
+    );
+
+    let imported_again = success_json(
+        &(run(
+            &frontier,
+            Some(agent.socket()),
+            &[
+                "verification",
+                "import",
+                ".",
+                &verification_path,
+                "--as",
+                &verifier,
+                "--json",
+            ],
+        )),
+    );
+    assert_eq!(
+        imported_again["verification_record_id"],
+        verified["verification_record_id"]
+    );
+    assert_eq!(
+        imported_again["verification_record_root"],
+        verified["verification_record_root"]
+    );
+    assert_eq!(imported_again["accepted_event_delta"], 0);
+    assert_eq!(imported_again["idempotent"], true);
+
     let after = Command::new("git")
         .current_dir(&frontier)
         .args(["rev-parse", "HEAD^{commit}"])
@@ -504,6 +717,7 @@ fn current_submission_commits_and_replays_without_changing_accepted_state() {
     ));
     assert_eq!(checked["counts"]["accepted_claims"], 0);
     assert_eq!(checked["counts"]["pending_claims"], 1);
+    assert_eq!(checked["counts"]["verifications"], 1);
     let status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
     assert_eq!(status["integrity"]["strict"], "pass");
     let target_index: Value = serde_json::from_slice(

@@ -474,6 +474,44 @@ pub(crate) enum AgentsAction {
 /// `vela verification` — durable, non-authorizing verifier evidence.
 #[derive(Subcommand)]
 pub(crate) enum VerifyAction {
+    /// Author, sign, and retain one scoped Verification Record over a current
+    /// pending Proposal.
+    Record {
+        /// Current Frontier repository.
+        frontier: PathBuf,
+        /// Exact current pending Proposal (`vpr_...`).
+        proposal: String,
+        /// Named verifier profile used for this observation.
+        #[arg(long)]
+        profile: String,
+        /// Frontier-relative method manifest whose exact bytes bind the
+        /// Verification environment.
+        #[arg(long)]
+        method: PathBuf,
+        /// Exact property observed by the verifier.
+        #[arg(long)]
+        property: String,
+        /// pass | fail | error | inconclusive
+        #[arg(long)]
+        outcome: String,
+        /// One explicit limit on what this observation establishes. Repeat for
+        /// additional limits.
+        #[arg(long = "does-not-establish", required = true)]
+        does_not_establish: Vec<String>,
+        /// Actor whose work was independently checked. Repeat when applicable.
+        #[arg(long = "independent-of")]
+        independent_of: Vec<String>,
+        /// Dependency shared with the producer. Repeat when applicable.
+        #[arg(long = "shared-dependency")]
+        shared_dependency: Vec<String>,
+        #[arg(long = "as", help = HELP_REQUIRED_AS)]
+        actor: String,
+        /// Publish now: commit locally and push.
+        #[arg(long)]
+        push: bool,
+        #[arg(long)]
+        json: bool,
+    },
     /// Import one signed, content-addressed Verification Record.
     Import {
         frontier: PathBuf,

@@ -5,21 +5,26 @@
 //! object-only authority record, and changes no Claim standing.
 
 use std::fs;
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 
 use chrono::{SecondsFormat, Utc};
 use serde_json::json;
+use sha2::{Digest, Sha256};
 use vela_authority::CedarEvaluationInput;
 use vela_authority::runtime_authentication::{
     AuthenticationRequest, RuntimeSessionState, SignedVerificationRecordSession,
 };
 use vela_protocol::authority::PrincipalSnapshotV1;
 use vela_protocol::current_repository::{CurrentRepositoryV3, RepositoryObjectRefV1};
+use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
 use vela_protocol::principal_capability::PrincipalClass;
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::repository_origin::RepositoryOriginV1;
 use vela_protocol::submission_v1::SubmissionV1;
-use vela_protocol::verification_record::VerificationRecordV1;
+use vela_protocol::verification_record::{
+    IndependenceDisclosure, VerificationMethod, VerificationRecordDraft, VerificationRecordV1,
+    VerificationScope, VerificationSubject,
+};
 
 use crate::authority_transaction::{
     AuthorityObjectDraft, AuthorityTransactionRequest, prepare_authority_transaction,
@@ -32,6 +37,271 @@ use crate::frontier_txn::{ContentDigest, InputBinding, WriteClass};
 use crate::workflow::{
     VerificationImportOutcome, active_repository_signing_key, publication_delta,
 };
+
+const METHOD_MANIFEST_MAX_BYTES: u64 = 1024 * 1024;
+
+#[derive(Debug, Clone)]
+pub(crate) struct VerificationRecordRequest {
+    pub(crate) proposal_id: String,
+    pub(crate) profile: String,
+    pub(crate) method_path: PathBuf,
+    pub(crate) property: String,
+    pub(crate) outcome: String,
+    pub(crate) does_not_establish: Vec<String>,
+    pub(crate) independent_of: Vec<String>,
+    pub(crate) shared_dependencies: Vec<String>,
+    pub(crate) actor: String,
+}
+
+fn ensure_pending_proposal(
+    frontier: &Path,
+    repository: &CurrentRepositoryV3,
+    proposal_id: &str,
+) -> Result<(), String> {
+    let decisions =
+        crate::current_repository::load_current_proposal_decisions(frontier, repository)?;
+    ensure_pending_standing(
+        proposal_id,
+        decisions
+            .get(proposal_id)
+            .map(|decision| decision.standing.as_str()),
+    )
+}
+
+fn ensure_pending_standing(proposal_id: &str, standing: Option<&str>) -> Result<(), String> {
+    if let Some(standing) = standing {
+        return Err(format!(
+            "Verification Record Proposal {proposal_id} is {}, not pending_review",
+            standing
+        ));
+    }
+    Ok(())
+}
+
+struct CurrentProposalPackage {
+    proposal: ProposalV1,
+    proposal_root: String,
+    submission: SubmissionV1,
+}
+
+fn load_current_proposal_package(
+    frontier: &Path,
+    repository: &CurrentRepositoryV3,
+    proposal_id: &str,
+) -> Result<CurrentProposalPackage, String> {
+    let proposal_reference = repository
+        .proposals
+        .iter()
+        .find(|reference| reference.id == proposal_id)
+        .ok_or_else(|| {
+            format!(
+                "Verification Record Proposal {proposal_id} is not pending in the current repository"
+            )
+        })?;
+    let proposal = read_exact_object(
+        frontier,
+        proposal_reference,
+        ProposalV1::parse,
+        ProposalV1::canonical_bytes,
+    )?;
+    let proposal_root = proposal.canonical_root()?;
+    if proposal.proposal_id != proposal_reference.id || proposal_root != proposal_reference.root {
+        return Err(format!(
+            "current Proposal {proposal_id} differs from its exact repository reference"
+        ));
+    }
+    let submission_reference = repository
+        .submissions
+        .iter()
+        .find(|reference| {
+            reference.id == proposal.producer_package.id
+                && reference.root == proposal.producer_package.root
+                && reference.path == proposal.producer_package.path
+        })
+        .ok_or_else(|| {
+            format!(
+                "Verification Record Proposal {proposal_id} does not bind one exact current Submission"
+            )
+        })?;
+    let submission = read_exact_object(
+        frontier,
+        submission_reference,
+        SubmissionV1::parse,
+        SubmissionV1::canonical_bytes,
+    )?;
+    if submission.submission_id != submission_reference.id
+        || submission.canonical_root()? != submission_reference.root
+    {
+        return Err("stored Submission identity differs from the current repository".into());
+    }
+    Ok(CurrentProposalPackage {
+        proposal,
+        proposal_root,
+        submission,
+    })
+}
+
+fn current_subject_for_proposal(
+    frontier: &Path,
+    repository: &CurrentRepositoryV3,
+    proposal_id: &str,
+) -> Result<VerificationSubject, String> {
+    let package = load_current_proposal_package(frontier, repository, proposal_id)?;
+    let mut artifact_ids = Vec::with_capacity(package.submission.artifacts.len());
+    for artifact in &package.submission.artifacts {
+        let artifact_id = artifact
+            .digest
+            .strip_prefix("sha256:")
+            .ok_or_else(|| {
+                "current Submission artifact digest is not a full sha256 identity".to_string()
+            })?
+            .to_string();
+        let exact = repository.artifacts.iter().any(|reference| {
+            reference.schema == "content-addressed-artifact"
+                && reference.id == artifact_id
+                && reference.root == artifact.digest
+                && reference.path == artifact.path
+        });
+        if !exact {
+            return Err(format!(
+                "current Submission Artifact {} differs from its exact repository reference",
+                artifact.digest
+            ));
+        }
+        artifact_ids.push(artifact_id);
+    }
+
+    Ok(VerificationSubject {
+        claim_id: package.proposal.subject.id,
+        artifact_ids,
+        submission_id: package.submission.submission_id,
+        submission_root: package.proposal.producer_package.root,
+        proposal_id: package.proposal.proposal_id,
+    })
+}
+
+fn method_manifest_binding(
+    frontier: &Path,
+    method_path: &Path,
+) -> Result<(String, String), String> {
+    let implementation = method_path
+        .components()
+        .map(|component| match component {
+            Component::Normal(value) => value
+                .to_str()
+                .map(ToString::to_string)
+                .ok_or_else(|| "Verification method path must be UTF-8".to_string()),
+            _ => {
+                Err("Verification method path must be normalized and frontier-relative".to_string())
+            }
+        })
+        .collect::<Result<Vec<_>, _>>()?
+        .join("/");
+    if implementation.trim().is_empty()
+        || implementation != implementation.trim()
+        || implementation.chars().any(char::is_control)
+    {
+        return Err("Verification method path must be normalized printable text".into());
+    }
+    let bytes = crate::bounded_file::read_bounded_frontier_file(
+        frontier,
+        method_path,
+        METHOD_MANIFEST_MAX_BYTES,
+        "Verification method manifest",
+    )
+    .map_err(|error| error.to_string())?;
+    if bytes.is_empty() {
+        return Err("Verification method manifest must not be empty".into());
+    }
+    let tracked = crate::git_hardened::output(
+        frontier,
+        &["ls-files", "--error-unmatch", "--", &implementation],
+    )?;
+    if !tracked.status.success() {
+        return Err(
+            "Verification method manifest must be retained in the current Git commit".into(),
+        );
+    }
+    let dirt = crate::git_hardened::text(
+        frontier,
+        &[
+            "status",
+            "--porcelain=v1",
+            "--untracked-files=no",
+            "--",
+            &implementation,
+        ],
+    )?;
+    if !dirt.is_empty() {
+        return Err(
+            "Verification method manifest differs from the retained current Git bytes".into(),
+        );
+    }
+    Ok((
+        implementation,
+        format!("sha256:{}", hex::encode(Sha256::digest(&bytes))),
+    ))
+}
+
+pub(crate) fn author_record(
+    frontier: &Path,
+    request: VerificationRecordRequest,
+) -> Result<VerificationRecordV1, String> {
+    let actor = request.actor.trim();
+    if actor != request.actor
+        || !(actor.starts_with("agent:")
+            || actor.starts_with("ci:")
+            || actor.starts_with("verifier:"))
+    {
+        return Err(
+            "verification record author must be an exact agent:, ci:, or verifier: identity".into(),
+        );
+    }
+
+    // Complete every repository and method preflight before the local agent
+    // key resolver is allowed to mint or load a signer.
+    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    ensure_pending_proposal(frontier, &repository, &request.proposal_id)?;
+    let subject = current_subject_for_proposal(frontier, &repository, &request.proposal_id)?;
+    let (implementation, environment_root) =
+        method_manifest_binding(frontier, &request.method_path)?;
+
+    let observed_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
+    let key = vela_edge::agent_identity::agent_signing_key(Some(actor))?;
+    let identity = IdentityBinding::build(
+        IdentityBindingDraft {
+            actor_id: actor.into(),
+            actor_class: ActorClass::Agent,
+            created_at: observed_at.clone(),
+        },
+        &key,
+    )?;
+    VerificationRecordV1::build(
+        VerificationRecordDraft {
+            subject,
+            method: VerificationMethod {
+                profile: request.profile,
+                implementation,
+                environment_root,
+            },
+            scope: VerificationScope {
+                property: request.property,
+                does_not_establish: request.does_not_establish,
+            },
+            outcome: request.outcome,
+            verifier: actor.into(),
+            independence: IndependenceDisclosure {
+                declared_independent_of: request.independent_of,
+                shared_dependencies: request.shared_dependencies,
+            },
+            output_artifact_ids: Vec::new(),
+            started_at: observed_at.clone(),
+            completed_at: observed_at,
+        },
+        identity,
+        &key,
+    )
+}
 
 fn read_exact_object<T>(
     frontier: &Path,
@@ -56,59 +326,14 @@ fn load_subject(
     repository: &CurrentRepositoryV3,
     record: &VerificationRecordV1,
 ) -> Result<(ProposalV1, String, SubmissionV1), String> {
-    let proposal_reference = repository
-        .proposals
-        .iter()
-        .find(|reference| reference.id == record.subject.proposal_id)
-        .ok_or_else(|| {
-            format!(
-                "Verification Record Proposal {} is not pending in the current repository",
-                record.subject.proposal_id
-            )
-        })?;
-    let proposal = read_exact_object(
-        frontier,
-        proposal_reference,
-        ProposalV1::parse,
-        ProposalV1::canonical_bytes,
-    )?;
-    let proposal_root = proposal.canonical_root()?;
-    if proposal.proposal_id != proposal_reference.id
-        || proposal_root != proposal_reference.root
-        || proposal.subject.id != record.subject.claim_id
-        || proposal.producer_package.id != record.subject.submission_id
-        || proposal.producer_package.root != record.subject.submission_root
+    let package = load_current_proposal_package(frontier, repository, &record.subject.proposal_id)?;
+    if package.proposal.subject.id != record.subject.claim_id
+        || package.proposal.producer_package.id != record.subject.submission_id
+        || package.proposal.producer_package.root != record.subject.submission_root
     {
         return Err(
             "Verification Record does not bind the current Proposal and producer package".into(),
         );
-    }
-
-    let submission_reference = repository
-        .submissions
-        .iter()
-        .find(|reference| reference.id == record.subject.submission_id)
-        .ok_or_else(|| {
-            format!(
-                "Verification Record Submission {} is absent from the current repository",
-                record.subject.submission_id
-            )
-        })?;
-    if submission_reference.root != record.subject.submission_root
-        || submission_reference.path != proposal.producer_package.path
-    {
-        return Err("Verification Record Submission reference differs from the Proposal".into());
-    }
-    let submission = read_exact_object(
-        frontier,
-        submission_reference,
-        SubmissionV1::parse,
-        SubmissionV1::canonical_bytes,
-    )?;
-    if submission.submission_id != submission_reference.id
-        || submission.canonical_root()? != submission_reference.root
-    {
-        return Err("stored Submission identity differs from the current repository".into());
     }
 
     for artifact_id in record
@@ -127,7 +352,7 @@ fn load_subject(
             ));
         }
     }
-    Ok((proposal, proposal_root, submission))
+    Ok((package.proposal, package.proposal_root, package.submission))
 }
 
 fn existing_outcome(
@@ -192,7 +417,6 @@ pub(crate) fn import(
 
     let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
-    let (_proposal, proposal_root, _submission) = load_subject(frontier, &repository, record)?;
     let record_bytes = record.canonical_bytes()?;
     let record_root = record.canonical_root()?;
     let request_root = format!(
@@ -216,6 +440,8 @@ pub(crate) fn import(
     )? {
         return Ok(outcome);
     }
+    ensure_pending_proposal(frontier, &repository, &record.subject.proposal_id)?;
+    let (_proposal, proposal_root, _submission) = load_subject(frontier, &repository, record)?;
 
     let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier)?;
     let barrier = crate::frontier_txn::FrontierTxn::acquire_repository_authority_write_barrier(
@@ -229,6 +455,7 @@ pub(crate) fn import(
             "current repository changed while acquiring the verification import barrier".into(),
         );
     }
+    ensure_pending_proposal(frontier, &held_repository, &record.subject.proposal_id)?;
     load_subject(frontier, &held_repository, record)?;
 
     let origin_bytes = fs::read(frontier.join(".vela/origin.json"))
@@ -712,7 +939,7 @@ mod tests {
             &fixture.record,
         )
         .unwrap_err();
-        assert!(error.contains("does not bind"), "{error}");
+        assert!(error.contains("exact repository reference"), "{error}");
     }
 
     #[test]
@@ -747,5 +974,97 @@ mod tests {
         .unwrap();
         assert!(outcome.idempotent);
         assert_eq!(outcome.accepted_event_delta, 0);
+    }
+
+    #[test]
+    fn method_manifest_bytes_bind_the_environment_and_fail_closed() {
+        let directory = TempDir::new().unwrap();
+        let path = Path::new("verification/method.json");
+        let initialized = std::process::Command::new("git")
+            .current_dir(directory.path())
+            .args(["init", "-q"])
+            .status()
+            .unwrap();
+        assert!(initialized.success());
+        fs::create_dir_all(directory.path().join("verification")).unwrap();
+        fs::write(
+            directory.path().join(path),
+            br#"{"schema":"fixture.method.v1","version":1}"#,
+        )
+        .unwrap();
+        let committed = std::process::Command::new("git")
+            .current_dir(directory.path())
+            .args(["add", "verification/method.json"])
+            .status()
+            .unwrap();
+        assert!(committed.success());
+        let committed = std::process::Command::new("git")
+            .current_dir(directory.path())
+            .args([
+                "-c",
+                "user.name=Vela Test",
+                "-c",
+                "user.email=vela@example.invalid",
+                "commit",
+                "-qm",
+                "method v1",
+            ])
+            .status()
+            .unwrap();
+        assert!(committed.success());
+        let (implementation, first_root) = method_manifest_binding(directory.path(), path).unwrap();
+        assert_eq!(implementation, "verification/method.json");
+
+        fs::write(
+            directory.path().join(path),
+            br#"{"schema":"fixture.method.v1","version":2}"#,
+        )
+        .unwrap();
+        let error = method_manifest_binding(directory.path(), path).unwrap_err();
+        assert!(error.contains("differs from the retained"), "{error}");
+        let committed = std::process::Command::new("git")
+            .current_dir(directory.path())
+            .args(["add", "verification/method.json"])
+            .status()
+            .unwrap();
+        assert!(committed.success());
+        let committed = std::process::Command::new("git")
+            .current_dir(directory.path())
+            .args([
+                "-c",
+                "user.name=Vela Test",
+                "-c",
+                "user.email=vela@example.invalid",
+                "commit",
+                "-qm",
+                "method v2",
+            ])
+            .status()
+            .unwrap();
+        assert!(committed.success());
+        let (_, second_root) = method_manifest_binding(directory.path(), path).unwrap();
+        assert_ne!(first_root, second_root);
+
+        fs::write(directory.path().join(path), []).unwrap();
+        let error = method_manifest_binding(directory.path(), path).unwrap_err();
+        assert!(error.contains("must not be empty"), "{error}");
+        let error =
+            method_manifest_binding(directory.path(), Path::new("verification/../outside.json"))
+                .unwrap_err();
+        assert!(
+            error.contains("normalized and frontier-relative"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn terminal_proposals_are_not_verification_authoring_targets() {
+        assert!(ensure_pending_standing("vpr_fixture", None).is_ok());
+        for standing in ["accepted", "rejected", "withdrawn"] {
+            let error =
+                ensure_pending_standing("vpr_fixture", Some(standing)).expect_err("terminal");
+            assert!(error.contains(standing), "{error}");
+            assert!(error.contains("not pending_review"), "{error}");
+        }
     }
 }

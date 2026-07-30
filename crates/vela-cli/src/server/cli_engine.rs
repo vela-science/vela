@@ -7,6 +7,40 @@ use vela_protocol::submission_v1::SubmissionV1;
 
 pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
     match action {
+        VerifyAction::Record {
+            frontier,
+            proposal,
+            profile,
+            method,
+            property,
+            outcome,
+            does_not_establish,
+            independent_of,
+            shared_dependency,
+            actor,
+            push,
+            json,
+        } => {
+            crate::ui::set_mode("verification.record", json);
+            let record = crate::current_verification::author_record(
+                &frontier,
+                crate::current_verification::VerificationRecordRequest {
+                    proposal_id: proposal,
+                    profile,
+                    method_path: method,
+                    property,
+                    outcome,
+                    does_not_establish,
+                    independent_of,
+                    shared_dependencies: shared_dependency,
+                    actor: actor.clone(),
+                },
+            )
+            .unwrap_or_else(|error| fail_return(&error));
+            let result = crate::workflow::import_verification(&frontier, &record, &actor, push)
+                .unwrap_or_else(|error| fail_return(&error));
+            print_verification_result(&result, "verification record", json);
+        }
         VerifyAction::Import {
             frontier,
             record,
@@ -27,17 +61,25 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                 });
             let result = crate::workflow::import_verification(&frontier, &record, &actor, push)
                 .unwrap_or_else(|error| fail_return(&error));
-            if json {
-                print_json(&result);
-            } else {
-                println!(
-                    "verification import: retained {} for proposal {}",
-                    result.verification_record_id, result.proposal_id
-                );
-                println!("  acceptance: unchanged (delta 0)");
-                println!("  outcome: {}", result.outcome);
-            }
+            print_verification_result(&result, "verification import", json);
         }
+    }
+}
+
+fn print_verification_result(
+    result: &crate::workflow::VerificationImportOutcome,
+    command: &str,
+    json_output: bool,
+) {
+    if json_output {
+        print_json(result);
+    } else {
+        println!(
+            "{command}: retained {} for proposal {}",
+            result.verification_record_id, result.proposal_id
+        );
+        println!("  acceptance: unchanged (delta 0)");
+        println!("  outcome: {}", result.outcome);
     }
 }
 

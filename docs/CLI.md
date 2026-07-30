@@ -125,14 +125,24 @@ and cannot decide it.
 ## Verification
 
 ```bash
-vela verification import . verification.json \
+vela verification record . <vpr_id> \
+  --profile exact-replay-v1 \
+  --method verification/method.json \
+  --property "Replay the exact retained artifact." \
+  --outcome pass \
+  --does-not-establish "Scientific acceptance." \
+  --independent-of agent:<producer> \
   --as verifier:independent-check \
   --json
 ```
 
 A Verification Record binds the Submission, Proposal, Claim, Artifacts,
-method, environment, scope, outcome, and verifier identity. It changes no
-Standing.
+method-manifest bytes, environment, scope, outcome, and verifier identity. The
+command resolves the exact current Proposal package, signs the scoped record,
+and retains it atomically. It changes no Standing.
+
+`vela verification import . verification.json --as verifier:<name> --json`
+remains the interoperability path for an already signed record.
 
 Acceptance is eligible only when the current Proposal and Submission still
 match and every declared verification requirement has a valid independent

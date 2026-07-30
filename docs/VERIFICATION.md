@@ -77,8 +77,27 @@ Verification Record merely because it is deterministic.
 Durable independent evidence is retained with:
 
 ```bash
-vela verification import . verification-record.json --json
+vela verification record . <vpr_id> \
+  --profile exact-replay-v1 \
+  --method verification/method.json \
+  --property "Replay the exact retained artifact." \
+  --outcome pass \
+  --does-not-establish "Scientific acceptance." \
+  --independent-of agent:<producer> \
+  --as verifier:<name> \
+  --json
 ```
+
+The method manifest is one bounded, regular, frontier-relative file retained
+unchanged in the current Git commit. Its exact bytes become the record's
+environment root. Vela resolves the current Claim, Submission, Proposal, and
+Submission Artifacts before it loads or creates the verifier's local agent key,
+then signs and imports the record through the ordinary atomic intake path.
+Missing, decided, or stale Proposals and missing, dirty, untracked, empty,
+symlinked, oversized, or escaping method paths fail closed.
+
+`vela verification import . verification-record.json --as verifier:<name>
+--json` remains available for an already signed interoperable record.
 
 An import wrapper may pin the Vela executable used for repository intake, but
 it must pin immutable copied bytes or a released artifact. It must not pin a

@@ -160,7 +160,11 @@ submit the result through the active Attempt with `vela submit --attempt <vat_id
 --artifact <witness>:witness --as agent:<you> --json`. A producer outside the
 frontier can emit the same portable Submission v1 and call `vela submit
 submission.json`. Producer checks remain producer-reported; an independent
-Verification Record is separate.
+Verification Record is separate. Author one over an exact pending Proposal
+with `vela verification record . <vpr_id> --profile <profile> --method
+<frontier-relative-manifest> --property <property> --outcome
+<pass|fail|error|inconclusive> --does-not-establish <limit> --as
+verifier:<you> --json`; this changes no Standing.
 
 Every verb takes `--json` and returns one object with `ok` and `command`; no
 prose leaks into a JSON stream. Exit codes: 0 ok, 1 domain failure, 2 usage,

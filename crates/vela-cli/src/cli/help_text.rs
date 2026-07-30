@@ -88,12 +88,23 @@ No trust required: the frozen verifiers re-derive each stored witness.";
 
 pub const VERIFY: &str = "\
 EXAMPLES
-  vela verification import . verification.json \\
+  vela verification record . vpr_8b49… \\
+    --profile exact-replay-v1 \\
+    --method verification/method.json \\
+    --property \"Replay the exact retained artifact.\" \\
+    --outcome pass \\
+    --does-not-establish \"Scientific acceptance.\" \\
+    --independent-of agent:producer \\
     --as verifier:independent-check --json
-        retain a signed Verification Record without accepting the Proposal
+        author, sign, and retain a scoped Verification Record
+
+  vela verification import . signed-verification.json \\
+    --as verifier:independent-check --json
+        import an already signed interoperable record
 
 The record binds the exact Submission, Proposal, Claim, artifacts, method,
-environment, scope, outcome, and verifier identity.
+manifest bytes, environment, scope, outcome, and verifier identity. It never
+accepts the Proposal or changes Standing.
 
 SEE ALSO
   vela reproduce . --proposal vpr_8b49…   replay only pending evidence
