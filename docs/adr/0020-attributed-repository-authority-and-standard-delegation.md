@@ -630,6 +630,8 @@ vela.review-outbox.v1
     sealed candidate and campaign roots
     exact draft and evidence roots
     consequence class and requested disposition
+    designated authority domain and principal rule
+    prepared_at and expires_at
     semantic diff and next-Obligation roots
 ```
 
@@ -758,6 +760,91 @@ prompts:
   for a decision; and
 - **Decision Inbox** shows only unresolved outbox entries, grouped by
   consequence and campaign, with one persistent batch action bar.
+
+##### Narrow adoption from Buzz
+
+A source review of
+[Block Buzz at commit `bd0bff24`](https://github.com/block/buzz/tree/bd0bff24bfd2cffa2b3b3a995f7628af5e460a5c)
+adds three useful implementation disciplines without changing Vela's product
+or authority boundary.
+
+First, the Cockpit activity projection uses Buzz's
+[verb, object, outcome](https://github.com/block/buzz/blob/bd0bff24bfd2cffa2b3b3a995f7628af5e460a5c/VISION_ACTIVITY.md#the-governing-frame-verb-object-outcome)
+frame. Each visible row answers what happened, to which exact object, and with
+what outcome before exposing raw details. The row also binds its campaign,
+experiment-node, Run or run-start, and source activity roots. Routine reads,
+heartbeats, and transport chatter remain available in the raw activity log but
+are coalesced or suppressed from the primary view. This is a disposable
+presentation projection over retained evidence, not a new event or Standing
+model.
+
+Second, in-scope steering is exact and positively acknowledged. Buzz's ACP
+adapter binds its native steer to the
+[current expected run ID](https://github.com/block/buzz/blob/bd0bff24bfd2cffa2b3b3a995f7628af5e460a5c/crates/buzz-acp/src/pool.rs#L310-L330)
+and treats only
+[recognized outcomes](https://github.com/block/buzz/blob/bd0bff24bfd2cffa2b3b3a995f7628af5e460a5c/crates/buzz-acp/src/acp.rs#L1529-L1633)
+as delivery. A Vela campaign steering directive therefore binds:
+
+```text
+campaign, lease, experiment-node, and active-run identities
+expected last activity or checkpoint root
+issuer, issued_at, and exact directive body root
+```
+
+The controller appends a correlated acknowledgment naming the directive root,
+the run that received it, and one closed outcome:
+
+```text
+applied_in_run | started_successor_run | rejected | completed_before_delivery
+```
+
+Only the first two outcomes count as delivery. Missing, unknown, mismatched, or
+transport-only success remains visibly unacknowledged and must not be reported
+as applied. The acknowledgment changes neither lease scope nor Standing. A
+directive that would change Target, budget, tools, writable roots, network,
+risk, publication, or consequence instead creates a new reviewed escalation.
+
+Third, outbox creation and disposition use the useful storage guards in Buzz's
+workflow approval path without adopting that workflow engine. Buzz records a
+pending approval with an expiry and designated approver, then uses a
+[`pending` compare-and-swap](https://github.com/block/buzz/blob/bd0bff24bfd2cffa2b3b3a995f7628af5e460a5c/crates/buzz-db/src/workflow.rs#L1050-L1120)
+so concurrent grant and deny cannot both succeed. Its command path also checks
+pending state, expiry, and the named approver before atomically committing the
+command event and status change. Vela applies a stricter root-bound form:
+
+- sealing a candidate and durably creating its outbox entry is one journaled
+  projection operation, or an equivalent atomic transaction;
+- the full entry root is the deduplication key, so replay or restart cannot
+  create a second logical item for the same candidate, classifier, and read
+  heads;
+- a disposition may consume only a `pending`, unexpired entry whose exact
+  designated human authority and authority domain match the authenticated
+  principal;
+- the transition from `pending` to `batched` uses compare-and-swap over the
+  exact entry root and Inbox snapshot root; and
+- final batch commitment rederives every selected entry root and the complete
+  transaction read set immediately before confirmation and again under the
+  repository-authority write barrier.
+
+Local read, save, snooze, selection, and draft-reason state remains a separate
+triage sidecar. It never participates in the pending compare-and-swap, extends
+an expiry, changes the designated authority, or becomes a scientific
+disposition.
+
+The boundaries are equally important. Vela does **not** adopt Buzz's chat,
+channel, forge, Nostr relay, or
+[one identity and event substrate](https://github.com/block/buzz/blob/bd0bff24bfd2cffa2b3b3a995f7628af5e460a5c/README.md#why-buzz-is-better).
+Agents do not receive human authority parity merely because both produce
+attributed activity. Native runners and workbenches retain their own logs;
+Vela retains separate execution evidence, Verification, human or governed
+Decision, Event, and Standing planes.
+
+Buzz is prior art for these seams, not proof of a finished approval system. At
+the reviewed commit its own architecture says the approval schema, database,
+API, and UI exist while the executor
+[still fails rather than persisting and resuming an approval gate](https://github.com/block/buzz/blob/bd0bff24bfd2cffa2b3b3a995f7628af5e460a5c/ARCHITECTURE.md#L548-L553).
+Vela may not cite Buzz as release evidence and may not import its workflow or
+approval engine.
 
 A blocked experiment branch may appear in Decisions while independent branches
 continue in the Campaign Cockpit. The product may notify once when the first
@@ -1003,9 +1090,17 @@ Focused conformance must prove:
   children, missing parents, cycles, changed diffs, and changed evaluations;
 - pause, resume, and in-scope steering append without reauthorization, while
   scope-expanding plan changes fail into the Decision Inbox;
+- every steering directive binds the exact campaign, lease, experiment node,
+  active run, and prior activity root; only a correlated recognized outcome
+  counts as delivery, while missing, unknown, mismatched, or
+  completed-before-delivery acknowledgments remain visibly unapplied;
 - producer- and verifier-authenticated candidate sealing creates no repository
   transaction, repository-authority signature, canonical Proposal, Event, or
   Standing;
+- a crash before, during, or after candidate sealing and outbox projection
+  leaves either no durable entry or exactly one entry under its full root;
+  restart deterministically repairs the projection without duplicating,
+  dropping, or silently changing an entry;
 - one candidate commit installs the same canonical scientific effect as the
   current direct Submission, Verification, and single-Proposal review path;
 - Submission and Verification remain accepted-state delta zero;
@@ -1016,6 +1111,10 @@ Focused conformance must prove:
 - every selected review response maps an explicit entry ID to its full root;
   queue reorder cannot misapply it; unknown, duplicate, wrong-root, extra,
   omitted-selected, or positionally substituted responses fail;
+- only a pending, unexpired entry acted on by its designated human authority
+  may compare-and-swap into a batch; expiry, wrong authority domain, wrong
+  principal, stale Inbox root, concurrent disposition, or lost race writes
+  nothing;
 - a selected subset commits while unselected entries remain pending;
 - save, snooze, revision-request, dismissal, and notification preferences
   change no deterministic outbox entry or Standing, cannot suppress a
@@ -1039,6 +1138,10 @@ Focused conformance must prove:
   nothing;
 - exact retry is idempotent and committed recovery installs all or none
   without reauthentication or resigning;
+- restart after a steering acknowledgment, outbox enqueue, batch preparation,
+  or committed batch reconstructs the same visible state and never converts
+  an unacknowledged directive, triage action, verifier result, or partial
+  journal into authority;
 - batch Standing equals valid sequential application in the same canonical
   order while one authority record covers every Event exactly once; and
 - a clean clone replays accepted state with the campaign system, workbench,
