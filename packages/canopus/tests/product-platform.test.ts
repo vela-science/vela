@@ -74,7 +74,7 @@ test("native Windows doctor remains read-only and does not probe worker runtimes
     const result = await doctorProduct({
       frontier,
       platform: "win32",
-      profileName: "erdos1056-k15-10429401-10429600",
+      profileName: "erdos1056-k15-10429601-10429800",
       runner: async (options) => {
         const executable = path.basename(options.argv[0] ?? "");
         observed.push(`${executable} ${options.argv.slice(1).join(" ")}`);
@@ -109,7 +109,7 @@ test("native Windows doctor remains read-only and does not probe worker runtimes
               target_id: "erdos:1056",
               packet: {
                 schema: "erdos-frontier.problem-work.v2",
-                sha256: "sha256:6d1a2ca87851deb1fa2133f4f6cf7edb28ee843cb0eef57ea09e826b3fdca63b",
+                sha256: "sha256:8d879e24a537de3b9b13ad7878dc98db8ce4f5273187c7f45d0d49a93e8fe8ad",
               },
             }],
           }));

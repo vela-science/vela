@@ -62,11 +62,11 @@ test("profile help and validation retain the advanced closed interface", async (
 
   const list = JSON.parse(await help("profile", "list")) as { profiles: string[] };
   assert.deepEqual(list.profiles, [
-    "erdos1056-k15-10429401-10429600",
+    "erdos1056-k15-10429601-10429800",
     "formal-erdos-505-test-dim-one",
   ]);
   const validation = JSON.parse(
-    await help("profile", "validate", "erdos1056-k15-10429401-10429600"),
+    await help("profile", "validate", "erdos1056-k15-10429601-10429800"),
   ) as { validation: { schema: string } };
   assert.equal(validation.validation.schema, "canopus.profile-validation.v1");
 });

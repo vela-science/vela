@@ -38,8 +38,8 @@ test("verifier cwd must exist below the sealed source before a model call", asyn
 test("the active product profile stages exact platform capsules and one bounded Mission v1 draft", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "canopus-product-profiles-"));
   const profiles = [
-    await loadProductProfile("erdos1056-k15-10429401-10429600", { platform: "darwin-arm64" }),
-    await loadProductProfile("erdos1056-k15-10429401-10429600", { platform: "linux-x86_64" }),
+    await loadProductProfile("erdos1056-k15-10429601-10429800", { platform: "darwin-arm64" }),
+    await loadProductProfile("erdos1056-k15-10429601-10429800", { platform: "linux-x86_64" }),
   ];
   assert.equal(profiles[0]?.target, "erdos:1056");
   assert.notEqual(profiles[0]?.capsule_sha256, profiles[1]?.capsule_sha256);
@@ -88,7 +88,7 @@ test("portable verifier images require a closed public repository and full diges
 
 test("profile v2 binds exact platform custody and packs only portable contract resources", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "canopus-profile-pack-parent-"));
-  const name = "erdos1056-k15-10429401-10429600";
+  const name = "erdos1056-k15-10429601-10429800";
   assert.deepEqual(await listProductProfiles(), [
     name,
     "formal-erdos-505-test-dim-one",
@@ -116,8 +116,8 @@ test("profile v2 binds exact platform custody and packs only portable contract r
   assert.equal(manifest.schema, "canopus.profile-pack.v1");
   assert.equal(packed.files, 6);
   assert.deepEqual(manifest.files.map((file) => file.path), [
-    "capsules/erdos1056-k15/bin/linux-arm64/10429401-10429600/verifier",
-    "capsules/erdos1056-k15/bin/linux-x86_64/10429401-10429600/verifier",
+    "capsules/erdos1056-k15/bin/linux-arm64/10429601-10429800/verifier",
+    "capsules/erdos1056-k15/bin/linux-x86_64/10429601-10429800/verifier",
     "missions/erdos1056-k15-next/mission.draft.json",
     `profiles/${name}.json`,
     "runtime/native-worker/config-linux.toml",
@@ -192,10 +192,10 @@ test("Linux custody denies host roots and reopens only the exact workspace", asy
 });
 
 test("explicit targets are deliberate while the default never skips rank one", async () => {
-  const profile = await loadProductProfile("erdos1056-k15-10429401-10429600");
+  const profile = await loadProductProfile("erdos1056-k15-10429601-10429800");
   const packet = {
     schema: "erdos-frontier.problem-work.v2",
-    sha256: "sha256:6d1a2ca87851deb1fa2133f4f6cf7edb28ee843cb0eef57ea09e826b3fdca63b",
+    sha256: "sha256:8d879e24a537de3b9b13ad7878dc98db8ce4f5273187c7f45d0d49a93e8fe8ad",
   };
   const offer = {
     targets: [
@@ -232,11 +232,11 @@ test("ordinary profile discovery selects the unique first-offer profile", async 
       target_id: "erdos:1056",
       packet: {
         schema: "erdos-frontier.problem-work.v2",
-        sha256: "sha256:6d1a2ca87851deb1fa2133f4f6cf7edb28ee843cb0eef57ea09e826b3fdca63b",
+        sha256: "sha256:8d879e24a537de3b9b13ad7878dc98db8ce4f5273187c7f45d0d49a93e8fe8ad",
       },
     }],
   });
-  assert.equal(profile.name, "erdos1056-k15-10429401-10429600");
+  assert.equal(profile.name, "erdos1056-k15-10429601-10429800");
   await assert.rejects(
     resolveProductProfile({
       availability: { configured_open: 1, available: 0, leased: 1 },
