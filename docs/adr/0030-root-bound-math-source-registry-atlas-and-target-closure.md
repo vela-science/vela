@@ -44,6 +44,16 @@ contiguous successor `10429601..10429800`, and closes the completed Formal
 retention Target without importing foreign Standing. ADR acceptance still
 waits for all-four-Frontier closure checks and an exact Atlas reconstruction.
 
+The next real Formal mission reproduced the remaining lifecycle defect more
+precisely. Submission `vsb_b47c353dd4a5409f` was registered and published at
+Formal commit `de9caba17b484f19eaff5d7bab462920d85b5c6f`, but its exact Target
+remained exposed as `open` and became non-actionable with
+`target_index_input_root_mismatch`. The source-local generator had declared
+`.vela/repository.json` as a Target Index input while the index and packet also
+bound the mutable repository root. Registering the Submission therefore
+invalidated the offer that produced it. The Submission is complete canonical
+evidence and must not be retried.
+
 The current read product already has the correct architectural pieces:
 
 - four canonical Git Frontier repositories;
@@ -244,16 +254,54 @@ A Target exposed as current must be:
 - within the Frontier's declared scope; and
 - reproducibly ranked from the current head.
 
+Producer-work closure follows the exact domain completion contract. For the
+current Attempt contract, one valid registered Submission completes the
+producer Target. Registration must therefore close that offer, or the owning
+Frontier must block or preserve it with an exact reason why the Submission did
+not satisfy the contract. It must not remain available merely because
+Verification or a human Decision has not occurred.
+
+Verification and Decision remain separate:
+
+- Verification records scoped evidence and changes no Standing by itself.
+- Decision changes Standing through repository authority.
+- Neither is a substitute for producer-work closure.
+
 An accepted or rejected Decision does not mechanically close every Target.
-The owning Frontier must evaluate the Target's domain completion contract.
-Before an Atlas release activates, it must either:
+The owning Frontier still evaluates the Target's exact domain completion
+contract. Before an Atlas release activates, it must either:
 
 1. close the completed Target and derive a valid successor;
-2. preserve it with an exact reason why the Decision did not discharge it; or
+2. preserve it with an exact reason why the retained Submission, Verification,
+   or Decision did not discharge its declared completion contract; or
 3. block work publication with a precise diagnostic.
 
 Merely rebinding an unchanged Target Index to a new repository root cannot
 convert stale work into fresh work.
+
+The immediate implementation guard rejects `.vela/repository.json` as a
+declared Target Index input because it duplicates the mutable repository
+binding and creates a self-invalidating dependency. This prevents another
+index from being sealed with the reproduced defect, but it does not by itself
+justify a protocol migration.
+
+A future, separately accepted contract should remove mutable repository-root
+churn from the derived index. The stable Target Index would bind the Frontier
+origin, source inputs, ordered Target semantics, and packet roots. The private
+Attempt would continue to bind the exact repository root observed at start.
+Successful Registration would durably retain:
+
+```text
+target ID
+Target Index root
+packet root
+Attempt ID and binding root
+starting repository root
+```
+
+That binding belongs at the Vela-issued Registration edge rather than being
+invented by a producer or inferred later from Claim prose. This ADR does not
+select a schema version, authorize a migration, or change retained bytes.
 
 Target validation starts in the owning Frontier because searched numerical
 ranges, Lean declarations, quantum certificate conditions, and Sidon witness
@@ -270,6 +318,13 @@ Target or invent a replacement.
 This avoids duplicating closure logic while keeping domain semantics out of
 Vela core. If `vela next` itself must invoke arbitrary domain validators, that
 would require a separate generic interface and a compatible Vela release.
+
+The one-time Formal recovery is source-local: bind the existing Target to its
+already-published Claim, Submission, Registration, Proposal, Artifacts, and
+retained transaction evidence; emit the exact closure envelope; remove or mark
+the discharged offer closed; and seal the resulting Target Index. Recovery
+must not register another Submission, rewrite the published record, or wait
+for Verification or Decision merely to stop duplicate producer work.
 
 The Erdős-to-Formal relation is projected only from the retained
 content-addressed foreign-reference artifact and its exact Verification
