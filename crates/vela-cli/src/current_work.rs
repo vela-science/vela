@@ -1018,7 +1018,24 @@ fn drop_attempt(frontier: &Path, target: &str, actor: &str, reason: &str) -> Res
     }))
 }
 
-fn list(frontier: &Path) -> Result<Value, String> {
+fn attempt_list_entry(attempt: CurrentAttempt, path: &Path) -> Value {
+    json!({
+        "attempt_id": attempt.attempt_id,
+        "target_id": attempt.target,
+        "actor": attempt.actor,
+        "authorization_root": attempt.authorization_root,
+        "expires_at": attempt.expires_at,
+        "allowed_operations": attempt.allowed_operations,
+        "allowed_artifact_classes": attempt.allowed_artifact_classes,
+        "consequence_ceiling": attempt.consequence_ceiling,
+        "task_contract_root": attempt.task_contract_root,
+        "usage": attempt.usage,
+        "budget": attempt.budget,
+        "path": path.display().to_string(),
+    })
+}
+
+pub(crate) fn project_attempts(frontier: &Path) -> Result<Value, String> {
     crate::current_repository::load_current_repository_at(frontier, true)?;
     let root = frontier.join(".vela/work");
     let mut attempts = fs::read_dir(&root)
@@ -1031,16 +1048,7 @@ fn list(frontier: &Path) -> Result<Value, String> {
         })
         .map(|path| {
             let attempt = read(&path)?;
-            Ok(json!({
-                "attempt_id": attempt.attempt_id,
-                "target_id": attempt.target,
-                "actor": attempt.actor,
-                "expires_at": attempt.expires_at,
-                "consequence_ceiling": attempt.consequence_ceiling,
-                "usage": attempt.usage,
-                "budget": attempt.budget,
-                "path": path.display().to_string(),
-            }))
+            Ok(attempt_list_entry(attempt, &path))
         })
         .collect::<Result<Vec<_>, String>>()?;
     attempts.sort_by(|left, right| left["target_id"].as_str().cmp(&right["target_id"].as_str()));
@@ -1069,7 +1077,7 @@ pub(crate) fn cmd_start(
 ) {
     crate::ui::set_mode("start", json_out);
     let result = match (target, drop_it) {
-        (None, false) => list(frontier),
+        (None, false) => project_attempts(frontier),
         (None, true) => Err("start --drop requires an exact target".to_string()),
         (Some(target), true) => drop_attempt(
             frontier,
@@ -1231,6 +1239,17 @@ mod tests {
         let path = write(directory.path(), &attempt).unwrap();
         let decoded = read(&path).unwrap();
         assert_eq!(decoded.attempt_id, attempt.attempt_id);
+        let projected = attempt_list_entry(decoded.clone(), &path);
+        assert_eq!(projected["authorization_root"], attempt.authorization_root);
+        assert_eq!(
+            projected["allowed_operations"],
+            json!(["inspect", "submission_author", "submission_register"])
+        );
+        assert_eq!(projected["allowed_artifact_classes"], json!(["witness"]));
+        assert_eq!(projected["consequence_ceiling"], CONSEQUENCE_PENDING_REVIEW);
+        assert_eq!(projected["task_contract_root"], attempt.task_contract_root);
+        assert_eq!(projected["budget"]["max_submissions"], 1);
+        assert_eq!(projected["expires_at"], "2026-07-28T00:00:00Z");
         let encoded = String::from_utf8(fs::read(path).unwrap()).unwrap();
         assert!(!encoded.contains("event_log_root"));
         assert!(!encoded.contains("claim_event_id"));

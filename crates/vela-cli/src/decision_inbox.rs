@@ -587,8 +587,11 @@ pub(crate) fn cmd_decision_inbox(frontier: &Path, json_output: bool) {
             }
         );
         println!("  Entry: {}", entry.entry_root);
-        println!("  Inspect: vela review show . {} --json", entry.proposal_id);
     }
+    println!(
+        "\nInspect: vela review show . {} --json",
+        projection.entries[0].proposal_id
+    );
 }
 
 #[cfg(test)]

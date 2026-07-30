@@ -97,16 +97,19 @@ These schemas project current state. They do not enter the canonical store.
 `vela status <frontier> --json` returns:
 
 - frontier ID and name;
-- Git commit, tree, and checkout cleanliness;
-- full event, snapshot, proposal, and actor-registry roots;
+- Git commit and tree;
+- current origin, repository, authority-keyset, and authority-policy roots;
 - replay result and strict blockers grouped by code;
-- event, finding, open-work, and pending-review counts;
-- policy state and permit readiness; and
-- one next action.
+- current Claim, review, Submission, Verification, and Artifact counts;
+- the active private Attempt count plus the first exact authorization scope,
+  budget, usage, and expiry;
+- Decision Inbox pending, ready, and blocked counts plus its projection root and
+  first entry root; and
+- one read-only inspection or producer-continuation action.
 
 Erdős output must remain at most 16 KiB. Human output must remain at most 40
 lines. The default projection contains no Decision Brief, packet body, review
-pressure report, or `.testing.v1` metrics.
+pressure report, `.testing.v1` metrics, or Accept/Reject control.
 
 ### `vela.offer.v1`
 

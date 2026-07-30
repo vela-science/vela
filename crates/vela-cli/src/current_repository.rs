@@ -4,6 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -145,6 +146,105 @@ fn sensitive_paths(root: &Path) -> Vec<PathBuf> {
     hits
 }
 
+fn campaign_status_summary(
+    projection: &Value,
+    now: DateTime<Utc>,
+) -> Result<(Value, usize), String> {
+    let attempts = projection
+        .get("attempts")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "current Attempt projection has no attempts array".to_string())?;
+    let active = attempts
+        .iter()
+        .map(|attempt| {
+            let expires_at = attempt
+                .get("expires_at")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "current Attempt projection has no expires_at".to_string())?;
+            let expires_at = DateTime::parse_from_rfc3339(expires_at)
+                .map_err(|error| format!("current Attempt expires_at: {error}"))?
+                .with_timezone(&Utc);
+            Ok((attempt, expires_at > now))
+        })
+        .collect::<Result<Vec<_>, String>>()?
+        .into_iter()
+        .filter_map(|(attempt, active)| active.then_some(attempt))
+        .collect::<Vec<_>>();
+    let first_attempt = active.first().map(|attempt| {
+        json!({
+            "attempt_id": attempt["attempt_id"],
+            "target_id": attempt["target_id"],
+            "actor": attempt["actor"],
+            "authorization_root": attempt["authorization_root"],
+            "scope": {
+                "allowed_operations": attempt["allowed_operations"],
+                "allowed_artifact_classes": attempt["allowed_artifact_classes"],
+                "consequence_ceiling": attempt["consequence_ceiling"],
+                "task_contract_root": attempt["task_contract_root"],
+            },
+            "budget": attempt["budget"],
+            "usage": attempt["usage"],
+            "expires_at": attempt["expires_at"],
+        })
+    });
+    Ok((
+        json!({
+            "active_attempt_count": active.len(),
+            "first_attempt": first_attempt,
+        }),
+        active.len(),
+    ))
+}
+
+fn decision_inbox_status_summary(
+    projection: &crate::decision_inbox::DecisionInboxProjection,
+) -> (Value, usize) {
+    let ready_count = projection
+        .entries
+        .iter()
+        .filter(|entry| entry.readiness.acceptance == "ready")
+        .count();
+    let blocked_count = projection
+        .entries
+        .iter()
+        .filter(|entry| entry.readiness.acceptance == "blocked")
+        .count();
+    let pending_count = projection.entries.len();
+    (
+        json!({
+            "pending_count": pending_count,
+            "ready_count": ready_count,
+            "blocked_count": blocked_count,
+            "projection_root": projection.projection_root,
+            "first_entry_root": projection.entries.first().map(|entry| entry.entry_root.clone()),
+        }),
+        pending_count,
+    )
+}
+
+fn active_attempt_next_action(frontier: &Path, campaign: &Value) -> Result<String, String> {
+    let attempt = campaign
+        .get("first_attempt")
+        .and_then(Value::as_object)
+        .ok_or_else(|| "active campaign summary has no first Attempt".to_string())?;
+    let attempt_id = attempt
+        .get("attempt_id")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "active campaign summary has no Attempt identity".to_string())?;
+    let target_id = attempt
+        .get("target_id")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "active campaign summary has no Target identity".to_string())?;
+    let actor = attempt
+        .get("actor")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "active campaign summary has no actor identity".to_string())?;
+    Ok(format!(
+        "Continue Attempt {attempt_id} on Target {target_id}: vela submit --frontier {} --attempt {attempt_id} --claim <bounded-result> --type <type> --replayability <class> --artifact <path>:<kind> --caveat <limit> --as {actor} --json",
+        frontier.display()
+    ))
+}
+
 pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
     crate::ui::set_mode("status", json_out);
     let frontier = frontier.canonicalize().unwrap_or_else(|error| {
@@ -205,6 +305,17 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
                 "verifications": 0,
                 "artifacts": 0
             },
+            "campaign": {
+                "active_attempt_count": 0,
+                "first_attempt": Value::Null
+            },
+            "decision_inbox": {
+                "pending_count": 0,
+                "ready_count": 0,
+                "blocked_count": 0,
+                "projection_root": Value::Null,
+                "first_entry_root": Value::Null
+            },
             "phase": "authority_uninitialized",
             "next_action": next_action,
         });
@@ -240,14 +351,20 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         .values()
         .filter(|decision| decision.standing == "rejected")
         .count();
-    let next_action = if let Some(proposal) = pending_proposals.first() {
-        format!(
-            "vela review show {} {} --json",
-            frontier.display(),
-            proposal.id
-        )
+    let attempt_projection = crate::current_work::project_attempts(&frontier)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let (campaign, active_attempt_count) = campaign_status_summary(&attempt_projection, Utc::now())
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let inbox_projection = crate::decision_inbox::project(&frontier)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let (decision_inbox, pending_decision_count) = decision_inbox_status_summary(&inbox_projection);
+    let next_action = if pending_decision_count > 0 {
+        format!("vela review inbox {} --json", frontier.display())
+    } else if active_attempt_count > 0 {
+        active_attempt_next_action(&frontier, &campaign)
+            .unwrap_or_else(|error| crate::cli::fail_return(&error))
     } else {
-        format!("vela repository verify {} --json", frontier.display())
+        format!("vela next {} --limit 1 --json", frontier.display())
     };
     let payload = json!({
         "schema": "vela.status.v1",
@@ -286,6 +403,8 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             "verifications": repository.verifications.len(),
             "artifacts": repository.artifacts.len()
         },
+        "campaign": campaign,
+        "decision_inbox": decision_inbox,
         "next_action": next_action,
     });
     if json_out {
@@ -307,8 +426,65 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         println!("  strict    pass");
         println!("  claims    {}", payload["counts"]["claims"]);
         println!(
-            "  review    {} pending",
-            payload["counts"]["pending_review"]
+            "  campaign  {} active",
+            payload["campaign"]["active_attempt_count"]
+        );
+        if let Some(attempt) = payload["campaign"]["first_attempt"].as_object() {
+            println!(
+                "  attempt   {} · {} · expires {}",
+                attempt["attempt_id"].as_str().unwrap_or("unavailable"),
+                attempt["target_id"].as_str().unwrap_or("unavailable"),
+                attempt["expires_at"].as_str().unwrap_or("unavailable")
+            );
+            let operations = attempt["scope"]["allowed_operations"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+                .collect::<Vec<_>>()
+                .join(", ");
+            let artifact_classes = attempt["scope"]["allowed_artifact_classes"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+                .collect::<Vec<_>>()
+                .join(", ");
+            println!(
+                "  scope     {} · {} · {}",
+                crate::cli::safe_text::inline(&operations),
+                crate::cli::safe_text::inline(&artifact_classes),
+                attempt["scope"]["consequence_ceiling"]
+                    .as_str()
+                    .unwrap_or("unavailable")
+            );
+            println!(
+                "  budget    {}/{} submissions · {}/{} artifacts · {}/{} bytes",
+                attempt["usage"]["submissions"],
+                attempt["budget"]["max_submissions"],
+                attempt["usage"]["artifacts"],
+                attempt["budget"]["max_artifacts"],
+                attempt["usage"]["artifact_bytes"],
+                attempt["budget"]["max_artifact_bytes"]
+            );
+        }
+        println!(
+            "  inbox     {} pending · {} ready · {} blocked",
+            payload["decision_inbox"]["pending_count"],
+            payload["decision_inbox"]["ready_count"],
+            payload["decision_inbox"]["blocked_count"]
+        );
+        println!(
+            "  inbox root {}",
+            payload["decision_inbox"]["projection_root"]
+                .as_str()
+                .unwrap_or("unavailable")
+        );
+        println!(
+            "  first card {}",
+            payload["decision_inbox"]["first_entry_root"]
+                .as_str()
+                .unwrap_or("none")
         );
         println!(
             "  next      {}",
@@ -1771,6 +1947,88 @@ mod tests {
 
     fn root(byte: char) -> String {
         format!("sha256:{}", byte.to_string().repeat(64))
+    }
+
+    #[test]
+    fn campaign_status_reports_only_active_attempts_with_exact_first_scope() {
+        let projection = json!({
+            "schema": "vela.attempt-list.v2",
+            "attempts": [
+                {
+                    "attempt_id": "vat_expired",
+                    "target_id": "target:a",
+                    "actor": "agent:fixture",
+                    "authorization_root": root('1'),
+                    "expires_at": "2026-07-29T00:00:00Z",
+                    "allowed_operations": ["inspect"],
+                    "allowed_artifact_classes": ["report"],
+                    "consequence_ceiling": "evidence_only",
+                    "task_contract_root": root('2'),
+                    "budget": {
+                        "max_submissions": 1,
+                        "max_artifacts": 2,
+                        "max_artifact_bytes": 3
+                    },
+                    "usage": {
+                        "submissions": 0,
+                        "artifacts": 0,
+                        "artifact_bytes": 0,
+                        "registered_submission_ids": []
+                    }
+                },
+                {
+                    "attempt_id": "vat_active",
+                    "target_id": "target:b",
+                    "actor": "agent:fixture",
+                    "authorization_root": root('3'),
+                    "expires_at": "2026-07-31T00:00:00Z",
+                    "allowed_operations": ["inspect", "submission_author"],
+                    "allowed_artifact_classes": ["witness"],
+                    "consequence_ceiling": "pending_review",
+                    "task_contract_root": root('4'),
+                    "budget": {
+                        "max_submissions": 5,
+                        "max_artifacts": 8,
+                        "max_artifact_bytes": 1024
+                    },
+                    "usage": {
+                        "submissions": 1,
+                        "artifacts": 2,
+                        "artifact_bytes": 64,
+                        "registered_submission_ids": ["vsb_fixture"]
+                    }
+                }
+            ]
+        });
+        let now = DateTime::parse_from_rfc3339("2026-07-30T00:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        let (summary, active_count) = campaign_status_summary(&projection, now).unwrap();
+        assert_eq!(active_count, 1);
+        assert_eq!(summary["active_attempt_count"], 1);
+        assert_eq!(summary["first_attempt"]["attempt_id"], "vat_active");
+        assert_eq!(summary["first_attempt"]["target_id"], "target:b");
+        assert_eq!(
+            summary["first_attempt"]["scope"]["allowed_artifact_classes"],
+            json!(["witness"])
+        );
+        assert_eq!(
+            summary["first_attempt"]["scope"]["task_contract_root"],
+            root('4')
+        );
+        assert_eq!(summary["first_attempt"]["budget"]["max_artifacts"], 8);
+        assert_eq!(
+            summary["first_attempt"]["expires_at"],
+            "2026-07-31T00:00:00Z"
+        );
+        assert!(summary["first_attempt"].get("path").is_none());
+        let next = active_attempt_next_action(Path::new("/frontier"), &summary).unwrap();
+        assert!(next.contains("Attempt vat_active"));
+        assert!(next.contains("Target target:b"));
+        assert!(next.contains("--attempt vat_active"));
+        assert!(next.contains("--as agent:fixture"));
+        assert!(!next.contains("review accept"));
+        assert!(!next.contains("review reject"));
     }
 
     fn current_review_lineage() -> (ProposalV1, ClaimRecordV1, VerificationRecordV1) {

@@ -45,7 +45,7 @@ init status next start submit show why review check reproduce log doctor
 | Command | Contract |
 | --- | --- |
 | `init` | Create a minimal Git-native Frontier from a name and bounded scope. |
-| `status` | Report identity, roots, replay, blockers, counts, and one next action. |
+| `status` | Report identity, replay, the active Attempt, Decision Inbox readiness, and one safe next action. |
 | `next` | Return canonically ranked producer Targets. |
 | `start` | Start one local bounded Attempt against an exact Target. |
 | `submit` | Build or import one authenticated Submission and pending Proposal. |
@@ -114,6 +114,14 @@ real producer output class, such as `text/plain`, `engine-manifest`, and
 increments the private counters but does not delete the Attempt. Every later
 Submission revalidates the exact current Target read set. Expiry or `start
 <target> --drop` stops future use without changing retained evidence.
+
+`vela status` is the compact Campaign Cockpit. Its additive
+`campaign` projection reports the active Attempt count and the first exact
+scope, budget, usage, and expiry. Its `decision_inbox` projection reports
+pending, ready, and blocked consequence counts plus rooted projection
+identities. The suggested next action may inspect the Inbox, continue the
+active Attempt through its exact `submit --attempt` path, or select the next
+Target; it never accepts or rejects Standing.
 
 `vela submit` accepts either explicit flags or a portable Submission file. For
 a file import, each declared Artifact travels beside the Submission at

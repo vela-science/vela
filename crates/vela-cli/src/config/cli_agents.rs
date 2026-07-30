@@ -247,8 +247,9 @@ reproduction of a retained result.
 
 ## Reading state
 
-`vela status --json` is the one-screen summary of Claims, replay integrity,
-policy state, review depth, and the next bounded action.
+`vela status --json` is the one-screen Campaign Cockpit: Claims and replay
+integrity, active Attempt scope and budget, rooted Decision Inbox readiness,
+and one non-authorizing inspection or continuation action.
 `vela show <dir> <typed_id>` inspects an exact object; `vela why <dir>
 <claim_id>` explains its standing; `vela log <dir>` reads canonical history.
 Agents invoke these exact CLI contracts directly. Execution harnesses such as

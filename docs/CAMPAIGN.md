@@ -190,14 +190,17 @@ fixture, and external interoperability and cold-use gates remain open.
 ADR 0020 remains Proposed, but two narrow implementation seams now exist:
 private Attempt v4 retains exact scope and evidence budgets across successful
 Submissions, and `vela review inbox` derives a rooted, consequence-only,
-write-free queue from current Proposal evidence. Routine Submission and
-Verification commands still use the repository-authority transaction path.
-An internal writer can reuse a caller-owned signer without bypassing identity,
-policy, journaling, or replay, but no persistent campaign controller invokes
-that seam yet. The campaign must not claim prompt-free evidence work until the
-controller-held signer session, prompted/session replay equivalence, and
-twelve-hour dogfood gates pass. Homogeneous batch Decision planning remains
-unimplemented and unearned.
+write-free queue from current Proposal evidence. `vela status` now compresses
+both into one read-only Campaign Cockpit summary: active scope, budget, usage,
+expiry, Inbox readiness, rooted entry identity, and one inspection or
+continuation action. It exposes no Accept/Reject control. Routine Submission
+and Verification commands still use the repository-authority transaction
+path. An internal writer can reuse a caller-owned signer without bypassing
+identity, policy, journaling, or replay, but no persistent campaign controller
+invokes that seam yet. The campaign must not claim prompt-free evidence work
+until the controller-held signer session, prompted/session replay equivalence,
+and twelve-hour dogfood gates pass. Homogeneous batch Decision planning
+remains unimplemented and unearned.
 
 ## Product contract
 

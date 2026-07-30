@@ -211,8 +211,13 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
     }
 
     let before = success_json(&run(&frontier, None, &["status", ".", "--json"]));
+    assert_eq!(before["schema"], "vela.status.v1");
     assert_eq!(before["phase"], "authority_uninitialized");
     assert_eq!(before["integrity"]["strict"], "blocked");
+    assert_eq!(before["campaign"]["active_attempt_count"], 0);
+    assert!(before["campaign"]["first_attempt"].is_null());
+    assert_eq!(before["decision_inbox"]["pending_count"], 0);
+    assert!(before["decision_inbox"]["projection_root"].is_null());
 
     let authority = success_json(&run(
         &frontier,
@@ -241,8 +246,21 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
     let checked = success_json(&run(&frontier, None, &["check", ".", "--strict", "--json"]));
     assert_eq!(checked["repository_root"], verified["repository_root"]);
     let status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
+    assert_eq!(status["schema"], "vela.status.v1");
     assert_eq!(status["integrity"]["replay"], "verified");
     assert_eq!(status["integrity"]["strict"], "pass");
+    assert_eq!(status["campaign"]["active_attempt_count"], 0);
+    assert_eq!(status["decision_inbox"]["pending_count"], 0);
+    assert!(
+        status["decision_inbox"]["projection_root"]
+            .as_str()
+            .is_some_and(|root| root.starts_with("sha256:"))
+    );
+    assert!(
+        status["next_action"]
+            .as_str()
+            .is_some_and(|command| command.starts_with("vela next "))
+    );
 
     let clone = temporary.path().join("clone");
     let cloned = Command::new("git")
@@ -719,7 +737,40 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert_eq!(checked["counts"]["pending_claims"], 1);
     assert_eq!(checked["counts"]["verifications"], 1);
     let status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
+    assert_eq!(status["schema"], "vela.status.v1");
     assert_eq!(status["integrity"]["strict"], "pass");
+    assert_eq!(status["campaign"]["active_attempt_count"], 0);
+    assert_eq!(status["decision_inbox"]["pending_count"], 1);
+    assert_eq!(status["decision_inbox"]["ready_count"], 1);
+    assert_eq!(status["decision_inbox"]["blocked_count"], 0);
+    assert!(
+        status["decision_inbox"]["projection_root"]
+            .as_str()
+            .is_some_and(|root| root.starts_with("sha256:"))
+    );
+    assert!(
+        status["decision_inbox"]["first_entry_root"]
+            .as_str()
+            .is_some_and(|root| root.starts_with("sha256:"))
+    );
+    let next_action = status["next_action"].as_str().expect("status next action");
+    assert!(next_action.starts_with("vela review inbox "));
+    assert!(!next_action.contains(" accept "));
+    assert!(!next_action.contains(" reject "));
+    assert!(
+        serde_json::to_vec(&status).expect("encode status").len() <= 16 * 1024,
+        "status exceeds the compact projection budget"
+    );
+    let human_status = run(&frontier, None, &["status", "."]);
+    assert!(human_status.status.success());
+    let human_status = String::from_utf8(human_status.stdout).expect("status text");
+    assert!(human_status.lines().count() <= 40);
+    assert!(!human_status.contains("review accept"));
+    assert!(!human_status.contains("review reject"));
+    let human_inbox = run(&frontier, None, &["review", "inbox", "."]);
+    assert!(human_inbox.status.success());
+    let human_inbox = String::from_utf8(human_inbox.stdout).expect("inbox text");
+    assert_eq!(human_inbox.matches("Inspect:").count(), 1);
     let target_index: Value = serde_json::from_slice(
         &std::fs::read(frontier.join("targets.json")).expect("rebound Target Index"),
     )
