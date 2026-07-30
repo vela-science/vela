@@ -35,9 +35,13 @@ two-fixture credit is unavailable in this campaign. The evidence therefore
 supports local admission, scoped verification, Decision, replay, and
 supersession. It now also supports one bounded, first-party cross-Frontier
 transfer with exact receiver Verification, clean-clone replay, and zero
-authority escalation. It does not support the full registered protocol claim.
-This draft reports the failed entry gate rather than substituting a synthetic
-case.
+authority escalation. A separate prospective product loop has also derived a
+4,032-node map from an exact compact repository, selected its first Target,
+retained and verified the resulting bounded Run, and rebuilt a read-only
+candidate map. That Proposal is still pending a human Decision, so the
+Decision-to-remap loop is not complete. The evidence does not support the full
+registered protocol claim. This draft reports the failed entry gate and open
+Decision boundary rather than substituting a synthetic or incomplete case.
 
 ## 1. Introduction
 
@@ -86,9 +90,10 @@ The paper makes four contributions only if their evidence gates pass:
 4. a matched cold-use comparison against Git plus identical evidence.
 
 At present, the first contribution, one bounded cross-Frontier transfer, and
-synthetic implementation qualification are demonstrated. Real
-correction-impact propagation, held-out confirmation, external independence,
-and cold-use lift remain registered experiments.
+synthetic implementation qualification are demonstrated. One exact
+map-to-target loop has reached scoped Verification but not its human Decision.
+Real correction-impact propagation, held-out confirmation, external
+independence, and cold-use lift remain registered experiments.
 
 ## 2. Scope and system model
 
@@ -426,8 +431,9 @@ set, hidden truncation, lost route, or unauthorized Standing change.
 
 ### 6.2 Historical fixture audit
 
-At the audited clean commits, four mathematical Frontiers retain 2,831 Claim
-records and no accepted correction, supersession, or retraction relation.
+At the pre-campaign audited clean commits, four mathematical Frontiers retain
+2,831 Claim records and no accepted correction, supersession, or retraction
+relation.
 
 - **Erdős 281:** has the required dependency shape, but no genuine
   correction.
@@ -519,7 +525,51 @@ The deterministic result at
 therefore records `no_qualifying_candidate`. The held-out entry gate failed;
 the experiment did not substitute a synthetic case.
 
-### 6.5 Removability qualification
+### 6.5 Living map-to-target qualification
+
+The prospective product loop freezes one read projection before work. Erdős
+commit `43c7a1418ccd16c304a3c9c0e62ba0ead26d06ab`, repository root
+`sha256:8a98ff1c632232c7b227d87a0f1015aaa3429d38c83592ca66f8e465b06b0ee5`,
+produced graph source
+`sha256:a6d6d50d56a0c9c2955716998a2adc8387661e0772891fdad56af7434bb15e51`
+with 4,027 nodes, 2,524 edges, 1,217 problem records, and 2,771
+Claims. The graph layout is derived and non-authoritative. Its first work
+offer was exact Target `erdos:1056`, binding the previously uncovered
+inclusive range `10429401..10429600` and packet root
+`sha256:6d1a2ca87851deb1fa2133f4f6cf7edb28ee843cb0eef57ea09e826b3fdca63b`.
+
+Canopus retained Run `run_8510dd67-c1d7-4c0a-9724-f87192d1a709`.
+Submission `vsb_b8ebcd819ac327db` registered Proposal
+`vpr_80759f390c4880c0` and bounded Claim
+`vcl_5c740ebb758107f25179b096d9e1b680d0bc62186eb276c8b907a2c1226fd979`
+without changing accepted state. Released Vela 0.950.1 imported scoped
+Verification `vvr_eb80b766c730513b`, root
+`sha256:47b5e299e93d298e31da2b4c3c9352855b37e07500f03208eb7851efb4c24ea9`,
+with outcome `pass` and accepted-event delta zero. Strict and clean-clone
+replay agree at Erdős commit
+`606f2f4b50193b1feccf1df4e1f31d50d3a8dd99`, repository root
+`sha256:8b1c2bbc99b9e9aade2bfb56d3493be02cdad954eefa3cd98a14ac41128ae0d4`.
+The shared first-party operator and machine earn no independent-participant
+credit.
+
+The post-Verification candidate map has release root
+`sha256:fb2665dfaac61f4ba61d11cd4e7ea65421168bb292bf5f7a840ce3207599af02`,
+graph source
+`sha256:51e69b4d883f89c38b590ac8750753834f96f5abd073cba8ca87bddad7dbb659`,
+4,032 nodes, and 2,528 edges. It was inserted and verified in the normalized
+read projection but not activated. The exact checkpoint bytes are retained at
+`paper/artifacts/map-target-loop/post-verification-map.v1.json`, root
+`sha256:439a804908890e4029922cc91cdd0a79122187d573530fc760a419d90786be21`.
+
+The Proposal remains `pending_review`. A source-only materializer refuses to
+run until a terminal human Decision exists, then requires one exact Decision
+commit, authority-event coverage, strict and fresh-clone replay, and a dry-run
+remap. It cannot invoke a Decision, push Git, activate the read model, read a
+human key, or mutate a Frontier. This is a verified partial product loop, not
+evidence that a Decision occurred or that the map improves cold-user
+performance.
+
+### 6.6 Removability qualification
 
 A separately frozen first-party test cloned the exact pending Erdős repository,
 set an empty home directory, denied all network access with the operating
@@ -541,7 +591,7 @@ This is positive local evidence for B5 and B6. It does not complete those
 families for a real correction fixture, test cross-Frontier transfer, measure
 cold-user value, or establish independent reproduction.
 
-### 6.6 Foreign-transfer contract audit
+### 6.7 Foreign-transfer contract audit
 
 A frozen source audit tested whether the current public objects and CLI can
 retain one exact foreign accepted Claim and its authority evidence in a second
@@ -642,7 +692,7 @@ nor external user value. It identifies a narrower product task: reduce the
 question surface and remove evidence ambiguity before registering another
 reviewer study.
 
-### 6.7 Formal vertical slice
+### 6.8 Formal vertical slice
 
 A separate product slice tested the ordinary math path rather than the
 correction-impact benchmark. Canopus Run
@@ -674,7 +724,7 @@ while retaining historical `va_` replay and exact repository-membership
 checks. The imported record remains byte-identical; no alias or canonical
 history rewrite was required.
 
-### 6.8 Framework-neutral execution evaluation
+### 6.9 Framework-neutral execution evaluation
 
 A preregistered Stage A comparison held task facts, verifiers, model family,
 custody rules, and publication rules constant across Canopus, native Codex,
@@ -697,7 +747,7 @@ not a stable population estimate, external adoption, or the protocol claim.
 The registered call ceiling could not fit Stage B, so no orchestration
 framework was evaluated or retained.
 
-### 6.9 Registered benchmark matrix
+### 6.10 Registered benchmark matrix
 
 | Family | Primary | Held-out | Required |
 | --- | --- | --- | --- |
@@ -937,19 +987,23 @@ Current implementation qualification:
 
 ```bash
 cargo test -p vela-edge --test correction_impact
+cargo test -p vela-edge --test foreign_reference
 python3 conformance/verify_correction_impact.py
+python3 conformance/verify_foreign_reference.py --json
 python3 -m unittest paper/artifacts/cost/test_measure.py
 python3 -m unittest paper/artifacts/state-lift/test_score.py
+python3 -m unittest discover \
+  -s paper/artifacts/map-target-loop -p 'test_*.py'
 ./conformance/check-core.sh
 ```
 
 The working source-only artifact builder refuses dirty Vela input and mismatched
 external commits, trees, or content roots. At Vela commit
-`2267ab27d0a0822231fa12098c1e98b1cde046f7`, two independent invocations
-produced identical 438-member archives at root
-`sha256:d10fa6348cf180c77579e7c3fb528067cc2521fc86875c674a4dd9c933d0e000`
+`0332406accb817513ba7e2a55b032892c7b6f226`, two independent invocations
+produced identical 522-member archives at root
+`sha256:b79920ed1689cd6eea2d24cb31a3dd3cc1c2045039d8a860233ca567496c2f5a`
 and manifest root
-`sha256:06ec06ae9329bb3096c123f8ff6998f0ce57de979549d2511d2facc370fcb3c6`.
+`sha256:32c170c3d58e909eafddea194ce61a06f196cdd7ee64238a038cc8200f2aa0fa`.
 The verifier rehashed every member and rejected unmanifested paths. This is
 packaging qualification, not independent reproduction or the final release
 artifact.
@@ -987,8 +1041,10 @@ including its authority signature. A second Frontier retained that exact
 package through a pending, non-authoritative Submission, imported a scoped
 Verification, and replayed the resulting repository from a clean clone with
 zero accepted-state delta. This passes the bounded transfer and authority
-containment gate. The frozen held-out selector found no qualifying candidate.
-The stronger claim, that this
+containment gate. A prospective living-map loop has reached an exact
+Submission and scoped Verification, but its human Decision and resulting remap
+remain open. The frozen held-out selector found no qualifying candidate. The
+stronger claim, that this
 mechanism preserves useful scientific inheritance across real corrections and
 plural authorities better than Git alone, is therefore not satisfied by the
 audited system.
