@@ -41,11 +41,12 @@ verified the resulting bounded Run, accepted the exact bounded Claim through a
 human Decision, clean-clone replayed the transition, and rebuilt a read-only
 candidate map. The map cardinality did not change, while the Claim Standing,
 repository root, graph roots, and projection root changed exactly. The Target
-packet did not advance and still names the completed range, so the candidate
-was not activated. The evidence does not support the full registered protocol
-claim or a complete automatic handoff. This draft reports the failed
-inheritance gate and stale-Target defect rather than hiding either behind a
-successful Decision.
+packet initially failed to advance, so that candidate was not activated. A
+subsequent source-local closure pass retained the completed packet and exposed
+the first contiguous uncovered range, `10429601..10429800`, as the next Target.
+The complete four-Frontier Atlas remap, inheritance gate, external
+independence, and cold-use lift remain unfinished. The evidence therefore does
+not support the full registered protocol claim.
 
 ## 1. Introduction
 
@@ -96,10 +97,11 @@ The paper makes four contributions only if their evidence gates pass:
 At present, the first contribution, one bounded cross-Frontier transfer, and
 synthetic implementation qualification are demonstrated. One exact
 map-to-target loop reached a terminal human Decision, replayed Standing, and a
-deterministic remap. The loop also reproduced a product failure: the completed
-Target remains the first offered work item, so the next-action handoff is not
-complete. Real correction-impact propagation, held-out confirmation, external
-independence, and cold-use lift remain registered experiments.
+deterministic remap. The loop reproduced a stale-Target failure that a later
+source-local closure pass repaired, exposing the first contiguous uncovered
+range without changing Standing. Real correction-impact propagation, complete
+Atlas remapping, held-out confirmation, external independence, and cold-use
+lift remain registered experiments.
 
 ## 2. Scope and system model
 
@@ -1116,12 +1118,14 @@ Verification, and replayed the resulting repository from a clean clone with
 zero accepted-state delta. This passes the bounded transfer and authority
 containment gate. A prospective living-map loop reached an exact Submission,
 scoped Verification, terminal human Decision, clean-clone replay, and
-deterministic remap. Its completed range nevertheless remains the first offered
-Target, so the product fails its own continuation gate. The frozen held-out
-selector found no qualifying candidate. The stronger claim, that this
-mechanism preserves useful scientific inheritance across real corrections and
-plural authorities better than Git alone, is therefore not satisfied by the
-audited system.
+deterministic remap. Its first candidate exposed a stale-Target failure. A
+subsequent source-local closure pass retained the completed packet, proved its
+coverage from exact ancestor bytes, and exposed `10429601..10429800` as the
+next range without changing Standing. The complete Atlas remap remains
+unfinished, and the frozen held-out selector found no qualifying candidate.
+The stronger claim, that this mechanism preserves useful scientific
+inheritance across real corrections and plural authorities better than Git
+alone, is therefore not satisfied by the audited system.
 
 This result narrows the next experiment. Vela retains the admission and replay
 mechanisms already shown useful. It does not promote the synthetic
