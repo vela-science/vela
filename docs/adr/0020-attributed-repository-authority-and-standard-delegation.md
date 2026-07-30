@@ -560,7 +560,7 @@ The Cockpit shows:
 - coalesced `verb -> object -> outcome` activity with exact retained roots;
 - pause, resume, graceful stop after the current atomic operation, emergency
   revoke, and in-scope steering; and
-- the number of unresolved Decisions.
+- separate `Needs steering` and `Pending scientific decisions` counts.
 
 Its private states are:
 
@@ -570,9 +570,12 @@ revoked | stopped | failed | complete
 ```
 
 `needs_input` is limited to execution steering that remains inside the
-authorized scope. A consequence-bearing request appears in the Decision Inbox
-instead. Stop, expiry, or revocation preserves every completed receipt,
-Artifact, failure, and verifier result.
+authorized scope. A Proposal-based scientific Decision appears in the Decision
+Inbox instead. A budget, tool, network, writable-root, publication, destructive
+action, or risk escalation remains a native controller interruption beside the
+affected branch unless an existing typed authority planner already derives
+complete exact input for it. Stop, expiry, or revocation preserves every
+completed receipt, Artifact, failure, and verifier result.
 
 A steering directive binds the campaign, experiment, active run, prior
 activity root, issuer, time, and exact instruction. A correlated
@@ -580,9 +583,11 @@ acknowledgement records `applied_in_run`, `started_successor_run`, `rejected`,
 or `completed_before_delivery`; only the first two count as delivery. Steering
 cannot widen campaign scope or change Standing.
 
-The product notifies once when the first unresolved consequence appears and
-once near expiry. Routine receipts, progress, verifier completion, credential
-refresh, and checkpoints remain visible but never create prompts.
+The product notifies once for a new scientific consequence, once when a blocked
+Proposal becomes decision-ready or its exact consequence materially changes,
+and once near campaign expiry. Notifications coalesce per campaign. Routine
+receipts, progress, verifier completion without a readiness transition,
+credential refresh, and checkpoints remain visible but never create prompts.
 
 Durable interruption belongs to the runner. The useful pattern from
 [LangGraph interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts)
@@ -596,7 +601,10 @@ a new protocol object.
 The Decision Inbox is a private, deterministic projection of real pending
 Proposals, their Submissions and Verification Records, current Standing,
 policy, keyset, and authority heads. It has no retained outbox schema and no
-independent lifecycle.
+independent lifecycle. V1 contains Proposal-based scientific Decisions only.
+An existing typed policy or authority planner may later expose an exact rooted
+input in the same inspection surface, but the Inbox never invents a generic
+high-impact-action record to make unlike actions look batchable.
 
 “Outbox” and “Inbox” name two perspectives on the same consequence
 projection. The agent or Campaign Cockpit may say that one consequence is
@@ -604,14 +612,16 @@ waiting in its outbox. The reviewer sees that exact rooted entry in the
 Decision Inbox. There is no transport queue, copied review object, or second
 status model between them.
 
-The projection contains only meaningful consequences:
+The v1 projection contains only meaningful scientific consequences:
 
-1. accept, reject, correct, retract, or supersede scientific Standing;
-2. resolve a contradiction with accepted state;
-3. change policy, schema, membership, quorum, or repository authority;
-4. publish externally;
-5. perform a destructive or otherwise high-impact action; or
-6. increase approved budget, tools, network, writable roots, or risk.
+1. accept or reject a pending Claim;
+2. accept or reject a correction, retraction, or supersession Proposal; or
+3. resolve a Proposal that identifies a contradiction with accepted state.
+
+Policy, schema, membership, quorum, repository authority, external
+publication, destructive action, and execution-scope escalation retain their
+existing dedicated planner or controller surface. They do not become Inbox
+rows merely because they require a human.
 
 Routine tool calls, progress, receipts, Artifact freezes, verifier passes or
 failures, and experiment branches never become Inbox rows. A malformed or
@@ -636,9 +646,9 @@ approval dashboard:
 
 ```text
 collection
-  -> filter by Frontier, consequence class, and readiness
+  -> filter by Frontier, Proposal kind, and readiness
   -> inspect one rooted semantic diff and evidence chain
-  -> stage Accept, Reject, or optional Request revision with an exact reason
+  -> explicitly Stage accept or Stage reject with an exact reason
   -> inspect the complete staged set and merged read set
   -> commit the named consequences once
 ```
@@ -649,41 +659,63 @@ agent identity never imply scientific priority or authority. A pending entry
 shows how long it has waited, but campaign expiry stops future execution rather
 than silently expiring the Proposal.
 
+There is no default disposition, preselected Accept, or `Select all`. Opening a
+row, pressing Enter, or invoking the primary command inspects it; none stages
+or commits a Decision. This deliberately does not copy the conventional
+primary-action behavior of a
+[Raycast action panel](https://manual.raycast.com/action-panel). Staged rows say
+`Staged — not applied`. The final action names the exact counts and targets it
+will commit.
+
 The Cockpit never embeds an Accept or Reject control in a run transcript. It
 shows the blocked branch, requested consequence, current entry root, and one
 link into the Inbox. Independent in-scope branches remain runnable. The Inbox
 may show campaign and experiment lineage as context, but its primary identity
 is the Proposal and exact scientific change.
 
-An entry remains visible after commitment by resolving to the ordinary
-canonical Decision and Event transcript. Vela does not retain a second
-“resolved card” solely to preserve UI history. If any Proposal, Claim,
-Submission, Verification set, policy, keyset, authority head, binary, or read
-set changes before commitment, the staged action is cleared and the entry
-shows the exact stale input. The reviewer must inspect the new root.
+After commitment, an entry leaves the Inbox. Its former deep link resolves or
+redirects to the ordinary canonical Decision and Event transcript. Vela does
+not retain a second “resolved card” solely to preserve UI history. If any
+Proposal, Claim, Submission, Verification set, policy, keyset, authority head,
+binary, or read set changes before commitment, the staged action and draft
+reason are cleared. The open detail does not close and focus does not move: it
+becomes a read-only stale comparison, a pre-existing polite status region
+announces `Evidence changed; staged decision cleared`, and an explicit
+`Inspect current root` action opens the successor input.
 
-The first UI uses semantic list or table structure before an interactive grid.
-It supports keyboard selection, filtering, inspection, cancellation, and
-focus restoration; announces result counts, committed Decisions, and drift
-failures; and pairs every status color with text and shape. Mobile uses stacked
-entries and a full-screen detail surface without hiding evidence behind hover
-or clipping long Claims, reasons, or roots.
+The first UI uses native table, list, and article structure with ordinary
+controls and bounded pagination. Following the
+[WAI listbox pattern](https://www.w3.org/WAI/ARIA/apg/patterns/listbox/), it does
+not use `role=listbox` for rich rows containing links, buttons, selection
+controls, and structured evidence. An ARIA grid is allowed only if its complete
+keyboard contract is implemented.
+The UI supports keyboard selection, filtering, inspection, cancellation, and
+focus restoration; announces result counts, committed Decisions, readiness
+changes, and drift failures; and pairs every status color with text and shape.
+Mobile uses stacked articles and a modal detail surface that follows the
+[WAI modal dialog pattern](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/):
+visible close, inert background, logical initial focus, and focus restoration.
+It never hides evidence behind hover, flattens structured evidence into
+`aria-describedby`, or clips long Claims, reasons, or roots.
+
+Filters, Proposal selection, and the exact entry root are URL-addressable.
+Back and forward restore the same view, adapting the useful shareable-view
+property of [Linear filters](https://linear.app/docs/filters) without making
+saved views canonical state. A deep link to a stale root shows what changed and
+links to the current root rather than silently swapping content.
 
 The scientific dispositions are Accept and Reject, each with an attributed
-reason. Request revision is non-standing coordination feedback that asks the
-producer for a successor Proposal and never edits evidence. The first
-implementation omits it unless an existing ordinary coordination channel can
-carry that feedback without adding a protocol object. Save and Snooze are
-optional local triage actions. `Dismiss`, `Done`, `Ignore`, `Always approve`,
-wildcard approval, remembered answers, and classifier exceptions do not
-exist.
+reason. V1 omits Request revision, Save, and Snooze. Revisions travel through
+the existing coordination channel and append a successor Proposal; dogfood
+must demonstrate a real triage problem before local Save or Snooze state is
+added. `Dismiss`, `Done`, `Ignore`, `Always approve`, wildcard approval,
+remembered answers, and classifier exceptions do not exist.
 
-Local triage is a sidecar keyed by reviewer, Proposal ID, and exact entry root.
-It may contain only read state, saved state, snooze time, draft reason, and
-selection. It does not affect the deterministic projection, deadline,
-authority, pending Proposal, read set, or Standing, and it never carries to a
-successor root. A changed entry root clears Save, Snooze, draft, and selection
-for that entry.
+Local staging is a sidecar keyed by reviewer, Proposal ID, and exact entry
+root. It may contain only read state, draft reason, and staged disposition. It
+does not affect the deterministic projection, deadline, authority, pending
+Proposal, read set, or Standing, and it never carries to a successor root. A
+changed entry root clears the draft and staged disposition for that entry.
 
 This keeps the useful queue interactions from
 [LangChain Agent Inbox](https://github.com/langchain-ai/agent-inbox/tree/081b2a30409304fa04bfcf7b01d035853b846ecd)
@@ -699,12 +731,12 @@ It treats GitHub's
 [pending review](https://docs.github.com/en/pull-requests/how-tos/review-pull-requests/reviewing-proposed-changes-in-a-pull-request)
 as useful prior art for collecting comments before one review, and its
 [notification triage](https://docs.github.com/en/subscriptions-and-notifications/how-tos/viewing-and-triaging-notifications/triaging-a-single-notification)
-as evidence that Save or Done is presentation state rather than scientific
-disposition. Vela intentionally omits Done.
+as evidence that local notification triage is presentation state rather than
+scientific disposition. Vela intentionally omits it from v1.
 
 The public Observatory remains read-only and credential-free. It may display
 committed Decisions and retained campaign evidence; unresolved Inbox and
-triage state remain local to the reviewer.
+staging state remain local to the reviewer.
 
 #### Ephemeral batch planner
 
@@ -771,18 +803,20 @@ campaign authorization  active -> exhausted | expired | revoked
 runtime pause            false <-> true
 run branch               queued -> running -> completed | failed | cancelled
 Proposal                 pending_review -> accepted | rejected
-Inbox projection         pending -> claimed_for_commit -> applied | stale
-local triage             read | saved | snoozed | draft_reason | selected
+Inbox projection         ready | blocked | stale
+local staging            unstaged | staged_accept | staged_reject
 ephemeral batch plan     prepared -> committing -> applied | stale | failed
 Standing                 unchanged until an authorized Decision is applied
 ```
 
-`Request revision`, when an ordinary coordination channel exists, records
-non-standing guidance and waits for a successor Proposal rather than mutating
-the current Proposal. An Inbox row blocked on consequence pauses only the
-affected run branch; independent in-scope branches may continue. A verifier
-result may change evidence and make an Inbox entry stale, but it never changes
-Standing.
+The derived entry, local staging, and ephemeral planner are separate state
+machines. An applied Decision has no applied Inbox state: the row leaves the
+collection and its deep link resolves to canonical history. Revision guidance
+uses the ordinary coordination channel and waits for a successor Proposal
+rather than mutating the current Proposal. An Inbox row blocked on evidence
+pauses only the affected run branch; independent in-scope branches may
+continue. A verifier result may change evidence and make an Inbox entry stale
+or ready, but it never changes Standing.
 
 #### Rejected design alternatives
 
@@ -819,7 +853,7 @@ Standing.
 - Campaign expiry or revocation blocks future work but preserves prior
   evidence.
 - Accepted-state replay never requires the campaign controller, Cockpit,
-  Inbox, triage sidecar, runner, credentials, network, or batch planner.
+  Inbox, local staging sidecar, runner, credentials, network, or batch planner.
 - Corrections and review revisions append ordinary successor records.
 
 Before implementation, inventory retained generic capability objects. If none
@@ -866,22 +900,42 @@ Focused conformance must prove:
   barrier, and stale inputs fail closed;
 - crash before, during, or after evidence publication leaves no partial state,
   while exact retry is idempotent;
-- the derived Inbox includes every consequence class and excludes routine
-  activity;
-- the Cockpit outbox count and Inbox collection derive the same exact entry
-  roots, while the Cockpit exposes no Accept or Reject action;
+- the derived Inbox includes every Proposal-based scientific Decision and
+  excludes routine activity, execution-scope escalation, publication,
+  destructive action, and policy or authority work without an existing typed
+  exact planner input;
+- the Cockpit `Pending scientific decisions` count and Inbox collection derive
+  the same exact entry roots, while the Cockpit exposes no Accept or Reject
+  action;
+- `Needs steering` remains distinct from `Pending scientific decisions`, and
+  execution-scope escalation remains beside the blocked branch;
 - campaign expiry stops future execution without expiring, deciding, or
   hiding a pending Proposal;
 - changed Proposal, Claim, Submission, Verification set, policy, keyset,
   authority head, binary, or read set changes the derived entry and clears
-  local selection;
-- Save, Snooze, read state, and draft reasons change no Proposal, deterministic
+  local staging and draft reason without closing detail or moving focus;
+- root drift is announced through a polite status region and the stale deep
+  link exposes the exact change plus an explicit current-root action;
+- read state, draft reason, and staging change no Proposal, deterministic
   Inbox entry, deadline, authority input, or Standing;
 - no Dismiss, Done, Ignore, wildcard, persistent, tool-wide, remembered-answer,
-  classifier-exception, or `always approve` path exists;
+  classifier-exception, `always approve`, default disposition, preselected
+  Accept, or Select-all path exists;
+- opening a row, pressing Enter, or invoking the primary action only inspects;
+  it never stages or commits;
+- staged rows say `Staged — not applied`, and the final action names exact
+  counts and targets;
 - keyboard-only and mobile review can inspect every decisive field, stage and
   clear an action, cancel, recover focus, and reach exact roots without
   horizontal trapping or color-only state;
+- rich review rows use native table, list, or article semantics rather than a
+  listbox, and modal mobile detail provides a visible close, inert background,
+  logical initial focus, and focus restoration;
+- URL-backed filters, Proposal selection, and entry roots survive refresh and
+  browser history navigation without silently replacing stale content;
+- notifications fire for a new consequence and for the transition to
+  decision-ready or a material exact-root change, but not for routine verifier
+  activity;
 - exact keyed selection prevents queue reorder, duplicate, omitted-selected,
   extra, wrong-root, or positional substitution;
 - committing one valid selected subset leaves every unselected entry pending
@@ -907,7 +961,7 @@ Focused conformance must prove:
   Event transcript without a retained resolved-card or review-batch object;
   and
 - a clean clone replays accepted state with campaign state, Cockpit, Inbox,
-  triage, runner, credentials, and network absent.
+  local staging, runner, credentials, and network absent.
 
 The product gate is one real twelve-hour dogfood trace showing:
 
@@ -926,7 +980,7 @@ Implementation order is deliberately narrow:
    repository-authority key read;
 2. prove old and new evidence paths replay to the same ordinary object and
    proposal semantics;
-3. derive the Inbox from real pending Proposals and add local triage;
+3. derive the Inbox from real pending Proposals and add local staging;
 4. prove one-entry and homogeneous multi-Proposal batch equivalence using the
    existing authority transaction;
 5. evolve Attempt into the private campaign authorization and add the
