@@ -415,7 +415,10 @@ through a repository-authority transaction. They therefore invoke the
 repository signer for each evidence write even though producer or verifier
 authentication already identifies the author, no semantic approval is
 required, and accepted-state delta remains zero. Repeated signer interaction,
-not missing scientific semantics, is the source of the ceremony.
+not missing scientific semantics, is the source of the ceremony in the
+dogfood environment. Whether an SSH or OS provider visibly prompts on every
+write is configuration-dependent; the protocol must not describe a provider
+prompt as a scientific requirement.
 
 The smallest repair has four parts:
 
@@ -454,14 +457,17 @@ consequence ceiling: evidence_only | pending_review
 ```
 
 One explicit local start action creates it after the user inspects the scope.
-The local OS session authenticates that action and starts one constrained
-campaign signer session. The controller may use the configured repository
-authority through that session, but no human scientific key is read and the
-worker receives neither key bytes, an SSH socket, bearer material, nor a
-general signing interface. The authorization and signer session state are
-stored outside worker-writable roots. The worker receives only an opaque
-campaign identity and the restricted runtime capabilities that the controller
-can enforce.
+V1 treats explicit invocation by the current local OS principal as that start
+action; it does not add a separate biometric or device-passcode ceremony.
+When the configured repository-authority provider itself requires user
+presence, that provider interaction may occur once while the controller
+establishes the constrained session. The controller may then use the
+configured repository authority through that session, but no human scientific
+key is read and the worker receives neither key bytes, an SSH socket, bearer
+material, nor a general signing interface. The authorization and signer
+session state are stored outside worker-writable roots. The worker receives
+only an opaque campaign identity and the restricted runtime capabilities that
+the controller can enforce.
 
 The authorization permits:
 
@@ -489,12 +495,21 @@ hash-linked local ledger and the existing local work lock. A restarted
 controller replays the ledger before allocating again. A dimension the
 controller cannot enforce must be labelled observed rather than enforced.
 
-The signer session parses and revalidates every prepared transaction. It signs
-only current `submission_register` or `verification_import` operations whose
-campaign root matches, Event and semantic-approval drafts are empty,
-accepted-state delta is zero, object and path classes are allowlisted, and
-scope and budget remain valid. Any unknown action, widening, Event, accepted
-state mutation, deletion, rewrite, policy, schema, keyset, authority-head, or
+The controller validates the complete prepared transaction, including
+postimage bytes, campaign scope, and accepted-state simulation. A constrained
+signer wrapper then parses the canonical Authority Record bytes and compares
+their action, resource, read-set root, binary, principal, and expected
+campaign-bound transaction intent with the controller-held plan before
+delegating to the configured signer. The current signer trait cannot inspect
+postimages and must not be described as doing so.
+
+The wrapper signs only current `submission_register` or
+`verification_import` operations whose campaign-bound intent matches, Event
+and semantic-approval drafts are empty, object and path classes are
+allowlisted, and scope and budget remain valid. Accepted-state zero means zero
+Event drafts, equal before and after Event-log roots, and recomputed scientific
+Standing unchanged. Any unknown action, widening, Event, accepted-state
+mutation, deletion, rewrite, policy, schema, keyset, authority-head, or
 trust-anchor change closes or refuses the session and becomes an explicit
 consequence beside the affected branch.
 
@@ -531,7 +546,7 @@ Every routine evidence transaction binds:
 
 ```text
 actor and authentication class
-active campaign-authorization root, when used by a campaign
+controller-held campaign-authorization root and expected transaction intent
 exact object drafts and closed write classes
 complete repository read set
 repository before root
@@ -815,9 +830,12 @@ for each Proposal:
 
 Selection may include only pending Proposals in one Frontier and one authority
 domain with one action. Every selected Proposal has exactly one keyed reason.
-The planner derives an ephemeral content-addressed Proposal-set resource for
-that action because the current authority request authorizes exactly one
-action and resource. Unknown, duplicate, omitted-selected, extra, wrong-root,
+The planner derives an ephemeral content-addressed synthetic
+`Proposal::<batch-root>` resource for that action because the current Cedar
+model authorizes exactly one action and one `Proposal` resource. It does not
+introduce a new `ProposalSet` entity or rotate the Cedar schema. A focused
+Cedar regression must prove that the synthetic resource cannot authorize an
+unselected Proposal. Unknown, duplicate, omitted-selected, extra, wrong-root,
 mixed-action, or positional responses fail before a canonical plan is
 derived. Unselected Proposals remain pending. Local staging may contain both
 Accept and Reject dispositions, but it exposes them as separate eligible
@@ -854,6 +872,11 @@ durable record of what was committed. An ephemeral batch-plan root may be
 shown and confirmed, but no `vela.review-batch.v1` object is retained unless a
 conformance test demonstrates an audit or replay gap that those existing bytes
 cannot close.
+
+V1 uses one batch-level semantic approval whose intent binds the complete
+keyed plan. Each ordinary per-Proposal review Event retains that Proposal's
+exact reason. The current semantic-approval schema therefore does not need a
+new per-Proposal target field.
 
 A one-entry batch has the same scientific effect and retained ordinary
 Decision bytes as the direct one-Proposal path. Cancellation, authentication
@@ -1077,14 +1100,16 @@ Implementation order is deliberately narrow:
 1. prove one constrained signer session can append one current Submission and
    one current Verification with accepted-state delta zero, no Event or
    semantic-approval draft, and no second human prompt;
-2. prove prompted and campaign-session evidence paths replay with the same
+2. remove the obsolete `receipt_land` fallback from current Submission
+   registration so the routine action vocabulary is closed;
+3. prove prompted and campaign-session evidence paths replay with the same
    ordinary object, Authority Record coverage, and Proposal semantics;
-3. derive the Inbox from real pending Proposals and add local staging;
-4. prove one-entry and homogeneous multi-Proposal batch equivalence using the
+4. derive the Inbox from real pending Proposals and add local staging;
+5. prove one-entry and homogeneous multi-Proposal batch equivalence using the
    existing authority transaction;
-5. evolve Attempt into the private campaign authorization and add the
+6. evolve Attempt into the private campaign authorization and add the
    Cockpit; and
-6. complete the dogfood gate before accepting this amendment or changing the
+7. complete the dogfood gate before accepting this amendment or changing the
    default daily workflow.
 
 ### 8. Keep exact intent binding; remove root ceremonies
