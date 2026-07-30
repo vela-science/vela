@@ -271,7 +271,9 @@ independent passing Verification Record over the same Claim, Submission, and
 Proposal. A fail blocks. Missing, dependent, inconclusive, error, unavailable,
 or not-run records do not satisfy the requirement.
 
-Verification eligibility constrains a Decision; it does not perform one.
+Verification eligibility constrains a Decision; it does not perform or
+recommend one, and it does not silently satisfy a separately registered value,
+consumer, or external-independence gate.
 
 Rejection removes the pending transition and leaves accepted Standing
 unchanged. Acceptance applies exactly the requested add, revision,

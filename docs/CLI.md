@@ -171,10 +171,12 @@ and retains it atomically. It changes no Standing.
 `vela verification import . verification.json --as verifier:<name> --json`
 remains the interoperability path for an already signed record.
 
-Acceptance is eligible only when the current Proposal and Submission still
-match and every declared verification requirement has a valid independent
-passing Verification Record. A failure blocks. Missing, invalid, dependent,
-or inconclusive records do not count.
+The protocol permits an acceptance action only when the current Proposal and
+Submission still match and every declared verification requirement has a valid
+independent passing Verification Record. A failure blocks. Missing, invalid,
+dependent, or inconclusive records do not count. Passing this gate is not a
+recommendation and does not satisfy an unregistered scientific, product-value,
+or external-independence test.
 
 ## Decisions
 
@@ -190,8 +192,13 @@ vela review show . <vpr_id> --json
 objects. Each entry binds the Proposal, Claim, Submission, Verification set,
 policy, authority heads, hypothetical accept/reject repository roots, limits,
 blockers, and one deterministic entry root. It writes nothing and cannot
-accept or reject. `review list` remains the compact record queue; `review
-show` remains the complete source packet.
+accept or reject. It classifies exact-target Verification Records as
+requirement-satisfying, complementary, or blocking using the same predicate as
+the protocol gate. Complementary evidence stays visible and root-bound but
+does not silently satisfy the registered requirement. `review list` remains
+the compact record queue; `review show` remains the complete source packet.
+`status` reports `protocol_ready_count` and `protocol_blocked_count`; neither
+field is a scientific recommendation.
 
 An authorized human performs one semantic action:
 

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Classify Decision Inbox Verification Records as requirement-satisfying,
+  complementary, or blocking with the same predicate used by the protocol
+  gate. Human output now says that a satisfied protocol gate still requires
+  human judgment and is not a recommendation.
+- Replace ambiguous Decision Inbox `ready` counters with explicit
+  `protocol_ready_count` and `protocol_blocked_count`; no authority or Standing
+  behavior changes.
+
 ## v0.950.1 — 2026-07-30 — Compacted journal-chain repair
 
 - Recognize every completed transaction in the exact repository-manifest

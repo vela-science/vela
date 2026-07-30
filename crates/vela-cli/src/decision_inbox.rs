@@ -20,7 +20,7 @@ use vela_protocol::verification_record::VerificationRecordV1;
 
 use crate::current_repository_decision::{
     DecisionAction, claim_for_proposal, exact_verifications, next_repository,
-    submission_for_proposal, verification_set_root,
+    submission_for_proposal, verification_satisfies_requirement, verification_set_root,
 };
 
 const ENTRY_SCHEMA: &str = "vela.decision-inbox-entry.v1";
@@ -56,6 +56,8 @@ pub(crate) struct DecisionInboxVerification {
     pub(crate) property: String,
     pub(crate) verifier: String,
     pub(crate) independent_of_producer: bool,
+    pub(crate) satisfies_requirements: Vec<String>,
+    pub(crate) protocol_evidence_role: String,
     pub(crate) does_not_establish: Vec<String>,
 }
 
@@ -70,8 +72,9 @@ pub(crate) struct DecisionInboxBlocker {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct DecisionInboxReadiness {
-    pub(crate) acceptance: String,
-    pub(crate) rejection: String,
+    pub(crate) protocol_gate: String,
+    pub(crate) human_decision_required: bool,
+    pub(crate) rejection_available: bool,
     pub(crate) blockers: Vec<DecisionInboxBlocker>,
 }
 
@@ -183,15 +186,9 @@ fn acceptance_blockers(
         }
     }
     for requirement in &submission.verification_requirements {
-        let satisfied = records.iter().any(|(_, record)| {
-            record.scope.property == *requirement
-                && record.outcome == "pass"
-                && record.verifier != submission.provenance.producer
-                && record
-                    .independence
-                    .declared_independent_of
-                    .contains(&submission.provenance.producer)
-        });
+        let satisfied = records
+            .iter()
+            .any(|(_, record)| verification_satisfies_requirement(submission, requirement, record));
         if !satisfied {
             blockers.push(DecisionInboxBlocker {
                 code: "missing_independent_passing_verification".into(),
@@ -205,6 +202,41 @@ fn acceptance_blockers(
     blockers.sort();
     blockers.dedup();
     blockers
+}
+
+fn classify_verification(
+    submission: &SubmissionV1,
+    root: &str,
+    record: &VerificationRecordV1,
+) -> DecisionInboxVerification {
+    let satisfies_requirements = submission
+        .verification_requirements
+        .iter()
+        .filter(|requirement| verification_satisfies_requirement(submission, requirement, record))
+        .cloned()
+        .collect::<Vec<_>>();
+    let protocol_evidence_role = if matches!(record.outcome.as_str(), "fail" | "error") {
+        "blocking"
+    } else if satisfies_requirements.is_empty() {
+        "complementary"
+    } else {
+        "requirement_satisfying"
+    };
+    DecisionInboxVerification {
+        verification_record_id: record.verification_record_id.clone(),
+        verification_record_root: root.into(),
+        outcome: record.outcome.clone(),
+        property: record.scope.property.clone(),
+        verifier: record.verifier.clone(),
+        independent_of_producer: record.verifier != submission.provenance.producer
+            && record
+                .independence
+                .declared_independent_of
+                .contains(&submission.provenance.producer),
+        satisfies_requirements,
+        protocol_evidence_role: protocol_evidence_role.into(),
+        does_not_establish: record.scope.does_not_establish.clone(),
+    }
 }
 
 fn accepted_subset(
@@ -340,22 +372,10 @@ fn derive_entry(inputs: EntryInputs<'_>) -> Result<DecisionInboxEntry, String> {
     let verification_set_root = verification_set_root(records)?;
     let verification_records = records
         .iter()
-        .map(|(root, record)| DecisionInboxVerification {
-            verification_record_id: record.verification_record_id.clone(),
-            verification_record_root: root.clone(),
-            outcome: record.outcome.clone(),
-            property: record.scope.property.clone(),
-            verifier: record.verifier.clone(),
-            independent_of_producer: record.verifier != submission.provenance.producer
-                && record
-                    .independence
-                    .declared_independent_of
-                    .contains(&submission.provenance.producer),
-            does_not_establish: record.scope.does_not_establish.clone(),
-        })
+        .map(|(root, record)| classify_verification(submission, root, record))
         .collect::<Vec<_>>();
-    let acceptance = if blockers.is_empty() {
-        "ready"
+    let protocol_gate = if blockers.is_empty() {
+        "satisfied"
     } else {
         "blocked"
     };
@@ -391,8 +411,9 @@ fn derive_entry(inputs: EntryInputs<'_>) -> Result<DecisionInboxEntry, String> {
         verification_requirements: submission.verification_requirements.clone(),
         verification_records,
         readiness: DecisionInboxReadiness {
-            acceptance: acceptance.into(),
-            rejection: "ready".into(),
+            protocol_gate: protocol_gate.into(),
+            human_decision_required: true,
+            rejection_available: true,
             blockers,
         },
         standing_diff: DecisionInboxStandingDiff {
@@ -565,29 +586,44 @@ pub(crate) fn cmd_decision_inbox(frontier: &Path, json_output: bool) {
     }
 
     for entry in &projection.entries {
+        let requirement_satisfying = entry
+            .verification_records
+            .iter()
+            .filter(|record| record.protocol_evidence_role == "requirement_satisfying")
+            .count();
+        let complementary = entry
+            .verification_records
+            .iter()
+            .filter(|record| record.protocol_evidence_role == "complementary")
+            .count();
+        let blocking = entry
+            .verification_records
+            .iter()
+            .filter(|record| record.protocol_evidence_role == "blocking")
+            .count();
+        let protocol_blockers = entry.readiness.blockers.len();
+        let readiness = if entry.readiness.protocol_gate == "satisfied" {
+            "protocol checks satisfied; human judgment required"
+        } else {
+            "protocol checks blocked; human judgment still required"
+        };
         println!(
             "\n{} · {} · {}",
-            entry.readiness.acceptance, entry.proposal_id, entry.proposal_action
+            readiness, entry.proposal_id, entry.proposal_action
         );
         println!("  {}", crate::cli::safe_text::inline(&entry.assertion));
         println!("  Change: {}", entry.standing_diff.transition);
         println!(
-            "  Evidence: {} Verification Record{} · {} blocker{}",
-            entry.verification_records.len(),
-            if entry.verification_records.len() == 1 {
-                ""
-            } else {
-                "s"
-            },
-            entry.readiness.blockers.len(),
-            if entry.readiness.blockers.len() == 1 {
-                ""
-            } else {
-                "s"
-            }
+            "  Evidence: {requirement_satisfying} requirement-satisfying · \
+             {complementary} complementary · {blocking} blocking · \
+             {protocol_blockers} protocol blocker{}",
+            if protocol_blockers == 1 { "" } else { "s" }
         );
         println!("  Entry: {}", entry.entry_root);
     }
+    println!(
+        "\nProtocol readiness is not a recommendation. Verification does not change Standing."
+    );
     println!(
         "\nInspect: vela review show . {} --json",
         projection.entries[0].proposal_id
@@ -896,7 +932,9 @@ mod tests {
             &heads(),
         );
 
-        assert_eq!(entry.readiness.acceptance, "ready");
+        assert_eq!(entry.readiness.protocol_gate, "satisfied");
+        assert!(entry.readiness.human_decision_required);
+        assert!(entry.readiness.rejection_available);
         assert!(entry.readiness.blockers.is_empty());
         assert!(
             crate::current_repository_decision::require_acceptance_evidence(
@@ -928,6 +966,46 @@ mod tests {
         );
         assert_eq!(entry.entry_root, entry_root(&entry).unwrap());
         assert_eq!(entry.authority_heads, heads());
+        assert_eq!(
+            entry.verification_records[0].protocol_evidence_role,
+            "requirement_satisfying"
+        );
+        assert_eq!(
+            entry.verification_records[0].satisfies_requirements,
+            vec![requirement]
+        );
+    }
+
+    #[test]
+    fn exact_records_distinguish_requirement_complementary_and_blocking_roles() {
+        let requirement = "Replay the exact fixture.";
+        let subject = claim("A bounded fixture result.", 1, Vec::new());
+        let submission = submission(requirement);
+        let proposal = proposal("claim.add", &subject, &submission);
+        let satisfying = verification(&proposal, &submission, requirement, "pass");
+        let complementary = verification(
+            &proposal,
+            &submission,
+            "Inspect a complementary property.",
+            "pass",
+        );
+        let blocking = verification(
+            &proposal,
+            &submission,
+            "Inspect a complementary property.",
+            "fail",
+        );
+
+        let satisfying = classify_verification(&submission, &root('1'), &satisfying);
+        let complementary = classify_verification(&submission, &root('2'), &complementary);
+        let blocking = classify_verification(&submission, &root('3'), &blocking);
+
+        assert_eq!(satisfying.protocol_evidence_role, "requirement_satisfying");
+        assert_eq!(satisfying.satisfies_requirements, vec![requirement]);
+        assert_eq!(complementary.protocol_evidence_role, "complementary");
+        assert!(complementary.satisfies_requirements.is_empty());
+        assert_eq!(blocking.protocol_evidence_role, "blocking");
+        assert!(blocking.satisfies_requirements.is_empty());
     }
 
     #[test]
@@ -953,8 +1031,9 @@ mod tests {
             &heads(),
         );
 
-        assert_eq!(entry.readiness.acceptance, "blocked");
-        assert_eq!(entry.readiness.rejection, "ready");
+        assert_eq!(entry.readiness.protocol_gate, "blocked");
+        assert!(entry.readiness.human_decision_required);
+        assert!(entry.readiness.rejection_available);
         assert!(
             crate::current_repository_decision::require_acceptance_evidence(
                 &submission,

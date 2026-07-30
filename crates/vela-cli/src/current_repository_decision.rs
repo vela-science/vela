@@ -202,6 +202,20 @@ pub(crate) fn verification_set_root(
     ))
 }
 
+pub(crate) fn verification_satisfies_requirement(
+    submission: &SubmissionV1,
+    requirement: &str,
+    record: &VerificationRecordV1,
+) -> bool {
+    record.scope.property == requirement
+        && record.outcome == "pass"
+        && record.verifier != submission.provenance.producer
+        && record
+            .independence
+            .declared_independent_of
+            .contains(&submission.provenance.producer)
+}
+
 pub(crate) fn require_acceptance_evidence(
     submission: &SubmissionV1,
     records: &[(String, VerificationRecordV1)],
@@ -214,13 +228,7 @@ pub(crate) fn require_acceptance_evidence(
     }
     for requirement in &submission.verification_requirements {
         let satisfying = records.iter().filter(|(_, record)| {
-            record.scope.property == *requirement
-                && record.outcome == "pass"
-                && record.verifier != submission.provenance.producer
-                && record
-                    .independence
-                    .declared_independent_of
-                    .contains(&submission.provenance.producer)
+            verification_satisfies_requirement(submission, requirement, record)
         });
         if satisfying.count() == 0 {
             return Err(format!(
@@ -946,6 +954,11 @@ mod tests {
             "service:independent-verifier",
             true,
         );
+        assert!(verification_satisfies_requirement(
+            &submission,
+            "Replay the frozen verifier.",
+            &passing
+        ));
         assert!(require_acceptance_evidence(&submission, &[(root('1'), passing.clone())]).is_ok());
 
         let wrong_property = verification(
@@ -955,6 +968,11 @@ mod tests {
             "service:independent-verifier",
             true,
         );
+        assert!(!verification_satisfies_requirement(
+            &submission,
+            "Replay the frozen verifier.",
+            &wrong_property
+        ));
         assert!(require_acceptance_evidence(&submission, &[(root('2'), wrong_property)]).is_err());
         let producer_record = verification(
             &submission,
@@ -963,6 +981,11 @@ mod tests {
             &submission.provenance.producer,
             false,
         );
+        assert!(!verification_satisfies_requirement(
+            &submission,
+            "Replay the frozen verifier.",
+            &producer_record
+        ));
         assert!(require_acceptance_evidence(&submission, &[(root('3'), producer_record)]).is_err());
         let undeclared = verification(
             &submission,
@@ -971,6 +994,11 @@ mod tests {
             "service:independent-verifier",
             false,
         );
+        assert!(!verification_satisfies_requirement(
+            &submission,
+            "Replay the frozen verifier.",
+            &undeclared
+        ));
         assert!(require_acceptance_evidence(&submission, &[(root('4'), undeclared)]).is_err());
         let failing = verification(
             &submission,

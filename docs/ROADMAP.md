@@ -45,35 +45,40 @@ The detailed work, evidence roots, benchmarks, and stop conditions live in the
 
 ## Current checkpoint — 2026-07-30
 
-All three planned result loops have reached scoped Verification with accepted
-state unchanged:
+All three planned result loops have exact requirement-matching Verification
+with accepted state unchanged:
 
-- Erdős commit `e4acfab64e5e248dcf3ba029558027fab40579f1`,
-  Proposal `vpr_27bce8983810f3bd`, Verification `vvr_85596c5b83104888`;
+- Erdős commit `b92c11e5daf59732f8057de2d3b114b56ea8d25c`, Proposal `vpr_27bce8983810f3bd`,
+  requirement-matching Verification `vvr_b879aec074e01d16`;
   producer work for `10429601..10429800` is closed without accepting the
   Claim, and the next nonduplicate range is `10429801..10430000`;
-- Formal commit `b16fb5353935f7334ec171a46407bf35b10fa338`,
-  Proposal `vpr_08a91ee1b770f5cb`, Verification
-  `vvr_1f13018fb140c3c2`; its exact bounded producer Target is closed, but its
-  scientific Claim is not accepted; and
-- Quantum commit `72d72416dbafa46030c439a7f49a529de8b04c7e`, Proposal
-  `vpr_8715dbb5e2a12442`,
-  Verification `vvr_f0b28f5c257eabb4`; current Vela reproduction
-  independently verifies the exact `[[10,1,4]]` certificate, while Decision
+- Formal commit `7d00fd9c34be3887624db16e4c5062c7fc447198`, Proposal `vpr_08a91ee1b770f5cb`,
+  requirement-matching Verification `vvr_96dcaefef0617952`; its exact bounded
+  producer Target is closed, but its scientific Claim is not accepted; and
+- Quantum commit `68be105f9e3183fe5f492dc09cce302ad834eaa8`, Proposal `vpr_8715dbb5e2a12442`,
+  requirement-matching Verification `vvr_606aff748c89df76`; an actor-separated
+  reconstruction verifies the exact `[[10,1,4]]` certificate, while Decision
   remains null.
 
-Each Proposal remains `pending_review`. The repository authority—not an
-agent—may accept, reject, or cancel each exact Decision.
+Each Proposal remains `pending_review`. Protocol readiness is not a
+recommendation to accept. The repository authority—not an agent—may accept,
+reject, or cancel each exact Decision. The corrected cross-Frontier Formal
+transfer remains pending its separate held-out consumer/value gate despite
+having no protocol blocker.
 
 Sidon remains clean at commit
-`75b3392c5d2a4390065a3927914acdb552d69e8e`. The next production projection
-has now been rebuilt and activated without waiting for the three human
-Decisions:
+`75b3392c5d2a4390065a3927914acdb552d69e8e`. The active production projection
+still predates the new Verification records. A current dry candidate has been
+rebuilt twice without waiting for the human Decisions:
 
 - Vela Web `v0.430.0-rc.3` remains the application release baseline; this
   checkpoint advances no web release;
-- the exact active projection is
-  `sha256:d944fd9a14b59c0fbc433d407fe53db67b4c0cf8f7d32d4bbd4598fcfad3a355`
+- the production manifest still serves
+  `sha256:780f0def732f997284870d8e82625dfe6411120fa6018e52c27e437c531b9817`;
+- the active projection remains
+  `sha256:d944fd9a14b59c0fbc433d407fe53db67b4c0cf8f7d32d4bbd4598fcfad3a355`,
+  while the exact current candidate is
+  `sha256:88422b7317c5e3f53bdaa61b25ff700e005919d0a31fde51dea1413dc923d2bf`
   under Vela `0.950.1`;
 - source adapter set
   `sha256:82df98241fc5e5f61b0790604a6ef7c3d6b5ce075e00c133e78ed64d0f8e186a`
@@ -81,7 +86,8 @@ Decisions:
   9,537 native rows;
 - PLBY is observed from locked commit
   `d4476dd3535ec618dee4177915741017026d26bf`, not the stale predecessor; and
-- exact web-tag and deployment-manifest reconciliation remains an alpha gate.
+- candidate activation, exact web-tag, and deployment-manifest reconciliation
+  remain alpha gates.
 
 The retained live-read-health artifact `sha256:457df1b7…` passes exact
 current-head reader, query, payload, and bounded-concurrency budgets. The
@@ -89,12 +95,15 @@ separate bounded capacity artifact `sha256:c1ad6d1a…` passes 100,000-record
 ingestion, exact root/count verification, rollback containment, transactional
 activation rollback, SELECT-only reader, and eight-way read budgets using the
 existing schema and JSONB writer. No COPY path or another storage layer was
-earned. Clean empty-database reconstruction, product lift, and the final web
-release remain open.
+earned. Clean empty-database reconstruction also passes at
+`sha256:dfd38ca3…`; product lift and the final web release remain open.
 
 This is release-candidate evidence. Final `0.430.0` still requires the
 remaining alpha gates and another exact refresh after any later human
-Decision.
+Decision. GitHub Actions currently rejects the Vela Web jobs before runner
+startup on the account billing/spending-limit gate. Clear that external gate
+and rerun exact `main`; do not replace it with a feature branch, staging
+database, or local-only release claim.
 
 ## P0 — make everyday Vela obvious
 

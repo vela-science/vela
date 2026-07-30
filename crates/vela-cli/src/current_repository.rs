@@ -199,22 +199,22 @@ fn campaign_status_summary(
 fn decision_inbox_status_summary(
     projection: &crate::decision_inbox::DecisionInboxProjection,
 ) -> (Value, usize) {
-    let ready_count = projection
+    let protocol_ready_count = projection
         .entries
         .iter()
-        .filter(|entry| entry.readiness.acceptance == "ready")
+        .filter(|entry| entry.readiness.protocol_gate == "satisfied")
         .count();
-    let blocked_count = projection
+    let protocol_blocked_count = projection
         .entries
         .iter()
-        .filter(|entry| entry.readiness.acceptance == "blocked")
+        .filter(|entry| entry.readiness.protocol_gate == "blocked")
         .count();
     let pending_count = projection.entries.len();
     (
         json!({
             "pending_count": pending_count,
-            "ready_count": ready_count,
-            "blocked_count": blocked_count,
+            "protocol_ready_count": protocol_ready_count,
+            "protocol_blocked_count": protocol_blocked_count,
             "projection_root": projection.projection_root,
             "first_entry_root": projection.entries.first().map(|entry| entry.entry_root.clone()),
         }),
@@ -311,8 +311,8 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             },
             "decision_inbox": {
                 "pending_count": 0,
-                "ready_count": 0,
-                "blocked_count": 0,
+                "protocol_ready_count": 0,
+                "protocol_blocked_count": 0,
                 "projection_root": Value::Null,
                 "first_entry_root": Value::Null
             },
@@ -469,10 +469,10 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             );
         }
         println!(
-            "  inbox     {} pending · {} ready · {} blocked",
+            "  inbox     {} pending · {} protocol-ready · {} protocol-blocked",
             payload["decision_inbox"]["pending_count"],
-            payload["decision_inbox"]["ready_count"],
-            payload["decision_inbox"]["blocked_count"]
+            payload["decision_inbox"]["protocol_ready_count"],
+            payload["decision_inbox"]["protocol_blocked_count"]
         );
         println!(
             "  inbox root {}",
