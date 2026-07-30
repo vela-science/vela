@@ -215,13 +215,14 @@ pub(crate) fn proposal_reproduction_files(
             let digest = artifact.digest.strip_prefix("sha256:").ok_or_else(|| {
                 "current Submission artifact digest is not a full sha256 identity".to_string()
             })?;
+            let retained_path = format!("records/artifacts/sha256/{digest}");
             let reference = repository
                 .artifacts
                 .iter()
                 .find(|reference| {
                     reference.id == digest
                         && reference.root == artifact.digest
-                        && reference.path == artifact.path
+                        && reference.path == retained_path
                         && reference.schema == "content-addressed-artifact"
                 })
                 .ok_or_else(|| {

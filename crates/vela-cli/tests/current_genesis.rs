@@ -422,12 +422,10 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let artifact_digest = format!("sha256:{}", hex::encode(Sha256::digest(artifact)));
     let artifact_stem = artifact_digest.trim_start_matches("sha256:").to_string();
     let bundle = temporary.path().join("bundle");
-    std::fs::create_dir_all(bundle.join("artifacts/sha256")).expect("artifact directory");
-    std::fs::write(
-        bundle.join("artifacts/sha256").join(&artifact_stem),
-        artifact,
-    )
-    .expect("artifact bytes");
+    std::fs::create_dir_all(&bundle).expect("Submission bundle directory");
+    let producer_artifact_path = "artifacts/source-witness.json";
+    std::fs::create_dir_all(frontier.join("artifacts")).expect("artifact directory");
+    std::fs::write(frontier.join(producer_artifact_path), artifact).expect("artifact bytes");
     let actor = "agent:current-submission-regression";
     let emitted_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     let producer_key = SigningKey::from_bytes(&[57_u8; 32]);
@@ -449,7 +447,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             },
             artifacts: vec![SubmissionArtifact {
                 kind: "witness".into(),
-                path: format!("records/artifacts/sha256/{artifact_stem}"),
+                path: producer_artifact_path.into(),
                 digest: artifact_digest,
             }],
             caveats: vec!["This fixture makes no unrestricted scientific claim.".into()],
@@ -506,6 +504,8 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         submitted["publication"]["state"], "committed_local",
         "unexpected publication outcome: {submitted}"
     );
+    std::fs::remove_file(frontier.join(producer_artifact_path))
+        .expect("remove producer-side transport path after canonical retention");
 
     let method_path = "verification/exact-replay-v1.json";
     std::fs::create_dir_all(frontier.join("verification")).expect("method directory");

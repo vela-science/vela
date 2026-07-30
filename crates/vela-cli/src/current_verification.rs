@@ -156,11 +156,12 @@ fn current_subject_for_proposal(
                 "current Submission artifact digest is not a full sha256 identity".to_string()
             })?
             .to_string();
+        let retained_path = format!("records/artifacts/sha256/{artifact_id}");
         let exact = repository.artifacts.iter().any(|reference| {
             reference.schema == "content-addressed-artifact"
                 && reference.id == artifact_id
                 && reference.root == artifact.digest
-                && reference.path == artifact.path
+                && reference.path == retained_path
         });
         if !exact {
             return Err(format!(
