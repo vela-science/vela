@@ -173,7 +173,7 @@ membership; aliases and short digests are not accepted.
 Outcomes are:
 
 ```text
-pass fail inconclusive error unavailable not_run
+pass fail inconclusive error
 ```
 
 Import is an object-only repository-authority transaction. It changes no Claim

@@ -137,9 +137,10 @@ Submission and Verification Record bytes. Each declared
 `verification_requirements` entry must equal the `scope.property` of an
 independent passing record bound to the same Claim, Submission, and Proposal.
 Producer-dependent passes do not count. A fail blocks the route; missing,
-invalid, inconclusive, error, unavailable, or not-run records cannot make
-acceptance available. These checks constrain an authorized Decision; they do
-not perform one.
+invalid, inconclusive, or error records cannot make acceptance available.
+Unperformed or unavailable verification yields no current Verification Record
+and therefore also cannot satisfy the gate. These checks constrain an
+authorized Decision; they do not perform one.
 
 ## Human decision
 

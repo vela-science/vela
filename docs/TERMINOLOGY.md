@@ -136,7 +136,7 @@ pending_review accepted rejected
 Verification outcome:
 
 ```text
-pass fail inconclusive error unavailable not_run
+pass fail inconclusive error
 ```
 
 Claim standing:
