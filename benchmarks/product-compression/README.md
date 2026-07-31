@@ -1,9 +1,9 @@
 # Product-compression benchmark
 
-This source-only study asks whether the released Vela read path helps a cold
-researcher understand one real Agent campaign and pending Decision faster than
-Git and files alone, without losing exact provenance or confusing Verification
-with acceptance.
+This source-only study asks whether Vela's current read path helps a cold
+researcher understand one real Frontier handoff faster than Git and files
+alone, without losing exact provenance or confusing Verification with
+acceptance.
 
 The stopped v1 study remains unchanged in
 `paper/artifacts/product-compression-v1`. This directory is the reusable
@@ -62,18 +62,19 @@ Relevant upstream contracts:
 
 ## Exact study object
 
-The fixture contains one completed Erdős Attempt, two root-linked Runs, one
-registered Submission with one Verification and pending Proposal, one retained
-corroborating Run, and the exact successor Target. Run order and registration
-order are independent.
+The fixture contains one exact Frontier checkout, one current Target, and one
+current Decision Inbox entry with its Submission, one or more Verification
+Records, conditional Standing delta, and next action. It deliberately contains
+no private Attempt, runner receipt, chat transcript, or copied execution graph.
 
 A participant reports:
 
-1. the current Target and exact Attempt boundary;
-2. both Runs and the receipt chain, including which Run was registered;
-3. the pending Proposal, Verification scope, and conditional Standing change;
+1. the current Frontier and exact next Target;
+2. the pending Proposal, its Submission, and all retained Verifications;
+3. the conditional Standing change and the fact that it still needs a human
+   Decision;
 4. that inspection exercised no authority and changed no accepted state; and
-5. the exact successor Target that can begin under a new bounded Attempt.
+5. the exact command for beginning the next bounded piece of work.
 
 `answer.schema.json` is the participant-facing output contract and is
 recursively closed. `study.py` independently validates the semantic links
@@ -110,11 +111,11 @@ egress is limited to the required provider hosts and the verifier remains fully
 offline.
 
 `materialize.py` reconstructs the fixture and answer key from one clean exact
-Frontier, one exact Vela binary, a completed private Attempt record, and one
-pending Proposal. It calls only `status`, `next`, and `review inbox`, verifies
-that Git and repository state do not change, checks every retained Run,
-Submission, Verification, Decision Inbox, and successor-packet binding, and
-sanitizes private absolute paths.
+Frontier, one exact Vela binary, and one pending Proposal. It calls only `next`
+and `review inbox`, verifies that Git and repository state do not change, and
+checks the Target packet, Submission, Verification set, Decision Inbox, and
+conditional Standing bindings. Harbor still owns execution evidence; Vela does
+not duplicate it in this comprehension benchmark.
 
 ## Measurement
 
@@ -217,8 +218,8 @@ python3 benchmarks/product-compression/study.py validate \
 
 python3 benchmarks/product-compression/materialize.py \
   --frontier /exact/frontier --vela /exact/vela \
-  --attempt /exact/private/attempt.json --proposal vpr_<id> \
-  --output jobs/product-compression-v2/materials
+  --proposal vpr_<id> \
+  --output jobs/product-compression-v4/materials
 
 python3 benchmarks/product-compression/study.py freeze-plan \
   --materials /exact/private/materials --model gpt-5.6-terra \
@@ -228,10 +229,10 @@ python3 benchmarks/product-compression/study.py freeze-plan \
 python3 benchmarks/product-compression/study.py prepare-harbor \
   --plan /exact/plan.json --materials /exact/private/materials \
   --frontier /exact/clean/frontier --vela-linux /exact/static-linux-vela \
-  --job-name vela-product-compression-v3-native \
-  --output jobs/product-compression-v3/harbor-native
+  --job-name vela-product-compression-v4-native \
+  --output jobs/product-compression-v4/harbor-native
 
-cd jobs/product-compression-v3/harbor-native
+cd jobs/product-compression-v4/harbor-native
 env -u OPENAI_API_KEY CODEX_AUTH_JSON_PATH="$HOME/.codex/auth.json" \
   harbor run --config harbor-job.json --max-retries 0 \
   --jobs-dir ../runs
@@ -241,7 +242,7 @@ env -u OPENAI_API_KEY CODEX_AUTH_JSON_PATH="$HOME/.codex/auth.json" \
 configuration in the frozen AB/BA order. It is a materializer, not a runner or
 adapter. Harbor itself owns task digests, container setup, execution, retries,
 ATIF, artifact collection, job locks, and raw results. Each task receives the
-same exact Frontier checkout and participant evidence; only the guided task
+same exact Frontier checkout; only the guided task
 receives the exact read-only Linux Vela binary. The answer key appears only in
 the offline verifier phase.
 

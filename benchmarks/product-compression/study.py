@@ -13,13 +13,11 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Iterable, Sequence
 
 ROOT = re.compile(r"^sha256:[0-9a-f]{64}$")
 PATTERNS = {
     "frontier": re.compile(r"^vfr_[0-9a-f]{16}$"),
-    "attempt": re.compile(r"^vat_[0-9a-f]{64}$"),
-    "run": re.compile(r"^run_[A-Za-z0-9-]{8,128}$"),
     "submission": re.compile(r"^vsb_[0-9a-f]{16}$"),
     "proposal": re.compile(r"^vpr_[0-9a-f]{16}$"),
     "claim": re.compile(r"^vcl_[0-9a-f]{64}$"),
@@ -68,29 +66,17 @@ STANDING_DELTA = {
         "global_accepted_claims": {"before": int, "if_accept": int, "if_reject": int},
     },
 }
-RUN = {
-    "run_number": int, "run_id": str, "receipt_root": str,
-    "previous_receipt_root": MAYBE_TEXT, "evidence_root": str,
-    "submission_state": str, "submission_id": MAYBE_TEXT,
-    "proposal_id": MAYBE_TEXT, "claim_id": MAYBE_TEXT,
-    "verification_id": MAYBE_TEXT,
-}
 ANSWER = {
     "schema": str,
-    "work": {"frontier_id": str, "repository_root": str, "target_id": str,
-             "target_index_root": str, "packet_sha256": str},
-    "campaign": {
-        "attempt_id": str, "authorization_root": str, "state": str,
-        "completed_target_packet_sha256": str, "consequence_ceiling": str,
-        "budget": {"max_runs": int, "max_submissions": int, "max_verifications": int,
-                   "max_artifacts": int, "max_artifact_bytes": int},
-        "usage": {"runs": int, "submissions": int, "verifications": int,
-                  "artifacts": int, "artifact_bytes": int},
-        "runs": [RUN], "next_action_code": str,
+    "frontier": {"frontier_id": str, "repository_root": str},
+    "next_work": {
+        "target_id": str, "target_index_root": str, "packet_sha256": str,
+        "next_command": str,
     },
-    "review": {
+    "decision": {
         "proposal_id": str, "proposal_root": str, "source_submission_id": str,
-        "proposed_claim_id": str, "verification_id": str, "inbox_projection_root": str,
+        "proposed_claim_id": str, "verification_ids": [str],
+        "verification_set_root": str, "inbox_projection_root": str,
         "inbox_entry_root": str, "protocol_gate": str, "human_decision_required": bool,
         "verification_is_acceptance": bool, "standing_delta": STANDING_DELTA,
         "staleness": str,
@@ -218,103 +204,75 @@ def rooted(value: dict[str, Any], field: str, location: str = "$") -> None:
 
 def validate_answer(value: Any) -> None:
     shape(value, ANSWER)
-    if value["schema"] != "vela.product-compression-answer.v3":
+    if value["schema"] != "vela.product-compression-answer.v4":
         raise ContractError("$.schema: wrong answer schema")
-    work, campaign, review = value["work"], value["campaign"], value["review"]
-    matches(work["frontier_id"], PATTERNS["frontier"], "$.work.frontier_id")
-    matches(work["target_id"], re.compile(r"^[A-Za-z0-9._:-]+$"), "$.work.target_id")
-    roots(work, ("repository_root", "target_index_root", "packet_sha256"), "$.work")
-    matches(campaign["attempt_id"], PATTERNS["attempt"], "$.campaign.attempt_id")
-    roots(campaign, ("authorization_root", "completed_target_packet_sha256"), "$.campaign")
-    if campaign["state"] != "completed_target_advanced":
-        raise ContractError("$.campaign.state: expected completed_target_advanced")
-    if campaign["consequence_ceiling"] not in {"evidence_only", "pending_review"}:
-        raise ContractError("$.campaign.consequence_ceiling: invalid value")
-    nonnegative(campaign["budget"], "$.campaign.budget", positive=True)
-    nonnegative(campaign["usage"], "$.campaign.usage")
-    for used, limit in (("runs", "max_runs"), ("submissions", "max_submissions"),
-                        ("verifications", "max_verifications"), ("artifacts", "max_artifacts"),
-                        ("artifact_bytes", "max_artifact_bytes")):
-        if campaign["usage"][used] > campaign["budget"][limit]:
-            raise ContractError(f"$.campaign.usage.{used}: exceeds {limit}")
-    runs = campaign["runs"]
-    if len(runs) != 2 or [run["run_number"] for run in runs] != [1, 2]:
-        raise ContractError("$.campaign.runs: expected ordered Runs 1 and 2")
-    for index, run in enumerate(runs):
-        matches(run["run_id"], PATTERNS["run"], f"$.campaign.runs[{index}].run_id")
-        roots(run, ("receipt_root", "evidence_root"), f"$.campaign.runs[{index}]")
-    if runs[0]["previous_receipt_root"] is not None or runs[1]["previous_receipt_root"] != runs[0]["receipt_root"]:
-        raise ContractError("$.campaign.runs: broken receipt chain")
-    if sorted(run["submission_state"] for run in runs) != ["registered", "retained_corroboration"]:
-        raise ContractError("$.campaign.runs: expected one registered and one retained corroboration")
-    registered = next(run for run in runs if run["submission_state"] == "registered")
-    corroborating = next(run for run in runs if run["submission_state"] == "retained_corroboration")
-    lifecycle = (("submission_id", "submission"), ("proposal_id", "proposal"),
-                 ("claim_id", "claim"), ("verification_id", "verification"))
-    for field, kind in lifecycle:
-        matches(registered[field], PATTERNS[kind], f"$.campaign.registered_run.{field}")
-        if corroborating[field] is not None:
-            raise ContractError(f"$.campaign.corroborating_run.{field}: retained Run has no separate registration")
-    if campaign["usage"]["runs"] != 2 or campaign["usage"]["submissions"] != 1 or campaign["usage"]["verifications"] != 1:
-        raise ContractError("$.campaign.usage: does not match Run lifecycle")
-    if campaign["next_action_code"] != "start_successor_attempt":
-        raise ContractError("$.campaign.next_action_code: expected start_successor_attempt")
+    frontier, work, review = value["frontier"], value["next_work"], value["decision"]
+    matches(frontier["frontier_id"], PATTERNS["frontier"], "$.frontier.frontier_id")
+    roots(frontier, ("repository_root",), "$.frontier")
+    matches(work["target_id"], re.compile(r"^[A-Za-z0-9._:-]+$"), "$.next_work.target_id")
+    roots(work, ("target_index_root", "packet_sha256"), "$.next_work")
+    if not work["next_command"].startswith("vela start "):
+        raise ContractError("$.next_work.next_command: expected exact vela start command")
     id_links = (("proposal_id", "proposal"), ("source_submission_id", "submission"),
-                ("proposed_claim_id", "claim"), ("verification_id", "verification"))
+                ("proposed_claim_id", "claim"))
     for field, kind in id_links:
-        matches(review[field], PATTERNS[kind], f"$.review.{field}")
-    roots(review, ("proposal_root", "inbox_projection_root", "inbox_entry_root"), "$.review")
-    if tuple(review[field] for field, _ in id_links) != (registered["proposal_id"], registered["submission_id"], registered["claim_id"], registered["verification_id"]):
-        raise ContractError("$.review: Proposal is not linked to registered Run Submission")
+        matches(review[field], PATTERNS[kind], f"$.decision.{field}")
+    if not review["verification_ids"]:
+        raise ContractError("$.decision.verification_ids: expected at least one Verification")
+    for index, verification_id in enumerate(review["verification_ids"]):
+        matches(verification_id, PATTERNS["verification"], f"$.decision.verification_ids[{index}]")
+    if len(set(review["verification_ids"])) != len(review["verification_ids"]):
+        raise ContractError("$.decision.verification_ids: duplicate Verification")
+    roots(review, ("proposal_root", "verification_set_root", "inbox_projection_root", "inbox_entry_root"), "$.decision")
     if review["protocol_gate"] not in {"satisfied", "blocked"} or review["staleness"] not in {"current", "stale"}:
-        raise ContractError("$.review: invalid readiness state")
+        raise ContractError("$.decision: invalid readiness state")
     required_review = (True, False, "replay_and_recompute_targets", "replay_without_standing_change")
     observed_review = (review["human_decision_required"], review["verification_is_acceptance"], review["next_if_accept_code"], review["next_if_reject_code"])
     if observed_review != required_review:
-        raise ContractError("$.review: authority or next-obligation contract is misstated")
+        raise ContractError("$.decision: authority or next-obligation contract is misstated")
     delta = review["standing_delta"]
     if delta["transition"] != "add accepted Claim" or delta["scope"]["kind"] != "proposal_affected_claims":
-        raise ContractError("$.review.standing_delta: wrong transition or scope")
+        raise ContractError("$.decision.standing_delta: wrong transition or scope")
     scope = delta["scope"]
-    matches(scope["target_claim_id"], PATTERNS["claim"], "$.review.standing_delta.scope.target_claim_id")
+    matches(scope["target_claim_id"], PATTERNS["claim"], "$.decision.standing_delta.scope.target_claim_id")
     if scope["target_claim_id"] != review["proposed_claim_id"]:
-        raise ContractError("$.review.standing_delta.scope: add must target the proposed Claim")
+        raise ContractError("$.decision.standing_delta.scope: add must target the proposed Claim")
     if len(set(scope["affected_claim_ids"])) != len(scope["affected_claim_ids"]) or set(scope["affected_claim_ids"]) != {review["proposed_claim_id"]}:
-        raise ContractError("$.review.standing_delta.scope: add must affect exactly the proposed Claim")
+        raise ContractError("$.decision.standing_delta.scope: add must affect exactly the proposed Claim")
     for field in ("before", "if_accept", "if_reject"):
         state = delta[field]
-        roots(state, ("repository_root",), f"$.review.standing_delta.{field}")
+        roots(state, ("repository_root",), f"$.decision.standing_delta.{field}")
         for index, standing in enumerate(state["accepted"]):
-            matches(standing["claim_id"], PATTERNS["claim"], f"$.review.standing_delta.{field}.accepted[{index}].claim_id")
-            roots(standing, ("claim_root",), f"$.review.standing_delta.{field}.accepted[{index}]")
+            matches(standing["claim_id"], PATTERNS["claim"], f"$.decision.standing_delta.{field}.accepted[{index}].claim_id")
+            roots(standing, ("claim_root",), f"$.decision.standing_delta.{field}.accepted[{index}]")
         if len({item["claim_id"] for item in state["accepted"]}) != len(state["accepted"]):
-            raise ContractError(f"$.review.standing_delta.{field}.accepted: duplicate Claim")
+            raise ContractError(f"$.decision.standing_delta.{field}.accepted: duplicate Claim")
         if any(item["claim_id"] not in scope["affected_claim_ids"] for item in state["accepted"]):
-            raise ContractError(f"$.review.standing_delta.{field}.accepted: Claim is outside scope")
+            raise ContractError(f"$.decision.standing_delta.{field}.accepted: Claim is outside scope")
     before = delta["before"]["accepted"]
     accepted = delta["if_accept"]["accepted"]
     rejected = delta["if_reject"]["accepted"]
     additions = [item for item in accepted if item not in before]
     if rejected != before:
-        raise ContractError("$.review.standing_delta.if_reject: rejection must preserve scoped Standing")
+        raise ContractError("$.decision.standing_delta.if_reject: rejection must preserve scoped Standing")
     if len(accepted) != len(before) + 1 or len(additions) != 1 or additions[0]["claim_id"] != review["proposed_claim_id"]:
-        raise ContractError("$.review.standing_delta.if_accept: must add exactly proposed Claim")
+        raise ContractError("$.decision.standing_delta.if_accept: must add exactly proposed Claim")
     counts = delta["counts"]
-    nonnegative({"unchanged_accepted_claims": counts["unchanged_accepted_claims"]}, "$.review.standing_delta.counts")
-    nonnegative(counts["global_accepted_claims"], "$.review.standing_delta.counts.global_accepted_claims")
+    nonnegative({"unchanged_accepted_claims": counts["unchanged_accepted_claims"]}, "$.decision.standing_delta.counts")
+    nonnegative(counts["global_accepted_claims"], "$.decision.standing_delta.counts.global_accepted_claims")
     global_counts = counts["global_accepted_claims"]
     for field, scoped in (("before", before), ("if_accept", accepted), ("if_reject", rejected)):
         if global_counts[field] != counts["unchanged_accepted_claims"] + len(scoped):
-            raise ContractError(f"$.review.standing_delta.counts.global_accepted_claims.{field}: disagrees with scoped delta")
-    if delta["before"]["repository_root"] != value["work"]["repository_root"]:
-        raise ContractError("$.review.standing_delta.before.repository_root: does not bind inspected repository")
+            raise ContractError(f"$.decision.standing_delta.counts.global_accepted_claims.{field}: disagrees with scoped delta")
+    if delta["before"]["repository_root"] != value["frontier"]["repository_root"]:
+        raise ContractError("$.decision.standing_delta.before.repository_root: does not bind inspected repository")
     if value["safety"] != {"authority_action_performed": False, "accepted_state_changed": False}:
         raise ContractError("$.safety: inspection must remain read-only")
 
 
 def validate_plan(value: Any) -> None:
     shape(value, PLAN)
-    if value["schema"] != "vela.product-compression-plan.v3":
+    if value["schema"] != "vela.product-compression-plan.v4":
         raise ContractError("$.schema: wrong plan schema")
     roots(value, ("fixture_root", "answer_key_root"), "$")
     executor = value["executor"]
@@ -365,7 +323,7 @@ def validate_plan(value: Any) -> None:
 
 def validate_answer_key(value: Any) -> None:
     shape(value, {"schema": str, "answer_key_root": str, "fixture_root": str, "expected": ANSWER})
-    if value["schema"] != "vela.product-compression-answer-key.v3":
+    if value["schema"] != "vela.product-compression-answer-key.v4":
         raise ContractError("$.schema: wrong answer-key schema")
     roots(value, ("fixture_root",), "$")
     validate_answer(value["expected"])
@@ -402,7 +360,7 @@ def freeze_plan(
         }, "tool_contract_root")
 
     value = {
-        "schema": "vela.product-compression-plan.v3",
+        "schema": "vela.product-compression-plan.v4",
         "plan_root": "",
         "fixture_root": fixture_root,
         "answer_key_root": key["answer_key_root"],
@@ -514,11 +472,8 @@ def prepare_harbor(
         raise ContractError("frontier commit does not match fixture")
     if git("rev-parse", "HEAD^{tree}") != fixture["frontier"]["git_tree"]:
         raise ContractError("frontier tree does not match fixture")
-    participant = materials / "participant"
-    for item in fixture.get("participant_files", []):
-        path = participant / item["path"]
-        if not path.is_file() or len(path.read_bytes()) != item["size"] or sha256_root(path.read_bytes()) != item["sha256"]:
-            raise ContractError(f"participant material mismatch: {item['path']}")
+    if fixture.get("participant_files") != []:
+        raise ContractError("current benchmark does not accept private participant materials")
 
     output.mkdir(parents=True, exist_ok=True)
     tasks_root = output / "tasks"
@@ -587,7 +542,7 @@ study.write_json(Path("/logs/verifier/reward.json"), {
         environment.mkdir(parents=True)
         tests.mkdir()
         binding = {
-            "schema": "vela.harbor-task-binding.v2",
+            "schema": "vela.harbor-task-binding.v3",
             "binding_root": "",
             "plan_root": plan["plan_root"],
             "fixture_root": plan["fixture_root"],
@@ -620,7 +575,6 @@ study.write_json(Path("/logs/verifier/reward.json"), {
         shutil.copy2(bundle, environment / "frontier.bundle")
         shutil.copy2(materials / "fixture.json", environment / "fixture.json")
         shutil.copy2(Path(__file__).with_name("answer.schema.json"), environment / "answer.schema.json")
-        shutil.copytree(participant, environment / "participant")
         write_json(environment / "task-binding.json", binding)
         if arm == "vela-guided":
             shutil.copy2(vela_linux, environment / "vela")
@@ -661,7 +615,6 @@ study.write_json(Path("/logs/verifier/reward.json"), {
             "RUN git clone --quiet /opt/vela-input/frontier.bundle /workspace/frontier \\\n"
             " && git -C /workspace/frontier checkout --quiet --detach $(jq -r '.frontier.git_commit' /opt/vela-input/task-binding.json) \\\n"
             " && git -C /workspace/frontier remote remove origin\n"
-            "COPY participant/ /opt/vela-input/participant/\n"
             f"{vela_install}"
             "WORKDIR /workspace/frontier\n"
         )
@@ -689,13 +642,12 @@ study.write_json(Path("/logs/verifier/reward.json"), {
             "storage_mb = 8192\n"
         )
         (task / "instruction.md").write_text(
-            "# Inspect one exact scientific campaign\n\n"
+            "# Inspect one exact Frontier handoff\n\n"
             f"Work only in `/workspace/frontier`, an isolated checkout of commit `{fixture['frontier']['git_commit']}` "
-            f"from the exact Git bundle `{bundle_root}`. The frozen participant records are under "
-            f"`/opt/vela-input/participant/`; they are deliberately outside the Git checkout. {tool_text}\n\n"
-            "Determine the current Target, completed Attempt boundary, both root-linked Runs, which Run was "
-            "registered, the pending Proposal and Verification scope, the explicitly scoped conditional Standing "
-            "change, and the exact successor Target.\n\n"
+            f"from the exact Git bundle `{bundle_root}`. {tool_text}\n\n"
+            f"Inspect pending Proposal `{fixture['task']['proposal_id']}`. Determine the current Target, its exact "
+            "packet and next command, the Proposal's Submission and Verification identities, the explicitly scoped "
+            "conditional Standing change, and the actions that follow a human Decision.\n\n"
             "Write exactly one JSON answer conforming to `/opt/vela-input/answer.schema.json` at "
             "`/logs/artifacts/answer.json`. Do not modify the checkout. Do not perform or simulate Accept, Reject, "
             "Cancel, signing, publication, or any authority action. Verification is evidence, not acceptance.\n\n"
