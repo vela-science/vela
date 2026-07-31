@@ -94,8 +94,17 @@ test("current source stays product-only while historical release evidence remain
     readFile(new URL("../../package.json", import.meta.url), "utf8"),
     readFile(new URL("../../README.md", import.meta.url), "utf8"),
   ]);
-  const packageJson = JSON.parse(packageText) as { files?: string[]; version?: string };
+  const packageJson = JSON.parse(packageText) as {
+    files?: string[];
+    private?: boolean;
+    version?: string;
+  };
   assert.equal(packageJson.version, "0.8.0");
+  assert.equal(
+    packageJson.private,
+    true,
+    "post-release source must not republish immutable Canopus 0.8.0",
+  );
   for (const file of [
     "README.md",
     "THIRD_PARTY.md",
@@ -127,7 +136,7 @@ test("current source stays product-only while historical release evidence remain
   );
   assert.match(
     readme,
-    /Current source is Canopus `0\.8\.0`[\s\S]+toolchain\.lock\.json/u,
+    /immutable public product is Canopus `0\.8\.0`[\s\S]+toolchain\.lock\.json/u,
   );
   assert.match(readme, /A Run is nonmutating/u);
   assert.match(readme, /only the separate `submit` command registers/u);

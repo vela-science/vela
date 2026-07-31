@@ -82,10 +82,12 @@ or interprets verifier success as acceptance.
 
 ## Exact product contract
 
-Current source is Canopus `0.8.0`. Its exact Vela, Codex, and platform
-composition is declared once in `toolchain.lock.json`; compatible public
-contracts are declared separately in `compatibility.json`. Historical releases
-remain available for exact replay; they are not current writers.
+The immutable public product is Canopus `0.8.0`. Current `main` is deliberately
+private and unpublishable while the executor is shrunk and evaluated as
+optional Vela Agent functionality. The released package's exact Vela, Codex,
+and platform composition is declared once in `toolchain.lock.json`; compatible
+public contracts are declared separately in `compatibility.json`. Historical
+releases remain available for exact Run replay; they are not current writers.
 
 Mission v1 and profile v2 remain the advanced portable interfaces:
 
