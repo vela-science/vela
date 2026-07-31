@@ -13,14 +13,12 @@ use vela_protocol::verification_record::VerificationRecordV1;
 use crate::authority_transaction::RepositoryAuthoritySigner;
 use crate::workflow::{SubmitOutcome, VerificationImportOutcome};
 
-#[allow(dead_code)] // Compiled boundary; a durable controller host is deliberately not added yet.
-pub(crate) struct RoutineEvidenceController<'a> {
-    repository_signer: &'a mut dyn RepositoryAuthoritySigner,
+pub(crate) struct RoutineEvidenceController {
+    repository_signer: Box<dyn RepositoryAuthoritySigner>,
 }
 
-#[allow(dead_code)] // Methods are the closed seam a future measured host may invoke.
-impl<'a> RoutineEvidenceController<'a> {
-    pub(crate) fn new(repository_signer: &'a mut dyn RepositoryAuthoritySigner) -> Self {
+impl RoutineEvidenceController {
+    pub(crate) fn new(repository_signer: Box<dyn RepositoryAuthoritySigner>) -> Self {
         Self { repository_signer }
     }
 
@@ -40,7 +38,7 @@ impl<'a> RoutineEvidenceController<'a> {
             Some(attempt_id),
             bundle_root,
             push,
-            self.repository_signer,
+            self.repository_signer.as_mut(),
         )
     }
 
@@ -58,20 +56,22 @@ impl<'a> RoutineEvidenceController<'a> {
             executor,
             attempt_id,
             push,
-            self.repository_signer,
+            self.repository_signer.as_mut(),
         )
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
     use vela_protocol::authority::DsseSignatureV1;
 
     use super::*;
 
-    #[derive(Default)]
     struct CountingSigner {
-        calls: usize,
+        calls: Arc<AtomicUsize>,
     }
 
     impl RepositoryAuthoritySigner for CountingSigner {
@@ -80,15 +80,18 @@ mod tests {
             _payload_type: &str,
             _canonical_payload: &[u8],
         ) -> Result<Vec<DsseSignatureV1>, String> {
-            self.calls += 1;
+            self.calls.fetch_add(1, Ordering::Relaxed);
             Err("fixture signer must not be reached".into())
         }
     }
 
     #[test]
     fn controller_construction_does_not_touch_the_signer() {
-        let mut signer = CountingSigner::default();
-        let _controller = RoutineEvidenceController::new(&mut signer);
-        assert_eq!(signer.calls, 0);
+        let calls = Arc::new(AtomicUsize::new(0));
+        let signer = CountingSigner {
+            calls: Arc::clone(&calls),
+        };
+        let _controller = RoutineEvidenceController::new(Box::new(signer));
+        assert_eq!(calls.load(Ordering::Relaxed), 0);
     }
 }

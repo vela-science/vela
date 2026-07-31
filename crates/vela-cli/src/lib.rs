@@ -9,6 +9,7 @@
 // producer registration, verification import, and exact review decisions.
 pub(crate) mod authority_transaction;
 mod bounded_file;
+pub(crate) mod campaign_host;
 mod frontier;
 pub(crate) mod repository_authority_provider;
 pub(crate) mod routine_evidence_controller;

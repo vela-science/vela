@@ -211,13 +211,25 @@ expiry, Inbox readiness, rooted entry identity, and one inspection or
 continuation action. It exposes no Accept/Reject control. Routine Submission
 and Verification commands still use the repository-authority transaction
 path. An internal writer can reuse a caller-owned signer without bypassing
-identity, policy, journaling, or replay, but no persistent campaign controller
-invokes that seam yet. The campaign must not claim prompt-free evidence work
-until the controller-held signer session, prompted/session replay equivalence,
-and twelve-hour dogfood gates pass. Homogeneous batch Decision planning
-remains unimplemented and unearned. Current Submission registration accepts
-only the `submission_register` policy action; the retired `receipt_land`
-fallback is no longer a writer path.
+identity, policy, journaling, or replay.
+
+An experimental, foreground `vela campaign host` now invokes that seam for one
+exact live Attempt. It reads bounded NDJSON from inherited stdin, restricts
+signed objects to one explicitly approved inbox, reuses one repository signer,
+and exposes only `register_submission` and `import_verification` as mutating
+operations. EOF ends the host. Push, review, Decision, policy, schema, key,
+scheduler, socket, daemon, and arbitrary-command surfaces are absent. The host
+is private execution support and is never required for clean-clone replay.
+
+One isolated integration fixture proves that the host can register a real
+authenticated Submission through the ordinary transaction writer with
+accepted-state delta zero. The campaign must not claim twelve-hour,
+prompt-free evidence work until a real source dogfood records signer prompts,
+restart behavior, multiple routine writes, exact roots, and zero Standing
+change. Homogeneous batch Decision planning remains unimplemented and
+unearned. Current Submission registration accepts only the
+`submission_register` policy action; the retired `receipt_land` fallback is no
+longer a writer path.
 
 ## Product contract
 

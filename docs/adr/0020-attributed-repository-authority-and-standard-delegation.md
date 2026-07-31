@@ -610,6 +610,14 @@ later scientific Decision. It also preserves one authority-coverage rule
 instead of adding an unsigned evidence era. A passing Verification may
 strengthen a pending Proposal; it never changes Standing.
 
+The first bounded implementation is a hidden foreground stdio host over one
+exact private Attempt. It retains one selected repository signer, reads signed
+objects only from one host-approved inbox, and calls the two existing closed
+writer methods with `push=false`. It adds no canonical Campaign object,
+execution scheduler, durable queue, socket, service, or Decision method. This
+implementation is evidence for the seam only; twelve-hour prompt compression
+and restart behavior remain empirical gates.
+
 #### Campaign Cockpit
 
 The Campaign Cockpit is a local projection over native runner state, Attempt

@@ -65,6 +65,12 @@ pub enum ConfigAction {
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
+    /// Run the experimental local routine-evidence host for one exact Attempt.
+    #[command(hide = true)]
+    Campaign {
+        #[command(subcommand)]
+        action: CampaignAction,
+    },
     /// Verify the current repository origin and authority boundary.
     #[command(hide = true)]
     Repository {
@@ -384,6 +390,22 @@ pub(crate) enum Commands {
     Completions {
         /// bash | zsh | fish
         shell: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum CampaignAction {
+    /// Hold one scoped repository signer for bounded routine evidence writes.
+    Host {
+        /// Exact current Frontier repository.
+        #[arg(long)]
+        frontier: PathBuf,
+        /// Exact live private Attempt (`vat_...`).
+        #[arg(long)]
+        attempt: String,
+        /// Host-approved directory containing signed Submission and Verification JSON.
+        #[arg(long)]
+        inbox: PathBuf,
     },
 }
 

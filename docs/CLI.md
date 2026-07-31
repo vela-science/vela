@@ -80,6 +80,44 @@ claim id agents config verification authority target-index repository
 
 `vela help advanced` is the executable source for this grouping.
 
+## Experimental Campaign evidence host
+
+Source dogfood may keep one exact Attempt's repository signer in a foreground
+process:
+
+```bash
+vela campaign host \
+  --frontier . \
+  --attempt <vat_id> \
+  --inbox <approved-directory>
+```
+
+The hidden command accepts newline-delimited JSON on stdin. Its only mutating
+operations are:
+
+```json
+{"operation":"register_submission","request_id":"run:1","path":"submission.json"}
+{"operation":"import_verification","request_id":"run:2","path":"verification.json"}
+```
+
+Paths are normalized relative paths inside the approved inbox. Each object and
+control frame is read through a fixed byte bound. The host derives the producer
+or verifier from the signed object, fixes `push=false`, and retains the exact
+Attempt on every writer call. It has no review, Decision, policy, schema, key,
+publication, scheduler, socket, or arbitrary-command operation. Closing stdin
+ends the process. Existing journals and exact retry provide crash recovery;
+the host creates no second queue or authority store.
+
+The inbox is a trusted runner-custody boundary, not an operating-system
+sandbox. Give the host a dedicated directory, not a home directory or
+worktree. Submission artifacts must use the exact
+`records/artifacts/sha256/<digest>` transport form. Worker and verifier
+processes must not inherit `SSH_AUTH_SOCK` or the host's stdin.
+
+This surface remains experimental until the real long-running dogfood proves
+multiple routine writes, restart recovery, bounded prompt count, and unchanged
+accepted Standing.
+
 ## Attempts and Submissions
 
 `vela next` returns a ranked Target Offer. Review work never enters that

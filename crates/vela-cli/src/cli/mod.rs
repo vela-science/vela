@@ -67,6 +67,14 @@ pub async fn run_command() {
     let cli = Cli::parse();
     crate::ui::set_quiet(cli.quiet);
     match cli.command {
+        Commands::Campaign {
+            action:
+                CampaignAction::Host {
+                    frontier,
+                    attempt,
+                    inbox,
+                },
+        } => crate::campaign_host::cmd_host(&frontier, &attempt, &inbox),
         Commands::Repository { action } => match action {
             RepositoryAction::Verify { frontier, json } => {
                 crate::current_repository::cmd_repository_verify(&frontier, json)

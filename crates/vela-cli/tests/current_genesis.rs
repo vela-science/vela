@@ -2,8 +2,9 @@
 
 #![cfg(unix)]
 
+use std::io::Write;
 use std::path::Path;
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 
 use ed25519_dalek::SigningKey;
 use serde_json::{Value, json};
@@ -465,9 +466,15 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let artifact_stem = artifact_digest.trim_start_matches("sha256:").to_string();
     let bundle = temporary.path().join("bundle");
     std::fs::create_dir_all(&bundle).expect("Submission bundle directory");
-    let producer_artifact_path = "artifacts/source-witness.json";
-    std::fs::create_dir_all(frontier.join("artifacts")).expect("artifact directory");
-    std::fs::write(frontier.join(producer_artifact_path), artifact).expect("artifact bytes");
+    let producer_artifact_path = format!("records/artifacts/sha256/{artifact_stem}");
+    let transport_artifact = bundle.join("artifacts/sha256").join(&artifact_stem);
+    std::fs::create_dir_all(
+        transport_artifact
+            .parent()
+            .expect("Submission transport directory"),
+    )
+    .expect("Submission transport directory");
+    std::fs::write(&transport_artifact, artifact).expect("artifact bytes");
     let emitted_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     let producer_key = SigningKey::from_bytes(&[57_u8; 32]);
     let identity = IdentityBinding::build(
@@ -488,7 +495,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             },
             artifacts: vec![SubmissionArtifact {
                 kind: "witness".into(),
-                path: producer_artifact_path.into(),
+                path: producer_artifact_path.clone(),
                 digest: artifact_digest,
             }],
             caveats: vec!["This fixture makes no unrestricted scientific claim.".into()],
@@ -525,21 +532,58 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         .expect("read before commit");
     assert!(before.status.success());
 
-    let submitted = success_json(&run(
-        &frontier,
-        Some(agent.socket()),
-        &[
-            "submit",
-            submission_path.to_str().expect("Submission path"),
+    let mut host = Command::new(env!("CARGO_BIN_EXE_vela"));
+    host.current_dir(&frontier)
+        .args([
+            "campaign",
+            "host",
             "--frontier",
             ".",
             "--attempt",
             &attempt_id,
-            "--as",
-            actor,
-            "--json",
-        ],
-    ));
+            "--inbox",
+            bundle.to_str().expect("Campaign inbox path"),
+        ])
+        .env("SSH_AUTH_SOCK", agent.socket())
+        .env("NO_COLOR", "1")
+        .env("VELA_ADVICE", "0")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    let mut host = host.spawn().expect("start Campaign evidence host");
+    host.stdin
+        .take()
+        .expect("Campaign host stdin")
+        .write_all(
+            br#"{"operation":"register_submission","request_id":"host:submission","path":"submission.json"}
+{"operation":"register_submission","request_id":"host:submission","path":"submission.json"}
+{"operation":"register_submission","request_id":"host:submission","path":"other.json"}
+"#,
+        )
+        .expect("write Campaign host requests");
+    let hosted = host.wait_with_output().expect("wait for Campaign host");
+    assert!(
+        hosted.status.success(),
+        "Campaign host failed\nstdout={}\nstderr={}",
+        String::from_utf8_lossy(&hosted.stdout),
+        String::from_utf8_lossy(&hosted.stderr)
+    );
+    let responses = hosted
+        .stdout
+        .split(|byte| *byte == b'\n')
+        .filter(|line| !line.is_empty())
+        .map(|line| serde_json::from_slice::<Value>(line).expect("Campaign host response"))
+        .collect::<Vec<_>>();
+    assert_eq!(responses.len(), 3);
+    assert_eq!(responses[0]["ok"], true);
+    assert_eq!(responses[1], responses[0]);
+    assert_eq!(responses[2]["ok"], false);
+    assert!(
+        responses[2]["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("already bound"))
+    );
+    let submitted = responses[0]["result"].clone();
     assert_eq!(submitted["schema"], "vela.submit-result.v1");
     assert_eq!(submitted["route"], "pending_review");
     assert_eq!(submitted["accepted_event_delta"], 0);
@@ -547,7 +591,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         submitted["publication"]["state"], "committed_local",
         "unexpected publication outcome: {submitted}"
     );
-    std::fs::remove_file(frontier.join(producer_artifact_path))
+    std::fs::remove_file(&transport_artifact)
         .expect("remove producer-side transport path after canonical retention");
 
     let method_path = "verification/exact-replay-v1.json";
