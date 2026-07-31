@@ -16,6 +16,13 @@ export interface ExecutionBindingV1 {
   result_contract_root: string;
 }
 
+export type RequestedChangeV1 =
+  | { kind: "add_claim" }
+  | {
+      kind: "correct_claim" | "supersede_claim" | "retract_claim";
+      target: { claim_id: string; claim_root: string };
+    };
+
 export interface SubmissionV1 {
   schema: "vela.submission.v1";
   submission_id: string;
@@ -33,9 +40,7 @@ export interface SubmissionV1 {
     authority: "producer_reported";
   }>;
   verification_requirements: string[];
-  requested_change:
-    | { kind: "add_claim" }
-    | { kind: "revise_claim" | "correct_claim"; target: { claim_id: string; claim_root: string } };
+  requested_change: RequestedChangeV1;
   provenance: {
     producer: string;
     source_system: string;

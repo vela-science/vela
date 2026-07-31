@@ -13,22 +13,33 @@ concurrency:
   group: conformance-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   rust:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable 2026-07-19
         with:
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: audit GitHub Actions contracts
+        run: pipx run --spec zizmor==1.28.0 zizmor --offline --min-severity medium .
+      - name: install the exact dependency-policy checker
+        run: cargo install cargo-deny --version 0.20.2 --locked
+      - name: enforce dependency advisories, licenses, bans, and sources
+        run: cargo deny --locked check
       - name: format
         run: cargo fmt --all -- --check
       - name: clippy (deny warnings)
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: build
         run: cargo build --release -p vela-cli --bin vela
-      - name: focused core protocol and task-first tests
+      - name: complete Rust protocol and task-first test union
         run: ./conformance/check-core.sh
       - name: frozen paper benchmark artifacts
         run: |

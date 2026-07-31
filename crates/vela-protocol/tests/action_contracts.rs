@@ -138,12 +138,12 @@ fn root_action_is_consumer_pinned_strict_and_nonfinalizing() {
     assert!(install.contains("VELA_INSTALL_PREFIX=\"$install_root\""));
     assert!(install.contains("VELA_POLKIT_POLICY_DIR=\"$policy_root\""));
     assert!(install.contains("\"$install_root/bin/vela\" --version"));
-    assert!(install.contains("echo \"$install_root/bin\" >> \"$GITHUB_PATH\""));
+    assert!(!install.contains("GITHUB_PATH"));
     assert!(install.contains("installed Vela $installed does not match requested Vela $requested"));
     assert!(!install.contains("vela.lock"));
 
     let strict = script_named(&action, "Strict read-only repository verification");
-    assert!(strict.contains("vela check \"$FRONTIER\" --strict"));
+    assert!(strict.contains("\"$vela_bin\" check \"$FRONTIER\" --strict"));
     assert!(!strict.contains("--strict --json"));
     assert!(!strict.contains("STRICT"));
     assert!(!strict.contains("::notice::"));
@@ -196,7 +196,13 @@ fn reviewed_tags_publish_provenance_labeled_cross_platform_bundles() {
     assert!(RELEASE_WORKFLOW.contains("package_id=\"${package_id##*#}\""));
     assert!(RELEASE_WORKFLOW.contains("${package_id##*@}"));
     assert!(RELEASE_WORKFLOW.contains("test \"v$version\" = \"$GITHUB_REF_NAME\""));
-    assert!(RELEASE_WORKFLOW.contains("cargo build --locked --release -p vela-cli --bin vela"));
+    assert!(
+        RELEASE_WORKFLOW
+            .contains("cargo auditable build --locked --release -p vela-cli --bin vela")
+    );
+    assert!(RELEASE_WORKFLOW.contains("cargo install cargo-auditable --version 0.7.5 --locked"));
+    assert!(RELEASE_WORKFLOW.contains("syft-version: 1.44.0"));
+    assert!(RELEASE_WORKFLOW.contains(".github/release/check-sbom.py"));
     assert!(!RELEASE_WORKFLOW.contains("target/release/vela-signer"));
     assert!(!RELEASE_WORKFLOW.contains("target/release/vela-signer.exe"));
     for asset in [
@@ -236,10 +242,9 @@ fn reviewed_tags_publish_provenance_labeled_cross_platform_bundles() {
     );
     assert!(RELEASE_WORKFLOW.contains(".github/release/publish-crates.sh --execute"));
     assert!(RELEASE_WORKFLOW.contains("needs: [metadata, publish-crates]"));
-    assert!(
-        RELEASE_WORKFLOW
-            .contains("needs: [metadata, build, smoke, publish-crates, registry-smoke]")
-    );
+    assert!(RELEASE_WORKFLOW.contains(
+        "needs: [metadata, build, smoke, publish-crates, publish-protocol, registry-smoke]"
+    ));
     assert!(RELEASE_WORKFLOW.contains("needs.registry-smoke.result == 'success'"));
     assert!(RELEASE_WORKFLOW.contains("needs.registry-smoke.result == 'skipped'"));
     assert!(RELEASE_WORKFLOW.contains("needs.metadata.outputs.prerelease == 'true'"));

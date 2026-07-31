@@ -199,7 +199,7 @@ The target public topology is intentionally small:
 
 | Repository | Sole responsibility |
 | --- | --- |
-| `vela-science/vela` | Product monorepo: Rust implementation, TypeScript protocol SDK, private candidate Agent executor, shared schemas, conformance, releases, architecture |
+| `vela-science/vela` | Product monorepo: Rust implementation, authority-free TypeScript protocol contracts, private removable Agent executor candidate, shared conformance fixtures, releases, architecture |
 | `vela-science/vela-web` | Editorial site and read-only Observatory |
 | `vela-science/erdos-frontier` | Canonical Erdős Frontier |
 | `vela-science/formal-conjectures-frontier` | Canonical formal-conjectures Frontier |

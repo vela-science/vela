@@ -84,6 +84,49 @@ pub struct RequestedChange {
     pub target: Option<RequestedChangeTarget>,
 }
 
+impl RequestedChange {
+    pub fn validate(&self) -> Result<(), String> {
+        require_member(
+            "requested_change.kind",
+            &self.kind,
+            &[
+                "add_claim",
+                "correct_claim",
+                "supersede_claim",
+                "retract_claim",
+            ],
+        )?;
+        match (self.kind.as_str(), self.target.as_ref()) {
+            ("add_claim", None) => Ok(()),
+            ("add_claim", Some(_)) => {
+                Err("Submission requested_change.target must be absent for add_claim".into())
+            }
+            (_, Some(target)) => {
+                if target.claim_id.starts_with("vcl_") {
+                    require_prefixed_hex(
+                        "requested_change.target.claim_id",
+                        &target.claim_id,
+                        "vcl_",
+                        64,
+                    )?;
+                } else {
+                    require_prefixed_hex(
+                        "requested_change.target.claim_id",
+                        &target.claim_id,
+                        "vf_",
+                        16,
+                    )?;
+                }
+                require_sha256("requested_change.target.claim_root", &target.claim_root)
+            }
+            (_, None) => Err(format!(
+                "Submission requested_change.target is required for {}",
+                self.kind
+            )),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SubmissionProvenance {
@@ -294,51 +337,7 @@ impl SubmissionV1 {
         for requirement in &self.verification_requirements {
             require_text("verification_requirements", requirement)?;
         }
-        require_member(
-            "requested_change.kind",
-            &self.requested_change.kind,
-            &[
-                "add_claim",
-                "correct_claim",
-                "supersede_claim",
-                "retract_claim",
-            ],
-        )?;
-        match (
-            self.requested_change.kind.as_str(),
-            self.requested_change.target.as_ref(),
-        ) {
-            ("add_claim", None) => {}
-            ("add_claim", Some(_)) => {
-                return Err(
-                    "Submission requested_change.target must be absent for add_claim".into(),
-                );
-            }
-            (_, Some(target)) => {
-                if target.claim_id.starts_with("vcl_") {
-                    require_prefixed_hex(
-                        "requested_change.target.claim_id",
-                        &target.claim_id,
-                        "vcl_",
-                        64,
-                    )?;
-                } else {
-                    require_prefixed_hex(
-                        "requested_change.target.claim_id",
-                        &target.claim_id,
-                        "vf_",
-                        16,
-                    )?;
-                }
-                require_sha256("requested_change.target.claim_root", &target.claim_root)?;
-            }
-            (_, None) => {
-                return Err(format!(
-                    "Submission requested_change.target is required for {}",
-                    self.requested_change.kind
-                ));
-            }
-        }
+        self.requested_change.validate()?;
         require_actor("provenance.producer", &self.provenance.producer)?;
         require_text("provenance.source_system", &self.provenance.source_system)?;
         if let Some(source_attempt) = &self.provenance.source_attempt {

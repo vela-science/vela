@@ -1,9 +1,36 @@
 import { createPublicKey, verify } from "node:crypto";
 
 import { canonicalJcs, sha256Bytes } from "./canonical.js";
-import type { IdentityBinding, SubmissionV1 } from "./current.js";
+import type { IdentityBinding, RequestedChangeV1, SubmissionV1 } from "./current.js";
+import { enumAt, exactKeys, objectAt, sha256At, stringAt } from "./validation.js";
 
 const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
+const CLAIM_ID_RE = /^(?:vcl_[0-9a-f]{64}|vf_[0-9a-f]{16})$/u;
+
+export function validateRequestedChange(value: unknown): asserts value is RequestedChangeV1 {
+  const change = objectAt(value, "requested_change");
+  const kind = enumAt(change.kind, "requested_change.kind", [
+    "add_claim",
+    "correct_claim",
+    "supersede_claim",
+    "retract_claim",
+  ] as const);
+
+  if (kind === "add_claim") {
+    exactKeys(change, ["kind"], [], "requested_change");
+    return;
+  }
+
+  exactKeys(change, ["kind", "target"], [], "requested_change");
+  const target = objectAt(change.target, "requested_change.target");
+  exactKeys(target, ["claim_id", "claim_root"], [], "requested_change.target");
+  stringAt(target.claim_id, "requested_change.target.claim_id", {
+    min: 19,
+    max: 68,
+    pattern: CLAIM_ID_RE,
+  });
+  sha256At(target.claim_root, "requested_change.target.claim_root");
+}
 
 export function identityBindingPreimage(binding: IdentityBinding): string {
   return canonicalJcs({ ...binding, binding_id: "", signature: "" });
@@ -48,6 +75,7 @@ export function verifySubmission(submission: SubmissionV1): void {
   if (submission.schema !== "vela.submission.v1") {
     throw new Error("Submission schema must be vela.submission.v1");
   }
+  validateRequestedChange(submission.requested_change);
   const binding = submission.authentication.identity_binding;
   verifyIdentityBinding(binding);
   if (

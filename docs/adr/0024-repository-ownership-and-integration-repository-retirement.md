@@ -1,12 +1,15 @@
 # ADR 0024: Product monorepo and integration-repository retirement
 
 - Status: Accepted
+- Current disposition: repository consolidation remains accepted; the public
+  Canopus package and independent-release portions were superseded by ADR 0031.
 - Accepted: 2026-07-28
 - Release evidence: Vela `0.940.9`, `@vela-science/protocol@0.1.0`,
   `@vela-science/canopus@0.8.0`
 - Protocol effect: none
 - Product effect: one public source repository for Vela, the TypeScript
-  protocol SDK, Canopus, shared schemas, fixtures, and product CI
+  protocol contracts, the removable Agent implementation candidate, shared
+  conformance fixtures, and product CI
 - Authority effect: none
 - Compatibility: Git history, tags, releases, package names, Frontier bytes,
   and public interfaces remain intact
@@ -53,8 +56,8 @@ The public Vela repository contains:
 
 ```text
 crates/                  Rust protocol, authority, replay, verification, CLI
-packages/protocol/       generated TypeScript public contracts and validators
-packages/canopus/        optional bounded producer and evaluation harness
+packages/protocol/       independent TypeScript public contracts and validators
+packages/canopus/        private removable Agent implementation candidate
 conformance/             shared positive, hostile, and mutation fixtures
 actions/                 consumer actions
 docs/                    architecture, protocol, product, and release guidance

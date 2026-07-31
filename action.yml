@@ -72,16 +72,18 @@ runs:
           echo "::error::installed Vela $installed does not match requested Vela $requested"
           exit 1
         fi
-        echo "$install_root/bin" >> "$GITHUB_PATH"
         echo "$version_output (matches the consumer pin)"
 
     - name: Strict read-only repository verification
       shell: bash
       env:
         FRONTIER: ${{ inputs.frontier }}
+        VELA_VERSION_INPUT: ${{ inputs.vela-version }}
       run: |
         set -euo pipefail
-        if ! vela check "$FRONTIER" --strict; then
+        requested="${VELA_VERSION_INPUT#v}"
+        vela_bin="${RUNNER_TEMP:?}/vela-action-$requested/bin/vela"
+        if ! "$vela_bin" check "$FRONTIER" --strict; then
           echo "::error::strict Vela verification failed; replay, repository context, signatures, committed projections, or trust debt is blocking"
           exit 1
         fi

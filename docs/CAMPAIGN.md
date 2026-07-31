@@ -1091,6 +1091,31 @@ tails backed by rooted full output, and default-deny child environments. A
 crash-safe journal is a future Agent Campaign durability improvement, not a
 reason to add another runtime.
 
+#### Commodity tooling adoption record
+
+The 2026-07-31 repository audit produced a deliberately narrow maintenance
+slice rather than a new framework program:
+
+- the public TypeScript `requested_change` vocabulary now shares positive and
+  hostile conformance cases with Rust; the three unreferenced handwritten JSON
+  Schema copies were deleted;
+- routine CI runs the complete checked-in Cargo test union, `cargo-deny`
+  enforces advisory/license/source policy, and pinned zizmor checks existing
+  workflows;
+- release binaries use pinned `cargo-auditable`, and the SPDX gate fails unless
+  Syft recovers the full internal Vela crate graph;
+- Harbor remains the removable evaluation executor, while Agent Skills and the
+  closed JSON CLI remain the integration surface; Vela gains no MCP writer;
+- `ssh-agent-client-rs` failed its deletion gate because it added 32 packages,
+  broad unused crypto, an audit-visible RSA advisory, and weaker frame/timeout
+  behavior while leaving Vela's authority checks custom; and
+- Codex SDK, nextest, generated schemas, Renovate, semver checks, cargo-dist,
+  Cargo Vet, ORAS, and RFC 8785 migration remain trigger-gated. None enters the
+  product until a named gap plus net deletion or consumer evidence earns it.
+
+This record is not a promise to adopt more tooling. Commodity machinery is
+valuable only when it removes more Vela code and ceremony than it introduces.
+
 #### C. Inheritance lift
 
 Give a cold successor only the new root, public docs, and released tools.

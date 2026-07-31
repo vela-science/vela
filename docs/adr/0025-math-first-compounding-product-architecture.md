@@ -189,8 +189,8 @@ framework must meet its own registered adoption gate.
 
 ### 9. Require independent conformance before protocol expansion
 
-The current `PROTOCOL.md`, public schemas, and conformance vectors remain the
-normative specification. Do not create a parallel Vela Protocol Specification
+The current `PROTOCOL.md`, public authority-free TypeScript contracts, and
+conformance vectors remain the normative specification. Do not create a parallel Vela Protocol Specification
 series until a clean-room implementer shows the current documents cannot state
 the required boundary clearly.
 
@@ -210,15 +210,17 @@ independent-route survival, and foreign-import authority non-escalation.
 Current owners remain:
 
 ```text
-vela        Kernel, CLI, protocol SDK, Canopus, schemas, conformance
+vela        Kernel, CLI, protocol contracts, removable Agent candidate, conformance
 vela-web    editorial site and read-only products
 Frontiers   bounded canonical state and authority
 .github     organization policy and reusable workflows
 ```
 
-Canopus remains the one separately named optional producer. Registry, Atlas,
-Navigator, Actions, Spaces, Collections, Campaigns, and Control Room are
-descriptive future surfaces, not repositories, brands, or scheduled services.
+Historical Canopus Runs remain reproducible, while current execution is exposed
+only through `vela agent` and its private removable helper under ADR 0031.
+Registry, Atlas, Navigator, Actions, Spaces, Collections, Campaigns, and
+Control Room are descriptive surfaces, not repositories, brands, or scheduled
+services.
 
 ## Rejected alternatives
 

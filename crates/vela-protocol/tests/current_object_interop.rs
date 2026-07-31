@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use vela_protocol::submission_v1::RequestedChange;
 use vela_protocol::submission_v1::SubmissionV1;
 use vela_protocol::verification_record::VerificationRecordV1;
 
@@ -58,4 +59,17 @@ fn signed_current_objects_fail_closed_after_subject_drift() {
         "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     );
     assert!(VerificationRecordV1::parse(&serde_json::to_vec(&verification).unwrap()).is_err());
+}
+
+#[test]
+fn requested_change_vocabulary_matches_the_shared_typescript_matrix() {
+    let cases: serde_json::Value =
+        serde_json::from_slice(&fixture("requested-change-cases.json")).unwrap();
+    for case in cases.as_array().unwrap() {
+        let name = case["name"].as_str().unwrap();
+        let parsed = serde_json::from_value::<RequestedChange>(case["value"].clone())
+            .map_err(|error| error.to_string())
+            .and_then(|value| value.validate());
+        assert_eq!(parsed.is_ok(), case["valid"].as_bool().unwrap(), "{name}");
+    }
 }
