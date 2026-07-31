@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.space/schemas/product-compression-answer.v2.json",
+  "title": "Closed product-compression v2 participant answer",
+  "$ref": "#/$defs/answer",
+  "$defs": {
+    "root": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "standing": {
+      "type": "object", "additionalProperties": false,
+      "required": ["claim_id", "claim_root"],
+      "properties": {
+        "claim_id": {"type": "string", "pattern": "^vcl_[0-9a-f]{64}$"},
+        "claim_root": {"$ref": "#/$defs/root"}
+      }
+    },
+    "answer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema", "work", "campaign", "review", "safety"],
+      "properties": {
+        "schema": {"const": "vela.product-compression-answer.v2"},
+        "work": {"$ref": "#/$defs/work"},
+        "campaign": {"$ref": "#/$defs/campaign"},
+        "review": {"$ref": "#/$defs/review"},
+        "safety": {"$ref": "#/$defs/safety"}
+      }
+    },
+    "work": {
+      "type": "object", "additionalProperties": false,
+      "required": ["frontier_id", "repository_root", "target_id", "target_index_root", "packet_sha256"],
+      "properties": {
+        "frontier_id": {"type": "string", "pattern": "^vfr_[0-9a-f]{16}$"},
+        "repository_root": {"$ref": "#/$defs/root"},
+        "target_id": {"type": "string", "pattern": "^[A-Za-z0-9._:-]+$"},
+        "target_index_root": {"$ref": "#/$defs/root"},
+        "packet_sha256": {"$ref": "#/$defs/root"}
+      }
+    },
+    "budget": {
+      "type": "object", "additionalProperties": false,
+      "required": ["max_runs", "max_submissions", "max_verifications", "max_artifacts", "max_artifact_bytes"],
+      "properties": {
+        "max_runs": {"type": "integer", "minimum": 1},
+        "max_submissions": {"type": "integer", "minimum": 1},
+        "max_verifications": {"type": "integer", "minimum": 1},
+        "max_artifacts": {"type": "integer", "minimum": 1},
+        "max_artifact_bytes": {"type": "integer", "minimum": 1}
+      }
+    },
+    "usage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["runs", "submissions", "verifications", "artifacts", "artifact_bytes"],
+      "properties": {
+        "runs": {"type": "integer", "minimum": 0},
+        "submissions": {"type": "integer", "minimum": 0},
+        "verifications": {"type": "integer", "minimum": 0},
+        "artifacts": {"type": "integer", "minimum": 0},
+        "artifact_bytes": {"type": "integer", "minimum": 0}
+      }
+    },
+    "run": {
+      "type": "object", "additionalProperties": false,
+      "required": ["run_number", "run_id", "receipt_root", "previous_receipt_root", "evidence_root", "submission_state", "submission_id", "proposal_id", "claim_id", "verification_id"],
+      "properties": {
+        "run_number": {"type": "integer", "minimum": 1},
+        "run_id": {"type": "string", "pattern": "^run_[A-Za-z0-9-]{8,128}$"},
+        "receipt_root": {"$ref": "#/$defs/root"},
+        "previous_receipt_root": {"type": ["null", "string"], "pattern": "^sha256:[0-9a-f]{64}$"},
+        "evidence_root": {"$ref": "#/$defs/root"},
+        "submission_state": {"enum": ["registered", "ready_to_export"]},
+        "submission_id": {"type": ["null", "string"], "pattern": "^vsb_[0-9a-f]{16}$"},
+        "proposal_id": {"type": ["null", "string"], "pattern": "^vpr_[0-9a-f]{16}$"},
+        "claim_id": {"type": ["null", "string"], "pattern": "^vcl_[0-9a-f]{64}$"},
+        "verification_id": {"type": ["null", "string"], "pattern": "^vvr_[0-9a-f]{16}$"}
+      }
+    },
+    "campaign": {
+      "type": "object", "additionalProperties": false,
+      "required": ["attempt_id", "authorization_root", "consequence_ceiling", "budget", "usage", "runs", "next_action_code"],
+      "properties": {
+        "attempt_id": {"type": "string", "pattern": "^vat_[0-9a-f]{64}$"},
+        "authorization_root": {"$ref": "#/$defs/root"},
+        "consequence_ceiling": {"enum": ["evidence_only", "pending_review"]},
+        "budget": {"$ref": "#/$defs/budget"},
+        "usage": {"$ref": "#/$defs/usage"},
+        "runs": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/run"}},
+        "next_action_code": {"const": "export_ready_run"}
+      }
+    },
+    "review": {
+      "type": "object", "additionalProperties": false,
+      "required": ["proposal_id", "proposal_root", "source_submission_id", "target_claim_id", "verification_id", "inbox_projection_root", "inbox_entry_root", "protocol_gate", "human_decision_required", "verification_is_acceptance", "standing_transition", "accepted_before", "accepted_if_accept", "accepted_if_reject", "staleness", "next_if_accept_code", "next_if_reject_code"],
+      "properties": {
+        "proposal_id": {"type": "string", "pattern": "^vpr_[0-9a-f]{16}$"},
+        "proposal_root": {"$ref": "#/$defs/root"},
+        "source_submission_id": {"type": "string", "pattern": "^vsb_[0-9a-f]{16}$"},
+        "target_claim_id": {"type": "string", "pattern": "^vcl_[0-9a-f]{64}$"},
+        "verification_id": {"type": "string", "pattern": "^vvr_[0-9a-f]{16}$"},
+        "inbox_projection_root": {"$ref": "#/$defs/root"},
+        "inbox_entry_root": {"$ref": "#/$defs/root"},
+        "protocol_gate": {"enum": ["satisfied", "blocked"]},
+        "human_decision_required": {"const": true},
+        "verification_is_acceptance": {"const": false},
+        "standing_transition": {"const": "add accepted Claim"},
+        "accepted_before": {"type": "array", "items": {"$ref": "#/$defs/standing"}},
+        "accepted_if_accept": {"type": "array", "items": {"$ref": "#/$defs/standing"}},
+        "accepted_if_reject": {"type": "array", "items": {"$ref": "#/$defs/standing"}},
+        "staleness": {"enum": ["current", "stale"]},
+        "next_if_accept_code": {"const": "replay_and_recompute_targets"},
+        "next_if_reject_code": {"const": "replay_without_standing_change"}
+      }
+    },
+    "safety": {
+      "type": "object", "additionalProperties": false,
+      "required": ["authority_action_performed", "accepted_state_changed"],
+      "properties": {
+        "authority_action_performed": {"const": false},
+        "accepted_state_changed": {"const": false}
+      }
+    }
+  }
+}
