@@ -5,7 +5,11 @@ import path from "node:path";
 import test from "node:test";
 
 import { doctorProduct } from "../src/product/doctor.js";
-import { executableNames, findExecutable } from "../src/product/runtime.js";
+import {
+  executableNames,
+  findExecutable,
+  runtimeLocator,
+} from "../src/product/runtime.js";
 import { assertToolUsingMissionPlatform } from "../src/product/run.js";
 import { SUPPORTED_VELA_VERSION } from "../src/product/version.js";
 import type { CommandOptions, CommandResult } from "../src/util/command.js";
@@ -26,6 +30,19 @@ test("Windows executable candidates honor PATHEXT", () => {
   );
   assert.deepEqual(executableNames("vela.exe", "win32", ".EXE;.CMD"), ["vela.exe"]);
   assert.deepEqual(executableNames("vela", "linux", ".EXE;.CMD"), ["vela"]);
+});
+
+test("Vela Agent binds Canopus to the invoking Vela binary", () => {
+  assert.equal(
+    runtimeLocator("vela", { VELA_BIN: "/opt/vela/bin/vela" }),
+    "/opt/vela/bin/vela",
+  );
+  assert.equal(runtimeLocator("git", { VELA_BIN: "/opt/vela/bin/vela" }), "git");
+  assert.equal(runtimeLocator("vela", {}), "vela");
+  assert.throws(
+    () => runtimeLocator("vela", { VELA_BIN: "relative/vela" }),
+    /VELA_BIN must be an absolute path/u,
+  );
 });
 
 test("active Windows executable discovery resolves a PATHEXT command", {

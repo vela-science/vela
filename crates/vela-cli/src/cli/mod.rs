@@ -67,6 +67,13 @@ pub async fn run_command() {
     let cli = Cli::parse();
     crate::ui::set_quiet(cli.quiet);
     match cli.command {
+        Commands::Agent { action } => match action {
+            AgentAction::Doctor { args } => crate::agent_delegate::cmd_agent("doctor", &args),
+            AgentAction::Run { args } => crate::agent_delegate::cmd_agent("run", &args),
+            AgentAction::Show { args } => crate::agent_delegate::cmd_agent("show", &args),
+            AgentAction::Replay { args } => crate::agent_delegate::cmd_agent("replay", &args),
+            AgentAction::Export { args } => crate::agent_delegate::cmd_agent("export", &args),
+        },
         Commands::Campaign {
             action:
                 CampaignAction::Host {

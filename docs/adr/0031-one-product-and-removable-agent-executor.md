@@ -236,7 +236,16 @@ producer contract.
    material, remove coverage and duplicate diagnostic logic, derive an
    implementation-private run plan, and retain generic execution tests.
 3. **Expose experimentally.** Add a thin `vela agent` delegator without moving
-   the package or changing the Run schema.
+   the package or changing the Run schema. The delegator requires an explicit
+   absolute `VELA_AGENT_BIN`, resolves it to one canonical executable, exposes
+   only `doctor`, `run`, `show`, `replay`, and `export`, binds the helper to the
+   invoking binary through `VELA_BIN`, and strips known SSH and
+   repository-authority key environment variables before launch. It never
+   invokes a shell. This avoids accidental credential forwarding; it does not
+   sandbox the trusted controller helper, which still runs as the current OS
+   user. Canopus continues to supply the actual worker and verifier isolation.
+   Windows remains gated on a native helper executable rather than a
+   shell-backed package-manager shim.
 4. **Dogfood.** Run the twelve-hour Agent Campaign and matched native control.
 5. **Rename, release, or delete.** Move and distribute the helper only if it
    clears the gate. Otherwise delete it. Move Protocol publishing before

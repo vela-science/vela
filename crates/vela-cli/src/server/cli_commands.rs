@@ -16,6 +16,7 @@
 //!   meaning each; do not overload.
 
 use clap::{ArgGroup, Subcommand};
+use std::ffi::OsString;
 use std::path::PathBuf;
 
 /// One meaning per flag, everywhere (the audit's top finding was
@@ -65,6 +66,12 @@ pub enum ConfigAction {
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
+    /// Run one optional bounded-evidence executor without granting authority.
+    #[command(hide = true)]
+    Agent {
+        #[command(subcommand)]
+        action: AgentAction,
+    },
     /// Run the experimental local routine-evidence host for one exact Attempt.
     #[command(hide = true)]
     Campaign {
@@ -390,6 +397,40 @@ pub(crate) enum Commands {
     Completions {
         /// bash | zsh | fish
         shell: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum AgentAction {
+    /// Diagnose the optional executor and its exact inputs.
+    #[command(disable_help_flag = true)]
+    Doctor {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<OsString>,
+    },
+    /// Run one bounded non-authorizing evidence mission.
+    #[command(disable_help_flag = true)]
+    Run {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<OsString>,
+    },
+    /// Inspect one retained Run or failure.
+    #[command(disable_help_flag = true)]
+    Show {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<OsString>,
+    },
+    /// Replay one retained Run without a model call.
+    #[command(disable_help_flag = true)]
+    Replay {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<OsString>,
+    },
+    /// Export one verifier-passing Run as a portable Submission.
+    #[command(disable_help_flag = true)]
+    Export {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<OsString>,
     },
 }
 

@@ -11,6 +11,19 @@ export interface RuntimeIdentity {
   sha256: string;
 }
 
+export function runtimeLocator(
+  name: string,
+  environment: NodeJS.ProcessEnv = process.env,
+): string {
+  if (name !== "vela") return name;
+  const configured = environment.VELA_BIN;
+  if (configured === undefined || configured === "") return name;
+  if (!path.isAbsolute(configured)) {
+    throw new Error("VELA_BIN must be an absolute path");
+  }
+  return configured;
+}
+
 export function executableNames(
   name: string,
   platform: NodeJS.Platform,
@@ -65,7 +78,7 @@ export async function runtimeIdentity(options: {
   runner?: CommandRunner;
 }): Promise<RuntimeIdentity> {
   const runner = options.runner ?? runCommand;
-  const binary = await findExecutable(options.name);
+  const binary = await findExecutable(runtimeLocator(options.name));
   const result = await runner({
     argv: [binary, ...(options.versionArgs ?? ["--version"])],
     cwd: options.cwd,
