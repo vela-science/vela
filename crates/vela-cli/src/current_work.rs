@@ -101,6 +101,13 @@ struct CurrentAgentRunReceipt {
 struct CurrentAgentRunReservation {
     run_number: u64,
     request_root: String,
+    /// The exact Target task binding used to construct this Run request.
+    ///
+    /// A private v8 reservation created before this field is conservatively
+    /// checked against the Attempt's starting binding. Any later-binding
+    /// receipt therefore still fails closed rather than being guessed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    target_task_binding: Option<vela_edge::target_index::TargetTaskBindingV3>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -435,6 +442,7 @@ fn validate_agent_run_result_shape(result: &AgentHelperRunOutput) -> Result<(), 
 
 fn validate_agent_run_result_attempt(
     attempt: &CurrentAttempt,
+    target_task_binding: &vela_edge::target_index::TargetTaskBindingV3,
     result: &AgentHelperRunOutput,
 ) -> Result<(), String> {
     let bundle = attempt
@@ -443,21 +451,19 @@ fn validate_agent_run_result_attempt(
         .ok_or_else(|| "current Attempt has no exact Agent execution bundle".to_string())?;
     if result.attempt_id != attempt.attempt_id
         || result.target.id != attempt.target
-        || result.target.binding_root != attempt.target_task_binding.binding_root
-        || result.target.target_index_root != attempt.target_task_binding.target_index_root
-        || result.target.input_root != attempt.target_task_binding.input_root
-        || result.target.packet_root != attempt.target_task_binding.packet.sha256
+        || result.target.binding_root != target_task_binding.binding_root
+        || result.target.target_index_root != target_task_binding.target_index_root
+        || result.target.input_root != target_task_binding.input_root
+        || result.target.packet_root != target_task_binding.packet.sha256
         || result.execution_bundle_root != bundle.sha256
         || result.target.source.git_object_format
-            != git_format_name(attempt.target_task_binding.source.git_object_format)
-        || result.target.source.git_commit != attempt.target_task_binding.source.git_commit
-        || result.target.source.git_tree != attempt.target_task_binding.source.git_tree
+            != git_format_name(target_task_binding.source.git_object_format)
+        || result.target.source.git_commit != target_task_binding.source.git_commit
+        || result.target.source.git_tree != target_task_binding.source.git_tree
         || result.target.claim_read_set.git_object_format
-            != git_format_name(attempt.target_task_binding.claim_read_set.git_object_format)
-        || result.target.claim_read_set.git_commit
-            != attempt.target_task_binding.claim_read_set.git_commit
-        || result.target.claim_read_set.git_tree
-            != attempt.target_task_binding.claim_read_set.git_tree
+            != git_format_name(target_task_binding.claim_read_set.git_object_format)
+        || result.target.claim_read_set.git_commit != target_task_binding.claim_read_set.git_commit
+        || result.target.claim_read_set.git_tree != target_task_binding.claim_read_set.git_tree
         || result.source_state.git_object_format != result.target.claim_read_set.git_object_format
         || result.source_state.commit != result.target.claim_read_set.git_commit
         || result.source_state.tree != result.target.claim_read_set.git_tree
@@ -483,7 +489,11 @@ fn validate_agent_run_receipt(
         );
     }
     validate_agent_run_result_shape(&receipt.result)?;
-    validate_agent_run_result_attempt(attempt, &receipt.result)?;
+    let target_task_binding = reservation
+        .target_task_binding
+        .as_ref()
+        .unwrap_or(&attempt.starting_target_task_binding);
+    validate_agent_run_result_attempt(attempt, target_task_binding, &receipt.result)?;
     if receipt.helper_output_size == 0 || receipt.helper_output_size > AGENT_HELPER_OUTPUT_MAX_BYTES
     {
         return Err("current Agent Run receipt helper output is outside its byte limit".into());
@@ -999,6 +1009,22 @@ fn validate(attempt: &CurrentAttempt) -> Result<(), String> {
             "current Attempt Agent run reservation request",
             &reservation.request_root,
         )?;
+        if let Some(target_task_binding) = &reservation.target_task_binding {
+            target_task_binding.validate()?;
+            if target_task_binding.frontier_id != attempt.frontier_id
+                || target_task_binding.target_id != attempt.target
+                || target_task_binding.repository.origin_id
+                    != attempt.starting_target_task_binding.repository.origin_id
+                || target_task_binding.source != attempt.starting_target_task_binding.source
+                || target_task_binding.input_root != attempt.starting_target_task_binding.input_root
+                || target_task_binding.packet != attempt.starting_target_task_binding.packet
+            {
+                return Err(
+                    "current Attempt Agent run reservation changed its authorized Target identity, source, inputs, or packet"
+                        .to_string(),
+                );
+            }
+        }
         if attempt.agent_run_reservations[..index]
             .iter()
             .any(|prior| prior.request_root == reservation.request_root)
@@ -1196,16 +1222,7 @@ fn refresh_target_binding(
         &repository_root,
         &attempt.target,
     )?;
-    if refreshed.source != attempt.starting_target_task_binding.source
-        || refreshed.input_root != attempt.starting_target_task_binding.input_root
-        || refreshed.packet != attempt.starting_target_task_binding.packet
-    {
-        return Err(
-            "current Attempt cannot continue after its Target source, inputs, or packet changed; revoke it and start the new scope"
-                .to_string(),
-        );
-    }
-    attempt.target_task_binding = refreshed;
+    apply_refreshed_target_binding(attempt, refreshed)?;
     write(frontier, attempt)?;
     if attempt_path(frontier, &attempt.target) != path {
         return Err("current Attempt path changed while refreshing its read set".to_string());
@@ -1214,6 +1231,27 @@ fn refresh_target_binding(
         frontier,
         &attempt.target_task_binding,
     )
+}
+
+fn apply_refreshed_target_binding(
+    attempt: &mut CurrentAttempt,
+    refreshed: vela_edge::target_index::TargetTaskBindingV3,
+) -> Result<(), String> {
+    if refreshed.frontier_id != attempt.frontier_id
+        || refreshed.target_id != attempt.target
+        || refreshed.repository.origin_id
+            != attempt.starting_target_task_binding.repository.origin_id
+        || refreshed.source != attempt.starting_target_task_binding.source
+        || refreshed.input_root != attempt.starting_target_task_binding.input_root
+        || refreshed.packet != attempt.starting_target_task_binding.packet
+    {
+        return Err(
+            "current Attempt cannot continue after its Target identity, source, inputs, or packet changed; revoke it and start the new scope"
+                .to_string(),
+        );
+    }
+    attempt.target_task_binding = refreshed;
+    Ok(())
 }
 
 fn discover_attempts(frontier: &Path) -> Result<Vec<(PathBuf, CurrentAttempt)>, String> {
@@ -1447,6 +1485,7 @@ pub(crate) fn agent_run_request(
         .push(CurrentAgentRunReservation {
             run_number,
             request_root: request_root.clone(),
+            target_task_binding: Some(attempt.target_task_binding.clone()),
         });
     write(&frontier, attempt)?;
     Ok(AgentRunRequest {
@@ -1554,7 +1593,11 @@ pub(crate) fn record_agent_run_receipt(
         .ok_or_else(|| {
             "current Attempt has no exact reserved Agent run for this request".to_string()
         })?;
-    validate_agent_run_result_attempt(&attempt, &output)?;
+    let target_task_binding = reservation
+        .target_task_binding
+        .as_ref()
+        .unwrap_or(&attempt.starting_target_task_binding);
+    validate_agent_run_result_attempt(&attempt, target_task_binding, &output)?;
     let (run_file, _run_bytes) = read_exact_agent_file(
         &frontier,
         &output.run.path,
@@ -2909,6 +2952,7 @@ mod tests {
             .push(CurrentAgentRunReservation {
                 run_number,
                 request_root: request_root.clone(),
+                target_task_binding: Some(attempt.target_task_binding.clone()),
             });
         write(directory.path(), &reserved).unwrap();
 
@@ -3212,6 +3256,65 @@ mod tests {
         let retained = read(&attempt_path(directory.path(), "erdos:1056")).unwrap();
         assert_eq!(retained.usage.submissions, 1);
 
+        // Registering a Submission advances the repository/Target Index read
+        // set without changing the authorized source, inputs, or packet. Old
+        // Run receipts remain bound to the exact task binding they reserved,
+        // while later Runs reserve the refreshed binding.
+        let historical_binding = retained.agent_run_reservations[0]
+            .target_task_binding
+            .clone()
+            .unwrap();
+        let mut refreshed = retained.clone();
+        let mut refreshed_binding = refreshed.target_task_binding.clone();
+        refreshed_binding.target_index_root = format!("sha256:{}", "a".repeat(64));
+        refreshed_binding.repository.repository_root = format!("sha256:{}", "b".repeat(64));
+        refreshed_binding.claim_read_set.git_commit = "c".repeat(40);
+        refreshed_binding.claim_read_set.git_tree = "d".repeat(40);
+        refreshed_binding.binding_root = refreshed_binding.computed_binding_root().unwrap();
+        let mut source_drift = refreshed_binding.clone();
+        source_drift.source.git_commit = "e".repeat(40);
+        source_drift.binding_root = source_drift.computed_binding_root().unwrap();
+        let error =
+            apply_refreshed_target_binding(&mut refreshed.clone(), source_drift).unwrap_err();
+        assert!(error.contains("source, inputs, or packet"), "{error}");
+        apply_refreshed_target_binding(&mut refreshed, refreshed_binding).unwrap();
+        write(directory.path(), &refreshed).unwrap();
+        let retained = read(&attempt_path(directory.path(), "erdos:1056")).unwrap();
+        assert_ne!(
+            retained.target_task_binding.binding_root,
+            historical_binding.binding_root
+        );
+        assert_eq!(
+            retained.agent_run_reservations[0]
+                .target_task_binding
+                .as_ref(),
+            Some(&historical_binding)
+        );
+
+        // The one private v8 Attempt created before reservation bindings were
+        // recorded remains readable without rewriting its ignored file. Such
+        // reservations necessarily used the starting binding.
+        let mut pre_binding_field = retained.clone();
+        pre_binding_field.agent_run_reservations[0].target_task_binding = None;
+        validate(&pre_binding_field).unwrap();
+
+        // Re-rooting a tampered historical receipt cannot make it match the
+        // reservation-time task binding.
+        let mut tampered_receipt = retained.clone();
+        tampered_receipt.agent_run_receipts[0]
+            .result
+            .target
+            .claim_read_set
+            .git_commit = retained
+            .target_task_binding
+            .claim_read_set
+            .git_commit
+            .clone();
+        tampered_receipt.agent_run_receipts[0].receipt_root =
+            agent_run_receipt_root(&tampered_receipt.agent_run_receipts[0]).unwrap();
+        let error = validate(&tampered_receipt).unwrap_err();
+        assert!(error.contains("exact Attempt"), "{error}");
+
         let second_submission = submission_for("Second bounded fixture.");
         let error = authorize_submission(
             Some(&CurrentRoutineAttempt {
@@ -3233,6 +3336,7 @@ mod tests {
             .push(CurrentAgentRunReservation {
                 run_number: second_run_number,
                 request_root: second_request_root.clone(),
+                target_task_binding: Some(resumed.target_task_binding.clone()),
             });
         write(directory.path(), &resumed).unwrap();
 
@@ -3254,6 +3358,28 @@ mod tests {
         fs::write(&second_evidence_file, &second_evidence_bytes).unwrap();
         let mut second_output = helper_output.clone();
         second_output["request_root"] = Value::String(second_request_root.clone());
+        second_output["target"]["binding_root"] =
+            Value::String(resumed.target_task_binding.binding_root.clone());
+        second_output["target"]["target_index_root"] =
+            Value::String(resumed.target_task_binding.target_index_root.clone());
+        second_output["target"]["claim_read_set"]["git_commit"] = Value::String(
+            resumed
+                .target_task_binding
+                .claim_read_set
+                .git_commit
+                .clone(),
+        );
+        second_output["target"]["claim_read_set"]["git_tree"] =
+            Value::String(resumed.target_task_binding.claim_read_set.git_tree.clone());
+        second_output["source_state"]["commit"] = Value::String(
+            resumed
+                .target_task_binding
+                .claim_read_set
+                .git_commit
+                .clone(),
+        );
+        second_output["source_state"]["tree"] =
+            Value::String(resumed.target_task_binding.claim_read_set.git_tree.clone());
         second_output["run"]["id"] = Value::String(second_run_id.to_string());
         second_output["run"]["path"] = Value::String(second_run_file.display().to_string());
         second_output["run"]["size"] = json!(second_run_bytes.len());
@@ -3315,6 +3441,7 @@ mod tests {
             .push(CurrentAgentRunReservation {
                 run_number: third_run_number,
                 request_root: third_request_root,
+                target_task_binding: Some(resumed.target_task_binding.clone()),
             });
         write(directory.path(), &resumed).unwrap();
         let mut restarted = read(&attempt_path(directory.path(), "erdos:1056")).unwrap();
