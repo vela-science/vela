@@ -1,12 +1,21 @@
-import { contentDigest, sha256Bytes } from "../util/canonical.js";
-import type { CandidateDraft, Engine, EngineContext, EngineResult } from "./engine.js";
+import { contentDigest, sha256Bytes } from "../../src/util/canonical.js";
+import type {
+  CandidateDraft,
+  Engine,
+  EngineContext,
+  EngineResult,
+} from "../../src/engines/engine.js";
 
 export class FakeEngine implements Engine {
   public readonly name = "fake";
-  readonly #draft: CandidateDraft | ((context: EngineContext) => CandidateDraft | Promise<CandidateDraft>);
+  readonly #draft:
+    | CandidateDraft
+    | ((context: EngineContext) => CandidateDraft | Promise<CandidateDraft>);
 
   public constructor(
-    draft: CandidateDraft | ((context: EngineContext) => CandidateDraft | Promise<CandidateDraft>),
+    draft:
+      | CandidateDraft
+      | ((context: EngineContext) => CandidateDraft | Promise<CandidateDraft>),
   ) {
     this.#draft = draft;
   }
@@ -15,8 +24,9 @@ export class FakeEngine implements Engine {
     const started = performance.now();
     context.budget.beginAttempt();
     context.budget.beginProcess();
-    const draft =
-      typeof this.#draft === "function" ? await this.#draft(context) : structuredClone(this.#draft);
+    const draft = typeof this.#draft === "function"
+      ? await this.#draft(context)
+      : structuredClone(this.#draft);
     const serialized = JSON.stringify(draft);
     context.budget.addOutput(Buffer.byteLength(serialized));
     return {

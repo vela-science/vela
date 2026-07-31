@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -8,12 +8,28 @@ import { parseMission, type MissionV1 } from "../src/contracts/mission.js";
 import {
   packetFromTarget,
   parseVelaVersionOutput,
+  assertVerifierWorkingDirectory,
   selectedProducerTarget,
   validateMissionBundle,
 } from "../src/mission/prepare.js";
 import { canonicalJson, contentDigest, sha256Bytes } from "../src/util/canonical.js";
 
 const digest = `sha256:${"a".repeat(64)}`;
+
+test("verifier cwd must exist below the sealed source before a model call", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "vela-agent-verifier-cwd-"));
+  await mkdir(path.join(root, "targets"));
+  await assertVerifierWorkingDirectory(root, "targets");
+  await assert.rejects(
+    assertVerifierWorkingDirectory(root, "site"),
+    /does not exist in the sealed source checkout/u,
+  );
+  await symlink(os.tmpdir(), path.join(root, "escape"));
+  await assert.rejects(
+    assertVerifierWorkingDirectory(root, "escape"),
+    /not a real directory below the sealed source checkout/u,
+  );
+});
 
 test("mission preparation accepts the exact stable and prerelease Vela identities", () => {
   assert.equal(parseVelaVersionOutput("vela 0.930.0"), "0.930.0");

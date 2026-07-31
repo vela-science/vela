@@ -31,8 +31,6 @@ const buildOptions = {
 const forbiddenInputs = [
   "src/product/run.ts",
   "src/product/doctor.ts",
-  "src/product/coverage.ts",
-  "src/product/profile.ts",
 ];
 
 async function buildOnce() {

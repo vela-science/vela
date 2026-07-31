@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 import test from "node:test";
 
 import type { Mission } from "../../src/contracts/mission.js";
-import { FakeEngine } from "../../src/engines/fake.js";
+import { FakeEngine } from "../helpers/fake-engine.js";
 import { runCanopus } from "../../src/run.js";
 import { isolatedEnvironment } from "../../src/util/command.js";
 import { sha256Bytes } from "../../src/util/canonical.js";

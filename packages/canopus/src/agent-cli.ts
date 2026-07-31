@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { parseRetainedRunRecord } from "./projection/retained-run.js";
 import { projectCurrentRun } from "./projection/current-run.js";
+import { parseFailureRecord, projectFailure } from "./projection/failure.js";
 import { observedHelperBuild, runAttemptProduct } from "./product/attempt.js";
 import {
   assertNativeOutputPlacement,
@@ -57,12 +58,18 @@ function valueOptions(args: string[], allowed: readonly string[]): Map<string, s
 async function show(file: string): Promise<void> {
   const resolved = path.resolve(file);
   const bytes = await readBoundedRegularFile(resolved, 64 * 1024 * 1024);
-  const retained = parseRetainedRunRecord(JSON.parse(bytes.toString("utf8")) as unknown);
+  const value = JSON.parse(bytes.toString("utf8")) as unknown;
+  const schema = typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>).schema
+    : null;
+  const projection = schema === "canopus.failure.v0" || schema === "canopus.failure.v1"
+    ? projectFailure(parseFailureRecord(value))
+    : projectCurrentRun(parseRetainedRunRecord(value).record);
   process.stdout.write(`${JSON.stringify({
     ok: true,
     command: "show",
     run_file: resolved,
-    projection: projectCurrentRun(retained.record),
+    projection,
   })}\n`);
 }
 

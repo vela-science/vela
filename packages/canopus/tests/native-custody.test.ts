@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   assertNativeOutputPlacement,
@@ -99,6 +100,23 @@ test("native output placement rejects system temporary directories", () => {
 
 test("native custody executable ceiling covers current large Codex distributions", () => {
   assert.ok(MAX_EXECUTABLE_BYTES > 268_435_456);
+});
+
+test("Linux custody denies host roots and reopens only the exact workspace", async () => {
+  const config = await readFile(
+    fileURLToPath(
+      new URL("../../runtime/native-worker/config-linux.toml", import.meta.url),
+    ),
+    "utf8",
+  );
+  assert.match(config, /^"\/home" = "deny"$/mu);
+  assert.match(config, /^"\/root" = "deny"$/mu);
+  assert.match(config, /^"\/tmp" = "deny"$/mu);
+  assert.match(
+    config,
+    /\[permissions\.canopus-worker\.filesystem\.":workspace_roots"\]\n"\." = "write"\n"\.canopus-runtime" = "read"/u,
+  );
+  assert.doesNotMatch(config, /^"\/" = "write"$/mu);
 });
 
 test("Agent execution does not forward repository-authority signer material", async () => {

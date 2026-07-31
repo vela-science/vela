@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 import test from "node:test";
 
 import type { Mission, MissionRoots } from "../../src/contracts/mission.js";
-import { FakeEngine } from "../../src/engines/fake.js";
+import { FakeEngine } from "../helpers/fake-engine.js";
 import {
   snapshotWorkerWorkspace,
   stageWorkerWorkspaceEvidence,

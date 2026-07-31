@@ -12,7 +12,7 @@ import {
   summarizeCodexStructure,
 } from "../src/engines/codex-events.js";
 import type { CandidateDraft } from "../src/engines/engine.js";
-import { FakeEngine } from "../src/engines/fake.js";
+import { FakeEngine } from "./helpers/fake-engine.js";
 
 const digest = `sha256:${"a".repeat(64)}`;
 const draft: CandidateDraft = {
