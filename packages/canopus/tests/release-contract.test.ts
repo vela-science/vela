@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("CI pins one reproducible Vela and Codex composition without defining runtime compatibility", async () => {
@@ -23,35 +23,25 @@ test("CI pins one reproducible Vela and Codex composition without defining runti
   assert.doesNotMatch(workflow, /binary_sha256:/u);
 });
 
-test("installed-package smoke validates one synthetic generic Mission", async () => {
+test("product CI validates Protocol packaging without packaging the private Agent helper", async () => {
   const workflow = await readFile(
     new URL("../../../../.github/workflows/product-ci.yml", import.meta.url),
     "utf8",
   );
-  const fixture =
-    /packages[\\/]canopus[\\/]tests[\\/]fixtures[\\/]generic-mission[\\/]mission\.json/gu;
 
-  assert.equal(
-    workflow.match(fixture)?.length,
-    2,
-    "Unix and Windows installed-package smoke must validate the generic Mission",
-  );
-  assert.equal(workflow.match(/mission validate/gu)?.length, 2);
-  assert.doesNotMatch(
-    workflow,
-    /profile validate erdos1056|profile validate formal-erdos/u,
-    "installed-package smoke must not depend on a domain profile",
-  );
   assert.equal(
     workflow.match(/bun pm pack --cwd packages\/protocol/gu)?.length,
     2,
-    "Unix and Windows smoke must install the local Protocol archive",
+    "Unix and Windows CI must validate the local Protocol archive",
   );
   assert.equal(
     workflow.match(/publish-protocol\.mjs check/gu)?.length,
     2,
     "Unix and Windows CI must validate the exact Protocol archive without publishing",
   );
+  assert.doesNotMatch(workflow, /bun pm pack --cwd packages\/canopus/u);
+  assert.doesNotMatch(workflow, /vela-science-canopus|canopus-install/u);
+  assert.doesNotMatch(workflow, /mission validate|profile validate/u);
   assert.match(workflow, /- "\.github\/release\/\*\*"/u);
   assert.match(workflow, /- "\.github\/workflows\/release\.yml"/u);
   assert.doesNotMatch(
@@ -92,7 +82,7 @@ test("one Vela release publishes only the public Protocol package", async () => 
   assert.doesNotMatch(workflow, /product-v/u);
 });
 
-test("current source stays product-only while historical release evidence remains linked", async () => {
+test("current Agent helper is private and historical Canopus replay remains linked", async () => {
   const [packageText, readme] = await Promise.all([
     readFile(new URL("../../package.json", import.meta.url), "utf8"),
     readFile(new URL("../../README.md", import.meta.url), "utf8"),
@@ -100,50 +90,37 @@ test("current source stays product-only while historical release evidence remain
   const packageJson = JSON.parse(packageText) as {
     files?: string[];
     private?: boolean;
+    name?: string;
+    bin?: Record<string, string>;
+    exports?: Record<string, unknown>;
+    publishConfig?: Record<string, unknown>;
+    scripts?: Record<string, string>;
     version?: string;
   };
-  assert.equal(packageJson.version, "0.8.0");
+  assert.equal(packageJson.version, "0.0.0");
+  assert.equal(packageJson.name, "@vela-science/agent-internal");
   assert.equal(
     packageJson.private,
     true,
-    "post-release source must not republish immutable Canopus 0.8.0",
+    "the private Agent helper must not be publishable",
   );
-  for (const file of [
-    "README.md",
-    "THIRD_PARTY.md",
-    "docs/MISSIONS.md",
-    "docs/RUN_RECORD.md",
-    "docs/adr/0010-nonmutating-runs-and-explicit-submission.md",
-  ]) {
-    assert.ok(packageJson.files?.includes(file), `${file} must ship in the npm package`);
-  }
-  for (const historical of [
-    "BUILD_WEEK.md",
-    "docs/RELEASES.md",
-    "advisories",
-    "evidence/build-week",
-    "evidence/erdos",
-    "scripts/run-claim-fidelity-advisory.mjs",
-    "evaluation",
-    "toolchain.lock.json",
-  ]) {
-    assert.equal(
-      packageJson.files?.includes(historical),
-      false,
-      `${historical} must remain source-only`,
-    );
-  }
-  assert.equal(
-    packageJson.files?.includes("dist/src/capability"),
-    false,
-    "the installed package must not ship the retired long-lived key store",
+  assert.equal(packageJson.bin, undefined);
+  assert.equal(packageJson.exports, undefined);
+  assert.equal(packageJson.files, undefined);
+  assert.equal(packageJson.publishConfig, undefined);
+  assert.equal(packageJson.scripts?.prepack, undefined);
+  assert.equal(packageJson.scripts?.["pack:check"], undefined);
+  await assert.rejects(
+    access(new URL("../src/cli.js", import.meta.url)),
+    /ENOENT/u,
+    "a clean current build must not emit a standalone Canopus CLI",
   );
   assert.match(
     readme,
-    /immutable public product is Canopus `0\.8\.0`[\s\S]+toolchain\.lock\.json/u,
+    /immutable public product is Canopus `0\.8\.0`[\s\S]+product-v0\.8\.0/u,
   );
   assert.match(readme, /A Run is nonmutating/u);
-  assert.match(readme, /only canonical `vela submit` registers/u);
+  assert.match(readme, /only canonical `vela submit` registers/iu);
   assert.doesNotMatch(readme, /canopus submit\b/u);
   assert.doesNotMatch(readme, /canopus land|canopus inspect|canopus withdraw/u);
   assert.match(

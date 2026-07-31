@@ -26,7 +26,13 @@ vela status . --json
 vela next . --limit 1 --json
 vela start <target> --frontier . --as agent:<name> --json
 
-# Produce and check the bounded artifact.
+# Optional: let the private, removable Agent helper produce and check the
+# bounded artifact without receiving repository authority.
+vela agent doctor
+vela agent run --attempt <vat_id>
+vela agent show <run.json>
+vela agent replay <run.json>
+vela agent export <run.json>
 
 vela submit --frontier . \
   --attempt <vat_id> \

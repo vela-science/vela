@@ -5,6 +5,7 @@ ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)"
 FRONTIER="${1:-/Users/williamblair/personal/formal-conjectures-frontier}"
 VELA="${VELA_BIN:-/Users/williamblair/.canopus/bin/vela-0.940.9-4813da26}"
 RUN="${CANOPUS_RUN:-/Users/williamblair/.canopus/runs/formal-conjectures-frontier/2026-07-28-formal-505-repair-4/run/run.json}"
+CANOPUS_CLI="${CANOPUS_CLI:-$HOME/.canopus/bin/canopus-formal-505-d0e05094.js}"
 ACTOR="verifier:formal-erdos-505-replay-v1"
 
 EXPECTED_HEAD="aca6076afe184cec8f0a5ecdca25815b0d4111ef"
@@ -46,7 +47,7 @@ check_sha256 "$EXPECTED_RECORD_SHA256" "$ROOT/paper/artifacts/formal-505/verific
 replay="$(mktemp "${TMPDIR:-/tmp}/vela-formal-505.XXXXXX")"
 trap 'rm -f "$replay"' EXIT HUP INT TERM
 python3 "$ROOT/paper/artifacts/formal-505/verify_replay.py" \
-  --canopus-cli "$ROOT/packages/canopus/dist/src/cli.js" \
+  --canopus-cli "$CANOPUS_CLI" \
   --run "$RUN" \
   --output "$replay" >/dev/null
 if ! cmp -s "$ROOT/paper/artifacts/formal-505/report.v1.json" "$replay"; then

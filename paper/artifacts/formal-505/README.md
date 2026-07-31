@@ -13,10 +13,18 @@ constitute scientific acceptance.
 
 ```bash
 python3 paper/artifacts/formal-505/verify_replay.py \
-  --canopus-cli packages/canopus/dist/src/cli.js \
+  --canopus-cli ~/.canopus/bin/canopus-formal-505-d0e05094.js \
   --run ~/.canopus/runs/formal-conjectures-frontier/2026-07-28-formal-505-repair-4/run/run.json \
   --output paper/artifacts/formal-505/report.v1.json
 ```
+
+The required replay-only CLI has SHA-256
+`19e4642e5ca165786a6aa7bf8e352b4461935eb42273c19114818b057c71559d`
+and is reproducibly built from Vela Git commit
+`d0e050944085a2fdc4a11cc4b57dfa28e789a827`. It is historical evidence, not
+the current product interface. Build it in a detached worktree, verify the
+digest, and install the exact file at the path above. Current source exposes
+only `vela agent`.
 
 `verification-draft.v1.json` and `verification.v1.json` bind that report to the
 exact pending Claim, Submission, and Proposal. The exact Submission root binds

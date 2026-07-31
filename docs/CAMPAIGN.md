@@ -1327,7 +1327,7 @@ git diff --check
 Use focused tests during development. Run the deterministic full release union
 only if a Vela release is actually required.
 
-### Canopus
+### TypeScript Protocol and private Agent helper
 
 ```bash
 bun install --frozen-lockfile
@@ -1339,6 +1339,10 @@ bun run eval:conformance
 bun run pack:check
 git diff --check
 ```
+
+`pack:check` covers only the public Protocol package. Current Agent helper
+source has no installable package, standalone CLI, public export, or
+publication surface.
 
 ### Vela Web and projection
 

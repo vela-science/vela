@@ -1,7 +1,7 @@
 {
-  "name": "@vela-science/canopus",
-  "version": "0.8.0",
-  "description": "A bounded, replaceable research harness over released Vela interfaces",
+  "name": "@vela-science/agent-internal",
+  "version": "0.0.0",
+  "description": "Private implementation candidate for Vela's removable Agent executor",
   "type": "module",
   "private": true,
   "license": "Apache-2.0 OR MIT",
@@ -10,74 +10,16 @@
     "url": "git+https://github.com/vela-science/vela.git",
     "directory": "packages/canopus"
   },
-  "publishConfig": {
-    "access": "public",
-    "provenance": true
-  },
   "engines": {
     "node": ">=22 <23 || >=24 <25"
   },
   "packageManager": "bun@1.3.12",
-  "bin": {
-    "canopus": "dist/src/cli.js"
-  },
-  "exports": {
-    ".": {
-      "types": "./dist/src/index.d.ts",
-      "import": "./dist/src/index.js"
-    }
-  },
-  "files": [
-    "dist/src/activity",
-    "dist/src/artifact",
-    "dist/src/budget",
-    "dist/src/candidate",
-    "dist/src/contracts",
-    "dist/src/engines",
-    "dist/src/evidence",
-    "dist/src/mission",
-    "dist/src/product",
-    "dist/src/projection",
-    "dist/src/util",
-    "dist/src/vela",
-    "dist/src/verifier",
-    "dist/src/workspace",
-    "dist/src/cli.js",
-    "dist/src/cli.d.ts",
-    "dist/src/index.js",
-    "dist/src/index.d.ts",
-    "dist/src/run.js",
-    "dist/src/run.d.ts",
-    "schemas",
-    "capsules/erdos1056-k15/bin/linux-arm64/10429801-10430000/verifier",
-    "capsules/erdos1056-k15/bin/linux-x86_64/10429801-10430000/verifier",
-    "capsules/formal-erdos-505-test-dim-one/README.md",
-    "capsules/formal-erdos-505-test-dim-one/verifier",
-    "missions",
-    "profiles",
-    "runtime",
-    "tests/fixtures/run-hostile-native-custody.mjs",
-    "tests/fixtures/run-hostile-verifier.mjs",
-    "tests/fixtures/hostile-verifier",
-    "README.md",
-    "THIRD_PARTY.md",
-    "docs/MISSIONS.md",
-    "docs/RUN_RECORD.md",
-    "docs/EVALUATION.md",
-    "docs/adr/0010-nonmutating-runs-and-explicit-submission.md",
-    "CHANGELOG.md",
-    "SECURITY.md",
-    "LICENSE-APACHE",
-    "LICENSE-MIT"
-  ],
   "scripts": {
     "build": "node tooling/clean-dist.mjs && tsc -p tsconfig.json && bun tooling/build-agent-helper.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "bun run build && node --test 'dist/tests/**/*.test.js' 'tests/**/*.test.mjs'",
     "check": "bun run lint && bun run test",
-    "prepack": "bun run build",
-    "pack:check": "bun pm pack --dry-run",
     "fixture:hostile-custody": "node tests/fixtures/run-hostile-native-custody.mjs",
     "fixture:hostile-verifier": "node tests/fixtures/run-hostile-verifier.mjs",
     "eval:validate": "bun evaluation/commands/validate-plan.mjs",

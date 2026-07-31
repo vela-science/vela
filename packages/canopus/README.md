@@ -1,135 +1,75 @@
-<p align="center">
-  <img src="docs/assets/canopus-readme-hero.jpg" width="960" alt="One bounded Canopus Run moves from a rooted target through an isolated worker and verifier to an optional Vela Submission." />
-</p>
+# Private Vela Agent executor
 
-<p align="center"><strong>Bounded research for Codex.</strong></p>
+This directory contains the current implementation candidate behind
+`vela agent`. It is private workspace source, not a second Vela product,
+installable CLI, public library, or independent release train.
 
-<p align="center">
-  Run one exact mission. Reproduce the artifact. Submit only when you choose.
-</p>
-
-<p align="center">
-  <a href="https://www.npmjs.com/package/@vela-science/canopus"><img alt="npm" src="https://img.shields.io/npm/v/@vela-science/canopus?style=flat-square&color=C9A664&labelColor=081224" /></a>
-  <a href="https://github.com/vela-science/vela/actions/workflows/product-ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/vela-science/vela/product-ci.yml?branch=main&style=flat-square&label=build&labelColor=081224" /></a>
-  <a href="LICENSE-APACHE"><img alt="Apache-2.0 OR MIT" src="https://img.shields.io/badge/license-Apache--2.0%20OR%20MIT-4F8F8B?style=flat-square&labelColor=081224" /></a>
-</p>
-
-Canopus, the Vela research runner, is a removable producer over Vela and Git.
-It gives Codex one rooted target, freezes the produced bytes, runs a separate
-verifier, and reproduces the result from a clean clone.
-
-A Run is nonmutating. It does not create a Proposal, Verification Record,
-Decision, Event, or scientific Standing. A successful Run may be exported as an
-authenticated `vela.submission.v1`; only canonical `vela submit` registers that
-Submission as pending review.
-
-## The loop
+The durable boundary is:
 
 ```text
-doctor → run → show → replay → export → vela submit
+Vela        Target, Attempt, Submission registration, Verification intake,
+            human Decision, Event, replay, and Standing
+
+Agent helper
+            isolated execution, bounded resources, artifact freezing,
+            verifier custody, Run retention, replay, and Submission export
 ```
+
+A Run is nonmutating. Evidence and verifier success do not change scientific
+Standing. Only canonical `vela submit` registers a Submission as
+`pending_review`, and only a human-authorized Vela Decision can change
+Standing.
+
+## Current interface
+
+Use the Vela CLI:
 
 ```sh
-bun install --frozen-lockfile
-bun run build
-
-canopus doctor /path/to/frontier
-canopus run /path/to/frontier --first
-canopus run /path/to/frontier --first --repair-from /path/to/exact-candidate
-canopus show latest
-canopus replay /path/to/run.json
-canopus export /path/to/run.json --attempt <vat_id> --output /path/to/submission
-vela submit /path/to/submission/submission.json \
-  --frontier /path/to/frontier \
-  --attempt <vat_id> \
-  --as <agent:id> \
-  --json
+vela agent doctor
+vela agent run --attempt <vat_id>
+vela agent show <run.json>
+vela agent replay <run.json>
+vela agent export <run.json>
 ```
 
-- `doctor` binds the exact frontier, target, Vela, Codex, profile, packet, and
-  verifier identities.
-- `run` executes in disposable workspaces and leaves the frontier unchanged.
-  A repair mission requires the exact parent candidate named by its root and
-  stages those bytes into the bounded workspace; a fresh worker patches rather
-  than reconstructs them. If a later verifier step fails, Canopus retains only
-  a bounded, secret-scanned set of newly created source/build files for
-  diagnosis, never generic notes or the whole worker workspace.
-- `show` inspects current and historical run records.
-- `replay` reruns the frozen verifier without a model call.
-- `export` creates a signed portable Submission and retains no producer key.
-  `--attempt` binds it to the exact active Vela Attempt.
-  A producer may refine the worker's pre-verifier wording with one bounded
-  Claim and explicit scope limit; the immutable Run and an automatic
-  refinement notice preserve the wording change. Stale verifier-pending
-  wording still fails closed until corrected. The output directory contains
-  `submission.json`, one compact lineage `manifest.json`, and its
-  content-addressed transport artifacts.
-- `vela submit` is the single registration path. Its `--attempt` and `--as`
-  values must exactly match the exported Submission. The expected result is
-  `pending_review` with accepted-event delta zero.
+The Rust CLI invokes an exact, separately built helper process. The helper
+receives no repository-authority material or human scientific key. Vela replay
+and every Frontier remain valid when the helper is absent.
 
-`inspect`, `--no-land`, Receipt authoring, and automatic landing are not current
-interfaces.
+## Status
 
-## Authority boundary
+[ADR 0031](../../docs/adr/0031-one-product-and-removable-agent-executor.md)
+accepts one Vela product and a removable executor. Implementation is still
+being reduced. The helper has not yet earned continued distribution: its
+survival depends on the registered twelve-hour matched dogfood gate.
 
-| Component | Owns | Does not own |
-| --- | --- | --- |
-| Codex worker | One bounded attempt inside an isolated workspace | Host files, human keys, verifier, network tools |
-| Frozen verifier | A scoped mechanical result over exact bytes | Scientific acceptance |
-| Canopus | Run evidence, replay, Submission export | Verification Records, Decisions, Events, Standing |
-| Vela | Registration, review, decisions, replay, Standing | Model execution |
-
-The worker uses macOS Seatbelt or Codex Bubblewrap on Linux/WSL2. The verifier
-runs separately with network and writes denied. Canopus never reads a human key
-or interprets verifier success as acceptance.
-
-## Exact product contract
-
-The immutable public product is Canopus `0.8.0`. Current `main` is deliberately
-private and unpublishable while the executor is shrunk and evaluated as
-optional Vela Agent functionality. CI records one exact tested composition in
-the source repository's `toolchain.lock.json`; that lock is reproducibility
-evidence, not a blanket runtime-compatibility promise. Current source validates
-Vela's current command and schema contracts, records the exact Codex binary,
-and fails at the first incompatible contract or custody check. Every Run binds
-the exact observed versions and binary roots. Historical releases remain
-available for exact Run replay; they are not current writers.
-
-Mission v1 and profile v2 remain the advanced portable interfaces:
-
-```sh
-canopus mission prepare ...
-canopus mission validate bundle/mission.json
-canopus profile list
-canopus profile show <name>
-canopus profile validate <name>
-canopus profile pack <name> --output <directory>
-```
+The immutable public product is Canopus `0.8.0`, preserved through npm and Git
+tag `product-v0.8.0` for historical Runs that bind those exact bytes. Every
+other retained Run must use its own exact helper root and source commit. Current
+source must not be published under the frozen identity. Historical product
+documentation, package contents, and release instructions remain available at
+that tag, including the
+[Build Week record](https://github.com/vela-science/vela-research-harness/blob/v0.6.5/BUILD_WEEK.md).
 
 ## Development
+
+From the repository root:
 
 ```sh
 bun install --frozen-lockfile
 bun run check
-bun run pack:check
 ```
 
-The installed package has one runtime dependency:
-`@vela-science/protocol`, Vela's authority-free public TypeScript contract.
+Package-specific checks:
 
-## Documentation
+```sh
+bun run --cwd packages/canopus typecheck
+bun run --cwd packages/canopus test
+```
 
-- [Missions and profiles](docs/MISSIONS.md)
-- [Run, export, and submit records](docs/RUN_RECORD.md)
-- [Evaluation gates](docs/EVALUATION.md)
-- [Nonmutating Runs and explicit Submission](docs/adr/0010-nonmutating-runs-and-explicit-submission.md)
-- [Framework-neutral evaluation and removable engines](docs/adr/0011-framework-neutral-evaluation-and-removable-engine-experiments.md)
-- [Optional external activity recorders](docs/adr/0012-optional-external-activity-recorders.md)
-- [Why Canopus stays removable](docs/adr/0001-harness-boundary-and-name.md)
-- [Historical Build Week evidence](https://github.com/vela-science/vela-research-harness/blob/v0.6.5/BUILD_WEEK.md)
+The directory keeps its historical name during the deletion test so the shrink
+diff remains reviewable. If the helper earns survival, it moves under an Agent
+implementation name and ships only from the same Vela tag and manifest. If it
+does not, it is deleted.
 
-## License
-
-Apache-2.0 OR MIT, at your option. Vela remains the protocol and authority
-boundary.
+Apache-2.0 OR MIT, at your option.

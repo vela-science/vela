@@ -225,24 +225,24 @@ conformance/        Shared cross-implementation fixtures
 
 The immutable public `@vela-science/canopus@0.8.0` may use
 `@vela-science/protocol`; it cannot import repository-authority or Decision
-internals. Current Canopus source is deliberately private while
-[ADR 0031](docs/adr/0031-one-product-and-removable-agent-executor.md) evaluates
-its smaller role as removable `vela agent` execution support. Vela Web and
-canonical Frontier repositories remain separate because they have independent
-deployment and scientific-history lifecycles.
+internals. Current source uses the private, nonpublishable
+`@vela-science/agent-internal@0.0.0` identity while accepted
+[ADR 0031](docs/adr/0031-one-product-and-removable-agent-executor.md) shrinks it
+to removable `vela agent` execution support. Vela Web and canonical Frontier
+repositories remain separate because they have independent deployment and
+scientific-history lifecycles.
 
 Package-local tooling stays with its package. The repository has no catch-all
 top-level `scripts/` directory. The root `install.sh` is the public product
 installer, not a tooling bucket.
 
 The immutable Protocol `0.1.0` and Canopus `0.8.0` packages were published, in
-dependency order, from `product-v0.8.0`. Current Canopus source cannot
-republish that identity. Protocol source `0.1.1` corrects stale package
-documentation without changing its public contract and will publish only from
-a later Vela source tag. Proposed ADR 0031 moves any earned future package
-publication to that one tag and manifest while retaining explicit component
-versions. Routine development does not advance versions or copy release facts
-across the workspace.
+dependency order, from `product-v0.8.0`. Current Agent source cannot republish
+that identity. Protocol source `0.1.1` corrects stale package documentation
+without changing its public contract and will publish only from a later Vela
+source tag. Accepted ADR 0031 moves any earned future helper distribution to
+that one tag and manifest. Routine development does not advance versions or
+copy release facts across the workspace.
 
 ## Security model
 

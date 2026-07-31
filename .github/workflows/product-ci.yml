@@ -1,4 +1,4 @@
-name: Product packages CI
+name: Protocol and Agent helper CI
 
 on:
   push:
@@ -63,9 +63,9 @@ jobs:
             bun run build
             node --test \
               packages/canopus/dist/tests/engine-tools.test.js \
-              packages/canopus/dist/tests/mission-v1.test.js \
-              packages/canopus/dist/tests/product-cli.test.js \
-              packages/canopus/dist/tests/product-profile.test.js
+              packages/canopus/dist/tests/agent-attempt.test.js \
+              packages/canopus/dist/tests/evidence-manifest-root.test.js \
+              packages/canopus/dist/tests/native-custody.test.js
           fi
       - name: Verify released Vela composition
         run: |
@@ -122,24 +122,14 @@ jobs:
           docker pull "$VERIFIER_IMAGE"
           docker image inspect --format '{{json .RepoDigests}}' "$VERIFIER_IMAGE" \
             | grep -F 'ghcr.io/vela-science/canopus-verifier@sha256:a6f354862f2a3f7d72eb99244c65fa8583c98b74e17e3d5ce6e31ef48aa16536'
-      - name: Install and smoke the packed product
+      - name: Validate the packed Protocol package
         run: |
           mkdir "$RUNNER_TEMP/product-packages"
           bun pm pack --cwd packages/protocol --destination "$RUNNER_TEMP/product-packages"
-          bun pm pack --cwd packages/canopus --destination "$RUNNER_TEMP/product-packages"
           set -- "$RUNNER_TEMP"/product-packages/vela-science-protocol-*.tgz
           test "$#" -eq 1
           protocol="$1"
           node .github/release/publish-protocol.mjs check "$protocol"
-          set -- "$RUNNER_TEMP"/product-packages/vela-science-canopus-*.tgz
-          test "$#" -eq 1
-          canopus_archive="$1"
-          npm install --global --prefix "$RUNNER_TEMP/canopus-install" \
-            "$protocol" "$canopus_archive"
-          canopus="$RUNNER_TEMP/canopus-install/bin/canopus"
-          "$canopus" --help
-          "$canopus" mission validate \
-            "$GITHUB_WORKSPACE/packages/canopus/tests/fixtures/generic-mission/mission.json"
 
   windows-read-only:
     runs-on: windows-2025
@@ -161,7 +151,7 @@ jobs:
       - run: bun run --cwd packages/canopus build
       - name: Verify native Windows platform contracts
         run: node --test packages/canopus/dist/tests/product-platform.test.js
-      - name: Verify Vela and installed Canopus package
+      - name: Verify Vela and the packed Protocol package
         shell: pwsh
         run: |
           $archive = "$env:RUNNER_TEMP\vela-windows-x86_64.zip"
@@ -179,14 +169,6 @@ jobs:
           }
           & "$env:RUNNER_TEMP\vela\vela.exe" --version
           bun pm pack --cwd packages/protocol --destination $env:RUNNER_TEMP
-          bun pm pack --cwd packages/canopus --destination $env:RUNNER_TEMP
           $protocol = Get-ChildItem "$env:RUNNER_TEMP\vela-science-protocol-*.tgz" |
             Select-Object -First 1
           node .github/release/publish-protocol.mjs check $protocol.FullName
-          $canopus = Get-ChildItem "$env:RUNNER_TEMP\vela-science-canopus-*.tgz" |
-            Select-Object -First 1
-          npm install --global --prefix "$env:RUNNER_TEMP\canopus" `
-            $protocol.FullName $canopus.FullName
-          & "$env:RUNNER_TEMP\canopus\canopus.cmd" --help
-          & "$env:RUNNER_TEMP\canopus\canopus.cmd" mission validate `
-            "$env:GITHUB_WORKSPACE\packages\canopus\tests\fixtures\generic-mission\mission.json"

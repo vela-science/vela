@@ -11,6 +11,6 @@
     "test": "bun run --cwd packages/protocol test && bun run --cwd packages/canopus test",
     "check": "bun run typecheck && bun run test && bun run check:boundaries",
     "check:boundaries": "bun packages/canopus/tooling/check-authority-boundary.mjs",
-    "pack:check": "bun run --cwd packages/protocol pack:check && bun run --cwd packages/canopus pack:check"
+    "pack:check": "bun run --cwd packages/protocol pack:check"
   }
 }
