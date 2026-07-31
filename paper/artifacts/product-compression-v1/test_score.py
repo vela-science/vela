@@ -5,11 +5,13 @@ import unittest
 from pathlib import Path
 
 from score import ScoreInputError, load_object, score, sha256_file
+from validate import ValidationError, verify_pre_output_refreeze
 
 
 HERE = Path(__file__).resolve().parent
-PLAN = HERE / "plan.v1.json"
+PLAN = HERE / "plan.v2.json"
 KEY = HERE / "answer-key.v1.json"
+REPOSITORY = HERE.parents[2]
 
 
 def answer(arm: str = "git_files", session_id: str = "git-files-01"):
@@ -44,6 +46,31 @@ def answer(arm: str = "git_files", session_id: str = "git-files-01"):
 
 
 class ScoreTests(unittest.TestCase):
+    def test_pre_output_refreeze_matches_prior_method(self):
+        verify_pre_output_refreeze(REPOSITORY, load_object(PLAN))
+
+    def test_pre_output_refreeze_rejects_method_tampering(self):
+        candidate = copy.deepcopy(load_object(PLAN))
+        candidate["task"]["questions"][0] = "A changed task"
+        with self.assertRaisesRegex(
+            ValidationError, "protected section task"
+        ):
+            verify_pre_output_refreeze(REPOSITORY, candidate)
+
+    def test_pre_output_refreeze_rejects_wrong_prior_root(self):
+        candidate = copy.deepcopy(load_object(PLAN))
+        candidate["amendment"]["prior_plan"]["sha256"] = "sha256:" + "0" * 64
+        with self.assertRaisesRegex(ValidationError, "prior plan root drift"):
+            verify_pre_output_refreeze(REPOSITORY, candidate)
+
+    def test_pre_output_refreeze_rejects_participant_output(self):
+        candidate = copy.deepcopy(load_object(PLAN))
+        candidate["amendment"]["participant_outputs_before_refreeze"] = 1
+        with self.assertRaisesRegex(
+            ValidationError, "after participant output"
+        ):
+            verify_pre_output_refreeze(REPOSITORY, candidate)
+
     def test_exact_answer_passes(self):
         result = score(PLAN, load_object(KEY), answer())
         self.assertEqual(result["score_basis_points"], 10000)

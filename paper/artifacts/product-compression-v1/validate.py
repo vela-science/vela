@@ -153,6 +153,113 @@ def verify_harness_files(
         )
 
 
+def verify_pre_output_refreeze(
+    vela_repository: Path, plan: dict[str, Any]
+) -> None:
+    amendment = plan.get("amendment")
+    if amendment is None:
+        return
+    require(isinstance(amendment, dict), "plan.amendment must be an object")
+    require(
+        amendment.get("kind") == "pre_output_environment_refreeze",
+        "unsupported plan amendment",
+    )
+    require(
+        amendment.get("participant_outputs_before_refreeze") == 0,
+        "refreeze occurred after participant output",
+    )
+    for field in (
+        "task_facts_changed",
+        "expected_answers_changed",
+        "arms_changed",
+        "budgets_changed",
+        "scoring_changed",
+        "success_threshold_changed",
+    ):
+        require(amendment.get(field) is False, f"refreeze changed {field}")
+    prior = amendment.get("prior_plan")
+    require(isinstance(prior, dict), "amendment.prior_plan must be an object")
+    relative_path = Path(prior.get("path", ""))
+    require(
+        bool(relative_path.parts)
+        and not relative_path.is_absolute()
+        and ".." not in relative_path.parts,
+        "prior plan path must stay inside the Vela repository",
+    )
+    require(
+        sha256_file(vela_repository / relative_path) == prior.get("sha256"),
+        "prior plan root drift",
+    )
+    prior_plan = load_object(vela_repository / relative_path)
+    require(
+        prior_plan.get("schema") == plan.get("schema"),
+        "refreeze changed the plan schema",
+    )
+    require(
+        prior_plan.get("status") == plan.get("status"),
+        "refreeze changed the plan status",
+    )
+    protected_sections = (
+        "study",
+        "frontiers",
+        "current_lifecycle_fixtures",
+        "terminal_correction_fixture",
+        "task",
+        "arms",
+        "assignment",
+        "budgets",
+        "scoring",
+        "stop_conditions",
+        "publication",
+    )
+    for section in protected_sections:
+        require(
+            prior_plan.get(section) == plan.get(section),
+            f"refreeze changed protected section {section}",
+        )
+    prior_vela = prior_plan.get("vela")
+    current_vela = plan.get("vela")
+    require(
+        isinstance(prior_vela, dict) and isinstance(current_vela, dict),
+        "both plans must bind Vela",
+    )
+    require(
+        prior_vela.get("historical_binary")
+        == current_vela.get("historical_binary"),
+        "refreeze changed the historical Vela binary",
+    )
+    require(
+        prior_vela.get("current_binary", {}).get("version")
+        == current_vela.get("current_binary", {}).get("version"),
+        "refreeze changed the current Vela version",
+    )
+    require(
+        [entry.get("path") for entry in prior_vela.get("context_files", [])]
+        == [entry.get("path") for entry in current_vela.get("context_files", [])],
+        "refreeze changed the Vela context file set",
+    )
+    require(
+        [entry.get("path") for entry in prior_plan.get("harness_files", [])]
+        == [entry.get("path") for entry in plan.get("harness_files", [])],
+        "refreeze changed the harness file set",
+    )
+    require(
+        run(
+            [
+                "git",
+                "-C",
+                str(vela_repository),
+                "merge-base",
+                "--is-ancestor",
+                prior_vela["source_commit"],
+                current_vela["source_commit"],
+            ]
+        ).returncode
+        == 0,
+        "refrozen Vela source is not a descendant of the prior source",
+    )
+
+
 def verify_commit_files(
     repository: Path,
     commit: str,
@@ -446,6 +553,7 @@ def validate(args: argparse.Namespace) -> dict[str, Any]:
     )
     expected = load_object(args.answer_key)["expected"]
     vela_repository = args.vela_repository.resolve()
+    verify_pre_output_refreeze(vela_repository, plan)
     require(
         git_text(vela_repository, "cat-file", "-t", plan["vela"]["source_commit"])
         == "commit",

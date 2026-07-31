@@ -47,9 +47,17 @@ version pin is part of the exact fixture rather than an invisible repair.
   policy; and
 - the answer schema, answer key, validators, scorers, and tests.
 
-No participant output existed when the plan was frozen. Amendments must retain
-the prior plan root and invalidate product-lift credit if they change a task
-fact, expected answer, arm, budget, scoring rule, or success threshold.
+No participant output existed when the plan was frozen. The original
+`plan.v1.json` remains byte-identical at
+`sha256:8ec3c02fce995ce8ee046844fcc40eefd37787c7e4d695ef794f0715b92ae1ef`.
+Before any participant session, `plan.v2.json` refroze only the Vela source,
+context, and current-binary identities after the product repair. It binds the
+prior plan root and records that the task facts, expected answers, arms,
+budgets, scoring, and success threshold did not change.
+
+Any later amendment must retain the prior plan root and invalidate product-lift
+credit if it changes a task fact, expected answer, arm, budget, scoring rule,
+or success threshold.
 
 The answer key is supervisor-only. Participant workspaces receive exact
 Frontier clones, the arm-specific tools, the task prompt, and
@@ -61,9 +69,9 @@ Validate the frozen sources before opening a participant session:
 
 ```bash
 python3 paper/artifacts/product-compression-v1/validate.py \
-  --plan paper/artifacts/product-compression-v1/plan.v1.json \
+  --plan paper/artifacts/product-compression-v1/plan.v2.json \
   --vela-repository . \
-  --current-vela target/debug/vela \
+  --current-vela ~/.vela/bin/vela-0.950.1-9ab009c9 \
   --historical-vela ~/.canopus/bin/vela-0.940.9-4813da26 \
   --erdos-frontier ~/personal/erdos-frontier \
   --formal-frontier ~/personal/formal-conjectures-frontier \
@@ -75,7 +83,7 @@ Score one retained session:
 
 ```bash
 python3 paper/artifacts/product-compression-v1/score.py \
-  --plan paper/artifacts/product-compression-v1/plan.v1.json \
+  --plan paper/artifacts/product-compression-v1/plan.v2.json \
   --answer-key paper/artifacts/product-compression-v1/answer-key.v1.json \
   --answer <session>/answer.v1.json \
   --output <session>/score.v1.json
@@ -85,7 +93,7 @@ Aggregate the exact registered assignment only after all eight sessions exist:
 
 ```bash
 python3 paper/artifacts/product-compression-v1/report.py \
-  --plan paper/artifacts/product-compression-v1/plan.v1.json \
+  --plan paper/artifacts/product-compression-v1/plan.v2.json \
   --scores <score-1.json> ... <score-8.json> \
   --output result.v1.json
 ```
