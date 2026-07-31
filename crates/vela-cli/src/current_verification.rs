@@ -356,6 +356,21 @@ fn load_subject(
     Ok((package.proposal, package.proposal_root, package.submission))
 }
 
+fn require_source_attempt(
+    submission: &SubmissionV1,
+    requested_attempt: Option<&str>,
+) -> Result<(), String> {
+    if let Some(requested_attempt) = requested_attempt
+        && submission.provenance.source_attempt.as_deref() != Some(requested_attempt)
+    {
+        return Err(
+            "Verification source Submission provenance.source_attempt must exactly match --attempt"
+                .into(),
+        );
+    }
+    Ok(())
+}
+
 fn existing_outcome(
     frontier: &Path,
     repository: &CurrentRepositoryV3,
@@ -408,9 +423,17 @@ pub(crate) fn import(
     frontier: &Path,
     record: &VerificationRecordV1,
     executor: &str,
+    requested_attempt: Option<&str>,
     push: bool,
 ) -> Result<VerificationImportOutcome, String> {
-    import_with_optional_repository_signer(frontier, record, executor, push, None)
+    import_with_optional_repository_signer(
+        frontier,
+        record,
+        executor,
+        requested_attempt,
+        push,
+        None,
+    )
 }
 
 /// Import one exact Verification Record with a caller-owned repository signer.
@@ -419,11 +442,11 @@ pub(crate) fn import(
 /// the record signature authenticates the verifier, the repository signer
 /// covers only the already-validated transaction, and no Decision capability
 /// is exposed.
-#[allow(dead_code)] // Consumed by the forthcoming internal campaign controller.
 pub(crate) fn import_with_repository_signer(
     frontier: &Path,
     record: &VerificationRecordV1,
     executor: &str,
+    requested_attempt: &str,
     push: bool,
     repository_signer: &mut dyn crate::authority_transaction::RepositoryAuthoritySigner,
 ) -> Result<VerificationImportOutcome, String> {
@@ -431,6 +454,7 @@ pub(crate) fn import_with_repository_signer(
         frontier,
         record,
         executor,
+        Some(requested_attempt),
         push,
         Some(repository_signer),
     )
@@ -440,6 +464,7 @@ fn import_with_optional_repository_signer(
     frontier: &Path,
     record: &VerificationRecordV1,
     executor: &str,
+    requested_attempt: Option<&str>,
     push: bool,
     injected_repository_signer: Option<
         &mut dyn crate::authority_transaction::RepositoryAuthoritySigner,
@@ -453,6 +478,8 @@ fn import_with_optional_repository_signer(
 
     let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
+    let (_proposal, proposal_root, submission) = load_subject(frontier, &repository, record)?;
+    require_source_attempt(&submission, requested_attempt)?;
     let record_bytes = record.canonical_bytes()?;
     let record_root = record.canonical_root()?;
     let request_root = format!(
@@ -463,10 +490,13 @@ fn import_with_optional_repository_signer(
             "origin_id": repository.origin_id,
             "repository_before": repository_root,
             "verification_record_root": record_root,
+            "source_attempt": submission.provenance.source_attempt.as_deref(),
         }))?
     );
     let operation_id =
         crate::frontier_txn::OperationId::derive("verification-import", request_root.as_bytes());
+    let resolved_attempt =
+        crate::current_work::resolve_verification_attempt(frontier, requested_attempt)?;
     if let Some(outcome) = existing_outcome(
         frontier,
         &repository,
@@ -474,10 +504,25 @@ fn import_with_optional_repository_signer(
         &record_root,
         operation_id.as_str(),
     )? {
+        let reconciliation_attempt = match resolved_attempt {
+            Some(resolved) => Some(resolved),
+            None => crate::current_work::resolve_verification_reconciliation_attempt(
+                frontier,
+                submission.provenance.source_attempt.as_deref(),
+            )?,
+        };
+        crate::current_work::record_verification_attempt(
+            frontier,
+            reconciliation_attempt,
+            &record.verification_record_id,
+        )?;
         return Ok(outcome);
     }
+    crate::current_work::authorize_verification(
+        resolved_attempt.as_ref(),
+        &record.verification_record_id,
+    )?;
     ensure_pending_proposal(frontier, &repository, &record.subject.proposal_id)?;
-    let (_proposal, proposal_root, _submission) = load_subject(frontier, &repository, record)?;
 
     let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier)?;
     let barrier = crate::frontier_txn::FrontierTxn::acquire_repository_authority_write_barrier(
@@ -492,7 +537,9 @@ fn import_with_optional_repository_signer(
         );
     }
     ensure_pending_proposal(frontier, &held_repository, &record.subject.proposal_id)?;
-    load_subject(frontier, &held_repository, record)?;
+    let (_, _, held_submission) = load_subject(frontier, &held_repository, record)?;
+    require_source_attempt(&held_submission, requested_attempt)
+        .map_err(|_| "Verification source Attempt changed while acquiring the import barrier")?;
 
     let origin_bytes = fs::read(frontier.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
@@ -564,6 +611,7 @@ fn import_with_optional_repository_signer(
         std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
     let binary_sha256 = crate::authority_transaction::execution_binary_sha256(&executable)?;
     let mut authentication = SignedVerificationRecordSession::from_record(record)?;
+    crate::current_work::revalidate_routine_attempt(frontier, resolved_attempt.as_ref())?;
     let mut prepared = prepare_authority_transaction(
         barrier,
         frontier,
@@ -605,28 +653,40 @@ fn import_with_optional_repository_signer(
             next_authority_keyset: None,
             next_policy_bundle: None,
             next_policy_material: None,
-            read_set: vec![
-                InputBinding {
-                    name: "verification_record".into(),
-                    digest: ContentDigest::parse(record_root.clone())
+            read_set: {
+                let mut read_set = vec![
+                    InputBinding {
+                        name: "verification_record".into(),
+                        digest: ContentDigest::parse(record_root.clone())
+                            .map_err(|error| error.to_string())?,
+                    },
+                    InputBinding {
+                        name: "submission".into(),
+                        digest: ContentDigest::parse(record.subject.submission_root.clone())
+                            .map_err(|error| error.to_string())?,
+                    },
+                    InputBinding {
+                        name: "proposal".into(),
+                        digest: ContentDigest::parse(proposal_root)
+                            .map_err(|error| error.to_string())?,
+                    },
+                    InputBinding {
+                        name: "current_repository_before".into(),
+                        digest: ContentDigest::parse(repository_root)
+                            .map_err(|error| error.to_string())?,
+                    },
+                ];
+                if let Some(resolved) = &resolved_attempt {
+                    read_set.push(InputBinding {
+                        name: "current_attempt_binding".into(),
+                        digest: ContentDigest::parse(
+                            resolved.attempt.target_task_binding.binding_root.clone(),
+                        )
                         .map_err(|error| error.to_string())?,
-                },
-                InputBinding {
-                    name: "submission".into(),
-                    digest: ContentDigest::parse(record.subject.submission_root.clone())
-                        .map_err(|error| error.to_string())?,
-                },
-                InputBinding {
-                    name: "proposal".into(),
-                    digest: ContentDigest::parse(proposal_root)
-                        .map_err(|error| error.to_string())?,
-                },
-                InputBinding {
-                    name: "current_repository_before".into(),
-                    digest: ContentDigest::parse(repository_root)
-                        .map_err(|error| error.to_string())?,
-                },
-            ],
+                    });
+                }
+                read_set
+            },
             vela_version: env!("CARGO_PKG_VERSION").into(),
             binary_sha256,
             recorded_at,
@@ -670,6 +730,11 @@ fn import_with_optional_repository_signer(
             prepared.install().map_err(|error| error.to_string())?;
             prepared.complete().map_err(|error| error.to_string())?;
             crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)?;
+            crate::current_work::record_verification_attempt(
+                frontier,
+                resolved_attempt,
+                &record.verification_record_id,
+            )?;
             return Ok(VerificationImportOutcome {
                 schema: "vela.verification-import-result.v1",
                 operation_id: operation_id.as_str().into(),
@@ -690,6 +755,11 @@ fn import_with_optional_repository_signer(
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
     crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)?;
+    crate::current_work::record_verification_attempt(
+        frontier,
+        resolved_attempt,
+        &record.verification_record_id,
+    )?;
     let publication = match (delta.as_ref(), preflight) {
         (Some(delta), Some(preflight)) => publish_exact_delta(
             frontier,
@@ -978,6 +1048,23 @@ mod tests {
     }
 
     #[test]
+    fn verification_attempt_must_match_the_exact_source_submission() {
+        let fixture = fixture();
+        let (_, _, mut submission) = load_subject(
+            fixture._directory.path(),
+            &fixture.repository,
+            &fixture.record,
+        )
+        .unwrap();
+        assert!(require_source_attempt(&submission, None).is_ok());
+        assert!(require_source_attempt(&submission, Some("vat_missing")).is_err());
+        submission.provenance.source_attempt = Some("vat_exact".into());
+        assert!(require_source_attempt(&submission, Some("vat_exact")).is_ok());
+        assert!(require_source_attempt(&submission, None).is_ok());
+        assert!(require_source_attempt(&submission, Some("vat_other")).is_err());
+    }
+
+    #[test]
     fn injected_repository_signer_does_not_bypass_verifier_identity_checks() {
         let fixture = fixture();
         let mut signer = CountingSigner::default();
@@ -985,6 +1072,7 @@ mod tests {
             fixture._directory.path(),
             &fixture.record,
             "agent:substituted",
+            "vat_fixture",
             false,
             &mut signer,
         )

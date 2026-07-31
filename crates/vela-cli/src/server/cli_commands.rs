@@ -264,6 +264,9 @@ pub(crate) enum Commands {
         /// Maximum registered Submissions retained through this Attempt.
         #[arg(long, conflicts_with = "drop")]
         max_submissions: Option<u64>,
+        /// Maximum Verification Records retained through this Attempt.
+        #[arg(long, conflicts_with = "drop")]
+        max_verifications: Option<u64>,
         /// Maximum total Artifacts retained through this Attempt.
         #[arg(long, conflicts_with = "drop")]
         max_artifacts: Option<u64>,
@@ -528,6 +531,9 @@ pub(crate) enum VerifyAction {
         /// Dependency shared with the producer. Repeat when applicable.
         #[arg(long = "shared-dependency")]
         shared_dependency: Vec<String>,
+        /// Exact active Attempt bound by the Proposal's source Submission.
+        #[arg(long)]
+        attempt: Option<String>,
         #[arg(long = "as", help = HELP_REQUIRED_AS)]
         actor: String,
         /// Publish now: commit locally and push.
@@ -540,6 +546,9 @@ pub(crate) enum VerifyAction {
     Import {
         frontier: PathBuf,
         record: PathBuf,
+        /// Exact active Attempt bound by the Proposal's source Submission.
+        #[arg(long)]
+        attempt: Option<String>,
         #[arg(long = "as", help = HELP_REQUIRED_AS)]
         actor: String,
         /// Publish now: commit locally and push.

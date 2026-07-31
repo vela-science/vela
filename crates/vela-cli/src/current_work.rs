@@ -15,10 +15,11 @@ use vela_protocol::submission_v1::SubmissionV1;
 
 use crate::cli::safe_text;
 
-const ATTEMPT_SCHEMA: &str = "vela.attempt.v4";
+const ATTEMPT_SCHEMA: &str = "vela.attempt.v5";
 const TASK_CONTRACT_SCHEMA: &str = "vela.task-contract.internal.v3";
 const ATTEMPT_MAX_BYTES: usize = 2 * 1024 * 1024;
 const DEFAULT_MAX_SUBMISSIONS: u64 = 16;
+const DEFAULT_MAX_VERIFICATIONS: u64 = 16;
 const DEFAULT_MAX_ARTIFACTS: u64 = 64;
 const DEFAULT_MAX_ARTIFACT_BYTES: u64 = 64 * 1024 * 1024;
 const CONSEQUENCE_EVIDENCE_ONLY: &str = "evidence_only";
@@ -36,6 +37,7 @@ struct CurrentBuildIdentity {
 #[serde(deny_unknown_fields)]
 struct CurrentAttemptBudget {
     max_submissions: u64,
+    max_verifications: u64,
     max_artifacts: u64,
     max_artifact_bytes: u64,
 }
@@ -44,9 +46,11 @@ struct CurrentAttemptBudget {
 #[serde(deny_unknown_fields)]
 struct CurrentAttemptUsage {
     submissions: u64,
+    verifications: u64,
     artifacts: u64,
     artifact_bytes: u64,
     registered_submission_ids: Vec<String>,
+    registered_verification_record_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -88,7 +92,7 @@ pub(crate) struct CurrentAttempt {
     briefing: Value,
 }
 
-pub(crate) struct CurrentSubmissionAttempt {
+pub(crate) struct CurrentRoutineAttempt {
     pub(crate) attempt: CurrentAttempt,
     pub(crate) path: PathBuf,
     _lock: AttemptLock,
@@ -278,9 +282,11 @@ fn validate(attempt: &CurrentAttempt) -> Result<(), String> {
         return Err("current Attempt has an unsupported consequence ceiling".to_string());
     }
     if attempt.budget.max_submissions == 0
+        || attempt.budget.max_verifications == 0
         || attempt.budget.max_artifacts == 0
         || attempt.budget.max_artifact_bytes == 0
         || attempt.usage.submissions > attempt.budget.max_submissions
+        || attempt.usage.verifications > attempt.budget.max_verifications
         || attempt.usage.artifacts > attempt.budget.max_artifacts
         || attempt.usage.artifact_bytes > attempt.budget.max_artifact_bytes
     {
@@ -297,6 +303,20 @@ fn validate(attempt: &CurrentAttempt) -> Result<(), String> {
     {
         return Err(
             "current Attempt registered Submission IDs must be a sorted set matching usage"
+                .to_string(),
+        );
+    }
+    if attempt.usage.verifications
+        != u64::try_from(attempt.usage.registered_verification_record_ids.len())
+            .map_err(|_| "current Attempt Verification count overflowed".to_string())?
+        || !attempt
+            .usage
+            .registered_verification_record_ids
+            .windows(2)
+            .all(|pair| pair[0] < pair[1])
+    {
+        return Err(
+            "current Attempt registered Verification Record IDs must be a sorted set matching usage"
                 .to_string(),
         );
     }
@@ -404,22 +424,59 @@ fn refresh_target_binding(
     )
 }
 
-pub(crate) fn resolve_submission_attempt(
+fn discover_attempts(frontier: &Path) -> Result<Vec<(PathBuf, CurrentAttempt)>, String> {
+    let work = frontier.join(".vela/work");
+    let entries = match fs::read_dir(&work) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => {
+            return Err(format!(
+                "read current Attempt root {}: {error}",
+                work.display()
+            ));
+        }
+    };
+    let mut attempts = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|error| format!("read current Attempt entry: {error}"))?;
+        let path = entry.path().join("attempt.json");
+        match fs::symlink_metadata(&path) {
+            Ok(_) => attempts.push((path.clone(), read(&path)?)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(format!(
+                    "inspect current Attempt {}: {error}",
+                    path.display()
+                ));
+            }
+        }
+    }
+    Ok(attempts)
+}
+
+fn expires_at(attempt: &CurrentAttempt) -> Result<chrono::DateTime<chrono::FixedOffset>, String> {
+    chrono::DateTime::parse_from_rfc3339(&attempt.expires_at)
+        .map_err(|error| format!("current Attempt expires_at: {error}"))
+}
+
+fn require_live_at(attempt: &CurrentAttempt, now: chrono::DateTime<Utc>) -> Result<(), String> {
+    if expires_at(attempt)? <= now {
+        return Err(format!(
+            "current Attempt {} has expired",
+            attempt.attempt_id
+        ));
+    }
+    Ok(())
+}
+
+fn resolve_attempt(
     frontier: &Path,
-    actor: &str,
     requested_attempt: Option<&str>,
-) -> Result<Option<CurrentSubmissionAttempt>, String> {
+) -> Result<Option<CurrentRoutineAttempt>, String> {
     let Some(requested_attempt) = requested_attempt else {
         return Ok(None);
     };
-    let work = frontier.join(".vela/work");
-    let matches = fs::read_dir(&work)
-        .map_err(|error| format!("read current Attempt root {}: {error}", work.display()))?
-        .filter_map(Result::ok)
-        .map(|entry| entry.path().join("attempt.json"))
-        .filter(|path| path.is_file())
-        .map(|path| read(&path).map(|attempt| (path, attempt)))
-        .collect::<Result<Vec<_>, String>>()?
+    let matches = discover_attempts(frontier)?
         .into_iter()
         .filter(|(_, attempt)| attempt.attempt_id == requested_attempt)
         .collect::<Vec<_>>();
@@ -436,27 +493,108 @@ pub(crate) fn resolve_submission_attempt(
             "current Attempt {requested_attempt} changed while acquiring its private lock"
         ));
     }
-    if attempt.actor != actor {
-        return Err(format!(
-            "current Attempt {requested_attempt} belongs to {}, not {actor}",
-            attempt.actor
-        ));
-    }
-    let expires_at = chrono::DateTime::parse_from_rfc3339(&attempt.expires_at)
-        .map_err(|error| format!("current Attempt expires_at: {error}"))?;
-    if expires_at <= Utc::now() {
-        return Err(format!("current Attempt {requested_attempt} has expired"));
-    }
+    require_live_at(&attempt, Utc::now())?;
     refresh_target_binding(frontier, path, &mut attempt)?;
-    Ok(Some(CurrentSubmissionAttempt {
+    Ok(Some(CurrentRoutineAttempt {
         attempt,
         path: path.clone(),
         _lock: lock,
     }))
 }
 
+pub(crate) fn resolve_submission_attempt(
+    frontier: &Path,
+    actor: &str,
+    requested_attempt: Option<&str>,
+) -> Result<Option<CurrentRoutineAttempt>, String> {
+    let resolved = resolve_attempt(frontier, requested_attempt)?;
+    if let Some(resolved) = &resolved
+        && resolved.attempt.actor != actor
+    {
+        return Err(format!(
+            "current Attempt {} belongs to {}, not {actor}",
+            resolved.attempt.attempt_id, resolved.attempt.actor
+        ));
+    }
+    Ok(resolved)
+}
+
+pub(crate) fn resolve_verification_attempt(
+    frontier: &Path,
+    requested_attempt: Option<&str>,
+) -> Result<Option<CurrentRoutineAttempt>, String> {
+    resolve_attempt(frontier, requested_attempt)
+}
+
+/// Recover private Verification budget attribution after a canonical import.
+///
+/// A missing or expired private Attempt cannot invalidate durable canonical
+/// evidence. Present malformed, duplicated, or lock-raced state still fails
+/// closed rather than silently charging a different Attempt.
+pub(crate) fn resolve_verification_reconciliation_attempt(
+    frontier: &Path,
+    source_attempt: Option<&str>,
+) -> Result<Option<CurrentRoutineAttempt>, String> {
+    let Some(source_attempt) = source_attempt else {
+        return Ok(None);
+    };
+    let matches = discover_attempts(frontier)?
+        .into_iter()
+        .filter(|(_, attempt)| attempt.attempt_id == source_attempt)
+        .collect::<Vec<_>>();
+    if matches.is_empty() {
+        return Ok(None);
+    }
+    let [(path, discovered)] = matches.as_slice() else {
+        return Err(format!(
+            "current Attempt {source_attempt:?} must resolve to at most one private record for Verification reconciliation; found {}",
+            matches.len()
+        ));
+    };
+    let lock = lock_attempt(frontier, &discovered.target)?;
+    let mut attempt = read(path)?;
+    if attempt.attempt_id != source_attempt {
+        return Err(format!(
+            "current Attempt {source_attempt} changed while acquiring its private reconciliation lock"
+        ));
+    }
+    if expires_at(&attempt)? <= Utc::now() {
+        return Ok(None);
+    }
+    refresh_target_binding(frontier, path, &mut attempt)?;
+    Ok(Some(CurrentRoutineAttempt {
+        attempt,
+        path: path.clone(),
+        _lock: lock,
+    }))
+}
+
+/// Recheck the time- and Target-bound execution authority while the canonical
+/// repository write barrier is held.
+fn revalidate_routine_attempt_at(
+    frontier: &Path,
+    resolved: Option<&CurrentRoutineAttempt>,
+    now: chrono::DateTime<Utc>,
+) -> Result<(), String> {
+    let Some(resolved) = resolved else {
+        return Ok(());
+    };
+    require_live_at(&resolved.attempt, now)?;
+    vela_edge::target_index::revalidate_current_target_task_binding(
+        frontier,
+        &resolved.attempt.target_task_binding,
+    )
+}
+
+pub(crate) fn revalidate_routine_attempt(
+    frontier: &Path,
+    resolved: Option<&CurrentRoutineAttempt>,
+) -> Result<(), String> {
+    revalidate_routine_attempt_at(frontier, resolved, Utc::now())
+}
+
 pub(crate) fn authorize_submission(
-    resolved: Option<&CurrentSubmissionAttempt>,
+    resolved: Option<&CurrentRoutineAttempt>,
     submission: &SubmissionV1,
     artifact_bytes: u64,
 ) -> Result<(), String> {
@@ -561,7 +699,7 @@ pub(crate) fn retained_submission_artifact_bytes(
 
 pub(crate) fn record_submission_attempt(
     frontier: &Path,
-    resolved: Option<CurrentSubmissionAttempt>,
+    resolved: Option<CurrentRoutineAttempt>,
     submission: &SubmissionV1,
     artifact_bytes: u64,
 ) -> Result<(), String> {
@@ -591,6 +729,81 @@ pub(crate) fn record_submission_attempt(
     write(frontier, &resolved.attempt).map_err(|error| {
         format!(
             "Submission registered but private Attempt progress failed at {}: {error}",
+            resolved.path.display()
+        )
+    })?;
+    Ok(())
+}
+
+pub(crate) fn authorize_verification(
+    resolved: Option<&CurrentRoutineAttempt>,
+    verification_record_id: &str,
+) -> Result<(), String> {
+    let Some(resolved) = resolved else {
+        return Ok(());
+    };
+    let attempt = &resolved.attempt;
+    if attempt.consequence_ceiling != CONSEQUENCE_PENDING_REVIEW
+        || !attempt
+            .allowed_operations
+            .iter()
+            .any(|operation| operation == "verification_import")
+    {
+        return Err(format!(
+            "current Attempt {} does not authorize Verification import",
+            attempt.attempt_id
+        ));
+    }
+    if attempt
+        .usage
+        .registered_verification_record_ids
+        .binary_search_by(|candidate| candidate.as_str().cmp(verification_record_id))
+        .is_ok()
+    {
+        return Ok(());
+    }
+    let next_verifications = attempt
+        .usage
+        .verifications
+        .checked_add(1)
+        .ok_or_else(|| "current Attempt Verification usage overflowed".to_string())?;
+    if next_verifications > attempt.budget.max_verifications {
+        return Err(format!(
+            "current Attempt {} Verification budget exhausted: requested verifications={next_verifications}/{}",
+            attempt.attempt_id, attempt.budget.max_verifications
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn record_verification_attempt(
+    frontier: &Path,
+    resolved: Option<CurrentRoutineAttempt>,
+    verification_record_id: &str,
+) -> Result<(), String> {
+    let Some(mut resolved) = resolved else {
+        return Ok(());
+    };
+    authorize_verification(Some(&resolved), verification_record_id)?;
+    match resolved
+        .attempt
+        .usage
+        .registered_verification_record_ids
+        .binary_search_by(|candidate| candidate.as_str().cmp(verification_record_id))
+    {
+        Ok(_) => return Ok(()),
+        Err(index) => {
+            resolved
+                .attempt
+                .usage
+                .registered_verification_record_ids
+                .insert(index, verification_record_id.to_string());
+        }
+    }
+    resolved.attempt.usage.verifications += 1;
+    write(frontier, &resolved.attempt).map_err(|error| {
+        format!(
+            "Verification imported but private Attempt progress failed at {}: {error}",
             resolved.path.display()
         )
     })?;
@@ -763,6 +976,7 @@ fn allowed_operations(consequence_ceiling: &str) -> Result<Vec<String>, String> 
         CONSEQUENCE_PENDING_REVIEW => {
             operations.push("submission_author".to_string());
             operations.push("submission_register".to_string());
+            operations.push("verification_import".to_string());
         }
         _ => {
             return Err(format!(
@@ -845,6 +1059,7 @@ fn open(
     runner_build_root: Option<&str>,
     requested_artifact_classes: &[String],
     max_submissions: u64,
+    max_verifications: u64,
     max_artifacts: u64,
     max_artifact_bytes: u64,
     consequence_ceiling: &str,
@@ -889,15 +1104,20 @@ fn open(
         .to_string();
     require_sha256_root("runner build", &runner_build_root)?;
     let operations = allowed_operations(consequence_ceiling)?;
-    if max_submissions == 0 || max_artifacts == 0 || max_artifact_bytes == 0 {
+    if max_submissions == 0
+        || max_verifications == 0
+        || max_artifacts == 0
+        || max_artifact_bytes == 0
+    {
         return Err("private Attempt budgets must be positive".to_string());
     }
     if max_submissions > DEFAULT_MAX_SUBMISSIONS
+        || max_verifications > DEFAULT_MAX_VERIFICATIONS
         || max_artifacts > DEFAULT_MAX_ARTIFACTS
         || max_artifact_bytes > DEFAULT_MAX_ARTIFACT_BYTES
     {
         return Err(format!(
-            "private Attempt budgets may only narrow the defaults: submissions<={DEFAULT_MAX_SUBMISSIONS}, artifacts<={DEFAULT_MAX_ARTIFACTS}, artifact_bytes<={DEFAULT_MAX_ARTIFACT_BYTES}"
+            "private Attempt budgets may only narrow the defaults: submissions<={DEFAULT_MAX_SUBMISSIONS}, verifications<={DEFAULT_MAX_VERIFICATIONS}, artifacts<={DEFAULT_MAX_ARTIFACTS}, artifact_bytes<={DEFAULT_MAX_ARTIFACT_BYTES}"
         ));
     }
     let _lock = lock_attempt(frontier, target_id)?;
@@ -921,6 +1141,7 @@ fn open(
         let requested_classes = artifact_classes(&packet, requested_artifact_classes)?;
         let requested_budget = CurrentAttemptBudget {
             max_submissions,
+            max_verifications,
             max_artifacts,
             max_artifact_bytes,
         };
@@ -960,14 +1181,17 @@ fn open(
         allowed_artifact_classes: artifact_classes(&packet, requested_artifact_classes)?,
         budget: CurrentAttemptBudget {
             max_submissions,
+            max_verifications,
             max_artifacts,
             max_artifact_bytes,
         },
         usage: CurrentAttemptUsage {
             submissions: 0,
+            verifications: 0,
             artifacts: 0,
             artifact_bytes: 0,
             registered_submission_ids: Vec::new(),
+            registered_verification_record_ids: Vec::new(),
         },
         consequence_ceiling: consequence_ceiling.to_string(),
         task_contract,
@@ -1067,6 +1291,7 @@ pub(crate) fn cmd_start(
     runner_build_root: Option<&str>,
     artifact_classes: &[String],
     max_submissions: Option<u64>,
+    max_verifications: Option<u64>,
     max_artifacts: Option<u64>,
     max_artifact_bytes: Option<u64>,
     consequence_ceiling: &str,
@@ -1104,6 +1329,7 @@ pub(crate) fn cmd_start(
                 runner_build_root,
                 artifact_classes,
                 max_submissions.unwrap_or(DEFAULT_MAX_SUBMISSIONS),
+                max_verifications.unwrap_or(DEFAULT_MAX_VERIFICATIONS),
                 max_artifacts.unwrap_or(DEFAULT_MAX_ARTIFACTS),
                 max_artifact_bytes.unwrap_or(DEFAULT_MAX_ARTIFACT_BYTES),
                 consequence_ceiling,
@@ -1210,18 +1436,22 @@ mod tests {
                 "inspect".to_string(),
                 "submission_author".to_string(),
                 "submission_register".to_string(),
+                "verification_import".to_string(),
             ],
             allowed_artifact_classes: vec!["witness".to_string()],
             budget: CurrentAttemptBudget {
                 max_submissions: 1,
+                max_verifications: 1,
                 max_artifacts: 8,
                 max_artifact_bytes: 1024,
             },
             usage: CurrentAttemptUsage {
                 submissions: 0,
+                verifications: 0,
                 artifacts: 0,
                 artifact_bytes: 0,
                 registered_submission_ids: Vec::new(),
+                registered_verification_record_ids: Vec::new(),
             },
             consequence_ceiling: CONSEQUENCE_PENDING_REVIEW.to_string(),
             task_contract,
@@ -1239,12 +1469,18 @@ mod tests {
         assert_eq!(projected["authorization_root"], attempt.authorization_root);
         assert_eq!(
             projected["allowed_operations"],
-            json!(["inspect", "submission_author", "submission_register"])
+            json!([
+                "inspect",
+                "submission_author",
+                "submission_register",
+                "verification_import"
+            ])
         );
         assert_eq!(projected["allowed_artifact_classes"], json!(["witness"]));
         assert_eq!(projected["consequence_ceiling"], CONSEQUENCE_PENDING_REVIEW);
         assert_eq!(projected["task_contract_root"], attempt.task_contract_root);
         assert_eq!(projected["budget"]["max_submissions"], 1);
+        assert_eq!(projected["budget"]["max_verifications"], 1);
         assert_eq!(projected["expires_at"], "2026-07-28T00:00:00Z");
         let encoded = String::from_utf8(fs::read(path).unwrap()).unwrap();
         assert!(!encoded.contains("event_log_root"));
@@ -1299,7 +1535,7 @@ mod tests {
         let first_submission = submission_for("First bounded fixture.");
         record_submission_attempt(
             directory.path(),
-            Some(CurrentSubmissionAttempt {
+            Some(CurrentRoutineAttempt {
                 attempt: read(&attempt_path(directory.path(), "erdos:1056")).unwrap(),
                 path: attempt_path(directory.path(), "erdos:1056"),
                 _lock: lock_attempt(directory.path(), "erdos:1056").unwrap(),
@@ -1316,7 +1552,7 @@ mod tests {
 
         record_submission_attempt(
             directory.path(),
-            Some(CurrentSubmissionAttempt {
+            Some(CurrentRoutineAttempt {
                 attempt: retained,
                 path: attempt_path(directory.path(), "erdos:1056"),
                 _lock: lock_attempt(directory.path(), "erdos:1056").unwrap(),
@@ -1330,7 +1566,7 @@ mod tests {
 
         let second_submission = submission_for("Second bounded fixture.");
         let error = authorize_submission(
-            Some(&CurrentSubmissionAttempt {
+            Some(&CurrentRoutineAttempt {
                 attempt: retained,
                 path: attempt_path(directory.path(), "erdos:1056"),
                 _lock: lock_attempt(directory.path(), "erdos:1056").unwrap(),
@@ -1340,5 +1576,70 @@ mod tests {
         )
         .unwrap_err();
         assert!(error.contains("budget exhausted"));
+
+        record_verification_attempt(
+            directory.path(),
+            Some(CurrentRoutineAttempt {
+                attempt: read(&attempt_path(directory.path(), "erdos:1056")).unwrap(),
+                path: attempt_path(directory.path(), "erdos:1056"),
+                _lock: lock_attempt(directory.path(), "erdos:1056").unwrap(),
+            }),
+            "vvr_fixture",
+        )
+        .unwrap();
+        let retained = read(&attempt_path(directory.path(), "erdos:1056")).unwrap();
+        assert_eq!(retained.usage.verifications, 1);
+        assert_eq!(
+            retained.usage.registered_verification_record_ids,
+            vec!["vvr_fixture"]
+        );
+        let error = authorize_verification(
+            Some(&CurrentRoutineAttempt {
+                attempt: retained,
+                path: attempt_path(directory.path(), "erdos:1056"),
+                _lock: lock_attempt(directory.path(), "erdos:1056").unwrap(),
+            }),
+            "vvr_second",
+        )
+        .unwrap_err();
+        assert!(error.contains("Verification budget exhausted"));
+
+        let expired = CurrentRoutineAttempt {
+            attempt: read(&attempt_path(directory.path(), "erdos:1056")).unwrap(),
+            path: attempt_path(directory.path(), "erdos:1056"),
+            _lock: lock_attempt(directory.path(), "erdos:1056").unwrap(),
+        };
+        let after_expiry = chrono::DateTime::parse_from_rfc3339("2026-07-29T00:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        let error = revalidate_routine_attempt_at(directory.path(), Some(&expired), after_expiry)
+            .unwrap_err();
+        assert!(error.contains("has expired"));
+        drop(expired);
+        assert!(
+            resolve_verification_reconciliation_attempt(
+                directory.path(),
+                Some(&attempt.attempt_id)
+            )
+            .unwrap()
+            .is_none(),
+            "expired private scratch must not strand durable Verification replay"
+        );
+    }
+
+    #[test]
+    fn verification_reconciliation_fails_closed_on_corrupt_private_state() {
+        let directory = tempfile::tempdir().unwrap();
+        let attempt_directory = directory.path().join(".vela/work/corrupt");
+        fs::create_dir_all(&attempt_directory).unwrap();
+        fs::write(attempt_directory.join("attempt.json"), b"{not-json}\n").unwrap();
+
+        let error = resolve_verification_reconciliation_attempt(
+            directory.path(),
+            Some("vat_0000000000000000"),
+        )
+        .err()
+        .expect("corrupt private Attempt state must fail closed");
+        assert!(error.contains("parse current Attempt"), "{error}");
     }
 }

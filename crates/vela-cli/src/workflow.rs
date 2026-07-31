@@ -445,9 +445,10 @@ pub(crate) fn import_verification(
     frontier: &Path,
     record: &vela_protocol::verification_record::VerificationRecordV1,
     executor: &str,
+    requested_attempt: Option<&str>,
     push: bool,
 ) -> Result<VerificationImportOutcome, String> {
-    crate::current_verification::import(frontier, record, executor, push)
+    crate::current_verification::import(frontier, record, executor, requested_attempt, push)
 }
 
 pub(crate) fn frontier_transaction_journal_dir(frontier: &Path) -> Result<PathBuf, String> {

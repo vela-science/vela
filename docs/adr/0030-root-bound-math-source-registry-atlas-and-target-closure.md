@@ -1,8 +1,9 @@
 # ADR 0030: Root-bound Math Source Registry, Atlas, and Target closure
 
-- Status: Proposed
+- Status: Accepted
 - Proposed: 2026-07-30
-- Protocol effect: none while Proposed; no new canonical object or reducer rule
+- Accepted: 2026-07-30 at Vela Web `v0.430.0`
+- Protocol effect: none; no new canonical object or reducer rule
 - Authority effect: none
 - Product effect: build an exact Math Source Registry, make the existing
   Observatory a complete first-party Math Atlas, and make stale work a
@@ -38,11 +39,12 @@ Target whose Submission and Verification were already retained.
 The map changed while its first action stayed stale. That is not a complete
 `map -> target -> run -> verify -> commit -> compound` loop.
 
-The first implementation slice now validates the completed Erdős packet
+The first implementation slice validated the completed Erdős packet
 against its exact retained Git bytes and accepted evidence, exposes the
 contiguous successor `10429601..10429800`, and closes the completed Formal
-retention Target without importing foreign Standing. ADR acceptance still
-waits for all-four-Frontier closure checks and an exact Atlas reconstruction.
+retention Target without importing foreign Standing. All-four-Frontier closure,
+two clean-room reconstructions, bounded capacity qualification, exact
+production activation, and the released Atlas now close the acceptance gate.
 
 The next real Formal mission reproduced the remaining lifecycle defect more
 precisely. Submission `vsb_b47c353dd4a5409f` was registered and published at
@@ -76,9 +78,9 @@ complete usable product.
 - **federated/global Atlas** for a future product spanning independently
   governed external Frontiers.
 
-Only the first is proposed here.
+Only the first is accepted here.
 
-## Decision proposed
+## Decision
 
 ### 1. Build a Math Source Registry, not a truth registry
 
@@ -470,6 +472,12 @@ implementation gates pass and the production manifest, web tag, source roots,
 and active projection agree. The acceptance covers only the bounded
 Math Source Registry, exact first-party Atlas read model, and Target-closure
 invariant.
+
+Those gates passed at Vela Web tag `v0.430.0`, commit
+`b053b16139dd152587116fe2c22b49b961d3aaf9`, and active release
+`sha256:88422b7317c5e3f53bdaa61b25ff700e005919d0a31fde51dea1413dc923d2bf`.
+The Observatory and editorial production manifests identify that exact commit;
+the SELECT-only reader independently re-verifies the activated release.
 
 Product adoption, measured lift, additional native sources, reusable packages,
 correction propagation, and global/federated Atlas claims remain separately

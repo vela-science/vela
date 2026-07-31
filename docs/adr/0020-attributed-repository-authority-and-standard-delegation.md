@@ -392,7 +392,7 @@ The invariant does not change:
 
 Most of the required substrate already exists:
 
-- `vela.attempt.v4` privately binds one Target, actor, starting and current
+- `vela.attempt.v5` privately binds one Target, actor, starting and current
   repository read sets, controller and runner builds, closed evidence
   operations and Artifact classes, enforced counters, expiry, and a
   pending-review consequence ceiling while creating no Event, authority
@@ -441,6 +441,14 @@ The campaign authorization is private controller state, not a scientific
 object, repository-authority object, Event, capability token, or source of
 Standing. It evolves the existing Attempt boundary rather than layering a
 second delegation system beside it.
+
+Its Target binding is deliberately structural: it fixes lineage, the selected
+queue entry, packet and repository read sets, allowed operations, Artifact
+classes, time, and budget. It does not claim to decide whether authored
+evidence or a Claim is semantically responsive to that Target. Scoped
+Verification and authorized human review retain that judgment. Adding a
+heuristic semantic validator here would conflate execution authorization with
+scientific evaluation.
 
 Its exact rooted state binds:
 
@@ -964,8 +972,8 @@ This amendment does not rewrite existing Attempts, Runs, Submissions,
 Verification Records, Proposals, Decisions, Events, authority records, or
 Standing.
 
-- Attempt v4 replaces the pre-release private v3 file. Because `.vela/work/`
-  is ignored, local v3 scratch is revoked and restarted rather than entering a
+- Attempt v5 replaces the pre-release private v4 file. Because `.vela/work/`
+  is ignored, local v4 scratch is revoked and restarted rather than entering a
   canonical compatibility or migration surface.
 - Existing Run v2 records remain immutable campaign inputs.
 - Existing authority-signed Submission and Verification transactions replay

@@ -1,5 +1,3 @@
-import path from "node:path";
-
 import type {
   Mission,
   MissionRoots,
@@ -54,7 +52,6 @@ export interface VelaClientOptions {
   expectedVersion: string;
   expectedSha256: string;
   home: string;
-  repositoryAuthorityAgentSocket?: string;
   maxOutputBytes?: number;
   timeoutMs?: number;
   runner?: CommandRunner;
@@ -187,28 +184,10 @@ export class VelaClient {
     this.#home = options.home;
     this.#maxOutputBytes = options.maxOutputBytes ?? 16 * 1024 * 1024;
     this.#timeoutMs = options.timeoutMs ?? DEFAULT_VELA_COMMAND_TIMEOUT_MS;
-    // The control lane accepts only the standard repository-authority agent
-    // socket. It never accepts caller-supplied environment entries or key
-    // bytes, and this environment is not reused by the Codex worker or
-    // verifier.
-    const baseEnvironment = isolatedEnvironment(options.home);
-    if (options.repositoryAuthorityAgentSocket === undefined) {
-      this.#env = baseEnvironment;
-    } else {
-      if (
-        !path.isAbsolute(options.repositoryAuthorityAgentSocket) ||
-        options.repositoryAuthorityAgentSocket.includes("\0")
-      ) {
-        throw new VelaClientError(
-          "malformed_output",
-          "repository authority agent socket must be one absolute path",
-        );
-      }
-      this.#env = {
-        ...baseEnvironment,
-        SSH_AUTH_SOCK: options.repositoryAuthorityAgentSocket,
-      };
-    }
+    // Run inspection is read-only and always key-isolated. Routine writes use
+    // Vela's separate controller boundary; worker and verifier lanes never
+    // receive repository-authority signer material.
+    this.#env = isolatedEnvironment(options.home);
     this.#runner = options.runner ?? runCommand;
   }
 

@@ -76,6 +76,10 @@ bundle, or a retained capability store. A producer that independently keeps its
 own key may use Vela's direct withdrawal interface; Canopus does not add a
 second key lifecycle.
 
+`canopus export --attempt <vat_id>` writes that exact private Attempt ID into
+`Submission.provenance.source_attempt`. The immutable Run remains independent
+of the Attempt; only the optional Submission export carries the binding.
+
 ## Submit
 
 `canopus submit`:
@@ -84,14 +88,18 @@ second key lifecycle.
    exact Vela binary;
 2. keeps transport blobs outside the clone and lets Vela create their canonical
    content-addressed paths inside the repository-authority transaction;
-3. performs the Vela registration in a disposable exact-head clone;
+3. performs ordinary registration in a disposable exact-head clone, or uses
+   the clean source checkout when `--attempt` is present because private
+   Attempt state is intentionally absent from Git;
 4. requires `vela.submit-result.v1`, `pending_review`, and accepted-event delta
    zero;
 5. fast-forwards the clean source checkout only after the registration is
    complete.
 
 Submit does not create a Verification Record, Decision, Event, or accepted
-Standing.
+Standing. `canopus submit --attempt <vat_id>` fails unless the ID exactly
+matches the Submission, and Vela independently revalidates the active
+Attempt's Target binding and budgets.
 
 ## Budgets
 

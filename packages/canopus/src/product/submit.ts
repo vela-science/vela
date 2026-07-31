@@ -167,6 +167,7 @@ export async function submitBundle(options: {
   bundle: string;
   frontier: string;
   velaBinary?: string;
+  attempt?: string;
   runner?: CommandRunner;
 }): Promise<{
   schema: "canopus.submit-result.v1";
@@ -194,6 +195,17 @@ export async function submitBundle(options: {
     (await readBoundedRegularFile(path.join(bundle, "submission.json"), 8 * 1024 * 1024)).toString("utf8"),
   ) as SubmissionV1;
   verifySubmission(submission);
+  if (
+    options.attempt !== undefined &&
+    !/^vat_[0-9a-f]{64}$/u.test(options.attempt)
+  ) {
+    throw new Error("Canopus submit requires one full vat_ Attempt ID");
+  }
+  if (submission.provenance.source_attempt !== options.attempt) {
+    throw new Error(
+      "Submission provenance.source_attempt must exactly match --attempt, including absence",
+    );
+  }
   if (submission.submission_id !== manifest.submission_id) {
     throw new Error("Submission bundle identity mismatch");
   }
@@ -259,6 +271,73 @@ export async function submitBundle(options: {
     );
   }
 
+  for (const artifact of manifest.artifacts) {
+    const source = path.join(bundle, artifact.source);
+    await access(source, constants.R_OK);
+    const bytes = await readBoundedRegularFile(source, artifact.bytes + 1);
+    if (bytes.length !== artifact.bytes || sha256Bytes(bytes) !== artifact.digest) {
+      throw new Error(`bundle Artifact ${artifact.digest} is missing or corrupt`);
+    }
+  }
+
+  if (options.attempt !== undefined) {
+    const resultText = await command(
+      runner,
+      [
+        vela,
+        "submit",
+        path.join(bundle, "submission.json"),
+        "--frontier",
+        frontier,
+        "--attempt",
+        options.attempt,
+        "--as",
+        manifest.producer,
+        "--json",
+      ],
+      frontier,
+    );
+    const result = JSON.parse(resultText) as Record<string, unknown>;
+    if (
+      result.ok !== true ||
+      result.schema !== "vela.submit-result.v1" ||
+      result.submission_id !== manifest.submission_id ||
+      result.submission_root !== manifest.submission_root ||
+      result.route !== "pending_review" ||
+      result.accepted_event_delta !== 0
+    ) {
+      throw new Error("Vela returned an invalid or authority-changing submit result");
+    }
+    const after = await command(
+      runner,
+      ["git", "rev-parse", "--verify", "HEAD^{commit}"],
+      frontier,
+    );
+    if (after === before) throw new Error("Vela submit produced no registration commit");
+    const finalStatus = await command(
+      runner,
+      ["git", "status", "--porcelain=v1", "--untracked-files=all"],
+      frontier,
+    );
+    if (finalStatus !== "") throw new Error("source frontier is dirty after submit");
+    return {
+      schema: "canopus.submit-result.v1",
+      ok: true,
+      submission_id: manifest.submission_id,
+      submission_root: manifest.submission_root,
+      registration_record_id: String(result.registration_record_id),
+      registration_record_root: String(result.registration_record_root),
+      proposal_id: String(result.proposal_id),
+      claim_id: String(result.claim_id),
+      route: "pending_review",
+      accepted_event_delta: 0,
+      source_commit_before: before,
+      source_commit_after: after,
+      registration_binary_version: version,
+      registration_binary_sha256: observedVela,
+    };
+  }
+
   const temporary = await mkdtemp(path.join(os.tmpdir(), "canopus-submit-"));
   const clone = path.join(temporary, "frontier");
   try {
@@ -266,14 +345,6 @@ export async function submitBundle(options: {
     const cloneHead = await command(runner, ["git", "rev-parse", "--verify", "HEAD^{commit}"], clone);
     if (cloneHead !== before) throw new Error("disposable submit clone does not match source HEAD");
     await command(runner, ["git", "remote", "set-url", "origin", sourceOrigin], clone);
-    for (const artifact of manifest.artifacts) {
-      const source = path.join(bundle, artifact.source);
-      await access(source, constants.R_OK);
-      const bytes = await readBoundedRegularFile(source, artifact.bytes + 1);
-      if (bytes.length !== artifact.bytes || sha256Bytes(bytes) !== artifact.digest) {
-        throw new Error(`bundle Artifact ${artifact.digest} is missing or corrupt`);
-      }
-    }
     const resultText = await command(
       runner,
       [

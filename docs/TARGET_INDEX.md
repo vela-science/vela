@@ -91,7 +91,7 @@ returned   = offers after the requested limit
 `vela next` does not pretend that private local work is shared availability.
 `vela start` performs the exact local Attempt arbitration, rechecks the
 selected entry, and creates one ignored
-`vela.attempt.v4` bound to:
+`vela.attempt.v5` bound to:
 
 - current repository origin and root;
 - Target Index and input roots;
@@ -106,12 +106,19 @@ selected entry, and creates one ignored
 
 It writes no canonical object and reads no authority key.
 
-Each `vela submit` revalidates the exact current Target-task binding and binds
-it into the repository transaction read set. A successful registration
-increments the private Attempt counters rather than deleting the Attempt.
+Each `vela submit` and Attempt-bound `vela verification import` revalidates the
+exact current Target-task binding and binds it into the repository transaction
+read set. A successful registration or import increments the matching private
+Attempt counter rather than deleting the Attempt.
 Starting roots remain exact; the current private read set advances only when
 the same Target source, inputs, and packet remain unchanged. Expiry or
 explicit `start --drop` revokes future use.
+
+That binding proves exact lineage, queue identity, packet/read-set continuity,
+and enforced local budgets. It does not infer that a Claim is scientifically
+responsive to the Target. Semantic fit remains an explicit Verification and
+human-review question; Vela does not add a heuristic semantic validator to the
+Target Index.
 
 ## Inspection
 

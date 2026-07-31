@@ -113,10 +113,18 @@ provenance. They are not incorrectly required to write a later current
 repository epoch. The submit result records the exact current registration
 binary identity.
 
-It performs registration in a disposable exact-head clone, accepts only
-`vela.submit-result.v1` with `pending_review` and accepted-event delta zero,
-then fast-forwards the still-clean source checkout. A failure before the final
-fast-forward leaves the source Frontier unchanged.
+Without a private Attempt binding, it performs registration in a disposable
+exact-head clone, accepts only `vela.submit-result.v1` with `pending_review`
+and accepted-event delta zero, then fast-forwards the still-clean source
+checkout. A failure before the final fast-forward leaves the source Frontier
+unchanged.
+
+With `--attempt`, export binds the full ID in
+`Submission.provenance.source_attempt`, submit requires the same ID, and Vela
+registers from the clean source checkout because `.vela/work/` is deliberately
+ignored. Vela revalidates the active Attempt's exact Target binding and budget
+inside the existing repository transaction. Neither path exposes the
+repository signer to the Canopus worker or verifier.
 
 Canopus never emits a Verification Record, Decision, Event, or scientific
 Standing.

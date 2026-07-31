@@ -171,32 +171,31 @@ source lock and all four current Frontier heads:
 
 | Surface | Current exact candidate |
 | --- | --- |
-| Application release baseline | Vela Web tag `v0.430.0-rc.3`; commit `ad0493a22e7eb8a1d8a23b8b02c652a7317d8ea5`; no web release is advanced by this data checkpoint |
-| Production deployment manifest | application commit `ad0493a22e7eb8a1d8a23b8b02c652a7317d8ea5`; projection root `sha256:780f0def732f997284870d8e82625dfe6411120fa6018e52c27e437c531b9817`; stale relative to Neon and current Frontier heads |
-| Active projection | `vela.observatory-release-manifest.v7`; root `sha256:d944fd9a14b59c0fbc433d407fe53db67b4c0cf8f7d32d4bbd4598fcfad3a355`; read model `observatory.v6`; Vela `0.950.1`; this active head predates the current Verification records |
-| Current dry candidate | root `sha256:88422b7317c5e3f53bdaa61b25ff700e005919d0a31fde51dea1413dc923d2bf`; reproduced twice from all four current Frontier heads; 2,836 Claims, 9 Verifications, 4,135 graph nodes, 2,575 edges, and 4,139 search documents; not activated or published |
+| Application release | Vela Web tag `v0.430.0`; commit `b053b16139dd152587116fe2c22b49b961d3aaf9` |
+| Observatory production manifest | `vela.site-deployment.v3`; deployment `dpl_J6tFMA8bvSEWjzjNf5tbghSQzZy8`; exact application commit and active projection root verified at `app.vela.space` |
+| Editorial production manifest | `vela.web-deployment.v2`; deployment `dpl_6dVEWUeWZqvkKPKQAGiuaJ9jLkC5`; exact application commit verified at `www.vela.space` |
+| Active projection | `vela.observatory-release-manifest.v7`; root `sha256:88422b7317c5e3f53bdaa61b25ff700e005919d0a31fde51dea1413dc923d2bf`; read model `observatory.v6`; Vela `0.950.1`; activated atomically at `2026-07-30T23:46:52.179Z`; 2,836 Claims, 9 Verifications, 4,135 graph nodes, 2,575 edges, and 4,139 search documents |
 | Source adapter set | root `sha256:82df98241fc5e5f61b0790604a6ef7c3d6b5ce075e00c133e78ed64d0f8e186a`; 6,700 exact adapter records |
 | Source Registry projection | 9,537 native rows; 6,303 Frontier bindings; declaration root `sha256:51de765c4ab9e834ea726ef53bc0f7f87e8d1cb5eeffaba22728908619d2ee37` |
 | PLBY observation | exact `plby/lean-proofs` commit `d4476dd3535ec618dee4177915741017026d26bf`; tree `c34eff8727b9fe02ba11ed2eb30da361a1b026fb`; 201 records |
 | Bounded Neon capacity | qualification root `sha256:c1ad6d1a58c7c19665dd575e1ee5c95064e0bde16d3533a9714ebf27854b7960`; the existing schema and 1,000-row JSONB writer insert and root-verify 100,000 records in 19.94 seconds; the isolated candidate was never activated and no test environment remains |
 | Clean-room reconstruction | qualification root `sha256:dfd38ca31994e6460e74dd96b2f8013a797fa74f8bb2c6a6affe3a3c9e879614`; two empty-database reconstructions produced release root `sha256:98a52be8a101eb79f2d7060a323ebec335fe5e46c28c08afca9ea606e2e595ce` and identical normalized manifest bytes; no test environment remains and production stayed on `sha256:d944fd9a…` |
 
-The previously qualified dry run and active read model agreed on
-`sha256:d944fd9a…`. Current Frontier evidence has since advanced, and the exact
-replacement candidate is `sha256:88422b…`. It remains unactivated. The bounded
-100,000-record Neon capacity, empty-database reconstruction, and failure
-containment gates pass without another storage layer or retained database
-branch. Current-head activation, web-tag and deployment-manifest
-reconciliation, visual review, cold-use, and a later post-Decision exact
-refresh still apply.
+The exact replacement `sha256:88422b…` was rebuilt from all four current
+Frontier heads, inserted and root-verified transactionally, activated through
+the single Neon `main` branch, and verified again through the SELECT-only
+reader. Both production manifests identify tag `v0.430.0` and commit
+`b053b161…`; production Browser QA exposed the 14-source Registry and complete
+4,037-node Erdős map without console errors. Local production-runtime smoke
+also passed. The bounded 100,000-record capacity, empty-database
+reconstruction, and failure-containment gates therefore close without another
+storage layer or retained database branch. Cold-use, product lift, human
+Decisions, and any later post-Decision exact refresh remain open.
 
-GitHub Actions rerun
-[`30583750317`](https://github.com/vela-science/vela-web/actions/runs/30583750317)
-was rejected before any step started. That is a missing hosted repetition, not
-a scientific, product, or release blocker. Release evidence comes from the
-clean-checkout workflow, exact dry rebuild, deployed manifests, live projection
-root, and production smoke checks. An unavailable runner does not justify
-inventing a feature branch or staging database.
+Hosted runner repetition is optional corroboration, not a scientific, product,
+or release gate. Exact local checks, source roots, active read-model
+verification, deployed manifests, and production smoke are the release
+evidence.
 
 These exact counts and reproductions do not upgrade the registered benchmark
 claims. Execution evidence remains first-party and directional, state lift and
@@ -204,7 +203,7 @@ cold-successor lift remain unproved, correction propagation has no qualifying
 fixture, and external interoperability and cold-use gates remain open.
 
 ADR 0020 remains Proposed, but two narrow implementation seams now exist:
-private Attempt v4 retains exact scope and evidence budgets across successful
+private Attempt v5 retains exact scope and evidence budgets across successful
 Submissions, and `vela review inbox` derives a rooted, consequence-only,
 write-free queue from current Proposal evidence. `vela status` now compresses
 both into one read-only Campaign Cockpit summary: active scope, budget, usage,
@@ -216,7 +215,9 @@ identity, policy, journaling, or replay, but no persistent campaign controller
 invokes that seam yet. The campaign must not claim prompt-free evidence work
 until the controller-held signer session, prompted/session replay equivalence,
 and twelve-hour dogfood gates pass. Homogeneous batch Decision planning
-remains unimplemented and unearned.
+remains unimplemented and unearned. Current Submission registration accepts
+only the `submission_register` policy action; the retired `receipt_land`
+fallback is no longer a writer path.
 
 ## Product contract
 
@@ -1273,10 +1274,12 @@ analogy alone.
 ### Vela
 
 ```bash
-cargo test -p vela-protocol --test cross_impl_reducer_fixtures
+cargo test -p vela-protocol --test current_object_interop
 python3 conformance/verify.py
-./scripts/full-conformance.sh --suite core --mode=ci
-./scripts/full-conformance.sh --suite frontier --mode=ci
+cargo test -p vela-cli
+VELA_EPHEMERAL_ACCOUNT_HOME=1 \
+  VELA_BIN=target/debug/vela \
+  conformance/check-current-object-waist.sh
 git diff --check
 ```
 
@@ -1443,7 +1446,7 @@ Failure narrows or deletes the system. It does not earn another layer.
 | Cross-Frontier transfer | exact archive reconstruction and mutation tests pass with zero accepted delta; the work remains first-party and protocol readiness does not satisfy the held-out value gate | held-out independently controlled consumer/value test passes or the claim envelope is narrowed |
 | Quantum reproduction | actor-separated current Vela reconstruction verifies the exact retained `[[10,1,4]]` certificate with network and writes denied; Proposal `vpr_8715dbb5e2a12442` remains pending; this is not external independence or verifier-soundness credit | human Decision or explicit cancellation, then clean-clone replay and remap |
 | Native-source inventory and observation | source adapter set root `sha256:82df9824…` contains 6,700 exact adapter records; the active projection contains 9,537 native rows; this is exact first-party data evidence, not adoption or scale qualification | finish scale, failure, and cold-use gates or narrow the alpha claim |
-| Math Atlas | active read-model root `sha256:d944fd9a…` is stale relative to current Frontier evidence; current dry candidate `sha256:88422b…` reproduces twice; live-read, bounded 100,000-record, and clean-room reconstruction gates pass; no final web release or product-lift claim is made | clear the GitHub runner/release gate, activate the exact current candidate, reconcile tag/deployment manifest, complete product checks, then release or record the failed gate |
+| Math Atlas | Vela Web `v0.430.0` is released at commit `b053b161…`; active read-model root `sha256:88422b…`, both production manifests, current Frontier heads, 14-source Registry, 9,537 native rows, 6,303 bindings, and the complete 4,037-node Erdős map agree; this is an exact first-party alpha, not a product-lift or adoption result | refresh exactly after any human Decision; earn beta only through cold-use and independent-consumer evidence |
 | Shared Math package | not earned | two consumers plus net deletion, or no package |
 | Registry/global Atlas | not earned | remain deferred |
 | Whitepaper breakthrough | not earned | ADR 0026 gates pass or paper remains bounded |

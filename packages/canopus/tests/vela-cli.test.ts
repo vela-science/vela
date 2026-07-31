@@ -204,42 +204,6 @@ test("Vela client binds Git to one strict-passing current repository root", asyn
   assert.equal(fake.environments.every((env) => env.VELA_NO_KEY_ACCESS === "1"), true);
 });
 
-test("Vela client forwards only the repository-authority agent socket", async () => {
-  const fake = fakeRunner();
-  const vela = new VelaClient({
-    binary: process.execPath,
-    expectedVersion: "0.940.7",
-    expectedSha256: velaBinaryDigest,
-    home: "/tmp/canopus-home",
-    repositoryAuthorityAgentSocket: "/private/tmp/ssh-agent.sock",
-    runner: fake.runner,
-  });
-  await vela.assertRoots("/repo", "frontier", mission().roots);
-  assert.equal(
-    fake.environments.every(
-      (environment) => environment.SSH_AUTH_SOCK === "/private/tmp/ssh-agent.sock",
-    ),
-    true,
-  );
-  assert.equal(fake.environments.some((environment) => environment.VELA_AGENT_KEY_HEX !== undefined), false);
-});
-
-test("Vela client rejects a relative repository-authority agent socket", () => {
-  const fake = fakeRunner();
-  assert.throws(
-    () =>
-      new VelaClient({
-        binary: process.execPath,
-        expectedVersion: "0.940.7",
-        expectedSha256: velaBinaryDigest,
-        home: "/tmp/canopus-home",
-        repositoryAuthorityAgentSocket: "agent.sock",
-        runner: fake.runner,
-      }),
-    /must be one absolute path/u,
-  );
-});
-
 test("Vela client rejects replay or strict debt instead of registering a baseline", async () => {
   for (const integrity of [
     { replay: "failed", strict: "pass", blocker_count: 0, blockers_by_code: {} },

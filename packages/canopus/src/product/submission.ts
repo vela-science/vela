@@ -98,6 +98,7 @@ export async function exportSubmission(options: {
   runFile: string;
   outputRoot: string;
   actor?: string;
+  attempt?: string;
   correctedClaim?: string;
   scopeLimit?: string;
   now?: Date;
@@ -166,6 +167,12 @@ export async function exportSubmission(options: {
   if (!actor.startsWith("agent:")) {
     throw new Error("Canopus Submission export requires an agent: producer");
   }
+  if (
+    options.attempt !== undefined &&
+    !/^vat_[0-9a-f]{64}$/u.test(options.attempt)
+  ) {
+    throw new Error("Canopus Submission export requires one full vat_ Attempt ID");
+  }
   const outputRoot = path.resolve(options.outputRoot);
   await assertFreshDirectory(outputRoot);
   try {
@@ -233,6 +240,7 @@ export async function exportSubmission(options: {
       provenance: {
         producer: actor,
         source_system: "canopus",
+        ...(options.attempt === undefined ? {} : { source_attempt: options.attempt }),
         source_run: record.run_id,
         emitted_at: emittedAt,
       },

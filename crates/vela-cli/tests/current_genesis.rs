@@ -435,6 +435,30 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             .expect("trust anchor path"),
     ));
     install_current_target_index(&frontier, agent.socket());
+    let actor = "agent:current-submission-regression";
+    let attempt = success_json(&run(
+        &frontier,
+        None,
+        &[
+            "start",
+            "erdos:1056",
+            "--frontier",
+            ".",
+            "--max-submissions",
+            "1",
+            "--max-verifications",
+            "1",
+            "--artifact-class",
+            "witness",
+            "--as",
+            actor,
+            "--json",
+        ],
+    ));
+    let attempt_id = attempt["attempt"]["id"]
+        .as_str()
+        .expect("Attempt ID")
+        .to_string();
 
     let artifact = b"{\"bounded\":true}\n";
     let artifact_digest = format!("sha256:{}", hex::encode(Sha256::digest(artifact)));
@@ -444,7 +468,6 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let producer_artifact_path = "artifacts/source-witness.json";
     std::fs::create_dir_all(frontier.join("artifacts")).expect("artifact directory");
     std::fs::write(frontier.join(producer_artifact_path), artifact).expect("artifact bytes");
-    let actor = "agent:current-submission-regression";
     let emitted_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     let producer_key = SigningKey::from_bytes(&[57_u8; 32]);
     let identity = IdentityBinding::build(
@@ -479,7 +502,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             provenance: SubmissionProvenance {
                 producer: actor.into(),
                 source_system: "vela-cli-regression".into(),
-                source_attempt: None,
+                source_attempt: Some(attempt_id.clone()),
                 source_run: Some("current-submission-regression".into()),
                 emitted_at,
             },
@@ -510,6 +533,8 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             submission_path.to_str().expect("Submission path"),
             "--frontier",
             ".",
+            "--attempt",
+            &attempt_id,
             "--as",
             actor,
             "--json",
@@ -582,6 +607,8 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             "pass",
             "--does-not-establish",
             "Scientific acceptance.",
+            "--attempt",
+            &attempt_id,
             "--as",
             &verifier,
             "--json",
@@ -611,6 +638,8 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             "pass",
             "--does-not-establish",
             "Scientific acceptance.",
+            "--attempt",
+            &attempt_id,
             "--as",
             &verifier,
             "--json",
@@ -655,6 +684,15 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert_eq!(verified["accepted_event_delta"], 0);
     assert_eq!(verified["idempotent"], false);
     assert_eq!(verified["publication"]["state"], "committed_local");
+    let status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
+    assert_eq!(
+        status["campaign"]["first_attempt"]["usage"]["submissions"],
+        1
+    );
+    assert_eq!(
+        status["campaign"]["first_attempt"]["usage"]["verifications"], 0,
+        "ordinary Verification import must not require or silently charge private Attempt state"
+    );
 
     let verification_root = verified["verification_record_root"]
         .as_str()
@@ -704,6 +742,8 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
                 "import",
                 ".",
                 &verification_path,
+                "--attempt",
+                &attempt_id,
                 "--as",
                 &verifier,
                 "--json",
@@ -739,7 +779,11 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
     assert_eq!(status["schema"], "vela.status.v1");
     assert_eq!(status["integrity"]["strict"], "pass");
-    assert_eq!(status["campaign"]["active_attempt_count"], 0);
+    assert_eq!(status["campaign"]["active_attempt_count"], 1);
+    assert_eq!(
+        status["campaign"]["first_attempt"]["usage"]["verifications"],
+        1
+    );
     assert_eq!(status["decision_inbox"]["pending_count"], 1);
     assert_eq!(status["decision_inbox"]["protocol_ready_count"], 1);
     assert_eq!(status["decision_inbox"]["protocol_blocked_count"], 0);
@@ -795,4 +839,26 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let replayed = success_json(&run(&clone, None, &["repository", "verify", ".", "--json"]));
     assert_eq!(replayed["repository_root"], checked["repository_root"]);
     assert_eq!(replayed["counts"]["accepted_claims"], 0);
+    assert!(
+        !clone.join(".vela/work").exists(),
+        "private Attempt scratch must not enter a clean clone"
+    );
+    let replayed_import = success_json(&run(
+        &clone,
+        None,
+        &[
+            "verification",
+            "import",
+            ".",
+            &verification_path,
+            "--as",
+            &verifier,
+            "--json",
+        ],
+    ));
+    assert_eq!(replayed_import["idempotent"], true);
+    assert_eq!(
+        replayed_import["verification_record_id"],
+        verified["verification_record_id"]
+    );
 }

@@ -38,8 +38,8 @@ canopus run /path/to/frontier --first
 canopus run /path/to/frontier --first --repair-from /path/to/exact-candidate
 canopus show latest
 canopus replay /path/to/run.json
-canopus export /path/to/run.json --output /path/to/submission-bundle
-canopus submit /path/to/submission-bundle /path/to/frontier
+canopus export /path/to/run.json --attempt <vat_id> --output /path/to/submission-bundle
+canopus submit /path/to/submission-bundle /path/to/frontier --attempt <vat_id>
 ```
 
 - `doctor` binds the exact frontier, target, Vela, Codex, profile, packet, and
@@ -51,12 +51,16 @@ canopus submit /path/to/submission-bundle /path/to/frontier
 - `show` inspects current and historical run records.
 - `replay` reruns the frozen verifier without a model call.
 - `export` creates a signed portable Submission and retains no producer key.
+  `--attempt` binds it to the exact active Vela Attempt.
   A producer may refine the worker's pre-verifier wording with one bounded
   Claim and explicit scope limit; the immutable Run and an automatic
   refinement notice preserve the wording change. Stale verifier-pending
   wording still fails closed until corrected.
-- `submit` explicitly registers that Submission through Vela. The expected
-  result is `pending_review` with accepted-event delta zero.
+- `submit` explicitly registers that Submission through Vela. Its `--attempt`
+  must exactly match the Submission. Because private Attempt state is ignored
+  by Git, this path uses the source checkout rather than copying authority into
+  a worker clone. The expected result is `pending_review` with accepted-event
+  delta zero.
 
 `inspect`, `--no-land`, Receipt authoring, and automatic landing are not current
 interfaces.

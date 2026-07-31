@@ -73,3 +73,20 @@ test("native custody preflight reuses the production boundary with generated can
 test("native custody executable ceiling covers current large Codex distributions", () => {
   assert.ok(MAX_EXECUTABLE_BYTES > 268_435_456);
 });
+
+test("product runs do not forward repository-authority signer material", async () => {
+  let source: string | undefined;
+  for (const candidate of [
+    new URL("../src/product/run.ts", import.meta.url),
+    new URL("../../src/product/run.ts", import.meta.url),
+  ]) {
+    try {
+      source = await readFile(candidate, "utf8");
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+  }
+  if (source === undefined) throw new Error("Canopus product run source is missing");
+  assert.doesNotMatch(source, /SSH_AUTH_SOCK|repositoryAuthorityAgentSocket/u);
+});

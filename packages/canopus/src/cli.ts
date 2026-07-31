@@ -34,8 +34,9 @@ Primary workflow:
   canopus show [run.json | failure.json | latest]
   canopus replay <run.json>
   canopus export <run.json | latest> [--output <new-directory>] [--as <agent:id>] \\
+    [--attempt <vat_id>] \\
     [--claim <corrected-bounded-claim> --scope-limit <limit>]
-  canopus submit <submission-bundle> [frontier] [--vela <binary>]
+  canopus submit <submission-bundle> [frontier] [--vela <binary>] [--attempt <vat_id>]
 
 Mission v1 prepare/validate remains available under advanced help.
 
@@ -106,6 +107,7 @@ model call, Vela mutation, network, or authority action.`;
 function exportUsage(): string {
   return `Usage:
   canopus export <run.json | latest> [--output <new-directory>] [--as <agent:id>] \\
+    [--attempt <vat_id>] \\
     [--claim <corrected-bounded-claim> --scope-limit <limit>]
 
 Creates a signed portable vela.submission.v1 bundle from a successful Run.
@@ -116,11 +118,12 @@ the immutable Run remains unchanged and the Submission records the refinement.`;
 
 function submitUsage(): string {
   return `Usage:
-  canopus submit <submission-bundle> [frontier] [--vela <binary>]
+  canopus submit <submission-bundle> [frontier] [--vela <binary>] [--attempt <vat_id>]
 
-Explicitly registers one authenticated Submission through Vela in a disposable
-exact-head clone, then fast-forwards the clean source checkout. The result is
-pending review with zero accepted-event delta.`;
+Explicitly registers one authenticated Submission through Vela. Without an
+Attempt it uses a disposable exact-head clone. With --attempt it uses the
+source checkout because the private Attempt is intentionally not in Git. Both
+paths produce pending review with zero accepted-event delta.`;
 }
 
 function isHelp(value: string | undefined): boolean {
@@ -404,18 +407,24 @@ async function replayCommand(file: string | undefined, rest: string[]): Promise<
 
 async function exportCommand(file: string | undefined, rest: string[]): Promise<void> {
   if (file === undefined) throw new Error("export requires a Run file or latest");
-  const parsed = productOptions(rest, ["--output", "--as", "--claim", "--scope-limit"], []);
+  const parsed = productOptions(
+    rest,
+    ["--output", "--as", "--attempt", "--claim", "--scope-limit"],
+    [],
+  );
   if (parsed.positional.length !== 0) throw new Error("export accepts one Run file");
   const runFile = file === "latest" ? await latestRunFile() : path.resolve(file);
   const output = parsed.values.get("--output") ??
     path.join(path.dirname(path.dirname(runFile)), `submission-${Date.now()}`);
   const actor = parsed.values.get("--as");
+  const attempt = parsed.values.get("--attempt");
   const correctedClaim = parsed.values.get("--claim");
   const scopeLimit = parsed.values.get("--scope-limit");
   process.stdout.write(`${JSON.stringify(await exportSubmission({
     runFile,
     outputRoot: path.resolve(output),
     ...(actor === undefined ? {} : { actor }),
+    ...(attempt === undefined ? {} : { attempt }),
     ...(correctedClaim === undefined ? {} : { correctedClaim }),
     ...(scopeLimit === undefined ? {} : { scopeLimit }),
   }))}\n`);
@@ -423,13 +432,15 @@ async function exportCommand(file: string | undefined, rest: string[]): Promise<
 
 async function submitCommand(bundle: string | undefined, rest: string[]): Promise<void> {
   if (bundle === undefined) throw new Error("submit requires a Submission bundle");
-  const parsed = productOptions(rest, ["--vela"], []);
+  const parsed = productOptions(rest, ["--vela", "--attempt"], []);
   if (parsed.positional.length > 1) throw new Error("submit accepts at most one frontier");
   const velaBinary = parsed.values.get("--vela");
+  const attempt = parsed.values.get("--attempt");
   process.stdout.write(`${JSON.stringify(await submitBundle({
     bundle: path.resolve(bundle),
     frontier: path.resolve(parsed.positional[0] ?? "."),
     ...(velaBinary === undefined ? {} : { velaBinary }),
+    ...(attempt === undefined ? {} : { attempt }),
   }))}\n`);
 }
 

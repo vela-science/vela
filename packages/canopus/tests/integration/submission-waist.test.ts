@@ -162,10 +162,20 @@ test("Canopus Submission crosses the released Vela writer with zero accepted del
       vela_repository: before.roots.repository,
     },
   });
+  const attempt = JSON.parse(command(vela, [
+    "start", "erdos:1056",
+    "--frontier", frontier,
+    "--artifact-class", "witness",
+    "--max-submissions", "1",
+    "--max-verifications", "1",
+    "--as", fixture.mission.actor,
+    "--json",
+  ], root, env)) as { attempt: { id: string } };
   const bundle = path.join(root, "bundle");
   await exportSubmission({
     runFile: fixture.runFile,
     outputRoot: bundle,
+    attempt: attempt.attempt.id,
     now: new Date("2026-07-27T12:00:00Z"),
   });
   command("git", ["commit", "--allow-empty", "-q", "-m", "Advance current Frontier"], frontier, env);
@@ -182,7 +192,12 @@ test("Canopus Submission crosses the released Vela writer with zero accepted del
   });
   let result;
   try {
-    result = await submitBundle({ bundle, frontier, velaBinary: vela });
+    result = await submitBundle({
+      bundle,
+      frontier,
+      velaBinary: vela,
+      attempt: attempt.attempt.id,
+    });
   } finally {
     for (const [key, value] of Object.entries(saved)) {
       if (value === undefined) delete process.env[key];

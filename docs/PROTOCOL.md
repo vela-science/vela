@@ -293,7 +293,7 @@ authority record. It changes no scientific Standing.
 
 ### 5.2 Start
 
-`vela start` creates `vela.attempt.v4` only in ignored local coordination. The
+`vela start` creates `vela.attempt.v5` only in ignored local coordination. The
 Attempt closes over:
 
 - repository origin and root;
@@ -303,7 +303,7 @@ Attempt closes over:
 - completion contract;
 - controller and runner build identities;
 - closed routine operations and Artifact classes;
-- enforced Submission, Artifact, and byte budgets;
+- enforced Submission, Verification, Artifact, and byte budgets;
 - an `evidence_only` or `pending_review` consequence ceiling; and
 - local expiry.
 

@@ -459,9 +459,11 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
                     .unwrap_or("unavailable")
             );
             println!(
-                "  budget    {}/{} submissions · {}/{} artifacts · {}/{} bytes",
+                "  budget    {}/{} submissions · {}/{} verifications · {}/{} artifacts · {}/{} bytes",
                 attempt["usage"]["submissions"],
                 attempt["budget"]["max_submissions"],
+                attempt["usage"]["verifications"],
+                attempt["budget"]["max_verifications"],
                 attempt["usage"]["artifacts"],
                 attempt["budget"]["max_artifacts"],
                 attempt["usage"]["artifact_bytes"],
@@ -1963,14 +1965,17 @@ mod tests {
                     "task_contract_root": root('2'),
                     "budget": {
                         "max_submissions": 1,
+                        "max_verifications": 1,
                         "max_artifacts": 2,
                         "max_artifact_bytes": 3
                     },
                     "usage": {
                         "submissions": 0,
+                        "verifications": 0,
                         "artifacts": 0,
                         "artifact_bytes": 0,
-                        "registered_submission_ids": []
+                        "registered_submission_ids": [],
+                        "registered_verification_record_ids": []
                     }
                 },
                 {
@@ -1985,14 +1990,17 @@ mod tests {
                     "task_contract_root": root('4'),
                     "budget": {
                         "max_submissions": 5,
+                        "max_verifications": 5,
                         "max_artifacts": 8,
                         "max_artifact_bytes": 1024
                     },
                     "usage": {
                         "submissions": 1,
+                        "verifications": 1,
                         "artifacts": 2,
                         "artifact_bytes": 64,
-                        "registered_submission_ids": ["vsb_fixture"]
+                        "registered_submission_ids": ["vsb_fixture"],
+                        "registered_verification_record_ids": ["vvr_fixture"]
                     }
                 }
             ]

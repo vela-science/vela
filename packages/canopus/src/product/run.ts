@@ -247,9 +247,6 @@ export async function runProduct(options: {
       expectedVersion: prepared.mission.vela_version,
       expectedSha256: prepared.mission.vela_sha256,
       home: path.join(runRoot, "vela-home"),
-      ...(process.env.SSH_AUTH_SOCK === undefined
-        ? {}
-        : { repositoryAuthorityAgentSocket: process.env.SSH_AUTH_SOCK }),
       runner,
     });
     const engine = new CodexToolsNativeEngine({

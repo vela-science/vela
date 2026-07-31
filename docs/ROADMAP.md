@@ -67,17 +67,12 @@ transfer remains pending its separate held-out consumer/value gate despite
 having no protocol blocker.
 
 Sidon remains clean at commit
-`75b3392c5d2a4390065a3927914acdb552d69e8e`. The active production projection
-still predates the new Verification records. A current dry candidate has been
-rebuilt twice without waiting for the human Decisions:
+`75b3392c5d2a4390065a3927914acdb552d69e8e`. Vela Web `v0.430.0` is now
+released at commit `b053b16139dd152587116fe2c22b49b961d3aaf9`:
 
-- Vela Web `v0.430.0-rc.3` remains the application release baseline; this
-  checkpoint advances no web release;
-- the production manifest still serves
-  `sha256:780f0def732f997284870d8e82625dfe6411120fa6018e52c27e437c531b9817`;
-- the active projection remains
-  `sha256:d944fd9a14b59c0fbc433d407fe53db67b4c0cf8f7d32d4bbd4598fcfad3a355`,
-  while the exact current candidate is
+- the Observatory and editorial production manifests identify the exact tag,
+  commit, brand root, and Vercel deployments;
+- the active projection is
   `sha256:88422b7317c5e3f53bdaa61b25ff700e005919d0a31fde51dea1413dc923d2bf`
   under Vela `0.950.1`;
 - source adapter set
@@ -85,9 +80,12 @@ rebuilt twice without waiting for the human Decisions:
   contains 6,700 exact adapter records, and the Registry projection contains
   9,537 native rows;
 - PLBY is observed from locked commit
-  `d4476dd3535ec618dee4177915741017026d26bf`, not the stale predecessor; and
-- candidate activation, exact web-tag, and deployment-manifest reconciliation
-  remain alpha gates.
+  `d4476dd3535ec618dee4177915741017026d26bf`, not the stale predecessor;
+- the single Neon `main` branch exposes 14 exact sources, 6,303 Frontier
+  bindings, 4,135 graph nodes, 2,575 edges, and 4,139 search documents through
+  the SELECT-only reader; and
+- production Browser QA confirms the Registry and complete 4,037-node Erdős
+  map without console errors.
 
 The retained live-read-health artifact `sha256:457df1b7…` passes exact
 current-head reader, query, payload, and bounded-concurrency budgets. The
@@ -98,13 +96,12 @@ existing schema and JSONB writer. No COPY path or another storage layer was
 earned. Clean empty-database reconstruction also passes at
 `sha256:dfd38ca3…`; product lift and the final web release remain open.
 
-This is release-candidate evidence. Final `0.430.0` still requires the
-remaining alpha gates and another exact refresh after any later human
-Decision. Hosted GitHub repetition is useful but is not a product or protocol
-gate. A clean checkout of exact `main` must pass the same local workflow, and
-the deployed manifests and live projection must then identify those exact
-bytes and roots. Do not add a feature branch or staging database merely to
-compensate for an unavailable hosted runner.
+This is released alpha evidence, not adoption or product-lift evidence. Any
+later human Decision requires another exact refresh before its changed
+Standing appears in the Atlas. Hosted runner repetition is optional
+corroboration, not a product or protocol gate. Do not add a feature branch or
+staging database merely to repeat evidence already reproduced from exact
+source roots.
 
 ## P0 — make everyday Vela obvious
 
@@ -121,9 +118,9 @@ compensate for an unavailable hosted runner.
   accepting ADR 0020.
 - Require a second real producer replay before accepting ADR 0021.
 
-## P0 — build the Math Source Registry and observation path
+## Completed — Math Source Registry and observation path
 
-Build a read-only Math Source Registry inside the existing
+The read-only Math Source Registry now lives inside the existing
 `@vela/frontier-data` and Observatory boundaries.
 
 It records exact source identity, source-declared publisher or maintainer,
@@ -140,17 +137,17 @@ handler. It is deterministic, source-specific, and transactionally activated.
 Unknown rights, ambiguous native IDs, missing pages, partial insertion, or root
 drift fail closed. Failed runs remain outside the active Atlas release.
 
-Start and stop the alpha with sources already used by Erdős, Formal
-Conjectures, Sidon, and Quantum Codes. Add another source only to close a named
-Atlas gap after its rights, identity, version, and update contracts pass.
+The alpha stops at 14 sources already used by Erdős, Formal Conjectures, Sidon,
+and Quantum Codes. Add another source only to close a named Atlas gap after
+its rights, identity, version, and update contracts pass.
 
 This is a source inventory, not a theorem registry, package marketplace, or
 authority system.
 
-## P0 — ship the working Math Atlas
+## Completed — working Math Atlas alpha
 
-Release the existing Observatory—not another application—as the first
-root-bound Math Atlas.
+The existing Observatory—not another application—is the first root-bound Math
+Atlas at Vela Web `v0.430.0`.
 
 The alpha must expose:
 
@@ -168,9 +165,8 @@ Erdős 1056 is the flagship complete problem map. Formal must separate kernel
 checking, statement fidelity, Verification, and acceptance. Quantum must
 correctly classify the retained `[[10,1,4]]` witness and open question.
 
-Target release: Vela Web `0.430.0`. Accept ADR 0030 only at the exact alpha
-implementation and reconstruction gate; adoption and beta claims remain
-separate.
+ADR 0030 is earned only for this bounded alpha implementation and
+reconstruction result; adoption and beta claims remain separate.
 
 ## P1 — complete genuine result Decisions and remap
 
@@ -240,7 +236,7 @@ cold-user lift.
 - Keep Vela at `0.950.1` unless a generic product defect requires a compatible
   `0.951.0` release.
 - Keep Canopus at `0.8.0` unless installed behavior requires a `0.8.1` fix.
-- Release Vela Web `0.430.0` for the exact source inventory and Math Atlas
+- Keep Vela Web `0.430.0` as the released exact source inventory and Math Atlas
   alpha.
 - Earn Vela Web `0.440.0` only through real multi-shape loops and external
   product evidence.

@@ -407,7 +407,6 @@ pub(crate) fn submit(
 /// reuse one already-selected signer across routine evidence transactions.
 /// Authentication, Cedar authorization, object normalization, journaling,
 /// replay, and publication all remain in the existing transaction path.
-#[allow(dead_code)] // Consumed by the forthcoming internal campaign controller.
 pub(crate) fn submit_with_repository_signer(
     frontier: &Path,
     submission: &SubmissionV1,
@@ -503,15 +502,10 @@ fn submit_with_optional_repository_signer(
         .contains("action \"submission_register\"")
     {
         "submission_register"
-    } else if authority
-        .policy_material
-        .schema
-        .contains("action \"receipt_land\"")
-    {
-        "receipt_land"
     } else {
         return Err(
-            "repository authority does not permit authenticated producer registration".into(),
+            "repository authority does not permit current Submission registration; upgrade its routine-work policy"
+                .into(),
         );
     };
 
@@ -729,6 +723,7 @@ fn submit_with_optional_repository_signer(
         std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
     let binary_sha256 = crate::authority_transaction::execution_binary_sha256(&executable)?;
     let mut authentication = SignedAgentSubmissionSession::from_submission(submission)?;
+    crate::current_work::revalidate_routine_attempt(frontier, resolved_attempt.as_ref())?;
     let mut prepared = crate::authority_transaction::prepare_authority_transaction(
         barrier,
         frontier,
