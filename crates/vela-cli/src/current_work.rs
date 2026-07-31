@@ -825,7 +825,7 @@ fn result(attempt: &CurrentAttempt, path: &Path, idempotent: bool) -> Value {
         },
         "authorization": {
             "root": attempt.authorization_root,
-            "allowed_operations": ["submission_register", "verification_import"],
+            "allowed_commands": ["submit", "verification.import"],
             "allowed_artifact_classes": attempt.allowed_artifact_classes,
             "budget": attempt.budget,
             "usage": attempt.usage,
@@ -1023,7 +1023,7 @@ fn attempt_list_entry(attempt: CurrentAttempt, path: &Path) -> Value {
         "actor": attempt.actor,
         "authorization_root": attempt.authorization_root,
         "expires_at": attempt.expires_at,
-        "allowed_operations": ["submission_register", "verification_import"],
+        "allowed_commands": ["submit", "verification.import"],
         "allowed_artifact_classes": attempt.allowed_artifact_classes,
         "authority_ceiling": "pending_review",
         "task_contract_root": attempt.task_contract_root,

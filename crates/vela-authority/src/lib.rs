@@ -23,7 +23,7 @@ pub use vela_protocol::authority::{
     CEDAR_ENGINE, CEDAR_ENGINE_VERSION, CEDAR_PROFILE_V1, CedarDecision, CedarEvaluation,
     PrincipalClass,
 };
-use vela_protocol::principal_capability::principal_class_may_request;
+use vela_protocol::principal::principal_class_may_request;
 const FORBIDDEN_EXTENSION_CONSTRUCTORS: &[&str] = &["datetime(", "decimal(", "duration(", "ip("];
 
 #[derive(Debug, Clone)]

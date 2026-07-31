@@ -262,7 +262,7 @@ mod tests {
         }
         assert!(principal_class_may_request(
             PrincipalClass::Agent,
-            "submission_register"
+            "evidence_submit"
         ));
     }
 }

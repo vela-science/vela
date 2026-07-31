@@ -12,7 +12,7 @@ use vela_protocol::authority::AuthorityEventV1;
 use vela_protocol::authority_history::AuthorityInitializationV1;
 use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::current_repository::{
-    CurrentFrontierProfileV2, CurrentRepositoryV3, RepositoryObjectRefV1,
+    ClaimStandingRefV1, CurrentFrontierProfileV2, CurrentRepositoryV3, RepositoryObjectRefV1,
 };
 use vela_protocol::events::{EventKind, NULL_HASH};
 use vela_protocol::proposal_v1::ProposalV1;
@@ -1275,15 +1275,14 @@ pub(crate) fn load_current_repository_at(
         for envelope in &loaded.history.authority_envelopes {
             records.push(crate::cli::authority_record_from_envelope(envelope)?);
         }
-        verify_repository_manifest_delta_chain(
-            records.iter().map(|record| {
+        let signed_repository_transitions =
+            verify_repository_manifest_delta_chain(records.iter().map(|record| {
                 (
                     record.content.sequence,
                     record.content.object_delta.as_slice(),
                 )
-            }),
-            &repository.canonical_root()?,
-        )?;
+            }))?;
+        verify_routine_evidence_ancestry(root, &signed_repository_transitions, &repository)?;
     }
     Ok(repository)
 }
@@ -1675,26 +1674,7 @@ fn initial_repository(
     root: &Path,
     origin: &RepositoryOriginV1,
 ) -> Result<CurrentRepositoryV3, String> {
-    let commits = git_text(
-        root,
-        &[
-            "log",
-            "--format=%H",
-            "--diff-filter=A",
-            "--",
-            ".vela/origin.json",
-        ],
-    )?
-    .lines()
-    .filter(|line| !line.is_empty())
-    .map(ToString::to_string)
-    .collect::<Vec<_>>();
-    let [commit] = commits.as_slice() else {
-        return Err(format!(
-            "current repository must introduce its origin exactly once; found {} commits",
-            commits.len()
-        ));
-    };
+    let commit = origin_introducing_commit(root)?;
     let read_blob = |path: &str| -> Result<Vec<u8>, String> {
         let spec = format!("{commit}:{path}");
         let output = crate::git_hardened::output(root, &["show", &spec])?;
@@ -1726,6 +1706,30 @@ fn initial_repository(
         return Err("origin-introducing commit is not one exact repository bootstrap".into());
     }
     Ok(repository)
+}
+
+fn origin_introducing_commit(root: &Path) -> Result<String, String> {
+    let commits = git_text(
+        root,
+        &[
+            "log",
+            "--format=%H",
+            "--diff-filter=A",
+            "--",
+            ".vela/origin.json",
+        ],
+    )?
+    .lines()
+    .filter(|line| !line.is_empty())
+    .map(ToString::to_string)
+    .collect::<Vec<_>>();
+    let [commit] = commits.as_slice() else {
+        return Err(format!(
+            "current repository must introduce its origin exactly once; found {} commits",
+            commits.len()
+        ));
+    };
+    Ok(commit.clone())
 }
 
 fn read_rooted_object(root: &Path, path: &str, expected_root: &str) -> Result<Vec<u8>, String> {
@@ -1887,15 +1891,14 @@ fn verify_current_repository_authority(
     for envelope in &loaded.history.authority_envelopes {
         repository_records.push(crate::cli::authority_record_from_envelope(envelope)?);
     }
-    verify_repository_manifest_delta_chain(
-        repository_records.iter().map(|record| {
+    let signed_repository_transitions =
+        verify_repository_manifest_delta_chain(repository_records.iter().map(|record| {
             (
                 record.content.sequence,
                 record.content.object_delta.as_slice(),
             )
-        }),
-        &repository.canonical_root()?,
-    )?;
+        }))?;
+    verify_routine_evidence_ancestry(root, &signed_repository_transitions, repository)?;
     let mut covered_record_paths = initial_objects
         .iter()
         .map(|object| (object.path.clone(), object.root.clone()))
@@ -1922,26 +1925,66 @@ fn verify_current_repository_authority(
             }
         }
     }
-    let observed_record_paths = if root.join("records").exists() {
+    let observed_record_files = if root.join("records").exists() {
         files_recursive(&root.join("records"))?
     } else {
         Vec::new()
+    };
+    let mut observed_record_paths = BTreeMap::new();
+    for path in observed_record_files {
+        let relative = path
+            .strip_prefix(root)
+            .map_err(|_| "current record path escaped its repository".to_string())?
+            .to_string_lossy()
+            .to_string();
+        observed_record_paths.insert(
+            relative,
+            root_bytes(
+                &fs::read(&path)
+                    .map_err(|error| format!("read current record {}: {error}", path.display()))?,
+            ),
+        );
     }
-    .into_iter()
-    .map(|path| {
-        path.strip_prefix(root)
-            .map(|path| path.to_string_lossy().to_string())
-            .map_err(|_| "current record path escaped its repository".to_string())
-    })
-    .collect::<Result<BTreeSet<_>, _>>()?;
-    if observed_record_paths
-        != covered_record_paths
-            .keys()
-            .cloned()
-            .collect::<BTreeSet<_>>()
-    {
-        return Err("current repository contains missing or unexplained record files".into());
+    let mut current_record_paths = repository
+        .accepted_claims
+        .iter()
+        .chain(&repository.pending_claims)
+        .map(|reference| (reference.path.clone(), reference.claim_root.clone()))
+        .chain(
+            repository
+                .proposals
+                .iter()
+                .chain(&repository.submissions)
+                .chain(&repository.registrations)
+                .chain(&repository.verifications)
+                .chain(&repository.artifacts)
+                .map(|reference| (reference.path.clone(), reference.root.clone())),
+        )
+        .collect::<BTreeMap<_, _>>();
+    // A rejected Claim or an accepted withdrawal is historical rather than a
+    // current Claim index entry, but the retained Proposal still binds its
+    // exact immutable Claim bytes.
+    for reference in &repository.proposals {
+        let proposal_bytes = read_rooted_object(root, &reference.path, &reference.root)?;
+        let proposal = ProposalV1::parse(&proposal_bytes)?;
+        let path = crate::current_submission::rooted_path(
+            "records/claims/sha256",
+            &proposal.subject.root,
+        )?;
+        if let Some(previous) =
+            current_record_paths.insert(path.clone(), proposal.subject.root.clone())
+            && previous != proposal.subject.root
+        {
+            return Err(format!(
+                "current Proposal Claim reference disagrees with retained bytes at {path}"
+            ));
+        }
     }
+    verify_current_record_coverage(
+        &covered_record_paths,
+        &current_record_paths,
+        &observed_record_paths,
+    )?;
     let current_paths = repository
         .accepted_claims
         .iter()
@@ -1966,11 +2009,17 @@ fn verify_current_repository_authority(
     Ok(())
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SignedRepositoryManifestTransition {
+    sequence: u64,
+    before_root: Option<String>,
+    after_root: String,
+}
+
 fn verify_repository_manifest_delta_chain<'a>(
     records: impl IntoIterator<Item = (u64, &'a [vela_protocol::authority::ObjectDeltaV1])>,
-    current_repository_root: &str,
-) -> Result<(), String> {
-    let mut active_root: Option<String> = None;
+) -> Result<Vec<SignedRepositoryManifestTransition>, String> {
+    let mut transitions = Vec::new();
     let mut saw_initial = false;
     for (sequence, deltas) in records {
         let matching = deltas
@@ -1999,20 +2048,310 @@ fn verify_repository_manifest_delta_chain<'a>(
         }
         if sequence == 1 {
             saw_initial = true;
-        } else if delta.before_root != active_root {
+            if delta.before_root.is_some() {
+                return Err(
+                    "initial authority record breaks repository manifest root continuity".into(),
+                );
+            }
+        } else if delta.before_root.is_none() {
             return Err(format!(
                 "authority record {sequence} breaks repository manifest root continuity"
             ));
         }
-        active_root.clone_from(&delta.after_root);
+        transitions.push(SignedRepositoryManifestTransition {
+            sequence,
+            before_root: delta.before_root.clone(),
+            after_root: delta.after_root.clone().expect("validated above"),
+        });
     }
     if !saw_initial {
         return Err("current authority history lacks its initial repository manifest delta".into());
     }
-    if active_root.as_deref() != Some(current_repository_root) {
-        return Err(
-            "current repository manifest root is not the final signed authority postimage".into(),
-        );
+    Ok(transitions)
+}
+
+fn repository_manifest_at_commit(root: &Path, commit: &str) -> Result<CurrentRepositoryV3, String> {
+    let spec = format!("{commit}:.vela/repository.json");
+    let output = crate::git_hardened::output(root, &["show", &spec])?;
+    if !output.status.success() {
+        return Err(format!(
+            "read repository manifest at {commit}: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    CurrentRepositoryV3::parse(&output.stdout)
+}
+
+/// Replay unsigned evidence-manifest commits from the last exact signed
+/// repository checkpoint. Between authority checkpoints the record store may
+/// only add immutable evidence; a Decision creates the next signed checkpoint.
+fn verify_routine_evidence_ancestry(
+    root: &Path,
+    signed_transitions: &[SignedRepositoryManifestTransition],
+    current: &CurrentRepositoryV3,
+) -> Result<(), String> {
+    let Some(first) = signed_transitions.first() else {
+        return Err("authority history has no signed repository checkpoint".into());
+    };
+    // Fresh initialization verifies its exact signed postimage before the
+    // first Git commit exists. There is no intervening routine overlay to
+    // replay in the one-record case.
+    if signed_transitions.len() == 1 && current.canonical_root()? == first.after_root {
+        return Ok(());
+    }
+    let commits = git_text(
+        root,
+        &[
+            "rev-list",
+            "--reverse",
+            "HEAD",
+            "--",
+            ".vela/repository.json",
+        ],
+    )?;
+    let origin_commit = origin_introducing_commit(root)?;
+    let mut versions = Vec::new();
+    let mut in_current_history = false;
+    for commit in commits.lines().filter(|line| !line.is_empty()) {
+        if commit == origin_commit {
+            in_current_history = true;
+        }
+        if !in_current_history {
+            continue;
+        }
+        let repository = repository_manifest_at_commit(root, commit)?;
+        versions.push((commit.to_string(), repository.canonical_root()?, repository));
+    }
+    if !in_current_history {
+        return Err("current origin commit is not retained in repository ancestry".into());
+    }
+    let current_root = current.canonical_root()?;
+    if versions
+        .last()
+        .is_none_or(|(_, retained_root, _)| retained_root != &current_root)
+    {
+        // Postcondition verification runs after the transaction is installed
+        // but before its exact Git publication. Treat that installed manifest
+        // as the final in-flight version; publication still performs its own
+        // compare-and-swap and clean-clone verification.
+        versions.push(("<working-tree>".into(), current_root, current.clone()));
+    }
+    let find_after = |root_value: &str, start: usize| {
+        versions
+            .iter()
+            .enumerate()
+            .skip(start)
+            .find(|(_, (_, candidate_root, _))| candidate_root == root_value)
+            .map(|(index, _)| index)
+    };
+    let Some(mut checkpoint_index) = find_after(&first.after_root, 0) else {
+        return Err(format!(
+            "signed repository manifest {} is not retained in Git ancestry",
+            first.after_root
+        ));
+    };
+    let first_commit = versions[checkpoint_index].0.clone();
+
+    for transition in signed_transitions.iter().skip(1) {
+        let before_root = transition.before_root.as_deref().ok_or_else(|| {
+            format!(
+                "authority record {} has no repository preimage",
+                transition.sequence
+            )
+        })?;
+        let Some(before_index) = find_after(before_root, checkpoint_index) else {
+            return Err(format!(
+                "authority record {} repository preimage {before_root} is not retained after its prior signed checkpoint",
+                transition.sequence
+            ));
+        };
+        let mut prior = versions[checkpoint_index].2.clone();
+        for (_, _, candidate) in &versions[checkpoint_index + 1..=before_index] {
+            verify_routine_evidence_overlay(&prior, candidate)?;
+            prior = candidate.clone();
+        }
+        let Some(after_index) = find_after(&transition.after_root, before_index.saturating_add(1))
+        else {
+            return Err(format!(
+                "authority record {} repository postimage {} is not retained after its exact preimage",
+                transition.sequence, transition.after_root
+            ));
+        };
+        if after_index != before_index + 1 {
+            return Err(format!(
+                "authority record {} does not immediately follow its exact repository preimage",
+                transition.sequence
+            ));
+        }
+        checkpoint_index = after_index;
+    }
+
+    let range = format!("{first_commit}..HEAD");
+    let changed_records = git_text(
+        root,
+        &[
+            "log",
+            "--format=",
+            "--name-only",
+            "--diff-filter=DMR",
+            &range,
+            "--",
+            "records",
+        ],
+    )?;
+    if let Some(path) = changed_records.lines().find(|line| !line.is_empty()) {
+        return Err(format!(
+            "routine evidence Git ancestry deletes, rewrites, or renames retained record {path}"
+        ));
+    }
+
+    let mut prior = versions[checkpoint_index].2.clone();
+    for (_, _, candidate) in &versions[checkpoint_index + 1..] {
+        verify_routine_evidence_overlay(&prior, candidate)?;
+        prior = candidate.clone();
+    }
+    if prior != *current {
+        verify_routine_evidence_overlay(&prior, current)?;
+    }
+    Ok(())
+}
+
+/// Verify the only repository-manifest drift that routine, self-authenticated
+/// evidence may introduce after the last authority checkpoint.
+///
+/// This deliberately does not authenticate object bytes. Callers must first
+/// run the ordinary current-object verifier, which validates producer and
+/// verifier signatures, canonical roots, and all Proposal/Submission/
+/// Verification links. This helper owns the smaller authority boundary:
+/// routine evidence may append pending-review material, but it may not alter
+/// identity, authority configuration, accepted Standing, or any retained
+/// reference from the authority checkpoint.
+pub(crate) fn verify_routine_evidence_overlay(
+    authority_checkpoint: &CurrentRepositoryV3,
+    current: &CurrentRepositoryV3,
+) -> Result<(), String> {
+    authority_checkpoint.verify()?;
+    current.verify()?;
+
+    if authority_checkpoint.frontier_id != current.frontier_id
+        || authority_checkpoint.profile_root != current.profile_root
+        || authority_checkpoint.origin_id != current.origin_id
+        || authority_checkpoint.origin_root != current.origin_root
+    {
+        return Err("routine evidence changes repository identity".into());
+    }
+    if authority_checkpoint.authority_keyset_root != current.authority_keyset_root
+        || authority_checkpoint.authority_policy_root != current.authority_policy_root
+    {
+        return Err("routine evidence changes repository authority configuration".into());
+    }
+    if authority_checkpoint.accepted_claims != current.accepted_claims {
+        return Err("routine evidence changes accepted scientific Standing".into());
+    }
+
+    require_retained_claim_refs(
+        "pending Claim",
+        &authority_checkpoint.pending_claims,
+        &current.pending_claims,
+    )?;
+    require_retained_object_refs(
+        "Proposal",
+        &authority_checkpoint.proposals,
+        &current.proposals,
+    )?;
+    require_retained_object_refs(
+        "Submission",
+        &authority_checkpoint.submissions,
+        &current.submissions,
+    )?;
+    require_retained_object_refs(
+        "Registration Record",
+        &authority_checkpoint.registrations,
+        &current.registrations,
+    )?;
+    require_retained_object_refs(
+        "Verification Record",
+        &authority_checkpoint.verifications,
+        &current.verifications,
+    )?;
+    require_retained_object_refs(
+        "Artifact",
+        &authority_checkpoint.artifacts,
+        &current.artifacts,
+    )?;
+    Ok(())
+}
+
+fn require_retained_claim_refs(
+    label: &str,
+    checkpoint: &[ClaimStandingRefV1],
+    current: &[ClaimStandingRefV1],
+) -> Result<(), String> {
+    for retained in checkpoint {
+        match current
+            .iter()
+            .find(|candidate| candidate.claim_id == retained.claim_id)
+        {
+            Some(candidate) if candidate == retained => {}
+            Some(_) => return Err(format!("routine evidence rewrites retained {label}")),
+            None => return Err(format!("routine evidence removes retained {label}")),
+        }
+    }
+    Ok(())
+}
+
+fn require_retained_object_refs(
+    label: &str,
+    checkpoint: &[RepositoryObjectRefV1],
+    current: &[RepositoryObjectRefV1],
+) -> Result<(), String> {
+    for retained in checkpoint {
+        match current.iter().find(|candidate| candidate.id == retained.id) {
+            Some(candidate) if candidate == retained => {}
+            Some(_) => return Err(format!("routine evidence rewrites retained {label}")),
+            None => return Err(format!("routine evidence removes retained {label}")),
+        }
+    }
+    Ok(())
+}
+
+/// Require every retained `records/**` byte to be explained exactly once by
+/// either signed authority history or the validated current evidence graph.
+///
+/// `evidence_references` includes direct manifest references plus transitive
+/// Claim references held by Proposals. Paths and roots are supplied only after
+/// their canonical object parsers have succeeded. This is intentionally a
+/// coverage check, not a second record format or transaction log.
+pub(crate) fn verify_current_record_coverage(
+    authority_covered: &BTreeMap<String, String>,
+    evidence_references: &BTreeMap<String, String>,
+    observed: &BTreeMap<String, String>,
+) -> Result<(), String> {
+    let mut expected = authority_covered.clone();
+    for (path, root) in evidence_references {
+        if let Some(previous) = expected.insert(path.clone(), root.clone())
+            && previous != *root
+        {
+            return Err(format!(
+                "current evidence reference disagrees with retained authority bytes at {path}"
+            ));
+        }
+    }
+    for (path, root) in &expected {
+        match observed.get(path) {
+            Some(observed_root) if observed_root == root => {}
+            Some(_) => return Err(format!("current record bytes disagree at {path}")),
+            None => {
+                return Err(format!(
+                    "current repository is missing retained record {path}"
+                ));
+            }
+        }
+    }
+    if let Some(path) = observed.keys().find(|path| !expected.contains_key(*path)) {
+        return Err(format!(
+            "current repository contains unexplained record {path}"
+        ));
     }
     Ok(())
 }
@@ -2592,34 +2931,153 @@ mod tests {
             after_root: Some(submitted.clone()),
             object_kind: "repository_manifest".into(),
         }];
-        verify_repository_manifest_delta_chain(
-            [(1, first.as_slice()), (2, second.as_slice())],
-            &submitted,
-        )
-        .unwrap();
-
+        let transitions =
+            verify_repository_manifest_delta_chain([(1, first.as_slice()), (2, second.as_slice())])
+                .unwrap();
+        assert_eq!(transitions.last().unwrap().after_root, submitted);
         assert_eq!(
-            verify_repository_manifest_delta_chain(
-                [(1, first.as_slice()), (2, second.as_slice())],
-                &root('3'),
-            )
-            .unwrap_err(),
-            "current repository manifest root is not the final signed authority postimage"
+            transitions[1].before_root.as_deref(),
+            Some(initial.as_str())
         );
 
-        let broken = vec![ObjectDeltaV1 {
+        let adopted_overlay = vec![ObjectDeltaV1 {
             path: ".vela/repository.json".into(),
             before_root: Some(root('4')),
-            after_root: Some(submitted),
+            after_root: Some(submitted.clone()),
+            object_kind: "repository_manifest".into(),
+        }];
+        let transitions = verify_repository_manifest_delta_chain([
+            (1, first.as_slice()),
+            (2, adopted_overlay.as_slice()),
+        ])
+        .unwrap();
+        assert_eq!(transitions.last().unwrap().after_root, submitted);
+        assert_eq!(
+            transitions[1].before_root.as_deref(),
+            Some(root('4').as_str())
+        );
+
+        let missing_preimage = vec![ObjectDeltaV1 {
+            path: ".vela/repository.json".into(),
+            before_root: None,
+            after_root: Some(root('5')),
             object_kind: "repository_manifest".into(),
         }];
         assert_eq!(
-            verify_repository_manifest_delta_chain(
-                [(1, first.as_slice()), (2, broken.as_slice())],
-                &root('3'),
-            )
+            verify_repository_manifest_delta_chain([
+                (1, first.as_slice()),
+                (2, missing_preimage.as_slice()),
+            ])
             .unwrap_err(),
             "authority record 2 breaks repository manifest root continuity"
+        );
+    }
+
+    fn repository_fixture() -> CurrentRepositoryV3 {
+        CurrentRepositoryV3 {
+            schema: vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V3.into(),
+            frontier_id: "vfr_0123456789abcdef".into(),
+            profile_root: root('1'),
+            origin_id: "vro_0123456789abcdef".into(),
+            origin_root: root('2'),
+            accepted_claims: Vec::new(),
+            pending_claims: Vec::new(),
+            proposals: Vec::new(),
+            submissions: Vec::new(),
+            registrations: Vec::new(),
+            verifications: Vec::new(),
+            artifacts: Vec::new(),
+            authority_keyset_root: root('3'),
+            authority_policy_root: root('4'),
+        }
+    }
+
+    fn object_reference(kind: &str, id: &str, byte: char) -> RepositoryObjectRefV1 {
+        let digest = byte.to_string().repeat(64);
+        RepositoryObjectRefV1 {
+            schema: format!("vela.{kind}.v1"),
+            id: id.into(),
+            root: format!("sha256:{digest}"),
+            path: format!("records/{kind}/sha256/{digest}.json"),
+        }
+    }
+
+    #[test]
+    fn routine_evidence_overlay_is_append_only_and_cannot_change_standing() {
+        let mut checkpoint = repository_fixture();
+        checkpoint
+            .proposals
+            .push(object_reference("proposal", "vpr_0000000000000001", '5'));
+        checkpoint.verify().unwrap();
+
+        let mut current = checkpoint.clone();
+        current.pending_claims.push(ClaimStandingRefV1 {
+            claim_id: format!("vcl_{}", "6".repeat(64)),
+            claim_root: root('6'),
+            standing: "pending_review".into(),
+            path: format!("records/claims/sha256/{}.json", "6".repeat(64)),
+        });
+        current
+            .submissions
+            .push(object_reference("submissions", "vsb_0000000000000001", '7'));
+        verify_routine_evidence_overlay(&checkpoint, &current).unwrap();
+
+        let mut accepted = current.clone();
+        accepted.accepted_claims = vec![ClaimStandingRefV1 {
+            claim_id: format!("vcl_{}", "8".repeat(64)),
+            claim_root: root('8'),
+            standing: "accepted".into(),
+            path: format!("records/claims/sha256/{}.json", "8".repeat(64)),
+        }];
+        assert_eq!(
+            verify_routine_evidence_overlay(&checkpoint, &accepted).unwrap_err(),
+            "routine evidence changes accepted scientific Standing"
+        );
+
+        let mut removed = current.clone();
+        removed.proposals.clear();
+        assert_eq!(
+            verify_routine_evidence_overlay(&checkpoint, &removed).unwrap_err(),
+            "routine evidence removes retained Proposal"
+        );
+
+        let mut rewritten = current;
+        rewritten.proposals[0].root = root('9');
+        rewritten.proposals[0].path = format!("records/proposal/sha256/{}.json", "9".repeat(64));
+        assert_eq!(
+            verify_routine_evidence_overlay(&checkpoint, &rewritten).unwrap_err(),
+            "routine evidence rewrites retained Proposal"
+        );
+    }
+
+    #[test]
+    fn current_record_coverage_unifies_authority_and_self_authenticated_evidence() {
+        let authority = BTreeMap::from([("records/claims/sha256/a.json".into(), root('a'))]);
+        let evidence = BTreeMap::from([("records/submissions/sha256/b.json".into(), root('b'))]);
+        let observed = BTreeMap::from([
+            ("records/claims/sha256/a.json".into(), root('a')),
+            ("records/submissions/sha256/b.json".into(), root('b')),
+        ]);
+        verify_current_record_coverage(&authority, &evidence, &observed).unwrap();
+
+        let mut unexplained = observed.clone();
+        unexplained.insert("records/artifacts/sha256/c".into(), root('c'));
+        assert_eq!(
+            verify_current_record_coverage(&authority, &evidence, &unexplained).unwrap_err(),
+            "current repository contains unexplained record records/artifacts/sha256/c"
+        );
+
+        let mut missing = observed.clone();
+        missing.remove("records/claims/sha256/a.json");
+        assert_eq!(
+            verify_current_record_coverage(&authority, &evidence, &missing).unwrap_err(),
+            "current repository is missing retained record records/claims/sha256/a.json"
+        );
+
+        let conflicting = BTreeMap::from([("records/claims/sha256/a.json".into(), root('d'))]);
+        assert_eq!(
+            verify_current_record_coverage(&authority, &conflicting, &observed).unwrap_err(),
+            "current evidence reference disagrees with retained authority bytes at records/claims/sha256/a.json"
         );
     }
 

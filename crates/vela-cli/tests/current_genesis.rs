@@ -64,6 +64,24 @@ fn success_json(output: &Output) -> Value {
     serde_json::from_slice(&output.stdout).expect("decode Vela JSON")
 }
 
+fn exact_directory_snapshot(directory: &Path) -> Vec<(String, Vec<u8>)> {
+    let mut entries = std::fs::read_dir(directory)
+        .expect("read exact directory snapshot")
+        .map(|entry| {
+            let path = entry.expect("directory entry").path();
+            (
+                path.file_name()
+                    .and_then(|name| name.to_str())
+                    .expect("UTF-8 filename")
+                    .to_string(),
+                std::fs::read(path).expect("snapshot bytes"),
+            )
+        })
+        .collect::<Vec<_>>();
+    entries.sort_by(|left, right| left.0.cmp(&right.0));
+    entries
+}
+
 struct RemoveOnDrop(std::path::PathBuf);
 
 impl Drop for RemoveOnDrop {
@@ -530,11 +548,15 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         .output()
         .expect("read before commit");
     assert!(before.status.success());
+    let authority_events_before =
+        exact_directory_snapshot(&frontier.join(".vela/authority/events"));
+    let authority_records_before =
+        exact_directory_snapshot(&frontier.join(".vela/authority/records"));
 
     let submission_path_text = submission_path.to_string_lossy().into_owned();
     let submitted = success_json(&run(
         &frontier,
-        Some(agent.socket()),
+        None,
         &[
             "submit",
             &submission_path_text,
@@ -748,7 +770,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let verification_path_text = verification_inbox_path.to_string_lossy().into_owned();
     let verified = success_json(&run(
         &frontier,
-        Some(agent.socket()),
+        None,
         &[
             "verification",
             "import",
@@ -817,7 +839,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let imported_again = success_json(
         &(run(
             &frontier,
-            Some(agent.socket()),
+            None,
             &[
                 "verification",
                 "import",
@@ -840,6 +862,16 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         verified["verification_record_root"]
     );
     assert_eq!(imported_again["accepted_event_delta"], 0);
+    assert_eq!(
+        exact_directory_snapshot(&frontier.join(".vela/authority/events")),
+        authority_events_before,
+        "routine evidence must not append an authority Event"
+    );
+    assert_eq!(
+        exact_directory_snapshot(&frontier.join(".vela/authority/records")),
+        authority_records_before,
+        "routine evidence must not append an Authority Record"
+    );
     assert_eq!(imported_again["idempotent"], true);
 
     let after = Command::new("git")
@@ -973,5 +1005,53 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert_eq!(
         replayed_import["verification_record_id"],
         verified["verification_record_id"]
+    );
+
+    // A later human Decision must checkpoint the exact self-authenticated
+    // evidence overlay instead of requiring each routine write to have carried
+    // an Authority Record of its own.
+    let rejected = success_json(&run(
+        &frontier,
+        Some(agent.socket()),
+        &[
+            "review",
+            "reject",
+            ".",
+            proposal_id,
+            "--reason",
+            "The fixture proves the evidence path but is not a scientific result.",
+            "--json",
+        ],
+    ));
+    assert_eq!(rejected["action"], "reject");
+    assert_eq!(rejected["scientific_state_changed"], false);
+    let decided = success_json(&run(
+        &frontier,
+        None,
+        &["repository", "verify", ".", "--json"],
+    ));
+    assert_eq!(decided["counts"]["accepted_claims"], 0);
+    assert_eq!(decided["counts"]["pending_claims"], 0);
+
+    let decided_clone = temporary.path().join("decided-clone");
+    let cloned = Command::new("git")
+        .args(["clone", "-q"])
+        .arg(&frontier)
+        .arg(&decided_clone)
+        .output()
+        .expect("clone decided repository");
+    assert!(
+        cloned.status.success(),
+        "git clone: {}",
+        String::from_utf8_lossy(&cloned.stderr)
+    );
+    let replayed_decision = success_json(&run(
+        &decided_clone,
+        None,
+        &["repository", "verify", ".", "--json"],
+    ));
+    assert_eq!(
+        replayed_decision["repository_root"],
+        decided["repository_root"]
     );
 }

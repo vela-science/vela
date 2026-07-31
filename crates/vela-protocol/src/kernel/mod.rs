@@ -7,6 +7,6 @@ pub mod authority;
 pub mod authority_history;
 pub mod canonical;
 pub mod events;
-pub mod principal_capability;
+pub mod principal;
 pub mod sign;
 pub mod signing_input;

@@ -18,7 +18,7 @@ use vela_protocol::authority::{PrincipalSnapshotV1, SemanticApprovalV1};
 use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::current_repository::{ClaimStandingRefV1, CurrentRepositoryV3};
 use vela_protocol::events::{EventKind, NULL_HASH, StateActor, StateEvent, StateTarget};
-use vela_protocol::principal_capability::PrincipalClass;
+use vela_protocol::principal::PrincipalClass;
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::repository_origin::RepositoryOriginV1;
 use vela_protocol::submission_v1::SubmissionV1;
@@ -26,10 +26,15 @@ use vela_protocol::verification_record::VerificationRecordV1;
 
 use crate::authority_transaction::{
     AuthorityEventDraft, AuthorityObjectDraft, AuthorityTransactionRequest,
-    AuthorityTransactionResult, execute_authority_transaction,
+    AuthorityTransactionResult, prepare_authority_transaction,
+};
+use crate::config::git_publish::{
+    PublicationState, PublishOptions, exact_publication_preflight, publication_disabled_reason,
+    publish_exact_delta,
 };
 use crate::frontier_txn::{ContentDigest, FrontierTxn, InputBinding, WriteClass};
 use crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner;
+use crate::workflow::publication_delta;
 
 const PLAN_SCHEMA: &str = "vela.current-review-decision.v1";
 const PLAN_DOMAIN: &[u8] = b"vela.current-review-decision.v1\0";
@@ -645,7 +650,7 @@ pub(crate) fn execute(
         std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
     let binary_sha256 = crate::authority_transaction::execution_binary_sha256(&executable)?;
     let mut authentication = local;
-    let result = execute_authority_transaction(
+    let mut transaction = prepare_authority_transaction(
         barrier,
         frontier,
         AuthorityTransactionRequest {
@@ -694,6 +699,27 @@ pub(crate) fn execute(
         &mut signer,
     )
     .map_err(|error| error.to_string())?;
+    let result = transaction.result.clone();
+    let publish_options = PublishOptions::new(false);
+    if let Some(reason) = publication_disabled_reason(frontier, &publish_options) {
+        return Err(format!(
+            "review Decision requires exact Git publication before installation: {reason}"
+        ));
+    }
+    let public = transaction
+        .resolved_public_writes()
+        .map_err(|error| error.to_string())?;
+    let delta = publication_delta(frontier, transaction.canonical_delta_root(), public)?
+        .ok_or_else(|| "review Decision produced no exact Git delta".to_string())?;
+    let preflight =
+        exact_publication_preflight(frontier, &delta, &publish_options).map_err(|outcome| {
+            format!("review Decision Git preflight failed before installation: {outcome:?}")
+        })?;
+    transaction
+        .mark_committed()
+        .map_err(|error| error.to_string())?;
+    transaction.install().map_err(|error| error.to_string())?;
+    transaction.complete().map_err(|error| error.to_string())?;
     if let Err(error) =
         crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)
     {
@@ -702,6 +728,36 @@ pub(crate) fn execute(
             result.authority_record_id
         ));
     }
+    let publication = publish_exact_delta(
+        frontier,
+        &format!("review {}", action.as_str()),
+        std::slice::from_ref(&expected.proposal_id),
+        &delta,
+        preflight,
+        &publish_options,
+    )
+    .map_err(|error| {
+        format!(
+            "review Decision committed as record {} but exact Git publication failed: {error}; do not retry the Decision",
+            result.authority_record_id
+        )
+    })?;
+    if !matches!(
+        publication.state,
+        PublicationState::Unchanged { .. }
+            | PublicationState::CommittedLocal { .. }
+            | PublicationState::Pushed { .. }
+    ) {
+        return Err(format!(
+            "review Decision committed as record {} but Git publication is incomplete: {publication:?}; do not retry the Decision",
+            result.authority_record_id
+        ));
+    }
+    crate::current_repository::verify_current_repository_at(frontier, true).map_err(|error| {
+        format!(
+            "review Decision was published but strict verification failed: {error}; do not retry the Decision"
+        )
+    })?;
     Ok(result)
 }
 

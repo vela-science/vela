@@ -19,7 +19,7 @@ use crate::canonical::{sha256_canonical, to_canonical_bytes};
 use crate::events::{
     EVENT_SCHEMA, EventKind, NULL_HASH, StateActor, StateEvent, StateTarget, compute_event_id,
 };
-pub use crate::principal_capability::PrincipalClass;
+pub use crate::principal::PrincipalClass;
 
 pub const AUTHORITY_KEYSET_SCHEMA_V1: &str = "vela.authority-keyset.v1";
 pub const AUTHORITY_RECORD_SCHEMA_V1: &str = "vela.authority-record.v1";

@@ -38,7 +38,7 @@ use vela_protocol::authority_history::{
 };
 use vela_protocol::canonical::to_canonical_bytes;
 use vela_protocol::events::{EventKind, StateActor, StateTarget, event_log_hash};
-use vela_protocol::principal_capability::HUMAN_ONLY_AUTHORITY_ACTIONS_V1;
+use vela_protocol::principal::HUMAN_ONLY_AUTHORITY_ACTIONS_V1;
 
 use crate::frontier_txn::{
     CanonicalWriteBarrier, ContentDigest, DeltaDraft, FrontierBinding, FrontierTxn,
@@ -1917,7 +1917,7 @@ struct TransactionIdCommitment<'a> {
 struct AuthorizationRequestCommitment<'a> {
     schema: &'static str,
     principal: &'a str,
-    principal_class: vela_protocol::principal_capability::PrincipalClass,
+    principal_class: vela_protocol::principal::PrincipalClass,
     action: &'a str,
     resource: &'a str,
     context: &'a Value,
@@ -1986,7 +1986,7 @@ mod tests {
     use vela_protocol::events::{
         EVENT_SCHEMA, NULL_HASH, StateActor, StateEvent, StateTarget, compute_event_id,
     };
-    use vela_protocol::principal_capability::PrincipalClass;
+    use vela_protocol::principal::PrincipalClass;
 
     use super::*;
     use crate::frontier_txn::{FrontierTxnStep, RecoveryOutcome};

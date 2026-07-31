@@ -19,7 +19,7 @@ use vela_protocol::authentication::{
     AuthenticationObservationV1,
 };
 use vela_protocol::authority::{CedarDecision, CedarEvaluation};
-use vela_protocol::principal_capability::PrincipalClass;
+use vela_protocol::principal::PrincipalClass;
 use vela_protocol::submission_v1::SubmissionV1;
 use vela_protocol::verification_record::VerificationRecordV1;
 

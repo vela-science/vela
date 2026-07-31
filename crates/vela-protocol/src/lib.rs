@@ -7,8 +7,7 @@
 
 mod kernel;
 pub use kernel::{
-    authentication, authority, authority_history, canonical, events, principal_capability, sign,
-    signing_input,
+    authentication, authority, authority_history, canonical, events, principal, sign, signing_input,
 };
 mod computed;
 pub use computed::frontier_settings;

@@ -1,9 +1,9 @@
 //! Current-only producer intake for Profile v2 repositories.
 //!
 //! This path consumes an authenticated Submission and optional private
-//! Attempt, creates current Claim/Proposal/Registration objects, advances the
-//! repository manifest under one object-only authority record, and changes no
-//! accepted scientific state.
+//! Attempt, creates current Claim/Proposal/Registration objects, and advances
+//! the repository manifest without changing authority or accepted scientific
+//! state.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -11,34 +11,26 @@ use std::path::Path;
 
 use chrono::{Datelike, SecondsFormat, Utc};
 use serde_json::json;
-use vela_authority::CedarEvaluationInput;
-use vela_authority::runtime_authentication::{
-    AuthenticationRequest, RuntimeSessionState, SignedAgentSubmissionSession,
-};
-use vela_protocol::authority::PrincipalSnapshotV1;
 use vela_protocol::claim_record::{
     ClaimAssertion, ClaimEvidenceRef, ClaimRecordV1, ClaimRelation, ClaimSource,
 };
 use vela_protocol::current_repository::{
     ClaimStandingRefV1, CurrentRepositoryV3, RepositoryObjectRefV1,
 };
-use vela_protocol::principal_capability::PrincipalClass;
 use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject, ProposalV1};
 use vela_protocol::registration_record::{RegistrationRecordV1, RegistrationRoots};
 use vela_protocol::repository_origin::RepositoryOriginV1;
 use vela_protocol::submission_v1::SubmissionV1;
 
-use crate::authority_transaction::{
-    AuthorityDerivedDraft, AuthorityObjectDraft, AuthorityTransactionRequest,
-};
+use crate::authority_transaction::{AuthorityDerivedDraft, AuthorityObjectDraft};
 use crate::config::git_publish::{
     PublicationOutcome, PublicationState, PublishOptions, exact_publication_preflight,
     publication_disabled_reason, publication_is_busy, publish_exact_delta,
 };
 use crate::frontier_txn::{ContentDigest, InputBinding, WriteClass};
 use crate::workflow::{
-    PreparedSubmissionArtifacts, SubmitOutcome, active_repository_signing_key,
-    prepare_submission_artifacts, publication_delta, submission_publication_inputs,
+    PreparedSubmissionArtifacts, SubmitOutcome, prepare_submission_artifacts, publication_delta,
+    submission_publication_inputs,
 };
 
 pub(crate) fn rooted_path(directory: &str, root: &str) -> Result<String, String> {
@@ -495,19 +487,6 @@ fn submit_inner(
     let authority =
         crate::cli::load_current_repository_authority(frontier, &held_repository, &origin)?;
 
-    let registration_action = if authority
-        .policy_material
-        .schema
-        .contains("action \"submission_register\"")
-    {
-        "submission_register"
-    } else {
-        return Err(
-            "repository authority does not permit current Submission registration; upgrade its routine-work policy"
-                .into(),
-        );
-    };
-
     let fixed_time = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
     let PreparedSubmissionArtifacts {
         writes: artifact_writes,
@@ -698,70 +677,19 @@ fn submit_inner(
         });
     }
 
-    let authorization_input = CedarEvaluationInput {
-        schema: authority.policy_material.schema.clone(),
-        policies: authority.policy_material.policies.clone(),
-        entities: authority.policy_material.entities.clone(),
-        principal: format!(
-            "Agent::{}",
-            serde_json::to_string(executor).expect("actor ID serializes")
-        ),
-        principal_class: PrincipalClass::Agent,
-        action: registration_action.into(),
-        resource: format!(
-            "Frontier::{}",
-            serde_json::to_string(&held_repository.frontier_id).expect("Frontier ID serializes")
-        ),
-        context: json!({"exact": true}),
-    };
-    let (key_id, public_key) = active_repository_signing_key(&authority)?;
-    let mut repository_signer =
-        crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner::from_environment(
-            key_id,
-            &public_key,
-        )?;
-    let executable =
-        std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
-    let binary_sha256 = crate::authority_transaction::execution_binary_sha256(&executable)?;
-    let mut authentication = SignedAgentSubmissionSession::from_submission(submission)?;
     crate::current_work::revalidate_routine_attempt(frontier, resolved_attempt.as_ref())?;
-    let mut prepared = crate::authority_transaction::prepare_authority_transaction(
+    let mut prepared = crate::routine_evidence_transaction::prepare_routine_evidence_transaction(
         barrier,
         frontier,
-        AuthorityTransactionRequest {
-            history: authority.history,
-            intent_digest: request_root,
-            principal: PrincipalSnapshotV1 {
-                principal_id: executor.into(),
-                principal_class: PrincipalClass::Agent,
-                display_name: None,
-                affiliation: None,
-                account_links: vec![executor.into()],
-            },
-            authentication_request: AuthenticationRequest {
-                principal_id: executor.into(),
-                principal_class: PrincipalClass::Agent,
-                transaction_at: fixed_time.clone(),
-            },
-            runtime_session_state: RuntimeSessionState::default(),
-            authorization_input,
-            delegation: None,
-            semantic_approvals: Vec::new(),
-            event_drafts: Vec::new(),
-            object_drafts,
-            derived_drafts,
-            next_authority_keyset: None,
-            next_policy_bundle: None,
-            next_policy_material: None,
-            read_set,
-            vela_version: env!("CARGO_PKG_VERSION").into(),
-            binary_sha256,
-            recorded_at: fixed_time,
-        },
-        &mut authentication,
-        &mut repository_signer,
-    )
-    .map_err(|error| error.to_string())?;
+        &held_repository.frontier_id,
+        crate::frontier_txn::OperationKind::Submission,
+        operation_id.clone(),
+        &request_root,
+        fixed_time,
+        read_set,
+        object_drafts,
+        derived_drafts,
+    )?;
 
     let public = prepared
         .resolved_public_writes()

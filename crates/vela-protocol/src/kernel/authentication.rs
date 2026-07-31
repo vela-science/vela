@@ -9,7 +9,7 @@ use std::collections::BTreeSet;
 use chrono::{DateTime, SecondsFormat};
 use serde::{Deserialize, Serialize};
 
-use super::principal_capability::PrincipalClass;
+use super::principal::PrincipalClass;
 
 pub const AUTHENTICATION_OBSERVATION_SCHEMA_V1: &str = "vela.authentication-observation.v1";
 pub const MAX_AUTHENTICATION_AGE_SECONDS: i64 = 24 * 60 * 60;

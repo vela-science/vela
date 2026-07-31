@@ -502,6 +502,7 @@ impl FrontierBinding {
 #[serde(rename_all = "snake_case")]
 pub(crate) enum OperationKind {
     Submission,
+    Verification,
     Decision,
     Maintenance,
 }

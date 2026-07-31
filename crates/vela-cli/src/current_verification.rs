@@ -1,8 +1,8 @@
 //! Current-only Verification Record intake for Profile v2 repositories.
 //!
 //! Verification remains scoped authenticated evidence. This writer retains one
-//! exact Verification Record, advances the current repository under an
-//! object-only authority record, and changes no Claim standing.
+//! exact Verification Record and advances the current repository without
+//! changing authority or Claim standing.
 
 use std::fs;
 use std::path::{Component, Path, PathBuf};
@@ -10,33 +10,22 @@ use std::path::{Component, Path, PathBuf};
 use chrono::{SecondsFormat, Utc};
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use vela_authority::CedarEvaluationInput;
-use vela_authority::runtime_authentication::{
-    AuthenticationRequest, RuntimeSessionState, SignedVerificationRecordSession,
-};
-use vela_protocol::authority::PrincipalSnapshotV1;
 use vela_protocol::current_repository::{CurrentRepositoryV3, RepositoryObjectRefV1};
 use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
-use vela_protocol::principal_capability::PrincipalClass;
 use vela_protocol::proposal_v1::ProposalV1;
-use vela_protocol::repository_origin::RepositoryOriginV1;
 use vela_protocol::submission_v1::SubmissionV1;
 use vela_protocol::verification_record::{
     IndependenceDisclosure, VerificationMethod, VerificationRecordDraft, VerificationRecordV1,
     VerificationScope, VerificationSubject,
 };
 
-use crate::authority_transaction::{
-    AuthorityObjectDraft, AuthorityTransactionRequest, prepare_authority_transaction,
-};
+use crate::authority_transaction::AuthorityObjectDraft;
 use crate::config::git_publish::{
     PublicationOutcome, PublicationState, PublishOptions, exact_publication_preflight,
     publication_disabled_reason, publication_is_busy, publish_exact_delta,
 };
 use crate::frontier_txn::{ContentDigest, InputBinding, WriteClass};
-use crate::workflow::{
-    VerificationImportOutcome, active_repository_signing_key, publication_delta,
-};
+use crate::workflow::{VerificationImportOutcome, publication_delta};
 
 const METHOD_MANIFEST_MAX_BYTES: u64 = 1024 * 1024;
 
@@ -507,25 +496,6 @@ fn import_inner(
     require_source_attempt(&held_submission, requested_attempt)
         .map_err(|_| "Verification source Attempt changed while acquiring the import barrier")?;
 
-    let origin_bytes = fs::read(frontier.join(".vela/origin.json"))
-        .map_err(|error| format!("read current repository origin: {error}"))?;
-    let origin = RepositoryOriginV1::parse(&origin_bytes)?;
-    if origin.canonical_bytes()? != origin_bytes {
-        return Err("current repository origin is not canonical JSON".into());
-    }
-    let authority =
-        crate::cli::load_current_repository_authority(frontier, &held_repository, &origin)?;
-    if !authority
-        .policy_material
-        .schema
-        .contains("action \"verification_import\"")
-    {
-        return Err(
-            "repository authority does not permit Verification Record import; rotate to the current routine-work policy"
-                .into(),
-        );
-    }
-
     let record_path =
         crate::current_submission::rooted_path("records/verifications/sha256", &record_root)?;
     let mut next_repository = held_repository.clone();
@@ -543,116 +513,65 @@ fn import_inner(
         crate::current_submission::rebind_target_index(frontier, &next_repository)?;
 
     let recorded_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
-    let authorization_input = CedarEvaluationInput {
-        schema: authority.policy_material.schema.clone(),
-        policies: authority.policy_material.policies.clone(),
-        entities: authority.policy_material.entities.clone(),
-        principal: format!(
-            "Agent::{}",
-            serde_json::to_string(executor).expect("actor ID serializes")
-        ),
-        principal_class: PrincipalClass::Agent,
-        action: "verification_import".into(),
-        resource: format!(
-            "Frontier::{}",
-            serde_json::to_string(&held_repository.frontier_id).expect("Frontier ID serializes")
-        ),
-        context: json!({"exact": true}),
-    };
-    let (key_id, public_key) = active_repository_signing_key(&authority)?;
-    let mut repository_signer =
-        crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner::from_environment(
-            key_id,
-            &public_key,
-        )?;
-    let executable =
-        std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
-    let binary_sha256 = crate::authority_transaction::execution_binary_sha256(&executable)?;
-    let mut authentication = SignedVerificationRecordSession::from_record(record)?;
     crate::current_work::revalidate_routine_attempt(frontier, resolved_attempt.as_ref())?;
-    let mut prepared = prepare_authority_transaction(
+    let mut prepared = crate::routine_evidence_transaction::prepare_routine_evidence_transaction(
         barrier,
         frontier,
-        AuthorityTransactionRequest {
-            history: authority.history,
-            intent_digest: request_root,
-            principal: PrincipalSnapshotV1 {
-                principal_id: executor.into(),
-                principal_class: PrincipalClass::Agent,
-                display_name: None,
-                affiliation: None,
-                account_links: vec![executor.into()],
-            },
-            authentication_request: AuthenticationRequest {
-                principal_id: executor.into(),
-                principal_class: PrincipalClass::Agent,
-                transaction_at: recorded_at.clone(),
-            },
-            runtime_session_state: RuntimeSessionState::default(),
-            authorization_input,
-            delegation: None,
-            semantic_approvals: Vec::new(),
-            event_drafts: Vec::new(),
-            object_drafts: vec![
-                AuthorityObjectDraft {
-                    path: record_path,
-                    object_kind: "verification_record".into(),
-                    class: WriteClass::PublicReview,
-                    postimage: Some(record_bytes),
-                },
-                AuthorityObjectDraft {
-                    path: ".vela/repository.json".into(),
-                    object_kind: "repository_manifest".into(),
-                    class: WriteClass::CanonicalEvidence,
-                    postimage: Some(next_repository.canonical_bytes()?),
-                },
-            ],
-            derived_drafts,
-            next_authority_keyset: None,
-            next_policy_bundle: None,
-            next_policy_material: None,
-            read_set: {
-                let mut read_set = vec![
-                    InputBinding {
-                        name: "verification_record".into(),
-                        digest: ContentDigest::parse(record_root.clone())
-                            .map_err(|error| error.to_string())?,
-                    },
-                    InputBinding {
-                        name: "submission".into(),
-                        digest: ContentDigest::parse(record.subject.submission_root.clone())
-                            .map_err(|error| error.to_string())?,
-                    },
-                    InputBinding {
-                        name: "proposal".into(),
-                        digest: ContentDigest::parse(proposal_root)
-                            .map_err(|error| error.to_string())?,
-                    },
-                    InputBinding {
-                        name: "current_repository_before".into(),
-                        digest: ContentDigest::parse(repository_root)
-                            .map_err(|error| error.to_string())?,
-                    },
-                ];
-                if let Some(resolved) = &resolved_attempt {
-                    read_set.push(InputBinding {
-                        name: "current_attempt_binding".into(),
-                        digest: ContentDigest::parse(
-                            resolved.attempt.target_task_binding.binding_root.clone(),
-                        )
+        &held_repository.frontier_id,
+        crate::frontier_txn::OperationKind::Verification,
+        operation_id.clone(),
+        &request_root,
+        recorded_at,
+        {
+            let mut read_set = vec![
+                InputBinding {
+                    name: "verification_record".into(),
+                    digest: ContentDigest::parse(record_root.clone())
                         .map_err(|error| error.to_string())?,
-                    });
-                }
-                read_set
-            },
-            vela_version: env!("CARGO_PKG_VERSION").into(),
-            binary_sha256,
-            recorded_at,
+                },
+                InputBinding {
+                    name: "submission".into(),
+                    digest: ContentDigest::parse(record.subject.submission_root.clone())
+                        .map_err(|error| error.to_string())?,
+                },
+                InputBinding {
+                    name: "proposal".into(),
+                    digest: ContentDigest::parse(proposal_root)
+                        .map_err(|error| error.to_string())?,
+                },
+                InputBinding {
+                    name: "current_repository_before".into(),
+                    digest: ContentDigest::parse(repository_root)
+                        .map_err(|error| error.to_string())?,
+                },
+            ];
+            if let Some(resolved) = &resolved_attempt {
+                read_set.push(InputBinding {
+                    name: "current_attempt_binding".into(),
+                    digest: ContentDigest::parse(
+                        resolved.attempt.target_task_binding.binding_root.clone(),
+                    )
+                    .map_err(|error| error.to_string())?,
+                });
+            }
+            read_set
         },
-        &mut authentication,
-        &mut repository_signer,
-    )
-    .map_err(|error| error.to_string())?;
+        vec![
+            AuthorityObjectDraft {
+                path: record_path,
+                object_kind: "verification_record".into(),
+                class: WriteClass::PublicReview,
+                postimage: Some(record_bytes),
+            },
+            AuthorityObjectDraft {
+                path: ".vela/repository.json".into(),
+                object_kind: "repository_manifest".into(),
+                class: WriteClass::CanonicalEvidence,
+                postimage: Some(next_repository.canonical_bytes()?),
+            },
+        ],
+        derived_drafts,
+    )?;
 
     let public = prepared
         .resolved_public_writes()

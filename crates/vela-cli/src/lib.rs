@@ -11,6 +11,7 @@ pub(crate) mod authority_transaction;
 mod bounded_file;
 mod frontier;
 pub(crate) mod repository_authority_provider;
+pub(crate) mod routine_evidence_transaction;
 pub(crate) use frontier::cli_read;
 mod write;
 pub(crate) use write::cli_write;

@@ -33,7 +33,7 @@ use vela_protocol::authority_history::{
 use vela_protocol::canonical::to_canonical_bytes;
 use vela_protocol::current_repository::{CURRENT_REPOSITORY_SCHEMA_V3, CurrentRepositoryV3};
 use vela_protocol::events::{EventKind, NULL_HASH, StateActor, StateTarget};
-use vela_protocol::principal_capability::PrincipalClass;
+use vela_protocol::principal::PrincipalClass;
 use vela_protocol::repository_origin::RepositoryOriginV1;
 
 use crate::authority_transaction::{
@@ -48,38 +48,8 @@ use crate::repository_authority_provider::{
 
 use super::{fail_return, print_json};
 
-const AUTOMATIC_POLICY_SCHEMA: &str = r#"entity Service;
-entity Frontier;
-action "automatic_permit" appliesTo {
-    principal: Service,
-    resource: Frontier,
-    context: {
-        structuralValid: Bool,
-        claimClass: String,
-        assuranceLevel: Long,
-        impactTier: Long,
-        changedFindings: Long,
-        downstreamDependents: Long,
-        assertionTextMutated: Bool,
-        targetContested: Bool,
-        governanceMutation: Bool,
-        independenceSatisfied: Bool,
-        methodIntegritySound: Bool,
-        credentialValid: Bool,
-        hasUnknownFields: Bool,
-        replayability: String,
-        executionBindingPresent: Bool,
-        executionBindingValid: Bool,
-        packetRoot: String,
-        profileRoot: String,
-        verifierCapsuleRoot: String,
-        resultContractRoot: String,
-        producerCredentialRootPresent: Bool,
-        producerCredentialRoot: String
-    }
-};"#;
-
 const HUMAN_AUTHORITY_SCHEMA: &str = r#"
+entity Frontier;
 entity Human;
 entity Proposal;
 action "authority_rotate" appliesTo {
@@ -188,93 +158,11 @@ action "authority_initialize" appliesTo {
     }
 };"#;
 
-const ROUTINE_WORK_SCHEMA: &str = r#"
-entity Agent;
-action "work_claim" appliesTo {
-    principal: Agent,
-    resource: Frontier,
-    context: {
-        exact: Bool,
-        authentication: {
-            method: String,
-            assurance: String,
-            authenticated_at: String,
-            observed_at: String,
-            expires_at: String,
-            user_presence: Bool,
-            user_verification: Bool,
-            recovery_recent: Bool
-        }
-    }
-};"#;
-
-const ROUTINE_WORK_POLICY: &str = r#"
-permit(principal, action == Action::"work_claim", resource)
-when {
-    context.exact &&
-    context.authentication.method == "agent_event_signature" &&
-    context.authentication.assurance == "single_factor"
-};"#;
-
-const ROUTINE_SUBMISSION_SCHEMA: &str = r#"
-action "submission_register" appliesTo {
-    principal: Agent,
-    resource: Frontier,
-    context: {
-        exact: Bool,
-        authentication: {
-            method: String,
-            assurance: String,
-            authenticated_at: String,
-            observed_at: String,
-            expires_at: String,
-            user_presence: Bool,
-            user_verification: Bool,
-            recovery_recent: Bool
-        }
-    }
-};"#;
-
-const ROUTINE_SUBMISSION_POLICY: &str = r#"
-permit(principal, action == Action::"submission_register", resource)
-when {
-    context.exact &&
-    context.authentication.method == "agent_record_signature" &&
-    context.authentication.assurance == "single_factor"
-};"#;
-
-const ROUTINE_VERIFICATION_SCHEMA: &str = r#"
-action "verification_import" appliesTo {
-    principal: Agent,
-    resource: Frontier,
-    context: {
-        exact: Bool,
-        authentication: {
-            method: String,
-            assurance: String,
-            authenticated_at: String,
-            observed_at: String,
-            expires_at: String,
-            user_presence: Bool,
-            user_verification: Bool,
-            recovery_recent: Bool
-        }
-    }
-};"#;
-
-const ROUTINE_VERIFICATION_POLICY: &str = r#"
-permit(principal, action == Action::"verification_import", resource)
-when {
-    context.exact &&
-    context.authentication.method == "agent_record_signature" &&
-    context.authentication.assurance == "single_factor"
-};"#;
-
-const ROUTINE_WORK_POLICY_TESTS_ROOT: &str =
-    // sha256("routine-work-policy-tests.v3|work_claim:agent_event_signature|\
-    // submission_register:agent_record_signature|verification_import:\
-    // agent_record_signature|exact=true|hostile:false-exact,none-auth,human-principal")
-    "sha256:cf062aaec11c083af44080cc55363f27591656b52acec538ad964ec301fcc698";
+const AUTHORITY_POLICY_TESTS_ROOT: &str =
+    // sha256("authority-policy-tests.v1|authority_initialize,authority_rotate,\
+    // authority_close,policy_rotate,review_accept,review_reject|exact=true|\
+    // bound-human-principal|hostile:unbound-principal")
+    "sha256:33deb37ad783ce995a3d3463eea05a4d3c3f762e9a5dd46aa9ce079d41a5e56e";
 
 pub(crate) fn fresh_authority_policy_for_frontier(
     frontier: &Path,
@@ -286,11 +174,6 @@ pub(crate) fn fresh_authority_policy_for_frontier(
     let _ = observed_at;
     let entities = json!([
         {
-            "uid": {"type": "Service", "id": "repository-authority"},
-            "attrs": {},
-            "parents": []
-        },
-        {
             "uid": {"type": "Frontier", "id": frontier_id},
             "attrs": {},
             "parents": []
@@ -301,13 +184,9 @@ pub(crate) fn fresh_authority_policy_for_frontier(
             "parents": []
         }
     ]);
-    let schema = format!(
-        "{AUTOMATIC_POLICY_SCHEMA}\n{HUMAN_AUTHORITY_SCHEMA}\n{FRESH_AUTHORITY_INITIALIZE_SCHEMA}\n{ROUTINE_WORK_SCHEMA}\n{ROUTINE_SUBMISSION_SCHEMA}\n{ROUTINE_VERIFICATION_SCHEMA}\n"
-    );
+    let schema = format!("{HUMAN_AUTHORITY_SCHEMA}\n{FRESH_AUTHORITY_INITIALIZE_SCHEMA}\n");
     let human_policy = human_authority_policy(principal_id, true)?;
-    let policies = format!(
-        "{human_policy}\n{ROUTINE_WORK_POLICY}\n{ROUTINE_SUBMISSION_POLICY}\n{ROUTINE_VERIFICATION_POLICY}\n"
-    );
+    let policies = format!("{human_policy}\n");
     let bundle = PolicyBundleV1 {
         schema: POLICY_BUNDLE_SCHEMA_V1.into(),
         frontier_id: frontier_id.to_string(),
@@ -316,12 +195,12 @@ pub(crate) fn fresh_authority_policy_for_frontier(
         entities_root: ContentDigest::hash(to_canonical_bytes(&entities)?)
             .as_str()
             .into(),
-        tests_root: ROUTINE_WORK_POLICY_TESTS_ROOT.into(),
+        tests_root: AUTHORITY_POLICY_TESTS_ROOT.into(),
         engine: vela_protocol::authority::CEDAR_ENGINE.into(),
         engine_version: vela_protocol::authority::CEDAR_ENGINE_VERSION.into(),
         restricted_profile: vela_protocol::authority::CEDAR_PROFILE_V1.into(),
         previous_bundle_root: None,
-        authority_summary: "No automatic scientific admission; signed agents may coordinate exact work, register Submissions, and import Verification Records; one local human principal may decide reviews and administer repository authority.".into(),
+        authority_summary: "No automatic scientific admission; one local human principal may decide reviews and administer repository authority. Producer and verifier signatures authenticate routine evidence outside this policy.".into(),
     };
     let authorization = CedarEvaluationInput {
         schema,
@@ -381,165 +260,7 @@ pub(crate) fn fresh_authority_policy_for_frontier(
     {
         return Err("initial authority policy does not deny an unbound human principal".into());
     }
-    verify_routine_work_policy(&authorization, frontier_id)?;
     Ok((bundle, authorization))
-}
-
-fn verify_routine_work_policy(
-    authorization: &CedarEvaluationInput,
-    frontier_id: &str,
-) -> Result<(), String> {
-    let agent_input = CedarEvaluationInput {
-        principal: r#"Agent::"agent:policy-fixture""#.into(),
-        principal_class: PrincipalClass::Agent,
-        action: "work_claim".into(),
-        resource: format!("Frontier::{}", serde_json::to_string(frontier_id).unwrap()),
-        context: json!({
-            "exact": true,
-            "authentication": {
-                "method": "agent_event_signature",
-                "assurance": "single_factor",
-                "authenticated_at": "2026-07-24T00:00:00Z",
-                "observed_at": "2026-07-24T00:00:00Z",
-                "expires_at": "2026-07-24T00:05:00Z",
-                "user_presence": false,
-                "user_verification": false,
-                "recovery_recent": false
-            }
-        }),
-        ..authorization.clone()
-    };
-    let allowed = vela_authority::evaluate(&agent_input);
-    if !allowed.valid
-        || !allowed.diagnostics.is_empty()
-        || allowed.decision != vela_protocol::authority::CedarDecision::Allow
-    {
-        return Err(format!(
-            "routine work policy does not authorize one exact signed-agent lease: {:?}",
-            allowed.diagnostics
-        ));
-    }
-    let submission_input = CedarEvaluationInput {
-        action: "submission_register".into(),
-        context: json!({
-            "exact": true,
-            "authentication": {
-                "method": "agent_record_signature",
-                "assurance": "single_factor",
-                "authenticated_at": "2026-07-24T00:00:00Z",
-                "observed_at": "2026-07-24T00:00:00Z",
-                "expires_at": "2026-07-24T00:05:00Z",
-                "user_presence": false,
-                "user_verification": false,
-                "recovery_recent": false
-            }
-        }),
-        ..agent_input.clone()
-    };
-    let submission_allowed = vela_authority::evaluate(&submission_input);
-    if !submission_allowed.valid
-        || !submission_allowed.diagnostics.is_empty()
-        || submission_allowed.decision != vela_protocol::authority::CedarDecision::Allow
-    {
-        return Err(format!(
-            "routine work policy does not authorize one exact signed-agent Submission registration: {:?}",
-            submission_allowed.diagnostics
-        ));
-    }
-    let verification_input = CedarEvaluationInput {
-        action: "verification_import".into(),
-        ..submission_input.clone()
-    };
-    let verification_allowed = vela_authority::evaluate(&verification_input);
-    if !verification_allowed.valid
-        || !verification_allowed.diagnostics.is_empty()
-        || verification_allowed.decision != vela_protocol::authority::CedarDecision::Allow
-    {
-        return Err(format!(
-            "routine work policy does not authorize one exact signed Verification Record import: {:?}",
-            verification_allowed.diagnostics
-        ));
-    }
-    for hostile in [
-        CedarEvaluationInput {
-            context: json!({
-                "exact": false,
-                "authentication": {
-                    "method": "agent_event_signature",
-                    "assurance": "single_factor",
-                    "authenticated_at": "2026-07-24T00:00:00Z",
-                    "observed_at": "2026-07-24T00:00:00Z",
-                    "expires_at": "2026-07-24T00:05:00Z",
-                    "user_presence": false,
-                    "user_verification": false,
-                    "recovery_recent": false
-                }
-            }),
-            ..agent_input.clone()
-        },
-        CedarEvaluationInput {
-            context: json!({
-                "exact": true,
-                "authentication": {
-                    "method": "none",
-                    "assurance": "single_factor",
-                    "authenticated_at": "2026-07-24T00:00:00Z",
-                    "observed_at": "2026-07-24T00:00:00Z",
-                    "expires_at": "2026-07-24T00:05:00Z",
-                    "user_presence": false,
-                    "user_verification": false,
-                    "recovery_recent": false
-                }
-            }),
-            ..agent_input.clone()
-        },
-        CedarEvaluationInput {
-            action: "submission_register".into(),
-            context: json!({
-                "exact": true,
-                "authentication": {
-                    "method": "agent_event_signature",
-                    "assurance": "single_factor",
-                    "authenticated_at": "2026-07-24T00:00:00Z",
-                    "observed_at": "2026-07-24T00:00:00Z",
-                    "expires_at": "2026-07-24T00:05:00Z",
-                    "user_presence": false,
-                    "user_verification": false,
-                    "recovery_recent": false
-                }
-            }),
-            ..submission_input.clone()
-        },
-        CedarEvaluationInput {
-            action: "submission_register".into(),
-            context: json!({
-                "exact": false,
-                "authentication": {
-                    "method": "agent_record_signature",
-                    "assurance": "single_factor",
-                    "authenticated_at": "2026-07-24T00:00:00Z",
-                    "observed_at": "2026-07-24T00:00:00Z",
-                    "expires_at": "2026-07-24T00:05:00Z",
-                    "user_presence": false,
-                    "user_verification": false,
-                    "recovery_recent": false
-                }
-            }),
-            ..submission_input.clone()
-        },
-    ] {
-        let denied = vela_authority::evaluate(&hostile);
-        if !denied.valid
-            || !denied.diagnostics.is_empty()
-            || denied.decision != vela_protocol::authority::CedarDecision::Deny
-        {
-            return Err(format!(
-                "routine work policy does not fail closed for a hostile lease: {:?}",
-                denied.diagnostics
-            ));
-        }
-    }
-    Ok(())
 }
 
 #[derive(Debug, Clone)]
@@ -1320,7 +1041,7 @@ mod tests {
     }
 
     #[test]
-    fn fresh_policy_contains_only_the_current_work_contract() {
+    fn fresh_policy_contains_only_human_decision_and_administration_actions() {
         let temporary = TempDir::new().unwrap();
         let (bundle, authorization) = fresh_authority_policy_for_frontier(
             temporary.path(),
@@ -1329,15 +1050,18 @@ mod tests {
             "2026-07-27T00:00:00Z",
         )
         .unwrap();
-        assert_eq!(bundle.tests_root, ROUTINE_WORK_POLICY_TESTS_ROOT);
-        assert!(authorization.schema.contains("action \"work_claim\""));
+        assert_eq!(bundle.tests_root, AUTHORITY_POLICY_TESTS_ROOT);
+        assert!(authorization.schema.contains("action \"review_accept\""));
+        assert!(authorization.schema.contains("action \"review_reject\""));
+        assert!(!authorization.schema.contains("entity Agent"));
+        assert!(!authorization.schema.contains("action \"work_claim\""));
         assert!(
-            authorization
+            !authorization
                 .schema
                 .contains("action \"submission_register\"")
         );
         assert!(
-            authorization
+            !authorization
                 .schema
                 .contains("action \"verification_import\"")
         );

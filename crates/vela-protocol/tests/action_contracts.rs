@@ -201,7 +201,14 @@ fn reviewed_tags_publish_provenance_labeled_cross_platform_bundles() {
             .contains("cargo auditable build --locked --release -p vela-cli --bin vela")
     );
     assert!(RELEASE_WORKFLOW.contains("cargo install cargo-auditable --version 0.7.5 --locked"));
-    assert!(RELEASE_WORKFLOW.contains("syft-version: 1.44.0"));
+    let syft_version = RELEASE_WORKFLOW
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("syft-version: v"))
+        .expect("release workflow must pin one exact Syft version");
+    assert!(
+        is_stable_semver(syft_version),
+        "Syft must use a stable exact version, got {syft_version}"
+    );
     assert!(RELEASE_WORKFLOW.contains(".github/release/check-sbom.py"));
     assert!(!RELEASE_WORKFLOW.contains("target/release/vela-signer"));
     assert!(!RELEASE_WORKFLOW.contains("target/release/vela-signer.exe"));
