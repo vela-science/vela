@@ -150,8 +150,54 @@ fn sensitive_paths(root: &Path) -> Vec<PathBuf> {
 
 fn campaign_status_summary(
     projection: &Value,
+    current_target_packets: &BTreeMap<String, String>,
     now: DateTime<Utc>,
 ) -> Result<(Value, usize), String> {
+    fn bounded_usage(attempt: &Value, section: &str, field: &str) -> Result<u64, String> {
+        attempt
+            .get(section)
+            .and_then(|value| value.get(field))
+            .and_then(Value::as_u64)
+            .ok_or_else(|| {
+                format!("current Attempt has no unsigned {section}.{field} budget value")
+            })
+    }
+
+    fn budget_fully_exhausted(attempt: &Value) -> Result<bool, String> {
+        [
+            ("submissions", "max_submissions"),
+            ("verifications", "max_verifications"),
+            ("artifacts", "max_artifacts"),
+            ("artifact_bytes", "max_artifact_bytes"),
+        ]
+        .into_iter()
+        .map(|(usage, budget)| {
+            Ok(
+                bounded_usage(attempt, "usage", usage)?
+                    >= bounded_usage(attempt, "budget", budget)?,
+            )
+        })
+        .collect::<Result<Vec<_>, String>>()
+        .map(|dimensions| dimensions.into_iter().all(|exhausted| exhausted))
+    }
+
+    fn target_packet_is_current(
+        attempt: &Value,
+        current_target_packets: &BTreeMap<String, String>,
+    ) -> Result<bool, String> {
+        let target_id = attempt
+            .get("target_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| "current Attempt projection has no target_id".to_string())?;
+        let packet_sha256 = attempt
+            .get("target_packet_sha256")
+            .and_then(Value::as_str)
+            .ok_or_else(|| "current Attempt projection has no target_packet_sha256".to_string())?;
+        Ok(current_target_packets
+            .get(target_id)
+            .is_some_and(|current| current == packet_sha256))
+    }
+
     let attempts = projection
         .get("attempts")
         .and_then(Value::as_array)
@@ -166,7 +212,10 @@ fn campaign_status_summary(
             let expires_at = DateTime::parse_from_rfc3339(expires_at)
                 .map_err(|error| format!("current Attempt expires_at: {error}"))?
                 .with_timezone(&Utc);
-            Ok((attempt, expires_at > now))
+            let active = expires_at > now
+                && !budget_fully_exhausted(attempt)?
+                && target_packet_is_current(attempt, current_target_packets)?;
+            Ok((attempt, active))
         })
         .collect::<Result<Vec<_>, String>>()?
         .into_iter()
@@ -333,6 +382,9 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
     }
     let repository = load_current_repository_at(&frontier, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let repository_root = repository
+        .canonical_root()
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let commit = git_text(&frontier, &["rev-parse", "HEAD^{commit}"])
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let tree = git_text(&frontier, &["rev-parse", "HEAD^{tree}"])
@@ -355,8 +407,24 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         .count();
     let attempt_projection = crate::current_work::project_attempts(&frontier)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let (campaign, active_attempt_count) = campaign_status_summary(&attempt_projection, Utc::now())
-        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let current_target_packets = vela_edge::target_index::assess_current_target_index(
+        &frontier,
+        &repository.frontier_id,
+        &repository.origin_id,
+        &repository_root,
+    )
+    .unwrap_or_else(|error| crate::cli::fail_return(&error))
+    .map(|assessment| {
+        assessment
+            .fresh_open_targets()
+            .into_iter()
+            .map(|target| (target.id.clone(), target.packet.sha256.clone()))
+            .collect::<BTreeMap<_, _>>()
+    })
+    .unwrap_or_default();
+    let (campaign, active_attempt_count) =
+        campaign_status_summary(&attempt_projection, &current_target_packets, Utc::now())
+            .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let inbox_projection = crate::decision_inbox::project(&frontier)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let (decision_inbox, pending_decision_count) = decision_inbox_status_summary(&inbox_projection);
@@ -389,7 +457,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         },
         "roots": {
             "origin": repository.origin_root,
-            "repository": repository.canonical_root().unwrap_or_else(|error| crate::cli::fail_return(&error)),
+            "repository": repository_root,
             "authority_keyset": repository.authority_keyset_root,
             "authority_policy": repository.authority_policy_root
         },
@@ -2104,6 +2172,7 @@ mod tests {
                     "allowed_artifact_classes": ["report"],
                     "consequence_ceiling": "evidence_only",
                     "task_contract_root": root('2'),
+                    "target_packet_sha256": root('5'),
                     "budget": {
                         "max_submissions": 1,
                         "max_verifications": 1,
@@ -2129,6 +2198,7 @@ mod tests {
                     "allowed_artifact_classes": ["witness"],
                     "consequence_ceiling": "pending_review",
                     "task_contract_root": root('4'),
+                    "target_packet_sha256": root('6'),
                     "budget": {
                         "max_submissions": 5,
                         "max_verifications": 5,
@@ -2149,7 +2219,12 @@ mod tests {
         let now = DateTime::parse_from_rfc3339("2026-07-30T00:00:00Z")
             .unwrap()
             .with_timezone(&Utc);
-        let (summary, active_count) = campaign_status_summary(&projection, now).unwrap();
+        let current_target_packets = BTreeMap::from([
+            ("target:a".to_string(), root('5')),
+            ("target:b".to_string(), root('6')),
+        ]);
+        let (summary, active_count) =
+            campaign_status_summary(&projection, &current_target_packets, now).unwrap();
         assert_eq!(active_count, 1);
         assert_eq!(summary["active_attempt_count"], 1);
         assert_eq!(summary["first_attempt"]["attempt_id"], "vat_active");
@@ -2175,6 +2250,94 @@ mod tests {
         assert!(next.contains("--as agent:fixture"));
         assert!(!next.contains("review accept"));
         assert!(!next.contains("review reject"));
+    }
+
+    #[test]
+    fn campaign_status_excludes_fully_exhausted_attempt() {
+        let projection = json!({
+            "schema": "vela.attempt-list.v2",
+            "attempts": [{
+                "attempt_id": "vat_exhausted",
+                "target_id": "target:a",
+                "actor": "agent:fixture",
+                "authorization_root": root('1'),
+                "expires_at": "2026-07-31T00:00:00Z",
+                "allowed_operations": ["inspect", "submission_author"],
+                "allowed_artifact_classes": ["witness"],
+                "consequence_ceiling": "pending_review",
+                "task_contract_root": root('2'),
+                "target_packet_sha256": root('3'),
+                "budget": {
+                    "max_submissions": 1,
+                    "max_verifications": 1,
+                    "max_artifacts": 2,
+                    "max_artifact_bytes": 64
+                },
+                "usage": {
+                    "submissions": 1,
+                    "verifications": 1,
+                    "artifacts": 2,
+                    "artifact_bytes": 64,
+                    "registered_submission_ids": ["vsb_fixture"],
+                    "registered_verification_record_ids": ["vvr_fixture"]
+                }
+            }]
+        });
+        let now = DateTime::parse_from_rfc3339("2026-07-30T00:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        let current_target_packets = BTreeMap::from([("target:a".to_string(), root('3'))]);
+
+        let (summary, active_count) =
+            campaign_status_summary(&projection, &current_target_packets, now).unwrap();
+
+        assert_eq!(active_count, 0);
+        assert_eq!(summary["active_attempt_count"], 0);
+        assert!(summary["first_attempt"].is_null());
+    }
+
+    #[test]
+    fn campaign_status_excludes_attempt_after_target_packet_advances() {
+        let projection = json!({
+            "schema": "vela.attempt-list.v2",
+            "attempts": [{
+                "attempt_id": "vat_advanced",
+                "target_id": "target:a",
+                "actor": "agent:fixture",
+                "authorization_root": root('1'),
+                "expires_at": "2026-07-31T00:00:00Z",
+                "allowed_operations": ["inspect", "submission_author"],
+                "allowed_artifact_classes": ["witness"],
+                "consequence_ceiling": "pending_review",
+                "task_contract_root": root('2'),
+                "target_packet_sha256": root('3'),
+                "budget": {
+                    "max_submissions": 2,
+                    "max_verifications": 2,
+                    "max_artifacts": 4,
+                    "max_artifact_bytes": 128
+                },
+                "usage": {
+                    "submissions": 1,
+                    "verifications": 1,
+                    "artifacts": 2,
+                    "artifact_bytes": 64,
+                    "registered_submission_ids": ["vsb_fixture"],
+                    "registered_verification_record_ids": ["vvr_fixture"]
+                }
+            }]
+        });
+        let now = DateTime::parse_from_rfc3339("2026-07-30T00:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        let current_target_packets = BTreeMap::from([("target:a".to_string(), root('4'))]);
+
+        let (summary, active_count) =
+            campaign_status_summary(&projection, &current_target_packets, now).unwrap();
+
+        assert_eq!(active_count, 0);
+        assert_eq!(summary["active_attempt_count"], 0);
+        assert!(summary["first_attempt"].is_null());
     }
 
     fn current_review_lineage() -> (ProposalV1, ClaimRecordV1, VerificationRecordV1) {

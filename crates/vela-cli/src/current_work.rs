@@ -1253,6 +1253,7 @@ fn attempt_list_entry(attempt: CurrentAttempt, path: &Path) -> Value {
         "allowed_artifact_classes": attempt.allowed_artifact_classes,
         "consequence_ceiling": attempt.consequence_ceiling,
         "task_contract_root": attempt.task_contract_root,
+        "target_packet_sha256": attempt.target_task_binding.packet.sha256,
         "usage": attempt.usage,
         "budget": attempt.budget,
         "path": path.display().to_string(),
