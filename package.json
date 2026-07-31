@@ -9,7 +9,8 @@
     "build": "bun run --cwd packages/protocol build && bun run --cwd packages/canopus build",
     "typecheck": "bun run --cwd packages/protocol typecheck && bun run --cwd packages/protocol build && bun run --cwd packages/canopus typecheck",
     "test": "bun run --cwd packages/protocol test && bun run --cwd packages/canopus test",
-    "check": "bun run typecheck && bun run test && bun run check:boundaries",
+    "test:benchmarks": "python3 -m unittest discover -s benchmarks/product-compression -p 'test_*.py'",
+    "check": "bun run typecheck && bun run test && bun run test:benchmarks && bun run check:boundaries",
     "check:boundaries": "bun packages/canopus/tooling/check-authority-boundary.mjs",
     "pack:check": "bun run --cwd packages/protocol pack:check"
   }

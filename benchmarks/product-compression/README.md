@@ -6,10 +6,12 @@ Git and files alone, without losing exact provenance or confusing Verification
 with acceptance.
 
 The stopped v1 study remains unchanged in
-`paper/artifacts/product-compression-v1`. This directory contains only the
-closed answer contract, exact fixture materializer, frozen-plan/result
-validator, deterministic scorer, and tests. It cannot mutate a Frontier or
-perform a Decision.
+`paper/artifacts/product-compression-v1`. This directory is the reusable
+benchmark source: the closed answer contract, exact fixture compiler,
+frozen-plan/result validator, deterministic Vela-specific scorer, and tests.
+It cannot mutate a Frontier or perform a Decision. Compact final result roots
+belong under `paper/artifacts/`; generated tasks and raw execution evidence do
+not.
 
 ## Execution boundary
 
@@ -140,32 +142,32 @@ the stopped custom supervisor is silently reclassified as Harbor evidence.
 
 ```bash
 python3 -m unittest discover \
-  -s paper/artifacts/product-compression-v2 -p 'test_*.py'
+  -s benchmarks/product-compression -p 'test_*.py'
 
-python3 paper/artifacts/product-compression-v2/harness.py validate \
+python3 benchmarks/product-compression/harness.py validate \
   --kind answer --input answer.json
 
-python3 paper/artifacts/product-compression-v2/harness.py score \
+python3 benchmarks/product-compression/harness.py score \
   --plan plan.json --answer-key answer-key.json \
   --session session.json --output score.json
 
-python3 paper/artifacts/product-compression-v2/harness.py report \
+python3 benchmarks/product-compression/harness.py report \
   --plan plan.json --answer-key answer-key.json \
   --sessions session-*.json --output result.json
 
-python3 paper/artifacts/product-compression-v2/materialize.py \
+python3 benchmarks/product-compression/materialize.py \
   --frontier /exact/frontier --vela /exact/vela \
   --attempt /exact/private/attempt.json --proposal vpr_<id> \
-  --output ~/.vela/product-compression-v2/materials
+  --output jobs/product-compression-v2/materials
 
-python3 paper/artifacts/product-compression-v2/harness.py freeze-plan \
+python3 benchmarks/product-compression/harness.py freeze-plan \
   --materials /exact/private/materials --model gpt-5.6-terra \
   --codex-version 0.145.0 --vela-linux /exact/static-linux-vela \
   --vela-version 'vela 0.950.1' --output /exact/plan.json
 
 env -u OPENAI_API_KEY CODEX_FORCE_AUTH_JSON=true \
   harbor run --config /exact/private/harbor-job.json \
-  --jobs-dir ~/.vela/product-compression-v2/jobs
+  --jobs-dir jobs/product-compression-v2/runs
 ```
 
 The private `harbor-job.json` lists the four native Harbor task directories in
@@ -175,7 +177,8 @@ task receives the same exact Frontier checkout and participant evidence; only
 the guided task receives the exact read-only Linux Vela binary. The answer key
 exists only in the separate offline verifier image.
 
-The Harbor job directory is the retained execution evidence. Harbor's own
+The ignored `jobs/product-compression-v2/` tree is the local execution area.
+Harbor's job directory is the retained raw evidence. Harbor's own
 result, lock, ATIF trajectory, verifier reward, artifact manifest, timing,
 usage, and viewer remain the inspection surface; Vela does not wrap them in
 another execution format. The small Vela harness owns only the frozen plan,

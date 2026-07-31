@@ -998,9 +998,9 @@ with a closed participant schema, execution instrumentation declared before
 output, retained tool/trajectory evidence, and an explicit post-run token gate;
 it is not a post-output amendment.
 
-The source-only `product-compression-v2` successor now closes the answer,
-plan, session, score, and report contracts and correctly models the current
-product state: completed Attempt, two root-linked Runs, one registered
+The source-only `benchmarks/product-compression` successor now closes the
+answer, plan, session, score, and report contracts and correctly models the
+current product state: completed Attempt, two root-linked Runs, one registered
 Submission and one retained corroborating Run, one current protocol-ready
 Decision Inbox entry, and the exact successor Target. Its read-only materializer
 reconstructs fixture root `sha256:457f1bee2dca85336ebf822d94d2e183500dd411839166b175942363c4f0e290`
@@ -1075,6 +1075,16 @@ removes its remote copy afterward. It therefore runs only trusted Vela-owned
 tasks. Provider egress is allowlisted and the verifier remains offline. This is
 ordinary local execution custody, not an independence or credential-isolation
 claim.
+
+Repository ownership is explicit. Vela tracks the reusable benchmark
+definition under `benchmarks/product-compression`; compact final result roots
+cited by the paper belong under `paper/artifacts`; ignored Harbor jobs,
+generated fixtures, trajectories, temporary binaries, and container output
+belong under `jobs/product-compression-v2`. They do not belong in the source
+repository's scientific object model, a Frontier repository, or user-level
+`~/.vela` identity/runtime state. A separate benchmark repository is deferred
+until independent benchmark families or external authors require an independent
+release lifecycle.
 
 Braintrust is deferred as an optional read-only analysis mirror. Harbor's local
 viewer already exposes trials, trajectories, verifier output, artifacts, timing,
