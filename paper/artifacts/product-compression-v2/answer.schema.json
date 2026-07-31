@@ -66,7 +66,7 @@
         "receipt_root": {"$ref": "#/$defs/root"},
         "previous_receipt_root": {"type": ["null", "string"], "pattern": "^sha256:[0-9a-f]{64}$"},
         "evidence_root": {"$ref": "#/$defs/root"},
-        "submission_state": {"enum": ["registered", "ready_to_export"]},
+        "submission_state": {"enum": ["registered", "retained_corroboration"]},
         "submission_id": {"type": ["null", "string"], "pattern": "^vsb_[0-9a-f]{16}$"},
         "proposal_id": {"type": ["null", "string"], "pattern": "^vpr_[0-9a-f]{16}$"},
         "claim_id": {"type": ["null", "string"], "pattern": "^vcl_[0-9a-f]{64}$"},
@@ -75,15 +75,17 @@
     },
     "campaign": {
       "type": "object", "additionalProperties": false,
-      "required": ["attempt_id", "authorization_root", "consequence_ceiling", "budget", "usage", "runs", "next_action_code"],
+      "required": ["attempt_id", "authorization_root", "state", "completed_target_packet_sha256", "consequence_ceiling", "budget", "usage", "runs", "next_action_code"],
       "properties": {
         "attempt_id": {"type": "string", "pattern": "^vat_[0-9a-f]{64}$"},
         "authorization_root": {"$ref": "#/$defs/root"},
+        "state": {"const": "completed_target_advanced"},
+        "completed_target_packet_sha256": {"$ref": "#/$defs/root"},
         "consequence_ceiling": {"enum": ["evidence_only", "pending_review"]},
         "budget": {"$ref": "#/$defs/budget"},
         "usage": {"$ref": "#/$defs/usage"},
         "runs": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/run"}},
-        "next_action_code": {"const": "export_ready_run"}
+        "next_action_code": {"const": "start_successor_attempt"}
       }
     },
     "review": {

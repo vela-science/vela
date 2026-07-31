@@ -12,15 +12,17 @@ Agent campaign and one pending Decision materially faster than Git and files
 alone, without losing exact provenance or confusing Verification with
 acceptance?
 
-The future fixture is deliberately narrow: one Erdős Target, one active Attempt,
-two root-linked Runs, one registered Submission with a Verification and pending
-Proposal, and the other Run ready to export. Run order and registration order
-are independent. A participant reports:
+The future fixture is deliberately narrow: one completed Erdős Attempt, two
+root-linked Runs, one registered Submission with a Verification and pending
+Proposal, one retained corroborating Run, and the exact successor Target. Run
+order and registration order are independent. A participant reports:
 
 1. the current Target and exact Attempt boundary;
-2. the two Runs and receipt chain, the registered Run, and the next action;
+2. the two Runs and receipt chain, the registered Run, and why the other Run
+   must not be exported as duplicate work;
 3. the Proposal's readiness and conditional Standing change; and
-4. whether inspection exercised authority or changed accepted Standing.
+4. whether inspection exercised authority or changed accepted Standing; and
+5. the exact successor Target that can begin under a new bounded Attempt.
 
 `answer.schema.json` is the only participant-facing output contract. It is
 recursively closed. `harness.py` uses explicit validators rather than a partial
@@ -42,6 +44,15 @@ No session may run until independently reconstructible source tooling emits:
   and
 - an isolated participant workspace that cannot read the answer key or invoke a
   mutation, authority, publication, or agent-execution command.
+
+`materialize.py` closes the first two gates. It accepts one clean Frontier, one
+exact Vela binary, the completed private Attempt record, and an explicit pending
+Proposal ID. It invokes only `status`, `next`, and `review inbox`, verifies that
+Git and repository state do not change, checks the complete receipt chain and
+content-addressed Run, evidence, Submission, Verification, and successor packet
+bytes, then writes a public `fixture.json` and supervisor-only
+`answer-key.json`. Absolute private Run paths are never copied into the fixture.
+The future runner must keep the answer key outside participant custody.
 
 There is intentionally no plan example: placeholder roots would look frozen
 without binding real material. `validate_plan` defines the closed plan contract,
@@ -100,6 +111,11 @@ python3 paper/artifacts/product-compression-v2/harness.py score \
 python3 paper/artifacts/product-compression-v2/harness.py report \
   --plan plan.json --answer-key answer-key.json \
   --sessions session-*.json --output result.json
+
+python3 paper/artifacts/product-compression-v2/materialize.py \
+  --frontier /exact/frontier --vela /exact/vela \
+  --attempt /exact/private/attempt.json --proposal vpr_<id> \
+  --output /private/study-material
 ```
 
 These checks are local and do not depend on hosted CI.

@@ -82,30 +82,30 @@ having no protocol blocker.
 Sidon remains clean at commit
 `75b3392c5d2a4390065a3927914acdb552d69e8e`. Vela Web `v0.430.0` is deployed
 with Observatory snapshot commit
-`91d2657fca394d8c34d26fc1dbd62557ef56939e` and unchanged editorial commit
+`a7cb131c4a2bfea9038c61ef23d763bba878bf25` and unchanged editorial commit
 `f85ff84b6d757ceff2b3b2dcf2a1b87176566f4d`:
 
 - the Observatory and editorial production manifests identify the exact version,
   commit, brand root, and Vercel deployments;
 - the active projection is
-  `sha256:4911de959a3fb41bab1185230a5ddbaece182ccea9c014d53cbca0ba04989d25`
+  `sha256:d8339a90ddcc76dd2fc208365c5f6713739ddf39ec24c60f450f60f8f3601d93`
   under Vela `0.950.1`;
 - source adapter set
   `sha256:f5bcd480aafe766a1700450efd019115a2fb9f90aac8091f507595047c91b9dd`
   contains 6,700 exact adapter records, and the Registry projection contains
-  9,540 native rows;
+  9,541 native rows;
 - PLBY is observed from locked commit
   `d4476dd3535ec618dee4177915741017026d26bf`, not the stale predecessor;
-- the single Neon `main` branch exposes 14 exact sources, 6,306 Frontier
-  bindings, 4,147 graph nodes, 2,587 edges, and 4,151 search documents through
+- the single Neon `main` branch exposes 14 exact sources, 6,307 Frontier
+  bindings, 4,152 graph nodes, 2,591 edges, and 4,156 search documents through
   the SELECT-only reader; and
-- production data checks confirm the root-bound 4,049-node, 2,544-edge Erdős
+- production data checks confirm the root-bound 4,054-node, 2,548-edge Erdős
   projection, and the live graph API returns the exact active release root.
 
-The retained live-read-health artifact `sha256:457df1b7…` qualifies the prior
-active release `sha256:d944fd9a…`; the current release has exact manifest,
-SELECT-only reader, and live graph-API smoke evidence, but no replacement
-health artifact. The separate bounded capacity artifact `sha256:c1ad6d1a…`
+The retained live-read-health artifact `sha256:d447c008…` qualifies the current
+active release `sha256:d8339a90…` with 14 declared and observed sources, zero
+duplicate native IDs, and zero dangling Frontier bindings. The separate
+bounded capacity artifact `sha256:c1ad6d1a…`
 passes 100,000-record ingestion, exact root/count verification, rollback
 containment, transactional activation rollback, SELECT-only reader, and
 eight-way read budgets using the existing schema and JSONB writer. No COPY path

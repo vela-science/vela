@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import harness
+import materialize
 
 
 def root(character: str) -> str:
@@ -18,14 +21,14 @@ def answer() -> dict:
         "schema": "vela.product-compression-answer.v2",
         "work": {"frontier_id": "vfr_0123456789abcdef", "repository_root": root("1"), "target_id": "erdos:1056", "target_index_root": root("2"), "packet_sha256": root("3")},
         "campaign": {
-            "attempt_id": f"vat_{'4' * 64}", "authorization_root": root("5"), "consequence_ceiling": "pending_review",
+            "attempt_id": f"vat_{'4' * 64}", "authorization_root": root("5"), "state": "completed_target_advanced", "completed_target_packet_sha256": root("0"), "consequence_ceiling": "pending_review",
             "budget": {"max_runs": 16, "max_submissions": 4, "max_verifications": 4, "max_artifacts": 16, "max_artifact_bytes": 16_777_216},
             "usage": {"runs": 2, "submissions": 1, "verifications": 1, "artifacts": 2, "artifact_bytes": 4096},
             "runs": [
-                {"run_number": 1, "run_id": "run_00000000-0000-0000-0000-000000000001", "receipt_root": receipt, "previous_receipt_root": None, "evidence_root": root("7"), "submission_state": "ready_to_export", "submission_id": None, "proposal_id": None, "claim_id": None, "verification_id": None},
+                {"run_number": 1, "run_id": "run_00000000-0000-0000-0000-000000000001", "receipt_root": receipt, "previous_receipt_root": None, "evidence_root": root("7"), "submission_state": "retained_corroboration", "submission_id": None, "proposal_id": None, "claim_id": None, "verification_id": None},
                 {"run_number": 2, "run_id": "run_00000000-0000-0000-0000-000000000002", "receipt_root": root("8"), "previous_receipt_root": receipt, "evidence_root": root("9"), "submission_state": "registered", "submission_id": "vsb_0123456789abcdef", "proposal_id": "vpr_0123456789abcdef", "claim_id": claim, "verification_id": "vvr_0123456789abcdef"},
             ],
-            "next_action_code": "export_ready_run",
+            "next_action_code": "start_successor_attempt",
         },
         "review": {"proposal_id": "vpr_0123456789abcdef", "proposal_root": root("a"), "source_submission_id": "vsb_0123456789abcdef", "target_claim_id": claim, "verification_id": "vvr_0123456789abcdef", "inbox_projection_root": root("b"), "inbox_entry_root": root("c"), "protocol_gate": "satisfied", "human_decision_required": True, "verification_is_acceptance": False, "standing_transition": "add accepted Claim", "accepted_before": [], "accepted_if_accept": [{"claim_id": claim, "claim_root": root("e")}], "accepted_if_reject": [], "staleness": "current", "next_if_accept_code": "replay_and_recompute_targets", "next_if_reject_code": "replay_without_standing_change"},
         "safety": {"authority_action_performed": False, "accepted_state_changed": False},
@@ -212,6 +215,101 @@ class HarnessTests(unittest.TestCase):
         result = harness.build_report(study, key, sessions)
         self.assertFalse(result["passed"])
         self.assertIn("zero_baseline_elapsed", result["failure_codes"])
+
+    def test_materializer_binds_completed_attempt_to_successor_and_review(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root_dir = Path(directory)
+            frontier, private = root_dir / "frontier", root_dir / "private"
+            frontier.mkdir()
+            private.mkdir()
+            vela = root_dir / "vela"
+            vela.write_bytes(b"vela-binary")
+            packet = frontier / "targets" / "erdos-1056.json"
+            packet.parent.mkdir()
+            packet.write_bytes(b"successor-packet\n")
+            packet_root = materialize.digest(packet)
+
+            attempt_id, proposal_id = f"vat_{'4' * 64}", "vpr_0123456789abcdef"
+            submission_id, claim_id = "vsb_0123456789abcdef", f"vcl_{'d' * 64}"
+            run_files, evidence_files, receipts = [], [], []
+            previous = None
+            for number in (1, 2):
+                run_path, evidence_path = private / f"run-{number}.json", private / f"evidence-{number}.json"
+                run_path.write_bytes(f"run-{number}\n".encode())
+                evidence_path.write_bytes(f"evidence-{number}\n".encode())
+                run_id = f"run_00000000-0000-0000-0000-00000000000{number}"
+                receipt_root = root(str(number + 4))
+                evidence_root = root(str(number + 6))
+                receipts.append({
+                    "run_number": number, "receipt_root": receipt_root,
+                    "previous_receipt_root": previous,
+                    "result": {
+                        "run": {"id": run_id, "path": str(run_path), "size": run_path.stat().st_size, "sha256": materialize.digest(run_path)},
+                        "evidence_manifest": {"path": str(evidence_path), "size": evidence_path.stat().st_size, "sha256": materialize.digest(evidence_path), "root": evidence_root},
+                    },
+                })
+                run_files.append(run_path)
+                evidence_files.append(evidence_path)
+                previous = receipt_root
+
+            submission = {"submission_id": submission_id, "provenance": {"source_attempt": attempt_id, "source_run": receipts[1]["result"]["run"]["id"]}}
+            submission_bytes = harness.canonical_bytes(submission)
+            submission_root = harness.sha256_root(submission_bytes)
+            submission_path = frontier / materialize.relative_content_path(submission_root, "submissions")
+            submission_path.parent.mkdir(parents=True)
+            submission_path.write_bytes(submission_bytes)
+            attempt = {
+                "schema": "vela.attempt.v8", "attempt_id": attempt_id,
+                "authorization_root": root("3"), "frontier_id": "vfr_0123456789abcdef",
+                "target": "erdos:1056",
+                "starting_target_task_binding": {"packet": {"sha256": root("0")}},
+                "consequence_ceiling": "pending_review",
+                "budget": {"max_runs": 16, "max_submissions": 4, "max_verifications": 4, "max_artifacts": 16, "max_artifact_bytes": 16_777_216},
+                "usage": {"runs": 2, "submissions": 1, "verifications": 1, "artifacts": 2, "artifact_bytes": 16},
+                "agent_run_receipts": receipts,
+                "agent_run_submission_links": [{"run_id": receipts[1]["result"]["run"]["id"], "submission_id": submission_id}],
+            }
+            attempt_path = private / "attempt.json"
+            attempt_path.write_bytes(harness.canonical_bytes(attempt))
+            next_work = {
+                "frontier_id": "vfr_0123456789abcdef", "repository_root": root("1"), "target_index_root": root("2"),
+                "targets": [{"target_id": "erdos:1056", "packet": {"path": "targets/erdos-1056.json", "sha256": packet_root}}],
+            }
+            entry = {
+                "proposal_id": proposal_id, "claim_id": claim_id,
+                "inputs": {"repository_root": root("1"), "proposal_root": root("a"), "submission_root": submission_root},
+                "readiness": {"protocol_gate": "satisfied", "human_decision_required": True},
+                "staleness": {"state": "current"},
+                "verification_records": [{"verification_record_id": "vvr_0123456789abcdef", "verification_record_root": root("f")}],
+                "standing_diff": {"transition": "add accepted Claim", "accepted_before": [], "accepted_if_accept": [{"claim_id": claim_id, "claim_root": root("e")}], "accepted_if_reject": []},
+                "entry_root": root("c"),
+            }
+            status = {"campaign": {"active_attempt_count": 0}}
+            inbox = {"projection_root": root("b"), "entries": [entry]}
+
+            def fake_command(argv: tuple[str, ...], *, cwd: Path) -> str:
+                if argv[:3] == ("git", "status", "--porcelain"):
+                    return ""
+                if argv[:3] == ("git", "rev-parse", "HEAD"):
+                    return "1" * 40
+                if argv[:3] == ("git", "rev-parse", "HEAD^{tree}"):
+                    return "2" * 40
+                if argv[:3] == ("git", "remote", "get-url"):
+                    return "https://example.invalid/frontier.git"
+                if argv == (str(vela.resolve()), "--version"):
+                    return "vela 0.test"
+                raise AssertionError(argv)
+
+            def fake_json(argv: tuple[str, ...], *, cwd: Path) -> dict:
+                return status if argv[1] == "status" else next_work if argv[1] == "next" else inbox
+
+            with mock.patch.object(materialize, "command", side_effect=fake_command), mock.patch.object(materialize, "json_command", side_effect=fake_json):
+                fixture, key = materialize.materialize(frontier, vela, attempt_path, proposal_id)
+            harness.validate_answer_key(key)
+            self.assertEqual(fixture["frontier"]["repository_root"], root("1"))
+            self.assertEqual(key["expected"]["campaign"]["runs"][0]["submission_state"], "retained_corroboration")
+            self.assertEqual(key["expected"]["campaign"]["runs"][1]["submission_state"], "registered")
+            self.assertEqual(key["expected"]["work"]["packet_sha256"], packet_root)
 
 
 if __name__ == "__main__":

@@ -172,25 +172,25 @@ source lock and all four current Frontier heads:
 
 | Surface | Current exact candidate |
 | --- | --- |
-| Application version | Vela Web `v0.430.0`; Observatory snapshot commit `91d2657fca394d8c34d26fc1dbd62557ef56939e`; unchanged editorial commit `f85ff84b6d757ceff2b3b2dcf2a1b87176566f4d` |
-| Observatory production manifest | `vela.site-deployment.v3`; deployment `dpl_Fh6jxs4kQ6KTSbJ3KFXKiPYVJjk5`; exact application commit and active projection root verified at `app.vela.space` |
+| Application version | Vela Web `v0.430.0`; Observatory snapshot commit `a7cb131c4a2bfea9038c61ef23d763bba878bf25`; unchanged editorial commit `f85ff84b6d757ceff2b3b2dcf2a1b87176566f4d` |
+| Observatory production manifest | `vela.site-deployment.v3`; deployment `dpl_7ovGQUQRZnQZsMFz8DPietuNRBNg`; exact application commit and active projection root verified at `app.vela.space` |
 | Editorial production manifest | `vela.web-deployment.v2`; deployment `dpl_B4hngkk6EETdHCUu54P7DkhZjzh3`; exact application commit verified at `www.vela.space` |
-| Active projection | `vela.observatory-release-manifest.v7`; root `sha256:4911de959a3fb41bab1185230a5ddbaece182ccea9c014d53cbca0ba04989d25`; read model `observatory.v6`; Vela `0.950.1`; activated atomically at `2026-07-31T07:03:41.664Z`; 2,839 Claims, 12 Verifications, 4,147 graph nodes, 2,587 edges, and 4,151 search documents |
+| Active projection | `vela.observatory-release-manifest.v7`; root `sha256:d8339a90ddcc76dd2fc208365c5f6713739ddf39ec24c60f450f60f8f3601d93`; read model `observatory.v6`; Vela `0.950.1`; activated atomically at `2026-07-31T10:44:57.460Z`; 2,840 Claims, 13 Verifications, 4,152 graph nodes, 2,591 edges, and 4,156 search documents |
 | Source adapter set | root `sha256:f5bcd480aafe766a1700450efd019115a2fb9f90aac8091f507595047c91b9dd`; 6,700 exact adapter records |
-| Source Registry projection | 9,540 native rows; 6,306 Frontier bindings; declaration root `sha256:51de765c4ab9e834ea726ef53bc0f7f87e8d1cb5eeffaba22728908619d2ee37` |
+| Source Registry projection | 9,541 native rows; 6,307 Frontier bindings; declaration root `sha256:51de765c4ab9e834ea726ef53bc0f7f87e8d1cb5eeffaba22728908619d2ee37` |
 | PLBY observation | exact `plby/lean-proofs` commit `d4476dd3535ec618dee4177915741017026d26bf`; tree `c34eff8727b9fe02ba11ed2eb30da361a1b026fb`; 201 records |
 | Bounded Neon capacity | qualification root `sha256:c1ad6d1a58c7c19665dd575e1ee5c95064e0bde16d3533a9714ebf27854b7960`; the existing schema and 1,000-row JSONB writer insert and root-verify 100,000 records in 19.94 seconds; the isolated candidate was never activated and no test environment remains |
 | Clean-room reconstruction | qualification root `sha256:dfd38ca31994e6460e74dd96b2f8013a797fa74f8bb2c6a6affe3a3c9e879614`; two empty-database reconstructions produced release root `sha256:98a52be8a101eb79f2d7060a323ebec335fe5e46c28c08afca9ea606e2e595ce` and identical normalized manifest bytes; no test environment remains and production stayed on `sha256:d944fd9a…` |
 
-The exact replacement `sha256:4911de…` was rebuilt from all four current
+The exact replacement `sha256:d8339a90…` was rebuilt from all four current
 Frontier heads, inserted and root-verified transactionally, activated through
 the single Neon `main` branch, and verified again through the SELECT-only
 reader. Both production manifests identify version `v0.430.0` and commit
-`91d2657f…` for the Observatory and `f85ff84b…` for the unchanged editorial
+`a7cb131c…` for the Observatory and `f85ff84b…` for the unchanged editorial
 site. The Observatory manifest binds the new projection and all four current
 Frontier heads. The live graph API returns schema
 `vela.observatory-graph.v1` at the exact active root. The active release now
-binds a 4,049-node, 2,544-edge Erdős projection after the added evidence and
+binds a 4,054-node, 2,548-edge Erdős projection after the added evidence and
 Target-closure records. The bounded 100,000-record capacity, empty-database
 reconstruction, and failure-containment gates therefore close without another
 storage layer or retained database branch. Cold-use, product lift, human
@@ -380,7 +380,7 @@ The deployed normalized Neon model, atomic release pointer, release retention,
 read-only application role, `/api/search`, and `/api/graph` remain. The active
 read model is `observatory.v6`, bound by
 `vela.observatory-release-manifest.v7` at exact root
-`sha256:4911de959a3fb41bab1185230a5ddbaece182ccea9c014d53cbca0ba04989d25`.
+`sha256:d8339a90ddcc76dd2fc208365c5f6713739ddf39ec24c60f450f60f8f3601d93`.
 Do not introduce parallel Registry and Atlas manifests when the Observatory
 manifest already binds the facts once.
 
@@ -515,14 +515,14 @@ tag. No version is bumped merely to synchronize marketing.
      zero unknowns.
 5. Derive the first nonduplicate Erdős interval from accepted exact coverage
    plus exact registered producer completion. It is now
-   `10430201..10430400`, proved by retained completion envelopes and the fresh
+   `10430401..10430600`, proved by retained completion envelopes and the fresh
    sealed Target Index. These operational closures do not accept any
    pending Claim.
 6. Add source-local validators that reject completed, overlapping, malformed,
    untracked, or root-drifted Targets before `vela next`, the private Agent
    helper, projection, or publication can expose them.
 7. **complete:** rebuild and activate the corrected read model at exact root
-   `sha256:4911de959a3fb41bab1185230a5ddbaece182ccea9c014d53cbca0ba04989d25`.
+   `sha256:d8339a90ddcc76dd2fc208365c5f6713739ddf39ec24c60f450f60f8f3601d93`.
    This data activation changes no scientific Standing and advances no web
    release.
 
@@ -950,9 +950,9 @@ instead of substituting a known answer.
 
 The 2026-07-30 held-out audit registered no study. Erdős range
 `10429801..10430000` subsequently became a real producer result and is no
-longer eligible as held-out benchmark work. Range `10430001..10430200` also
-subsequently became a real producer result. The current Target
-`10430201..10430400` is only a candidate after a fresh leakage audit; no
+longer eligible as held-out benchmark work. Ranges `10430001..10430200` and
+`10430201..10430400` also subsequently became real producer results. The
+current Target `10430401..10430600` is only a candidate after a fresh leakage audit; no
 evaluation plan or model run is registered. Formal has no open Target, and the
 existing Formal and quantum answers are public. Their task-selection gates
 remain open. If no second leakage-safe task exists, run only a narrowly claimed
@@ -996,6 +996,18 @@ product-lift or correctness credit. `stop.v1.json` binds the full failure and
 the locally retained raw evidence. Any successor is a new registered study
 with a closed participant schema, supervisor instrumentation declared before
 output, and a live token guard; it is not a post-output amendment.
+
+The source-only `product-compression-v2` successor now closes the answer,
+plan, session, score, and report contracts and correctly models the current
+product state: completed Attempt, two root-linked Runs, one registered
+Submission and one retained corroborating Run, one current protocol-ready
+Decision Inbox entry, and the exact successor Target. Its read-only materializer
+reconstructs fixture root `sha256:5f7903d8d76cde890057b520b11d4f8de50044984998864a697fef80eae91fff`
+and supervisor answer-key root
+`sha256:74b76e8a177a5c1438cccf36ddf896b7da9ebbf225227911366b0d175a73aa3e`
+twice from the same clean Git and content-addressed inputs. This is a freeze
+input, not product-lift evidence. No participant session may start until the
+isolated supervisor runner enforces live budgets and answer-key separation.
 
 #### C. Inheritance lift
 
@@ -1508,15 +1520,15 @@ Failure narrows or deletes the system. It does not earn another layer.
 | Claim or gate | Starting status | Campaign terminal condition |
 | --- | --- | --- |
 | Local Submission → Verification → Decision | New Erdős, Formal, and Quantum evidence loops each have one exact requirement-matching Verification plus retained complementary evidence; the Proposals remain `pending_review`, and the Formal transfer remains separately gated on held-out value | human Decision or explicit cancellation for each exact Proposal, then clean-clone replay |
-| Map → advance → remap | All four Frontiers have zero stale Targets; Erdős producer work through `10430200` and Formal producer work are closed without changing Standing; Erdős now offers `10430201..10430400`; the exact current Atlas is live, while scientific Decisions and post-Decision remap remain open | after one human Decision changes Standing, rebuild the exact Atlas, identify the semantic diff and surviving knowledge, and expose the next valid obligation |
+| Map → advance → remap | All four Frontiers have zero stale indexed Targets; Erdős producer work through `10430400` is closed without changing Standing and now offers `10430401..10430600`; Formal has zero indexed Targets, with one historical packet cleanup remaining; the exact current Atlas is live, while scientific Decisions and post-Decision remap remain open | after one human Decision changes Standing, rebuild the exact Atlas, identify the semantic diff and surviving knowledge, and expose the next valid obligation |
 | Agent-helper execution lift (historical Canopus pilot) | Directionally positive first-party repaired Stage A; predecessor and stopped runs retained; expert-minute metric unscored | contract-frozen Erdős, Formal, and quantum result or explicit narrowing |
-| State/Atlas lift | First-party Codex-session pilot failed hard budget and full correctness; `product-compression-v1` then stopped after one Git/files session exceeded its token cap and exposed an under-specified answer contract; no product-lift or human-review credit | register a corrected closed-schema study, then obtain external matched evidence or retain the negative result |
+| State/Atlas lift | `product-compression-v1` stopped after one Git/files session exceeded its token cap and exposed an under-specified contract; source-only v2 now has closed contracts and deterministic fixture/answer-key roots, but no participant session or product-lift credit | finish the live-budget supervisor gate, run the counterbalanced first-party pilot, then seek external matched evidence only if the pilot is safe |
 | Inheritance lift | Removability passed for one historical pending state; cold-successor lift unmeasured | cold successor reproduces change, surviving evidence, replay, and next action without private context |
 | Correction propagation | no qualifying real candidate | qualifying fixture passes or entry gate closes negative |
 | Cross-Frontier transfer | exact archive reconstruction and mutation tests pass with zero accepted delta; the work remains first-party and protocol readiness does not satisfy the held-out value gate | held-out independently controlled consumer/value test passes or the claim envelope is narrowed |
 | Quantum reproduction | actor-separated current Vela reconstruction verifies the exact retained `[[10,1,4]]` certificate with network and writes denied; Proposal `vpr_8715dbb5e2a12442` remains pending; this is not external independence or verifier-soundness credit | human Decision or explicit cancellation, then clean-clone replay and remap |
-| Native-source inventory and observation | source adapter set root `sha256:f5bcd480…` contains 6,700 exact adapter records; the active projection contains 9,540 native rows; this is exact first-party data evidence, not adoption or scale qualification | finish scale, failure, and cold-use gates or narrow the alpha claim |
-| Math Atlas | Vela Web `v0.430.0` Observatory snapshot commit `91d2657f…` is deployed; active read-model root `sha256:4911de…`, both production manifests, current Frontier heads, 14-source Registry, 9,540 native rows, and 6,306 bindings agree; this is an exact first-party alpha, not a product-lift or adoption result | refresh exactly after any human Decision; earn beta only through cold-use and independent-consumer evidence |
+| Native-source inventory and observation | source adapter set root `sha256:f5bcd480…` contains 6,700 exact adapter records; the active projection contains 9,541 native rows; current-root health artifact `sha256:d447c008…` passes with zero duplicate native IDs or dangling bindings; this is exact first-party data evidence, not adoption | run the cold-use gate; add no storage or adapter layer without a reproduced failure |
+| Math Atlas | Vela Web `v0.430.0` Observatory snapshot commit `a7cb131c…` is deployed; active read-model root `sha256:d8339a90…`, both production manifests, current Frontier heads, 14-source Registry, 9,541 native rows, and 6,307 bindings agree; this is an exact first-party alpha, not a product-lift or adoption result | refresh exactly after any human Decision; earn beta only through cold-use and independent-consumer evidence |
 | Shared Math package | not earned | two consumers plus net deletion, or no package |
 | Registry/global Atlas | not earned | remain deferred |
 | Whitepaper breakthrough | not earned | ADR 0026 gates pass or paper remains bounded |

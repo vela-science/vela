@@ -48,7 +48,8 @@ ANSWER = {
     "work": {"frontier_id": str, "repository_root": str, "target_id": str,
              "target_index_root": str, "packet_sha256": str},
     "campaign": {
-        "attempt_id": str, "authorization_root": str, "consequence_ceiling": str,
+        "attempt_id": str, "authorization_root": str, "state": str,
+        "completed_target_packet_sha256": str, "consequence_ceiling": str,
         "budget": {"max_runs": int, "max_submissions": int, "max_verifications": int,
                    "max_artifacts": int, "max_artifact_bytes": int},
         "usage": {"runs": int, "submissions": int, "verifications": int,
@@ -192,7 +193,9 @@ def validate_answer(value: Any) -> None:
     matches(work["target_id"], re.compile(r"^[A-Za-z0-9._:-]+$"), "$.work.target_id")
     roots(work, ("repository_root", "target_index_root", "packet_sha256"), "$.work")
     matches(campaign["attempt_id"], PATTERNS["attempt"], "$.campaign.attempt_id")
-    roots(campaign, ("authorization_root",), "$.campaign")
+    roots(campaign, ("authorization_root", "completed_target_packet_sha256"), "$.campaign")
+    if campaign["state"] != "completed_target_advanced":
+        raise ContractError("$.campaign.state: expected completed_target_advanced")
     if campaign["consequence_ceiling"] not in {"evidence_only", "pending_review"}:
         raise ContractError("$.campaign.consequence_ceiling: invalid value")
     nonnegative(campaign["budget"], "$.campaign.budget", positive=True)
@@ -210,20 +213,20 @@ def validate_answer(value: Any) -> None:
         roots(run, ("receipt_root", "evidence_root"), f"$.campaign.runs[{index}]")
     if runs[0]["previous_receipt_root"] is not None or runs[1]["previous_receipt_root"] != runs[0]["receipt_root"]:
         raise ContractError("$.campaign.runs: broken receipt chain")
-    if sorted(run["submission_state"] for run in runs) != ["ready_to_export", "registered"]:
-        raise ContractError("$.campaign.runs: expected one registered and one ready_to_export")
+    if sorted(run["submission_state"] for run in runs) != ["registered", "retained_corroboration"]:
+        raise ContractError("$.campaign.runs: expected one registered and one retained corroboration")
     registered = next(run for run in runs if run["submission_state"] == "registered")
-    ready = next(run for run in runs if run["submission_state"] == "ready_to_export")
+    corroborating = next(run for run in runs if run["submission_state"] == "retained_corroboration")
     lifecycle = (("submission_id", "submission"), ("proposal_id", "proposal"),
                  ("claim_id", "claim"), ("verification_id", "verification"))
     for field, kind in lifecycle:
         matches(registered[field], PATTERNS[kind], f"$.campaign.registered_run.{field}")
-        if ready[field] is not None:
-            raise ContractError(f"$.campaign.ready_run.{field}: unregistered Run has identity")
+        if corroborating[field] is not None:
+            raise ContractError(f"$.campaign.corroborating_run.{field}: retained Run has no separate registration")
     if campaign["usage"]["runs"] != 2 or campaign["usage"]["submissions"] != 1 or campaign["usage"]["verifications"] != 1:
         raise ContractError("$.campaign.usage: does not match Run lifecycle")
-    if campaign["next_action_code"] != "export_ready_run":
-        raise ContractError("$.campaign.next_action_code: expected export_ready_run")
+    if campaign["next_action_code"] != "start_successor_attempt":
+        raise ContractError("$.campaign.next_action_code: expected start_successor_attempt")
     id_links = (("proposal_id", "proposal"), ("source_submission_id", "submission"),
                 ("target_claim_id", "claim"), ("verification_id", "verification"))
     for field, kind in id_links:
