@@ -60,10 +60,10 @@ An adapter:
 5. retains explicit caveats and nonclaims; and
 6. never infers acceptance from tool success.
 
-Any external runner or workbench may be an optional adapter and producer.
-Vela's private Agent helper is one nonprivileged implementation behind
-`vela agent`; frozen Canopus `0.8.0` remains historical replay evidence, not a
-current product or interoperability requirement.
+Any external runner or workbench may be a producer. It consumes native Target
+packets and emits ordinary Submissions or Verification Records. Vela does not
+own or wrap the runner. Frozen Canopus `0.8.0` remains historical replay
+evidence, not a current product or interoperability requirement.
 
 ## Semantic packages
 

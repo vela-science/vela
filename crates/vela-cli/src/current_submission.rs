@@ -418,54 +418,23 @@ pub(crate) fn submit(
     bundle_root: Option<&Path>,
     push: bool,
 ) -> Result<SubmitOutcome, String> {
-    submit_with_optional_repository_signer(
+    submit_inner(
         frontier,
         submission,
         executor,
         requested_attempt,
         bundle_root,
         push,
-        None,
     )
 }
 
-/// Register one exact Submission with a caller-owned repository signer.
-///
-/// This is an internal controller seam, not a second writer. The ordinary CLI
-/// continues to use [`submit`], while a bounded long-running controller may
-/// reuse one already-selected signer across routine evidence transactions.
-/// Authentication, Cedar authorization, object normalization, journaling,
-/// replay, and publication all remain in the existing transaction path.
-pub(crate) fn submit_with_repository_signer(
+fn submit_inner(
     frontier: &Path,
     submission: &SubmissionV1,
     executor: &str,
     requested_attempt: Option<&str>,
     bundle_root: Option<&Path>,
     push: bool,
-    repository_signer: &mut dyn crate::authority_transaction::RepositoryAuthoritySigner,
-) -> Result<SubmitOutcome, String> {
-    submit_with_optional_repository_signer(
-        frontier,
-        submission,
-        executor,
-        requested_attempt,
-        bundle_root,
-        push,
-        Some(repository_signer),
-    )
-}
-
-fn submit_with_optional_repository_signer(
-    frontier: &Path,
-    submission: &SubmissionV1,
-    executor: &str,
-    requested_attempt: Option<&str>,
-    bundle_root: Option<&Path>,
-    push: bool,
-    injected_repository_signer: Option<
-        &mut dyn crate::authority_transaction::RepositoryAuthoritySigner,
-    >,
 ) -> Result<SubmitOutcome, String> {
     submission.verify()?;
     let executor = executor.trim();
@@ -745,20 +714,12 @@ fn submit_with_optional_repository_signer(
         ),
         context: json!({"exact": true}),
     };
-    let mut environment_repository_signer;
-    let repository_signer: &mut dyn crate::authority_transaction::RepositoryAuthoritySigner =
-        match injected_repository_signer {
-            Some(repository_signer) => repository_signer,
-            None => {
-                let (key_id, public_key) = active_repository_signing_key(&authority)?;
-                environment_repository_signer =
-                    crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner::from_environment(
-                        key_id,
-                        &public_key,
-                    )?;
-                &mut environment_repository_signer
-            }
-        };
+    let (key_id, public_key) = active_repository_signing_key(&authority)?;
+    let mut repository_signer =
+        crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner::from_environment(
+            key_id,
+            &public_key,
+        )?;
     let executable =
         std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
     let binary_sha256 = crate::authority_transaction::execution_binary_sha256(&executable)?;
@@ -798,7 +759,7 @@ fn submit_with_optional_repository_signer(
             recorded_at: fixed_time,
         },
         &mut authentication,
-        repository_signer,
+        &mut repository_signer,
     )
     .map_err(|error| error.to_string())?;
 
@@ -937,7 +898,6 @@ fn submit_with_optional_repository_signer(
 mod tests {
     use ed25519_dalek::SigningKey;
     use tempfile::TempDir;
-    use vela_protocol::authority::DsseSignatureV1;
     use vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V3;
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::submission_v1::{
@@ -946,22 +906,6 @@ mod tests {
     };
 
     use super::*;
-
-    #[derive(Default)]
-    struct CountingSigner {
-        calls: usize,
-    }
-
-    impl crate::authority_transaction::RepositoryAuthoritySigner for CountingSigner {
-        fn sign(
-            &mut self,
-            _payload_type: &str,
-            _canonical_payload: &[u8],
-        ) -> Result<Vec<DsseSignatureV1>, String> {
-            self.calls += 1;
-            Err("fixture signer must not be reached".into())
-        }
-    }
 
     fn root(byte: char) -> String {
         format!("sha256:{}", byte.to_string().repeat(64))
@@ -1113,28 +1057,6 @@ mod tests {
         .unwrap_err();
 
         assert!(error.contains("collides with path"));
-    }
-
-    #[test]
-    fn injected_repository_signer_does_not_bypass_submission_identity_checks() {
-        let frontier = TempDir::new().unwrap();
-        let mut signer = CountingSigner::default();
-        let error = submit_with_repository_signer(
-            frontier.path(),
-            &submission("add_claim", None, "New bounded assertion."),
-            "agent:substituted",
-            None,
-            None,
-            false,
-            &mut signer,
-        )
-        .unwrap_err();
-
-        assert!(
-            error.contains("must match the Submission producer"),
-            "{error}"
-        );
-        assert_eq!(signer.calls, 0);
     }
 
     #[test]

@@ -2,9 +2,8 @@
 
 #![cfg(unix)]
 
-use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
-use std::process::{Command, Output, Stdio};
+use std::process::{Command, Output};
 
 use ed25519_dalek::SigningKey;
 use serde_json::{Value, json};
@@ -63,24 +62,6 @@ fn success_json(output: &Output) -> Value {
         String::from_utf8_lossy(&output.stderr)
     );
     serde_json::from_slice(&output.stdout).expect("decode Vela JSON")
-}
-
-fn campaign_host_request(
-    stdin: &mut impl Write,
-    stdout: &mut impl BufRead,
-    request: &Value,
-) -> Value {
-    serde_json::to_writer(&mut *stdin, request).expect("encode Campaign host request");
-    stdin
-        .write_all(b"\n")
-        .and_then(|()| stdin.flush())
-        .expect("write Campaign host request");
-    let mut line = String::new();
-    let bytes = stdout
-        .read_line(&mut line)
-        .expect("read Campaign host response");
-    assert!(bytes > 0, "Campaign host closed before replying");
-    serde_json::from_str(&line).expect("decode Campaign host response")
 }
 
 struct RemoveOnDrop(std::path::PathBuf);
@@ -237,10 +218,6 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
     assert_eq!(before["schema"], "vela.status.v1");
     assert_eq!(before["phase"], "authority_uninitialized");
     assert_eq!(before["integrity"]["strict"], "blocked");
-    assert_eq!(before["campaign"]["active_attempt_count"], 0);
-    assert!(before["campaign"]["first_attempt"].is_null());
-    assert_eq!(before["decision_inbox"]["pending_count"], 0);
-    assert!(before["decision_inbox"]["projection_root"].is_null());
 
     let authority = success_json(&run(
         &frontier,
@@ -269,10 +246,10 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
     let checked = success_json(&run(&frontier, None, &["check", ".", "--strict", "--json"]));
     assert_eq!(checked["repository_root"], verified["repository_root"]);
     let status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
-    assert_eq!(status["schema"], "vela.status.v1");
+    assert_eq!(status["schema"], "vela.status.v2");
     assert_eq!(status["integrity"]["replay"], "verified");
     assert_eq!(status["integrity"]["strict"], "pass");
-    assert_eq!(status["campaign"]["active_attempt_count"], 0);
+    assert_eq!(status["work"]["active_attempt_count"], 0);
     assert_eq!(status["decision_inbox"]["pending_count"], 0);
     assert!(
         status["decision_inbox"]["projection_root"]
@@ -554,63 +531,22 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         .expect("read before commit");
     assert!(before.status.success());
 
-    let mut host = Command::new(env!("CARGO_BIN_EXE_vela"));
-    host.current_dir(&frontier)
-        .args([
-            "campaign",
-            "host",
+    let submission_path_text = submission_path.to_string_lossy().into_owned();
+    let submitted = success_json(&run(
+        &frontier,
+        Some(agent.socket()),
+        &[
+            "submit",
+            &submission_path_text,
             "--frontier",
             ".",
             "--attempt",
             &attempt_id,
-            "--inbox",
-            bundle.to_str().expect("Campaign inbox path"),
-        ])
-        .env("SSH_AUTH_SOCK", agent.socket())
-        .env("NO_COLOR", "1")
-        .env("VELA_ADVICE", "0")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    let mut host = host.spawn().expect("start Campaign evidence host");
-    let mut host_stdin = host.stdin.take().expect("Campaign host stdin");
-    let mut host_stdout = BufReader::new(host.stdout.take().expect("Campaign host stdout"));
-    let submitted_response = campaign_host_request(
-        &mut host_stdin,
-        &mut host_stdout,
-        &json!({
-            "operation": "register_submission",
-            "request_id": "host:submission",
-            "path": "submission.json",
-        }),
-    );
-    let replayed_submission = campaign_host_request(
-        &mut host_stdin,
-        &mut host_stdout,
-        &json!({
-            "operation": "register_submission",
-            "request_id": "host:submission",
-            "path": "submission.json",
-        }),
-    );
-    let conflicting_submission = campaign_host_request(
-        &mut host_stdin,
-        &mut host_stdout,
-        &json!({
-            "operation": "register_submission",
-            "request_id": "host:submission",
-            "path": "other.json",
-        }),
-    );
-    assert_eq!(submitted_response["ok"], true);
-    assert_eq!(replayed_submission, submitted_response);
-    assert_eq!(conflicting_submission["ok"], false);
-    assert!(
-        conflicting_submission["error"]["message"]
-            .as_str()
-            .is_some_and(|message| message.contains("already bound"))
-    );
-    let submitted = submitted_response["result"].clone();
+            "--as",
+            actor,
+            "--json",
+        ],
+    ));
     assert_eq!(submitted["schema"], "vela.submit-result.v1");
     assert_eq!(submitted["route"], "pending_review");
     assert_eq!(submitted["accepted_event_delta"], 0);
@@ -809,25 +745,22 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             .expect("Verification Record bytes"),
     )
     .expect("write Verification Record");
-    let verified_response = campaign_host_request(
-        &mut host_stdin,
-        &mut host_stdout,
-        &json!({
-            "operation": "import_verification",
-            "request_id": "host:verification",
-            "path": "verification.json",
-        }),
-    );
-    assert_eq!(verified_response["ok"], true);
-    let verified = verified_response["result"].clone();
-    drop(host_stdin);
-    drop(host_stdout);
-    let hosted = host.wait_with_output().expect("wait for Campaign host");
-    assert!(
-        hosted.status.success(),
-        "Campaign host failed\nstderr={}",
-        String::from_utf8_lossy(&hosted.stderr)
-    );
+    let verification_path_text = verification_inbox_path.to_string_lossy().into_owned();
+    let verified = success_json(&run(
+        &frontier,
+        Some(agent.socket()),
+        &[
+            "verification",
+            "import",
+            ".",
+            &verification_path_text,
+            "--attempt",
+            &attempt_id,
+            "--as",
+            &verifier,
+            "--json",
+        ],
+    ));
     assert_eq!(verified["schema"], "vela.verification-import-result.v1");
     assert_eq!(verified["proposal_id"], submitted["proposal_id"]);
     assert_eq!(verified["claim_id"], submitted["claim_id"]);
@@ -836,13 +769,10 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert_eq!(verified["idempotent"], false);
     assert_eq!(verified["publication"]["state"], "committed_local");
     let status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
+    assert_eq!(status["work"]["first_attempt"]["usage"]["submissions"], 1);
     assert_eq!(
-        status["campaign"]["first_attempt"]["usage"]["submissions"],
-        1
-    );
-    assert_eq!(
-        status["campaign"]["first_attempt"]["usage"]["verifications"], 1,
-        "hosted Verification import must charge its exact live Attempt once"
+        status["work"]["first_attempt"]["usage"]["verifications"], 1,
+        "Verification import must charge its exact live Attempt once"
     );
 
     let verification_root = verified["verification_record_root"]
@@ -928,13 +858,10 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert_eq!(checked["counts"]["pending_claims"], 1);
     assert_eq!(checked["counts"]["verifications"], 1);
     let status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
-    assert_eq!(status["schema"], "vela.status.v1");
+    assert_eq!(status["schema"], "vela.status.v2");
     assert_eq!(status["integrity"]["strict"], "pass");
-    assert_eq!(status["campaign"]["active_attempt_count"], 1);
-    assert_eq!(
-        status["campaign"]["first_attempt"]["usage"]["verifications"],
-        1
-    );
+    assert_eq!(status["work"]["active_attempt_count"], 1);
+    assert_eq!(status["work"]["first_attempt"]["usage"]["verifications"], 1);
     assert_eq!(status["decision_inbox"]["pending_count"], 1);
     assert_eq!(status["decision_inbox"]["protocol_ready_count"], 1);
     assert_eq!(status["decision_inbox"]["protocol_blocked_count"], 0);

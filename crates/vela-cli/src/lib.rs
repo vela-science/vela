@@ -7,13 +7,10 @@
 // `vela_protocol::*`.
 // The standard repository-authority transaction core used by fresh setup,
 // producer registration, verification import, and exact review decisions.
-mod agent_delegate;
 pub(crate) mod authority_transaction;
 mod bounded_file;
-pub(crate) mod campaign_host;
 mod frontier;
 pub(crate) mod repository_authority_provider;
-pub(crate) mod routine_evidence_controller;
 pub(crate) use frontier::cli_read;
 mod write;
 pub(crate) use write::cli_write;

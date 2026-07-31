@@ -148,7 +148,7 @@ fn sensitive_paths(root: &Path) -> Vec<PathBuf> {
     hits
 }
 
-fn campaign_status_summary(
+fn attempt_status_summary(
     projection: &Value,
     current_target_packets: &BTreeMap<String, String>,
     now: DateTime<Utc>,
@@ -230,14 +230,12 @@ fn campaign_status_summary(
             "scope": {
                 "allowed_operations": attempt["allowed_operations"],
                 "allowed_artifact_classes": attempt["allowed_artifact_classes"],
-                "consequence_ceiling": attempt["consequence_ceiling"],
+                "authority_ceiling": attempt["authority_ceiling"],
                 "task_contract_root": attempt["task_contract_root"],
             },
             "budget": attempt["budget"],
             "usage": attempt["usage"],
             "expires_at": attempt["expires_at"],
-            "agent_run": attempt["agent_run"],
-            "agent_runs": attempt["agent_runs"],
         })
     });
     Ok((
@@ -275,51 +273,27 @@ fn decision_inbox_status_summary(
     )
 }
 
-fn active_attempt_next_action(frontier: &Path, campaign: &Value) -> Result<String, String> {
-    let attempt = campaign
+fn active_attempt_next_action(frontier: &Path, work: &Value) -> Result<String, String> {
+    let attempt = work
         .get("first_attempt")
         .and_then(Value::as_object)
-        .ok_or_else(|| "active campaign summary has no first Attempt".to_string())?;
+        .ok_or_else(|| "active work summary has no first Attempt".to_string())?;
     let attempt_id = attempt
         .get("attempt_id")
         .and_then(Value::as_str)
-        .ok_or_else(|| "active campaign summary has no Attempt identity".to_string())?;
+        .ok_or_else(|| "active work summary has no Attempt identity".to_string())?;
     let target_id = attempt
         .get("target_id")
         .and_then(Value::as_str)
-        .ok_or_else(|| "active campaign summary has no Target identity".to_string())?;
+        .ok_or_else(|| "active work summary has no Target identity".to_string())?;
     let actor = attempt
         .get("actor")
         .and_then(Value::as_str)
-        .ok_or_else(|| "active campaign summary has no actor identity".to_string())?;
+        .ok_or_else(|| "active work summary has no actor identity".to_string())?;
     Ok(format!(
         "Continue Attempt {attempt_id} on Target {target_id}: vela submit --frontier {} --attempt {attempt_id} --claim <bounded-result> --type <type> --replayability <class> --artifact <path>:<kind> --caveat <limit> --as {actor} --json",
         frontier.display()
     ))
-}
-
-fn agent_run_next_action(campaign: &Value) -> Option<String> {
-    let run = campaign.pointer("/first_attempt/agent_run")?;
-    let submission_state = run.pointer("/submission/state").and_then(Value::as_str)?;
-    match submission_state {
-        "ready_to_export" => run
-            .pointer("/next_commands/export")
-            .and_then(Value::as_str)
-            .map(ToString::to_string),
-        "not_exportable" => run
-            .pointer("/next_commands/show")
-            .and_then(Value::as_str)
-            .map(ToString::to_string),
-        _ => None,
-    }
-}
-
-fn agent_run_budget_label(campaign: &Value) -> Option<String> {
-    let used = campaign.pointer("/first_attempt/usage/runs")?.as_u64()?;
-    let limit = campaign
-        .pointer("/first_attempt/budget/max_runs")?
-        .as_u64()?;
-    Some(format!("{used}/{limit} runs"))
 }
 
 pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
@@ -382,7 +356,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
                 "verifications": 0,
                 "artifacts": 0
             },
-            "campaign": {
+            "work": {
                 "active_attempt_count": 0,
                 "first_attempt": Value::Null
             },
@@ -448,24 +422,22 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             .collect::<BTreeMap<_, _>>()
     })
     .unwrap_or_default();
-    let (campaign, active_attempt_count) =
-        campaign_status_summary(&attempt_projection, &current_target_packets, Utc::now())
+    let (work, active_attempt_count) =
+        attempt_status_summary(&attempt_projection, &current_target_packets, Utc::now())
             .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let inbox_projection = crate::decision_inbox::project(&frontier)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let (decision_inbox, pending_decision_count) = decision_inbox_status_summary(&inbox_projection);
-    let next_action = if let Some(next) = agent_run_next_action(&campaign) {
-        next
-    } else if pending_decision_count > 0 {
+    let next_action = if pending_decision_count > 0 {
         format!("vela review inbox {} --json", frontier.display())
     } else if active_attempt_count > 0 {
-        active_attempt_next_action(&frontier, &campaign)
+        active_attempt_next_action(&frontier, &work)
             .unwrap_or_else(|error| crate::cli::fail_return(&error))
     } else {
         format!("vela next {} --limit 1 --json", frontier.display())
     };
     let payload = json!({
-        "schema": "vela.status.v1",
+        "schema": "vela.status.v2",
         "ok": true,
         "command": "status",
         "frontier": {
@@ -501,7 +473,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             "verifications": repository.verifications.len(),
             "artifacts": repository.artifacts.len()
         },
-        "campaign": campaign,
+        "work": work,
         "decision_inbox": decision_inbox,
         "next_action": next_action,
     });
@@ -524,10 +496,10 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         println!("  strict    pass");
         println!("  claims    {}", payload["counts"]["claims"]);
         println!(
-            "  campaign  {} active",
-            payload["campaign"]["active_attempt_count"]
+            "  attempts  {} active",
+            payload["work"]["active_attempt_count"]
         );
-        if let Some(attempt) = payload["campaign"]["first_attempt"].as_object() {
+        if let Some(attempt) = payload["work"]["first_attempt"].as_object() {
             println!(
                 "  attempt   {} · {} · expires {}",
                 attempt["attempt_id"].as_str().unwrap_or("unavailable"),
@@ -552,7 +524,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
                 "  scope     {} · {} · {}",
                 crate::cli::safe_text::inline(&operations),
                 crate::cli::safe_text::inline(&artifact_classes),
-                attempt["scope"]["consequence_ceiling"]
+                attempt["scope"]["authority_ceiling"]
                     .as_str()
                     .unwrap_or("unavailable")
             );
@@ -567,38 +539,6 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
                 attempt["usage"]["artifact_bytes"],
                 attempt["budget"]["max_artifact_bytes"]
             );
-            if let Some(runs) = agent_run_budget_label(&payload["campaign"]) {
-                println!("  runs      {runs}");
-            }
-            if let Some(run) = attempt["agent_run"].as_object() {
-                println!(
-                    "  run       {} · candidate {} · verifier {} · replay {}",
-                    run["run_id"].as_str().unwrap_or("unavailable"),
-                    run["candidate"]["status"].as_str().unwrap_or("unavailable"),
-                    run["producer_verifier"]["status"]
-                        .as_str()
-                        .unwrap_or("unavailable"),
-                    if run["clean_clone_reproduced"].as_bool() == Some(true) {
-                        "matched"
-                    } else {
-                        "not matched"
-                    }
-                );
-                println!(
-                    "  evidence  {}",
-                    run["evidence_root"].as_str().unwrap_or("unavailable")
-                );
-                println!(
-                    "  handoff   {}",
-                    run["submission"]["state"].as_str().unwrap_or("unavailable")
-                );
-                if let Some(command) = run["next_commands"]["export"].as_str() {
-                    println!("  export    {}", crate::cli::safe_text::inline(command));
-                }
-                if let Some(command) = run["next_commands"]["submit"].as_str() {
-                    println!("  submit    {}", crate::cli::safe_text::inline(command));
-                }
-            }
         }
         println!(
             "  inbox     {} pending · {} protocol-ready · {} protocol-blocked",
@@ -2221,9 +2161,9 @@ mod tests {
     }
 
     #[test]
-    fn campaign_status_reports_only_active_attempts_with_exact_first_scope() {
+    fn attempt_status_reports_only_active_leases_with_exact_first_scope() {
         let projection = json!({
-            "schema": "vela.attempt-list.v2",
+            "schema": "vela.attempt-list.v3",
             "attempts": [
                 {
                     "attempt_id": "vat_expired",
@@ -2233,7 +2173,7 @@ mod tests {
                     "expires_at": "2026-07-29T00:00:00Z",
                     "allowed_operations": ["inspect"],
                     "allowed_artifact_classes": ["report"],
-                    "consequence_ceiling": "evidence_only",
+                    "authority_ceiling": "pending_review",
                     "task_contract_root": root('2'),
                     "target_packet_sha256": root('5'),
                     "budget": {
@@ -2259,39 +2199,23 @@ mod tests {
                     "expires_at": "2026-07-31T00:00:00Z",
                     "allowed_operations": ["inspect", "submission_author"],
                     "allowed_artifact_classes": ["witness"],
-                    "consequence_ceiling": "pending_review",
+                    "authority_ceiling": "pending_review",
                     "task_contract_root": root('4'),
                     "target_packet_sha256": root('6'),
                     "budget": {
-                        "max_runs": 16,
                         "max_submissions": 5,
                         "max_verifications": 5,
                         "max_artifacts": 8,
                         "max_artifact_bytes": 1024
                     },
                     "usage": {
-                        "runs": 2,
                         "submissions": 1,
                         "verifications": 1,
                         "artifacts": 2,
                         "artifact_bytes": 64,
                         "registered_submission_ids": ["vsb_fixture"],
                         "registered_verification_record_ids": ["vvr_fixture"]
-                    },
-                    "agent_run": {
-                        "run_id": "run_2",
-                        "submission": {"state": "ready_to_export"}
-                    },
-                    "agent_runs": [
-                        {
-                            "run_id": "run_1",
-                            "submission": {"state": "not_exportable"}
-                        },
-                        {
-                            "run_id": "run_2",
-                            "submission": {"state": "ready_to_export"}
-                        }
-                    ]
+                    }
                 }
             ]
         });
@@ -2303,7 +2227,7 @@ mod tests {
             ("target:b".to_string(), root('6')),
         ]);
         let (summary, active_count) =
-            campaign_status_summary(&projection, &current_target_packets, now).unwrap();
+            attempt_status_summary(&projection, &current_target_packets, now).unwrap();
         assert_eq!(active_count, 1);
         assert_eq!(summary["active_attempt_count"], 1);
         assert_eq!(summary["first_attempt"]["attempt_id"], "vat_active");
@@ -2317,19 +2241,6 @@ mod tests {
             root('4')
         );
         assert_eq!(summary["first_attempt"]["budget"]["max_artifacts"], 8);
-        assert_eq!(summary["first_attempt"]["agent_run"]["run_id"], "run_2");
-        assert_eq!(
-            summary["first_attempt"]["agent_runs"]
-                .as_array()
-                .unwrap()
-                .len(),
-            2
-        );
-        assert_eq!(summary["first_attempt"]["agent_runs"][0]["run_id"], "run_1");
-        assert_eq!(
-            agent_run_budget_label(&summary).as_deref(),
-            Some("2/16 runs")
-        );
         assert_eq!(
             summary["first_attempt"]["expires_at"],
             "2026-07-31T00:00:00Z"
@@ -2345,9 +2256,9 @@ mod tests {
     }
 
     #[test]
-    fn campaign_status_excludes_fully_exhausted_attempt() {
+    fn attempt_status_excludes_fully_exhausted_attempt() {
         let projection = json!({
-            "schema": "vela.attempt-list.v2",
+            "schema": "vela.attempt-list.v3",
             "attempts": [{
                 "attempt_id": "vat_exhausted",
                 "target_id": "target:a",
@@ -2356,7 +2267,7 @@ mod tests {
                 "expires_at": "2026-07-31T00:00:00Z",
                 "allowed_operations": ["inspect", "submission_author"],
                 "allowed_artifact_classes": ["witness"],
-                "consequence_ceiling": "pending_review",
+                "authority_ceiling": "pending_review",
                 "task_contract_root": root('2'),
                 "target_packet_sha256": root('3'),
                 "budget": {
@@ -2381,7 +2292,7 @@ mod tests {
         let current_target_packets = BTreeMap::from([("target:a".to_string(), root('3'))]);
 
         let (summary, active_count) =
-            campaign_status_summary(&projection, &current_target_packets, now).unwrap();
+            attempt_status_summary(&projection, &current_target_packets, now).unwrap();
 
         assert_eq!(active_count, 0);
         assert_eq!(summary["active_attempt_count"], 0);
@@ -2389,43 +2300,9 @@ mod tests {
     }
 
     #[test]
-    fn campaign_agent_run_handoff_prefers_exact_export_command() {
-        let summary = json!({
-            "active_attempt_count": 1,
-            "first_attempt": {
-                "attempt_id": "vat_active",
-                "target_id": "target:b",
-                "actor": "agent:fixture",
-                "agent_run": {
-                    "run_id": "run_fixture",
-                    "submission": {"state": "ready_to_export", "id": null},
-                    "next_commands": {
-                        "export": "vela agent export /private/run.json --attempt vat_active",
-                        "submit": "vela submit /private/submission.json --attempt vat_active",
-                        "show": "vela agent show /private/run.json"
-                    }
-                }
-            }
-        });
-
-        assert_eq!(
-            agent_run_next_action(&summary).as_deref(),
-            Some("vela agent export /private/run.json --attempt vat_active")
-        );
-
-        let mut failed = summary;
-        failed["first_attempt"]["agent_run"]["submission"]["state"] =
-            Value::String("not_exportable".to_string());
-        assert_eq!(
-            agent_run_next_action(&failed).as_deref(),
-            Some("vela agent show /private/run.json")
-        );
-    }
-
-    #[test]
-    fn campaign_status_excludes_attempt_after_target_packet_advances() {
+    fn attempt_status_excludes_attempt_after_target_packet_advances() {
         let projection = json!({
-            "schema": "vela.attempt-list.v2",
+            "schema": "vela.attempt-list.v3",
             "attempts": [{
                 "attempt_id": "vat_advanced",
                 "target_id": "target:a",
@@ -2434,7 +2311,7 @@ mod tests {
                 "expires_at": "2026-07-31T00:00:00Z",
                 "allowed_operations": ["inspect", "submission_author"],
                 "allowed_artifact_classes": ["witness"],
-                "consequence_ceiling": "pending_review",
+                "authority_ceiling": "pending_review",
                 "task_contract_root": root('2'),
                 "target_packet_sha256": root('3'),
                 "budget": {
@@ -2459,7 +2336,7 @@ mod tests {
         let current_target_packets = BTreeMap::from([("target:a".to_string(), root('4'))]);
 
         let (summary, active_count) =
-            campaign_status_summary(&projection, &current_target_packets, now).unwrap();
+            attempt_status_summary(&projection, &current_target_packets, now).unwrap();
 
         assert_eq!(active_count, 0);
         assert_eq!(summary["active_attempt_count"], 0);

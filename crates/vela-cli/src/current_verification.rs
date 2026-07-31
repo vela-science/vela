@@ -426,49 +426,15 @@ pub(crate) fn import(
     requested_attempt: Option<&str>,
     push: bool,
 ) -> Result<VerificationImportOutcome, String> {
-    import_with_optional_repository_signer(
-        frontier,
-        record,
-        executor,
-        requested_attempt,
-        push,
-        None,
-    )
+    import_inner(frontier, record, executor, requested_attempt, push)
 }
 
-/// Import one exact Verification Record with a caller-owned repository signer.
-///
-/// This keeps controller reuse inside the existing closed Verification writer:
-/// the record signature authenticates the verifier, the repository signer
-/// covers only the already-validated transaction, and no Decision capability
-/// is exposed.
-pub(crate) fn import_with_repository_signer(
-    frontier: &Path,
-    record: &VerificationRecordV1,
-    executor: &str,
-    requested_attempt: &str,
-    push: bool,
-    repository_signer: &mut dyn crate::authority_transaction::RepositoryAuthoritySigner,
-) -> Result<VerificationImportOutcome, String> {
-    import_with_optional_repository_signer(
-        frontier,
-        record,
-        executor,
-        Some(requested_attempt),
-        push,
-        Some(repository_signer),
-    )
-}
-
-fn import_with_optional_repository_signer(
+fn import_inner(
     frontier: &Path,
     record: &VerificationRecordV1,
     executor: &str,
     requested_attempt: Option<&str>,
     push: bool,
-    injected_repository_signer: Option<
-        &mut dyn crate::authority_transaction::RepositoryAuthoritySigner,
-    >,
 ) -> Result<VerificationImportOutcome, String> {
     record.verify()?;
     let executor = executor.trim();
@@ -593,20 +559,12 @@ fn import_with_optional_repository_signer(
         ),
         context: json!({"exact": true}),
     };
-    let mut environment_repository_signer;
-    let repository_signer: &mut dyn crate::authority_transaction::RepositoryAuthoritySigner =
-        match injected_repository_signer {
-            Some(repository_signer) => repository_signer,
-            None => {
-                let (key_id, public_key) = active_repository_signing_key(&authority)?;
-                environment_repository_signer =
-                    crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner::from_environment(
-                        key_id,
-                        &public_key,
-                    )?;
-                &mut environment_repository_signer
-            }
-        };
+    let (key_id, public_key) = active_repository_signing_key(&authority)?;
+    let mut repository_signer =
+        crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner::from_environment(
+            key_id,
+            &public_key,
+        )?;
     let executable =
         std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
     let binary_sha256 = crate::authority_transaction::execution_binary_sha256(&executable)?;
@@ -692,7 +650,7 @@ fn import_with_optional_repository_signer(
             recorded_at,
         },
         &mut authentication,
-        repository_signer,
+        &mut repository_signer,
     )
     .map_err(|error| error.to_string())?;
 
@@ -817,7 +775,6 @@ fn import_with_optional_repository_signer(
 mod tests {
     use ed25519_dalek::SigningKey;
     use tempfile::TempDir;
-    use vela_protocol::authority::DsseSignatureV1;
     use vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V3;
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject};
@@ -830,22 +787,6 @@ mod tests {
     };
 
     use super::*;
-
-    #[derive(Default)]
-    struct CountingSigner {
-        calls: usize,
-    }
-
-    impl crate::authority_transaction::RepositoryAuthoritySigner for CountingSigner {
-        fn sign(
-            &mut self,
-            _payload_type: &str,
-            _canonical_payload: &[u8],
-        ) -> Result<Vec<DsseSignatureV1>, String> {
-            self.calls += 1;
-            Err("fixture signer must not be reached".into())
-        }
-    }
 
     fn root(byte: char) -> String {
         format!("sha256:{}", byte.to_string().repeat(64))
@@ -1062,27 +1003,6 @@ mod tests {
         assert!(require_source_attempt(&submission, Some("vat_exact")).is_ok());
         assert!(require_source_attempt(&submission, None).is_ok());
         assert!(require_source_attempt(&submission, Some("vat_other")).is_err());
-    }
-
-    #[test]
-    fn injected_repository_signer_does_not_bypass_verifier_identity_checks() {
-        let fixture = fixture();
-        let mut signer = CountingSigner::default();
-        let error = import_with_repository_signer(
-            fixture._directory.path(),
-            &fixture.record,
-            "agent:substituted",
-            "vat_fixture",
-            false,
-            &mut signer,
-        )
-        .unwrap_err();
-
-        assert!(
-            error.contains("must match the Verification Record verifier"),
-            "{error}"
-        );
-        assert_eq!(signer.calls, 0);
     }
 
     #[test]

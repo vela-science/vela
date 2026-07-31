@@ -1,1704 +1,264 @@
-# Usable Vela and working Math Atlas campaign
+# Active Vela campaign
 
-## Active objective
+## Objective
 
-> Ship Vela as a clear, useful, and powerful scientific-state product: close
-> every stale-work edge; build an exact Math Source Registry and reproducible
-> observation pipeline; publish a complete root-bound Math Atlas over the
-> declared native-source and four-Frontier coverage; complete genuine Erdős,
-> Formal, and quantum result loops; prove or falsify execution, state,
-> correction, inheritance, and interoperability value against matched
-> baselines and uncoached users; delete every layer that does not improve
-> correct scientific continuation; and publish only the claims the resulting
-> artifacts reproduce.
+> Ship Vela as a clear, usable scientific-state product: let a researcher
+> choose one valid Target, use any native tool to produce exact evidence,
+> distinguish Verification from acceptance, make one consequential human
+> Decision, replay the resulting Standing, and expose the next valid
+> obligation.
 
-The campaign is product-first and evidence-gated. The Math Atlas is the main
-public proof, not the entire program. Protocol, producer, verifier, projection,
-benchmark, package, and paper work exist only to make the product more correct,
-usable, or powerful.
+This is the detailed active execution document. [ROADMAP.md](ROADMAP.md) holds
+the shorter sequence; Git history and retained artifacts hold historical
+campaign detail.
 
-The governing hierarchy is:
+## Product thesis
 
-```text
-mission   map what can be justified and advance explicit unknowns
-product   a living scientific map and advancement system
-loop      map -> target -> run -> verify -> commit -> compound
-kernel    exact replayable scientific-state transitions
-metric    verified frontier expansion per scarce expert judgment
-```
+Vela owns one narrow control point:
 
-The protocol is the integrity layer. The map is the product. Verified
-Frontier movement is the outcome.
+> A named Frontier's correction-aware, replayable Decision about what may now
+> be inherited as scientific Standing.
 
-## What “complete” means
-
-This campaign may end in success or a registered negative result. It is
-complete only when:
-
-1. no current Vela, private Agent helper, Neon, search, or web surface offers
-   completed, overlapping, or otherwise invalid work;
-2. a versioned inventory identifies every observed native math source, exact
-   snapshot, license, coverage boundary, adapter, and Frontier binding;
-3. the existing Observatory is a working first-party Math Atlas over all
-   declared current mathematical coverage;
-4. one new Erdős result, one exact Formal result, and one independently
-   reconstructed, qualitatively different computational certificate traverse
-   the ordinary Submission, Verification, and human Decision boundary;
-5. every Decision rebuilds the map, exposes its semantic diff, and changes or
-   explicitly preserves the next valid Target;
-6. the Atlas and released CLI let an uncoached user find Standing, decisive
-   evidence, limitations, and the next correct action materially more
-   effectively than Git plus the same evidence;
-7. execution, state, inheritance, correction, and interoperability claims are
-   measured separately;
-8. a real correction benchmark either passes its frozen gates or records a
-   clean failed entry gate without manufacturing scientific history;
-9. Neon, the private Agent helper, the Observatory, and any one reader remain
-   removable without losing canonical state;
-10. shared packages, indexes, or external integrations exist only when they
-   delete maintained duplication or demonstrate measured lift; and
-11. the evidence report and whitepaper state the failures and limits as
-    prominently as the positive results; and
-12. one agent can work for twelve hours after one bounded campaign
-    authorization and return one or a few consequential review items without
-    routine verification, receipt, credential-refresh, or signing prompts; and
-13. one independent reader or separately governed Frontier can inspect a
-    bounded exported evidence-and-Decision package without importing the
-    originating Frontier's authority.
-
-“Math Atlas” in this campaign means the exact read-only product over the four
-controlled mathematical Frontiers. It is not a global truth database, hosted
-authority, universal ontology, or federated world registry.
-
-## Frozen baseline (historical)
-
-This table records the campaign freeze. It is retained as the comparison
-baseline and is not a statement of current Frontier or projection state. All
-six repositories—Vela, Vela Web, and the four Frontiers—were clean and equal
-to their upstream `main` branches at that boundary. The Erdős and Formal rows
-include the Phase 0 Target-repair commits then available; their scientific
-repository roots had not changed at that point.
-
-| Surface | Exact frozen state |
-| --- | --- |
-| Vela source | commit `3d26a26236867c3d4361ca78941542fffcfa36ab`; released Vela `0.950.1` |
-| Canopus | `@vela-science/canopus@0.8.0` in `packages/canopus` |
-| Protocol package | `@vela-science/protocol@0.1.0` |
-| Vela Web source candidate | commit `6a4ae82442d396b053a1fbb8d804d1349e0e5747`, 36 commits after the release tag |
-| Vela Web deployed baseline | `v0.422.0` at commit `4e030bb2cdd8369085074a79239e882c5e3474fe`; manifest `vela.observatory-release-manifest.v5`; read model `observatory.v4`; Vela `0.940.5`; projection root `sha256:5e34b24d33ed7034e2872f5731d7380afcc5ce2c0adea2fb833b8f98b557b42c` |
-| Erdős | commit `f2f4a4f5d5c322f5c57f99d100fce97333f7aeb1`; repository root `sha256:9679827bc76de9f6433bfafa8e2e966b9780ca1273c7948d97c2ae042f5cab1a`; Target Index `sha256:84314593f22bbeae251090838273394db6685f7f437070154a085b1f403b7fd3` |
-| Formal Conjectures | commit `35fa12bb4115e1561b0865722580a7626ee79016`; repository root `sha256:5e59e05a5639ac0ec4331ec40fec9f50229b795a1a08d983ba96834d4777b58a`; Target Index `sha256:b580acbd63f2d31cc0751d0e81de9b97445c6952b1b2104b565b1118a55a4576` |
-| Sidon | commit `75b3392c5d2a4390065a3927914acdb552d69e8e`; repository root `sha256:d047416cce0e569145ae38ae73b8a92102d5c5f63bb46602dff80398cada9a0d` |
-| Quantum Codes | commit `0de3163277031f2337206e54127f3ecab5154c09`; repository root `sha256:45a6c4e68a300aff0839a4c7522fbe90d978f72e94cf93d272aefca24c4a5dc5`; exact witness Submission `vsb_c6d26cf8e7abeb9f` pending Verification and Decision; no current Target Index |
-
-The mathematical inventory at the frozen baseline was:
-
-| Frontier | Claims | Accepted | Pending |
-| --- | ---: | ---: | ---: |
-| Erdős | 2,772 | 2,772 | 0 |
-| Formal Conjectures | 16 | 14 | 2 |
-| Sidon | 40 | 40 | 0 |
-| Quantum Codes | 6 | 5 | 1 |
-| **Total** | **2,834** | **2,831** | **3** |
-
-At the frozen baseline, the evidence established:
-
-- authenticated Submission and scoped Verification do not change Standing;
-- one authorized human Decision changes Standing exactly once;
-- strict replay and clean-clone replay agree;
-- the latest Erdős loop reached a terminal Decision and deterministic remap;
-- the repaired first-party Stage A replication passed 4/4 Canopus cells,
-  3/4 native Codex cells, and 4/4 same-packet native cells after a completed
-  predecessor exposed an answer-free task-contract defect;
-- one exact Formal/Lean result kernel-checks under frozen inputs in a retained
-  predecessor epoch;
-- one bounded Erdős-to-Formal foreign reference is retained and verified with
-  local Standing effect `none`; and
-- the accepted Erdős range is closed against exact retained evidence, its
-  successor is the first contiguous uncovered range `10429601..10429800`, and
-  Formal exposes no already-completed Target; and
-- Vela Standing replay does not require Canopus, Neon, the Observatory, a
-  hosted API, the producer session, or repository-authority credentials.
-  Historical Canopus Run replay still requires its exact frozen helper.
-
-At the frozen baseline, the evidence did **not** establish:
-
-- a complete four-Frontier Target-lifecycle audit;
-- a complete released Math Atlas;
-- a successful state-lift or cold-use benchmark;
-- a qualifying real correction cascade;
-- external implementation or governance independence;
-- a hosted Registry or federated Atlas;
-- general adoption; or
-- the protocol-breakthrough whitepaper claim.
-
-At that boundary, Phase 0 had repaired the two demonstrated stale-work edges.
-Erdős closure
-`sha256:14e93d4cdbb65ddb3b389f8ea219b74340beca6014381fefe88deb64d2e59d7e`
-binds the exact completed packet, accepted Claim, Submission, Artifact,
-Verification, and Decision Event, then exposes packet
-`sha256:8d879e24a537de3b9b13ad7878dc98db8ce4f5273187c7f45d0d49a93e8fe8ad`
-for `10429601..10429800`. Formal closure
-`sha256:8451a192eb44fc20d3032e84c255db540226a0be0d4da86313ca975897d84e5b`
-proves exact foreign-reference retention with local Standing effect `none` and
-seals an empty current Target queue. The old post-Decision projection
-candidate remains inactive because the Atlas must be rebuilt from these new
-exact Frontier commits.
-
-## Current checkpoint — 2026-07-31
-
-The planned Formal and quantum missions plus three successive Erdős results
-now have exact requirement-matching Verification without changing Standing.
-Complementary records remain retained and visible but are not counted as
-satisfying the registered requirement. Their exact current heads are:
-
-| Frontier | Current exact state |
-| --- | --- |
-| Erdős | commit `8d8f396239bd6393009426ab403ce44082f1b16a`; repository root `sha256:adefa01cea989241d96ce22274cdd778d2750054537a1956cdf2c52e041a39c8`; Proposals `vpr_27bce8983810f3bd`, `vpr_148c88da4d5579a9`, and corrected bounded `vpr_96578d006119b322` have requirement-matching Verifications `vvr_b879aec074e01d16`, `vvr_18f4862fd1a2c256`, and `vvr_9e6664cad0970e67`; complementary Verification `vvr_85596c5b83104888` remains attached to the earlier range Proposal; producer work through `10430200` is closed from exact registered completions without changing Standing, and the next nonduplicate range is `10430201..10430400`; earlier broader-worded Proposal `vpr_b4a4b9ea9c00d6e9` and Claim `vcl_764737221fcd251de5fcabe2836915d15160dd217976c29d30d1e641362598fe` remain retained and `pending_review`, but do not replace corrected Submission `vsb_895cb3913a189369` |
-| Formal Conjectures | commit `33d12b9acef1e909c5942c1162bdf1987192f833`; repository root `sha256:3e01912a7adb74ec03caf2996809981d9c97e2b8c1a381d885784db40ceecf9c`; exact-proof Proposal `vpr_08a91ee1b770f5cb` has requirement-matching Verification `vvr_96dcaefef0617952` and a tracked source-local replay capsule that passes the exact frozen Lean replay as evidence only; cross-Frontier Proposal `vpr_7aba66544ffefd99` has requirement-matching Verification `vvr_179fb049e70ff620`; both remain `pending_review`; one superseded typo Proposal remains protocol-blocked; the bounded producer Target queue is closed independently of scientific Standing |
-| Quantum Codes | commit `f5aa2fca9029f02ad1b2ca31f58545f370b0d6cc`; repository root `sha256:2771e9062b977410eded2b4763ca4abe9fef1a9faeea7dd1df33188c1814a837`; Proposal `vpr_8715dbb5e2a12442`; requirement-matching Verification `vvr_606aff748c89df76`; complementary Verification `vvr_f0b28f5c257eabb4`; the source-only test-runner portability fix changed the Git commit but no scientific object, root, graph relation, or Standing; current Vela reproduction reconstructs and verifies the exact `[[10,1,4]]` certificate; `pending_review`; Decision remains null |
-| Sidon | commit `75b3392c5d2a4390065a3927914acdb552d69e8e`; repository root `sha256:d047416cce0e569145ae38ae73b8a92102d5c5f63bb46602dff80398cada9a0d`; clean and unchanged |
-
-These are separate human Decision checkpoints. Protocol readiness means only
-that the registered evidence requirement is satisfied; it is not a
-recommendation to accept. In particular, the corrected cross-Frontier transfer
-remains pending until its held-out consumer/value gate passes or a human
-explicitly decides with that limitation visible. Agents may prepare the
-Decision packet, but they do not choose or perform the Decision, and
-Verification alone has changed no accepted Standing.
-
-The Math Source Registry and Atlas release candidate now use the exact PLBY
-source lock and all four current Frontier heads:
-
-| Surface | Current exact candidate |
-| --- | --- |
-| Application version | Vela Web `v0.430.0`; Observatory snapshot commit `a7cb131c4a2bfea9038c61ef23d763bba878bf25`; unchanged editorial commit `f85ff84b6d757ceff2b3b2dcf2a1b87176566f4d` |
-| Observatory production manifest | `vela.site-deployment.v3`; deployment `dpl_7ovGQUQRZnQZsMFz8DPietuNRBNg`; exact application commit and active projection root verified at `app.vela.space` |
-| Editorial production manifest | `vela.web-deployment.v2`; deployment `dpl_B4hngkk6EETdHCUu54P7DkhZjzh3`; exact application commit verified at `www.vela.space` |
-| Active projection | `vela.observatory-release-manifest.v7`; root `sha256:d8339a90ddcc76dd2fc208365c5f6713739ddf39ec24c60f450f60f8f3601d93`; read model `observatory.v6`; Vela `0.950.1`; activated atomically at `2026-07-31T10:44:57.460Z`; 2,840 Claims, 13 Verifications, 4,152 graph nodes, 2,591 edges, and 4,156 search documents |
-| Source adapter set | root `sha256:f5bcd480aafe766a1700450efd019115a2fb9f90aac8091f507595047c91b9dd`; 6,700 exact adapter records |
-| Source Registry projection | 9,541 native rows; 6,307 Frontier bindings; declaration root `sha256:51de765c4ab9e834ea726ef53bc0f7f87e8d1cb5eeffaba22728908619d2ee37` |
-| PLBY observation | exact `plby/lean-proofs` commit `d4476dd3535ec618dee4177915741017026d26bf`; tree `c34eff8727b9fe02ba11ed2eb30da361a1b026fb`; 201 records |
-| Bounded Neon capacity | qualification root `sha256:c1ad6d1a58c7c19665dd575e1ee5c95064e0bde16d3533a9714ebf27854b7960`; the existing schema and 1,000-row JSONB writer insert and root-verify 100,000 records in 19.94 seconds; the isolated candidate was never activated and no test environment remains |
-| Clean-room reconstruction | qualification root `sha256:dfd38ca31994e6460e74dd96b2f8013a797fa74f8bb2c6a6affe3a3c9e879614`; two empty-database reconstructions produced release root `sha256:98a52be8a101eb79f2d7060a323ebec335fe5e46c28c08afca9ea606e2e595ce` and identical normalized manifest bytes; no test environment remains and production stayed on `sha256:d944fd9a…` |
-
-The exact replacement `sha256:d8339a90…` was rebuilt from all four current
-Frontier heads, inserted and root-verified transactionally, activated through
-the single Neon `main` branch, and verified again through the SELECT-only
-reader. Both production manifests identify version `v0.430.0` and commit
-`a7cb131c…` for the Observatory and `f85ff84b…` for the unchanged editorial
-site. The Observatory manifest binds the new projection and all four current
-Frontier heads. The live graph API returns schema
-`vela.observatory-graph.v1` at the exact active root. The active release now
-binds a 4,054-node, 2,548-edge Erdős projection after the added evidence and
-Target-closure records. The bounded 100,000-record capacity, empty-database
-reconstruction, and failure-containment gates therefore close without another
-storage layer or retained database branch. Cold-use, product lift, human
-Decisions, and any later post-Decision exact refresh remain open.
-
-Hosted runner repetition is optional corroboration, not a scientific, product,
-or release gate. Exact local checks, source roots, active read-model
-verification, deployed manifests, and production smoke are the release
-evidence.
-
-These exact counts and reproductions do not upgrade the registered benchmark
-claims. Execution evidence remains first-party and directional, state lift and
-cold-successor lift remain unproved, correction propagation has no qualifying
-fixture, and external interoperability and cold-use gates remain open.
-
-ADR 0020 remains Proposed, but two narrow implementation seams now exist:
-private Attempt v8 retains exact scope, ordered root-linked Agent Run receipts,
-and replayable evidence budgets across successful Submissions, and
-`vela review inbox` derives a rooted, consequence-only,
-write-free queue from current Proposal evidence. `vela status` now compresses
-both into one read-only Campaign Cockpit summary: active scope, budget, usage,
-expiry, Inbox readiness, rooted entry identity, and one inspection or
-continuation action. An Attempt is active only while it is unexpired, retains
-usable evidence budget, and remains bound to the current fresh Target packet;
-the exhausted predecessor for Erdős `10429801..10430000` was dropped from
-private state after exact Target closure. The Cockpit exposes no Accept/Reject
-control. Routine Submission and Verification commands still use the
-repository-authority transaction path. An internal writer can reuse a
-caller-owned signer without bypassing identity, policy, journaling, or replay.
-
-An experimental, foreground `vela campaign host` now invokes that seam for one
-exact live Attempt. It reads bounded NDJSON from inherited stdin, restricts
-signed objects to one explicitly approved inbox, reuses one repository signer,
-and exposes only `register_submission` and `import_verification` as mutating
-operations. EOF ends the host. Push, review, Decision, policy, schema, key,
-scheduler, socket, daemon, and arbitrary-command surfaces are absent. The host
-is private execution support and is never required for clean-clone replay.
-
-One isolated integration fixture now proves that the same persistent host can
-register a real authenticated Submission and import its exact scoped
-Verification through the ordinary transaction writer. Each operation consumes
-its live Attempt budget exactly once, both accepted-state deltas remain zero,
-and strict clean-clone replay matches. The campaign must not claim twelve-hour,
-prompt-free evidence work until a real source dogfood records signer prompts,
-restart behavior, exact roots, and zero Standing change. Attempt v8 now permits
-multiple bounded Agent Runs, reserves each run before helper invocation, retains
-receipts as one exact root chain, and replays usage after private-state reload.
-This is a multi-run execution seam, not proof of a durable background host or
-the twelve-hour product claim. Homogeneous batch Decision planning remains
-unimplemented and unearned. Current Submission
-registration accepts only the `submission_register` policy action; the retired
-`receipt_land` fallback is no longer a writer path.
-
-## Product contract
-
-### Product compression gate
-
-The protocol foundation is not the main product gap. The researcher-facing
-experience must compress the rigorous lifecycle into one coherent flow:
+The product loop is:
 
 ```text
-choose Frontier and Target
-  -> authorize one bounded, time-limited campaign
-  -> agents work continuously with receipts, lineage, and verified drafts
-  -> review only consequence-bearing items in the Decision Inbox
-  -> accept or reject an actual Frontier advance
-  -> see the exact next Obligation or Target
+map -> target -> work -> submit -> verify -> decide -> remap
 ```
 
-Evidence remains distinct from Standing, Verification remains distinct from
-acceptance, agents cannot self-approve, and corrections append. A prompt is
-justified only when it protects execution scope, budget, risk, external effect,
-policy, repository authority, or canonical scientific Standing. Ceremony that
-protects none of those boundaries is a product defect and should be removed.
+Native tools own work. Git stores canonical Frontier history. Harbor owns
+benchmark execution. Lean, notebooks, solvers, containers, laboratories, and
+artifact stores retain their native responsibilities. The Observatory and Math
+Atlas are disposable, root-bound readers.
 
-The proposed Agent Campaign and batched review design is specified in ADR
-0020. It is the decision rule for future execution and product work, not
-permission to add a scheduler, hosted authority, second writer, or mandatory
-agent framework.
+## Invariants
 
-The Cockpit and Decision Inbox are not accepted because their mockup or
-dogfood trace looks plausible. Compare them against the native runner
-transcript plus the same retained files and evidence. A cold participant must
-correctly locate scope, budget, decisive Artifact, verifier result, important
-failure, steering need, scientific Decision, and next action. Require zero
-authority confusion and at least 20 percent median improvement in lookup and
-continuation time; otherwise delete or narrow the interface.
+These are the reasons Vela exists and are not simplification targets:
 
-### One product story
+1. Evidence is not Standing.
+2. Verification is not acceptance.
+3. Agents cannot accept, reject, or cancel a Proposal.
+4. Only an authorized Decision changes Standing.
+5. Accepted transitions replay from exact Git state.
+6. Corrections append; they do not erase prior accepted state.
+7. A projection, graph, database, ranking, or model output is never authority.
 
-Vela turns abundant candidate activity into exact state another person or
-agent can safely inherit:
+Everything else must earn its cost.
+
+## Deletion rule
+
+Before retaining a component, ask:
+
+1. Does it protect evidence integrity, exact replay, or the Decision boundary?
+2. Does it make that boundary materially easier for a real user to understand
+   or operate?
+3. Can a native tool plus a thin adapter do the same job?
+4. Is there measured evidence that the component improves correctness, time,
+   or expert effort?
+
+If the first two answers are no, or the third is yes without a measured gap,
+delete or defer it. Failed experiments leave compact evidence, not active
+infrastructure.
+
+## Current state — 2026-07-31
+
+### Shipped and verified
+
+- Vela `0.950.1` and `@vela-science/protocol@0.1.0` are immutable releases.
+- Four mathematical Frontiers use the current repository contract and replay
+  from clean Git checkouts.
+- Real Erdős, Formal, and quantum Submissions have separate scoped
+  Verifications while their accepted-state delta remains zero.
+- A prior real human Decision changed Standing exactly once and reproduced by
+  replay.
+- Vela Web has a root-bound Math Source Registry and read-only Math Atlas over
+  the four Frontiers. The live deployment manifest, not this document, is the
+  authority for its current projection root and deployment identity.
+- The corrected native Harbor product-compression result is retained at
+  `paper/artifacts/product-compression-v3/`. It is first-party directional
+  evidence, not adoption evidence.
+- The immutable Canopus `0.8.0` release and tag remain historical evidence.
+
+### Simplified current source
+
+- Current Vela ships no agent runner, Campaign host, scheduler, custom Run
+  receipt model, or Canopus compatibility layer.
+- `vela start` creates only an ignored local Attempt lease over one exact
+  Target, expiry, permitted artifact classes, and bounded evidence writes.
+- Agents and workbenches consume the Target packet directly and register a
+  Submission through `vela submit`.
+- Verifiers emit the standard Verification Record and import it through
+  `vela verification import`.
+- Unused capability-grant and delegated-authority protocol machinery is gone.
+  Current authority records preserve only the canonical `delegation: null`
+  boundary and fail closed on non-null input.
+
+### Open truth
+
+- Several technically eligible Proposals still require an attributed human
+  Decision or cancellation. Eligibility is not a recommendation.
+- The Formal cross-Frontier transfer remains pending its held-out consumer and
+  value test.
+- The production Atlas must be refreshed whenever canonical Frontier heads
+  change; source Git remains authoritative during projection lag.
+- Registry adapter artifacts need retained immutable locators before exact
+  long-term reconstruction can be claimed.
+- External cold-user lift, correction propagation, and independently governed
+  interoperability remain unproved.
+- Routine Submission and Verification writes still traverse more repository
+  signing/publication machinery than the desired long-running user experience
+  permits. Simplifying that path is an active product problem; weakening the
+  human Decision boundary is not the solution.
+
+## Active gates
+
+### Gate 1 — keep the core small and green
+
+- Remove the bundled runner and unused capability protocol completely.
+- Keep the current Attempt contract small and current-only; do not migrate
+  ignored pre-release local state.
+- Remove stale commands, tests, workflows, package scripts, and active docs.
+- Verify protocol conformance, CLI compilation, current repository bootstrap,
+  clean replay, and the TypeScript package.
+- Do not release or bump versions merely to synchronize metadata.
+
+### Gate 2 — complete one clear scientific loop
+
+For one real pending Proposal:
+
+1. show the exact proposed Claim and scope;
+2. show its Submission, decisive artifacts, verifier requirements, and scoped
+   Verification results;
+3. show what Standing would change and what would remain unchanged;
+4. let the human authority accept, reject, or cancel;
+5. verify the exact before/after roots and replay;
+6. rebuild the read projection; and
+7. expose the next valid Target or explicit absence of one.
+
+No agent performs step 4. A verifier pass cannot select the outcome.
+
+### Gate 3 — compress the long-running workflow
+
+The target experience is one bounded authorization followed by hours of native
+agent work and one or a few consequential review items.
+
+The minimum product seam is:
+
+- an expiring local lease over one Frontier, Target, allowed evidence classes,
+  duration, and spend/volume limits;
+- continuous native work and append-only evidence lineage without a Vela-owned
+  runner;
+- a read-only Decision Inbox containing only changes to Standing, scope,
+  budget, policy, external publication, or destructive action; and
+- one exact human Decision transaction bound to current read roots.
+
+Informational receipts belong in a digest, not an approval queue. This design
+must reuse standard tool/action approval and resumable-run patterns where a
+native agent platform supplies them. It must not add a daemon, hosted signer,
+second writer, or generic workflow engine.
+
+Success means a cold researcher can:
 
 ```text
-map -> target -> run -> verify -> commit -> compound
+choose Target -> authorize once -> inspect progress -> review outcome
+-> decide -> see next obligation
 ```
 
-- **Map:** inspect exact current state, coverage, disagreement, and gaps.
-- **Target:** select one bounded, nonduplicate next action.
-- **Run:** work in any human, agent, prover, or computational environment.
-- **Verify:** record one scoped check and its explicit nonclaims.
-- **Commit:** apply an authorized Decision and exact Event transition.
-- **Compound:** rebuild the map, expose what changed, close or open
-  Obligations, and generate valid next work.
-
-`Commit` is product language for the existing Decision, Event, and root
-transition. It is not a new protocol object.
-
-### One daily surface
-
-The released product should be teachable through these paths:
-
-| Need | Primary path |
-| --- | --- |
-| What state is current? | `vela status` or Atlas Frontier overview |
-| What exact object is this? | `vela show . <id>` or its Atlas record |
-| Why does it stand? | `vela why . <id>` or **Why this stands** |
-| What should be done next? | `vela next` or the Atlas Target handoff |
-| How does work begin? | `vela start`; optionally the private executor through experimental `vela agent` while accepted ADR 0031's deletion test remains in progress |
-| How is candidate work retained? | `vela submit` |
-| What did the verifier actually check? | Verification record and evidence chain |
-| What would a Decision change? | `vela review show . <vpr_id>` or **Scientific Diff** |
-| Who may decide? | the current repository authority under its recorded policy |
-| How is the result reproduced? | `vela reproduce` and the exact Atlas command |
-
-Do not add another top-level command, signing ceremony, product noun, or web
-surface unless a frozen usability test proves a missing action.
-
-Every primary screen answers, in this order:
-
-1. What is this?
-2. What currently stands and why?
-3. What is safe and useful to do next?
-
-Exact roots remain one disclosure away. Explanation precedes internal
-machinery. Verification, Decision, and Standing remain visibly distinct.
-
-### Authority and ownership
-
-```text
-native systems     own proofs, packages, corpora, identifiers, and source facts
-Git Frontiers      own canonical bounded scientific state
-Vela               owns validation, replay, Standing, and the Decision boundary
-Agent executor      optionally owns bounded production and execution evaluation
-Vela Web           owns credential-free read-only explanation and reuse
-Neon               caches a disposable normalized read projection
-```
-
-Agents may inspect, run, verify, draft, and submit. They never accept or reject
-a Proposal, access repository-authority credentials, or turn verifier success
-into Standing.
-
-## Architecture
-
-Use the existing repositories and services:
-
-```text
-Git, Lean, Mathlib, source corpora, exact computation
-                         |
-                         | references and selective snapshots
-                         v
-four canonical Git Frontier repositories
-                         |
-                         | released Vela replay and root validation
-                         v
-@vela/frontier-data exact projection
-                         |
-                         | source inventory, observation, and immutable rows
-                         v
-one disposable Neon observatory schema
-                         |
-                         | SELECT-only, exact-root reads
-                         v
-existing Vela Observatory = working Math Atlas
-```
-
-Do not create `vela-atlas`, `vela-math`, `vela-registry`, a graph database, a
-second database, or another application.
-
-Neon has one branch: `main`. Pre-release schema changes apply there after a
-local or ephemeral-Postgres check; scale experiments stay local. Immutable
-release rows and the atomic `current_release` pointer provide rollback. Do not
-create migration, benchmark, staging, archival, or per-release Neon branches
-without a reproduced Neon-specific failure that cannot be tested locally.
-
-The deployed normalized Neon model, atomic release pointer, release retention,
-read-only application role, `/api/search`, and `/api/graph` remain. The active
-read model is `observatory.v6`, bound by
-`vela.observatory-release-manifest.v7` at exact root
-`sha256:d8339a90ddcc76dd2fc208365c5f6713739ddf39ec24c60f450f60f8f3601d93`.
-Do not introduce parallel Registry and Atlas manifests when the Observatory
-manifest already binds the facts once.
-
-Prefer deterministic views and bounded queries over new persisted tables.
-Persist a new projection only when recomputing it would make exact builds or
-reads impractical. Every derived relation states its source roots and has no
-authority effect.
-
-Source observations are immutable and independent of web releases. A later
-release references an existing observation root when the native revision and
-projected bytes have not changed. Frontier bindings remain separate,
-release-scoped relations between one observed native record and one Frontier
-object.
-
-Candidate ingestion uses the simplest bounded bulk writer that passes the
-frozen budget and checks counts and table roots before activation. The current
-path uses deterministic 1,000-row JSONB recordset chunks. `COPY FROM STDIN`
-is added only if that path fails a measured budget. Collection reads use
-root-bound keyset cursors over stable sort keys and full IDs. Graph reads
-return bounded typed neighborhoods plus an equivalent keyset-paginated ledger;
-an ordinary route never fetches the full graph.
-
-The alpha must pass a rooted 100,000-record ingestion and read benchmark. A
-1,000,000-record benchmark is required before any scalability claim. Do not add
-table partitioning, a graph database, a vector or embedding stack, a second
-read store, or streaming ingestion until a frozen benchmark exposes a specific
-limit in the simpler PostgreSQL design.
-
-#### Graph boundary and edge discipline
-
-Keep four different graph concerns separate:
-
-- workflow graphs belong to the chosen execution system and may be referenced
-  by an Agent Campaign;
-- code-context graphs are optional local development aids whose value must be
-  measured before adoption;
-- LLM-extracted knowledge graphs are untrusted discovery evidence; and
-- semantic or provenance graphs are lossy interoperability projections.
-
-None is Vela's authoritative scientific graph. Authoritative Standing remains
-the deterministic replay of rooted Decisions and Events. Atlas graph views are
-root-bound, read-only, reproducible, and disposable.
-
-Every projected edge records its native, extracted, or inferred origin; exact
-supporting source, Artifact, Event, or root; relation type and scope;
-extractor or verifier; and status such as asserted, verified, accepted,
-refuted, or superseded. An anonymous or provenance-free edge fails closed.
-Prioritize only three views that help a researcher decide what to do: evidence
-lineage, correction impact, and the next-Obligation graph.
-
-Pilot a local code-context graph only as an internal cold-agent experiment.
-Retain it only if it improves task accuracy or time against a frozen baseline.
-Pilot JSON-LD, PROV, RO-Crate, or SHACL only through a bounded export consumed
-by an independent reader. Do not promote either pilot into a graph store,
-workflow engine, or canonical schema without repeated consumer evidence.
-
-## ADR control
-
-- [ADR 0025](adr/0025-math-first-compounding-product-architecture.md) remains
-  Accepted and supplies the product loop.
-- [ADR 0028](adr/0028-living-frontier-map-and-native-system-boundary.md)
-  remains Accepted and supplies the native-system and deletion boundaries.
-- [ADR 0030](adr/0030-root-bound-math-source-registry-atlas-and-target-closure.md)
-  is Accepted for the bounded Math Source Registry, first-party Atlas, and
-  Target-closure contract without changing protocol or authority.
-- [ADR 0031](adr/0031-one-product-and-removable-agent-executor.md) is Accepted
-  for one Vela product and a removable executor outside the authority core.
-  The standalone runner, public exports, package-install surface, and separate
-  product CI are removed. Current source is private
-  `@vela-science/agent-internal` behind `vela agent`, and Attempt v8 retains
-  root-linked multi-run receipts. Remaining domain and evaluation assets still
-  face consumer-traced shrink and the helper deletion test. Historical Canopus
-  `0.8.0` remains frozen for exact replay. No twelve-hour matched dogfood result
-  exists, so helper survival, package rename, and public distribution remain
-  unearned.
-- ADR 0020 remains Proposed until a fresh user comprehends the released
-  repository-authority Decision path.
-- ADR 0021 remains Proposed until a second real producer replays the current
-  Submission and Verification path.
-- ADR 0026 remains Proposed until the real correction and whitepaper gates
-  pass.
-- ADR 0029 remains Proposed after its successful first-party transfer; a
-  held-out case, independently controlled consumer, and measured advantage over
-  a plain rooted manifest remain necessary for promotion.
-- ADR 0019 remains Rejected. ADR 0017 remains research-only and Deferred.
-
-Do not add another ADR unless a reproduced implementation ambiguity cannot be
-resolved under these decisions.
-
-## Release train
-
-| Release | Outcome |
-| --- | --- |
-| Frontier repairs | close completed Targets, create exact fresh Targets, and add source-local coverage validators |
-| Vela `0.951.0` — conditional | only if a generic CLI or Target-closure defect requires a compatible Vela change; no protocol change |
-| Vela Agent — earned | preserve frozen Canopus `0.8.0`; keep the current helper private behind experimental `vela agent`; rename or distribute it only after the twelve-hour matched dogfood and deletion gate |
-| Vela Web `0.430.0` | exact Math Source Registry, reproducible observation, and first working root-bound Math Atlas alpha |
-| Vela Web `0.440.0` — earned | external cold-use, genuine multi-shape result loops, and correction/inheritance surfaces |
-| Evidence release | rooted benchmark corpus, result ledgers, clean-room reproduction, and bounded paper |
-
-Vela remains `0.950.1`. Immutable Canopus `0.8.0` remains the exact historical
-Run reader; current Agent helper source is private and unpublishable under its
-historical directory path while the helper faces its deletion test. Published
-`@vela-science/protocol@0.1.0` remains
-immutable; source version `0.1.1` corrects its stale package documentation
-without changing the public contract and will publish only from a later Vela
-tag. No version is bumped merely to synchronize marketing.
-
-## Execution phases
-
-### Phase 0 — reconcile truth and remove stale control state
-
-1. Replace the closed predecessor campaign with this one active execution
-   document; Git history preserves its exact evidence and decisions.
-2. Correct the stale roadmap and paper statements that still describe the
-   completed Decision/remap or Neon migration as open.
-3. Freeze exact commits, trees, repository roots, object counts, target
-   packets, production manifests, and the inactive candidate root.
-4. Run a Target audit across all four Frontiers:
-   - **complete:** close accepted Erdős coverage through
-     `10429401..10429600`, close producer work through `10430200` from three
-     exact registered completions without changing Standing, and expose the
-     nonduplicate successor `10430201..10430400`;
-   - **complete:** close Formal `retain-erdos-424-correction` with local
-     Standing effect `none`;
-   - **Submission and Verification complete; human Decision pending:** an
-     independent exact verifier reconstructs the retained Quantum
-     `[[10,1,4]]` witness at rank 9, encoded dimension 1, and exact distance 4;
-     the retroactive Target Index was removed, and Proposal
-     `vpr_8715dbb5e2a12442` remains `pending_review`;
-   - record that Sidon has no configured current Target rather than implying
-     zero unknowns.
-5. Derive the first nonduplicate Erdős interval from accepted exact coverage
-   plus exact registered producer completion. It is now
-   `10430401..10430600`, proved by retained completion envelopes and the fresh
-   sealed Target Index. These operational closures do not accept any
-   pending Claim.
-6. Add source-local validators that reject completed, overlapping, malformed,
-   untracked, or root-drifted Targets before `vela next`, the private Agent
-   helper, projection, or publication can expose them.
-7. **complete:** rebuild and activate the corrected read model at exact root
-   `sha256:d8339a90ddcc76dd2fc208365c5f6713739ddf39ec24c60f450f60f8f3601d93`.
-   This data activation changes no scientific Standing and advances no web
-   release.
-
-Target closure begins source-locally because coverage semantics are
-domain-specific. Promote a generic Vela contract only after the same stable
-need appears in at least two domains.
-
-### Phase 1 — make everyday Vela obvious
-
-Test the released CLI and Observatory as one product, not as separate
-architecture demonstrations.
-
-#### Reader flow
-
-- `status` gives current integrity, Standing summary, and one next inspection.
-- `show` accepts every current typed ID and identifies its authority effect.
-- `why` returns the shortest exact path from current Standing through Decision,
-  Verification, Submission, and evidence.
-- `reproduce` supplies the exact source, binary, and replay commands plus what
-  success does and does not prove.
-
-#### Producer flow
-
-- `next` never returns closed or duplicate work.
-- `start` binds one exact Target and packet.
-- The current private Agent helper remains optional during the ADR 0031
-  deletion test. It consumes the same packet through `vela agent run|export`;
-  registration stays on the canonical `vela submit` path.
-- `submit` says explicitly that accepted state changed `no`.
-
-#### Reviewer flow
-
-- `review show` presents the proposed Claim, decisive evidence, verifier scope,
-  missing checks, caveats, and current eligibility.
-- `review show` and the Atlas Scientific Diff preview the semantic change,
-  authority effect, and resulting Obligations. Do not advertise the currently
-  unimplemented `review diff` subcommand.
-- `review accept` and `review reject` retain the current local OS session and
-  repository-authority path. No key copying, batch answer file, or agent
-  approval is introduced.
-
-#### Usability gate
-
-A new user must complete these without maintainer explanation:
-
-1. identify what Vela does;
-2. distinguish Submission, Verification, Decision, and Standing;
-3. inspect one accepted Claim;
-4. find the first valid Target; and
-5. reproduce the current state.
-
-Fix copy, hierarchy, defaults, or derived explanations before adding commands.
-
-### Phase 2 — ship the working Math Atlas alpha
-
-The canonical product URL remains the existing Observatory. `/frontiers`
-becomes the Math Atlas overview; do not create a duplicate `/atlas`
-application or navigation tree.
-
-#### Native-source inventory
-
-Build a derived source inventory for the exact native sources already
-referenced or retained by the four Frontiers. It answers:
-
-```text
-Which native source is this?
-What does that source declare and maintain?
-Which exact version was observed?
-What may Vela retain and redistribute?
-What coverage was imported or omitted?
-Which adapter and bytes produced this projection?
-Which Frontier objects reference, snapshot, or admit it?
-```
-
-The inventory is not a truth registry or package Registry. It records
-attributed native mathematical sources and exact observations. Initial entries
-cover only the
-sources already needed by the four Frontiers:
-
-- the Erdős problem corpus;
-- the Formal Conjectures Git repository and its pinned Lean/Mathlib
-  environment;
-- the OEIS/Sidon source records used by the Sidon Frontier;
-- the native quantum-code table and literature sources used by the Quantum
-  Frontier; and
-- the Vela Frontier repositories themselves.
-
-A new source is not a second-wave roadmap item. Add an adapter only when a
-named Atlas gap requires it and its license, access terms, native identity,
-versioning, and update contract are explicit.
-
-Every adapter is source-native. It implements that source's identifiers,
-revision model, pagination, deletion or tombstone behavior, rights boundary,
-and completeness checks. Do not route these sources through a generic
-mathematical-record importer. A shared helper may handle transport or canonical
-hashing, but it cannot erase source semantics.
-
-Each source registration binds:
-
-```text
-source ID and native namespace
-source-declared publisher or maintainer
-one or more observed retrieval locators
-optional attributed ownership or canonical-locator claim
-source kind and source-declared authority claim
-license and redistribution mode
-access and snapshot policy
-adapter name, version, source root, and environment
-current native release, commit, or observation identity
-raw snapshot root when retained
-record projection root and count
-coverage, omissions, and tombstones
-successful observation identity
-```
-
-Each projected native record binds its source, native ID, kind, revision,
-locator, metadata root, content root when bytes are retained, availability,
-and exact observation. Each Frontier binding separately states:
-
-```text
-reference   exact native identity only
-snapshot    retained exact bytes or a content-addressed archive
-admission   a local Submission, Verification, and Decision path
-```
-
-Reference does not imply snapshot availability. Snapshot does not imply
-Verification. Verification does not imply admission. Importing metadata
-changes no Standing.
-
-An observation root excludes the web release identity. Once emitted, an
-observation and its native records do not change. Any number of Atlas releases
-may cite the same observation root. Release membership and Frontier bindings
-carry release scope; the observation does not get copied or rewritten for each
-deployment.
-
-#### Reproducible acquisition and ingestion
-
-Implement source adapters inside `@vela/frontier-data`; do not create a generic
-ingestion platform.
-
-Split the workflow at an immutable byte boundary.
-
-Networked acquisition:
-
-1. resolve one allowlisted, checked-in source declaration;
-2. record the exact remote revision, responses or archive identity, and rights
-   decision;
-3. fetch into a temporary isolated workspace;
-4. validate native IDs, pagination, completeness, and source-specific
-   invariants; and
-5. emit one immutable rooted observation bundle containing the permitted
-   snapshots, records, coverage, omissions, tombstones, and loss report.
-
-Offline projection:
-
-1. consume only the checked-in typed source declarations, immutable observation
-   bundles, released Vela binary, and exact clean Frontier checkouts;
-2. revalidate every adapter, bundle, record, coverage, and binding root;
-3. load the complete candidate read model with deterministic bounded bulk
-   chunks inside one transaction;
-4. recompute every public table and release root; and
-5. activate only after source, reader, product, and benchmark checks pass.
-
-There is no request-time source fetch. Failed or partial observation leaves the
-current release unchanged. A source deletion or revision becomes an attributed
-tombstone or new observation; it never silently rewrites a prior release.
-Retries, pagination, rate limits, and incremental cursors are adapter
-implementation details bound by an immutable projection-run audit record, not
-scientific authority. Failed observation attempts never enter or change the
-active Atlas release.
-
-Source identity, publisher/maintainer claims, locators, rights decisions,
-adapter versions, and snapshot policy live in checked-in typed configuration
-under `@vela/frontier-data`; Neon never authors them.
-
-Use the existing observatory schema and release pointer. Add one additive
-migration with checked source declarations, immutable observation and
-native-record tables, release-to-observation membership, and release-scoped
-Frontier bindings. Each bounded ingestion chunk declares its table, schema,
-row count, and deterministic row-root input. Include every table in candidate
-insertion, table-root verification, manifest normalization, retained release
-readers, and skew tests. Grant the Vercel role only curated public tables or
-views; operational acquisition evidence and restricted source details remain
-unreadable to the application. Do not use row-at-a-time inserts or store one
-whole source as a giant JSONB document. Raw
-archives that do not belong in Git use immutable GitHub release or OCI
-artifacts with full roots and retention checks; Neon stores searchable
-projections, not canonical bulk custody.
-
-Ingestion fails closed on:
-
-- unknown license or redistribution status;
-- unstable or ambiguous native identity;
-- duplicate native IDs;
-- malformed or truncated pages;
-- missing pagination;
-- count or root disagreement;
-- adapter or source-version drift;
-- unreported deletions;
-- mapping an inferred similarity as an exact binding;
-- a dirty source checkout;
-- partial transaction insertion; or
-- inability to rebuild the same projection from the retained snapshot or
-  exact native revision.
-
-The first inventory release requires deterministic rebuilds on macOS and Linux,
-zero silent record loss, explicit source-level coverage, bounded observation
-cost, and one full rebuild plus one incremental update rehearsal for a source
-that supports incremental observation.
-
-#### Atlas coverage
-
-The release must project:
-
-- the complete declared current Claim inventory, partitioned by
-  Frontier-local Standing;
-- all 1,217 Erdős problems;
-- every registered native source, observation, and exact Frontier binding;
-- exact native source identities and retained source snapshots;
-- Artifacts, Submissions, Registrations, Verifications, Proposals, Decisions,
-  and current Targets;
-- the exact Erdős-to-Formal foreign reference with local effect `none`;
-- source and projection coverage, omissions, inaccessible material, and
-  unsupported meaning;
-- current work, completed work, retained failed routes, and derived
-  Obligations; and
-- exact before/after transitions for current Decisions.
-
-Counts may change during the campaign. A changed count is accepted only with
-an exact source-rooted explanation.
-
-#### Atlas views
-
-1. **Corpus map:** four Frontiers, declared scope, coverage, omissions,
-   freshness, Standing distribution, and valid work.
-2. **Problem map:** statement, variants, current Claims, evidence, Decisions,
-   failed routes, Obligations, and next Target.
-3. **Evidence map:** Claim → Artifact → Submission → Verification → Proposal →
-   Decision.
-4. **Transition map:** exact before/after roots, semantic changes, surviving
-   state, closed/opened Obligations, and Target movement.
-5. **Search:** exact ID, mathematical text, Frontier, kind, and Standing.
-6. **Graph:** typed exploratory lens with an equivalent ledger. Position,
-   centrality, or search rank never implies authority.
-
-Every collection uses keyset pagination over a stable sort key plus full ID.
-The cursor commits to the Atlas release root and active filters, so refresh,
-back/forward navigation, and retained-release reads do not skip or duplicate
-records. Offset pagination is not supported.
-
-Graph routes request one selected node's bounded typed neighborhood. Every
-response states its depth and limit, returned count, hidden-neighbor count, and
-total filtered count. The equivalent ledger uses the same filters and keyset
-cursor. Full-graph export is an explicit rooted artifact operation, not an
-ordinary product read.
-
-Erdős 1056 is the complete flagship problem map. It must distinguish bounded
-accepted negative ranges from the unresolved universal problem and make the
-first nonduplicate next interval obvious.
-
-Formal views must keep Lean kernel checking, source-statement fidelity,
-scientific Verification, and local Standing separate. Sidon and Quantum views
-must distinguish verified witnesses from open questions and absent Targets.
-
-#### Existing defects to fix
-
-- compare replay state with current Vela output `verified`, not retired
-  `reproduced`;
-- join Erdős problem relationships through current Claim IDs rather than
-  absent imported-object aliases;
-- include Submission, Registration, Verification, Decision, Target, and Run
-  objects in the evidence/activity projection;
-- make the current semantic-correction test fail when its source contract is
-  missing instead of silently skipping;
-- separate projection parsing, SQL access, and process orchestration inside
-  `@vela/frontier-data` without adding another package;
-- remove legacy Neon columns, readers, and whole-frontier remnants only after
-  exact parity and the bounded rollback window; and
-- retain ledgers, keyboard access, mobile access, long-root handling, and a
-  clear failure state for unavailable or mismatched projections.
-
-#### Release invariant
-
-An Atlas candidate cannot activate if:
-
-- a source checkout is dirty, unpushed, or at the wrong remote;
-- Vela version or binary root drifts;
-- any canonical or table root disagrees;
-- coverage or omissions are unknown;
-- current accepted coverage is absent;
-- a completed or overlapping Target remains offered;
-- a current explanation cites superseded state;
-- foreign Standing is shown as local Standing;
-- verifier success is shown as acceptance; or
-- clean-clone reconstruction without Neon fails.
-
-### Phase 3 — produce genuine results and mature retained evidence
-
-Run these missions in order. Failed and negative results remain visible.
-
-#### Mission A: next Erdős 1056 interval
-
-The exact ranges `10429601..10429800`, `10429801..10430000`, and
-`10430001..10430200` have completed Runs, Submissions, and scoped
-Verifications. Proposals `vpr_27bce8983810f3bd`, `vpr_148c88da4d5579a9`,
-and corrected bounded `vpr_96578d006119b322` remain `pending_review` at commit
-`8d8f396239bd6393009426ab403ce44082f1b16a`. Their requirement-matching
-Verifications are `vvr_b879aec074e01d16`, `vvr_18f4862fd1a2c256`, and
-`vvr_9e6664cad0970e67`; complementary Verification
-`vvr_85596c5b83104888` remains distinguishable. Earlier broader-worded
-Proposal `vpr_b4a4b9ea9c00d6e9` and Claim
-`vcl_764737221fcd251de5fcabe2836915d15160dd217976c29d30d1e641362598fe`
-remain retained and pending rather than being rewritten or silently
-substituted for corrected Submission `vsb_895cb3913a189369`. All three
-producer Targets are closed from exact registered completions, and the next
-nonduplicate range is `10430201..10430400`; none of those facts accepts a
-pending Claim. The remaining scientific checkpoints are human accept, reject,
-or cancel Decisions. After a choice, replay from a clean clone, rebuild the
-Atlas, and expose the Scientific Diff. Duplicate-work prevention no longer
-waits on scientific acceptance.
-
-No result may claim universal nonexistence or resolve Erdős problem 1056.
-
-#### Mission B: exact Formal/Lean result
-
-The frozen Erdős 835 declaration now has an exact proof artifact, retained
-repair lineage, Submission, and scoped Verification. Proposal
-`vpr_08a91ee1b770f5cb` remains `pending_review` at commit
-`33d12b9acef1e909c5942c1162bdf1987192f833`. Requirement-matching Verification
-`vvr_96dcaefef0617952` and its complementary predecessor are both retained.
-The tracked source-local replay capsule reproduces the exact frozen Lean
-package and reports authority and Standing effects `none`; this is evidence
-only.
-The bounded producer Target is closed because its exact Submission-bound
-completion contract is satisfied; that operational closure does not accept
-the Claim. The remaining scientific checkpoint is a human accept, reject, or
-cancel Decision, followed by replay and Atlas remap.
-
-Kernel acceptance proves elaboration under the frozen environment. It does not
-by itself prove statement fidelity, mathematical significance, or acceptance.
-
-#### Mission C: quantum certificate
-
-The retained `quantum:[[10,1,4]]` witness now passes an actor-separated,
-source-local reconstruction, and the current Vela reproduction path checks the
-exact certificate rather than trusting a claimed result. Witness byte root
-`sha256:f23ac24e932de13538ac842bc2a467648aa82628577cffff6c71411e59a06a3c`
-reconstructs generator rank 9, encoded dimension 1, centralizer size 2,048,
-1,536 non-stabilizer logical Paulis, and exact distance 4. The retained
-verifier output root is
-`sha256:9a2282be31eef1784304ae58aa5dc00e1871fb1ba2d46c0047153c7d04e3fc35`.
-
-Submission `vsb_c6d26cf8e7abeb9f`, root
-`sha256:0d5d5e3a1e91b8003e925a047259f8f0fe0844f0fd9df7c14f786e2e77c96b75`,
-registered pending Proposal `vpr_8715dbb5e2a12442` and Claim
-`vcl_cdd52df280c6249b97daa2ce544a8ed260cae6a31d33fd519917bb33c51faa59`
-with accepted-event delta zero. Scoped Verification
-`vvr_606aff748c89df76` satisfies the exact registered requirement at current
-commit `f5aa2fca9029f02ad1b2ca31f58545f370b0d6cc`; complementary Verification
-`vvr_f0b28f5c257eabb4` remains retained. The reconstruction ran with network
-and file writes denied under a separately named verifier identity, but used
-the same human operator, account, machine, witness, and implementation family.
-It earns actor separation and exact reproduction credit, not external
-participant, verifier-soundness, or acceptance credit. No human Decision
-exists yet.
-
-Do not recreate a retroactive Target ceremony. The remaining checkpoint is a
-human accept, reject, or cancel Decision, followed by clean-clone replay and
-remap. This mission is admission of an independently reconstructed retained
-certificate, not a new discovery. Until the human Decision changes Standing,
-the witness remains pending evidence rather than accepted Vela Standing.
-
-Sidon remains the held-out computational fallback. Do not run another Sidon
-search merely to increase campaign volume.
-
-### Phase 4 — run the registered evaluations
-
-Measure five claims separately.
-
-#### A. Execution lift
-
-Use three newly frozen held-out task shapes—Erdős, Formal, and quantum—and
-compare same-packet native Codex with the private Agent helper path, whose
-single-engine kernel descends from frozen Canopus, under the same model, facts,
-tools, verifier, token ceiling, retry rule, and stopping condition. The exact
-matrix remains declared by the retained `canopus.evaluation-plan.v2`, not
-hard-coded by the runner.
-
-- two fresh repetitions per task and arm;
-- maximum 12 model calls;
-- infrastructure failure before model output permits one recorded retry;
-- no semantic maintainer hints;
-- every failed Run remains in the result ledger.
-
-Primary metric:
-
-> verifier-passing bounded artifacts per all-in cost and expert-minute
-
-Secondary metrics include tokens, wall time, interventions, failed branches,
-repair reuse, replay rate, scope overstatement, custody failures, and accepted
-state delta before Decision.
-
-The private helper earns survival and a rename only if it improves primary
-efficiency by at least 20 percent on both task classes it supports or closes a
-demonstrated safety/replay gap with no material efficiency regression.
-Otherwise narrow or delete it. Do not evaluate orchestration frameworks
-unless plain fixed orchestration fails the same missing contract in two
-independent tasks.
-
-The completed A5 result is a repaired pilot, not confirmatory evidence for this
-gate. It amended a completed A4 run after A4 exposed an answer-free
-task-contract defect. It also omits all-in cost and expert-minute scoring. Any
-confirmatory run must freeze its contract before outputs, include the full
-stopped and failed-run lineage, cover Erdős plus Formal and quantum task
-shapes, and publish every retained Run.
-
-The current Formal proof and quantum certificate are already visible. They
-may be used only for exact reproduction or scorer calibration and receive no
-generation-lift credit. The next Erdős interval is also ineligible if any
-candidate answer becomes visible before registration. A confirmatory plan must
-select new task bytes, declare each task `held_out`, root every input, and pass
-the full answer-access and matrix checks before the first model call. If no
-leakage-safe Formal or quantum task is available, narrow the execution claim
-instead of substituting a known answer.
-
-The 2026-07-30 held-out audit registered no study. Erdős range
-`10429801..10430000` subsequently became a real producer result and is no
-longer eligible as held-out benchmark work. Ranges `10430001..10430200` and
-`10430201..10430400` also subsequently became real producer results. The
-current Target `10430401..10430600` is only a candidate after a fresh leakage audit; no
-evaluation plan or model run is registered. Formal has no open Target, and the
-existing Formal and quantum answers are public. Their task-selection gates
-remain open. If no second leakage-safe task exists, run only a narrowly claimed
-Erdős study or stop; do not manufacture benchmark cells.
-
-#### B. State and Atlas lift
-
-Freeze five exact tasks:
-
-1. find a Claim's current Standing;
-2. identify its decisive evidence and verifier scope;
-3. distinguish bounded evidence from the unresolved mathematical question;
-4. find the first valid nonduplicate Target; and
-5. begin one correct bounded action.
-
-Compare the released Vela product—CLI plus Atlas—against Git plus identical
-files, evidence, verifier, and ordinary documentation.
-
-First-party sessions debug the task and scorer but earn no adoption credit.
-The registered evaluation requires at least five uncoached non-maintainers in
-a balanced crossover design.
-
-Product-lift credit requires:
-
-- 100 percent correctness on authority-critical fields;
-- zero inference that verification or Git merge equals acceptance;
-- at least 20 percent median improvement in evidence-location or
-  next-action time;
-- no extra live coaching;
-- exact roots and caveats preserved; and
-- at least four of five participants beginning a correct bounded action.
-
-The first registered cold-use harness,
-`paper/artifacts/product-compression-v1`, stopped after its first retained
-Git/files session. The session took 480,943 ms and 40 commands, crossed the
-100,000-token ceiling at 206,536 observed noncached-plus-output tokens, and
-returned malformed JSON. A syntax-only diagnostic repair then proved that the
-participant-facing schema did not disclose the scorer's exact nested field
-contract. The remaining seven assignments were not started. This earns no
-product-lift or correctness credit. `stop.v1.json` binds the full failure and
-the locally retained raw evidence. Any successor is a new registered study
-with a closed participant schema, execution instrumentation declared before
-output, and retained tool/trajectory evidence. Provider token counters are
-telemetry, not an arbitrary post-run quality gate; it is not a post-output
-amendment.
-
-The source-only `benchmarks/product-compression` successor now closes the
-answer and frozen-plan contracts and correctly models the
-current product state: completed Attempt, two root-linked Runs, one registered
-Submission and one retained corroborating Run, one current protocol-ready
-Decision Inbox entry, and the exact successor Target. Its read-only materializer
-reconstructs fixture root `sha256:457f1bee2dca85336ebf822d94d2e183500dd411839166b175942363c4f0e290`
-and supervisor answer-key root
-`sha256:55a5c647112ce050fce814e5150d908a5e57e6402d1fa3817b71b9218bed68c0`
-twice from the same clean Git and content-addressed inputs. This is a freeze
-input, not product-lift evidence.
-
-The first v2 calibration plan,
-`sha256:279e22164aef32c113048d57fe5216c146a4065534ffd6f37be3c1882ec59b42`,
-passed both arm-specific custody probes, then failed before producing a valid
-comparison. Git/files session
-`sha256:8ed55adef44ae9ff6bd395f4b8f5163fb147c77304ab3118d3e7121578ade71f`
-was terminated after an unbounded repository listing exceeded the per-command
-output cap. Vela-guided session
-`sha256:d05b619f44684c169862c5ccf7ed91c124eee8f23f03db74ddb6f090c5a0680a`
-was terminated after the frozen environment omitted packaged `rg`/`jq`, its
-read-only temporary directory impeded Git/Vela subprocesses, and the model then
-attempted forbidden `find`. Both sessions retained their failures and left Git,
-repository, and Standing roots unchanged. This calibration earns no product
-lift. Its session IDs must never be reused.
-
-The replacement plan,
-`sha256:da8fd118c475be2e6e5cff8d1cbeb8446b72b9b5d8969b4cf25e54e82a29b600`,
-bound exact-path executable wrappers rather than copied macOS binaries and
-passed both arm-specific custody probes. Its complete AB/BA assignment was then
-run without semantic intervention. All four sessions preserved Git, repository,
-and Standing roots, but all four failed:
-
-- Git/files `01`, session
-  `sha256:4447bc3ef251985105202b5b978180efb06ef08d40fd2ae7fd3c9574428064e4`,
-  exhausted per-tool and total output budgets after 12 calls.
-- Vela-guided `01`, session
-  `sha256:76109f43437e447bf721f84c0570d423522f0dccd5c16d42fa4627d0f299d841`,
-  attempted an absolute `cat` spelling outside the frozen argv contract.
-- Vela-guided `02`, session
-  `sha256:30e2108a72a05ebf29cd625d09cc3912d2cd657017c285386555dd69c9489f55`,
-  reached the campaign evidence and Vela, then guessed an unsupported
-  `review list` operation outside the frozen contract.
-- Git/files `02`, session
-  `sha256:f766353deff257539552225d6e3a757407a69f353b6712fdfe23224d2f4501fd`,
-  exhausted per-tool and total output budgets after six calls.
-
-The exact report at
-`sha256:c7d8b36fed48035237b1181c161af8602f026903a728b7b7c2175a9f635a4529`
-failed on session correctness, one pair's elapsed comparison, and incomplete
-terminal-token evidence. A subsequent native-toolchain plan passed actual
-read-path preflight, including `vela status`, but its first run stopped with an
-internal operation error before a session could be retained.
-
-These are execution-harness calibration failures, not a valid product-lift or
-product-failure result. The custom supervisor blocked legitimate Git/Vela
-runtime dependencies, measured exact shell spellings, and duplicated process,
-sandbox, trajectory, and usage machinery already provided by established agent
-evaluation tools. No product claim may be inferred from those sessions.
-
-The complete native study used pinned Harbor `0.20.0` at source commit
-`459ff6ec99417589b7f679d14ddf3b3f0ae4f1dc`, wheel SHA-256
-`4b7e48223aea2384cdb8c9eff35eaebd482fc9b1ec09f8193a121c47356ff19a`,
-task schema `1.3`, and ATIF `v1.7`. Harbor supplies local Docker execution,
-agent adapters, bounded network policy, an offline post-agent verifier phase,
-retained jobs, multi-metric rewards, token/cache/cost telemetry, raw artifacts,
-and a local comparison viewer. Vela retains only the frozen scientific plan,
-counterbalanced assignment, exact semantic verifier, state-drift checks, and
-canonical result roots. Harbor is transport and evidence, never authority or
-Standing.
-
-Harbor does not isolate an agent's provider credential from trusted task code
-during the agent phase. This first-party local study uses Harbor's documented
-Codex OAuth path by passing the host-only `CODEX_AUTH_JSON_PATH` when Harbor
-starts; authentication is not placed in `agents[].env`, and no Harbor patch or
-Vela auth adapter is used. It therefore runs only trusted Vela-owned tasks.
-Provider egress is allowlisted and the post-agent verifier phase remains offline. This
-is ordinary local execution custody, not an independence or
-credential-isolation claim.
-
-Frozen plan
-`sha256:3ec7c05814add867dc096887f6d8af5deca16fe70eb883e86c76747ba10f8598`
-completed all four counterbalanced sessions with zero execution exceptions,
-semantic interventions, authority availability, or scientific-state change.
-The raw Harbor job root is
-`sha256:a14978b2508a10ea70fc48fcde3d8ad7ff3e3264e407343bac28b5b1872bc9f9`;
-compact result root
-`sha256:d04426beaf8d6f7eb96ef48a67a05d8356bc3f52d0fb986e37c96355fe7393d0`
-retains the exact session metrics and audit.
-
-The registered gate failed and earns no product-lift credit. Vela-guided was
-faster in both pairs and reduced median elapsed time from 272,681 ms to
-191,459.5 ms, a 29.78 percent improvement; median tool calls and observed
-tokens also improved. Only one frozen answer matched exactly, every session
-exceeded the 24,000-token limit, and three exceeded the 12-tool limit. The run
-also found two study defects: a bytes-versus-string comparison made the offline
-verifier report worktree drift unconditionally, and the fields
-`accepted_before` and `accepted_if_*` did not disclose that the key expected a
-target-scoped delta rather than global accepted Standing. Harbor's low-entropy
-secret redaction also made per-trial JSON and ATIF observations non-parseable
-by replacing `true` with an unquoted marker. Raw evidence remains unchanged;
-none of these defects is silently reclassified as a passing reward.
-
-The useful product diagnosis is narrower than a new architecture: the
-Decision packet must directly present one target-scoped Standing delta—what is
-accepted now, what exact Claim would be added or superseded, and what remains
-unchanged—without forcing a cold researcher to reconstruct global state. A new
-study receives a new plan root only after that interface changes. The result
-earns no new runner, adapter, hosted analysis service, or workflow framework.
-
-That product seam is now implemented in the read-only
-`vela.decision-inbox.v2` projection. It reuses the existing pure Decision
-preview, names the exact affected Claim scope, binds current/accept/reject
-repository roots, reports unchanged and global accepted counts, and refuses a
-preview that changes accepted Standing outside the declared scope. This fixes
-the diagnosed ambiguity; it does not retroactively pass the frozen study or
-earn a product-lift claim. Any confirmation study requires a new plan root.
-
-The corrected native Harbor confirmation then completed all four sessions under
-plan `sha256:55ed5aed…` with no execution exception, intervention, authority
-access, or state drift. Vela-guided was exact 2/2 versus Git/files 0/2 and
-reduced median elapsed time by 51.61 percent, median cost by 60.37 percent,
-uncached-token proxy by 58.84 percent, and tool calls by 28.57 percent. Its
-prospectively frozen composite still records failure because it required the
-control arm to be exact and imposed the arbitrary 24,000 cumulative-token gate.
-That result is not rewritten or rerun. It is retained as strong task-specific
-product-comprehension evidence plus a methodology correction: future studies
-hard-gate execution eligibility, compare exactness between arms, use actual cost
-and elapsed time for efficiency, and treat tool and token counts as telemetry.
-
-Repository ownership is explicit. Vela tracks the reusable benchmark
-definition under `benchmarks/product-compression`; compact final result roots
-cited by the paper belong under `paper/artifacts`; ignored Harbor jobs,
-generated fixtures, trajectories, temporary binaries, and container output
-belong under ignored `jobs/product-compression*/` directories. They do not belong in the source
-repository's scientific object model, a Frontier repository, or user-level
-`~/.vela` identity/runtime state. A separate benchmark repository is deferred
-until independent benchmark families or external authors require an independent
-release lifecycle.
-
-Braintrust is deferred as an optional read-only analysis mirror. Harbor's local
-viewer already exposes trials, trajectories, verifier output, artifacts, timing,
-tokens, and side-by-side job comparison. A hosted or hybrid analysis control
-plane is not earned until multiple real reviewers need shared annotation.
-Inspect AI is the replacement candidate, not an additional layer, if a later
-non-terminal scientific task cannot be expressed in Harbor. OpenTelemetry is an
-optional metadata-only export; ATIF plus native logs remain the execution
-record, and neither replaces Vela's rooted scientific evidence.
-
-OpenCode and Hermes remain comparison agents through Harbor, not Vela runtimes.
-Their strongest portable product patterns are monotonic append-only events,
-explicit recovery of unfinished calls as interrupted failures, bounded display
-tails backed by rooted full output, and default-deny child environments. A
-crash-safe journal is a future Agent Campaign durability improvement, not a
-reason to add another runtime.
-
-#### Commodity tooling adoption record
-
-The 2026-07-31 repository audit produced a deliberately narrow maintenance
-slice rather than a new framework program:
-
-- the public TypeScript `requested_change` vocabulary now shares positive and
-  hostile conformance cases with Rust; the three unreferenced handwritten JSON
-  Schema copies were deleted;
-- routine CI runs the complete checked-in Cargo test union, `cargo-deny`
-  enforces advisory/license/source policy, and pinned zizmor checks existing
-  workflows;
-- release binaries use pinned `cargo-auditable`, and the SPDX gate fails unless
-  Syft recovers the full internal Vela crate graph;
-- Harbor remains the removable evaluation executor, while Agent Skills and the
-  closed JSON CLI remain the integration surface; Vela gains no MCP writer;
-- `ssh-agent-client-rs` failed its deletion gate because it added 32 packages,
-  broad unused crypto, an audit-visible RSA advisory, and weaker frame/timeout
-  behavior while leaving Vela's authority checks custom; and
-- Codex SDK, nextest, generated schemas, Renovate, semver checks, cargo-dist,
-  Cargo Vet, ORAS, and RFC 8785 migration remain trigger-gated. None enters the
-  product until a named gap plus net deletion or consumer evidence earns it.
-
-This record is not a promise to adopt more tooling. Commodity machinery is
-valuable only when it removes more Vela code and ceremony than it introduces.
-
-#### C. Inheritance lift
-
-Give a cold successor only the new root, public docs, and released tools.
-Measure time to:
-
-- identify what changed;
-- avoid repeated failed or completed work;
-- locate surviving evidence;
-- reproduce the relevant result; and
-- start the next correct action.
-
-The original session, Canopus state, Neon, and private maintainer context must
-not be required.
-
-#### D. Correction and causal integrity
-
-Search current mathematical state for a real eligible correction with:
-
-```text
-A  a corrected accepted Claim
-B  a hard dependent on A
-C  one affected route through A and one independent surviving route
-D  a discovery-only relation that remains unaffected
-```
-
-Freeze expected affected, surviving, unaffected, unknown, and repair-required
-sets before implementing the reader. Require byte-identical Rust and
-dependency-free clean-room output, bounded resource use, adversarial
-substitution tests, and one held-out case.
-
-If no genuine candidate exists, record `no_qualifying_candidate` and close the
-entry gate negatively. Do not manufacture a false scientific correction or
-reinterpret a discovery edge. A synthetic conformance fixture may test code
-but earns no scientific or breakthrough credit.
-
-#### E. Interoperability
-
-Compare the existing foreign-reference envelope with a plain rooted manifest
-on one held-out, scientifically legitimate transfer. Measure correctness,
-information loss, authority comprehension, and continuation time.
-
-Promotion requires:
-
-- exact source and target identities;
-- explicit loss and unsupported meaning;
-- source Standing attributed separately from local Standing;
-- local accepted-state delta zero before a local Decision;
-- an independently controlled consumer; and
-- measured value over the simpler rooted-manifest baseline.
-
-If the richer envelope adds no value, keep the plain rooted representation and
-reject promotion.
-
-### Phase 5 — earn, do not assume, shared infrastructure
-
-#### Vela Math profile
-
-Audit repeated semantics across the Erdős projector, Formal reader, and Atlas.
-A source-local profile may map:
-
-```text
-Problem
-Mathematical Claim
-Formalization
-Mathematical Result
-Obligation
-Statement-fidelity review
-```
-
-Extract a shared module only if:
-
-1. two maintained consumers need the same stable contract;
-2. exact offline generation is deterministic on macOS and Linux;
-3. native IDs and semantics remain sovereign;
-4. unsupported meaning and loss are explicit;
-5. removing the module changes no replayed Standing; and
-6. extraction deletes more maintained duplication than it adds.
-
-Keep it inside an existing package or repository. Do not create a
-`vela-math` repository. Publish no package merely to populate a roadmap.
-
-#### Narrow ownership and deletion rule
-
-Vela's durable control point is narrow:
-
-> A named Frontier makes a correction-aware, replayable Decision about what
-> may now be inherited as scientific Standing.
-
-A component belongs in Vela only when it directly implements that control
-point or makes the corresponding researcher experience legible. Delete or
-reject it when a native tool plus a thin, loss-explicit adapter can do the job.
-
-Therefore Vela does not build another agent runner, workflow engine,
-long-running compute service, lab runtime, proof system, notebook, container
-runtime, package manager, instrument controller, Git replacement, Artifact
-store, cryptographic signing primitive, hosted Registry, universal ontology,
-global graph, or package ecosystem. It may authorize a bounded campaign, bind
-exact native outputs, evaluate their scope, and route an authorized Decision.
-
-Atlas, Observatory, search, graph, source indexes, and dashboards remain
-disposable read-only projections. Provenance, lineage, attestations, and
-package metadata remain evidence inputs. None is hidden authority.
-
-#### Scientific change package and interoperability
-
-Use the existing Submission, Verification, Decision, Event, and campaign
-roots as one bounded scientific-change package boundary. An export profile
-references native Artifacts by exact identifier, locator, and content root
-instead of copying every file into a Vela database. It includes explicit
-coverage, caveats, unavailable bytes, unsupported meaning, and a loss report.
-It is an interoperability package, not a new Standing object.
-
-Thin adapters may project that package into existing standards:
-
-- [RO-Crate 1.3](https://www.researchobject.org/ro-crate/specification.html)
-  for self-describing research-object files, identifiers, context,
-  provenance, software, people, and workflows;
-- [OpenLineage](https://github.com/OpenLineage/OpenLineage) for observed Job,
-  Run, Dataset, lifecycle-event, and facet metadata in the execution plane;
-- [in-toto](https://github.com/in-toto/specification/blob/master/in-toto-spec.md)
-  for signed evidence about exact supply-chain steps and policy checks; and
-- [OSF registrations](https://help.osf.io/article/330-welcome-to-registrations)
-  as a frozen-snapshot interoperability target and a reminder that one
-  immutable registration is not a living correction-aware Frontier.
-
-The adapter boundary is strict:
-
-```text
-package, provenance, lineage, or attestation
-  -> evidence
-  -> scoped Verification
-  -> named authorized Decision
-  -> Standing
-```
-
-Add one campaign interoperability test: export a bounded evidence-and-Decision
-package from one Frontier, then have an independent reader or separately
-governed Frontier inspect and verify its exact roots without importing the
-originating Frontier's authority. Passing requires a complete loss report,
-identical source identities and roots, no authority escalation, and the same
-correction and next-Obligation interpretation.
-
-#### Registry and global Atlas
-
-The bounded Math Source Registry built in Phase 2 is the active
-implementation priority because the Atlas cannot disclose coverage or refresh
-correctly without it.
-
-The maturity ladder below concerns a different object: a Registry that
-distributes reusable semantic packages and adapters. Do not conflate source
-discovery with package publication or scientific Standing.
-
-The maturity ladder remains:
-
-```text
-source-local recurrence
--> immutable shared package
--> static read-only index
--> hosted Registry
--> federated read-only Atlas
-```
-
-Only the first two steps are eligible in this campaign. A static index requires
-real independent reuse. Hosted publishing requires external publishers,
-external consumers, namespace/advisory rehearsal, and measured Git-release
-friction. A federated global Atlas requires independently governed Frontiers,
-exact cross-Frontier correction, external cold-use lift, and deletion
-survival.
-
-#### Existing standards
-
-Reference broadly, snapshot selectively, and admit narrowly. Use native
-identifiers and existing standards where they fit:
-
-- Git for bytes and ancestry;
-- Lean, Lake, and Mathlib for formal semantics;
-- RO-Crate and Workflow Run RO-Crate for one bounded computational export;
-- PROV-O only as an explicit lossy projection;
-- DSSE, OpenSSH, SLSA, and existing repository authority for provenance and
-  signing; and
-- MCP or A2A only as optional transport.
-
-No external format or transport creates Vela Standing.
-
-Entire remains an optional private activity-plane experiment. Pilot it only
-after a frozen continuation task demonstrates a missing context problem and
-retain it only for at least 20 percent correct continuation lift with no
-privacy, replay, commit-control, or authority regression.
-
-### Phase 6 — release, simplify, and publish
-
-#### Math Atlas alpha gate
-
-Release Vela Web `0.430.0` only when:
-
-- all four source commits and repository roots match the release manifest;
-- every observed native source has an exact inventory record, rights decision,
-  adapter root, observation identity, coverage, omissions, and rebuild path;
-- full and applicable incremental observation rehearsals produce the expected
-  roots and leave the active release unchanged on failure;
-- all current Claims and Erdős problems are present or explicitly omitted;
-- current Standing partitions exactly;
-- completed and overlapping Target count is zero;
-- Erdős 1056 exposes the exact accepted ranges, universal open core, and fresh
-  next Target;
-- Formal separates kernel, fidelity, Verification, and Standing;
-- the quantum target is correctly classified;
-- Why this stands and Scientific Diff reproduce from current objects;
-- prior read releases remain available during bounded deployment skew;
-- the Vercel role is SELECT-only;
-- the rooted 100,000-record benchmark passes chunked ingestion, root,
-  keyset-read, and bounded-neighborhood budgets;
-- production has one durable Neon branch and no retained migration, benchmark,
-  or per-release branch;
-- no request-time Git or external authority dependency exists;
-- mobile, keyboard, long-root, empty, and integrity-error paths pass; and
-- clean-clone reconstruction succeeds after Neon is deleted or unavailable.
-
-The deterministic local 100,000-record synthetic generator is a harness, not
-this qualification: it explicitly makes no product or database-scale claim and
-does not exercise Neon ingestion, database latency, egress, concurrent
-readers, or production behavior.
-
-The retained live-head operational result is
-`vela.math-atlas-live-read-health.v1`, artifact root
-`sha256:457df1b7048f542e114f3e270b5687671be0324ae3cf6e18095119f1070eecf1`,
-over active release `sha256:d944fd9a…`. The SELECT-only reader, manifest,
-source roots, exact current-release row counts, keyset, search, neighborhood,
-payload, and bounded-concurrency budgets pass. This contract deliberately
-makes no ingestion, activation, Target-lifecycle, product-lift, or capacity
-claim.
-
-The separate
-`vela.math-atlas-neon-capacity-qualification.v1` result, artifact root
-`sha256:c1ad6d1a58c7c19665dd575e1ee5c95064e0bde16d3533a9714ebf27854b7960`,
-passes the frozen bounded 100,000-record ingestion/read contract in an isolated
-qualification environment that no longer exists. The existing schema and
-1,000-row JSONB recordset writer inserted and root-verified 100,000 records in
-19.94 seconds. Invalid
-candidate rollback, rollback-only activation atomicity, exact reader
-permissions, serial query budgets, 80/80 eight-way reads, response budgets,
-and production-pointer preservation passed. No COPY path,
-new dependency, partitioning, graph database, second read store, or streaming
-service was needed. The run does not establish one-million-object scale,
-general production performance, clean empty-database reconstruction, product
-lift, or scientific authority.
-
-The separate
-`vela.math-atlas-clean-room-qualification.v1` result, artifact root
-`sha256:dfd38ca31994e6460e74dd96b2f8013a797fa74f8bb2c6a6affe3a3c9e879614`,
-passes two empty-database reconstructions from the same frozen adapter set.
-Both produced release root `sha256:98a52be8a…`, identical table roots and
-counts, and normalized manifest root `sha256:0e146ddefd…`; only operational
-activation time differed. Tampered source bytes and a late transactional
-constraint failure both failed closed without moving the current pointer.
-The isolated environment was deleted, production remained on
-`sha256:d944fd9a…`, and no candidate rows survived. This proves bounded
-deterministic reconstruction, not future reacquisition, product lift, or
-scientific authority.
-
-#### Completed ADR 0030 and alpha gate
-
-ADR 0030 was accepted and Vela Web `0.430.0` was released only after the
-bounded Math Source Registry, Target-closure invariant, release reconstruction,
-and alpha product gates above passed. That acceptance and release do not claim
-adoption, product lift, correction propagation, package reuse, or federation.
-
-#### Earned beta gate
-
-Release Vela Web `0.440.0` only after:
-
-- the Erdős, Formal, and quantum result loops are terminal and replayed;
-- every resulting Target is closed or advanced;
-- the external product-lift benchmark passes;
-- one independently controlled consumer reproduces the declared Atlas
-  coverage;
-- correction/inheritance surfaces report exact unknowns rather than inferring
-  relationships; and
-- the release contains no second writer or authority surface.
-
-If the correction entry gate remains negative, the Math Atlas may still be a
-useful beta, but the release and paper must say that correction propagation is
-unproven.
-
-#### Cleanup
-
-After exact parity and rollback windows:
-
-- remove completed Target packets from ordinary indexes while preserving their
-  immutable evidence;
-- delete stale checked-in projections and duplicated graph snapshots owned by
-  the disposable reader;
-- remove silently skipped or obsolete tests;
-- remove legacy Neon columns, roles, whole-frontier remnants, and temporary
-  branches proven unnecessary;
-- split oversized mixed-responsibility files only where it improves ownership
-  and tests;
-- delete duplicate witness copies only after canonical source and generator
-  inputs are identified;
-- remove generated dependencies, build outputs, temporary clones, caches, and
-  stale images; and
-- keep one current campaign, one concise roadmap, current architecture docs,
-  accepted/proposed ADRs, canonical records, unique source, and Git history.
-
-Files are not removed because they are old. They are removed when they have no
-current consumer and do not change a Decision, prove a Claim, or reproduce a
-result.
-
-#### Evidence report and whitepaper
-
-Immediately correct contradictory current paper statements and bind the final
-artifact roots. Publish the present work as a bounded engineering and
-falsification report.
-
-The protocol-breakthrough paper remains gated by ADR 0026. Its stronger claim
-requires:
-
-- a real qualifying correction;
-- a held-out different fixture;
-- independent implementation or governance;
-- non-escalating transfer;
-- external cold-use lift;
-- removability;
-- complete adversarial results; and
-- a reproducible public artifact package.
-
-The paper may conclude that one or more hypotheses failed. It may not imply
-equivalence to Git, Linux, Bitcoin, or another foundational system from
-analogy alone.
+without repeated prompts that protect no scientific or authority boundary.
+
+### Gate 4 — measure product value with Harbor directly
+
+The repository retains only Vela-specific task materialization, semantic
+answer contracts, and scoring. Standard Harbor task directories own agent,
+container, test, verifier, retry, trajectory, and reward execution.
+
+Required comparisons:
+
+- Vela-guided state recovery versus Git plus identical evidence;
+- Decision/evidence location time and correctness;
+- continuation from an exact changed Frontier root;
+- correction impact comprehension; and
+- bounded export inspection by an independent reader or Frontier.
+
+A positive claim requires zero authority errors and at least 20 percent median
+improvement on its registered primary metric. First-party runs debug the
+method; they do not establish adoption or independence.
+
+### Gate 5 — keep Registry and Atlas exact, not expansive
+
+- Git Frontiers remain canonical.
+- Source adapters retain native identity, revision, rights, coverage, loss,
+  and exact roots.
+- The read model is rebuildable and SELECT-only.
+- Every projected edge names its source, relation, scope, status, and evidence.
+- Atlas views answer only: why does this stand, what does this correction
+  affect, and what is the next valid obligation?
+- Do not add a graph database, vector store, universal ontology, hosted
+  Registry, or new repository without a measured failed query or consumer.
 
 ## Verification
 
-### Vela
+Use focused checks during development:
 
 ```bash
-cargo test -p vela-protocol --test current_object_interop
+cargo test -p vela-protocol principal_capability
+cargo test -p vela-protocol authority_record
+cargo test -p vela-cli --test current_genesis
 python3 conformance/verify.py
-cargo test -p vela-cli
-VELA_EPHEMERAL_ACCOUNT_HOME=1 \
-  VELA_BIN=target/debug/vela \
-  conformance/check-current-object-waist.sh
-git diff --check
-```
-
-Use focused tests during development. Run the deterministic full release union
-only if a Vela release is actually required.
-
-### TypeScript Protocol and private Agent helper
-
-```bash
+cargo check -p vela-cli
 bun install --frozen-lockfile
 bun run check
-bun run build
-bun run test
-bun run pack:check
 git diff --check
 ```
 
-`pack:check` covers only the public Protocol package. Current Agent helper
-source has no installable package, standalone CLI, public export, or
-publication surface. The retired Canopus evaluation harness and domain-specific
-missions, profiles, verifier capsules, and image build workflow remain frozen
-at `product-v0.8.0`; they are not active Vela Agent infrastructure. New matched
-evaluations use rooted campaign artifacts rather than a second package-local
-evaluation framework.
-
-### Vela Web and projection
-
-```bash
-bun install --frozen-lockfile
-bun run check
-bun run lint
-bun run typecheck
-bun run test
-bun run db:check
-bun run projection:verify
-bun run build
-bun run test:budgets
-bun run test:manifests
-git diff --check
-```
-
-Projection and paper-benchmark tests must prove:
-
-- atomic candidate insertion and activation;
-- failed refresh cannot move the current pointer;
-- empty, full, incremental, deletion, and malformed-source ingestion behavior;
-- bounded ingestion chunks preserve exact counts and table roots;
-- deterministic registry, snapshot, adapter, coverage, and binding roots;
-- unchanged observation roots are reused across web releases while Frontier
-  bindings remain release-scoped;
-- license-unknown and ambiguous-native-ID inputs fail closed;
-- exact release-root retention during deployment skew;
-- complete current counts and relation coverage;
-- no dangling or duplicate graph identities;
-- keyset cursors remain release- and filter-bound with no skipped or duplicate
-  rows;
-- graph reads enforce neighborhood bounds and report hidden counts;
-- no silently skipped correction test;
-- read role cannot write or select outside the observatory schema;
-- no completed or overlapping work is published; and
-- clean reconstruction from exact Git sources.
-
-Emit `vela.math-atlas-benchmark.v1` as a rooted artifact for every release
-candidate. It records:
-
-- declared-source, native-record, Frontier-binding, Claim, and Target coverage;
-- missing, omitted, inaccessible, duplicate, and silently lost record counts;
-- observation-bundle, table, manifest, and clean-rebuild root agreement;
-- stale, overlapping, closed, and valid Target counts;
-- acquisition bytes and time, ingestion method and chunk sizes, offline
-  projection time, incremental changed-row ratio, database storage, query
-  transfer, and p50/p95 latency;
-- keyset page correctness and bounded graph-neighborhood response sizes;
-- reader accuracy and time for Standing, decisive evidence, limitations, and
-  next-action tasks against Git plus identical evidence; and
-- the exact release, environment, repetitions, exclusions, failures, and
-  scorer roots.
-
-Registry success requires complete declared coverage, zero silent loss, exact
-rebuild agreement, zero invalid current Targets, no authority error, and all
-budgets passing. The paper reports every primary metric and failure; it cannot
-replace a failed gate with a qualitative claim.
-
-The `0.430.0` candidate runs this contract with at least 100,000 normalized
-source-native records plus representative Frontier bindings and graph edges.
-The plan fixes the generator or retained inputs, chunk bounds, query mix,
-repetitions, environment, and budgets before execution. A separate rooted
-1,000,000-record run is required before the product or paper describes the
-Atlas as scalable. Until that run exposes a failed budget, partitioning, graph
-databases, vector or embedding infrastructure, a second read store, and
-streaming ingestion remain out of scope.
-
-Manual product QA uses the Codex in-app Browser at 320, 375, 414, 768, 1280,
-and 1440 pixels, including keyboard-only use, reduced motion, forced colors,
-200 percent zoom, long mathematics, long roots, missing data, projection
-integrity failure, and every primary reader/producer/reviewer handoff.
+Run the full deterministic release union only for an actual release candidate.
+GitHub billing or hosted CI availability does not redefine local correctness;
+record it separately as infrastructure state.
 
 ## Human checkpoints
 
-The only planned human actions are:
+Human action is required only for:
 
-1. accept, reject, or cancel the exact pending scientific Decisions for Erdős
-   Proposals `vpr_27bce8983810f3bd`, `vpr_148c88da4d5579a9`, and corrected
-   `vpr_96578d006119b322`, whose requirement-matching Verifications are
-   `vvr_b879aec074e01d16`, `vvr_18f4862fd1a2c256`, and
-   `vvr_9e6664cad0970e67`, respectively; Formal
-   `vpr_08a91ee1b770f5cb`; and Quantum `vpr_8715dbb5e2a12442`; the
-   cross-Frontier transfer
-   `vpr_7aba66544ffefd99` stays pending until its held-out consumer/value gate
-   passes or the human Decision explicitly records that missing evidence;
-2. dispose of the earlier broader-worded Erdős Proposal
-   `vpr_b4a4b9ea9c00d6e9` and the superseded Formal typo Proposal through
-   attributed human Decisions rather than deletion, silent substitution, or an
-   agent shortcut;
-3. approve any later post-Decision production projection root after
-   inspection;
-4. provide uncoached external participants or authorize outreach; and
-5. approve the final bounded release and paper claims.
+1. accepting, rejecting, or cancelling an exact scientific Proposal;
+2. changing repository authority, policy, or schema;
+3. expanding a bounded campaign's scope, budget, risk, or external effect;
+4. publishing or deploying a release; and
+5. approving claims of external adoption or independence.
 
-Agents never enter the Decision or repository-authority trust path.
+Routine artifact generation, local computation, formatting, replay, scoped
+verification, read projection, and report generation should not require
+repeated human signatures.
 
 ## Stop conditions
 
-Stop the affected train on:
+Stop the affected work on:
 
-- canonical-history rewriting;
-- a stale, duplicate, overlapping, or silently skipped Target;
-- false replay, root, coverage, or strict-pass claims;
-- verifier success presented as acceptance;
-- foreign Standing presented as local Standing;
-- missing or hidden failed Runs;
-- post-output benchmark changes;
-- benchmark leakage or semantic coaching;
-- reader write access, hosted authority, or a second writer;
-- request-time dependence on mutable external state;
-- key, credential, or private coordination exposure;
-- a package, framework, or service retained despite failing its gate;
-- a graph or ranking treated as truth or authority;
-- clean-clone failure; or
-- a paper claim not reproduced by its public artifact.
+- canonical-history rewriting or unexplained root drift;
+- verification presented as acceptance;
+- an agent attempting a scientific Decision;
+- hidden failed runs or post-output benchmark changes;
+- stale, duplicate, or overlapping Targets;
+- request-time mutable external data in canonical replay;
+- authority credentials reaching an agent or verifier;
+- a projection or database becoming hidden authority;
+- a new subsystem without a reproduced gap; or
+- a public claim not reproduced by its retained evidence.
 
 ## Explicit non-goals
 
-This campaign does not build:
+Do not build a Vela agent runner, workflow engine, laboratory runtime, theorem
+prover, artifact store, graph database, vector database, global truth graph,
+universal ontology, hosted authority, second writer, package marketplace,
+reputation score, or `1.0.0` schedule.
 
-- a global truth graph;
-- a universal scientific or mathematical ontology;
-- a theorem prover or replacement for Lean, Mathlib, OEIS, or native corpora;
-- a graph database;
-- a vector database or embedding search stack;
-- preemptive table partitioning or streaming ingestion;
-- a hosted semantic-package Registry;
-- a package marketplace;
-- a scheduler or agent operating system;
-- a mandatory Agent helper or orchestration layer;
-- an Entire competitor;
-- hosted signing or web authority;
-- a second writer;
-- a new Atlas, Registry, Math, or integration repository;
-- a reputation score;
-- biology expansion; or
-- a Vela `1.0.0` schedule.
+## Release ledger
+
+| Surface | Current posture | Next earned change |
+| --- | --- | --- |
+| Vela | `0.950.1`; current simplification is unreleased | compatible release only after green checks and a user-visible defect fix |
+| TypeScript protocol | `0.1.0` immutable | publish only a contract change from a Vela tag |
+| Canopus | `0.8.0` historical evidence | no current source or release train |
+| Vela Web | root-bound Registry and Atlas deployed; source adapter contract consolidated on `main` | refresh exact production projection, then earn product changes through cold-use evidence |
+| Frontiers | canonical Git sources with pending human Decisions | decide or cancel exact Proposals, replay, remap |
+| Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 
 Failure narrows or deletes the system. It does not earn another layer.
-
-## Evidence ledger
-
-| Claim or gate | Starting status | Campaign terminal condition |
-| --- | --- | --- |
-| Local Submission → Verification → Decision | New Erdős, Formal, and Quantum evidence loops each have one exact requirement-matching Verification plus retained complementary evidence; the Proposals remain `pending_review`, and the Formal transfer remains separately gated on held-out value | human Decision or explicit cancellation for each exact Proposal, then clean-clone replay |
-| Map → advance → remap | All four Frontiers have zero stale indexed Targets; Erdős producer work through `10430400` is closed without changing Standing and now offers `10430401..10430600`; Formal has zero indexed Targets, with one historical packet cleanup remaining; the exact current Atlas is live, while scientific Decisions and post-Decision remap remain open | after one human Decision changes Standing, rebuild the exact Atlas, identify the semantic diff and surviving knowledge, and expose the next valid obligation |
-| Agent-helper execution lift (historical Canopus pilot) | Directionally positive first-party repaired Stage A; predecessor and stopped runs retained; expert-minute metric unscored | contract-frozen Erdős, Formal, and quantum result or explicit narrowing |
-| State/Atlas lift | Corrected native Harbor plan `sha256:55ed5aed…` completed 4/4 sessions with no execution exception or state drift. Vela-guided was exact 2/2 versus Git/files 0/2, 51.61 percent faster at the median, and 60.37 percent lower in median cost. Its original composite remains a registered failure because it required the control to be exact and imposed an arbitrary cumulative-token gate; the prospective methodology is corrected without rewriting or rerunning the evidence. | repeat the corrected eligibility/exactness/cost contract on a distinct cold-use task and external users; use Harbor directly and add no runner or adapter |
-| Inheritance lift | Removability passed for one historical pending state; cold-successor lift unmeasured | cold successor reproduces change, surviving evidence, replay, and next action without private context |
-| Correction propagation | no qualifying real candidate | qualifying fixture passes or entry gate closes negative |
-| Cross-Frontier transfer | exact archive reconstruction and mutation tests pass with zero accepted delta; the work remains first-party and protocol readiness does not satisfy the held-out value gate | held-out independently controlled consumer/value test passes or the claim envelope is narrowed |
-| Quantum reproduction | actor-separated current Vela reconstruction verifies the exact retained `[[10,1,4]]` certificate with network and writes denied; Proposal `vpr_8715dbb5e2a12442` remains pending; this is not external independence or verifier-soundness credit | human Decision or explicit cancellation, then clean-clone replay and remap |
-| Native-source inventory and observation | source adapter set root `sha256:f5bcd480…` contains 6,700 exact adapter records; the active projection contains 9,541 native rows; current-root health artifact `sha256:d447c008…` passes with zero duplicate native IDs or dangling bindings; this is exact first-party data evidence, not adoption | run the cold-use gate; add no storage or adapter layer without a reproduced failure |
-| Math Atlas | Vela Web `v0.430.0` Observatory snapshot commit `a7cb131c…` is deployed; active read-model root `sha256:d8339a90…`, both production manifests, current Frontier heads, 14-source Registry, 9,541 native rows, and 6,307 bindings agree; this is an exact first-party alpha, not a product-lift or adoption result | refresh exactly after any human Decision; earn beta only through cold-use and independent-consumer evidence |
-| Shared Math package | not earned | two consumers plus net deletion, or no package |
-| Registry/global Atlas | not earned | remain deferred |
-| Whitepaper breakthrough | not earned | ADR 0026 gates pass or paper remains bounded |

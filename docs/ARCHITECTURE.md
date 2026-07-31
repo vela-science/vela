@@ -172,7 +172,7 @@ canonical. `@vela/frontier-data` acquires and validates source-native
 observations, projects exact Frontier state, and loads one disposable
 PostgreSQL read model.
 
-Candidate loads use PostgreSQL `COPY FROM STDIN` in bounded chunks inside one
+Candidate loads use bounded 1,000-row PostgreSQL recordsets inside one
 transaction. The projector checks chunk counts, table roots, release
 membership, and Frontier bindings before moving `current_release`. It does not
 issue one insert per record or store a source as a giant JSONB document.
@@ -199,7 +199,7 @@ The target public topology is intentionally small:
 
 | Repository | Sole responsibility |
 | --- | --- |
-| `vela-science/vela` | Product monorepo: Rust implementation, authority-free TypeScript protocol contracts, private removable Agent executor candidate, shared conformance fixtures, releases, architecture |
+| `vela-science/vela` | Product monorepo: Rust implementation, authority-free TypeScript protocol contracts, shared conformance fixtures, releases, architecture |
 | `vela-science/vela-web` | Editorial site and read-only Observatory |
 | `vela-science/erdos-frontier` | Canonical Erdős Frontier |
 | `vela-science/formal-conjectures-frontier` | Canonical formal-conjectures Frontier |
@@ -207,9 +207,9 @@ The target public topology is intentionally small:
 | `vela-science/quantum-codes-frontier` | Canonical quantum-codes Frontier |
 | `vela-science/.github` | Organization profile, reusable workflows, security policy, repository templates |
 
-The former `vela-science/vela-research-harness` history is preserved
-unsquashed under `packages/canopus`; that repository is archived rather than
-maintained as a mirror.
+The former `vela-science/vela-research-harness` repository and immutable
+Canopus release remain archived historical evidence. Current source does not
+carry a copy or compatibility layer.
 
 The former private `vela-science/vela-internal` integration repository is
 archived at its final tombstone commit. Its load-bearing checks and current
@@ -229,9 +229,7 @@ match the source tag.
 - The TypeScript protocol package is generated or checked against the same
   public schemas and fixtures as Rust.
 - Immutable Canopus `0.8.0` remains frozen for historical Runs that bind its
-  exact bytes. Current executor source is private as
-  `@vela-science/agent-internal`, exposed only through the removable
-  `vela agent` facade accepted by ADR 0031, and has no separate release train.
+  exact bytes. Current Vela contains no executor or separate runner release.
 - Each Frontier verifies and reproduces its own exact state.
 - Vela Web verifies its read projection against exact Frontier sources.
 - Organization workflows test the compatibility matrix without becoming a

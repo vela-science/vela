@@ -67,28 +67,6 @@ pub async fn run_command() {
     let cli = Cli::parse();
     crate::ui::set_quiet(cli.quiet);
     match cli.command {
-        Commands::Agent { action } => match action {
-            AgentAction::Doctor { args } => crate::agent_delegate::cmd_agent("doctor", &args),
-            AgentAction::Run {
-                frontier,
-                attempt,
-                output,
-            } => {
-                let frontier = crate::ui::resolve_frontier(frontier);
-                crate::agent_delegate::cmd_agent_run(&frontier, &attempt, output.as_deref())
-            }
-            AgentAction::Show { args } => crate::agent_delegate::cmd_agent("show", &args),
-            AgentAction::Replay { args } => crate::agent_delegate::cmd_agent("replay", &args),
-            AgentAction::Export { args } => crate::agent_delegate::cmd_agent("export", &args),
-        },
-        Commands::Campaign {
-            action:
-                CampaignAction::Host {
-                    frontier,
-                    attempt,
-                    inbox,
-                },
-        } => crate::campaign_host::cmd_host(&frontier, &attempt, &inbox),
         Commands::Repository { action } => match action {
             RepositoryAction::Verify { frontier, json } => {
                 crate::current_repository::cmd_repository_verify(&frontier, json)
@@ -215,14 +193,11 @@ pub async fn run_command() {
             target,
             frontier,
             ttl,
-            runner_build,
             artifact_class,
-            max_runs,
             max_submissions,
             max_verifications,
             max_artifacts,
             max_artifact_bytes,
-            consequence_ceiling,
             drop: drop_it,
             reason,
             r#as,
@@ -235,14 +210,11 @@ pub async fn run_command() {
                 &dir,
                 &target,
                 ttl,
-                runner_build.as_deref(),
                 &artifact_class,
-                max_runs,
                 max_submissions,
                 max_verifications,
                 max_artifacts,
                 max_artifact_bytes,
-                &consequence_ceiling,
                 drop_it,
                 reason.as_deref(),
                 &actor,

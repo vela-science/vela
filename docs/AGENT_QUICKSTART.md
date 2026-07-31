@@ -26,20 +26,6 @@ vela status . --json
 vela next . --limit 1 --json
 vela start <target> --frontier . --as agent:<name> --json
 
-# Optional: let the private, removable Agent helper produce and check the
-# bounded artifact without receiving repository authority.
-# The helper is source-only while its deletion test remains open. From a Vela
-# source checkout, build it once and point the CLI at the exact bundle:
-bun install --frozen-lockfile
-bun run --cwd packages/canopus build
-export VELA_AGENT_BIN="$PWD/packages/canopus/dist/vela-agent"
-
-vela agent doctor
-vela agent run --attempt <vat_id>
-vela agent show <run.json>
-vela agent replay <run.json>
-vela agent export <run.json>
-
 vela submit --frontier . \
   --attempt <vat_id> \
   --claim "<scoped result>" \
@@ -50,6 +36,11 @@ vela submit --frontier . \
   --as agent:<name> \
   --json
 ```
+
+The agent, workbench, notebook, proof assistant, or laboratory system performs
+the work directly. Vela does not wrap it. The producer retains native files and
+registers only the bounded artifact and Claim needed for review. Benchmarks use
+Harbor tasks directly rather than a Vela-owned runner.
 
 Then inspect the exact objects:
 

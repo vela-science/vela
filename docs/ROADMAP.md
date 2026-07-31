@@ -130,25 +130,16 @@ source roots.
   different.
 - Remove ceremony, duplicate explanation, and invalid defaults before adding
   commands or abstractions.
-- The private Attempt v8 boundary, root-linked multi-Run receipts, read-only
-  Decision Inbox, compact Campaign status, and bounded foreground evidence
-  host now exist. One live Attempt has executed two prompt-free Runs under one
-  twelve-hour authorization window, retained their ordered receipt chain, and
-  registered one bounded Submission with zero accepted-state change. This is
-  not yet evidence of twelve hours of continuous activity or matched execution
-  lift.
-  Status excludes expired, budget-exhausted, or Target-advanced Attempts
-  instead of presenting them as live work. Restart-safe private budget replay
-  and multi-Run status now work; a durable background host, richer Cockpit,
-  matched native-runner comparison, and batch Decision planning remain
-  unearned.
+- The current private Attempt is a small ignored lease over one exact Target,
+  expiry, Artifact scope, and Submission/Verification budgets. Status excludes
+  expired, budget-exhausted, or Target-advanced Attempts. Vela owns no Agent
+  runner, scheduler, Campaign host, or private Run receipt model.
 - Require fresh-user comprehension of the repository-authority path before
   accepting ADR 0020.
 - Require a second real producer replay before accepting ADR 0021.
-- Implement accepted ADR 0031 by shrinking duplicate Canopus product
-  machinery and retaining only a removable experimental `vela agent`
-  delegator. No twelve-hour matched dogfood result exists; package rename,
-  helper survival, and public distribution remain gated on that test.
+- Accepted ADR 0031 is complete: immutable Canopus remains historical evidence
+  and current native tools integrate through Target packets, Submission, and
+  Verification Records without a Vela-owned runner.
 
 ## Completed — Math Source Registry and observation path
 
@@ -270,9 +261,8 @@ lift.
 
 - Keep Vela at `0.950.1` unless a generic product defect requires a compatible
   `0.951.0` release.
-- Keep immutable Canopus `0.8.0` frozen for historical replay. Current source
-  is private and unpublishable while accepted ADR 0031's shrink and helper
-  deletion test remain in progress.
+- Keep immutable Canopus `0.8.0` and its tag as historical replay evidence.
+  Current Vela carries no runner, compatibility layer, or second release path.
 - Keep Vela Web `0.430.0` as the released exact source inventory and Math Atlas
   alpha.
 - Earn Vela Web `0.440.0` only through real multi-shape loops and external

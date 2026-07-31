@@ -91,18 +91,15 @@ returned   = offers after the requested limit
 `vela next` does not pretend that private local work is shared availability.
 `vela start` performs the exact local Attempt arbitration, rechecks the
 selected entry, and creates one ignored
-`vela.attempt.v7` bound to:
+the current private Attempt bound to:
 
 - current repository origin and root;
 - Target Index and input roots;
 - source Git commit/tree;
 - exact Target and packet;
 - completion contract;
-- controller and runner build identity;
-- closed operations and Artifact classes;
-- enforced Agent-run and evidence counters and budgets;
-- the exact Target-selected Agent execution bundle, when present;
-- an evidence-only or pending-review consequence ceiling; and
+- allowed operations and Artifact classes;
+- Submission, Verification, Artifact-count, and Artifact-byte budgets; and
 - local expiry.
 
 It writes no canonical object and reads no authority key.
@@ -115,8 +112,8 @@ Starting roots remain exact; the current private read set advances only when
 the same Target source, inputs, and packet remain unchanged. Expiry or
 explicit `start --drop` revokes future use.
 
-That binding proves exact lineage, queue identity, packet/read-set continuity,
-and enforced local budgets. It does not infer that a Claim is scientifically
+That binding proves queue identity, packet/read-set continuity, and enforced
+local evidence budgets. It does not infer that a Claim is scientifically
 responsive to the Target. Semantic fit remains an explicit Verification and
 human-review question; Vela does not add a heuristic semantic validator to the
 Target Index.

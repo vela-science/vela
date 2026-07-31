@@ -16,7 +16,6 @@
 //!   meaning each; do not overload.
 
 use clap::{ArgGroup, Subcommand};
-use std::ffi::OsString;
 use std::path::PathBuf;
 
 /// One meaning per flag, everywhere (the audit's top finding was
@@ -66,18 +65,6 @@ pub enum ConfigAction {
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
-    /// Run one optional bounded-evidence executor without granting authority.
-    #[command(hide = true)]
-    Agent {
-        #[command(subcommand)]
-        action: AgentAction,
-    },
-    /// Run the experimental local routine-evidence host for one exact Attempt.
-    #[command(hide = true)]
-    Campaign {
-        #[command(subcommand)]
-        action: CampaignAction,
-    },
     /// Verify the current repository origin and authority boundary.
     #[command(hide = true)]
     Repository {
@@ -267,17 +254,9 @@ pub(crate) enum Commands {
         /// Lease seconds (default from work.lease_ttl_seconds config).
         #[arg(long)]
         ttl: Option<u64>,
-        /// Exact sha256 build root of the external runner. Defaults to this
-        /// Vela binary when Vela is the runner.
-        #[arg(long, conflicts_with = "drop")]
-        runner_build: Option<String>,
         /// Additional Artifact class authorized for this private Attempt.
         #[arg(long, conflicts_with = "drop")]
         artifact_class: Vec<String>,
-        /// Maximum Agent Runs reserved through this Attempt (default 16, hard
-        /// ceiling 64).
-        #[arg(long, conflicts_with = "drop")]
-        max_runs: Option<u64>,
         /// Maximum registered Submissions retained through this Attempt.
         #[arg(long, conflicts_with = "drop")]
         max_submissions: Option<u64>,
@@ -290,15 +269,6 @@ pub(crate) enum Commands {
         /// Maximum total Artifact bytes retained through this Attempt.
         #[arg(long, conflicts_with = "drop")]
         max_artifact_bytes: Option<u64>,
-        /// Highest permitted consequence: private evidence only, or a pending
-        /// Proposal awaiting independent review.
-        #[arg(
-            long,
-            default_value = "pending_review",
-            value_parser = ["evidence_only", "pending_review"],
-            conflicts_with = "drop"
-        )]
-        consequence_ceiling: String,
         /// Release the lease/session instead of opening one.
         #[arg(long)]
         drop: bool,
@@ -401,62 +371,6 @@ pub(crate) enum Commands {
     Completions {
         /// bash | zsh | fish
         shell: String,
-    },
-}
-
-#[derive(Subcommand)]
-pub(crate) enum AgentAction {
-    /// Diagnose the optional executor and its exact inputs.
-    #[command(disable_help_flag = true)]
-    Doctor {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<OsString>,
-    },
-    /// Run one bounded non-authorizing evidence mission.
-    Run {
-        /// Current Frontier repository. Defaults to the current directory.
-        #[arg(long)]
-        frontier: Option<PathBuf>,
-        /// Exact live private Attempt (`vat_<hex>`) authorizing this run.
-        #[arg(long)]
-        attempt: String,
-        /// Fresh local directory for retained run evidence.
-        #[arg(long)]
-        output: Option<PathBuf>,
-    },
-    /// Inspect one retained Run or failure.
-    #[command(disable_help_flag = true)]
-    Show {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<OsString>,
-    },
-    /// Replay one retained Run without a model call.
-    #[command(disable_help_flag = true)]
-    Replay {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<OsString>,
-    },
-    /// Export one verifier-passing Run as a portable Submission.
-    #[command(disable_help_flag = true)]
-    Export {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<OsString>,
-    },
-}
-
-#[derive(Subcommand)]
-pub(crate) enum CampaignAction {
-    /// Hold one scoped repository signer for bounded routine evidence writes.
-    Host {
-        /// Exact current Frontier repository.
-        #[arg(long)]
-        frontier: PathBuf,
-        /// Exact live private Attempt (`vat_...`).
-        #[arg(long)]
-        attempt: String,
-        /// Host-approved directory containing signed Submission and Verification JSON.
-        #[arg(long)]
-        inbox: PathBuf,
     },
 }
 
