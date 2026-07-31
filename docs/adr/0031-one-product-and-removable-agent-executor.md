@@ -32,11 +32,12 @@ authority. The separate product, command vocabulary, release train, and
 duplicated Submission checks do not protect that boundary.
 
 The drift is measurable. Current `packages/canopus` differs from immutable
-`product-v0.8.0` by 92 files and 8,009 insertions while its package version
-still declares `0.8.0`. `src/product/submit.ts` duplicates checks that current
-`vela submit` owns. Domain-specific missions, coverage rules, verifier
-capsules, and evaluation fixtures make the generic package larger and less
-replaceable.
+`product-v0.8.0` by dozens of files and thousands of lines while its package
+version still declares `0.8.0`. Exact counts are derived from Git when an
+audit needs them rather than frozen into this ADR. The duplicate Submission
+writer has now been removed; domain-specific missions, coverage rules,
+verifier capsules, and evaluation fixtures still make the generic package
+larger and less replaceable.
 
 The execution evidence also argues for consolidation rather than expansion.
 Canopus and native Codex using the same packets both passed all four repaired

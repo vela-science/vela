@@ -41,12 +41,15 @@ verified the resulting bounded Run, accepted the exact bounded Claim through a
 human Decision, clean-clone replayed the transition, and rebuilt a read-only
 candidate map. The map cardinality did not change, while the Claim Standing,
 repository root, graph roots, and projection root changed exactly. The Target
-packet initially failed to advance, so that candidate was not activated. A
-subsequent source-local closure pass retained the completed packet and exposed
-the first contiguous uncovered range, `10429601..10429800`, as the next Target.
-The complete four-Frontier Atlas remap, inheritance gate, external
-independence, and cold-use lift remain unfinished. The evidence therefore does
-not support the full registered protocol claim.
+packet initially failed to advance, so that candidate was not activated.
+Source-local closure and two later exact completions now close producer work
+through `10430000` and expose `10430001..10430200` as the next nonduplicate
+range. The released Vela Web `v0.430.0` four-Frontier Atlas contains 4,140
+graph nodes. Two current Erdős results, one current Formal result, and the
+quantum-certificate result remain pending human Decisions. These facts do not
+establish acceptance, inheritance lift, external independence, or cold-use
+value. The evidence therefore does not support the full registered protocol
+claim.
 
 ## 1. Introduction
 
@@ -97,11 +100,11 @@ The paper makes four contributions only if their evidence gates pass:
 At present, the first contribution, one bounded cross-Frontier transfer, and
 synthetic implementation qualification are demonstrated. One exact
 map-to-target loop reached a terminal human Decision, replayed Standing, and a
-deterministic remap. The loop reproduced a stale-Target failure that a later
-source-local closure pass repaired, exposing the first contiguous uncovered
-range without changing Standing. Real correction-impact propagation, complete
-Atlas remapping, held-out confirmation, external independence, and cold-use
-lift remain registered experiments.
+deterministic remap. The loop reproduced a stale-Target failure that later
+source-local closure and exact completions repaired. The exact four-Frontier
+Atlas is now released, but real correction-impact propagation, post-Decision
+remapping of the current pending results, held-out confirmation, external
+independence, and cold-use lift remain registered experiments.
 
 ## 2. Scope and system model
 
@@ -420,7 +423,7 @@ consume the same public JSON fixture bytes.
 The Observatory and its Neon projection are read-only conveniences. Removing
 them does not remove canonical Git state.
 
-The proposed Math Atlas read model keeps source semantics at the boundary.
+The released Math Atlas read model keeps source semantics at the boundary.
 Each native source has its own adapter for identifiers, revisions, pagination,
 deletions, rights, snapshot policy, and completeness. Adapters emit immutable
 rooted observations whose identity does not depend on a web release. A release
@@ -628,15 +631,21 @@ Standing. Erdős commit
 revalidates the completed packet from exact ancestor Git bytes, and seals
 Target Index
 `sha256:84314593f22bbeae251090838273394db6685f7f437070154a085b1f403b7fd3`.
-The first actionable offer is now the contiguous range
+At that checkpoint, the first actionable offer was the contiguous range
 `10429601..10429800`, packet root
 `sha256:8d879e24a537de3b9b13ad7878dc98db8ce4f5273187c7f45d0d49a93e8fe8ad`.
 Formal commit `35fa12bb4115e1561b0865722580a7626ee79016`
 similarly closes the already-verified foreign-reference-retention Target with
 local Standing effect `none` and exposes zero current offers. This establishes
 source-local Target progression for the two demonstrated stale edges. It does
-not yet establish cold-user lift, automatic domain-generic closure, or a
-complete four-Frontier Atlas remap.
+not establish cold-user lift or automatic domain-generic closure.
+
+Subsequent exact completions close Erdős producer work through `10430000` and
+leave `10430001..10430200` as the next nonduplicate range. Vela Web `v0.430.0`
+now serves the exact current four-Frontier Atlas with 4,140 graph nodes. The
+two later Erdős results, the current Formal exact-proof result, and the
+quantum-certificate result all remain pending human Decisions; their
+Verifications do not change Standing.
 
 ### 6.6 Removability qualification
 
@@ -1064,15 +1073,13 @@ benchmark has not measured federation or recurring external use. SHA-256 and
 Ed25519 are assumed secure. Git hosting availability is operationally useful
 but not canonical.
 
-The Math Atlas has not yet published its required rooted 100,000-record
-qualification, and no 1,000,000-record result exists. This paper therefore
-makes no scalability claim for the read model. Current counts describe the
-audited corpus, not a capacity limit or a reason to add partitioning, a graph
-database, or vector infrastructure. The existing deterministic local
-100,000-record synthetic harness explicitly sets `product_claim=false` and
-`database_scale_claim=false`; it does not exercise Neon ingestion, database
-latency, egress, concurrent readers, or production behavior and therefore does
-not satisfy this gate.
+The Math Atlas has passed a rooted, bounded 100,000-record Neon ingestion and
+read qualification on the existing schema, and Vela Web `v0.430.0` serves an
+exact 4,140-node first-party Atlas. No 1,000,000-record result exists. These
+results establish bounded reconstruction and operation, not general
+scalability, adoption, or user value. Current counts describe the audited
+corpus, not a capacity limit or a reason to add partitioning, a graph database,
+or vector infrastructure.
 
 The public protocol has no foreign-reference object. The derived edge-layer
 envelope passes the real Erdős source qualification in two implementations,
@@ -1151,13 +1158,17 @@ zero accepted-state delta. This passes the bounded transfer and authority
 containment gate. A prospective living-map loop reached an exact Submission,
 scoped Verification, terminal human Decision, clean-clone replay, and
 deterministic remap. Its first candidate exposed a stale-Target failure. A
-subsequent source-local closure pass retained the completed packet, proved its
-coverage from exact ancestor bytes, and exposed `10429601..10429800` as the
-next range without changing Standing. The complete Atlas remap remains
-unfinished, and the frozen held-out selector found no qualifying candidate.
-The stronger claim, that this mechanism preserves useful scientific
-inheritance across real corrections and plural authorities better than Git
-alone, is therefore not satisfied by the audited system.
+subsequent source-local closure pass retained the completed packet and proved
+its coverage from exact ancestor bytes. Later exact completions close producer
+work through `10430000` and expose `10430001..10430200` as the next
+nonduplicate range without changing Standing. The exact Vela Web `v0.430.0`
+four-Frontier Atlas now contains 4,140 graph nodes. Two current Erdős results,
+one current Formal result, and the quantum-certificate result remain pending
+human Decisions, so their post-Decision remaps remain unfinished. The frozen
+held-out selector also found no qualifying candidate. The stronger claim, that
+this mechanism preserves useful scientific inheritance across real corrections
+and plural authorities better than Git alone, is therefore not satisfied by
+the audited system.
 
 This result narrows the next experiment. Vela retains the admission and replay
 mechanisms already shown useful. It does not promote the synthetic

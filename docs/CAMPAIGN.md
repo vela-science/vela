@@ -174,7 +174,7 @@ source lock and all four current Frontier heads:
 | --- | --- |
 | Application version | Vela Web `v0.430.0`; current deployed commit `f85ff84b6d757ceff2b3b2dcf2a1b87176566f4d` |
 | Observatory production manifest | `vela.site-deployment.v3`; deployment `dpl_5FKN8ep5pr1woGuzz9urntkWwWHp`; exact application commit and active projection root verified at `app.vela.space` |
-| Editorial production manifest | `vela.web-deployment.v2`; deployment `dpl_9jn9Ppb4RxFSb6GZUxpWEKMFmiM8`; exact application commit verified at `www.vela.space` |
+| Editorial production manifest | `vela.web-deployment.v2`; deployment `dpl_B4hngkk6EETdHCUu54P7DkhZjzh3`; exact application commit verified at `www.vela.space` |
 | Active projection | `vela.observatory-release-manifest.v7`; root `sha256:256591ba5e668f2ce883f640e1ea0f6b433df93013a35226bfedf1fd9272125a`; read model `observatory.v6`; Vela `0.950.1`; activated atomically at `2026-07-31T02:52:51.119Z`; 2,837 Claims, 10 Verifications, 4,140 graph nodes, 2,579 edges, and 4,144 search documents |
 | Source adapter set | root `sha256:82df98241fc5e5f61b0790604a6ef7c3d6b5ce075e00c133e78ed64d0f8e186a`; 6,700 exact adapter records |
 | Source Registry projection | 9,538 native rows; 6,304 Frontier bindings; declaration root `sha256:51de765c4ab9e834ea726ef53bc0f7f87e8d1cb5eeffaba22728908619d2ee37` |
@@ -212,10 +212,13 @@ Submissions, and `vela review inbox` derives a rooted, consequence-only,
 write-free queue from current Proposal evidence. `vela status` now compresses
 both into one read-only Campaign Cockpit summary: active scope, budget, usage,
 expiry, Inbox readiness, rooted entry identity, and one inspection or
-continuation action. It exposes no Accept/Reject control. Routine Submission
-and Verification commands still use the repository-authority transaction
-path. An internal writer can reuse a caller-owned signer without bypassing
-identity, policy, journaling, or replay.
+continuation action. An Attempt is active only while it is unexpired, retains
+usable evidence budget, and remains bound to the current fresh Target packet;
+the exhausted predecessor for Erdős `10429801..10430000` was dropped from
+private state after exact Target closure. The Cockpit exposes no Accept/Reject
+control. Routine Submission and Verification commands still use the
+repository-authority transaction path. An internal writer can reuse a
+caller-owned signer without bypassing identity, policy, journaling, or replay.
 
 An experimental, foreground `vela campaign host` now invokes that seam for one
 exact live Attempt. It reads bounded NDJSON from inherited stdin, restricts
@@ -1395,8 +1398,11 @@ integrity failure, and every primary reader/producer/reviewer handoff.
 The only planned human actions are:
 
 1. accept, reject, or cancel the exact pending scientific Decisions for Erdős
-   `vpr_27bce8983810f3bd`, Formal `vpr_08a91ee1b770f5cb`, and Quantum
-   `vpr_8715dbb5e2a12442`; the cross-Frontier transfer
+   Proposals `vpr_27bce8983810f3bd` and `vpr_148c88da4d5579a9`, whose
+   requirement-matching Verifications are `vvr_b879aec074e01d16` and
+   `vvr_18f4862fd1a2c256`, respectively; Formal
+   `vpr_08a91ee1b770f5cb`; and Quantum `vpr_8715dbb5e2a12442`; the
+   cross-Frontier transfer
    `vpr_7aba66544ffefd99` stays pending until its held-out consumer/value gate
    passes or the human Decision explicitly records that missing evidence;
 2. dispose of the superseded Formal typo Proposal through an attributed human
