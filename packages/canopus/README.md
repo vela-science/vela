@@ -47,7 +47,9 @@ canopus submit /path/to/submission-bundle /path/to/frontier --attempt <vat_id>
 - `run` executes in disposable workspaces and leaves the frontier unchanged.
   A repair mission requires the exact parent candidate named by its root and
   stages those bytes into the bounded workspace; a fresh worker patches rather
-  than reconstructs them.
+  than reconstructs them. If a later verifier step fails, Canopus retains only
+  a bounded, secret-scanned set of newly created source/build files for
+  diagnosis, never generic notes or the whole worker workspace.
 - `show` inspects current and historical run records.
 - `replay` reruns the frozen verifier without a model call.
 - `export` creates a signed portable Submission and retains no producer key.

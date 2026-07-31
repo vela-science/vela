@@ -13,6 +13,10 @@ import { BudgetTracker } from "./budget/enforce.js";
 import { finalizeCandidate } from "./candidate/finalize.js";
 import type { Mission, MissionRoots } from "./contracts/mission.js";
 import type { Engine } from "./engines/engine.js";
+import {
+  discardWorkerWorkspaceEvidence,
+  promoteWorkerWorkspaceEvidence,
+} from "./engines/workspace-evidence.js";
 import { engineManifest, verifierManifest } from "./evidence/manifests.js";
 import { canonicalJson, contentDigest } from "./util/canonical.js";
 import type { CommandRunner } from "./util/command.js";
@@ -427,6 +431,7 @@ export async function runCanopus(
       await writeExclusive(path.join(paths.root, "candidate.json"), candidate);
       await writeExclusive(path.join(paths.root, "projection.json"), projection);
       await writeExclusive(path.join(paths.root, "run.json"), record);
+      await discardWorkerWorkspaceEvidence(paths.root);
       await activity.append("run.completed", {
         effect: "none",
         candidate_digest: candidateDigest,
@@ -436,10 +441,16 @@ export async function runCanopus(
 
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const failureEvidence = await promoteWorkerWorkspaceEvidence(paths.root)
+      .catch(async () => {
+        await discardWorkerWorkspaceEvidence(paths.root).catch(() => undefined);
+        return null;
+      });
     await activity.append("run.failed", {
       error: message,
       phase,
       effect: "none",
+      ...(failureEvidence === null ? {} : { failure_evidence: failureEvidence }),
     }).catch(() => undefined);
     await writeExclusive(path.join(paths.root, "failure.json"), {
       schema: "canopus.failure.v1",

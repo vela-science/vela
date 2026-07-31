@@ -197,6 +197,8 @@ test("native tool worker pins Codex and permission-profile identities", async ()
     assert.doesNotMatch(prompt, /WORK_BRIEFING_MUST_NOT_ENTER_MODEL_CONTEXT/u);
     const runtimeConfig = await readFile(path.join(options.env.CODEX_HOME ?? "", "config.toml"));
     assert.deepEqual(runtimeConfig, await readFile(permissionProfile));
+    await writeFile(path.join(options.cwd, "search.cpp"), "int main() { return 0; }\n");
+    await writeFile(path.join(options.cwd, "secret.py"), "token = 'access-secret-000000'\n");
     await writeFile(path.join(options.cwd, "result.json"), draft.artifacts[0]?.content ?? "");
     await writeFile(finalPath, JSON.stringify({
       ...draft,
@@ -253,6 +255,22 @@ test("native tool worker pins Codex and permission-profile identities", async ()
   assert.equal(run.includes("--sandbox"), false);
   assert.equal(run.includes("--ignore-user-config"), false);
   assert.equal(run.some((item) => item.includes(authHome)), false);
+  const workspaceEvidence = JSON.parse(
+    await readFile(path.join(paths.root, ".worker-evidence-staging", "manifest.json"), "utf8"),
+  ) as {
+    retained: Array<{ path: string; bytes: number }>;
+    omitted: { sensitive: number };
+  };
+  assert.deepEqual(workspaceEvidence.retained, [{ path: "search.cpp", digest: sha256Bytes("int main() { return 0; }\n"), bytes: 25 }]);
+  assert.equal(workspaceEvidence.omitted.sensitive, 1);
+  assert.equal(
+    await readFile(path.join(paths.root, ".worker-evidence-staging", "files", "search.cpp"), "utf8"),
+    "int main() { return 0; }\n",
+  );
+  await assert.rejects(
+    readFile(path.join(paths.root, ".worker-evidence-staging", "files", "secret.py")),
+    /ENOENT/u,
+  );
 });
 
 test("workspace-backed artifacts fail closed on unsafe files and invalid bytes", async () => {

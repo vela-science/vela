@@ -8,6 +8,10 @@ import test from "node:test";
 
 import type { Mission, MissionRoots } from "../../src/contracts/mission.js";
 import { FakeEngine } from "../../src/engines/fake.js";
+import {
+  snapshotWorkerWorkspace,
+  stageWorkerWorkspaceEvidence,
+} from "../../src/engines/workspace-evidence.js";
 import { projectCurrentRun } from "../../src/projection/current-run.js";
 import { runCanopus, validateTargetOffer, type VelaPort } from "../../src/run.js";
 import type { CommandRunner } from "../../src/util/command.js";
@@ -137,15 +141,28 @@ test("current Run verifies and reproduces with zero frontier mutation", async ()
   const source = await sourceRepository();
   const active = mission(source);
   const vela = new FakeVela();
-  const engine = new FakeEngine({
-    schema: "canopus.engine-output.v0",
-    status: "success",
-    claim: "The bounded result has value 42.",
-    artifacts: [
-      { path: "result.json", kind: "witness", encoding: "utf8", content: "{\"value\":42}\n" },
-    ],
-    observations: ["The finite construction completed."],
-    caveats: ["This is a bounded fixture, not a general theorem."],
+  const engine = new FakeEngine(async (context) => {
+    const worker = path.join(context.paths.work, "worker");
+    await mkdir(worker, { recursive: true });
+    const baseline = await snapshotWorkerWorkspace(worker);
+    await writeFile(path.join(worker, "search.cpp"), "int main() { return 0; }\n");
+    await stageWorkerWorkspaceEvidence({
+      workspace: worker,
+      runRoot: context.paths.root,
+      baseline,
+      excludedPaths: active.allowed_paths,
+      secrets: [],
+    });
+    return {
+      schema: "canopus.engine-output.v0",
+      status: "success",
+      claim: "The bounded result has value 42.",
+      artifacts: [
+        { path: "result.json", kind: "witness", encoding: "utf8", content: "{\"value\":42}\n" },
+      ],
+      observations: ["The finite construction completed."],
+      caveats: ["This is a bounded fixture, not a general theorem."],
+    };
   });
   const verifierRunner: CommandRunner = async (options) => ({
     argv: [...options.argv],
@@ -172,4 +189,72 @@ test("current Run verifies and reproduces with zero frontier mutation", async ()
   assert.equal(vela.nextCalls, 1);
   assert.equal(await git(source.repo, "rev-parse", "HEAD^{commit}"), source.roots.git_commit);
   assert.match(await readFile(path.join(result.paths.root, "activity.jsonl"), "utf8"), /work\.skipped/u);
+  await assert.rejects(
+    readFile(path.join(result.paths.root, ".worker-evidence-staging", "manifest.json")),
+    /ENOENT/u,
+  );
+  await assert.rejects(
+    readFile(path.join(result.paths.root, "failure-evidence", "manifest.json")),
+    /ENOENT/u,
+  );
+});
+
+test("failed verification promotes bounded worker source evidence", async () => {
+  const source = await sourceRepository();
+  const active = mission(source);
+  const runRoot = path.join(source.parent, "failed-run");
+  const engine = new FakeEngine(async (context) => {
+    const worker = path.join(context.paths.work, "worker");
+    await mkdir(worker, { recursive: true });
+    const baseline = await snapshotWorkerWorkspace(worker);
+    await writeFile(path.join(worker, "search.cpp"), "int main() { return 0; }\n");
+    await stageWorkerWorkspaceEvidence({
+      workspace: worker,
+      runRoot: context.paths.root,
+      baseline,
+      excludedPaths: active.allowed_paths,
+      secrets: [],
+    });
+    return {
+      schema: "canopus.engine-output.v0",
+      status: "success",
+      claim: "The bounded result has value 42.",
+      artifacts: [
+        { path: "result.json", kind: "witness", encoding: "utf8", content: "{\"value\":42}\n" },
+      ],
+      observations: ["The finite construction completed."],
+      caveats: ["This is a bounded fixture, not a general theorem."],
+    };
+  });
+  const verifierRunner: CommandRunner = async (options) => ({
+    argv: [...options.argv],
+    exitCode: 1,
+    signal: null,
+    stdout: Buffer.from("wrong value\n"),
+    stderr: Buffer.alloc(0),
+    durationMs: 1,
+  });
+
+  await assert.rejects(
+    runCanopus({
+      mission: active,
+      sourceRepo: source.repo,
+      runRoot,
+      vela: new FakeVela(),
+      engine,
+      verifierRunner,
+    }),
+    /verifier returned failed/u,
+  );
+  assert.equal(
+    await readFile(path.join(runRoot, "failure-evidence", "files", "search.cpp"), "utf8"),
+    "int main() { return 0; }\n",
+  );
+  const activity = await readFile(path.join(runRoot, "activity.jsonl"), "utf8");
+  assert.match(activity, /failure_evidence/u);
+  assert.match(activity, /"retained_files":1/u);
+  await assert.rejects(
+    readFile(path.join(runRoot, ".worker-evidence-staging", "manifest.json")),
+    /ENOENT/u,
+  );
 });

@@ -23,6 +23,15 @@ The run root retains:
 - clean-clone reproduction;
 - exact mission, source, runtime, budget, and evidence roots.
 
+The worker workspace is disposable. If a Run fails after worker execution,
+Canopus retains only newly created, recognized implementation-source and build
+files useful for diagnosis under `failure-evidence/`. Generic text, notes,
+transcripts, logs, the target packet, declared Artifacts, runtime files, known
+credentials, binaries, and pre-existing inputs are excluded. The capture is
+capped at 16 files, 64 KiB per file, and 256 KiB total. Its exact manifest root
+is appended to the activity log before the failure record; it is
+non-authoritative and is deleted on a successful Run.
+
 For a repair Run, `repair.input_bound` records the exact parent digest, path,
 and byte count. The worker receives those root-checked bytes at the contracted
 artifact path. Canopus refuses a repair mission without `--repair-from` or

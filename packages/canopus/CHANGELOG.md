@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Retain a bounded, secret-scanned diagnostic slice of recognized worker
+  source/build files only when a later Run phase fails. This preserves useful
+  source such as a failed search implementation without retaining generic
+  notes, the target packet, declared Artifacts, credentials, binaries, or the
+  disposable workspace.
 - Advance the single active Erdős profile to the next non-overlapping
   compact-repository packet and exact range `10429801..10430000`. Profiles
   bind the full Target packet root as well as its schema, so reusing a target

@@ -221,15 +221,16 @@ operations. EOF ends the host. Push, review, Decision, policy, schema, key,
 scheduler, socket, daemon, and arbitrary-command surfaces are absent. The host
 is private execution support and is never required for clean-clone replay.
 
-One isolated integration fixture proves that the host can register a real
-authenticated Submission through the ordinary transaction writer with
-accepted-state delta zero. The campaign must not claim twelve-hour,
+One isolated integration fixture now proves that the same persistent host can
+register a real authenticated Submission and import its exact scoped
+Verification through the ordinary transaction writer. Each operation consumes
+its live Attempt budget exactly once, both accepted-state deltas remain zero,
+and strict clean-clone replay matches. The campaign must not claim twelve-hour,
 prompt-free evidence work until a real source dogfood records signer prompts,
-restart behavior, multiple routine writes, exact roots, and zero Standing
-change. Homogeneous batch Decision planning remains unimplemented and
-unearned. Current Submission registration accepts only the
-`submission_register` policy action; the retired `receipt_land` fallback is no
-longer a writer path.
+restart behavior, exact roots, and zero Standing change. Homogeneous batch
+Decision planning remains unimplemented and unearned. Current Submission
+registration accepts only the `submission_register` policy action; the retired
+`receipt_land` fallback is no longer a writer path.
 
 ## Product contract
 

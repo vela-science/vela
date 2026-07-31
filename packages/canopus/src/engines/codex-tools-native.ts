@@ -13,6 +13,10 @@ import { MAX_EXECUTABLE_BYTES, readBoundedRegularFile, sha256RegularFile } from 
 import { parseCodexEvents, summarizeCodexFailure } from "./codex-events.js";
 import { prepareIsolatedCodexHome, removeIsolatedCodexHome } from "./codex-home.js";
 import type { Engine, EngineContext, EngineResult } from "./engine.js";
+import {
+  snapshotWorkerWorkspace,
+  stageWorkerWorkspaceEvidence,
+} from "./workspace-evidence.js";
 
 export const NATIVE_WORKER_DISABLED_FEATURES = [
   "apps",
@@ -407,6 +411,7 @@ export class CodexToolsNativeEngine implements Engine {
       profileBytes,
     );
     const finalPath = path.join(workspace, ".canopus-final.json");
+    const workspaceBaseline = await snapshotWorkerWorkspace(workspace);
     const environment = {
       ...isolatedEnvironment(context.paths.home),
       CODEX_HOME: runtimeCodexHome,
@@ -545,6 +550,13 @@ export class CodexToolsNativeEngine implements Engine {
         stderrDigest: sha256Bytes(result.stderr),
       };
     } finally {
+      await stageWorkerWorkspaceEvidence({
+        workspace,
+        runRoot: context.paths.root,
+        baseline: workspaceBaseline,
+        excludedPaths: mission.allowed_paths,
+        secrets,
+      }).catch(() => undefined);
       await removeIsolatedCodexHome(runtimeCodexHome);
       await rm(canaryDirectory, { recursive: true, force: true });
       await rm(workspace, { recursive: true, force: true });
