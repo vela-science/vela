@@ -360,8 +360,8 @@ slice is evidence for the seam, not acceptance of this amendment.**
 
 Implemented now:
 
-- private Attempt v5 scope, expiry, consequence ceiling, and exact evidence
-  budgets;
+- private Attempt v7 scope, expiry, consequence ceiling, one exact Agent Run
+  receipt, and exact evidence budgets;
 - a rooted, read-only `vela review inbox` projection over real pending
   Proposals;
 - a compact `vela status` Campaign summary with no Decision control;
@@ -410,7 +410,7 @@ The invariant does not change:
 
 Most of the required substrate already exists:
 
-- `vela.attempt.v5` privately binds one Target, actor, starting and current
+- `vela.attempt.v7` privately binds one Target, actor, starting and current
   repository read sets, controller and runner builds, closed evidence
   operations and Artifact classes, enforced counters, expiry, and a
   pending-review consequence ceiling while creating no Event, authority
@@ -632,9 +632,11 @@ The first bounded implementation is a hidden foreground stdio host over one
 exact private Attempt. It retains one selected repository signer, reads signed
 objects only from one host-approved inbox, and calls the two existing closed
 writer methods with `push=false`. It adds no canonical Campaign object,
-execution scheduler, durable queue, socket, service, or Decision method. This
-implementation is evidence for the seam only; twelve-hour prompt compression
-and restart behavior remain empirical gates.
+execution scheduler, durable queue, socket, service, or Decision method.
+Attempt v7 currently authorizes and retains one Agent Run, so multi-run
+lineage and durable resume are missing prerequisites for a twelve-hour
+campaign, not properties of this implementation. Twelve-hour prompt
+compression and restart behavior remain empirical gates.
 
 #### Campaign Cockpit
 
@@ -727,10 +729,15 @@ one exact correlation identity; a requested action resolves its referenced
 canonical object before any effect; and a changed input makes the pending
 decision stale rather than silently applying it to successor state. A
 transport acknowledgement is not an applied steering result or Decision.
-Buzz's runner, relay and Nostr transport, generic approval surface, and any
-runner-side auto-approval are explicitly out of scope. Its approval work is
-also incomplete, so it supplies no evidence for weakening Vela's authority
-boundary.
+Its implemented workflow UI adds one useful placement rule: a pending request
+appears beside the exact suspended step in the retained execution trace, with
+one stable token, approver scope, expiry, status, and attributed note. Vela
+applies that rule to execution steering in the Cockpit. Buzz's generic
+`Approval Required` card, runner, relay, Nostr transport, and any runner-side
+auto-approval are explicitly out of scope. A scientific Decision packet must
+instead show the semantic Standing diff, exact evidence and read set,
+uncertainty, and consequence. Buzz's approval work is also incomplete, so it
+supplies no evidence for weakening Vela's authority boundary.
 
 #### Derived Decision Inbox
 
@@ -998,9 +1005,10 @@ This amendment does not rewrite existing Attempts, Runs, Submissions,
 Verification Records, Proposals, Decisions, Events, authority records, or
 Standing.
 
-- Attempt v5 replaces the pre-release private v4 file. Because `.vela/work/`
-  is ignored, local v4 scratch is revoked and restarted rather than entering a
-  canonical compatibility or migration surface.
+- Attempt v5 replaced the pre-release private v4 file, and private revisions
+  later evolved to current Attempt v7. Because `.vela/work/` is ignored,
+  obsolete local Attempt scratch is revoked and restarted rather than entering
+  a canonical compatibility or migration surface.
 - Existing Run v2 records remain immutable campaign inputs.
 - Existing authority-signed Submission and Verification transactions replay
   unchanged.
@@ -1175,7 +1183,8 @@ Implementation status and remaining order are deliberately narrow:
    and interaction remain open.
 5. **Open:** prove one-entry and homogeneous multi-Proposal batch equivalence
    using the existing authority transaction.
-6. **Partial:** Attempt v5 and compact status exist; the full controller and
+6. **Partial:** Attempt v7, one exact Agent Run receipt, and compact status
+   exist; multi-run lineage, durable resume, the full controller, and the
    Cockpit remain open.
 7. **Open:** complete real dogfood before accepting this amendment or changing
    the default daily workflow.

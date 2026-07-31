@@ -72,6 +72,12 @@ still requires the exact frozen Canopus helper and its retained dependencies.
 The executor receives no repository-authority material and no human scientific
 key.
 
+Retiring the duplicate product story does not wait for helper distribution.
+Current daily documentation, commands, and workflows should name Vela and the
+optional `vela agent` path only. The private source may retain its historical
+directory name during shrink so Git history and deletion review stay legible;
+that temporary implementation name is not a second supported product.
+
 Do not port the TypeScript runtime into Rust merely to make the repository look
 uniform. The first `vela agent` implementation is a thin Rust delegator to an
 optional `vela-agent` helper.
@@ -229,11 +235,20 @@ The helper earns public distribution only if one real dogfood campaign proves:
 If the gate is neutral or negative, delete the helper and keep Vela's external
 producer contract.
 
+The current implementation cannot yet claim this test. Attempt v7 permits and
+retains one Agent Run, the helper caps one mission at one hour, and the
+foreground Campaign host has no durable resume contract. The minimum
+prerequisite is multiple root-linked Run receipts and restart-safe budget
+replay under the same bounded private Attempt. This remains private
+coordination state; it does not justify a scheduler, daemon, workflow graph, or
+canonical Campaign object.
+
 ## Migration sequence
 
 1. **Freeze and guard.** Verify immutable Canopus `0.8.0` package and tag;
    prevent current HEAD from being packaged under the same identity.
-2. **Shrink.** Remove the duplicate `canopus submit` path first, move domain
+2. **Shrink.** Remove the duplicate Canopus product CLI, README, public
+   exports, package-install CI, and `canopus submit` path; move domain
    material, remove coverage and duplicate diagnostic logic, derive an
    implementation-private run plan, and retain generic execution tests.
 3. **Expose experimentally.** Add a thin `vela agent` delegator without moving
@@ -247,8 +262,11 @@ producer contract.
    user. Canopus continues to supply the actual worker and verifier isolation.
    Windows remains gated on a native helper executable rather than a
    shell-backed package-manager shim.
-4. **Dogfood.** Run the twelve-hour Agent Campaign and matched native control.
-5. **Rename, release, or delete.** Move and distribute the helper only if it
+4. **Complete the minimum execution seam.** Add root-linked multi-run receipts
+   and restart-safe private budget replay without adding an execution service
+   or authority surface.
+5. **Dogfood.** Run the twelve-hour Agent Campaign and matched native control.
+6. **Rename, release, or delete.** Move and distribute the helper only if it
    clears the gate. Otherwise delete it. Move Protocol publishing before
    retiring the old package workflow.
 

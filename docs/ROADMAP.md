@@ -130,12 +130,14 @@ source roots.
   different.
 - Remove ceremony, duplicate explanation, and invalid defaults before adding
   commands or abstractions.
-- The private Attempt v5 boundary, read-only Decision Inbox, compact Campaign
-  status, and bounded foreground evidence host now exist. They prove one
-  same-host Submission-to-Verification path with zero accepted-state change.
+- The private Attempt v7 boundary, one exact Agent Run receipt, read-only
+  Decision Inbox, compact Campaign status, and bounded foreground evidence
+  host now exist. They prove one same-host Submission-to-Verification path
+  with zero accepted-state change.
   Status excludes expired, budget-exhausted, or Target-advanced Attempts
   instead of presenting them as live work. Real prompt-free dogfood, restart
-  behavior, a richer Cockpit, and batch Decision planning remain unearned.
+  behavior, multi-run receipt lineage, durable resume, a richer Cockpit, and
+  batch Decision planning remain unearned.
 - Require fresh-user comprehension of the repository-authority path before
   accepting ADR 0020.
 - Require a second real producer replay before accepting ADR 0021.

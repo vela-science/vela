@@ -207,8 +207,9 @@ cold-successor lift remain unproved, correction propagation has no qualifying
 fixture, and external interoperability and cold-use gates remain open.
 
 ADR 0020 remains Proposed, but two narrow implementation seams now exist:
-private Attempt v5 retains exact scope and evidence budgets across successful
-Submissions, and `vela review inbox` derives a rooted, consequence-only,
+private Attempt v7 retains exact scope, one exact Agent Run receipt, and
+evidence budgets across successful Submissions, and `vela review inbox`
+derives a rooted, consequence-only,
 write-free queue from current Proposal evidence. `vela status` now compresses
 both into one read-only Campaign Cockpit summary: active scope, budget, usage,
 expiry, Inbox readiness, rooted entry identity, and one inspection or
@@ -234,8 +235,11 @@ Verification through the ordinary transaction writer. Each operation consumes
 its live Attempt budget exactly once, both accepted-state deltas remain zero,
 and strict clean-clone replay matches. The campaign must not claim twelve-hour,
 prompt-free evidence work until a real source dogfood records signer prompts,
-restart behavior, exact roots, and zero Standing change. Homogeneous batch
-Decision planning remains unimplemented and unearned. Current Submission
+restart behavior, exact roots, and zero Standing change. Attempt v7 currently
+permits one Agent Run and retains one Run receipt, so multi-run lineage and
+durable resume are explicit prerequisites for that test rather than claimed
+features. Homogeneous batch Decision planning remains unimplemented and
+unearned. Current Submission
 registration accepts only the `submission_register` policy action; the retired
 `receipt_land` fallback is no longer a writer path.
 
