@@ -2,7 +2,7 @@
 
 #![cfg(unix)]
 
-use std::io::Write;
+use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
 
@@ -13,6 +13,10 @@ use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft}
 use vela_protocol::submission_v1::{
     RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
     SubmissionV1,
+};
+use vela_protocol::verification_record::{
+    IndependenceDisclosure, VerificationMethod, VerificationRecordDraft, VerificationRecordV1,
+    VerificationScope, VerificationSubject,
 };
 
 mod support;
@@ -59,6 +63,24 @@ fn success_json(output: &Output) -> Value {
         String::from_utf8_lossy(&output.stderr)
     );
     serde_json::from_slice(&output.stdout).expect("decode Vela JSON")
+}
+
+fn campaign_host_request(
+    stdin: &mut impl Write,
+    stdout: &mut impl BufRead,
+    request: &Value,
+) -> Value {
+    serde_json::to_writer(&mut *stdin, request).expect("encode Campaign host request");
+    stdin
+        .write_all(b"\n")
+        .and_then(|()| stdin.flush())
+        .expect("write Campaign host request");
+    let mut line = String::new();
+    let bytes = stdout
+        .read_line(&mut line)
+        .expect("read Campaign host response");
+    assert!(bytes > 0, "Campaign host closed before replying");
+    serde_json::from_str(&line).expect("decode Campaign host response")
 }
 
 struct RemoveOnDrop(std::path::PathBuf);
@@ -551,39 +573,44 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     let mut host = host.spawn().expect("start Campaign evidence host");
-    host.stdin
-        .take()
-        .expect("Campaign host stdin")
-        .write_all(
-            br#"{"operation":"register_submission","request_id":"host:submission","path":"submission.json"}
-{"operation":"register_submission","request_id":"host:submission","path":"submission.json"}
-{"operation":"register_submission","request_id":"host:submission","path":"other.json"}
-"#,
-        )
-        .expect("write Campaign host requests");
-    let hosted = host.wait_with_output().expect("wait for Campaign host");
-    assert!(
-        hosted.status.success(),
-        "Campaign host failed\nstdout={}\nstderr={}",
-        String::from_utf8_lossy(&hosted.stdout),
-        String::from_utf8_lossy(&hosted.stderr)
+    let mut host_stdin = host.stdin.take().expect("Campaign host stdin");
+    let mut host_stdout = BufReader::new(host.stdout.take().expect("Campaign host stdout"));
+    let submitted_response = campaign_host_request(
+        &mut host_stdin,
+        &mut host_stdout,
+        &json!({
+            "operation": "register_submission",
+            "request_id": "host:submission",
+            "path": "submission.json",
+        }),
     );
-    let responses = hosted
-        .stdout
-        .split(|byte| *byte == b'\n')
-        .filter(|line| !line.is_empty())
-        .map(|line| serde_json::from_slice::<Value>(line).expect("Campaign host response"))
-        .collect::<Vec<_>>();
-    assert_eq!(responses.len(), 3);
-    assert_eq!(responses[0]["ok"], true);
-    assert_eq!(responses[1], responses[0]);
-    assert_eq!(responses[2]["ok"], false);
+    let replayed_submission = campaign_host_request(
+        &mut host_stdin,
+        &mut host_stdout,
+        &json!({
+            "operation": "register_submission",
+            "request_id": "host:submission",
+            "path": "submission.json",
+        }),
+    );
+    let conflicting_submission = campaign_host_request(
+        &mut host_stdin,
+        &mut host_stdout,
+        &json!({
+            "operation": "register_submission",
+            "request_id": "host:submission",
+            "path": "other.json",
+        }),
+    );
+    assert_eq!(submitted_response["ok"], true);
+    assert_eq!(replayed_submission, submitted_response);
+    assert_eq!(conflicting_submission["ok"], false);
     assert!(
-        responses[2]["error"]["message"]
+        conflicting_submission["error"]["message"]
             .as_str()
             .is_some_and(|message| message.contains("already bound"))
     );
-    let submitted = responses[0]["result"].clone();
+    let submitted = submitted_response["result"].clone();
     assert_eq!(submitted["schema"], "vela.submit-result.v1");
     assert_eq!(submitted["route"], "pending_review");
     assert_eq!(submitted["accepted_event_delta"], 0);
@@ -695,32 +722,94 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         "method preflight must fail before verifier key creation"
     );
 
-    let verified = success_json(&run_with_home(
-        &frontier,
-        Some(agent.socket()),
-        &verifier_home,
-        &[
-            "verification",
-            "record",
-            ".",
-            submitted["proposal_id"].as_str().expect("proposal id"),
-            "--profile",
-            "exact-replay-v1",
-            "--method",
-            method_path,
-            "--property",
-            "Replay the retained artifact bytes.",
-            "--outcome",
-            "pass",
-            "--does-not-establish",
-            "Scientific acceptance.",
-            "--independent-of",
-            actor,
-            "--as",
-            &verifier,
-            "--json",
-        ],
-    ));
+    let observed_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    let verifier_key = SigningKey::from_bytes(&[58_u8; 32]);
+    let verifier_identity = IdentityBinding::build(
+        IdentityBindingDraft {
+            actor_id: verifier.clone(),
+            actor_class: ActorClass::Agent,
+            created_at: observed_at.clone(),
+        },
+        &verifier_key,
+    )
+    .expect("Verifier identity");
+    let method_root = format!(
+        "sha256:{}",
+        hex::encode(Sha256::digest(
+            std::fs::read(frontier.join(method_path)).expect("method bytes")
+        ))
+    );
+    let verification_record = VerificationRecordV1::build(
+        VerificationRecordDraft {
+            subject: VerificationSubject {
+                claim_id: submitted["claim_id"]
+                    .as_str()
+                    .expect("claim id")
+                    .to_string(),
+                artifact_ids: vec![artifact_stem.clone()],
+                submission_id: submitted["submission_id"]
+                    .as_str()
+                    .expect("submission id")
+                    .to_string(),
+                submission_root: submitted["submission_root"]
+                    .as_str()
+                    .expect("submission root")
+                    .to_string(),
+                proposal_id: submitted["proposal_id"]
+                    .as_str()
+                    .expect("proposal id")
+                    .to_string(),
+            },
+            method: VerificationMethod {
+                profile: "exact-replay-v1".into(),
+                implementation: method_path.into(),
+                environment_root: method_root,
+            },
+            scope: VerificationScope {
+                property: "Replay the retained artifact bytes.".into(),
+                does_not_establish: vec!["Scientific acceptance.".into()],
+            },
+            outcome: "pass".into(),
+            verifier: verifier.clone(),
+            independence: IndependenceDisclosure {
+                declared_independent_of: vec![actor.into()],
+                shared_dependencies: Vec::new(),
+            },
+            output_artifact_ids: Vec::new(),
+            started_at: observed_at.clone(),
+            completed_at: observed_at,
+        },
+        verifier_identity,
+        &verifier_key,
+    )
+    .expect("Verification Record");
+    let verification_inbox_path = bundle.join("verification.json");
+    std::fs::write(
+        &verification_inbox_path,
+        verification_record
+            .canonical_bytes()
+            .expect("Verification Record bytes"),
+    )
+    .expect("write Verification Record");
+    let verified_response = campaign_host_request(
+        &mut host_stdin,
+        &mut host_stdout,
+        &json!({
+            "operation": "import_verification",
+            "request_id": "host:verification",
+            "path": "verification.json",
+        }),
+    );
+    assert_eq!(verified_response["ok"], true);
+    let verified = verified_response["result"].clone();
+    drop(host_stdin);
+    drop(host_stdout);
+    let hosted = host.wait_with_output().expect("wait for Campaign host");
+    assert!(
+        hosted.status.success(),
+        "Campaign host failed\nstderr={}",
+        String::from_utf8_lossy(&hosted.stderr)
+    );
     assert_eq!(verified["schema"], "vela.verification-import-result.v1");
     assert_eq!(verified["proposal_id"], submitted["proposal_id"]);
     assert_eq!(verified["claim_id"], submitted["claim_id"]);
@@ -734,8 +823,8 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         1
     );
     assert_eq!(
-        status["campaign"]["first_attempt"]["usage"]["verifications"], 0,
-        "ordinary Verification import must not require or silently charge private Attempt state"
+        status["campaign"]["first_attempt"]["usage"]["verifications"], 1,
+        "hosted Verification import must charge its exact live Attempt once"
     );
 
     let verification_root = verified["verification_record_root"]
