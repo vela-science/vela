@@ -43,20 +43,30 @@ The detailed work, evidence roots, benchmarks, and stop conditions live in the
 - Canopus, Neon, the Observatory, hosted APIs, and the original producer
   session are not required for canonical replay.
 
-## Current checkpoint — 2026-07-30
+## Current checkpoint — 2026-07-31
 
-All three planned result loops and the next Erdős continuation have exact
-requirement-matching Verification with accepted state unchanged:
+The planned Formal and quantum result loops plus three successive Erdős
+continuations have exact requirement-matching Verification with accepted state
+unchanged:
 
-- Erdős commit `fa50b5405f3a61dd576be7df28e2864363ee6d54`; Proposals
-  `vpr_27bce8983810f3bd` and `vpr_148c88da4d5579a9` have
-  requirement-matching Verifications `vvr_b879aec074e01d16` and
-  `vvr_18f4862fd1a2c256`; producer work through `10430000` is closed without
-  accepting either Claim, and the next nonduplicate range is
-  `10430001..10430200`;
-- Formal commit `7d00fd9c34be3887624db16e4c5062c7fc447198`, Proposal `vpr_08a91ee1b770f5cb`,
-  requirement-matching Verification `vvr_96dcaefef0617952`; its exact bounded
-  producer Target is closed, but its scientific Claim is not accepted; and
+- Erdős commit `8d8f396239bd6393009426ab403ce44082f1b16a`, repository
+  root
+  `sha256:adefa01cea989241d96ce22274cdd778d2750054537a1956cdf2c52e041a39c8`;
+  Proposals `vpr_27bce8983810f3bd`, `vpr_148c88da4d5579a9`, and the
+  corrected bounded `vpr_96578d006119b322` have requirement-matching
+  Verifications `vvr_b879aec074e01d16`, `vvr_18f4862fd1a2c256`, and
+  `vvr_9e6664cad0970e67`; producer work through `10430200` is closed without
+  accepting any Claim, and the next nonduplicate range is
+  `10430201..10430400`. Earlier broader-worded Proposal
+  `vpr_b4a4b9ea9c00d6e9` and Claim
+  `vcl_764737221fcd251de5fcabe2836915d15160dd217976c29d30d1e641362598fe`
+  remain retained and `pending_review`; they are not substituted for the
+  corrected bounded Submission `vsb_895cb3913a189369`;
+- Formal commit `33d12b9acef1e909c5942c1162bdf1987192f833`, Proposal
+  `vpr_08a91ee1b770f5cb`, requirement-matching Verification
+  `vvr_96dcaefef0617952`; its exact bounded producer Target is closed and its
+  tracked source-local replay capsule passes the frozen Lean replay as
+  evidence only, but its scientific Claim is not accepted; and
 - Quantum commit `f5aa2fca9029f02ad1b2ca31f58545f370b0d6cc`, Proposal `vpr_8715dbb5e2a12442`,
   requirement-matching Verification `vvr_606aff748c89df76`; an actor-separated
   reconstruction verifies the exact `[[10,1,4]]` certificate, while Decision
@@ -71,33 +81,36 @@ having no protocol blocker.
 
 Sidon remains clean at commit
 `75b3392c5d2a4390065a3927914acdb552d69e8e`. Vela Web `v0.430.0` is deployed
-at current commit `f85ff84b6d757ceff2b3b2dcf2a1b87176566f4d`:
+with Observatory snapshot commit
+`91d2657fca394d8c34d26fc1dbd62557ef56939e` and unchanged editorial commit
+`f85ff84b6d757ceff2b3b2dcf2a1b87176566f4d`:
 
 - the Observatory and editorial production manifests identify the exact version,
   commit, brand root, and Vercel deployments;
 - the active projection is
-  `sha256:256591ba5e668f2ce883f640e1ea0f6b433df93013a35226bfedf1fd9272125a`
+  `sha256:4911de959a3fb41bab1185230a5ddbaece182ccea9c014d53cbca0ba04989d25`
   under Vela `0.950.1`;
 - source adapter set
-  `sha256:82df98241fc5e5f61b0790604a6ef7c3d6b5ce075e00c133e78ed64d0f8e186a`
+  `sha256:f5bcd480aafe766a1700450efd019115a2fb9f90aac8091f507595047c91b9dd`
   contains 6,700 exact adapter records, and the Registry projection contains
-  9,538 native rows;
+  9,540 native rows;
 - PLBY is observed from locked commit
   `d4476dd3535ec618dee4177915741017026d26bf`, not the stale predecessor;
-- the single Neon `main` branch exposes 14 exact sources, 6,304 Frontier
-  bindings, 4,140 graph nodes, 2,579 edges, and 4,144 search documents through
+- the single Neon `main` branch exposes 14 exact sources, 6,306 Frontier
+  bindings, 4,147 graph nodes, 2,587 edges, and 4,151 search documents through
   the SELECT-only reader; and
-- production data checks confirm the root-bound 4,042-node, 2,536-edge Erdős
-  projection; visual Browser evidence remains a separate presentation check.
+- production data checks confirm the root-bound 4,049-node, 2,544-edge Erdős
+  projection, and the live graph API returns the exact active release root.
 
-The retained live-read-health artifact `sha256:457df1b7…` passes exact
-current-head reader, query, payload, and bounded-concurrency budgets. The
-separate bounded capacity artifact `sha256:c1ad6d1a…` passes 100,000-record
-ingestion, exact root/count verification, rollback containment, transactional
-activation rollback, SELECT-only reader, and eight-way read budgets using the
-existing schema and JSONB writer. No COPY path or another storage layer was
-earned. Clean empty-database reconstruction also passes at
-`sha256:dfd38ca3…`; product lift remains open.
+The retained live-read-health artifact `sha256:457df1b7…` qualifies the prior
+active release `sha256:d944fd9a…`; the current release has exact manifest,
+SELECT-only reader, and live graph-API smoke evidence, but no replacement
+health artifact. The separate bounded capacity artifact `sha256:c1ad6d1a…`
+passes 100,000-record ingestion, exact root/count verification, rollback
+containment, transactional activation rollback, SELECT-only reader, and
+eight-way read budgets using the existing schema and JSONB writer. No COPY path
+or another storage layer was earned. Clean empty-database reconstruction also
+passes at `sha256:dfd38ca3…`; product lift remains open.
 
 This is released alpha evidence, not adoption or product-lift evidence. Any
 later human Decision requires another exact refresh before its changed
@@ -182,14 +195,15 @@ reconstruction result; adoption and beta claims remain separate.
 
 ## P1 — complete genuine result Decisions and remap
 
-The Erdős `10429601..10429800` and `10429801..10430000`, Formal Erdős 835,
-and retained quantum `[[10,1,4]]` missions have preserved their failures,
-scoped their Claims, and imported separate Verifications. Complete each through
-a human Decision or explicit cancellation, replay from clean clones, rebuild
-the Atlas, and prove that Standing changes only through Decision. Erdős
-producer work already closed independently of Standing and now offers
-`10430001..10430200`; do not regress that separation by making duplicate-work
-prevention wait on acceptance.
+The Erdős `10429601..10429800`, `10429801..10430000`, and corrected
+`10430001..10430200` results, Formal Erdős 835, and retained quantum
+`[[10,1,4]]` mission have preserved their failures, scoped their Claims, and
+imported separate Verifications. Complete each through a human Decision or
+explicit cancellation, replay from clean clones, rebuild the Atlas, and prove
+that Standing changes only through Decision. Erdős producer work already
+closed independently of Standing and now offers `10430201..10430400`; do not
+regress that separation by making duplicate-work prevention wait on
+acceptance.
 
 ## P1 — measure whether the product works
 

@@ -42,14 +42,15 @@ human Decision, clean-clone replayed the transition, and rebuilt a read-only
 candidate map. The map cardinality did not change, while the Claim Standing,
 repository root, graph roots, and projection root changed exactly. The Target
 packet initially failed to advance, so that candidate was not activated.
-Source-local closure and two later exact completions now close producer work
-through `10430000` and expose `10430001..10430200` as the next nonduplicate
-range. The released Vela Web `v0.430.0` four-Frontier Atlas contains 4,140
-graph nodes. Two current Erdős results, one current Formal result, and the
-quantum-certificate result remain pending human Decisions. These facts do not
-establish acceptance, inheritance lift, external independence, or cold-use
-value. The evidence therefore does not support the full registered protocol
-claim.
+Source-local closure and three later exact completions now close producer work
+through `10430200` and expose `10430201..10430400` as the next nonduplicate
+range. The released Vela Web `v0.430.0` four-Frontier Atlas contains 4,147
+graph nodes. Three corrected bounded Erdős results, one current Formal result,
+and the quantum-certificate result remain pending human Decisions; one
+broader-worded Erdős predecessor Proposal remains retained separately rather
+than being rewritten. These facts do not establish acceptance, inheritance
+lift, external independence, or cold-use value. The evidence therefore does
+not support the full registered protocol claim.
 
 ## 1. Introduction
 
@@ -640,12 +641,14 @@ local Standing effect `none` and exposes zero current offers. This establishes
 source-local Target progression for the two demonstrated stale edges. It does
 not establish cold-user lift or automatic domain-generic closure.
 
-Subsequent exact completions close Erdős producer work through `10430000` and
-leave `10430001..10430200` as the next nonduplicate range. Vela Web `v0.430.0`
-now serves the exact current four-Frontier Atlas with 4,140 graph nodes. The
-two later Erdős results, the current Formal exact-proof result, and the
-quantum-certificate result all remain pending human Decisions; their
-Verifications do not change Standing.
+Subsequent exact completions close Erdős producer work through `10430200` and
+leave `10430201..10430400` as the next nonduplicate range. Vela Web `v0.430.0`
+now serves the exact current four-Frontier Atlas with 4,147 graph nodes. The
+three corrected bounded Erdős results, the current Formal exact-proof result,
+and the quantum-certificate result all remain pending human Decisions; their
+Verifications do not change Standing. The earlier broader-worded Erdős
+Proposal remains retained and pending rather than replacing the corrected
+bounded record.
 
 ### 6.6 Removability qualification
 
@@ -1075,7 +1078,7 @@ but not canonical.
 
 The Math Atlas has passed a rooted, bounded 100,000-record Neon ingestion and
 read qualification on the existing schema, and Vela Web `v0.430.0` serves an
-exact 4,140-node first-party Atlas. No 1,000,000-record result exists. These
+exact 4,147-node first-party Atlas. No 1,000,000-record result exists. These
 results establish bounded reconstruction and operation, not general
 scalability, adoption, or user value. Current counts describe the audited
 corpus, not a capacity limit or a reason to add partitioning, a graph database,
@@ -1160,15 +1163,16 @@ scoped Verification, terminal human Decision, clean-clone replay, and
 deterministic remap. Its first candidate exposed a stale-Target failure. A
 subsequent source-local closure pass retained the completed packet and proved
 its coverage from exact ancestor bytes. Later exact completions close producer
-work through `10430000` and expose `10430001..10430200` as the next
+work through `10430200` and expose `10430201..10430400` as the next
 nonduplicate range without changing Standing. The exact Vela Web `v0.430.0`
-four-Frontier Atlas now contains 4,140 graph nodes. Two current Erdős results,
-one current Formal result, and the quantum-certificate result remain pending
-human Decisions, so their post-Decision remaps remain unfinished. The frozen
-held-out selector also found no qualifying candidate. The stronger claim, that
-this mechanism preserves useful scientific inheritance across real corrections
-and plural authorities better than Git alone, is therefore not satisfied by
-the audited system.
+four-Frontier Atlas now contains 4,147 graph nodes. Three corrected bounded
+Erdős results, one current Formal result, and the quantum-certificate result
+remain pending human Decisions, so their post-Decision remaps remain
+unfinished. An earlier broader-worded Erdős Proposal remains retained
+separately. The frozen held-out selector also found no qualifying candidate.
+The stronger claim, that this mechanism preserves useful scientific
+inheritance across real corrections and plural authorities better than Git
+alone, is therefore not satisfied by the audited system.
 
 This result narrows the next experiment. Vela retains the admission and replay
 mechanisms already shown useful. It does not promote the synthetic
