@@ -131,7 +131,7 @@ jobs:
           path: stage
           format: spdx-json
           output-file: dist/${{ matrix.asset }}.spdx.json
-          syft-version: 1.44.0
+          syft-version: v1.50.0
           upload-artifact: false
           upload-release-assets: false
       - name: Require the SBOM to contain the Vela dependency graph
