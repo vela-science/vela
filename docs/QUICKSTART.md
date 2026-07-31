@@ -78,11 +78,13 @@ vela authority init ./frontier \
 
 When the agent exposes more than one Ed25519 identity, add
 `--key SHA256:<full-fingerprint>`. Vela reads no private-key file. The command
-is valid only over untouched structural genesis, creates one root-bound
-sequence-1 authority record and the initial unsigned Git commit, and enables
-routine signed-agent work. It grants no scientific standing. Distribute the
-returned full authority-record root independently, then install the local
-consumer pin before any later repository-authority write:
+is valid only over untouched structural genesis and creates one root-bound
+sequence-1 authority record plus the initial unsigned Git commit. It establishes
+the human Decision and repository-administration boundary; routine producer and
+verifier evidence authenticates itself and does not use this key. Initialization
+grants no scientific standing. Distribute the returned full authority-record
+root independently, then install the local consumer pin before any later
+repository-authority write:
 
 ```bash
 vela authority trust pin ./frontier \

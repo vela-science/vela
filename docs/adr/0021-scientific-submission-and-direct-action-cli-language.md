@@ -445,14 +445,10 @@ strict replay. Claim Record is current and released; fresh-user comprehension
 evidence and independent recurrence remain separately gated, so this ADR
 remains Proposed.
 
-Historical repository-authority policies remain immutable. A migrated Frontier
-that predates the current producer era adopts the missing intake permissions
-through the direct advanced command `vela authority upgrade`. That command
-retains the prior bundle, appends one root-linked successor containing the
-current `submission_register` and `verification_import` actions, and records
-one non-scientific `policy.rotated` authority event. It replaces the retired
-`authority enable-work` ceremony; it is neither policy authoring nor scientific
-review.
+Historical repository-authority policies remain immutable. Routine Submission
+and Verification intake no longer depends on Cedar permissions or a policy
+upgrade: each retained record authenticates its producer or verifier, while
+only Decisions and repository administration traverse authority policy.
 
 ## Consequences
 

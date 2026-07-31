@@ -23,8 +23,9 @@ Every current Frontier has:
 - an append-only repository-authority history;
 - a full-root Ed25519 authority keyset;
 - a retained restricted Cedar authorization bundle;
-- attributed principals and scoped capabilities;
-- one DSSE authority record covering each canonical transaction; and
+- exact attributed principals;
+- one DSSE authority record covering each Decision or administrative
+  transaction; and
 - an independently distributed sequence-one authority-record root.
 
 Repository authority is a service identity, not the scientific reviewer. Its
@@ -69,7 +70,8 @@ The command is the semantic action. Vela:
 4. evaluates the retained policy;
 5. rechecks every transaction input;
 6. asks the OpenSSH agent to sign the covering authority record; and
-7. installs the transaction through the recoverable journal.
+7. installs the transaction through the recoverable journal; and
+8. publishes the exact delta as one local Git commit.
 
 There is no copied root or timestamp, custom signer helper, Vela human key,
 approval session, batch mode, wildcard, `--yes`, or persistent semantic
@@ -100,7 +102,10 @@ vela submit submission.json --frontier . --as agent:<handle> --json
 ```
 
 Submission intake creates no Verification Record, Decision, Event, or accepted
-Standing.
+Standing. Submission and Verification intake verify the producer or verifier
+signature, retain append-only content-addressed evidence, and rebuild the
+deterministic repository projection without reading the repository-authority
+key. Only a later human Decision creates an Authority Record.
 
 ## Initialize a new Frontier
 

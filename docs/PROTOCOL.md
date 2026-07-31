@@ -302,8 +302,6 @@ Attempt closes over:
 - source Git commit/tree;
 - completion contract;
 - the producer identity;
-- the fixed routine operations `submission_register` and
-  `verification_import`;
 - a closed set of Artifact classes;
 - enforced Submission, Verification, Artifact-count, and Artifact-byte
   budgets;

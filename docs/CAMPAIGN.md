@@ -91,6 +91,10 @@ infrastructure.
 - Unused capability-grant and delegated-authority protocol machinery is gone.
   Current authority records preserve only the canonical `delegation: null`
   boundary and fail closed on non-null input.
+- Routine Submission and Verification intake now verifies the producer or
+  verifier signature and publishes append-only evidence without a
+  repository-authority key. A later human Decision checkpoints the exact
+  evidence preimage and publishes one local Git commit.
 
 ### Open truth
 
@@ -104,10 +108,6 @@ infrastructure.
   long-term reconstruction can be claimed.
 - External cold-user lift, correction propagation, and independently governed
   interoperability remain unproved.
-- Routine Submission and Verification writes still traverse more repository
-  signing/publication machinery than the desired long-running user experience
-  permits. Simplifying that path is an active product problem; weakening the
-  human Decision boundary is not the solution.
 
 ## Active gates
 
@@ -200,7 +200,7 @@ method; they do not establish adoption or independence.
 Use focused checks during development:
 
 ```bash
-cargo test -p vela-protocol principal_capability
+cargo test -p vela-protocol principal
 cargo test -p vela-protocol authority_record
 cargo test -p vela-cli --test current_genesis
 python3 conformance/verify.py

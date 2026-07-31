@@ -134,8 +134,8 @@ source roots.
   expiry, Artifact scope, and Submission/Verification budgets. Status excludes
   expired, budget-exhausted, or Target-advanced Attempts. Vela owns no Agent
   runner, scheduler, Campaign host, or private Run receipt model.
-- Require fresh-user comprehension of the repository-authority path before
-  accepting ADR 0020.
+- Require fresh-user comprehension of the repository-authority Decision path
+  before calling the everyday workflow complete.
 - Require a second real producer replay before accepting ADR 0021.
 - Accepted ADR 0031 is complete: immutable Canopus remains historical evidence
   and current native tools integrate through Target packets, Submission, and
