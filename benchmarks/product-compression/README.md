@@ -126,6 +126,31 @@ faster in both pairs, median elapsed time improves by at least 20 percent, and
 median tool calls and observed tokens do not regress. This pilot cannot prove
 external adoption.
 
+## First complete native Harbor result
+
+The frozen plan
+`sha256:3ec7c05814add867dc096887f6d8af5deca16fe70eb883e86c76747ba10f8598`
+completed all four counterbalanced sessions on 2026-07-31 with no execution
+exception, intervention, authority access, or Frontier mutation. The compact
+result is retained at
+`paper/artifacts/product-compression-v2/result.native-harbor.v1.json`.
+
+The registered gate failed. Vela-guided was faster in both pairs and improved
+median elapsed time by 29.78 percent, with lower median tool calls and observed
+tokens. Only one session matched the frozen answer exactly, however; all four
+exceeded the 24,000-token budget and three exceeded the 12-tool budget. This is
+directional first-party evidence, not product-lift credit.
+
+The raw run also exposed two defects in the frozen study. Its task verifier
+compared byte-valued `git status` output with a string, unconditionally
+reporting drift, while the trajectories show clean final checkouts. The answer
+contract used `accepted_before` and `accepted_if_*` for a target-scoped delta
+without naming that scope, so two agents returned global accepted Standing.
+Because outputs already existed, v2 remains frozen. Any v3 task must use one
+explicit target-scoped Standing delta, a corrected clean-worktree verifier, and
+a new plan root. Do not rerun unchanged v2 or infer a product claim from its
+directional timing signal.
+
 ## Retained calibration evidence
 
 Two custom-runner calibrations and their stopped sessions remain retained by

@@ -1057,7 +1057,7 @@ runtime dependencies, measured exact shell spellings, and duplicated process,
 sandbox, trajectory, and usage machinery already provided by established agent
 evaluation tools. No product claim may be inferred from those sessions.
 
-The next study uses pinned Harbor `0.20.0` at source commit
+The complete native study used pinned Harbor `0.20.0` at source commit
 `459ff6ec99417589b7f679d14ddf3b3f0ae4f1dc`, wheel SHA-256
 `4b7e48223aea2384cdb8c9eff35eaebd482fc9b1ec09f8193a121c47356ff19a`,
 task schema `1.3`, and ATIF `v1.7`. Harbor supplies local Docker execution,
@@ -1075,6 +1075,36 @@ removes its remote copy afterward. It therefore runs only trusted Vela-owned
 tasks. Provider egress is allowlisted and the verifier remains offline. This is
 ordinary local execution custody, not an independence or credential-isolation
 claim.
+
+Frozen plan
+`sha256:3ec7c05814add867dc096887f6d8af5deca16fe70eb883e86c76747ba10f8598`
+completed all four counterbalanced sessions with zero execution exceptions,
+semantic interventions, authority availability, or scientific-state change.
+The raw Harbor job root is
+`sha256:a14978b2508a10ea70fc48fcde3d8ad7ff3e3264e407343bac28b5b1872bc9f9`;
+compact result root
+`sha256:d04426beaf8d6f7eb96ef48a67a05d8356bc3f52d0fb986e37c96355fe7393d0`
+retains the exact session metrics and audit.
+
+The registered gate failed and earns no product-lift credit. Vela-guided was
+faster in both pairs and reduced median elapsed time from 272,681 ms to
+191,459.5 ms, a 29.78 percent improvement; median tool calls and observed
+tokens also improved. Only one frozen answer matched exactly, every session
+exceeded the 24,000-token limit, and three exceeded the 12-tool limit. The run
+also found two study defects: a bytes-versus-string comparison made the offline
+verifier report worktree drift unconditionally, and the fields
+`accepted_before` and `accepted_if_*` did not disclose that the key expected a
+target-scoped delta rather than global accepted Standing. Harbor's low-entropy
+secret redaction also made per-trial JSON and ATIF observations non-parseable
+by replacing `true` with an unquoted marker. Raw evidence remains unchanged;
+none of these defects is silently reclassified as a passing reward.
+
+The useful product diagnosis is narrower than a new architecture: the
+Decision packet must directly present one target-scoped Standing delta—what is
+accepted now, what exact Claim would be added or superseded, and what remains
+unchanged—without forcing a cold researcher to reconstruct global state. A new
+study receives a new plan root only after that interface changes. The result
+earns no new runner, adapter, hosted analysis service, or workflow framework.
 
 Repository ownership is explicit. Vela tracks the reusable benchmark
 definition under `benchmarks/product-compression`; compact final result roots
@@ -1640,7 +1670,7 @@ Failure narrows or deletes the system. It does not earn another layer.
 | Local Submission → Verification → Decision | New Erdős, Formal, and Quantum evidence loops each have one exact requirement-matching Verification plus retained complementary evidence; the Proposals remain `pending_review`, and the Formal transfer remains separately gated on held-out value | human Decision or explicit cancellation for each exact Proposal, then clean-clone replay |
 | Map → advance → remap | All four Frontiers have zero stale indexed Targets; Erdős producer work through `10430400` is closed without changing Standing and now offers `10430401..10430600`; Formal has zero indexed Targets, with one historical packet cleanup remaining; the exact current Atlas is live, while scientific Decisions and post-Decision remap remain open | after one human Decision changes Standing, rebuild the exact Atlas, identify the semantic diff and surviving knowledge, and expose the next valid obligation |
 | Agent-helper execution lift (historical Canopus pilot) | Directionally positive first-party repaired Stage A; predecessor and stopped runs retained; expert-minute metric unscored | contract-frozen Erdős, Formal, and quantum result or explicit narrowing |
-| State/Atlas lift | `product-compression-v1` stopped after one over-budget session; v2 closed the semantic contracts, but both custom-runner calibrations were invalidated by their own sandbox and process machinery, so they earn neither positive nor negative product credit | generate the matched task through pinned Harbor, run one execution-parity smoke, then register a new counterbalanced pilot; add a product seam only after valid evidence identifies it |
+| State/Atlas lift | Native Harbor plan `sha256:3ec7c058…` completed 4/4 sessions with no execution exceptions or state drift. Vela-guided was faster in both pairs and 29.78 percent faster at the median, but only one answer matched exactly, every run exceeded the token budget, three exceeded the tool budget, and verifier/Standing-scope defects invalidate the raw reward. This earns no product-lift credit. | compress the Decision packet to one explicit target-scoped Standing delta, fix the verifier and Harbor redaction configuration, then freeze a new plan; add no new runtime or adapter |
 | Inheritance lift | Removability passed for one historical pending state; cold-successor lift unmeasured | cold successor reproduces change, surviving evidence, replay, and next action without private context |
 | Correction propagation | no qualifying real candidate | qualifying fixture passes or entry gate closes negative |
 | Cross-Frontier transfer | exact archive reconstruction and mutation tests pass with zero accepted delta; the work remains first-party and protocol readiness does not satisfy the held-out value gate | held-out independently controlled consumer/value test passes or the claim envelope is narrowed |
