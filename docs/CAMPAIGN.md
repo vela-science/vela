@@ -1060,12 +1060,20 @@ evaluation tools. No product claim may be inferred from those sessions.
 The next study uses pinned Harbor `0.20.0` at source commit
 `459ff6ec99417589b7f679d14ddf3b3f0ae4f1dc`, wheel SHA-256
 `4b7e48223aea2384cdb8c9eff35eaebd482fc9b1ec09f8193a121c47356ff19a`,
-task schema `1.4`, and ATIF `v1.7`. Harbor supplies local Docker execution,
-Codex/OpenCode/Hermes adapters, no-network task policy, separate verifier
-custody, retained jobs, raw artifacts, and a local comparison viewer. Vela
-retains only the frozen plan, counterbalanced assignment, exact scorer,
-state-drift checks, and canonical result roots. Harbor is transport and evidence,
-never authority or Standing.
+task schema `1.3`, and ATIF `v1.7`. Harbor supplies local Docker execution,
+agent adapters, bounded network policy, separate offline verifier custody,
+retained jobs, raw artifacts, and a local comparison viewer. Vela retains only
+the frozen plan, counterbalanced assignment, exact scorer, state-drift checks,
+and canonical result roots. Harbor is transport and evidence, never authority
+or Standing.
+
+Harbor does not isolate an agent's provider credential from task code because
+both execute in one container during the agent phase. Study runs therefore use
+only a dedicated revocable low-limit benchmark credential passed explicitly to
+the agent, never the user's normal auth store or a task environment variable.
+Provider egress is allowlisted, build/setup access is bounded separately, and
+the verifier remains offline. Output redaction is not treated as credential
+custody.
 
 Braintrust is deferred as an optional read-only analysis mirror. Harbor's local
 viewer already exposes trials, trajectories, verifier output, artifacts, timing,

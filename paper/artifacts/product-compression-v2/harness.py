@@ -29,7 +29,7 @@ HARBOR = {
     "version": "0.20.0",
     "source_commit": "459ff6ec99417589b7f679d14ddf3b3f0ae4f1dc",
     "package_sha256": "sha256:4b7e48223aea2384cdb8c9eff35eaebd482fc9b1ec09f8193a121c47356ff19a",
-    "task_schema": "1.4",
+    "task_schema": "1.3",
     "trajectory_schema": "ATIF-v1.7",
 }
 MAYBE_TEXT = (str, type(None))

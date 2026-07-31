@@ -18,7 +18,7 @@ Harbor `0.20.0` is the removable execution harness for the next study:
 ```text
 PyPI wheel SHA-256  4b7e48223aea2384cdb8c9eff35eaebd482fc9b1ec09f8193a121c47356ff19a
 source commit       459ff6ec99417589b7f679d14ddf3b3f0ae4f1dc
-task schema         1.4
+task schema         1.3
 trajectory schema   ATIF-v1.7
 ```
 
@@ -86,11 +86,20 @@ No participant run may start until a frozen plan binds:
 - both arm-specific tool surfaces; and
 - publication of every retained success, failure, and infrastructure stop.
 
-The answer key belongs only in Harbor's separate verifier environment. The
-agent environment has no network, authority key, authentication store, answer
-key, mutation route, or access outside the exact task workspace. The baseline
-receives ordinary read-only repository tools. The guided arm receives the same
-environment plus the exact read-only Vela interface.
+The answer key belongs only in Harbor's separate verifier image and is never
+copied into the agent container. The verifier has no network, authority key,
+authentication store, mutation route, or access to the source Frontier. The
+baseline receives an isolated copy with ordinary repository tools. The guided
+arm receives the same copy plus the exact read-only Vela interface.
+
+Harbor's agent and task commands share one container. Provider credentials are
+therefore not isolated from task code during the agent phase. A real session
+must use a dedicated, revocable, low-limit benchmark credential passed only as
+an explicit agent variable; it must never use the user's normal Codex auth
+store or place credentials in task environment variables. Agent egress is
+limited to the required provider hosts, while build/setup access is separately
+bounded and the verifier remains fully offline. Harbor's output redaction is
+defense in depth, not credential custody.
 
 `materialize.py` reconstructs the fixture and answer key from one clean exact
 Frontier, one exact Vela binary, a completed private Attempt record, and one
