@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -100,6 +101,108 @@ def score_for(session_id: str, elapsed_ms: int, commands: int, tokens: int) -> d
 
 
 class HarnessTests(unittest.TestCase):
+    def test_harbor_verifier_uses_text_status_and_fails_closed(self) -> None:
+        study, key = frozen_material()
+        binding = harness.seal({
+            "binding_root": "", "frontier": {"git_commit": "a" * 40},
+        }, "binding_root")
+        self.assertEqual(
+            harness.harbor_verifier_failure_codes(
+                answer(), key, binding, "a" * 40, "",
+            ),
+            [],
+        )
+        self.assertIn(
+            "frontier_worktree_drift",
+            harness.harbor_verifier_failure_codes(
+                answer(), key, binding, "a" * 40, b"",  # type: ignore[arg-type]
+            ),
+        )
+
+    def test_prepare_harbor_is_native_closed_and_deterministic(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root_path = Path(temporary)
+            frontier = root_path / "frontier"
+            frontier.mkdir()
+            subprocess.run(["git", "init", "-q", "-b", "main"], cwd=frontier, check=True)
+            subprocess.run(["git", "config", "user.name", "Vela Test"], cwd=frontier, check=True)
+            subprocess.run(["git", "config", "user.email", "test@vela.invalid"], cwd=frontier, check=True)
+            (frontier / "README.md").write_text("rooted frontier\n")
+            subprocess.run(["git", "add", "README.md"], cwd=frontier, check=True)
+            subprocess.run(["git", "commit", "-q", "-m", "fixture"], cwd=frontier, check=True)
+            commit = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=frontier, check=True,
+                capture_output=True, text=True,
+            ).stdout.strip()
+            tree = subprocess.run(
+                ["git", "rev-parse", "HEAD^{tree}"], cwd=frontier, check=True,
+                capture_output=True, text=True,
+            ).stdout.strip()
+            materials = root_path / "materials"
+            participant = materials / "participant" / "campaign"
+            participant.mkdir(parents=True)
+            retained = participant / "attempt.json"
+            retained.write_text('{"retained":true}\n')
+            fixture = harness.seal({
+                "schema": "vela.product-compression-fixture.v2",
+                "fixture_root": "",
+                "frontier": {
+                    "frontier_id": "vfr_0123456789abcdef",
+                    "git_commit": commit,
+                    "git_tree": tree,
+                    "remote": "https://example.invalid/frontier.git",
+                    "repository_root": root("1"),
+                    "target_index_root": root("2"),
+                },
+                "participant_files": [{
+                    "path": "campaign/attempt.json",
+                    "sha256": harness.sha256_root(retained.read_bytes()),
+                    "size": len(retained.read_bytes()),
+                }],
+                "sources": {},
+                "vela": {"binary_sha256": root("3"), "version": "vela 0.test"},
+            }, "fixture_root")
+            key = answer_key()
+            key["fixture_root"] = fixture["fixture_root"]
+            harness.seal(key, "answer_key_root")
+            harness.write_json(materials / "fixture.json", fixture)
+            harness.write_json(materials / "answer-key.json", key)
+            vela = root_path / "vela"
+            vela.write_bytes(b"\x7fELFtest-static-vela")
+            os.chmod(vela, 0o555)
+            study = plan()
+            study["fixture_root"] = fixture["fixture_root"]
+            study["answer_key_root"] = key["answer_key_root"]
+            study["task_environment"]["vela_linux_sha256"] = harness.sha256_root(vela.read_bytes())
+            harness.seal(study["task_environment"], "environment_root")
+            harness.seal(study, "plan_root")
+            plan_path = root_path / "plan.json"
+            harness.write_json(plan_path, study)
+
+            roots = []
+            for name in ("one", "two"):
+                output = root_path / name
+                result = harness.prepare_harbor(
+                    plan_path, materials, frontier, vela,
+                    "vela-product-compression-v3-test", output,
+                )
+                roots.append(result["task_set_root"])
+                job = harness.read_json(output / "harbor-job.json")
+                self.assertEqual(len(job["tasks"]), 4)
+                self.assertNotIn("env", job["agents"][0])
+                self.assertFalse((output / "tasks/01-git-files-01/environment/vela").exists())
+                self.assertTrue((output / "tasks/02-vela-guided-01/environment/vela").exists())
+                generated_verifier = (output / "tasks/01-git-files-01/tests/verify.py").read_text()
+                self.assertIn("capture_output=True, text=True", generated_verifier)
+            self.assertEqual(roots[0], roots[1])
+
+            (frontier / "dirty.txt").write_text("dirty\n")
+            with self.assertRaisesRegex(harness.ContractError, "must be clean"):
+                harness.prepare_harbor(
+                    plan_path, materials, frontier, vela,
+                    "vela-product-compression-v3-dirty", root_path / "dirty-output",
+                )
+
     def test_freeze_plan_binds_agent_environment_and_materials(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root_path = Path(temporary)

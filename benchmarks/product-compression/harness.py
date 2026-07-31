@@ -6,7 +6,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
+import shlex
+import shutil
+import subprocess
 import sys
 from datetime import datetime
 from fractions import Fraction
@@ -33,6 +37,9 @@ HARBOR = {
     "trajectory_schema": "ATIF-v1.7",
 }
 TASK_ENVIRONMENT_IMAGE = "alpine@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce"
+HARBOR_ALLOWED_HOSTS = (
+    "api.openai.com", "chatgpt.com", "*.chatgpt.com", "*.auth.openai.com",
+)
 DEFAULT_BUDGETS = {
     "elapsed_ms": 300_000,
     "tool_calls": 12,
@@ -186,6 +193,15 @@ def read_json(path: Path) -> Any:
 def write_json(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(canonical_bytes(value))
+
+
+def run_text(argv: Sequence[str], *, cwd: Path) -> str:
+    try:
+        return subprocess.run(
+            argv, cwd=cwd, check=True, capture_output=True, text=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise ContractError(f"command failed: {' '.join(argv)}: {exc}") from exc
 
 
 def shape(value: Any, contract: Any, location: str = "$") -> None:
@@ -450,6 +466,288 @@ def freeze_plan(
     seal(value, "plan_root")
     validate_plan(value)
     return value
+
+
+def harbor_verifier_failure_codes(
+    answer: Any,
+    answer_key: Any,
+    binding: Any,
+    head: str,
+    status: str,
+) -> list[str]:
+    """Return deterministic offline-verifier failures for one Harbor task."""
+    failures: list[str] = []
+    try:
+        validate_answer_key(answer_key)
+    except (ContractError, TypeError) as exc:
+        failures.append(f"answer_key_invalid:{exc}")
+    try:
+        validate_answer(answer)
+    except (ContractError, TypeError) as exc:
+        failures.append(f"answer_invalid:{exc}")
+    if isinstance(answer_key, dict) and answer != answer_key.get("expected"):
+        failures.append("answer_mismatch")
+    if not isinstance(binding, dict) or binding.get("binding_root") != record_root(binding, "binding_root"):
+        failures.append("task_binding_invalid")
+    expected_head = binding.get("frontier", {}).get("git_commit") if isinstance(binding, dict) else None
+    if head != expected_head:
+        failures.append("frontier_head_drift")
+    if status != "":
+        failures.append("frontier_worktree_drift")
+    return failures
+
+
+def prepare_harbor(
+    plan_path: Path,
+    materials: Path,
+    frontier: Path,
+    vela_linux: Path,
+    job_name: str,
+    output: Path,
+) -> dict[str, Any]:
+    """Generate four standard Harbor tasks without adding another runner."""
+    output = output.resolve()
+    if output.exists() and any(output.iterdir()):
+        raise ContractError(f"output must be absent or empty: {output}")
+    plan = read_json(plan_path)
+    validate_plan(plan)
+    fixture = read_json(materials / "fixture.json")
+    answer_key = read_json(materials / "answer-key.json")
+    validate_answer_key(answer_key)
+    if fixture.get("fixture_root") != plan["fixture_root"]:
+        raise ContractError("fixture does not match frozen plan")
+    if answer_key["answer_key_root"] != plan["answer_key_root"]:
+        raise ContractError("answer key does not match frozen plan")
+    if not vela_linux.is_file() or sha256_root(vela_linux.read_bytes()) != plan["task_environment"]["vela_linux_sha256"]:
+        raise ContractError("Linux Vela binary does not match frozen plan")
+    if not job_name or not re.fullmatch(r"[a-z0-9][a-z0-9-]{2,127}", job_name):
+        raise ContractError("job name must be a lowercase Harbor identifier")
+    if not frontier.is_dir():
+        raise ContractError("frontier checkout is missing")
+
+    def git(*arguments: str) -> str:
+        completed = subprocess.run(
+            ["git", "-C", str(frontier), *arguments], check=True,
+            capture_output=True, text=True,
+        )
+        return completed.stdout.strip()
+
+    if git("status", "--porcelain=v1", "--untracked-files=all"):
+        raise ContractError("frontier checkout must be clean")
+    if git("rev-parse", "HEAD") != fixture["frontier"]["git_commit"]:
+        raise ContractError("frontier commit does not match fixture")
+    if git("rev-parse", "HEAD^{tree}") != fixture["frontier"]["git_tree"]:
+        raise ContractError("frontier tree does not match fixture")
+    participant = materials / "participant"
+    for item in fixture.get("participant_files", []):
+        path = participant / item["path"]
+        if not path.is_file() or len(path.read_bytes()) != item["size"] or sha256_root(path.read_bytes()) != item["sha256"]:
+            raise ContractError(f"participant material mismatch: {item['path']}")
+
+    output.mkdir(parents=True, exist_ok=True)
+    tasks_root = output / "tasks"
+    tasks_root.mkdir()
+    bundle = output / "frontier.bundle"
+    subprocess.run(
+        ["git", "-C", str(frontier), "bundle", "create", str(bundle), "HEAD"],
+        check=True, capture_output=True,
+    )
+    bundle_bytes = bundle.read_bytes()
+    bundle_root = sha256_root(bundle_bytes)
+
+    verifier = """#!/usr/bin/env python3
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, "/tests")
+import harness
+
+artifacts = Path("/logs/artifacts")
+key = harness.read_json(Path("/tests/answer-key.json"))
+binding = harness.read_json(Path("/tests/task-binding.json"))
+answer_path = artifacts / "answer.json"
+answer = None
+read_failure = None
+try:
+    answer = harness.read_json(answer_path)
+except (OSError, json.JSONDecodeError) as exc:
+    read_failure = f"answer_unreadable:{exc}"
+head = subprocess.run(
+    ["git", "rev-parse", "HEAD"], cwd="/workspace/frontier",
+    check=True, capture_output=True, text=True,
+).stdout.strip()
+status = subprocess.run(
+    ["git", "status", "--porcelain=v1", "--untracked-files=all"],
+    cwd="/workspace/frontier", check=True, capture_output=True, text=True,
+).stdout
+failures = harness.harbor_verifier_failure_codes(answer, key, binding, head, status)
+if read_failure is not None:
+    failures.insert(0, read_failure)
+result = {
+    "schema": "vela.harbor-offline-verification.v1",
+    "binding_root": binding["binding_root"],
+    "answer_root": harness.sha256_root(harness.canonical_bytes(answer)) if answer is not None else None,
+    "passed": not failures,
+    "failure_codes": failures,
+    "network": "none",
+    "authority_available": False,
+}
+harness.write_json(Path("/logs/verifier/verification.json"), result)
+harness.write_json(Path("/logs/verifier/reward.json"), {"exact_correctness": 1 if not failures else 0})
+"""
+
+    task_paths: list[dict[str, str]] = []
+    task_roots: list[str] = []
+    sequence = [session for pair in plan["assignments"] for session in pair["order"]]
+    for index, session_id in enumerate(sequence, start=1):
+        arm = session_id.rsplit("-", 1)[0]
+        task = tasks_root / f"{index:02d}-{session_id}"
+        environment = task / "environment"
+        tests = task / "tests"
+        environment.mkdir(parents=True)
+        tests.mkdir()
+        binding = {
+            "schema": "vela.harbor-task-binding.v2",
+            "binding_root": "",
+            "plan_root": plan["plan_root"],
+            "fixture_root": plan["fixture_root"],
+            "answer_key_root": plan["answer_key_root"],
+            "session_id": session_id,
+            "arm": arm,
+            "tool_contract_root": plan["arms"][arm]["tool_contract_root"],
+            "frontier": {
+                **{key: fixture["frontier"][key] for key in (
+                    "git_commit", "git_tree", "repository_root", "target_index_root",
+                )},
+                "bundle_sha256": bundle_root,
+                "bundle_size": len(bundle_bytes),
+            },
+            "vela": {
+                "available": arm == "vela-guided",
+                "fixture_binary_sha256": fixture["vela"]["binary_sha256"],
+                "linux_binary_sha256": plan["task_environment"]["vela_linux_sha256"] if arm == "vela-guided" else None,
+                "version": plan["task_environment"]["vela_version"] if arm == "vela-guided" else None,
+            },
+            "custody": {
+                "authority_available": False,
+                "credential_source": "host_codex_oauth_via_harbor",
+                "task_environment_credentials": "agent_phase_only",
+                "verifier_network": "none",
+                "writes_frontier": False,
+            },
+        }
+        seal(binding, "binding_root")
+        shutil.copy2(bundle, environment / "frontier.bundle")
+        shutil.copy2(materials / "fixture.json", environment / "fixture.json")
+        shutil.copy2(Path(__file__).with_name("answer.schema.json"), environment / "answer.schema.json")
+        shutil.copytree(participant, environment / "participant")
+        write_json(environment / "task-binding.json", binding)
+        if arm == "vela-guided":
+            shutil.copy2(vela_linux, environment / "vela")
+            os.chmod(environment / "vela", 0o555)
+        write_json(tests / "answer-key.json", answer_key)
+        write_json(tests / "task-binding.json", binding)
+        shutil.copy2(Path(__file__), tests / "harness.py")
+        (tests / "verify.py").write_text(verifier)
+        (tests / "test.sh").write_text("#!/bin/sh\nset -eu\nexec python3 /tests/verify.py\n")
+        os.chmod(tests / "test.sh", 0o555)
+        (tests / "Dockerfile").write_text(
+            f"FROM {TASK_ENVIRONMENT_IMAGE}\nRUN apk add --no-cache git python3\nCOPY . /tests/\n"
+        )
+        vela_install = ""
+        tool_text = "Use ordinary Git and file-reading tools only. The `vela` executable is intentionally absent."
+        if arm == "vela-guided":
+            vela_install = (
+                "COPY vela /usr/local/bin/vela\n"
+                f"RUN chmod 0555 /usr/local/bin/vela && test \"$(vela --version)\" = '{plan['task_environment']['vela_version']}'\n"
+            )
+            tool_text = (
+                "You may also use the installed read-only `vela` CLI (`vela status . --json`, "
+                "`vela next . --json`, `vela show . <id> --json`, and "
+                "`vela review show . <id> --json`)."
+            )
+        (environment / "Dockerfile").write_text(
+            f"FROM --platform=linux/amd64 {TASK_ENVIRONMENT_IMAGE}\n\n"
+            "RUN apk add --no-cache bash ca-certificates gcompat git jq libgcc nodejs npm python3 ripgrep \\\n"
+            f" && npm install -g @openai/codex@{plan['model']['agent_version']} \\\n"
+            f" && codex --version | grep -F '{plan['model']['agent_version']}'\n"
+            "COPY frontier.bundle /opt/vela-input/frontier.bundle\n"
+            "COPY fixture.json task-binding.json answer.schema.json /opt/vela-input/\n"
+            "RUN git clone --quiet /opt/vela-input/frontier.bundle /workspace/frontier \\\n"
+            " && git -C /workspace/frontier checkout --quiet --detach $(jq -r '.frontier.git_commit' /opt/vela-input/task-binding.json) \\\n"
+            " && git -C /workspace/frontier remote remove origin\n"
+            "COPY participant/ /opt/vela-input/participant/\n"
+            f"{vela_install}"
+            "WORKDIR /workspace/frontier\n"
+        )
+        allowed_hosts = ", ".join(json.dumps(host) for host in HARBOR_ALLOWED_HOSTS)
+        (task / "task.toml").write_text(
+            "schema_version = \"1.3\"\n\n"
+            "[task]\n"
+            f"name = \"vela/product-compression-{session_id}\"\n"
+            "description = \"Private matched read-only Vela product-compression session.\"\n"
+            "authors = [{ name = \"Vela\" }]\n"
+            "keywords = [\"vela\", \"read-only\", \"product-compression\"]\n\n"
+            "[agent]\n"
+            f"timeout_sec = {plan['budgets']['elapsed_ms'] / 1000:.1f}\n"
+            "network_mode = \"allowlist\"\n"
+            f"allowed_hosts = [{allowed_hosts}]\n\n"
+            "[verifier]\n"
+            "timeout_sec = 60.0\n"
+            "environment_mode = \"shared\"\n"
+            "network_mode = \"no-network\"\n\n"
+            "[environment]\n"
+            "network_mode = \"no-network\"\n"
+            "cpus = 2\n"
+            "memory_mb = 4096\n"
+            "storage_mb = 8192\n"
+        )
+        (task / "instruction.md").write_text(
+            "# Inspect one exact scientific campaign\n\n"
+            f"Work only in `/workspace/frontier`, an isolated checkout of commit `{fixture['frontier']['git_commit']}` "
+            f"from the exact Git bundle `{bundle_root}`. The frozen participant records are under "
+            f"`/opt/vela-input/participant/`; they are deliberately outside the Git checkout. {tool_text}\n\n"
+            "Determine the current Target, completed Attempt boundary, both root-linked Runs, which Run was "
+            "registered, the pending Proposal and Verification scope, the explicitly scoped conditional Standing "
+            "change, and the exact successor Target.\n\n"
+            "Write exactly one JSON answer conforming to `/opt/vela-input/answer.schema.json` at "
+            "`/logs/artifacts/answer.json`. Do not modify the checkout. Do not perform or simulate Accept, Reject, "
+            "Cancel, signing, publication, or any authority action. Verification is evidence, not acceptance.\n\n"
+            f"Session: `{session_id}`. Plan: `{plan['plan_root']}`.\n"
+        )
+        file_rows = []
+        for path in sorted(item for item in task.rglob("*") if item.is_file()):
+            file_rows.append({"path": path.relative_to(task).as_posix(), "sha256": sha256_root(path.read_bytes())})
+        task_root = sha256_root(canonical_bytes(file_rows))
+        task_roots.append(task_root)
+        task_paths.append({"path": task.relative_to(output).as_posix()})
+
+    bundle.unlink()
+    job = {
+        "job_name": job_name,
+        "n_concurrent_trials": 1,
+        "retry": {"max_retries": 0},
+        "agents": [{
+            "name": "codex",
+            "model_name": plan["model"]["id"],
+            "kwargs": {"version": plan["model"]["agent_version"]},
+        }],
+        "tasks": task_paths,
+    }
+    write_json(output / "harbor-job.json", job)
+    result = {
+        "schema": "vela.harbor-task-set.v1",
+        "task_set_root": "",
+        "plan_root": plan["plan_root"],
+        "job_name": job_name,
+        "task_roots": task_roots,
+        "job_config_sha256": sha256_root((output / "harbor-job.json").read_bytes()),
+    }
+    seal(result, "task_set_root")
+    write_json(output / "task-set.json", result)
+    return result
 
 
 def session_arms(plan: dict[str, Any]) -> dict[str, str]:
@@ -720,6 +1018,13 @@ def build_parser() -> argparse.ArgumentParser:
     freeze.add_argument("--vela-linux", type=Path, required=True)
     freeze.add_argument("--vela-version", required=True)
     freeze.add_argument("--output", type=Path, required=True)
+    prepare = commands.add_parser("prepare-harbor")
+    prepare.add_argument("--plan", type=Path, required=True)
+    prepare.add_argument("--materials", type=Path, required=True)
+    prepare.add_argument("--frontier", type=Path, required=True)
+    prepare.add_argument("--vela-linux", type=Path, required=True)
+    prepare.add_argument("--job-name", required=True)
+    prepare.add_argument("--output", type=Path, required=True)
     score = commands.add_parser("score")
     for name in ("plan", "answer-key", "session", "output"):
         score.add_argument(f"--{name}", type=Path, required=True)
@@ -744,6 +1049,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.materials, args.model, args.codex_version,
                 args.vela_linux, args.vela_version,
             ))
+        elif args.command == "prepare-harbor":
+            sys.stdout.buffer.write(canonical_bytes(prepare_harbor(
+                args.plan, args.materials, args.frontier, args.vela_linux,
+                args.job_name, args.output,
+            )))
         elif args.command == "score":
             write_json(args.output, score_session(read_json(args.plan), read_json(args.answer_key), read_json(args.session)))
         else:

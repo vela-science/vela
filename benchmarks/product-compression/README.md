@@ -94,12 +94,15 @@ authentication store, mutation route, or access to the source Frontier. The
 baseline receives an isolated copy with ordinary repository tools. The guided
 arm receives the same copy plus the exact read-only Vela interface.
 
-The study uses Harbor's native Codex OAuth path (`CODEX_FORCE_AUTH_JSON=true`),
-which loads the current Codex login for the agent phase and removes its remote
-copy after execution. Harbor's agent and task commands share one container, so
-this is execution custody rather than credential isolation. The normal OAuth
-session is used only with these trusted, Vela-owned tasks. Agent egress is
-limited to the required provider hosts and the verifier remains fully offline.
+The study uses Harbor's native Codex OAuth path by passing the host-only
+`CODEX_AUTH_JSON_PATH` when Harbor starts. Authentication is deliberately absent
+from `agents[].env`: Harbor 0.20 treats values in that field as secrets and may
+redact matching low-entropy JSON literals in retained output. No Harbor source
+patch or Vela auth adapter is used. Harbor's agent and task commands share one
+container, so this is execution custody rather than credential isolation. The
+normal OAuth session is used only with these trusted, Vela-owned tasks. Agent
+egress is limited to the required provider hosts and the verifier remains fully
+offline.
 
 `materialize.py` reconstructs the fixture and answer key from one clean exact
 Frontier, one exact Vela binary, a completed private Attempt record, and one
@@ -154,7 +157,11 @@ directional timing signal.
 The reusable source contract now consumes the explicit
 `vela.decision-inbox.v2` Standing delta and validates its scope, hypothetical
 repository roots, and global counts. This prepares a future v3 confirmation
-study; no v3 plan has been frozen and no new run has begun.
+study. The first corrected v3 plan is frozen locally at
+`sha256:9894601c5234dfac451d4b045410af32b3660e399bf63916972f45b83bd3f0cb`;
+it binds the corrected fixture, answer key, exact candidate Linux Vela binary,
+model, Codex version, and budgets. No v3 participant output existed when that
+root was created.
 
 ## Retained calibration evidence
 
@@ -195,17 +202,25 @@ python3 benchmarks/product-compression/harness.py freeze-plan \
   --codex-version 0.145.0 --vela-linux /exact/static-linux-vela \
   --vela-version 'vela 0.950.1' --output /exact/plan.json
 
-env -u OPENAI_API_KEY CODEX_FORCE_AUTH_JSON=true \
-  harbor run --config /exact/private/harbor-job.json \
-  --jobs-dir jobs/product-compression-v2/runs
+python3 benchmarks/product-compression/harness.py prepare-harbor \
+  --plan /exact/plan.json --materials /exact/private/materials \
+  --frontier /exact/clean/frontier --vela-linux /exact/static-linux-vela \
+  --job-name vela-product-compression-v3-native \
+  --output jobs/product-compression-v3/harbor-native
+
+cd jobs/product-compression-v3/harbor-native
+env -u OPENAI_API_KEY CODEX_AUTH_JSON_PATH="$HOME/.codex/auth.json" \
+  harbor run --config harbor-job.json --max-retries 0 \
+  --jobs-dir ../runs
 ```
 
-The private `harbor-job.json` lists the four native Harbor task directories in
-the frozen AB/BA order. Harbor itself owns task digests, container setup,
-execution, retries, ATIF, artifact collection, job locks, and raw results. Each
-task receives the same exact Frontier checkout and participant evidence; only
-the guided task receives the exact read-only Linux Vela binary. The answer key
-exists only in the separate offline verifier image.
+`prepare-harbor` emits four standard Harbor 1.3 task directories plus one job
+configuration in the frozen AB/BA order. It is a materializer, not a runner or
+adapter. Harbor itself owns task digests, container setup, execution, retries,
+ATIF, artifact collection, job locks, and raw results. Each task receives the
+same exact Frontier checkout and participant evidence; only the guided task
+receives the exact read-only Linux Vela binary. The answer key exists only in
+the separate offline verifier image.
 
 The ignored `jobs/product-compression-v2/` tree is the local execution area.
 Harbor's job directory is the retained raw evidence. Harbor's own
