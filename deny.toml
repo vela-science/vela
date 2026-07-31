@@ -25,6 +25,11 @@ confidence-threshold = 0.8
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
+skip = [
+  { crate = "getrandom@0.4.2", reason = "tempfile has moved to getrandom 0.4 while rand and Ed25519 still require 0.2" },
+  { crate = "syn@3.0.3", reason = "Cedar's ref-cast path uses syn 3 while the remaining proc macros use syn 2" },
+  { crate = "unicode-width@0.2.2", reason = "Cedar's formatter currently composes miette and pretty across the 0.1/0.2 transition" },
+]
 
 [sources]
 unknown-registry = "deny"
