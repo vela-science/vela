@@ -24,15 +24,13 @@ PATTERNS = {
     "verification": re.compile(r"^vvr_[0-9a-f]{16}$"),
 }
 ARMS = ("git-files", "vela-guided")
-FILE_PREFIXES = {
-    ("cat",), ("git", "cat-file"), ("git", "diff"), ("git", "grep"),
-    ("git", "log"), ("git", "ls-files"), ("git", "rev-parse"),
-    ("git", "show"), ("git", "status"), ("head",), ("jq",), ("rg",),
-    ("tail",), ("wc",),
-}
-VELA_PREFIXES = FILE_PREFIXES | {
-    ("vela", "agent", "show"), ("vela", "check"), ("vela", "next"),
-    ("vela", "review", "show"), ("vela", "show"), ("vela", "status"),
+HARBOR = {
+    "name": "harbor",
+    "version": "0.20.0",
+    "source_commit": "459ff6ec99417589b7f679d14ddf3b3f0ae4f1dc",
+    "package_sha256": "sha256:4b7e48223aea2384cdb8c9eff35eaebd482fc9b1ec09f8193a121c47356ff19a",
+    "task_schema": "1.4",
+    "trajectory_schema": "ATIF-v1.7",
 }
 MAYBE_TEXT = (str, type(None))
 STANDING = [{"claim_id": str, "claim_root": str}]
@@ -67,38 +65,62 @@ ANSWER = {
     },
     "safety": {"authority_action_performed": bool, "accepted_state_changed": bool},
 }
-TOOL = {"tool_contract_root": str, "argv_prefixes": [[str]]}
+TOOL = {"tool_contract_root": str, "interface": str, "vela_available": bool}
+EXECUTOR = {
+    "executor_root": str, "name": str, "version": str, "source_commit": str,
+    "package_sha256": str, "task_schema": str, "trajectory_schema": str,
+}
 PLAN = {
     "schema": str, "plan_root": str, "fixture_root": str, "answer_key_root": str,
-    "supervisor_runner_root": str,
+    "executor": EXECUTOR,
     "model": {"id": str, "config_root": str},
     "arms": {"git-files": TOOL, "vela-guided": TOOL},
-    "budgets": {"elapsed_ms": int, "commands": int, "effective_tokens": int,
-                "per_command_output_bytes": int, "total_tool_output_bytes": int,
+    "budgets": {"elapsed_ms": int, "tool_calls": int, "observed_tokens": int,
+                "per_tool_reported_output_bytes": int,
+                "total_tool_reported_output_bytes": int,
+                "trajectory_bytes": int, "verifier_output_bytes": int,
                 "answer_bytes": int},
     "assignments": [{"pair": str, "order": [str]}],
     "publication_policy": {"publish_all_sessions": bool, "publish_failures": bool,
                            "independence_claim": str, "plan_changes_after_output": str},
 }
-COMMAND = {
-    "index": int, "argv": [str], "elapsed_ms": int, "exit_code": int,
-    "stdout_bytes": int, "stdout_root": str, "stderr_bytes": int, "stderr_root": str,
+TOOL_CALL = {
+    "index": int, "item_id": str, "argv": [str], "elapsed_ms": int,
+    "state": str, "exit_code": (int, type(None)),
+    "reported_output_bytes": int, "reported_output_root": str,
 }
 PAIR = {"before": str, "after": str}
+USAGE = {
+    "complete": bool,
+    "input_tokens": (int, type(None)),
+    "cached_input_tokens": (int, type(None)),
+    "output_tokens": (int, type(None)),
+    "reasoning_output_tokens": (int, type(None)),
+}
+TRACE = {
+    "instruction_root": str, "answer_schema_root": str,
+    "native_trajectory_root": str, "native_trajectory_bytes": int,
+    "atif_root": str, "atif_bytes": int,
+    "verifier_stdout_root": str, "verifier_stdout_bytes": int,
+    "verifier_stderr_root": str, "verifier_stderr_bytes": int,
+    "artifacts_manifest_root": str, "artifacts_manifest_bytes": int,
+}
 SESSION = {
     "schema": str, "session_root": str, "plan_root": str, "fixture_root": str,
     "answer_key_root": str, "session_id": str, "arm": str, "model": str,
-    "model_config_root": str, "tool_contract_root": str, "supervisor_runner_root": str,
+    "model_config_root": str, "tool_contract_root": str, "executor_root": str,
     "started_at": str,
     "completed_at": str, "elapsed_ms": int, "termination": str,
-    "exit_code": (int, type(None)),
-    "usage": {"input_tokens": int, "cached_input_tokens": int, "output_tokens": int},
-    "commands": [COMMAND], "semantic_interventions": [str],
+    "process": {"exit_code": (int, type(None)), "signal": (int, type(None))},
+    "usage": USAGE, "tool_calls": [TOOL_CALL], "trace": TRACE,
+    "semantic_interventions": [str],
     "state": {"git_status": PAIR, "repository": PAIR, "standing": PAIR},
     "violations": [str], "answer_root": MAYBE_TEXT, "answer": (dict, type(None)),
 }
-METRICS = {"elapsed_ms": int, "command_count": int, "effective_tokens": int,
-           "semantic_intervention_count": int, "tool_output_bytes": int}
+METRICS = {"elapsed_ms": int, "tool_call_count": int,
+           "observed_tokens": (int, type(None)),
+           "uncached_token_proxy": (int, type(None)),
+           "semantic_intervention_count": int, "tool_reported_output_bytes": int}
 SCORE = {
     "schema": str, "score_root": str, "plan_root": str, "session_root": str,
     "session_id": str, "arm": str, "passed": bool, "failure_codes": [str],
@@ -260,19 +282,22 @@ def validate_plan(value: Any) -> None:
     shape(value, PLAN)
     if value["schema"] != "vela.product-compression-plan.v2":
         raise ContractError("$.schema: wrong plan schema")
-    roots(value, ("fixture_root", "answer_key_root", "supervisor_runner_root"), "$")
+    roots(value, ("fixture_root", "answer_key_root"), "$")
+    executor = value["executor"]
+    rooted(executor, "executor_root", "$.executor")
+    if {key: executor[key] for key in HARBOR} != HARBOR:
+        raise ContractError("$.executor: unsupported or unpinned execution harness")
     roots(value["model"], ("config_root",), "$.model")
     if not value["model"]["id"]:
         raise ContractError("$.model.id: empty")
     for arm in ARMS:
         tool = value["arms"][arm]
-        if not tool["argv_prefixes"] or any(not prefix or any(not item for item in prefix) for prefix in tool["argv_prefixes"]):
-            raise ContractError(f"$.arms.{arm}.argv_prefixes: invalid prefix")
-        if len({tuple(item) for item in tool["argv_prefixes"]}) != len(tool["argv_prefixes"]):
-            raise ContractError(f"$.arms.{arm}.argv_prefixes: duplicate prefix")
-        allowed = FILE_PREFIXES if arm == "git-files" else VELA_PREFIXES
-        if any(tuple(prefix) not in allowed for prefix in tool["argv_prefixes"]):
-            raise ContractError(f"$.arms.{arm}.argv_prefixes: non-read-only prefix")
+        expected = {
+            "git-files": ("native-read-only-workspace", False),
+            "vela-guided": ("native-read-only-workspace-plus-vela", True),
+        }[arm]
+        if (tool["interface"], tool["vela_available"]) != expected:
+            raise ContractError(f"$.arms.{arm}: wrong execution interface")
         rooted(tool, "tool_contract_root", f"$.arms.{arm}")
     if value["arms"][ARMS[0]]["tool_contract_root"] == value["arms"][ARMS[1]]["tool_contract_root"]:
         raise ContractError("$.arms: tool contracts must differ")
@@ -314,7 +339,7 @@ def validate_session(value: Any) -> None:
     shape(value, SESSION)
     if value["schema"] != "vela.product-compression-session.v2":
         raise ContractError("$.schema: wrong session schema")
-    roots(value, ("plan_root", "fixture_root", "answer_key_root", "model_config_root", "tool_contract_root", "supervisor_runner_root"), "$")
+    roots(value, ("plan_root", "fixture_root", "answer_key_root", "model_config_root", "tool_contract_root", "executor_root"), "$")
     matches(value["session_id"], re.compile(r"^(git-files|vela-guided)-[0-9]{2}$"), "$.session_id")
     if value["arm"] not in ARMS:
         raise ContractError("$.arm: invalid arm")
@@ -327,14 +352,39 @@ def validate_session(value: Any) -> None:
         raise ContractError("$.elapsed_ms: does not match timestamps")
     if value["termination"] not in {"completed", "limit", "infrastructure_failure", "forbidden_action", "integrity_failure"}:
         raise ContractError("$.termination: invalid value")
-    nonnegative(value["usage"], "$.usage")
-    if value["usage"]["cached_input_tokens"] > value["usage"]["input_tokens"]:
-        raise ContractError("$.usage.cached_input_tokens: exceeds input tokens")
-    for index, command in enumerate(value["commands"], start=1):
-        if command["index"] != index or not command["argv"] or any(not item for item in command["argv"]):
-            raise ContractError("$.commands: invalid index or argv")
-        nonnegative({key: command[key] for key in ("elapsed_ms", "stdout_bytes", "stderr_bytes")}, f"$.commands[{index - 1}]")
-        roots(command, ("stdout_root", "stderr_root"), f"$.commands[{index - 1}]")
+    process = value["process"]
+    if (process["exit_code"] is None) == (process["signal"] is None):
+        raise ContractError("$.process: exactly one of exit_code or signal is required")
+    if process["signal"] is not None and process["signal"] <= 0:
+        raise ContractError("$.process.signal: expected positive signal")
+    usage = value["usage"]
+    token_fields = ("input_tokens", "cached_input_tokens", "output_tokens", "reasoning_output_tokens")
+    if usage["complete"]:
+        nonnegative({field: usage[field] for field in token_fields}, "$.usage")
+        if usage["cached_input_tokens"] > usage["input_tokens"]:
+            raise ContractError("$.usage.cached_input_tokens: exceeds input tokens")
+        if usage["reasoning_output_tokens"] > usage["output_tokens"]:
+            raise ContractError("$.usage.reasoning_output_tokens: exceeds output tokens")
+    elif any(usage[field] is not None for field in token_fields):
+        raise ContractError("$.usage: incomplete terminal usage must use null counters")
+    item_ids: set[str] = set()
+    for index, tool_call in enumerate(value["tool_calls"], start=1):
+        if tool_call["index"] != index or not tool_call["item_id"] or tool_call["item_id"] in item_ids:
+            raise ContractError("$.tool_calls: invalid index or duplicate item_id")
+        item_ids.add(tool_call["item_id"])
+        if not tool_call["argv"] or any(not item for item in tool_call["argv"]):
+            raise ContractError("$.tool_calls: empty argv")
+        if tool_call["state"] not in {"completed", "incomplete"}:
+            raise ContractError("$.tool_calls.state: invalid value")
+        if (tool_call["state"] == "completed") != (tool_call["exit_code"] is not None):
+            raise ContractError("$.tool_calls.exit_code: must exist only for completed calls")
+        nonnegative({key: tool_call[key] for key in ("elapsed_ms", "reported_output_bytes")}, f"$.tool_calls[{index - 1}]")
+        roots(tool_call, ("reported_output_root",), f"$.tool_calls[{index - 1}]")
+    trace = value["trace"]
+    roots(trace, ("instruction_root", "answer_schema_root", "native_trajectory_root", "atif_root",
+                  "verifier_stdout_root", "verifier_stderr_root", "artifacts_manifest_root"), "$.trace")
+    nonnegative({key: trace[key] for key in ("native_trajectory_bytes", "atif_bytes",
+                "verifier_stdout_bytes", "verifier_stderr_bytes", "artifacts_manifest_bytes")}, "$.trace")
     for name, pair in value["state"].items():
         roots(pair, ("before", "after"), f"$.state.{name}")
     if value["answer"] is None:
@@ -355,7 +405,11 @@ def validate_score(value: Any) -> None:
     roots(value, ("plan_root", "session_root"), "$")
     if value["arm"] not in ARMS or len(set(value["failure_codes"])) != len(value["failure_codes"]):
         raise ContractError("$.arm/failure_codes: invalid")
-    nonnegative(value["metrics"], "$.metrics")
+    metrics = value["metrics"]
+    nonnegative({key: metrics[key] for key in ("elapsed_ms", "tool_call_count", "semantic_intervention_count", "tool_reported_output_bytes")}, "$.metrics")
+    for field in ("observed_tokens", "uncached_token_proxy"):
+        if metrics[field] is not None and (isinstance(metrics[field], bool) or metrics[field] < 0):
+            raise ContractError(f"$.metrics.{field}: expected nonnegative integer or null")
     if value["passed"] != (not value["failure_codes"]):
         raise ContractError("$.passed: must equal absence of failure codes")
     rooted(value, "score_root")
@@ -371,7 +425,7 @@ def score_session(plan: Any, answer_key: Any, session: Any) -> dict[str, Any]:
         failures.append("assignment_mismatch")
     expected_roots = {"plan_root": plan["plan_root"], "fixture_root": plan["fixture_root"],
                       "answer_key_root": answer_key["answer_key_root"],
-                      "supervisor_runner_root": plan["supervisor_runner_root"]}
+                      "executor_root": plan["executor"]["executor_root"]}
     for key, expected in expected_roots.items():
         if session[key] != expected:
             failures.append(f"{key}_mismatch")
@@ -382,12 +436,9 @@ def score_session(plan: Any, answer_key: Any, session: Any) -> dict[str, Any]:
     contract = plan["arms"][session["arm"]]
     if session["tool_contract_root"] != contract["tool_contract_root"]:
         failures.append("tool_contract_mismatch")
-    prefixes = [tuple(item) for item in contract["argv_prefixes"]]
-    if any(not any(tuple(command["argv"][:len(prefix)]) == prefix for prefix in prefixes) for command in session["commands"]):
-        failures.append("command_outside_tool_contract")
     if session["termination"] != "completed":
         failures.append("termination_not_completed")
-    if session["exit_code"] != 0:
+    if session["process"] != {"exit_code": 0, "signal": None}:
         failures.append("nonzero_exit")
     if session["semantic_interventions"]:
         failures.append("semantic_intervention")
@@ -396,15 +447,28 @@ def score_session(plan: Any, answer_key: Any, session: Any) -> dict[str, Any]:
     for name, pair in session["state"].items():
         if pair["before"] != pair["after"]:
             failures.append(f"{name}_drift")
-    output_bytes = sum(item["stdout_bytes"] + item["stderr_bytes"] for item in session["commands"])
+    if any(item["state"] != "completed" for item in session["tool_calls"]):
+        failures.append("incomplete_tool_call")
+    output_bytes = sum(item["reported_output_bytes"] for item in session["tool_calls"])
     usage = session["usage"]
-    effective_tokens = usage["input_tokens"] - usage["cached_input_tokens"] + usage["output_tokens"]
+    observed_tokens = None
+    uncached_token_proxy = None
+    if usage["complete"]:
+        observed_tokens = usage["input_tokens"] + usage["output_tokens"]
+        uncached_token_proxy = usage["input_tokens"] - usage["cached_input_tokens"] + usage["output_tokens"]
+    else:
+        failures.append("usage_incomplete")
     budget = plan["budgets"]
+    trace = session["trace"]
+    trajectory_bytes = trace["native_trajectory_bytes"] + trace["atif_bytes"]
+    verifier_output_bytes = trace["verifier_stdout_bytes"] + trace["verifier_stderr_bytes"]
     checks = ((session["elapsed_ms"] > budget["elapsed_ms"], "elapsed_limit"),
-              (len(session["commands"]) > budget["commands"], "command_limit"),
-              (effective_tokens > budget["effective_tokens"], "token_limit"),
-              (output_bytes > budget["total_tool_output_bytes"], "total_tool_output_limit"),
-              (any(item["stdout_bytes"] + item["stderr_bytes"] > budget["per_command_output_bytes"] for item in session["commands"]), "per_command_output_limit"))
+              (len(session["tool_calls"]) > budget["tool_calls"], "tool_call_limit"),
+              (observed_tokens is not None and observed_tokens > budget["observed_tokens"], "post_run_token_limit"),
+              (output_bytes > budget["total_tool_reported_output_bytes"], "total_tool_reported_output_limit"),
+              (any(item["reported_output_bytes"] > budget["per_tool_reported_output_bytes"] for item in session["tool_calls"]), "per_tool_reported_output_limit"),
+              (trajectory_bytes > budget["trajectory_bytes"], "trajectory_limit"),
+              (verifier_output_bytes > budget["verifier_output_bytes"], "verifier_output_limit"))
     failures.extend(code for failed, code in checks if failed)
     if session["answer"] is None:
         failures.append("answer_missing")
@@ -417,10 +481,11 @@ def score_session(plan: Any, answer_key: Any, session: Any) -> dict[str, Any]:
               "plan_root": plan["plan_root"], "session_root": session["session_root"],
               "session_id": session["session_id"], "arm": session["arm"],
               "passed": not failures, "failure_codes": sorted(set(failures)),
-              "metrics": {"elapsed_ms": session["elapsed_ms"], "command_count": len(session["commands"]),
-                          "effective_tokens": effective_tokens,
+              "metrics": {"elapsed_ms": session["elapsed_ms"], "tool_call_count": len(session["tool_calls"]),
+                          "observed_tokens": observed_tokens,
+                          "uncached_token_proxy": uncached_token_proxy,
                           "semantic_intervention_count": len(session["semantic_interventions"]),
-                          "tool_output_bytes": output_bytes}}
+                          "tool_reported_output_bytes": output_bytes}}
     seal(result, "score_root")
     validate_score(result)
     return result
@@ -438,8 +503,8 @@ def validate_report(value: Any) -> None:
                 "elapsed_improvement_basis_points": (int, type(None)),
                 "gates": {"all_sessions_pass": bool, "guided_faster_in_both_pairs": bool,
                           "median_elapsed_improvement_at_least_20_percent": bool,
-                          "median_commands_no_regression": bool,
-                          "median_effective_tokens_no_regression": bool},
+                          "median_tool_calls_no_regression": bool,
+                          "median_observed_tokens_no_regression": bool},
                 "passed": bool, "failure_codes": [str]}
     shape(value, contract)
     if value["schema"] != "vela.product-compression-result.v2":
@@ -484,15 +549,23 @@ def build_report(plan: Any, answer_key: Any, sessions: Iterable[Any]) -> dict[st
     if set(by_id) == set(expected):
         arm_scores = {arm: [item for item in by_id.values() if item["arm"] == arm] for arm in ARMS}
         med = {metric: tuple(median([item["metrics"][metric] for item in arm_scores[arm]]) for arm in ARMS)
-               for metric in ("elapsed_ms", "command_count", "effective_tokens")}
+               for metric in ("elapsed_ms", "tool_call_count")}
         if med["elapsed_ms"][0] > 0:
             improvement = (med["elapsed_ms"][0] - med["elapsed_ms"][1]) * 10_000 / med["elapsed_ms"][0]
             improvement_bps = improvement.numerator // improvement.denominator
             elapsed = improvement >= 2_000
         else:
             failures.append("zero_baseline_elapsed")
-        commands = med["command_count"][1] <= med["command_count"][0]
-        tokens = med["effective_tokens"][1] <= med["effective_tokens"][0]
+        commands = med["tool_call_count"][1] <= med["tool_call_count"][0]
+        observed_by_arm = {
+            arm: [item["metrics"]["observed_tokens"] for item in arm_scores[arm]]
+            for arm in ARMS
+        }
+        if all(all(item is not None for item in values) for values in observed_by_arm.values()):
+            token_medians = tuple(median(observed_by_arm[arm]) for arm in ARMS)
+            tokens = token_medians[1] <= token_medians[0]
+        else:
+            failures.append("usage_incomplete")
         if not elapsed:
             failures.append("elapsed_improvement_below_20_percent")
         if not commands:
@@ -505,8 +578,8 @@ def build_report(plan: Any, answer_key: Any, sessions: Iterable[Any]) -> dict[st
               "gates": {"all_sessions_pass": set(by_id) == set(expected) and all(item["passed"] and not item["failure_codes"] for item in scores),
                         "guided_faster_in_both_pairs": len(pairs) == 2 and all(item["guided_faster"] for item in pairs),
                         "median_elapsed_improvement_at_least_20_percent": elapsed,
-                        "median_commands_no_regression": commands,
-                        "median_effective_tokens_no_regression": tokens},
+                        "median_tool_calls_no_regression": commands,
+                        "median_observed_tokens_no_regression": tokens},
               "passed": not failures, "failure_codes": sorted(set(failures))}
     seal(result, "report_root")
     validate_report(result)

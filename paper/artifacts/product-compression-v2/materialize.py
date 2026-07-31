@@ -7,8 +7,10 @@ import argparse
 import copy
 import hashlib
 import json
+import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -17,6 +19,17 @@ import harness
 
 def fail(message: str) -> None:
     raise harness.ContractError(message)
+
+
+def reject_system_temporary_output(output: Path) -> None:
+    resolved = output.resolve()
+    candidates = {
+        Path("/tmp"), Path("/private/tmp"), Path("/var/tmp"),
+        Path("/private/var/tmp"), Path(tempfile.gettempdir()),
+    }
+    roots = {path.resolve() for path in candidates if path.exists()}
+    if any(resolved == root or resolved.is_relative_to(root) for root in roots):
+        fail("study materials must not be written under a system temporary root")
 
 
 def digest(path: Path) -> str:
@@ -263,16 +276,22 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
+        reject_system_temporary_output(args.output)
         fixture, answer_key, participant_files = materialize(
             args.frontier, args.vela, args.attempt, args.proposal
         )
         args.output.mkdir(parents=True, exist_ok=True)
+        os.chmod(args.output, 0o700)
         harness.write_json(args.output / "fixture.json", fixture)
         harness.write_json(args.output / "answer-key.json", answer_key)
+        os.chmod(args.output / "fixture.json", 0o600)
+        os.chmod(args.output / "answer-key.json", 0o600)
         for relative, data in participant_files.items():
             destination = args.output / "participant" / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
+            os.chmod(destination.parent, 0o700)
             destination.write_bytes(data)
+            os.chmod(destination, 0o600)
         sys.stdout.buffer.write(harness.canonical_bytes({
             "ok": True, "fixture_root": fixture["fixture_root"],
             "answer_key_root": answer_key["answer_key_root"], "writes_frontier": False,

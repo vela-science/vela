@@ -994,8 +994,9 @@ participant-facing schema did not disclose the scorer's exact nested field
 contract. The remaining seven assignments were not started. This earns no
 product-lift or correctness credit. `stop.v1.json` binds the full failure and
 the locally retained raw evidence. Any successor is a new registered study
-with a closed participant schema, supervisor instrumentation declared before
-output, and a live token guard; it is not a post-output amendment.
+with a closed participant schema, execution instrumentation declared before
+output, retained tool/trajectory evidence, and an explicit post-run token gate;
+it is not a post-output amendment.
 
 The source-only `product-compression-v2` successor now closes the answer,
 plan, session, score, and report contracts and correctly models the current
@@ -1006,8 +1007,81 @@ reconstructs fixture root `sha256:457f1bee2dca85336ebf822d94d2e183500dd411839166
 and supervisor answer-key root
 `sha256:55a5c647112ce050fce814e5150d908a5e57e6402d1fa3817b71b9218bed68c0`
 twice from the same clean Git and content-addressed inputs. This is a freeze
-input, not product-lift evidence. No participant session may start until the
-isolated supervisor runner enforces live budgets and answer-key separation.
+input, not product-lift evidence.
+
+The first v2 calibration plan,
+`sha256:279e22164aef32c113048d57fe5216c146a4065534ffd6f37be3c1882ec59b42`,
+passed both arm-specific custody probes, then failed before producing a valid
+comparison. Git/files session
+`sha256:8ed55adef44ae9ff6bd395f4b8f5163fb147c77304ab3118d3e7121578ade71f`
+was terminated after an unbounded repository listing exceeded the per-command
+output cap. Vela-guided session
+`sha256:d05b619f44684c169862c5ccf7ed91c124eee8f23f03db74ddb6f090c5a0680a`
+was terminated after the frozen environment omitted packaged `rg`/`jq`, its
+read-only temporary directory impeded Git/Vela subprocesses, and the model then
+attempted forbidden `find`. Both sessions retained their failures and left Git,
+repository, and Standing roots unchanged. This calibration earns no product
+lift. Its session IDs must never be reused.
+
+The replacement plan,
+`sha256:da8fd118c475be2e6e5cff8d1cbeb8446b72b9b5d8969b4cf25e54e82a29b600`,
+bound exact-path executable wrappers rather than copied macOS binaries and
+passed both arm-specific custody probes. Its complete AB/BA assignment was then
+run without semantic intervention. All four sessions preserved Git, repository,
+and Standing roots, but all four failed:
+
+- Git/files `01`, session
+  `sha256:4447bc3ef251985105202b5b978180efb06ef08d40fd2ae7fd3c9574428064e4`,
+  exhausted per-tool and total output budgets after 12 calls.
+- Vela-guided `01`, session
+  `sha256:76109f43437e447bf721f84c0570d423522f0dccd5c16d42fa4627d0f299d841`,
+  attempted an absolute `cat` spelling outside the frozen argv contract.
+- Vela-guided `02`, session
+  `sha256:30e2108a72a05ebf29cd625d09cc3912d2cd657017c285386555dd69c9489f55`,
+  reached the campaign evidence and Vela, then guessed an unsupported
+  `review list` operation outside the frozen contract.
+- Git/files `02`, session
+  `sha256:f766353deff257539552225d6e3a757407a69f353b6712fdfe23224d2f4501fd`,
+  exhausted per-tool and total output budgets after six calls.
+
+The exact report at
+`sha256:c7d8b36fed48035237b1181c161af8602f026903a728b7b7c2175a9f635a4529`
+failed on session correctness, one pair's elapsed comparison, and incomplete
+terminal-token evidence. A subsequent native-toolchain plan passed actual
+read-path preflight, including `vela status`, but its first run stopped with an
+internal operation error before a session could be retained.
+
+These are execution-harness calibration failures, not a valid product-lift or
+product-failure result. The custom supervisor blocked legitimate Git/Vela
+runtime dependencies, measured exact shell spellings, and duplicated process,
+sandbox, trajectory, and usage machinery already provided by established agent
+evaluation tools. No product claim may be inferred from those sessions.
+
+The next study uses pinned Harbor `0.20.0` at source commit
+`459ff6ec99417589b7f679d14ddf3b3f0ae4f1dc`, wheel SHA-256
+`4b7e48223aea2384cdb8c9eff35eaebd482fc9b1ec09f8193a121c47356ff19a`,
+task schema `1.4`, and ATIF `v1.7`. Harbor supplies local Docker execution,
+Codex/OpenCode/Hermes adapters, no-network task policy, separate verifier
+custody, retained jobs, raw artifacts, and a local comparison viewer. Vela
+retains only the frozen plan, counterbalanced assignment, exact scorer,
+state-drift checks, and canonical result roots. Harbor is transport and evidence,
+never authority or Standing.
+
+Braintrust is deferred as an optional read-only analysis mirror. Harbor's local
+viewer already exposes trials, trajectories, verifier output, artifacts, timing,
+tokens, and side-by-side job comparison. A hosted or hybrid analysis control
+plane is not earned until multiple real reviewers need shared annotation.
+Inspect AI is the replacement candidate, not an additional layer, if a later
+non-terminal scientific task cannot be expressed in Harbor. OpenTelemetry is an
+optional metadata-only export; ATIF plus native logs remain the execution
+record, and neither replaces Vela's rooted scientific evidence.
+
+OpenCode and Hermes remain comparison agents through Harbor, not Vela runtimes.
+Their strongest portable product patterns are monotonic append-only events,
+explicit recovery of unfinished calls as interrupted failures, bounded display
+tails backed by rooted full output, and default-deny child environments. A
+crash-safe journal is a future Agent Campaign durability improvement, not a
+reason to add another runtime.
 
 #### C. Inheritance lift
 
@@ -1522,7 +1596,7 @@ Failure narrows or deletes the system. It does not earn another layer.
 | Local Submission → Verification → Decision | New Erdős, Formal, and Quantum evidence loops each have one exact requirement-matching Verification plus retained complementary evidence; the Proposals remain `pending_review`, and the Formal transfer remains separately gated on held-out value | human Decision or explicit cancellation for each exact Proposal, then clean-clone replay |
 | Map → advance → remap | All four Frontiers have zero stale indexed Targets; Erdős producer work through `10430400` is closed without changing Standing and now offers `10430401..10430600`; Formal has zero indexed Targets, with one historical packet cleanup remaining; the exact current Atlas is live, while scientific Decisions and post-Decision remap remain open | after one human Decision changes Standing, rebuild the exact Atlas, identify the semantic diff and surviving knowledge, and expose the next valid obligation |
 | Agent-helper execution lift (historical Canopus pilot) | Directionally positive first-party repaired Stage A; predecessor and stopped runs retained; expert-minute metric unscored | contract-frozen Erdős, Formal, and quantum result or explicit narrowing |
-| State/Atlas lift | `product-compression-v1` stopped after one Git/files session exceeded its token cap and exposed an under-specified contract; source-only v2 now has closed contracts and deterministic fixture/answer-key roots, but no participant session or product-lift credit | finish the live-budget supervisor gate, run the counterbalanced first-party pilot, then seek external matched evidence only if the pilot is safe |
+| State/Atlas lift | `product-compression-v1` stopped after one over-budget session; v2 closed the semantic contracts, but both custom-runner calibrations were invalidated by their own sandbox and process machinery, so they earn neither positive nor negative product credit | generate the matched task through pinned Harbor, run one execution-parity smoke, then register a new counterbalanced pilot; add a product seam only after valid evidence identifies it |
 | Inheritance lift | Removability passed for one historical pending state; cold-successor lift unmeasured | cold successor reproduces change, surviving evidence, replay, and next action without private context |
 | Correction propagation | no qualifying real candidate | qualifying fixture passes or entry gate closes negative |
 | Cross-Frontier transfer | exact archive reconstruction and mutation tests pass with zero accepted delta; the work remains first-party and protocol readiness does not satisfy the held-out value gate | held-out independently controlled consumer/value test passes or the claim envelope is narrowed |

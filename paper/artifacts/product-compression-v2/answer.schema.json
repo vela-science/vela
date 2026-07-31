@@ -1,8 +1,15 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vela.space/schemas/product-compression-answer.v2.json",
-  "title": "Closed product-compression v2 participant answer",
-  "$ref": "#/$defs/answer",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "work", "campaign", "review", "safety"],
+  "properties": {
+    "schema": {"type": "string", "const": "vela.product-compression-answer.v2"},
+    "work": {"$ref": "#/$defs/work"},
+    "campaign": {"$ref": "#/$defs/campaign"},
+    "review": {"$ref": "#/$defs/review"},
+    "safety": {"$ref": "#/$defs/safety"}
+  },
   "$defs": {
     "root": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
     "standing": {
@@ -11,17 +18,6 @@
       "properties": {
         "claim_id": {"type": "string", "pattern": "^vcl_[0-9a-f]{64}$"},
         "claim_root": {"$ref": "#/$defs/root"}
-      }
-    },
-    "answer": {
-      "type": "object", "additionalProperties": false,
-      "required": ["schema", "work", "campaign", "review", "safety"],
-      "properties": {
-        "schema": {"const": "vela.product-compression-answer.v2"},
-        "work": {"$ref": "#/$defs/work"},
-        "campaign": {"$ref": "#/$defs/campaign"},
-        "review": {"$ref": "#/$defs/review"},
-        "safety": {"$ref": "#/$defs/safety"}
       }
     },
     "work": {
@@ -79,13 +75,13 @@
       "properties": {
         "attempt_id": {"type": "string", "pattern": "^vat_[0-9a-f]{64}$"},
         "authorization_root": {"$ref": "#/$defs/root"},
-        "state": {"const": "completed_target_advanced"},
+        "state": {"type": "string", "const": "completed_target_advanced"},
         "completed_target_packet_sha256": {"$ref": "#/$defs/root"},
         "consequence_ceiling": {"enum": ["evidence_only", "pending_review"]},
         "budget": {"$ref": "#/$defs/budget"},
         "usage": {"$ref": "#/$defs/usage"},
         "runs": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/run"}},
-        "next_action_code": {"const": "start_successor_attempt"}
+        "next_action_code": {"type": "string", "const": "start_successor_attempt"}
       }
     },
     "review": {
@@ -100,23 +96,23 @@
         "inbox_projection_root": {"$ref": "#/$defs/root"},
         "inbox_entry_root": {"$ref": "#/$defs/root"},
         "protocol_gate": {"enum": ["satisfied", "blocked"]},
-        "human_decision_required": {"const": true},
-        "verification_is_acceptance": {"const": false},
-        "standing_transition": {"const": "add accepted Claim"},
+        "human_decision_required": {"type": "boolean", "const": true},
+        "verification_is_acceptance": {"type": "boolean", "const": false},
+        "standing_transition": {"type": "string", "const": "add accepted Claim"},
         "accepted_before": {"type": "array", "items": {"$ref": "#/$defs/standing"}},
         "accepted_if_accept": {"type": "array", "items": {"$ref": "#/$defs/standing"}},
         "accepted_if_reject": {"type": "array", "items": {"$ref": "#/$defs/standing"}},
         "staleness": {"enum": ["current", "stale"]},
-        "next_if_accept_code": {"const": "replay_and_recompute_targets"},
-        "next_if_reject_code": {"const": "replay_without_standing_change"}
+        "next_if_accept_code": {"type": "string", "const": "replay_and_recompute_targets"},
+        "next_if_reject_code": {"type": "string", "const": "replay_without_standing_change"}
       }
     },
     "safety": {
       "type": "object", "additionalProperties": false,
       "required": ["authority_action_performed", "accepted_state_changed"],
       "properties": {
-        "authority_action_performed": {"const": false},
-        "accepted_state_changed": {"const": false}
+        "authority_action_performed": {"type": "boolean", "const": false},
+        "accepted_state_changed": {"type": "boolean", "const": false}
       }
     }
   }
