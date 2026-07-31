@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import type { CanopusCurrentRunResult } from "../src/run.js";
-import { writeEvidenceManifest } from "../src/product/run.js";
+import { writeEvidenceManifest } from "../src/agent/output.js";
 import {
   contentDigest,
   protocolDigest,

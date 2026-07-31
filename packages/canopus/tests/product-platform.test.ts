@@ -11,14 +11,14 @@ import {
   runtimeIdentity,
   runtimeLocator,
 } from "../src/product/runtime.js";
-import { assertToolUsingMissionPlatform } from "../src/product/run.js";
+import { assertToolUsingMissionPlatform } from "../src/agent/platform.js";
 import { sha256Bytes } from "../src/util/canonical.js";
 import type { CommandOptions, CommandResult } from "../src/util/command.js";
 
 test("native Windows tool missions fail before work with an exact WSL2 handoff", () => {
   assert.throws(
     () => assertToolUsingMissionPlatform("win32"),
-    /native Windows.+open WSL2.+rerun the same canopus command/su,
+    /require WSL2 on Windows.+rerun the same vela agent command/su,
   );
   assert.doesNotThrow(() => assertToolUsingMissionPlatform("darwin"));
   assert.doesNotThrow(() => assertToolUsingMissionPlatform("linux"));

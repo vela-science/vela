@@ -4,6 +4,11 @@ import path from "node:path";
 import process from "node:process";
 
 import {
+  assertFreshOutput,
+  writeEvidenceManifest,
+} from "../agent/output.js";
+import { assertToolUsingMissionPlatform } from "../agent/platform.js";
+import {
   arrayAt,
   exactKeys,
   gitObjectAt,
@@ -24,11 +29,6 @@ import {
 } from "../util/files.js";
 import { VelaClient } from "../vela/cli.js";
 import { assertNativeOutputPlacement, runNativeCustodyPreflight } from "./custody.js";
-import {
-  assertFreshOutput,
-  assertToolUsingMissionPlatform,
-  writeEvidenceManifest,
-} from "./run.js";
 import { runtimeIdentity } from "./runtime.js";
 
 const REQUEST_SCHEMA = "vela.agent-run-request.internal.v1";

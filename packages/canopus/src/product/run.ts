@@ -1,8 +1,13 @@
-import { lstat, mkdir, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdir, realpath, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  assertFreshOutput,
+  writeEvidenceManifest,
+} from "../agent/output.js";
+import { assertToolUsingMissionPlatform } from "../agent/platform.js";
 import { CodexToolsNativeEngine } from "../engines/codex-tools-native.js";
 import { prepareMission } from "../mission/prepare.js";
 import {
@@ -10,15 +15,12 @@ import {
   type CanopusCurrentRunResult,
 } from "../run.js";
 import {
-  canonicalJson,
   contentDigest,
-  protocolDigest,
   sha256Bytes,
 } from "../util/canonical.js";
 import { runCommand, type CommandRunner } from "../util/command.js";
 import { readBoundedRegularFile } from "../util/files.js";
 import { VelaClient } from "../vela/cli.js";
-import { assertNativeOutputPlacement } from "./custody.js";
 import { doctorProduct, type ProductDoctorResult } from "./doctor.js";
 import { assertMissionNotCovered } from "./coverage.js";
 import {
@@ -45,78 +47,6 @@ export interface ProductRunResult {
 
 function packageFile(relative: string): string {
   return fileURLToPath(new URL(`../../../${relative}`, import.meta.url));
-}
-
-export async function assertFreshOutput(outputRoot: string, sourceRoot: string): Promise<void> {
-  const output = path.resolve(outputRoot);
-  assertNativeOutputPlacement(output);
-  const cloudBackedRoots = [
-    path.join(os.homedir(), "Desktop"),
-    path.join(os.homedir(), "Library", "Mobile Documents"),
-    path.join(os.homedir(), "Library", "CloudStorage"),
-  ];
-  if (cloudBackedRoots.some((root) => output === root || output.startsWith(`${root}${path.sep}`))) {
-    throw new Error(
-      "Canopus output must not use a cloud-synced path because Docker verifier bind mounts can stall; use the default ~/.canopus store or another local directory",
-    );
-  }
-  const relative = path.relative(sourceRoot, output);
-  if (relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== "..")) {
-    throw new Error("Canopus output must be outside the source frontier");
-  }
-  try {
-    await lstat(output);
-    throw new Error("Canopus output root already exists");
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-  }
-  await mkdir(output, { recursive: true, mode: 0o700 });
-}
-
-export async function writeEvidenceManifest(
-  run: CanopusCurrentRunResult,
-  missionDigest: string,
-  execution?: {
-    attempt_id: string;
-    attempt_authorization_root: string;
-    task_contract_root: string;
-    target_binding_root: string;
-    target_packet_root: string;
-    execution_bundle_root: string;
-    runner_build_root: string;
-    request_root: string;
-  },
-): Promise<{ file: string; root: string }> {
-  const root = run.paths.root;
-  const files = {
-    activity: "activity.jsonl",
-    transcript: "worker-final.json",
-    tool_trace: "worker-events.jsonl",
-    worker_stderr: "worker-stderr.bin",
-    engine_result: "engine-result.json",
-    candidate: "candidate.json",
-    run: "run.json",
-  } as const;
-  const digests: Record<string, string> = {};
-  for (const [name, relative] of Object.entries(files)) {
-    digests[name] = sha256Bytes(await readBoundedRegularFile(path.join(root, relative), 64 * 1024 * 1024));
-  }
-  const manifest = {
-    schema: "canopus.run-evidence.v1",
-    authority: "non_authoritative",
-    mission_root: missionDigest,
-    run_id: run.record.run_id,
-    target: run.record.mission.target,
-    files: digests,
-    artifact_roots: run.record.candidate.artifacts.map((artifact) => artifact.digest).sort(),
-    verifier_root: contentDigest(run.record.verifier),
-    submission_root: null,
-    final_roots: run.record.mission.starting_roots,
-    ...(execution === undefined ? {} : { execution }),
-  };
-  const file = path.join(root, "evidence-manifest.json");
-  await writeFile(file, canonicalJson(manifest), { flag: "wx", mode: 0o600 });
-  return { file, root: protocolDigest(manifest) };
 }
 
 export function defaultProductOutput(frontier: string): string {
@@ -171,21 +101,6 @@ export async function loadRepairInput(options: {
     throw new Error(`repair input root mismatch: expected ${parent}, observed ${digest}`);
   }
   return { path: allowed[0], digest, bytes };
-}
-
-export function assertToolUsingMissionPlatform(
-  platform: NodeJS.Platform = process.platform,
-): void {
-  if (platform === "win32") {
-    throw new Error(
-      "tool-using missions do not run in native Windows; open WSL2, enter the frontier through its Linux path, and rerun the same canopus command there",
-    );
-  }
-  if (platform !== "darwin" && platform !== "linux") {
-    throw new Error(
-      `tool-using missions are unsupported on ${platform}; supported worker hosts are macOS and Linux/WSL2`,
-    );
-  }
 }
 
 export async function runProduct(options: {

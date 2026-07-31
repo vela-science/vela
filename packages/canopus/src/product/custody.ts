@@ -89,9 +89,9 @@ export function nativeOutputPlacement(outputRoot: string): {
 export function assertNativeOutputPlacement(outputRoot: string): void {
   if (!nativeOutputPlacement(outputRoot).suitable) {
     throw new Error(
-      "Canopus native-worker output cannot use a system temporary directory because " +
-      "worker custody is not isolated there; use the default user-home store or another " +
-      "local non-temporary directory",
+      "Vela Agent output cannot use a system temporary directory because " +
+      "worker custody is not isolated there; use ~/.vela/agent or another local " +
+      "non-temporary directory",
     );
   }
 }
