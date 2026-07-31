@@ -14,11 +14,6 @@ import {
 } from "./profile.js";
 import { runNativeCustodyPreflight } from "./custody.js";
 import { runtimeIdentity, type RuntimeIdentity } from "./runtime.js";
-import {
-  CANOPUS_VERSION,
-  SUPPORTED_CODEX_VERSION,
-  SUPPORTED_VELA_VERSION,
-} from "./version.js";
 
 export interface ProductDoctorResult {
   schema: "canopus.doctor.v1";
@@ -202,11 +197,6 @@ export async function doctorProduct(options: {
       runtimeIdentity({ name: "vela", cwd: frontier, home: runtime, runner }),
       runtimeIdentity({ name: "git", cwd: frontier, home: runtime, runner }),
     ]);
-    if (vela.version !== `vela ${SUPPORTED_VELA_VERSION}`) {
-      throw new Error(
-        `Canopus ${CANOPUS_VERSION} requires vela ${SUPPORTED_VELA_VERSION}, observed ${vela.version}`,
-      );
-    }
     const [status, offer, gitStatus] = await Promise.all([
       jsonCommand({
         runner,
@@ -295,12 +285,6 @@ export async function doctorProduct(options: {
       runtimeIdentity({ name: "codex", cwd: frontier, home: runtime, runner }),
       runtimeIdentity({ name: "docker", cwd: frontier, home: runtime, runner }),
     ]);
-    if (codex.version !== `codex-cli ${SUPPORTED_CODEX_VERSION}`) {
-      throw new Error(
-        `Canopus ${CANOPUS_VERSION} requires codex-cli ${SUPPORTED_CODEX_VERSION}, ` +
-        `observed ${codex.version}`,
-      );
-    }
     const daemon = await runner({
       argv: [docker.binary, "info", "--format={{.ServerVersion}}"],
       cwd: frontier,

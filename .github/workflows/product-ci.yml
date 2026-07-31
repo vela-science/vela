@@ -10,7 +10,9 @@ on:
       - "packages/canopus/tooling/check-authority-boundary.mjs"
       - "packages/protocol/**"
       - "packages/canopus/**"
+      - ".github/release/**"
       - ".github/workflows/product-ci.yml"
+      - ".github/workflows/release.yml"
   pull_request:
     paths:
       - "package.json"
@@ -18,7 +20,9 @@ on:
       - "packages/canopus/tooling/check-authority-boundary.mjs"
       - "packages/protocol/**"
       - "packages/canopus/**"
+      - ".github/release/**"
       - ".github/workflows/product-ci.yml"
+      - ".github/workflows/release.yml"
 
 permissions:
   contents: read
@@ -126,6 +130,7 @@ jobs:
           set -- "$RUNNER_TEMP"/product-packages/vela-science-protocol-*.tgz
           test "$#" -eq 1
           protocol="$1"
+          node .github/release/publish-protocol.mjs check "$protocol"
           set -- "$RUNNER_TEMP"/product-packages/vela-science-canopus-*.tgz
           test "$#" -eq 1
           canopus_archive="$1"
@@ -133,8 +138,8 @@ jobs:
             "$protocol" "$canopus_archive"
           canopus="$RUNNER_TEMP/canopus-install/bin/canopus"
           "$canopus" --help
-          "$canopus" profile list
-          "$canopus" profile validate erdos1056-k15-10429801-10430000
+          "$canopus" mission validate \
+            "$GITHUB_WORKSPACE/packages/canopus/tests/fixtures/generic-mission/mission.json"
 
   windows-read-only:
     runs-on: windows-2025
@@ -177,10 +182,11 @@ jobs:
           bun pm pack --cwd packages/canopus --destination $env:RUNNER_TEMP
           $protocol = Get-ChildItem "$env:RUNNER_TEMP\vela-science-protocol-*.tgz" |
             Select-Object -First 1
+          node .github/release/publish-protocol.mjs check $protocol.FullName
           $canopus = Get-ChildItem "$env:RUNNER_TEMP\vela-science-canopus-*.tgz" |
             Select-Object -First 1
           npm install --global --prefix "$env:RUNNER_TEMP\canopus" `
             $protocol.FullName $canopus.FullName
           & "$env:RUNNER_TEMP\canopus\canopus.cmd" --help
-          & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile list
-          & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile validate erdos1056-k15-10429801-10430000
+          & "$env:RUNNER_TEMP\canopus\canopus.cmd" mission validate `
+            "$env:GITHUB_WORKSPACE\packages\canopus\tests\fixtures\generic-mission\mission.json"

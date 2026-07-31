@@ -1,0 +1,10 @@
+default_permissions = "canopus-worker"
+
+[permissions.canopus-worker.filesystem]
+":minimal" = "read"
+
+[permissions.canopus-worker.filesystem.":workspace_roots"]
+"." = "write"
+
+[permissions.canopus-worker.network]
+enabled = false

@@ -55,8 +55,6 @@
     "capsules/formal-erdos-505-test-dim-one/verifier",
     "missions",
     "profiles",
-    "compatibility.json",
-    "toolchain.lock.json",
     "runtime",
     "tests/fixtures/run-hostile-native-custody.mjs",
     "tests/fixtures/run-hostile-verifier.mjs",

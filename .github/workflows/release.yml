@@ -270,6 +270,100 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ steps.crates-io-auth.outputs.token }}
         run: .github/release/publish-crates.sh --execute
 
+  publish-protocol:
+    if: github.event_name == 'push' && needs.metadata.outputs.prerelease != 'true'
+    needs: [metadata, smoke]
+    runs-on: ubuntu-24.04
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.12
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: bun install --frozen-lockfile
+      - name: Build, test, and pack the public Protocol package
+        run: |
+          bun run --cwd packages/protocol test
+          mkdir -p dist
+          bun pm pack --cwd packages/protocol --destination "$GITHUB_WORKSPACE/dist"
+          set -- "$GITHUB_WORKSPACE"/dist/vela-science-protocol-*.tgz
+          test "$#" -eq 1
+      - name: Smoke the exact packed Protocol package
+        run: |
+          archive="$(find "$GITHUB_WORKSPACE/dist" -maxdepth 1 -name 'vela-science-protocol-*.tgz' -print)"
+          test -n "$archive"
+          node .github/release/publish-protocol.mjs check "$archive"
+          smoke_root="$(mktemp -d)"
+          (
+            cd "$smoke_root"
+            npm init -y >/dev/null
+            npm install \
+              --ignore-scripts \
+              --no-audit \
+              --no-fund \
+              --save-exact \
+              "$archive" >/dev/null
+            node --input-type=module <<'NODE'
+          import {
+            protocolDigest,
+            sha256At,
+          } from "@vela-science/protocol";
+
+          const root = protocolDigest({ schema: "vela.protocol-pack-smoke.v1" });
+          if (sha256At(root, "packed Protocol root") !== root) {
+            throw new Error("packed Protocol root validator disagrees with canonical digest");
+          }
+          NODE
+          )
+      - name: Attest the exact Protocol archive
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: dist/vela-science-protocol-*.tgz
+      - name: Verify the GitHub build attestation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          archive="$(find dist -maxdepth 1 -name 'vela-science-protocol-*.tgz' -print)"
+          test -n "$archive"
+          gh attestation verify "$archive" \
+            --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" \
+            --source-ref "$GITHUB_REF" \
+            --source-digest "$GITHUB_SHA" \
+            --deny-self-hosted-runners
+      - name: Publish or verify immutable npm bytes
+        run: |
+          archive="$(find dist -maxdepth 1 -name 'vela-science-protocol-*.tgz' -print)"
+          node .github/release/publish-protocol.mjs --execute "$archive"
+      - name: Verify npm provenance
+        run: |
+          package=$(node -p 'require("./packages/protocol/package.json").name')
+          version=$(node -p 'require("./packages/protocol/package.json").version')
+          spec="$package@$version"
+          predicate=""
+          for _ in $(seq 1 24); do
+            predicate=$(npm view "$spec" dist.attestations.provenance.predicateType 2>/dev/null || true)
+            test -n "$predicate" && break
+            sleep 5
+          done
+          test "$predicate" = "https://slsa.dev/provenance/v1"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vela-protocol-npm
+          path: dist/vela-science-protocol-*.tgz
+          if-no-files-found: error
+
   registry-smoke:
     if: github.event_name == 'push' && needs.metadata.outputs.prerelease != 'true'
     needs: [metadata, publish-crates]
@@ -319,6 +413,13 @@ jobs:
         needs.build.result == 'success' &&
         needs.smoke.result == 'success' &&
         (
+          needs.publish-protocol.result == 'success' ||
+          (
+            needs.metadata.outputs.prerelease == 'true' &&
+            needs.publish-protocol.result == 'skipped'
+          )
+        ) &&
+        (
           needs.registry-smoke.result == 'success' ||
           (
             needs.metadata.outputs.prerelease == 'true' &&
@@ -326,7 +427,7 @@ jobs:
           )
         )
       }}
-    needs: [metadata, build, smoke, publish-crates, registry-smoke]
+    needs: [metadata, build, smoke, publish-crates, publish-protocol, registry-smoke]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

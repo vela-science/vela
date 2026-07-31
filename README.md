@@ -237,10 +237,12 @@ installer, not a tooling bucket.
 
 The immutable Protocol `0.1.0` and Canopus `0.8.0` packages were published, in
 dependency order, from `product-v0.8.0`. Current Canopus source cannot
-republish that identity. Proposed ADR 0031 moves any earned future package
-publication to one Vela source tag and manifest while retaining explicit
-component versions. Routine development does not advance versions or copy
-release facts across the workspace.
+republish that identity. Protocol source `0.1.1` corrects stale package
+documentation without changing its public contract and will publish only from
+a later Vela source tag. Proposed ADR 0031 moves any earned future package
+publication to that one tag and manifest while retaining explicit component
+versions. Routine development does not advance versions or copy release facts
+across the workspace.
 
 ## Security model
 

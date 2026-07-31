@@ -472,9 +472,10 @@ resolved under these decisions.
 
 Vela remains `0.950.1`. Immutable Canopus `0.8.0` remains the exact historical
 Run reader; current Canopus source is private and unpublishable while proposed
-ADR 0031 is evaluated. `@vela-science/protocol` remains `0.1.0` unless a
-genuine cross-implementation ambiguity forces a protocol change. No version is
-bumped to synchronize marketing.
+ADR 0031 is evaluated. Published `@vela-science/protocol@0.1.0` remains
+immutable; source version `0.1.1` corrects its stale package documentation
+without changing the public contract and will publish only from a later Vela
+tag. No version is bumped merely to synchronize marketing.
 
 ## Execution phases
 

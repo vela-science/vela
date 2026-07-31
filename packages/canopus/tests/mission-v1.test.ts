@@ -25,10 +25,10 @@ test("mission preparation accepts the exact stable and prerelease Vela identitie
 test("mission preparation consumes only the current Vela producer offer", () => {
   const producer = {
     lane: "produce",
-    target_id: "erdos:1056",
+    target_id: "fixture:bounded-check",
     packet: {
-      schema: "erdos-frontier.problem-work.v1",
-      path: "site/problems/1056.json",
+      schema: "fixture.work.v1",
+      path: "packet/target.json",
       sha256: digest,
     },
   };
@@ -42,16 +42,16 @@ test("mission preparation consumes only the current Vela producer offer", () => 
     producer,
   );
   assert.equal(
-    selectedProducerTarget({ targets: [producer] }, "erdos:1056"),
+    selectedProducerTarget({ targets: [producer] }, "fixture:bounded-check"),
     producer,
   );
   assert.deepEqual(
     packetFromTarget(producer, {
-      target: "erdos:1056",
-      schema: "erdos-frontier.problem-work.v1",
+      target: "fixture:bounded-check",
+      schema: "fixture.work.v1",
     }),
     {
-      path: "site/problems/1056.json",
+      path: "packet/target.json",
       sha256: digest,
     },
   );
@@ -80,7 +80,7 @@ function mission(
   return parseMission({
     schema: "canopus.mission.v1",
     id: "mission_v1_bundle",
-    target: "erdos:1056",
+    target: "fixture:bounded-check",
     vela_version: "0.800.23",
     vela_sha256: digest,
     frontier: ".",
@@ -88,15 +88,15 @@ function mission(
     role: "producer",
     claim_type: "computational",
     replayability: "exact",
-    objective: "Search the exact finite k=15 obligation for one witness.",
+    objective: "Evaluate one exact finite synthetic obligation.",
     completion_condition: "The frozen capsule verifies the exact artifact.",
     roots: {
       git_commit: "b".repeat(40),
       git_tree: "c".repeat(40),
       vela_repository: digest,
     },
-    target_packet: { path: "site/problems/1056.json", sha256: packetDigest },
-    allowed_paths: ["erdos1056-k15.witness.json"],
+    target_packet: { path: "packet/target.json", sha256: packetDigest },
+    allowed_paths: ["artifacts/result.json"],
     budgets: {
       max_research_wall_time_ms: 60_000,
       max_research_processes: 4,
@@ -120,7 +120,7 @@ function mission(
       tools: ["shell", "apply_patch"],
     },
     verifier: {
-      argv: ["capsule/verifier", "{artifact:erdos1056-k15.witness.json}"],
+      argv: ["capsule/verifier", "{artifact:artifacts/result.json}"],
       executable_sha256: capsuleDigest,
       cwd: "site",
       timeout_ms: 30_000,
@@ -132,8 +132,8 @@ function mission(
       image: digest,
     },
     scientific_chain: {
-      predicted_observable: "The exact cut factorials are congruent modulo the declared prime.",
-      performed_test: "capsule/verifier erdos1056-k15.witness.json",
+      predicted_observable: "The exact synthetic result matches the bounded packet.",
+      performed_test: "capsule/verifier artifacts/result.json",
     },
     landing: { expected_routes: ["defer"], max_accepted_delta: 0 },
   }) as MissionV1;
@@ -147,7 +147,7 @@ test("mission v1 validates one portable exact-byte bundle and detects drift", as
     mkdir(path.join(root, "contract")),
   ]);
   const capsuleBytes = Buffer.from("#!/usr/bin/env python3\nraise SystemExit(0)\n");
-  const packetBytes = Buffer.from("{\"problem\":1056}\n");
+  const packetBytes = Buffer.from("{\"task\":\"bounded-check\"}\n");
   const outputSchemaBytes = Buffer.from("{\"type\":\"object\"}\n");
   const permissionProfileBytes = Buffer.from(
     'default_permissions = "canopus-worker"\n[permissions.canopus-worker.filesystem]\n":minimal" = "read"\n',
@@ -174,7 +174,7 @@ test("mission v1 validates one portable exact-byte bundle and detects drift", as
   }));
   await validateMissionBundle(active, root);
 
-  await writeFile(path.join(root, "packet", "target.json"), "{\"problem\":999}\n");
+  await writeFile(path.join(root, "packet", "target.json"), "{\"task\":\"drifted\"}\n");
   await assert.rejects(validateMissionBundle(active, root), /target packet drifted/u);
 });
 

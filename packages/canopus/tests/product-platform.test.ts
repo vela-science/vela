@@ -8,10 +8,11 @@ import { doctorProduct } from "../src/product/doctor.js";
 import {
   executableNames,
   findExecutable,
+  runtimeIdentity,
   runtimeLocator,
 } from "../src/product/runtime.js";
 import { assertToolUsingMissionPlatform } from "../src/product/run.js";
-import { SUPPORTED_VELA_VERSION } from "../src/product/version.js";
+import { sha256Bytes } from "../src/util/canonical.js";
 import type { CommandOptions, CommandResult } from "../src/util/command.js";
 
 test("native Windows tool missions fail before work with an exact WSL2 handoff", () => {
@@ -43,6 +44,24 @@ test("Vela Agent binds Canopus to the invoking Vela binary", () => {
     () => runtimeLocator("vela", { VELA_BIN: "relative/vela" }),
     /VELA_BIN must be an absolute path/u,
   );
+});
+
+test("runtime discovery records exact observed bytes without a global patch matrix", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "canopus-runtime-identity-"));
+  const binary = path.join(root, "agent-runtime");
+  const bytes = Buffer.from("synthetic-runtime\n");
+  await writeFile(binary, bytes, { mode: 0o700 });
+  await chmod(binary, 0o700);
+
+  const identity = await runtimeIdentity({
+    name: binary,
+    cwd: root,
+    home: root,
+    runner: async (options) => commandResult(options, "agent-runtime 99.17.3\n"),
+  });
+  assert.equal(identity.version, "agent-runtime 99.17.3");
+  assert.equal(identity.sha256, sha256Bytes(bytes));
+  assert.equal(identity.binary, await realpath(binary));
 });
 
 test("active Windows executable discovery resolves a PATHEXT command", {
@@ -99,7 +118,7 @@ test("native Windows doctor remains read-only and does not probe worker runtimes
           return commandResult(
             options,
             executable === "vela"
-              ? `vela ${SUPPORTED_VELA_VERSION}\n`
+              ? "vela 99.1.7\n"
               : "git version 2.50.0\n",
           );
         }
@@ -147,6 +166,7 @@ test("native Windows doctor remains read-only and does not probe worker runtimes
     assert.equal(result.public.frontier.strict_blockers, 0);
     assert.equal(result.public.runtimes.codex, null);
     assert.equal(result.public.runtimes.docker, null);
+    assert.equal(result.public.runtimes.vela.version, "vela 99.1.7");
     assert.match(result.public.next_action, /Open WSL2.+rerun canopus doctor/su);
     assert.equal(observed.some((command) => /codex|docker/u.test(command)), false);
   } finally {

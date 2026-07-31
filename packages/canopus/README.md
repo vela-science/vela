@@ -88,10 +88,13 @@ or interprets verifier success as acceptance.
 
 The immutable public product is Canopus `0.8.0`. Current `main` is deliberately
 private and unpublishable while the executor is shrunk and evaluated as
-optional Vela Agent functionality. The released package's exact Vela, Codex,
-and platform composition is declared once in `toolchain.lock.json`; compatible
-public contracts are declared separately in `compatibility.json`. Historical
-releases remain available for exact Run replay; they are not current writers.
+optional Vela Agent functionality. CI records one exact tested composition in
+the source repository's `toolchain.lock.json`; that lock is reproducibility
+evidence, not a blanket runtime-compatibility promise. Current source validates
+Vela's current command and schema contracts, records the exact Codex binary,
+and fails at the first incompatible contract or custody check. Every Run binds
+the exact observed versions and binary roots. Historical releases remain
+available for exact Run replay; they are not current writers.
 
 Mission v1 and profile v2 remain the advanced portable interfaces:
 

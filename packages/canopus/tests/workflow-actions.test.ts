@@ -33,19 +33,26 @@ test("workflow actions are immutable and Node tooling uses maintained runtimes",
   }
 });
 
-test("release validates the complete macOS product before the portable OIDC publisher", async () => {
-  const value = await readFile(new URL("product-release.yml", workflows), "utf8");
-  const validateStart = value.indexOf("  validate:\n");
-  const publishStart = value.indexOf("  publish:\n");
-  assert.ok(validateStart >= 0, "release validate job is missing");
-  assert.ok(publishStart > validateStart, "release publish job must follow validation");
+test("one Vela tag owns public Protocol publication while Canopus stays private", async () => {
+  const value = await readFile(new URL("release.yml", workflows), "utf8");
+  const protocolStart = value.indexOf("  publish-protocol:\n");
+  const registryStart = value.indexOf("  registry-smoke:\n");
+  const releaseStart = value.indexOf("  publish:\n");
+  assert.ok(protocolStart >= 0, "Protocol publication job is missing");
+  assert.ok(registryStart > protocolStart, "Protocol publication must precede registry smoke");
+  assert.ok(releaseStart > registryStart, "GitHub release must follow registry checks");
 
-  const validate = value.slice(validateStart, publishStart);
-  const publish = value.slice(publishStart);
-  assert.match(validate, /runs-on: macos-15/u);
-  assert.match(validate, /- run: bun run check/u);
-  assert.match(publish, /needs: validate/u);
-  assert.doesNotMatch(publish, /- run: bun run check/u);
-  assert.match(publish, /bun run typecheck/u);
-  assert.match(publish, /packages\/canopus\/dist\/tests\/release-contract\.test\.js/u);
+  const protocol = value.slice(protocolStart, registryStart);
+  const release = value.slice(releaseStart);
+  assert.match(protocol, /environment: npm/u);
+  assert.match(protocol, /Smoke the exact packed Protocol package/u);
+  assert.match(protocol, /npm install[\s\S]+--ignore-scripts/u);
+  assert.match(protocol, /protocolDigest/u);
+  assert.match(protocol, /sha256At/u);
+  assert.match(protocol, /publish-protocol\.mjs check/u);
+  assert.match(protocol, /publish-protocol\.mjs --execute/u);
+  assert.match(protocol, /bun run --cwd packages\/protocol test/u);
+  assert.doesNotMatch(protocol, /packages\/canopus/u);
+  assert.match(release, /publish-protocol/u);
+  assert.doesNotMatch(value, /product-v/u);
 });

@@ -2,12 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import {
-  SUPPORTED_CODEX_VERSION,
-  SUPPORTED_VELA_VERSION,
-} from "../src/product/version.js";
-
-test("current product release pins the tested Vela and Codex boundaries", async () => {
+test("CI pins one reproducible Vela and Codex composition without defining runtime compatibility", async () => {
   const [workflow, lockText] = await Promise.all([
     readFile(new URL("../../../../.github/workflows/product-ci.yml", import.meta.url), "utf8"),
     readFile(new URL("../../toolchain.lock.json", import.meta.url), "utf8"),
@@ -17,9 +12,9 @@ test("current product release pins the tested Vela and Codex boundaries", async 
     codex?: { version?: string };
   };
 
-  assert.equal(SUPPORTED_VELA_VERSION, lock.vela?.version);
-  assert.equal(SUPPORTED_CODEX_VERSION, lock.codex?.version);
-  assert.equal(lock.vela?.tag, `v${SUPPORTED_VELA_VERSION}`);
+  assert.match(lock.vela?.version ?? "", /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u);
+  assert.equal(lock.vela?.tag, `v${lock.vela?.version}`);
+  assert.match(lock.codex?.version ?? "", /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u);
   assert.match(lock.vela?.source_commit ?? "", /^[0-9a-f]{40}$/u);
   assert.equal(Object.keys(lock.vela?.assets ?? {}).length, 3);
   assert.match(workflow, /tooling\/export-toolchain-env\.mjs/u);
@@ -28,29 +23,37 @@ test("current product release pins the tested Vela and Codex boundaries", async 
   assert.doesNotMatch(workflow, /binary_sha256:/u);
 });
 
-test("installed-package smoke validates the current packaged Erdős profile", async () => {
+test("installed-package smoke validates one synthetic generic Mission", async () => {
   const workflow = await readFile(
     new URL("../../../../.github/workflows/product-ci.yml", import.meta.url),
     "utf8",
   );
-  const currentProfile = "erdos1056-k15-10429801-10430000";
-  const supersededProfile = "erdos1056-k15-10429401-10429600";
+  const fixture =
+    /packages[\\/]canopus[\\/]tests[\\/]fixtures[\\/]generic-mission[\\/]mission\.json/gu;
 
   assert.equal(
-    workflow.match(new RegExp(`profile validate ${currentProfile}`, "gu"))?.length,
+    workflow.match(fixture)?.length,
     2,
-    "Unix and Windows installed-package smoke must validate the current profile",
+    "Unix and Windows installed-package smoke must validate the generic Mission",
   );
+  assert.equal(workflow.match(/mission validate/gu)?.length, 2);
   assert.doesNotMatch(
     workflow,
-    new RegExp(`profile validate ${supersededProfile}`, "u"),
-    "CI must not validate a profile omitted from the current package",
+    /profile validate erdos1056|profile validate formal-erdos/u,
+    "installed-package smoke must not depend on a domain profile",
   );
   assert.equal(
     workflow.match(/bun pm pack --cwd packages\/protocol/gu)?.length,
     2,
     "Unix and Windows smoke must install the local Protocol archive",
   );
+  assert.equal(
+    workflow.match(/publish-protocol\.mjs check/gu)?.length,
+    2,
+    "Unix and Windows CI must validate the exact Protocol archive without publishing",
+  );
+  assert.match(workflow, /- "\.github\/release\/\*\*"/u);
+  assert.match(workflow, /- "\.github\/workflows\/release\.yml"/u);
   assert.doesNotMatch(
     workflow,
     /npm install[^\n]*@vela-science\/protocol/u,
@@ -58,16 +61,16 @@ test("installed-package smoke validates the current packaged Erdős profile", as
   );
 });
 
-test("release binds tag, GitHub attestation, and npm trusted provenance", async () => {
+test("one Vela release publishes only the public Protocol package", async () => {
   const workflow = await readFile(
-    new URL("../../../../.github/workflows/product-release.yml", import.meta.url),
+    new URL("../../../../.github/workflows/release.yml", import.meta.url),
     "utf8",
   );
 
   for (const contract of [
+    "- \"v*.*.*\"",
     "environment: npm",
     "id-token: write",
-    "test \"product-v$(node -p 'require(\"./packages/canopus/package.json\").version')\" = \"$GITHUB_REF_NAME\"",
     "actions/attest-build-provenance@",
     "gh attestation verify",
     "--signer-workflow",
@@ -75,18 +78,18 @@ test("release binds tag, GitHub attestation, and npm trusted provenance", async 
     "--source-digest",
     "--deny-self-hosted-runners",
     "bun pm pack --cwd packages/protocol",
-    "bun pm pack --cwd packages/canopus",
-    "(cd release && shasum -a 256 *.tgz > SHA256SUMS)",
-    "for package_dir in packages/protocol packages/canopus",
-    "archive=\"./$archive\"",
-    "npm publish \"$archive\" --provenance --access public",
-    "npm audit signatures --json --include-attestations",
+    "Smoke the exact packed Protocol package",
+    "publish-protocol.mjs check",
+    "publish-protocol.mjs --execute",
+    "protocolDigest",
+    "sha256At",
     "https://slsa.dev/provenance/v1",
   ]) {
     assert.match(workflow, new RegExp(contract.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
   }
   assert.doesNotMatch(workflow, /NPM_TOKEN|NODE_AUTH_TOKEN/u);
-  assert.doesNotMatch(workflow, /shasum -a 256 release\/\*\.tgz/u);
+  assert.doesNotMatch(workflow, /bun pm pack --cwd packages\/canopus/u);
+  assert.doesNotMatch(workflow, /product-v/u);
 });
 
 test("current source stays product-only while historical release evidence remains linked", async () => {
@@ -122,11 +125,12 @@ test("current source stays product-only while historical release evidence remain
     "evidence/erdos",
     "scripts/run-claim-fidelity-advisory.mjs",
     "evaluation",
+    "toolchain.lock.json",
   ]) {
     assert.equal(
       packageJson.files?.includes(historical),
       false,
-      `${historical} must remain source evidence only`,
+      `${historical} must remain source-only`,
     );
   }
   assert.equal(

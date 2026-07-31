@@ -63,6 +63,24 @@ test("mission help retains the advanced portable interface", async () => {
   assert.match(output, /canopus mission validate/u);
 });
 
+test("mission validation smoke is synthetic and domain-neutral", async () => {
+  const fixture = fileURLToPath(
+    new URL("../../tests/fixtures/generic-mission/mission.json", import.meta.url),
+  );
+  const output = JSON.parse(await help("mission", "validate", fixture)) as {
+    ok: boolean;
+    command: string;
+    mission_id: string;
+    schema: string;
+  };
+  assert.deepEqual(output, {
+    ok: true,
+    command: "mission validate",
+    mission_id: "mission_generic_pack_smoke",
+    schema: "canopus.mission.v1",
+  });
+});
+
 test("profile help and validation retain the advanced closed interface", async () => {
   const output = await help("profile", "--help");
   assert.match(output, /canopus profile list/u);
