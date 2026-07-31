@@ -1002,9 +1002,9 @@ plan, session, score, and report contracts and correctly models the current
 product state: completed Attempt, two root-linked Runs, one registered
 Submission and one retained corroborating Run, one current protocol-ready
 Decision Inbox entry, and the exact successor Target. Its read-only materializer
-reconstructs fixture root `sha256:5f7903d8d76cde890057b520b11d4f8de50044984998864a697fef80eae91fff`
+reconstructs fixture root `sha256:457f1bee2dca85336ebf822d94d2e183500dd411839166b175942363c4f0e290`
 and supervisor answer-key root
-`sha256:74b76e8a177a5c1438cccf36ddf896b7da9ebbf225227911366b0d175a73aa3e`
+`sha256:55a5c647112ce050fce814e5150d908a5e57e6402d1fa3817b71b9218bed68c0`
 twice from the same clean Git and content-addressed inputs. This is a freeze
 input, not product-lift evidence. No participant session may start until the
 isolated supervisor runner enforces live budgets and answer-key separation.

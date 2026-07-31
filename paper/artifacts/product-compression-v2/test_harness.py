@@ -304,12 +304,15 @@ class HarnessTests(unittest.TestCase):
                 return status if argv[1] == "status" else next_work if argv[1] == "next" else inbox
 
             with mock.patch.object(materialize, "command", side_effect=fake_command), mock.patch.object(materialize, "json_command", side_effect=fake_json):
-                fixture, key = materialize.materialize(frontier, vela, attempt_path, proposal_id)
+                fixture, key, participant_files = materialize.materialize(frontier, vela, attempt_path, proposal_id)
             harness.validate_answer_key(key)
             self.assertEqual(fixture["frontier"]["repository_root"], root("1"))
             self.assertEqual(key["expected"]["campaign"]["runs"][0]["submission_state"], "retained_corroboration")
             self.assertEqual(key["expected"]["campaign"]["runs"][1]["submission_state"], "registered")
             self.assertEqual(key["expected"]["work"]["packet_sha256"], packet_root)
+            sanitized = json.loads(participant_files["campaign/attempt.json"])
+            self.assertEqual(sanitized["agent_run_receipts"][0]["result"]["run"]["path"], "campaign/run-01/run.json")
+            self.assertFalse(any(str(private) in data.decode() for data in participant_files.values()))
 
 
 if __name__ == "__main__":

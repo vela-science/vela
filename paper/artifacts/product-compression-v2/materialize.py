@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import subprocess
@@ -58,7 +59,9 @@ def relative_content_path(root: str, category: str) -> Path:
     return Path("records") / category / "sha256" / f"{root.removeprefix('sha256:')}.json"
 
 
-def materialize(frontier: Path, vela: Path, attempt_path: Path, proposal_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
+def materialize(
+    frontier: Path, vela: Path, attempt_path: Path, proposal_id: str
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, bytes]]:
     frontier = frontier.resolve()
     vela = vela.resolve()
     attempt_path = attempt_path.resolve()
@@ -135,13 +138,23 @@ def materialize(frontier: Path, vela: Path, attempt_path: Path, proposal_id: str
 
     runs: list[dict[str, Any]] = []
     source_files: list[dict[str, Any]] = []
-    for receipt in receipts:
+    participant_files: dict[str, bytes] = {}
+    sanitized_attempt = copy.deepcopy(attempt)
+    for index, (receipt, sanitized_receipt) in enumerate(
+        zip(receipts, sanitized_attempt["agent_run_receipts"], strict=True), start=1
+    ):
         result = receipt.get("result", {})
         run = result.get("run", {})
         evidence = result.get("evidence_manifest", {})
         run_path, evidence_path = Path(run.get("path", "")), Path(evidence.get("path", ""))
         if digest(run_path) != run.get("sha256") or digest(evidence_path) != evidence.get("sha256"):
             fail("Run or evidence-manifest bytes disagree with the Attempt receipt")
+        run_relative = f"campaign/run-{index:02d}/run.json"
+        evidence_relative = f"campaign/run-{index:02d}/evidence-manifest.json"
+        participant_files[run_relative] = run_path.read_bytes()
+        participant_files[evidence_relative] = evidence_path.read_bytes()
+        sanitized_receipt["result"]["run"]["path"] = run_relative
+        sanitized_receipt["result"]["evidence_manifest"]["path"] = evidence_relative
         registered = run.get("id") == registered_run_id
         runs.append({
             "run_number": receipt.get("run_number"),
@@ -159,6 +172,12 @@ def materialize(frontier: Path, vela: Path, attempt_path: Path, proposal_id: str
             {"kind": "run", "sha256": run.get("sha256"), "size": run.get("size")},
             {"kind": "evidence_manifest", "sha256": evidence.get("sha256"), "root": evidence.get("root"), "size": evidence.get("size")},
         ))
+
+    participant_files["campaign/attempt.json"] = harness.canonical_bytes(sanitized_attempt)
+    participant_file_manifest = [
+        {"path": path, "size": len(data), "sha256": harness.sha256_root(data)}
+        for path, data in sorted(participant_files.items())
+    ]
 
     expected = {
         "schema": "vela.product-compression-answer.v2",
@@ -220,6 +239,7 @@ def materialize(frontier: Path, vela: Path, attempt_path: Path, proposal_id: str
             "inbox_projection_root": inbox["projection_root"], "inbox_entry_root": entry["entry_root"],
             "successor_packet_sha256": current_packet,
         },
+        "participant_files": participant_file_manifest,
     }
     harness.seal(fixture, "fixture_root")
     answer_key = harness.seal({
@@ -227,7 +247,7 @@ def materialize(frontier: Path, vela: Path, attempt_path: Path, proposal_id: str
         "answer_key_root": "", "fixture_root": fixture["fixture_root"], "expected": expected,
     }, "answer_key_root")
     harness.validate_answer_key(answer_key)
-    return fixture, answer_key
+    return fixture, answer_key, participant_files
 
 
 def parser() -> argparse.ArgumentParser:
@@ -243,10 +263,16 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
-        fixture, answer_key = materialize(args.frontier, args.vela, args.attempt, args.proposal)
+        fixture, answer_key, participant_files = materialize(
+            args.frontier, args.vela, args.attempt, args.proposal
+        )
         args.output.mkdir(parents=True, exist_ok=True)
         harness.write_json(args.output / "fixture.json", fixture)
         harness.write_json(args.output / "answer-key.json", answer_key)
+        for relative, data in participant_files.items():
+            destination = args.output / "participant" / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(data)
         sys.stdout.buffer.write(harness.canonical_bytes({
             "ok": True, "fixture_root": fixture["fixture_root"],
             "answer_key_root": answer_key["answer_key_root"], "writes_frontier": False,

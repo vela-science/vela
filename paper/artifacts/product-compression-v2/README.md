@@ -50,9 +50,11 @@ exact Vela binary, the completed private Attempt record, and an explicit pending
 Proposal ID. It invokes only `status`, `next`, and `review inbox`, verifies that
 Git and repository state do not change, checks the complete receipt chain and
 content-addressed Run, evidence, Submission, Verification, and successor packet
-bytes, then writes a public `fixture.json` and supervisor-only
-`answer-key.json`. Absolute private Run paths are never copied into the fixture.
-The future runner must keep the answer key outside participant custody.
+bytes, then writes a public `fixture.json`, a sanitized `participant/campaign`
+tree, and supervisor-only `answer-key.json`. The fixture root binds every
+participant file. Absolute private Run paths are replaced with fixture-relative
+paths and never copied into participant custody. The future runner must keep the
+answer key outside participant custody.
 
 There is intentionally no plan example: placeholder roots would look frozen
 without binding real material. `validate_plan` defines the closed plan contract,
