@@ -136,8 +136,9 @@ The Vela arm receives no additional scientific facts. Both arms use the same
 machine, source commit, participant instructions, time limit, and success
 rubric. Record correctness before speed.
 
-Execution comparisons report native Codex, Canopus, and any optional
-orchestration separately. They do not substitute for the Git state baseline.
+Execution comparisons report each native agent or workbench configuration
+separately through a removable evaluation harness such as Harbor. They do not
+substitute for the Git state baseline.
 
 ## Paper structure
 

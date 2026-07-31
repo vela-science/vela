@@ -207,7 +207,8 @@ acceptance.
 
 Evaluate separately:
 
-- execution lift: native Codex versus Canopus on the three real packets;
+- product-comprehension lift: native Codex through Harbor against Vela's
+  read-only interface versus Git and the same files;
 - state lift: exact evidence and Standing recovery;
 - inheritance lift: correct continuation from only the new root;
 - correction integrity: affected, surviving, unaffected, and unknown paths;

@@ -90,8 +90,7 @@ returned   = offers after the requested limit
 
 `vela next` does not pretend that private local work is shared availability.
 `vela start` performs the exact local Attempt arbitration, rechecks the
-selected entry, and creates one ignored
-the current private Attempt bound to:
+selected entry, and creates one ignored private Attempt bound to:
 
 - current repository origin and root;
 - Target Index and input roots;

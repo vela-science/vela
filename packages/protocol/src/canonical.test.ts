@@ -17,7 +17,7 @@ test("canonical encodings sort nested object keys", () => {
   assert.equal(canonicalJson(value), '{"a":{"b":null,"y":true},"z":1}\n');
 });
 
-test("protocol roots exclude the Canopus record newline", () => {
+test("protocol roots use JCS without the retained-record newline", () => {
   assert.equal(protocolDigest({ value: 1 }), sha256Bytes('{"value":1}'));
 });
 

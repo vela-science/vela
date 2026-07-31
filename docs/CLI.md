@@ -92,10 +92,12 @@ producer queue.
 - the Target Index root;
 - the Git commit and tree;
 - the completion contract;
-- the current Vela controller binary and exact runner build root;
-- a closed set of routine operations and Artifact classes;
+- the producer identity;
+- the fixed routine operations `submission_register` and
+  `verification_import`;
+- a closed set of Artifact classes;
 - enforced Submission, Verification, Artifact, and retained-byte budgets;
-- an `evidence_only` or `pending_review` consequence ceiling; and
+- a `pending_review` authority ceiling; and
 - local expiry.
 
 It appends no canonical Event and reads no authority key.
@@ -106,24 +108,26 @@ The default remains one short command:
 vela start <target> --as agent:<name> --json
 ```
 
-An external runner supplies `--runner-build sha256:<digest>`. Target packets
-that declare typed outputs contribute those Artifact classes; otherwise the
-private fallback is `other`. Repeat `--artifact-class <kind>` once for each
-real producer output class, such as `text/plain`, `engine-manifest`, and
-`verifier-manifest`. `--max-submissions`, `--max-verifications`,
-`--max-artifacts`, and `--max-artifact-bytes` narrow the fixed defaults. A
-successful Attempt-bound Submission or Verification import increments its
-private counter but does not delete the Attempt. An ordinary Verification
-import may instead rely on the durable source-attempt binding already retained
-by the Submission; it does not require private `.vela/work` state. Supplying
+Vela does not select, launch, or wrap a runner. The producer uses its native
+agent, workbench, notebook, proof assistant, or laboratory system. Target
+packets that declare typed outputs contribute those Artifact classes;
+otherwise the private fallback is `other`. Repeat `--artifact-class <kind>`
+once for each real producer output class, such as `text/plain`,
+`engine-manifest`, and `verifier-manifest`. `--max-submissions`,
+`--max-verifications`, `--max-artifacts`, and `--max-artifact-bytes` narrow the
+fixed defaults. A successful Attempt-bound Submission or Verification import
+increments its private counter but does not delete the Attempt. An ordinary
+Verification import may instead rely on the durable source-attempt binding
+already retained by the Submission; it does not require private `.vela/work`
+state. Supplying
 `--attempt` explicitly opts into exact live-scope and budget attribution.
 Every later Attempt-bound routine write revalidates the exact current Target
 read set. Expiry or `start <target> --drop` stops future attributed use without
 invalidating retained evidence.
 
-`vela status` is the compact Campaign Cockpit. Its additive
-`campaign` projection reports the active Attempt count and the first exact
-scope, budget, usage, and expiry. Its `decision_inbox` projection reports
+`vela status` is the compact Frontier summary. Its `work` projection reports
+the active Attempt count and the first exact scope, budget, usage, and expiry.
+Its `decision_inbox` projection reports
 pending, ready, and blocked consequence counts plus rooted projection
 identities. The suggested next action may inspect the Inbox, continue the
 active Attempt through its exact `submit --attempt` path, or select the next
@@ -194,11 +198,6 @@ and bound to the current Target read set. Exact retry repairs matching private
 usage when live scratch still exists, while missing or expired scratch cannot
 strand retained canonical evidence. Verifiers do not inherit the producer
 identity or any Decision capability.
-
-Vela's internal routine-evidence controller may reuse one caller-owned
-repository signer for exact Submission registration and Verification import
-only. It has no review method. Worker and verifier processes receive no signer
-material; scientific Decisions remain separate human authority transactions.
 
 The protocol permits an acceptance action only when the current Proposal and
 Submission still match and every declared verification requirement has a valid

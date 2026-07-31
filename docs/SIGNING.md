@@ -88,8 +88,10 @@ vela id create --agent --handle worker
 vela id show --json
 ```
 
-It may sign an Attempt or Submission. It cannot authorize review, acceptance,
-policy administration, recovery, membership, or repository-key changes.
+It may sign a Submission. An Attempt is ignored local coordination and is not
+a signed protocol object. Producer identity cannot authorize review,
+acceptance, policy administration, recovery, membership, or repository-key
+changes.
 
 ```bash
 vela next . --json

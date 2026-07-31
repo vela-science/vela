@@ -22,17 +22,17 @@ pub const START: &str = "\
 EXAMPLES
   vela start erdos:443 --as agent:demo --json
                                 start one bounded multi-Submission Attempt
-  vela start erdos:443 --runner-build sha256:0123… \
-    --artifact-class verification-report --max-submissions 4 \
+  vela start erdos:443 --artifact-class verification-report \
+    --max-submissions 4 \
     --as agent:demo --json
-                                bind an external runner and explicit evidence budget
+                                narrow the evidence classes and budget
   vela start erdos:443 --drop --reason \"switching approaches\" --as agent:demo
                                 revoke the private Attempt
 
 The private Attempt survives successful Submissions until expiry or explicit
 revocation. Each Submission revalidates the exact Target read set and consumes
-the retained Submission, Artifact, and byte budgets. The default consequence
-ceiling is pending_review; it can never accept or reject scientific Standing.
+the retained Submission, Artifact, and byte budgets. The Attempt may register
+evidence for review; it can never accept or reject scientific Standing.
 
 SEE ALSO
   vela next   the ranked offer this claims from

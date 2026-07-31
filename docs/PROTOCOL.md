@@ -293,7 +293,7 @@ authority record. It changes no scientific Standing.
 
 ### 5.2 Start
 
-`vela start` creates `vela.attempt.v7` only in ignored local coordination. The
+`vela start` creates `vela.attempt.v9` only in ignored local coordination. The
 Attempt closes over:
 
 - repository origin and root;
@@ -301,15 +301,17 @@ Attempt closes over:
 - Target and packet;
 - source Git commit/tree;
 - completion contract;
-- controller and runner build identities;
-- closed routine operations and Artifact classes;
-- enforced Agent-run, Submission, Verification, Artifact, and byte budgets;
-- an optional exact `vela.agent-execution-bundle.v1` selected by the Target
-  packet;
-- an `evidence_only` or `pending_review` consequence ceiling; and
+- the producer identity;
+- the fixed routine operations `submission_register` and
+  `verification_import`;
+- a closed set of Artifact classes;
+- enforced Submission, Verification, Artifact-count, and Artifact-byte
+  budgets;
+- a `pending_review` authority ceiling; and
 - local expiry.
 
 It creates no canonical Event, repository record, or authority-key read.
+Vela does not launch or wrap an agent, verifier, or workflow engine.
 
 ### 5.3 Submit
 
