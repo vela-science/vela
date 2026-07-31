@@ -32,6 +32,17 @@ HARBOR = {
     "task_schema": "1.3",
     "trajectory_schema": "ATIF-v1.7",
 }
+TASK_ENVIRONMENT_IMAGE = "alpine@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce"
+DEFAULT_BUDGETS = {
+    "elapsed_ms": 300_000,
+    "tool_calls": 12,
+    "observed_tokens": 24_000,
+    "per_tool_reported_output_bytes": 131_072,
+    "total_tool_reported_output_bytes": 524_288,
+    "trajectory_bytes": 2_097_152,
+    "verifier_output_bytes": 262_144,
+    "answer_bytes": 65_536,
+}
 MAYBE_TEXT = (str, type(None))
 STANDING = [{"claim_id": str, "claim_root": str}]
 RUN = {
@@ -70,10 +81,15 @@ EXECUTOR = {
     "executor_root": str, "name": str, "version": str, "source_commit": str,
     "package_sha256": str, "task_schema": str, "trajectory_schema": str,
 }
+TASK_ENVIRONMENT = {
+    "environment_root": str, "base_image": str, "vela_version": str,
+    "vela_linux_sha256": str,
+}
 PLAN = {
     "schema": str, "plan_root": str, "fixture_root": str, "answer_key_root": str,
     "executor": EXECUTOR,
-    "model": {"id": str, "config_root": str},
+    "model": {"id": str, "agent": str, "agent_version": str, "config_root": str},
+    "task_environment": TASK_ENVIRONMENT,
     "arms": {"git-files": TOOL, "vela-guided": TOOL},
     "budgets": {"elapsed_ms": int, "tool_calls": int, "observed_tokens": int,
                 "per_tool_reported_output_bytes": int,
@@ -287,9 +303,14 @@ def validate_plan(value: Any) -> None:
     rooted(executor, "executor_root", "$.executor")
     if {key: executor[key] for key in HARBOR} != HARBOR:
         raise ContractError("$.executor: unsupported or unpinned execution harness")
-    roots(value["model"], ("config_root",), "$.model")
-    if not value["model"]["id"]:
-        raise ContractError("$.model.id: empty")
+    rooted(value["model"], "config_root", "$.model")
+    if not value["model"]["id"] or value["model"]["agent"] != "codex" or not value["model"]["agent_version"]:
+        raise ContractError("$.model: expected a pinned Codex model configuration")
+    environment = value["task_environment"]
+    rooted(environment, "environment_root", "$.task_environment")
+    roots(environment, ("vela_linux_sha256",), "$.task_environment")
+    if environment["base_image"] != TASK_ENVIRONMENT_IMAGE or not environment["vela_version"]:
+        raise ContractError("$.task_environment: unsupported image or empty Vela version")
     for arm in ARMS:
         tool = value["arms"][arm]
         expected = {
@@ -329,6 +350,71 @@ def validate_answer_key(value: Any) -> None:
     roots(value, ("fixture_root",), "$")
     validate_answer(value["expected"])
     rooted(value, "answer_key_root")
+
+
+def freeze_plan(
+    materials: Path,
+    model_id: str,
+    agent_version: str,
+    vela_linux: Path,
+    vela_version: str,
+) -> dict[str, Any]:
+    """Freeze the one supported study plan without hand-editing JSON."""
+    fixture = read_json(materials / "fixture.json")
+    key = read_json(materials / "answer-key.json")
+    validate_answer_key(key)
+    if not isinstance(fixture, dict):
+        raise ContractError("fixture must be an object")
+    fixture_root = fixture.get("fixture_root")
+    if fixture_root != record_root(fixture, "fixture_root"):
+        raise ContractError("fixture root mismatch")
+    if fixture_root != key["fixture_root"]:
+        raise ContractError("fixture and answer key roots disagree")
+    if not vela_linux.is_file() or vela_linux.read_bytes()[:4] != b"\x7fELF":
+        raise ContractError("plan requires an exact Linux ELF Vela executable")
+    if not model_id or not agent_version or not vela_version:
+        raise ContractError("model, Codex version, and Vela version are required")
+
+    def tool(interface: str, available: bool) -> dict[str, Any]:
+        return seal({
+            "tool_contract_root": "", "interface": interface,
+            "vela_available": available,
+        }, "tool_contract_root")
+
+    value = {
+        "schema": "vela.product-compression-plan.v2",
+        "plan_root": "",
+        "fixture_root": fixture_root,
+        "answer_key_root": key["answer_key_root"],
+        "executor": seal({"executor_root": "", **HARBOR}, "executor_root"),
+        "model": seal({
+            "id": model_id, "agent": "codex", "agent_version": agent_version,
+            "config_root": "",
+        }, "config_root"),
+        "task_environment": seal({
+            "environment_root": "", "base_image": TASK_ENVIRONMENT_IMAGE,
+            "vela_version": vela_version,
+            "vela_linux_sha256": sha256_root(vela_linux.read_bytes()),
+        }, "environment_root"),
+        "arms": {
+            "git-files": tool("native-read-only-workspace", False),
+            "vela-guided": tool("native-read-only-workspace-plus-vela", True),
+        },
+        "budgets": DEFAULT_BUDGETS,
+        "assignments": [
+            {"pair": "01", "order": ["git-files-01", "vela-guided-01"]},
+            {"pair": "02", "order": ["vela-guided-02", "git-files-02"]},
+        ],
+        "publication_policy": {
+            "publish_all_sessions": True,
+            "publish_failures": True,
+            "independence_claim": "first_party_only",
+            "plan_changes_after_output": "forbidden",
+        },
+    }
+    seal(value, "plan_root")
+    validate_plan(value)
+    return value
 
 
 def session_arms(plan: dict[str, Any]) -> dict[str, str]:
@@ -592,6 +678,13 @@ def build_parser() -> argparse.ArgumentParser:
     validate = commands.add_parser("validate")
     validate.add_argument("--kind", choices=("answer", "plan", "answer-key", "session", "score", "report"), required=True)
     validate.add_argument("--input", type=Path, required=True)
+    freeze = commands.add_parser("freeze-plan")
+    freeze.add_argument("--materials", type=Path, required=True)
+    freeze.add_argument("--model", required=True)
+    freeze.add_argument("--codex-version", required=True)
+    freeze.add_argument("--vela-linux", type=Path, required=True)
+    freeze.add_argument("--vela-version", required=True)
+    freeze.add_argument("--output", type=Path, required=True)
     score = commands.add_parser("score")
     for name in ("plan", "answer-key", "session", "output"):
         score.add_argument(f"--{name}", type=Path, required=True)
@@ -611,6 +704,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "validate":
             validators[args.kind](read_json(args.input))
             sys.stdout.buffer.write(canonical_bytes({"ok": True, "kind": args.kind}))
+        elif args.command == "freeze-plan":
+            write_json(args.output, freeze_plan(
+                args.materials, args.model, args.codex_version,
+                args.vela_linux, args.vela_version,
+            ))
         elif args.command == "score":
             write_json(args.output, score_session(read_json(args.plan), read_json(args.answer_key), read_json(args.session)))
         else:

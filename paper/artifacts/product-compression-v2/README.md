@@ -80,7 +80,7 @@ No participant run may start until a frozen plan binds:
 - one exact fixture and supervisor-only answer-key root;
 - the Harbor release, source commit, task schema, package digest, and ATIF
   version above;
-- exact model, agent, tool, Vela binary, Git source, task, and environment image
+- exact model, agent, tool, Vela binary, Git source, and environment image
   identities;
 - shared budgets, retry rules, stopping rules, and AB/BA assignment;
 - both arm-specific tool surfaces; and
@@ -92,14 +92,12 @@ authentication store, mutation route, or access to the source Frontier. The
 baseline receives an isolated copy with ordinary repository tools. The guided
 arm receives the same copy plus the exact read-only Vela interface.
 
-Harbor's agent and task commands share one container. Provider credentials are
-therefore not isolated from task code during the agent phase. A real session
-must use a dedicated, revocable, low-limit benchmark credential passed only as
-an explicit agent variable; it must never use the user's normal Codex auth
-store or place credentials in task environment variables. Agent egress is
-limited to the required provider hosts, while build/setup access is separately
-bounded and the verifier remains fully offline. Harbor's output redaction is
-defense in depth, not credential custody.
+The study uses Harbor's native Codex OAuth path (`CODEX_FORCE_AUTH_JSON=true`),
+which loads the current Codex login for the agent phase and removes its remote
+copy after execution. Harbor's agent and task commands share one container, so
+this is execution custody rather than credential isolation. The normal OAuth
+session is used only with these trusted, Vela-owned tasks. Agent egress is
+limited to the required provider hosts and the verifier remains fully offline.
 
 `materialize.py` reconstructs the fixture and answer key from one clean exact
 Frontier, one exact Vela binary, a completed private Attempt record, and one
@@ -159,9 +157,27 @@ python3 paper/artifacts/product-compression-v2/materialize.py \
   --frontier /exact/frontier --vela /exact/vela \
   --attempt /exact/private/attempt.json --proposal vpr_<id> \
   --output ~/.vela/product-compression-v2/materials
+
+python3 paper/artifacts/product-compression-v2/harness.py freeze-plan \
+  --materials /exact/private/materials --model gpt-5.6-terra \
+  --codex-version 0.145.0 --vela-linux /exact/static-linux-vela \
+  --vela-version 'vela 0.950.1' --output /exact/plan.json
+
+env -u OPENAI_API_KEY CODEX_FORCE_AUTH_JSON=true \
+  harbor run --config /exact/private/harbor-job.json \
+  --jobs-dir ~/.vela/product-compression-v2/jobs
 ```
 
-The next implementation slice generates two private Harbor tasks from those
-materials, runs one parity smoke, and imports each retained Harbor trial into
-the closed session contract. Harbor remains an external source-only tool; it is
-not a Vela runtime dependency.
+The private `harbor-job.json` lists the four native Harbor task directories in
+the frozen AB/BA order. Harbor itself owns task digests, container setup,
+execution, retries, ATIF, artifact collection, job locks, and raw results. Each
+task receives the same exact Frontier checkout and participant evidence; only
+the guided task receives the exact read-only Linux Vela binary. The answer key
+exists only in the separate offline verifier image.
+
+The Harbor job directory is the retained execution evidence. Harbor's own
+result, lock, ATIF trajectory, verifier reward, artifact manifest, timing,
+usage, and viewer remain the inspection surface; Vela does not wrap them in
+another execution format. The small Vela harness owns only the frozen plan,
+answer semantics, and registered comparison gates. Harbor remains an external
+tool, not a Vela runtime dependency.

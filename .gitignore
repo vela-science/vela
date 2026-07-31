@@ -35,3 +35,6 @@ Cargo.lock.bak
 
 # Generated publication artifacts
 /output/
+
+# Harbor writes local evaluation output here unless --jobs-dir is set.
+/jobs/

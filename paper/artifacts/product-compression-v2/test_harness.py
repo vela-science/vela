@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -46,7 +47,15 @@ def plan() -> dict:
     return {
         "schema": "vela.product-compression-plan.v2", "plan_root": "", "fixture_root": root("f"), "answer_key_root": "",
         "executor": harness.seal({"executor_root": "", **harness.HARBOR}, "executor_root"),
-        "model": {"id": "test-model", "config_root": root("1")},
+        "model": harness.seal({
+            "id": "test-model", "agent": "codex", "agent_version": "0.145.0",
+            "config_root": "",
+        }, "config_root"),
+        "task_environment": harness.seal({
+            "environment_root": "", "base_image": harness.TASK_ENVIRONMENT_IMAGE,
+            "vela_version": "vela 0.test",
+            "vela_linux_sha256": harness.sha256_root(b"\x7fELFtest-static-vela"),
+        }, "environment_root"),
         "arms": {
             "git-files": tool_contract("native-read-only-workspace", False),
             "vela-guided": tool_contract("native-read-only-workspace-plus-vela", True),
@@ -72,7 +81,7 @@ def session(session_id: str = "git-files-01") -> dict:
     arm, retained = session_id.rsplit("-", 1)[0], answer()
     value = {
         "schema": "vela.product-compression-session.v2", "session_root": "", "plan_root": study["plan_root"], "fixture_root": study["fixture_root"], "answer_key_root": key["answer_key_root"], "session_id": session_id, "arm": arm,
-        "model": "test-model", "model_config_root": root("1"), "tool_contract_root": study["arms"][arm]["tool_contract_root"], "executor_root": study["executor"]["executor_root"],
+        "model": "test-model", "model_config_root": study["model"]["config_root"], "tool_contract_root": study["arms"][arm]["tool_contract_root"], "executor_root": study["executor"]["executor_root"],
         "started_at": "2026-07-31T10:00:00Z", "completed_at": "2026-07-31T10:00:01Z", "elapsed_ms": 1000, "termination": "completed", "process": {"exit_code": 0, "signal": None},
         "usage": {"complete": True, "input_tokens": 100, "cached_input_tokens": 40, "output_tokens": 50, "reasoning_output_tokens": 10},
         "tool_calls": [{"index": 1, "item_id": "item-1", "argv": ["git", "status"] if arm == "git-files" else ["vela", "status", "--json"], "elapsed_ms": 100, "state": "completed", "exit_code": 0, "reported_output_bytes": 3, "reported_output_root": root("4")}],
@@ -91,6 +100,32 @@ def score_for(session_id: str, elapsed_ms: int, commands: int, tokens: int) -> d
 
 
 class HarnessTests(unittest.TestCase):
+    def test_freeze_plan_binds_agent_environment_and_materials(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root_path = Path(temporary)
+            materials = root_path / "materials"
+            materials.mkdir()
+            key = answer_key()
+            fixture = harness.seal({
+                "schema": "fixture.test", "fixture_root": "", "value": 1,
+            }, "fixture_root")
+            key["fixture_root"] = fixture["fixture_root"]
+            harness.seal(key, "answer_key_root")
+            harness.write_json(materials / "fixture.json", fixture)
+            harness.write_json(materials / "answer-key.json", key)
+            vela = root_path / "vela"
+            vela.write_bytes(b"\x7fELFtest-static-vela")
+            os.chmod(vela, 0o500)
+            frozen = harness.freeze_plan(
+                materials, "test-model", "0.145.0", vela, "vela 0.test",
+            )
+            self.assertEqual(frozen["model"]["agent_version"], "0.145.0")
+            self.assertEqual(
+                frozen["task_environment"]["vela_linux_sha256"],
+                harness.sha256_root(vela.read_bytes()),
+            )
+            harness.validate_plan(frozen)
+
     def test_plan_pins_harbor_and_closed_tool_contracts(self) -> None:
         study, _ = frozen_material()
         harness.validate_plan(study)

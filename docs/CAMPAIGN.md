@@ -1068,12 +1068,13 @@ and canonical result roots. Harbor is transport and evidence, never authority
 or Standing.
 
 Harbor does not isolate an agent's provider credential from task code because
-both execute in one container during the agent phase. Study runs therefore use
-only a dedicated revocable low-limit benchmark credential passed explicitly to
-the agent, never the user's normal auth store or a task environment variable.
-Provider egress is allowlisted, build/setup access is bounded separately, and
-the verifier remains offline. Output redaction is not treated as credential
-custody.
+both execute in one container during the agent phase. This first-party local
+study uses Harbor's documented Codex OAuth path through
+`CODEX_FORCE_AUTH_JSON=true`; Harbor uploads the current login for execution and
+removes its remote copy afterward. It therefore runs only trusted Vela-owned
+tasks. Provider egress is allowlisted and the verifier remains offline. This is
+ordinary local execution custody, not an independence or credential-isolation
+claim.
 
 Braintrust is deferred as an optional read-only analysis mirror. Harbor's local
 viewer already exposes trials, trajectories, verifier output, artifacts, timing,
