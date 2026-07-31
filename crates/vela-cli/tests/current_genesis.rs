@@ -966,6 +966,41 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert!(human_inbox.status.success());
     let human_inbox = String::from_utf8(human_inbox.stdout).expect("inbox text");
     assert_eq!(human_inbox.matches("Inspect:").count(), 1);
+    let inbox = success_json(&run(&frontier, None, &["review", "inbox", ".", "--json"]));
+    assert_eq!(inbox["schema"], "vela.decision-inbox.v2");
+    assert_eq!(inbox["entries"].as_array().map(Vec::len), Some(1));
+    let proposal_id = submitted["proposal_id"].as_str().expect("Proposal ID");
+    let review = success_json(&run(
+        &frontier,
+        None,
+        &["review", "show", ".", proposal_id, "--json"],
+    ));
+    assert_eq!(
+        review["decision_inbox"]["entry"]["entry_root"],
+        inbox["entries"][0]["entry_root"]
+    );
+    assert_eq!(
+        review["decision_inbox"]["entry"]["standing_delta"]["before"]["repository_root"],
+        checked["repository_root"]
+    );
+    assert_eq!(
+        review["decision_inbox"]["entry"]["standing_delta"]["scope"]["affected_claim_ids"],
+        serde_json::json!([submitted["claim_id"]])
+    );
+    assert_eq!(
+        review["decision_inbox"]["entry"]["standing_delta"]["counts"]["global_accepted_claims"],
+        serde_json::json!({"before": 0, "if_accept": 1, "if_reject": 0})
+    );
+    let after_inspection = success_json(&run(
+        &frontier,
+        None,
+        &["repository", "verify", ".", "--json"],
+    ));
+    assert_eq!(
+        after_inspection["repository_root"],
+        checked["repository_root"]
+    );
+    assert_eq!(after_inspection["counts"]["accepted_claims"], 0);
     let target_index: Value = serde_json::from_slice(
         &std::fs::read(frontier.join("targets.json")).expect("rebound Target Index"),
     )

@@ -126,6 +126,7 @@ node "$repo/conformance/emitters/javascript.mjs" verification \
 publish_fixture_delta 'Retain independent Verification Record'
 
 "$vela" review show "$frontier" "$proposal_id" --json >"$root/review.json"
+"$vela" review inbox "$frontier" --json >"$root/inbox.json"
 "$vela" status "$frontier" --json >"$root/status.json"
 repository_root_after="$(jq -r '.roots.repository' "$root/status.json")"
 
@@ -139,13 +140,25 @@ repository_root_after="$(jq -r '.roots.repository' "$root/status.json")"
 [[ "$(jq -r '.standing' "$root/review.json")" == pending_review ]]
 [[ "$(jq -r '.decision' "$root/review.json")" == null ]]
 [[ "$(jq -r '.authority_boundary' "$root/review.json")" == "Verification records report bounded checks. Only a repository-authority Decision can change standing." ]]
+[[ "$(jq -r '.schema' "$root/inbox.json")" == vela.decision-inbox.v2 ]]
+[[ "$(jq -r '.entries | length' "$root/inbox.json")" == 1 ]]
+[[ "$(jq -r '.decision_inbox.entry.entry_root' "$root/review.json")" == "$(jq -r '.entries[0].entry_root' "$root/inbox.json")" ]]
+[[ "$(jq -r '.entries[0].standing_delta.before.repository_root' "$root/inbox.json")" == "$repository_root_after" ]]
+[[ "$(jq -r '.entries[0].standing_delta.scope.affected_claim_ids | length' "$root/inbox.json")" == 1 ]]
+[[ "$(jq -r '.entries[0].standing_delta.scope.affected_claim_ids[0]' "$root/inbox.json")" == "$claim_id" ]]
+[[ "$(jq -r '.entries[0].standing_delta.counts.global_accepted_claims.before' "$root/inbox.json")" == "$accepted_claims_before" ]]
+[[ "$(jq -r '.entries[0].standing_delta.counts.global_accepted_claims.if_accept' "$root/inbox.json")" == "$((accepted_claims_before + 1))" ]]
+[[ "$(jq -r '.entries[0].standing_delta.counts.global_accepted_claims.if_reject' "$root/inbox.json")" == "$accepted_claims_before" ]]
 [[ -z "$(git -C "$frontier" status --porcelain=v1 --untracked-files=all)" ]]
 
 git clone -q --no-hardlinks "$remote" "$replay"
 "$vela" status "$replay" --json >"$root/replay-status.json"
 "$vela" review show "$replay" "$proposal_id" --json >"$root/replay-review.json"
+"$vela" review inbox "$replay" --json >"$root/replay-inbox.json"
 [[ "$(jq -r '.roots.repository' "$root/replay-status.json")" == "$repository_root_after" ]]
 [[ "$(jq -r '.verification_records[0].record.verification_record_id' "$root/replay-review.json")" == "$(jq -r '.verification_record_id' "$root/import.json")" ]]
+[[ "$(jq -r '.projection_root' "$root/replay-inbox.json")" == "$(jq -r '.projection_root' "$root/inbox.json")" ]]
+[[ "$(jq -r '.entries[0].entry_root' "$root/replay-inbox.json")" == "$(jq -r '.entries[0].entry_root' "$root/inbox.json")" ]]
 [[ -z "$(git -C "$replay" status --porcelain=v1 --untracked-files=all)" ]]
 
 jq -cn \

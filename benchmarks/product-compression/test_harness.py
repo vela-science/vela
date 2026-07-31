@@ -19,7 +19,7 @@ def root(character: str) -> str:
 def answer() -> dict:
     claim, receipt = f"vcl_{'d' * 64}", root("6")
     return {
-        "schema": "vela.product-compression-answer.v2",
+        "schema": "vela.product-compression-answer.v3",
         "work": {"frontier_id": "vfr_0123456789abcdef", "repository_root": root("1"), "target_id": "erdos:1056", "target_index_root": root("2"), "packet_sha256": root("3")},
         "campaign": {
             "attempt_id": f"vat_{'4' * 64}", "authorization_root": root("5"), "state": "completed_target_advanced", "completed_target_packet_sha256": root("0"), "consequence_ceiling": "pending_review",
@@ -31,7 +31,7 @@ def answer() -> dict:
             ],
             "next_action_code": "start_successor_attempt",
         },
-        "review": {"proposal_id": "vpr_0123456789abcdef", "proposal_root": root("a"), "source_submission_id": "vsb_0123456789abcdef", "target_claim_id": claim, "verification_id": "vvr_0123456789abcdef", "inbox_projection_root": root("b"), "inbox_entry_root": root("c"), "protocol_gate": "satisfied", "human_decision_required": True, "verification_is_acceptance": False, "standing_transition": "add accepted Claim", "accepted_before": [], "accepted_if_accept": [{"claim_id": claim, "claim_root": root("e")}], "accepted_if_reject": [], "staleness": "current", "next_if_accept_code": "replay_and_recompute_targets", "next_if_reject_code": "replay_without_standing_change"},
+        "review": {"proposal_id": "vpr_0123456789abcdef", "proposal_root": root("a"), "source_submission_id": "vsb_0123456789abcdef", "proposed_claim_id": claim, "verification_id": "vvr_0123456789abcdef", "inbox_projection_root": root("b"), "inbox_entry_root": root("c"), "protocol_gate": "satisfied", "human_decision_required": True, "verification_is_acceptance": False, "standing_delta": {"transition": "add accepted Claim", "scope": {"kind": "proposal_affected_claims", "target_claim_id": claim, "affected_claim_ids": [claim]}, "before": {"repository_root": root("1"), "accepted": []}, "if_accept": {"repository_root": root("4"), "accepted": [{"claim_id": claim, "claim_root": root("e")}]}, "if_reject": {"repository_root": root("5"), "accepted": []}, "counts": {"unchanged_accepted_claims": 0, "global_accepted_claims": {"before": 0, "if_accept": 1, "if_reject": 0}}}, "staleness": "current", "next_if_accept_code": "replay_and_recompute_targets", "next_if_reject_code": "replay_without_standing_change"},
         "safety": {"authority_action_performed": False, "accepted_state_changed": False},
     }
 
@@ -67,7 +67,7 @@ def plan() -> dict:
 
 
 def answer_key() -> dict:
-    return harness.seal({"schema": "vela.product-compression-answer-key.v2", "answer_key_root": "", "fixture_root": root("f"), "expected": answer()}, "answer_key_root")
+    return harness.seal({"schema": "vela.product-compression-answer-key.v3", "answer_key_root": "", "fixture_root": root("f"), "expected": answer()}, "answer_key_root")
 
 
 def frozen_material() -> tuple[dict, dict]:
@@ -196,7 +196,7 @@ class HarnessTests(unittest.TestCase):
         with self.assertRaisesRegex(harness.ContractError, "receipt chain"):
             harness.validate_answer(value)
         value = answer()
-        value["review"]["accepted_if_reject"] = value["review"]["accepted_if_accept"]
+        value["review"]["standing_delta"]["if_reject"] = value["review"]["standing_delta"]["if_accept"]
         with self.assertRaisesRegex(harness.ContractError, "rejection must preserve"):
             harness.validate_answer(value)
 
@@ -358,7 +358,7 @@ class HarnessTests(unittest.TestCase):
                 "readiness": {"protocol_gate": "satisfied", "human_decision_required": True},
                 "staleness": {"state": "current"},
                 "verification_records": [{"verification_record_id": "vvr_0123456789abcdef", "verification_record_root": root("f")}],
-                "standing_diff": {"transition": "add accepted Claim", "accepted_before": [], "accepted_if_accept": [{"claim_id": claim_id, "claim_root": root("e")}], "accepted_if_reject": []},
+                "standing_delta": {"transition": "add accepted Claim", "scope": {"kind": "proposal_affected_claims", "target_claim_id": claim_id, "affected_claim_ids": [claim_id]}, "before": {"repository_root": root("1"), "accepted": []}, "if_accept": {"repository_root": root("4"), "accepted": [{"claim_id": claim_id, "claim_root": root("e")}]}, "if_reject": {"repository_root": root("5"), "accepted": []}, "counts": {"unchanged_accepted_claims": 0, "global_accepted_claims": {"before": 0, "if_accept": 1, "if_reject": 0}}},
                 "entry_root": root("c"),
             }
             status = {"campaign": {"active_attempt_count": 0}}

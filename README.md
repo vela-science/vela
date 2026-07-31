@@ -204,6 +204,12 @@ typed, content-addressed objects and an append-only repository-authority
 history. Generated indexes, Web pages, databases, graphs, and materialized
 views are disposable readers.
 
+The Vela source repository is not itself a Frontier: do not run `vela init`
+here and do not add a root `.vela/` directory. A project-local `.vela/` belongs
+only to a real Frontier and contains that Frontier's repository-control state.
+User-local `~/.vela/` contains private configuration and runtime data; it is
+never scientific Standing and must not be copied into Git.
+
 The portable interoperability boundary is the Submission, not a Vela-internal
 Event. Workbenches can emit Submission bytes without importing the Vela
 runtime. Verifiers can emit scoped Verification Records without receiving

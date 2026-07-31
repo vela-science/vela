@@ -744,7 +744,8 @@ supplies no evidence for weakening Vela's authority boundary.
 The Decision Inbox is a private, deterministic projection of real pending
 Proposals, their Submissions and Verification Records, current Standing,
 policy, keyset, and authority heads. It has no retained outbox schema and no
-independent lifecycle. V1 contains Proposal-based scientific Decisions only.
+independent lifecycle. The current projection contains Proposal-based
+scientific Decisions only.
 An existing typed policy or authority planner may later expose an exact rooted
 input in the same inspection surface, but the Inbox never invents a generic
 high-impact-action record to make unlike actions look batchable.
@@ -754,7 +755,7 @@ one scientific Decision is pending and link to the same exact rooted entry,
 but it does not expose a generic agent outbox. There is no transport queue,
 copied review object, or second status model between execution and review.
 
-The v1 projection contains only meaningful scientific consequences:
+The projection contains only meaningful scientific consequences:
 
 1. accept or reject a pending Claim;
 2. accept or reject a correction, retraction, or supersession Proposal; or
@@ -782,6 +783,14 @@ Detail answers five questions: what changed, what evidence and limits support
 it, what Decision is requested, what consequence follows, and what obligation
 comes next. It shows the semantic diff and evidence chain, with exact roots one
 disclosure away.
+
+The current v2 entry also exposes one target-scoped Standing delta derived
+from the existing pure Decision transition: exact affected Claim IDs,
+current/accept/reject accepted subsets and repository roots, unchanged accepted
+count, and global accepted counts. The projection fails closed if a preview
+changes accepted Standing outside that declared Claim scope. It remains a
+read-only explanation of existing semantics, not a new protocol object or an
+authority action.
 
 The interaction contract is deliberately smaller than a generic agent
 approval dashboard:

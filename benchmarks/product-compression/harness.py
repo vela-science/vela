@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Closed, source-only contracts for product-compression v2."""
+"""Closed, source-only contracts for the current product-compression study."""
 
 from __future__ import annotations
 
@@ -45,6 +45,18 @@ DEFAULT_BUDGETS = {
 }
 MAYBE_TEXT = (str, type(None))
 STANDING = [{"claim_id": str, "claim_root": str}]
+STANDING_STATE = {"repository_root": str, "accepted": STANDING}
+STANDING_DELTA = {
+    "transition": str,
+    "scope": {"kind": str, "target_claim_id": str, "affected_claim_ids": [str]},
+    "before": STANDING_STATE,
+    "if_accept": STANDING_STATE,
+    "if_reject": STANDING_STATE,
+    "counts": {
+        "unchanged_accepted_claims": int,
+        "global_accepted_claims": {"before": int, "if_accept": int, "if_reject": int},
+    },
+}
 RUN = {
     "run_number": int, "run_id": str, "receipt_root": str,
     "previous_receipt_root": MAYBE_TEXT, "evidence_root": str,
@@ -67,11 +79,10 @@ ANSWER = {
     },
     "review": {
         "proposal_id": str, "proposal_root": str, "source_submission_id": str,
-        "target_claim_id": str, "verification_id": str, "inbox_projection_root": str,
+        "proposed_claim_id": str, "verification_id": str, "inbox_projection_root": str,
         "inbox_entry_root": str, "protocol_gate": str, "human_decision_required": bool,
-        "verification_is_acceptance": bool, "standing_transition": str,
-        "accepted_before": STANDING, "accepted_if_accept": STANDING,
-        "accepted_if_reject": STANDING, "staleness": str,
+        "verification_is_acceptance": bool, "standing_delta": STANDING_DELTA,
+        "staleness": str,
         "next_if_accept_code": str, "next_if_reject_code": str,
     },
     "safety": {"authority_action_performed": bool, "accepted_state_changed": bool},
@@ -224,7 +235,7 @@ def rooted(value: dict[str, Any], field: str, location: str = "$") -> None:
 
 def validate_answer(value: Any) -> None:
     shape(value, ANSWER)
-    if value["schema"] != "vela.product-compression-answer.v2":
+    if value["schema"] != "vela.product-compression-answer.v3":
         raise ContractError("$.schema: wrong answer schema")
     work, campaign, review = value["work"], value["campaign"], value["review"]
     matches(work["frontier_id"], PATTERNS["frontier"], "$.work.frontier_id")
@@ -266,7 +277,7 @@ def validate_answer(value: Any) -> None:
     if campaign["next_action_code"] != "start_successor_attempt":
         raise ContractError("$.campaign.next_action_code: expected start_successor_attempt")
     id_links = (("proposal_id", "proposal"), ("source_submission_id", "submission"),
-                ("target_claim_id", "claim"), ("verification_id", "verification"))
+                ("proposed_claim_id", "claim"), ("verification_id", "verification"))
     for field, kind in id_links:
         matches(review[field], PATTERNS[kind], f"$.review.{field}")
     roots(review, ("proposal_root", "inbox_projection_root", "inbox_entry_root"), "$.review")
@@ -274,22 +285,46 @@ def validate_answer(value: Any) -> None:
         raise ContractError("$.review: Proposal is not linked to registered Run Submission")
     if review["protocol_gate"] not in {"satisfied", "blocked"} or review["staleness"] not in {"current", "stale"}:
         raise ContractError("$.review: invalid readiness state")
-    required_review = (True, False, "add accepted Claim", "replay_and_recompute_targets", "replay_without_standing_change")
-    observed_review = (review["human_decision_required"], review["verification_is_acceptance"], review["standing_transition"], review["next_if_accept_code"], review["next_if_reject_code"])
+    required_review = (True, False, "replay_and_recompute_targets", "replay_without_standing_change")
+    observed_review = (review["human_decision_required"], review["verification_is_acceptance"], review["next_if_accept_code"], review["next_if_reject_code"])
     if observed_review != required_review:
         raise ContractError("$.review: authority or next-obligation contract is misstated")
-    for field in ("accepted_before", "accepted_if_accept", "accepted_if_reject"):
-        for index, standing in enumerate(review[field]):
-            matches(standing["claim_id"], PATTERNS["claim"], f"$.review.{field}[{index}].claim_id")
-            roots(standing, ("claim_root",), f"$.review.{field}[{index}]")
-        if len({item["claim_id"] for item in review[field]}) != len(review[field]):
-            raise ContractError(f"$.review.{field}: duplicate Claim")
-    before, accepted, rejected = review["accepted_before"], review["accepted_if_accept"], review["accepted_if_reject"]
+    delta = review["standing_delta"]
+    if delta["transition"] != "add accepted Claim" or delta["scope"]["kind"] != "proposal_affected_claims":
+        raise ContractError("$.review.standing_delta: wrong transition or scope")
+    scope = delta["scope"]
+    matches(scope["target_claim_id"], PATTERNS["claim"], "$.review.standing_delta.scope.target_claim_id")
+    if scope["target_claim_id"] != review["proposed_claim_id"]:
+        raise ContractError("$.review.standing_delta.scope: add must target the proposed Claim")
+    if len(set(scope["affected_claim_ids"])) != len(scope["affected_claim_ids"]) or set(scope["affected_claim_ids"]) != {review["proposed_claim_id"]}:
+        raise ContractError("$.review.standing_delta.scope: add must affect exactly the proposed Claim")
+    for field in ("before", "if_accept", "if_reject"):
+        state = delta[field]
+        roots(state, ("repository_root",), f"$.review.standing_delta.{field}")
+        for index, standing in enumerate(state["accepted"]):
+            matches(standing["claim_id"], PATTERNS["claim"], f"$.review.standing_delta.{field}.accepted[{index}].claim_id")
+            roots(standing, ("claim_root",), f"$.review.standing_delta.{field}.accepted[{index}]")
+        if len({item["claim_id"] for item in state["accepted"]}) != len(state["accepted"]):
+            raise ContractError(f"$.review.standing_delta.{field}.accepted: duplicate Claim")
+        if any(item["claim_id"] not in scope["affected_claim_ids"] for item in state["accepted"]):
+            raise ContractError(f"$.review.standing_delta.{field}.accepted: Claim is outside scope")
+    before = delta["before"]["accepted"]
+    accepted = delta["if_accept"]["accepted"]
+    rejected = delta["if_reject"]["accepted"]
     additions = [item for item in accepted if item not in before]
     if rejected != before:
-        raise ContractError("$.review.accepted_if_reject: rejection must preserve Standing")
-    if len(accepted) != len(before) + 1 or len(additions) != 1 or additions[0]["claim_id"] != review["target_claim_id"]:
-        raise ContractError("$.review.accepted_if_accept: must add exactly proposed Claim")
+        raise ContractError("$.review.standing_delta.if_reject: rejection must preserve scoped Standing")
+    if len(accepted) != len(before) + 1 or len(additions) != 1 or additions[0]["claim_id"] != review["proposed_claim_id"]:
+        raise ContractError("$.review.standing_delta.if_accept: must add exactly proposed Claim")
+    counts = delta["counts"]
+    nonnegative({"unchanged_accepted_claims": counts["unchanged_accepted_claims"]}, "$.review.standing_delta.counts")
+    nonnegative(counts["global_accepted_claims"], "$.review.standing_delta.counts.global_accepted_claims")
+    global_counts = counts["global_accepted_claims"]
+    for field, scoped in (("before", before), ("if_accept", accepted), ("if_reject", rejected)):
+        if global_counts[field] != counts["unchanged_accepted_claims"] + len(scoped):
+            raise ContractError(f"$.review.standing_delta.counts.global_accepted_claims.{field}: disagrees with scoped delta")
+    if delta["before"]["repository_root"] != value["work"]["repository_root"]:
+        raise ContractError("$.review.standing_delta.before.repository_root: does not bind inspected repository")
     if value["safety"] != {"authority_action_performed": False, "accepted_state_changed": False}:
         raise ContractError("$.safety: inspection must remain read-only")
 
@@ -345,7 +380,7 @@ def validate_plan(value: Any) -> None:
 
 def validate_answer_key(value: Any) -> None:
     shape(value, {"schema": str, "answer_key_root": str, "fixture_root": str, "expected": ANSWER})
-    if value["schema"] != "vela.product-compression-answer-key.v2":
+    if value["schema"] != "vela.product-compression-answer-key.v3":
         raise ContractError("$.schema: wrong answer-key schema")
     roots(value, ("fixture_root",), "$")
     validate_answer(value["expected"])

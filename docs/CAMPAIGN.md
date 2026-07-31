@@ -1106,6 +1106,14 @@ unchanged—without forcing a cold researcher to reconstruct global state. A new
 study receives a new plan root only after that interface changes. The result
 earns no new runner, adapter, hosted analysis service, or workflow framework.
 
+That product seam is now implemented in the read-only
+`vela.decision-inbox.v2` projection. It reuses the existing pure Decision
+preview, names the exact affected Claim scope, binds current/accept/reject
+repository roots, reports unchanged and global accepted counts, and refuses a
+preview that changes accepted Standing outside the declared scope. This fixes
+the diagnosed ambiguity; it does not retroactively pass the frozen study or
+earn a product-lift claim. Any confirmation study requires a new plan root.
+
 Repository ownership is explicit. Vela tracks the reusable benchmark
 definition under `benchmarks/product-compression`; compact final result roots
 cited by the paper belong under `paper/artifacts`; ignored Harbor jobs,

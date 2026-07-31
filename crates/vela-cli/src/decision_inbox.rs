@@ -23,10 +23,10 @@ use crate::current_repository_decision::{
     submission_for_proposal, verification_satisfies_requirement, verification_set_root,
 };
 
-const ENTRY_SCHEMA: &str = "vela.decision-inbox-entry.v1";
-const ENTRY_DOMAIN: &[u8] = b"vela.decision-inbox-entry.v1\0";
-const PROJECTION_SCHEMA: &str = "vela.decision-inbox.v1";
-const PROJECTION_DOMAIN: &[u8] = b"vela.decision-inbox.v1\0";
+const ENTRY_SCHEMA: &str = "vela.decision-inbox-entry.v2";
+const ENTRY_DOMAIN: &[u8] = b"vela.decision-inbox-entry.v2\0";
+const PROJECTION_SCHEMA: &str = "vela.decision-inbox.v2";
+const PROJECTION_DOMAIN: &[u8] = b"vela.decision-inbox.v2\0";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -87,14 +87,43 @@ pub(crate) struct AcceptedStanding {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct DecisionInboxStandingDiff {
-    pub(crate) transition: String,
+pub(crate) struct DecisionInboxStandingScope {
+    pub(crate) kind: String,
     pub(crate) target_claim_id: String,
-    pub(crate) accepted_before: Vec<AcceptedStanding>,
-    pub(crate) accepted_if_accept: Vec<AcceptedStanding>,
-    pub(crate) accepted_if_reject: Vec<AcceptedStanding>,
-    pub(crate) repository_root_if_accept: String,
-    pub(crate) repository_root_if_reject: String,
+    pub(crate) affected_claim_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct DecisionInboxStandingState {
+    pub(crate) repository_root: String,
+    pub(crate) accepted: Vec<AcceptedStanding>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct DecisionInboxGlobalAcceptedCounts {
+    pub(crate) before: usize,
+    pub(crate) if_accept: usize,
+    pub(crate) if_reject: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct DecisionInboxStandingCounts {
+    pub(crate) unchanged_accepted_claims: usize,
+    pub(crate) global_accepted_claims: DecisionInboxGlobalAcceptedCounts,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct DecisionInboxStandingDelta {
+    pub(crate) transition: String,
+    pub(crate) scope: DecisionInboxStandingScope,
+    pub(crate) before: DecisionInboxStandingState,
+    pub(crate) if_accept: DecisionInboxStandingState,
+    pub(crate) if_reject: DecisionInboxStandingState,
+    pub(crate) counts: DecisionInboxStandingCounts,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -131,7 +160,7 @@ pub(crate) struct DecisionInboxEntry {
     pub(crate) verification_requirements: Vec<String>,
     pub(crate) verification_records: Vec<DecisionInboxVerification>,
     pub(crate) readiness: DecisionInboxReadiness,
-    pub(crate) standing_diff: DecisionInboxStandingDiff,
+    pub(crate) standing_delta: DecisionInboxStandingDelta,
     pub(crate) limits: Vec<String>,
     pub(crate) staleness: DecisionInboxStaleness,
     pub(crate) next_obligation: DecisionInboxNextObligation,
@@ -256,6 +285,23 @@ fn accepted_subset(
     values
 }
 
+fn accepted_outside_scope(
+    repository: &CurrentRepositoryV3,
+    affected_claim_ids: &BTreeSet<String>,
+) -> Vec<AcceptedStanding> {
+    let mut values = repository
+        .accepted_claims
+        .iter()
+        .filter(|reference| !affected_claim_ids.contains(&reference.claim_id))
+        .map(|reference| AcceptedStanding {
+            claim_id: reference.claim_id.clone(),
+            claim_root: reference.claim_root.clone(),
+        })
+        .collect::<Vec<_>>();
+    values.sort();
+    values
+}
+
 fn semantic_transition(
     proposal: &ProposalV1,
     claim: &ClaimRecordV1,
@@ -369,6 +415,15 @@ fn derive_entry(inputs: EntryInputs<'_>) -> Result<DecisionInboxEntry, String> {
         DecisionAction::Reject,
     )?;
     let (transition, target_claim_id, affected_claim_ids) = semantic_transition(proposal, claim)?;
+    let unchanged_accepted = accepted_outside_scope(inputs.repository, &affected_claim_ids);
+    if unchanged_accepted != accepted_outside_scope(&accepted, &affected_claim_ids)
+        || unchanged_accepted != accepted_outside_scope(&rejected, &affected_claim_ids)
+    {
+        return Err(format!(
+            "Decision Inbox Proposal {} changes accepted Standing outside its declared Claim scope",
+            proposal.proposal_id
+        ));
+    }
     let verification_set_root = verification_set_root(records)?;
     let verification_records = records
         .iter()
@@ -416,14 +471,33 @@ fn derive_entry(inputs: EntryInputs<'_>) -> Result<DecisionInboxEntry, String> {
             rejection_available: true,
             blockers,
         },
-        standing_diff: DecisionInboxStandingDiff {
+        standing_delta: DecisionInboxStandingDelta {
             transition,
-            target_claim_id,
-            accepted_before: accepted_subset(inputs.repository, &affected_claim_ids),
-            accepted_if_accept: accepted_subset(&accepted, &affected_claim_ids),
-            accepted_if_reject: accepted_subset(&rejected, &affected_claim_ids),
-            repository_root_if_accept: accepted.canonical_root()?,
-            repository_root_if_reject: rejected.canonical_root()?,
+            scope: DecisionInboxStandingScope {
+                kind: "proposal_affected_claims".into(),
+                target_claim_id,
+                affected_claim_ids: affected_claim_ids.iter().cloned().collect(),
+            },
+            before: DecisionInboxStandingState {
+                repository_root: inputs.repository_root.into(),
+                accepted: accepted_subset(inputs.repository, &affected_claim_ids),
+            },
+            if_accept: DecisionInboxStandingState {
+                repository_root: accepted.canonical_root()?,
+                accepted: accepted_subset(&accepted, &affected_claim_ids),
+            },
+            if_reject: DecisionInboxStandingState {
+                repository_root: rejected.canonical_root()?,
+                accepted: accepted_subset(&rejected, &affected_claim_ids),
+            },
+            counts: DecisionInboxStandingCounts {
+                unchanged_accepted_claims: unchanged_accepted.len(),
+                global_accepted_claims: DecisionInboxGlobalAcceptedCounts {
+                    before: inputs.repository.accepted_claims.len(),
+                    if_accept: accepted.accepted_claims.len(),
+                    if_reject: rejected.accepted_claims.len(),
+                },
+            },
         },
         limits: unique_limits(proposal, submission, records),
         staleness: DecisionInboxStaleness {
@@ -639,7 +713,18 @@ pub(crate) fn cmd_decision_inbox(frontier: &Path, json_output: bool) {
             readiness, entry.proposal_id, entry.proposal_action
         );
         println!("  {}", crate::cli::safe_text::inline(&entry.assertion));
-        println!("  Change: {}", entry.standing_diff.transition);
+        println!("  Change: {}", entry.standing_delta.transition);
+        println!(
+            "  Standing: {} affected accepted Claim{} now · {} if accepted · {} if rejected",
+            entry.standing_delta.before.accepted.len(),
+            if entry.standing_delta.before.accepted.len() == 1 {
+                ""
+            } else {
+                "s"
+            },
+            entry.standing_delta.if_accept.accepted.len(),
+            entry.standing_delta.if_reject.accepted.len()
+        );
         println!(
             "  Evidence: {requirement_satisfying} requirement-satisfying · \
              {complementary} complementary · {blocking} blocking · \
@@ -970,15 +1055,30 @@ mod tests {
             )
             .is_ok()
         );
-        assert!(entry.standing_diff.accepted_before.is_empty());
+        assert_eq!(entry.standing_delta.scope.kind, "proposal_affected_claims");
         assert_eq!(
-            entry.standing_diff.accepted_if_accept,
+            entry.standing_delta.scope.affected_claim_ids,
+            vec![subject.claim_id.clone()]
+        );
+        assert!(entry.standing_delta.before.accepted.is_empty());
+        assert_eq!(
+            entry.standing_delta.if_accept.accepted,
             vec![AcceptedStanding {
                 claim_id: subject.claim_id.clone(),
                 claim_root: subject.canonical_root().unwrap(),
             }]
         );
-        assert!(entry.standing_diff.accepted_if_reject.is_empty());
+        assert!(entry.standing_delta.if_reject.accepted.is_empty());
+        assert_eq!(entry.standing_delta.counts.unchanged_accepted_claims, 0);
+        assert_eq!(entry.standing_delta.counts.global_accepted_claims.before, 0);
+        assert_eq!(
+            entry.standing_delta.counts.global_accepted_claims.if_accept,
+            1
+        );
+        assert_eq!(
+            entry.standing_delta.counts.global_accepted_claims.if_reject,
+            0
+        );
         assert_eq!(
             entry.inputs.proposal_root,
             proposal.canonical_root().unwrap()
@@ -1040,7 +1140,7 @@ mod tests {
         assert_eq!(context["entry"]["entry_root"], entry.entry_root);
         assert_eq!(context["entry"]["readiness"]["protocol_gate"], "satisfied");
         assert_eq!(
-            context["entry"]["standing_diff"]["accepted_if_accept"][0]["claim_id"],
+            context["entry"]["standing_delta"]["if_accept"]["accepted"][0]["claim_id"],
             subject.claim_id
         );
         assert_eq!(context["entry"]["staleness"]["state"], "current");
@@ -1138,6 +1238,7 @@ mod tests {
     #[test]
     fn correction_diff_replaces_only_the_exact_predecessor() {
         let original = claim("Original bounded result.", 1, Vec::new());
+        let unrelated = claim("Unrelated accepted result.", 1, Vec::new());
         let correction = claim(
             "Corrected bounded result.",
             2,
@@ -1151,7 +1252,10 @@ mod tests {
         let proposal = proposal("claim.revise", &correction, &submission);
         let verification = verification(&proposal, &submission, requirement, "pass");
         let repository = repository(
-            vec![claim_standing(&original, "accepted")],
+            vec![
+                claim_standing(&original, "accepted"),
+                claim_standing(&unrelated, "accepted"),
+            ],
             vec![claim_standing(&correction, "pending_review")],
             &proposal,
             &submission,
@@ -1166,22 +1270,88 @@ mod tests {
             &heads(),
         );
 
-        assert_eq!(entry.standing_diff.target_claim_id, original.claim_id);
+        assert_eq!(entry.standing_delta.scope.kind, "proposal_affected_claims");
         assert_eq!(
-            entry.standing_diff.accepted_before[0].claim_id,
+            entry.standing_delta.scope.target_claim_id,
+            original.claim_id
+        );
+        let mut affected_claim_ids = vec![correction.claim_id.clone(), original.claim_id.clone()];
+        affected_claim_ids.sort();
+        assert_eq!(
+            entry.standing_delta.scope.affected_claim_ids,
+            affected_claim_ids
+        );
+        assert_eq!(
+            entry.standing_delta.before.accepted[0].claim_id,
             original.claim_id
         );
         assert_eq!(
-            entry.standing_diff.accepted_if_accept[0].claim_id,
+            entry.standing_delta.if_accept.accepted[0].claim_id,
             correction.claim_id
         );
         assert_eq!(
-            entry.standing_diff.accepted_if_reject[0].claim_id,
+            entry.standing_delta.if_reject.accepted[0].claim_id,
             original.claim_id
         );
+        assert_eq!(entry.standing_delta.counts.unchanged_accepted_claims, 1);
+        assert_eq!(entry.standing_delta.counts.global_accepted_claims.before, 2);
+        assert_eq!(
+            entry.standing_delta.counts.global_accepted_claims.if_accept,
+            2
+        );
+        assert_eq!(
+            entry.standing_delta.counts.global_accepted_claims.if_reject,
+            2
+        );
         assert_ne!(
-            entry.standing_diff.repository_root_if_accept,
-            entry.standing_diff.repository_root_if_reject
+            entry.standing_delta.if_accept.repository_root,
+            entry.standing_delta.if_reject.repository_root
+        );
+    }
+
+    #[test]
+    fn withdrawal_delta_removes_only_the_exact_accepted_claim() {
+        let subject = claim("Withdraw this bounded result.", 1, Vec::new());
+        let unrelated = claim("Keep this unrelated result.", 1, Vec::new());
+        let requirement = "Inspect the exact withdrawal evidence.";
+        let submission = submission(requirement);
+        let proposal = proposal("claim.withdraw", &subject, &submission);
+        let verification = verification(&proposal, &submission, requirement, "pass");
+        let repository = repository(
+            vec![
+                claim_standing(&subject, "accepted"),
+                claim_standing(&unrelated, "accepted"),
+            ],
+            Vec::new(),
+            &proposal,
+            &submission,
+            &verification,
+        );
+        let entry = derive_fixture(
+            &repository,
+            &proposal,
+            &subject,
+            &submission,
+            &verification,
+            &heads(),
+        );
+
+        assert_eq!(
+            entry.standing_delta.scope.affected_claim_ids,
+            vec![subject.claim_id.clone()]
+        );
+        assert_eq!(entry.standing_delta.before.accepted.len(), 1);
+        assert!(entry.standing_delta.if_accept.accepted.is_empty());
+        assert_eq!(entry.standing_delta.if_reject.accepted.len(), 1);
+        assert_eq!(entry.standing_delta.counts.unchanged_accepted_claims, 1);
+        assert_eq!(entry.standing_delta.counts.global_accepted_claims.before, 2);
+        assert_eq!(
+            entry.standing_delta.counts.global_accepted_claims.if_accept,
+            1
+        );
+        assert_eq!(
+            entry.standing_delta.counts.global_accepted_claims.if_reject,
+            2
         );
     }
 

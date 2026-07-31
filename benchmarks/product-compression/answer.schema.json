@@ -4,7 +4,7 @@
   "additionalProperties": false,
   "required": ["schema", "work", "campaign", "review", "safety"],
   "properties": {
-    "schema": {"type": "string", "const": "vela.product-compression-answer.v2"},
+    "schema": {"type": "string", "const": "vela.product-compression-answer.v3"},
     "work": {"$ref": "#/$defs/work"},
     "campaign": {"$ref": "#/$defs/campaign"},
     "review": {"$ref": "#/$defs/review"},
@@ -18,6 +18,49 @@
       "properties": {
         "claim_id": {"type": "string", "pattern": "^vcl_[0-9a-f]{64}$"},
         "claim_root": {"$ref": "#/$defs/root"}
+      }
+    },
+    "standingState": {
+      "type": "object", "additionalProperties": false,
+      "required": ["repository_root", "accepted"],
+      "properties": {
+        "repository_root": {"$ref": "#/$defs/root"},
+        "accepted": {"type": "array", "items": {"$ref": "#/$defs/standing"}}
+      }
+    },
+    "standingDelta": {
+      "type": "object", "additionalProperties": false,
+      "required": ["transition", "scope", "before", "if_accept", "if_reject", "counts"],
+      "properties": {
+        "transition": {"type": "string", "const": "add accepted Claim"},
+        "scope": {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "target_claim_id", "affected_claim_ids"],
+          "properties": {
+            "kind": {"type": "string", "const": "proposal_affected_claims"},
+            "target_claim_id": {"type": "string", "pattern": "^vcl_[0-9a-f]{64}$"},
+            "affected_claim_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^vcl_[0-9a-f]{64}$"}}
+          }
+        },
+        "before": {"$ref": "#/$defs/standingState"},
+        "if_accept": {"$ref": "#/$defs/standingState"},
+        "if_reject": {"$ref": "#/$defs/standingState"},
+        "counts": {
+          "type": "object", "additionalProperties": false,
+          "required": ["unchanged_accepted_claims", "global_accepted_claims"],
+          "properties": {
+            "unchanged_accepted_claims": {"type": "integer", "minimum": 0},
+            "global_accepted_claims": {
+              "type": "object", "additionalProperties": false,
+              "required": ["before", "if_accept", "if_reject"],
+              "properties": {
+                "before": {"type": "integer", "minimum": 0},
+                "if_accept": {"type": "integer", "minimum": 0},
+                "if_reject": {"type": "integer", "minimum": 0}
+              }
+            }
+          }
+        }
       }
     },
     "work": {
@@ -86,22 +129,19 @@
     },
     "review": {
       "type": "object", "additionalProperties": false,
-      "required": ["proposal_id", "proposal_root", "source_submission_id", "target_claim_id", "verification_id", "inbox_projection_root", "inbox_entry_root", "protocol_gate", "human_decision_required", "verification_is_acceptance", "standing_transition", "accepted_before", "accepted_if_accept", "accepted_if_reject", "staleness", "next_if_accept_code", "next_if_reject_code"],
+      "required": ["proposal_id", "proposal_root", "source_submission_id", "proposed_claim_id", "verification_id", "inbox_projection_root", "inbox_entry_root", "protocol_gate", "human_decision_required", "verification_is_acceptance", "standing_delta", "staleness", "next_if_accept_code", "next_if_reject_code"],
       "properties": {
         "proposal_id": {"type": "string", "pattern": "^vpr_[0-9a-f]{16}$"},
         "proposal_root": {"$ref": "#/$defs/root"},
         "source_submission_id": {"type": "string", "pattern": "^vsb_[0-9a-f]{16}$"},
-        "target_claim_id": {"type": "string", "pattern": "^vcl_[0-9a-f]{64}$"},
+        "proposed_claim_id": {"type": "string", "pattern": "^vcl_[0-9a-f]{64}$"},
         "verification_id": {"type": "string", "pattern": "^vvr_[0-9a-f]{16}$"},
         "inbox_projection_root": {"$ref": "#/$defs/root"},
         "inbox_entry_root": {"$ref": "#/$defs/root"},
         "protocol_gate": {"enum": ["satisfied", "blocked"]},
         "human_decision_required": {"type": "boolean", "const": true},
         "verification_is_acceptance": {"type": "boolean", "const": false},
-        "standing_transition": {"type": "string", "const": "add accepted Claim"},
-        "accepted_before": {"type": "array", "items": {"$ref": "#/$defs/standing"}},
-        "accepted_if_accept": {"type": "array", "items": {"$ref": "#/$defs/standing"}},
-        "accepted_if_reject": {"type": "array", "items": {"$ref": "#/$defs/standing"}},
+        "standing_delta": {"$ref": "#/$defs/standingDelta"},
         "staleness": {"enum": ["current", "stale"]},
         "next_if_accept_code": {"type": "string", "const": "replay_and_recompute_targets"},
         "next_if_reject_code": {"type": "string", "const": "replay_without_standing_change"}

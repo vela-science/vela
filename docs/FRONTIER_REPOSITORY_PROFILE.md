@@ -14,6 +14,23 @@ shared. Split a Frontier when one of those boundaries changes materially.
 Generated databases, graphs, sites, and search indexes are disposable readers.
 They never become canonical because they are convenient to query.
 
+## Keep the three `.vela` boundaries separate
+
+The Vela implementation repository is source code, conformance fixtures,
+bounded benchmark definitions, and publication evidence. It is not a
+Frontier, must not contain a root `.vela/`, and must not be used as a convenient
+home for scientific records.
+
+A Frontier-local `.vela/` is repository control state for that one scientific
+boundary. Canonical identity and authority bytes are tracked; private work,
+temporary candidates, and recovery journals are ignored. Domain artifacts and
+scientific records stay in the Frontier repository rather than moving into the
+Vela implementation repository.
+
+User-local `~/.vela/` is private machine state: configuration, identity
+custody, and local execution output. Nothing there is canonical scientific
+state. Repositories and readers must not depend on it for replay.
+
 ## Profile v2
 
 `frontier.yaml` is closed, human-readable metadata:

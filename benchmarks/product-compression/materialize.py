@@ -193,7 +193,7 @@ def materialize(
     ]
 
     expected = {
-        "schema": "vela.product-compression-answer.v2",
+        "schema": "vela.product-compression-answer.v3",
         "work": {
             "frontier_id": next_work["frontier_id"],
             "repository_root": next_work["repository_root"],
@@ -216,17 +216,14 @@ def materialize(
             "proposal_id": entry["proposal_id"],
             "proposal_root": entry["inputs"]["proposal_root"],
             "source_submission_id": submission["submission_id"],
-            "target_claim_id": entry["claim_id"],
+            "proposed_claim_id": entry["claim_id"],
             "verification_id": verification["verification_record_id"],
             "inbox_projection_root": inbox["projection_root"],
             "inbox_entry_root": entry["entry_root"],
             "protocol_gate": entry["readiness"]["protocol_gate"],
             "human_decision_required": entry["readiness"]["human_decision_required"],
             "verification_is_acceptance": False,
-            "standing_transition": entry["standing_diff"]["transition"],
-            "accepted_before": entry["standing_diff"]["accepted_before"],
-            "accepted_if_accept": entry["standing_diff"]["accepted_if_accept"],
-            "accepted_if_reject": entry["standing_diff"]["accepted_if_reject"],
+            "standing_delta": entry["standing_delta"],
             "staleness": entry["staleness"]["state"],
             "next_if_accept_code": "replay_and_recompute_targets",
             "next_if_reject_code": "replay_without_standing_change",
@@ -256,7 +253,7 @@ def materialize(
     }
     harness.seal(fixture, "fixture_root")
     answer_key = harness.seal({
-        "schema": "vela.product-compression-answer-key.v2",
+        "schema": "vela.product-compression-answer-key.v3",
         "answer_key_root": "", "fixture_root": fixture["fixture_root"], "expected": expected,
     }, "answer_key_root")
     harness.validate_answer_key(answer_key)

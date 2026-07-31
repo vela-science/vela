@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Replace the ambiguous Decision Inbox Standing fields with one explicit,
+  target-scoped `standing_delta`. The rooted v2 projection shows the affected
+  Claim set, accepted Standing before/after each possible Decision, exact
+  hypothetical repository roots, unchanged accepted count, and global counts.
+  Inspection remains read-only and fails closed if a hypothetical transition
+  changes accepted Standing outside its declared Claim scope.
 - Classify Decision Inbox Verification Records as requirement-satisfying,
   complementary, or blocking with the same predicate used by the protocol
   gate. Human output now says that a satisfied protocol gate still requires

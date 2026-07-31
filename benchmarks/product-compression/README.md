@@ -151,6 +151,11 @@ explicit target-scoped Standing delta, a corrected clean-worktree verifier, and
 a new plan root. Do not rerun unchanged v2 or infer a product claim from its
 directional timing signal.
 
+The reusable source contract now consumes the explicit
+`vela.decision-inbox.v2` Standing delta and validates its scope, hypothetical
+repository roots, and global counts. This prepares a future v3 confirmation
+study; no v3 plan has been frozen and no new run has begun.
+
 ## Retained calibration evidence
 
 Two custom-runner calibrations and their stopped sessions remain retained by

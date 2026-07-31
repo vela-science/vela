@@ -167,6 +167,14 @@ identities. The suggested next action may inspect the Inbox, continue the
 active Attempt through its exact `submit --attempt` path, or select the next
 Target; it never accepts or rejects Standing.
 
+`vela review inbox --json` returns `vela.decision-inbox.v2`. Each rooted entry
+contains one explicit `standing_delta`: the affected Claim IDs, accepted
+Standing now, accepted Standing under accept or reject, the corresponding
+repository roots, and counts of unchanged and global accepted Claims. These
+are deterministic previews of the existing Decision semantics, not retained
+objects or recommendations. Derivation fails closed if a hypothetical
+Decision changes accepted Standing outside the declared Claim scope.
+
 `vela submit` accepts either explicit flags or a portable Submission file. For
 a file import, each declared Artifact travels beside the Submission at
 `artifacts/sha256/<digest>`. Vela verifies those bytes before installing the
@@ -345,7 +353,8 @@ active paths. The one-time migration writer is not part of the current binary.
 - `next --json` returns ranked producer Targets only.
 - `start --json` returns one exact Attempt contract.
 - `review list --json` returns compact Proposal summaries.
-- `review inbox --json` returns rooted consequence-only decision summaries.
+- `review inbox --json` returns rooted consequence-only decision summaries
+  with an explicit target-scoped Standing delta.
 - `review show --json` returns one pending Review Packet or terminal Decision.
 
 Default JSON does not embed full packet bodies, review collections, private

@@ -13,6 +13,7 @@ fail() {
 # implementations. Historical commits and ADRs retain their evidence; the
 # current source tree does not retain executable compatibility surfaces.
 absent_paths=(
+  .vela
   atlas
   clients
   examples
