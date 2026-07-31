@@ -308,7 +308,7 @@ The released product should be teachable through these paths:
 | What exact object is this? | `vela show . <id>` or its Atlas record |
 | Why does it stand? | `vela why . <id>` or **Why this stands** |
 | What should be done next? | `vela next` or the Atlas Target handoff |
-| How does work begin? | `vela start`; optionally the current Canopus executor while proposed ADR 0031 evaluates `vela agent` |
+| How does work begin? | `vela start`; optionally the private executor through experimental `vela agent` while accepted ADR 0031's migration and deletion test remain in progress |
 | How is candidate work retained? | `vela submit` |
 | What did the verifier actually check? | Verification record and evidence chain |
 | What would a Decision change? | `vela review show . <vpr_id>` or **Scientific Diff** |
@@ -445,10 +445,13 @@ workflow engine, or canonical schema without repeated consumer evidence.
 - [ADR 0030](adr/0030-root-bound-math-source-registry-atlas-and-target-closure.md)
   is Accepted for the bounded Math Source Registry, first-party Atlas, and
   Target-closure contract without changing protocol or authority.
-- [ADR 0031](adr/0031-one-product-and-removable-agent-executor.md) is Proposed.
-  It would retire Canopus as a separate product while preserving an optional,
-  removable executor outside the authority core. Package rename and public
-  distribution wait for the twelve-hour matched dogfood gate.
+- [ADR 0031](adr/0031-one-product-and-removable-agent-executor.md) is Accepted
+  for one Vela product and a removable executor outside the authority core.
+  Implementation is in progress: the private Canopus package still exposes
+  standalone product and package-install surfaces that must shrink. Historical
+  Canopus `0.8.0` remains frozen for exact replay. No twelve-hour matched
+  dogfood result exists, so helper survival, package rename, and public
+  distribution remain unearned.
 - ADR 0020 remains Proposed until a fresh user comprehends the released
   repository-authority Decision path.
 - ADR 0021 remains Proposed until a second real producer replays the current
@@ -469,14 +472,15 @@ resolved under these decisions.
 | --- | --- |
 | Frontier repairs | close completed Targets, create exact fresh Targets, and add source-local coverage validators |
 | Vela `0.951.0` — conditional | only if a generic CLI or Target-closure defect requires a compatible Vela change; no protocol change |
-| Vela Agent — earned | freeze Canopus `0.8.0`; shrink duplicate product machinery and expose an experimental delegator under proposed ADR 0031; distribute only after the twelve-hour matched dogfood gate |
+| Vela Agent — earned | preserve frozen Canopus `0.8.0`; implement accepted ADR 0031 by removing duplicate product machinery and retaining experimental `vela agent`; distribute a helper only after the twelve-hour matched dogfood gate |
 | Vela Web `0.430.0` | exact Math Source Registry, reproducible observation, and first working root-bound Math Atlas alpha |
 | Vela Web `0.440.0` — earned | external cold-use, genuine multi-shape result loops, and correction/inheritance surfaces |
 | Evidence release | rooted benchmark corpus, result ledgers, clean-room reproduction, and bounded paper |
 
 Vela remains `0.950.1`. Immutable Canopus `0.8.0` remains the exact historical
-Run reader; current Canopus source is private and unpublishable while proposed
-ADR 0031 is evaluated. Published `@vela-science/protocol@0.1.0` remains
+Run reader; current Canopus source is private and unpublishable while accepted
+ADR 0031 is implemented and the helper faces its deletion test. Published
+`@vela-science/protocol@0.1.0` remains
 immutable; source version `0.1.1` corrects its stale package documentation
 without changing the public contract and will publish only from a later Vela
 tag. No version is bumped merely to synchronize marketing.

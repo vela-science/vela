@@ -1,7 +1,9 @@
 # ADR 0031: One Vela product and a removable Agent executor
 
-- Status: Proposed
+- Status: Accepted
 - Proposed: 2026-07-30
+- Accepted: 2026-07-31
+- Implementation: in progress
 - Protocol effect: none
 - Authority effect: none
 - Product effect: retire Canopus as a separate product identity and expose its
@@ -55,7 +57,20 @@ The current strategy memos agree on the durable boundary:
 - Generic harness optimization detached from a current mapped Target should
   stop.
 
-## Decision proposed
+The independent product-boundary audit accepts this architecture, not the
+current implementation. `vela agent doctor|run|show|replay|export` already
+exists, but the private `packages/canopus` package still exposes a standalone
+`canopus` binary and public exports, and product CI still packages and
+install-smokes it as a separate product. Those are migration work, not evidence
+that two product identities should survive.
+
+No twelve-hour matched dogfood result exists. The audit establishes that the
+separate product and release surface should retire now; it does not establish
+that the optional helper has earned continued distribution. Historical
+`@vela-science/canopus@0.8.0`, tag `product-v0.8.0`, and their exact replay
+instructions remain frozen audit evidence.
+
+## Decision
 
 ### 1. Retire the product identity, preserve the process boundary
 
@@ -167,9 +182,12 @@ Delete from the current helper:
 - inactive framework experiments that failed or never reached their adoption
   gate.
 
-Only after the dogfood gate passes and Protocol publication has moved, rename
-the earned helper and remove the Canopus brand, product README, and separate
-release workflow. If the gate fails, delete the helper instead.
+During shrink, remove Canopus from current product documentation, CLI
+packaging, install CI, and the active release surface. Preserve the historical
+README and release instructions at the frozen tag; the private source directory
+may retain its old name until the deletion test is complete. Only after the
+dogfood gate passes should the earned helper source and package be renamed. If
+the gate fails, delete the helper instead.
 
 Recorded Runs continue to bind exact binary and dependency identities. Runtime
 compatibility uses explicit schema and capability checks, not a second
@@ -201,10 +219,9 @@ compatibility parser or rewrite old records.
 
 ### 6. Use one release identity
 
-The current `product-v*` workflow also publishes
-`@vela-science/protocol`. Before retiring it, move Protocol publication and
-verification into the Vela-tag release workflow or explicitly freeze that
-package.
+Protocol publication and verification now live in the Vela-tag release
+workflow. Removing standalone Canopus packaging must preserve that existing
+Protocol path.
 
 One Vela `v*` tag and one release manifest identify the exact changed
 components. Public packages retain their own component versions, but are built,

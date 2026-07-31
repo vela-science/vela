@@ -141,9 +141,10 @@ source roots.
 - Require fresh-user comprehension of the repository-authority path before
   accepting ADR 0020.
 - Require a second real producer replay before accepting ADR 0021.
-- Evaluate proposed ADR 0031 by shrinking duplicate Canopus product machinery,
-  exposing only a removable experimental `vela agent` delegator, and running
-  the twelve-hour matched dogfood before any package rename or public release.
+- Implement accepted ADR 0031 by shrinking duplicate Canopus product
+  machinery and retaining only a removable experimental `vela agent`
+  delegator. No twelve-hour matched dogfood result exists; package rename,
+  helper survival, and public distribution remain gated on that test.
 
 ## Completed — Math Source Registry and observation path
 
@@ -265,8 +266,9 @@ lift.
 
 - Keep Vela at `0.950.1` unless a generic product defect requires a compatible
   `0.951.0` release.
-- Keep immutable Canopus `0.8.0` frozen. Current source is private and
-  unpublishable while proposed ADR 0031 evaluates the smaller Vela Agent path.
+- Keep immutable Canopus `0.8.0` frozen for historical replay. Current source
+  is private and unpublishable while accepted ADR 0031's shrink and helper
+  deletion test remain in progress.
 - Keep Vela Web `0.430.0` as the released exact source inventory and Math Atlas
   alpha.
 - Earn Vela Web `0.440.0` only through real multi-shape loops and external
