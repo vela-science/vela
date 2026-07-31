@@ -14,11 +14,11 @@ import tempfile
 from pathlib import Path
 from typing import Any, Sequence
 
-import harness
+import study
 
 
 def fail(message: str) -> None:
-    raise harness.ContractError(message)
+    raise study.ContractError(message)
 
 
 def reject_system_temporary_output(output: Path) -> None:
@@ -36,7 +36,7 @@ def digest(path: Path) -> str:
     try:
         return f"sha256:{hashlib.sha256(path.read_bytes()).hexdigest()}"
     except OSError as exc:
-        raise harness.ContractError(f"cannot hash {path}: {exc}") from exc
+        raise study.ContractError(f"cannot hash {path}: {exc}") from exc
 
 
 def command(argv: Sequence[str], *, cwd: Path) -> str:
@@ -49,7 +49,7 @@ def command(argv: Sequence[str], *, cwd: Path) -> str:
             text=True,
         )
     except OSError as exc:
-        raise harness.ContractError(f"cannot execute {argv[0]}: {exc}") from exc
+        raise study.ContractError(f"cannot execute {argv[0]}: {exc}") from exc
     if result.returncode != 0:
         fail(f"command failed ({result.returncode}): {' '.join(argv)}: {result.stderr.strip()}")
     return result.stdout.strip()
@@ -60,14 +60,14 @@ def json_command(argv: Sequence[str], *, cwd: Path) -> dict[str, Any]:
     try:
         value = json.loads(raw)
     except json.JSONDecodeError as exc:
-        raise harness.ContractError(f"command returned invalid JSON: {' '.join(argv)}: {exc}") from exc
+        raise study.ContractError(f"command returned invalid JSON: {' '.join(argv)}: {exc}") from exc
     if not isinstance(value, dict):
         fail(f"command returned non-object JSON: {' '.join(argv)}")
     return value
 
 
 def relative_content_path(root: str, category: str) -> Path:
-    if not harness.ROOT.fullmatch(root):
+    if not study.ROOT.fullmatch(root):
         fail(f"invalid {category} root: {root}")
     return Path("records") / category / "sha256" / f"{root.removeprefix('sha256:')}.json"
 
@@ -93,7 +93,7 @@ def materialize(
     if (before_commit, before_tree) != (after_commit, after_tree) or command(("git", "status", "--porcelain"), cwd=frontier):
         fail("read-only inspection changed the Frontier checkout")
 
-    attempt = harness.read_json(attempt_path)
+    attempt = study.read_json(attempt_path)
     if attempt.get("schema") != "vela.attempt.v8":
         fail("expected one vela.attempt.v8 document")
     if attempt.get("frontier_id") != next_work.get("frontier_id"):
@@ -109,7 +109,7 @@ def materialize(
         fail("successor Target identity differs from completed Attempt target")
     start_packet = attempt.get("starting_target_task_binding", {}).get("packet", {}).get("sha256")
     current_packet = target.get("packet", {}).get("sha256")
-    if not harness.ROOT.fullmatch(start_packet or "") or not harness.ROOT.fullmatch(current_packet or ""):
+    if not study.ROOT.fullmatch(start_packet or "") or not study.ROOT.fullmatch(current_packet or ""):
         fail("Attempt or successor packet root is invalid")
     if start_packet == current_packet:
         fail("Target has not advanced beyond the completed Attempt packet")
@@ -134,7 +134,7 @@ def materialize(
     submission_path = frontier / relative_content_path(submission_root, "submissions")
     if digest(submission_path) != submission_root:
         fail("Submission bytes disagree with the Decision Inbox")
-    submission = harness.read_json(submission_path)
+    submission = study.read_json(submission_path)
 
     receipts = attempt.get("agent_run_receipts")
     if not isinstance(receipts, list) or len(receipts) != 2:
@@ -186,9 +186,9 @@ def materialize(
             {"kind": "evidence_manifest", "sha256": evidence.get("sha256"), "root": evidence.get("root"), "size": evidence.get("size")},
         ))
 
-    participant_files["campaign/attempt.json"] = harness.canonical_bytes(sanitized_attempt)
+    participant_files["campaign/attempt.json"] = study.canonical_bytes(sanitized_attempt)
     participant_file_manifest = [
-        {"path": path, "size": len(data), "sha256": harness.sha256_root(data)}
+        {"path": path, "size": len(data), "sha256": study.sha256_root(data)}
         for path, data in sorted(participant_files.items())
     ]
 
@@ -230,7 +230,7 @@ def materialize(
         },
         "safety": {"authority_action_performed": False, "accepted_state_changed": False},
     }
-    harness.validate_answer(expected)
+    study.validate_answer(expected)
 
     fixture = {
         "schema": "vela.product-compression-fixture.v2",
@@ -251,12 +251,12 @@ def materialize(
         },
         "participant_files": participant_file_manifest,
     }
-    harness.seal(fixture, "fixture_root")
-    answer_key = harness.seal({
+    study.seal(fixture, "fixture_root")
+    answer_key = study.seal({
         "schema": "vela.product-compression-answer-key.v3",
         "answer_key_root": "", "fixture_root": fixture["fixture_root"], "expected": expected,
     }, "answer_key_root")
-    harness.validate_answer_key(answer_key)
+    study.validate_answer_key(answer_key)
     return fixture, answer_key, participant_files
 
 
@@ -279,8 +279,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         args.output.mkdir(parents=True, exist_ok=True)
         os.chmod(args.output, 0o700)
-        harness.write_json(args.output / "fixture.json", fixture)
-        harness.write_json(args.output / "answer-key.json", answer_key)
+        study.write_json(args.output / "fixture.json", fixture)
+        study.write_json(args.output / "answer-key.json", answer_key)
         os.chmod(args.output / "fixture.json", 0o600)
         os.chmod(args.output / "answer-key.json", 0o600)
         for relative, data in participant_files.items():
@@ -289,12 +289,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             os.chmod(destination.parent, 0o700)
             destination.write_bytes(data)
             os.chmod(destination, 0o600)
-        sys.stdout.buffer.write(harness.canonical_bytes({
+        sys.stdout.buffer.write(study.canonical_bytes({
             "ok": True, "fixture_root": fixture["fixture_root"],
             "answer_key_root": answer_key["answer_key_root"], "writes_frontier": False,
         }))
         return 0
-    except harness.ContractError as exc:
+    except study.ContractError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 

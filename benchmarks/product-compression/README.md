@@ -1,4 +1,4 @@
-# Product-compression v2
+# Product-compression benchmark
 
 This source-only study asks whether the released Vela read path helps a cold
 researcher understand one real Agent campaign and pending Decision faster than
@@ -8,7 +8,8 @@ with acceptance.
 The stopped v1 study remains unchanged in
 `paper/artifacts/product-compression-v1`. This directory is the reusable
 benchmark source: the closed answer contract, exact fixture compiler,
-frozen-plan/result validator, deterministic Vela-specific scorer, and tests.
+short frozen study manifest, Harbor task materializer, and offline semantic
+verifier.
 It cannot mutate a Frontier or perform a Decision. Compact final result roots
 belong under `paper/artifacts/`; generated tasks and raw execution evidence do
 not.
@@ -25,10 +26,11 @@ trajectory schema   ATIF-v1.7
 ```
 
 Harbor owns container execution, network policy, agent adapters, resource
-limits, artifact collection, raw job/trial output, and its local comparison
-viewer. Vela owns the frozen experimental plan, AB/BA assignment, exact answer
-contract, deterministic scorer, state-drift checks, canonical roots, and the
-interpretation of scientific authority.
+limits, offline verification, multi-metric rewards, artifact collection, raw
+job/trial output, token/cache/cost telemetry, and its local comparison viewer.
+Vela owns only the frozen scientific inputs and comparison rule, exact answer
+contract, state-drift checks, canonical roots, and interpretation of scientific
+authority.
 
 The split is intentional:
 
@@ -42,11 +44,13 @@ The split is intentional:
 - Inspect AI is the replacement candidate if a later non-terminal scientific
   evaluation cannot be expressed in Harbor. It is not stacked into this study.
 
-The deleted custom supervisor tried to recreate shell execution, macOS
+The deleted custom supervisor and the former Vela session/score/report schemas
+tried to recreate shell execution, macOS
 sandboxing, executable custody, event parsing, and token accounting. That
 machinery measured a brittle shell dialect and failed inside its own runtime
-boundary. Harbor already supplies the needed environment and agent adapters, so
-Vela keeps only the small part that is specific to its scientific claim.
+boundary. Harbor already supplies those facilities, so Vela keeps only the
+small part specific to its scientific claim. Terminal-Bench is a Harbor dataset,
+not a second harness; the Codex SDK is an agent interface, not an eval runner.
 
 Relevant upstream contracts:
 
@@ -72,7 +76,7 @@ A participant reports:
 5. the exact successor Target that can begin under a new bounded Attempt.
 
 `answer.schema.json` is the participant-facing output contract and is
-recursively closed. `harness.py` independently validates the semantic links
+recursively closed. `study.py` independently validates the semantic links
 rather than treating JSON Schema as a second protocol implementation.
 
 ## Freeze and custody gates
@@ -84,12 +88,13 @@ No participant run may start until a frozen plan binds:
   version above;
 - exact model, agent, tool, Vela binary, Git source, and environment image
   identities;
-- shared budgets, retry rules, stopping rules, and AB/BA assignment;
+- shared elapsed/output safety limits, retry rules, stopping rules, and AB/BA
+  assignment;
 - both arm-specific tool surfaces; and
 - publication of every retained success, failure, and infrastructure stop.
 
-The answer key belongs only in Harbor's separate verifier image and is never
-copied into the agent container. The verifier has no network, authority key,
+The answer key is uploaded only for Harbor's verifier phase after agent
+execution; it is absent during the agent phase. The verifier has no network, authority key,
 authentication store, mutation route, or access to the source Frontier. The
 baseline receives an isolated copy with ordinary repository tools. The guided
 arm receives the same copy plus the exact read-only Vela interface.
@@ -113,8 +118,14 @@ sanitizes private absolute paths.
 
 ## Measurement
 
-The primary outcome is exact correctness under fixed budgets. The paired report
-then measures:
+Harbor writes two offline verifier rewards for every trial: `eligible` and
+`exact`. Eligibility covers the matched assignment and toolchain, completed
+execution, exact roots, no intervention or state drift, and bounded elapsed and
+retained output sizes. Exactness covers the frozen answer. A valid but wrong
+baseline remains eligible; otherwise a product can never demonstrate a
+correctness advantage over its control.
+
+Harbor then reports:
 
 - elapsed time;
 - validated ATIF tool calls and token usage;
@@ -123,11 +134,22 @@ then measures:
 - Git, repository, and Standing drift; and
 - exact answer and authority-boundary correctness.
 
-The four first-party sessions are counterbalanced across two AB/BA pairs. A
-prospective result passes only if all exact answers pass, the guided arm is
-faster in both pairs, median elapsed time improves by at least 20 percent, and
-median tool calls and observed tokens do not regress. This pilot cannot prove
-external adoption.
+The four first-party sessions are counterbalanced across two AB/BA pairs. The
+prospective comparison rule is:
+
+1. all four sessions must be eligible;
+2. Vela-guided must be exact in both repetitions;
+3. if the baseline is not exact in both repetitions, report a bounded
+   task-specific exactness advantage only when median cost does not regress;
+4. if both arms are exact twice, require at least 20 percent median elapsed-time
+   improvement and no median cost regression; and
+5. otherwise report no demonstrated advantage.
+
+Tool calls, provider input/cache/output tokens, and the uncached-token proxy are
+comparative telemetry, never arbitrary hard gates. The only hard limits are
+elapsed execution and retained answer/tool/trajectory/verifier sizes. This
+four-session first-party pilot cannot prove external adoption or general
+scientific productivity.
 
 ## First complete native Harbor result
 
@@ -157,11 +179,20 @@ directional timing signal.
 The reusable source contract now consumes the explicit
 `vela.decision-inbox.v2` Standing delta and validates its scope, hypothetical
 repository roots, and global counts. This prepares a future v3 confirmation
-study. The first corrected v3 plan is frozen locally at
-`sha256:9894601c5234dfac451d4b045410af32b3660e399bf63916972f45b83bd3f0cb`;
+study. The executed corrected v3 plan is
+`sha256:55ed5aedac69fc9f2f48d7cee794fc2ca8301567883863d3f7bedff273eac252`;
 it binds the corrected fixture, answer key, exact candidate Linux Vela binary,
-model, Codex version, and budgets. No v3 participant output existed when that
-root was created.
+model, Codex version, and limits. Its stopped predecessor bound an inexact CLI
+version string; that failure remains retained under its distinct plan and job
+roots rather than being rewritten.
+
+That corrected run completed all four trials. Vela-guided was exact 2/2 versus
+Git/files 0/2, while reducing median elapsed time by 51.61 percent, median cost
+by 60.37 percent, uncached-token proxy by 58.84 percent, and tool calls by 28.57
+percent. The frozen registered composite still records failure because it used
+the old all-sessions-exact and 24,000-token rules. The result is not rewritten
+or rerun. It is retained as strong task-specific product-comprehension evidence
+and an explicit methodology correction for future tasks.
 
 ## Retained calibration evidence
 
@@ -181,28 +212,20 @@ the stopped custom supervisor is silently reclassified as Harbor evidence.
 python3 -m unittest discover \
   -s benchmarks/product-compression -p 'test_*.py'
 
-python3 benchmarks/product-compression/harness.py validate \
+python3 benchmarks/product-compression/study.py validate \
   --kind answer --input answer.json
-
-python3 benchmarks/product-compression/harness.py score \
-  --plan plan.json --answer-key answer-key.json \
-  --session session.json --output score.json
-
-python3 benchmarks/product-compression/harness.py report \
-  --plan plan.json --answer-key answer-key.json \
-  --sessions session-*.json --output result.json
 
 python3 benchmarks/product-compression/materialize.py \
   --frontier /exact/frontier --vela /exact/vela \
   --attempt /exact/private/attempt.json --proposal vpr_<id> \
   --output jobs/product-compression-v2/materials
 
-python3 benchmarks/product-compression/harness.py freeze-plan \
+python3 benchmarks/product-compression/study.py freeze-plan \
   --materials /exact/private/materials --model gpt-5.6-terra \
   --codex-version 0.145.0 --vela-linux /exact/static-linux-vela \
   --vela-version 'vela 0.950.1' --output /exact/plan.json
 
-python3 benchmarks/product-compression/harness.py prepare-harbor \
+python3 benchmarks/product-compression/study.py prepare-harbor \
   --plan /exact/plan.json --materials /exact/private/materials \
   --frontier /exact/clean/frontier --vela-linux /exact/static-linux-vela \
   --job-name vela-product-compression-v3-native \
@@ -219,13 +242,13 @@ configuration in the frozen AB/BA order. It is a materializer, not a runner or
 adapter. Harbor itself owns task digests, container setup, execution, retries,
 ATIF, artifact collection, job locks, and raw results. Each task receives the
 same exact Frontier checkout and participant evidence; only the guided task
-receives the exact read-only Linux Vela binary. The answer key exists only in
-the separate offline verifier image.
+receives the exact read-only Linux Vela binary. The answer key appears only in
+the offline verifier phase.
 
-The ignored `jobs/product-compression-v2/` tree is the local execution area.
+The ignored `jobs/product-compression*/` tree is the local execution area.
 Harbor's job directory is the retained raw evidence. Harbor's own
 result, lock, ATIF trajectory, verifier reward, artifact manifest, timing,
-usage, and viewer remain the inspection surface; Vela does not wrap them in
-another execution format. The small Vela harness owns only the frozen plan,
-answer semantics, and registered comparison gates. Harbor remains an external
-tool, not a Vela runtime dependency.
+usage, cost, and viewer remain the inspection surface; Vela does not wrap them
+in another session, score, or report format. The small Vela layer only
+materializes exact tasks and verifies Vela-specific semantics. Harbor remains
+an external tool, not a Vela runtime dependency.

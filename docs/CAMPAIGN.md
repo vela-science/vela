@@ -995,11 +995,12 @@ contract. The remaining seven assignments were not started. This earns no
 product-lift or correctness credit. `stop.v1.json` binds the full failure and
 the locally retained raw evidence. Any successor is a new registered study
 with a closed participant schema, execution instrumentation declared before
-output, retained tool/trajectory evidence, and an explicit post-run token gate;
-it is not a post-output amendment.
+output, and retained tool/trajectory evidence. Provider token counters are
+telemetry, not an arbitrary post-run quality gate; it is not a post-output
+amendment.
 
 The source-only `benchmarks/product-compression` successor now closes the
-answer, plan, session, score, and report contracts and correctly models the
+answer and frozen-plan contracts and correctly models the
 current product state: completed Attempt, two root-linked Runs, one registered
 Submission and one retained corroborating Run, one current protocol-ready
 Decision Inbox entry, and the exact successor Target. Its read-only materializer
@@ -1061,20 +1062,21 @@ The complete native study used pinned Harbor `0.20.0` at source commit
 `459ff6ec99417589b7f679d14ddf3b3f0ae4f1dc`, wheel SHA-256
 `4b7e48223aea2384cdb8c9eff35eaebd482fc9b1ec09f8193a121c47356ff19a`,
 task schema `1.3`, and ATIF `v1.7`. Harbor supplies local Docker execution,
-agent adapters, bounded network policy, separate offline verifier custody,
-retained jobs, raw artifacts, and a local comparison viewer. Vela retains only
-the frozen plan, counterbalanced assignment, exact scorer, state-drift checks,
-and canonical result roots. Harbor is transport and evidence, never authority
-or Standing.
+agent adapters, bounded network policy, an offline post-agent verifier phase,
+retained jobs, multi-metric rewards, token/cache/cost telemetry, raw artifacts,
+and a local comparison viewer. Vela retains only the frozen scientific plan,
+counterbalanced assignment, exact semantic verifier, state-drift checks, and
+canonical result roots. Harbor is transport and evidence, never authority or
+Standing.
 
-Harbor does not isolate an agent's provider credential from task code because
-both execute in one container during the agent phase. This first-party local
-study uses Harbor's documented Codex OAuth path through
-`CODEX_FORCE_AUTH_JSON=true`; Harbor uploads the current login for execution and
-removes its remote copy afterward. It therefore runs only trusted Vela-owned
-tasks. Provider egress is allowlisted and the verifier remains offline. This is
-ordinary local execution custody, not an independence or credential-isolation
-claim.
+Harbor does not isolate an agent's provider credential from trusted task code
+during the agent phase. This first-party local study uses Harbor's documented
+Codex OAuth path by passing the host-only `CODEX_AUTH_JSON_PATH` when Harbor
+starts; authentication is not placed in `agents[].env`, and no Harbor patch or
+Vela auth adapter is used. It therefore runs only trusted Vela-owned tasks.
+Provider egress is allowlisted and the post-agent verifier phase remains offline. This
+is ordinary local execution custody, not an independence or
+credential-isolation claim.
 
 Frozen plan
 `sha256:3ec7c05814add867dc096887f6d8af5deca16fe70eb883e86c76747ba10f8598`
@@ -1114,11 +1116,23 @@ preview that changes accepted Standing outside the declared scope. This fixes
 the diagnosed ambiguity; it does not retroactively pass the frozen study or
 earn a product-lift claim. Any confirmation study requires a new plan root.
 
+The corrected native Harbor confirmation then completed all four sessions under
+plan `sha256:55ed5aed…` with no execution exception, intervention, authority
+access, or state drift. Vela-guided was exact 2/2 versus Git/files 0/2 and
+reduced median elapsed time by 51.61 percent, median cost by 60.37 percent,
+uncached-token proxy by 58.84 percent, and tool calls by 28.57 percent. Its
+prospectively frozen composite still records failure because it required the
+control arm to be exact and imposed the arbitrary 24,000 cumulative-token gate.
+That result is not rewritten or rerun. It is retained as strong task-specific
+product-comprehension evidence plus a methodology correction: future studies
+hard-gate execution eligibility, compare exactness between arms, use actual cost
+and elapsed time for efficiency, and treat tool and token counts as telemetry.
+
 Repository ownership is explicit. Vela tracks the reusable benchmark
 definition under `benchmarks/product-compression`; compact final result roots
 cited by the paper belong under `paper/artifacts`; ignored Harbor jobs,
 generated fixtures, trajectories, temporary binaries, and container output
-belong under `jobs/product-compression-v2`. They do not belong in the source
+belong under ignored `jobs/product-compression*/` directories. They do not belong in the source
 repository's scientific object model, a Frontier repository, or user-level
 `~/.vela` identity/runtime state. A separate benchmark repository is deferred
 until independent benchmark families or external authors require an independent
@@ -1678,7 +1692,7 @@ Failure narrows or deletes the system. It does not earn another layer.
 | Local Submission → Verification → Decision | New Erdős, Formal, and Quantum evidence loops each have one exact requirement-matching Verification plus retained complementary evidence; the Proposals remain `pending_review`, and the Formal transfer remains separately gated on held-out value | human Decision or explicit cancellation for each exact Proposal, then clean-clone replay |
 | Map → advance → remap | All four Frontiers have zero stale indexed Targets; Erdős producer work through `10430400` is closed without changing Standing and now offers `10430401..10430600`; Formal has zero indexed Targets, with one historical packet cleanup remaining; the exact current Atlas is live, while scientific Decisions and post-Decision remap remain open | after one human Decision changes Standing, rebuild the exact Atlas, identify the semantic diff and surviving knowledge, and expose the next valid obligation |
 | Agent-helper execution lift (historical Canopus pilot) | Directionally positive first-party repaired Stage A; predecessor and stopped runs retained; expert-minute metric unscored | contract-frozen Erdős, Formal, and quantum result or explicit narrowing |
-| State/Atlas lift | Native Harbor plan `sha256:3ec7c058…` completed 4/4 sessions with no execution exceptions or state drift. Vela-guided was faster in both pairs and 29.78 percent faster at the median, but only one answer matched exactly, every run exceeded the token budget, three exceeded the tool budget, and verifier/Standing-scope defects invalidate the raw reward. This earns no product-lift credit. | compress the Decision packet to one explicit target-scoped Standing delta, fix the verifier and Harbor redaction configuration, then freeze a new plan; add no new runtime or adapter |
+| State/Atlas lift | Corrected native Harbor plan `sha256:55ed5aed…` completed 4/4 sessions with no execution exception or state drift. Vela-guided was exact 2/2 versus Git/files 0/2, 51.61 percent faster at the median, and 60.37 percent lower in median cost. Its original composite remains a registered failure because it required the control to be exact and imposed an arbitrary cumulative-token gate; the prospective methodology is corrected without rewriting or rerunning the evidence. | repeat the corrected eligibility/exactness/cost contract on a distinct cold-use task and external users; use Harbor directly and add no runner or adapter |
 | Inheritance lift | Removability passed for one historical pending state; cold-successor lift unmeasured | cold successor reproduces change, surviving evidence, replay, and next action without private context |
 | Correction propagation | no qualifying real candidate | qualifying fixture passes or entry gate closes negative |
 | Cross-Frontier transfer | exact archive reconstruction and mutation tests pass with zero accepted delta; the work remains first-party and protocol readiness does not satisfy the held-out value gate | held-out independently controlled consumer/value test passes or the claim envelope is narrowed |

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Closed, source-only contracts for the current product-compression study."""
+"""Exact inputs and Harbor tasks for the product-compression study."""
 
 from __future__ import annotations
 
@@ -12,10 +12,8 @@ import shlex
 import shutil
 import subprocess
 import sys
-from datetime import datetime
-from fractions import Fraction
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any, Sequence
 
 ROOT = re.compile(r"^sha256:[0-9a-f]{64}$")
 PATTERNS = {
@@ -40,15 +38,21 @@ TASK_ENVIRONMENT_IMAGE = "alpine@sha256:14358309a308569c32bdc37e2e0e9694be33a9d9
 HARBOR_ALLOWED_HOSTS = (
     "api.openai.com", "chatgpt.com", "*.chatgpt.com", "*.auth.openai.com",
 )
-DEFAULT_BUDGETS = {
+DEFAULT_LIMITS = {
     "elapsed_ms": 300_000,
-    "tool_calls": 12,
-    "observed_tokens": 24_000,
     "per_tool_reported_output_bytes": 131_072,
     "total_tool_reported_output_bytes": 524_288,
     "trajectory_bytes": 2_097_152,
     "verifier_output_bytes": 262_144,
     "answer_bytes": 65_536,
+}
+COMPARISON_RULE = {
+    "required_repetitions_per_arm": 2,
+    "guided_exact_required": 2,
+    "exactness_rule": "guided_dominates_or_ties_baseline",
+    "efficiency_when_exactness_tied": "median_elapsed_improves_at_least_20_percent",
+    "cost_rule": "guided_median_cost_no_regression",
+    "telemetry_only": ["tool_call_count", "observed_tokens", "uncached_token_proxy"],
 }
 MAYBE_TEXT = (str, type(None))
 STANDING = [{"claim_id": str, "claim_root": str}]
@@ -109,59 +113,22 @@ PLAN = {
     "model": {"id": str, "agent": str, "agent_version": str, "config_root": str},
     "task_environment": TASK_ENVIRONMENT,
     "arms": {"git-files": TOOL, "vela-guided": TOOL},
-    "budgets": {"elapsed_ms": int, "tool_calls": int, "observed_tokens": int,
-                "per_tool_reported_output_bytes": int,
-                "total_tool_reported_output_bytes": int,
-                "trajectory_bytes": int, "verifier_output_bytes": int,
-                "answer_bytes": int},
+    "limits": {"elapsed_ms": int, "per_tool_reported_output_bytes": int,
+               "total_tool_reported_output_bytes": int,
+               "trajectory_bytes": int, "verifier_output_bytes": int,
+               "answer_bytes": int},
+    "comparison_rule": {
+        "required_repetitions_per_arm": int,
+        "guided_exact_required": int,
+        "exactness_rule": str,
+        "efficiency_when_exactness_tied": str,
+        "cost_rule": str,
+        "telemetry_only": [str],
+    },
     "assignments": [{"pair": str, "order": [str]}],
     "publication_policy": {"publish_all_sessions": bool, "publish_failures": bool,
                            "independence_claim": str, "plan_changes_after_output": str},
 }
-TOOL_CALL = {
-    "index": int, "item_id": str, "argv": [str], "elapsed_ms": int,
-    "state": str, "exit_code": (int, type(None)),
-    "reported_output_bytes": int, "reported_output_root": str,
-}
-PAIR = {"before": str, "after": str}
-USAGE = {
-    "complete": bool,
-    "input_tokens": (int, type(None)),
-    "cached_input_tokens": (int, type(None)),
-    "output_tokens": (int, type(None)),
-    "reasoning_output_tokens": (int, type(None)),
-}
-TRACE = {
-    "instruction_root": str, "answer_schema_root": str,
-    "native_trajectory_root": str, "native_trajectory_bytes": int,
-    "atif_root": str, "atif_bytes": int,
-    "verifier_stdout_root": str, "verifier_stdout_bytes": int,
-    "verifier_stderr_root": str, "verifier_stderr_bytes": int,
-    "artifacts_manifest_root": str, "artifacts_manifest_bytes": int,
-}
-SESSION = {
-    "schema": str, "session_root": str, "plan_root": str, "fixture_root": str,
-    "answer_key_root": str, "session_id": str, "arm": str, "model": str,
-    "model_config_root": str, "tool_contract_root": str, "executor_root": str,
-    "started_at": str,
-    "completed_at": str, "elapsed_ms": int, "termination": str,
-    "process": {"exit_code": (int, type(None)), "signal": (int, type(None))},
-    "usage": USAGE, "tool_calls": [TOOL_CALL], "trace": TRACE,
-    "semantic_interventions": [str],
-    "state": {"git_status": PAIR, "repository": PAIR, "standing": PAIR},
-    "violations": [str], "answer_root": MAYBE_TEXT, "answer": (dict, type(None)),
-}
-METRICS = {"elapsed_ms": int, "tool_call_count": int,
-           "observed_tokens": (int, type(None)),
-           "uncached_token_proxy": (int, type(None)),
-           "semantic_intervention_count": int, "tool_reported_output_bytes": int}
-SCORE = {
-    "schema": str, "score_root": str, "plan_root": str, "session_root": str,
-    "session_id": str, "arm": str, "passed": bool, "failure_codes": [str],
-    "metrics": METRICS,
-}
-
-
 class ContractError(ValueError):
     """A retained document violates a closed study contract."""
 
@@ -347,7 +314,7 @@ def validate_answer(value: Any) -> None:
 
 def validate_plan(value: Any) -> None:
     shape(value, PLAN)
-    if value["schema"] != "vela.product-compression-plan.v2":
+    if value["schema"] != "vela.product-compression-plan.v3":
         raise ContractError("$.schema: wrong plan schema")
     roots(value, ("fixture_root", "answer_key_root"), "$")
     executor = value["executor"]
@@ -373,7 +340,9 @@ def validate_plan(value: Any) -> None:
         rooted(tool, "tool_contract_root", f"$.arms.{arm}")
     if value["arms"][ARMS[0]]["tool_contract_root"] == value["arms"][ARMS[1]]["tool_contract_root"]:
         raise ContractError("$.arms: tool contracts must differ")
-    nonnegative(value["budgets"], "$.budgets", positive=True)
+    nonnegative(value["limits"], "$.limits", positive=True)
+    if value["comparison_rule"] != COMPARISON_RULE:
+        raise ContractError("$.comparison_rule: unsupported comparison contract")
     assignments = value["assignments"]
     if len(assignments) != 2:
         raise ContractError("$.assignments: expected two pairs")
@@ -433,7 +402,7 @@ def freeze_plan(
         }, "tool_contract_root")
 
     value = {
-        "schema": "vela.product-compression-plan.v2",
+        "schema": "vela.product-compression-plan.v3",
         "plan_root": "",
         "fixture_root": fixture_root,
         "answer_key_root": key["answer_key_root"],
@@ -451,7 +420,8 @@ def freeze_plan(
             "git-files": tool("native-read-only-workspace", False),
             "vela-guided": tool("native-read-only-workspace-plus-vela", True),
         },
-        "budgets": DEFAULT_BUDGETS,
+        "limits": DEFAULT_LIMITS,
+        "comparison_rule": COMPARISON_RULE,
         "assignments": [
             {"pair": "01", "order": ["git-files-01", "vela-guided-01"]},
             {"pair": "02", "order": ["vela-guided-02", "git-files-02"]},
@@ -468,33 +438,39 @@ def freeze_plan(
     return value
 
 
-def harbor_verifier_failure_codes(
+def harbor_verifier_outcome(
     answer: Any,
     answer_key: Any,
     binding: Any,
     head: str,
     status: str,
-) -> list[str]:
-    """Return deterministic offline-verifier failures for one Harbor task."""
-    failures: list[str] = []
+) -> dict[str, Any]:
+    """Return Harbor-native eligibility and exactness metrics."""
+    eligibility_failures: list[str] = []
+    correctness_failures: list[str] = []
     try:
         validate_answer_key(answer_key)
     except (ContractError, TypeError) as exc:
-        failures.append(f"answer_key_invalid:{exc}")
+        eligibility_failures.append(f"answer_key_invalid:{exc}")
     try:
         validate_answer(answer)
     except (ContractError, TypeError) as exc:
-        failures.append(f"answer_invalid:{exc}")
+        correctness_failures.append(f"answer_invalid:{exc}")
     if isinstance(answer_key, dict) and answer != answer_key.get("expected"):
-        failures.append("answer_mismatch")
+        correctness_failures.append("answer_mismatch")
     if not isinstance(binding, dict) or binding.get("binding_root") != record_root(binding, "binding_root"):
-        failures.append("task_binding_invalid")
+        eligibility_failures.append("task_binding_invalid")
     expected_head = binding.get("frontier", {}).get("git_commit") if isinstance(binding, dict) else None
     if head != expected_head:
-        failures.append("frontier_head_drift")
+        eligibility_failures.append("frontier_head_drift")
     if status != "":
-        failures.append("frontier_worktree_drift")
-    return failures
+        eligibility_failures.append("frontier_worktree_drift")
+    return {
+        "eligible": not eligibility_failures,
+        "exact": not correctness_failures,
+        "eligibility_failure_codes": eligibility_failures,
+        "correctness_failure_codes": correctness_failures,
+    }
 
 
 def prepare_harbor(
@@ -556,23 +532,22 @@ def prepare_harbor(
     bundle_root = sha256_root(bundle_bytes)
 
     verifier = """#!/usr/bin/env python3
-import json
 import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, "/tests")
-import harness
+import study
 
 artifacts = Path("/logs/artifacts")
-key = harness.read_json(Path("/tests/answer-key.json"))
-binding = harness.read_json(Path("/tests/task-binding.json"))
+key = study.read_json(Path("/tests/answer-key.json"))
+binding = study.read_json(Path("/tests/task-binding.json"))
 answer_path = artifacts / "answer.json"
 answer = None
 read_failure = None
 try:
-    answer = harness.read_json(answer_path)
-except (OSError, json.JSONDecodeError) as exc:
+    answer = study.read_json(answer_path)
+except study.ContractError as exc:
     read_failure = f"answer_unreadable:{exc}"
 head = subprocess.run(
     ["git", "rev-parse", "HEAD"], cwd="/workspace/frontier",
@@ -582,20 +557,23 @@ status = subprocess.run(
     ["git", "status", "--porcelain=v1", "--untracked-files=all"],
     cwd="/workspace/frontier", check=True, capture_output=True, text=True,
 ).stdout
-failures = harness.harbor_verifier_failure_codes(answer, key, binding, head, status)
+outcome = study.harbor_verifier_outcome(answer, key, binding, head, status)
 if read_failure is not None:
-    failures.insert(0, read_failure)
+    outcome["correctness_failure_codes"].insert(0, read_failure)
+    outcome["exact"] = False
 result = {
     "schema": "vela.harbor-offline-verification.v1",
     "binding_root": binding["binding_root"],
-    "answer_root": harness.sha256_root(harness.canonical_bytes(answer)) if answer is not None else None,
-    "passed": not failures,
-    "failure_codes": failures,
+    "answer_root": study.sha256_root(study.canonical_bytes(answer)) if answer is not None else None,
+    **outcome,
     "network": "none",
     "authority_available": False,
 }
-harness.write_json(Path("/logs/verifier/verification.json"), result)
-harness.write_json(Path("/logs/verifier/reward.json"), {"exact_correctness": 1 if not failures else 0})
+study.write_json(Path("/logs/verifier/verification.json"), result)
+study.write_json(Path("/logs/verifier/reward.json"), {
+    "eligible": 1 if outcome["eligible"] else 0,
+    "exact": 1 if outcome["exact"] else 0,
+})
 """
 
     task_paths: list[dict[str, str]] = []
@@ -649,9 +627,14 @@ harness.write_json(Path("/logs/verifier/reward.json"), {"exact_correctness": 1 i
             os.chmod(environment / "vela", 0o555)
         write_json(tests / "answer-key.json", answer_key)
         write_json(tests / "task-binding.json", binding)
-        shutil.copy2(Path(__file__), tests / "harness.py")
+        shutil.copy2(Path(__file__), tests / "study.py")
         (tests / "verify.py").write_text(verifier)
-        (tests / "test.sh").write_text("#!/bin/sh\nset -eu\nexec python3 /tests/verify.py\n")
+        (tests / "test.sh").write_text(
+            "#!/bin/sh\nset -u\n"
+            "if ! python3 /tests/verify.py > /logs/verifier/test-stdout.txt 2> /logs/verifier/test-stderr.txt; then\n"
+            "  printf '{\"eligible\":0,\"exact\":0}\\n' > /logs/verifier/reward.json\n"
+            "fi\n"
+        )
         os.chmod(tests / "test.sh", 0o555)
         (tests / "Dockerfile").write_text(
             f"FROM {TASK_ENVIRONMENT_IMAGE}\nRUN apk add --no-cache git python3\nCOPY . /tests/\n"
@@ -691,13 +674,14 @@ harness.write_json(Path("/logs/verifier/reward.json"), {"exact_correctness": 1 i
             "authors = [{ name = \"Vela\" }]\n"
             "keywords = [\"vela\", \"read-only\", \"product-compression\"]\n\n"
             "[agent]\n"
-            f"timeout_sec = {plan['budgets']['elapsed_ms'] / 1000:.1f}\n"
+            f"timeout_sec = {plan['limits']['elapsed_ms'] / 1000:.1f}\n"
             "network_mode = \"allowlist\"\n"
             f"allowed_hosts = [{allowed_hosts}]\n\n"
             "[verifier]\n"
             "timeout_sec = 60.0\n"
             "environment_mode = \"shared\"\n"
-            "network_mode = \"no-network\"\n\n"
+            "network_mode = \"no-network\"\n"
+            "\n"
             "[environment]\n"
             "network_mode = \"no-network\"\n"
             "cpus = 2\n"
@@ -750,266 +734,11 @@ harness.write_json(Path("/logs/verifier/reward.json"), {"exact_correctness": 1 i
     return result
 
 
-def session_arms(plan: dict[str, Any]) -> dict[str, str]:
-    return {session: session.rsplit("-", 1)[0] for pair in plan["assignments"] for session in pair["order"]}
-
-
-def validate_session(value: Any) -> None:
-    shape(value, SESSION)
-    if value["schema"] != "vela.product-compression-session.v2":
-        raise ContractError("$.schema: wrong session schema")
-    roots(value, ("plan_root", "fixture_root", "answer_key_root", "model_config_root", "tool_contract_root", "executor_root"), "$")
-    matches(value["session_id"], re.compile(r"^(git-files|vela-guided)-[0-9]{2}$"), "$.session_id")
-    if value["arm"] not in ARMS:
-        raise ContractError("$.arm: invalid arm")
-    try:
-        start = datetime.fromisoformat(value["started_at"].replace("Z", "+00:00"))
-        end = datetime.fromisoformat(value["completed_at"].replace("Z", "+00:00"))
-    except ValueError as exc:
-        raise ContractError("$.started_at/completed_at: invalid timestamp") from exc
-    if end < start or value["elapsed_ms"] != int((end - start).total_seconds() * 1000):
-        raise ContractError("$.elapsed_ms: does not match timestamps")
-    if value["termination"] not in {"completed", "limit", "infrastructure_failure", "forbidden_action", "integrity_failure"}:
-        raise ContractError("$.termination: invalid value")
-    process = value["process"]
-    if (process["exit_code"] is None) == (process["signal"] is None):
-        raise ContractError("$.process: exactly one of exit_code or signal is required")
-    if process["signal"] is not None and process["signal"] <= 0:
-        raise ContractError("$.process.signal: expected positive signal")
-    usage = value["usage"]
-    token_fields = ("input_tokens", "cached_input_tokens", "output_tokens", "reasoning_output_tokens")
-    if usage["complete"]:
-        nonnegative({field: usage[field] for field in token_fields}, "$.usage")
-        if usage["cached_input_tokens"] > usage["input_tokens"]:
-            raise ContractError("$.usage.cached_input_tokens: exceeds input tokens")
-        if usage["reasoning_output_tokens"] > usage["output_tokens"]:
-            raise ContractError("$.usage.reasoning_output_tokens: exceeds output tokens")
-    elif any(usage[field] is not None for field in token_fields):
-        raise ContractError("$.usage: incomplete terminal usage must use null counters")
-    item_ids: set[str] = set()
-    for index, tool_call in enumerate(value["tool_calls"], start=1):
-        if tool_call["index"] != index or not tool_call["item_id"] or tool_call["item_id"] in item_ids:
-            raise ContractError("$.tool_calls: invalid index or duplicate item_id")
-        item_ids.add(tool_call["item_id"])
-        if not tool_call["argv"] or any(not item for item in tool_call["argv"]):
-            raise ContractError("$.tool_calls: empty argv")
-        if tool_call["state"] not in {"completed", "incomplete"}:
-            raise ContractError("$.tool_calls.state: invalid value")
-        if (tool_call["state"] == "completed") != (tool_call["exit_code"] is not None):
-            raise ContractError("$.tool_calls.exit_code: must exist only for completed calls")
-        nonnegative({key: tool_call[key] for key in ("elapsed_ms", "reported_output_bytes")}, f"$.tool_calls[{index - 1}]")
-        roots(tool_call, ("reported_output_root",), f"$.tool_calls[{index - 1}]")
-    trace = value["trace"]
-    roots(trace, ("instruction_root", "answer_schema_root", "native_trajectory_root", "atif_root",
-                  "verifier_stdout_root", "verifier_stderr_root", "artifacts_manifest_root"), "$.trace")
-    nonnegative({key: trace[key] for key in ("native_trajectory_bytes", "atif_bytes",
-                "verifier_stdout_bytes", "verifier_stderr_bytes", "artifacts_manifest_bytes")}, "$.trace")
-    for name, pair in value["state"].items():
-        roots(pair, ("before", "after"), f"$.state.{name}")
-    if value["answer"] is None:
-        if value["answer_root"] is not None:
-            raise ContractError("$.answer_root: must be null without answer")
-    else:
-        validate_answer(value["answer"])
-        roots(value, ("answer_root",), "$")
-        if value["answer_root"] != sha256_root(canonical_bytes(value["answer"])):
-            raise ContractError("$.answer_root: root mismatch")
-    rooted(value, "session_root")
-
-
-def validate_score(value: Any) -> None:
-    shape(value, SCORE)
-    if value["schema"] != "vela.product-compression-score.v2":
-        raise ContractError("$.schema: wrong score schema")
-    roots(value, ("plan_root", "session_root"), "$")
-    if value["arm"] not in ARMS or len(set(value["failure_codes"])) != len(value["failure_codes"]):
-        raise ContractError("$.arm/failure_codes: invalid")
-    metrics = value["metrics"]
-    nonnegative({key: metrics[key] for key in ("elapsed_ms", "tool_call_count", "semantic_intervention_count", "tool_reported_output_bytes")}, "$.metrics")
-    for field in ("observed_tokens", "uncached_token_proxy"):
-        if metrics[field] is not None and (isinstance(metrics[field], bool) or metrics[field] < 0):
-            raise ContractError(f"$.metrics.{field}: expected nonnegative integer or null")
-    if value["passed"] != (not value["failure_codes"]):
-        raise ContractError("$.passed: must equal absence of failure codes")
-    rooted(value, "score_root")
-
-
-def score_session(plan: Any, answer_key: Any, session: Any) -> dict[str, Any]:
-    validate_plan(plan)
-    validate_answer_key(answer_key)
-    validate_session(session)
-    failures: list[str] = []
-    arms = session_arms(plan)
-    if arms.get(session["session_id"]) != session["arm"]:
-        failures.append("assignment_mismatch")
-    expected_roots = {"plan_root": plan["plan_root"], "fixture_root": plan["fixture_root"],
-                      "answer_key_root": answer_key["answer_key_root"],
-                      "executor_root": plan["executor"]["executor_root"]}
-    for key, expected in expected_roots.items():
-        if session[key] != expected:
-            failures.append(f"{key}_mismatch")
-    if plan["fixture_root"] != answer_key["fixture_root"] or plan["answer_key_root"] != answer_key["answer_key_root"]:
-        failures.append("plan_material_mismatch")
-    if session["model"] != plan["model"]["id"] or session["model_config_root"] != plan["model"]["config_root"]:
-        failures.append("model_mismatch")
-    contract = plan["arms"][session["arm"]]
-    if session["tool_contract_root"] != contract["tool_contract_root"]:
-        failures.append("tool_contract_mismatch")
-    if session["termination"] != "completed":
-        failures.append("termination_not_completed")
-    if session["process"] != {"exit_code": 0, "signal": None}:
-        failures.append("nonzero_exit")
-    if session["semantic_interventions"]:
-        failures.append("semantic_intervention")
-    if session["violations"]:
-        failures.append("session_violation")
-    for name, pair in session["state"].items():
-        if pair["before"] != pair["after"]:
-            failures.append(f"{name}_drift")
-    if any(item["state"] != "completed" for item in session["tool_calls"]):
-        failures.append("incomplete_tool_call")
-    output_bytes = sum(item["reported_output_bytes"] for item in session["tool_calls"])
-    usage = session["usage"]
-    observed_tokens = None
-    uncached_token_proxy = None
-    if usage["complete"]:
-        observed_tokens = usage["input_tokens"] + usage["output_tokens"]
-        uncached_token_proxy = usage["input_tokens"] - usage["cached_input_tokens"] + usage["output_tokens"]
-    else:
-        failures.append("usage_incomplete")
-    budget = plan["budgets"]
-    trace = session["trace"]
-    trajectory_bytes = trace["native_trajectory_bytes"] + trace["atif_bytes"]
-    verifier_output_bytes = trace["verifier_stdout_bytes"] + trace["verifier_stderr_bytes"]
-    checks = ((session["elapsed_ms"] > budget["elapsed_ms"], "elapsed_limit"),
-              (len(session["tool_calls"]) > budget["tool_calls"], "tool_call_limit"),
-              (observed_tokens is not None and observed_tokens > budget["observed_tokens"], "post_run_token_limit"),
-              (output_bytes > budget["total_tool_reported_output_bytes"], "total_tool_reported_output_limit"),
-              (any(item["reported_output_bytes"] > budget["per_tool_reported_output_bytes"] for item in session["tool_calls"]), "per_tool_reported_output_limit"),
-              (trajectory_bytes > budget["trajectory_bytes"], "trajectory_limit"),
-              (verifier_output_bytes > budget["verifier_output_bytes"], "verifier_output_limit"))
-    failures.extend(code for failed, code in checks if failed)
-    if session["answer"] is None:
-        failures.append("answer_missing")
-    else:
-        if len(canonical_bytes(session["answer"])) > budget["answer_bytes"]:
-            failures.append("answer_limit")
-        if session["answer"] != answer_key["expected"]:
-            failures.append("answer_mismatch")
-    result = {"schema": "vela.product-compression-score.v2", "score_root": "",
-              "plan_root": plan["plan_root"], "session_root": session["session_root"],
-              "session_id": session["session_id"], "arm": session["arm"],
-              "passed": not failures, "failure_codes": sorted(set(failures)),
-              "metrics": {"elapsed_ms": session["elapsed_ms"], "tool_call_count": len(session["tool_calls"]),
-                          "observed_tokens": observed_tokens,
-                          "uncached_token_proxy": uncached_token_proxy,
-                          "semantic_intervention_count": len(session["semantic_interventions"]),
-                          "tool_reported_output_bytes": output_bytes}}
-    seal(result, "score_root")
-    validate_score(result)
-    return result
-
-
-def median(values: Sequence[int]) -> Fraction:
-    ordered = sorted(values)
-    middle = len(ordered) // 2
-    return Fraction(ordered[middle], 1) if len(ordered) % 2 else Fraction(ordered[middle - 1] + ordered[middle], 2)
-
-
-def validate_report(value: Any) -> None:
-    contract = {"schema": str, "report_root": str, "plan_root": str, "score_roots": [str],
-                "pairs": [{"pair": str, "guided_faster": bool}],
-                "elapsed_improvement_basis_points": (int, type(None)),
-                "gates": {"all_sessions_pass": bool, "guided_faster_in_both_pairs": bool,
-                          "median_elapsed_improvement_at_least_20_percent": bool,
-                          "median_tool_calls_no_regression": bool,
-                          "median_observed_tokens_no_regression": bool},
-                "passed": bool, "failure_codes": [str]}
-    shape(value, contract)
-    if value["schema"] != "vela.product-compression-result.v2":
-        raise ContractError("$.schema: wrong result schema")
-    roots(value, ("plan_root",), "$")
-    for index, item in enumerate(value["score_roots"]):
-        matches(item, ROOT, f"$.score_roots[{index}]")
-    if value["passed"] != (not value["failure_codes"]):
-        raise ContractError("$.passed: must equal absence of failure codes")
-    rooted(value, "report_root")
-
-
-def build_report(plan: Any, answer_key: Any, sessions: Iterable[Any]) -> dict[str, Any]:
-    validate_plan(plan)
-    validate_answer_key(answer_key)
-    scores = [score_session(plan, answer_key, session) for session in sessions]
-    failures, by_id = [], {}
-    expected = session_arms(plan)
-    for score in scores:
-        if score["session_id"] in by_id:
-            failures.append("duplicate_session")
-        by_id[score["session_id"]] = score
-        if score["plan_root"] != plan["plan_root"] or score["arm"] != expected.get(score["session_id"]):
-            failures.append("score_plan_mismatch")
-        if not score["passed"] or score["failure_codes"]:
-            failures.append("session_failure")
-    if set(by_id) != set(expected) or len(scores) != len(expected):
-        failures.append("incomplete_assignment")
-    pairs = []
-    for assignment in plan["assignments"]:
-        retained = [by_id.get(item) for item in assignment["order"]]
-        if any(item is None for item in retained):
-            continue
-        git = next(item for item in retained if item["arm"] == "git-files")
-        guided = next(item for item in retained if item["arm"] == "vela-guided")
-        faster = guided["metrics"]["elapsed_ms"] < git["metrics"]["elapsed_ms"]
-        if not faster:
-            failures.append(f"pair_{assignment['pair']}_not_faster")
-        pairs.append({"pair": assignment["pair"], "guided_faster": faster})
-    elapsed = commands = tokens = False
-    improvement_bps = None
-    if set(by_id) == set(expected):
-        arm_scores = {arm: [item for item in by_id.values() if item["arm"] == arm] for arm in ARMS}
-        med = {metric: tuple(median([item["metrics"][metric] for item in arm_scores[arm]]) for arm in ARMS)
-               for metric in ("elapsed_ms", "tool_call_count")}
-        if med["elapsed_ms"][0] > 0:
-            improvement = (med["elapsed_ms"][0] - med["elapsed_ms"][1]) * 10_000 / med["elapsed_ms"][0]
-            improvement_bps = improvement.numerator // improvement.denominator
-            elapsed = improvement >= 2_000
-        else:
-            failures.append("zero_baseline_elapsed")
-        commands = med["tool_call_count"][1] <= med["tool_call_count"][0]
-        observed_by_arm = {
-            arm: [item["metrics"]["observed_tokens"] for item in arm_scores[arm]]
-            for arm in ARMS
-        }
-        if all(all(item is not None for item in values) for values in observed_by_arm.values()):
-            token_medians = tuple(median(observed_by_arm[arm]) for arm in ARMS)
-            tokens = token_medians[1] <= token_medians[0]
-        else:
-            failures.append("usage_incomplete")
-        if not elapsed:
-            failures.append("elapsed_improvement_below_20_percent")
-        if not commands:
-            failures.append("command_regression")
-        if not tokens:
-            failures.append("token_regression")
-    result = {"schema": "vela.product-compression-result.v2", "report_root": "",
-              "plan_root": plan["plan_root"], "score_roots": sorted(item["score_root"] for item in scores),
-              "pairs": pairs, "elapsed_improvement_basis_points": improvement_bps,
-              "gates": {"all_sessions_pass": set(by_id) == set(expected) and all(item["passed"] and not item["failure_codes"] for item in scores),
-                        "guided_faster_in_both_pairs": len(pairs) == 2 and all(item["guided_faster"] for item in pairs),
-                        "median_elapsed_improvement_at_least_20_percent": elapsed,
-                        "median_tool_calls_no_regression": commands,
-                        "median_observed_tokens_no_regression": tokens},
-              "passed": not failures, "failure_codes": sorted(set(failures))}
-    seal(result, "report_root")
-    validate_report(result)
-    return result
-
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     validate = commands.add_parser("validate")
-    validate.add_argument("--kind", choices=("answer", "plan", "answer-key", "session", "score", "report"), required=True)
+    validate.add_argument("--kind", choices=("answer", "plan", "answer-key"), required=True)
     validate.add_argument("--input", type=Path, required=True)
     freeze = commands.add_parser("freeze-plan")
     freeze.add_argument("--materials", type=Path, required=True)
@@ -1025,21 +754,12 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--vela-linux", type=Path, required=True)
     prepare.add_argument("--job-name", required=True)
     prepare.add_argument("--output", type=Path, required=True)
-    score = commands.add_parser("score")
-    for name in ("plan", "answer-key", "session", "output"):
-        score.add_argument(f"--{name}", type=Path, required=True)
-    report = commands.add_parser("report")
-    report.add_argument("--plan", type=Path, required=True)
-    report.add_argument("--answer-key", type=Path, required=True)
-    report.add_argument("--sessions", type=Path, nargs="+", required=True)
-    report.add_argument("--output", type=Path, required=True)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    validators = {"answer": validate_answer, "plan": validate_plan, "answer-key": validate_answer_key,
-                  "session": validate_session, "score": validate_score, "report": validate_report}
+    validators = {"answer": validate_answer, "plan": validate_plan, "answer-key": validate_answer_key}
     try:
         if args.command == "validate":
             validators[args.kind](read_json(args.input))
@@ -1054,10 +774,6 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.plan, args.materials, args.frontier, args.vela_linux,
                 args.job_name, args.output,
             )))
-        elif args.command == "score":
-            write_json(args.output, score_session(read_json(args.plan), read_json(args.answer_key), read_json(args.session)))
-        else:
-            write_json(args.output, build_report(read_json(args.plan), read_json(args.answer_key), (read_json(path) for path in args.sessions)))
         return 0
     except ContractError as exc:
         print(f"error: {exc}", file=sys.stderr)

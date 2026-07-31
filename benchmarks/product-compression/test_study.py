@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-import harness
+import study as harness
 import materialize
 
 
@@ -46,7 +46,7 @@ def tool_contract(interface: str, vela_available: bool) -> dict:
 
 def plan() -> dict:
     return {
-        "schema": "vela.product-compression-plan.v2", "plan_root": "", "fixture_root": root("f"), "answer_key_root": "",
+        "schema": "vela.product-compression-plan.v3", "plan_root": "", "fixture_root": root("f"), "answer_key_root": "",
         "executor": harness.seal({"executor_root": "", **harness.HARBOR}, "executor_root"),
         "model": harness.seal({
             "id": "test-model", "agent": "codex", "agent_version": "0.145.0",
@@ -61,7 +61,8 @@ def plan() -> dict:
             "git-files": tool_contract("native-read-only-workspace", False),
             "vela-guided": tool_contract("native-read-only-workspace-plus-vela", True),
         },
-        "budgets": {"elapsed_ms": 60_000, "tool_calls": 20, "observed_tokens": 10_000, "per_tool_reported_output_bytes": 10_000, "total_tool_reported_output_bytes": 100_000, "trajectory_bytes": 200_000, "verifier_output_bytes": 20_000, "answer_bytes": 100_000},
+        "limits": {"elapsed_ms": 60_000, "per_tool_reported_output_bytes": 10_000, "total_tool_reported_output_bytes": 100_000, "trajectory_bytes": 200_000, "verifier_output_bytes": 20_000, "answer_bytes": 100_000},
+        "comparison_rule": harness.COMPARISON_RULE,
         "assignments": [{"pair": "01", "order": ["git-files-01", "vela-guided-01"]}, {"pair": "02", "order": ["vela-guided-02", "git-files-02"]}],
         "publication_policy": {"publish_all_sessions": True, "publish_failures": True, "independence_claim": "first_party_only", "plan_changes_after_output": "forbidden"},
     }
@@ -77,26 +78,6 @@ def frozen_material() -> tuple[dict, dict]:
     return harness.seal(study, "plan_root"), key
 
 
-def session(session_id: str = "git-files-01") -> dict:
-    study, key = frozen_material()
-    arm, retained = session_id.rsplit("-", 1)[0], answer()
-    value = {
-        "schema": "vela.product-compression-session.v2", "session_root": "", "plan_root": study["plan_root"], "fixture_root": study["fixture_root"], "answer_key_root": key["answer_key_root"], "session_id": session_id, "arm": arm,
-        "model": "test-model", "model_config_root": study["model"]["config_root"], "tool_contract_root": study["arms"][arm]["tool_contract_root"], "executor_root": study["executor"]["executor_root"],
-        "started_at": "2026-07-31T10:00:00Z", "completed_at": "2026-07-31T10:00:01Z", "elapsed_ms": 1000, "termination": "completed", "process": {"exit_code": 0, "signal": None},
-        "usage": {"complete": True, "input_tokens": 100, "cached_input_tokens": 40, "output_tokens": 50, "reasoning_output_tokens": 10},
-        "tool_calls": [{"index": 1, "item_id": "item-1", "argv": ["git", "status"] if arm == "git-files" else ["vela", "status", "--json"], "elapsed_ms": 100, "state": "completed", "exit_code": 0, "reported_output_bytes": 3, "reported_output_root": root("4")}],
-        "trace": {"instruction_root": root("9"), "answer_schema_root": root("a"), "native_trajectory_root": root("b"), "native_trajectory_bytes": 100, "atif_root": root("c"), "atif_bytes": 100, "verifier_stdout_root": root("d"), "verifier_stdout_bytes": 10, "verifier_stderr_root": root("e"), "verifier_stderr_bytes": 0, "artifacts_manifest_root": root("f"), "artifacts_manifest_bytes": 10},
-        "semantic_interventions": [], "state": {name: {"before": root(char), "after": root(char)} for name, char in (("git_status", "6"), ("repository", "7"), ("standing", "8"))},
-        "violations": [], "answer_root": harness.sha256_root(harness.canonical_bytes(retained)), "answer": retained,
-    }
-    return harness.seal(value, "session_root")
-
-
-def score_for(session_id: str, elapsed_ms: int, commands: int, tokens: int) -> dict:
-    study, _ = frozen_material()
-    value = {"schema": "vela.product-compression-score.v2", "score_root": "", "plan_root": study["plan_root"], "session_root": root(session_id[-1]), "session_id": session_id, "arm": session_id.rsplit("-", 1)[0], "passed": True, "failure_codes": [], "metrics": {"elapsed_ms": elapsed_ms, "tool_call_count": commands, "observed_tokens": tokens, "uncached_token_proxy": tokens, "semantic_intervention_count": 0, "tool_reported_output_bytes": 3}}
-    return harness.seal(value, "score_root")
 # fmt: on
 
 
@@ -107,17 +88,22 @@ class HarnessTests(unittest.TestCase):
             "binding_root": "", "frontier": {"git_commit": "a" * 40},
         }, "binding_root")
         self.assertEqual(
-            harness.harbor_verifier_failure_codes(
+            harness.harbor_verifier_outcome(
                 answer(), key, binding, "a" * 40, "",
-            ),
-            [],
+            )["eligible"],
+            True,
         )
         self.assertIn(
             "frontier_worktree_drift",
-            harness.harbor_verifier_failure_codes(
+            harness.harbor_verifier_outcome(
                 answer(), key, binding, "a" * 40, b"",  # type: ignore[arg-type]
-            ),
+            )["eligibility_failure_codes"],
         )
+        missing = harness.harbor_verifier_outcome(
+            None, key, binding, "a" * 40, "",
+        )
+        self.assertTrue(missing["eligible"])
+        self.assertFalse(missing["exact"])
 
     def test_prepare_harbor_is_native_closed_and_deterministic(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -194,6 +180,9 @@ class HarnessTests(unittest.TestCase):
                 self.assertTrue((output / "tasks/02-vela-guided-01/environment/vela").exists())
                 generated_verifier = (output / "tasks/01-git-files-01/tests/verify.py").read_text()
                 self.assertIn("capture_output=True, text=True", generated_verifier)
+                self.assertIn('"eligible": 1 if outcome["eligible"] else 0', generated_verifier)
+                task_config = (output / "tasks/01-git-files-01/task.toml").read_text()
+                self.assertIn('environment_mode = "shared"', task_config)
             self.assertEqual(roots[0], roots[1])
 
             (frontier / "dirty.txt").write_text("dirty\n")
@@ -250,18 +239,6 @@ class HarnessTests(unittest.TestCase):
             with self.assertRaisesRegex(harness.ContractError, "system temporary root"):
                 materialize.reject_system_temporary_output(temporary / "materials")
 
-    def test_incomplete_usage_is_retained_and_scores_as_failure(self) -> None:
-        study, key = frozen_material()
-        value = session()
-        value["termination"] = "integrity_failure"
-        value["usage"] = {"complete": False, "input_tokens": None, "cached_input_tokens": None, "output_tokens": None, "reasoning_output_tokens": None}
-        value["violations"] = ["terminal_usage_missing"]
-        harness.seal(value, "session_root")
-        harness.validate_session(value)
-        score = harness.score_session(study, key, value)
-        self.assertIn("usage_incomplete", score["failure_codes"])
-        self.assertIsNone(score["metrics"]["observed_tokens"])
-
     def test_answer_schema_is_recursively_closed(self) -> None:
         stack = [json.loads((Path(__file__).parent / "answer.schema.json").read_text())]
         while stack:
@@ -272,13 +249,6 @@ class HarnessTests(unittest.TestCase):
                 stack.extend(node.values())
             elif isinstance(node, list):
                 stack.extend(node)
-
-    def test_valid_material_scores_and_derives_tokens(self) -> None:
-        study, key = frozen_material()
-        result = harness.score_session(study, key, session())
-        self.assertTrue(result["passed"])
-        self.assertEqual(result["metrics"]["observed_tokens"], 150)
-        self.assertEqual(result["metrics"]["uncached_token_proxy"], 110)
 
     def test_submission_proposal_linkage_fails_closed(self) -> None:
         value = answer()
@@ -315,86 +285,17 @@ class HarnessTests(unittest.TestCase):
         with self.assertRaisesRegex(harness.ContractError, "wrong execution interface"):
             harness.validate_plan(study)
 
-    def test_semantic_intervention_fails_but_normal_shell_spelling_does_not(self) -> None:
-        study, key = frozen_material()
-        value = session()
-        value["semantic_interventions"] = ["told participant which Run to choose"]
-        value["tool_calls"][0]["argv"] = ["bash", "-lc", "git status"]
-        harness.seal(value, "session_root")
-        result = harness.score_session(study, key, value)
-        self.assertIn("semantic_intervention", result["failure_codes"])
-        self.assertNotIn("command_outside_tool_contract", result["failure_codes"])
-
-    def test_session_and_answer_key_tampering_break_roots(self) -> None:
-        value = session()
-        value["usage"]["output_tokens"] += 1
-        with self.assertRaisesRegex(harness.ContractError, "session_root"):
-            harness.validate_session(value)
+    def test_answer_key_tampering_breaks_its_root(self) -> None:
         _, key = frozen_material()
         key["expected"]["work"]["target_id"] = "erdos:9999"
         with self.assertRaisesRegex(harness.ContractError, "answer_key_root"):
             harness.validate_answer_key(key)
 
-    def test_plan_and_score_tampering_break_roots(self) -> None:
+    def test_plan_tampering_breaks_its_root(self) -> None:
         study, _ = frozen_material()
-        study["budgets"]["tool_calls"] += 1
+        study["limits"]["elapsed_ms"] += 1
         with self.assertRaisesRegex(harness.ContractError, "plan_root"):
             harness.validate_plan(study)
-        value = score_for("git-files-01", 100_000, 10, 1000)
-        value["metrics"]["tool_call_count"] += 1
-        with self.assertRaisesRegex(harness.ContractError, "score_root"):
-            harness.validate_score(value)
-
-    def test_cached_tokens_cannot_exceed_input(self) -> None:
-        value = session()
-        value["usage"]["cached_input_tokens"] = 101
-        harness.seal(value, "session_root")
-        with self.assertRaisesRegex(harness.ContractError, "exceeds input"):
-            harness.validate_session(value)
-
-    def test_score_with_failure_code_cannot_claim_pass(self) -> None:
-        value = score_for("git-files-01", 100_000, 10, 1000)
-        value["failure_codes"] = ["forged_failure"]
-        harness.seal(value, "score_root")
-        with self.assertRaisesRegex(harness.ContractError, "absence of failure"):
-            harness.validate_score(value)
-
-    def test_report_is_counterbalanced_rooted_and_tamper_evident(self) -> None:
-        study, _ = frozen_material()
-        scores = [score_for("git-files-01", 50_000, 10, 1000), score_for("vela-guided-01", 35_000, 8, 800), score_for("git-files-02", 55_000, 12, 1200), score_for("vela-guided-02", 40_000, 9, 900)]
-        sessions = [session("git-files-01"), session("vela-guided-01"), session("git-files-02"), session("vela-guided-02")]
-        for retained, score in zip(sessions, scores, strict=True):
-            retained["completed_at"] = f"2026-07-31T10:00:{score['metrics']['elapsed_ms'] // 1000:02d}Z"
-            retained["elapsed_ms"] = score["metrics"]["elapsed_ms"]
-            retained["usage"] = {"complete": True, "input_tokens": score["metrics"]["observed_tokens"], "cached_input_tokens": 0, "output_tokens": 0, "reasoning_output_tokens": 0}
-            retained["tool_calls"] = [dict(retained["tool_calls"][0], index=index, item_id=f"item-{index}") for index in range(1, score["metrics"]["tool_call_count"] + 1)]
-            harness.seal(retained, "session_root")
-        result = harness.build_report(study, frozen_material()[1], sessions)
-        self.assertTrue(result["passed"])
-        result["elapsed_improvement_basis_points"] = 0
-        with self.assertRaisesRegex(harness.ContractError, "report_root"):
-            harness.validate_report(result)
-
-    def test_report_recomputes_scores_from_sessions(self) -> None:
-        study, key = frozen_material()
-        sessions = [session("git-files-01"), session("vela-guided-01"), session("git-files-02"), session("vela-guided-02")]
-        sessions[0]["answer"]["work"]["target_id"] = "erdos:9999"
-        sessions[0]["answer_root"] = harness.sha256_root(harness.canonical_bytes(sessions[0]["answer"]))
-        harness.seal(sessions[0], "session_root")
-        result = harness.build_report(study, key, sessions)
-        self.assertFalse(result["passed"])
-        self.assertIn("session_failure", result["failure_codes"])
-
-    def test_zero_elapsed_baseline_fails_instead_of_dividing_by_zero(self) -> None:
-        study, key = frozen_material()
-        sessions = [session("git-files-01"), session("vela-guided-01"), session("git-files-02"), session("vela-guided-02")]
-        for retained in sessions:
-            retained["completed_at"] = retained["started_at"]
-            retained["elapsed_ms"] = 0
-            harness.seal(retained, "session_root")
-        result = harness.build_report(study, key, sessions)
-        self.assertFalse(result["passed"])
-        self.assertIn("zero_baseline_elapsed", result["failure_codes"])
 
     def test_materializer_binds_completed_attempt_to_successor_and_review(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
