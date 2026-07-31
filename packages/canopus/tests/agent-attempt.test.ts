@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { readFile, realpath, stat } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
+import process from "node:process";
 import test from "node:test";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -245,9 +247,39 @@ test("builds one deterministic non-executable bundle and reports its exact ident
   assert.notEqual(first.subarray(0, 2).toString("utf8"), "#!");
   assert.equal((await stat(helperPath)).mode & 0o111, 0);
 
-  const doctor = await execFileAsync("bun", [helperPath, "doctor", "--json"], {
-    cwd: packageRoot,
-  });
+  const diagnostic = await mkdtemp(path.join(os.tmpdir(), "vela-agent-doctor-test-"));
+  const fakeCodex = path.join(diagnostic, process.platform === "win32" ? "codex.cmd" : "codex");
+  if (process.platform === "win32") {
+    await writeFile(fakeCodex, "@echo off\r\nexit /b 1\r\n");
+  } else {
+    await writeFile(
+      fakeCodex,
+      [
+        "#!/bin/sh",
+        'if [ "$1" = "--version" ]; then printf "codex-cli 0.145.0\\n"; exit 0; fi',
+        'if [ "$1" = "sandbox" ]; then',
+        '  printf "true false false false false false false false false false\\n"',
+        "  exit 0",
+        "fi",
+        "exit 1",
+        "",
+      ].join("\n"),
+    );
+    await chmod(fakeCodex, 0o700);
+  }
+  const doctor = await (async () => {
+    try {
+      return await execFileAsync("bun", [helperPath, "doctor", "--json"], {
+        cwd: packageRoot,
+        env: {
+          ...process.env,
+          PATH: `${diagnostic}${path.delimiter}${process.env.PATH ?? ""}`,
+        },
+      });
+    } finally {
+      await rm(diagnostic, { recursive: true, force: true });
+    }
+  })();
   assert.equal(doctor.stderr, "");
   const report = JSON.parse(doctor.stdout) as {
     ok: boolean;
@@ -260,6 +292,15 @@ test("builds one deterministic non-executable bundle and reports its exact ident
       bundle: { format: string; size: number; sha256: string };
     };
     build_root: string;
+    custody: {
+      preflight: string;
+      mode: string;
+      placement: {
+        default_output: string;
+        suitable: boolean;
+        system_temporary_output: string;
+      };
+    };
   };
   assert.equal(report.ok, true);
   assert.equal(report.authority, "none");
@@ -269,6 +310,13 @@ test("builds one deterministic non-executable bundle and reports its exact ident
   assert.equal(report.build.bundle.sha256, sha256Bytes(second));
   assert.equal(report.build.runtime.kind, "bun");
   assert.equal(report.build.runtime.version, "1.3.12");
+  assert.equal(
+    report.custody.preflight,
+    process.platform === "win32" ? "wsl2_required" : "passed",
+  );
+  assert.equal(report.custody.placement.default_output, "local_user_home");
+  assert.equal(report.custody.placement.suitable, true);
+  assert.equal(report.custody.placement.system_temporary_output, "rejected");
 
   const runtimeProbe = await execFileAsync("bun", [
     "-e",

@@ -1,3 +1,5 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -5,7 +7,13 @@ import { fileURLToPath } from "node:url";
 import { parseRetainedRunRecord } from "./projection/retained-run.js";
 import { projectCurrentRun } from "./projection/current-run.js";
 import { observedHelperBuild, runAttemptProduct } from "./product/attempt.js";
+import {
+  assertNativeOutputPlacement,
+  nativeOutputPlacement,
+  runNativeCustodyPreflight,
+} from "./product/custody.js";
 import { replayProduct } from "./product/replay.js";
+import { runtimeIdentity } from "./product/runtime.js";
 import { exportSubmission } from "./product/submission.js";
 import { protocolDigest, sha256Bytes } from "./util/canonical.js";
 import { readBoundedRegularFile } from "./util/files.js";
@@ -113,11 +121,16 @@ async function run(raw: unknown, helperBinary: string): Promise<void> {
   })}\n`);
 }
 
-async function main(argv: string[]): Promise<void> {
-  const helperBinary = fileURLToPath(import.meta.url);
-  const [command, file, ...rest] = argv;
-  if (command === "doctor" && (file === undefined || file === "--json") && rest.length === 0) {
-    const build = await observedHelperBuild(helperBinary);
+async function doctor(helperBinary: string): Promise<void> {
+  const build = await observedHelperBuild(helperBinary);
+  const defaultOutput = path.join(os.homedir(), ".vela", "agent", "runs");
+  assertNativeOutputPlacement(defaultOutput);
+  const placement = {
+    default_output: "local_user_home",
+    suitable: nativeOutputPlacement(defaultOutput).suitable,
+    system_temporary_output: "rejected",
+  } as const;
+  if (process.platform === "win32") {
     process.stdout.write(`${JSON.stringify({
       ok: true,
       command: "doctor",
@@ -125,7 +138,62 @@ async function main(argv: string[]): Promise<void> {
       effect: "none",
       build,
       build_root: protocolDigest(build),
+      custody: {
+        preflight: "wsl2_required",
+        mode: "not_applicable",
+        placement,
+      },
     })}\n`);
+    return;
+  }
+  if (process.platform !== "darwin" && process.platform !== "linux") {
+    throw new Error(`Vela Agent doctor does not support ${process.platform}`);
+  }
+  const diagnosticRoot = await mkdtemp(path.join(os.homedir(), ".vela-agent-doctor-"));
+  try {
+    const profile = path.join(diagnosticRoot, "native-worker.toml");
+    const profileBytes = process.platform === "linux"
+      ? __VELA_AGENT_LINUX_PERMISSION_PROFILE__
+      : __VELA_AGENT_MACOS_PERMISSION_PROFILE__;
+    await writeFile(profile, profileBytes, { flag: "wx", mode: 0o400 });
+    const codex = await runtimeIdentity({
+      name: "codex",
+      cwd: diagnosticRoot,
+      home: path.join(diagnosticRoot, "home"),
+    });
+    const custody = await runNativeCustodyPreflight({
+      binary: codex.binary,
+      permissionProfile: profile,
+    });
+    if (custody.codex_sha256 !== codex.sha256 || custody.codex_version !== codex.version) {
+      throw new Error("Vela Agent doctor and custody preflight disagree on Codex identity");
+    }
+    process.stdout.write(`${JSON.stringify({
+      ok: true,
+      command: "doctor",
+      authority: "none",
+      effect: "none",
+      build,
+      build_root: protocolDigest(build),
+      codex,
+      custody: {
+        preflight: "passed",
+        mode: custody.mode,
+        placement,
+        permission_profile_sha256: custody.permission_profile_sha256,
+        verdict: custody.verdict,
+      },
+    })}\n`);
+  } finally {
+    await rm(diagnosticRoot, { recursive: true, force: true });
+  }
+}
+
+async function main(argv: string[]): Promise<void> {
+  const helperBinary = fileURLToPath(import.meta.url);
+  const [command, file, ...rest] = argv;
+  if (command === "doctor" && (file === undefined || file === "--json") && rest.length === 0) {
+    await doctor(helperBinary);
     return;
   }
   if (command === "run" && file === "--request-stdin" && rest.length === 0) {

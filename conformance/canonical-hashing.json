@@ -65,6 +65,43 @@
       },
       "canonical": "{\"actor\":\"act_opus\",\"after_hash\":\"h1\",\"before_hash\":\"h0\",\"caveats\":[],\"kind\":\"finding.accepted\",\"payload\":{\"status\":\"accepted\",\"β\":\"unicode-in-key\"},\"reason\":\"two independent verifiers\",\"schema\":\"vela.event.v1\",\"target\":\"vf_abc\",\"timestamp\":\"2026-06-07T00:00:00Z\"}",
       "sha256": "193a68dac9f7155174f73e294b1d5fa8a5038a92206bf517f43d4b1fac2b1846"
+    },
+    {
+      "name": "Canopus run evidence manifest uses the Vela protocol root",
+      "input": {
+        "schema": "canopus.run-evidence.v1",
+        "authority": "non_authoritative",
+        "mission_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "run_id": "run_evidence_root_interop_fixture",
+        "target": "erdos:1056",
+        "files": {
+          "activity": "sha256:e746505551d606c05e2535acad7055380e487428223db6293ecccdbadcea2d7d",
+          "transcript": "sha256:b41369fe1c6117f403a4998a05a7446f9ddf8b97ba35832e07982f523d6f7d41",
+          "tool_trace": "sha256:e1dbf0eaf7885b7b3bd56e80173cf33c2704e78755cad34af3a2b0cc56071ab6",
+          "worker_stderr": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "engine_result": "sha256:32c6ad7706c9b421bb5357b2a1e3c93797ed56ff78bf75f16f9147d918050540",
+          "candidate": "sha256:e39494a6eed78161414f7afdef602f86ff19de6efa9ca9053407d548981fe01f",
+          "run": "sha256:94eb0ccda836bce9638e115af536111ab8db02a0ceae1746189fc921856e9a25"
+        },
+        "artifact_roots": [
+          "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+        ],
+        "verifier_root": "sha256:c908c92382bd501c4902b3778925bd1572f2c91d1a3e06284d35d5b2a511ee93",
+        "submission_root": null,
+        "final_roots": {
+          "git_commit": "3333333333333333333333333333333333333333",
+          "git_tree": "4444444444444444444444444444444444444444",
+          "vela_repository": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "event_log": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "snapshot": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+          "proposals": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+          "registry": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+          "artifacts": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      },
+      "canonical": "{\"artifact_roots\":[\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"sha256:2222222222222222222222222222222222222222222222222222222222222222\"],\"authority\":\"non_authoritative\",\"files\":{\"activity\":\"sha256:e746505551d606c05e2535acad7055380e487428223db6293ecccdbadcea2d7d\",\"candidate\":\"sha256:e39494a6eed78161414f7afdef602f86ff19de6efa9ca9053407d548981fe01f\",\"engine_result\":\"sha256:32c6ad7706c9b421bb5357b2a1e3c93797ed56ff78bf75f16f9147d918050540\",\"run\":\"sha256:94eb0ccda836bce9638e115af536111ab8db02a0ceae1746189fc921856e9a25\",\"tool_trace\":\"sha256:e1dbf0eaf7885b7b3bd56e80173cf33c2704e78755cad34af3a2b0cc56071ab6\",\"transcript\":\"sha256:b41369fe1c6117f403a4998a05a7446f9ddf8b97ba35832e07982f523d6f7d41\",\"worker_stderr\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"},\"final_roots\":{\"artifacts\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"event_log\":\"sha256:6666666666666666666666666666666666666666666666666666666666666666\",\"git_commit\":\"3333333333333333333333333333333333333333\",\"git_tree\":\"4444444444444444444444444444444444444444\",\"proposals\":\"sha256:8888888888888888888888888888888888888888888888888888888888888888\",\"registry\":\"sha256:9999999999999999999999999999999999999999999999999999999999999999\",\"snapshot\":\"sha256:7777777777777777777777777777777777777777777777777777777777777777\",\"vela_repository\":\"sha256:5555555555555555555555555555555555555555555555555555555555555555\"},\"mission_root\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"run_id\":\"run_evidence_root_interop_fixture\",\"schema\":\"canopus.run-evidence.v1\",\"submission_root\":null,\"target\":\"erdos:1056\",\"verifier_root\":\"sha256:c908c92382bd501c4902b3778925bd1572f2c91d1a3e06284d35d5b2a511ee93\"}",
+      "sha256": "e48aa5fb554f2e9dd73b72c2c92f2db6bcc7a0c5e7f48ea36d72cc867a24b6b0"
     }
   ]
 }

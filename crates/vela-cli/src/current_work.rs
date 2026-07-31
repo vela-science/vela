@@ -785,6 +785,67 @@ fn reserve_agent_run(attempt: &mut CurrentAttempt) -> Result<(), String> {
     Ok(())
 }
 
+fn system_temporary_roots() -> Vec<PathBuf> {
+    let mut roots = vec![
+        std::env::temp_dir(),
+        PathBuf::from("/tmp"),
+        PathBuf::from("/private/tmp"),
+        PathBuf::from("/var/tmp"),
+    ];
+    roots.sort();
+    roots.dedup();
+    roots
+}
+
+fn path_is_within(path: &Path, root: &Path) -> bool {
+    path == root || path.starts_with(root)
+}
+
+fn existing_ancestor(path: &Path) -> Option<&Path> {
+    path.ancestors().find(|candidate| candidate.exists())
+}
+
+fn reject_system_temporary_agent_output(output: Option<&Path>) -> Result<(), String> {
+    let Some(output) = output else {
+        return Ok(());
+    };
+    let lexical = output.to_path_buf();
+    let canonical_ancestor =
+        existing_ancestor(output).and_then(|ancestor| std::fs::canonicalize(ancestor).ok());
+    for root in system_temporary_roots() {
+        if path_is_within(&lexical, &root)
+            || canonical_ancestor
+                .as_deref()
+                .is_some_and(|ancestor| path_is_within(ancestor, &root))
+        {
+            return Err(
+                "Vela Agent output cannot use a system temporary directory because native worker custody is not isolated there; use the default user-home store or another local non-temporary directory"
+                    .to_string(),
+            );
+        }
+        if let Ok(canonical_root) = std::fs::canonicalize(&root)
+            && (path_is_within(&lexical, &canonical_root)
+                || canonical_ancestor
+                    .as_deref()
+                    .is_some_and(|ancestor| path_is_within(ancestor, &canonical_root)))
+        {
+            return Err(
+                "Vela Agent output cannot use a system temporary directory because native worker custody is not isolated there; use the default user-home store or another local non-temporary directory"
+                    .to_string(),
+            );
+        }
+    }
+    Ok(())
+}
+
+fn reserve_agent_run_for_output(
+    attempt: &mut CurrentAttempt,
+    output: Option<&Path>,
+) -> Result<(), String> {
+    reject_system_temporary_agent_output(output)?;
+    reserve_agent_run(attempt)
+}
+
 fn authorization_root(attempt: &CurrentAttempt) -> Result<String, String> {
     canonical_root(&json!({
         "schema": "vela.attempt-authorization.internal.v1",
@@ -1207,7 +1268,7 @@ pub(crate) fn agent_run_request(
         ),
         None => None,
     };
-    reserve_agent_run(attempt)?;
+    reserve_agent_run_for_output(attempt, output.as_deref())?;
     let preimage = json!({
         "schema": "vela.agent-run-request.internal.v1",
         "authority": "none",
@@ -2453,6 +2514,20 @@ mod tests {
     }
 
     #[test]
+    fn agent_output_refuses_system_temporary_placement() {
+        let output = std::env::temp_dir().join("vela-agent-evidence");
+        let error = reject_system_temporary_agent_output(Some(&output)).unwrap_err();
+        assert!(error.contains("system temporary directory"), "{error}");
+        reject_system_temporary_agent_output(None).unwrap();
+        let local_home_output = if cfg!(windows) {
+            PathBuf::from(r"C:\Users\vela\.vela\agent\runs\evidence")
+        } else {
+            PathBuf::from("/home/vela/.vela/agent/runs/evidence")
+        };
+        reject_system_temporary_agent_output(Some(&local_home_output)).unwrap();
+    }
+
+    #[test]
     fn exact_packet_and_bundle_bytes_fail_closed() {
         let packet_bytes = br#"{"schema":"erdos.problem-work.v1","statement":"bounded fixture"}"#;
         let packet = vela_edge::target_index::TargetPacketRefV2 {
@@ -2622,8 +2697,17 @@ mod tests {
         other_controller.binary_sha256 = format!("sha256:{}", "f".repeat(64));
         let error = require_current_controller(&decoded, &other_controller).unwrap_err();
         assert!(error.contains("another Vela controller build"), "{error}");
+
+        let temporary_output_root = tempfile::tempdir().unwrap();
+        let temporary_output = temporary_output_root.path().join("agent-output");
+        let mut rejected = decoded.clone();
+        let error =
+            reserve_agent_run_for_output(&mut rejected, Some(&temporary_output)).unwrap_err();
+        assert!(error.contains("system temporary directory"), "{error}");
+        assert_eq!(rejected.usage.runs, 0);
+
         let mut reserved = decoded.clone();
-        reserve_agent_run(&mut reserved).unwrap();
+        reserve_agent_run_for_output(&mut reserved, None).unwrap();
         assert_eq!(reserved.usage.runs, 1);
         let error = reserve_agent_run(&mut reserved).unwrap_err();
         assert!(error.contains("exhausted its Agent run budget"), "{error}");

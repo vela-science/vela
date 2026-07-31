@@ -9,10 +9,16 @@ import {
   runCanopus,
   type CanopusCurrentRunResult,
 } from "../run.js";
-import { canonicalJson, contentDigest, sha256Bytes } from "../util/canonical.js";
+import {
+  canonicalJson,
+  contentDigest,
+  protocolDigest,
+  sha256Bytes,
+} from "../util/canonical.js";
 import { runCommand, type CommandRunner } from "../util/command.js";
 import { readBoundedRegularFile } from "../util/files.js";
 import { VelaClient } from "../vela/cli.js";
+import { assertNativeOutputPlacement } from "./custody.js";
 import { doctorProduct, type ProductDoctorResult } from "./doctor.js";
 import { assertMissionNotCovered } from "./coverage.js";
 import {
@@ -43,6 +49,7 @@ function packageFile(relative: string): string {
 
 export async function assertFreshOutput(outputRoot: string, sourceRoot: string): Promise<void> {
   const output = path.resolve(outputRoot);
+  assertNativeOutputPlacement(output);
   const cloudBackedRoots = [
     path.join(os.homedir(), "Desktop"),
     path.join(os.homedir(), "Library", "Mobile Documents"),
@@ -109,7 +116,7 @@ export async function writeEvidenceManifest(
   };
   const file = path.join(root, "evidence-manifest.json");
   await writeFile(file, canonicalJson(manifest), { flag: "wx", mode: 0o600 });
-  return { file, root: contentDigest(manifest) };
+  return { file, root: protocolDigest(manifest) };
 }
 
 export function defaultProductOutput(frontier: string): string {

@@ -23,7 +23,7 @@ import {
   sha256RegularFile,
 } from "../util/files.js";
 import { VelaClient } from "../vela/cli.js";
-import { runNativeCustodyPreflight } from "./custody.js";
+import { assertNativeOutputPlacement, runNativeCustodyPreflight } from "./custody.js";
 import {
   assertFreshOutput,
   assertToolUsingMissionPlatform,
@@ -710,9 +710,10 @@ export async function runAttemptProduct(
   if (frontier !== request.frontier.path) {
     throw new Error("Agent request Frontier path is not canonical");
   }
+  const outputRoot = path.resolve(request.output_root ?? defaultOutput(frontier));
+  assertNativeOutputPlacement(outputRoot);
   const runtimeHome = await mkdtemp(path.join(os.tmpdir(), "vela-agent-run-"));
   const runner = options.runner ?? runCommand;
-  const outputRoot = path.resolve(request.output_root ?? defaultOutput(frontier));
   try {
     const bundle = request.execution_bundle.value;
     const verifier = objectAt(bundle.verifier, "execution bundle verifier");

@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { constants } from "node:fs";
+import { constants, existsSync, realpathSync } from "node:fs";
 import { chmod, copyFile, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -18,6 +18,11 @@ export interface NativeCustodyPreflightResult {
   codex_version: string;
   codex_sha256: string;
   permission_profile_sha256: string;
+  placement: {
+    preflight: "local_user_home";
+    suitable: true;
+    system_temporary_output: "rejected";
+  };
   verdict: {
     curl_available: true;
     source_auth_readable: false;
@@ -30,6 +35,65 @@ export interface NativeCustodyPreflightResult {
     environment_contains_auth: false;
     proc_environ_contains_auth: false;
   };
+}
+
+function pathIsWithin(candidate: string, root: string): boolean {
+  const relative = path.relative(root, candidate);
+  return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== "..");
+}
+
+function canonicalExistingAncestor(candidate: string): string | undefined {
+  let current = candidate;
+  while (!existsSync(current)) {
+    const parent = path.dirname(current);
+    if (parent === current) return undefined;
+    current = parent;
+  }
+  return realpathSync(current);
+}
+
+export function nativeOutputPlacement(outputRoot: string): {
+  kind: "local_user_home" | "local_non_temporary" | "system_temporary";
+  suitable: boolean;
+} {
+  const output = path.resolve(outputRoot);
+  const temporaryRoots = [
+    os.tmpdir(),
+    "/tmp",
+    "/private/tmp",
+    "/var/tmp",
+  ].map((root) => path.resolve(root));
+  const canonicalAncestor = canonicalExistingAncestor(output);
+  const canonicalTemporaryRoots = temporaryRoots.map((root) => {
+    try {
+      return realpathSync(root);
+    } catch {
+      return root;
+    }
+  });
+  if (
+    temporaryRoots.some((root) => pathIsWithin(output, root)) ||
+    (canonicalAncestor !== undefined &&
+      canonicalTemporaryRoots.some((root) => pathIsWithin(canonicalAncestor, root)))
+  ) {
+    return { kind: "system_temporary", suitable: false };
+  }
+  return {
+    kind: pathIsWithin(output, path.resolve(os.homedir()))
+      ? "local_user_home"
+      : "local_non_temporary",
+    suitable: true,
+  };
+}
+
+export function assertNativeOutputPlacement(outputRoot: string): void {
+  if (!nativeOutputPlacement(outputRoot).suitable) {
+    throw new Error(
+      "Canopus native-worker output cannot use a system temporary directory because " +
+      "worker custody is not isolated there; use the default user-home store or another " +
+      "local non-temporary directory",
+    );
+  }
 }
 
 export async function runNativeCustodyPreflight(options: {
@@ -143,6 +207,11 @@ export async function runNativeCustodyPreflight(options: {
       codex_version: codexVersion,
       codex_sha256: binaryDigest,
       permission_profile_sha256: sha256Bytes(profileBytes),
+      placement: {
+        preflight: "local_user_home",
+        suitable: true,
+        system_temporary_output: "rejected",
+      },
       verdict: {
         curl_available: true,
         source_auth_readable: false,

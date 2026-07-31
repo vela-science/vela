@@ -5,7 +5,11 @@ import path from "node:path";
 import process from "node:process";
 import test from "node:test";
 
-import { runNativeCustodyPreflight } from "../src/product/custody.js";
+import {
+  assertNativeOutputPlacement,
+  nativeOutputPlacement,
+  runNativeCustodyPreflight,
+} from "../src/product/custody.js";
 import { sha256Bytes } from "../src/util/canonical.js";
 import type { CommandRunner } from "../src/util/command.js";
 import { MAX_EXECUTABLE_BYTES } from "../src/util/files.js";
@@ -60,6 +64,11 @@ test("native custody preflight reuses the production boundary with generated can
   assert.equal(result.mode, "deterministic_no_model");
   assert.equal(result.codex_sha256, sha256Bytes(binaryBytes));
   assert.equal(result.permission_profile_sha256, sha256Bytes(profileBytes));
+  assert.deepEqual(result.placement, {
+    preflight: "local_user_home",
+    suitable: true,
+    system_temporary_output: "rejected",
+  });
   assert.equal(result.verdict.outside_workspace_writable, false);
   assert.equal(result.verdict.command_network_reachable, false);
   assert.equal(calls.length, 2);
@@ -68,6 +77,24 @@ test("native custody preflight reuses the production boundary with generated can
   } else {
     assert.equal(calls[0]?.[0], await realpath(binary));
   }
+});
+
+test("native output placement rejects system temporary directories", () => {
+  const temporaryOutput = path.join(os.tmpdir(), "vela-agent-evidence");
+  assert.deepEqual(nativeOutputPlacement(temporaryOutput), {
+    kind: "system_temporary",
+    suitable: false,
+  });
+  assert.throws(
+    () => assertNativeOutputPlacement(temporaryOutput),
+    /system temporary directory/u,
+  );
+  const defaultOutput = path.join(os.homedir(), ".vela", "agent", "runs");
+  assert.deepEqual(nativeOutputPlacement(defaultOutput), {
+    kind: "local_user_home",
+    suitable: true,
+  });
+  assert.doesNotThrow(() => assertNativeOutputPlacement(defaultOutput));
 });
 
 test("native custody executable ceiling covers current large Codex distributions", () => {
