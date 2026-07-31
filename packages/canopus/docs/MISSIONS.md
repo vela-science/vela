@@ -13,7 +13,7 @@ profile → mission → run → replay → optional export → optional submit
 
 Current runnable profiles are deliberately few:
 
-- `erdos1056-k15-10429601-10429800` performs one bounded deterministic
+- `erdos1056-k15-10429801-10430000` performs one bounded deterministic
   computation; and
 - `formal-erdos-505-test-dim-one` produces one raw Lean term and checks it in
   the exact source-bound Lean 4.27.0 environment.

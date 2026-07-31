@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-- Advance the single active Erdős profile to the first uncovered
-  compact-repository packet and exact range `10429601..10429800`. Profiles
+- Advance the single active Erdős profile to the next non-overlapping
+  compact-repository packet and exact range `10429801..10430000`. Profiles
   bind the full Target packet root as well as its schema, so reusing a target
   ID with different bytes fails before output creation or model execution. Completed
   Runs remain replayable from their self-contained Mission bundles.

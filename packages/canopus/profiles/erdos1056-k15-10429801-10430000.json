@@ -1,16 +1,16 @@
 {
   "schema": "canopus.profile.v2",
-  "name": "erdos1056-k15-10429601-10429800",
+  "name": "erdos1056-k15-10429801-10430000",
   "target": "erdos:1056",
   "target_packet_schema": "erdos-frontier.problem-work.v2",
-  "target_packet_sha256": "sha256:8d879e24a537de3b9b13ad7878dc98db8ce4f5273187c7f45d0d49a93e8fe8ad",
+  "target_packet_sha256": "sha256:c2b57075a0ec205b4d837382f8b816f31ab20a485e40962a1768e7ed42565344",
   "draft": "missions/erdos1056-k15-next/mission.draft.json",
-  "draft_sha256": "sha256:cbc5975444dc55a5b51045f6d2d11e661a4b1342314e013240c94ec838bf9804",
-  "objective_sha256": "sha256:29edd34cb8019fbe5bed382337bbbd5e8e681671562158f4d360937251b2b3b9",
+  "draft_sha256": "sha256:7cc07e4fbfe24c8b42e2566c5a8cdf104a9eeda25fae7e0f84239dfb7c11a903",
+  "objective_sha256": "sha256:8f8558da67e3af57f01987d48adb2b99cda10f98a47496fd01c661d27dfa7dc9",
   "completion_condition_sha256": "sha256:92a9aa5ba79b24363a8a1406188b16b61d942e799038c3b512778065fe9bff5e",
-  "allowed_artifacts_sha256": "sha256:8f75892ea33c31638fd087d14d8b0f69ff6544e3abfa9a46c4e8a2c4345fb9ea",
+  "allowed_artifacts_sha256": "sha256:7268eef95ea45a0d4a04a441685f080cb4fa1ff8a4eb5bbe24819fe89498183a",
   "budgets_sha256": "sha256:5457a393d492978d8f191aca42fde0bf95261d74d701ce7ecd1b99f6e0dcbc0c",
-  "replay_argv_sha256": "sha256:91b963285446e722cfb324a04dc73f0fce35e1a7c9cf626a024a96a315e41adc",
+  "replay_argv_sha256": "sha256:45dbfc3cc84457dd9c60316eb11f0cc665b201dfe4f0096a2f0a5cc08d229140",
   "landing": {
     "expected_routes": ["defer"],
     "max_accepted_delta": 0
@@ -19,15 +19,15 @@
     "darwin-arm64": {
       "worker_profile": "runtime/native-worker/config.toml",
       "worker_profile_sha256": "sha256:12b58762819481ad101e7a172a296224b6050a8a07a7431272e521a4102908da",
-      "verifier_capsule": "capsules/erdos1056-k15/bin/linux-arm64/10429601-10429800/verifier",
-      "verifier_capsule_sha256": "sha256:ace7a3054d77af31391b3103ab397d5dac8fd5fd6a62211fde6c6bf5863e59f7",
+      "verifier_capsule": "capsules/erdos1056-k15/bin/linux-arm64/10429801-10430000/verifier",
+      "verifier_capsule_sha256": "sha256:c2ac41003588480cb165fc2090be545409fb2e8a311fbddaeeaa5d74ed56187f",
       "verifier_image": "ghcr.io/vela-science/canopus-verifier@sha256:a6f354862f2a3f7d72eb99244c65fa8583c98b74e17e3d5ce6e31ef48aa16536"
     },
     "linux-x86_64": {
       "worker_profile": "runtime/native-worker/config-linux.toml",
       "worker_profile_sha256": "sha256:fddecc4b7458b91f6d55ae16b666d297ae7bcd1a2f5deeb6650dcea60fc0242c",
-      "verifier_capsule": "capsules/erdos1056-k15/bin/linux-x86_64/10429601-10429800/verifier",
-      "verifier_capsule_sha256": "sha256:f91eeee3e113682fca263de0b1cfad623284bebe24cecb167426c8ad300ef767",
+      "verifier_capsule": "capsules/erdos1056-k15/bin/linux-x86_64/10429801-10430000/verifier",
+      "verifier_capsule_sha256": "sha256:e287a64191be2240f68646f1d0878fc7ab24f95fac33fe8e1678f219376dd187",
       "verifier_image": "ghcr.io/vela-science/canopus-verifier@sha256:a6f354862f2a3f7d72eb99244c65fa8583c98b74e17e3d5ce6e31ef48aa16536"
     }
   }

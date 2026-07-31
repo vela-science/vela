@@ -134,7 +134,7 @@ jobs:
           canopus="$RUNNER_TEMP/canopus-install/bin/canopus"
           "$canopus" --help
           "$canopus" profile list
-          "$canopus" profile validate erdos1056-k15-10429601-10429800
+          "$canopus" profile validate erdos1056-k15-10429801-10430000
 
   windows-read-only:
     runs-on: windows-2025
@@ -183,4 +183,4 @@ jobs:
             $protocol.FullName $canopus.FullName
           & "$env:RUNNER_TEMP\canopus\canopus.cmd" --help
           & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile list
-          & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile validate erdos1056-k15-10429601-10429800
+          & "$env:RUNNER_TEMP\canopus\canopus.cmd" profile validate erdos1056-k15-10429801-10430000
