@@ -217,26 +217,30 @@ runtime boundaries:
 ```text
 crates/             Vela protocol, replay, repository authority, and CLI
 packages/protocol/  Authority-free TypeScript contracts and validators
-packages/canopus/   Optional bounded producer and evaluation harness
+packages/canopus/   Private candidate for the optional bounded Agent executor
 conformance/        Shared cross-implementation fixtures
                      plus repository-wide protocol checks
 .github/release/    Rust artifact publication and smoke tooling
 ```
 
-`@vela-science/canopus` may use `@vela-science/protocol`; it cannot import
-repository-authority or Decision internals. Vela Web and canonical Frontier
-repositories remain separate because they have independent deployment and
-scientific-history lifecycles.
+The immutable public `@vela-science/canopus@0.8.0` may use
+`@vela-science/protocol`; it cannot import repository-authority or Decision
+internals. Current Canopus source is deliberately private while
+[ADR 0031](docs/adr/0031-one-product-and-removable-agent-executor.md) evaluates
+its smaller role as removable `vela agent` execution support. Vela Web and
+canonical Frontier repositories remain separate because they have independent
+deployment and scientific-history lifecycles.
 
 Package-local tooling stays with its package. The repository has no catch-all
 top-level `scripts/` directory. The root `install.sh` is the public product
 installer, not a tooling bucket.
 
-The Protocol package and Canopus publish together, in dependency order, from
-one `product-v*` release tag. Routine development does not advance versions or
-copy release facts across the workspace; package versions change only when a
-public contract ships. Rust and npm artifacts retain independent versions and
-immutable tags even when one monorepo release change coordinates them.
+The immutable Protocol `0.1.0` and Canopus `0.8.0` packages were published, in
+dependency order, from `product-v0.8.0`. Current Canopus source cannot
+republish that identity. Proposed ADR 0031 moves any earned future package
+publication to one Vela source tag and manifest while retaining explicit
+component versions. Routine development does not advance versions or copy
+release facts across the workspace.
 
 ## Security model
 

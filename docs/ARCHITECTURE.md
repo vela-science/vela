@@ -199,7 +199,7 @@ The target public topology is intentionally small:
 
 | Repository | Sole responsibility |
 | --- | --- |
-| `vela-science/vela` | Product monorepo: Rust implementation, TypeScript protocol SDK, optional Canopus producer, shared schemas, conformance, releases, architecture |
+| `vela-science/vela` | Product monorepo: Rust implementation, TypeScript protocol SDK, private candidate Agent executor, shared schemas, conformance, releases, architecture |
 | `vela-science/vela-web` | Editorial site and read-only Observatory |
 | `vela-science/erdos-frontier` | Canonical Erdős Frontier |
 | `vela-science/formal-conjectures-frontier` | Canonical formal-conjectures Frontier |
@@ -227,16 +227,19 @@ interface versions.
 - Vela releases the protocol implementation and CLI.
 - The TypeScript protocol package is generated or checked against the same
   public schemas and fixtures as Rust.
-- Canopus checks capabilities, invokes released Vela binaries through the
-  public boundary, and pins exact binaries in every Run.
+- Immutable Canopus `0.8.0` checks capabilities, invokes released Vela
+  binaries through the public boundary, and pins exact binaries in every Run.
+  Current source is private while proposed ADR 0031 evaluates a smaller,
+  removable `vela agent` facade.
 - Each Frontier verifies and reproduces its own exact state.
 - Vela Web verifies its read projection against exact Frontier sources.
 - Organization workflows test the compatibility matrix without becoming a
   canonical writer or synthetic ecosystem release.
 
 An exact scientific Run still pins every binary and digest it used. Colocated
-source does not grant Canopus authority access, and component versions do not
-move in lockstep.
+source does not grant an executor authority access, and component versions do
+not move in lockstep. If ADR 0031 is accepted, one Vela source tag and manifest
+coordinate changed artifacts without erasing their component versions.
 
 Package and network surfaces follow a strict maturity ladder:
 
@@ -252,10 +255,10 @@ Only level 0 of this **package** ladder is active. A package carries reusable
 language or capability but confers no Standing. A package Registry distributes
 packages but is not scientific authority.
 
-ADR 0030 separately proposes an active Math Source Registry because exact
-observation needs to bind native source identity, rights, snapshots, adapters,
-coverage, and omissions before any Atlas view is trustworthy. That inventory
-does not distribute semantic packages or confer Standing.
+Accepted ADR 0030 defines the current Math Source Registry because exact
+observation must bind native source identity, rights, snapshots, adapters,
+coverage, and omissions before any Atlas view is trustworthy. That deployed
+inventory does not distribute semantic packages or confer Standing.
 
 The first-party Math Atlas is the existing Observatory over the four declared
 Frontiers and registered native sources. Level 4 means a later federated Atlas

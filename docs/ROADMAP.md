@@ -45,13 +45,15 @@ The detailed work, evidence roots, benchmarks, and stop conditions live in the
 
 ## Current checkpoint — 2026-07-30
 
-All three planned result loops have exact requirement-matching Verification
-with accepted state unchanged:
+All three planned result loops and the next Erdős continuation have exact
+requirement-matching Verification with accepted state unchanged:
 
-- Erdős commit `b92c11e5daf59732f8057de2d3b114b56ea8d25c`, Proposal `vpr_27bce8983810f3bd`,
-  requirement-matching Verification `vvr_b879aec074e01d16`;
-  producer work for `10429601..10429800` is closed without accepting the
-  Claim, and the next nonduplicate range is `10429801..10430000`;
+- Erdős commit `fa50b5405f3a61dd576be7df28e2864363ee6d54`; Proposals
+  `vpr_27bce8983810f3bd` and `vpr_148c88da4d5579a9` have
+  requirement-matching Verifications `vvr_b879aec074e01d16` and
+  `vvr_18f4862fd1a2c256`; producer work through `10430000` is closed without
+  accepting either Claim, and the next nonduplicate range is
+  `10430001..10430200`;
 - Formal commit `7d00fd9c34be3887624db16e4c5062c7fc447198`, Proposal `vpr_08a91ee1b770f5cb`,
   requirement-matching Verification `vvr_96dcaefef0617952`; its exact bounded
   producer Target is closed, but its scientific Claim is not accepted; and
@@ -69,24 +71,24 @@ having no protocol blocker.
 
 Sidon remains clean at commit
 `75b3392c5d2a4390065a3927914acdb552d69e8e`. Vela Web `v0.430.0` is deployed
-at current commit `421379d411b16d00b24c5647c373669ca4de27af`:
+at current commit `f85ff84b6d757ceff2b3b2dcf2a1b87176566f4d`:
 
 - the Observatory and editorial production manifests identify the exact version,
   commit, brand root, and Vercel deployments;
 - the active projection is
-  `sha256:bfbd1f4460d20a73e440d75e3de46aa245a4b627c1ad51dee5af37108c1f273f`
+  `sha256:256591ba5e668f2ce883f640e1ea0f6b433df93013a35226bfedf1fd9272125a`
   under Vela `0.950.1`;
 - source adapter set
   `sha256:82df98241fc5e5f61b0790604a6ef7c3d6b5ce075e00c133e78ed64d0f8e186a`
   contains 6,700 exact adapter records, and the Registry projection contains
-  9,537 native rows;
+  9,538 native rows;
 - PLBY is observed from locked commit
   `d4476dd3535ec618dee4177915741017026d26bf`, not the stale predecessor;
-- the single Neon `main` branch exposes 14 exact sources, 6,303 Frontier
-  bindings, 4,135 graph nodes, 2,575 edges, and 4,139 search documents through
+- the single Neon `main` branch exposes 14 exact sources, 6,304 Frontier
+  bindings, 4,140 graph nodes, 2,579 edges, and 4,144 search documents through
   the SELECT-only reader; and
-- production Browser QA confirms the Registry and complete 4,037-node Erdős
-  map without console errors.
+- production data checks confirm the root-bound 4,042-node, 2,536-edge Erdős
+  projection; visual Browser evidence remains a separate presentation check.
 
 The retained live-read-health artifact `sha256:457df1b7…` passes exact
 current-head reader, query, payload, and bounded-concurrency budgets. The
@@ -123,6 +125,9 @@ source roots.
 - Require fresh-user comprehension of the repository-authority path before
   accepting ADR 0020.
 - Require a second real producer replay before accepting ADR 0021.
+- Evaluate proposed ADR 0031 by shrinking duplicate Canopus product machinery,
+  exposing only a removable experimental `vela agent` delegator, and running
+  the twelve-hour matched dogfood before any package rename or public release.
 
 ## Completed — Math Source Registry and observation path
 
@@ -176,14 +181,14 @@ reconstruction result; adoption and beta claims remain separate.
 
 ## P1 — complete genuine result Decisions and remap
 
-The Erdős `10429601..10429800`, Formal Erdős 835, and retained quantum
-`[[10,1,4]]` missions have preserved their failures, scoped their Claims, and
-imported separate Verifications. Complete each through a human Decision or
-explicit cancellation, replay from clean clones, rebuild the Atlas, and prove
-that Standing changes only through Decision. Erdős producer work already
-closed independently of Standing and now offers `10429801..10430000`; do not
-regress that separation by making duplicate-work prevention wait on
-acceptance.
+The Erdős `10429601..10429800` and `10429801..10430000`, Formal Erdős 835,
+and retained quantum `[[10,1,4]]` missions have preserved their failures,
+scoped their Claims, and imported separate Verifications. Complete each through
+a human Decision or explicit cancellation, replay from clean clones, rebuild
+the Atlas, and prove that Standing changes only through Decision. Erdős
+producer work already closed independently of Standing and now offers
+`10430001..10430200`; do not regress that separation by making duplicate-work
+prevention wait on acceptance.
 
 ## P1 — measure whether the product works
 
@@ -231,17 +236,20 @@ source-local recurrence
 -> federated read-only Atlas
 ```
 
-The Math Source Registry is the active implementation priority because
-exact observation requires it.
-The semantic-package Registry and federated global Atlas remain gated by
-external reuse, independently governed Frontiers, correction propagation, and
-cold-user lift.
+The Math Source Registry and first-party Atlas alpha are complete. The active
+gate is cold-use and product lift: prove that a researcher can locate decisive
+evidence, act on one exact Target, and continue from the resulting obligation
+faster and more accurately than from the same native sources alone. The
+semantic-package Registry and federated global Atlas remain gated by external
+reuse, independently governed Frontiers, correction propagation, and cold-user
+lift.
 
 ## Release posture
 
 - Keep Vela at `0.950.1` unless a generic product defect requires a compatible
   `0.951.0` release.
-- Keep Canopus at `0.8.0` unless installed behavior requires a `0.8.1` fix.
+- Keep immutable Canopus `0.8.0` frozen. Current source is private and
+  unpublishable while proposed ADR 0031 evaluates the smaller Vela Agent path.
 - Keep Vela Web `0.430.0` as the released exact source inventory and Math Atlas
   alpha.
 - Earn Vela Web `0.440.0` only through real multi-shape loops and external
