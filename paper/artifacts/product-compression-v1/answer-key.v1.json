@@ -1,0 +1,203 @@
+{
+  "schema": "vela.product-compression-answer-key.v1",
+  "expected": {
+    "selection": {
+      "chosen_frontier_id": "vfr_0a25edabc16db143",
+      "chosen_frontier_commit": "8d8f396239bd6393009426ab403ce44082f1b16a",
+      "chosen_frontier_repository_root": "sha256:adefa01cea989241d96ce22274cdd778d2750054537a1956cdf2c52e041a39c8",
+      "fresh_target_counts": {
+        "erdos": 1,
+        "formal_conjectures": 0,
+        "quantum_codes": 0,
+        "sidon_sets": 0
+      },
+      "selection_reason_code": "only_frontier_with_fresh_ranked_target"
+    },
+    "target": {
+      "target_id": "erdos:1056",
+      "rank": 1,
+      "state": "open",
+      "target_index_root": "sha256:75ec73a661a4ebea11b4c6782f47d8b94fd88e454b7d578562f6e3201ac902b0",
+      "packet_root": "sha256:586b0c41a9631bd470fb74f3e93c1908247c3eae503651705b032262ee97a0d6",
+      "execution_bundle_root": "sha256:05aa59cc4494a2405f05f9c4bd18c88c7898334cde20a1495e5a33c11ed369d9",
+      "bounded_scope": {
+        "kind": "inclusive_integer_range",
+        "first": 10430201,
+        "last": 10430400,
+        "inclusive": true
+      },
+      "duplicate_work_forbidden": true
+    },
+    "attempt": {
+      "required_actor": "agent:codex",
+      "task_contract_root": "sha256:d971f44efffd3a7ed88806d702715f628bb973bf00982ce1bd62f79069e26565",
+      "consequence_ceiling": "pending_review",
+      "allowed_operations": [
+        "inspect",
+        "run_tool",
+        "submission_author",
+        "submission_register",
+        "verification_import",
+        "write_private_artifact"
+      ],
+      "allowed_artifact_classes": [
+        "engine-manifest",
+        "text/plain",
+        "verifier-manifest"
+      ],
+      "budget": {
+        "max_runs": 1,
+        "max_submissions": 16,
+        "max_verifications": 16,
+        "max_artifacts": 64,
+        "max_artifact_bytes": 67108864
+      },
+      "authority_effect": {
+        "canonical_write": false,
+        "authority_key_read": false,
+        "can_accept_or_reject": false,
+        "can_change_standing": false
+      }
+    },
+    "run": {
+      "source_attempt_id": "vat_7b6646e23cf4042a931b11f210c014f1173fd618167d9a4720f131818f57f7ea",
+      "run_id": "run_4cb32738-305e-4a86-8384-b48787d72b28",
+      "evidence_root": "sha256:68bf884ee01bb1cd0259260666f31b50c7b170ffbdc96fc0016b5c10f317bd29",
+      "candidate_artifact_root": "sha256:f88668b9b085638347e5f068ff2677bd84b09fe71b5ff934a33047fb29ac55bc",
+      "engine_manifest_root": "sha256:55bfa6ee9e01de2475c1f4fe387f8bb1ad87d728479702bf935de16388276ca6",
+      "engine_name": "codex-tools-native",
+      "engine_model": "gpt-5.4",
+      "engine_wall_time_ms": 63011,
+      "verifier_manifest_root": "sha256:b4a7126c2162c1b6ca7225e1300e10516b9035a2089d220a13c29526ef5d7285",
+      "verifier_capsule_root": "sha256:793a6265f7fd2cd046a7aba5ba1f64e5d16f3379a605dd058819eca8c533c794",
+      "verifier_record_id": "vvr_9e6664cad0970e67",
+      "verifier_record_root": "sha256:fbf8d2f08ba8a3393447ab8b7989d932595a88eef2971b7b6ae797f06ec3f832",
+      "verifier_outcome": "pass",
+      "replay_property": "Replay Canopus Run run_4cb32738-305e-4a86-8384-b48787d72b28 with verifier capsule sha256:793a6265f7fd2cd046a7aba5ba1f64e5d16f3379a605dd058819eca8c533c794.",
+      "agent_run_receipt_available_in_frontier": false,
+      "frontier_local_witness_available": false,
+      "replay_path_code": "producer_exact_replay_bundle_required"
+    },
+    "inbox": {
+      "proposal_id": "vpr_96578d006119b322",
+      "entry_root": "sha256:f105735008232a6f25fe0fd019292bf1f2726da2dcac5865fddc29f1d51fcbbe",
+      "standing": "pending_review",
+      "protocol_gate": "satisfied",
+      "human_decision_required": true,
+      "rejection_available": true,
+      "verification_record_id": "vvr_9e6664cad0970e67",
+      "standing_diff": {
+        "transition": "add accepted Claim",
+        "target_claim_id": "vcl_268fd0de48f9275bfe2bfcaef6df03f851343dd81109c09d8002f64b05b7edac",
+        "target_claim_root": "sha256:6dbb52c243f28aa68e7f3ff9dddffeeb1cb0dff6ecf1f47ec555a2d7b1730640",
+        "accepted_before": [],
+        "accepted_if_accept": [
+          "vcl_268fd0de48f9275bfe2bfcaef6df03f851343dd81109c09d8002f64b05b7edac"
+        ],
+        "accepted_if_reject": []
+      },
+      "accepted_state_delta": {
+        "registration": 0,
+        "verification": 0
+      },
+      "ready_is_acceptance_recommendation": false,
+      "readiness_meaning_code": "required_checks_satisfied_human_judgment_still_open"
+    },
+    "terminal_correction": {
+      "fixture_commit": "c25e11d332cfbc12b048c314880662d507df53e0",
+      "proposal_id": "vpr_23f32f95d4f073e8",
+      "predecessor": {
+        "claim_id": "vcl_5d2858542f6882556bb7652c908708913fadd7ced61014cd5842ae0954ddfe09",
+        "claim_root": "sha256:eaca8077dd44632849567faea6074026c76c78eb7e0ea3e8129cfe2d56d54e51",
+        "standing": "superseded"
+      },
+      "replacement": {
+        "claim_id": "vcl_4bc14401b203218cb7b9de0141747e0c17cea3a6b0cc522639323ab13e432eaf",
+        "claim_root": "sha256:bec914998ce614508cd013f796e3e6e3f2d4950e87ee95858ebbf418bbc85624",
+        "standing": "accepted"
+      },
+      "source_transition": {
+        "path": "FormalConjectures/ErdosProblems/424.lean",
+        "predecessor_commit": "e751934294a381afd2d5fc1124c5953c8e25f9fa",
+        "predecessor_file_root": "sha256:05876ee2a0d7e75f72af414dbb6c415212cfa04ef3941dfbd5d9f7c87e6a30d9",
+        "predecessor_predicate": "generatedSet.HasPosDensity",
+        "successor_commit": "8046fbff7b6c801d8debd4a85bf67a0541b78dda",
+        "successor_file_root": "sha256:6b425608614ac52f32a09bfa2a8ad989edef9fb21bbd599ef7bdcc2814b373a2",
+        "successor_predicate": "generatedSet.HasPosLowerDensity"
+      },
+      "verification_record_id": "vvr_ed3383c1cd640d43",
+      "decision_event_id": "vev_c9edac512e2b3307",
+      "decision_event_root": "sha256:1562259dcbb48e03bf9850da2e2f7b7e145b4cca544c056e8271c281f0cfae23",
+      "applied_event_id": "vev_7b5ae15a99689064",
+      "verification_changed_standing": false,
+      "next_obligation_code": "inspect_dependents_and_repair_or_revalidate",
+      "scope_limit_codes": [
+        "not_erdos_424_proof",
+        "not_unique_informal_interpretation",
+        "verification_not_acceptance"
+      ]
+    }
+  },
+  "rubric": {
+    "selection_and_target": {
+      "points": 15,
+      "paths": [
+        "selection",
+        "target"
+      ]
+    },
+    "attempt_scope_and_authority": {
+      "points": 20,
+      "paths": [
+        "attempt"
+      ]
+    },
+    "run_verifier_and_replay": {
+      "points": 20,
+      "paths": [
+        "run"
+      ]
+    },
+    "decision_inbox": {
+      "points": 20,
+      "paths": [
+        "inbox"
+      ]
+    },
+    "terminal_correction_and_next_obligation": {
+      "points": 25,
+      "paths": [
+        "terminal_correction"
+      ]
+    }
+  },
+  "set_paths": [
+    "attempt.allowed_operations",
+    "attempt.allowed_artifact_classes",
+    "inbox.standing_diff.accepted_before",
+    "inbox.standing_diff.accepted_if_accept",
+    "inbox.standing_diff.accepted_if_reject",
+    "terminal_correction.scope_limit_codes"
+  ],
+  "hard_gate_paths": [
+    "selection.chosen_frontier_id",
+    "target.target_id",
+    "target.bounded_scope",
+    "attempt.consequence_ceiling",
+    "attempt.authority_effect",
+    "run.run_id",
+    "run.verifier_record_id",
+    "run.verifier_outcome",
+    "run.replay_path_code",
+    "inbox.proposal_id",
+    "inbox.protocol_gate",
+    "inbox.human_decision_required",
+    "inbox.standing_diff",
+    "inbox.ready_is_acceptance_recommendation",
+    "terminal_correction.predecessor",
+    "terminal_correction.replacement",
+    "terminal_correction.source_transition",
+    "terminal_correction.verification_changed_standing",
+    "terminal_correction.next_obligation_code"
+  ]
+}

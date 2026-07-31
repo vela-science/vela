@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.space/schemas/product-compression-answer.v1.json",
+  "title": "Vela product-compression cold-use answer",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "plan_root",
+    "session_id",
+    "arm",
+    "process",
+    "answers"
+  ],
+  "properties": {
+    "schema": {
+      "const": "vela.product-compression-answer.v1"
+    },
+    "plan_root": {
+      "$ref": "#/$defs/root"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "arm": {
+      "enum": [
+        "git_files",
+        "vela_guided"
+      ]
+    },
+    "process": {
+      "$ref": "#/$defs/process"
+    },
+    "answers": {
+      "$ref": "#/$defs/answers"
+    }
+  },
+  "$defs": {
+    "root": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "process": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempt_started",
+        "attempt_start_method",
+        "attempt_id",
+        "authorization_root",
+        "elapsed_ms",
+        "observed_tokens",
+        "command_count",
+        "intervention_count",
+        "command_log_root"
+      ],
+      "properties": {
+        "attempt_started": {
+          "type": "boolean"
+        },
+        "attempt_start_method": {
+          "enum": [
+            "manual_inspection_only",
+            "vela_start"
+          ]
+        },
+        "attempt_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^vat_[0-9a-f]{64}$"
+        },
+        "authorization_root": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/root"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "elapsed_ms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "observed_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "command_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "intervention_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "command_log_root": {
+          "$ref": "#/$defs/root"
+        }
+      }
+    },
+    "answers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection",
+        "target",
+        "attempt",
+        "run",
+        "inbox",
+        "terminal_correction"
+      ],
+      "properties": {
+        "selection": {
+          "type": "object"
+        },
+        "target": {
+          "type": "object"
+        },
+        "attempt": {
+          "type": "object"
+        },
+        "run": {
+          "type": "object"
+        },
+        "inbox": {
+          "type": "object"
+        },
+        "terminal_correction": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}
