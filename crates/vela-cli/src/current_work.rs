@@ -16,12 +16,14 @@ use vela_protocol::submission_v1::SubmissionV1;
 
 use crate::cli::safe_text;
 
-const ATTEMPT_SCHEMA: &str = "vela.attempt.v7";
+const ATTEMPT_SCHEMA: &str = "vela.attempt.v8";
 const TASK_CONTRACT_SCHEMA: &str = "vela.task-contract.internal.v3";
 const ATTEMPT_MAX_BYTES: usize = 2 * 1024 * 1024;
 const EXECUTION_BUNDLE_MAX_BYTES: u64 = 8 * 1024 * 1024;
 const AGENT_RUN_FILE_MAX_BYTES: u64 = 8 * 1024 * 1024;
 const AGENT_HELPER_OUTPUT_MAX_BYTES: u64 = 64 * 1024;
+const DEFAULT_MAX_RUNS: u64 = 16;
+const MAX_MAX_RUNS: u64 = 64;
 const DEFAULT_MAX_SUBMISSIONS: u64 = 16;
 const DEFAULT_MAX_VERIFICATIONS: u64 = 16;
 const DEFAULT_MAX_ARTIFACTS: u64 = 64;
@@ -87,9 +89,26 @@ struct CurrentExecutionBundle {
 struct CurrentAgentRunReceipt {
     schema: String,
     receipt_root: String,
+    run_number: u64,
+    previous_receipt_root: Option<String>,
     result: AgentHelperRunOutput,
     helper_output_size: u64,
     helper_output_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct CurrentAgentRunReservation {
+    run_number: u64,
+    request_root: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct CurrentAgentRunSubmissionLink {
+    run_id: String,
+    receipt_root: String,
+    submission_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -215,10 +234,9 @@ pub(crate) struct CurrentAttempt {
     starting_target_task_binding: vela_edge::target_index::TargetTaskBindingV3,
     pub(crate) target_task_binding: vela_edge::target_index::TargetTaskBindingV3,
     briefing: Value,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    agent_run_receipt: Option<CurrentAgentRunReceipt>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    agent_run_submission_id: Option<String>,
+    agent_run_reservations: Vec<CurrentAgentRunReservation>,
+    agent_run_receipts: Vec<CurrentAgentRunReceipt>,
+    agent_run_submission_links: Vec<CurrentAgentRunSubmissionLink>,
 }
 
 pub(crate) struct CurrentRoutineAttempt {
@@ -344,6 +362,8 @@ fn require_agent_run_states(candidate_status: &str, verifier_status: &str) -> Re
 fn agent_run_receipt_root(receipt: &CurrentAgentRunReceipt) -> Result<String, String> {
     canonical_root(&json!({
         "schema": receipt.schema,
+        "run_number": receipt.run_number,
+        "previous_receipt_root": receipt.previous_receipt_root,
         "result": receipt.result,
         "helper_output_size": receipt.helper_output_size,
         "helper_output_sha256": receipt.helper_output_sha256,
@@ -450,9 +470,17 @@ fn validate_agent_run_result_attempt(
 fn validate_agent_run_receipt(
     attempt: &CurrentAttempt,
     receipt: &CurrentAgentRunReceipt,
+    reservation: &CurrentAgentRunReservation,
 ) -> Result<(), String> {
-    if receipt.schema != "vela.agent-run-receipt.internal.v1" {
+    if receipt.schema != "vela.agent-run-receipt.internal.v2" {
         return Err("current Agent Run receipt has an unsupported schema".to_string());
+    }
+    if receipt.run_number != reservation.run_number
+        || receipt.result.request_root != reservation.request_root
+    {
+        return Err(
+            "current Agent Run receipt does not match its exact reserved request".to_string(),
+        );
     }
     validate_agent_run_result_shape(&receipt.result)?;
     validate_agent_run_result_attempt(attempt, &receipt.result)?;
@@ -464,23 +492,6 @@ fn validate_agent_run_receipt(
         "current Agent Run receipt.helper_output_sha256",
         &receipt.helper_output_sha256,
     )?;
-    if let Some(submission_id) = &attempt.agent_run_submission_id {
-        require_exact_id(
-            "current Agent Run receipt registered Submission",
-            submission_id,
-            "vsb_",
-        )?;
-        if attempt
-            .usage
-            .registered_submission_ids
-            .binary_search(submission_id)
-            .is_err()
-        {
-            return Err(
-                "current Agent Run receipt names a Submission outside Attempt usage".to_string(),
-            );
-        }
-    }
     if agent_run_receipt_root(receipt)? != receipt.receipt_root {
         return Err("current Agent Run receipt does not match its root".to_string());
     }
@@ -770,7 +781,7 @@ fn require_current_controller(
     Ok(())
 }
 
-fn reserve_agent_run(attempt: &mut CurrentAttempt) -> Result<(), String> {
+fn reserve_agent_run(attempt: &mut CurrentAttempt) -> Result<u64, String> {
     if attempt.usage.runs >= attempt.budget.max_runs {
         return Err(format!(
             "current Attempt {} has exhausted its Agent run budget",
@@ -782,7 +793,7 @@ fn reserve_agent_run(attempt: &mut CurrentAttempt) -> Result<(), String> {
         .runs
         .checked_add(1)
         .ok_or_else(|| "current Attempt Agent run usage overflowed".to_string())?;
-    Ok(())
+    Ok(attempt.usage.runs)
 }
 
 fn system_temporary_roots() -> Vec<PathBuf> {
@@ -841,7 +852,7 @@ fn reject_system_temporary_agent_output(output: Option<&Path>) -> Result<(), Str
 fn reserve_agent_run_for_output(
     attempt: &mut CurrentAttempt,
     output: Option<&Path>,
-) -> Result<(), String> {
+) -> Result<u64, String> {
     reject_system_temporary_agent_output(output)?;
     reserve_agent_run(attempt)
 }
@@ -953,6 +964,7 @@ fn validate(attempt: &CurrentAttempt) -> Result<(), String> {
         return Err("current Attempt has an unsupported consequence ceiling".to_string());
     }
     if attempt.budget.max_runs == 0
+        || attempt.budget.max_runs > MAX_MAX_RUNS
         || attempt.budget.max_submissions == 0
         || attempt.budget.max_verifications == 0
         || attempt.budget.max_artifacts == 0
@@ -964,6 +976,37 @@ fn validate(attempt: &CurrentAttempt) -> Result<(), String> {
         || attempt.usage.artifact_bytes > attempt.budget.max_artifact_bytes
     {
         return Err("current Attempt budget or usage is invalid".to_string());
+    }
+    let reserved_run_count = u64::try_from(attempt.agent_run_reservations.len())
+        .map_err(|_| "current Attempt Agent run reservation count overflowed".to_string())?;
+    if attempt.usage.runs != reserved_run_count {
+        return Err(
+            "current Attempt Agent run reservations must exactly replay run usage".to_string(),
+        );
+    }
+    for (index, reservation) in attempt.agent_run_reservations.iter().enumerate() {
+        let expected = u64::try_from(index)
+            .map_err(|_| "current Attempt Agent run reservation index overflowed".to_string())?
+            .checked_add(1)
+            .ok_or_else(|| "current Attempt Agent run reservation index overflowed".to_string())?;
+        if reservation.run_number != expected {
+            return Err(
+                "current Attempt Agent run reservations must be an ordered complete sequence"
+                    .to_string(),
+            );
+        }
+        require_sha256_root(
+            "current Attempt Agent run reservation request",
+            &reservation.request_root,
+        )?;
+        if attempt.agent_run_reservations[..index]
+            .iter()
+            .any(|prior| prior.request_root == reservation.request_root)
+        {
+            return Err(
+                "current Attempt Agent run reservations must have unique request roots".to_string(),
+            );
+        }
     }
     if attempt.usage.submissions
         != u64::try_from(attempt.usage.registered_submission_ids.len())
@@ -993,11 +1036,81 @@ fn validate(attempt: &CurrentAttempt) -> Result<(), String> {
                 .to_string(),
         );
     }
-    if let Some(receipt) = &attempt.agent_run_receipt {
-        validate_agent_run_receipt(attempt, receipt)?;
+    if attempt.agent_run_receipts.len() > attempt.agent_run_reservations.len() {
+        return Err(
+            "current Attempt retains more Agent Run receipts than reservations".to_string(),
+        );
     }
-    if attempt.agent_run_submission_id.is_some() && attempt.agent_run_receipt.is_none() {
-        return Err("current Attempt cannot link a Submission without an Agent Run receipt".into());
+    let mut previous_receipt_root: Option<&str> = None;
+    for (index, receipt) in attempt.agent_run_receipts.iter().enumerate() {
+        if receipt.previous_receipt_root.as_deref() != previous_receipt_root {
+            return Err("current Agent Run receipts do not form one exact root chain".to_string());
+        }
+        let reservation = attempt
+            .agent_run_reservations
+            .iter()
+            .find(|reservation| reservation.run_number == receipt.run_number)
+            .ok_or_else(|| {
+                "current Agent Run receipt has no matching reserved request".to_string()
+            })?;
+        validate_agent_run_receipt(attempt, receipt, reservation)?;
+        if attempt.agent_run_receipts[..index].iter().any(|prior| {
+            prior.run_number == receipt.run_number
+                || prior.result.run.id == receipt.result.run.id
+                || prior.result.request_root == receipt.result.request_root
+        }) {
+            return Err(
+                "current Agent Run receipts must have unique reservations, Runs, and requests"
+                    .to_string(),
+            );
+        }
+        previous_receipt_root = Some(&receipt.receipt_root);
+    }
+    if !attempt
+        .agent_run_submission_links
+        .windows(2)
+        .all(|pair| pair[0].run_id < pair[1].run_id)
+    {
+        return Err("current Agent Run Submission links must be sorted by Run id".to_string());
+    }
+    for link in &attempt.agent_run_submission_links {
+        require_exact_id(
+            "current Agent Run Submission link Run",
+            &link.run_id,
+            "run_",
+        )?;
+        require_exact_id(
+            "current Agent Run Submission link Submission",
+            &link.submission_id,
+            "vsb_",
+        )?;
+        require_sha256_root(
+            "current Agent Run Submission link receipt",
+            &link.receipt_root,
+        )?;
+        let receipt = attempt
+            .agent_run_receipts
+            .iter()
+            .find(|receipt| receipt.result.run.id == link.run_id)
+            .ok_or_else(|| {
+                "current Attempt cannot link a Submission without an Agent Run receipt".to_string()
+            })?;
+        if receipt.receipt_root != link.receipt_root {
+            return Err(
+                "current Agent Run Submission link does not match its exact receipt".to_string(),
+            );
+        }
+        if attempt
+            .usage
+            .registered_submission_ids
+            .binary_search(&link.submission_id)
+            .is_err()
+        {
+            return Err(
+                "current Agent Run Submission link names a Submission outside Attempt usage"
+                    .to_string(),
+            );
+        }
     }
     if authorization_root(attempt)? != attempt.authorization_root {
         return Err("current Attempt authorization does not match its root".to_string());
@@ -1268,7 +1381,7 @@ pub(crate) fn agent_run_request(
         ),
         None => None,
     };
-    reserve_agent_run_for_output(attempt, output.as_deref())?;
+    let run_number = reserve_agent_run_for_output(attempt, output.as_deref())?;
     let preimage = json!({
         "schema": "vela.agent-run-request.internal.v1",
         "authority": "none",
@@ -1329,6 +1442,12 @@ pub(crate) fn agent_run_request(
             bytes.len()
         ));
     }
+    attempt
+        .agent_run_reservations
+        .push(CurrentAgentRunReservation {
+            run_number,
+            request_root: request_root.clone(),
+        });
     write(&frontier, attempt)?;
     Ok(AgentRunRequest {
         bytes,
@@ -1427,9 +1546,14 @@ pub(crate) fn record_agent_run_receipt(
             "current Attempt {attempt_id} changed while retaining its Agent Run"
         ));
     }
-    if attempt.usage.runs == 0 {
-        return Err("current Attempt has no reserved Agent run".to_string());
-    }
+    let reservation = attempt
+        .agent_run_reservations
+        .iter()
+        .find(|reservation| reservation.request_root == expected_request_root)
+        .cloned()
+        .ok_or_else(|| {
+            "current Attempt has no exact reserved Agent run for this request".to_string()
+        })?;
     validate_agent_run_result_attempt(&attempt, &output)?;
     let (run_file, _run_bytes) = read_exact_agent_file(
         &frontier,
@@ -1454,24 +1578,37 @@ pub(crate) fn record_agent_run_receipt(
     }
     output.run.path = run_file;
     output.evidence_manifest.path = evidence_manifest_file;
+    if let Some(existing) = attempt
+        .agent_run_receipts
+        .iter()
+        .find(|receipt| receipt.run_number == reservation.run_number)
+    {
+        if existing.result == output
+            && existing.helper_output_size == helper_output_bytes.len() as u64
+            && existing.helper_output_sha256 == sha256_root(helper_output_bytes)
+        {
+            return Ok(());
+        }
+        return Err(format!(
+            "current Attempt {attempt_id} already retains another Agent Run receipt for reserved run {}",
+            reservation.run_number
+        ));
+    }
     let mut receipt = CurrentAgentRunReceipt {
-        schema: "vela.agent-run-receipt.internal.v1".to_string(),
+        schema: "vela.agent-run-receipt.internal.v2".to_string(),
         receipt_root: String::new(),
+        run_number: reservation.run_number,
+        previous_receipt_root: attempt
+            .agent_run_receipts
+            .last()
+            .map(|receipt| receipt.receipt_root.clone()),
         result: output,
         helper_output_size: helper_output_bytes.len() as u64,
         helper_output_sha256: sha256_root(helper_output_bytes),
     };
     receipt.receipt_root = agent_run_receipt_root(&receipt)?;
-    validate_agent_run_receipt(&attempt, &receipt)?;
-    if let Some(existing) = &attempt.agent_run_receipt {
-        if existing == &receipt {
-            return Ok(());
-        }
-        return Err(format!(
-            "current Attempt {attempt_id} already retains another Agent Run receipt"
-        ));
-    }
-    attempt.agent_run_receipt = Some(receipt);
+    validate_agent_run_receipt(&attempt, &receipt, &reservation)?;
+    attempt.agent_run_receipts.push(receipt);
     write(&frontier, &attempt).map_err(|error| {
         format!(
             "Agent Run succeeded but private Attempt receipt failed at {}: {error}",
@@ -1583,14 +1720,20 @@ pub(crate) fn authorize_submission(
             denied.join(", ")
         ));
     }
-    if let Some(receipt) = &attempt.agent_run_receipt
-        && submission.provenance.source_run.as_deref() == Some(receipt.result.run.id.as_str())
-        && let Some(existing) = attempt.agent_run_submission_id.as_deref()
-        && existing != submission.submission_id
+    if let Some(source_run) = submission.provenance.source_run.as_deref()
+        && attempt
+            .agent_run_receipts
+            .iter()
+            .any(|receipt| receipt.result.run.id == source_run)
+        && let Some(link) = attempt
+            .agent_run_submission_links
+            .iter()
+            .find(|link| link.run_id == source_run)
+        && link.submission_id != submission.submission_id
     {
         return Err(format!(
-            "Agent Run {} is already bound to registered Submission {existing}",
-            receipt.result.run.id
+            "Agent Run {source_run} is already bound to registered Submission {}",
+            link.submission_id
         ));
     }
     if attempt
@@ -1694,25 +1837,47 @@ pub(crate) fn record_submission_attempt(
             .map_err(|_| "Submission Artifact count overflowed".to_string())?;
         resolved.attempt.usage.artifact_bytes += artifact_bytes;
     }
-    let mut receipt_changed = false;
-    if let Some(receipt) = &resolved.attempt.agent_run_receipt
-        && submission.provenance.source_run.as_deref() == Some(receipt.result.run.id.as_str())
+    let mut receipt_link_changed = false;
+    if let Some(source_run) = submission.provenance.source_run.as_deref()
+        && let Some(receipt) = resolved
+            .attempt
+            .agent_run_receipts
+            .iter()
+            .find(|receipt| receipt.result.run.id == source_run)
     {
-        match resolved.attempt.agent_run_submission_id.as_deref() {
-            Some(existing) if existing != submission.submission_id => {
+        let receipt_root = receipt.receipt_root.clone();
+        match resolved
+            .attempt
+            .agent_run_submission_links
+            .iter()
+            .find(|link| link.run_id == source_run)
+        {
+            Some(link) if link.submission_id != submission.submission_id => {
                 return Err(format!(
-                    "Agent Run {} is already bound to registered Submission {existing}",
-                    receipt.result.run.id
+                    "Agent Run {source_run} is already bound to registered Submission {}",
+                    link.submission_id
                 ));
             }
             Some(_) => {}
             None => {
-                resolved.attempt.agent_run_submission_id = Some(submission.submission_id.clone());
-                receipt_changed = true;
+                let link = CurrentAgentRunSubmissionLink {
+                    run_id: source_run.to_string(),
+                    receipt_root,
+                    submission_id: submission.submission_id.clone(),
+                };
+                let index = resolved
+                    .attempt
+                    .agent_run_submission_links
+                    .partition_point(|existing| existing.run_id < link.run_id);
+                resolved
+                    .attempt
+                    .agent_run_submission_links
+                    .insert(index, link);
+                receipt_link_changed = true;
             }
         }
     }
-    if already_registered && !receipt_changed {
+    if already_registered && !receipt_link_changed {
         return Ok(());
     }
     write(frontier, &resolved.attempt).map_err(|error| {
@@ -2048,6 +2213,7 @@ fn open(
     ttl_seconds: u64,
     runner_build_root: Option<&str>,
     requested_artifact_classes: &[String],
+    max_runs: u64,
     max_submissions: u64,
     max_verifications: u64,
     max_artifacts: u64,
@@ -2094,20 +2260,22 @@ fn open(
         .to_string();
     require_sha256_root("runner build", &runner_build_root)?;
     let operations = allowed_operations(consequence_ceiling)?;
-    if max_submissions == 0
+    if max_runs == 0
+        || max_submissions == 0
         || max_verifications == 0
         || max_artifacts == 0
         || max_artifact_bytes == 0
     {
         return Err("private Attempt budgets must be positive".to_string());
     }
-    if max_submissions > DEFAULT_MAX_SUBMISSIONS
+    if max_runs > MAX_MAX_RUNS
+        || max_submissions > DEFAULT_MAX_SUBMISSIONS
         || max_verifications > DEFAULT_MAX_VERIFICATIONS
         || max_artifacts > DEFAULT_MAX_ARTIFACTS
         || max_artifact_bytes > DEFAULT_MAX_ARTIFACT_BYTES
     {
         return Err(format!(
-            "private Attempt budgets may only narrow the defaults: submissions<={DEFAULT_MAX_SUBMISSIONS}, verifications<={DEFAULT_MAX_VERIFICATIONS}, artifacts<={DEFAULT_MAX_ARTIFACTS}, artifact_bytes<={DEFAULT_MAX_ARTIFACT_BYTES}"
+            "private Attempt budgets exceed their ceilings: runs<={MAX_MAX_RUNS}, submissions<={DEFAULT_MAX_SUBMISSIONS}, verifications<={DEFAULT_MAX_VERIFICATIONS}, artifacts<={DEFAULT_MAX_ARTIFACTS}, artifact_bytes<={DEFAULT_MAX_ARTIFACT_BYTES}"
         ));
     }
     let _lock = lock_attempt(frontier, target_id)?;
@@ -2130,7 +2298,7 @@ fn open(
         }
         let requested_classes = artifact_classes(&packet, requested_artifact_classes)?;
         let requested_budget = CurrentAttemptBudget {
-            max_runs: 1,
+            max_runs,
             max_submissions,
             max_verifications,
             max_artifacts,
@@ -2171,7 +2339,7 @@ fn open(
         allowed_operations: operations,
         allowed_artifact_classes: artifact_classes(&packet, requested_artifact_classes)?,
         budget: CurrentAttemptBudget {
-            max_runs: 1,
+            max_runs,
             max_submissions,
             max_verifications,
             max_artifacts,
@@ -2197,8 +2365,9 @@ fn open(
             "target": target,
             "packet": packet,
         }),
-        agent_run_receipt: None,
-        agent_run_submission_id: None,
+        agent_run_reservations: Vec::new(),
+        agent_run_receipts: Vec::new(),
+        agent_run_submission_links: Vec::new(),
     };
     let (_, exact_packet) = exact_target_packet(frontier, &attempt)?;
     attempt.execution_bundle = execution_bundle_for_attempt(frontier, &attempt, &exact_packet)
@@ -2289,8 +2458,11 @@ fn agent_receipt_file_states(frontier: &Path, receipt: &CurrentAgentRunReceipt) 
     (run_matches, evidence_matches)
 }
 
-fn agent_run_projection(frontier: &Path, attempt: &CurrentAttempt) -> Option<Value> {
-    let receipt = attempt.agent_run_receipt.as_ref()?;
+fn agent_run_projection(
+    frontier: &Path,
+    attempt: &CurrentAttempt,
+    receipt: &CurrentAgentRunReceipt,
+) -> Option<Value> {
     let result = &receipt.result;
     let (run_matches, evidence_matches) = agent_receipt_file_states(frontier, receipt);
     let export_root = Path::new(&result.run.path)
@@ -2318,7 +2490,12 @@ fn agent_run_projection(frontier: &Path, attempt: &CurrentAttempt) -> Option<Val
         && result.candidate.status == "success"
         && result.verifier.status == "passed"
         && result.reproduction.matched;
-    let submission_state = if attempt.agent_run_submission_id.is_some() {
+    let submission_id = attempt
+        .agent_run_submission_links
+        .iter()
+        .find(|link| link.run_id == result.run.id)
+        .map(|link| link.submission_id.as_str());
+    let submission_state = if submission_id.is_some() {
         "registered"
     } else if exportable {
         "ready_to_export"
@@ -2327,6 +2504,8 @@ fn agent_run_projection(frontier: &Path, attempt: &CurrentAttempt) -> Option<Val
     };
     Some(json!({
         "receipt_root": receipt.receipt_root,
+        "previous_receipt_root": receipt.previous_receipt_root,
+        "run_number": receipt.run_number,
         "run_id": result.run.id,
         "run_file": {
             "path": result.run.path,
@@ -2366,7 +2545,7 @@ fn agent_run_projection(frontier: &Path, attempt: &CurrentAttempt) -> Option<Val
         },
         "submission": {
             "state": submission_state,
-            "id": attempt.agent_run_submission_id,
+            "id": submission_id,
         },
         "next_commands": {
             "export": exportable.then_some(export),
@@ -2380,7 +2559,12 @@ fn agent_run_projection(frontier: &Path, attempt: &CurrentAttempt) -> Option<Val
 }
 
 fn attempt_list_entry(frontier: &Path, attempt: CurrentAttempt, path: &Path) -> Value {
-    let agent_run = agent_run_projection(frontier, &attempt);
+    let agent_runs = attempt
+        .agent_run_receipts
+        .iter()
+        .filter_map(|receipt| agent_run_projection(frontier, &attempt, receipt))
+        .collect::<Vec<_>>();
+    let agent_run = agent_runs.last().cloned();
     json!({
         "attempt_id": attempt.attempt_id,
         "target_id": attempt.target,
@@ -2396,6 +2580,7 @@ fn attempt_list_entry(frontier: &Path, attempt: CurrentAttempt, path: &Path) -> 
         "usage": attempt.usage,
         "budget": attempt.budget,
         "agent_run": agent_run,
+        "agent_runs": agent_runs,
         "path": path.display().to_string(),
     })
 }
@@ -2431,6 +2616,7 @@ pub(crate) fn cmd_start(
     ttl: Option<u64>,
     runner_build_root: Option<&str>,
     artifact_classes: &[String],
+    max_runs: Option<u64>,
     max_submissions: Option<u64>,
     max_verifications: Option<u64>,
     max_artifacts: Option<u64>,
@@ -2469,6 +2655,7 @@ pub(crate) fn cmd_start(
                 ttl,
                 runner_build_root,
                 artifact_classes,
+                max_runs.unwrap_or(DEFAULT_MAX_RUNS),
                 max_submissions.unwrap_or(DEFAULT_MAX_SUBMISSIONS),
                 max_verifications.unwrap_or(DEFAULT_MAX_VERIFICATIONS),
                 max_artifacts.unwrap_or(DEFAULT_MAX_ARTIFACTS),
@@ -2655,7 +2842,7 @@ mod tests {
             ],
             allowed_artifact_classes: vec!["witness".to_string()],
             budget: CurrentAttemptBudget {
-                max_runs: 1,
+                max_runs: 3,
                 max_submissions: 1,
                 max_verifications: 1,
                 max_artifacts: 8,
@@ -2682,15 +2869,16 @@ mod tests {
             starting_target_task_binding: binding.clone(),
             target_task_binding: binding,
             briefing: json!({"schema": "vela.work-briefing.v2"}),
-            agent_run_receipt: None,
-            agent_run_submission_id: None,
+            agent_run_reservations: Vec::new(),
+            agent_run_receipts: Vec::new(),
+            agent_run_submission_links: Vec::new(),
         };
         attempt.authorization_root = authorization_root(&attempt).unwrap();
         attempt.attempt_id = attempt_id(&attempt.authorization_root).unwrap();
         let path = write(directory.path(), &attempt).unwrap();
         let decoded = read(&path).unwrap();
         assert_eq!(decoded.attempt_id, attempt.attempt_id);
-        assert_eq!(decoded.schema, "vela.attempt.v7");
+        assert_eq!(decoded.schema, "vela.attempt.v8");
         let observed_controller = decoded.controller_build.clone();
         require_current_controller(&decoded, &observed_controller).unwrap();
         let mut other_controller = observed_controller;
@@ -2706,11 +2894,22 @@ mod tests {
         assert!(error.contains("system temporary directory"), "{error}");
         assert_eq!(rejected.usage.runs, 0);
 
-        let mut reserved = decoded.clone();
-        reserve_agent_run_for_output(&mut reserved, None).unwrap();
-        assert_eq!(reserved.usage.runs, 1);
-        let error = reserve_agent_run(&mut reserved).unwrap_err();
+        let mut single_run = decoded.clone();
+        single_run.budget.max_runs = 1;
+        reserve_agent_run_for_output(&mut single_run, None).unwrap();
+        assert_eq!(single_run.usage.runs, 1);
+        let error = reserve_agent_run(&mut single_run).unwrap_err();
         assert!(error.contains("exhausted its Agent run budget"), "{error}");
+
+        let request_root = format!("sha256:{}", "f".repeat(64));
+        let mut reserved = decoded.clone();
+        let run_number = reserve_agent_run_for_output(&mut reserved, None).unwrap();
+        reserved
+            .agent_run_reservations
+            .push(CurrentAgentRunReservation {
+                run_number,
+                request_root: request_root.clone(),
+            });
         write(directory.path(), &reserved).unwrap();
 
         let retained_output = tempfile::tempdir().unwrap();
@@ -2719,7 +2918,6 @@ mod tests {
         let run_file = run_directory.join("run.json");
         let run_id = "run_4cb32738-305e-4a86-8384-b48787d72b28";
         let candidate_digest = format!("sha256:{}", "b".repeat(64));
-        let request_root = format!("sha256:{}", "f".repeat(64));
         let run_bytes = b"private helper-owned Run bytes\n".to_vec();
         fs::write(&run_file, &run_bytes).unwrap();
         let evidence_manifest_file = run_directory.join("evidence-manifest.json");
@@ -2811,7 +3009,7 @@ mod tests {
             "not_exportable"
         );
         assert!(projected["agent_run"]["next_commands"]["export"].is_null());
-        failed_attempt.agent_run_receipt = None;
+        failed_attempt.agent_run_receipts.clear();
         write(directory.path(), &failed_attempt).unwrap();
 
         let mut wrong_bundle = helper_output.clone();
@@ -2864,7 +3062,7 @@ mod tests {
         assert_eq!(projected["allowed_artifact_classes"], json!(["witness"]));
         assert_eq!(projected["consequence_ceiling"], CONSEQUENCE_PENDING_REVIEW);
         assert_eq!(projected["task_contract_root"], attempt.task_contract_root);
-        assert_eq!(projected["budget"]["max_runs"], 1);
+        assert_eq!(projected["budget"]["max_runs"], 3);
         assert_eq!(projected["budget"]["max_submissions"], 1);
         assert_eq!(projected["budget"]["max_verifications"], 1);
         assert_eq!(projected["expires_at"], "2026-07-28T00:00:00Z");
@@ -2886,8 +3084,8 @@ mod tests {
                 .contains("submission.json")
         );
         let receipt_root = decoded
-            .agent_run_receipt
-            .as_ref()
+            .agent_run_receipts
+            .first()
             .unwrap()
             .receipt_root
             .clone();
@@ -2970,11 +3168,14 @@ mod tests {
         assert_eq!(retained.usage.artifacts, 1);
         assert_eq!(retained.usage.artifact_bytes, 64);
         assert_eq!(
-            retained.agent_run_submission_id.as_deref(),
+            retained
+                .agent_run_submission_links
+                .first()
+                .map(|link| link.submission_id.as_str()),
             Some(first_submission.submission_id.as_str())
         );
         assert_eq!(
-            retained.agent_run_receipt.as_ref().unwrap().receipt_root,
+            retained.agent_run_receipts.first().unwrap().receipt_root,
             receipt_root
         );
         let projected = attempt_list_entry(
@@ -3023,6 +3224,104 @@ mod tests {
         )
         .unwrap_err();
         assert!(error.contains("already bound"), "{error}");
+
+        let second_request_root = format!("sha256:{}", "c".repeat(64));
+        let mut resumed = read(&attempt_path(directory.path(), "erdos:1056")).unwrap();
+        let second_run_number = reserve_agent_run_for_output(&mut resumed, None).unwrap();
+        resumed
+            .agent_run_reservations
+            .push(CurrentAgentRunReservation {
+                run_number: second_run_number,
+                request_root: second_request_root.clone(),
+            });
+        write(directory.path(), &resumed).unwrap();
+
+        let second_run_directory = retained_output.path().join("run-2");
+        fs::create_dir(&second_run_directory).unwrap();
+        let second_run_file = second_run_directory.join("run.json");
+        let second_run_id = "run_0560106d-c4b0-4584-ad99-f7b1bf867487";
+        let second_run_bytes = b"second private helper-owned Run bytes\n".to_vec();
+        fs::write(&second_run_file, &second_run_bytes).unwrap();
+        let second_evidence_file = second_run_directory.join("evidence-manifest.json");
+        let second_evidence = json!({
+            "schema": "canopus.run-evidence.v1",
+            "run_id": second_run_id,
+            "files": {"run": sha256_root(&second_run_bytes)},
+        });
+        let mut second_evidence_bytes =
+            vela_protocol::canonical::to_canonical_bytes(&second_evidence).unwrap();
+        second_evidence_bytes.push(b'\n');
+        fs::write(&second_evidence_file, &second_evidence_bytes).unwrap();
+        let mut second_output = helper_output.clone();
+        second_output["request_root"] = Value::String(second_request_root.clone());
+        second_output["run"]["id"] = Value::String(second_run_id.to_string());
+        second_output["run"]["path"] = Value::String(second_run_file.display().to_string());
+        second_output["run"]["size"] = json!(second_run_bytes.len());
+        second_output["run"]["sha256"] = Value::String(sha256_root(&second_run_bytes));
+        second_output["evidence_manifest"]["path"] =
+            Value::String(second_evidence_file.display().to_string());
+        second_output["evidence_manifest"]["size"] = json!(second_evidence_bytes.len());
+        second_output["evidence_manifest"]["sha256"] =
+            Value::String(sha256_root(&second_evidence_bytes));
+        second_output["evidence_manifest"]["root"] =
+            Value::String(canonical_root(&second_evidence).unwrap());
+        let mut second_output_bytes = serde_json::to_vec(&second_output).unwrap();
+        second_output_bytes.push(b'\n');
+        record_agent_run_receipt(
+            directory.path(),
+            &attempt.attempt_id,
+            &second_request_root,
+            &second_output_bytes,
+        )
+        .unwrap();
+
+        let resumed = read(&attempt_path(directory.path(), "erdos:1056")).unwrap();
+        assert_eq!(resumed.usage.runs, 2);
+        assert_eq!(resumed.agent_run_reservations.len(), 2);
+        assert_eq!(resumed.agent_run_receipts.len(), 2);
+        assert_eq!(resumed.agent_run_receipts[0].receipt_root, receipt_root);
+        assert_eq!(
+            resumed.agent_run_receipts[1]
+                .previous_receipt_root
+                .as_deref(),
+            Some(receipt_root.as_str())
+        );
+        assert_eq!(resumed.agent_run_receipts[1].run_number, 2);
+        let mut usage_drift = resumed.clone();
+        usage_drift.usage.runs = 1;
+        let error = validate(&usage_drift).unwrap_err();
+        assert!(error.contains("exactly replay run usage"), "{error}");
+        let mut chain_drift = resumed.clone();
+        chain_drift.agent_run_receipts[1].previous_receipt_root = None;
+        let error = validate(&chain_drift).unwrap_err();
+        assert!(error.contains("exact root chain"), "{error}");
+        let projected = attempt_list_entry(
+            directory.path(),
+            resumed.clone(),
+            &attempt_path(directory.path(), "erdos:1056"),
+        );
+        assert_eq!(projected["agent_runs"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            projected["agent_runs"][0]["submission"]["state"],
+            "registered"
+        );
+        assert_eq!(projected["agent_run"]["run_id"], second_run_id);
+
+        let third_request_root = format!("sha256:{}", "d".repeat(64));
+        let mut resumed = resumed;
+        let third_run_number = reserve_agent_run_for_output(&mut resumed, None).unwrap();
+        resumed
+            .agent_run_reservations
+            .push(CurrentAgentRunReservation {
+                run_number: third_run_number,
+                request_root: third_request_root,
+            });
+        write(directory.path(), &resumed).unwrap();
+        let mut restarted = read(&attempt_path(directory.path(), "erdos:1056")).unwrap();
+        assert_eq!(restarted.usage.runs, 3);
+        assert_eq!(restarted.agent_run_reservations.len(), 3);
+        let error = reserve_agent_run(&mut restarted).unwrap_err();
+        assert!(error.contains("exhausted its Agent run budget"), "{error}");
 
         record_verification_attempt(
             directory.path(),

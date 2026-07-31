@@ -192,7 +192,7 @@ function request(): Record<string, unknown> {
   return { ...preimage, request_root: protocolDigest(preimage) };
 }
 
-test("parses one exact v7 authority-free Attempt-bound Agent request", () => {
+test("parses one exact authority-free Attempt-bound Agent request", () => {
   const parsed = parseAgentRunRequest(request());
   assert.equal(parsed.authority, "none");
   assert.equal(parsed.effect, "none");
@@ -205,6 +205,35 @@ test("parses one exact v7 authority-free Attempt-bound Agent request", () => {
     kind: "computational",
   });
   assert.equal(protocolDigest(parsed.runner_build), parsed.attempt.runner_build_root);
+});
+
+test("parses later reserved runs within one bounded Attempt", () => {
+  const laterRun = request();
+  const attempt = laterRun.attempt as Record<string, unknown>;
+  const budget = attempt.budget as Record<string, unknown>;
+  const usage = attempt.usage as Record<string, unknown>;
+  budget.max_runs = 16;
+  usage.runs = 2;
+  const { request_root: _, ...preimage } = laterRun;
+  laterRun.request_root = protocolDigest(preimage);
+
+  const parsed = parseAgentRunRequest(laterRun);
+  assert.equal(parsed.attempt.budget.max_runs, 16);
+  assert.equal(parsed.attempt.usage.runs, 2);
+
+  usage.runs = 17;
+  const { request_root: __, ...overBudgetPreimage } = laterRun;
+  laterRun.request_root = protocolDigest(overBudgetPreimage);
+  assert.throws(
+    () => parseAgentRunRequest(laterRun),
+    /usage exceeds the authorized run budget/u,
+  );
+
+  budget.max_runs = 65;
+  usage.runs = 1;
+  const { request_root: ___, ...tooWidePreimage } = laterRun;
+  laterRun.request_root = protocolDigest(tooWidePreimage);
+  assert.throws(() => parseAgentRunRequest(laterRun), /attempt\.budget\.max_runs/u);
 });
 
 test("rejects request, bundle, Target, packet, and helper-build substitution", () => {

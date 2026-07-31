@@ -274,6 +274,10 @@ pub(crate) enum Commands {
         /// Additional Artifact class authorized for this private Attempt.
         #[arg(long, conflicts_with = "drop")]
         artifact_class: Vec<String>,
+        /// Maximum Agent Runs reserved through this Attempt (default 16, hard
+        /// ceiling 64).
+        #[arg(long, conflicts_with = "drop")]
+        max_runs: Option<u64>,
         /// Maximum registered Submissions retained through this Attempt.
         #[arg(long, conflicts_with = "drop")]
         max_submissions: Option<u64>,

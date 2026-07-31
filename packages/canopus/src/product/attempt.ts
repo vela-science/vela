@@ -33,6 +33,7 @@ import { runtimeIdentity } from "./runtime.js";
 
 const REQUEST_SCHEMA = "vela.agent-run-request.internal.v1";
 const BUNDLE_SCHEMA = "vela.agent-execution-bundle.v1";
+const MAX_AGENT_RUNS_PER_ATTEMPT = 64;
 
 interface RootedFile {
   path: string;
@@ -190,7 +191,12 @@ function parseBudget(value: unknown): AgentRunRequest["attempt"]["budget"] {
     "Agent request attempt.budget",
   );
   return {
-    max_runs: integerAt(object.max_runs, "attempt.budget.max_runs", 1, 1),
+    max_runs: integerAt(
+      object.max_runs,
+      "attempt.budget.max_runs",
+      1,
+      MAX_AGENT_RUNS_PER_ATTEMPT,
+    ),
     max_submissions: integerAt(object.max_submissions, "attempt.budget.max_submissions", 1, 16),
     max_verifications: integerAt(object.max_verifications, "attempt.budget.max_verifications", 1, 16),
     max_artifacts: integerAt(object.max_artifacts, "attempt.budget.max_artifacts", 1, 64),
@@ -220,7 +226,12 @@ function parseUsage(value: unknown): AgentRunRequest["attempt"]["usage"] {
     "Agent request attempt.usage",
   );
   return {
-    runs: integerAt(object.runs, "attempt.usage.runs", 1, 1),
+    runs: integerAt(
+      object.runs,
+      "attempt.usage.runs",
+      1,
+      MAX_AGENT_RUNS_PER_ATTEMPT,
+    ),
     submissions: integerAt(object.submissions, "attempt.usage.submissions", 0, 16),
     verifications: integerAt(object.verifications, "attempt.usage.verifications", 0, 16),
     artifacts: integerAt(object.artifacts, "attempt.usage.artifacts", 0, 64),
@@ -509,6 +520,11 @@ export function parseAgentRunRequest(value: unknown): AgentRunRequest {
   if (protocolDigest(runnerBuild) !== runnerBuildRoot) {
     throw new Error("Agent helper build does not match the Attempt runner root");
   }
+  const budget = parseBudget(attempt.budget);
+  const usage = parseUsage(attempt.usage);
+  if (usage.runs > budget.max_runs) {
+    throw new Error("Agent run request usage exceeds the authorized run budget");
+  }
 
   return {
     schema: REQUEST_SCHEMA,
@@ -551,8 +567,8 @@ export function parseAgentRunRequest(value: unknown): AgentRunRequest {
         attempt.allowed_artifact_classes,
         "attempt.allowed_artifact_classes",
       ),
-      budget: parseBudget(attempt.budget),
-      usage: parseUsage(attempt.usage),
+      budget,
+      usage,
       consequence_ceiling: consequence,
       task_contract_root: sha256At(attempt.task_contract_root, "attempt.task_contract_root"),
     },
