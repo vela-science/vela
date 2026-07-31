@@ -55,10 +55,11 @@ with accepted state unchanged:
 - Formal commit `7d00fd9c34be3887624db16e4c5062c7fc447198`, Proposal `vpr_08a91ee1b770f5cb`,
   requirement-matching Verification `vvr_96dcaefef0617952`; its exact bounded
   producer Target is closed, but its scientific Claim is not accepted; and
-- Quantum commit `68be105f9e3183fe5f492dc09cce302ad834eaa8`, Proposal `vpr_8715dbb5e2a12442`,
+- Quantum commit `f5aa2fca9029f02ad1b2ca31f58545f370b0d6cc`, Proposal `vpr_8715dbb5e2a12442`,
   requirement-matching Verification `vvr_606aff748c89df76`; an actor-separated
   reconstruction verifies the exact `[[10,1,4]]` certificate, while Decision
-  remains null.
+  remains null. The intervening test-runner portability fix changed no
+  scientific object, repository root, graph relation, or Standing.
 
 Each Proposal remains `pending_review`. Protocol readiness is not a
 recommendation to accept. The repository authority—not an agent—may accept,
@@ -67,13 +68,13 @@ transfer remains pending its separate held-out consumer/value gate despite
 having no protocol blocker.
 
 Sidon remains clean at commit
-`75b3392c5d2a4390065a3927914acdb552d69e8e`. Vela Web `v0.430.0` is now
-released at commit `b053b16139dd152587116fe2c22b49b961d3aaf9`:
+`75b3392c5d2a4390065a3927914acdb552d69e8e`. Vela Web `v0.430.0` is deployed
+at current commit `421379d411b16d00b24c5647c373669ca4de27af`:
 
-- the Observatory and editorial production manifests identify the exact tag,
+- the Observatory and editorial production manifests identify the exact version,
   commit, brand root, and Vercel deployments;
 - the active projection is
-  `sha256:88422b7317c5e3f53bdaa61b25ff700e005919d0a31fde51dea1413dc923d2bf`
+  `sha256:bfbd1f4460d20a73e440d75e3de46aa245a4b627c1ad51dee5af37108c1f273f`
   under Vela `0.950.1`;
 - source adapter set
   `sha256:82df98241fc5e5f61b0790604a6ef7c3d6b5ce075e00c133e78ed64d0f8e186a`
@@ -94,7 +95,7 @@ ingestion, exact root/count verification, rollback containment, transactional
 activation rollback, SELECT-only reader, and eight-way read budgets using the
 existing schema and JSONB writer. No COPY path or another storage layer was
 earned. Clean empty-database reconstruction also passes at
-`sha256:dfd38ca3…`; product lift and the final web release remain open.
+`sha256:dfd38ca3…`; product lift remains open.
 
 This is released alpha evidence, not adoption or product-lift evidence. Any
 later human Decision requires another exact refresh before its changed
@@ -114,6 +115,11 @@ source roots.
   different.
 - Remove ceremony, duplicate explanation, and invalid defaults before adding
   commands or abstractions.
+- The private Attempt v5 boundary, read-only Decision Inbox, compact Campaign
+  status, and bounded foreground evidence host now exist. They prove one
+  same-host Submission-to-Verification path with zero accepted-state change.
+  Real prompt-free dogfood, restart behavior, a richer Cockpit, and batch
+  Decision planning remain unearned.
 - Require fresh-user comprehension of the repository-authority path before
   accepting ADR 0020.
 - Require a second real producer replay before accepting ADR 0021.

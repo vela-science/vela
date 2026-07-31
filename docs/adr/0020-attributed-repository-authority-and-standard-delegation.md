@@ -13,9 +13,10 @@
   Erdős commit `80606bdccb51fa86524111a1a61876bb08e45d79`.
 - Remaining acceptance gate: retain Proposed status until an uncoached fresh
   user comprehends and safely completes the released Decision path.
-- Compatibility: all Vela `0.915` history remains byte-identical and
-  read-verifiable; only the new authority model has a live writer after
-  migration
+- Compatibility: ADR 0027 supersedes the migration-era same-binary reader
+  requirement. Current Vela reads and writes the current repository profile;
+  exact predecessor archives and tags replay with their pinned historical
+  binary
 - Entry gate: source audit of the released `0.915.1` authority stack, repeated
   first-party usability failure, and the decision-grade authority architecture
   review dated 2026-07-24
@@ -354,8 +355,25 @@ manufacture an agent or workload decision path.
 
 ### 7A. Proposed amendment: Agent Campaigns and a Decision Inbox
 
-Status: **Proposed, design-only, 2026-07-30. Nothing in this amendment is
-implemented or accepted.**
+Status: **Proposed and partially implemented, 2026-07-30. The implemented
+slice is evidence for the seam, not acceptance of this amendment.**
+
+Implemented now:
+
+- private Attempt v5 scope, expiry, consequence ceiling, and exact evidence
+  budgets;
+- a rooted, read-only `vela review inbox` projection over real pending
+  Proposals;
+- a compact `vela status` Campaign summary with no Decision control;
+- a bounded foreground `vela campaign host` for one exact Attempt, one
+  approved inbox, and only `submission_register` and `verification_import`;
+- removal of the retired `receipt_land` writer fallback; and
+- one same-host Submission-to-Verification fixture with exact Attempt
+  accounting, zero accepted-state delta, and strict clean-clone replay.
+
+Still unimplemented or unearned: a real prompt-free source dogfood trace,
+restart behavior, the full Cockpit, local Inbox staging and interaction, a
+homogeneous batch planner, a twelve-hour campaign, and cold-user product lift.
 
 This amendment responds to a concrete dogfood failure: a multi-hour or
 multi-day agent run cannot stop for human verification or
@@ -1143,22 +1161,24 @@ percent median improvement in lookup and continuation time. If the interface
 does not beat the raw evidence, delete or narrow it rather than adding another
 dashboard layer.
 
-Implementation order is deliberately narrow:
+Implementation status and remaining order are deliberately narrow:
 
-1. prove one constrained signer session can append one current Submission and
-   one current Verification with accepted-state delta zero, no Event or
-   semantic-approval draft, and no second human prompt;
-2. remove the obsolete `receipt_land` fallback from current Submission
-   registration so the routine action vocabulary is closed;
-3. prove prompted and campaign-session evidence paths replay with the same
-   ordinary object, Authority Record coverage, and Proposal semantics;
-4. derive the Inbox from real pending Proposals and add local staging;
-5. prove one-entry and homogeneous multi-Proposal batch equivalence using the
-   existing authority transaction;
-6. evolve Attempt into the private campaign authorization and add the
-   Cockpit; and
-7. complete the dogfood gate before accepting this amendment or changing the
-   default daily workflow.
+1. **Partial:** one constrained signer host appends one current Submission and
+   one current Verification with accepted-state delta zero and no Event or
+   semantic-approval draft. The fixture proves one signer session; real
+   provider prompt behavior remains unproved.
+2. **Complete:** the obsolete `receipt_land` fallback is absent from current
+   Submission registration.
+3. **Complete for protocol and replay:** prompted and host-mediated evidence
+   use the same objects, Authority Record coverage, and Proposal semantics.
+4. **Partial:** the Inbox is derived from real pending Proposals; local staging
+   and interaction remain open.
+5. **Open:** prove one-entry and homogeneous multi-Proposal batch equivalence
+   using the existing authority transaction.
+6. **Partial:** Attempt v5 and compact status exist; the full controller and
+   Cockpit remain open.
+7. **Open:** complete real dogfood before accepting this amendment or changing
+   the default daily workflow.
 
 ### 8. Keep exact intent binding; remove root ceremonies
 

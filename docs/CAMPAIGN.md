@@ -155,7 +155,7 @@ Their exact current heads are:
 | --- | --- |
 | Erdős | commit `b92c11e5daf59732f8057de2d3b114b56ea8d25c`; repository root `sha256:e1a841a59395bfb42ba322f64282143fb315dd11714d51462299c6699b03d03f`; Proposal `vpr_27bce8983810f3bd`; requirement-matching Verification `vvr_b879aec074e01d16`; complementary Verification `vvr_85596c5b83104888`; `pending_review`; producer work for `10429601..10429800` is closed from its exact registered completion without changing Standing, and the next nonduplicate range is `10429801..10430000` |
 | Formal Conjectures | commit `7d00fd9c34be3887624db16e4c5062c7fc447198`; repository root `sha256:3e01912a7adb74ec03caf2996809981d9c97e2b8c1a381d885784db40ceecf9c`; exact-proof Proposal `vpr_08a91ee1b770f5cb` has requirement-matching Verification `vvr_96dcaefef0617952`; cross-Frontier Proposal `vpr_7aba66544ffefd99` has requirement-matching Verification `vvr_179fb049e70ff620`; both remain `pending_review`; one superseded typo Proposal remains protocol-blocked; the bounded producer Target queue is closed independently of scientific Standing |
-| Quantum Codes | commit `68be105f9e3183fe5f492dc09cce302ad834eaa8`; repository root `sha256:2771e9062b977410eded2b4763ca4abe9fef1a9faeea7dd1df33188c1814a837`; Proposal `vpr_8715dbb5e2a12442`; requirement-matching Verification `vvr_606aff748c89df76`; complementary Verification `vvr_f0b28f5c257eabb4`; current Vela reproduction reconstructs and verifies the exact `[[10,1,4]]` certificate; `pending_review`; Decision remains null |
+| Quantum Codes | commit `f5aa2fca9029f02ad1b2ca31f58545f370b0d6cc`; repository root `sha256:2771e9062b977410eded2b4763ca4abe9fef1a9faeea7dd1df33188c1814a837`; Proposal `vpr_8715dbb5e2a12442`; requirement-matching Verification `vvr_606aff748c89df76`; complementary Verification `vvr_f0b28f5c257eabb4`; the source-only test-runner portability fix changed the Git commit but no scientific object, root, graph relation, or Standing; current Vela reproduction reconstructs and verifies the exact `[[10,1,4]]` certificate; `pending_review`; Decision remains null |
 | Sidon | commit `75b3392c5d2a4390065a3927914acdb552d69e8e`; repository root `sha256:d047416cce0e569145ae38ae73b8a92102d5c5f63bb46602dff80398cada9a0d`; clean and unchanged |
 
 These are separate human Decision checkpoints. Protocol readiness means only
@@ -171,23 +171,26 @@ source lock and all four current Frontier heads:
 
 | Surface | Current exact candidate |
 | --- | --- |
-| Application release | Vela Web tag `v0.430.0`; commit `b053b16139dd152587116fe2c22b49b961d3aaf9` |
-| Observatory production manifest | `vela.site-deployment.v3`; deployment `dpl_J6tFMA8bvSEWjzjNf5tbghSQzZy8`; exact application commit and active projection root verified at `app.vela.space` |
-| Editorial production manifest | `vela.web-deployment.v2`; deployment `dpl_6dVEWUeWZqvkKPKQAGiuaJ9jLkC5`; exact application commit verified at `www.vela.space` |
-| Active projection | `vela.observatory-release-manifest.v7`; root `sha256:88422b7317c5e3f53bdaa61b25ff700e005919d0a31fde51dea1413dc923d2bf`; read model `observatory.v6`; Vela `0.950.1`; activated atomically at `2026-07-30T23:46:52.179Z`; 2,836 Claims, 9 Verifications, 4,135 graph nodes, 2,575 edges, and 4,139 search documents |
+| Application version | Vela Web `v0.430.0`; current deployed commit `421379d411b16d00b24c5647c373669ca4de27af` |
+| Observatory production manifest | `vela.site-deployment.v3`; deployment `dpl_J6wi1cM7Tma3HXy6bTE5mXMtDWkt`; exact application commit and active projection root verified at `app.vela.space` |
+| Editorial production manifest | `vela.web-deployment.v2`; deployment `dpl_9jn9Ppb4RxFSb6GZUxpWEKMFmiM8`; exact application commit verified at `www.vela.space` |
+| Active projection | `vela.observatory-release-manifest.v7`; root `sha256:bfbd1f4460d20a73e440d75e3de46aa245a4b627c1ad51dee5af37108c1f273f`; read model `observatory.v6`; Vela `0.950.1`; activated atomically at `2026-07-31T02:03:41.228Z`; 2,836 Claims, 9 Verifications, 4,135 graph nodes, 2,575 edges, and 4,139 search documents |
 | Source adapter set | root `sha256:82df98241fc5e5f61b0790604a6ef7c3d6b5ce075e00c133e78ed64d0f8e186a`; 6,700 exact adapter records |
 | Source Registry projection | 9,537 native rows; 6,303 Frontier bindings; declaration root `sha256:51de765c4ab9e834ea726ef53bc0f7f87e8d1cb5eeffaba22728908619d2ee37` |
 | PLBY observation | exact `plby/lean-proofs` commit `d4476dd3535ec618dee4177915741017026d26bf`; tree `c34eff8727b9fe02ba11ed2eb30da361a1b026fb`; 201 records |
 | Bounded Neon capacity | qualification root `sha256:c1ad6d1a58c7c19665dd575e1ee5c95064e0bde16d3533a9714ebf27854b7960`; the existing schema and 1,000-row JSONB writer insert and root-verify 100,000 records in 19.94 seconds; the isolated candidate was never activated and no test environment remains |
 | Clean-room reconstruction | qualification root `sha256:dfd38ca31994e6460e74dd96b2f8013a797fa74f8bb2c6a6affe3a3c9e879614`; two empty-database reconstructions produced release root `sha256:98a52be8a101eb79f2d7060a323ebec335fe5e46c28c08afca9ea606e2e595ce` and identical normalized manifest bytes; no test environment remains and production stayed on `sha256:d944fd9a…` |
 
-The exact replacement `sha256:88422b…` was rebuilt from all four current
+The exact replacement `sha256:bfbd1f…` was rebuilt from all four current
 Frontier heads, inserted and root-verified transactionally, activated through
 the single Neon `main` branch, and verified again through the SELECT-only
-reader. Both production manifests identify tag `v0.430.0` and commit
-`b053b161…`; production Browser QA exposed the 14-source Registry and complete
-4,037-node Erdős map without console errors. Local production-runtime smoke
-also passed. The bounded 100,000-record capacity, empty-database
+reader. Both production manifests identify version `v0.430.0` and commit
+`421379d4…`; the Observatory manifest binds the new projection and the
+editorial snapshot names the exact Quantum head. The prior production Browser
+QA exposed the same 14-source Registry and complete 4,037-node Erdős map
+without console errors, and the scientific projection is unchanged apart from
+the exact source commit. Local production-runtime smoke also passed. The
+bounded 100,000-record capacity, empty-database
 reconstruction, and failure-containment gates therefore close without another
 storage layer or retained database branch. Cold-use, product lift, human
 Decisions, and any later post-Decision exact refresh remain open.
@@ -368,7 +371,7 @@ The deployed normalized Neon model, atomic release pointer, release retention,
 read-only application role, `/api/search`, and `/api/graph` remain. The active
 read model is `observatory.v6`, bound by
 `vela.observatory-release-manifest.v7` at exact root
-`sha256:d944fd9a14b59c0fbc433d407fe53db67b4c0cf8f7d32d4bbd4598fcfad3a355`.
+`sha256:bfbd1f4460d20a73e440d75e3de46aa245a4b627c1ad51dee5af37108c1f273f`.
 Do not introduce parallel Registry and Atlas manifests when the Observatory
 manifest already binds the facts once.
 
@@ -847,7 +850,7 @@ registered pending Proposal `vpr_8715dbb5e2a12442` and Claim
 `vcl_cdd52df280c6249b97daa2ce544a8ed260cae6a31d33fd519917bb33c51faa59`
 with accepted-event delta zero. Scoped Verification
 `vvr_606aff748c89df76` satisfies the exact registered requirement at current
-commit `68be105f9e3183fe5f492dc09cce302ad834eaa8`; complementary Verification
+commit `f5aa2fca9029f02ad1b2ca31f58545f370b0d6cc`; complementary Verification
 `vvr_f0b28f5c257eabb4` remains retained. The reconstruction ran with network
 and file writes denied under a separately named verifier identity, but used
 the same human operator, account, machine, witness, and implementation family.
@@ -1451,7 +1454,7 @@ Failure narrows or deletes the system. It does not earn another layer.
 | Claim or gate | Starting status | Campaign terminal condition |
 | --- | --- | --- |
 | Local Submission → Verification → Decision | New Erdős, Formal, and Quantum evidence loops each have one exact requirement-matching Verification plus retained complementary evidence; the Proposals remain `pending_review`, and the Formal transfer remains separately gated on held-out value | human Decision or explicit cancellation for each exact Proposal, then clean-clone replay |
-| Map → advance → remap | All four Frontiers have zero stale Targets; Erdős producer work for `10429601..10429800` and Formal producer work are closed without changing Standing; Erdős now offers `10429801..10430000`; scientific Decisions and post-Decision remap remain open | exact current Atlas activation and release, then post-Decision remap if a human changes Standing |
+| Map → advance → remap | All four Frontiers have zero stale Targets; Erdős producer work for `10429601..10429800` and Formal producer work are closed without changing Standing; Erdős now offers `10429801..10430000`; the exact current Atlas is live, while scientific Decisions and post-Decision remap remain open | after one human Decision changes Standing, rebuild the exact Atlas, identify the semantic diff and surviving knowledge, and expose the next valid obligation |
 | Canopus execution lift | Directionally positive first-party repaired Stage A; predecessor and stopped runs retained; expert-minute metric unscored | contract-frozen Erdős, Formal, and quantum result or explicit narrowing |
 | State/Atlas lift | First-party Codex-session pilot failed hard budget and full correctness; no human-review credit | external matched test passes or negative result |
 | Inheritance lift | Removability passed for one historical pending state; cold-successor lift unmeasured | cold successor reproduces change, surviving evidence, replay, and next action without private context |
@@ -1459,7 +1462,7 @@ Failure narrows or deletes the system. It does not earn another layer.
 | Cross-Frontier transfer | exact archive reconstruction and mutation tests pass with zero accepted delta; the work remains first-party and protocol readiness does not satisfy the held-out value gate | held-out independently controlled consumer/value test passes or the claim envelope is narrowed |
 | Quantum reproduction | actor-separated current Vela reconstruction verifies the exact retained `[[10,1,4]]` certificate with network and writes denied; Proposal `vpr_8715dbb5e2a12442` remains pending; this is not external independence or verifier-soundness credit | human Decision or explicit cancellation, then clean-clone replay and remap |
 | Native-source inventory and observation | source adapter set root `sha256:82df9824…` contains 6,700 exact adapter records; the active projection contains 9,537 native rows; this is exact first-party data evidence, not adoption or scale qualification | finish scale, failure, and cold-use gates or narrow the alpha claim |
-| Math Atlas | Vela Web `v0.430.0` is released at commit `b053b161…`; active read-model root `sha256:88422b…`, both production manifests, current Frontier heads, 14-source Registry, 9,537 native rows, 6,303 bindings, and the complete 4,037-node Erdős map agree; this is an exact first-party alpha, not a product-lift or adoption result | refresh exactly after any human Decision; earn beta only through cold-use and independent-consumer evidence |
+| Math Atlas | Vela Web `v0.430.0` is deployed at commit `421379d4…`; active read-model root `sha256:bfbd1f…`, both production manifests, current Frontier heads, 14-source Registry, 9,537 native rows, 6,303 bindings, and the complete 4,037-node Erdős map agree; this is an exact first-party alpha, not a product-lift or adoption result | refresh exactly after any human Decision; earn beta only through cold-use and independent-consumer evidence |
 | Shared Math package | not earned | two consumers plus net deletion, or no package |
 | Registry/global Atlas | not earned | remain deferred |
 | Whitepaper breakthrough | not earned | ADR 0026 gates pass or paper remains bounded |

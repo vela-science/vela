@@ -9,8 +9,9 @@
   producer completes and replays the current contract without maintainer
   coaching.
 - Protocol effect: one current producer era with Submission, Registration
-  Record, Verification Record, and optionally Claim Record objects; historical
-  Receipt-era bytes remain replayable
+  Record, Verification Record, and Claim Record objects; predecessor
+  Receipt-era repositories remain reproducible through their exact archives
+  and pinned historical binary under ADR 0027
 - Product effect: replace inverted producer and review language with
   `inspect -> attempt -> submit -> verify -> decide -> continue`
 - Product-language note: ADR 0025 supersedes that sequence as the public
@@ -19,8 +20,9 @@
   unchanged.
 - Authority effect: none; the existing repository-authority transaction remains
   the only path that may change scientific standing
-- Compatibility: read every retained era that matters; write exactly one
-  current era; never rewrite canonical history
+- Compatibility: the current binary reads and writes the current repository
+  profile only; exact predecessor archives and tags retain historical
+  reproducibility under ADR 0027
 - Entry gate: the July 26 product-language and command-contract audit plus the
   completed Vela and Canopus ownership contraction
 
@@ -122,7 +124,7 @@ Adopt for current writers and readers:
 | VerifierAttachment | Verification Record |
 | work session | Attempt |
 | Decision Brief | Review Packet |
-| Finding | Claim Record after its separate gate; until then, readers expose `vf_` as a historical Finding-era claim record |
+| Finding | Claim Record; the gate completed in Vela `v0.940.0` |
 
 The term `Receipt` is reserved for a future Vela-issued, independently
 verifiable registration or inclusion proof. This ADR does not add that object.
@@ -201,7 +203,7 @@ implementation, environment, property checked, outcome, limitations,
 independence disclosure, and authentication. A passing Verification Record
 changes no standing by itself.
 
-### 4. Gate Claim Record separately
+### 4. Claim Record gate — completed in Vela `v0.940.0`
 
 The target current claim primitive is:
 
@@ -210,14 +212,11 @@ vela.claim-record.v1
 vcl_
 ```
 
-Historical `vf_` Finding bytes and IDs are never rewritten. New Claim Records
-may be enabled only after cross-era relations, correction, supersession,
-Observatory projection, and clean-clone replay pass focused conformance.
-
-If that gate does not pass in the Submission release, Vela ships the
-Submission/Registration/Verification vocabulary first and continues to read
-historical Findings explicitly as historical claim records. It must not
-manufacture new `vcl_` identities by relabeling old bytes.
+The focused cross-era relation, correction, supersession, Observatory
+projection, and clean-clone replay gates passed before the current writer was
+enabled. Current repositories use `vcl_` Claim Records. Historical `vf_`
+Finding bytes and IDs remain in exact predecessor archives and are never
+rewritten or relabeled by the current binary.
 
 ### 5. Make authority effects explicit
 
@@ -294,33 +293,30 @@ The Claim page centers `Why this stands`, showing the shortest exact route
 from evidence and decisions to current Standing. No bare `verified` badge may
 imply acceptance. The Observatory remains credential-free and read-only.
 
-### 8. Preserve eras; remove duplicate current writers
+### 8. Preserve predecessor eras outside the current runtime
 
 The compatibility rule is:
 
-> Read every retained era that matters. Write exactly one current era. Never
-> rewrite canonical history to make vocabulary cleaner.
+> Write and replay one current era. Preserve predecessor repositories in exact
+> archives and tags with their pinned historical binary. Never rewrite
+> canonical history to make vocabulary cleaner.
 
+ADR 0027 superseded the migration-era same-binary compatibility design. Vela
+`0.950.x` contains no Era-0 repository reader or legacy import writer.
 Historical Receipt, `vf_`, `vrc_`, and `vva_` bytes remain valid under the
-versions that created them. Current readers expose them honestly. Current
-writers emit only the new era after migration.
+versions that created them and replay from exact retained predecessor state.
+Current readers and writers handle only the current repository profile.
 
-Legacy import, if a named consumer needs it, is explicit and loss-aware:
-
-```text
-vela submission import-legacy <receipt.json>
-```
-
-It retains the original bytes and root, validates the historical schema,
-reports the transformation, and follows the ordinary current Proposal path.
-No silent normalization is allowed.
+No legacy import command exists in the current runtime. A future named
+consumer would require a new, loss-explicit ADR and conformance gate rather
+than reviving the migration surface.
 
 ## Repository ownership
 
 | Repository | Owns |
 | --- | --- |
 | `vela-science/vela` | current and historical schemas, canonicalization, intake, verification records, proposals, authority, replay, CLI, compatibility, conformance |
-| `vela-science/vela-research-harness` | Missions, isolation, Runs, Artifacts, independent verifier execution, Submission export, delegation to Vela |
+| `vela-science/vela` `packages/canopus` | Optional Missions, isolation, Runs, Artifacts, independent verifier execution, Submission export, delegation to Vela |
 | `vela-science/vela-web` | read-only current and historical projections, explanations, comparison, reproduction and continuation |
 | private integration repository | exact composition, migration evidence, adoption tests, retirement decisions |
 | standalone Frontiers | bounded canonical scientific and authority history, domain Targets, packets, profiles, verifiers and corrections |
@@ -426,17 +422,17 @@ The substrate now contains the Stage 1 current writer and readers:
 - a non-finalizing MCP `attempt` surface using the same
   `start | submit | abandon` vocabulary;
 - diagnostics for retired `land` and top-level `verify` writers; and
-- exact replay of historical Receipt and policy-era bytes.
+- exact replay of the current repository profile; predecessor profiles replay
+  through their exact archives and pinned historical binaries under ADR 0027.
 
-Canopus Stage 2 is implemented in its current candidate: `run` is
+Canopus Stage 2 is released in `0.8.0`: `run` is
 nonmutating, `export` emits authenticated Submission v1 bytes, and only the
 explicit `submit` command delegates them to Vela. Its historical landing and
 Receipt fields live only in era-specific replay parsers.
 
-The current Observatory source implements the Stage 3 object distinctions,
-historical-era disclosure, and root-bound “Why this stands” presentation.
-Reader release identity and hosted projection verification remain separate
-release gates.
+The released Observatory implements the Stage 3 object distinctions,
+root-bound “Why this stands” presentation, exact deployment identity, and
+verified hosted projection.
 
 The current Decision gate now consumes exact retained Submission and
 Verification Record bytes. It requires every declared verification property to
@@ -445,8 +441,9 @@ Proposal; failing, missing, invalid, producer-dependent, or inconclusive records
 fail closed. A focused repository-authority fixture completes add, verification,
 authorized acceptance, exact-root correction, second verification and
 acceptance, immutable historical Event checks, dual-log materialization, and
-strict replay. Claim Record, fresh-user comprehension evidence, and independent
-recurrence remain separately gated, so this ADR remains Proposed.
+strict replay. Claim Record is current and released; fresh-user comprehension
+evidence and independent recurrence remain separately gated, so this ADR
+remains Proposed.
 
 Historical repository-authority policies remain immutable. A migrated Frontier
 that predates the current producer era adopts the missing intake permissions
