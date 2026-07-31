@@ -1193,6 +1193,8 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
         })
         .collect::<Vec<_>>();
     let decision = decisions.get(proposal_id);
+    let decision_inbox = crate::decision_inbox::review_context(&frontier, proposal_id)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let payload = json!({
         "schema": "vela.review.v1",
         "ok": true,
@@ -1207,6 +1209,7 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
         "submission": submission,
         "verification_records": verifications,
         "decision": decision,
+        "decision_inbox": decision_inbox,
         "authority_boundary": "Verification records report bounded checks. Only a repository-authority Decision can change standing.",
     });
     if json_out {

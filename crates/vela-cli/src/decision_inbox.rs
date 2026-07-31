@@ -560,6 +560,33 @@ pub(crate) fn compare_entry_root(
     }
 }
 
+fn review_context_from_projection(
+    projection: &DecisionInboxProjection,
+    proposal_id: &str,
+) -> serde_json::Value {
+    let entry = projection
+        .entries
+        .iter()
+        .find(|entry| entry.proposal_id == proposal_id);
+    serde_json::json!({
+        "projection_root": projection.projection_root,
+        "entry": entry,
+    })
+}
+
+/// Return the exact pending Decision Inbox entry for one Proposal together
+/// with the root of the complete projection from which it was selected.
+///
+/// Terminal Proposals are intentionally absent from the pending Inbox and
+/// therefore return a null entry under the still-current projection root.
+pub(crate) fn review_context(
+    frontier: &Path,
+    proposal_id: &str,
+) -> Result<serde_json::Value, String> {
+    let projection = project(frontier)?;
+    Ok(review_context_from_projection(&projection, proposal_id))
+}
+
 pub(crate) fn cmd_decision_inbox(frontier: &Path, json_output: bool) {
     crate::ui::set_mode("review.inbox", json_output);
     let projection = project(frontier).unwrap_or_else(|error| crate::cli::fail(&error));
@@ -974,6 +1001,58 @@ mod tests {
             entry.verification_records[0].satisfies_requirements,
             vec![requirement]
         );
+    }
+
+    #[test]
+    fn review_context_embeds_the_matching_root_bound_entry() {
+        let requirement = "Replay the exact fixture.";
+        let subject = claim("A bounded fixture result.", 1, Vec::new());
+        let submission = submission(requirement);
+        let proposal = proposal("claim.add", &subject, &submission);
+        let verification = verification(&proposal, &submission, requirement, "pass");
+        let repository = repository(
+            Vec::new(),
+            vec![claim_standing(&subject, "pending_review")],
+            &proposal,
+            &submission,
+            &verification,
+        );
+        let entry = derive_fixture(
+            &repository,
+            &proposal,
+            &subject,
+            &submission,
+            &verification,
+            &heads(),
+        );
+        let mut projection = DecisionInboxProjection {
+            schema: PROJECTION_SCHEMA.into(),
+            frontier_id: repository.frontier_id.clone(),
+            repository_root: repository.canonical_root().unwrap(),
+            order: "created_at_asc_then_proposal_id".into(),
+            entries: vec![entry.clone()],
+            projection_root: String::new(),
+        };
+        projection.projection_root = projection_root(&projection).unwrap();
+
+        let context = review_context_from_projection(&projection, &proposal.proposal_id);
+        assert_eq!(context["projection_root"], projection.projection_root);
+        assert_eq!(context["entry"]["entry_root"], entry.entry_root);
+        assert_eq!(context["entry"]["readiness"]["protocol_gate"], "satisfied");
+        assert_eq!(
+            context["entry"]["standing_diff"]["accepted_if_accept"][0]["claim_id"],
+            subject.claim_id
+        );
+        assert_eq!(context["entry"]["staleness"]["state"], "current");
+        assert!(
+            context["entry"]["next_obligation"]["if_accept"]
+                .as_str()
+                .is_some_and(|next| next.contains("Replay"))
+        );
+
+        let absent = review_context_from_projection(&projection, "vpr_0000000000000000");
+        assert_eq!(absent["projection_root"], projection.projection_root);
+        assert!(absent["entry"].is_null());
     }
 
     #[test]
