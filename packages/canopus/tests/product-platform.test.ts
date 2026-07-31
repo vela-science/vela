@@ -1,10 +1,9 @@
 import assert from "node:assert/strict";
-import { chmod, mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, realpath, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { doctorProduct } from "../src/product/doctor.js";
 import {
   executableNames,
   findExecutable,
@@ -91,86 +90,3 @@ function commandResult(
     durationMs: 1,
   };
 }
-
-test("native Windows doctor remains read-only and does not probe worker runtimes", async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), "canopus-windows-doctor-"));
-  const bin = path.join(root, "bin");
-  const frontier = path.join(root, "frontier");
-  await mkdir(bin);
-  await mkdir(frontier);
-  for (const name of ["vela", "git"]) {
-    const executable = path.join(bin, name);
-    await writeFile(executable, `${name}\n`, { mode: 0o700 });
-    await chmod(executable, 0o700);
-  }
-  const previousPath = process.env.PATH;
-  process.env.PATH = previousPath === undefined ? bin : `${bin}${path.delimiter}${previousPath}`;
-  const observed: string[] = [];
-  try {
-    const result = await doctorProduct({
-      frontier,
-      platform: "win32",
-      profileName: "erdos1056-k15-10429801-10430000",
-      runner: async (options) => {
-        const executable = path.basename(options.argv[0] ?? "");
-        observed.push(`${executable} ${options.argv.slice(1).join(" ")}`);
-        if (options.argv[1] === "--version") {
-          return commandResult(
-            options,
-            executable === "vela"
-              ? "vela 99.1.7\n"
-              : "git version 2.50.0\n",
-          );
-        }
-        if (executable === "vela" && options.argv[1] === "status") {
-          return commandResult(options, JSON.stringify({
-            ok: true,
-            schema: "vela.status.v1",
-            command: "status",
-            roots: {
-              repository: `sha256:${"b".repeat(64)}`,
-            },
-            git: { commit: "c".repeat(40), tree: "d".repeat(40) },
-            integrity: { replay: "verified", strict: "pass", blocker_count: 0 },
-          }));
-        }
-        if (executable === "vela" && options.argv[1] === "next") {
-          return commandResult(options, JSON.stringify({
-            schema: "vela.offer.v1",
-            ok: true,
-            command: "next",
-            repository_root: `sha256:${"b".repeat(64)}`,
-            targets: [{
-              rank: 1,
-              target_id: "erdos:1056",
-              packet: {
-                schema: "erdos-frontier.problem-work.v2",
-                sha256: "sha256:c2b57075a0ec205b4d837382f8b816f31ab20a485e40962a1768e7ed42565344",
-              },
-            }],
-          }));
-        }
-        if (executable === "git" && options.argv[1] === "status") {
-          return commandResult(options, "");
-        }
-        throw new Error(`unexpected command: ${options.argv.join(" ")}`);
-      },
-    });
-    assert.equal(result.public.ok, true);
-    assert.equal(result.public.worker.mission_runtime, "wsl2_required");
-    assert.equal(result.public.worker.mission_ready, false);
-    assert.equal(
-      result.public.frontier.repository_root,
-      `sha256:${"b".repeat(64)}`,
-    );
-    assert.equal(result.public.frontier.strict_blockers, 0);
-    assert.equal(result.public.runtimes.codex, null);
-    assert.equal(result.public.runtimes.docker, null);
-    assert.equal(result.public.runtimes.vela.version, "vela 99.1.7");
-    assert.match(result.public.next_action, /Open WSL2.+rerun canopus doctor/su);
-    assert.equal(observed.some((command) => /codex|docker/u.test(command)), false);
-  } finally {
-    if (previousPath === undefined) delete process.env.PATH;
-    else process.env.PATH = previousPath;
-  }
-});

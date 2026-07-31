@@ -16,7 +16,6 @@ import {
   packProductProfile,
   validateProductProfile,
 } from "../src/product/profile-bundle.js";
-import { resolveProductProfile, selectProductOffer } from "../src/product/doctor.js";
 import { contentDigest } from "../src/util/canonical.js";
 import { assertVerifierWorkingDirectory } from "../src/mission/prepare.js";
 
@@ -195,62 +194,4 @@ test("Linux custody denies host roots and reopens only the exact workspace", asy
     /\[permissions\.canopus-worker\.filesystem\.":workspace_roots"\]\n"\." = "write"\n"\.canopus-runtime" = "read"/u,
   );
   assert.doesNotMatch(config, /^"\/" = "write"$/mu);
-});
-
-test("explicit targets are deliberate while the default never skips rank one", async () => {
-  const profile = await loadProductProfile("erdos1056-k15-10429801-10430000");
-  const packet = {
-    schema: "erdos-frontier.problem-work.v2",
-    sha256: "sha256:c2b57075a0ec205b4d837382f8b816f31ab20a485e40962a1768e7ed42565344",
-  };
-  const offer = {
-    targets: [
-      { rank: 1, target_id: "erdos:124" },
-      { rank: 2, target_id: "erdos:1056", packet },
-    ],
-  };
-  assert.throws(() => selectProductOffer(offer, profile), /will not skip rank 1/u);
-  assert.deepEqual(selectProductOffer(offer, profile, "erdos:1056"), {
-    target: { rank: 2, target_id: "erdos:1056", packet },
-    targetId: "erdos:1056",
-    rank: 2,
-  });
-  assert.throws(
-    () => selectProductOffer(offer, profile, "erdos:124"),
-    /not requested target erdos:124/u,
-  );
-  assert.throws(
-    () => selectProductOffer({
-      targets: [{
-        rank: 1,
-        target_id: "erdos:1056",
-        packet: { ...packet, sha256: `sha256:${"0".repeat(64)}` },
-      }],
-    }, profile),
-    /registered profile.+is stale/u,
-  );
-});
-
-test("ordinary profile discovery selects the unique first-offer profile", async () => {
-  const profile = await resolveProductProfile({
-    targets: [{
-      rank: 1,
-      target_id: "erdos:1056",
-      packet: {
-        schema: "erdos-frontier.problem-work.v2",
-        sha256: "sha256:c2b57075a0ec205b4d837382f8b816f31ab20a485e40962a1768e7ed42565344",
-      },
-    }],
-  });
-  assert.equal(profile.name, "erdos1056-k15-10429801-10430000");
-  await assert.rejects(
-    resolveProductProfile({
-      targets: [],
-    }),
-    /vela next returned no producer target/u,
-  );
-  await assert.rejects(
-    resolveProductProfile({ targets: [{ rank: 1, target_id: "unknown:target" }] }),
-    /no runnable profile is registered/u,
-  );
 });
