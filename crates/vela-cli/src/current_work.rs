@@ -11,13 +11,15 @@ use std::path::{Path, PathBuf};
 use chrono::{Duration, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use vela_protocol::submission_v1::SubmissionV1;
 
 use crate::cli::safe_text;
 
-const ATTEMPT_SCHEMA: &str = "vela.attempt.v5";
+const ATTEMPT_SCHEMA: &str = "vela.attempt.v7";
 const TASK_CONTRACT_SCHEMA: &str = "vela.task-contract.internal.v3";
 const ATTEMPT_MAX_BYTES: usize = 2 * 1024 * 1024;
+const EXECUTION_BUNDLE_MAX_BYTES: u64 = 8 * 1024 * 1024;
 const DEFAULT_MAX_SUBMISSIONS: u64 = 16;
 const DEFAULT_MAX_VERIFICATIONS: u64 = 16;
 const DEFAULT_MAX_ARTIFACTS: u64 = 64;
@@ -36,6 +38,7 @@ struct CurrentBuildIdentity {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 struct CurrentAttemptBudget {
+    max_runs: u64,
     max_submissions: u64,
     max_verifications: u64,
     max_artifacts: u64,
@@ -45,6 +48,7 @@ struct CurrentAttemptBudget {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 struct CurrentAttemptUsage {
+    runs: u64,
     submissions: u64,
     verifications: u64,
     artifacts: u64,
@@ -67,6 +71,15 @@ struct CurrentTaskContract {
     authority_ceiling: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct CurrentExecutionBundle {
+    schema: String,
+    path: String,
+    size: u64,
+    sha256: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct CurrentAttempt {
@@ -87,6 +100,7 @@ pub(crate) struct CurrentAttempt {
     consequence_ceiling: String,
     task_contract: CurrentTaskContract,
     pub(crate) task_contract_root: String,
+    execution_bundle: Option<CurrentExecutionBundle>,
     starting_target_task_binding: vela_edge::target_index::TargetTaskBindingV3,
     pub(crate) target_task_binding: vela_edge::target_index::TargetTaskBindingV3,
     briefing: Value,
@@ -176,6 +190,270 @@ fn require_sha256_root(label: &str, value: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn sha256_root(bytes: &[u8]) -> String {
+    format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
+}
+
+fn canonical_json_file(bytes: &[u8], label: &str) -> Result<Value, String> {
+    let value: Value =
+        serde_json::from_slice(bytes).map_err(|error| format!("parse {label}: {error}"))?;
+    let mut canonical = vela_protocol::canonical::to_canonical_bytes(&value)?;
+    canonical.push(b'\n');
+    if canonical != bytes {
+        return Err(format!(
+            "{label} must be exact canonical JSON with one newline"
+        ));
+    }
+    Ok(value)
+}
+
+fn bounded_locator(value: &Value, label: &str) -> Result<CurrentExecutionBundle, String> {
+    let locator: CurrentExecutionBundle =
+        serde_json::from_value(value.clone()).map_err(|error| format!("parse {label}: {error}"))?;
+    if locator.schema != "vela.agent-execution-bundle.v1" {
+        return Err(format!(
+            "{label}.schema must be vela.agent-execution-bundle.v1"
+        ));
+    }
+    if locator.path.is_empty()
+        || Path::new(&locator.path).is_absolute()
+        || !Path::new(&locator.path)
+            .components()
+            .all(|component| matches!(component, std::path::Component::Normal(_)))
+    {
+        return Err(format!(
+            "{label}.path must be normalized and Frontier-relative"
+        ));
+    }
+    if locator.size == 0 || locator.size > EXECUTION_BUNDLE_MAX_BYTES {
+        return Err(format!(
+            "{label}.size must be between 1 and {EXECUTION_BUNDLE_MAX_BYTES}"
+        ));
+    }
+    require_sha256_root(&format!("{label}.sha256"), &locator.sha256)?;
+    Ok(locator)
+}
+
+fn nested_file_locator<'a>(
+    value: &'a Value,
+    pointer: &str,
+    label: &str,
+) -> Result<(&'a str, u64, &'a str), String> {
+    let object = value
+        .pointer(pointer)
+        .and_then(Value::as_object)
+        .ok_or_else(|| format!("{label} locator is missing"))?;
+    let path = object
+        .get("path")
+        .and_then(Value::as_str)
+        .ok_or_else(|| format!("{label}.path is missing"))?;
+    let size = object
+        .get("size")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| format!("{label}.size is missing"))?;
+    let sha256 = object
+        .get("sha256")
+        .and_then(Value::as_str)
+        .ok_or_else(|| format!("{label}.sha256 is missing"))?;
+    if object.len() != 3
+        || path.is_empty()
+        || Path::new(path).is_absolute()
+        || !Path::new(path)
+            .components()
+            .all(|component| matches!(component, std::path::Component::Normal(_)))
+    {
+        return Err(format!(
+            "{label} locator is not a closed relative-file reference"
+        ));
+    }
+    if size == 0 || size > 268_435_456 {
+        return Err(format!("{label}.size is outside the bounded file limit"));
+    }
+    require_sha256_root(&format!("{label}.sha256"), sha256)?;
+    Ok((path, size, sha256))
+}
+
+fn pinned_bundle_file(
+    frontier: &Path,
+    commit: &str,
+    path: &str,
+    size: u64,
+    root: &str,
+    label: &str,
+) -> Result<Vec<u8>, String> {
+    let bytes = vela_edge::target_index::exact_git_blob_at(frontier, commit, path, size)?;
+    if bytes.len() as u64 != size {
+        return Err(format!(
+            "{label} size mismatch: expected {size}, observed {}",
+            bytes.len()
+        ));
+    }
+    let observed = sha256_root(&bytes);
+    if observed != root {
+        return Err(format!(
+            "{label} root mismatch: expected {root}, observed {observed}"
+        ));
+    }
+    Ok(bytes)
+}
+
+fn exact_target_packet(
+    frontier: &Path,
+    attempt: &CurrentAttempt,
+) -> Result<(String, Value), String> {
+    let packet = &attempt.starting_target_task_binding.packet;
+    let bytes = pinned_bundle_file(
+        frontier,
+        &attempt.starting_target_task_binding.source.git_commit,
+        &packet.path,
+        packet.size,
+        &packet.sha256,
+        "Target packet",
+    )?;
+    let (packet_json, value) = parse_target_packet_bytes(&bytes, packet)?;
+    if attempt.briefing.get("packet") != Some(&value) {
+        return Err("current Attempt briefing does not match the exact Target packet".to_string());
+    }
+    Ok((packet_json, value))
+}
+
+fn parse_target_packet_bytes(
+    bytes: &[u8],
+    packet: &vela_edge::target_index::TargetPacketRefV2,
+) -> Result<(String, Value), String> {
+    if bytes.len() as u64 != packet.size || sha256_root(bytes) != packet.sha256 {
+        return Err("Target packet bytes do not match their exact reference".to_string());
+    }
+    let packet_json = String::from_utf8(bytes.to_vec())
+        .map_err(|error| format!("Target packet is not UTF-8 JSON: {error}"))?;
+    let value: Value = serde_json::from_str(&packet_json)
+        .map_err(|error| format!("parse exact Target packet: {error}"))?;
+    if !value.is_object()
+        || value.get("schema").and_then(Value::as_str) != Some(packet.schema.as_str())
+    {
+        return Err(format!(
+            "exact Target packet must be one object with schema {:?}",
+            packet.schema
+        ));
+    }
+    Ok((packet_json, value))
+}
+
+fn execution_bundle_for_attempt(
+    frontier: &Path,
+    attempt: &CurrentAttempt,
+    packet: &Value,
+) -> Result<(CurrentExecutionBundle, Value, Value), String> {
+    let locator = bounded_locator(
+        packet
+            .get("execution_bundle")
+            .ok_or_else(|| "current Target packet has no execution_bundle".to_string())?,
+        "Target packet execution_bundle",
+    )?;
+    let commit = &attempt.starting_target_task_binding.source.git_commit;
+    let bytes = pinned_bundle_file(
+        frontier,
+        commit,
+        &locator.path,
+        locator.size,
+        &locator.sha256,
+        "Agent execution bundle",
+    )?;
+    let bundle = canonical_json_file(&bytes, "Agent execution bundle")?;
+    if bundle.get("schema").and_then(Value::as_str) != Some(locator.schema.as_str())
+        || bundle.get("authority").and_then(Value::as_str) != Some("non_authoritative")
+        || bundle.get("effect").and_then(Value::as_str) != Some("none")
+        || bundle.pointer("/target/id").and_then(Value::as_str) != Some(attempt.target.as_str())
+    {
+        return Err(
+            "Agent execution bundle must be non-authoritative, effect-free, and match the exact Target"
+                .to_string(),
+        );
+    }
+    let worker_inputs = bundle
+        .pointer("/safeguards/worker_inputs")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "Agent execution bundle has no worker input boundary".to_string())?;
+    if worker_inputs.as_slice() != [json!("mission"), json!("target_packet")]
+        || bundle
+            .pointer("/safeguards/prior_answer_inputs")
+            .and_then(Value::as_array)
+            .is_none_or(|values| !values.is_empty())
+        || bundle
+            .pointer("/safeguards/duplicate_work")
+            .and_then(Value::as_str)
+            != Some("target_revalidation")
+    {
+        return Err(
+            "Agent execution bundle must expose only mission and Target packet inputs and rely on Target revalidation for duplicate work"
+                .to_string(),
+        );
+    }
+    if bundle
+        .pointer("/verifier/isolation/network")
+        .and_then(Value::as_str)
+        != Some("deny")
+        || bundle
+            .pointer("/verifier/isolation/writes")
+            .and_then(Value::as_str)
+            != Some("deny")
+    {
+        return Err("Agent execution bundle verifier must deny network and writes".to_string());
+    }
+
+    let (mission_path, mission_size, mission_root) =
+        nested_file_locator(&bundle, "/mission", "mission")?;
+    let mission_bytes = pinned_bundle_file(
+        frontier,
+        commit,
+        mission_path,
+        mission_size,
+        mission_root,
+        "Agent mission draft",
+    )?;
+    let mission = canonical_json_file(&mission_bytes, "Agent mission draft")?;
+    if mission.get("target").and_then(Value::as_str) != Some(attempt.target.as_str())
+        || mission.get("actor").and_then(Value::as_str) != Some(attempt.actor.as_str())
+        || mission.get("frontier").and_then(Value::as_str) != Some(".")
+        || mission.get("role").and_then(Value::as_str) != Some("producer")
+    {
+        return Err("Agent mission draft does not match the exact Attempt".to_string());
+    }
+    let artifact_path = bundle
+        .pointer("/artifact_contract/path")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "Agent execution bundle has no Artifact path".to_string())?;
+    let artifact_kind = bundle
+        .pointer("/artifact_contract/kind")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "Agent execution bundle has no Artifact class".to_string())?;
+    if !attempt
+        .allowed_artifact_classes
+        .iter()
+        .any(|allowed| allowed == artifact_kind)
+    {
+        return Err(format!(
+            "Agent execution bundle Artifact class {artifact_kind:?} is outside the Attempt"
+        ));
+    }
+    let allowed_paths = mission
+        .get("allowed_paths")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "Agent mission draft has no allowed_paths".to_string())?;
+    if allowed_paths.as_slice() != [json!(artifact_path)] {
+        return Err("Agent mission and Artifact contract paths disagree".to_string());
+    }
+
+    for (pointer, label) in [
+        ("/verifier/capsule", "verifier capsule"),
+        ("/verifier/source", "verifier source"),
+    ] {
+        let (path, size, root) = nested_file_locator(&bundle, pointer, label)?;
+        let _ = pinned_bundle_file(frontier, commit, path, size, root, label)?;
+    }
+    Ok((locator, bundle, mission))
+}
+
 fn controller_build() -> Result<CurrentBuildIdentity, String> {
     let executable =
         std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
@@ -184,6 +462,34 @@ fn controller_build() -> Result<CurrentBuildIdentity, String> {
         version: env!("CARGO_PKG_VERSION").to_string(),
         binary_sha256: crate::authority_transaction::execution_binary_sha256(&executable)?,
     })
+}
+
+fn require_current_controller(
+    attempt: &CurrentAttempt,
+    observed: &CurrentBuildIdentity,
+) -> Result<(), String> {
+    if &attempt.controller_build != observed {
+        return Err(format!(
+            "current Attempt {} authorizes another Vela controller build",
+            attempt.attempt_id
+        ));
+    }
+    Ok(())
+}
+
+fn reserve_agent_run(attempt: &mut CurrentAttempt) -> Result<(), String> {
+    if attempt.usage.runs >= attempt.budget.max_runs {
+        return Err(format!(
+            "current Attempt {} has exhausted its Agent run budget",
+            attempt.attempt_id
+        ));
+    }
+    attempt.usage.runs = attempt
+        .usage
+        .runs
+        .checked_add(1)
+        .ok_or_else(|| "current Attempt Agent run usage overflowed".to_string())?;
+    Ok(())
 }
 
 fn authorization_root(attempt: &CurrentAttempt) -> Result<String, String> {
@@ -201,6 +507,7 @@ fn authorization_root(attempt: &CurrentAttempt) -> Result<String, String> {
         "budget": attempt.budget,
         "consequence_ceiling": attempt.consequence_ceiling,
         "task_contract_root": attempt.task_contract_root,
+        "execution_bundle": attempt.execution_bundle,
         "starting_target_task_binding_root": attempt.starting_target_task_binding.binding_root,
     }))
 }
@@ -235,6 +542,16 @@ fn validate(attempt: &CurrentAttempt) -> Result<(), String> {
         || canonical_root(&attempt.task_contract)? != attempt.task_contract_root
     {
         return Err("current Attempt task contract does not match its root".to_string());
+    }
+    if let Some(bundle) = &attempt.execution_bundle {
+        if bundle.schema != "vela.agent-execution-bundle.v1"
+            || bundle.path.is_empty()
+            || bundle.size == 0
+            || bundle.size > EXECUTION_BUNDLE_MAX_BYTES
+        {
+            return Err("current Attempt has an invalid Agent execution bundle".to_string());
+        }
+        require_sha256_root("current Attempt execution bundle", &bundle.sha256)?;
     }
     attempt.starting_target_task_binding.validate()?;
     attempt.target_task_binding.validate()?;
@@ -281,10 +598,12 @@ fn validate(attempt: &CurrentAttempt) -> Result<(), String> {
     ) {
         return Err("current Attempt has an unsupported consequence ceiling".to_string());
     }
-    if attempt.budget.max_submissions == 0
+    if attempt.budget.max_runs == 0
+        || attempt.budget.max_submissions == 0
         || attempt.budget.max_verifications == 0
         || attempt.budget.max_artifacts == 0
         || attempt.budget.max_artifact_bytes == 0
+        || attempt.usage.runs > attempt.budget.max_runs
         || attempt.usage.submissions > attempt.budget.max_submissions
         || attempt.usage.verifications > attempt.budget.max_verifications
         || attempt.usage.artifacts > attempt.budget.max_artifacts
@@ -524,6 +843,131 @@ pub(crate) fn resolve_verification_attempt(
     requested_attempt: Option<&str>,
 ) -> Result<Option<CurrentRoutineAttempt>, String> {
     resolve_attempt(frontier, requested_attempt)
+}
+
+/// Build the private, authority-free request passed to the optional Agent
+/// helper. All scientific scope comes from one live Attempt and its pinned
+/// Target packet; the caller cannot substitute a profile, Target, or bundle.
+pub(crate) fn agent_run_request(
+    frontier: &Path,
+    attempt_id: &str,
+    helper_build: &crate::agent_delegate::AgentHelperBuild,
+    output: Option<&Path>,
+) -> Result<Vec<u8>, String> {
+    let helper_build_root = helper_build.root()?;
+    require_sha256_root("Agent helper build", &helper_build_root)?;
+    let frontier = frontier
+        .canonicalize()
+        .map_err(|error| format!("resolve current Frontier {}: {error}", frontier.display()))?;
+    let mut resolved = resolve_attempt(&frontier, Some(attempt_id))?
+        .ok_or_else(|| format!("current Attempt {attempt_id} is unavailable"))?;
+    revalidate_routine_attempt(&frontier, Some(&resolved))?;
+    vela_edge::target_index::revalidate_current_target_execution_binding(
+        &frontier,
+        &resolved.attempt.target_task_binding,
+    )?;
+    let attempt = &mut resolved.attempt;
+    require_current_controller(attempt, &controller_build()?)?;
+    if attempt.runner_build_root != helper_build_root {
+        return Err(format!(
+            "current Attempt {} authorizes runner {}, not Agent helper {}",
+            attempt.attempt_id, attempt.runner_build_root, helper_build_root
+        ));
+    }
+    for operation in ["run_tool", "write_private_artifact"] {
+        if !attempt
+            .allowed_operations
+            .iter()
+            .any(|allowed| allowed == operation)
+        {
+            return Err(format!(
+                "current Attempt {} does not authorize {operation}",
+                attempt.attempt_id
+            ));
+        }
+    }
+    if attempt.usage.artifacts >= attempt.budget.max_artifacts
+        || attempt.usage.artifact_bytes >= attempt.budget.max_artifact_bytes
+    {
+        return Err(format!(
+            "current Attempt {} has exhausted its private Artifact budget",
+            attempt.attempt_id
+        ));
+    }
+    let (packet_json, packet) = exact_target_packet(&frontier, attempt)?;
+    let (bundle_ref, bundle, mission) = execution_bundle_for_attempt(&frontier, attempt, &packet)?;
+    if attempt.execution_bundle.as_ref() != Some(&bundle_ref) {
+        return Err("current Attempt execution bundle changed after authorization".to_string());
+    }
+    let output = match output {
+        Some(path) if path.is_absolute() => Some(path.to_path_buf()),
+        Some(path) => Some(
+            std::env::current_dir()
+                .map_err(|error| format!("resolve Agent output base: {error}"))?
+                .join(path),
+        ),
+        None => None,
+    };
+    reserve_agent_run(attempt)?;
+    let preimage = json!({
+        "schema": "vela.agent-run-request.internal.v1",
+        "authority": "none",
+        "effect": "none",
+        "frontier": {
+            "path": frontier,
+            "id": attempt.frontier_id,
+            "origin_id": attempt.target_task_binding.repository.origin_id,
+            "repository_root": attempt.target_task_binding.repository.repository_root,
+        },
+        "attempt": {
+            "id": attempt.attempt_id,
+            "authorization_root": attempt.authorization_root,
+            "actor": attempt.actor,
+            "created_at": attempt.created_at,
+            "expires_at": attempt.expires_at,
+            "controller_build": attempt.controller_build,
+            "runner_build_root": attempt.runner_build_root,
+            "allowed_operations": attempt.allowed_operations,
+            "allowed_artifact_classes": attempt.allowed_artifact_classes,
+            "budget": attempt.budget,
+            "usage": attempt.usage,
+            "consequence_ceiling": attempt.consequence_ceiling,
+            "task_contract_root": attempt.task_contract_root,
+        },
+        "target": {
+            "id": attempt.target,
+            "binding_root": attempt.target_task_binding.binding_root,
+            "target_index_root": attempt.target_task_binding.target_index_root,
+            "input_root": attempt.target_task_binding.input_root,
+            "source": attempt.target_task_binding.source,
+            "claim_read_set": attempt.target_task_binding.claim_read_set,
+            "packet": attempt.target_task_binding.packet,
+            "packet_json": packet_json,
+        },
+        "execution_bundle": {
+            "reference": bundle_ref,
+            "value": bundle,
+            "mission": mission,
+        },
+        "runner_build": helper_build,
+        "output_root": output,
+    });
+    let request_root = canonical_root(&preimage)?;
+    let mut request = preimage
+        .as_object()
+        .cloned()
+        .ok_or_else(|| "Agent run request preimage is not an object".to_string())?;
+    request.insert("request_root".to_string(), Value::String(request_root));
+    let mut bytes = vela_protocol::canonical::to_canonical_bytes(&request)?;
+    bytes.push(b'\n');
+    if bytes.len() > ATTEMPT_MAX_BYTES {
+        return Err(format!(
+            "Agent run request is {} bytes; limit is {ATTEMPT_MAX_BYTES}",
+            bytes.len()
+        ));
+    }
+    write(&frontier, attempt)?;
+    Ok(bytes)
 }
 
 /// Recover private Verification budget attribution after a canonical import.
@@ -1042,6 +1486,7 @@ fn result(attempt: &CurrentAttempt, path: &Path, idempotent: bool) -> Value {
             "required_checks": attempt.task_contract.required_checks,
             "authority_ceiling": attempt.task_contract.authority_ceiling,
         },
+        "execution_bundle": attempt.execution_bundle,
         "packet": packet,
         "briefing": attempt.briefing,
         "canonical_write": false,
@@ -1140,6 +1585,7 @@ fn open(
         }
         let requested_classes = artifact_classes(&packet, requested_artifact_classes)?;
         let requested_budget = CurrentAttemptBudget {
+            max_runs: 1,
             max_submissions,
             max_verifications,
             max_artifacts,
@@ -1180,12 +1626,14 @@ fn open(
         allowed_operations: operations,
         allowed_artifact_classes: artifact_classes(&packet, requested_artifact_classes)?,
         budget: CurrentAttemptBudget {
+            max_runs: 1,
             max_submissions,
             max_verifications,
             max_artifacts,
             max_artifact_bytes,
         },
         usage: CurrentAttemptUsage {
+            runs: 0,
             submissions: 0,
             verifications: 0,
             artifacts: 0,
@@ -1196,6 +1644,7 @@ fn open(
         consequence_ceiling: consequence_ceiling.to_string(),
         task_contract,
         task_contract_root,
+        execution_bundle: None,
         starting_target_task_binding: binding.clone(),
         target_task_binding: binding,
         briefing: json!({
@@ -1204,6 +1653,16 @@ fn open(
             "packet": packet,
         }),
     };
+    let (_, exact_packet) = exact_target_packet(frontier, &attempt)?;
+    attempt.execution_bundle = execution_bundle_for_attempt(frontier, &attempt, &exact_packet)
+        .map(|(bundle, _, _)| Some(bundle))
+        .or_else(|error| {
+            if packet.get("execution_bundle").is_none() {
+                Ok(None)
+            } else {
+                Err(error)
+            }
+        })?;
     attempt.authorization_root = authorization_root(&attempt)?;
     attempt.attempt_id = attempt_id(&attempt.authorization_root)?;
     let path = write(frontier, &attempt)?;
@@ -1254,6 +1713,7 @@ fn attempt_list_entry(attempt: CurrentAttempt, path: &Path) -> Value {
         "consequence_ceiling": attempt.consequence_ceiling,
         "task_contract_root": attempt.task_contract_root,
         "target_packet_sha256": attempt.target_task_binding.packet.sha256,
+        "execution_bundle": attempt.execution_bundle,
         "usage": attempt.usage,
         "budget": attempt.budget,
         "path": path.display().to_string(),
@@ -1374,6 +1834,66 @@ mod tests {
     }
 
     #[test]
+    fn exact_packet_and_bundle_bytes_fail_closed() {
+        let packet_bytes = br#"{"schema":"erdos.problem-work.v1","statement":"bounded fixture"}"#;
+        let packet = vela_edge::target_index::TargetPacketRefV2 {
+            schema: "erdos.problem-work.v1".to_string(),
+            path: "packets/1056.json".to_string(),
+            size: packet_bytes.len() as u64,
+            sha256: sha256_root(packet_bytes),
+        };
+        let (packet_json, parsed) = parse_target_packet_bytes(packet_bytes, &packet).unwrap();
+        assert_eq!(packet_json.as_bytes(), packet_bytes);
+        assert_eq!(parsed["statement"], "bounded fixture");
+
+        let error = parse_target_packet_bytes(
+            br#"{"schema":"erdos.problem-work.v1","statement":"substituted"}"#,
+            &packet,
+        )
+        .unwrap_err();
+        assert!(
+            error.contains("do not match their exact reference"),
+            "{error}"
+        );
+
+        let other_bytes = br#"{"schema":"another.packet.v1"}"#;
+        let other = vela_edge::target_index::TargetPacketRefV2 {
+            size: other_bytes.len() as u64,
+            sha256: sha256_root(other_bytes),
+            ..packet
+        };
+        let error = parse_target_packet_bytes(other_bytes, &other).unwrap_err();
+        assert!(error.contains("must be one object with schema"), "{error}");
+
+        let bundle = json!({
+            "authority": "non_authoritative",
+            "effect": "none",
+            "schema": "vela.agent-execution-bundle.v1",
+        });
+        let mut canonical = vela_protocol::canonical::to_canonical_bytes(&bundle).unwrap();
+        canonical.push(b'\n');
+        assert_eq!(
+            canonical_json_file(&canonical, "Agent execution bundle").unwrap(),
+            bundle
+        );
+        let pretty = serde_json::to_vec_pretty(&bundle).unwrap();
+        let error = canonical_json_file(&pretty, "Agent execution bundle").unwrap_err();
+        assert!(error.contains("exact canonical JSON"), "{error}");
+
+        let error = bounded_locator(
+            &json!({
+                "schema": "vela.agent-execution-bundle.v1",
+                "path": "../bundle.json",
+                "size": 1,
+                "sha256": format!("sha256:{}", "1".repeat(64)),
+            }),
+            "Target packet execution_bundle",
+        )
+        .unwrap_err();
+        assert!(error.contains("Frontier-relative"), "{error}");
+    }
+
+    #[test]
     fn current_attempt_round_trips_as_private_state_without_event_fields() {
         let directory = tempfile::tempdir().unwrap();
         fs::create_dir(directory.path().join(".vela")).unwrap();
@@ -1441,12 +1961,14 @@ mod tests {
             ],
             allowed_artifact_classes: vec!["witness".to_string()],
             budget: CurrentAttemptBudget {
+                max_runs: 1,
                 max_submissions: 1,
                 max_verifications: 1,
                 max_artifacts: 8,
                 max_artifact_bytes: 1024,
             },
             usage: CurrentAttemptUsage {
+                runs: 0,
                 submissions: 0,
                 verifications: 0,
                 artifacts: 0,
@@ -1457,6 +1979,7 @@ mod tests {
             consequence_ceiling: CONSEQUENCE_PENDING_REVIEW.to_string(),
             task_contract,
             task_contract_root,
+            execution_bundle: None,
             starting_target_task_binding: binding.clone(),
             target_task_binding: binding,
             briefing: json!({"schema": "vela.work-briefing.v2"}),
@@ -1466,6 +1989,18 @@ mod tests {
         let path = write(directory.path(), &attempt).unwrap();
         let decoded = read(&path).unwrap();
         assert_eq!(decoded.attempt_id, attempt.attempt_id);
+        assert_eq!(decoded.schema, "vela.attempt.v7");
+        let observed_controller = decoded.controller_build.clone();
+        require_current_controller(&decoded, &observed_controller).unwrap();
+        let mut other_controller = observed_controller;
+        other_controller.binary_sha256 = format!("sha256:{}", "f".repeat(64));
+        let error = require_current_controller(&decoded, &other_controller).unwrap_err();
+        assert!(error.contains("another Vela controller build"), "{error}");
+        let mut reserved = decoded.clone();
+        reserve_agent_run(&mut reserved).unwrap();
+        assert_eq!(reserved.usage.runs, 1);
+        let error = reserve_agent_run(&mut reserved).unwrap_err();
+        assert!(error.contains("exhausted its Agent run budget"), "{error}");
         let projected = attempt_list_entry(decoded.clone(), &path);
         assert_eq!(projected["authorization_root"], attempt.authorization_root);
         assert_eq!(
@@ -1480,6 +2015,7 @@ mod tests {
         assert_eq!(projected["allowed_artifact_classes"], json!(["witness"]));
         assert_eq!(projected["consequence_ceiling"], CONSEQUENCE_PENDING_REVIEW);
         assert_eq!(projected["task_contract_root"], attempt.task_contract_root);
+        assert_eq!(projected["budget"]["max_runs"], 1);
         assert_eq!(projected["budget"]["max_submissions"], 1);
         assert_eq!(projected["budget"]["max_verifications"], 1);
         assert_eq!(projected["expires_at"], "2026-07-28T00:00:00Z");

@@ -69,7 +69,14 @@ pub async fn run_command() {
     match cli.command {
         Commands::Agent { action } => match action {
             AgentAction::Doctor { args } => crate::agent_delegate::cmd_agent("doctor", &args),
-            AgentAction::Run { args } => crate::agent_delegate::cmd_agent("run", &args),
+            AgentAction::Run {
+                frontier,
+                attempt,
+                output,
+            } => {
+                let frontier = crate::ui::resolve_frontier(frontier);
+                crate::agent_delegate::cmd_agent_run(&frontier, &attempt, output.as_deref())
+            }
             AgentAction::Show { args } => crate::agent_delegate::cmd_agent("show", &args),
             AgentAction::Replay { args } => crate::agent_delegate::cmd_agent("replay", &args),
             AgentAction::Export { args } => crate::agent_delegate::cmd_agent("export", &args),

@@ -91,7 +91,7 @@ returned   = offers after the requested limit
 `vela next` does not pretend that private local work is shared availability.
 `vela start` performs the exact local Attempt arbitration, rechecks the
 selected entry, and creates one ignored
-`vela.attempt.v5` bound to:
+`vela.attempt.v7` bound to:
 
 - current repository origin and root;
 - Target Index and input roots;
@@ -100,7 +100,8 @@ selected entry, and creates one ignored
 - completion contract;
 - controller and runner build identity;
 - closed operations and Artifact classes;
-- enforced evidence counters and budgets;
+- enforced Agent-run and evidence counters and budgets;
+- the exact Target-selected Agent execution bundle, when present;
 - an evidence-only or pending-review consequence ceiling; and
 - local expiry.
 

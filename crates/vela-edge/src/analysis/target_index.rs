@@ -1109,6 +1109,49 @@ pub fn revalidate_current_target_task_binding(
     Ok(())
 }
 
+fn revalidate_exact_current_claim_read_set(
+    repo_path: &Path,
+    read_set: &TargetTaskClaimReadSetV2,
+) -> Result<(), String> {
+    let object_format = repository_object_format(repo_path)?;
+    if read_set.git_object_format != object_format {
+        return Err("current execution read set uses another Git object format".to_string());
+    }
+    require_git_object(
+        "current execution read-set commit",
+        &read_set.git_commit,
+        object_format,
+    )?;
+    require_git_object(
+        "current execution read-set tree",
+        &read_set.git_tree,
+        object_format,
+    )?;
+    let commit = git_text(repo_path, &["rev-parse", "HEAD^{commit}"])?;
+    let tree = git_text(repo_path, &["rev-parse", "HEAD^{tree}"])?;
+    if commit != read_set.git_commit || tree != read_set.git_tree {
+        return Err(
+            "current Frontier HEAD changed after the Agent execution read set was authorized"
+                .to_string(),
+        );
+    }
+    Ok(())
+}
+
+/// Revalidate an Agent execution read set against the exact current HEAD.
+///
+/// Ordinary Submission reconciliation may follow descendant commits, but an
+/// Agent run must not silently prepare a mission from bytes newer than its
+/// authorized Attempt. A caller can revoke and reopen the private Attempt to
+/// authorize the new exact read set.
+pub fn revalidate_current_target_execution_binding(
+    repo_path: &Path,
+    binding: &TargetTaskBindingV3,
+) -> Result<(), String> {
+    revalidate_current_target_task_binding(repo_path, binding)?;
+    revalidate_exact_current_claim_read_set(repo_path, &binding.claim_read_set)
+}
+
 fn read_regular_file(path: &Path, max_bytes: u64, label: &str) -> Result<Vec<u8>, String> {
     let metadata = std::fs::symlink_metadata(path)
         .map_err(|error| format!("inspect {label} {}: {error}", path.display()))?;
@@ -1489,6 +1532,51 @@ fn exact_tracked_head_bytes(repo: &Path, path: &str, max_bytes: u64) -> Result<V
         return Err(format!("{path:?} working bytes do not match HEAD"));
     }
     Ok(worktree)
+}
+
+/// Read one bounded regular blob from an exact retained Git commit.
+///
+/// Agent execution uses this instead of mutable worktree bytes so a live
+/// Attempt continues to mean the source tree it authorized. The caller still
+/// revalidates the complete Target binding before using the returned bytes.
+pub fn exact_git_blob_at(
+    repo: &Path,
+    commit: &str,
+    path: &str,
+    max_bytes: u64,
+) -> Result<Vec<u8>, String> {
+    validate_repository_path(path, "Git blob path", 4_096)?;
+    let format = repository_object_format(repo)?;
+    require_git_object("Git blob commit", commit, format)?;
+    let resolved = git_text(
+        repo,
+        &["rev-parse", "--verify", &format!("{commit}^{{commit}}")],
+    )?;
+    if resolved != commit {
+        return Err("Git blob commit did not resolve exactly".to_string());
+    }
+    let entry = tree_entry(repo, commit, path)?
+        .ok_or_else(|| format!("Git blob path {path:?} is absent from {commit}"))?;
+    if !matches!(entry.mode.as_str(), "100644" | "100755") || entry.kind != "blob" {
+        return Err(format!(
+            "Git blob path {path:?} must be a regular 100644 or 100755 blob"
+        ));
+    }
+    let size = git_text(repo, &["cat-file", "-s", &entry.object])?
+        .parse::<u64>()
+        .map_err(|error| format!("parse Git blob size for {path:?}: {error}"))?;
+    if size > max_bytes {
+        return Err(format!(
+            "Git blob path {path:?} is {size} bytes; limit is {max_bytes}"
+        ));
+    }
+    let bytes = blob(repo, &entry)?;
+    if bytes.len() as u64 != size {
+        return Err(format!(
+            "Git blob path {path:?} changed size while it was read"
+        ));
+    }
+    Ok(bytes)
 }
 
 /// Verify many tracked packet paths with one tree read, one index read, and one
@@ -2302,4 +2390,100 @@ pub fn target_index_repair_command(frontier_arg: &str) -> String {
         "vela target-index repair {} --json",
         shell_word(frontier_arg)
     )
+}
+
+#[cfg(test)]
+mod exact_blob_tests {
+    use super::*;
+    use std::process::Command;
+
+    fn run_git(repo: &Path, args: &[&str]) -> String {
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "git {} failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).unwrap().trim().to_string()
+    }
+
+    #[test]
+    fn exact_git_blob_reads_only_the_named_bounded_regular_blob() {
+        let directory = tempfile::tempdir().unwrap();
+        run_git(directory.path(), &["init", "-q"]);
+        run_git(directory.path(), &["config", "user.name", "Vela Test"]);
+        run_git(
+            directory.path(),
+            &["config", "user.email", "vela@example.invalid"],
+        );
+        std::fs::create_dir_all(directory.path().join("execution")).unwrap();
+        std::fs::write(
+            directory.path().join("execution/bundle.json"),
+            b"exact bytes\n",
+        )
+        .unwrap();
+        run_git(directory.path(), &["add", "execution/bundle.json"]);
+        run_git(directory.path(), &["commit", "-qm", "fixture"]);
+        let commit = run_git(directory.path(), &["rev-parse", "HEAD"]);
+
+        assert_eq!(
+            exact_git_blob_at(directory.path(), &commit, "execution/bundle.json", 64).unwrap(),
+            b"exact bytes\n"
+        );
+        assert!(
+            exact_git_blob_at(directory.path(), &commit, "execution/bundle.json", 4)
+                .unwrap_err()
+                .contains("limit is 4")
+        );
+        assert!(
+            exact_git_blob_at(directory.path(), &commit, "execution/missing.json", 64)
+                .unwrap_err()
+                .contains("is absent")
+        );
+        assert!(
+            exact_git_blob_at(
+                directory.path(),
+                &"f".repeat(40),
+                "execution/bundle.json",
+                64
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn exact_execution_read_set_rejects_a_descendant_head() {
+        let directory = tempfile::tempdir().unwrap();
+        run_git(directory.path(), &["init", "-q"]);
+        run_git(directory.path(), &["config", "user.name", "Vela Test"]);
+        run_git(
+            directory.path(),
+            &["config", "user.email", "vela@example.invalid"],
+        );
+        std::fs::write(directory.path().join("source.txt"), b"one\n").unwrap();
+        run_git(directory.path(), &["add", "source.txt"]);
+        run_git(directory.path(), &["commit", "-qm", "first"]);
+        let read_set = TargetTaskClaimReadSetV2 {
+            git_object_format: repository_object_format(directory.path()).unwrap(),
+            git_commit: run_git(directory.path(), &["rev-parse", "HEAD^{commit}"]),
+            git_tree: run_git(directory.path(), &["rev-parse", "HEAD^{tree}"]),
+        };
+        revalidate_exact_current_claim_read_set(directory.path(), &read_set).unwrap();
+
+        std::fs::write(directory.path().join("later.txt"), b"two\n").unwrap();
+        run_git(directory.path(), &["add", "later.txt"]);
+        run_git(directory.path(), &["commit", "-qm", "descendant"]);
+        let error =
+            revalidate_exact_current_claim_read_set(directory.path(), &read_set).unwrap_err();
+        assert!(
+            error.contains("HEAD changed after the Agent execution read set"),
+            "{error}"
+        );
+    }
 }

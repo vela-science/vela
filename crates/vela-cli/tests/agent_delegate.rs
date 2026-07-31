@@ -4,22 +4,33 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 
+fn bun_runtime() -> std::path::PathBuf {
+    std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default())
+        .map(|directory| directory.join("bun"))
+        .find(|candidate| candidate.is_file())
+        .and_then(|candidate| fs::canonicalize(candidate).ok())
+        .expect("Bun must be available for the Agent delegator integration test")
+}
+
 fn helper(root: &std::path::Path) -> std::path::PathBuf {
     let path = root.join("vela-agent-test-helper");
     fs::write(
         &path,
-        r#"#!/bin/sh
-{
-  printf 'cwd=%s\n' "$PWD"
-  printf 'vela=%s\n' "$VELA_BIN"
-  printf 'no_key=%s\n' "$VELA_NO_KEY_ACCESS"
-  printf 'ssh=%s\n' "${SSH_AUTH_SOCK-unset}"
-  printf 'key=%s\n' "${VELA_KEY_PATH-unset}"
-  printf 'authority=%s\n' "${VELA_REPOSITORY_AUTHORITY_TEST-unset}"
-  printf 'argc=%s\n' "$#"
-  for arg in "$@"; do printf 'arg=%s\n' "$arg"; done
-} > "$VELA_AGENT_TEST_CAPTURE"
-if [ "$1" = "replay" ]; then exit 17; fi
+        r#"import { writeFileSync } from "node:fs";
+const args = process.argv.slice(2);
+const environment = (name) => process.env[name] ?? "unset";
+writeFileSync(process.env.VELA_AGENT_TEST_CAPTURE, [
+  `cwd=${process.cwd()}`,
+  `vela=${environment("VELA_BIN")}`,
+  `no_key=${environment("VELA_NO_KEY_ACCESS")}`,
+  `ssh=${environment("SSH_AUTH_SOCK")}`,
+  `key=${environment("VELA_KEY_PATH")}`,
+  `authority=${environment("VELA_REPOSITORY_AUTHORITY_TEST")}`,
+  `argc=${args.length}`,
+  ...args.map((argument) => `arg=${argument}`),
+  "",
+].join("\n"));
+if (args[0] === "replay") process.exit(17);
 "#,
     )
     .expect("write helper");
@@ -37,16 +48,10 @@ fn delegates_only_to_explicit_helper_and_scrubs_authority_environment() {
     std::os::unix::fs::symlink(&helper, &helper_link).expect("link helper");
     let capture = temporary.path().join("capture.txt");
     let output = Command::new(env!("CARGO_BIN_EXE_vela"))
-        .args([
-            "agent",
-            "run",
-            "--help",
-            "--target",
-            "erdos:1056",
-            "--first",
-        ])
+        .args(["agent", "doctor", "--help", "--profile", "generic"])
         .current_dir(temporary.path())
         .env("VELA_AGENT_BIN", &helper_link)
+        .env("VELA_AGENT_RUNTIME", bun_runtime())
         .env("VELA_AGENT_TEST_CAPTURE", &capture)
         .env("SSH_AUTH_SOCK", "/tmp/authority.sock")
         .env("VELA_KEY_PATH", "/tmp/human.key")
@@ -66,12 +71,11 @@ fn delegates_only_to_explicit_helper_and_scrubs_authority_environment() {
     assert!(observed.contains("ssh=unset"));
     assert!(observed.contains("key=unset"));
     assert!(observed.contains("authority=unset"));
-    assert!(observed.contains("argc=5"));
-    assert!(observed.contains("arg=run"));
+    assert!(observed.contains("argc=4"));
+    assert!(observed.contains("arg=doctor"));
     assert!(observed.contains("arg=--help"));
-    assert!(observed.contains("arg=--target"));
-    assert!(observed.contains("arg=erdos:1056"));
-    assert!(observed.contains("arg=--first"));
+    assert!(observed.contains("arg=--profile"));
+    assert!(observed.contains("arg=generic"));
     let expected_vela = fs::canonicalize(env!("CARGO_BIN_EXE_vela")).expect("canonical Vela");
     assert!(observed.contains(&format!("vela={}", expected_vela.display())));
 }
@@ -83,6 +87,7 @@ fn propagates_helper_exit_status() {
     let output = Command::new(env!("CARGO_BIN_EXE_vela"))
         .args(["agent", "replay", "run.json"])
         .env("VELA_AGENT_BIN", helper)
+        .env("VELA_AGENT_RUNTIME", bun_runtime())
         .env(
             "VELA_AGENT_TEST_CAPTURE",
             temporary.path().join("capture.txt"),

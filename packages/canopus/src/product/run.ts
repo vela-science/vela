@@ -41,7 +41,7 @@ function packageFile(relative: string): string {
   return fileURLToPath(new URL(`../../../${relative}`, import.meta.url));
 }
 
-async function assertFreshOutput(outputRoot: string, sourceRoot: string): Promise<void> {
+export async function assertFreshOutput(outputRoot: string, sourceRoot: string): Promise<void> {
   const output = path.resolve(outputRoot);
   const cloudBackedRoots = [
     path.join(os.homedir(), "Desktop"),
@@ -66,9 +66,19 @@ async function assertFreshOutput(outputRoot: string, sourceRoot: string): Promis
   await mkdir(output, { recursive: true, mode: 0o700 });
 }
 
-async function writeEvidenceManifest(
+export async function writeEvidenceManifest(
   run: CanopusCurrentRunResult,
   missionDigest: string,
+  execution?: {
+    attempt_id: string;
+    attempt_authorization_root: string;
+    task_contract_root: string;
+    target_binding_root: string;
+    target_packet_root: string;
+    execution_bundle_root: string;
+    runner_build_root: string;
+    request_root: string;
+  },
 ): Promise<{ file: string; root: string }> {
   const root = run.paths.root;
   const files = {
@@ -95,6 +105,7 @@ async function writeEvidenceManifest(
     verifier_root: contentDigest(run.record.verifier),
     submission_root: null,
     final_roots: run.record.mission.starting_roots,
+    ...(execution === undefined ? {} : { execution }),
   };
   const file = path.join(root, "evidence-manifest.json");
   await writeFile(file, canonicalJson(manifest), { flag: "wx", mode: 0o600 });

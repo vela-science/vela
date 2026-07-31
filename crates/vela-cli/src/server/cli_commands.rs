@@ -409,10 +409,16 @@ pub(crate) enum AgentAction {
         args: Vec<OsString>,
     },
     /// Run one bounded non-authorizing evidence mission.
-    #[command(disable_help_flag = true)]
     Run {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<OsString>,
+        /// Current Frontier repository. Defaults to the current directory.
+        #[arg(long)]
+        frontier: Option<PathBuf>,
+        /// Exact live private Attempt (`vat_<hex>`) authorizing this run.
+        #[arg(long)]
+        attempt: String,
+        /// Fresh local directory for retained run evidence.
+        #[arg(long)]
+        output: Option<PathBuf>,
     },
     /// Inspect one retained Run or failure.
     #[command(disable_help_flag = true)]

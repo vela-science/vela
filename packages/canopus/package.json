@@ -71,7 +71,7 @@
     "LICENSE-MIT"
   ],
   "scripts": {
-    "build": "node tooling/clean-dist.mjs && tsc -p tsconfig.json",
+    "build": "node tooling/clean-dist.mjs && tsc -p tsconfig.json && bun tooling/build-agent-helper.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "bun run build && node --test 'dist/tests/**/*.test.js' 'tests/**/*.test.mjs'",
