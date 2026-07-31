@@ -119,7 +119,6 @@ def main() -> int:
     checks = (
         "verify_canonical_hashing.py",
         "verify_attempt_id.py",
-        "verify_principal_capability.py",
         "verify_current_objects.py",
         "verify_correction_impact.py",
         "verify_transfer_contract_gap.py",

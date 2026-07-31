@@ -25,8 +25,8 @@ use vela_protocol::authentication::AuthenticationObservationV1;
 use vela_protocol::authority::{
     AUTHORITY_MODE, AUTHORITY_PAYLOAD_TYPE_V1, AuthorityEnvelopeV1, AuthorityEventContentV1,
     AuthorityEventV1, AuthorityKeysetV1, AuthorityRecordContentV1, AuthorityRecordV1,
-    AuthorizationClaimV1, DelegationClaimV1, DsseSignatureV1, ExecutionClaimV1, ObjectDeltaV1,
-    PolicyBundleV1, PrincipalSnapshotV1, SemanticApprovalV1, verify_authority_envelope,
+    AuthorizationClaimV1, DsseSignatureV1, ExecutionClaimV1, ObjectDeltaV1, PolicyBundleV1,
+    PrincipalSnapshotV1, SemanticApprovalV1, verify_authority_envelope,
     verify_authority_keyset_transition, verify_policy_bundle_transition,
 };
 use vela_protocol::authority_history::{
@@ -119,7 +119,7 @@ pub(crate) struct AuthorityTransactionRequest {
     pub(crate) authentication_request: AuthenticationRequest,
     pub(crate) runtime_session_state: RuntimeSessionState,
     pub(crate) authorization_input: CedarEvaluationInput,
-    pub(crate) delegation: Option<DelegationClaimV1>,
+    pub(crate) delegation: Option<Value>,
     pub(crate) semantic_approvals: Vec<SemanticApprovalV1>,
     pub(crate) event_drafts: Vec<AuthorityEventDraft>,
     pub(crate) object_drafts: Vec<AuthorityObjectDraft>,
@@ -1663,18 +1663,10 @@ fn validate_preflight_attribution(
             "principal snapshot differs from verified authentication".into(),
         ));
     }
-    if let Some(delegation) = &request.delegation {
-        delegation
-            .validate()
-            .map_err(AuthorityTransactionError::Invalid)?;
-        if delegation.subject_principal_id != authentication.principal_id
-            || delegation.current_actor_principal_id != authentication.principal_id
-            || delegation.frontier_id != request.history.frontier_id
-        {
-            return Err(AuthorityTransactionError::Invalid(
-                "capability differs from the authenticated transaction".into(),
-            ));
-        }
+    if request.delegation.is_some() {
+        return Err(AuthorityTransactionError::Invalid(
+            "authority delegation is unsupported".into(),
+        ));
     }
     Ok(())
 }
@@ -1911,7 +1903,7 @@ struct TransactionIdCommitment<'a> {
     entity_snapshot_root: &'a str,
     authority_keyset_root: &'a str,
     policy_bundle_root: &'a str,
-    delegation: Option<&'a DelegationClaimV1>,
+    delegation: Option<&'a Value>,
     semantic_approvals: &'a [SemanticApprovalV1],
     event_drafts: &'a [AuthorityEventDraft],
     object_drafts: &'a [AuthorityObjectDraft],

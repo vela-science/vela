@@ -20,7 +20,6 @@ use crate::events::{
     EVENT_SCHEMA, EventKind, NULL_HASH, StateActor, StateEvent, StateTarget, compute_event_id,
 };
 pub use crate::principal_capability::PrincipalClass;
-use crate::principal_capability::VerifiedCapabilityClaimV1;
 
 pub const AUTHORITY_KEYSET_SCHEMA_V1: &str = "vela.authority-keyset.v1";
 pub const AUTHORITY_RECORD_SCHEMA_V1: &str = "vela.authority-record.v1";
@@ -401,8 +400,6 @@ pub struct PrincipalSnapshotV1 {
 
 pub type AuthenticationClaimV1 = AuthenticationObservationV1;
 
-pub type DelegationClaimV1 = VerifiedCapabilityClaimV1;
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AuthorizationClaimV1 {
@@ -459,7 +456,9 @@ pub struct AuthorityRecordContentV1 {
     pub object_delta: Vec<ObjectDeltaV1>,
     pub principal: PrincipalSnapshotV1,
     pub authentication: AuthenticationClaimV1,
-    pub delegation: Option<DelegationClaimV1>,
+    /// Reserved serialized slot retained so existing `delegation: null`
+    /// authority records preserve their exact canonical bytes and roots.
+    pub delegation: Option<Value>,
     pub authorization: AuthorizationClaimV1,
     pub semantic_approvals: Vec<SemanticApprovalV1>,
     pub execution: ExecutionClaimV1,
@@ -596,16 +595,8 @@ impl AuthorityRecordV1 {
         {
             return Err("authority attribution and authentication must be explicit".into());
         }
-        if let Some(delegation) = &content.delegation {
-            delegation.validate()?;
-            if delegation.subject_principal_id != content.principal.principal_id
-                || delegation.current_actor_principal_id != content.principal.principal_id
-                || delegation.frontier_id != content.frontier_id
-            {
-                return Err(
-                    "authority-record principal or Frontier differs from its capability".into(),
-                );
-            }
+        if content.delegation.is_some() {
+            return Err("authority-record delegation is unsupported".into());
         }
         Ok(())
     }
@@ -1019,6 +1010,24 @@ mod tests {
         content.object_delta[0].before_root = content.object_delta[0].after_root.clone();
         let error = AuthorityRecordV1::new(content).unwrap_err();
         assert!(error.contains("changes no bytes"), "{error}");
+    }
+
+    #[test]
+    fn authority_record_preserves_null_delegation_and_rejects_non_null() {
+        let (record, _, _) = fixture();
+        let canonical = to_canonical_bytes(&record).unwrap();
+        assert!(
+            canonical
+                .windows(b"\"delegation\":null".len())
+                .any(|window| window == b"\"delegation\":null")
+        );
+        let roundtrip: AuthorityRecordV1 = serde_json::from_slice(&canonical).unwrap();
+        assert_eq!(roundtrip.root().unwrap(), record.root().unwrap());
+
+        let mut content = record.content;
+        content.delegation = Some(serde_json::json!({"unsupported": true}));
+        let error = AuthorityRecordV1::new(content).unwrap_err();
+        assert!(error.contains("delegation is unsupported"), "{error}");
     }
 
     #[test]
