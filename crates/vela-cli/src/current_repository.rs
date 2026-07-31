@@ -237,6 +237,7 @@ fn campaign_status_summary(
             "usage": attempt["usage"],
             "expires_at": attempt["expires_at"],
             "agent_run": attempt["agent_run"],
+            "agent_runs": attempt["agent_runs"],
         })
     });
     Ok((
@@ -311,6 +312,14 @@ fn agent_run_next_action(campaign: &Value) -> Option<String> {
             .map(ToString::to_string),
         _ => None,
     }
+}
+
+fn agent_run_budget_label(campaign: &Value) -> Option<String> {
+    let used = campaign.pointer("/first_attempt/usage/runs")?.as_u64()?;
+    let limit = campaign
+        .pointer("/first_attempt/budget/max_runs")?
+        .as_u64()?;
+    Some(format!("{used}/{limit} runs"))
 }
 
 pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
@@ -558,6 +567,9 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
                 attempt["usage"]["artifact_bytes"],
                 attempt["budget"]["max_artifact_bytes"]
             );
+            if let Some(runs) = agent_run_budget_label(&payload["campaign"]) {
+                println!("  runs      {runs}");
+            }
             if let Some(run) = attempt["agent_run"].as_object() {
                 println!(
                     "  run       {} · candidate {} · verifier {} · replay {}",
@@ -2251,19 +2263,35 @@ mod tests {
                     "task_contract_root": root('4'),
                     "target_packet_sha256": root('6'),
                     "budget": {
+                        "max_runs": 16,
                         "max_submissions": 5,
                         "max_verifications": 5,
                         "max_artifacts": 8,
                         "max_artifact_bytes": 1024
                     },
                     "usage": {
+                        "runs": 2,
                         "submissions": 1,
                         "verifications": 1,
                         "artifacts": 2,
                         "artifact_bytes": 64,
                         "registered_submission_ids": ["vsb_fixture"],
                         "registered_verification_record_ids": ["vvr_fixture"]
-                    }
+                    },
+                    "agent_run": {
+                        "run_id": "run_2",
+                        "submission": {"state": "ready_to_export"}
+                    },
+                    "agent_runs": [
+                        {
+                            "run_id": "run_1",
+                            "submission": {"state": "not_exportable"}
+                        },
+                        {
+                            "run_id": "run_2",
+                            "submission": {"state": "ready_to_export"}
+                        }
+                    ]
                 }
             ]
         });
@@ -2289,6 +2317,19 @@ mod tests {
             root('4')
         );
         assert_eq!(summary["first_attempt"]["budget"]["max_artifacts"], 8);
+        assert_eq!(summary["first_attempt"]["agent_run"]["run_id"], "run_2");
+        assert_eq!(
+            summary["first_attempt"]["agent_runs"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+        assert_eq!(summary["first_attempt"]["agent_runs"][0]["run_id"], "run_1");
+        assert_eq!(
+            agent_run_budget_label(&summary).as_deref(),
+            Some("2/16 runs")
+        );
         assert_eq!(
             summary["first_attempt"]["expires_at"],
             "2026-07-31T00:00:00Z"
