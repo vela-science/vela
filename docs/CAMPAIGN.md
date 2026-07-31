@@ -980,6 +980,18 @@ Product-lift credit requires:
 - exact roots and caveats preserved; and
 - at least four of five participants beginning a correct bounded action.
 
+The first registered cold-use harness,
+`paper/artifacts/product-compression-v1`, stopped after its first retained
+Git/files session. The session took 480,943 ms and 40 commands, crossed the
+100,000-token ceiling at 206,536 observed noncached-plus-output tokens, and
+returned malformed JSON. A syntax-only diagnostic repair then proved that the
+participant-facing schema did not disclose the scorer's exact nested field
+contract. The remaining seven assignments were not started. This earns no
+product-lift or correctness credit. `stop.v1.json` binds the full failure and
+the locally retained raw evidence. Any successor is a new registered study
+with a closed participant schema, supervisor instrumentation declared before
+output, and a live token guard; it is not a post-output amendment.
+
 #### C. Inheritance lift
 
 Give a cold successor only the new root, public docs, and released tools.
@@ -1491,7 +1503,7 @@ Failure narrows or deletes the system. It does not earn another layer.
 | Local Submission → Verification → Decision | New Erdős, Formal, and Quantum evidence loops each have one exact requirement-matching Verification plus retained complementary evidence; the Proposals remain `pending_review`, and the Formal transfer remains separately gated on held-out value | human Decision or explicit cancellation for each exact Proposal, then clean-clone replay |
 | Map → advance → remap | All four Frontiers have zero stale Targets; Erdős producer work through `10430200` and Formal producer work are closed without changing Standing; Erdős now offers `10430201..10430400`; the exact current Atlas is live, while scientific Decisions and post-Decision remap remain open | after one human Decision changes Standing, rebuild the exact Atlas, identify the semantic diff and surviving knowledge, and expose the next valid obligation |
 | Canopus execution lift | Directionally positive first-party repaired Stage A; predecessor and stopped runs retained; expert-minute metric unscored | contract-frozen Erdős, Formal, and quantum result or explicit narrowing |
-| State/Atlas lift | First-party Codex-session pilot failed hard budget and full correctness; no human-review credit | external matched test passes or negative result |
+| State/Atlas lift | First-party Codex-session pilot failed hard budget and full correctness; `product-compression-v1` then stopped after one Git/files session exceeded its token cap and exposed an under-specified answer contract; no product-lift or human-review credit | register a corrected closed-schema study, then obtain external matched evidence or retain the negative result |
 | Inheritance lift | Removability passed for one historical pending state; cold-successor lift unmeasured | cold successor reproduces change, surviving evidence, replay, and next action without private context |
 | Correction propagation | no qualifying real candidate | qualifying fixture passes or entry gate closes negative |
 | Cross-Frontier transfer | exact archive reconstruction and mutation tests pass with zero accepted delta; the work remains first-party and protocol readiness does not satisfy the held-out value gate | held-out independently controlled consumer/value test passes or the claim envelope is narrowed |
