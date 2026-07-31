@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Remove the duplicate `canopus submit` writer. Current export reports the
+  exact Submission path, producer, and Attempt; canonical `vela submit` alone
+  verifies and registers it. Preserve the compact export manifest as portable
+  Run/source lineage evidence, not a second registration contract.
 - Retain a bounded, secret-scanned diagnostic slice of recognized worker
   source/build files only when a later Run phase fails. This preserves useful
   source such as a failed search implementation without retaining generic

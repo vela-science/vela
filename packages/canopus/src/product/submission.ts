@@ -110,6 +110,9 @@ export async function exportSubmission(options: {
   submission_root: string;
   bundle: string;
   manifest: string;
+  submission: string;
+  producer: string;
+  attempt: string | null;
 }> {
   const runFile = await realpath(options.runFile);
   const runRoot = path.dirname(runFile);
@@ -292,6 +295,9 @@ export async function exportSubmission(options: {
       submission_root: submissionRoot,
       bundle: outputRoot,
       manifest: manifestFile,
+      submission: submissionFile,
+      producer: actor,
+      attempt: options.attempt ?? null,
     };
   } catch (error) {
     await rm(outputRoot, { recursive: true, force: true });

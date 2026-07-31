@@ -15,7 +15,6 @@ import { doctorProduct } from "./product/doctor.js";
 import { replayProduct } from "./product/replay.js";
 import { runProduct } from "./product/run.js";
 import { exportSubmission } from "./product/submission.js";
-import { submitBundle } from "./product/submit.js";
 import { CANOPUS_VERSION } from "./product/version.js";
 import {
   listProductProfiles,
@@ -36,11 +35,11 @@ Primary workflow:
   canopus export <run.json | latest> [--output <new-directory>] [--as <agent:id>] \\
     [--attempt <vat_id>] \\
     [--claim <corrected-bounded-claim> --scope-limit <limit>]
-  canopus submit <submission-bundle> [frontier] [--vela <binary>] [--attempt <vat_id>]
+  vela submit <submission-directory>/submission.json --frontier <frontier> \\
+    [--attempt <vat_id>] --as <agent:id>
 
-Mission v1 prepare/validate remains available under advanced help.
-
-Run and export never mutate Vela. submit explicitly registers an authenticated
+Mission v1 prepare/validate remains available under advanced help. Canopus
+never mutates Vela. The canonical Vela command registers an exported
 Submission as pending review. Canopus cannot verify, decide, or change Standing.`;
 }
 
@@ -114,16 +113,6 @@ Creates a signed portable vela.submission.v1 bundle from a successful Run.
 Export does not touch a frontier and does not create Verification or Standing.
 A corrected Claim and scope limit may refine the worker's pre-verifier wording;
 the immutable Run remains unchanged and the Submission records the refinement.`;
-}
-
-function submitUsage(): string {
-  return `Usage:
-  canopus submit <submission-bundle> [frontier] [--vela <binary>] [--attempt <vat_id>]
-
-Explicitly registers one authenticated Submission through Vela. Without an
-Attempt it uses a disposable exact-head clone. With --attempt it uses the
-source checkout because the private Attempt is intentionally not in Git. Both
-paths produce pending review with zero accepted-event delta.`;
 }
 
 function isHelp(value: string | undefined): boolean {
@@ -430,20 +419,6 @@ async function exportCommand(file: string | undefined, rest: string[]): Promise<
   }))}\n`);
 }
 
-async function submitCommand(bundle: string | undefined, rest: string[]): Promise<void> {
-  if (bundle === undefined) throw new Error("submit requires a Submission bundle");
-  const parsed = productOptions(rest, ["--vela", "--attempt"], []);
-  if (parsed.positional.length > 1) throw new Error("submit accepts at most one frontier");
-  const velaBinary = parsed.values.get("--vela");
-  const attempt = parsed.values.get("--attempt");
-  process.stdout.write(`${JSON.stringify(await submitBundle({
-    bundle: path.resolve(bundle),
-    frontier: path.resolve(parsed.positional[0] ?? "."),
-    ...(velaBinary === undefined ? {} : { velaBinary }),
-    ...(attempt === undefined ? {} : { attempt }),
-  }))}\n`);
-}
-
 async function main(argv: string[]): Promise<void> {
   const [command, file, ...rest] = argv;
   if (command === undefined || isHelp(command)) {
@@ -470,7 +445,6 @@ async function main(argv: string[]): Promise<void> {
       : command === "doctor" ? doctorUsage()
       : command === "replay" ? replayUsage()
       : command === "export" ? exportUsage()
-      : command === "submit" ? submitUsage()
       : usage()
     }\n`);
     return;
@@ -498,10 +472,6 @@ async function main(argv: string[]): Promise<void> {
   }
   if (command === "export") {
     await exportCommand(file, rest);
-    return;
-  }
-  if (command === "submit") {
-    await submitCommand(file, rest);
     return;
   }
   throw new Error(`unknown command ${command}`);

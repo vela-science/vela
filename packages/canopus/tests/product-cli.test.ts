@@ -23,9 +23,11 @@ async function help(...args: string[]): Promise<string> {
 
 test("primary help presents only the compact product workflow", async () => {
   const output = await help("--help");
-  for (const command of ["doctor", "run", "show", "replay", "export", "submit"]) {
+  for (const command of ["doctor", "run", "show", "replay", "export"]) {
     assert.match(output, new RegExp(`canopus ${command}\\b`, "u"));
   }
+  assert.match(output, /vela submit\b/u);
+  assert.doesNotMatch(output, /canopus submit\b/u);
   assert.doesNotMatch(output, /canopus inspect\b/u);
   assert.doesNotMatch(output, /--no-land/u);
   assert.doesNotMatch(output, /canopus (?:public-run|publish-run)\b/u);
@@ -41,11 +43,18 @@ test("version is a stable single-line product identity", async () => {
 });
 
 test("every compact product subcommand has focused help", async () => {
-  for (const command of ["doctor", "run", "show", "replay", "export", "submit"]) {
+  for (const command of ["doctor", "run", "show", "replay", "export"]) {
     const output = await help(command, "--help");
     assert.match(output, new RegExp(`canopus ${command}\\b`, "u"));
     assert.doesNotMatch(output, /Primary workflow:/u);
   }
+});
+
+test("submit is owned only by Vela", async () => {
+  await assert.rejects(
+    help("submit"),
+    /unknown command submit/u,
+  );
 });
 
 test("mission help retains the advanced portable interface", async () => {

@@ -6,7 +6,6 @@ import path from "node:path";
 import test from "node:test";
 
 import { exportSubmission } from "../../src/product/submission.js";
-import { submitBundle } from "../../src/product/submit.js";
 import { sha256Bytes } from "../../src/util/canonical.js";
 import { writeCurrentRunFixture } from "../helpers/current-run-fixture.js";
 
@@ -179,36 +178,29 @@ test("Canopus Submission crosses the released Vela writer with zero accepted del
     now: new Date("2026-07-27T12:00:00Z"),
   });
   command("git", ["commit", "--allow-empty", "-q", "-m", "Advance current Frontier"], frontier, env);
-
-  const saved = {
-    HOME: process.env.HOME,
-    SSH_AUTH_SOCK: process.env.SSH_AUTH_SOCK,
-    SSH_AGENT_PID: process.env.SSH_AGENT_PID,
+  const sourceCommitBefore = command("git", ["rev-parse", "HEAD^{commit}"], frontier, env);
+  const result = JSON.parse(command(vela, [
+    "submit", path.join(bundle, "submission.json"),
+    "--frontier", frontier,
+    "--attempt", attempt.attempt.id,
+    "--as", fixture.mission.actor,
+    "--json",
+  ], frontier, env)) as {
+    schema: string;
+    accepted_event_delta: number;
+    accepted_state_changed: boolean;
+    route: string;
+    publication: { state: string };
   };
-  Object.assign(process.env, {
-    HOME: env.HOME,
-    SSH_AUTH_SOCK: env.SSH_AUTH_SOCK,
-    SSH_AGENT_PID: env.SSH_AGENT_PID,
-  });
-  let result;
-  try {
-    result = await submitBundle({
-      bundle,
-      frontier,
-      velaBinary: vela,
-      attempt: attempt.attempt.id,
-    });
-  } finally {
-    for (const [key, value] of Object.entries(saved)) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
-  }
+  assert.equal(result.schema, "vela.submit-result.v1");
   assert.equal(result.accepted_event_delta, 0);
+  assert.equal(result.accepted_state_changed, false);
   assert.equal(result.route, "pending_review");
-  assert.notEqual(result.source_commit_before, result.source_commit_after);
-  assert.equal(result.registration_binary_version, `vela ${version}`);
-  assert.equal(result.registration_binary_sha256, sha256Bytes(await readFile(vela)));
+  assert.equal(result.publication.state, "committed_local");
+  assert.notEqual(
+    sourceCommitBefore,
+    command("git", ["rev-parse", "HEAD^{commit}"], frontier, env),
+  );
   assert.equal(command("git", ["status", "--porcelain=v1", "--untracked-files=all"], frontier, env), "");
 
   const after = JSON.parse(command(vela, ["status", frontier, "--json"], root, env)) as {

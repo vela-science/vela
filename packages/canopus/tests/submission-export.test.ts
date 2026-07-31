@@ -1,19 +1,16 @@
 import assert from "node:assert/strict";
-import { chmod, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
 import { exportSubmission, verifySubmission, type SubmissionV1 } from "../src/product/submission.js";
-import { submitBundle } from "../src/product/submit.js";
-import { SUPPORTED_VELA_VERSION } from "../src/product/version.js";
 import {
   canonicalJson,
   contentDigest,
   protocolDigest,
   sha256Bytes,
 } from "../src/util/canonical.js";
-import type { CommandRunner } from "../src/util/command.js";
 import { writeCurrentRunFixture } from "./helpers/current-run-fixture.js";
 
 test("export creates an authenticated portable Submission without mutating Vela", async () => {
@@ -50,19 +47,13 @@ test("export creates an authenticated portable Submission without mutating Vela"
     (await readdir(output, { recursive: true })).some((entry) => String(entry).includes("private-key")),
     false,
   );
-
-  const manifestFile = path.join(output, "manifest.json");
-  const manifest = JSON.parse(await readFile(manifestFile, "utf8")) as {
-    artifacts: Array<{ source: string }>;
-  };
-  manifest.artifacts[0]!.source = "../escape";
-  await chmod(manifestFile, 0o600);
-  await writeFile(manifestFile, canonicalJson(manifest));
-  const frontier = path.join(home, "frontier");
-  await mkdir(frontier);
-  await assert.rejects(
-    submitBundle({ bundle: output, frontier }),
-    /safe relative POSIX path/u,
+  assert.equal(result.submission, path.join(output, "submission.json"));
+  assert.equal(result.manifest, path.join(output, "manifest.json"));
+  assert.equal(result.producer, fixture.mission.actor);
+  assert.equal(result.attempt, null);
+  assert.deepEqual(
+    (await readdir(output)).sort(),
+    ["artifacts", "manifest.json", "submission.json"],
   );
 });
 
@@ -100,7 +91,7 @@ test("review-only export preserves an absent optional execution binding", async 
   );
 });
 
-test("export binds one exact private Attempt and submit requires the same ID", async () => {
+test("export binds one exact private Attempt for canonical Vela registration", async () => {
   const home = await mkdtemp(path.join(os.tmpdir(), "canopus-export-attempt-"));
   const artifact = Buffer.from("{\"bounded\":true}\n");
   const fixture = await writeCurrentRunFixture({
@@ -129,109 +120,14 @@ test("export binds one exact private Attempt and submit requires the same ID", a
   ) as SubmissionV1;
   verifySubmission(submission);
   assert.equal(submission.provenance.source_attempt, attempt);
-
-  const frontier = path.join(home, "frontier");
-  await mkdir(frontier);
-  await assert.rejects(
-    submitBundle({ bundle: output, frontier }),
-    /must exactly match --attempt/u,
-  );
-});
-
-test("attempt-bound submit uses the source checkout and never a disposable clone", async () => {
-  const home = await mkdtemp(path.join(os.tmpdir(), "canopus-submit-attempt-"));
-  const artifact = Buffer.from("{\"bounded\":true}\n");
-  const sourceCommit = "e".repeat(40);
-  const sourceTree = "f".repeat(40);
-  const fixture = await writeCurrentRunFixture({
-    root: path.join(home, "product"),
-    artifact,
-    velaVersion: "0.940.7",
-    velaSha256: sha256Bytes(artifact),
-    gitCommit: sourceCommit,
-    gitTree: sourceTree,
-    roots: {
-      git_commit: sourceCommit,
-      git_tree: sourceTree,
-      vela_repository: `sha256:${"a".repeat(64)}`,
-    },
-  });
-  const attempt = `vat_${"2".repeat(64)}`;
-  const bundle = path.join(home, "submission");
-  await exportSubmission({
+  const result = await exportSubmission({
     runFile: fixture.runFile,
-    outputRoot: bundle,
+    outputRoot: path.join(home, "second-submission"),
     attempt,
-    now: new Date("2026-07-30T12:00:00Z"),
+    now: new Date("2026-07-30T12:00:01Z"),
   });
-  const frontier = path.join(home, "frontier");
-  await mkdir(frontier);
-  const afterCommit = "d".repeat(40);
-  let headReads = 0;
-  const calls: string[][] = [];
-  const runner: CommandRunner = async (options) => {
-    const argv = [...options.argv];
-    calls.push(argv);
-    let stdout = "";
-    if (argv[0] === "git" && argv[1] === "status") {
-      stdout = "";
-    } else if (
-      argv[0] === "git" &&
-      argv[1] === "rev-parse" &&
-      argv[3] === `${sourceCommit}^{tree}`
-    ) {
-      stdout = sourceTree;
-    } else if (
-      argv[0] === "git" &&
-      argv[1] === "rev-parse" &&
-      argv[3] === "HEAD^{commit}"
-    ) {
-      stdout = headReads++ === 0 ? sourceCommit : afterCommit;
-    } else if (argv[0] === "git" && argv[1] === "remote") {
-      stdout = "https://example.invalid/frontier.git";
-    } else if (argv[0] === process.execPath && argv[1] === "--version") {
-      stdout = `vela ${SUPPORTED_VELA_VERSION}`;
-    } else if (argv[0] === process.execPath && argv[1] === "submit") {
-      assert.equal(argv[argv.indexOf("--attempt") + 1], attempt);
-      const submission = JSON.parse(
-        await readFile(path.join(bundle, "submission.json"), "utf8"),
-      ) as SubmissionV1;
-      stdout = JSON.stringify({
-        ok: true,
-        schema: "vela.submit-result.v1",
-        submission_id: submission.submission_id,
-        submission_root: protocolDigest(submission),
-        registration_record_id: "vrr_fixture",
-        registration_record_root: `sha256:${"3".repeat(64)}`,
-        proposal_id: "vpr_fixture",
-        claim_id: `vcl_${"4".repeat(64)}`,
-        route: "pending_review",
-        accepted_event_delta: 0,
-      });
-    } else {
-      throw new Error(`unexpected command: ${argv.join(" ")}`);
-    }
-    return {
-      argv,
-      exitCode: 0,
-      signal: null,
-      stdout: Buffer.from(`${stdout}\n`),
-      stderr: Buffer.alloc(0),
-      durationMs: 1,
-    };
-  };
-
-  const result = await submitBundle({
-    bundle,
-    frontier,
-    velaBinary: process.execPath,
-    attempt,
-    runner,
-  });
-  assert.equal(result.source_commit_before, sourceCommit);
-  assert.equal(result.source_commit_after, afterCommit);
-  assert.equal(result.accepted_event_delta, 0);
-  assert.equal(calls.some((argv) => argv[0] === "git" && argv[1] === "clone"), false);
+  assert.equal(result.attempt, attempt);
+  assert.equal(result.producer, fixture.mission.actor);
 });
 
 test("export fails closed on stale verifier wording and preserves an explicit bounded correction", async () => {

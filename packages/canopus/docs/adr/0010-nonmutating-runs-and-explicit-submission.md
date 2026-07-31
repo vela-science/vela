@@ -13,6 +13,10 @@
   `vvr_1974ed5d3e3a72c3` passed, the human Decision completed, and the exact
   Frontier replayed from a clean clone.
 
+> Historical contract: this ADR describes immutable Canopus `0.8.0`.
+> Current private source removes the duplicate `canopus submit` writer and
+> delegates registration to canonical `vela submit` under parent ADR 0031.
+
 ## Context
 
 Canopus is a bounded research runner, not a scientific-state authority. Its

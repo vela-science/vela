@@ -59,10 +59,10 @@ public Canopus contract.
 
 ## Export
 
-`canopus export` creates `canopus.submission-bundle.v1`:
+`canopus export` creates a portable export directory:
 
 ```text
-submission-bundle/
+submission/
   submission.json
   manifest.json
   artifacts/sha256/<full-digest>
@@ -71,6 +71,9 @@ submission-bundle/
 `submission.json` is a whole-body Ed25519-signed `vela.submission.v1`.
 Independent verifier output is named only as a verification requirement; it is
 not mislabeled as producer authority or a Vela Verification Record.
+`manifest.json` binds the export to its exact Run root, source Git identity,
+producer, Submission root, and transport mapping. It is portable lineage
+evidence; Vela does not treat it as authority or require it for registration.
 
 The current worker contract keeps verifier status out of the Claim. After a
 passing verifier result, the producer may pass `--claim` with `--scope-limit`
@@ -80,35 +83,33 @@ byte-for-byte unchanged. A retained older Run that says verification is still
 pending fails closed until this explicit correction is supplied. Control
 characters remain forbidden.
 
-The producer key is ephemeral. It is not placed in run evidence, the portable
-bundle, or a retained capability store. A producer that independently keeps its
-own key may use Vela's direct withdrawal interface; Canopus does not add a
+The producer key is ephemeral. It is not placed in run evidence, the exported
+directory, or a retained capability store. A producer that independently keeps
+its own key may use Vela's direct withdrawal interface; Canopus does not add a
 second key lifecycle.
 
 `canopus export --attempt <vat_id>` writes that exact private Attempt ID into
 `Submission.provenance.source_attempt`. The immutable Run remains independent
 of the Attempt; only the optional Submission export carries the binding.
 
-## Submit
+## Registration
 
-`canopus submit`:
+Canopus has no registration command. Register the exported Submission through
+the canonical Vela path:
 
-1. verifies the bundle, Submission signature, Artifacts, source Git roots, and
-   exact Vela binary;
-2. keeps transport blobs outside the clone and lets Vela create their canonical
-   content-addressed paths inside the repository-authority transaction;
-3. performs ordinary registration in a disposable exact-head clone, or uses
-   the clean source checkout when `--attempt` is present because private
-   Attempt state is intentionally absent from Git;
-4. requires `vela.submit-result.v1`, `pending_review`, and accepted-event delta
-   zero;
-5. fast-forwards the clean source checkout only after the registration is
-   complete.
+```sh
+vela submit /path/to/submission/submission.json \
+  --frontier /path/to/frontier \
+  --attempt <vat_id> \
+  --as <agent:id> \
+  --json
+```
 
-Submit does not create a Verification Record, Decision, Event, or accepted
-Standing. `canopus submit --attempt <vat_id>` fails unless the ID exactly
-matches the Submission, and Vela independently revalidates the active
-Attempt's Target binding and budgets.
+Vela verifies the Submission signature, transport artifacts, producer and
+Attempt identities, current Target binding, budgets, repository state, and
+repository-authority transaction. Registration creates only a pending Proposal
+with accepted-event delta zero. It does not create a Verification Record,
+Decision, Event, or accepted Standing.
 
 ## Budgets
 

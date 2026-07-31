@@ -139,7 +139,8 @@ test("current source stays product-only while historical release evidence remain
     /immutable public product is Canopus `0\.8\.0`[\s\S]+toolchain\.lock\.json/u,
   );
   assert.match(readme, /A Run is nonmutating/u);
-  assert.match(readme, /only the separate `submit` command registers/u);
+  assert.match(readme, /only canonical `vela submit` registers/u);
+  assert.doesNotMatch(readme, /canopus submit\b/u);
   assert.doesNotMatch(readme, /canopus land|canopus inspect|canopus withdraw/u);
   assert.match(
     readme,

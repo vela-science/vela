@@ -20,13 +20,13 @@ verifier, and reproduces the result from a clean clone.
 
 A Run is nonmutating. It does not create a Proposal, Verification Record,
 Decision, Event, or scientific Standing. A successful Run may be exported as an
-authenticated `vela.submission.v1`; only the separate `submit` command registers
-that Submission as pending review.
+authenticated `vela.submission.v1`; only canonical `vela submit` registers that
+Submission as pending review.
 
 ## The loop
 
 ```text
-doctor → run → show → replay → export → submit
+doctor → run → show → replay → export → vela submit
 ```
 
 ```sh
@@ -38,8 +38,12 @@ canopus run /path/to/frontier --first
 canopus run /path/to/frontier --first --repair-from /path/to/exact-candidate
 canopus show latest
 canopus replay /path/to/run.json
-canopus export /path/to/run.json --attempt <vat_id> --output /path/to/submission-bundle
-canopus submit /path/to/submission-bundle /path/to/frontier --attempt <vat_id>
+canopus export /path/to/run.json --attempt <vat_id> --output /path/to/submission
+vela submit /path/to/submission/submission.json \
+  --frontier /path/to/frontier \
+  --attempt <vat_id> \
+  --as <agent:id> \
+  --json
 ```
 
 - `doctor` binds the exact frontier, target, Vela, Codex, profile, packet, and
@@ -57,12 +61,12 @@ canopus submit /path/to/submission-bundle /path/to/frontier --attempt <vat_id>
   A producer may refine the worker's pre-verifier wording with one bounded
   Claim and explicit scope limit; the immutable Run and an automatic
   refinement notice preserve the wording change. Stale verifier-pending
-  wording still fails closed until corrected.
-- `submit` explicitly registers that Submission through Vela. Its `--attempt`
-  must exactly match the Submission. Because private Attempt state is ignored
-  by Git, this path uses the source checkout rather than copying authority into
-  a worker clone. The expected result is `pending_review` with accepted-event
-  delta zero.
+  wording still fails closed until corrected. The output directory contains
+  `submission.json`, one compact lineage `manifest.json`, and its
+  content-addressed transport artifacts.
+- `vela submit` is the single registration path. Its `--attempt` and `--as`
+  values must exactly match the exported Submission. The expected result is
+  `pending_review` with accepted-event delta zero.
 
 `inspect`, `--no-land`, Receipt authoring, and automatic landing are not current
 interfaces.
