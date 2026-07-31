@@ -220,17 +220,18 @@ private repository.
 
 ## Release boundaries
 
-Each component releases independently from the product monorepo and publishes
-its own version, commit, artifacts, checksums, provenance, and supported
-interface versions.
+Changed Vela product artifacts release from one Vela source tag and manifest.
+Public components retain their own versions, artifacts, checksums, provenance,
+and supported interface versions; unchanged components do not churn merely to
+match the source tag.
 
 - Vela releases the protocol implementation and CLI.
 - The TypeScript protocol package is generated or checked against the same
   public schemas and fixtures as Rust.
-- Immutable Canopus `0.8.0` checks capabilities, invokes released Vela
-  binaries through the public boundary, and pins exact binaries in every Run.
-  Current source is private while proposed ADR 0031 evaluates a smaller,
-  removable `vela agent` facade.
+- Immutable Canopus `0.8.0` remains frozen for historical Runs that bind its
+  exact bytes. Current executor source is private as
+  `@vela-science/agent-internal`, exposed only through the removable
+  `vela agent` facade accepted by ADR 0031, and has no separate release train.
 - Each Frontier verifies and reproduces its own exact state.
 - Vela Web verifies its read projection against exact Frontier sources.
 - Organization workflows test the compatibility matrix without becoming a
@@ -238,8 +239,8 @@ interface versions.
 
 An exact scientific Run still pins every binary and digest it used. Colocated
 source does not grant an executor authority access, and component versions do
-not move in lockstep. If ADR 0031 is accepted, one Vela source tag and manifest
-coordinate changed artifacts without erasing their component versions.
+not move in lockstep. One Vela source tag and manifest coordinate changed
+artifacts without erasing their component versions.
 
 Package and network surfaces follow a strict maturity ladder:
 

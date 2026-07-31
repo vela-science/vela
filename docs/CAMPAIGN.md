@@ -35,8 +35,8 @@ Frontier movement is the outcome.
 This campaign may end in success or a registered negative result. It is
 complete only when:
 
-1. no current Vela, Canopus, Neon, search, or web surface offers completed,
-   overlapping, or otherwise invalid work;
+1. no current Vela, private Agent helper, Neon, search, or web surface offers
+   completed, overlapping, or otherwise invalid work;
 2. a versioned inventory identifies every observed native math source, exact
    snapshot, license, coverage boundary, adapter, and Frontier binding;
 3. the existing Observatory is a working first-party Math Atlas over all
@@ -53,8 +53,8 @@ complete only when:
    measured separately;
 8. a real correction benchmark either passes its frozen gates or records a
    clean failed entry gate without manufacturing scientific history;
-9. Neon, Canopus, the Observatory, and any one reader remain removable without
-   losing canonical state;
+9. Neon, the private Agent helper, the Observatory, and any one reader remain
+   removable without losing canonical state;
 10. shared packages, indexes, or external integrations exist only when they
    delete maintained duplication or demonstrate measured lift; and
 11. the evidence report and whitepaper state the failures and limits as
@@ -207,9 +207,9 @@ cold-successor lift remain unproved, correction propagation has no qualifying
 fixture, and external interoperability and cold-use gates remain open.
 
 ADR 0020 remains Proposed, but two narrow implementation seams now exist:
-private Attempt v7 retains exact scope, one exact Agent Run receipt, and
-evidence budgets across successful Submissions, and `vela review inbox`
-derives a rooted, consequence-only,
+private Attempt v8 retains exact scope, ordered root-linked Agent Run receipts,
+and replayable evidence budgets across successful Submissions, and
+`vela review inbox` derives a rooted, consequence-only,
 write-free queue from current Proposal evidence. `vela status` now compresses
 both into one read-only Campaign Cockpit summary: active scope, budget, usage,
 expiry, Inbox readiness, rooted entry identity, and one inspection or
@@ -235,11 +235,12 @@ Verification through the ordinary transaction writer. Each operation consumes
 its live Attempt budget exactly once, both accepted-state deltas remain zero,
 and strict clean-clone replay matches. The campaign must not claim twelve-hour,
 prompt-free evidence work until a real source dogfood records signer prompts,
-restart behavior, exact roots, and zero Standing change. Attempt v7 currently
-permits one Agent Run and retains one Run receipt, so multi-run lineage and
-durable resume are explicit prerequisites for that test rather than claimed
-features. Homogeneous batch Decision planning remains unimplemented and
-unearned. Current Submission
+restart behavior, exact roots, and zero Standing change. Attempt v8 now permits
+multiple bounded Agent Runs, reserves each run before helper invocation, retains
+receipts as one exact root chain, and replays usage after private-state reload.
+This is a multi-run execution seam, not proof of a durable background host or
+the twelve-hour product claim. Homogeneous batch Decision planning remains
+unimplemented and unearned. Current Submission
 registration accepts only the `submission_register` policy action; the retired
 `receipt_land` fallback is no longer a writer path.
 
@@ -308,7 +309,7 @@ The released product should be teachable through these paths:
 | What exact object is this? | `vela show . <id>` or its Atlas record |
 | Why does it stand? | `vela why . <id>` or **Why this stands** |
 | What should be done next? | `vela next` or the Atlas Target handoff |
-| How does work begin? | `vela start`; optionally the private executor through experimental `vela agent` while accepted ADR 0031's migration and deletion test remain in progress |
+| How does work begin? | `vela start`; optionally the private executor through experimental `vela agent` while accepted ADR 0031's deletion test remains in progress |
 | How is candidate work retained? | `vela submit` |
 | What did the verifier actually check? | Verification record and evidence chain |
 | What would a Decision change? | `vela review show . <vpr_id>` or **Scientific Diff** |
@@ -447,11 +448,14 @@ workflow engine, or canonical schema without repeated consumer evidence.
   Target-closure contract without changing protocol or authority.
 - [ADR 0031](adr/0031-one-product-and-removable-agent-executor.md) is Accepted
   for one Vela product and a removable executor outside the authority core.
-  Implementation is in progress: the private Canopus package still exposes
-  standalone product and package-install surfaces that must shrink. Historical
-  Canopus `0.8.0` remains frozen for exact replay. No twelve-hour matched
-  dogfood result exists, so helper survival, package rename, and public
-  distribution remain unearned.
+  The standalone runner, public exports, package-install surface, and separate
+  product CI are removed. Current source is private
+  `@vela-science/agent-internal` behind `vela agent`, and Attempt v8 retains
+  root-linked multi-run receipts. Remaining domain and evaluation assets still
+  face consumer-traced shrink and the helper deletion test. Historical Canopus
+  `0.8.0` remains frozen for exact replay. No twelve-hour matched dogfood result
+  exists, so helper survival, package rename, and public distribution remain
+  unearned.
 - ADR 0020 remains Proposed until a fresh user comprehends the released
   repository-authority Decision path.
 - ADR 0021 remains Proposed until a second real producer replays the current
@@ -472,14 +476,14 @@ resolved under these decisions.
 | --- | --- |
 | Frontier repairs | close completed Targets, create exact fresh Targets, and add source-local coverage validators |
 | Vela `0.951.0` — conditional | only if a generic CLI or Target-closure defect requires a compatible Vela change; no protocol change |
-| Vela Agent — earned | preserve frozen Canopus `0.8.0`; implement accepted ADR 0031 by removing duplicate product machinery and retaining experimental `vela agent`; distribute a helper only after the twelve-hour matched dogfood gate |
+| Vela Agent — earned | preserve frozen Canopus `0.8.0`; keep the current helper private behind experimental `vela agent`; rename or distribute it only after the twelve-hour matched dogfood and deletion gate |
 | Vela Web `0.430.0` | exact Math Source Registry, reproducible observation, and first working root-bound Math Atlas alpha |
 | Vela Web `0.440.0` — earned | external cold-use, genuine multi-shape result loops, and correction/inheritance surfaces |
 | Evidence release | rooted benchmark corpus, result ledgers, clean-room reproduction, and bounded paper |
 
 Vela remains `0.950.1`. Immutable Canopus `0.8.0` remains the exact historical
-Run reader; current Canopus source is private and unpublishable while accepted
-ADR 0031 is implemented and the helper faces its deletion test. Published
+Run reader; current Agent helper source is private and unpublishable under its
+historical directory path while the helper faces its deletion test. Published
 `@vela-science/protocol@0.1.0` remains
 immutable; source version `0.1.1` corrects its stale package documentation
 without changing the public contract and will publish only from a later Vela
@@ -515,8 +519,8 @@ tag. No version is bumped merely to synchronize marketing.
    sealed Target Index. These operational closures do not accept any
    pending Claim.
 6. Add source-local validators that reject completed, overlapping, malformed,
-   untracked, or root-drifted Targets before `vela next`, Canopus, projection,
-   or publication can expose them.
+   untracked, or root-drifted Targets before `vela next`, the private Agent
+   helper, projection, or publication can expose them.
 7. **complete:** rebuild and activate the corrected read model at exact root
    `sha256:4911de959a3fb41bab1185230a5ddbaece182ccea9c014d53cbca0ba04989d25`.
    This data activation changes no scientific Standing and advances no web
@@ -544,9 +548,9 @@ architecture demonstrations.
 
 - `next` never returns closed or duplicate work.
 - `start` binds one exact Target and packet.
-- The current Canopus executor remains optional during the ADR 0031 gate. It
-  consumes the same packet for `run` and `export`; registration stays on the
-  canonical `vela submit` path.
+- The current private Agent helper remains optional during the ADR 0031
+  deletion test. It consumes the same packet through `vela agent run|export`;
+  registration stays on the canonical `vela submit` path.
 - `submit` says explicitly that accepted state changed `no`.
 
 #### Reviewer flow
@@ -901,10 +905,11 @@ Measure five claims separately.
 #### A. Execution lift
 
 Use three newly frozen held-out task shapes—Erdős, Formal, and quantum—and
-compare same-packet native Codex with the current Canopus single-engine path
-under the same model, facts, tools, verifier, token ceiling, retry rule, and
-stopping condition. The exact matrix is declared by
-`canopus.evaluation-plan.v2`, not hard-coded by the runner.
+compare same-packet native Codex with the private Agent helper path, whose
+single-engine kernel descends from frozen Canopus, under the same model, facts,
+tools, verifier, token ceiling, retry rule, and stopping condition. The exact
+matrix remains declared by the retained `canopus.evaluation-plan.v2`, not
+hard-coded by the runner.
 
 - two fresh repetitions per task and arm;
 - maximum 12 model calls;
@@ -920,10 +925,10 @@ Secondary metrics include tokens, wall time, interventions, failed branches,
 repair reuse, replay rate, scope overstatement, custody failures, and accepted
 state delta before Decision.
 
-Canopus earns expansion only if it improves primary efficiency by at least 20
-percent on both task classes it supports or closes a demonstrated
-safety/replay gap with no material efficiency regression. Otherwise narrow or
-remove the extra Canopus surface. Do not evaluate orchestration frameworks
+The private helper earns survival and a rename only if it improves primary
+efficiency by at least 20 percent on both task classes it supports or closes a
+demonstrated safety/replay gap with no material efficiency regression.
+Otherwise narrow or delete it. Do not evaluate orchestration frameworks
 unless plain fixed orchestration fails the same missing contract in two
 independent tasks.
 
@@ -1485,7 +1490,7 @@ This campaign does not build:
 - a hosted semantic-package Registry;
 - a package marketplace;
 - a scheduler or agent operating system;
-- mandatory Canopus or orchestration;
+- a mandatory Agent helper or orchestration layer;
 - an Entire competitor;
 - hosted signing or web authority;
 - a second writer;
@@ -1502,7 +1507,7 @@ Failure narrows or deletes the system. It does not earn another layer.
 | --- | --- | --- |
 | Local Submission → Verification → Decision | New Erdős, Formal, and Quantum evidence loops each have one exact requirement-matching Verification plus retained complementary evidence; the Proposals remain `pending_review`, and the Formal transfer remains separately gated on held-out value | human Decision or explicit cancellation for each exact Proposal, then clean-clone replay |
 | Map → advance → remap | All four Frontiers have zero stale Targets; Erdős producer work through `10430200` and Formal producer work are closed without changing Standing; Erdős now offers `10430201..10430400`; the exact current Atlas is live, while scientific Decisions and post-Decision remap remain open | after one human Decision changes Standing, rebuild the exact Atlas, identify the semantic diff and surviving knowledge, and expose the next valid obligation |
-| Canopus execution lift | Directionally positive first-party repaired Stage A; predecessor and stopped runs retained; expert-minute metric unscored | contract-frozen Erdős, Formal, and quantum result or explicit narrowing |
+| Agent-helper execution lift (historical Canopus pilot) | Directionally positive first-party repaired Stage A; predecessor and stopped runs retained; expert-minute metric unscored | contract-frozen Erdős, Formal, and quantum result or explicit narrowing |
 | State/Atlas lift | First-party Codex-session pilot failed hard budget and full correctness; `product-compression-v1` then stopped after one Git/files session exceeded its token cap and exposed an under-specified answer contract; no product-lift or human-review credit | register a corrected closed-schema study, then obtain external matched evidence or retain the negative result |
 | Inheritance lift | Removability passed for one historical pending state; cold-successor lift unmeasured | cold successor reproduces change, surviving evidence, replay, and next action without private context |
 | Correction propagation | no qualifying real candidate | qualifying fixture passes or entry gate closes negative |

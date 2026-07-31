@@ -3,19 +3,20 @@
 - Status: Accepted
 - Proposed: 2026-07-30
 - Accepted: 2026-07-31
-- Implementation: in progress
+- Implementation: one-product surface complete; helper shrink/deletion test open
 - Protocol effect: none
 - Authority effect: none
 - Product effect: retire Canopus as a separate product identity and expose its
   proven execution subset as optional `vela agent` porcelain
-- Package effect: freeze historical Canopus `0.8.0`; move the current helper
-  source to an internal `@vela-science/agent` package only after the shrink gate
+- Package effect: freeze historical Canopus `0.8.0`; keep current helper source
+  private as `@vela-science/agent-internal` and rename it only after the deletion
+  test
 - Release effect: one Vela tag and manifest; no separate `product-v*` train
 
 ## Context
 
-Vela and Canopus currently present two products even though they already live
-in one repository and participate in one user loop:
+At proposal time, Vela and Canopus presented two products even though they
+already lived in one repository and participated in one user loop:
 
 ```text
 Canopus run -> Canopus export -> Canopus submit -> Vela review
@@ -29,17 +30,17 @@ local Run, replays it, and exports an authenticated Submission. Vela owns the
 Target and Attempt boundary, Submission registration, Verification intake,
 Decision Inbox, human Decision, Event, replay, and Standing.
 
-The current package boundary correctly keeps the runner away from scientific
-authority. The separate product, command vocabulary, release train, and
-duplicated Submission checks do not protect that boundary.
+The process boundary correctly keeps the runner away from scientific authority.
+The separate product, command vocabulary, release train, and duplicated
+Submission checks did not protect that boundary.
 
-The drift is measurable. Current `packages/canopus` differs from immutable
-`product-v0.8.0` by dozens of files and thousands of lines while its package
-version still declares `0.8.0`. Exact counts are derived from Git when an
-audit needs them rather than frozen into this ADR. The duplicate Submission
-writer has now been removed; domain-specific missions, coverage rules,
-verifier capsules, and evaluation fixtures still make the generic package
-larger and less replaceable.
+The drift at proposal time was measurable. `packages/canopus` differed from
+immutable `product-v0.8.0` by dozens of files and thousands of lines while its
+package version still declared `0.8.0`. Exact counts are derived from Git when
+an audit needs them rather than frozen into this ADR. That evidence justified
+removing the duplicate Submission writer and shrinking domain-specific
+missions, coverage rules, verifier capsules, and evaluation fixtures out of
+the generic product surface.
 
 The execution evidence also argues for consolidation rather than expansion.
 Canopus and native Codex using the same packets both passed all four repaired
@@ -57,12 +58,14 @@ The current strategy memos agree on the durable boundary:
 - Generic harness optimization detached from a current mapped Target should
   stop.
 
-The independent product-boundary audit accepts this architecture, not the
-current implementation. `vela agent doctor|run|show|replay|export` already
-exists, but the private `packages/canopus` package still exposes a standalone
-`canopus` binary and public exports, and product CI still packages and
-install-smokes it as a separate product. Those are migration work, not evidence
-that two product identities should survive.
+The independent product-boundary audit accepted this architecture before the
+product migration was complete. The standalone `canopus` binary, public
+exports, package-install surface, and separate product CI have since been
+removed. `vela agent doctor|run|show|replay|export` is now the sole current
+execution interface. The helper remains private, separately executed, and
+removable; product consolidation does not imply that it has earned survival or
+distribution. Consumer-traced relocation or deletion of its remaining domain
+missions, evaluation machinery, and verifier-image assets remains open.
 
 No twelve-hour matched dogfood result exists. The audit establishes that the
 separate product and release surface should retire now; it does not establish
@@ -145,8 +148,8 @@ cannot create Standing or become a second Target system.
 
 ### 4. Keep only the generic execution kernel during shrink
 
-Keep under the current private Canopus source identity during shrink and
-dogfood:
+Keep in the private Agent helper under its historical directory path during
+the deletion test:
 
 - `Engine` and `EngineResult`;
 - the native Codex adapter;
@@ -182,12 +185,12 @@ Delete from the current helper:
 - inactive framework experiments that failed or never reached their adoption
   gate.
 
-During shrink, remove Canopus from current product documentation, CLI
-packaging, install CI, and the active release surface. Preserve the historical
-README and release instructions at the frozen tag; the private source directory
-may retain its old name until the deletion test is complete. Only after the
-dogfood gate passes should the earned helper source and package be renamed. If
-the gate fails, delete the helper instead.
+Canopus is removed from current product documentation, CLI packaging, install
+CI, and the active release surface. Preserve the historical README and release
+instructions at the frozen tag; the private source directory may retain its old
+name until the deletion test is complete. Only after the dogfood gate passes
+should the earned helper source and package be renamed. If the gate fails,
+delete the helper instead.
 
 Recorded Runs continue to bind exact binary and dependency identities. Runtime
 compatibility uses explicit schema and capability checks, not a second
@@ -219,8 +222,8 @@ compatibility parser or rewrite old records.
 
 ### 6. Use one release identity
 
-Protocol publication and verification now live in the Vela-tag release
-workflow. Removing standalone Canopus packaging must preserve that existing
+Protocol publication and verification live in the Vela-tag release workflow.
+The completed removal of standalone Canopus packaging preserves that existing
 Protocol path.
 
 One Vela `v*` tag and one release manifest identify the exact changed
@@ -252,12 +255,12 @@ The helper earns public distribution only if one real dogfood campaign proves:
 If the gate is neutral or negative, delete the helper and keep Vela's external
 producer contract.
 
-The current implementation cannot yet claim this test. Attempt v7 permits and
-retains one Agent Run, the helper caps one mission at one hour, and the
-foreground Campaign host has no durable resume contract. The minimum
-prerequisite is multiple root-linked Run receipts and restart-safe budget
-replay under the same bounded private Attempt. This remains private
-coordination state; it does not justify a scheduler, daemon, workflow graph, or
+The current implementation cannot yet claim this test. Attempt v8 now reserves
+multiple bounded Agent Runs, retains their receipts as one exact root chain,
+and replays usage and remaining budget after private-state reload. That closes
+the minimum multi-run seam; it does not establish twelve-hour dogfood, a
+restartable background host, or measured lift. This remains private
+coordination state and does not justify a scheduler, daemon, workflow graph, or
 canonical Campaign object.
 
 ## Migration sequence
@@ -276,7 +279,8 @@ canonical Campaign object.
    repository-authority key environment variables before launch. It never
    invokes a shell. This avoids accidental credential forwarding; it does not
    sandbox the trusted controller helper, which still runs as the current OS
-   user. Canopus continues to supply the actual worker and verifier isolation.
+   user. The private helper continues to supply the actual worker and verifier
+   isolation.
    Windows remains gated on a native helper executable rather than a
    shell-backed package-manager shim.
 4. **Complete the minimum execution seam.** Add root-linked multi-run receipts

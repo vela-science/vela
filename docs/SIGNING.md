@@ -84,7 +84,7 @@ from a prompt or signature request.
 An optional file-backed agent identity authenticates bounded producer work:
 
 ```bash
-vela id create --agent --handle canopus
+vela id create --agent --handle worker
 vela id show --json
 ```
 

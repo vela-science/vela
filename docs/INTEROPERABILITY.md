@@ -60,7 +60,10 @@ An adapter:
 5. retains explicit caveats and nonclaims; and
 6. never infers acceptance from tool success.
 
-Canopus is one optional adapter and producer. It is not privileged.
+Any external runner or workbench may be an optional adapter and producer.
+Vela's private Agent helper is one nonprivileged implementation behind
+`vela agent`; frozen Canopus `0.8.0` remains historical replay evidence, not a
+current product or interoperability requirement.
 
 ## Semantic packages
 
