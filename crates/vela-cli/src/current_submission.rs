@@ -626,7 +626,17 @@ fn submit_with_optional_repository_signer(
             .identity_binding
             .binding_id
             .clone(),
-        Vec::new(),
+        submission
+            .artifacts
+            .iter()
+            .map(|artifact| {
+                artifact
+                    .digest
+                    .strip_prefix("sha256:")
+                    .expect("verified Submission artifact digest is sha256")
+                    .to_string()
+            })
+            .collect(),
         proposal.subject.id.clone(),
         proposal.proposal_id.clone(),
         "pending_review".into(),

@@ -16,7 +16,9 @@ use vela_protocol::current_repository::{
 };
 use vela_protocol::events::{EventKind, NULL_HASH};
 use vela_protocol::proposal_v1::ProposalV1;
+use vela_protocol::registration_record::RegistrationRecordV1;
 use vela_protocol::repository_origin::RepositoryOriginV1;
+use vela_protocol::submission_v1::{SubmissionArtifact, SubmissionV1};
 use vela_protocol::verification_record::VerificationRecordV1;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -1312,7 +1314,7 @@ pub(crate) fn verify_current_repository_at(
         let bytes = object_bytes
             .get(&reference.path)
             .ok_or_else(|| format!("current object {} was not loaded", reference.path))?;
-        let submission = vela_protocol::submission_v1::SubmissionV1::parse(bytes)?;
+        let submission = SubmissionV1::parse(bytes)?;
         if submission.canonical_bytes()?.as_slice() != bytes.as_slice()
             || submission.submission_id != reference.id
         {
@@ -1326,7 +1328,7 @@ pub(crate) fn verify_current_repository_at(
         let bytes = object_bytes
             .get(&reference.path)
             .ok_or_else(|| format!("current object {} was not loaded", reference.path))?;
-        let registration = vela_protocol::registration_record::RegistrationRecordV1::parse(bytes)?;
+        let registration = RegistrationRecordV1::parse(bytes)?;
         if registration.canonical_bytes()?.as_slice() != bytes.as_slice()
             || registration.registration_record_id != reference.id
         {
@@ -1335,6 +1337,39 @@ pub(crate) fn verify_current_repository_at(
                 reference.path
             ));
         }
+        let submission_reference = repository
+            .submissions
+            .iter()
+            .find(|candidate| candidate.id == registration.submission_id)
+            .ok_or_else(|| {
+                format!(
+                    "{} targets Submission {} outside the current repository",
+                    reference.path, registration.submission_id
+                )
+            })?;
+        if registration.submission_root != submission_reference.root
+            || registration.submission_path != submission_reference.path
+        {
+            return Err(format!(
+                "{} does not bind the current Submission reference",
+                reference.path
+            ));
+        }
+        let submission =
+            SubmissionV1::parse(object_bytes.get(&submission_reference.path).ok_or_else(
+                || {
+                    format!(
+                        "current object {} was not loaded",
+                        submission_reference.path
+                    )
+                },
+            )?)?;
+        verify_registration_artifacts(
+            &reference.path,
+            &registration.artifact_ids,
+            &submission.artifacts,
+            &repository.artifacts,
+        )?;
     }
     for reference in &repository.verifications {
         let bytes = object_bytes
@@ -1441,6 +1476,47 @@ pub(crate) fn verify_current_repository_at(
         verify_current_repository_authority(root, &repository, &origin)?;
     }
     Ok(repository)
+}
+
+fn verify_registration_artifacts(
+    registration_path: &str,
+    registration_artifact_ids: &[String],
+    submission_artifacts: &[SubmissionArtifact],
+    retained_artifacts: &[RepositoryObjectRefV1],
+) -> Result<(), String> {
+    let expected = submission_artifacts
+        .iter()
+        .map(|artifact| {
+            artifact
+                .digest
+                .strip_prefix("sha256:")
+                .map(str::to_string)
+                .ok_or_else(|| {
+                    format!(
+                        "{registration_path} references a Submission with a malformed Artifact digest"
+                    )
+                })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    // Empty sets are the finite receipt shape emitted before the Registration
+    // writer began carrying the Submission's direct Artifact list. The exact
+    // Submission root remains authoritative for those immutable records.
+    if !registration_artifact_ids.is_empty() && registration_artifact_ids != expected {
+        return Err(format!(
+            "{registration_path} does not bind the referenced Submission's exact ordered Artifact set"
+        ));
+    }
+    for artifact_id in &expected {
+        if !retained_artifacts
+            .iter()
+            .any(|artifact| artifact.id == *artifact_id)
+        {
+            return Err(format!(
+                "{registration_path} names Artifact {artifact_id} outside the current repository"
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn read_current_object_set(
@@ -1946,6 +2022,71 @@ mod tests {
 
     fn root(byte: char) -> String {
         format!("sha256:{}", byte.to_string().repeat(64))
+    }
+
+    fn submission_artifact(byte: char) -> SubmissionArtifact {
+        SubmissionArtifact {
+            kind: "fixture".into(),
+            path: format!("artifacts/{byte}.json"),
+            digest: root(byte),
+        }
+    }
+
+    fn retained_artifact(byte: char) -> RepositoryObjectRefV1 {
+        let id = byte.to_string().repeat(64);
+        RepositoryObjectRefV1 {
+            schema: "content-addressed-artifact".into(),
+            id: id.clone(),
+            root: format!("sha256:{id}"),
+            path: format!("records/artifacts/sha256/{id}"),
+        }
+    }
+
+    #[test]
+    fn registration_artifacts_must_match_submission_order_exactly() {
+        let a = "a".repeat(64);
+        let b = "b".repeat(64);
+        let error = verify_registration_artifacts(
+            "records/registrations/sha256/fixture.json",
+            &[b.clone(), a.clone()],
+            &[submission_artifact('a'), submission_artifact('b')],
+            &[retained_artifact('a'), retained_artifact('b')],
+        )
+        .expect_err("reordered Registration artifacts must fail closed");
+        assert!(error.contains("exact ordered Artifact set"));
+
+        verify_registration_artifacts(
+            "records/registrations/sha256/legacy.json",
+            &[],
+            &[submission_artifact('a')],
+            &[retained_artifact('a')],
+        )
+        .expect("empty pre-fix Registration receipts remain replayable");
+
+        let error = verify_registration_artifacts(
+            "records/registrations/sha256/legacy-missing.json",
+            &[],
+            &[submission_artifact('a')],
+            &[],
+        )
+        .expect_err("empty pre-fix receipts still require retained Submission artifacts");
+        assert!(error.contains("outside the current repository"));
+    }
+
+    #[test]
+    fn registration_artifacts_must_all_be_retained() {
+        let a = "a".repeat(64);
+        let b = "b".repeat(64);
+        let error = verify_registration_artifacts(
+            "records/registrations/sha256/fixture.json",
+            &[a, b.clone()],
+            &[submission_artifact('a'), submission_artifact('b')],
+            &[retained_artifact('a')],
+        )
+        .expect_err("missing retained Artifact must fail closed");
+        assert!(error.contains(&format!(
+            "names Artifact {b} outside the current repository"
+        )));
     }
 
     #[test]
