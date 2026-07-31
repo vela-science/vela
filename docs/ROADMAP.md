@@ -130,14 +130,18 @@ source roots.
   different.
 - Remove ceremony, duplicate explanation, and invalid defaults before adding
   commands or abstractions.
-- The private Attempt v7 boundary, one exact Agent Run receipt, read-only
+- The private Attempt v8 boundary, root-linked multi-Run receipts, read-only
   Decision Inbox, compact Campaign status, and bounded foreground evidence
-  host now exist. They prove one same-host Submission-to-Verification path
-  with zero accepted-state change.
+  host now exist. One live Attempt has executed two prompt-free Runs under one
+  twelve-hour authorization window, retained their ordered receipt chain, and
+  registered one bounded Submission with zero accepted-state change. This is
+  not yet evidence of twelve hours of continuous activity or matched execution
+  lift.
   Status excludes expired, budget-exhausted, or Target-advanced Attempts
-  instead of presenting them as live work. Real prompt-free dogfood, restart
-  behavior, multi-run receipt lineage, durable resume, a richer Cockpit, and
-  batch Decision planning remain unearned.
+  instead of presenting them as live work. Restart-safe private budget replay
+  and multi-Run status now work; a durable background host, richer Cockpit,
+  matched native-runner comparison, and batch Decision planning remain
+  unearned.
 - Require fresh-user comprehension of the repository-authority path before
   accepting ADR 0020.
 - Require a second real producer replay before accepting ADR 0021.

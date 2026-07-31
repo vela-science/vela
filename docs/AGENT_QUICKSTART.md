@@ -28,6 +28,12 @@ vela start <target> --frontier . --as agent:<name> --json
 
 # Optional: let the private, removable Agent helper produce and check the
 # bounded artifact without receiving repository authority.
+# The helper is source-only while its deletion test remains open. From a Vela
+# source checkout, build it once and point the CLI at the exact bundle:
+bun install --frozen-lockfile
+bun run --cwd packages/canopus build
+export VELA_AGENT_BIN="$PWD/packages/canopus/dist/vela-agent"
+
 vela agent doctor
 vela agent run --attempt <vat_id>
 vela agent show <run.json>
