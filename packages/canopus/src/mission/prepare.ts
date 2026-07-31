@@ -274,7 +274,7 @@ async function workerIdentity(
   home: string,
 ): Promise<{ codex_version: string; codex_sha256: string }> {
   if (process.platform !== "darwin" && process.platform !== "linux") {
-    throw new Error("canopus.mission.v1 tool workers require macOS, Linux, or WSL2");
+    throw new Error("Vela Agent tool workers require macOS, Linux, or WSL2");
   }
   const binary = await realpath(binaryPath);
   const output = await commandText(runner, [binary, "--version"], cwd, home, true);
@@ -295,7 +295,7 @@ export async function prepareMission(options: PrepareMissionOptions): Promise<Pr
   const draftRoot = await realpath(options.draftRoot);
   const outputRoot = path.resolve(options.outputRoot);
   await assertFreshOutput(outputRoot);
-  const runtimeHome = await mkdtemp(path.join(os.tmpdir(), "canopus-prepare-"));
+  const runtimeHome = await mkdtemp(path.join(os.tmpdir(), "vela-agent-prepare-"));
   try {
     const status = await commandText(
       runner,

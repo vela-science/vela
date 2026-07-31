@@ -1351,15 +1351,17 @@ bun install --frozen-lockfile
 bun run check
 bun run build
 bun run test
-bun run eval:validate
-bun run eval:conformance
 bun run pack:check
 git diff --check
 ```
 
 `pack:check` covers only the public Protocol package. Current Agent helper
 source has no installable package, standalone CLI, public export, or
-publication surface.
+publication surface. The retired Canopus evaluation harness and domain-specific
+missions, profiles, verifier capsules, and image build workflow remain frozen
+at `product-v0.8.0`; they are not active Vela Agent infrastructure. New matched
+evaluations use rooted campaign artifacts rather than a second package-local
+evaluation framework.
 
 ### Vela Web and projection
 

@@ -13,7 +13,7 @@ import {
 } from "../src/engines/workspace-evidence.js";
 
 async function fixture(): Promise<{ root: string; workspace: string; runRoot: string }> {
-  const root = await mkdtemp(path.join(os.tmpdir(), "canopus-worker-evidence-"));
+  const root = await mkdtemp(path.join(os.tmpdir(), "vela-agent-worker-evidence-"));
   const workspace = path.join(root, "workspace");
   const runRoot = path.join(root, "run");
   await Promise.all([

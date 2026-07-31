@@ -150,12 +150,12 @@ test("native tool worker pins Codex and permission-profile identities", async ()
   await writeFile(outputSchema, "{}\n");
   const permissionProfile = path.join(paths.root, "native-worker.config.toml");
   await writeFile(permissionProfile, [
-    'default_permissions = "canopus-worker"',
-    '[permissions.canopus-worker.filesystem]',
+    'default_permissions = "vela-agent-worker"',
+    '[permissions.vela-agent-worker.filesystem]',
     '":minimal" = "read"',
-    '[permissions.canopus-worker.filesystem.":workspace_roots"]',
+    '[permissions.vela-agent-worker.filesystem.":workspace_roots"]',
     '"." = "write"',
-    '[permissions.canopus-worker.network]',
+    '[permissions.vela-agent-worker.network]',
     'enabled = false',
   ].join("\n") + "\n");
   const calls: string[][] = [];
@@ -188,7 +188,7 @@ test("native tool worker pins Codex and permission-profile identities", async ()
     assert.match(prompt, /repair_context object/u);
     assert.match(prompt, /Worker status reports producer completion, not verifier or scientific standing/u);
     assert.match(prompt, /Return status success when you produced all artifact bytes required by the output contract/u);
-    assert.match(prompt, /Canopus will freeze the bytes and run the verifier after you exit/u);
+    assert.match(prompt, /Vela Agent will freeze the bytes and run the verifier after you exit/u);
     assert.match(prompt, /exactly one packet file/u);
     assert.match(prompt, /read only repair_context, source\.statement, and output_contract/u);
     assert.match(prompt, /Return the artifact path and kind exactly as output_contract specifies/u);

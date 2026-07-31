@@ -1,18 +1,18 @@
-default_permissions = "canopus-worker"
+default_permissions = "vela-agent-worker"
 approval_policy = "never"
 allow_login_shell = false
 
-[permissions.canopus-worker.filesystem]
+[permissions.vela-agent-worker.filesystem]
 ":minimal" = "read"
 "/home" = "deny"
 "/root" = "deny"
 "/tmp" = "deny"
 
-[permissions.canopus-worker.filesystem.":workspace_roots"]
+[permissions.vela-agent-worker.filesystem.":workspace_roots"]
 "." = "write"
-".canopus-runtime" = "read"
+".vela-agent-runtime" = "read"
 
-[permissions.canopus-worker.network]
+[permissions.vela-agent-worker.network]
 enabled = false
 
 [shell_environment_policy]

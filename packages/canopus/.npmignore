@@ -1,5 +1,0 @@
-dist/src/benchmark/
-dist/tests/
-benchmarks/
-**/__pycache__/
-**/*.pyc

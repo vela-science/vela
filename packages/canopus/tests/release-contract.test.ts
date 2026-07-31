@@ -4,7 +4,7 @@ import test from "node:test";
 
 test("CI pins one reproducible Vela and Codex composition without defining runtime compatibility", async () => {
   const [workflow, lockText] = await Promise.all([
-    readFile(new URL("../../../../.github/workflows/product-ci.yml", import.meta.url), "utf8"),
+    readFile(new URL("../../../../.github/workflows/agent-ci.yml", import.meta.url), "utf8"),
     readFile(new URL("../../toolchain.lock.json", import.meta.url), "utf8"),
   ]);
   const lock = JSON.parse(lockText) as {
@@ -23,9 +23,9 @@ test("CI pins one reproducible Vela and Codex composition without defining runti
   assert.doesNotMatch(workflow, /binary_sha256:/u);
 });
 
-test("product CI validates Protocol packaging without packaging the private Agent helper", async () => {
+test("agent CI validates Protocol packaging without packaging the private Agent helper", async () => {
   const workflow = await readFile(
-    new URL("../../../../.github/workflows/product-ci.yml", import.meta.url),
+    new URL("../../../../.github/workflows/agent-ci.yml", import.meta.url),
     "utf8",
   );
 
@@ -117,7 +117,7 @@ test("current Agent helper is private and historical Canopus replay remains link
   );
   assert.match(
     readme,
-    /immutable public product is Canopus `0\.8\.0`[\s\S]+product-v0\.8\.0/u,
+    /retired public product is frozen as Canopus `0\.8\.0`[\s\S]+product-v0\.8\.0/u,
   );
   assert.match(readme, /A Run is nonmutating/u);
   assert.match(readme, /only canonical `vela submit` registers/iu);

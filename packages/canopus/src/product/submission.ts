@@ -168,13 +168,13 @@ export async function exportSubmission(options: {
   ])];
   const actor = options.actor ?? mission.actor;
   if (!actor.startsWith("agent:")) {
-    throw new Error("Canopus Submission export requires an agent: producer");
+    throw new Error("Vela Agent Submission export requires an agent: producer");
   }
   if (
     options.attempt !== undefined &&
     !/^vat_[0-9a-f]{64}$/u.test(options.attempt)
   ) {
-    throw new Error("Canopus Submission export requires one full vat_ Attempt ID");
+    throw new Error("Vela Agent Submission export requires one full vat_ Attempt ID");
   }
   const outputRoot = path.resolve(options.outputRoot);
   await assertFreshDirectory(outputRoot);
@@ -237,7 +237,7 @@ export async function exportSubmission(options: {
       replayability: mission.replayability,
       producer_checks: [],
       verification_requirements: [
-        `Replay Canopus Run ${record.run_id} with verifier capsule ${mission.verifier.capsule_sha256}.`,
+        `Replay Vela Agent Run ${record.run_id} with verifier capsule ${mission.verifier.capsule_sha256}.`,
       ],
       requested_change: { kind: "add_claim" },
       provenance: {

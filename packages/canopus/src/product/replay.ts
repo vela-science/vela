@@ -30,7 +30,7 @@ export async function replayProduct(runFile: string, dockerBinary = "docker"): P
     : undefined;
   if (schema !== "canopus.run.v2") {
     throw new Error(
-      "current Canopus replays only canopus.run.v2; use the exact historical release for older Run schemas",
+      "current Vela Agent replays only canopus.run.v2; use the exact historical release for older Run schemas",
     );
   }
   const record = parseRetainedRunRecord(raw).record;
@@ -47,7 +47,7 @@ export async function replayProduct(runFile: string, dockerBinary = "docker"): P
     artifact,
     frozenPath: path.join(runRoot, "artifacts", artifact.digest.slice("sha256:".length)),
   }));
-  const replayRoot = await mkdtemp(path.join(os.tmpdir(), "canopus-replay-root-"));
+  const replayRoot = await mkdtemp(path.join(os.tmpdir(), "vela-agent-replay-root-"));
   await rm(replayRoot, { recursive: true, force: true });
   const source = path.join(runRoot, "input");
   const paths = await prepareWorkspace({

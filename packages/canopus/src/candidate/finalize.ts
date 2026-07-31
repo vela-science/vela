@@ -15,7 +15,7 @@ export function finalizeWorkerCaveat(value: string): string {
       value,
     )
   ) {
-    return "The worker handed off without verifier authority; Canopus subsequently recorded the separate verifier outcome.";
+    return "The worker handed off without verifier authority; Vela Agent subsequently recorded the separate verifier outcome.";
   }
   return value;
 }
@@ -63,7 +63,7 @@ export function finalizeCandidate(options: {
   const caveats = unique([
     ...options.engine.draft.caveats.map(finalizeWorkerCaveat),
     `Declared verifier outcome: ${options.verifier.status}.`,
-    "Canopus produced this record; it is not a Verification Record or Decision.",
+    "Vela Agent produced this record; it is not a Verification Record or Decision.",
   ]);
   const base = {
     schema: "canopus.candidate.v0" as const,

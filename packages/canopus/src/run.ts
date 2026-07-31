@@ -216,7 +216,7 @@ export async function runCanopus(
     await activity.append("work.skipped", {
       target: options.mission.target,
       mode: "no_submit",
-      reason: "Canopus run is nonmutating by contract",
+      reason: "Vela Agent run is nonmutating by contract",
     });
     if (options.repairInput !== undefined) {
       await activity.append("repair.input_bound", {

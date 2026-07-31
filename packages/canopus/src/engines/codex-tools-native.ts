@@ -86,16 +86,16 @@ function prompt(mission: MissionV1): string {
           ]
       : [];
   return [
-    "Execute one bounded Canopus research mission inside a fresh writable workspace containing only the exact hash-verified target packet.",
+    "Execute one bounded Vela Agent run inside a fresh writable workspace containing only the exact hash-verified target packet.",
     "Use shell and apply_patch only when useful. Browser, web search, MCP, apps, memories, computer use, delegation, signing, and human keys are forbidden.",
     "Do not inspect Codex configuration, credentials, process state, unrelated repositories, or paths outside the current workspace.",
     "Command network is denied. Do not invoke Vela or the separately frozen verifier as an authority oracle.",
     `The exact Vela work claim and roots were validated by the harness. The bound target packet is available at ${mission.target_packet.path}; inspect only the fields needed for this bounded computation.`,
     "If the packet has a repair_context object, read that object first. It is a root-bound intervention record and producer strategy, not a verifier or authority decision.",
     "Keep tool output narrow. Do not print or ingest the whole target packet.",
-    "Worker status reports producer completion, not verifier or scientific standing. Return status success when you produced all artifact bytes required by the output contract, even though you cannot run the separate verifier. Keep the Claim limited to the bounded result and do not put verifier status in it. State in a caveat that verification remains pending; Canopus will freeze the bytes and run the verifier after you exit.",
+    "Worker status reports producer completion, not verifier or scientific standing. Return status success when you produced all artifact bytes required by the output contract, even though you cannot run the separate verifier. Keep the Claim limited to the bounded result and do not put verifier status in it. State in a caveat that verification remains pending; Vela Agent will freeze the bytes and run the verifier after you exit.",
     "Return null only when the bounded work produced no candidate. Return failed only when you could not produce a contract-complete candidate or observed disqualifying evidence. Never turn a bounded negative search into universal nonexistence, verifier failure into success, or Git publication into scientific acceptance.",
-    "Return only the supplied engine-output JSON shape. Artifact bytes must be UTF-8 at mission.allowed_paths. Inline small artifacts. For a large declared artifact, content may be the empty string only when the complete bytes exist at that exact path inside the current workspace; Canopus will bound, scan, and freeze those bytes before workspace cleanup.",
+    "Return only the supplied engine-output JSON shape. Artifact bytes must be UTF-8 at mission.allowed_paths. Inline small artifacts. For a large declared artifact, content may be the empty string only when the complete bytes exist at that exact path inside the current workspace; Vela Agent will bound, scan, and freeze those bytes before workspace cleanup.",
     ...execution,
     "Mission:",
     canonicalJson(mission),
@@ -132,7 +132,7 @@ async function stageLinuxSandboxBinary(
   expectedDigest: string,
 ): Promise<string> {
   if (process.platform !== "linux") return sourceBinary;
-  const runtimeDirectory = path.join(workspace, ".canopus-runtime");
+  const runtimeDirectory = path.join(workspace, ".vela-agent-runtime");
   await mkdir(runtimeDirectory, { recursive: false, mode: 0o700 });
   const runtimeBinary = path.join(runtimeDirectory, "codex");
   await copyFile(sourceBinary, runtimeBinary, constants.COPYFILE_EXCL);
@@ -284,8 +284,8 @@ export async function assertNativeRuntimeProfile(options: {
     'if /bin/dd if="$5" of=/dev/null bs=1 count=1 2>/dev/null; then canary=true; fi;',
     'if { printf "probe\\n" > "$6"; } 2>/dev/null; then writable=true; fi;',
     'if /usr/bin/curl --fail --silent --show-error --max-time 3 --output /dev/null https://example.com/ 2>/dev/null; then network=true; fi;',
-    "if /usr/bin/env | /usr/bin/grep -Eq '^(OPENAI_API_KEY|CODEX_API_KEY|CANOPUS_AUTH)='; then environ=true; fi;",
-    "if [ -r /proc/1/environ ] && /usr/bin/grep -aEq '(OPENAI_API_KEY|CODEX_API_KEY|CANOPUS_AUTH)=' /proc/1/environ; then proc=true; fi;",
+    "if /usr/bin/env | /usr/bin/grep -Eq '^(OPENAI_API_KEY|CODEX_API_KEY|VELA_AGENT_AUTH)='; then environ=true; fi;",
+    "if [ -r /proc/1/environ ] && /usr/bin/grep -aEq '(OPENAI_API_KEY|CODEX_API_KEY|VELA_AGENT_AUTH)=' /proc/1/environ; then proc=true; fi;",
     'printf "%s %s %s %s %s %s %s %s %s %s\\n" "$curl" "$source" "$runtime" "$input" "$unrelated" "$canary" "$writable" "$network" "$environ" "$proc";',
   ].join(" ");
   const result = await options.runner({
@@ -293,7 +293,7 @@ export async function assertNativeRuntimeProfile(options: {
       options.binary,
       "sandbox",
       "-P",
-      "canopus-worker",
+      "vela-agent-worker",
       "-C",
       options.cwd,
       "--sandbox-state-readable-root",
@@ -410,7 +410,7 @@ export class CodexToolsNativeEngine implements Engine {
       context.paths.home,
       profileBytes,
     );
-    const finalPath = path.join(workspace, ".canopus-final.json");
+    const finalPath = path.join(workspace, ".vela-agent-final.json");
     const workspaceBaseline = await snapshotWorkerWorkspace(workspace);
     const environment = {
       ...isolatedEnvironment(context.paths.home),
@@ -442,7 +442,7 @@ export class CodexToolsNativeEngine implements Engine {
         runner: this.#runner,
         environment: {
           ...environment,
-          CANOPUS_AUTH: "canopus-preflight-environment-canary",
+          VELA_AGENT_AUTH: "vela-agent-preflight-environment-canary",
         },
         cwd: workspace,
         sourceAuth: path.join(this.#options.authHome, "auth.json"),

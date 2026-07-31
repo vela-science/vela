@@ -11,7 +11,7 @@ on:
       - "packages/protocol/**"
       - "packages/canopus/**"
       - ".github/release/**"
-      - ".github/workflows/product-ci.yml"
+      - ".github/workflows/agent-ci.yml"
       - ".github/workflows/release.yml"
   pull_request:
     paths:
@@ -21,7 +21,7 @@ on:
       - "packages/protocol/**"
       - "packages/canopus/**"
       - ".github/release/**"
-      - ".github/workflows/product-ci.yml"
+      - ".github/workflows/agent-ci.yml"
       - ".github/workflows/release.yml"
 
 permissions:
@@ -85,9 +85,9 @@ jobs:
           chmod +x "$RUNNER_TEMP/vela-release/vela"
           "$RUNNER_TEMP/vela-release/vela" --version
           if [ "${{ runner.os }}" = macOS ]; then
-              CANOPUS_VELA_BIN="$RUNNER_TEMP/vela-release/vela" \
-              CANOPUS_VELA_SHA256="sha256:$VELA_SHA256" \
-              CANOPUS_VELA_VERSION="$VELA_VERSION" \
+              VELA_AGENT_VELA_BIN="$RUNNER_TEMP/vela-release/vela" \
+              VELA_AGENT_VELA_SHA256="sha256:$VELA_SHA256" \
+              VELA_AGENT_VELA_VERSION="$VELA_VERSION" \
               node --test packages/canopus/dist/tests/integration/released-vela.test.js
           fi
       - name: Run real Linux sandbox custody preflight

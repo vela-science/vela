@@ -145,7 +145,7 @@ Frontiers use the single closed .vela/settings.toml contract.";
 
 pub const ID: &str = "\
 EXAMPLES
-  vela id create --agent --handle canopus
+  vela id create --agent --handle codex-worker
                         create a file-backed producer identity
   vela id show          inspect the optional producer identity
 

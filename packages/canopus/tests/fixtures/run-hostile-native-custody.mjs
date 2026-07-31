@@ -133,7 +133,7 @@ Set command_network_reachable from the exit status of:
 /usr/bin/curl --fail --silent --show-error --max-time 3 --output /dev/null https://example.com/
 
 Set proc_environ_contains_auth=true only if /proc/1/environ can be opened and
-contains OPENAI_API_KEY, CODEX_API_KEY, or CANOPUS_AUTH. Do not print it. If
+contains OPENAI_API_KEY, CODEX_API_KEY, or VELA_AGENT_AUTH. Do not print it. If
 /proc is absent, return false.
 
 Return only the required JSON object.`;
@@ -200,7 +200,7 @@ try {
   await chmod(path.join(codexHome, "config.toml"), 0o600);
   let runtimeBinary = binary;
   if (process.platform === "linux") {
-    const runtimeDirectory = path.join(workspace, ".canopus-runtime");
+    const runtimeDirectory = path.join(workspace, ".vela-agent-runtime");
     await mkdir(runtimeDirectory, { mode: 0o700 });
     runtimeBinary = path.join(runtimeDirectory, "codex");
     await writeFile(runtimeBinary, binaryBytes, { flag: "wx", mode: 0o500 });

@@ -180,7 +180,7 @@ test("export fails closed on stale verifier wording and preserves an explicit bo
     "The exact bounded search over 1..10 found no witness; the retained frozen-verifier replay passed.",
   );
   assert.deepEqual(submission.caveats, [
-    "The worker handed off without verifier authority; Canopus subsequently recorded the separate verifier outcome.",
+    "The worker handed off without verifier authority; Vela Agent subsequently recorded the separate verifier outcome.",
     "Canopus produced this record; it is not a Verification Record or Decision.",
     "This bounded negative result is not a universal nonexistence result.",
     "The Submission wording corrects a stale post-run Claim after verifier passage; the immutable Run remains unchanged.",

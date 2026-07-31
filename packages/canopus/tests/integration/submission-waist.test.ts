@@ -23,14 +23,14 @@ function command(
   }).trim();
 }
 
-test("Canopus Submission crosses the released Vela writer with zero accepted delta", {
-  skip: process.env.CANOPUS_VELA_BIN === undefined
-    ? "set CANOPUS_VELA_BIN to run the cross-repository writer gate"
+test("Vela Agent Submission crosses the released Vela writer with zero accepted delta", {
+  skip: process.env.VELA_AGENT_VELA_BIN === undefined
+    ? "set VELA_AGENT_VELA_BIN to run the cross-repository writer gate"
     : false,
   concurrency: false,
   timeout: 30_000,
 }, async (t) => {
-  const vela = path.resolve(process.env.CANOPUS_VELA_BIN!);
+  const vela = path.resolve(process.env.VELA_AGENT_VELA_BIN!);
   const root = await mkdtemp(path.join(os.tmpdir(), "canopus-submission-waist-"));
   const home = path.join(root, "home");
   const frontier = path.join(root, "frontier");

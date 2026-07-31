@@ -1,2 +1,0 @@
-by
-  exact True.intro

@@ -43,12 +43,13 @@ accepts one Vela product and a removable executor. Implementation is still
 being reduced. The helper has not yet earned continued distribution: its
 survival depends on the registered twelve-hour matched dogfood gate.
 
-The immutable public product is Canopus `0.8.0`, preserved through npm and Git
-tag `product-v0.8.0` for historical Runs that bind those exact bytes. Every
-other retained Run must use its own exact helper root and source commit. Current
-source must not be published under the frozen identity. Historical product
-documentation, package contents, and release instructions remain available at
-that tag, including the
+The retired public product is frozen as Canopus `0.8.0`, preserved through npm
+and Git tag `product-v0.8.0` for historical Runs that bind those exact bytes.
+Every other retained Run must use its own exact helper root and source commit.
+Current source must not be published under the frozen identity. Historical
+product documentation, domain verifier assets, package contents, and release
+instructions were removed from current `main` and remain available at that tag,
+including the
 [Build Week record](https://github.com/vela-science/vela-research-harness/blob/v0.6.5/BUILD_WEEK.md).
 
 ## Development

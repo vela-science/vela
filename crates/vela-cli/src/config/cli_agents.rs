@@ -253,7 +253,7 @@ and one non-authorizing inspection or continuation action.
 `vela show <dir> <typed_id>` inspects an exact object; `vela why <dir>
 <claim_id>` explains its standing; `vela log <dir>` reads canonical history.
 Agents invoke these exact CLI contracts directly. Execution harnesses such as
-Canopus remain optional producers and do not become part of Vela's authority
+External Agent executors remain optional producers and do not become part of Vela's authority
 or repository state.
 "##;
 

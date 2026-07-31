@@ -166,7 +166,7 @@ test("mission v1 validates one portable exact-byte bundle and detects drift", as
   const packetBytes = Buffer.from("{\"task\":\"bounded-check\"}\n");
   const outputSchemaBytes = Buffer.from("{\"type\":\"object\"}\n");
   const permissionProfileBytes = Buffer.from(
-    'default_permissions = "canopus-worker"\n[permissions.canopus-worker.filesystem]\n":minimal" = "read"\n',
+    'default_permissions = "vela-agent-worker"\n[permissions.vela-agent-worker.filesystem]\n":minimal" = "read"\n',
   );
   const capsule = path.join(root, "capsule", "verifier");
   await Promise.all([

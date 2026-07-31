@@ -22,13 +22,13 @@ test("native custody preflight reuses the production boundary with generated can
   const profile = path.join(root, "config.toml");
   const binaryBytes = Buffer.from("exact-codex-runtime\n");
   const profileBytes = Buffer.from([
-    'default_permissions = "canopus-worker"',
-    '[permissions.canopus-worker.filesystem]',
+    'default_permissions = "vela-agent-worker"',
+    '[permissions.vela-agent-worker.filesystem]',
     '":minimal" = "read"',
-    '[permissions.canopus-worker.filesystem.":workspace_roots"]',
+    '[permissions.vela-agent-worker.filesystem.":workspace_roots"]',
     '"." = "write"',
-    '".canopus-runtime" = "read"',
-    '[permissions.canopus-worker.network]',
+    '".vela-agent-runtime" = "read"',
+    '[permissions.vela-agent-worker.network]',
     'enabled = false',
     '',
   ].join("\n"));
@@ -74,7 +74,7 @@ test("native custody preflight reuses the production boundary with generated can
   assert.equal(result.verdict.command_network_reachable, false);
   assert.equal(calls.length, 2);
   if (process.platform === "linux") {
-    assert.match(calls[0]?.[0] ?? "", /\/workspace\/\.canopus-runtime\/codex$/u);
+    assert.match(calls[0]?.[0] ?? "", /\/workspace\/\.vela-agent-runtime\/codex$/u);
   } else {
     assert.equal(calls[0]?.[0], await realpath(binary));
   }
@@ -114,7 +114,7 @@ test("Linux custody denies host roots and reopens only the exact workspace", asy
   assert.match(config, /^"\/tmp" = "deny"$/mu);
   assert.match(
     config,
-    /\[permissions\.canopus-worker\.filesystem\.":workspace_roots"\]\n"\." = "write"\n"\.canopus-runtime" = "read"/u,
+    /\[permissions\.vela-agent-worker\.filesystem\.":workspace_roots"\]\n"\." = "write"\n"\.vela-agent-runtime" = "read"/u,
   );
   assert.doesNotMatch(config, /^"\/" = "write"$/mu);
 });

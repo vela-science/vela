@@ -111,7 +111,7 @@ export async function runNativeCustodyPreflight(options: {
     sha256RegularFile(binary, MAX_EXECUTABLE_BYTES),
     readBoundedRegularFile(profile, 8 * 1024 * 1024),
   ]);
-  const runtime = await mkdtemp(path.join(os.homedir(), ".canopus-native-preflight-"));
+  const runtime = await mkdtemp(path.join(os.homedir(), ".vela-agent-native-preflight-"));
 
   try {
     const codexHome = path.join(runtime, "codex-home");
@@ -152,7 +152,7 @@ export async function runNativeCustodyPreflight(options: {
 
     let runtimeBinary = binary;
     if (process.platform === "linux") {
-      const runtimeDirectory = path.join(workspace, ".canopus-runtime");
+      const runtimeDirectory = path.join(workspace, ".vela-agent-runtime");
       await mkdir(runtimeDirectory, { mode: 0o700 });
       runtimeBinary = path.join(runtimeDirectory, "codex");
       await copyFile(binary, runtimeBinary, constants.COPYFILE_EXCL);
@@ -165,7 +165,7 @@ export async function runNativeCustodyPreflight(options: {
     const environment = {
       ...isolatedEnvironment(home),
       CODEX_HOME: codexHome,
-      CANOPUS_AUTH: "canopus-preflight-environment-canary",
+      VELA_AGENT_AUTH: "vela-agent-preflight-environment-canary",
       NO_COLOR: "1",
     };
     await assertNativeRuntimeProfile({

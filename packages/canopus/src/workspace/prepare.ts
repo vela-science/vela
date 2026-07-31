@@ -201,7 +201,7 @@ export async function prepareWorkspace(options: PrepareWorkspaceOptions): Promis
     // disposable local branch so inspection never depends on caller state.
     await gitText(
       runner,
-      ["git", "checkout", "-B", "canopus-frontier", options.gitCommit],
+      ["git", "checkout", "-B", "vela-agent-frontier", options.gitCommit],
       frontier,
       home,
       timeoutMs,

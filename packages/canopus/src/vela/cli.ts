@@ -25,7 +25,7 @@ export type { CommandRunner } from "../util/command.js";
 // Large frontiers can spend several minutes in Vela's recoverable transaction
 // preparation, exact replay, and derived-view materialization. This ceiling is
 // bounded independently from model, verifier, and mission budgets: it prevents
-// Canopus from killing a healthy authority transaction while still stopping a
+// Vela Agent from killing a healthy authority transaction while still stopping a
 // stalled Vela subprocess.
 export const DEFAULT_VELA_COMMAND_TIMEOUT_MS = 600_000;
 
@@ -291,7 +291,7 @@ export class VelaClient {
     ) {
       throw new VelaClientError(
         "command_failed",
-        "Vela repository must replay and pass strict verification before Canopus can run",
+        "Vela repository must replay and pass strict verification before Vela Agent can run",
       );
     }
     const blockers = fieldObject(integrity, "blockers_by_code", "vela status.integrity");

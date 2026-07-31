@@ -175,9 +175,9 @@ export async function stageWorkerWorkspaceEvidence(options: {
       if (
         options.baseline.has(relative) ||
         excluded.has(relative) ||
-        relative === ".canopus-final.json" ||
-        relative === ".canopus-runtime" ||
-        relative.startsWith(`.canopus-runtime${path.sep}`)
+        relative === ".vela-agent-final.json" ||
+        relative === ".vela-agent-runtime" ||
+        relative.startsWith(`.vela-agent-runtime${path.sep}`)
       ) {
         omitted.baseline_or_contract += 1;
         continue;

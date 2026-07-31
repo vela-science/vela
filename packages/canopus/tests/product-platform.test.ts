@@ -32,7 +32,7 @@ test("Windows executable candidates honor PATHEXT", () => {
   assert.deepEqual(executableNames("vela", "linux", ".EXE;.CMD"), ["vela"]);
 });
 
-test("Vela Agent binds Canopus to the invoking Vela binary", () => {
+test("Vela Agent binds its helper to the invoking Vela binary", () => {
   assert.equal(
     runtimeLocator("vela", { VELA_BIN: "/opt/vela/bin/vela" }),
     "/opt/vela/bin/vela",

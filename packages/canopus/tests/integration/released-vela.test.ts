@@ -14,9 +14,9 @@ import { sha256Bytes } from "../../src/util/canonical.js";
 import { VelaClient } from "../../src/vela/cli.js";
 
 const exec = promisify(execFile);
-const velaBinary = process.env.CANOPUS_VELA_BIN;
-const registeredVelaDigest = process.env.CANOPUS_VELA_SHA256;
-const registeredVelaVersion = process.env.CANOPUS_VELA_VERSION;
+const velaBinary = process.env.VELA_AGENT_VELA_BIN;
+const registeredVelaDigest = process.env.VELA_AGENT_VELA_SHA256;
+const registeredVelaVersion = process.env.VELA_AGENT_VELA_VERSION;
 const enabled =
   velaBinary !== undefined &&
   registeredVelaDigest !== undefined &&
@@ -59,7 +59,7 @@ test(
   {
     skip: enabled
       ? false
-      : "set CANOPUS_VELA_BIN, CANOPUS_VELA_SHA256, and CANOPUS_VELA_VERSION",
+      : "set VELA_AGENT_VELA_BIN, VELA_AGENT_VELA_SHA256, and VELA_AGENT_VELA_VERSION",
   },
   async (context) => {
     assert.ok(velaBinary !== undefined);

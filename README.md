@@ -217,7 +217,7 @@ runtime boundaries:
 ```text
 crates/             Vela protocol, replay, repository authority, and CLI
 packages/protocol/  Authority-free TypeScript contracts and validators
-packages/canopus/   Private candidate for the optional bounded Agent executor
+packages/canopus/   Temporary historical path for the private Agent helper
 conformance/        Shared cross-implementation fixtures
                      plus repository-wide protocol checks
 .github/release/    Rust artifact publication and smoke tooling
@@ -228,7 +228,9 @@ The immutable public `@vela-science/canopus@0.8.0` may use
 internals. Current source uses the private, nonpublishable
 `@vela-science/agent-internal@0.0.0` identity while accepted
 [ADR 0031](docs/adr/0031-one-product-and-removable-agent-executor.md) shrinks it
-to removable `vela agent` execution support. Vela Web and canonical Frontier
+to removable `vela agent` execution support. Its historical directory name is
+retained only until the registered deletion gate determines whether the helper
+moves to `packages/agent` or is removed. Vela Web and canonical Frontier
 repositories remain separate because they have independent deployment and
 scientific-history lifecycles.
 

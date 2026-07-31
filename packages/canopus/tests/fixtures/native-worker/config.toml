@@ -1,15 +1,15 @@
-default_permissions = "canopus-worker"
+default_permissions = "vela-agent-worker"
 approval_policy = "never"
 allow_login_shell = false
 
-[permissions.canopus-worker.filesystem]
+[permissions.vela-agent-worker.filesystem]
 ":minimal" = "read"
 "/Applications/Xcode.app/Contents/Developer" = "read"
 
-[permissions.canopus-worker.filesystem.":workspace_roots"]
+[permissions.vela-agent-worker.filesystem.":workspace_roots"]
 "." = "write"
 
-[permissions.canopus-worker.network]
+[permissions.vela-agent-worker.network]
 enabled = false
 
 [shell_environment_policy]
