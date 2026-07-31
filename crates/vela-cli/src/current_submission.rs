@@ -381,6 +381,35 @@ fn existing_outcome(
     }))
 }
 
+fn require_unique_source_run(
+    frontier: &Path,
+    repository: &CurrentRepositoryV3,
+    submission: &SubmissionV1,
+) -> Result<(), String> {
+    let Some(source_run) = submission.provenance.source_run.as_deref() else {
+        return Ok(());
+    };
+    let source_attempt = submission.provenance.source_attempt.as_deref();
+    for reference in &repository.submissions {
+        if reference.id == submission.submission_id {
+            continue;
+        }
+        let bytes = fs::read(frontier.join(&reference.path))
+            .map_err(|error| format!("read registered Submission for Run uniqueness: {error}"))?;
+        let existing = SubmissionV1::parse(&bytes)?;
+        if existing.provenance.source_attempt.as_deref() == source_attempt
+            && existing.provenance.source_run.as_deref() == Some(source_run)
+        {
+            return Err(format!(
+                "Agent Run {source_run} in Attempt {} is already bound to registered Submission {}",
+                source_attempt.unwrap_or("<none>"),
+                existing.submission_id
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn submit(
     frontier: &Path,
     submission: &SubmissionV1,
@@ -481,6 +510,7 @@ fn submit_with_optional_repository_signer(
     if held_repository.canonical_root()? != repository_root {
         return Err("current repository changed while acquiring the submit barrier".into());
     }
+    require_unique_source_run(frontier, &held_repository, submission)?;
     if let Some(resolved) = &resolved_attempt {
         vela_edge::target_index::revalidate_current_target_task_binding(
             frontier,
@@ -1105,6 +1135,31 @@ mod tests {
             "{error}"
         );
         assert_eq!(signer.calls, 0);
+    }
+
+    #[test]
+    fn canonical_run_binding_blocks_reexport_when_private_progress_was_lost() {
+        let frontier = TempDir::new().unwrap();
+        let mut repository = repository();
+        let first = submission("add_claim", None, "First bounded assertion.");
+        let first_root = first.canonical_root().unwrap();
+        let first_path = rooted_path("records/submissions/sha256", &first_root).unwrap();
+        let absolute = frontier.path().join(&first_path);
+        fs::create_dir_all(absolute.parent().unwrap()).unwrap();
+        fs::write(&absolute, first.canonical_bytes().unwrap()).unwrap();
+        repository.submissions.push(RepositoryObjectRefV1 {
+            schema: first.schema.clone(),
+            id: first.submission_id.clone(),
+            root: first_root,
+            path: first_path,
+        });
+
+        let reexport = submission("add_claim", None, "Re-exported bounded assertion.");
+        assert_ne!(first.submission_id, reexport.submission_id);
+        let error = require_unique_source_run(frontier.path(), &repository, &reexport).unwrap_err();
+
+        assert!(error.contains("already bound"), "{error}");
+        assert!(error.contains(&first.submission_id), "{error}");
     }
 
     #[test]

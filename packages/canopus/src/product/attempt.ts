@@ -138,8 +138,18 @@ export interface AgentProductRunResult {
   bundle_root: string;
   evidence_manifest: string;
   evidence_root: string;
+  target: {
+    id: string;
+    binding_root: string;
+    target_index_root: string;
+    input_root: string;
+    packet_root: string;
+    source: AgentRunRequest["target"]["source"];
+    claim_read_set: AgentRunRequest["target"]["claim_read_set"];
+  };
   source_state: {
     state: "unchanged";
+    git_object_format: "sha1" | "sha256";
     commit: string;
     tree: string;
   };
@@ -890,8 +900,18 @@ export async function runAttemptProduct(
       bundle_root: bundleRoot,
       evidence_manifest: evidence.file,
       evidence_root: evidence.root,
+      target: {
+        id: request.target.id,
+        binding_root: request.target.binding_root,
+        target_index_root: request.target.target_index_root,
+        input_root: request.target.input_root,
+        packet_root: request.target.packet.sha256,
+        source: request.target.source,
+        claim_read_set: request.target.claim_read_set,
+      },
       source_state: {
         state: "unchanged",
+        git_object_format: request.target.claim_read_set.git_object_format,
         commit: prepared.mission.roots.git_commit,
         tree: prepared.mission.roots.git_tree,
       },

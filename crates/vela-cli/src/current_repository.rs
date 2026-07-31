@@ -236,6 +236,7 @@ fn campaign_status_summary(
             "budget": attempt["budget"],
             "usage": attempt["usage"],
             "expires_at": attempt["expires_at"],
+            "agent_run": attempt["agent_run"],
         })
     });
     Ok((
@@ -294,6 +295,22 @@ fn active_attempt_next_action(frontier: &Path, campaign: &Value) -> Result<Strin
         "Continue Attempt {attempt_id} on Target {target_id}: vela submit --frontier {} --attempt {attempt_id} --claim <bounded-result> --type <type> --replayability <class> --artifact <path>:<kind> --caveat <limit> --as {actor} --json",
         frontier.display()
     ))
+}
+
+fn agent_run_next_action(campaign: &Value) -> Option<String> {
+    let run = campaign.pointer("/first_attempt/agent_run")?;
+    let submission_state = run.pointer("/submission/state").and_then(Value::as_str)?;
+    match submission_state {
+        "ready_to_export" => run
+            .pointer("/next_commands/export")
+            .and_then(Value::as_str)
+            .map(ToString::to_string),
+        "not_exportable" => run
+            .pointer("/next_commands/show")
+            .and_then(Value::as_str)
+            .map(ToString::to_string),
+        _ => None,
+    }
 }
 
 pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
@@ -428,7 +445,9 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
     let inbox_projection = crate::decision_inbox::project(&frontier)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let (decision_inbox, pending_decision_count) = decision_inbox_status_summary(&inbox_projection);
-    let next_action = if pending_decision_count > 0 {
+    let next_action = if let Some(next) = agent_run_next_action(&campaign) {
+        next
+    } else if pending_decision_count > 0 {
         format!("vela review inbox {} --json", frontier.display())
     } else if active_attempt_count > 0 {
         active_attempt_next_action(&frontier, &campaign)
@@ -539,6 +558,35 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
                 attempt["usage"]["artifact_bytes"],
                 attempt["budget"]["max_artifact_bytes"]
             );
+            if let Some(run) = attempt["agent_run"].as_object() {
+                println!(
+                    "  run       {} · candidate {} · verifier {} · replay {}",
+                    run["run_id"].as_str().unwrap_or("unavailable"),
+                    run["candidate"]["status"].as_str().unwrap_or("unavailable"),
+                    run["producer_verifier"]["status"]
+                        .as_str()
+                        .unwrap_or("unavailable"),
+                    if run["clean_clone_reproduced"].as_bool() == Some(true) {
+                        "matched"
+                    } else {
+                        "not matched"
+                    }
+                );
+                println!(
+                    "  evidence  {}",
+                    run["evidence_root"].as_str().unwrap_or("unavailable")
+                );
+                println!(
+                    "  handoff   {}",
+                    run["submission"]["state"].as_str().unwrap_or("unavailable")
+                );
+                if let Some(command) = run["next_commands"]["export"].as_str() {
+                    println!("  export    {}", crate::cli::safe_text::inline(command));
+                }
+                if let Some(command) = run["next_commands"]["submit"].as_str() {
+                    println!("  submit    {}", crate::cli::safe_text::inline(command));
+                }
+            }
         }
         println!(
             "  inbox     {} pending · {} protocol-ready · {} protocol-blocked",
@@ -2294,6 +2342,40 @@ mod tests {
         assert_eq!(active_count, 0);
         assert_eq!(summary["active_attempt_count"], 0);
         assert!(summary["first_attempt"].is_null());
+    }
+
+    #[test]
+    fn campaign_agent_run_handoff_prefers_exact_export_command() {
+        let summary = json!({
+            "active_attempt_count": 1,
+            "first_attempt": {
+                "attempt_id": "vat_active",
+                "target_id": "target:b",
+                "actor": "agent:fixture",
+                "agent_run": {
+                    "run_id": "run_fixture",
+                    "submission": {"state": "ready_to_export", "id": null},
+                    "next_commands": {
+                        "export": "vela agent export /private/run.json --attempt vat_active",
+                        "submit": "vela submit /private/submission.json --attempt vat_active",
+                        "show": "vela agent show /private/run.json"
+                    }
+                }
+            }
+        });
+
+        assert_eq!(
+            agent_run_next_action(&summary).as_deref(),
+            Some("vela agent export /private/run.json --attempt vat_active")
+        );
+
+        let mut failed = summary;
+        failed["first_attempt"]["agent_run"]["submission"]["state"] =
+            Value::String("not_exportable".to_string());
+        assert_eq!(
+            agent_run_next_action(&failed).as_deref(),
+            Some("vela agent show /private/run.json")
+        );
     }
 
     #[test]

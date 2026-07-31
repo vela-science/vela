@@ -95,9 +95,15 @@ fn install_current_target_index(frontier: &Path, socket: &Path) {
     std::fs::create_dir_all(frontier.join("domain")).expect("domain directory");
     std::fs::write(frontier.join("domain/source.json"), br#"{"open":[1056]}"#)
         .expect("target source");
+    std::fs::create_dir_all(frontier.join("site/problems")).expect("packet directory");
+    std::fs::write(
+        frontier.join("site/problems/1056.json"),
+        br#"{"problem":1056,"schema":"erdos-frontier.problem-work.v1"}"#,
+    )
+    .expect("target packet");
     let committed = Command::new("git")
         .current_dir(frontier)
-        .args(["add", "domain/source.json"])
+        .args(["add", "domain/source.json", "site/problems/1056.json"])
         .status()
         .expect("stage target source");
     assert!(committed.success());
@@ -131,12 +137,6 @@ fn install_current_target_index(frontier: &Path, socket: &Path) {
         vela_protocol::current_repository::CurrentFrontierProfileV2::from_yaml_str(&profile_source)
             .expect("current profile")
             .frontier_id;
-    std::fs::create_dir_all(frontier.join("site/problems")).expect("packet directory");
-    std::fs::write(
-        frontier.join("site/problems/1056.json"),
-        br#"{"problem":1056,"schema":"erdos-frontier.problem-work.v1"}"#,
-    )
-    .expect("target packet");
     std::fs::create_dir_all(frontier.join(".vela/tmp")).expect("candidate directory");
     std::fs::write(
         frontier.join(".vela/tmp/target-index-candidate.json"),

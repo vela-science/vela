@@ -6,7 +6,7 @@
 //! review, repository authority, or campaign-host operation.
 
 use std::ffi::{OsStr, OsString};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
 
@@ -15,6 +15,7 @@ const RUNTIME_ENV: &str = "VELA_AGENT_RUNTIME";
 const BUN_VERSION: &str = "1.3.12";
 const MAX_RUNTIME_BYTES: u64 = 512 * 1024 * 1024;
 const MAX_BUNDLE_BYTES: u64 = 8 * 1024 * 1024;
+const MAX_HELPER_RUN_OUTPUT_BYTES: u64 = 64 * 1024;
 const ALLOWED_ACTIONS: [&str; 5] = ["doctor", "run", "show", "replay", "export"];
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -261,6 +262,23 @@ fn run(action: &str, args: &[OsString]) -> Result<i32, String> {
     Ok(status_code(status))
 }
 
+fn forward_helper_run_output(
+    writer: &mut dyn Write,
+    output: &[u8],
+    receipt: Option<Result<(), String>>,
+) -> Result<(), String> {
+    writer
+        .write_all(output)
+        .map_err(|error| format!("write Vela Agent helper output: {error}"))?;
+    writer
+        .flush()
+        .map_err(|error| format!("flush Vela Agent helper output: {error}"))?;
+    if let Some(receipt) = receipt {
+        receipt?;
+    }
+    Ok(())
+}
+
 fn run_attempt(frontier: &Path, attempt: &str, output: Option<&Path>) -> Result<i32, String> {
     let (helper, runtime, vela) = helper_runtime_and_vela()?;
     let build = helper_build(&runtime, &helper)?;
@@ -271,7 +289,7 @@ fn run_attempt(frontier: &Path, attempt: &str, output: Option<&Path>) -> Result<
         .arg("--request-stdin")
         .current_dir(frontier)
         .stdin(Stdio::piped())
-        .stdout(Stdio::inherit())
+        .stdout(Stdio::piped())
         .stderr(Stdio::inherit());
     let mut child = command
         .spawn()
@@ -280,15 +298,44 @@ fn run_attempt(frontier: &Path, attempt: &str, output: Option<&Path>) -> Result<
         .stdin
         .take()
         .ok_or_else(|| "Vela Agent helper stdin was unavailable".to_string())?;
-    if let Err(error) = stdin.write_all(&request) {
+    if let Err(error) = stdin.write_all(&request.bytes) {
         let _ = child.kill();
         let _ = child.wait();
         return Err(format!("write private Agent run request: {error}"));
     }
     drop(stdin);
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "Vela Agent helper stdout was unavailable".to_string())?;
+    let mut output = Vec::new();
+    if let Err(error) = stdout
+        .take(MAX_HELPER_RUN_OUTPUT_BYTES + 1)
+        .read_to_end(&mut output)
+    {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err(format!("read Vela Agent helper output: {error}"));
+    }
+    if output.len() as u64 > MAX_HELPER_RUN_OUTPUT_BYTES {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err(format!(
+            "Vela Agent helper output exceeds {MAX_HELPER_RUN_OUTPUT_BYTES} bytes"
+        ));
+    }
     let status = child
         .wait()
         .map_err(|error| format!("wait for Vela Agent helper: {error}"))?;
+    let receipt = status.success().then(|| {
+        crate::current_work::record_agent_run_receipt(
+            frontier,
+            attempt,
+            &request.request_root,
+            &output,
+        )
+    });
+    forward_helper_run_output(&mut std::io::stdout(), &output, receipt)?;
     Ok(status_code(status))
 }
 
@@ -344,6 +391,20 @@ mod tests {
         assert_eq!(bun_platform("macos", "x86_64"), "darwin-x64");
         assert_eq!(bun_platform("linux", "x86_64"), "linux-x64");
         assert_eq!(bun_platform("windows", "x86_64"), "win32-x64");
+    }
+
+    #[test]
+    fn successful_helper_output_survives_private_receipt_failure() {
+        let output = br#"{"schema":"vela.agent-run-result.v1","run":{"path":"/tmp/run.json"}}"#;
+        let mut recovered = Vec::new();
+        let error = forward_helper_run_output(
+            &mut recovered,
+            output,
+            Some(Err("private receipt unavailable".to_string())),
+        )
+        .unwrap_err();
+        assert_eq!(recovered, output);
+        assert!(error.contains("private receipt unavailable"), "{error}");
     }
 
     #[cfg(unix)]

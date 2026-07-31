@@ -20,6 +20,8 @@ const ATTEMPT_SCHEMA: &str = "vela.attempt.v7";
 const TASK_CONTRACT_SCHEMA: &str = "vela.task-contract.internal.v3";
 const ATTEMPT_MAX_BYTES: usize = 2 * 1024 * 1024;
 const EXECUTION_BUNDLE_MAX_BYTES: u64 = 8 * 1024 * 1024;
+const AGENT_RUN_FILE_MAX_BYTES: u64 = 8 * 1024 * 1024;
+const AGENT_HELPER_OUTPUT_MAX_BYTES: u64 = 64 * 1024;
 const DEFAULT_MAX_SUBMISSIONS: u64 = 16;
 const DEFAULT_MAX_VERIFICATIONS: u64 = 16;
 const DEFAULT_MAX_ARTIFACTS: u64 = 64;
@@ -80,6 +82,115 @@ struct CurrentExecutionBundle {
     sha256: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct CurrentAgentRunReceipt {
+    schema: String,
+    receipt_root: String,
+    result: AgentHelperRunOutput,
+    helper_output_size: u64,
+    helper_output_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct AgentHelperRunOutput {
+    schema: String,
+    ok: bool,
+    command: String,
+    effect: String,
+    authority: String,
+    attempt_id: String,
+    request_root: String,
+    target: AgentHelperTarget,
+    execution_bundle_root: String,
+    source_state: AgentHelperSourceState,
+    run: AgentHelperRootedFile,
+    evidence_manifest: AgentHelperEvidenceManifest,
+    candidate: AgentHelperCandidate,
+    verifier: AgentHelperVerifier,
+    reproduction: AgentHelperReproduction,
+    usage: AgentHelperUsage,
+    submission: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct AgentHelperTarget {
+    id: String,
+    binding_root: String,
+    target_index_root: String,
+    input_root: String,
+    packet_root: String,
+    source: AgentHelperGitObject,
+    claim_read_set: AgentHelperGitObject,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct AgentHelperGitObject {
+    git_object_format: String,
+    git_commit: String,
+    git_tree: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct AgentHelperSourceState {
+    state: String,
+    git_object_format: String,
+    commit: String,
+    tree: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct AgentHelperRootedFile {
+    id: String,
+    path: String,
+    size: u64,
+    sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct AgentHelperEvidenceManifest {
+    path: String,
+    size: u64,
+    sha256: String,
+    root: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct AgentHelperCandidate {
+    digest: String,
+    status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct AgentHelperVerifier {
+    status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct AgentHelperReproduction {
+    matched: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct AgentHelperUsage {
+    observed_tokens: u64,
+}
+
+pub(crate) struct AgentRunRequest {
+    pub(crate) bytes: Vec<u8>,
+    pub(crate) request_root: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct CurrentAttempt {
@@ -104,6 +215,10 @@ pub(crate) struct CurrentAttempt {
     starting_target_task_binding: vela_edge::target_index::TargetTaskBindingV3,
     pub(crate) target_task_binding: vela_edge::target_index::TargetTaskBindingV3,
     briefing: Value,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    agent_run_receipt: Option<CurrentAgentRunReceipt>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    agent_run_submission_id: Option<String>,
 }
 
 pub(crate) struct CurrentRoutineAttempt {
@@ -192,6 +307,184 @@ fn require_sha256_root(label: &str, value: &str) -> Result<(), String> {
 
 fn sha256_root(bytes: &[u8]) -> String {
     format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
+}
+
+fn require_exact_id(label: &str, value: &str, prefix: &str) -> Result<(), String> {
+    let Some(suffix) = value.strip_prefix(prefix) else {
+        return Err(format!("{label} must start with {prefix}"));
+    };
+    if suffix.is_empty()
+        || suffix.len() > 128
+        || !suffix
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
+    {
+        return Err(format!("{label} is not a bounded portable identifier"));
+    }
+    Ok(())
+}
+
+fn require_bounded_text(label: &str, value: &str, max_bytes: usize) -> Result<(), String> {
+    if value.is_empty() || value.len() > max_bytes || value.chars().any(char::is_control) {
+        return Err(format!("{label} must be bounded non-control text"));
+    }
+    Ok(())
+}
+
+fn require_agent_run_states(candidate_status: &str, verifier_status: &str) -> Result<(), String> {
+    if !matches!(candidate_status, "success" | "null" | "failed") {
+        return Err("current Agent Run candidate status is unsupported".to_string());
+    }
+    if !matches!(verifier_status, "passed" | "failed" | "error") {
+        return Err("current Agent Run verifier status is unsupported".to_string());
+    }
+    Ok(())
+}
+
+fn agent_run_receipt_root(receipt: &CurrentAgentRunReceipt) -> Result<String, String> {
+    canonical_root(&json!({
+        "schema": receipt.schema,
+        "result": receipt.result,
+        "helper_output_size": receipt.helper_output_size,
+        "helper_output_sha256": receipt.helper_output_sha256,
+    }))
+}
+
+fn git_format_name(format: vela_protocol::repository_inputs::GitObjectFormat) -> &'static str {
+    match format {
+        vela_protocol::repository_inputs::GitObjectFormat::Sha1 => "sha1",
+        vela_protocol::repository_inputs::GitObjectFormat::Sha256 => "sha256",
+    }
+}
+
+fn validate_agent_run_result_shape(result: &AgentHelperRunOutput) -> Result<(), String> {
+    if result.schema != "vela.agent-run-result.v1"
+        || !result.ok
+        || result.command != "run"
+        || result.effect != "none"
+        || result.authority != "none"
+        || !result.submission.is_null()
+    {
+        return Err(
+            "Vela Agent result must be successful, effect-free, authority-free, and pre-Submission"
+                .to_string(),
+        );
+    }
+    require_exact_id("Vela Agent result run.id", &result.run.id, "run_")?;
+    for (label, root) in [
+        ("request", result.request_root.as_str()),
+        ("target binding", result.target.binding_root.as_str()),
+        ("Target Index", result.target.target_index_root.as_str()),
+        ("target input", result.target.input_root.as_str()),
+        ("target packet", result.target.packet_root.as_str()),
+        ("execution bundle", result.execution_bundle_root.as_str()),
+        ("Run file", result.run.sha256.as_str()),
+        (
+            "evidence manifest file",
+            result.evidence_manifest.sha256.as_str(),
+        ),
+        ("evidence", result.evidence_manifest.root.as_str()),
+        ("candidate", result.candidate.digest.as_str()),
+    ] {
+        require_sha256_root(&format!("Vela Agent result {label}"), root)?;
+    }
+    if result.source_state.state != "unchanged" {
+        return Err("Vela Agent result must retain one unchanged source state".to_string());
+    }
+    require_agent_run_states(&result.candidate.status, &result.verifier.status)?;
+    if result.usage.observed_tokens > 1_000_000_000 {
+        return Err("Vela Agent result observed token usage is unbounded".to_string());
+    }
+    for (label, path, size) in [
+        ("Run", result.run.path.as_str(), result.run.size),
+        (
+            "evidence manifest",
+            result.evidence_manifest.path.as_str(),
+            result.evidence_manifest.size,
+        ),
+    ] {
+        if !Path::new(path).is_absolute() || size == 0 || size > AGENT_RUN_FILE_MAX_BYTES {
+            return Err(format!(
+                "Vela Agent result {label} must be one bounded absolute file"
+            ));
+        }
+        require_bounded_text(&format!("Vela Agent result {label} path"), path, 4096)?;
+    }
+    Ok(())
+}
+
+fn validate_agent_run_result_attempt(
+    attempt: &CurrentAttempt,
+    result: &AgentHelperRunOutput,
+) -> Result<(), String> {
+    let bundle = attempt
+        .execution_bundle
+        .as_ref()
+        .ok_or_else(|| "current Attempt has no exact Agent execution bundle".to_string())?;
+    if result.attempt_id != attempt.attempt_id
+        || result.target.id != attempt.target
+        || result.target.binding_root != attempt.target_task_binding.binding_root
+        || result.target.target_index_root != attempt.target_task_binding.target_index_root
+        || result.target.input_root != attempt.target_task_binding.input_root
+        || result.target.packet_root != attempt.target_task_binding.packet.sha256
+        || result.execution_bundle_root != bundle.sha256
+        || result.target.source.git_object_format
+            != git_format_name(attempt.target_task_binding.source.git_object_format)
+        || result.target.source.git_commit != attempt.target_task_binding.source.git_commit
+        || result.target.source.git_tree != attempt.target_task_binding.source.git_tree
+        || result.target.claim_read_set.git_object_format
+            != git_format_name(attempt.target_task_binding.claim_read_set.git_object_format)
+        || result.target.claim_read_set.git_commit
+            != attempt.target_task_binding.claim_read_set.git_commit
+        || result.target.claim_read_set.git_tree
+            != attempt.target_task_binding.claim_read_set.git_tree
+        || result.source_state.git_object_format != result.target.claim_read_set.git_object_format
+        || result.source_state.commit != result.target.claim_read_set.git_commit
+        || result.source_state.tree != result.target.claim_read_set.git_tree
+    {
+        return Err("Vela Agent result does not match its exact Attempt".to_string());
+    }
+    Ok(())
+}
+
+fn validate_agent_run_receipt(
+    attempt: &CurrentAttempt,
+    receipt: &CurrentAgentRunReceipt,
+) -> Result<(), String> {
+    if receipt.schema != "vela.agent-run-receipt.internal.v1" {
+        return Err("current Agent Run receipt has an unsupported schema".to_string());
+    }
+    validate_agent_run_result_shape(&receipt.result)?;
+    validate_agent_run_result_attempt(attempt, &receipt.result)?;
+    if receipt.helper_output_size == 0 || receipt.helper_output_size > AGENT_HELPER_OUTPUT_MAX_BYTES
+    {
+        return Err("current Agent Run receipt helper output is outside its byte limit".into());
+    }
+    require_sha256_root(
+        "current Agent Run receipt.helper_output_sha256",
+        &receipt.helper_output_sha256,
+    )?;
+    if let Some(submission_id) = &attempt.agent_run_submission_id {
+        require_exact_id(
+            "current Agent Run receipt registered Submission",
+            submission_id,
+            "vsb_",
+        )?;
+        if attempt
+            .usage
+            .registered_submission_ids
+            .binary_search(submission_id)
+            .is_err()
+        {
+            return Err(
+                "current Agent Run receipt names a Submission outside Attempt usage".to_string(),
+            );
+        }
+    }
+    if agent_run_receipt_root(receipt)? != receipt.receipt_root {
+        return Err("current Agent Run receipt does not match its root".to_string());
+    }
+    Ok(())
 }
 
 fn canonical_json_file(bytes: &[u8], label: &str) -> Result<Value, String> {
@@ -639,6 +932,12 @@ fn validate(attempt: &CurrentAttempt) -> Result<(), String> {
                 .to_string(),
         );
     }
+    if let Some(receipt) = &attempt.agent_run_receipt {
+        validate_agent_run_receipt(attempt, receipt)?;
+    }
+    if attempt.agent_run_submission_id.is_some() && attempt.agent_run_receipt.is_none() {
+        return Err("current Attempt cannot link a Submission without an Agent Run receipt".into());
+    }
     if authorization_root(attempt)? != attempt.authorization_root {
         return Err("current Attempt authorization does not match its root".to_string());
     }
@@ -853,7 +1152,7 @@ pub(crate) fn agent_run_request(
     attempt_id: &str,
     helper_build: &crate::agent_delegate::AgentHelperBuild,
     output: Option<&Path>,
-) -> Result<Vec<u8>, String> {
+) -> Result<AgentRunRequest, String> {
     let helper_build_root = helper_build.root()?;
     require_sha256_root("Agent helper build", &helper_build_root)?;
     let frontier = frontier
@@ -957,7 +1256,10 @@ pub(crate) fn agent_run_request(
         .as_object()
         .cloned()
         .ok_or_else(|| "Agent run request preimage is not an object".to_string())?;
-    request.insert("request_root".to_string(), Value::String(request_root));
+    request.insert(
+        "request_root".to_string(),
+        Value::String(request_root.clone()),
+    );
     let mut bytes = vela_protocol::canonical::to_canonical_bytes(&request)?;
     bytes.push(b'\n');
     if bytes.len() > ATTEMPT_MAX_BYTES {
@@ -967,7 +1269,155 @@ pub(crate) fn agent_run_request(
         ));
     }
     write(&frontier, attempt)?;
-    Ok(bytes)
+    Ok(AgentRunRequest {
+        bytes,
+        request_root,
+    })
+}
+
+fn read_exact_agent_file(
+    frontier: &Path,
+    raw_path: &str,
+    expected_size: u64,
+    expected_sha256: &str,
+    label: &str,
+) -> Result<(String, Vec<u8>), String> {
+    let path = PathBuf::from(raw_path);
+    if !path.is_absolute() || expected_size == 0 || expected_size > AGENT_RUN_FILE_MAX_BYTES {
+        return Err(format!("{label} must be one bounded absolute regular file"));
+    }
+    require_bounded_text(&format!("{label} path"), raw_path, 4096)?;
+    require_sha256_root(&format!("{label} sha256"), expected_sha256)?;
+    let canonical = path
+        .canonicalize()
+        .map_err(|error| format!("resolve {label} {}: {error}", path.display()))?;
+    if canonical.starts_with(frontier) {
+        return Err(format!("{label} must remain outside the Frontier worktree"));
+    }
+    let before =
+        fs::symlink_metadata(&path).map_err(|error| format!("inspect {label}: {error}"))?;
+    if before.file_type().is_symlink() || !before.is_file() || before.len() != expected_size {
+        return Err(format!(
+            "{label} must match its exact bounded regular non-symlink file identity"
+        ));
+    }
+    let bytes = fs::read(&path).map_err(|error| format!("read {label}: {error}"))?;
+    let after =
+        fs::symlink_metadata(&path).map_err(|error| format!("reinspect {label}: {error}"))?;
+    if after.file_type().is_symlink()
+        || !after.is_file()
+        || after.len() != before.len()
+        || after.modified().ok() != before.modified().ok()
+        || bytes.len() as u64 != expected_size
+        || sha256_root(&bytes) != expected_sha256
+    {
+        return Err(format!(
+            "{label} changed or drifted while it was being bound"
+        ));
+    }
+    Ok((canonical.display().to_string(), bytes))
+}
+
+/// Retain the exact successful helper handoff in ignored Attempt state.
+///
+/// This writes no canonical record and grants no authority. It binds the
+/// helper's exact stdout bytes and retained Run file so a later `status` can
+/// continue with the precise export and registration path. The helper owns its
+/// internal Run schema; Vela validates only its own narrow result envelope and
+/// the exact retained bytes named by that envelope.
+pub(crate) fn record_agent_run_receipt(
+    frontier: &Path,
+    attempt_id: &str,
+    expected_request_root: &str,
+    helper_output_bytes: &[u8],
+) -> Result<(), String> {
+    if helper_output_bytes.is_empty()
+        || helper_output_bytes.len() as u64 > AGENT_HELPER_OUTPUT_MAX_BYTES
+    {
+        return Err(format!(
+            "Vela Agent helper output must be 1..={AGENT_HELPER_OUTPUT_MAX_BYTES} bytes"
+        ));
+    }
+    require_sha256_root("Agent request root", expected_request_root)?;
+    let mut output: AgentHelperRunOutput = serde_json::from_slice(helper_output_bytes)
+        .map_err(|error| format!("parse Vela Agent helper run output: {error}"))?;
+    validate_agent_run_result_shape(&output)?;
+    if output.attempt_id != attempt_id || output.request_root != expected_request_root {
+        return Err("Vela Agent helper output does not match its exact request".to_string());
+    }
+    let frontier = frontier
+        .canonicalize()
+        .map_err(|error| format!("resolve current Frontier {}: {error}", frontier.display()))?;
+
+    let matches = discover_attempts(&frontier)?
+        .into_iter()
+        .filter(|(_, attempt)| attempt.attempt_id == attempt_id)
+        .collect::<Vec<_>>();
+    let [(path, discovered)] = matches.as_slice() else {
+        return Err(format!(
+            "current Attempt {attempt_id:?} must resolve to exactly one private record; found {}",
+            matches.len()
+        ));
+    };
+    let _lock = lock_attempt(&frontier, &discovered.target)?;
+    let mut attempt = read(path)?;
+    if attempt.attempt_id != attempt_id {
+        return Err(format!(
+            "current Attempt {attempt_id} changed while retaining its Agent Run"
+        ));
+    }
+    if attempt.usage.runs == 0 {
+        return Err("current Attempt has no reserved Agent run".to_string());
+    }
+    validate_agent_run_result_attempt(&attempt, &output)?;
+    let (run_file, _run_bytes) = read_exact_agent_file(
+        &frontier,
+        &output.run.path,
+        output.run.size,
+        &output.run.sha256,
+        "retained Agent Run",
+    )?;
+    let (evidence_manifest_file, evidence_manifest_bytes) = read_exact_agent_file(
+        &frontier,
+        &output.evidence_manifest.path,
+        output.evidence_manifest.size,
+        &output.evidence_manifest.sha256,
+        "retained Agent evidence manifest",
+    )?;
+    let evidence_manifest =
+        canonical_json_file(&evidence_manifest_bytes, "retained Agent evidence manifest")?;
+    if canonical_root(&evidence_manifest)? != output.evidence_manifest.root {
+        return Err(
+            "retained Agent evidence manifest does not match its canonical root".to_string(),
+        );
+    }
+    output.run.path = run_file;
+    output.evidence_manifest.path = evidence_manifest_file;
+    let mut receipt = CurrentAgentRunReceipt {
+        schema: "vela.agent-run-receipt.internal.v1".to_string(),
+        receipt_root: String::new(),
+        result: output,
+        helper_output_size: helper_output_bytes.len() as u64,
+        helper_output_sha256: sha256_root(helper_output_bytes),
+    };
+    receipt.receipt_root = agent_run_receipt_root(&receipt)?;
+    validate_agent_run_receipt(&attempt, &receipt)?;
+    if let Some(existing) = &attempt.agent_run_receipt {
+        if existing == &receipt {
+            return Ok(());
+        }
+        return Err(format!(
+            "current Attempt {attempt_id} already retains another Agent Run receipt"
+        ));
+    }
+    attempt.agent_run_receipt = Some(receipt);
+    write(&frontier, &attempt).map_err(|error| {
+        format!(
+            "Agent Run succeeded but private Attempt receipt failed at {}: {error}",
+            path.display()
+        )
+    })?;
+    Ok(())
 }
 
 /// Recover private Verification budget attribution after a canonical import.
@@ -1072,6 +1522,16 @@ pub(crate) fn authorize_submission(
             denied.join(", ")
         ));
     }
+    if let Some(receipt) = &attempt.agent_run_receipt
+        && submission.provenance.source_run.as_deref() == Some(receipt.result.run.id.as_str())
+        && let Some(existing) = attempt.agent_run_submission_id.as_deref()
+        && existing != submission.submission_id
+    {
+        return Err(format!(
+            "Agent Run {} is already bound to registered Submission {existing}",
+            receipt.result.run.id
+        ));
+    }
     if attempt
         .usage
         .registered_submission_ids
@@ -1151,25 +1611,49 @@ pub(crate) fn record_submission_attempt(
         return Ok(());
     };
     authorize_submission(Some(&resolved), submission, artifact_bytes)?;
-    match resolved
+    let already_registered = match resolved
         .attempt
         .usage
         .registered_submission_ids
         .binary_search(&submission.submission_id)
     {
-        Ok(_) => return Ok(()),
+        Ok(_) => true,
         Err(index) => {
             resolved
                 .attempt
                 .usage
                 .registered_submission_ids
                 .insert(index, submission.submission_id.clone());
+            false
+        }
+    };
+    if !already_registered {
+        resolved.attempt.usage.submissions += 1;
+        resolved.attempt.usage.artifacts += u64::try_from(submission.artifacts.len())
+            .map_err(|_| "Submission Artifact count overflowed".to_string())?;
+        resolved.attempt.usage.artifact_bytes += artifact_bytes;
+    }
+    let mut receipt_changed = false;
+    if let Some(receipt) = &resolved.attempt.agent_run_receipt
+        && submission.provenance.source_run.as_deref() == Some(receipt.result.run.id.as_str())
+    {
+        match resolved.attempt.agent_run_submission_id.as_deref() {
+            Some(existing) if existing != submission.submission_id => {
+                return Err(format!(
+                    "Agent Run {} is already bound to registered Submission {existing}",
+                    receipt.result.run.id
+                ));
+            }
+            Some(_) => {}
+            None => {
+                resolved.attempt.agent_run_submission_id = Some(submission.submission_id.clone());
+                receipt_changed = true;
+            }
         }
     }
-    resolved.attempt.usage.submissions += 1;
-    resolved.attempt.usage.artifacts += u64::try_from(submission.artifacts.len())
-        .map_err(|_| "Submission Artifact count overflowed".to_string())?;
-    resolved.attempt.usage.artifact_bytes += artifact_bytes;
+    if already_registered && !receipt_changed {
+        return Ok(());
+    }
     write(frontier, &resolved.attempt).map_err(|error| {
         format!(
             "Submission registered but private Attempt progress failed at {}: {error}",
@@ -1652,6 +2136,8 @@ fn open(
             "target": target,
             "packet": packet,
         }),
+        agent_run_receipt: None,
+        agent_run_submission_id: None,
     };
     let (_, exact_packet) = exact_target_packet(frontier, &attempt)?;
     attempt.execution_bundle = execution_bundle_for_attempt(frontier, &attempt, &exact_packet)
@@ -1701,7 +2187,139 @@ fn drop_attempt(frontier: &Path, target: &str, actor: &str, reason: &str) -> Res
     }))
 }
 
-fn attempt_list_entry(attempt: CurrentAttempt, path: &Path) -> Value {
+fn shell_quote(value: &str) -> String {
+    if !value.is_empty()
+        && value.bytes().all(|byte| {
+            byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b'.' | b'_' | b'-' | b':' | b'@')
+        })
+    {
+        return value.to_string();
+    }
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
+
+fn agent_receipt_file_states(frontier: &Path, receipt: &CurrentAgentRunReceipt) -> (bool, bool) {
+    let result = &receipt.result;
+    let run_matches = read_exact_agent_file(
+        frontier,
+        &result.run.path,
+        result.run.size,
+        &result.run.sha256,
+        "retained Agent Run",
+    )
+    .is_ok();
+    let evidence_matches = read_exact_agent_file(
+        frontier,
+        &result.evidence_manifest.path,
+        result.evidence_manifest.size,
+        &result.evidence_manifest.sha256,
+        "retained Agent evidence manifest",
+    )
+    .and_then(|(_, bytes)| {
+        let value = canonical_json_file(&bytes, "retained Agent evidence manifest")?;
+        if canonical_root(&value)? != result.evidence_manifest.root {
+            return Err(
+                "retained Agent evidence manifest does not match its canonical root".to_string(),
+            );
+        }
+        Ok(())
+    })
+    .is_ok();
+    (run_matches, evidence_matches)
+}
+
+fn agent_run_projection(frontier: &Path, attempt: &CurrentAttempt) -> Option<Value> {
+    let receipt = attempt.agent_run_receipt.as_ref()?;
+    let result = &receipt.result;
+    let (run_matches, evidence_matches) = agent_receipt_file_states(frontier, receipt);
+    let export_root = Path::new(&result.run.path)
+        .parent()
+        .and_then(Path::parent)
+        .map(|parent| parent.join(format!("submission-{}", result.run.id)))?;
+    let export = format!(
+        "vela agent export {} --output {} --as {} --attempt {}",
+        shell_quote(&result.run.path),
+        shell_quote(&export_root.display().to_string()),
+        shell_quote(&attempt.actor),
+        shell_quote(&attempt.attempt_id),
+    );
+    let submit = format!(
+        "vela submit {} --frontier {} --attempt {} --as {} --json",
+        shell_quote(&export_root.join("submission.json").display().to_string()),
+        shell_quote(&frontier.display().to_string()),
+        shell_quote(&attempt.attempt_id),
+        shell_quote(&attempt.actor),
+    );
+    let show = format!("vela agent show {}", shell_quote(&result.run.path));
+    let replay = format!("vela agent replay {}", shell_quote(&result.run.path));
+    let exportable = run_matches
+        && evidence_matches
+        && result.candidate.status == "success"
+        && result.verifier.status == "passed"
+        && result.reproduction.matched;
+    let submission_state = if attempt.agent_run_submission_id.is_some() {
+        "registered"
+    } else if exportable {
+        "ready_to_export"
+    } else {
+        "not_exportable"
+    };
+    Some(json!({
+        "receipt_root": receipt.receipt_root,
+        "run_id": result.run.id,
+        "run_file": {
+            "path": result.run.path,
+            "size": result.run.size,
+            "sha256": result.run.sha256,
+            "state": if run_matches { "matched" } else { "drifted_or_missing" },
+        },
+        "evidence_manifest": {
+            "path": result.evidence_manifest.path,
+            "size": result.evidence_manifest.size,
+            "sha256": result.evidence_manifest.sha256,
+            "root": result.evidence_manifest.root,
+            "state": if evidence_matches { "matched" } else { "drifted_or_missing" },
+        },
+        "evidence_root": result.evidence_manifest.root,
+        "target_binding_root": result.target.binding_root,
+        "execution_bundle_root": result.execution_bundle_root,
+        "source": {
+            "git_commit": result.source_state.commit,
+            "git_tree": result.source_state.tree,
+        },
+        "candidate": {
+            "digest": result.candidate.digest,
+            "status": result.candidate.status,
+        },
+        "producer_verifier": {
+            "status": result.verifier.status,
+        },
+        "clean_clone_reproduced": result.reproduction.matched,
+        "usage": {
+            "observed_tokens": result.usage.observed_tokens,
+        },
+        "request_root": result.request_root,
+        "helper_output": {
+            "size": receipt.helper_output_size,
+            "sha256": receipt.helper_output_sha256,
+        },
+        "submission": {
+            "state": submission_state,
+            "id": attempt.agent_run_submission_id,
+        },
+        "next_commands": {
+            "export": exportable.then_some(export),
+            "submit": exportable.then_some(submit),
+            "show": run_matches.then_some(show),
+            "replay": run_matches.then_some(replay),
+        },
+        "authority": "none",
+        "canonical_write": false,
+    }))
+}
+
+fn attempt_list_entry(frontier: &Path, attempt: CurrentAttempt, path: &Path) -> Value {
+    let agent_run = agent_run_projection(frontier, &attempt);
     json!({
         "attempt_id": attempt.attempt_id,
         "target_id": attempt.target,
@@ -1716,6 +2334,7 @@ fn attempt_list_entry(attempt: CurrentAttempt, path: &Path) -> Value {
         "execution_bundle": attempt.execution_bundle,
         "usage": attempt.usage,
         "budget": attempt.budget,
+        "agent_run": agent_run,
         "path": path.display().to_string(),
     })
 }
@@ -1733,7 +2352,7 @@ pub(crate) fn project_attempts(frontier: &Path) -> Result<Value, String> {
         })
         .map(|path| {
             let attempt = read(&path)?;
-            Ok(attempt_list_entry(attempt, &path))
+            Ok(attempt_list_entry(frontier, attempt, &path))
         })
         .collect::<Result<Vec<_>, String>>()?;
     attempts.sort_by(|left, right| left["target_id"].as_str().cmp(&right["target_id"].as_str()));
@@ -1979,10 +2598,17 @@ mod tests {
             consequence_ceiling: CONSEQUENCE_PENDING_REVIEW.to_string(),
             task_contract,
             task_contract_root,
-            execution_bundle: None,
+            execution_bundle: Some(CurrentExecutionBundle {
+                schema: "vela.agent-execution-bundle.v1".to_string(),
+                path: "execution/bundle.json".to_string(),
+                size: 42,
+                sha256: format!("sha256:{}", "e".repeat(64)),
+            }),
             starting_target_task_binding: binding.clone(),
             target_task_binding: binding,
             briefing: json!({"schema": "vela.work-briefing.v2"}),
+            agent_run_receipt: None,
+            agent_run_submission_id: None,
         };
         attempt.authorization_root = authorization_root(&attempt).unwrap();
         attempt.attempt_id = attempt_id(&attempt.authorization_root).unwrap();
@@ -2001,7 +2627,146 @@ mod tests {
         assert_eq!(reserved.usage.runs, 1);
         let error = reserve_agent_run(&mut reserved).unwrap_err();
         assert!(error.contains("exhausted its Agent run budget"), "{error}");
-        let projected = attempt_list_entry(decoded.clone(), &path);
+        write(directory.path(), &reserved).unwrap();
+
+        let retained_output = tempfile::tempdir().unwrap();
+        let run_directory = retained_output.path().join("run");
+        fs::create_dir(&run_directory).unwrap();
+        let run_file = run_directory.join("run.json");
+        let run_id = "run_4cb32738-305e-4a86-8384-b48787d72b28";
+        let candidate_digest = format!("sha256:{}", "b".repeat(64));
+        let request_root = format!("sha256:{}", "f".repeat(64));
+        let run_bytes = b"private helper-owned Run bytes\n".to_vec();
+        fs::write(&run_file, &run_bytes).unwrap();
+        let evidence_manifest_file = run_directory.join("evidence-manifest.json");
+        let evidence_manifest = json!({
+            "schema": "canopus.run-evidence.v1",
+            "run_id": run_id,
+            "files": {"run": sha256_root(&run_bytes)},
+        });
+        let mut evidence_manifest_bytes =
+            vela_protocol::canonical::to_canonical_bytes(&evidence_manifest).unwrap();
+        evidence_manifest_bytes.push(b'\n');
+        fs::write(&evidence_manifest_file, &evidence_manifest_bytes).unwrap();
+        let evidence_root = canonical_root(&evidence_manifest).unwrap();
+        let helper_output = json!({
+            "schema": "vela.agent-run-result.v1",
+            "ok": true,
+            "command": "run",
+            "effect": "none",
+            "authority": "none",
+            "attempt_id": attempt.attempt_id,
+            "request_root": request_root,
+            "target": {
+                "id": attempt.target,
+                "binding_root": attempt.target_task_binding.binding_root,
+                "target_index_root": attempt.target_task_binding.target_index_root,
+                "input_root": attempt.target_task_binding.input_root,
+                "packet_root": attempt.target_task_binding.packet.sha256,
+                "source": {
+                    "git_object_format": "sha1",
+                    "git_commit": attempt.target_task_binding.source.git_commit,
+                    "git_tree": attempt.target_task_binding.source.git_tree,
+                },
+                "claim_read_set": {
+                    "git_object_format": "sha1",
+                    "git_commit": attempt.target_task_binding.claim_read_set.git_commit,
+                    "git_tree": attempt.target_task_binding.claim_read_set.git_tree,
+                },
+            },
+            "execution_bundle_root": attempt.execution_bundle.as_ref().unwrap().sha256,
+            "source_state": {
+                "state": "unchanged",
+                "git_object_format": "sha1",
+                "commit": attempt.target_task_binding.claim_read_set.git_commit,
+                "tree": attempt.target_task_binding.claim_read_set.git_tree,
+            },
+            "run": {
+                "id": run_id,
+                "path": run_file.display().to_string(),
+                "size": run_bytes.len(),
+                "sha256": sha256_root(&run_bytes),
+            },
+            "evidence_manifest": {
+                "path": evidence_manifest_file.display().to_string(),
+                "size": evidence_manifest_bytes.len(),
+                "sha256": sha256_root(&evidence_manifest_bytes),
+                "root": evidence_root,
+            },
+            "candidate": {
+                "digest": candidate_digest,
+                "status": "success",
+            },
+            "verifier": {"status": "passed"},
+            "reproduction": {"matched": true},
+            "usage": {"observed_tokens": 70910},
+            "submission": null,
+        });
+        let mut failed_output = helper_output.clone();
+        failed_output["candidate"]["status"] = Value::String("failed".to_string());
+        failed_output["verifier"]["status"] = Value::String("failed".to_string());
+        failed_output["reproduction"]["matched"] = Value::Bool(false);
+        let mut failed_output_bytes = serde_json::to_vec(&failed_output).unwrap();
+        failed_output_bytes.push(b'\n');
+        record_agent_run_receipt(
+            directory.path(),
+            &attempt.attempt_id,
+            &request_root,
+            &failed_output_bytes,
+        )
+        .unwrap();
+        let mut failed_attempt = read(&path).unwrap();
+        let projected = attempt_list_entry(directory.path(), failed_attempt.clone(), &path);
+        assert_eq!(projected["agent_run"]["candidate"]["status"], "failed");
+        assert_eq!(
+            projected["agent_run"]["producer_verifier"]["status"],
+            "failed"
+        );
+        assert_eq!(
+            projected["agent_run"]["submission"]["state"],
+            "not_exportable"
+        );
+        assert!(projected["agent_run"]["next_commands"]["export"].is_null());
+        failed_attempt.agent_run_receipt = None;
+        write(directory.path(), &failed_attempt).unwrap();
+
+        let mut wrong_bundle = helper_output.clone();
+        wrong_bundle["execution_bundle_root"] = Value::String(format!("sha256:{}", "d".repeat(64)));
+        let mut wrong_bundle_bytes = serde_json::to_vec(&wrong_bundle).unwrap();
+        wrong_bundle_bytes.push(b'\n');
+        let error = record_agent_run_receipt(
+            directory.path(),
+            &attempt.attempt_id,
+            &request_root,
+            &wrong_bundle_bytes,
+        )
+        .unwrap_err();
+        assert!(error.contains("exact Attempt"), "{error}");
+
+        let mut unknown_field = helper_output.clone();
+        unknown_field["legacy"] = Value::Bool(true);
+        let mut unknown_field_bytes = serde_json::to_vec(&unknown_field).unwrap();
+        unknown_field_bytes.push(b'\n');
+        let error = record_agent_run_receipt(
+            directory.path(),
+            &attempt.attempt_id,
+            &request_root,
+            &unknown_field_bytes,
+        )
+        .unwrap_err();
+        assert!(error.contains("unknown field"), "{error}");
+
+        let mut helper_output_bytes = serde_json::to_vec(&helper_output).unwrap();
+        helper_output_bytes.push(b'\n');
+        record_agent_run_receipt(
+            directory.path(),
+            &attempt.attempt_id,
+            &request_root,
+            &helper_output_bytes,
+        )
+        .unwrap();
+        let decoded = read(&path).unwrap();
+        let projected = attempt_list_entry(directory.path(), decoded.clone(), &path);
         assert_eq!(projected["authorization_root"], attempt.authorization_root);
         assert_eq!(
             projected["allowed_operations"],
@@ -2019,6 +2784,41 @@ mod tests {
         assert_eq!(projected["budget"]["max_submissions"], 1);
         assert_eq!(projected["budget"]["max_verifications"], 1);
         assert_eq!(projected["expires_at"], "2026-07-28T00:00:00Z");
+        assert_eq!(projected["agent_run"]["run_id"], run_id);
+        assert_eq!(
+            projected["agent_run"]["submission"]["state"],
+            "ready_to_export"
+        );
+        assert!(
+            projected["agent_run"]["next_commands"]["export"]
+                .as_str()
+                .unwrap()
+                .contains(&attempt.attempt_id)
+        );
+        assert!(
+            projected["agent_run"]["next_commands"]["submit"]
+                .as_str()
+                .unwrap()
+                .contains("submission.json")
+        );
+        let receipt_root = decoded
+            .agent_run_receipt
+            .as_ref()
+            .unwrap()
+            .receipt_root
+            .clone();
+        fs::write(&run_file, b"drifted helper-owned Run bytes\n").unwrap();
+        let projected = attempt_list_entry(directory.path(), decoded.clone(), &path);
+        assert_eq!(
+            projected["agent_run"]["run_file"]["state"],
+            "drifted_or_missing"
+        );
+        assert_eq!(
+            projected["agent_run"]["submission"]["state"],
+            "not_exportable"
+        );
+        assert!(projected["agent_run"]["next_commands"]["export"].is_null());
+        fs::write(&run_file, &run_bytes).unwrap();
         let encoded = String::from_utf8(fs::read(path).unwrap()).unwrap();
         assert!(!encoded.contains("event_log_root"));
         assert!(!encoded.contains("claim_event_id"));
@@ -2059,7 +2859,7 @@ mod tests {
                         producer: "agent:codex".to_string(),
                         source_system: "vela-cli-test".to_string(),
                         source_attempt: Some(attempt.attempt_id.clone()),
-                        source_run: None,
+                        source_run: Some(run_id.to_string()),
                         emitted_at: "2026-07-27T00:00:00Z".to_string(),
                     },
                     execution_binding: None,
@@ -2085,6 +2885,32 @@ mod tests {
         assert_eq!(retained.usage.submissions, 1);
         assert_eq!(retained.usage.artifacts, 1);
         assert_eq!(retained.usage.artifact_bytes, 64);
+        assert_eq!(
+            retained.agent_run_submission_id.as_deref(),
+            Some(first_submission.submission_id.as_str())
+        );
+        assert_eq!(
+            retained.agent_run_receipt.as_ref().unwrap().receipt_root,
+            receipt_root
+        );
+        let projected = attempt_list_entry(
+            directory.path(),
+            retained.clone(),
+            &attempt_path(directory.path(), "erdos:1056"),
+        );
+        assert_eq!(projected["agent_run"]["submission"]["state"], "registered");
+        let second_submission = submission_for("second fixture");
+        let error = authorize_submission(
+            Some(&CurrentRoutineAttempt {
+                attempt: retained.clone(),
+                path: attempt_path(directory.path(), "erdos:1056"),
+                _lock: lock_attempt(directory.path(), "erdos:1056").unwrap(),
+            }),
+            &second_submission,
+            64,
+        )
+        .unwrap_err();
+        assert!(error.contains("already bound"), "{error}");
         assert!(attempt_path(directory.path(), "erdos:1056").is_file());
 
         record_submission_attempt(
@@ -2112,7 +2938,7 @@ mod tests {
             64,
         )
         .unwrap_err();
-        assert!(error.contains("budget exhausted"));
+        assert!(error.contains("already bound"), "{error}");
 
         record_verification_attempt(
             directory.path(),

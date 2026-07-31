@@ -7,7 +7,7 @@ import { projectCurrentRun } from "./projection/current-run.js";
 import { observedHelperBuild, runAttemptProduct } from "./product/attempt.js";
 import { replayProduct } from "./product/replay.js";
 import { exportSubmission } from "./product/submission.js";
-import { protocolDigest } from "./util/canonical.js";
+import { protocolDigest, sha256Bytes } from "./util/canonical.js";
 import { readBoundedRegularFile } from "./util/files.js";
 
 declare const __VELA_AGENT_ENGINE_OUTPUT_SCHEMA__: string;
@@ -67,25 +67,49 @@ async function run(raw: unknown, helperBinary: string): Promise<void> {
       linuxPermissionProfile: __VELA_AGENT_LINUX_PERMISSION_PROFILE__,
     },
   });
+  const runFile = path.join(result.run.paths.root, "run.json");
+  const runBytes = await readBoundedRegularFile(runFile, 8 * 1024 * 1024);
+  const evidenceBytes = await readBoundedRegularFile(
+    result.evidence_manifest,
+    8 * 1024 * 1024,
+  );
   process.stdout.write(`${JSON.stringify({
+    schema: "vela.agent-run-result.v1",
     ok: true,
     command: "run",
     effect: "none",
     authority: "none",
     attempt_id: result.attempt_id,
-    run_id: result.run.record.run_id,
-    target: result.run.record.mission.target,
-    candidate_digest: result.run.record.candidate.digest,
-    verifier_status: result.run.record.verifier.status,
-    observed_tokens: result.run.record.budget.observed_tokens,
-    submission: null,
-    clean_clone_reproduced: result.run.record.reproduction.matched,
-    evidence_root: result.evidence_root,
-    execution_bundle_root: result.execution_bundle_root,
     request_root: result.request_root,
+    target: result.target,
+    execution_bundle_root: result.execution_bundle_root,
     source_state: result.source_state,
-    run_file: path.join(result.run.paths.root, "run.json"),
-    next_command: `vela agent export ${path.join(result.run.paths.root, "run.json")}`,
+    run: {
+      id: result.run.record.run_id,
+      path: runFile,
+      size: runBytes.length,
+      sha256: sha256Bytes(runBytes),
+    },
+    evidence_manifest: {
+      path: result.evidence_manifest,
+      size: evidenceBytes.length,
+      sha256: sha256Bytes(evidenceBytes),
+      root: result.evidence_root,
+    },
+    candidate: {
+      digest: result.run.record.candidate.digest,
+      status: result.run.record.candidate.status,
+    },
+    verifier: {
+      status: result.run.record.verifier.status,
+    },
+    reproduction: {
+      matched: result.run.record.reproduction.matched,
+    },
+    usage: {
+      observed_tokens: result.run.record.budget.observed_tokens,
+    },
+    submission: null,
   })}\n`);
 }
 
