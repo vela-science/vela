@@ -117,9 +117,7 @@ pub(crate) struct AuthorityTransactionRequest {
     pub(crate) intent_digest: String,
     pub(crate) principal: PrincipalSnapshotV1,
     pub(crate) authentication_request: AuthenticationRequest,
-    pub(crate) runtime_session_state: RuntimeSessionState,
     pub(crate) authorization_input: CedarEvaluationInput,
-    pub(crate) delegation: Option<Value>,
     pub(crate) semantic_approvals: Vec<SemanticApprovalV1>,
     pub(crate) event_drafts: Vec<AuthorityEventDraft>,
     pub(crate) object_drafts: Vec<AuthorityObjectDraft>,
@@ -321,7 +319,7 @@ where
     let preflight = preflight_authority_action(
         authentication_adapter,
         &request.authentication_request,
-        &request.runtime_session_state,
+        &RuntimeSessionState::default(),
         &request.authorization_input,
     )
     .map_err(AuthorityTransactionError::Authentication)?;
@@ -456,7 +454,7 @@ where
         object_delta: record_object_delta.clone(),
         principal: request.principal.clone(),
         authentication: preflight.authentication,
-        delegation: request.delegation.clone(),
+        delegation: None,
         authorization: AuthorizationClaimV1 {
             policy_bundle_root: policy_bundle_root.clone(),
             request_root: request_root.clone(),
@@ -1663,11 +1661,6 @@ fn validate_preflight_attribution(
             "principal snapshot differs from verified authentication".into(),
         ));
     }
-    if request.delegation.is_some() {
-        return Err(AuthorityTransactionError::Invalid(
-            "authority delegation is unsupported".into(),
-        ));
-    }
     Ok(())
 }
 
@@ -1733,7 +1726,7 @@ fn transaction_id(
             entity_snapshot_root,
             authority_keyset_root,
             policy_bundle_root,
-            delegation: request.delegation.as_ref(),
+            delegation: None,
             semantic_approvals: &request.semantic_approvals,
             event_drafts: &request.event_drafts,
             object_drafts: &request.object_drafts,
@@ -2480,9 +2473,7 @@ mod tests {
                 principal_class: PrincipalClass::Human,
                 transaction_at: RECORDED_AT.into(),
             },
-            runtime_session_state: RuntimeSessionState::default(),
             authorization_input,
-            delegation: None,
             semantic_approvals: vec![SemanticApprovalV1 {
                 principal_id: REPOSITORY_PRINCIPAL.into(),
                 role: "frontier_administrator".into(),

@@ -376,18 +376,16 @@ pub(crate) fn submit(
     submission: &SubmissionV1,
     executor: &str,
     bundle_root: Option<&Path>,
-    push: bool,
 ) -> Result<SubmitOutcome, String> {
-    crate::current_submission::submit(frontier, submission, executor, bundle_root, push)
+    crate::current_submission::submit(frontier, submission, executor, bundle_root)
 }
 
 pub(crate) fn import_verification(
     frontier: &Path,
     record: &vela_protocol::verification_record::VerificationRecordV1,
     executor: &str,
-    push: bool,
 ) -> Result<VerificationImportOutcome, String> {
-    crate::current_verification::import(frontier, record, executor, push)
+    crate::current_verification::import(frontier, record, executor)
 }
 
 pub(crate) fn frontier_transaction_journal_dir(frontier: &Path) -> Result<PathBuf, String> {

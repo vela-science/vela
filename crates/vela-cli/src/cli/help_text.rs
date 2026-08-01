@@ -42,7 +42,8 @@ EXAMPLES
     --caveat \"exact source revision only\" --supersedes vcl_0123… \
     --target-root sha256:0123…
                                                request one exact supersession; no synthetic work target is required
-  vela submit submission.json --push           commit locally AND publish now
+  vela submit submission.json                  register and commit locally
+  git push                                     publish with ordinary Git
 
 Submission registers authenticated producer input as a pending Proposal. It
 does not create a Verification Record, Decision, Event, or accepted-state
@@ -149,7 +150,7 @@ EXAMPLES
   vela show . vpr_0123456789abcdef --json
 
 Show verifies and renders one exact object. It reports the object's content
-root, source era, and authority effect without changing the frontier.";
+root, source context, and authority effect without changing the frontier.";
 
 pub const WHY: &str = "\
 EXAMPLES

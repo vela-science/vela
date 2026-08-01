@@ -18,7 +18,6 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
             independent_of,
             shared_dependency,
             actor,
-            push,
             json,
         } => {
             crate::ui::set_mode("verification.record", json);
@@ -37,7 +36,7 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                 },
             )
             .unwrap_or_else(|error| fail_return(&error));
-            let result = crate::workflow::import_verification(&frontier, &record, &actor, push)
+            let result = crate::workflow::import_verification(&frontier, &record, &actor)
                 .unwrap_or_else(|error| fail_return(&error));
             print_verification_result(&result, "verification record", json);
         }
@@ -45,7 +44,6 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
             frontier,
             record,
             actor,
-            push,
             json,
         } => {
             crate::ui::set_mode("verification.import", json);
@@ -59,7 +57,7 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                         record.display()
                     ))
                 });
-            let result = crate::workflow::import_verification(&frontier, &record, &actor, push)
+            let result = crate::workflow::import_verification(&frontier, &record, &actor)
                 .unwrap_or_else(|error| fail_return(&error));
             print_verification_result(&result, "verification import", json);
         }

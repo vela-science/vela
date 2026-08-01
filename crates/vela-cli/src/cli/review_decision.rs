@@ -109,6 +109,6 @@ fn cmd_current_review_decide(
                     .unwrap_or("unknown")
             )
         );
-        println!("  · inspect and commit the exact canonical delta");
+        println!("  · exact Decision committed locally; inspect and push when ready");
     }
 }

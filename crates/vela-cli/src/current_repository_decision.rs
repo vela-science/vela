@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use vela_authority::CedarEvaluationInput;
-use vela_authority::runtime_authentication::{AuthenticationRequest, RuntimeSessionState};
+use vela_authority::runtime_authentication::AuthenticationRequest;
 use vela_protocol::authority::{PrincipalSnapshotV1, SemanticApprovalV1};
 use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::current_repository::{ClaimStandingRefV1, CurrentRepositoryV3};
@@ -29,8 +29,7 @@ use crate::authority_transaction::{
     AuthorityTransactionResult, prepare_authority_transaction,
 };
 use crate::config::git_publish::{
-    PublicationState, PublishOptions, exact_publication_preflight, publication_disabled_reason,
-    publish_exact_delta,
+    PublicationState, PublishOptions, exact_publication_preflight, publish_exact_delta,
 };
 use crate::frontier_txn::{ContentDigest, FrontierTxn, InputBinding, WriteClass};
 use crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner;
@@ -668,9 +667,7 @@ pub(crate) fn execute(
                 principal_class: PrincipalClass::Human,
                 transaction_at: recorded_at.clone(),
             },
-            runtime_session_state: RuntimeSessionState::default(),
             authorization_input: authorization,
-            delegation: None,
             semantic_approvals: vec![SemanticApprovalV1 {
                 principal_id: expected.principal_id.clone(),
                 role: "frontier_reviewer".into(),
@@ -701,11 +698,6 @@ pub(crate) fn execute(
     .map_err(|error| error.to_string())?;
     let result = transaction.result.clone();
     let publish_options = PublishOptions::local();
-    if let Some(reason) = publication_disabled_reason(frontier, &publish_options) {
-        return Err(format!(
-            "review Decision requires exact Git publication before installation: {reason}"
-        ));
-    }
     let public = transaction
         .resolved_public_writes()
         .map_err(|error| error.to_string())?;
@@ -744,9 +736,7 @@ pub(crate) fn execute(
     })?;
     if !matches!(
         publication.state,
-        PublicationState::Unchanged { .. }
-            | PublicationState::CommittedLocal { .. }
-            | PublicationState::Pushed { .. }
+        PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. }
     ) {
         return Err(format!(
             "review Decision committed as record {} but Git publication is incomplete: {publication:?}; do not retry the Decision",

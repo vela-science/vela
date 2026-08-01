@@ -215,7 +215,14 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
             "init",
             &frontier_text,
             "--name",
-            "Native genesis fixture",
+            &format!(
+                "Native genesis fixture {}",
+                temporary
+                    .path()
+                    .file_name()
+                    .and_then(|value| value.to_str())
+                    .unwrap_or("unique")
+            ),
             "--scope",
             "Exercise one native current repository bootstrap.",
             "--json",
@@ -254,6 +261,11 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
         "vela.authority-initialization-result.v2"
     );
     assert_eq!(authority["writes_now"], true);
+    let _anchor = RemoveOnDrop(std::path::PathBuf::from(
+        authority["local_trust"]["anchor_path"]
+            .as_str()
+            .expect("local trust anchor path"),
+    ));
 
     let verified = success_json(&run(
         &frontier,
@@ -343,13 +355,20 @@ fn current_check_blocks_sensitive_local_files() {
             "init",
             &frontier_text,
             "--name",
-            "Sensitive path fixture",
+            &format!(
+                "Sensitive path fixture {}",
+                temporary
+                    .path()
+                    .file_name()
+                    .and_then(|value| value.to_str())
+                    .unwrap_or("unique")
+            ),
             "--scope",
             "Reject local custody material.",
             "--json",
         ],
     ));
-    success_json(&run(
+    let authority = success_json(&run(
         &frontier,
         Some(agent.socket()),
         &[
@@ -360,6 +379,11 @@ fn current_check_blocks_sensitive_local_files() {
             "Establish native repository authority.",
             "--json",
         ],
+    ));
+    let _anchor = RemoveOnDrop(std::path::PathBuf::from(
+        authority["local_trust"]["anchor_path"]
+            .as_str()
+            .expect("local trust anchor path"),
     ));
     std::fs::write(frontier.join("accidental-private.key"), "not a real key")
         .expect("write sensitive-looking file");
@@ -428,7 +452,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             "--json",
         ],
     ));
-    assert_eq!(pinned["operation"], "installed");
+    assert_eq!(pinned["operation"], "unchanged");
     let repeated_pin = success_json(&run(
         &frontier,
         None,

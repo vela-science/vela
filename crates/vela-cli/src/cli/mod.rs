@@ -43,8 +43,8 @@ pub(crate) use surface::*;
 pub async fn run_command() {
     // Deliberately NO dotenv here. `dotenvy::dotenv()` walks the working
     // tree upward, and vela runs inside CLONED frontier repos — a
-    // committed .env could silently inject VELA_ACTOR_ID / VELA_KEY_PATH /
-    // VELA_NO_PUBLISH for anyone who runs vela in it
+    // committed .env could silently inject VELA_ACTOR_ID / VELA_KEY_PATH for
+    // anyone who runs vela in it
     // (the attack class git blocks via protected configuration and
     // Codex blocks by refusing base-url keys in project config).
     // Configuration comes from the real environment and ~/.vela only.
@@ -57,12 +57,6 @@ pub async fn run_command() {
             RepositoryAction::Verify { frontier, json } => {
                 crate::current_repository::cmd_repository_verify(&frontier, json)
             }
-            RepositoryAction::RecoverPublication {
-                frontier,
-                operation,
-                push,
-                json,
-            } => cmd_recover_publication(&frontier, &operation, push, json),
         },
         Commands::Check {
             source,
@@ -203,7 +197,6 @@ pub async fn run_command() {
             verifier_capsule_root,
             result_contract_root,
             r#as,
-            push,
             json,
         } => {
             crate::ui::set_mode("submit", json);
@@ -230,7 +223,6 @@ pub async fn run_command() {
                     "profile_root": profile_root,
                     "verifier_capsule_root": verifier_capsule_root,
                     "result_contract_root": result_contract_root,
-                    "push": push,
                 }))
                 .unwrap_or_default();
             let preflight_id =
@@ -335,7 +327,7 @@ pub async fn run_command() {
                 });
                 (authored, None)
             };
-            match crate::workflow::submit(&dir, &submission, &actor, bundle_root.as_deref(), push) {
+            match crate::workflow::submit(&dir, &submission, &actor, bundle_root.as_deref()) {
                 Ok(outcome) => {
                     if json {
                         let mut payload = serde_json::to_value(&outcome)
@@ -376,61 +368,6 @@ pub async fn run_command() {
                 Err(e) => fail(&e),
             }
         }
-    }
-}
-
-fn cmd_recover_publication(frontier: &Path, operation: &str, push: bool, json_output: bool) {
-    use crate::config::git_publish::{PublicationState, PublishOptions};
-
-    crate::ui::set_mode("repository.recover-publication", json_output);
-    let options = if push {
-        PublishOptions::pushing()
-    } else {
-        PublishOptions::local()
-    };
-    let publication =
-        crate::config::git_publish::recover_publication(frontier, operation, &options);
-    let ok = matches!(
-        (&publication.state, push),
-        (PublicationState::Unchanged { .. }, _)
-            | (PublicationState::Pushed { .. }, _)
-            | (PublicationState::CommittedLocal { .. }, false)
-    );
-    if json_output {
-        print_json(&json!({
-            "schema": "vela.publication-recovery.v1",
-            "ok": ok,
-            "command": "repository.recover-publication",
-            "operation_id": operation,
-            "publication": publication,
-        }));
-    } else {
-        match &publication.state {
-            PublicationState::Unchanged { commit } => {
-                println!("publication recovery: already complete at {commit}")
-            }
-            PublicationState::CommittedLocal { commit } => {
-                println!("publication recovery: committed locally at {commit}")
-            }
-            PublicationState::Pushed { commit, remote } => {
-                println!("publication recovery: pushed {commit} to {remote}")
-            }
-            PublicationState::Uncommitted { reason, .. } | PublicationState::Unknown { reason } => {
-                println!("publication recovery: incomplete ({reason})")
-            }
-            PublicationState::Stale {
-                candidate,
-                expected,
-                actual,
-            } => {
-                println!(
-                    "publication recovery: stale candidate {candidate} (expected {expected}, observed {actual})"
-                )
-            }
-        }
-    }
-    if !ok {
-        std::process::exit(1);
     }
 }
 

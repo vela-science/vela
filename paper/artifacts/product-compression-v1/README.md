@@ -1,119 +1,22 @@
-# Product-compression cold-use benchmark
+# Product-compression v1 archive
 
-This source-only harness compares two matched ways to understand and continue
-one real Vela lifecycle:
+This directory preserves the frozen inputs and stop record for the first
+product-compression attempt. It is historical evidence, not an active benchmark
+harness or compatibility target.
 
-1. **Git/files** — exact Frontier checkouts, ordinary repository files, `git`,
-   `jq`, `rg`, SHA-256, and the retained verifier evidence; and
-2. **Vela guided** — the identical inputs plus the exact release-compatible
-   Vela binaries and their product commands.
+The run stopped without product-lift credit. Its custom validator, scorer,
+reporter, and tests were retired after Harbor became the sole execution and raw
+result layer. Their exact source hashes remain recorded in `plan.v1.json` and
+`plan.v2.json`; retaining executable copies would incorrectly present the
+superseded framework as supported code.
 
-The frozen task asks a fresh participant to:
+Preserved records:
 
-1. choose the only canonical Frontier with a fresh ranked Target;
-2. identify its exact first Target and bounded scope;
-3. start one private Attempt in the Vela arm, or reconstruct the same scope
-   manually in the Git/files arm;
-4. explain the Attempt budget, consequence ceiling, and lack of authority;
-5. inspect the retained Agent Run reference, artifact, verifier, and replay
-   boundary;
-6. locate the exact Proposal in the Decision Inbox;
-7. explain the proposed Standing diff and why protocol readiness is not a
-   recommendation to accept; and
-8. identify the exact next obligation from the accepted Erdős 424 correction.
+- `plan.v1.json`: original frozen plan, root
+  `sha256:8ec3c02fce995ce8ee046844fcc40eefd37787c7e4d695ef794f0715b92ae1ef`;
+- `plan.v2.json`: bounded pre-output amendment linked to the original plan;
+- `stop.v1.json`: the honest terminal classification and evidence roots;
+- `answer.schema.json` and `answer-key.v1.json`: exact historical contracts.
 
-The task uses two exact Erdős fixtures:
-
-- the current four-Frontier heads for Target selection and the live
-  producer-to-review path; and
-- historical Erdős commit
-  `c25e11d332cfbc12b048c314880662d507df53e0`, already frozen by the
-  prior state-lift study, for the terminal correction.
-
-The historical fixture uses its release-compatible Vela `0.940.9` binary.
-The current Vela binary intentionally refuses that predecessor epoch. This
-version pin is part of the exact fixture rather than an invisible repair.
-
-## What is frozen
-
-`plan.v1.json` binds:
-
-- all four current Frontier commits, trees, and repository roots;
-- the current and historical Vela binaries;
-- exact Target, bundle, Submission, Verification, Proposal, and manifest
-  bytes;
-- the prior terminal-correction task and answer-key bytes;
-- the matched arm order, budgets, allowed tools, stop rules, and publication
-  policy; and
-- the answer schema, answer key, validators, scorers, and tests.
-
-No participant output existed when the plan was frozen. The original
-`plan.v1.json` remains byte-identical at
-`sha256:8ec3c02fce995ce8ee046844fcc40eefd37787c7e4d695ef794f0715b92ae1ef`.
-Before any participant session, `plan.v2.json` refroze only the Vela source,
-context, and current-binary identities after the product repair. It binds the
-prior plan root and records that the task facts, expected answers, arms,
-budgets, scoring, and success threshold did not change.
-
-Any later amendment must retain the prior plan root and invalidate product-lift
-credit if it changes a task fact, expected answer, arm, budget, scoring rule,
-or success threshold.
-
-The answer key is supervisor-only. Participant workspaces receive exact
-Frontier clones, the arm-specific tools, the task prompt, and
-`answer.schema.json`; they do not receive this directory or any parent path.
-
-## Validation
-
-Validate the frozen sources before opening a participant session:
-
-```bash
-python3 paper/artifacts/product-compression-v1/validate.py \
-  --plan paper/artifacts/product-compression-v1/plan.v2.json \
-  --vela-repository . \
-  --current-vela ~/.vela/bin/vela-0.950.1-9ab009c9 \
-  --historical-vela ~/.canopus/bin/vela-0.940.9-4813da26 \
-  --erdos-frontier ~/personal/erdos-frontier \
-  --formal-frontier ~/personal/formal-conjectures-frontier \
-  --quantum-frontier ~/personal/quantum-codes-frontier \
-  --sidon-frontier ~/personal/sidon-frontier
-```
-
-Score one retained session:
-
-```bash
-python3 paper/artifacts/product-compression-v1/score.py \
-  --plan paper/artifacts/product-compression-v1/plan.v2.json \
-  --answer-key paper/artifacts/product-compression-v1/answer-key.v1.json \
-  --answer <session>/answer.v1.json \
-  --output <session>/score.v1.json
-```
-
-Aggregate the exact registered assignment only after all eight sessions exist:
-
-```bash
-python3 paper/artifacts/product-compression-v1/report.py \
-  --plan paper/artifacts/product-compression-v1/plan.v2.json \
-  --scores <score-1.json> ... <score-8.json> \
-  --output result.v1.json
-```
-
-Focused tests:
-
-```bash
-python3 -m unittest discover \
-  -s paper/artifacts/product-compression-v1 \
-  -p 'test_*.py'
-```
-
-## Interpretation
-
-One answer passes at 95/100 with no hard authority, Target, replay, Inbox, or
-correction error. The product demonstrates first-party compression only if
-both arms meet the registered method floor and the Vela-guided arm preserves
-correctness while reducing median elapsed time by at least 20 percent.
-
-First-party fresh sessions do not count as external users, independent
-participants, adoption, or protocol-breakthrough evidence. Verification
-passage, protocol readiness, and graph position do not recommend acceptance.
-The study performs no Decision and changes no scientific Standing.
+The stop remains authoritative for interpretation: this attempt does not show
+product lift, independent use, adoption, or scientific acceptance.

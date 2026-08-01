@@ -277,10 +277,6 @@ pub(crate) enum Commands {
         result_contract_root: Option<String>,
         #[arg(long, help = HELP_AS)]
         r#as: Option<String>,
-        /// Publish now: commit locally AND push. Without it, submit commits
-        /// locally and you publish deliberately with `git push`.
-        #[arg(long)]
-        push: bool,
         #[arg(long)]
         json: bool,
     },
@@ -374,8 +370,7 @@ pub(crate) enum IdAction {
     },
 }
 
-/// Experiment-plane receipts (Inevitability Program Phase 0); nested
-/// under `vela foundry experiment`.
+/// Regenerable instruction adapters for supported agent tools.
 #[derive(Subcommand)]
 pub(crate) enum AgentsAction {
     /// Regenerate the adapter files from VELA.md (idempotent; writes only
@@ -439,9 +434,6 @@ pub(crate) enum VerifyAction {
         shared_dependency: Vec<String>,
         #[arg(long = "as", help = HELP_REQUIRED_AS)]
         actor: String,
-        /// Publish now: commit locally and push.
-        #[arg(long)]
-        push: bool,
         #[arg(long)]
         json: bool,
     },
@@ -451,9 +443,6 @@ pub(crate) enum VerifyAction {
         record: PathBuf,
         #[arg(long = "as", help = HELP_REQUIRED_AS)]
         actor: String,
-        /// Publish now: commit locally and push.
-        #[arg(long)]
-        push: bool,
         #[arg(long)]
         json: bool,
     },
@@ -505,20 +494,6 @@ pub(crate) enum RepositoryAction {
     Verify {
         #[arg(default_value = ".")]
         frontier: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Resume one exact journaled Git publication without repeating the
-    /// scientific operation.
-    RecoverPublication {
-        #[arg(default_value = ".")]
-        frontier: PathBuf,
-        /// Exact publication operation (`vop_...`).
-        #[arg(long)]
-        operation: String,
-        /// Push the recovered exact commit to its configured upstream.
-        #[arg(long)]
-        push: bool,
         #[arg(long)]
         json: bool,
     },

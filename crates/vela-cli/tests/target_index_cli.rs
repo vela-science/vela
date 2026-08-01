@@ -19,8 +19,7 @@ fn run(home: &Path, cwd: &Path, socket: Option<&Path>, args: &[&str]) -> Output 
         .env("VELA_ADVICE", "0")
         .env_remove("VELA_ACTOR_ID")
         .env_remove("VELA_AGENT_KEY_HEX")
-        .env_remove("VELA_KEY_PATH")
-        .env_remove("VELA_NO_PUBLISH");
+        .env_remove("VELA_KEY_PATH");
     if let Some(socket) = socket {
         command.env("SSH_AUTH_SOCK", socket);
     } else {
@@ -113,8 +112,15 @@ struct Fixture {
     directory: tempfile::TempDir,
     home: tempfile::TempDir,
     agent: EphemeralAgent,
+    trust_anchor: std::path::PathBuf,
     frontier_id: String,
     candidate: Value,
+}
+
+impl Drop for Fixture {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.trust_anchor);
+    }
 }
 
 impl Fixture {
@@ -131,13 +137,20 @@ impl Fixture {
                 "init",
                 ".",
                 "--name",
-                "Target index fixture",
+                &format!(
+                    "Target index fixture {}",
+                    directory
+                        .path()
+                        .file_name()
+                        .and_then(|value| value.to_str())
+                        .unwrap_or("unique")
+                ),
                 "--scope",
                 "Can one domain candidate become an exact derived offer?",
                 "--json",
             ],
         ));
-        success_json(&run(
+        let authority = success_json(&run(
             home.path(),
             frontier,
             Some(agent.socket()),
@@ -150,6 +163,11 @@ impl Fixture {
                 "--json",
             ],
         ));
+        let trust_anchor = std::path::PathBuf::from(
+            authority["local_trust"]["anchor_path"]
+                .as_str()
+                .expect("local trust anchor path"),
+        );
         git(frontier, &["config", "user.name", "Vela Test"]);
         git(frontier, &["config", "user.email", "vela@example.invalid"]);
         write(&frontier.join("domain/source.json"), br#"{"open":[1056]}"#);
@@ -196,6 +214,7 @@ impl Fixture {
             directory,
             home,
             agent,
+            trust_anchor,
             frontier_id,
             candidate,
         }

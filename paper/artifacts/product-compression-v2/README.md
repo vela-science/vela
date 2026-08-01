@@ -1,10 +1,10 @@
 # Product-compression v2 — native Harbor result
 
 This directory retains only the compact, reviewable result from the first
-complete native Harbor comparison. The 8.1 MiB raw Harbor job remains local
-under `jobs/product-compression-v2/runs/` because it contains generated tasks,
-container logs, trajectories, and viewer state rather than Vela source or
-scientific Standing.
+complete native Harbor comparison. Its generated Harbor cache was removed from
+the repository workspace; the compact result retains the exact job root. Raw
+tasks, container logs, trajectories, and viewer state were execution cache,
+not Vela source or scientific Standing.
 
 ## Result
 
@@ -39,8 +39,8 @@ silently repaired after output:
 
 Harbor's low-entropy secret redaction also replaced the value `true` with an
 unquoted marker inside per-trial JSON and ATIF observations. The top-level job
-summary, native logs, artifacts, verifier outputs, and raw file roots remain
-available locally, but the raw per-trial reward is not treated as valid.
+summary and recorded raw-file roots remain preserved, but the corrupt raw
+per-trial reward is not treated as valid.
 
 The product conclusion is deliberately narrow: Vela's read path is
 directionally more efficient, but the current Decision-packet interface has

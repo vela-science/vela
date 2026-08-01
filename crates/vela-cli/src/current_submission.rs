@@ -24,7 +24,7 @@ use vela_protocol::submission_v1::SubmissionV1;
 use crate::authority_transaction::{AuthorityDerivedDraft, AuthorityObjectDraft};
 use crate::config::git_publish::{
     PublicationOutcome, PublicationState, PublishOptions, exact_publication_preflight,
-    publication_disabled_reason, publication_is_busy, publish_exact_delta,
+    publish_exact_delta,
 };
 use crate::frontier_txn::{ContentDigest, InputBinding, WriteClass};
 use crate::workflow::{
@@ -367,7 +367,6 @@ fn existing_outcome(
                 candidate: None,
                 reason: "Submission is already registered in the current repository".into(),
             },
-            recovery_command: None,
         },
     }))
 }
@@ -407,9 +406,8 @@ pub(crate) fn submit(
     submission: &SubmissionV1,
     executor: &str,
     bundle_root: Option<&Path>,
-    push: bool,
 ) -> Result<SubmitOutcome, String> {
-    submit_inner(frontier, submission, executor, bundle_root, push)
+    submit_inner(frontier, submission, executor, bundle_root)
 }
 
 fn submit_inner(
@@ -417,7 +415,6 @@ fn submit_inner(
     submission: &SubmissionV1,
     executor: &str,
     bundle_root: Option<&Path>,
-    push: bool,
 ) -> Result<SubmitOutcome, String> {
     submission.verify()?;
     let executor = executor.trim();
@@ -645,93 +642,30 @@ fn submit_inner(
         .resolved_public_writes()
         .map_err(|error| error.to_string())?;
     let delta_root = prepared.canonical_delta_root().to_string();
-    let mut publish_options = if push {
-        PublishOptions::pushing()
-    } else {
-        PublishOptions::local()
-    };
-    let publication_disabled = publication_disabled_reason(frontier, &publish_options);
-    if publication_disabled.is_none() {
-        publish_options = publish_options
-            .with_preflight_inputs(submission_publication_inputs(frontier, submission)?);
-    }
-    let delta = if publication_disabled.is_some() {
-        None
-    } else {
-        publication_delta(frontier, &delta_root, public)?
-    };
-    let preflight = delta
-        .as_ref()
-        .map(|delta| exact_publication_preflight(frontier, delta, &publish_options))
-        .transpose();
-    let preflight = match preflight {
-        Ok(preflight) => preflight,
-        Err(outcome) if publication_is_busy(&outcome) => {
-            return Err(
-                "another Vela write/publication owns this repository; Submission was not registered"
-                    .into(),
-            );
-        }
-        Err(outcome) => {
-            prepared
-                .mark_committed()
-                .map_err(|error| error.to_string())?;
-            prepared.install().map_err(|error| error.to_string())?;
-            prepared.complete().map_err(|error| error.to_string())?;
-            crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)?;
-            return Ok(SubmitOutcome {
-                schema: "vela.submit-result.v1",
-                operation_id: operation_id.as_str().into(),
-                submission_id: submission.submission_id.clone(),
-                submission_root,
-                registration_record_id: registration.registration_record_id,
-                registration_record_root: registration_root,
-                proposal_id: proposal.proposal_id,
-                claim_id: proposal.subject.id,
-                route: "pending_review",
-                accepted_event_count_before: 0,
-                accepted_event_count_after: 0,
-                accepted_event_delta: 0,
-                accepted_state_changed: false,
-                publication: outcome,
-            });
-        }
-    };
+    let publish_options = PublishOptions::local()
+        .with_preflight_inputs(submission_publication_inputs(frontier, submission)?);
+    let delta = publication_delta(frontier, &delta_root, public)?
+        .ok_or_else(|| "Submission transaction had no public Git delta".to_string())?;
+    let preflight = exact_publication_preflight(frontier, &delta, &publish_options)
+        .map_err(publication_error)?;
     prepared
         .mark_committed()
         .map_err(|error| error.to_string())?;
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
     crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)?;
-    let publication = match (delta.as_ref(), preflight) {
-        (Some(delta), Some(preflight)) => publish_exact_delta(
-            frontier,
-            "submit",
-            std::slice::from_ref(&proposal.proposal_id),
-            delta,
-            preflight,
-            &publish_options,
-        )
-        .unwrap_or_else(|error| PublicationOutcome {
-            state: PublicationState::Unknown {
-                reason: error.to_string(),
-            },
-            recovery_command: None,
-        }),
-        _ => PublicationOutcome {
-            state: PublicationState::Uncommitted {
-                candidate: None,
-                reason: publication_disabled
-                    .unwrap_or_else(|| "Submission transaction had no public Git delta".into()),
-            },
-            recovery_command: None,
-        },
-    };
+    let publication = publish_exact_delta(
+        frontier,
+        "submit",
+        std::slice::from_ref(&proposal.proposal_id),
+        &delta,
+        preflight,
+        &publish_options,
+    )
+    .map_err(|error| error.to_string())?;
     if matches!(
         publication.state,
-        PublicationState::Unchanged { .. }
-            | PublicationState::CommittedLocal { .. }
-            | PublicationState::Pushed { .. }
+        PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. }
     ) {
         crate::current_repository::verify_current_repository_at(frontier, true).map_err(
             |error| {
@@ -758,6 +692,15 @@ fn submit_inner(
         accepted_state_changed: false,
         publication,
     })
+}
+
+fn publication_error(outcome: PublicationOutcome) -> String {
+    match outcome.state {
+        PublicationState::Uncommitted { reason, .. } => reason,
+        PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. } => {
+            "unexpected completed publication during preflight".to_string()
+        }
+    }
 }
 
 #[cfg(test)]

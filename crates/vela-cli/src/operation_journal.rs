@@ -13,7 +13,8 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use sha2::{Digest, Sha256};
 
-pub(crate) const JOURNAL_SCHEMA: &str = "vela.operation-journal.internal.v1";
+#[cfg(test)]
+const JOURNAL_SCHEMA: &str = "vela.operation-journal.internal.v1";
 
 /// Derive a stable, filesystem-safe operation id from the complete planning
 /// identity. Retrying the same plan therefore finds the same journal.
@@ -134,7 +135,8 @@ pub(crate) fn read_json<T: DeserializeOwned>(path: &Path) -> Result<T, String> {
         .map_err(|error| format!("parse operation journal {}: {error}", path.display()))
 }
 
-pub(crate) fn remove(path: &Path) -> Result<(), String> {
+#[cfg(test)]
+fn remove(path: &Path) -> Result<(), String> {
     match fs::remove_file(path) {
         Ok(()) => {
             if let Some(parent) = path.parent() {
@@ -148,48 +150,6 @@ pub(crate) fn remove(path: &Path) -> Result<(), String> {
             path.display()
         )),
     }
-}
-
-/// Keep only the newest `retain` completed operation records. Active journals
-/// live in the parent directory and are therefore never considered here.
-pub(crate) fn prune_json(dir: &Path, retain: usize) -> Result<(), String> {
-    if !dir.is_dir() {
-        return Ok(());
-    }
-    let mut entries = fs::read_dir(dir)
-        .map_err(|error| {
-            format!(
-                "read completed journal directory {}: {error}",
-                dir.display()
-            )
-        })?
-        .filter_map(Result::ok)
-        .filter_map(|entry| {
-            let path = entry.path();
-            if path
-                .extension()
-                .is_some_and(|extension| extension == "json")
-            {
-                let modified = entry
-                    .metadata()
-                    .and_then(|metadata| metadata.modified())
-                    .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
-                Some((modified, path))
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<_>>();
-    entries.sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
-    let remove_count = entries.len().saturating_sub(retain);
-    for (_, path) in entries.into_iter().take(remove_count) {
-        fs::remove_file(&path)
-            .map_err(|error| format!("prune completed journal {}: {error}", path.display()))?;
-    }
-    if remove_count > 0 {
-        sync_directory(dir)?;
-    }
-    Ok(())
 }
 
 fn sync_directory(path: &Path) -> Result<(), String> {

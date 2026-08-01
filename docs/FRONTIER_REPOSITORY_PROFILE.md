@@ -126,7 +126,7 @@ valid templates for new repositories.
 Frontier repositories do not configure the operator. Runtime behavior stays
 explicit and process-local:
 
-- publication commits locally unless the caller passes `--push`;
+- Vela commits its exact local delta; ordinary Git owns network publication;
 - `NO_COLOR` disables terminal color;
 - `--quiet` or `VELA_ADVICE=0` suppresses advice.
 

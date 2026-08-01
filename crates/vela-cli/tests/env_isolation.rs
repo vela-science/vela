@@ -2,8 +2,8 @@
 //!
 //! Regression tests for the working-tree `.env` injection: `dotenvy`
 //! used to ancestor-walk from cwd, so a frontier repo could commit a
-//! `.env` that silently set VELA_ACTOR_ID / VELA_KEY_PATH /
-//! VELA_NO_PUBLISH for anyone running vela inside it — the attack
+//! `.env` that silently set VELA_ACTOR_ID / VELA_KEY_PATH for anyone running
+//! vela inside it — the attack
 //! class git's protected configuration and Codex's project-scope key
 //! blocking exist for. The CLI now reads NO .env from the working
 //! tree; these tests hold that line.
@@ -37,7 +37,6 @@ fn run_in(dir: &std::path::Path, args: &[&str]) -> std::process::Output {
     Command::new(vela_bin())
         .current_dir(dir)
         .env("HOME", dir)
-        .env("VELA_NO_PUBLISH", "1")
         .args(args)
         .output()
         .expect("spawn vela")

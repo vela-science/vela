@@ -20,10 +20,10 @@ efficiency; tool calls and provider token counters remain telemetry. Under that
 interpretation this run is strong task-specific product-comprehension evidence,
 not a retroactive registered pass.
 
-The ignored Harbor job directory remains the raw evidence. The compact result
-binds its full sorted-file root, the frozen plan, fixture, answer key, task set,
-exact toolchain, all four trial roots, failures, and the stopped predecessor
-plan. Verification was offline, authority was unavailable, and no Frontier or
+The generated Harbor job cache was removed after the compact result bound its
+full sorted-file root, frozen plan, fixture, answer key, task set, exact
+toolchain, all four trial roots, failures, and stopped predecessor plan.
+Verification was offline, authority was unavailable, and no Frontier or
 scientific Standing changed.
 
 This result is first-party evidence on one bounded comprehension task. It is not

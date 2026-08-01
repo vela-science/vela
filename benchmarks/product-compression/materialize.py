@@ -6,43 +6,30 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any, Sequence
 
-import study
+import contract
 
 
 def fail(message: str) -> None:
-    raise study.ContractError(message)
-
-
-def reject_system_temporary_output(output: Path) -> None:
-    resolved = output.resolve()
-    candidates = {
-        Path("/tmp"), Path("/private/tmp"), Path("/var/tmp"),
-        Path("/private/var/tmp"), Path(tempfile.gettempdir()),
-    }
-    roots = {path.resolve() for path in candidates if path.exists()}
-    if any(resolved == root or resolved.is_relative_to(root) for root in roots):
-        fail("study materials must not be written under a system temporary root")
+    raise contract.ContractError(message)
 
 
 def digest(path: Path) -> str:
     try:
         return f"sha256:{hashlib.sha256(path.read_bytes()).hexdigest()}"
     except OSError as exc:
-        raise study.ContractError(f"cannot hash {path}: {exc}") from exc
+        raise contract.ContractError(f"cannot hash {path}: {exc}") from exc
 
 
 def command(argv: Sequence[str], *, cwd: Path) -> str:
     try:
         result = subprocess.run(argv, cwd=cwd, check=False, capture_output=True, text=True)
     except OSError as exc:
-        raise study.ContractError(f"cannot execute {argv[0]}: {exc}") from exc
+        raise contract.ContractError(f"cannot execute {argv[0]}: {exc}") from exc
     if result.returncode != 0:
         fail(f"command failed ({result.returncode}): {' '.join(argv)}: {result.stderr.strip()}")
     return result.stdout.strip()
@@ -53,14 +40,14 @@ def json_command(argv: Sequence[str], *, cwd: Path) -> dict[str, Any]:
     try:
         value = json.loads(raw)
     except json.JSONDecodeError as exc:
-        raise study.ContractError(f"command returned invalid JSON: {' '.join(argv)}: {exc}") from exc
+        raise contract.ContractError(f"command returned invalid JSON: {' '.join(argv)}: {exc}") from exc
     if not isinstance(value, dict):
         fail(f"command returned non-object JSON: {' '.join(argv)}")
     return value
 
 
 def relative_content_path(root: str, category: str) -> Path:
-    if not study.ROOT.fullmatch(root):
+    if not contract.ROOT.fullmatch(root):
         fail(f"invalid {category} root: {root}")
     return Path("records") / category / "sha256" / f"{root.removeprefix('sha256:')}.json"
 
@@ -92,7 +79,7 @@ def materialize(
     packet = target.get("packet", {})
     packet_root = packet.get("sha256")
     packet_path = frontier / packet.get("path", "")
-    if not study.ROOT.fullmatch(packet_root or "") or digest(packet_path) != packet_root:
+    if not contract.ROOT.fullmatch(packet_root or "") or digest(packet_path) != packet_root:
         fail("current Target packet bytes disagree with vela next")
 
     entries = [entry for entry in inbox.get("entries", []) if entry.get("proposal_id") == proposal_id]
@@ -111,7 +98,7 @@ def materialize(
     submission_path = frontier / relative_content_path(submission_root, "submissions")
     if digest(submission_path) != submission_root:
         fail("Submission bytes disagree with the Decision Inbox")
-    submission = study.read_json(submission_path)
+    submission = contract.read_json(submission_path)
 
     standing_delta = entry["standing_delta"]
     counts = standing_delta.get("counts")
@@ -159,7 +146,7 @@ def materialize(
         },
         "safety": {"authority_action_performed": False, "accepted_state_changed": False},
     }
-    study.validate_answer(expected)
+    contract.validate_answer(expected)
 
     fixture = {
         "schema": "vela.product-compression-fixture.v3",
@@ -174,12 +161,12 @@ def materialize(
         "task": {"proposal_id": proposal_id},
         "participant_files": [],
     }
-    study.seal(fixture, "fixture_root")
-    answer_key = study.seal({
+    contract.seal(fixture, "fixture_root")
+    answer_key = contract.seal({
         "schema": "vela.product-compression-answer-key.v5",
         "answer_key_root": "", "fixture_root": fixture["fixture_root"], "expected": expected,
     }, "answer_key_root")
-    study.validate_answer_key(answer_key)
+    contract.validate_answer_key(answer_key)
     return fixture, answer_key
 
 
@@ -195,20 +182,16 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
-        reject_system_temporary_output(args.output)
         fixture, answer_key = materialize(args.frontier, args.vela, args.proposal)
         args.output.mkdir(parents=True, exist_ok=True)
-        os.chmod(args.output, 0o700)
-        study.write_json(args.output / "fixture.json", fixture)
-        study.write_json(args.output / "answer-key.json", answer_key)
-        os.chmod(args.output / "fixture.json", 0o600)
-        os.chmod(args.output / "answer-key.json", 0o600)
-        sys.stdout.buffer.write(study.canonical_bytes({
+        contract.write_json(args.output / "fixture.json", fixture)
+        contract.write_json(args.output / "answer-key.json", answer_key)
+        sys.stdout.buffer.write(contract.canonical_bytes({
             "ok": True, "fixture_root": fixture["fixture_root"],
             "answer_key_root": answer_key["answer_key_root"], "writes_frontier": False,
         }))
         return 0
-    except study.ContractError as exc:
+    except contract.ContractError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 

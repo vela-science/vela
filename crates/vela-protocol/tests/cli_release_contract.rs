@@ -131,7 +131,6 @@ fn verification_help_exposes_ordinary_authoring_without_key_flags() {
         "--independent-of",
         "--shared-dependency",
         "--as",
-        "--push",
         "--json",
     ] {
         assert!(
@@ -141,15 +140,5 @@ fn verification_help_exposes_ordinary_authoring_without_key_flags() {
     }
     assert!(help.contains("<FRONTIER>"));
     assert!(help.contains("<PROPOSAL>"));
-    assert!(!help.contains("--key"));
-}
-
-#[test]
-fn publication_recovery_command_is_executable_on_the_current_cli() {
-    let help = run_text(&["repository", "recover-publication", "--help"]);
-    assert!(help.contains("[FRONTIER]"));
-    assert!(help.contains("--operation"));
-    assert!(help.contains("--push"));
-    assert!(help.contains("--json"));
     assert!(!help.contains("--key"));
 }

@@ -22,7 +22,7 @@ use vela_protocol::verification_record::{
 use crate::authority_transaction::AuthorityObjectDraft;
 use crate::config::git_publish::{
     PublicationOutcome, PublicationState, PublishOptions, exact_publication_preflight,
-    publication_disabled_reason, publication_is_busy, publish_exact_delta,
+    publish_exact_delta,
 };
 use crate::frontier_txn::{ContentDigest, InputBinding, WriteClass};
 use crate::workflow::{VerificationImportOutcome, publication_delta};
@@ -388,7 +388,6 @@ fn existing_outcome(
                 candidate: None,
                 reason: "exact Verification Record is already registered".into(),
             },
-            recovery_command: None,
         },
     }))
 }
@@ -397,16 +396,14 @@ pub(crate) fn import(
     frontier: &Path,
     record: &VerificationRecordV1,
     executor: &str,
-    push: bool,
 ) -> Result<VerificationImportOutcome, String> {
-    import_inner(frontier, record, executor, push)
+    import_inner(frontier, record, executor)
 }
 
 fn import_inner(
     frontier: &Path,
     record: &VerificationRecordV1,
     executor: &str,
-    push: bool,
 ) -> Result<VerificationImportOutcome, String> {
     record.verify()?;
     let executor = executor.trim();
@@ -533,85 +530,29 @@ fn import_inner(
         .resolved_public_writes()
         .map_err(|error| error.to_string())?;
     let delta_root = prepared.canonical_delta_root().to_string();
-    let publish_options = if push {
-        PublishOptions::pushing()
-    } else {
-        PublishOptions::local()
-    };
-    let publication_disabled = publication_disabled_reason(frontier, &publish_options);
-    let delta = if publication_disabled.is_some() {
-        None
-    } else {
-        publication_delta(frontier, &delta_root, public)?
-    };
-    let preflight = delta
-        .as_ref()
-        .map(|delta| exact_publication_preflight(frontier, delta, &publish_options))
-        .transpose();
-    let preflight = match preflight {
-        Ok(value) => value,
-        Err(outcome) if publication_is_busy(&outcome) => {
-            return Err(
-                "another Vela write/publication owns this repository; Verification Record was not imported"
-                    .into(),
-            );
-        }
-        Err(outcome) => {
-            prepared
-                .mark_committed()
-                .map_err(|error| error.to_string())?;
-            prepared.install().map_err(|error| error.to_string())?;
-            prepared.complete().map_err(|error| error.to_string())?;
-            crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)?;
-            return Ok(VerificationImportOutcome {
-                schema: "vela.verification-import-result.v1",
-                operation_id: operation_id.as_str().into(),
-                verification_record_id: record.verification_record_id.clone(),
-                verification_record_root: record_root,
-                proposal_id: record.subject.proposal_id.clone(),
-                claim_id: record.subject.claim_id.clone(),
-                outcome: record.outcome.clone(),
-                idempotent: false,
-                accepted_event_delta: 0,
-                publication: outcome,
-            });
-        }
-    };
+    let publish_options = PublishOptions::local();
+    let delta = publication_delta(frontier, &delta_root, public)?
+        .ok_or_else(|| "Verification import had no public Git delta".to_string())?;
+    let preflight = exact_publication_preflight(frontier, &delta, &publish_options)
+        .map_err(publication_error)?;
     prepared
         .mark_committed()
         .map_err(|error| error.to_string())?;
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
     crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)?;
-    let publication = match (delta.as_ref(), preflight) {
-        (Some(delta), Some(preflight)) => publish_exact_delta(
-            frontier,
-            "verification import",
-            std::slice::from_ref(&record.verification_record_id),
-            delta,
-            preflight,
-            &publish_options,
-        )
-        .unwrap_or_else(|error| PublicationOutcome {
-            state: PublicationState::Unknown {
-                reason: error.to_string(),
-            },
-            recovery_command: None,
-        }),
-        _ => PublicationOutcome {
-            state: PublicationState::Uncommitted {
-                candidate: None,
-                reason: publication_disabled
-                    .unwrap_or_else(|| "Verification import had no public Git delta".into()),
-            },
-            recovery_command: None,
-        },
-    };
+    let publication = publish_exact_delta(
+        frontier,
+        "verification import",
+        std::slice::from_ref(&record.verification_record_id),
+        &delta,
+        preflight,
+        &publish_options,
+    )
+    .map_err(|error| error.to_string())?;
     if matches!(
         publication.state,
-        PublicationState::Unchanged { .. }
-            | PublicationState::CommittedLocal { .. }
-            | PublicationState::Pushed { .. }
+        PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. }
     ) {
         crate::current_repository::verify_current_repository_at(frontier, true).map_err(
             |error| {
@@ -634,6 +575,15 @@ fn import_inner(
         accepted_event_delta: 0,
         publication,
     })
+}
+
+fn publication_error(outcome: PublicationOutcome) -> String {
+    match outcome.state {
+        PublicationState::Uncommitted { reason, .. } => reason,
+        PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. } => {
+            "unexpected completed publication during preflight".to_string()
+        }
+    }
 }
 
 #[cfg(test)]

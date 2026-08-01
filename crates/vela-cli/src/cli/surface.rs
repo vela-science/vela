@@ -35,7 +35,7 @@ Daily product:
   init          Create a minimal Git-native frontier
   status        Compact frontier identity, roots, counts, and next action
   next          Ranked Target Offers
-  start         Start one bounded Attempt against an exact Target
+  start         Inspect one exact Target and its bounded completion contract
   submit        Register authenticated producer input for review
   show          One exact object, its root, era, and authority effect
   why           Root-bound explanation of one Claim's Standing

@@ -14,7 +14,9 @@ The result establishes a bounded comprehension advantage for one exact
 Frontier handoff. It does not establish independent adoption, general
 scientific productivity, or scientific acceptance.
 
-The native Harbor job remains local at
-`jobs/product-compression-v6-runs/vela-product-compression-v6-native-20260731`
-and is bound by the recorded job root. Harbor remains the execution and raw
-result layer; Vela retains only this compact, claim-limited summary.
+`plan.v6.json` preserves the exact prospective plan. The raw Harbor cache was
+removed from the repository workspace after its 56-file, 8,475,071-byte job
+root was recorded as
+`sha256:f63ce76013e2956ed9926ad89fe660d0930b8339ba91f3e8fa97bb856f97810e`.
+Harbor remains the execution layer; Vela retains only the plan and compact,
+claim-limited result.

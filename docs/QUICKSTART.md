@@ -85,15 +85,9 @@ is valid only over untouched structural genesis and creates one root-bound
 sequence-1 authority record plus the initial unsigned Git commit. It establishes
 the human Decision and repository-administration boundary; routine producer and
 verifier evidence authenticates itself and does not use this key. Initialization
-grants no scientific standing. Distribute the returned full authority-record
-root independently, then install the local consumer pin before any later
-repository-authority write:
-
-```bash
-vela authority trust pin ./frontier \
-  --record-root sha256:<full-sequence-1-root> \
-  --json
-```
+grants no scientific standing. It also installs the creator's local trust anchor,
+so there is no second setup command. Distribute the returned full authority-record
+root independently; other consumers pin that published root once after cloning.
 
 ## Predecessor repositories
 

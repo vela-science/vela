@@ -246,8 +246,9 @@ vela authority init ./my-frontier \
   --json
 ```
 
-Consumers install the returned sequence-one authority-record root through an
-independent channel:
+Initialization installs the creator's matching local trust anchor. Independent
+consumers install the returned sequence-one authority-record root after
+obtaining it through a separate channel:
 
 ```bash
 vela authority trust pin . --record-root sha256:... --json

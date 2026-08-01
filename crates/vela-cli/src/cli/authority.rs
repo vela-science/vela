@@ -12,9 +12,7 @@ use chrono::{DateTime, Duration, SecondsFormat, Utc};
 use serde::Serialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use vela_authority::runtime_authentication::{
-    AuthenticationRequest, LocalOsSession, RuntimeSessionState,
-};
+use vela_authority::runtime_authentication::{AuthenticationRequest, LocalOsSession};
 use vela_authority::{CedarEvaluationInput, CedarPolicyMaterial};
 use vela_edge::repository_write::{
     AUTHORITY_TRUST_ANCHOR_SCHEMA_V1, AuthorityTrustAnchorV1,
@@ -286,9 +284,7 @@ pub(crate) fn cmd_authority_init(
         println!("  key: {}", result["repository_key_fingerprint"]);
         println!("  authority record: {}", result["authority_record_id"]);
         println!("  authority root: {}", result["authority_record_root"]);
-        println!(
-            "  next: distribute the full authority root independently, then run `vela authority trust pin`"
-        );
+        println!("  local trust: installed (independent consumers pin the published root once)");
     }
 }
 
@@ -548,9 +544,7 @@ fn initialize_current_repository_authority(
                 principal_class: PrincipalClass::Human,
                 transaction_at: recorded_at.clone(),
             },
-            runtime_session_state: RuntimeSessionState::default(),
             authorization_input,
-            delegation: None,
             semantic_approvals: vec![SemanticApprovalV1 {
                 principal_id: principal.principal_id.clone(),
                 role: "frontier_administrator".into(),
@@ -661,6 +655,20 @@ fn initialize_current_repository_authority(
     }
     let git_commit = crate::git_hardened::text(frontier, &["rev-parse", "HEAD^{commit}"])?;
     let git_tree = crate::git_hardened::text(frontier, &["rev-parse", "HEAD^{tree}"])?;
+    let local_anchor = AuthorityTrustAnchorV1 {
+        schema: AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.to_string(),
+        frontier_id: profile.frontier_id.clone(),
+        first_authority_record_root: result.authority_record_root.clone(),
+    };
+    let user_home =
+        crate::frontier_txn::operating_system_account_home().map_err(|error| error.to_string())?;
+    let installed_anchor =
+        install_authority_trust_anchor_from_home(&user_home, &local_anchor).map_err(|error| {
+            format!(
+                "repository authority initialized at {} but its local trust anchor could not be installed: {error}",
+                result.authority_record_root
+            )
+        })?;
     Ok(json!({
         "schema": "vela.authority-initialization-result.v2",
         "ok": true,
@@ -680,15 +688,13 @@ fn initialize_current_repository_authority(
         "authority_record_root": result.authority_record_root.clone(),
         "event_ids": result.event_ids,
         "after_event_log_root": result.after_event_log_root,
-        "consumer_pin": {
+        "local_trust": {
             "schema": AUTHORITY_TRUST_ANCHOR_SCHEMA_V1,
             "frontier_id": profile.frontier_id,
             "first_authority_record_root": result.authority_record_root,
-            "command": format!(
-                "vela authority trust pin {} --record-root {} --json",
-                frontier.display(),
-                result.authority_record_root
-            )
+            "anchor_root": installed_anchor.root,
+            "anchor_path": installed_anchor.path,
+            "installed": true
         },
         "writes_now": true
     }))

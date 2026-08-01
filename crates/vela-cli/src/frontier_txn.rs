@@ -2055,12 +2055,6 @@ fn postimage_reaches_current(
 
 fn completed_postimage_is_rematerializable(write: &StagedWrite) -> bool {
     write.class == WriteClass::Derived
-        // Journals written before proof-state received its derived write class
-        // record this exact path as canonical_evidence. Preserve those durable
-        // plans while allowing the same legitimate proof re-export as new
-        // journals. This exception applies only to completed-history checks;
-        // installation and completion still verify the exact postimage.
-        || write.path.as_str() == ".vela/proof-state.json"
         // The current-repository manifest is an authenticated rolling head, not
         // immutable historical evidence. Current Submission and Verification
         // transactions replace it after independently verifying the repository
@@ -5040,42 +5034,6 @@ mod tests {
             FrontierTxn::acquire_recovery_barrier(&root, &journals),
             Err(FrontierTxnError::CompletedPostimageMismatch { .. })
         ));
-    }
-
-    #[test]
-    fn completed_legacy_journal_allows_proof_state_reexport() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(root.join(".vela")).unwrap();
-
-        // Reproduce the write class recorded by policy and decision journals
-        // before proof-state was recognized as derived.
-        let draft = DeltaDraft::prepare(
-            &root,
-            vec![PlannedWrite::write(
-                RepoPath::parse(".vela/proof-state.json").unwrap(),
-                WriteClass::CanonicalEvidence,
-                b"stale proof state".to_vec(),
-            )],
-        )
-        .unwrap();
-        let plan = fixture_plan(&root, &draft, b"legacy proof-state class");
-        let operation_id = plan.operation_id.clone();
-        let mut txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
-        txn.mark_committed().unwrap();
-        txn.install().unwrap();
-        txn.complete().unwrap();
-        drop(txn);
-
-        fs::write(root.join(".vela/proof-state.json"), b"fresh proof state").unwrap();
-
-        let reopened = FrontierTxn::open_if_present(&root, &journals, &operation_id)
-            .unwrap()
-            .expect("completed legacy journal");
-        assert_eq!(reopened.recovery_state(), &RecoveryState::Completed);
-        drop(reopened);
-        drop(FrontierTxn::acquire_recovery_barrier(&root, &journals).unwrap());
     }
 
     #[test]
