@@ -77,7 +77,7 @@ infrastructure.
   replay.
 - Vela Web has a live root-bound Math Source Registry and read-only Math Atlas
   over the exact four repository-v4 Frontier heads. The current projection uses
-  `observatory.v8`, contains no Registration contract, and retains 6,701 native
+  `observatory.v8`, contains no Registration contract, and retains 6,713 native
   source records and 5,845 source bindings. Source Git remains authoritative.
 - Product-compression v11 completed four clean native Harbor trials with zero
   retries. Vela-guided work was exact in 2/2 trials while Git/files alone was
@@ -124,13 +124,13 @@ infrastructure.
   limitation explicitly.
 - The retained 2026-08-01 production Atlas checkpoint was rebuilt from all four
   cleaned Frontier heads and is exact at projection root
-  `sha256:f65fcf8509ec2b91f944675e46fdc067032fc17a975b19f23d538197ae5b8521`.
+  `sha256:9ca8bca4b4a7d9430d494094863c3b57e838159f858248c987abde26153ba107`.
   Its manifest binds Erdős `3f594b53`, Formal `6cbc2cb5`, Quantum
   `29202cfb`, and Sidon `e07b6317`; the database sync, corpus checks, source
   evidence retention, activation, pruning, and production redeploy passed.
 - Two empty local PostgreSQL reconstructions matched every production table,
   Frontier, and source-registry root. The retained evidence artifact root is
-  `sha256:d1d7eefc397a43960c4a9757aca97dac445c124d6ab00a369cdc1e4522066dcb`.
+  `sha256:b4aaaa303db2dc5c66fb0cbaccc19face4e65767de5ee74d4ca250c93666409c`.
 - Pending Proposal sheets now project Vela's exact Decision Inbox packet:
   protocol readiness, the accept/reject Standing delta, limits, next
   obligation, and copyable roots. The Observatory remains read-only.
@@ -373,7 +373,7 @@ reputation score, or `1.0.0` schedule.
 | Vela | `0.962.0` is published with direct producer withdrawal and the current repository reader; release checks are green | keep one train and release only for demonstrated changes |
 | Cross-language readers | standalone Python and JavaScript conformance readers | keep package-free until a real external consumer requires a library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; the retained 2026-08-01 checkpoint binds projection root `sha256:f65fcf8509ec2b91f944675e46fdc067032fc17a975b19f23d538197ae5b8521` and clean-room artifact `sha256:d1d7eefc397a43960c4a9757aca97dac445c124d6ab00a369cdc1e4522066dcb` | run the bounded `ten-proofs` source/verification pilot through existing adapters; add no infrastructure |
+| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; the retained 2026-08-01 checkpoint binds projection root `sha256:9ca8bca4b4a7d9430d494094863c3b57e838159f858248c987abde26153ba107`, 11 exact sources, 6,713 native records, and clean-room artifact `sha256:b4aaaa303db2dc5c66fb0cbaccc19face4e65767de5ee74d4ca250c93666409c` | run the #183 profile under hardened Linux Landrun before claiming independent clean-room Comparator passage; add no infrastructure |
 | Frontiers | canonical Git sources with pending human Decisions; the obsolete Formal duplicate is withdrawn with zero accepted delta | decide or cancel exact remaining Proposals, replay, remap |
 | Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 
