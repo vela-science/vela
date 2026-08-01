@@ -1093,7 +1093,6 @@ python3 conformance/verify_correction_impact.py
 python3 paper/artifacts/transfer/verify_foreign_reference.py --json
 python3 -m unittest paper.artifacts.transfer.test_scientific_change_package
 python3 -m unittest paper/artifacts/cost/test_measure.py
-python3 -m unittest paper/artifacts/state-lift/test_score.py
 python3 -m unittest discover \
   -s paper/artifacts/map-target-loop -p 'test_*.py'
 ./conformance/check-core.sh

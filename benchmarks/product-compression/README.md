@@ -100,7 +100,6 @@ code.
 
 ## History
 
-The active tree keeps one historical v6 summary because it motivated the clean
-rerun. Earlier failed and invalidated iterations remain available in Git
-history; they are not active harnesses, compatibility targets, or runtime
-inputs.
+The active tree keeps only the current v10 result. Earlier failed, superseded,
+and invalidated iterations remain available in Git history; they are not active
+harnesses, compatibility targets, or runtime inputs.

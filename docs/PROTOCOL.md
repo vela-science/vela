@@ -240,7 +240,8 @@ The authority record distinguishes:
 - the repository service identity that signs the record;
 - the authenticated human, agent, or workload principal that requested the
   semantic action; and
-- the Cedar authorization that allowed that action.
+- the retained repository-authority policy decision that allowed that closed
+  Vela action.
 
 Producer identities cannot acquire review, administration, or recovery
 authority by signing producer objects.

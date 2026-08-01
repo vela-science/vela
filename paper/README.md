@@ -33,14 +33,13 @@ python3 -m unittest discover \
   -s paper/artifacts/erdos-424 -p 'test_*.py'
 python3 -m unittest discover \
   -s paper/artifacts/formal-505 -p 'test_*.py'
-python3 -m unittest paper/artifacts/state-lift/test_score.py
 ```
 
 The build refuses a dirty Vela worktree or any external commit, tree, or
 content-root mismatch. Tar order, ownership, permissions, and timestamps are
 normalized so repeated builds from the same inputs produce the same archive
-root. The retained state-lift scorer compares the two historical structured
-answers without model-based interpretation. That pilot is a registered
-negative result, not an active harness. Prospective execution evaluation uses
-native Harbor through
+root. The compact state-lift result preserves the historical negative result
+and its exact input and output roots; its retired custom scorer is available in
+Git history rather than maintained as a second harness. Prospective execution
+evaluation uses native Harbor through
 [`benchmarks/product-compression`](../benchmarks/product-compression/README.md).

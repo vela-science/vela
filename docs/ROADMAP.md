@@ -65,12 +65,12 @@ choose Target -> authorize once -> inspect progress -> review outcome
 -> decide -> see next obligation
 ```
 
-Native agents and workbenches own execution. Vela should gate only:
+Native agents and workbenches own execution and gate their own scope, budget,
+risk, publication, and destructive actions. Vela gates only:
 
 - changes to scientific Standing;
-- repository policy or schema changes;
-- scope, budget, risk, or external-effect escalation; and
-- destructive or publication actions.
+- repository authority; and
+- repository policy or schema changes that alter those boundaries.
 
 Routine computation, artifacts, receipts, replay, and scoped Verification must
 not require repeated authority prompts. Reuse the native platform's durable

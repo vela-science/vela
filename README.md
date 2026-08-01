@@ -144,7 +144,7 @@ agent with per-use confirmation (`ssh-add -c`):
 
 The resulting sequence-one authority-record root must be distributed through
 an independent trusted channel. Keep the authority-agent socket out of native
-agent Campaigns; an unconstrained socket would let any same-user process ask
+agent runs; an unconstrained socket would let any same-user process ask
 for an authority signature.
 
 ## Typical workflow

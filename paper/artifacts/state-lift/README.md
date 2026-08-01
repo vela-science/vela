@@ -19,31 +19,16 @@ advantage in one invalidated first-party pair and motivated a smaller task.
 
 ## Retained evidence
 
-The active tree keeps only the compact evidence needed to inspect that result:
-
-- the frozen protocol, execution records, and amendments;
-- the terminal task instance, answer key, and amendment;
-- the structured answer schema and dependency-free exact-field scorer;
-- each completed session's answer, record, score, and stderr; and
-- `result.v2.json`, which records the stop condition and unrun sessions.
-
-The protocol chain also records the two pre-output schema failures and the
-pre-output materialization repair. Raw Codex JSONL streams, the custom runner,
-materializer, report generator, schema validator, failed-attempt directories,
-and their tests were removed from the active tree. They are historical
-execution machinery, not Vela protocol or scientific evidence, and remain
-recoverable from Git history at commit
+The active tree keeps only `result.v2.json`. It binds the frozen protocol and
+task roots, both completed session records, answers, scores, event streams, the
+stop condition, and every unrun session. The complete historical harness and
+evidence remain recoverable from Git at
 `4ea5ebe89a1f6881a54a8d308dde3ebeecb35621`.
 
-The retained scorer can still recheck either structured answer:
-
-```bash
-python3 -m unittest paper/artifacts/state-lift/test_score.py
-
-python3 paper/artifacts/state-lift/score.py \
-  --answer-key paper/artifacts/state-lift/terminal/answer-key.v1.json \
-  --answer paper/artifacts/state-lift/sessions/git-v2-01/answer.v1.json
-```
+The scorer, schemas, amendments, task materialization, per-session files, and
+stderr were removed because this pilot is closed. Keeping an executable
+pre-Harbor harness beside the current benchmark would create two evaluation
+systems without improving reproducibility or any scientific-state invariant.
 
 ## Current evaluation path
 
