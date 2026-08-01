@@ -100,12 +100,15 @@ infrastructure.
 
 - Several technically eligible Proposals still require an attributed human
   Decision or cancellation. Eligibility is not a recommendation.
-- The Formal cross-Frontier transfer remains pending its held-out consumer and
-  value test.
+- The Formal cross-Frontier transfer is technically Decision-eligible. A
+  held-out consumer and measured value test remain required only before
+  promoting the derived envelope into a supported shared contract or claiming
+  independent product value. A human Decision made earlier must retain that
+  limitation explicitly.
 - The production Atlas must be refreshed whenever canonical Frontier heads
   change; source Git remains authoritative during projection lag.
-- Registry adapter artifacts need retained immutable locators before exact
-  long-term reconstruction can be claimed.
+- The current Registry adapter artifact has an immutable GitHub release
+  locator and independently reproduced byte root.
 - External cold-user lift, correction propagation, and independently governed
   interoperability remain unproved.
 
@@ -113,13 +116,10 @@ infrastructure.
 
 ### Gate 1 — keep the core small and green
 
-- Remove the bundled runner and unused capability protocol completely.
-- Keep the current Attempt contract small and current-only; do not migrate
-  ignored pre-release local state.
-- Remove stale commands, tests, workflows, package scripts, and active docs.
-- Verify protocol conformance, CLI compilation, current repository bootstrap,
-  clean replay, and the TypeScript package.
-- Do not release or bump versions merely to synchronize metadata.
+The runner and unused capability protocol are already gone. Keep the current
+Attempt local and current-only, remove stale code when encountered, and use
+focused checks during development. Run the full release union only for a real
+release candidate; do not bump versions merely to synchronize metadata.
 
 ### Gate 2 — complete one clear scientific loop
 
@@ -135,6 +135,11 @@ For one real pending Proposal:
 7. expose the next valid Target or explicit absence of one.
 
 No agent performs step 4. A verifier pass cannot select the outcome.
+
+This scientific gate is separate from product promotion. External adoption,
+cold-user lift, and a second maintained consumer do not make a scoped Claim
+more or less true. They gate claims about Vela's usefulness and whether a
+derived transfer envelope deserves a maintained shared contract.
 
 ### Gate 3 — compress the long-running workflow
 
@@ -257,7 +262,7 @@ reputation score, or `1.0.0` schedule.
 | Vela | `0.950.1`; current simplification is unreleased | compatible release only after green checks and a user-visible defect fix |
 | TypeScript protocol | `0.1.0` immutable | publish only a contract change from a Vela tag |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | root-bound Registry and Atlas deployed; source adapter contract consolidated on `main` | refresh exact production projection, then earn product changes through cold-use evidence |
+| Vela Web | exact Registry and Atlas production projection matches current Frontier heads | earn product changes through cold-use evidence |
 | Frontiers | canonical Git sources with pending human Decisions | decide or cancel exact Proposals, replay, remap |
 | Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 

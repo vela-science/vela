@@ -248,6 +248,11 @@ support diamond, and non-consequential incoming relation. Result
 records `no_qualifying_candidate`. The held-out entry gate therefore fails
 until a later accepted correction satisfies the preregistered rule.
 
+That failed held-out entry gate limits the benchmark and whitepaper claim. It
+does not make the exact receiver Proposal scientifically ineligible for a
+human Decision. Scientific scope, evidence, Verification, and local authority
+govern that Decision; external consumer lift governs product promotion.
+
 ## Required release evidence
 
 A valid benchmark release publishes:

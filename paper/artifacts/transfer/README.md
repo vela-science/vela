@@ -141,3 +141,9 @@ python3 -m unittest \
 This completes a first-party packaging baseline only. It does not establish
 external adoption, measured continuation lift, RO-Crate validation of Vela
 semantics, or source authority in another Frontier.
+
+These missing product and adoption results are promotion gates, not protocol
+requirements for a human Decision on the receiver's bounded Claim. If the
+receiver authority decides before those results exist, the Decision must state
+the limitation and must not be presented as independent adoption or measured
+product lift.

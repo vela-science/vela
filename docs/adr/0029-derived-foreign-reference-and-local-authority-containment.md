@@ -11,6 +11,9 @@
   and local accepted Standing is unchanged.
 - Remaining promotion gate: a held-out case, independently controlled
   consumer, and measured value over a plain rooted manifest.
+- Gate boundary: this promotion gate does not block a human Decision about the
+  receiver's exact bounded Claim. It blocks promoting the derived envelope
+  into a supported shared contract or claiming independent product value.
 - Builds on:
   [ADR 0026](0026-correction-benchmark-and-whitepaper-evidence-contract.md)
   and the original B8 failure in the
