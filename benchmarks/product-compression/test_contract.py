@@ -241,6 +241,10 @@ class ProductCompressionTests(unittest.TestCase):
                 "@openai/codex",
                 (baseline / "environment/Dockerfile").read_text(),
             )
+            self.assertIn(
+                "apk add --no-cache bash",
+                (baseline / "environment/Dockerfile").read_text(),
+            )
             self.assertEqual(contract.read_json(output / "fixture.json"), source)
             self.assertEqual(contract.read_json(output / "answer-key.json"), key)
             harbor_job = contract.read_json(output / "harbor-job.json")
