@@ -322,7 +322,11 @@ def build_study(
     try:
         for arm in ARMS:
             task = tasks / arm
-            shutil.copytree(template, task)
+            shutil.copytree(
+                template,
+                task,
+                ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+            )
             environment = task / "environment"
             tests = task / "tests"
             shutil.copy2(bundle, environment / "frontier.bundle")

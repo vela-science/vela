@@ -273,6 +273,8 @@ class ProductCompressionTests(unittest.TestCase):
                 {path.name for path in (baseline / "environment").iterdir()},
                 {"Dockerfile", "answer.schema.json", "fixture.json", "frontier.bundle"},
             )
+            self.assertFalse(any(baseline.rglob("__pycache__")))
+            self.assertFalse(any(baseline.rglob("*.pyc")))
             resolved = subprocess.run(
                 [
                     "harbor", "run", "--config",
