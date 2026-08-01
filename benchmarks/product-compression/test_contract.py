@@ -202,6 +202,12 @@ def load_verifier():
 
 
 class ProductCompressionTests(unittest.TestCase):
+    def test_harbor_verifier_creates_its_output_directory(self) -> None:
+        test_script = (Path(__file__).parent / "task" / "tests" / "test.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("mkdir -p /logs/verifier", test_script)
+
     def test_contract_preserves_authority_boundary(self) -> None:
         contract.validate_answer(answer())
         value = answer()
