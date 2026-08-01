@@ -90,7 +90,7 @@ fn briefing(frontier: &Path, target_id: &str) -> Result<Value, String> {
         .cloned();
     let execution_binding = execution_binding(&target.packet.sha256, &packet)?;
 
-    Ok(json!({
+    let mut result = json!({
         "schema": "vela.start-briefing.v2",
         "target": {
             "id": target.id,
@@ -112,9 +112,19 @@ fn briefing(frontier: &Path, target_id: &str) -> Result<Value, String> {
             "tree": assessment.index.source.git_tree,
         },
         "verifier": verifier,
-        "execution_binding": execution_binding,
         "authority_ceiling": AUTHORITY_CEILING,
-    }))
+    });
+    if let Some(binding) = execution_binding {
+        result
+            .as_object_mut()
+            .expect("start briefing is an object")
+            .insert(
+                "execution_binding".to_string(),
+                serde_json::to_value(binding)
+                    .map_err(|error| format!("serialize exact execution binding: {error}"))?,
+            );
+    }
+    Ok(result)
 }
 
 pub(crate) fn cmd_start(frontier: &Path, target: &str, json_out: bool) {
