@@ -17,7 +17,6 @@ import contract
 
 
 ARMS = ("git-files", "vela-guided")
-SESSIONS = ("git-files-01", "vela-guided-01", "vela-guided-02", "git-files-02")
 COMPARISON = {
     "required_repetitions_per_arm": 2,
     "guided_exact_required": 2,
@@ -75,7 +74,6 @@ def materialize_fixture(
 
     before_commit = command(("git", "rev-parse", "HEAD"), cwd=frontier)
     before_tree = command(("git", "rev-parse", "HEAD^{tree}"), cwd=frontier)
-    remote = command(("git", "remote", "get-url", "origin"), cwd=frontier)
     next_work = json_command((str(vela), "next", str(frontier), "--limit", "1", "--json"), cwd=frontier)
     inbox = json_command((str(vela), "review", "inbox", str(frontier), "--json"), cwd=frontier)
 
@@ -131,7 +129,7 @@ def materialize_fixture(
     }
 
     expected = {
-        "schema": "vela.product-compression-answer.v5",
+        "schema": "vela.product-compression-answer.v6",
         "frontier": {
             "frontier_id": next_work["frontier_id"],
             "repository_root": next_work["repository_root"],
@@ -157,26 +155,24 @@ def materialize_fixture(
             "next_if_accept_code": "replay_and_recompute_targets",
             "next_if_reject_code": "replay_without_standing_change",
         },
-        "safety": {"authority_action_performed": False, "accepted_state_changed": False},
     }
     contract.validate_answer(expected)
 
     fixture = {
-        "schema": "vela.product-compression-fixture.v3",
+        "schema": "vela.product-compression-fixture.v4",
         "fixture_root": "",
         "vela": {"version": command((str(vela), "--version"), cwd=frontier), "binary_sha256": digest(vela)},
         "frontier": {
-            "frontier_id": next_work["frontier_id"], "remote": remote,
+            "frontier_id": next_work["frontier_id"],
             "git_commit": before_commit, "git_tree": before_tree,
             "repository_root": next_work["repository_root"],
             "target_index_root": next_work["target_index_root"],
         },
         "task": {"proposal_id": proposal_id},
-        "participant_files": [],
     }
     contract.seal(fixture, "fixture_root")
     answer_key = contract.seal({
-        "schema": "vela.product-compression-answer-key.v5",
+        "schema": "vela.product-compression-answer-key.v6",
         "answer_key_root": "", "fixture_root": fixture["fixture_root"], "expected": expected,
     }, "answer_key_root")
     contract.validate_answer_key(answer_key)
@@ -242,9 +238,8 @@ def build_study(
     template = Path(__file__).with_name("task")
     task_rows = []
     try:
-        for session in SESSIONS:
-            arm = session.rsplit("-", 1)[0]
-            task = tasks / session
+        for arm in ARMS:
+            task = tasks / arm
             shutil.copytree(template, task)
             environment = task / "environment"
             tests = task / "tests"
@@ -277,9 +272,9 @@ def build_study(
                 )
             render(
                 task / "instruction.md",
-                {"SESSION_ID": session, "TOOL_GUIDANCE": guidance},
+                {"TOOL_GUIDANCE": guidance},
             )
-            render(task / "task.toml", {"SESSION_ID": session})
+            render(task / "task.toml", {"ARM": arm})
             render(environment / "Dockerfile", {"VELA_INSTALL": vela_install})
             task_rows.append({
                 "path": task.relative_to(output).as_posix(),
@@ -288,28 +283,9 @@ def build_study(
     finally:
         bundle.unlink(missing_ok=True)
 
-    plan = contract.seal({
-        "schema": "vela.product-compression-plan.v7",
-        "plan_root": "",
-        "fixture_root": fixture["fixture_root"],
-        "answer_key_root": answer_key["answer_key_root"],
-        "harbor": {"version": command(("harbor", "--version"))},
-        "agent": {"name": "codex", "model": model, "version": codex_version},
-        "vela": {
-            "version": fixture["vela"]["version"],
-            "linux_sha256": contract.sha256_root(vela_linux.read_bytes()),
-        },
-        "sessions": list(SESSIONS),
-        "tasks": task_rows,
-        "comparison_rule": COMPARISON,
-        "claim_limit": (
-            "First-party evidence from one frozen task; no independent-user "
-            "or general scientific-workflow claim."
-        ),
-    }, "plan_root")
-    contract.write_json(output / "plan.json", plan)
-    contract.write_json(output / "harbor-job.json", {
+    job = {
         "job_name": job_name,
+        "n_attempts": 2,
         "n_concurrent_trials": 1,
         "retry": {"max_retries": 0},
         "agents": [{
@@ -318,7 +294,22 @@ def build_study(
             "kwargs": {"version": codex_version},
         }],
         "tasks": [{"path": row["path"]} for row in task_rows],
-    })
+    }
+    contract.write_json(output / "harbor-job.json", job)
+    plan = contract.seal({
+        "schema": "vela.product-compression-plan.v8",
+        "plan_root": "",
+        "fixture_root": fixture["fixture_root"],
+        "answer_key_root": answer_key["answer_key_root"],
+        "task_roots": task_rows,
+        "harbor_job_root": contract.sha256_root(contract.canonical_bytes(job)),
+        "comparison_rule": COMPARISON,
+        "claim_limit": (
+            "First-party evidence from one frozen task; no independent-user "
+            "or general scientific-workflow claim."
+        ),
+    }, "plan_root")
+    contract.write_json(output / "plan.json", plan)
     return plan
 
 

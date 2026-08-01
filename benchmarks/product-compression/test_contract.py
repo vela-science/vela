@@ -22,7 +22,7 @@ def root(char: str) -> str:
 def answer() -> dict:
     claim = f"vcl_{'d' * 64}"
     return {
-        "schema": "vela.product-compression-answer.v5",
+        "schema": "vela.product-compression-answer.v6",
         "frontier": {"frontier_id": "vfr_0123456789abcdef", "repository_root": root("1")},
         "next_work": {"target_id": "erdos:1056", "target_index_root": root("2"), "packet_sha256": root("3")},
         "decision": {
@@ -47,13 +47,12 @@ def answer() -> dict:
             "next_if_accept_code": "replay_and_recompute_targets",
             "next_if_reject_code": "replay_without_standing_change",
         },
-        "safety": {"authority_action_performed": False, "accepted_state_changed": False},
     }
 
 
 def answer_key(fixture_root: str = root("9")) -> dict:
     return contract.seal({
-        "schema": "vela.product-compression-answer-key.v5",
+        "schema": "vela.product-compression-answer-key.v6",
         "answer_key_root": "",
         "fixture_root": fixture_root,
         "expected": answer(),
@@ -62,54 +61,51 @@ def answer_key(fixture_root: str = root("9")) -> dict:
 
 def fixture(commit: str = "1" * 40, tree: str = "2" * 40) -> dict:
     return contract.seal({
-        "schema": "vela.product-compression-fixture.v3",
+        "schema": "vela.product-compression-fixture.v4",
         "fixture_root": "",
         "vela": {"version": "vela test", "binary_sha256": root("7")},
         "frontier": {
             "frontier_id": "vfr_0123456789abcdef",
-            "remote": "test",
             "git_commit": commit,
             "git_tree": tree,
             "repository_root": root("1"),
             "target_index_root": root("2"),
         },
         "task": {"proposal_id": "vpr_0123456789abcdef"},
-        "participant_files": [],
     }, "fixture_root")
 
 
 def plan() -> dict:
     return contract.seal({
-        "schema": "vela.product-compression-plan.v7",
+        "schema": "vela.product-compression-plan.v8",
         "plan_root": "",
         "fixture_root": root("9"),
         "answer_key_root": answer_key()["answer_key_root"],
-        "harbor": {"version": "0.20.0"},
-        "agent": {"name": "codex", "model": "test", "version": "0.1.0"},
-        "vela": {"version": "vela test", "linux_sha256": root("8")},
-        "sessions": list(materialize.SESSIONS),
-        "tasks": [],
+        "task_roots": [],
+        "harbor_job_root": root("8"),
         "comparison_rule": materialize.COMPARISON,
         "claim_limit": "First-party evidence from one frozen task; no independent-user or general scientific-workflow claim.",
     }, "plan_root")
 
 
-def write_job(directory: Path, exact_sessions: set[str]) -> None:
+def write_job(directory: Path, exact_trials: set[tuple[str, int]]) -> None:
     total_cost = 0.0
-    for index, session in enumerate(materialize.SESSIONS, start=1):
-        trial = directory / f"{index:02d}-{session}__trial"
-        cost = 0.25 if session.startswith("vela-guided") else 0.5
+    rows = [(arm, attempt) for attempt in range(1, 3) for arm in materialize.ARMS]
+    for index, (arm, attempt) in enumerate(rows, start=1):
+        trial = directory / f"native-{index}"
+        cost = 0.25 if arm == "vela-guided" else 0.5
         total_cost += cost
         contract.write_json(trial / "result.json", {
             "id": f"trial-{index}",
+            "task_name": f"vela/product-compression-{arm}",
             "finished_at": "2026-07-31T12:00:05Z",
             "exception_info": None,
             "agent_execution": {
                 "started_at": "2026-07-31T12:00:00Z",
-                "finished_at": "2026-07-31T12:00:02Z" if session.startswith("vela-guided") else "2026-07-31T12:00:04Z",
+                "finished_at": "2026-07-31T12:00:02Z" if arm == "vela-guided" else "2026-07-31T12:00:04Z",
             },
             "agent_result": {"cost_usd": cost},
-            "verifier_result": {"rewards": {"eligible": 1, "exact": int(session in exact_sessions)}},
+            "verifier_result": {"rewards": {"eligible": 1, "exact": int((arm, attempt) in exact_trials)}},
         })
     contract.write_json(directory / "result.json", {
         "id": "product-compression-test",
@@ -143,10 +139,6 @@ class ProductCompressionTests(unittest.TestCase):
         value["decision"]["verification_is_acceptance"] = True
         with self.assertRaisesRegex(contract.ContractError, "authority boundary"):
             contract.validate_answer(value)
-        value = answer()
-        value["safety"]["authority_action_performed"] = True
-        with self.assertRaisesRegex(contract.ContractError, "read-only"):
-            contract.validate_answer(value)
 
     def test_contract_rejects_false_standing_delta(self) -> None:
         value = answer()
@@ -176,21 +168,16 @@ class ProductCompressionTests(unittest.TestCase):
         verifier = load_verifier()
         source = fixture()
         key = answer_key(source["fixture_root"])
-        exact = verifier.outcome(
-            answer(), key, source, "1" * 40, "2" * 40, "",
-        )
+        exact = verifier.outcome(answer(), key, source)
         self.assertEqual((exact["eligible"], exact["exact"]), (True, True))
         wrong = answer()
         wrong["next_work"]["target_id"] = "erdos:9999"
-        mismatch = verifier.outcome(
-            wrong, key, source, "1" * 40, "2" * 40, "",
-        )
+        mismatch = verifier.outcome(wrong, key, source)
         self.assertEqual((mismatch["eligible"], mismatch["exact"]), (True, False))
-        drift = verifier.outcome(
-            answer(), key, source, "1" * 40, "3" * 40, "",
-        )
-        self.assertFalse(drift["eligible"])
-        self.assertIn("frontier_tree_drift", drift["eligibility_failure_codes"])
+        source["frontier"]["git_tree"] = "3" * 40
+        invalid = verifier.outcome(answer(), key, source)
+        self.assertFalse(invalid["eligible"])
+        self.assertIn("fixture_invalid", invalid["eligibility_failure_codes"])
 
     def test_materializer_builds_native_harbor_study(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -221,15 +208,16 @@ class ProductCompressionTests(unittest.TestCase):
                 source, key, frontier, binary, "test-model", "0.1.0",
                 "vela-product-compression-test", output,
             )
-            self.assertEqual(prepared["schema"], "vela.product-compression-plan.v7")
-            self.assertEqual(len(prepared["tasks"]), 4)
-            baseline = output / "tasks/git-files-01"
-            guided = output / "tasks/vela-guided-01"
+            self.assertEqual(prepared["schema"], "vela.product-compression-plan.v8")
+            self.assertEqual(len(prepared["task_roots"]), 2)
+            baseline = output / "tasks/git-files"
+            guided = output / "tasks/vela-guided"
             self.assertNotIn("{{", (baseline / "instruction.md").read_text())
             self.assertNotIn("COPY vela", (baseline / "environment/Dockerfile").read_text())
             self.assertIn("COPY vela", (guided / "environment/Dockerfile").read_text())
             self.assertEqual(contract.read_json(output / "fixture.json"), source)
             self.assertEqual(contract.read_json(output / "answer-key.json"), key)
+            self.assertEqual(contract.read_json(output / "harbor-job.json")["n_attempts"], 2)
             self.assertEqual(
                 {path.name for path in (baseline / "environment").iterdir()},
                 {"Dockerfile", "answer.schema.json", "fixture.json", "frontier.bundle"},
@@ -244,6 +232,11 @@ class ProductCompressionTests(unittest.TestCase):
                 text=True,
             )
             self.assertEqual(resolved.returncode, 0, resolved.stderr)
+            self.assertEqual(json.loads(resolved.stdout)["n_attempts"], 2)
+            self.assertIn(
+                'environment_mode = "separate"',
+                (guided / "task.toml").read_text(),
+            )
 
     def test_native_harbor_summary_records_bounded_lift(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -251,7 +244,7 @@ class ProductCompressionTests(unittest.TestCase):
             plan_path = base / "plan.json"
             job = base / "job"
             contract.write_json(plan_path, plan())
-            write_job(job, {"vela-guided-01", "vela-guided-02"})
+            write_job(job, {("vela-guided", 1), ("vela-guided", 2)})
             result = summarize.summarize(plan_path, job)
             self.assertEqual(result["conclusion"]["outcome"], "pass_task_specific_exactness_advantage")
             self.assertEqual(result["comparison"]["arms"]["vela-guided"]["exact"], 2)
@@ -263,7 +256,7 @@ class ProductCompressionTests(unittest.TestCase):
             plan_path = base / "plan.json"
             job = base / "job"
             contract.write_json(plan_path, plan())
-            write_job(job, {"vela-guided-01"})
+            write_job(job, {("vela-guided", 1)})
             result = summarize.summarize(plan_path, job)
             self.assertEqual(result["conclusion"]["outcome"], "failed_no_product_lift_credit")
 

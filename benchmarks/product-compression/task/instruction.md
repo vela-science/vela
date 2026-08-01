@@ -14,5 +14,3 @@ Write exactly one JSON answer conforming to
 `/opt/vela-input/answer.schema.json` at `/logs/artifacts/answer.json`. Do not
 modify the checkout. Do not perform or simulate Accept, Reject, Cancel, signing,
 publication, or any authority action. Verification is evidence, not acceptance.
-
-Session: `{{SESSION_ID}}`.

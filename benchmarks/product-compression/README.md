@@ -11,8 +11,8 @@ task format, containers, Codex execution and OAuth, retries, trajectories,
 artifacts, verifier rewards, timing, cost, and raw results. Vela contributes
 only:
 
-- `materialize.py`: one exact Target and Decision-Inbox fixture plus the
-  ready-to-run local Harbor task set;
+- `materialize.py`: one exact Target and Decision-Inbox fixture plus two
+  ready-to-run local Harbor tasks;
 - `answer.schema.json`: the participant output contract;
 - `task/tests/verify.py`: an offline exact scorer; and
 - `summarize.py`: the prospective two-arm comparison rule.
@@ -23,7 +23,10 @@ The retained Vela summary points to its native result bytes and states only the
 bounded conclusion used by the paper.
 
 Harbor evidence never changes scientific Standing. Verification is not
-acceptance, and the tasks receive no authority credentials.
+acceptance. The task containers receive no authority credentials, no Git
+remote, and no mutable canonical checkout; the verifier runs in a separate
+no-network container. Safety is enforced by custody rather than claimed by the
+participant.
 
 ## Study
 
@@ -32,7 +35,7 @@ The two matched arms inspect the same isolated Frontier commit:
 - `git-files`: ordinary Git and file-reading tools;
 - `vela-guided`: the same tools plus one exact read-only Vela binary.
 
-There are two fresh Codex sessions per arm in counterbalanced order. All four
+Harbor runs two native attempts per task. All four
 must be eligible. Vela receives bounded task-specific credit only when its arm
 is exact twice, is at least as exact as the baseline, and has no median cost
 regression. If both arms are exact twice, Vela must reduce median agent time by
@@ -87,6 +90,7 @@ generated execution state do not belong in Git.
 
 ## History
 
-`paper/artifacts/product-compression-v1` through `v5` preserve failed,
-invalidated, or superseded study conclusions without remaining active harnesses.
-The bounded passing v6 result remains unchanged.
+The active tree keeps one historical v6 summary because it motivated the clean
+rerun. Earlier failed and invalidated iterations remain available in Git
+history; they are not active harnesses, compatibility targets, or runtime
+inputs.

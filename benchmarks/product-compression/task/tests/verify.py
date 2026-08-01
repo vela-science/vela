@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -23,21 +22,7 @@ def read(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def git(*arguments: str) -> str:
-    return subprocess.run(
-        ["git", *arguments], cwd="/workspace/frontier", check=True,
-        capture_output=True, text=True,
-    ).stdout.strip()
-
-
-def outcome(
-    answer: Any,
-    key: Any,
-    fixture: Any,
-    head: str,
-    tree: str,
-    status: str,
-) -> dict[str, Any]:
+def outcome(answer: Any, key: Any, fixture: Any) -> dict[str, Any]:
     eligibility: list[str] = []
     correctness: list[str] = []
     if not isinstance(key, dict) or key.get("answer_key_root") != record_root(key, "answer_key_root"):
@@ -46,15 +31,6 @@ def outcome(
         eligibility.append("fixture_invalid")
     elif not isinstance(key, dict) or key.get("fixture_root") != fixture["fixture_root"]:
         eligibility.append("fixture_answer_key_mismatch")
-    frontier = fixture.get("frontier", {}) if isinstance(fixture, dict) else {}
-    expected_head = frontier.get("git_commit")
-    expected_tree = frontier.get("git_tree")
-    if head != expected_head:
-        eligibility.append("frontier_head_drift")
-    if tree != expected_tree:
-        eligibility.append("frontier_tree_drift")
-    if status:
-        eligibility.append("frontier_worktree_drift")
     if not isinstance(key, dict) or answer != key.get("expected"):
         correctness.append("answer_mismatch")
     return {
@@ -70,14 +46,7 @@ def main() -> None:
     answer = read(answer_path) if answer_path.is_file() else None
     key = read(Path("/tests/answer-key.json"))
     fixture = read(Path("/tests/fixture.json"))
-    result = outcome(
-        answer,
-        key,
-        fixture,
-        git("rev-parse", "HEAD"),
-        git("rev-parse", "HEAD^{tree}"),
-        git("status", "--porcelain"),
-    )
+    result = outcome(answer, key, fixture)
     verification = {
         "fixture_root": fixture.get("fixture_root"),
         "answer_key_root": key.get("answer_key_root"),
@@ -87,7 +56,7 @@ def main() -> None:
         ),
         **result,
         "network": "none",
-        "authority_available": False,
+        "verification_environment": "separate",
     }
     logs = Path("/logs/verifier")
     logs.mkdir(parents=True, exist_ok=True)

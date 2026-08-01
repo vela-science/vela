@@ -41,10 +41,6 @@ Daily product:
   log           Recent signed events or one finding's history
   doctor        Blockers plus one safe next action
 
-Nouns and setup:
-  agents        regenerate agent adapters from VELA.md
-  config        closed local/frontier configuration
-
 Advanced verification and integration:
   verification  Retain non-authorizing scoped Verification Records
 

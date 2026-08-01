@@ -195,11 +195,10 @@ init status next start submit verification show why review check reproduce log d
 Current advanced surfaces:
 
 ```text
-claim id agents config verification authority repository
+verification authority
 ```
 
-Run `vela help advanced` for the grouped contract. `repository` is read-only:
-it verifies the signed current origin and active repository.
+Run `vela help advanced` for the grouped contract.
 
 Frontier domain adapters write the optional tracked Target Index directly;
 `check`, `next`, and `start` validate it without a maintenance subcommand.

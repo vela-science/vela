@@ -2,13 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "frontier", "next_work", "decision", "safety"],
+  "required": ["schema", "frontier", "next_work", "decision"],
   "properties": {
-    "schema": {"const": "vela.product-compression-answer.v5"},
+    "schema": {"const": "vela.product-compression-answer.v6"},
     "frontier": {"$ref": "#/$defs/frontier"},
     "next_work": {"$ref": "#/$defs/nextWork"},
-    "decision": {"$ref": "#/$defs/decision"},
-    "safety": {"$ref": "#/$defs/safety"}
+    "decision": {"$ref": "#/$defs/decision"}
   },
   "$defs": {
     "root": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
@@ -82,14 +81,6 @@
         "staleness": {"enum": ["current", "stale"]},
         "next_if_accept_code": {"const": "replay_and_recompute_targets"},
         "next_if_reject_code": {"const": "replay_without_standing_change"}
-      }
-    },
-    "safety": {
-      "type": "object", "additionalProperties": false,
-      "required": ["authority_action_performed", "accepted_state_changed"],
-      "properties": {
-        "authority_action_performed": {"const": false},
-        "accepted_state_changed": {"const": false}
       }
     }
   }

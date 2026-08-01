@@ -1,7 +1,7 @@
 schema_version = "1.3"
 
 [task]
-name = "vela/product-compression-{{SESSION_ID}}"
+name = "vela/product-compression-{{ARM}}"
 description = "Matched read-only Vela product-compression task."
 authors = [{ name = "Vela" }]
 keywords = ["vela", "read-only", "product-compression"]
@@ -13,7 +13,7 @@ allowed_hosts = ["api.openai.com", "chatgpt.com", "*.chatgpt.com", "*.auth.opena
 
 [verifier]
 timeout_sec = 60.0
-environment_mode = "shared"
+environment_mode = "separate"
 network_mode = "no-network"
 
 [environment]

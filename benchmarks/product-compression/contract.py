@@ -59,12 +59,11 @@ def validate_answer(value: Any) -> None:
     compares a participant answer with the exact answer key.
     """
     try:
-        if value["schema"] != "vela.product-compression-answer.v5":
+        if value["schema"] != "vela.product-compression-answer.v6":
             raise ContractError("$.schema: wrong answer schema")
         frontier = value["frontier"]
         work = value["next_work"]
         decision = value["decision"]
-        safety = value["safety"]
         delta = decision["standing_delta"]
         scope = delta["scope"]
     except (KeyError, TypeError) as exc:
@@ -76,8 +75,6 @@ def validate_answer(value: Any) -> None:
     for field in ("proposal_root", "verification_set_root", "inbox_entry_root"):
         require_root(decision.get(field), f"$.decision.{field}")
 
-    if safety != {"authority_action_performed": False, "accepted_state_changed": False}:
-        raise ContractError("$.safety: inspection must remain read-only")
     required_boundary = (
         decision.get("human_decision_required"),
         decision.get("verification_is_acceptance"),
@@ -120,7 +117,7 @@ def validate_answer(value: Any) -> None:
 
 
 def validate_answer_key(value: Any) -> None:
-    if not isinstance(value, dict) or value.get("schema") != "vela.product-compression-answer-key.v5":
+    if not isinstance(value, dict) or value.get("schema") != "vela.product-compression-answer-key.v6":
         raise ContractError("answer key has the wrong schema")
     require_root(value.get("fixture_root"), "$.fixture_root")
     require_root(value.get("answer_key_root"), "$.answer_key_root")

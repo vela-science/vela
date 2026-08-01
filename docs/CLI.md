@@ -58,19 +58,15 @@ init status next start submit show why review check reproduce log doctor
 ## Advanced commands
 
 ```text
-claim agents config verification authority repository
+verification authority
 ```
 
-- `claim` provides current Claim record, standing, evidence, and attribution
-  views.
 - `why` also resolves a retained superseded Claim through covered authority
   history and returns its exact predecessor, successor, Proposal, applied
   event, and terminal Decision bindings.
-- `agents` regenerates agent adapters from `VELA.md`.
-- `config` manages closed local and Frontier configuration.
 - `verification import` retains a non-authorizing scoped Verification Record.
-- `authority` initializes or inspects the repository writer and public trust
-  roots.
+- `authority` initializes the repository writer for a fresh Frontier. It is an
+  exceptional setup surface rather than an ordinary workflow.
 
 Frontier-owned domain adapters generate the optional tracked `targets.json`
 catalogue. `check`, `next`, and `start` validate it; Vela has no separate
