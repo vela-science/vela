@@ -200,14 +200,6 @@ pub(crate) const KEYS: &[KeySpec] = &[
         help: "hint: lines naming the next command on errors",
     },
     KeySpec {
-        key: "core.editor",
-        default: "",
-        env: "VELA_EDITOR",
-        frontier: None,
-        allowed: &[],
-        help: "editor for sign-session notes (falls back to VISUAL/EDITOR)",
-    },
-    KeySpec {
         key: "work.lease_ttl_seconds",
         default: "86400",
         env: "VELA_WORK_LEASE_TTL_SECONDS",
