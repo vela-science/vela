@@ -105,6 +105,13 @@ fn advice_enabled() -> bool {
         .unwrap_or(true)
 }
 
+/// Report best-effort maintenance that failed after the semantic operation
+/// already succeeded. Diagnostics use stderr in both human and JSON modes so
+/// the command's single structured stdout result remains valid.
+pub(crate) fn warn_nonfatal(message: &str) {
+    eprintln!("warn · {}", crate::cli::safe_text::multiline(message));
+}
+
 /// Terminate with the one error grammar. Human mode:
 /// `err · <message>` + optional `hint: <next command>`; JSON mode: a
 /// single `{ok:false, command, error:{kind,message,hint}}` object on

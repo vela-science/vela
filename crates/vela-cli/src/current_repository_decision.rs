@@ -844,6 +844,12 @@ pub(crate) fn execute(
             "review Decision was published but strict verification failed: {error}; do not retry the Decision"
         )
     })?;
+    if let Err(error) = transaction.retire_completed_recovery_blobs() {
+        crate::ui::warn_nonfatal(&format!(
+            "review Decision {} was published and verified, but private recovery blob cleanup failed: {error}",
+            result.operation_id
+        ));
+    }
     Ok(result)
 }
 

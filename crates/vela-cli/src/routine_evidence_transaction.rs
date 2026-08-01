@@ -64,6 +64,10 @@ impl PreparedRoutineEvidenceTransaction {
     pub(crate) fn complete(&mut self) -> Result<(), FrontierTxnError> {
         self.transaction.complete()
     }
+
+    pub(crate) fn retire_completed_recovery_blobs(&mut self) -> Result<usize, FrontierTxnError> {
+        self.transaction.retire_completed_recovery_blobs()
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

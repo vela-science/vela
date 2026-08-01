@@ -203,6 +203,14 @@ impl PreparedAuthorityTransaction {
             .map_err(AuthorityTransactionError::Transaction)
     }
 
+    pub(crate) fn retire_completed_recovery_blobs(
+        &mut self,
+    ) -> Result<usize, AuthorityTransactionError> {
+        self.transaction
+            .retire_completed_recovery_blobs()
+            .map_err(AuthorityTransactionError::Transaction)
+    }
+
     #[cfg(test)]
     fn transaction_mut(&mut self) -> &mut FrontierTxn {
         &mut self.transaction

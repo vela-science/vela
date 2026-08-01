@@ -1865,6 +1865,16 @@ fn frontier_journals(
     Ok(journals)
 }
 
+fn journal_blob_digests(journal: &FrontierTxnJournal) -> BTreeSet<ContentDigest> {
+    journal
+        .plan
+        .canonical_delta
+        .writes()
+        .iter()
+        .filter_map(|write| write.payload.as_ref().map(|blob| blob.digest.clone()))
+        .collect()
+}
+
 fn require_journal_directory(path: &Path, label: &str) -> Result<(), FrontierTxnError> {
     let metadata = fs::symlink_metadata(path).map_err(|error| {
         FrontierTxnError::Journal(format!("inspect {label} {}: {error}", path.display()))
@@ -2983,6 +2993,64 @@ impl FrontierTxn {
 
     pub(crate) fn complete(&mut self) -> Result<(), FrontierTxnError> {
         self.complete_with_failpoints(&mut NoFrontierTxnFailpoints)
+    }
+
+    /// Retire private recovery copies after exact Git publication and strict
+    /// repository verification have both succeeded.
+    ///
+    /// The durable plan, commit marker, read set, and file-state commitments
+    /// remain intact. Only this completed transaction is marked pruned, and a
+    /// blob file is removed only when no journal that still retains recovery
+    /// bytes references it. The transaction lock remains held throughout, so
+    /// another writer cannot acquire a reference between the scan and unlink.
+    ///
+    /// Callers deliberately invoke this as best-effort maintenance after the
+    /// semantic operation is already published. An error must be reported as a
+    /// diagnostic, never converted into a false operation failure.
+    pub(crate) fn retire_completed_recovery_blobs(&mut self) -> Result<usize, FrontierTxnError> {
+        if !matches!(self.journal.recovery, RecoveryState::Completed) {
+            return Err(FrontierTxnError::CorruptPlan(format!(
+                "cannot retire recovery blobs for transaction {} from {:?}",
+                self.journal.plan.operation_id.as_str(),
+                self.journal.recovery
+            )));
+        }
+        self.verify_completed_state()?;
+
+        let candidates = journal_blob_digests(&self.journal);
+        if self.journal.blob_retention == BlobRetention::Retained {
+            self.journal.blob_retention = BlobRetention::Pruned;
+            self.persist_journal()?;
+        }
+
+        let journal_dir = self
+            .paths
+            .plan
+            .parent()
+            .and_then(Path::parent)
+            .ok_or_else(|| {
+                FrontierTxnError::Journal(format!(
+                    "frontier transaction path has no journal root: {}",
+                    self.paths.plan.display()
+                ))
+            })?;
+        let journals = frontier_journals(&self.root, journal_dir)?;
+        let retained = journals
+            .iter()
+            .filter(|(_, journal)| {
+                journal.blob_retention == BlobRetention::Retained
+                    || !matches!(journal.recovery, RecoveryState::Completed)
+            })
+            .flat_map(|(_, journal)| journal_blob_digests(journal))
+            .collect::<BTreeSet<_>>();
+
+        let mut removed = 0;
+        for digest in candidates.difference(&retained) {
+            operation_journal::remove(&self.paths.blob(digest))
+                .map_err(FrontierTxnError::Journal)?;
+            removed += 1;
+        }
+        Ok(removed)
     }
 
     fn complete_with_failpoints(
@@ -4922,6 +4990,181 @@ mod tests {
             RecoveryOutcome::AlreadyCompleted,
             "replaying a completed transaction must remain idempotent"
         );
+    }
+
+    #[test]
+    fn completed_recovery_blob_retirement_preserves_plan_marker_and_replay() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        let journals = temp.path().join("journals");
+        fs::create_dir_all(&root).unwrap();
+        let draft = DeltaDraft::prepare(
+            &root,
+            vec![PlannedWrite::write(
+                RepoPath::parse("records/submission.json").unwrap(),
+                WriteClass::PublicReview,
+                b"published submission".to_vec(),
+            )],
+        )
+        .unwrap();
+        let plan = fixture_plan(&root, &draft, b"retire completed recovery blobs");
+        let operation_id = plan.operation_id.clone();
+        let paths = FrontierTxnPaths::new(&journals, &operation_id);
+        let blob = draft.delta.writes()[0]
+            .payload
+            .as_ref()
+            .unwrap()
+            .digest
+            .clone();
+        let mut txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
+        txn.mark_committed().unwrap();
+        txn.install().unwrap();
+        txn.complete().unwrap();
+
+        assert!(paths.plan.is_file());
+        assert!(paths.marker.is_file());
+        assert!(paths.blob(&blob).is_file());
+        assert_eq!(txn.retire_completed_recovery_blobs().unwrap(), 1);
+        assert!(paths.plan.is_file(), "the durable plan must remain");
+        assert!(paths.marker.is_file(), "the commit marker must remain");
+        assert!(!paths.blob(&blob).exists());
+        let retained: FrontierTxnJournal = operation_journal::read_json(&paths.plan).unwrap();
+        assert_eq!(retained.recovery, RecoveryState::Completed);
+        assert_eq!(retained.blob_retention, BlobRetention::Pruned);
+        drop(txn);
+
+        let reopened = FrontierTxn::open(&root, &journals, &operation_id).unwrap();
+        assert_eq!(reopened.recovery_state(), &RecoveryState::Completed);
+        assert_eq!(
+            reopened.resolved_public_writes().unwrap()[0]
+                .postimage_bytes
+                .as_deref(),
+            Some(b"published submission".as_slice())
+        );
+        drop(reopened);
+        assert_eq!(
+            FrontierTxn::recover(&root, &journals, &operation_id).unwrap(),
+            RecoveryOutcome::AlreadyCompleted
+        );
+    }
+
+    #[test]
+    fn recovery_blobs_survive_a_crash_until_explicit_completed_retirement() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        let journals = temp.path().join("journals");
+        fs::create_dir_all(&root).unwrap();
+        let draft = DeltaDraft::prepare(
+            &root,
+            vec![PlannedWrite::write(
+                RepoPath::parse("records/verification.json").unwrap(),
+                WriteClass::PublicReview,
+                b"verified bytes".to_vec(),
+            )],
+        )
+        .unwrap();
+        let plan = fixture_plan(&root, &draft, b"crash before completed retirement");
+        let operation_id = plan.operation_id.clone();
+        let paths = FrontierTxnPaths::new(&journals, &operation_id);
+        let blob = draft.delta.writes()[0]
+            .payload
+            .as_ref()
+            .unwrap()
+            .digest
+            .clone();
+        let mut txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
+        txn.mark_committed().unwrap();
+        let step = FrontierTxnStep::AfterInstallWrite { index: 0 };
+        assert!(matches!(
+            txn.install_at_failpoint(step),
+            Err(FrontierTxnError::InjectedFailure { step: actual }) if actual == step
+        ));
+        assert!(paths.blob(&blob).is_file());
+        assert!(matches!(
+            txn.retire_completed_recovery_blobs(),
+            Err(FrontierTxnError::CorruptPlan(message))
+                if message.contains("cannot retire recovery blobs")
+        ));
+        assert!(paths.blob(&blob).is_file());
+        drop(txn);
+
+        assert_eq!(
+            FrontierTxn::recover(&root, &journals, &operation_id).unwrap(),
+            RecoveryOutcome::Completed
+        );
+        assert!(paths.blob(&blob).is_file());
+        let mut recovered = FrontierTxn::open(&root, &journals, &operation_id).unwrap();
+        assert_eq!(recovered.retire_completed_recovery_blobs().unwrap(), 1);
+        assert!(!paths.blob(&blob).exists());
+    }
+
+    #[test]
+    fn shared_blob_is_removed_only_after_every_referencing_journal_is_pruned() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        let journals = temp.path().join("journals");
+        fs::create_dir_all(&root).unwrap();
+
+        let first_draft = DeltaDraft::prepare(
+            &root,
+            vec![PlannedWrite::write(
+                RepoPath::parse("records/first.json").unwrap(),
+                WriteClass::PublicReview,
+                b"shared recovery bytes".to_vec(),
+            )],
+        )
+        .unwrap();
+        let shared_blob = first_draft.delta.writes()[0]
+            .payload
+            .as_ref()
+            .unwrap()
+            .digest
+            .clone();
+        let first_plan = fixture_plan(&root, &first_draft, b"first shared blob journal");
+        let first_operation = first_plan.operation_id.clone();
+        let first_paths = FrontierTxnPaths::new(&journals, &first_operation);
+        let mut first = FrontierTxn::prepare(&root, &journals, first_plan, first_draft).unwrap();
+        first.mark_committed().unwrap();
+        first.install().unwrap();
+        first.complete().unwrap();
+        drop(first);
+
+        let second_draft = DeltaDraft::prepare(
+            &root,
+            vec![PlannedWrite::write(
+                RepoPath::parse("records/second.json").unwrap(),
+                WriteClass::PublicReview,
+                b"shared recovery bytes".to_vec(),
+            )],
+        )
+        .unwrap();
+        assert_eq!(
+            second_draft.delta.writes()[0]
+                .payload
+                .as_ref()
+                .unwrap()
+                .digest,
+            shared_blob
+        );
+        let second_plan = fixture_plan(&root, &second_draft, b"second shared blob journal");
+        let second_operation = second_plan.operation_id.clone();
+        let second_paths = FrontierTxnPaths::new(&journals, &second_operation);
+        let mut second = FrontierTxn::prepare(&root, &journals, second_plan, second_draft).unwrap();
+        second.mark_committed().unwrap();
+        second.install().unwrap();
+        second.complete().unwrap();
+
+        assert_eq!(second.retire_completed_recovery_blobs().unwrap(), 0);
+        assert!(second_paths.blob(&shared_blob).is_file());
+        drop(second);
+
+        let mut first = FrontierTxn::open(&root, &journals, &first_operation).unwrap();
+        assert_eq!(first.retire_completed_recovery_blobs().unwrap(), 1);
+        assert!(!first_paths.blob(&shared_blob).exists());
+        drop(first);
+
+        let second = FrontierTxn::open(&root, &journals, &second_operation).unwrap();
+        assert_eq!(second.recovery_state(), &RecoveryState::Completed);
     }
 
     #[test]

@@ -675,6 +675,12 @@ fn submit_inner(
                 )
             },
         )?;
+        if let Err(error) = prepared.retire_completed_recovery_blobs() {
+            crate::ui::warn_nonfatal(&format!(
+                "Submission {} was published and verified, but private recovery blob cleanup failed: {error}",
+                operation_id.as_str()
+            ));
+        }
     }
     Ok(SubmitOutcome {
         schema: "vela.submit-result.v1",

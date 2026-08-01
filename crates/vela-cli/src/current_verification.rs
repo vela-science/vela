@@ -562,6 +562,12 @@ fn import_inner(
                 )
             },
         )?;
+        if let Err(error) = prepared.retire_completed_recovery_blobs() {
+            crate::ui::warn_nonfatal(&format!(
+                "Verification import {} was published and verified, but private recovery blob cleanup failed: {error}",
+                operation_id.as_str()
+            ));
+        }
     }
     Ok(VerificationImportOutcome {
         schema: "vela.verification-import-result.v1",

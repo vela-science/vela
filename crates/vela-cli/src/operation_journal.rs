@@ -135,8 +135,12 @@ pub(crate) fn read_json<T: DeserializeOwned>(path: &Path) -> Result<T, String> {
         .map_err(|error| format!("parse operation journal {}: {error}", path.display()))
 }
 
-#[cfg(test)]
-fn remove(path: &Path) -> Result<(), String> {
+/// Remove one private recovery file and durably unlink it from its directory.
+///
+/// Callers must establish that the file is no longer needed before invoking
+/// this helper. Missing files are an idempotent success so interrupted
+/// maintenance can be retried safely.
+pub(crate) fn remove(path: &Path) -> Result<(), String> {
     match fs::remove_file(path) {
         Ok(()) => {
             if let Some(parent) = path.parent() {
