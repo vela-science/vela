@@ -16,23 +16,16 @@ EXAMPLES
   vela next . --json the agent contract
 
 SEE ALSO
-  vela start  begin an Attempt against one of these targets";
+  vela start  inspect one exact target briefing";
 
 pub const START: &str = "\
 EXAMPLES
-  vela start erdos:443 --as agent:demo --json
-                                start one bounded multi-Submission Attempt
-  vela start erdos:443 --artifact-class verification-report \
-    --max-submissions 4 \
-    --as agent:demo --json
-                                narrow the evidence classes and budget
-  vela start erdos:443 --drop --reason \"switching approaches\" --as agent:demo
-                                revoke the private Attempt
+  vela start erdos:443 --json
+                                inspect the exact target, packet, and read roots
 
-The private Attempt survives successful Submissions until expiry or explicit
-revocation. Each Submission revalidates the exact Target read set and consumes
-the retained Submission, Artifact, and byte budgets. The Attempt may register
-evidence for review; it can never accept or reject scientific Standing.
+Start is stateless and write-free. It validates the current repository and
+Target Index, builds the exact TargetTaskBinding, and prints a direct Submission
+example. It creates no lease, Attempt, counter, lock, Event, or Standing change.
 
 SEE ALSO
   vela next   the ranked offer this claims from
@@ -44,7 +37,7 @@ EXAMPLES
   vela submit --claim \"a(7) >= 22\" --type computational \
     --replayability exact --artifact w.json:witness --caveat \"bounded search\"
                                                author one signed Submission
-  vela submit --attempt vat_0123… --claim \"corrected bounded result\" \
+  vela submit --claim \"corrected bounded result\" \
     --type theoretical --replayability exact --artifact diff.json:source-diff \
     --caveat \"exact source revision only\" --supersedes vcl_0123… \
     --target-root sha256:0123…
@@ -55,8 +48,7 @@ Submission registers authenticated producer input as a pending Proposal. It
 does not create a Verification Record, Decision, Event, or accepted-state
 change. --corrects and --supersedes bind one full accepted Claim ID and root;
 they never decide the Proposal and may describe an observed correction without
-inventing a ranked work target. --attempt optionally attributes a Submission
-to live private work. --check records only producer-reported checks.
+inventing a ranked work target. --check records only producer-reported checks.
 
 SEE ALSO
   vela review show     inspect one exact deferred Proposal";
@@ -131,17 +123,6 @@ pub const DOCTOR: &str = "\
 EXAMPLES
   vela doctor                     blockers plus one next action
   vela doctor --all               full setup and tool diagnostics";
-
-pub const CONFIG: &str = "\
-EXAMPLES
-  vela config get work.lease_ttl_seconds --frontier .
-  vela config set work.lease_ttl_seconds 43200 --frontier .
-  vela config list --json
-  vela config unset work.lease_ttl_seconds --frontier .
-
-Layered: flag > VELA_* env > user config > Frontier convention > default.
-Checked-in publish.git_push = off is narrowing-only and may override user auto.
-Frontiers use the single closed .vela/settings.toml contract.";
 
 pub const ID: &str = "\
 EXAMPLES

@@ -619,10 +619,8 @@ pub(crate) fn publication_repo_relative_path(
 }
 
 pub(crate) struct PublishOptions {
-    pub no_push: bool,
-    /// Push even when config resolves `publish.git_push` to "off" — the explicit
-    /// `--push` flag. Ordinary calls leave this false, so the default
-    /// (commit locally, do not push) holds and publishing stays deliberate.
+    /// Push the atomic publication after its local commit. Ordinary calls leave
+    /// this false; only the explicit `--push` path enables it.
     pub force_push: bool,
     /// An explicit local branch is required when HEAD is detached. Keeping the
     /// target in the options also makes un-checked-out publication testable
@@ -651,9 +649,9 @@ enum PublicationTestStep {
 }
 
 impl PublishOptions {
-    pub(crate) fn new(no_push: bool) -> Self {
+    /// Commit atomically to the local branch without pushing.
+    pub(crate) fn local() -> Self {
         Self {
-            no_push,
             force_push: false,
             target_refname: None,
             preflight_inputs: Vec::new(),
@@ -667,7 +665,6 @@ impl PublishOptions {
     /// Explicit publish: commit locally and push regardless of config.
     pub(crate) fn pushing() -> Self {
         Self {
-            no_push: false,
             force_push: true,
             target_refname: None,
             preflight_inputs: Vec::new(),
@@ -1441,9 +1438,7 @@ fn recover_publication_inner(
             candidate_commit_oid: Some(candidate.clone()),
             lfs_objects: journal.lfs_objects.clone(),
         };
-        let (push_mode, _) =
-            crate::config::settings::try_resolve("publish.git_push", Some(frontier))?;
-        let local_only = (opts.no_push || push_mode == "off") && !opts.force_push;
+        let local_only = !opts.force_push;
         let outcome = if local_only {
             PublicationOutcome {
                 state: PublicationState::CommittedLocal {
@@ -1543,8 +1538,7 @@ fn recover_publication_inner(
         candidate_commit_oid: Some(candidate.clone()),
         lfs_objects: journal.lfs_objects,
     };
-    let (push_mode, _) = crate::config::settings::try_resolve("publish.git_push", Some(frontier))?;
-    let local_only = (opts.no_push || push_mode == "off") && !opts.force_push;
+    let local_only = !opts.force_push;
     let outcome = if local_only {
         PublicationOutcome {
             state: PublicationState::CommittedLocal {
@@ -2164,8 +2158,7 @@ fn publish_exact_inner(
     }
     txn.candidate_commit_oid = Some(candidate.clone());
 
-    let (push_mode, _) = crate::config::settings::try_resolve("publish.git_push", Some(frontier))?;
-    let outcome = if (opts.no_push || push_mode == "off") && !opts.force_push {
+    let outcome = if !opts.force_push {
         PublicationOutcome {
             state: PublicationState::CommittedLocal {
                 commit: candidate.hex.clone(),
@@ -2189,7 +2182,7 @@ fn publish_exact_inner(
 #[allow(clippy::too_many_arguments)]
 fn exact_unchanged_outcome(
     runner: &GitRunner,
-    frontier: &Path,
+    _frontier: &Path,
     target_refname: GitRefName,
     target_checkout: TargetCheckoutState,
     expected: GitOid,
@@ -2216,8 +2209,7 @@ fn exact_unchanged_outcome(
             .filter_map(|entry| parse_lfs_pointer(&entry.bytes).ok())
             .collect(),
     };
-    let (push_mode, _) = crate::config::settings::try_resolve("publish.git_push", Some(frontier))?;
-    if (opts.no_push || push_mode == "off") && !opts.force_push {
+    if !opts.force_push {
         return Ok(PublicationOutcome {
             state: PublicationState::Unchanged {
                 commit: expected.hex,
@@ -5125,7 +5117,7 @@ license:
             label,
             vec![exact_write(path, ".vela/actors.json", &postimage)],
         );
-        let opts = PublishOptions::new(true);
+        let opts = PublishOptions::local();
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::write(path.join(".vela/actors.json"), &postimage).unwrap();
         let index_lock = path.join(".git/index.lock");
@@ -5223,7 +5215,7 @@ license:
             "identical-write",
             vec![exact_write(path, ".vela/actors.json", &unchanged)],
         );
-        let opts = PublishOptions::new(true);
+        let opts = PublishOptions::local();
         let head_before = sh(path, &["rev-parse", "HEAD"]);
         let status_before = sh(path, &["--no-optional-locks", "status", "--porcelain=v1"]);
         let index_before = fs::read(path.join(".git/index")).unwrap();
@@ -5372,7 +5364,7 @@ license:
                 exact_delete(path, "frontier.json"),
             ],
         );
-        let opts = PublishOptions::new(true);
+        let opts = PublishOptions::local();
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::write(path.join(".vela/actors.json"), written).unwrap();
         fs::remove_file(path.join("frontier.json")).unwrap();
@@ -5419,7 +5411,7 @@ license:
             "legacy-tracked-artifact",
             vec![exact_write(path, ".vela/actors.json", written)],
         );
-        let opts = PublishOptions::new(true);
+        let opts = PublishOptions::local();
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::write(path.join(".vela/actors.json"), written).unwrap();
 
@@ -5458,7 +5450,7 @@ license:
             "caller-index-drift-after-preflight",
             vec![exact_write(path, ".vela/actors.json", postimage)],
         );
-        let opts = PublishOptions::new(true);
+        let opts = PublishOptions::local();
         let expected = sh(path, &["rev-parse", "refs/heads/main"]);
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
 
@@ -5516,7 +5508,7 @@ license:
         );
         let objects_before = sh(path, &["count-objects", "-v"]);
 
-        let outcome = exact_publication_preflight(path, &delta, &PublishOptions::new(true))
+        let outcome = exact_publication_preflight(path, &delta, &PublishOptions::local())
             .expect_err("detached HEAD without an explicit branch must fail before publication");
 
         match outcome.state {
@@ -5544,7 +5536,7 @@ license:
             "unchecked-target",
             vec![exact_write(path, ".vela/actors.json", written)],
         );
-        let mut opts = PublishOptions::new(true);
+        let mut opts = PublishOptions::local();
         opts.target_refname = Some("refs/heads/publication-target".to_string());
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::write(path.join(".vela/actors.json"), written).unwrap();
@@ -5610,7 +5602,7 @@ license:
             "linked-worktree",
             vec![exact_write(path, ".vela/actors.json", b"[\n]\n")],
         );
-        let mut opts = PublishOptions::new(true);
+        let mut opts = PublishOptions::local();
         opts.target_refname = Some("refs/heads/linked-target".to_string());
 
         let outcome = exact_publication_preflight(path, &delta, &opts)
@@ -5655,7 +5647,7 @@ license:
                 &format!("pre-ref-journal-{step:?}"),
                 vec![exact_write(path, ".vela/actors.json", &postimage)],
             );
-            let opts = PublishOptions::new(true).at_test_step(step);
+            let opts = PublishOptions::local().at_test_step(step);
             let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
             fs::write(path.join(".vela/actors.json"), &postimage).unwrap();
             let index_before = fs::read(path.join(".git/index")).unwrap();
@@ -5692,7 +5684,7 @@ license:
             assert_eq!(sh(path, &["rev-parse", "refs/heads/main"]), expected);
             assert_eq!(fs::read(path.join(".git/index")).unwrap(), index_before);
 
-            let recovered = recover_publication(path, &operation, &PublishOptions::new(true));
+            let recovered = recover_publication(path, &operation, &PublishOptions::local());
             let commit = match &recovered.state {
                 PublicationState::CommittedLocal { commit } => commit.clone(),
                 state => panic!("expected local recovery at {step:?}, got {state:?}"),
@@ -5715,7 +5707,7 @@ license:
                 "unrelated.txt"
             );
             let commit_count = sh(path, &["rev-list", "--count", "refs/heads/main"]);
-            let repeated = recover_publication(path, &operation, &PublishOptions::new(true));
+            let repeated = recover_publication(path, &operation, &PublishOptions::local());
             assert_eq!(repeated.state, recovered.state);
             assert_eq!(
                 sh(path, &["rev-list", "--count", "refs/heads/main"]),
@@ -5737,7 +5729,7 @@ license:
             "post-ref-index-lock",
             vec![exact_write(path, ".vela/actors.json", written)],
         );
-        let opts = PublishOptions::new(true);
+        let opts = PublishOptions::local();
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::write(path.join(".vela/actors.json"), written).unwrap();
         let index_lock = path.join(".git/index.lock");
@@ -5805,7 +5797,7 @@ license:
             "after-ref-cas-before-marker",
             vec![exact_write(path, ".vela/actors.json", postimage)],
         );
-        let opts = PublishOptions::new(true)
+        let opts = PublishOptions::local()
             .at_test_step(PublicationTestStep::InterruptAfterRefCasBeforeMarker);
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::write(path.join(".vela/actors.json"), postimage).unwrap();
@@ -5827,7 +5819,7 @@ license:
         assert_eq!(sh(path, &["rev-parse", "refs/heads/main"]), commit);
         assert_eq!(fs::read(path.join(".git/index")).unwrap(), index_before);
 
-        let recover_opts = PublishOptions::new(true);
+        let recover_opts = PublishOptions::local();
         let recovered = recover_publication(path, &operation, &recover_opts);
         assert_eq!(
             recovered.state,
@@ -5963,7 +5955,7 @@ license:
             let objects_before = sh(path, &["count-objects", "-v"]);
             assert!(!completed_path.exists());
 
-            let outcome = recover_publication(path, &fixture.operation, &PublishOptions::new(true));
+            let outcome = recover_publication(path, &fixture.operation, &PublishOptions::local());
             match (drift, &outcome.state) {
                 (Drift::Checkout, PublicationState::Unknown { reason }) => {
                     assert!(reason.contains("checkout identity drift"), "{reason}");
@@ -6045,7 +6037,7 @@ license:
                 assert!(!journal_path.exists());
                 assert!(completed_path.exists());
                 let repeated =
-                    recover_publication(path, &fixture.operation, &PublishOptions::new(true));
+                    recover_publication(path, &fixture.operation, &PublishOptions::local());
                 assert_eq!(repeated.state, outcome.state);
             } else {
                 assert_eq!(fs::read(path.join(".git/index")).unwrap(), index_before);
@@ -6067,7 +6059,7 @@ license:
                 exact_delete(path, "frontier.json"),
             ],
         );
-        let opts = PublishOptions::new(true);
+        let opts = PublishOptions::local();
 
         // Simulate a process dying after FrontierTxn reached Completed but
         // before it obtained or used a Git publication lease.
@@ -6114,7 +6106,7 @@ license:
             "already-published",
             vec![exact_write(path, ".vela/actors.json", written)],
         );
-        let opts = PublishOptions::new(true);
+        let opts = PublishOptions::local();
         let initial = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::write(path.join(".vela/actors.json"), written).unwrap();
         let first =
@@ -6173,7 +6165,7 @@ license:
             vec![exact_write(path, "witnesses/resume.bin", after)],
         );
         fs::write(path.join("witnesses/resume.bin"), after).unwrap();
-        let opts = PublishOptions::new(true);
+        let opts = PublishOptions::local();
         let preflight = exact_publication_resume_preflight(path, &delta, &opts).unwrap();
         let outcome =
             publish_exact_delta(path, "resume LFS parent", &[], &delta, preflight, &opts).unwrap();
@@ -6268,7 +6260,7 @@ license:
             receipt_a,
             b"[\n  {\"actor_id\":\"agent:a\"}\n]\n",
         );
-        let opts = PublishOptions::new(true);
+        let opts = PublishOptions::local();
         let preflight_a = exact_publication_preflight(path, &delta_a, &opts).unwrap();
         install_delta(path, &delta_a);
         let published_a =
@@ -6332,7 +6324,7 @@ license:
             !clone.join(".git/vela/operation-journals").exists(),
             "clean-clone discovery must not depend on private journals"
         );
-        let clone_opts = PublishOptions::new(true).allow_file_transport_for_test(path);
+        let clone_opts = PublishOptions::local().allow_file_transport_for_test(path);
         let clean_found =
             discover_receipt_publication(&clone, receipt_a, &root_a, &operation_a, &clone_opts)
                 .unwrap();
@@ -6359,7 +6351,7 @@ license:
             "mutation",
             vec![exact_write(path, ".vela/actors.json", b"[\n]\n")],
         );
-        let opts = PublishOptions::new(true);
+        let opts = PublishOptions::local();
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         delta.entries[0].postimage = Some(b"mutated after preflight\n".to_vec());
 
@@ -6400,7 +6392,7 @@ license:
         ];
         for delta in invalid {
             let before = sh(path, &["count-objects", "-v"]);
-            let outcome = exact_publication_preflight(path, &delta, &PublishOptions::new(true))
+            let outcome = exact_publication_preflight(path, &delta, &PublishOptions::local())
                 .expect_err("unsafe exact delta must fail before object construction");
             assert!(matches!(
                 outcome.state,
@@ -6459,7 +6451,7 @@ license:
             "hostile-filter",
             vec![exact_write(path, ".vela/actors.json", written)],
         );
-        let opts = PublishOptions::new(true);
+        let opts = PublishOptions::local();
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         assert!(!marker.exists(), "exact preflight executed hostile filter");
         fs::write(path.join(".vela/actors.json"), written).unwrap();
@@ -6484,7 +6476,7 @@ license:
             "unexpected-dirt",
             vec![exact_write(path, ".vela/actors.json", written)],
         );
-        let opts = PublishOptions::new(true);
+        let opts = PublishOptions::local();
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::write(path.join(".vela/actors.json"), written).unwrap();
         fs::write(path.join(".vela/artifacts.json"), "tracked caller dirt\n").unwrap();
@@ -6535,7 +6527,7 @@ license:
             "no-sweep",
             vec![exact_write(path, ".vela/actors.json", written)],
         );
-        let opts = PublishOptions::new(true);
+        let opts = PublishOptions::local();
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::write(path.join(".vela/actors.json"), written).unwrap();
         let outcome = publish_exact_delta(path, "no sweep", &[], &delta, preflight, &opts).unwrap();
@@ -6567,7 +6559,7 @@ license:
             "ref-race",
             vec![exact_write(path, ".vela/actors.json", written)],
         );
-        let opts = PublishOptions::new(true)
+        let opts = PublishOptions::local()
             .at_test_step(PublicationTestStep::AdvanceRefBeforeFinalObservation);
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::write(path.join(".vela/actors.json"), written).unwrap();
@@ -6599,7 +6591,7 @@ license:
             "actual-cas-loss",
             vec![exact_write(path, ".vela/actors.json", postimage)],
         );
-        let opts = PublishOptions::new(true)
+        let opts = PublishOptions::local()
             .at_test_step(PublicationTestStep::AdvanceRefAfterFinalObservation);
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::write(path.join(".vela/actors.json"), postimage).unwrap();
@@ -6869,7 +6861,7 @@ license:
             "queued-a",
             vec![exact_write(path, ".vela/actors.json", actors_a)],
         );
-        let local_opts = PublishOptions::new(true);
+        let local_opts = PublishOptions::local();
         let preflight_a = exact_publication_preflight(path, &delta_a, &local_opts).unwrap();
         fs::write(path.join(".vela/actors.json"), actors_a).unwrap();
         let published_a =
@@ -6954,7 +6946,7 @@ license:
             "queued-a",
             vec![exact_write(path, ".vela/actors.json", actors_a)],
         );
-        let local_opts = PublishOptions::new(true);
+        let local_opts = PublishOptions::local();
         let preflight_a = exact_publication_preflight(path, &delta_a, &local_opts).unwrap();
         fs::write(path.join(".vela/actors.json"), actors_a).unwrap();
         let published_a =
@@ -7057,7 +7049,7 @@ license:
                 executable: false,
             }],
         );
-        let opts = PublishOptions::new(true);
+        let opts = PublishOptions::local();
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::create_dir_all(path.join("witnesses")).unwrap();
         fs::write(path.join("witnesses/exact.bin"), raw).unwrap();
@@ -7104,7 +7096,7 @@ license:
             "vop_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
             "vop_gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg",
         ] {
-            let outcome = recover_publication(path, invalid, &PublishOptions::new(true));
+            let outcome = recover_publication(path, invalid, &PublishOptions::local());
             match outcome.state {
                 PublicationState::Unknown { reason } => {
                     assert!(

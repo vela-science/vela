@@ -5,4 +5,3 @@ pub mod cli_admin;
 pub mod cli_agents;
 pub mod cli_identity;
 pub(crate) mod git_publish;
-pub(crate) mod settings;

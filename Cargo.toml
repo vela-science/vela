@@ -46,7 +46,6 @@ base64 = "0.22"
 cedar-policy = { version = "=4.11.2", default-features = false }
 unicode-normalization = "0.1"
 rand = "0.8"
-toml = "0.8"
 tempfile = "3"
 libc = "0.2"
 windows-sys = "0.61"

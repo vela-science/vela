@@ -10,7 +10,6 @@ pub use kernel::{
     authentication, authority, authority_history, canonical, events, principal, sign, signing_input,
 };
 mod computed;
-pub use computed::frontier_settings;
 mod objects;
 pub use objects::{
     claim_record, cli_style, current_repository, execution_binding, identity, proposal_v1,

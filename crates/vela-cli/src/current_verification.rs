@@ -345,21 +345,6 @@ fn load_subject(
     Ok((package.proposal, package.proposal_root, package.submission))
 }
 
-fn require_source_attempt(
-    submission: &SubmissionV1,
-    requested_attempt: Option<&str>,
-) -> Result<(), String> {
-    if let Some(requested_attempt) = requested_attempt
-        && submission.provenance.source_attempt.as_deref() != Some(requested_attempt)
-    {
-        return Err(
-            "Verification source Submission provenance.source_attempt must exactly match --attempt"
-                .into(),
-        );
-    }
-    Ok(())
-}
-
 fn existing_outcome(
     frontier: &Path,
     repository: &CurrentRepositoryV3,
@@ -412,17 +397,15 @@ pub(crate) fn import(
     frontier: &Path,
     record: &VerificationRecordV1,
     executor: &str,
-    requested_attempt: Option<&str>,
     push: bool,
 ) -> Result<VerificationImportOutcome, String> {
-    import_inner(frontier, record, executor, requested_attempt, push)
+    import_inner(frontier, record, executor, push)
 }
 
 fn import_inner(
     frontier: &Path,
     record: &VerificationRecordV1,
     executor: &str,
-    requested_attempt: Option<&str>,
     push: bool,
 ) -> Result<VerificationImportOutcome, String> {
     record.verify()?;
@@ -434,7 +417,6 @@ fn import_inner(
     let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
     let (_proposal, proposal_root, submission) = load_subject(frontier, &repository, record)?;
-    require_source_attempt(&submission, requested_attempt)?;
     let record_bytes = record.canonical_bytes()?;
     let record_root = record.canonical_root()?;
     let request_root = format!(
@@ -450,8 +432,6 @@ fn import_inner(
     );
     let operation_id =
         crate::frontier_txn::OperationId::derive("verification-import", request_root.as_bytes());
-    let resolved_attempt =
-        crate::current_work::resolve_verification_attempt(frontier, requested_attempt)?;
     if let Some(outcome) = existing_outcome(
         frontier,
         &repository,
@@ -459,24 +439,8 @@ fn import_inner(
         &record_root,
         operation_id.as_str(),
     )? {
-        let reconciliation_attempt = match resolved_attempt {
-            Some(resolved) => Some(resolved),
-            None => crate::current_work::resolve_verification_reconciliation_attempt(
-                frontier,
-                submission.provenance.source_attempt.as_deref(),
-            )?,
-        };
-        crate::current_work::record_verification_attempt(
-            frontier,
-            reconciliation_attempt,
-            &record.verification_record_id,
-        )?;
         return Ok(outcome);
     }
-    crate::current_work::authorize_verification(
-        resolved_attempt.as_ref(),
-        &record.verification_record_id,
-    )?;
     ensure_pending_proposal(frontier, &repository, &record.subject.proposal_id)?;
 
     let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier)?;
@@ -493,8 +457,11 @@ fn import_inner(
     }
     ensure_pending_proposal(frontier, &held_repository, &record.subject.proposal_id)?;
     let (_, _, held_submission) = load_subject(frontier, &held_repository, record)?;
-    require_source_attempt(&held_submission, requested_attempt)
-        .map_err(|_| "Verification source Attempt changed while acquiring the import barrier")?;
+    if held_submission.canonical_root()? != submission.canonical_root()? {
+        return Err(
+            "Verification source Submission changed while acquiring the import barrier".into(),
+        );
+    }
 
     let record_path =
         crate::current_submission::rooted_path("records/verifications/sha256", &record_root)?;
@@ -513,7 +480,6 @@ fn import_inner(
         crate::current_submission::rebind_target_index(frontier, &next_repository)?;
 
     let recorded_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
-    crate::current_work::revalidate_routine_attempt(frontier, resolved_attempt.as_ref())?;
     let mut prepared = crate::routine_evidence_transaction::prepare_routine_evidence_transaction(
         barrier,
         frontier,
@@ -523,7 +489,7 @@ fn import_inner(
         &request_root,
         recorded_at,
         {
-            let mut read_set = vec![
+            vec![
                 InputBinding {
                     name: "verification_record".into(),
                     digest: ContentDigest::parse(record_root.clone())
@@ -544,17 +510,7 @@ fn import_inner(
                     digest: ContentDigest::parse(repository_root)
                         .map_err(|error| error.to_string())?,
                 },
-            ];
-            if let Some(resolved) = &resolved_attempt {
-                read_set.push(InputBinding {
-                    name: "current_attempt_binding".into(),
-                    digest: ContentDigest::parse(
-                        resolved.attempt.target_task_binding.binding_root.clone(),
-                    )
-                    .map_err(|error| error.to_string())?,
-                });
-            }
-            read_set
+            ]
         },
         vec![
             AuthorityObjectDraft {
@@ -580,7 +536,7 @@ fn import_inner(
     let publish_options = if push {
         PublishOptions::pushing()
     } else {
-        PublishOptions::new(false)
+        PublishOptions::local()
     };
     let publication_disabled = publication_disabled_reason(frontier, &publish_options);
     let delta = if publication_disabled.is_some() {
@@ -607,11 +563,6 @@ fn import_inner(
             prepared.install().map_err(|error| error.to_string())?;
             prepared.complete().map_err(|error| error.to_string())?;
             crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)?;
-            crate::current_work::record_verification_attempt(
-                frontier,
-                resolved_attempt,
-                &record.verification_record_id,
-            )?;
             return Ok(VerificationImportOutcome {
                 schema: "vela.verification-import-result.v1",
                 operation_id: operation_id.as_str().into(),
@@ -632,11 +583,6 @@ fn import_inner(
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
     crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)?;
-    crate::current_work::record_verification_attempt(
-        frontier,
-        resolved_attempt,
-        &record.verification_record_id,
-    )?;
     let publication = match (delta.as_ref(), preflight) {
         (Some(delta), Some(preflight)) => publish_exact_delta(
             frontier,
@@ -905,23 +851,6 @@ mod tests {
             submission.canonical_root().unwrap(),
             fixture.record.subject.submission_root
         );
-    }
-
-    #[test]
-    fn verification_attempt_must_match_the_exact_source_submission() {
-        let fixture = fixture();
-        let (_, _, mut submission) = load_subject(
-            fixture._directory.path(),
-            &fixture.repository,
-            &fixture.record,
-        )
-        .unwrap();
-        assert!(require_source_attempt(&submission, None).is_ok());
-        assert!(require_source_attempt(&submission, Some("vat_missing")).is_err());
-        submission.provenance.source_attempt = Some("vat_exact".into());
-        assert!(require_source_attempt(&submission, Some("vat_exact")).is_ok());
-        assert!(require_source_attempt(&submission, None).is_ok());
-        assert!(require_source_attempt(&submission, Some("vat_other")).is_err());
     }
 
     #[test]

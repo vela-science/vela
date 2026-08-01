@@ -1,9 +1,8 @@
 //! Current-only producer intake for Profile v2 repositories.
 //!
-//! This path consumes an authenticated Submission and optional private
-//! Attempt, creates current Claim/Proposal/Registration objects, and advances
-//! the repository manifest without changing authority or accepted scientific
-//! state.
+//! This path consumes an authenticated Submission, creates current
+//! Claim/Proposal/Registration objects, and advances the repository manifest
+//! without changing authority or accepted scientific state.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -381,7 +380,6 @@ fn require_unique_source_run(
     let Some(source_run) = submission.provenance.source_run.as_deref() else {
         return Ok(());
     };
-    let source_attempt = submission.provenance.source_attempt.as_deref();
     for reference in &repository.submissions {
         if reference.id == submission.submission_id {
             continue;
@@ -389,12 +387,14 @@ fn require_unique_source_run(
         let bytes = fs::read(frontier.join(&reference.path))
             .map_err(|error| format!("read registered Submission for Run uniqueness: {error}"))?;
         let existing = SubmissionV1::parse(&bytes)?;
-        if existing.provenance.source_attempt.as_deref() == source_attempt
+        if existing.provenance.producer == submission.provenance.producer
+            && existing.provenance.source_system == submission.provenance.source_system
             && existing.provenance.source_run.as_deref() == Some(source_run)
         {
             return Err(format!(
-                "Agent Run {source_run} in Attempt {} is already bound to registered Submission {}",
-                source_attempt.unwrap_or("<none>"),
+                "Run {source_run} from producer {} in source system {} is already bound to registered Submission {}",
+                submission.provenance.producer,
+                submission.provenance.source_system,
                 existing.submission_id
             ));
         }
@@ -406,25 +406,16 @@ pub(crate) fn submit(
     frontier: &Path,
     submission: &SubmissionV1,
     executor: &str,
-    requested_attempt: Option<&str>,
     bundle_root: Option<&Path>,
     push: bool,
 ) -> Result<SubmitOutcome, String> {
-    submit_inner(
-        frontier,
-        submission,
-        executor,
-        requested_attempt,
-        bundle_root,
-        push,
-    )
+    submit_inner(frontier, submission, executor, bundle_root, push)
 }
 
 fn submit_inner(
     frontier: &Path,
     submission: &SubmissionV1,
     executor: &str,
-    requested_attempt: Option<&str>,
     bundle_root: Option<&Path>,
     push: bool,
 ) -> Result<SubmitOutcome, String> {
@@ -435,31 +426,12 @@ fn submit_inner(
     {
         return Err("submit actor must match the Submission producer identity".into());
     }
-    if submission.provenance.source_attempt.as_deref() != requested_attempt {
-        return Err(
-            "Submission provenance.source_attempt must exactly match --attempt, including absence"
-                .into(),
-        );
-    }
-
     let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
     let submission_root = submission.canonical_root()?;
     if let Some(outcome) = existing_outcome(frontier, &repository, submission, &submission_root)? {
-        let resolved_attempt =
-            crate::current_work::resolve_submission_attempt(frontier, executor, requested_attempt)?;
-        let artifact_bytes =
-            crate::current_work::retained_submission_artifact_bytes(frontier, submission)?;
-        crate::current_work::record_submission_attempt(
-            frontier,
-            resolved_attempt,
-            submission,
-            artifact_bytes,
-        )?;
         return Ok(outcome);
     }
-    let resolved_attempt =
-        crate::current_work::resolve_submission_attempt(frontier, executor, requested_attempt)?;
 
     let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier)?;
     let barrier = crate::frontier_txn::FrontierTxn::acquire_routine_evidence_write_barrier(
@@ -472,12 +444,6 @@ fn submit_inner(
         return Err("current repository changed while acquiring the submit barrier".into());
     }
     require_unique_source_run(frontier, &held_repository, submission)?;
-    if let Some(resolved) = &resolved_attempt {
-        vela_edge::target_index::revalidate_current_target_task_binding(
-            frontier,
-            &resolved.attempt.target_task_binding,
-        )?;
-    }
     let origin_bytes = fs::read(frontier.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
     let origin = RepositoryOriginV1::parse(&origin_bytes)?;
@@ -491,13 +457,7 @@ fn submit_inner(
     let PreparedSubmissionArtifacts {
         writes: artifact_writes,
         mut read_set,
-        total_bytes: artifact_bytes,
     } = prepare_submission_artifacts(frontier, submission, bundle_root)?;
-    crate::current_work::authorize_submission(
-        resolved_attempt.as_ref(),
-        submission,
-        artifact_bytes,
-    )?;
     read_set.push(InputBinding {
         name: "submission".into(),
         digest: ContentDigest::parse(submission_root.clone()).map_err(|error| error.to_string())?,
@@ -506,13 +466,6 @@ fn submit_inner(
         name: "current_repository_before".into(),
         digest: ContentDigest::parse(repository_root.clone()).map_err(|error| error.to_string())?,
     });
-    if let Some(resolved) = &resolved_attempt {
-        read_set.push(InputBinding {
-            name: "current_attempt_binding".into(),
-            digest: ContentDigest::parse(resolved.attempt.target_task_binding.binding_root.clone())
-                .map_err(|error| error.to_string())?,
-        });
-    }
 
     let change = proposed_change(frontier, &held_repository, submission)?;
     let mut next_repository = held_repository.clone();
@@ -585,9 +538,7 @@ fn submit_inner(
             "origin_id": held_repository.origin_id,
             "repository_before": repository_root,
             "submission_root": submission_root,
-            "attempt_binding_root": resolved_attempt
-                .as_ref()
-                .map(|resolved| &resolved.attempt.target_task_binding.binding_root),
+            "source_attempt": submission.provenance.source_attempt.as_deref(),
         }))?
     );
     let operation_id = crate::frontier_txn::OperationId::derive("submit", request_root.as_bytes());
@@ -677,7 +628,6 @@ fn submit_inner(
         });
     }
 
-    crate::current_work::revalidate_routine_attempt(frontier, resolved_attempt.as_ref())?;
     let mut prepared = crate::routine_evidence_transaction::prepare_routine_evidence_transaction(
         barrier,
         frontier,
@@ -698,7 +648,7 @@ fn submit_inner(
     let mut publish_options = if push {
         PublishOptions::pushing()
     } else {
-        PublishOptions::new(false)
+        PublishOptions::local()
     };
     let publication_disabled = publication_disabled_reason(frontier, &publish_options);
     if publication_disabled.is_none() {
@@ -729,12 +679,6 @@ fn submit_inner(
             prepared.install().map_err(|error| error.to_string())?;
             prepared.complete().map_err(|error| error.to_string())?;
             crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)?;
-            crate::current_work::record_submission_attempt(
-                frontier,
-                resolved_attempt,
-                submission,
-                artifact_bytes,
-            )?;
             return Ok(SubmitOutcome {
                 schema: "vela.submit-result.v1",
                 operation_id: operation_id.as_str().into(),
@@ -759,12 +703,6 @@ fn submit_inner(
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
     crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)?;
-    crate::current_work::record_submission_attempt(
-        frontier,
-        resolved_attempt,
-        submission,
-        artifact_bytes,
-    )?;
     let publication = match (delta.as_ref(), preflight) {
         (Some(delta), Some(preflight)) => publish_exact_delta(
             frontier,
@@ -1010,6 +948,34 @@ mod tests {
 
         assert!(error.contains("already bound"), "{error}");
         assert!(error.contains(&first.submission_id), "{error}");
+    }
+
+    #[test]
+    fn run_identity_is_scoped_to_producer_and_source_system() {
+        let frontier = TempDir::new().unwrap();
+        let mut repository = repository();
+        let first = submission("add_claim", None, "First bounded assertion.");
+        let first_root = first.canonical_root().unwrap();
+        let first_path = rooted_path("records/submissions/sha256", &first_root).unwrap();
+        let absolute = frontier.path().join(&first_path);
+        fs::create_dir_all(absolute.parent().unwrap()).unwrap();
+        fs::write(&absolute, first.canonical_bytes().unwrap()).unwrap();
+        repository.submissions.push(RepositoryObjectRefV1 {
+            schema: first.schema.clone(),
+            id: first.submission_id.clone(),
+            root: first_root,
+            path: first_path,
+        });
+
+        let mut different_source = submission("add_claim", None, "Independent bounded assertion.");
+        different_source.provenance.source_system = "another-native-runner".into();
+        assert!(require_unique_source_run(frontier.path(), &repository, &different_source).is_ok());
+
+        let mut different_producer = submission("add_claim", None, "Another bounded assertion.");
+        different_producer.provenance.producer = "agent:another-producer".into();
+        assert!(
+            require_unique_source_run(frontier.path(), &repository, &different_producer).is_ok()
+        );
     }
 
     #[test]

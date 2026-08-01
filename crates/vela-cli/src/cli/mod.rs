@@ -48,21 +48,7 @@ pub async fn run_command() {
     // (the attack class git blocks via protected configuration and
     // Codex blocks by refusing base-url keys in project config).
     // Configuration comes from the real environment and ~/.vela only.
-
-    // Color contract: NO_COLOR always wins; ui.color=never/always
-    // overrides the tty heuristic.
-    if std::env::var_os("NO_COLOR").is_some() {
-        colored::control::set_override(false);
-    } else {
-        match crate::config::settings::resolve("ui.color", None)
-            .0
-            .as_str()
-        {
-            "never" => colored::control::set_override(false),
-            "always" => colored::control::set_override(true),
-            _ => {}
-        }
-    }
+    // `style::init()` owns the complete TTY + NO_COLOR contract.
 
     let cli = Cli::parse();
     crate::ui::set_quiet(cli.quiet);
@@ -192,34 +178,11 @@ pub async fn run_command() {
         Commands::Start {
             target,
             frontier,
-            ttl,
-            artifact_class,
-            max_submissions,
-            max_verifications,
-            max_artifacts,
-            max_artifact_bytes,
-            drop: drop_it,
-            reason,
-            r#as,
             json,
         } => {
             crate::ui::set_mode("start", json);
             let dir = crate::ui::resolve_frontier(frontier);
-            let actor = crate::cli_identity::resolve_actor(r#as.as_deref());
-            crate::current_work::cmd_start(
-                &dir,
-                &target,
-                ttl,
-                &artifact_class,
-                max_submissions,
-                max_verifications,
-                max_artifacts,
-                max_artifact_bytes,
-                drop_it,
-                reason.as_deref(),
-                &actor,
-                json,
-            );
+            crate::current_work::cmd_start(&dir, &target, json);
         }
         Commands::Submit {
             submission,
@@ -239,7 +202,6 @@ pub async fn run_command() {
             profile_root,
             verifier_capsule_root,
             result_contract_root,
-            attempt,
             r#as,
             push,
             json,
@@ -268,7 +230,6 @@ pub async fn run_command() {
                     "profile_root": profile_root,
                     "verifier_capsule_root": verifier_capsule_root,
                     "result_contract_root": result_contract_root,
-                    "attempt": attempt,
                     "push": push,
                 }))
                 .unwrap_or_default();
@@ -355,7 +316,6 @@ pub async fn run_command() {
                 let authored = crate::workflow::author_submission(
                     &dir,
                     &actor,
-                    attempt.as_deref(),
                     claim,
                     claim_type,
                     condition,
@@ -375,14 +335,7 @@ pub async fn run_command() {
                 });
                 (authored, None)
             };
-            match crate::workflow::submit(
-                &dir,
-                &submission,
-                &actor,
-                attempt.as_deref(),
-                bundle_root.as_deref(),
-                push,
-            ) {
+            match crate::workflow::submit(&dir, &submission, &actor, bundle_root.as_deref(), push) {
                 Ok(outcome) => {
                     if json {
                         let mut payload = serde_json::to_value(&outcome)
@@ -423,37 +376,6 @@ pub async fn run_command() {
                 Err(e) => fail(&e),
             }
         }
-        Commands::Config { action } => match action {
-            ConfigAction::Get {
-                key,
-                frontier,
-                json,
-            } => {
-                crate::ui::set_mode("config", json);
-                crate::config::settings::cmd_config_get(&key, frontier.as_deref(), json)
-            }
-            ConfigAction::Set {
-                key,
-                value,
-                frontier,
-                json,
-            } => {
-                crate::ui::set_mode("config", json);
-                crate::config::settings::cmd_config_set(&key, &value, frontier.as_deref(), json)
-            }
-            ConfigAction::Unset {
-                key,
-                frontier,
-                json,
-            } => {
-                crate::ui::set_mode("config", json);
-                crate::config::settings::cmd_config_unset(&key, frontier.as_deref(), json)
-            }
-            ConfigAction::List { frontier, json } => {
-                crate::ui::set_mode("config", json);
-                crate::config::settings::cmd_config_list(frontier.as_deref(), json)
-            }
-        },
     }
 }
 
@@ -464,7 +386,7 @@ fn cmd_recover_publication(frontier: &Path, operation: &str, push: bool, json_ou
     let options = if push {
         PublishOptions::pushing()
     } else {
-        PublishOptions::new(false)
+        PublishOptions::local()
     };
     let publication =
         crate::config::git_publish::recover_publication(frontier, operation, &options);

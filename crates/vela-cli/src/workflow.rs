@@ -78,35 +78,10 @@ pub(crate) fn active_repository_signing_key(
     Ok((key.key_id.clone(), key.public_key.clone()))
 }
 
-pub(crate) fn session_dir(frontier: &Path, target: &str) -> PathBuf {
-    let mut safe: String = target
-        .chars()
-        .take(48)
-        .map(|character| {
-            if character.is_ascii_alphanumeric() || matches!(character, '-' | '_') {
-                character
-            } else {
-                '-'
-            }
-        })
-        .collect();
-    while safe.contains("--") {
-        safe = safe.replace("--", "-");
-    }
-    let safe = safe.trim_matches('-');
-    let safe = if safe.is_empty() { "target" } else { safe };
-    let target_root = hex::encode(Sha256::digest(target.as_bytes()));
-    frontier
-        .join(".vela")
-        .join("work")
-        .join(format!("{safe}--{target_root}"))
-}
-
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn author_submission(
     frontier: &Path,
     actor: &str,
-    requested_attempt: Option<&str>,
     assertion: String,
     claim_type: String,
     conditions: Vec<String>,
@@ -123,23 +98,7 @@ pub(crate) fn author_submission(
     if !(actor.starts_with("agent:") || actor.starts_with("ci:")) {
         return Err("Submission authoring requires an agent: or ci: producer".to_string());
     }
-    let (emitted_at, source_attempt) = match requested_attempt {
-        Some(attempt_id) => {
-            let work =
-                crate::current_work::resolve_submission_attempt(frontier, actor, Some(attempt_id))?
-                    .ok_or_else(|| {
-                        format!("current Attempt {attempt_id} disappeared during authoring")
-                    })?;
-            (
-                work.attempt.created_at.clone(),
-                Some(work.attempt.attempt_id),
-            )
-        }
-        None => (
-            chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
-            None,
-        ),
-    };
+    let emitted_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     let mut artifacts = Vec::new();
     let mut total_artifact_bytes = 0_u64;
     for (index, flag) in artifact_flags.iter().enumerate() {
@@ -207,7 +166,7 @@ pub(crate) fn author_submission(
             provenance: SubmissionProvenance {
                 producer: actor.to_string(),
                 source_system: "vela-cli".to_string(),
-                source_attempt,
+                source_attempt: None,
                 source_run: None,
                 emitted_at,
             },
@@ -254,7 +213,6 @@ pub(crate) struct VerificationImportOutcome {
 pub(crate) struct PreparedSubmissionArtifacts {
     pub(crate) writes: Vec<crate::frontier_txn::PlannedWrite>,
     pub(crate) read_set: Vec<crate::frontier_txn::InputBinding>,
-    pub(crate) total_bytes: u64,
 }
 
 pub(crate) fn prepare_submission_artifacts(
@@ -377,11 +335,7 @@ pub(crate) fn prepare_submission_artifacts(
         })
         .collect::<Result<Vec<_>, crate::frontier_txn::FrontierTxnError>>()
         .map_err(|error| error.to_string())?;
-    Ok(PreparedSubmissionArtifacts {
-        writes,
-        read_set,
-        total_bytes: total,
-    })
+    Ok(PreparedSubmissionArtifacts { writes, read_set })
 }
 
 pub(crate) fn submission_publication_inputs(
@@ -421,28 +375,19 @@ pub(crate) fn submit(
     frontier: &Path,
     submission: &SubmissionV1,
     executor: &str,
-    requested_attempt: Option<&str>,
     bundle_root: Option<&Path>,
     push: bool,
 ) -> Result<SubmitOutcome, String> {
-    crate::current_submission::submit(
-        frontier,
-        submission,
-        executor,
-        requested_attempt,
-        bundle_root,
-        push,
-    )
+    crate::current_submission::submit(frontier, submission, executor, bundle_root, push)
 }
 
 pub(crate) fn import_verification(
     frontier: &Path,
     record: &vela_protocol::verification_record::VerificationRecordV1,
     executor: &str,
-    requested_attempt: Option<&str>,
     push: bool,
 ) -> Result<VerificationImportOutcome, String> {
-    crate::current_verification::import(frontier, record, executor, requested_attempt, push)
+    crate::current_verification::import(frontier, record, executor, push)
 }
 
 pub(crate) fn frontier_transaction_journal_dir(frontier: &Path) -> Result<PathBuf, String> {

@@ -700,7 +700,7 @@ pub(crate) fn execute(
     )
     .map_err(|error| error.to_string())?;
     let result = transaction.result.clone();
-    let publish_options = PublishOptions::new(false);
+    let publish_options = PublishOptions::local();
     if let Some(reason) = publication_disabled_reason(frontier, &publish_options) {
         return Err(format!(
             "review Decision requires exact Git publication before installation: {reason}"

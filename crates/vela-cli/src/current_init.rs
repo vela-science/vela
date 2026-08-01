@@ -14,7 +14,6 @@ use vela_protocol::current_repository::{
     CURRENT_FRONTIER_PROFILE_SCHEMA_V2, CurrentFrontierProfileV2, FrontierProfileLicenseV2,
     FrontierProfileScopeV2,
 };
-use vela_protocol::frontier_settings::{FRONTIER_SETTINGS_SCHEMA, FrontierSettingsV1};
 
 #[derive(Debug, Clone)]
 pub(crate) struct CurrentInitOptions<'a> {
@@ -177,16 +176,6 @@ fn initialize_in_place(path: &Path, options: &CurrentInitOptions<'_>) -> Result<
     )
     .map_err(|error| format!("write frontier.yaml: {error}"))?;
     fs::create_dir_all(path.join(".vela")).map_err(|error| format!("create .vela: {error}"))?;
-    fs::write(
-        path.join(".vela/settings.toml"),
-        FrontierSettingsV1 {
-            schema: FRONTIER_SETTINGS_SCHEMA.into(),
-            publish: None,
-            work: None,
-        }
-        .to_toml()?,
-    )
-    .map_err(|error| format!("write .vela/settings.toml: {error}"))?;
     write_scaffold(path, name, scope)?;
     initialize_git(path, options.initialize_git)?;
 
@@ -207,8 +196,7 @@ fn initialize_in_place(path: &Path, options: &CurrentInitOptions<'_>) -> Result<
             "frontier.yaml",
             ".gitignore",
             ".gitattributes",
-            "VELA.md",
-            ".vela/settings.toml"
+            "VELA.md"
         ],
         "next_action": format!(
             "vela authority init {} --reason 'Establish repository authority.' --json",
@@ -245,7 +233,7 @@ fn write_scaffold(path: &Path, name: &str, scope: &str) -> Result<(), String> {
     write(
         "VELA.md",
         &format!(
-            "# {name} — agent charter\n\nCanonical state is Git history plus the current `.vela/repository.json` manifest. Producers may inspect work, submit signed evidence directly, optionally attribute it to a local Attempt, and import scoped Verification Records. Only an authorized human Decision changes scientific standing.\n\nAgents must not invoke `vela review accept` or `vela review reject`, access repository-authority credentials, hand-edit canonical records, or describe Verification as acceptance.\n\n```bash\nvela status . --json\nvela next . --limit 1 --json\nvela submit --frontier . --claim <bounded-claim> --type computational --replayability exact --artifact <path>:<kind> --caveat <limit> --as agent:<name> --json\nvela check . --strict --json\n```\n"
+            "# {name} — agent charter\n\nCanonical state is Git history plus the current `.vela/repository.json` manifest. Producers may inspect exact Target briefings, submit signed evidence directly, and import scoped Verification Records. Only an authorized human Decision changes scientific standing.\n\nAgents must not invoke `vela review accept` or `vela review reject`, access repository-authority credentials, hand-edit canonical records, or describe Verification as acceptance.\n\n```bash\nvela status . --json\nvela next . --limit 1 --json\nvela start <target> --json\nvela submit --frontier . --claim <bounded-claim> --type computational --replayability exact --artifact <path>:<kind> --caveat <limit> --as agent:<name> --json\nvela check . --strict --json\n```\n"
         ),
     )
 }

@@ -26,43 +26,6 @@ pub(crate) const HELP_REQUIRED_AS: &str =
     "Exact acting identity for this write (reviewer:<you> or agent:<name>)";
 pub(crate) const HELP_AS_OF: &str = "Answer as of this RFC3339 instant, e.g. 2026-07-02T16:00:00Z";
 
-#[derive(Subcommand, Debug)]
-pub enum ConfigAction {
-    /// Print one key's effective value.
-    Get {
-        key: String,
-        #[arg(long)]
-        frontier: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Set a key (user scope by default; --frontier writes the shared,
-    /// committed frontier file — allowlisted keys only).
-    Set {
-        key: String,
-        value: String,
-        #[arg(long)]
-        frontier: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Remove a key from a scope.
-    Unset {
-        key: String,
-        #[arg(long)]
-        frontier: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Every key, its effective value, and where it came from.
-    List {
-        #[arg(long)]
-        frontier: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
-}
-
 #[derive(Subcommand)]
 pub(crate) enum Commands {
     /// Verify the current repository origin and authority boundary.
@@ -243,41 +206,13 @@ pub(crate) enum Commands {
         json: bool,
     },
 
-    /// Start one bounded private Attempt on an exact target, print the
-    /// briefing, and bind the exact starting state.
+    /// Print a write-free briefing for one exact current Target.
     #[command(after_long_help = crate::cli::help_text::START)]
     Start {
         /// The target (obligation id, e.g. erdos:617).
         target: String,
         #[arg(long)]
         frontier: Option<PathBuf>,
-        /// Lease seconds (default from work.lease_ttl_seconds config).
-        #[arg(long)]
-        ttl: Option<u64>,
-        /// Additional Artifact class authorized for this private Attempt.
-        #[arg(long, conflicts_with = "drop")]
-        artifact_class: Vec<String>,
-        /// Maximum registered Submissions retained through this Attempt.
-        #[arg(long, conflicts_with = "drop")]
-        max_submissions: Option<u64>,
-        /// Maximum Verification Records retained through this Attempt.
-        #[arg(long, conflicts_with = "drop")]
-        max_verifications: Option<u64>,
-        /// Maximum total Artifacts retained through this Attempt.
-        #[arg(long, conflicts_with = "drop")]
-        max_artifacts: Option<u64>,
-        /// Maximum total Artifact bytes retained through this Attempt.
-        #[arg(long, conflicts_with = "drop")]
-        max_artifact_bytes: Option<u64>,
-        /// Release the lease/session instead of opening one.
-        #[arg(long)]
-        drop: bool,
-        /// Why this Attempt is being abandoned. With --drop a
-        /// truthful default is used when omitted.
-        #[arg(long)]
-        reason: Option<String>,
-        #[arg(long, help = HELP_AS)]
-        r#as: Option<String>,
         #[arg(long)]
         json: bool,
     },
@@ -292,8 +227,7 @@ pub(crate) enum Commands {
     ))]
     #[command(after_long_help = crate::cli::help_text::SUBMIT)]
     Submit {
-        /// Path to a signed Submission v1. Or author a new Claim directly;
-        /// --attempt optionally attributes it to live private work.
+        /// Path to a signed Submission v1. Or author a new Claim directly.
         submission: Option<PathBuf>,
         #[arg(long)]
         frontier: Option<PathBuf>,
@@ -341,10 +275,6 @@ pub(crate) enum Commands {
         /// Full root of the exact positive result contract checked by the capsule.
         #[arg(long, conflicts_with = "submission", requires_all = ["packet_root", "profile_root", "verifier_capsule_root"])]
         result_contract_root: Option<String>,
-        /// Select the active Attempt explicitly. Required for add_claim
-        /// authoring; optional for an exact correction or supersession.
-        #[arg(long)]
-        attempt: Option<String>,
         #[arg(long, help = HELP_AS)]
         r#as: Option<String>,
         /// Publish now: commit locally AND push. Without it, submit commits
@@ -353,16 +283,6 @@ pub(crate) enum Commands {
         push: bool,
         #[arg(long)]
         json: bool,
-    },
-
-    /// Plain configuration: how YOUR tools behave — never what enters
-    /// the record (that is `vela policy`) or who you are (`vela id`).
-    /// A closed, validated key set with visible origins; frontier scope
-    /// is allowlisted and can only narrow, never widen.
-    #[command(after_long_help = crate::cli::help_text::CONFIG)]
-    Config {
-        #[command(subcommand)]
-        action: ConfigAction,
     },
 
     /// Emit shell completions for bash, zsh, or fish.
@@ -517,9 +437,6 @@ pub(crate) enum VerifyAction {
         /// Dependency shared with the producer. Repeat when applicable.
         #[arg(long = "shared-dependency")]
         shared_dependency: Vec<String>,
-        /// Exact active Attempt bound by the Proposal's source Submission.
-        #[arg(long)]
-        attempt: Option<String>,
         #[arg(long = "as", help = HELP_REQUIRED_AS)]
         actor: String,
         /// Publish now: commit locally and push.
@@ -532,9 +449,6 @@ pub(crate) enum VerifyAction {
     Import {
         frontier: PathBuf,
         record: PathBuf,
-        /// Exact active Attempt bound by the Proposal's source Submission.
-        #[arg(long)]
-        attempt: Option<String>,
         #[arg(long = "as", help = HELP_REQUIRED_AS)]
         actor: String,
         /// Publish now: commit locally and push.

@@ -1412,7 +1412,7 @@ mod tests {
     fn native_windows_repository_file_mutation_is_explicitly_fail_closed() {
         let exact = PreparedRepositoryFileReplacement::prepare_exact(
             Path::new(r"C:\vela-fixture"),
-            Path::new(".vela/settings.toml"),
+            Path::new(".vela/repository.json"),
             Some(b"old"),
             b"new",
             RepositoryFileReplacementMode::PreserveExisting,

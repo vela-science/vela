@@ -9,15 +9,14 @@ Run all checks:
 python3 conformance/verify.py
 ```
 
-The corpus protects six contracts:
+The corpus protects five contract families:
 
 1. canonical JSON bytes and SHA-256 roots;
-2. retained Attempt content addresses;
-3. repository principal and delegated-capability validation;
-4. byte-identical Submission and Verification emission from an independent
+2. repository principal and delegated-capability validation;
+3. byte-identical Submission and Verification emission from an independent
    JavaScript implementation; and
-5. exact witness and bounded-Claim agreement; and
-6. a non-authoritative correction-impact projection, including independent
+4. exact witness and bounded-Claim agreement; and
+5. a non-authoritative correction-impact projection, including independent
    support-route survival and bounded fail-closed diagnostics.
 
 `current-objects/` contains deterministic signed Submission and Verification

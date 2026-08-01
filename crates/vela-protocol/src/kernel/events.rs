@@ -13,28 +13,6 @@ use crate::canonical;
 
 pub const EVENT_SCHEMA: &str = "vela.event.v0.1";
 pub const NULL_HASH: &str = "sha256:null";
-pub const MAX_ATTEMPT_LEASE_TTL_SECONDS: u64 = 31_536_000;
-
-/// Safely derive one bounded coordination-lease expiry.
-pub fn attempt_lease_expiry(
-    claimed_at: &str,
-    ttl_seconds: u64,
-) -> Result<chrono::DateTime<chrono::FixedOffset>, String> {
-    if ttl_seconds > MAX_ATTEMPT_LEASE_TTL_SECONDS {
-        return Err(format!(
-            "lease_ttl_seconds must be at most {MAX_ATTEMPT_LEASE_TTL_SECONDS}"
-        ));
-    }
-    let claimed = chrono::DateTime::parse_from_rfc3339(claimed_at)
-        .map_err(|error| format!("invalid lease timestamp: {error}"))?;
-    let seconds = i64::try_from(ttl_seconds)
-        .map_err(|_| "lease_ttl_seconds cannot be represented safely".to_string())?;
-    let duration = chrono::Duration::try_seconds(seconds)
-        .ok_or_else(|| "lease_ttl_seconds exceeds the supported duration".to_string())?;
-    claimed
-        .checked_add_signed(duration)
-        .ok_or_else(|| "lease expiry exceeds the supported timestamp range".to_string())
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StateTarget {

@@ -118,7 +118,6 @@ def run_check(script_name: str) -> int:
 def main() -> int:
     checks = (
         "verify_canonical_hashing.py",
-        "verify_attempt_id.py",
         "verify_current_objects.py",
         "verify_correction_impact.py",
         "verify_transfer_contract_gap.py",
@@ -134,7 +133,7 @@ def main() -> int:
     if verify_exact_witness_floor() != 0:
         print("vela conformance: FAIL (exact-witness-floor)", file=sys.stderr)
         return 1
-    print("\nvela conformance: ok (8 current contracts)")
+    print("\nvela conformance: ok")
     return 0
 
 

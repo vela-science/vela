@@ -4,7 +4,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -148,105 +147,6 @@ fn sensitive_paths(root: &Path) -> Vec<PathBuf> {
     hits
 }
 
-fn attempt_status_summary(
-    projection: &Value,
-    current_target_packets: &BTreeMap<String, String>,
-    now: DateTime<Utc>,
-) -> Result<(Value, usize), String> {
-    fn bounded_usage(attempt: &Value, section: &str, field: &str) -> Result<u64, String> {
-        attempt
-            .get(section)
-            .and_then(|value| value.get(field))
-            .and_then(Value::as_u64)
-            .ok_or_else(|| {
-                format!("current Attempt has no unsigned {section}.{field} budget value")
-            })
-    }
-
-    fn budget_fully_exhausted(attempt: &Value) -> Result<bool, String> {
-        [
-            ("submissions", "max_submissions"),
-            ("verifications", "max_verifications"),
-            ("artifacts", "max_artifacts"),
-            ("artifact_bytes", "max_artifact_bytes"),
-        ]
-        .into_iter()
-        .map(|(usage, budget)| {
-            Ok(
-                bounded_usage(attempt, "usage", usage)?
-                    >= bounded_usage(attempt, "budget", budget)?,
-            )
-        })
-        .collect::<Result<Vec<_>, String>>()
-        .map(|dimensions| dimensions.into_iter().all(|exhausted| exhausted))
-    }
-
-    fn target_packet_is_current(
-        attempt: &Value,
-        current_target_packets: &BTreeMap<String, String>,
-    ) -> Result<bool, String> {
-        let target_id = attempt
-            .get("target_id")
-            .and_then(Value::as_str)
-            .ok_or_else(|| "current Attempt projection has no target_id".to_string())?;
-        let packet_sha256 = attempt
-            .get("target_packet_sha256")
-            .and_then(Value::as_str)
-            .ok_or_else(|| "current Attempt projection has no target_packet_sha256".to_string())?;
-        Ok(current_target_packets
-            .get(target_id)
-            .is_some_and(|current| current == packet_sha256))
-    }
-
-    let attempts = projection
-        .get("attempts")
-        .and_then(Value::as_array)
-        .ok_or_else(|| "current Attempt projection has no attempts array".to_string())?;
-    let active = attempts
-        .iter()
-        .map(|attempt| {
-            let expires_at = attempt
-                .get("expires_at")
-                .and_then(Value::as_str)
-                .ok_or_else(|| "current Attempt projection has no expires_at".to_string())?;
-            let expires_at = DateTime::parse_from_rfc3339(expires_at)
-                .map_err(|error| format!("current Attempt expires_at: {error}"))?
-                .with_timezone(&Utc);
-            let active = expires_at > now
-                && !budget_fully_exhausted(attempt)?
-                && target_packet_is_current(attempt, current_target_packets)?;
-            Ok((attempt, active))
-        })
-        .collect::<Result<Vec<_>, String>>()?
-        .into_iter()
-        .filter_map(|(attempt, active)| active.then_some(attempt))
-        .collect::<Vec<_>>();
-    let first_attempt = active.first().map(|attempt| {
-        json!({
-            "attempt_id": attempt["attempt_id"],
-            "target_id": attempt["target_id"],
-            "actor": attempt["actor"],
-            "authorization_root": attempt["authorization_root"],
-            "scope": {
-                "allowed_operations": attempt["allowed_operations"],
-                "allowed_artifact_classes": attempt["allowed_artifact_classes"],
-                "authority_ceiling": attempt["authority_ceiling"],
-                "task_contract_root": attempt["task_contract_root"],
-            },
-            "budget": attempt["budget"],
-            "usage": attempt["usage"],
-            "expires_at": attempt["expires_at"],
-        })
-    });
-    Ok((
-        json!({
-            "active_attempt_count": active.len(),
-            "first_attempt": first_attempt,
-        }),
-        active.len(),
-    ))
-}
-
 fn decision_inbox_status_summary(
     projection: &crate::decision_inbox::DecisionInboxProjection,
 ) -> (Value, usize) {
@@ -271,29 +171,6 @@ fn decision_inbox_status_summary(
         }),
         pending_count,
     )
-}
-
-fn active_attempt_next_action(frontier: &Path, work: &Value) -> Result<String, String> {
-    let attempt = work
-        .get("first_attempt")
-        .and_then(Value::as_object)
-        .ok_or_else(|| "active work summary has no first Attempt".to_string())?;
-    let attempt_id = attempt
-        .get("attempt_id")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "active work summary has no Attempt identity".to_string())?;
-    let target_id = attempt
-        .get("target_id")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "active work summary has no Target identity".to_string())?;
-    let actor = attempt
-        .get("actor")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "active work summary has no actor identity".to_string())?;
-    Ok(format!(
-        "Continue Attempt {attempt_id} on Target {target_id}: vela submit --frontier {} --attempt {attempt_id} --claim <bounded-result> --type <type> --replayability <class> --artifact <path>:<kind> --caveat <limit> --as {actor} --json",
-        frontier.display()
-    ))
 }
 
 pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
@@ -357,8 +234,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
                 "artifacts": 0
             },
             "work": {
-                "active_attempt_count": 0,
-                "first_attempt": Value::Null
+                "ready_target_count": 0
             },
             "decision_inbox": {
                 "pending_count": 0,
@@ -405,52 +281,29 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         .values()
         .filter(|decision| decision.standing == "rejected")
         .count();
-    let attempt_projection = crate::current_work::project_attempts(&frontier)
-        .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let current_target_packets = vela_edge::target_index::assess_current_target_index(
+    let ready_target_count = vela_edge::target_index::assess_current_target_index(
         &frontier,
         &repository.frontier_id,
         &repository.origin_id,
         &repository_root,
     )
     .unwrap_or_else(|error| crate::cli::fail_return(&error))
-    .map(|assessment| {
-        assessment
-            .fresh_open_targets()
-            .into_iter()
-            .map(|target| (target.id.clone(), target.packet.sha256.clone()))
-            .collect::<BTreeMap<_, _>>()
-    })
-    .unwrap_or_default();
-    let (work, active_attempt_count) =
-        attempt_status_summary(&attempt_projection, &current_target_packets, Utc::now())
-            .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    .map(|assessment| assessment.fresh_open_targets().len())
+    .unwrap_or(0);
     let inbox_projection = crate::decision_inbox::project(&frontier)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let (decision_inbox, pending_decision_count) = decision_inbox_status_summary(&inbox_projection);
-    let ready_target_count = current_target_packets.len();
     let review_action = (pending_decision_count > 0).then(|| {
         json!({
             "pending_count": pending_decision_count,
             "command": format!("vela review inbox {} --json", frontier.display()),
         })
     });
-    let work_action = if active_attempt_count > 0 {
-        json!({
-            "mode": "resume",
-            "active_attempt_count": active_attempt_count,
-            "ready_target_count": ready_target_count,
-            "command": active_attempt_next_action(&frontier, &work)
-                .unwrap_or_else(|error| crate::cli::fail_return(&error)),
-        })
-    } else {
-        json!({
-            "mode": "inspect",
-            "active_attempt_count": 0,
-            "ready_target_count": ready_target_count,
-            "command": format!("vela next {} --limit 1 --json", frontier.display()),
-        })
-    };
+    let work_action = json!({
+        "mode": "inspect",
+        "ready_target_count": ready_target_count,
+        "command": format!("vela next {} --limit 1 --json", frontier.display()),
+    });
     let payload = json!({
         "schema": "vela.status.v3",
         "ok": true,
@@ -488,7 +341,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             "verifications": repository.verifications.len(),
             "artifacts": repository.artifacts.len()
         },
-        "work": work,
+        "work": {"ready_target_count": ready_target_count},
         "decision_inbox": decision_inbox,
         "actions": {
             "review": review_action,
@@ -514,50 +367,9 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         println!("  strict    pass");
         println!("  claims    {}", payload["counts"]["claims"]);
         println!(
-            "  attempts  {} active",
-            payload["work"]["active_attempt_count"]
+            "  targets   {} ready",
+            payload["work"]["ready_target_count"]
         );
-        if let Some(attempt) = payload["work"]["first_attempt"].as_object() {
-            println!(
-                "  attempt   {} · {} · expires {}",
-                attempt["attempt_id"].as_str().unwrap_or("unavailable"),
-                attempt["target_id"].as_str().unwrap_or("unavailable"),
-                attempt["expires_at"].as_str().unwrap_or("unavailable")
-            );
-            let operations = attempt["scope"]["allowed_operations"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .filter_map(Value::as_str)
-                .collect::<Vec<_>>()
-                .join(", ");
-            let artifact_classes = attempt["scope"]["allowed_artifact_classes"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .filter_map(Value::as_str)
-                .collect::<Vec<_>>()
-                .join(", ");
-            println!(
-                "  scope     {} · {} · {}",
-                crate::cli::safe_text::inline(&operations),
-                crate::cli::safe_text::inline(&artifact_classes),
-                attempt["scope"]["authority_ceiling"]
-                    .as_str()
-                    .unwrap_or("unavailable")
-            );
-            println!(
-                "  budget    {}/{} submissions · {}/{} verifications · {}/{} artifacts · {}/{} bytes",
-                attempt["usage"]["submissions"],
-                attempt["budget"]["max_submissions"],
-                attempt["usage"]["verifications"],
-                attempt["budget"]["max_verifications"],
-                attempt["usage"]["artifacts"],
-                attempt["budget"]["max_artifacts"],
-                attempt["usage"]["artifact_bytes"],
-                attempt["budget"]["max_artifact_bytes"]
-            );
-        }
         println!(
             "  inbox     {} pending · {} protocol-ready · {} protocol-blocked",
             payload["decision_inbox"]["pending_count"],
@@ -690,7 +502,7 @@ pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
                     .or_else(|| assessment.packet_value(&target.id)
                         .and_then(|packet| packet.get("verifier"))),
                 "next_command": format!(
-                    "vela start {} --frontier {} --as agent:<name> --json",
+                    "vela start {} --frontier {} --json",
                     target.id,
                     frontier.display()
                 )
@@ -2525,190 +2337,6 @@ mod tests {
             "names Artifact {b} outside the current repository"
         )));
     }
-
-    #[test]
-    fn attempt_status_reports_only_active_leases_with_exact_first_scope() {
-        let projection = json!({
-            "schema": "vela.attempt-list.v3",
-            "attempts": [
-                {
-                    "attempt_id": "vat_expired",
-                    "target_id": "target:a",
-                    "actor": "agent:fixture",
-                    "authorization_root": root('1'),
-                    "expires_at": "2026-07-29T00:00:00Z",
-                    "allowed_operations": ["inspect"],
-                    "allowed_artifact_classes": ["report"],
-                    "authority_ceiling": "pending_review",
-                    "task_contract_root": root('2'),
-                    "target_packet_sha256": root('5'),
-                    "budget": {
-                        "max_submissions": 1,
-                        "max_verifications": 1,
-                        "max_artifacts": 2,
-                        "max_artifact_bytes": 3
-                    },
-                    "usage": {
-                        "submissions": 0,
-                        "verifications": 0,
-                        "artifacts": 0,
-                        "artifact_bytes": 0,
-                        "registered_submission_ids": [],
-                        "registered_verification_record_ids": []
-                    }
-                },
-                {
-                    "attempt_id": "vat_active",
-                    "target_id": "target:b",
-                    "actor": "agent:fixture",
-                    "authorization_root": root('3'),
-                    "expires_at": "2026-07-31T00:00:00Z",
-                    "allowed_operations": ["inspect", "submission_author"],
-                    "allowed_artifact_classes": ["witness"],
-                    "authority_ceiling": "pending_review",
-                    "task_contract_root": root('4'),
-                    "target_packet_sha256": root('6'),
-                    "budget": {
-                        "max_submissions": 5,
-                        "max_verifications": 5,
-                        "max_artifacts": 8,
-                        "max_artifact_bytes": 1024
-                    },
-                    "usage": {
-                        "submissions": 1,
-                        "verifications": 1,
-                        "artifacts": 2,
-                        "artifact_bytes": 64,
-                        "registered_submission_ids": ["vsb_fixture"],
-                        "registered_verification_record_ids": ["vvr_fixture"]
-                    }
-                }
-            ]
-        });
-        let now = DateTime::parse_from_rfc3339("2026-07-30T00:00:00Z")
-            .unwrap()
-            .with_timezone(&Utc);
-        let current_target_packets = BTreeMap::from([
-            ("target:a".to_string(), root('5')),
-            ("target:b".to_string(), root('6')),
-        ]);
-        let (summary, active_count) =
-            attempt_status_summary(&projection, &current_target_packets, now).unwrap();
-        assert_eq!(active_count, 1);
-        assert_eq!(summary["active_attempt_count"], 1);
-        assert_eq!(summary["first_attempt"]["attempt_id"], "vat_active");
-        assert_eq!(summary["first_attempt"]["target_id"], "target:b");
-        assert_eq!(
-            summary["first_attempt"]["scope"]["allowed_artifact_classes"],
-            json!(["witness"])
-        );
-        assert_eq!(
-            summary["first_attempt"]["scope"]["task_contract_root"],
-            root('4')
-        );
-        assert_eq!(summary["first_attempt"]["budget"]["max_artifacts"], 8);
-        assert_eq!(
-            summary["first_attempt"]["expires_at"],
-            "2026-07-31T00:00:00Z"
-        );
-        assert!(summary["first_attempt"].get("path").is_none());
-        let next = active_attempt_next_action(Path::new("/frontier"), &summary).unwrap();
-        assert!(next.contains("Attempt vat_active"));
-        assert!(next.contains("Target target:b"));
-        assert!(next.contains("--attempt vat_active"));
-        assert!(next.contains("--as agent:fixture"));
-        assert!(!next.contains("review accept"));
-        assert!(!next.contains("review reject"));
-    }
-
-    #[test]
-    fn attempt_status_excludes_fully_exhausted_attempt() {
-        let projection = json!({
-            "schema": "vela.attempt-list.v3",
-            "attempts": [{
-                "attempt_id": "vat_exhausted",
-                "target_id": "target:a",
-                "actor": "agent:fixture",
-                "authorization_root": root('1'),
-                "expires_at": "2026-07-31T00:00:00Z",
-                "allowed_operations": ["inspect", "submission_author"],
-                "allowed_artifact_classes": ["witness"],
-                "authority_ceiling": "pending_review",
-                "task_contract_root": root('2'),
-                "target_packet_sha256": root('3'),
-                "budget": {
-                    "max_submissions": 1,
-                    "max_verifications": 1,
-                    "max_artifacts": 2,
-                    "max_artifact_bytes": 64
-                },
-                "usage": {
-                    "submissions": 1,
-                    "verifications": 1,
-                    "artifacts": 2,
-                    "artifact_bytes": 64,
-                    "registered_submission_ids": ["vsb_fixture"],
-                    "registered_verification_record_ids": ["vvr_fixture"]
-                }
-            }]
-        });
-        let now = DateTime::parse_from_rfc3339("2026-07-30T00:00:00Z")
-            .unwrap()
-            .with_timezone(&Utc);
-        let current_target_packets = BTreeMap::from([("target:a".to_string(), root('3'))]);
-
-        let (summary, active_count) =
-            attempt_status_summary(&projection, &current_target_packets, now).unwrap();
-
-        assert_eq!(active_count, 0);
-        assert_eq!(summary["active_attempt_count"], 0);
-        assert!(summary["first_attempt"].is_null());
-    }
-
-    #[test]
-    fn attempt_status_excludes_attempt_after_target_packet_advances() {
-        let projection = json!({
-            "schema": "vela.attempt-list.v3",
-            "attempts": [{
-                "attempt_id": "vat_advanced",
-                "target_id": "target:a",
-                "actor": "agent:fixture",
-                "authorization_root": root('1'),
-                "expires_at": "2026-07-31T00:00:00Z",
-                "allowed_operations": ["inspect", "submission_author"],
-                "allowed_artifact_classes": ["witness"],
-                "authority_ceiling": "pending_review",
-                "task_contract_root": root('2'),
-                "target_packet_sha256": root('3'),
-                "budget": {
-                    "max_submissions": 2,
-                    "max_verifications": 2,
-                    "max_artifacts": 4,
-                    "max_artifact_bytes": 128
-                },
-                "usage": {
-                    "submissions": 1,
-                    "verifications": 1,
-                    "artifacts": 2,
-                    "artifact_bytes": 64,
-                    "registered_submission_ids": ["vsb_fixture"],
-                    "registered_verification_record_ids": ["vvr_fixture"]
-                }
-            }]
-        });
-        let now = DateTime::parse_from_rfc3339("2026-07-30T00:00:00Z")
-            .unwrap()
-            .with_timezone(&Utc);
-        let current_target_packets = BTreeMap::from([("target:a".to_string(), root('4'))]);
-
-        let (summary, active_count) =
-            attempt_status_summary(&projection, &current_target_packets, now).unwrap();
-
-        assert_eq!(active_count, 0);
-        assert_eq!(summary["active_attempt_count"], 0);
-        assert!(summary["first_attempt"].is_null());
-    }
-
     fn current_review_lineage() -> (ProposalV1, ClaimRecordV1, VerificationRecordV1) {
         let submission_id = "vsb_ce7f0f4d4b6a4c40".to_string();
         let submission_root = root('2');

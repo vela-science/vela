@@ -622,7 +622,6 @@ fn initialize_current_repository_authority(
             "frontier.yaml",
             ".gitignore",
             ".gitattributes",
-            ".vela/settings.toml",
             ".vela/origin.json",
             ".vela/repository.json",
             ".vela/authority",

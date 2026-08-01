@@ -348,7 +348,8 @@ fn installer_points_to_the_nonfinalizing_task_first_path() {
     assert!(INSTALLER.contains("vela check . --strict --json"));
     assert!(INSTALLER.contains("vela next . --json"));
     assert!(INSTALLER.contains("vela start <target>"));
-    assert!(INSTALLER.contains("vela submit <attempt>"));
+    assert!(INSTALLER.contains("vela submit --frontier . --claim <claim>"));
+    assert!(!INSTALLER.contains("--attempt"));
     assert!(!INSTALLER.contains("vela work <target>"));
     assert!(INSTALLER.contains("docs/PRODUCER_QUICKSTART.md"));
     for forbidden in ["vela finding add", "--apply", "vela sign", "vela accept"] {
