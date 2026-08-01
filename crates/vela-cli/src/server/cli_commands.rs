@@ -292,9 +292,8 @@ pub(crate) enum Commands {
     ))]
     #[command(after_long_help = crate::cli::help_text::SUBMIT)]
     Submit {
-        /// Path to a signed Submission v1. Or author a new Claim from an active
-        /// Attempt; exact corrections and supersessions may be authored without
-        /// inventing a work target.
+        /// Path to a signed Submission v1. Or author a new Claim directly;
+        /// --attempt optionally attributes it to live private work.
         submission: Option<PathBuf>,
         #[arg(long)]
         frontier: Option<PathBuf>,

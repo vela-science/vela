@@ -97,7 +97,7 @@ draft until a key-holding human accepts it. The full charter is VELA.md.\n\
 /// per the open agent-skills standard).
 const SKILL_FRONTMATTER: &str = r##"---
 name: vela-frontier
-description: Working in a repository that has a .vela/ directory (a Vela Frontier). Use when inspecting standing, starting Attempts, submitting evidence, importing Verification Records, or reviewing exact Proposals. The producer loop is next → start → submit; only authorized Decisions change standing.
+description: Working in a repository that has a .vela/ directory (a Vela Frontier). Use when inspecting standing, submitting evidence, importing Verification Records, or reviewing exact Proposals. The producer loop is next → submit; only authorized Decisions change standing.
 ---
 "##;
 
@@ -115,34 +115,35 @@ this skill is how an agent works inside one.
 
 ## The loop
 
-Three producer verbs; everything else is inspection, verification, decision,
-or plumbing.
+Two required producer verbs; everything else is optional attribution,
+inspection, verification, decision, or plumbing.
 
 ```text
-next -> start -> submit
+next -> submit
 ```
 
 - `vela next --json` — the offer: ranked open targets with the compounding
   payload pre-loaded (premises to build on, banked routes, prior attempts,
   dead channels). Returns `{targets: [{lane, id, title, why, next_command, task?}]}`.
   Trust the ranking; it already encodes what the frontier knows.
-- `vela start <target> --as agent:<you> --json` — authorize the exact private
-  Attempt, load the briefing, and write it under `.vela/work/`.
+- `vela start <target> --as agent:<you> --json` — optionally create an exact
+  private Attempt for local attribution and load the briefing under `.vela/work/`.
   The Attempt binds the controller and runner builds, allowed Artifact
   classes, expiry, evidence budgets, and a pending-review ceiling. A
   same-actor retry returns that exact active Attempt. Successful Submissions
   consume its private counters but do not end it. Read the returned briefing
   before working; do not edit the Attempt record.
-- `vela submit --attempt <vat_id> --claim <result> --type <type>
+- `vela submit --claim <result> --type <type>
   --replayability <class> --artifact <path>:<kind> --caveat <limit>
-  --as agent:<you> --json` — build and register Submission v1 from the exact
-  Attempt. Registration creates a pending Proposal and no accepted-state
-  change. A foreign producer may pass one signed `submission.json`.
+  --as agent:<you> --json` — build and register one signed Submission v1.
+  Registration creates a pending Proposal and no accepted-state change. Add
+  `--attempt <vat_id>` only when live private attribution is useful. A foreign
+  producer may pass one signed `submission.json`.
 - `vela submit --claim <replacement> --type <type> --replayability <class>
   --artifact <path>:<kind> --caveat <limit> --supersedes <full_vcl_id>
   --target-root <full_sha256_root> --as agent:<you> --json` — request one exact
-  supersession without inventing a ranked work target. New Claims still
-  require an Attempt. This producer action cannot decide the Proposal.
+  supersession without inventing a ranked work target or Attempt. This
+  producer action cannot decide the Proposal.
 - `vela start <target> --drop --reason <why> --as agent:<you> --json` — revoke
   the same-owner private Attempt and remove its scratch. It writes no Event or
   scientific state.
@@ -158,8 +159,8 @@ next -> start -> submit
   prepare or explain the exact command, but may not invoke either action.
 
 For a frozen-verifier witness, run `vela reproduce <witness>` first, then
-submit the result through the active Attempt with `vela submit --attempt <vat_id>
---artifact <witness>:witness --as agent:<you> --json`. A producer outside the
+submit the result with `vela submit --artifact <witness>:witness --as
+agent:<you> --json`. A producer outside the
 frontier can emit the same portable Submission v1 and call `vela submit
 submission.json`. Producer checks remain producer-reported; an independent
 Verification Record is separate. Author one over an exact pending Proposal

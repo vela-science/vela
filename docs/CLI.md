@@ -9,10 +9,8 @@ preserves the exact repository history.
 ```bash
 vela status . --json
 vela next . --limit 1 --json
-vela start <target> --frontier . --as agent:<name> --json
 
 vela submit --frontier . \
-  --attempt <vat_id> \
   --claim "<bounded result>" \
   --type computational \
   --replayability exact \
@@ -22,7 +20,6 @@ vela submit --frontier . \
   --json
 
 vela verification import . verification.json \
-  --attempt <vat_id> \
   --as verifier:<name> \
   --json
 
@@ -161,7 +158,8 @@ vela submit --frontier . \
 ```
 
 An observed correction or supersession does not need a synthetic work target.
-New Claims still require an active Attempt. Missing, shortened, stale, or
+New Claims may be signed and submitted directly. `--attempt <vat_id>` is
+optional local attribution; when supplied, missing, shortened, stale, or
 mismatched targets fail before intake. Registration creates a pending Proposal
 and cannot decide it.
 

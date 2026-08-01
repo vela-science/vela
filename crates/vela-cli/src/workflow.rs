@@ -135,12 +135,6 @@ pub(crate) fn author_submission(
                 Some(work.attempt.attempt_id),
             )
         }
-        None if requested_change.kind == "add_claim" => {
-            return Err(
-                "new Claim authoring requires --attempt from `vela start <target> --json`"
-                    .to_string(),
-            );
-        }
         None => (
             chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
             None,

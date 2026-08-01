@@ -84,8 +84,8 @@ infrastructure.
 
 - Current Vela ships no agent runner, Campaign host, scheduler, custom Run
   receipt model, or Canopus compatibility layer.
-- `vela start` creates only an ignored local Attempt lease over one exact
-  Target, expiry, permitted artifact classes, and bounded evidence writes.
+- `vela start` optionally creates an ignored local Attempt for exact Target
+  attribution. It is not required to author signed evidence.
 - Agents and workbenches consume the Target packet directly and register a
   Submission through `vela submit`.
 - Verifiers emit the standard Verification Record and import it through

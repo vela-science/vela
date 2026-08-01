@@ -245,7 +245,7 @@ fn write_scaffold(path: &Path, name: &str, scope: &str) -> Result<(), String> {
     write(
         "VELA.md",
         &format!(
-            "# {name} — agent charter\n\nCanonical state is Git history plus the current `.vela/repository.json` manifest. Producers may inspect work, start one bounded Attempt, submit evidence, and import scoped Verification Records. Only an authorized human Decision changes scientific standing.\n\nAgents must not invoke `vela review accept` or `vela review reject`, access repository-authority credentials, hand-edit canonical records, or describe Verification as acceptance.\n\n```bash\nvela status . --json\nvela next . --limit 1 --json\nvela start <target> --frontier . --as agent:<name> --json\nvela submit --frontier . --attempt <vat_id> --claim <bounded-claim> --type computational --replayability exact --artifact <path>:<kind> --caveat <limit> --as agent:<name> --json\nvela check . --strict --json\n```\n"
+            "# {name} — agent charter\n\nCanonical state is Git history plus the current `.vela/repository.json` manifest. Producers may inspect work, submit signed evidence directly, optionally attribute it to a local Attempt, and import scoped Verification Records. Only an authorized human Decision changes scientific standing.\n\nAgents must not invoke `vela review accept` or `vela review reject`, access repository-authority credentials, hand-edit canonical records, or describe Verification as acceptance.\n\n```bash\nvela status . --json\nvela next . --limit 1 --json\nvela submit --frontier . --claim <bounded-claim> --type computational --replayability exact --artifact <path>:<kind> --caveat <limit> --as agent:<name> --json\nvela check . --strict --json\n```\n"
         ),
     )
 }

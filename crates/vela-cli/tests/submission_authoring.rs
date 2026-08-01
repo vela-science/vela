@@ -41,13 +41,14 @@ fn combined(output: &Output) -> String {
 }
 
 #[test]
-fn new_claim_authoring_requires_a_current_attempt() {
+fn new_claim_authoring_does_not_invent_an_attempt() {
     let directory = tempfile::tempdir().expect("temporary directory");
     let output = run(directory.path(), directory.path(), &[]);
     let message = combined(&output);
 
     assert!(!output.status.success());
-    assert!(message.contains("new Claim authoring requires --attempt"));
+    assert!(!message.contains("requires --attempt"));
+    assert!(message.contains("artifact 0"));
 }
 
 #[test]

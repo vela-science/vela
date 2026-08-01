@@ -41,9 +41,9 @@ SEE ALSO
 pub const SUBMIT: &str = "\
 EXAMPLES
   vela submit submission.json                  register a signed Submission v1
-  vela submit --attempt vat_0123… --claim \"a(7) >= 22\" --type computational \
+  vela submit --claim \"a(7) >= 22\" --type computational \
     --replayability exact --artifact w.json:witness --caveat \"bounded search\"
-                                               author from one active Attempt
+                                               author one signed Submission
   vela submit --attempt vat_0123… --claim \"corrected bounded result\" \
     --type theoretical --replayability exact --artifact diff.json:source-diff \
     --caveat \"exact source revision only\" --supersedes vcl_0123… \
@@ -55,8 +55,8 @@ Submission registers authenticated producer input as a pending Proposal. It
 does not create a Verification Record, Decision, Event, or accepted-state
 change. --corrects and --supersedes bind one full accepted Claim ID and root;
 they never decide the Proposal and may describe an observed correction without
-inventing a ranked work target. New Claims still require an active Attempt.
---check records only producer-reported checks.
+inventing a ranked work target. --attempt optionally attributes a Submission
+to live private work. --check records only producer-reported checks.
 
 SEE ALSO
   vela review show     inspect one exact deferred Proposal";
