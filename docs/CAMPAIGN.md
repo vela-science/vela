@@ -159,9 +159,12 @@ infrastructure.
   now retains a source-bound producer report whose conclusion is `faithful`
   across definitions, quantifiers, hypotheses, and conclusion. Submission
   `vsb_d6301c8383af8bc5` remains pending review as Proposal
-  `vpr_3635f052644495be`; it has no independent Verification and changed no
-  accepted Event or Standing. No Astra Frontier or Astra-specific product was
-  created.
+  `vpr_3635f052644495be`. Separately scoped first-party Verification
+  `vvr_bee06004b4285330`, root
+  `sha256:6da941b2e6946f59b85b31df1f2d4bdc2472d8357f654b79952c1b8c21e53428`,
+  recomputed the retained roots and six-dimensional fidelity matrix. The
+  Proposal still requires a human Decision and changed no accepted Event or
+  Standing. No Astra Frontier or Astra-specific product was created.
 - Two empty local PostgreSQL reconstructions matched every production table,
   Frontier, and source-registry root. The retained evidence artifact root is
   `sha256:e5de95a63f9ab3f66fd8c35fe28b49a8b451d9a25994d0ffa78948ae2a8ace5c`.
@@ -397,9 +400,11 @@ teorth statement, OpenAI manuscript theorem, and Lean declaration and found
 no definition, quantifier, hypothesis, or conclusion mismatch. The report is
 rooted at
 `sha256:dc40f2221ab2a2e0101e328026f1a4bd6a439c47e9c215677deb671ee42da368`.
-Its Claim remains pending until a separately scoped reviewer recomputes the
-source roots and report matrix; even a passing Verification would not choose a
-human Decision or change Standing.
+Its Claim now has a separately scoped first-party Verification that recomputed
+the source roots and report matrix. Verification `vvr_bee06004b4285330`
+passes with explicit shared model, operator, and machine limitations. It does
+not establish novelty, community acceptance, or external independence, and it
+does not choose a human Decision or change Standing.
 
 Do not create an Astra Frontier, universal status ladder, reviewer service,
 source-monitoring daemon, graph store, or standalone Scientific Release
