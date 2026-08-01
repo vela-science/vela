@@ -29,12 +29,13 @@ Vela is a Git-native protocol and CLI for governed, replayable
 scientific-state transitions. Its product loop is:
 
 ```text
-map -> target -> run -> verify -> commit -> compound
+map -> target -> work -> submit -> verify -> decide -> remap
 ```
 
-Work can run anywhere. Checks remain scoped. Only an authorized Decision
-changes Standing. The accepted result, correction, or retained failed route
-then becomes a stronger starting point for the next person or agent.
+Work can happen in any native tool. A Submission retains bounded producer
+evidence. Checks remain scoped. Only an authorized Decision changes Standing,
+and the resulting map exposes the next valid Target or an explicit blocker.
+Compounding is a measured outcome, not an automatic property of acceptance.
 
 The product hierarchy is deliberate:
 

@@ -2,16 +2,18 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "receiver", "decision"],
+  "required": ["schema", "scenario", "frontier", "decision"],
   "properties": {
-    "schema": {"const": "vela.product-compression-answer.v8"},
-    "receiver": {"$ref": "#/$defs/receiver"},
+    "schema": {"const": "vela.product-compression-answer.v9"},
+    "scenario": {"enum": ["formal-foreign-reference-continuation", "quantum-certificate-supersession"]},
+    "frontier": {"$ref": "#/$defs/frontier"},
     "decision": {"$ref": "#/$defs/decision"}
   },
   "$defs": {
     "root": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-    "receiver": {
-      "type": "object", "additionalProperties": false,
+    "frontier": {
+      "type": "object",
+      "additionalProperties": false,
       "required": ["frontier_id", "repository_root", "configured_targets"],
       "properties": {
         "frontier_id": {"type": "string", "pattern": "^vfr_[0-9a-f]{16}$"},
@@ -20,7 +22,8 @@
       }
     },
     "standing": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "required": ["claim_id", "claim_root"],
       "properties": {
         "claim_id": {"type": "string", "pattern": "^vcl_[0-9a-f]{64}$"},
@@ -28,53 +31,132 @@
       }
     },
     "standingState": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "required": ["repository_root", "accepted"],
       "properties": {
         "repository_root": {"$ref": "#/$defs/root"},
         "accepted": {"type": "array", "items": {"$ref": "#/$defs/standing"}}
       }
     },
-    "standingDelta": {
-      "type": "object", "additionalProperties": false,
-      "required": ["transition", "scope", "before", "if_accept", "if_reject"],
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "target_claim_id", "affected_claim_ids"],
       "properties": {
-        "transition": {"const": "add accepted Claim"},
-        "scope": {
-          "type": "object", "additionalProperties": false,
-          "required": ["kind", "target_claim_id", "affected_claim_ids"],
-          "properties": {
-            "kind": {"const": "proposal_affected_claims"},
-            "target_claim_id": {"type": "string", "pattern": "^vcl_[0-9a-f]{64}$"},
-            "affected_claim_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^vcl_[0-9a-f]{64}$"}}
-          }
-        },
+        "kind": {"const": "proposal_affected_claims"},
+        "target_claim_id": {"type": "string", "pattern": "^vcl_[0-9a-f]{64}$"},
+        "affected_claim_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^vcl_[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "globalCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["before", "if_accept", "if_reject"],
+      "properties": {
+        "before": {"type": "integer", "minimum": 0},
+        "if_accept": {"type": "integer", "minimum": 0},
+        "if_reject": {"type": "integer", "minimum": 0}
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unchanged_accepted_claims", "global_accepted_claims"],
+      "properties": {
+        "unchanged_accepted_claims": {"type": "integer", "minimum": 0},
+        "global_accepted_claims": {"$ref": "#/$defs/globalCounts"}
+      }
+    },
+    "standingDelta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transition", "scope", "before", "if_accept", "if_reject", "counts"],
+      "properties": {
+        "transition": {"enum": ["add accepted Claim", "supersede accepted Claim with corrected Claim"]},
+        "scope": {"$ref": "#/$defs/scope"},
         "before": {"$ref": "#/$defs/standingState"},
         "if_accept": {"$ref": "#/$defs/standingState"},
-        "if_reject": {"$ref": "#/$defs/standingState"}
+        "if_reject": {"$ref": "#/$defs/standingState"},
+        "counts": {"$ref": "#/$defs/counts"}
+      }
+    },
+    "requestedChange": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {"kind": {"const": "add_claim"}}
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "target_claim_id", "target_claim_root"],
+          "properties": {
+            "kind": {"const": "supersede_claim"},
+            "target_claim_id": {"type": "string", "pattern": "^vcl_[0-9a-f]{64}$"},
+            "target_claim_root": {"$ref": "#/$defs/root"}
+          }
+        }
+      ]
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verification_record_id", "verification_record_root", "outcome", "property", "verifier", "independent_of_producer", "protocol_evidence_role", "satisfies_requirements", "does_not_establish"],
+      "properties": {
+        "verification_record_id": {"type": "string", "pattern": "^vvr_[0-9a-f]{16}$"},
+        "verification_record_root": {"$ref": "#/$defs/root"},
+        "outcome": {"enum": ["pass", "fail", "inconclusive", "error"]},
+        "property": {"type": "string", "minLength": 1},
+        "verifier": {"type": "string", "minLength": 1},
+        "independent_of_producer": {"type": "boolean"},
+        "protocol_evidence_role": {"enum": ["requirement_satisfying", "complementary", "blocking"]},
+        "satisfies_requirements": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "does_not_establish": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "nextObligation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["now", "if_accept", "if_reject"],
+      "properties": {
+        "now": {"type": "string", "minLength": 1},
+        "if_accept": {"type": "string", "minLength": 1},
+        "if_reject": {"type": "string", "minLength": 1}
       }
     },
     "decision": {
-      "type": "object", "additionalProperties": false,
-      "required": ["proposal_id", "proposal_root", "source_submission_id", "proposed_claim_id", "assertion", "conditions", "limits", "verification_ids", "verification_set_root", "inbox_entry_root", "protocol_gate", "human_decision_required", "verification_is_acceptance", "standing_delta", "staleness", "next_if_accept_code", "next_if_reject_code"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proposal_id", "proposal_root", "source_submission_id", "source_submission_root", "proposed_claim_id", "proposed_claim_root", "requested_change", "assertion", "conditions", "limits", "verifications", "verification_set_root", "inbox_entry_root", "protocol_gate", "blockers", "human_decision_required", "verification_is_acceptance", "standing_delta", "staleness", "next_obligation"],
       "properties": {
         "proposal_id": {"type": "string", "pattern": "^vpr_[0-9a-f]{16}$"},
         "proposal_root": {"$ref": "#/$defs/root"},
         "source_submission_id": {"type": "string", "pattern": "^vsb_[0-9a-f]{16}$"},
+        "source_submission_root": {"$ref": "#/$defs/root"},
         "proposed_claim_id": {"type": "string", "pattern": "^vcl_[0-9a-f]{64}$"},
+        "proposed_claim_root": {"$ref": "#/$defs/root"},
+        "requested_change": {"$ref": "#/$defs/requestedChange"},
         "assertion": {"type": "string", "minLength": 1},
         "conditions": {"type": "array", "items": {"type": "string", "minLength": 1}},
         "limits": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
-        "verification_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^vvr_[0-9a-f]{16}$"}},
+        "verifications": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/verification"}},
         "verification_set_root": {"$ref": "#/$defs/root"},
         "inbox_entry_root": {"$ref": "#/$defs/root"},
         "protocol_gate": {"enum": ["satisfied", "blocked"]},
+        "blockers": {"type": "array", "items": {"type": "string", "minLength": 1}},
         "human_decision_required": {"const": true},
         "verification_is_acceptance": {"const": false},
         "standing_delta": {"$ref": "#/$defs/standingDelta"},
-        "staleness": {"enum": ["current", "stale"]},
-        "next_if_accept_code": {"const": "replay_and_recompute_targets"},
-        "next_if_reject_code": {"const": "replay_without_standing_change"}
+        "staleness": {"const": "current"},
+        "next_obligation": {"$ref": "#/$defs/nextObligation"}
       }
     }
   }

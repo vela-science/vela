@@ -27,10 +27,13 @@ def elapsed_ms(start: Any, finish: Any) -> int:
     return result
 
 
-def trial(result_path: Path) -> dict[str, Any]:
+def trial(result_path: Path, scenario: str) -> dict[str, Any]:
     result = contract.read_json(result_path)
     task_name = result.get("task_name")
-    arms = [arm for arm in materialize.ARMS if task_name == f"vela/product-compression-{arm}"]
+    arms = [
+        arm for arm in materialize.ARMS
+        if task_name == f"vela/product-compression-{scenario}-{arm}"
+    ]
     if len(arms) != 1:
         raise contract.ContractError(f"Harbor trial has an unknown task identity: {task_name}")
     if result.get("finished_at") is None or result.get("exception_info") is not None:
@@ -55,8 +58,11 @@ def trial(result_path: Path) -> dict[str, Any]:
 
 def summarize(plan_path: Path, job: Path) -> dict[str, Any]:
     plan = contract.read_json(plan_path)
-    if plan.get("schema") != "vela.product-compression-plan.v10" or plan.get("plan_root") != contract.record_root(plan, "plan_root"):
+    if plan.get("schema") != "vela.product-compression-plan.v11" or plan.get("plan_root") != contract.record_root(plan, "plan_root"):
         raise contract.ContractError("invalid product-compression plan")
+    scenario = plan.get("scenario")
+    if scenario not in materialize.SCENARIOS:
+        raise contract.ContractError("product-compression plan has an unsupported scenario")
     if plan.get("comparison_rule") != materialize.COMPARISON:
         raise contract.ContractError("unsupported comparison rule")
     job_result_path = job / "result.json"
@@ -68,7 +74,7 @@ def summarize(plan_path: Path, job: Path) -> dict[str, Any]:
         "n_running_trials", "n_pending_trials", "n_errored_trials", "n_cancelled_trials", "n_retries",
     )):
         raise contract.ContractError("Harbor job must contain four clean, terminal, unretried trials")
-    trials = [trial(path) for path in sorted(job.glob("*/result.json"))]
+    trials = [trial(path, scenario) for path in sorted(job.glob("*/result.json"))]
     if len(trials) != 4:
         raise contract.ContractError("Harbor job must contain four trial results")
     arms = {}
@@ -93,8 +99,9 @@ def summarize(plan_path: Path, job: Path) -> dict[str, Any]:
     else:
         outcome = "failed_no_product_lift_credit"
     return contract.seal({
-        "schema": "vela.product-compression-native-harbor-result.v5",
+        "schema": "vela.product-compression-native-harbor-result.v6",
         "result_root": "",
+        "scenario": scenario,
         "plan_root": plan["plan_root"],
         "harbor_job": {
             "id": job_result.get("id"),

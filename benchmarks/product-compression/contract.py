@@ -59,54 +59,75 @@ def validate_answer(value: Any) -> None:
     compares a participant answer with the exact answer key.
     """
     try:
-        if value["schema"] != "vela.product-compression-answer.v8":
+        if value["schema"] != "vela.product-compression-answer.v9":
             raise ContractError("$.schema: wrong answer schema")
-        receiver = value["receiver"]
+        scenario = value["scenario"]
+        frontier = value["frontier"]
         decision = value["decision"]
         delta = decision["standing_delta"]
         scope = delta["scope"]
     except (KeyError, TypeError) as exc:
         raise ContractError(f"answer is missing a required field: {exc}") from exc
 
-    require_root(receiver.get("repository_root"), "$.receiver.repository_root")
-    if receiver.get("configured_targets") != 0:
-        raise ContractError("$.receiver.configured_targets: receiver must have no invented Target")
+    if scenario not in {"formal-foreign-reference-continuation", "quantum-certificate-supersession"}:
+        raise ContractError("$.scenario: unsupported scenario")
+    require_root(frontier.get("repository_root"), "$.frontier.repository_root")
+    if frontier.get("configured_targets") != 0:
+        raise ContractError("$.frontier.configured_targets: Frontier must have no invented Target")
     if not isinstance(decision.get("assertion"), str) or not decision["assertion"]:
         raise ContractError("$.decision.assertion: must identify the proposed scientific statement")
     if not isinstance(decision.get("conditions"), list):
         raise ContractError("$.decision.conditions: must be an array")
     if not isinstance(decision.get("limits"), list) or not decision["limits"]:
         raise ContractError("$.decision.limits: must retain at least one scope limit")
-    for field in ("proposal_root", "verification_set_root", "inbox_entry_root"):
+    for field in (
+        "proposal_root", "source_submission_root", "proposed_claim_root",
+        "verification_set_root", "inbox_entry_root",
+    ):
         require_root(decision.get(field), f"$.decision.{field}")
 
-    required_boundary = (
-        decision.get("human_decision_required"),
-        decision.get("verification_is_acceptance"),
-        decision.get("next_if_accept_code"),
-        decision.get("next_if_reject_code"),
-    )
-    if required_boundary != (
-        True,
-        False,
-        "replay_and_recompute_targets",
-        "replay_without_standing_change",
-    ):
+    if (decision.get("human_decision_required"), decision.get("verification_is_acceptance")) != (True, False):
         raise ContractError("$.decision: authority boundary is misstated")
     if decision.get("protocol_gate") not in {"satisfied", "blocked"}:
         raise ContractError("$.decision.protocol_gate: invalid state")
-    if decision.get("staleness") not in {"current", "stale"}:
-        raise ContractError("$.decision.staleness: invalid state")
+    if not isinstance(decision.get("blockers"), list):
+        raise ContractError("$.decision.blockers: must be an array")
+    if decision.get("staleness") != "current":
+        raise ContractError("$.decision.staleness: benchmark requires current state")
+    next_obligation = decision.get("next_obligation")
+    if not isinstance(next_obligation, dict) or any(
+        not isinstance(next_obligation.get(field), str) or not next_obligation[field]
+        for field in ("now", "if_accept", "if_reject")
+    ):
+        raise ContractError("$.decision.next_obligation: exact current branches are required")
+
+    verifications = decision.get("verifications")
+    if not isinstance(verifications, list) or not verifications:
+        raise ContractError("$.decision.verifications: at least one scoped check is required")
+    seen_verifications: set[str] = set()
+    for index, verification in enumerate(verifications):
+        location = f"$.decision.verifications[{index}]"
+        if not isinstance(verification, dict):
+            raise ContractError(f"{location}: expected object")
+        record_id = verification.get("verification_record_id")
+        if not isinstance(record_id, str) or record_id in seen_verifications:
+            raise ContractError(f"{location}.verification_record_id: invalid or duplicate")
+        seen_verifications.add(record_id)
+        require_root(verification.get("verification_record_root"), f"{location}.verification_record_root")
+        if verification.get("outcome") not in {"pass", "fail", "inconclusive", "error"}:
+            raise ContractError(f"{location}.outcome: invalid")
+        if verification.get("protocol_evidence_role") not in {
+            "requirement_satisfying", "complementary", "blocking",
+        }:
+            raise ContractError(f"{location}.protocol_evidence_role: invalid")
+        for field in ("property", "verifier"):
+            if not isinstance(verification.get(field), str) or not verification[field]:
+                raise ContractError(f"{location}.{field}: required")
+        for field in ("satisfies_requirements", "does_not_establish"):
+            if not isinstance(verification.get(field), list):
+                raise ContractError(f"{location}.{field}: must be an array")
 
     claim_id = decision.get("proposed_claim_id")
-    if delta.get("transition") != "add accepted Claim":
-        raise ContractError("$.decision.standing_delta.transition: unsupported transition")
-    if scope != {
-        "kind": "proposal_affected_claims",
-        "target_claim_id": claim_id,
-        "affected_claim_ids": [claim_id],
-    }:
-        raise ContractError("$.decision.standing_delta.scope: must bind only the proposed Claim")
     before = delta.get("before", {}).get("accepted")
     accepted = delta.get("if_accept", {}).get("accepted")
     rejected = delta.get("if_reject", {}).get("accepted")
@@ -114,18 +135,59 @@ def validate_answer(value: Any) -> None:
         raise ContractError("$.decision.standing_delta: accepted sets must be arrays")
     if rejected != before:
         raise ContractError("$.decision.standing_delta.if_reject: rejection must preserve scoped Standing")
-    additions = [item for item in accepted if item not in before]
-    if len(accepted) != len(before) + 1 or len(additions) != 1 or additions[0].get("claim_id") != claim_id:
-        raise ContractError("$.decision.standing_delta.if_accept: must add exactly the proposed Claim")
-    if delta.get("before", {}).get("repository_root") != receiver.get("repository_root"):
+    if delta.get("before", {}).get("repository_root") != frontier.get("repository_root"):
         raise ContractError("$.decision.standing_delta.before: does not bind the inspected repository")
+
+    counts = delta.get("counts")
+    if not isinstance(counts, dict) or not isinstance(counts.get("unchanged_accepted_claims"), int):
+        raise ContractError("$.decision.standing_delta.counts: exact counts are required")
+    global_counts = counts.get("global_accepted_claims")
+    if not isinstance(global_counts, dict):
+        raise ContractError("$.decision.standing_delta.counts: global counts are required")
+    for field, state in (("before", before), ("if_accept", accepted), ("if_reject", rejected)):
+        if global_counts.get(field) != counts["unchanged_accepted_claims"] + len(state):
+            raise ContractError("$.decision.standing_delta.counts: scoped and global counts disagree")
+
+    requested_change = decision.get("requested_change")
+    if not isinstance(requested_change, dict):
+        raise ContractError("$.decision.requested_change: required")
+    if scenario == "formal-foreign-reference-continuation":
+        if requested_change != {"kind": "add_claim"}:
+            raise ContractError("$.decision.requested_change: foreign continuation must add one Claim")
+        if delta.get("transition") != "add accepted Claim" or scope != {
+            "kind": "proposal_affected_claims",
+            "target_claim_id": claim_id,
+            "affected_claim_ids": [claim_id],
+        }:
+            raise ContractError("$.decision.standing_delta: invalid add-Claim scope")
+        additions = [item for item in accepted if item not in before]
+        if len(accepted) != len(before) + 1 or len(additions) != 1 or additions[0].get("claim_id") != claim_id:
+            raise ContractError("$.decision.standing_delta.if_accept: must add exactly the proposed Claim")
+    else:
+        target_id = requested_change.get("target_claim_id")
+        target_root = requested_change.get("target_claim_root")
+        require_root(target_root, "$.decision.requested_change.target_claim_root")
+        if requested_change.get("kind") != "supersede_claim" or not isinstance(target_id, str):
+            raise ContractError("$.decision.requested_change: quantum scenario must supersede one Claim")
+        if delta.get("transition") != "supersede accepted Claim with corrected Claim" or scope != {
+            "kind": "proposal_affected_claims",
+            "target_claim_id": target_id,
+            "affected_claim_ids": [claim_id, target_id],
+        }:
+            raise ContractError("$.decision.standing_delta: invalid supersession scope")
+        predecessor = [{"claim_id": target_id, "claim_root": target_root}]
+        replacement = [{"claim_id": claim_id, "claim_root": decision.get("proposed_claim_root")}]
+        if before != predecessor or rejected != predecessor or accepted != replacement:
+            raise ContractError("$.decision.standing_delta: supersession must replace exactly the accepted predecessor")
 
 
 def validate_answer_key(value: Any) -> None:
-    if not isinstance(value, dict) or value.get("schema") != "vela.product-compression-answer-key.v8":
+    if not isinstance(value, dict) or value.get("schema") != "vela.product-compression-answer-key.v9":
         raise ContractError("answer key has the wrong schema")
     require_root(value.get("fixture_root"), "$.fixture_root")
     require_root(value.get("answer_key_root"), "$.answer_key_root")
     validate_answer(value.get("expected"))
+    if value.get("scenario") != value["expected"].get("scenario"):
+        raise ContractError("answer key scenario does not match expected answer")
     if value["answer_key_root"] != record_root(value, "answer_key_root"):
         raise ContractError("$.answer_key_root: root mismatch")

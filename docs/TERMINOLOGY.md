@@ -7,11 +7,10 @@ Historical object names remain valid when describing their exact source era.
 
 > **Vela is version control for living science.**
 
-> **Map the frontier. Target what matters. Run the work. Verify the result.
-> Commit what stands. Compound every gain.**
+> **Map the territory. Advance one boundary. Leave the next researcher ahead.**
 
 ```text
-map -> target -> run -> verify -> commit -> compound
+map -> target -> work -> submit -> verify -> decide -> remap
 ```
 
 These are product verbs, not renamed protocol objects:
@@ -19,15 +18,17 @@ These are product verbs, not renamed protocol objects:
 ```text
 map       reads exact state, dependencies, disagreement, and gaps
 target    selects bounded work from current state
-run       creates activity and evidence
+work      happens in any native human or machine environment
+submit    retains authenticated bounded evidence and a requested Claim
 verify    records a scoped check over exact inputs
-commit    summarizes an authorized Decision + Event + root transition
-compound  reuses the new state, correction, or retained failed route
+decide    lets named local authority accept, reject, or correct
+remap     derives current territory, blockers, and next work from the new root
 ```
 
-`Frontier Commit` is a product-level description of an authorized transition.
-It is not a protocol object, Git merge, verifier result, package publication,
-or new authority path.
+`MAP -> ADVANCE -> REMAP` is the shorter product compression. `Frontier
+Commit` remains an optional product-level description of an authorized
+Decision, Event, and root transition. It is not a protocol object, Git merge,
+verifier result, package publication, or new authority path.
 
 The architecture ownership mnemonic remains:
 
@@ -61,6 +62,22 @@ produce -> preserve -> check -> decide -> reuse
 | Frontier Commit | Product term for an authorized Decision, canonical Event, exact before/after roots, and replayed Standing | No independent effect |
 | Standing | The deterministic current status derived from valid Events | Resulting state |
 | Observatory | A removable read-only projection | None |
+
+## Research and evaluation properties
+
+These terms describe bounded system behavior. They are not protocol objects:
+
+| Property | Meaning |
+| --- | --- |
+| action-complete | Every represented unresolved item yields a fresh exact Target or an explicit blocker, within declared source coverage, compiler, relation, and resource bounds |
+| correction-closed | A declared complete relation slice identifies affected, surviving, and repair-required state after a correction |
+| inheritance-complete | A cold successor can recover current Standing, decisive evidence, and the next valid action without private maintainer context |
+| Frontier closure | State, coverage, Targets, Decisions, corrections, and handoff each close over exact current inputs or fail explicitly |
+| compounding | Inherited Frontier state measurably improves later correct scientific work under a matched comparison |
+
+The current **Math Atlas** is the bounded first-party read product over the four
+maintained mathematical Frontiers. A future federated Atlas is an unearned
+cross-Frontier concept, not a current global authority or completeness claim.
 
 ## Daily commands
 

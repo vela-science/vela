@@ -1,9 +1,9 @@
 # Product-compression benchmark
 
-This read-only benchmark asks one bounded question: does Vela help a cold
-researcher continue an accepted source correction in a separate Frontier and
-find the exact pending local Decision more reliably or efficiently than Git and
-files alone?
+This read-only benchmark asks one bounded question across explicit scientific
+scenarios: does Vela help a cold researcher recover the exact pending Decision,
+its evidence limits, conditional Standing change, and next obligation more
+reliably or efficiently than Git and files alone?
 
 ## Boundary
 
@@ -12,8 +12,8 @@ task format, containers, Codex execution and OAuth, retries, trajectories,
 artifacts, verifier rewards, timing, cost, and raw results. Vela contributes
 only:
 
-- `materialize.py`: one accepted-source and receiver-Decision fixture plus two
-  ready-to-run local Harbor tasks;
+- `materialize.py`: exact scenario qualification plus two ready-to-run local
+  Harbor tasks;
 - `answer.schema.json`: the participant output contract;
 - `task/tests/verify.py`: an offline exact scorer; and
 - `summarize.py`: the prospective two-arm comparison rule.
@@ -31,7 +31,7 @@ participant.
 
 ## Study
 
-The two matched arms inspect the same isolated receiver-Frontier commit:
+The two matched arms inspect the same isolated Frontier commit:
 
 - `git-files`: ordinary Git and file-reading tools;
 - `vela-guided`: the same tools plus one exact read-only Vela binary.
@@ -42,9 +42,19 @@ is exact twice, is at least as exact as the baseline, and has no median cost
 regression. If both arms are exact twice, Vela must reduce median agent time by
 at least 20 percent.
 
-This is first-party evidence from one receiver-continuation task. It does not
+The materializer currently supports two explicit scenarios without a generic
+correction framework:
+
+- `formal-foreign-reference-continuation`: find a pending local Decision over
+  an accepted foreign source reference without importing source authority;
+- `quantum-certificate-supersession`: find a pending correction to one accepted
+  quantum-code Claim, distinguish its two verifier scopes, and report the exact
+  accept/reject branches.
+
+These are first-party comprehension and continuation tasks. They do not
 establish independent adoption, general scientific productivity, scientific
-acceptance, or the full correction-and-inheritance breakthrough benchmark.
+acceptance, post-correction remapping, or the full correction-and-inheritance
+breakthrough benchmark.
 
 ## Run
 
@@ -58,6 +68,7 @@ python3 benchmarks/product-compression/materialize.py \
   --frontier /exact/frontier \
   --vela /exact/vela \
   --proposal vpr_<id> \
+  --scenario quantum-certificate-supersession \
   --vela-linux /exact/static-linux-vela \
   --model gpt-5.6-terra \
   --codex-version 0.145.0 \

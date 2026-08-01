@@ -18,6 +18,10 @@ import contract
 
 
 ARMS = ("git-files", "vela-guided")
+SCENARIOS = (
+    "formal-foreign-reference-continuation",
+    "quantum-certificate-supersession",
+)
 COMPARISON = {
     "required_repetitions_per_arm": 2,
     "guided_exact_required": 2,
@@ -92,10 +96,8 @@ def read_foreign_reference(archive: Path) -> tuple[dict[str, Any], str]:
     return value, contract.sha256_root(payload)
 
 
-def materialize_fixture(
-    frontier: Path, vela: Path, proposal_id: str
-) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Bind one accepted source reference to its exact receiver Decision."""
+def inspect_current_decision(frontier: Path, vela: Path, proposal_id: str) -> dict[str, Any]:
+    """Read one exact current Decision packet without changing the Frontier."""
     frontier, vela = frontier.resolve(), vela.resolve()
     if command(("git", "status", "--porcelain"), cwd=frontier):
         fail("frontier checkout must be clean")
@@ -120,7 +122,7 @@ def materialize_fixture(
         or availability.get("configured") != 0
         or availability.get("returned") != 0
     ):
-        fail("receiver-continuation study requires exactly zero configured and returned Targets")
+        fail("product-compression study requires exactly zero configured and returned Targets")
     if inbox.get("repository_root") != next_work.get("repository_root"):
         fail("Decision Inbox and continuation inspection disagree on repository root")
     inbox_projection_root = inbox.get("projection_root")
@@ -144,6 +146,81 @@ def materialize_fixture(
     if digest(submission_path) != submission_root:
         fail("Submission bytes disagree with the Decision Inbox")
     submission = contract.read_json(submission_path)
+    return {
+        "frontier": frontier,
+        "vela": vela,
+        "commit": before_commit,
+        "tree": before_tree,
+        "next_work": next_work,
+        "inbox_projection_root": inbox_projection_root,
+        "entry": entry,
+        "submission": submission,
+        "submission_root": submission_root,
+        "verifications": verifications,
+    }
+
+
+def verification_projection(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            field: item[field]
+            for field in (
+                "verification_record_id", "verification_record_root", "outcome",
+                "property", "verifier", "independent_of_producer",
+                "protocol_evidence_role", "satisfies_requirements", "does_not_establish",
+            )
+        }
+        for item in items
+    ]
+
+
+def expected_answer(
+    inspection: dict[str, Any], scenario: str, requested_change: dict[str, Any]
+) -> dict[str, Any]:
+    entry = inspection["entry"]
+    submission = inspection["submission"]
+    next_work = inspection["next_work"]
+    standing_delta = entry["standing_delta"]
+    result = {
+        "schema": "vela.product-compression-answer.v9",
+        "scenario": scenario,
+        "frontier": {
+            "frontier_id": next_work["frontier_id"],
+            "repository_root": next_work["repository_root"],
+            "configured_targets": 0,
+        },
+        "decision": {
+            "proposal_id": entry["proposal_id"],
+            "proposal_root": entry["inputs"]["proposal_root"],
+            "source_submission_id": submission["submission_id"],
+            "source_submission_root": inspection["submission_root"],
+            "proposed_claim_id": entry["claim_id"],
+            "proposed_claim_root": entry["inputs"]["claim_root"],
+            "requested_change": requested_change,
+            "assertion": entry["assertion"],
+            "conditions": entry["conditions"],
+            "limits": entry["limits"],
+            "verifications": verification_projection(inspection["verifications"]),
+            "verification_set_root": entry["inputs"]["verification_set_root"],
+            "inbox_entry_root": entry["entry_root"],
+            "protocol_gate": entry["readiness"]["protocol_gate"],
+            "blockers": entry["readiness"]["blockers"],
+            "human_decision_required": entry["readiness"]["human_decision_required"],
+            "verification_is_acceptance": False,
+            "standing_delta": standing_delta,
+            "staleness": entry["staleness"]["state"],
+            "next_obligation": entry["next_obligation"],
+        },
+    }
+    contract.validate_answer(result)
+    return result
+
+
+def formal_foreign_reference_scenario(inspection: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], str, str]:
+    """Qualify the existing Formal foreign-reference continuation scenario."""
+    frontier = inspection["frontier"]
+    entry = inspection["entry"]
+    submission = inspection["submission"]
     artifacts = submission.get("artifacts")
     references = [
         artifact
@@ -185,64 +262,11 @@ def materialize_fixture(
     if not isinstance(assertion, str) or source_claim_id not in assertion or reference_root not in assertion:
         fail("receiver Proposal does not bind the accepted source Claim and reference root")
 
-    standing_delta = entry["standing_delta"]
-    counts = standing_delta.get("counts")
-    if not isinstance(counts, dict):
-        fail("Decision Inbox Standing delta has no integrity counts")
-    unchanged = counts.get("unchanged_accepted_claims")
-    global_counts = counts.get("global_accepted_claims")
-    if not isinstance(unchanged, int) or not isinstance(global_counts, dict):
-        fail("Decision Inbox Standing counts are malformed")
-    for field in ("before", "if_accept", "if_reject"):
-        accepted = standing_delta.get(field, {}).get("accepted")
-        if not isinstance(accepted, list) or global_counts.get(field) != unchanged + len(accepted):
-            fail("Decision Inbox Standing counts disagree with the exact scoped delta")
-    participant_delta = {
-        field: standing_delta[field]
-        for field in ("transition", "scope", "before", "if_accept", "if_reject")
-    }
-
-    expected = {
-        "schema": "vela.product-compression-answer.v8",
-        "receiver": {
-            "frontier_id": next_work["frontier_id"],
-            "repository_root": next_work["repository_root"],
-            "configured_targets": 0,
-        },
-        "decision": {
-            "proposal_id": entry["proposal_id"],
-            "proposal_root": entry["inputs"]["proposal_root"],
-            "source_submission_id": submission["submission_id"],
-            "proposed_claim_id": entry["claim_id"],
-            "assertion": entry["assertion"],
-            "conditions": entry["conditions"],
-            "limits": entry["limits"],
-            "verification_ids": [item["verification_record_id"] for item in verifications],
-            "verification_set_root": entry["inputs"]["verification_set_root"],
-            "inbox_entry_root": entry["entry_root"],
-            "protocol_gate": entry["readiness"]["protocol_gate"],
-            "human_decision_required": entry["readiness"]["human_decision_required"],
-            "verification_is_acceptance": False,
-            "standing_delta": participant_delta,
-            "staleness": entry["staleness"]["state"],
-            "next_if_accept_code": "replay_and_recompute_targets",
-            "next_if_reject_code": "replay_without_standing_change",
-        },
-    }
-    contract.validate_answer(expected)
-
-    fixture = {
-        "schema": "vela.product-compression-fixture.v5",
-        "fixture_root": "",
-        "vela": {"version": command((str(vela), "--version"), cwd=frontier), "binary_sha256": digest(vela)},
-        "receiver": {
-            "frontier_id": next_work["frontier_id"],
-            "git_commit": before_commit, "git_tree": before_tree,
-            "repository_root": next_work["repository_root"],
-            "inbox_projection_root": inbox_projection_root,
-            "configured_targets": 0,
-        },
-        "source_anchor": {
+    requested_change = submission.get("requested_change")
+    if requested_change != {"kind": "add_claim"}:
+        fail("foreign-reference scenario requires an add_claim Submission")
+    anchor = {
+        "source": {
             "frontier_id": source_frontier_id,
             "reference_root": reference_root,
             "archive_sha256": archive_root,
@@ -250,15 +274,109 @@ def materialize_fixture(
             "claim_root": source_claim_root,
             "standing": authority["source_standing"],
             "local_standing_effect": authority["local_standing_effect"],
+        }
+    }
+    instruction = (
+        "The fixture identifies an accepted source Claim and its exact foreign-reference "
+        "archive, but intentionally does not name the receiver Proposal. Identify the one "
+        "current receiver Proposal that binds that source anchor. Distinguish accepted source "
+        "Standing from pending local Standing and report the exact Decision packet."
+    )
+    claim_limit = (
+        "First-party evidence from one frozen receiver-continuation task; no independent-user, "
+        "full correction-inheritance, or general scientific-workflow claim."
+    )
+    return anchor, expected_answer(inspection, SCENARIOS[0], requested_change), instruction, claim_limit
+
+
+def quantum_certificate_scenario(inspection: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], str, str]:
+    """Qualify one exact pending quantum-certificate supersession."""
+    frontier = inspection["frontier"]
+    submission = inspection["submission"]
+    requested = submission.get("requested_change")
+    target = requested.get("target") if isinstance(requested, dict) else None
+    if not isinstance(target, dict) or requested.get("kind") != "supersede_claim":
+        fail("quantum scenario requires one exact supersede_claim Submission")
+    target_id, target_root = target.get("claim_id"), target.get("claim_root")
+    if not isinstance(target_id, str) or not contract.ROOT.fullmatch(target_root or ""):
+        fail("quantum supersession target is malformed")
+    artifacts = submission.get("artifacts")
+    witnesses = [item for item in artifacts or [] if isinstance(item, dict) and item.get("kind") == "witness"]
+    if len(witnesses) != 1:
+        fail("quantum scenario requires exactly one witness")
+    witness = witnesses[0]
+    witness_path = frontier / witness.get("path", "")
+    if digest(witness_path) != witness.get("digest"):
+        fail("quantum witness bytes disagree with the Submission")
+    requested_change = {
+        "kind": "supersede_claim",
+        "target_claim_id": target_id,
+        "target_claim_root": target_root,
+    }
+    anchor = {
+        "accepted_predecessor": {"claim_id": target_id, "claim_root": target_root},
+        "witness": {
+            "root": witness["digest"],
+            "kind": witness["kind"],
+            "path": witness["path"],
         },
     }
-    contract.seal(fixture, "fixture_root")
+    instruction = (
+        "The fixture identifies one accepted predecessor Claim and its retained witness, but "
+        "intentionally does not name the pending Proposal. Find the one current Proposal that "
+        "supersedes that predecessor. Report the proposed replacement, both distinct Verification "
+        "scopes and nonclaims, the exact accept/reject Standing delta, and exact next obligations."
+    )
+    claim_limit = (
+        "First-party evidence from one frozen pending quantum correction. No scientific Decision, "
+        "acceptance, post-correction remap, optimality, novelty, external independence, verifier-"
+        "soundness, or general scientific-productivity claim."
+    )
+    return anchor, expected_answer(inspection, SCENARIOS[1], requested_change), instruction, claim_limit
+
+
+SCENARIO_BUILDERS = {
+    SCENARIOS[0]: formal_foreign_reference_scenario,
+    SCENARIOS[1]: quantum_certificate_scenario,
+}
+
+
+def materialize_fixture(
+    frontier: Path, vela: Path, proposal_id: str, scenario: str
+) -> tuple[dict[str, Any], dict[str, Any], str, str]:
+    """Bind one explicit scenario to one exact current Decision packet."""
+    if scenario not in SCENARIO_BUILDERS:
+        fail(f"unsupported scenario: {scenario}")
+    inspection = inspect_current_decision(frontier, vela, proposal_id)
+    anchor, expected, instruction, claim_limit = SCENARIO_BUILDERS[scenario](inspection)
+    next_work = inspection["next_work"]
+    fixture = contract.seal({
+        "schema": "vela.product-compression-fixture.v6",
+        "fixture_root": "",
+        "scenario": scenario,
+        "vela": {
+            "version": command((str(inspection["vela"]), "--version"), cwd=inspection["frontier"]),
+            "binary_sha256": digest(inspection["vela"]),
+        },
+        "frontier": {
+            "frontier_id": next_work["frontier_id"],
+            "git_commit": inspection["commit"],
+            "git_tree": inspection["tree"],
+            "repository_root": next_work["repository_root"],
+            "inbox_projection_root": inspection["inbox_projection_root"],
+            "configured_targets": 0,
+        },
+        "anchor": anchor,
+    }, "fixture_root")
     answer_key = contract.seal({
-        "schema": "vela.product-compression-answer-key.v8",
-        "answer_key_root": "", "fixture_root": fixture["fixture_root"], "expected": expected,
+        "schema": "vela.product-compression-answer-key.v9",
+        "answer_key_root": "",
+        "fixture_root": fixture["fixture_root"],
+        "scenario": scenario,
+        "expected": expected,
     }, "answer_key_root")
     contract.validate_answer_key(answer_key)
-    return fixture, answer_key
+    return fixture, answer_key, instruction, claim_limit
 
 
 def tree_root(directory: Path) -> str:
@@ -284,6 +402,8 @@ def render(path: Path, replacements: dict[str, str]) -> None:
 def build_study(
     fixture: dict[str, Any],
     answer_key: dict[str, Any],
+    scenario_instruction: str,
+    claim_limit: str,
     frontier: Path,
     vela_linux: Path,
     model: str,
@@ -304,7 +424,7 @@ def build_study(
     vela_linux = vela_linux.resolve()
     if command(("git", "status", "--porcelain"), cwd=frontier):
         fail("frontier checkout must be clean")
-    if command(("git", "rev-parse", "HEAD"), cwd=frontier) != fixture["receiver"]["git_commit"]:
+    if command(("git", "rev-parse", "HEAD"), cwd=frontier) != fixture["frontier"]["git_commit"]:
         fail("frontier checkout does not match the fixture")
     if not vela_linux.is_file() or vela_linux.read_bytes()[:4] != b"\x7fELF":
         fail("guided arm requires an exact Linux Vela executable")
@@ -358,9 +478,12 @@ def build_study(
                 )
             render(
                 task / "instruction.md",
-                {"TOOL_GUIDANCE": guidance},
+                {
+                    "TOOL_GUIDANCE": guidance,
+                    "SCENARIO_INSTRUCTION": scenario_instruction,
+                },
             )
-            render(task / "task.toml", {"ARM": arm})
+            render(task / "task.toml", {"SCENARIO": fixture["scenario"], "ARM": arm})
             render(
                 environment / "Dockerfile",
                 {"CODEX_VERSION": codex_version, "VELA_INSTALL": vela_install},
@@ -389,18 +512,15 @@ def build_study(
     )
     contract.write_json(output / "harbor-job.json", job)
     plan = contract.seal({
-        "schema": "vela.product-compression-plan.v10",
+        "schema": "vela.product-compression-plan.v11",
         "plan_root": "",
+        "scenario": fixture["scenario"],
         "fixture_root": fixture["fixture_root"],
         "answer_key_root": answer_key["answer_key_root"],
         "task_roots": task_rows,
         "harbor_job_root": contract.sha256_root(contract.canonical_bytes(job)),
         "comparison_rule": COMPARISON,
-        "claim_limit": (
-            "First-party evidence from one frozen receiver-continuation task; "
-            "no independent-user, full correction-inheritance, or general "
-            "scientific-workflow claim."
-        ),
+        "claim_limit": claim_limit,
     }, "plan_root")
     contract.write_json(output / "plan.json", plan)
     return plan
@@ -410,15 +530,19 @@ def materialize(
     frontier: Path,
     vela: Path,
     proposal_id: str,
+    scenario: str,
     vela_linux: Path,
     model: str,
     codex_version: str,
     job_name: str,
     output: Path,
 ) -> dict[str, Any]:
-    fixture, answer_key = materialize_fixture(frontier, vela, proposal_id)
+    fixture, answer_key, instruction, claim_limit = materialize_fixture(
+        frontier, vela, proposal_id, scenario,
+    )
     return build_study(
-        fixture, answer_key, frontier, vela_linux, model, codex_version, job_name, output,
+        fixture, answer_key, instruction, claim_limit, frontier, vela_linux,
+        model, codex_version, job_name, output,
     )
 
 
@@ -427,6 +551,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--frontier", type=Path, required=True)
     result.add_argument("--vela", type=Path, required=True)
     result.add_argument("--proposal", required=True)
+    result.add_argument("--scenario", choices=SCENARIOS, required=True)
     result.add_argument("--vela-linux", type=Path, required=True)
     result.add_argument("--model", required=True)
     result.add_argument("--codex-version", required=True)
@@ -442,6 +567,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.frontier,
             args.vela,
             args.proposal,
+            args.scenario,
             args.vela_linux,
             args.model,
             args.codex_version,

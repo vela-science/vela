@@ -28,8 +28,24 @@ def normalized_answer(value: Any) -> Any:
         return value
     normalized = json.loads(json.dumps(value))
     decision = normalized.get("decision")
-    if isinstance(decision, dict) and isinstance(decision.get("verification_ids"), list):
-        decision["verification_ids"].sort()
+    if isinstance(decision, dict):
+        verifications = decision.get("verifications")
+        if isinstance(verifications, list):
+            for verification in verifications:
+                if isinstance(verification, dict):
+                    for field in ("satisfies_requirements", "does_not_establish"):
+                        if isinstance(verification.get(field), list):
+                            verification[field].sort()
+            verifications.sort(key=lambda item: item.get("verification_record_id", ""))
+        delta = decision.get("standing_delta")
+        if isinstance(delta, dict):
+            scope = delta.get("scope")
+            if isinstance(scope, dict) and isinstance(scope.get("affected_claim_ids"), list):
+                scope["affected_claim_ids"].sort()
+            for field in ("before", "if_accept", "if_reject"):
+                state = delta.get(field)
+                if isinstance(state, dict) and isinstance(state.get("accepted"), list):
+                    state["accepted"].sort(key=lambda item: item.get("claim_id", ""))
     return normalized
 
 
@@ -42,6 +58,8 @@ def outcome(answer: Any, key: Any, fixture: Any) -> dict[str, Any]:
         eligibility.append("fixture_invalid")
     elif not isinstance(key, dict) or key.get("fixture_root") != fixture["fixture_root"]:
         eligibility.append("fixture_answer_key_mismatch")
+    elif key.get("scenario") != fixture.get("scenario"):
+        eligibility.append("scenario_mismatch")
     if not isinstance(key, dict) or normalized_answer(answer) != normalized_answer(key.get("expected")):
         correctness.append("answer_mismatch")
     return {

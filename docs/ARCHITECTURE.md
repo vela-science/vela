@@ -32,12 +32,20 @@ graph nodes.
 The product story is:
 
 ```text
-map -> target -> run -> verify -> commit -> compound
+map -> target -> work -> submit -> verify -> decide -> remap
 ```
 
-`Commit` is product language for the existing authorized Decision, Event, and
-exact before/after root transition. It is not a new canonical object or an
-automatic consequence of verification, publication, or a Git merge.
+The three-word compression is `MAP -> ADVANCE -> REMAP`. Work remains native;
+Submission is the portable evidence boundary; Verification reports a scoped
+check; Decision is the only authority boundary; and remapping derives the
+current territory and next valid work from the new exact root.
+
+A Frontier is **action-complete only within declared bounds** when every
+represented unresolved item yields either a fresh, root-bound Target with an
+exact completion contract or an explicit blocker explaining why no current
+Target can be offered. This is a product and evaluation property, not a new
+protocol object. A map, Target generator, ranking, or learning policy remains
+read-only and cannot change Standing.
 
 A Frontier is one ordinary Git repository for a bounded scientific scope.
 Vela defines the portable records, replay rules, repository authority, and

@@ -3,12 +3,14 @@
 The product loop is:
 
 ```text
-map -> target -> run -> verify -> commit -> compound
+map -> target -> work -> submit -> verify -> decide -> remap
 ```
 
-An ordinary producer agent may map state, select one bounded Target, run the
-work, and submit evidence. A separately declared verifier may report its scoped
-check. No agent receives Frontier commit authority from either role.
+An ordinary producer agent may inspect the map, select one bounded Target, do
+the work in its native environment, and submit evidence. A separately declared
+verifier may report its scoped check. Only a human authority may decide whether
+the proposed change enters Standing; no agent receives that authority from a
+producer or verifier role.
 
 For a new repository, initialization is deliberately structural:
 
