@@ -1,8 +1,9 @@
 # Product-compression benchmark
 
 This read-only benchmark asks one bounded question: does Vela help a cold
-researcher find the exact next work and the exact pending scientific Decision
-more reliably or efficiently than Git and files alone?
+researcher continue an accepted source correction in a separate Frontier and
+find the exact pending local Decision more reliably or efficiently than Git and
+files alone?
 
 ## Boundary
 
@@ -11,7 +12,7 @@ task format, containers, Codex execution and OAuth, retries, trajectories,
 artifacts, verifier rewards, timing, cost, and raw results. Vela contributes
 only:
 
-- `materialize.py`: one exact Target and Decision-Inbox fixture plus two
+- `materialize.py`: one accepted-source and receiver-Decision fixture plus two
   ready-to-run local Harbor tasks;
 - `answer.schema.json`: the participant output contract;
 - `task/tests/verify.py`: an offline exact scorer; and
@@ -30,7 +31,7 @@ participant.
 
 ## Study
 
-The two matched arms inspect the same isolated Frontier commit:
+The two matched arms inspect the same isolated receiver-Frontier commit:
 
 - `git-files`: ordinary Git and file-reading tools;
 - `vela-guided`: the same tools plus one exact read-only Vela binary.
@@ -41,8 +42,9 @@ is exact twice, is at least as exact as the baseline, and has no median cost
 regression. If both arms are exact twice, Vela must reduce median agent time by
 at least 20 percent.
 
-This is first-party evidence from one task. It does not establish independent
-adoption, general scientific productivity, or scientific acceptance.
+This is first-party evidence from one receiver-continuation task. It does not
+establish independent adoption, general scientific productivity, scientific
+acceptance, or the full correction-and-inheritance breakthrough benchmark.
 
 ## Run
 

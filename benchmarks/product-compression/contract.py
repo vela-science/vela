@@ -59,22 +59,18 @@ def validate_answer(value: Any) -> None:
     compares a participant answer with the exact answer key.
     """
     try:
-        if value["schema"] != "vela.product-compression-answer.v7":
+        if value["schema"] != "vela.product-compression-answer.v8":
             raise ContractError("$.schema: wrong answer schema")
-        frontier = value["frontier"]
-        work = value["next_work"]
+        receiver = value["receiver"]
         decision = value["decision"]
         delta = decision["standing_delta"]
         scope = delta["scope"]
     except (KeyError, TypeError) as exc:
         raise ContractError(f"answer is missing a required field: {exc}") from exc
 
-    require_root(frontier.get("repository_root"), "$.frontier.repository_root")
-    require_root(work.get("target_index_root"), "$.next_work.target_index_root")
-    require_root(work.get("packet_sha256"), "$.next_work.packet_sha256")
-    expected_next = f"vela start {work.get('target_id')} --frontier /workspace/frontier --json"
-    if work.get("next_command") != expected_next:
-        raise ContractError("$.next_work.next_command: must start the exact Target")
+    require_root(receiver.get("repository_root"), "$.receiver.repository_root")
+    if receiver.get("configured_targets") != 0:
+        raise ContractError("$.receiver.configured_targets: receiver must have no invented Target")
     if not isinstance(decision.get("assertion"), str) or not decision["assertion"]:
         raise ContractError("$.decision.assertion: must identify the proposed scientific statement")
     if not isinstance(decision.get("conditions"), list):
@@ -121,12 +117,12 @@ def validate_answer(value: Any) -> None:
     additions = [item for item in accepted if item not in before]
     if len(accepted) != len(before) + 1 or len(additions) != 1 or additions[0].get("claim_id") != claim_id:
         raise ContractError("$.decision.standing_delta.if_accept: must add exactly the proposed Claim")
-    if delta.get("before", {}).get("repository_root") != frontier.get("repository_root"):
+    if delta.get("before", {}).get("repository_root") != receiver.get("repository_root"):
         raise ContractError("$.decision.standing_delta.before: does not bind the inspected repository")
 
 
 def validate_answer_key(value: Any) -> None:
-    if not isinstance(value, dict) or value.get("schema") != "vela.product-compression-answer-key.v7":
+    if not isinstance(value, dict) or value.get("schema") != "vela.product-compression-answer-key.v8":
         raise ContractError("answer key has the wrong schema")
     require_root(value.get("fixture_root"), "$.fixture_root")
     require_root(value.get("answer_key_root"), "$.answer_key_root")

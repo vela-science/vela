@@ -4,7 +4,7 @@ RUN apk add --no-cache ca-certificates gcompat git jq libgcc
 COPY frontier.bundle /opt/vela-input/frontier.bundle
 COPY fixture.json answer.schema.json /opt/vela-input/
 RUN git clone --quiet /opt/vela-input/frontier.bundle /workspace/frontier \
- && git -C /workspace/frontier checkout --quiet --detach "$(jq -r '.frontier.git_commit' /opt/vela-input/fixture.json)" \
+ && git -C /workspace/frontier checkout --quiet --detach "$(jq -r '.receiver.git_commit' /opt/vela-input/fixture.json)" \
  && git -C /workspace/frontier remote remove origin
 {{VELA_INSTALL}}
 WORKDIR /workspace/frontier

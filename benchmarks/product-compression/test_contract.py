@@ -22,13 +22,11 @@ def root(char: str) -> str:
 def answer() -> dict:
     claim = f"vcl_{'d' * 64}"
     return {
-        "schema": "vela.product-compression-answer.v7",
-        "frontier": {"frontier_id": "vfr_0123456789abcdef", "repository_root": root("1")},
-        "next_work": {
-            "target_id": "erdos:1056",
-            "target_index_root": root("2"),
-            "packet_sha256": root("3"),
-            "next_command": "vela start erdos:1056 --frontier /workspace/frontier --json",
+        "schema": "vela.product-compression-answer.v8",
+        "receiver": {
+            "frontier_id": "vfr_0123456789abcdef",
+            "repository_root": root("1"),
+            "configured_targets": 0,
         },
         "decision": {
             "proposal_id": "vpr_0123456789abcdef",
@@ -60,7 +58,7 @@ def answer() -> dict:
 
 def answer_key(fixture_root: str = root("9")) -> dict:
     return contract.seal({
-        "schema": "vela.product-compression-answer-key.v7",
+        "schema": "vela.product-compression-answer-key.v8",
         "answer_key_root": "",
         "fixture_root": fixture_root,
         "expected": answer(),
@@ -69,30 +67,39 @@ def answer_key(fixture_root: str = root("9")) -> dict:
 
 def fixture(commit: str = "1" * 40, tree: str = "2" * 40) -> dict:
     return contract.seal({
-        "schema": "vela.product-compression-fixture.v4",
+        "schema": "vela.product-compression-fixture.v5",
         "fixture_root": "",
         "vela": {"version": "vela test", "binary_sha256": root("7")},
-        "frontier": {
+        "receiver": {
             "frontier_id": "vfr_0123456789abcdef",
             "git_commit": commit,
             "git_tree": tree,
             "repository_root": root("1"),
-            "target_index_root": root("2"),
+            "inbox_projection_root": root("2"),
+            "configured_targets": 0,
         },
-        "task": {"proposal_id": "vpr_0123456789abcdef"},
+        "source_anchor": {
+            "frontier_id": "vfr_fedcba9876543210",
+            "reference_root": root("3"),
+            "archive_sha256": root("4"),
+            "claim_id": f"vcl_{'a' * 64}",
+            "claim_root": root("5"),
+            "standing": "accepted",
+            "local_standing_effect": "none",
+        },
     }, "fixture_root")
 
 
 def plan() -> dict:
     return contract.seal({
-        "schema": "vela.product-compression-plan.v9",
+        "schema": "vela.product-compression-plan.v10",
         "plan_root": "",
         "fixture_root": root("9"),
         "answer_key_root": answer_key()["answer_key_root"],
         "task_roots": [],
         "harbor_job_root": root("8"),
         "comparison_rule": materialize.COMPARISON,
-        "claim_limit": "First-party evidence from one frozen task; no independent-user or general scientific-workflow claim.",
+        "claim_limit": "First-party evidence from one frozen receiver-continuation task; no independent-user, full correction-inheritance, or general scientific-workflow claim.",
     }, "plan_root")
 
 
@@ -154,18 +161,16 @@ class ProductCompressionTests(unittest.TestCase):
         with self.assertRaisesRegex(contract.ContractError, "rejection must preserve"):
             contract.validate_answer(value)
 
-    def test_contract_binds_next_command_to_target(self) -> None:
+    def test_contract_rejects_invented_target(self) -> None:
         value = answer()
-        value["next_work"]["next_command"] = (
-            "vela start erdos:9999 --frontier /workspace/frontier --json"
-        )
-        with self.assertRaisesRegex(contract.ContractError, "must start the exact Target"):
+        value["receiver"]["configured_targets"] = 1
+        with self.assertRaisesRegex(contract.ContractError, "no invented Target"):
             contract.validate_answer(value)
 
     def test_answer_key_is_content_bound(self) -> None:
         key = answer_key()
         contract.validate_answer_key(key)
-        key["expected"]["next_work"]["packet_sha256"] = root("4")
+        key["expected"]["decision"]["proposal_root"] = root("4")
         with self.assertRaisesRegex(contract.ContractError, "root mismatch"):
             contract.validate_answer_key(key)
 
@@ -187,10 +192,10 @@ class ProductCompressionTests(unittest.TestCase):
         exact = verifier.outcome(answer(), key, source)
         self.assertEqual((exact["eligible"], exact["exact"]), (True, True))
         wrong = answer()
-        wrong["next_work"]["target_id"] = "erdos:9999"
+        wrong["decision"]["proposal_id"] = "vpr_b81d87fce0d9c81c"
         mismatch = verifier.outcome(wrong, key, source)
         self.assertEqual((mismatch["eligible"], mismatch["exact"]), (True, False))
-        source["frontier"]["git_tree"] = "3" * 40
+        source["receiver"]["git_tree"] = "3" * 40
         invalid = verifier.outcome(answer(), key, source)
         self.assertFalse(invalid["eligible"])
         self.assertIn("fixture_invalid", invalid["eligibility_failure_codes"])
@@ -224,13 +229,14 @@ class ProductCompressionTests(unittest.TestCase):
                 source, key, frontier, binary, "test-model", "0.1.0",
                 "vela-product-compression-test", output,
             )
-            self.assertEqual(prepared["schema"], "vela.product-compression-plan.v9")
+            self.assertEqual(prepared["schema"], "vela.product-compression-plan.v10")
             self.assertEqual(len(prepared["task_roots"]), 2)
             baseline = output / "tasks/git-files"
             guided = output / "tasks/vela-guided"
             self.assertNotIn("{{", (baseline / "instruction.md").read_text())
             self.assertNotIn("COPY vela", (baseline / "environment/Dockerfile").read_text())
             self.assertIn("COPY vela", (guided / "environment/Dockerfile").read_text())
+            self.assertIn(".receiver.git_commit", (guided / "environment/Dockerfile").read_text())
             self.assertNotIn(
                 "@openai/codex",
                 (baseline / "environment/Dockerfile").read_text(),

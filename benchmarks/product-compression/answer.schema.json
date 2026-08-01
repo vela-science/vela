@@ -2,31 +2,21 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "frontier", "next_work", "decision"],
+  "required": ["schema", "receiver", "decision"],
   "properties": {
-    "schema": {"const": "vela.product-compression-answer.v7"},
-    "frontier": {"$ref": "#/$defs/frontier"},
-    "next_work": {"$ref": "#/$defs/nextWork"},
+    "schema": {"const": "vela.product-compression-answer.v8"},
+    "receiver": {"$ref": "#/$defs/receiver"},
     "decision": {"$ref": "#/$defs/decision"}
   },
   "$defs": {
     "root": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-    "frontier": {
+    "receiver": {
       "type": "object", "additionalProperties": false,
-      "required": ["frontier_id", "repository_root"],
+      "required": ["frontier_id", "repository_root", "configured_targets"],
       "properties": {
         "frontier_id": {"type": "string", "pattern": "^vfr_[0-9a-f]{16}$"},
-        "repository_root": {"$ref": "#/$defs/root"}
-      }
-    },
-    "nextWork": {
-      "type": "object", "additionalProperties": false,
-      "required": ["target_id", "target_index_root", "packet_sha256", "next_command"],
-      "properties": {
-        "target_id": {"type": "string", "pattern": "^[A-Za-z0-9._:-]+$"},
-        "target_index_root": {"$ref": "#/$defs/root"},
-        "packet_sha256": {"$ref": "#/$defs/root"},
-        "next_command": {"type": "string", "pattern": "^vela start [A-Za-z0-9._:-]+ --frontier /workspace/frontier --json$"}
+        "repository_root": {"$ref": "#/$defs/root"},
+        "configured_targets": {"const": 0}
       }
     },
     "standing": {

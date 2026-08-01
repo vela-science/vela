@@ -55,7 +55,7 @@ def trial(result_path: Path) -> dict[str, Any]:
 
 def summarize(plan_path: Path, job: Path) -> dict[str, Any]:
     plan = contract.read_json(plan_path)
-    if plan.get("schema") != "vela.product-compression-plan.v9" or plan.get("plan_root") != contract.record_root(plan, "plan_root"):
+    if plan.get("schema") != "vela.product-compression-plan.v10" or plan.get("plan_root") != contract.record_root(plan, "plan_root"):
         raise contract.ContractError("invalid product-compression plan")
     if plan.get("comparison_rule") != materialize.COMPARISON:
         raise contract.ContractError("unsupported comparison rule")

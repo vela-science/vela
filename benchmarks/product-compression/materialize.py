@@ -10,6 +10,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tarfile
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -64,10 +65,37 @@ def relative_content_path(root: str, category: str) -> Path:
     return Path("records") / category / "sha256" / f"{root.removeprefix('sha256:')}.json"
 
 
+def retained_artifact_path(frontier: Path, root: str) -> Path:
+    if not contract.ROOT.fullmatch(root):
+        fail(f"invalid artifact root: {root}")
+    return frontier / "records" / "artifacts" / "sha256" / root.removeprefix("sha256:")
+
+
+def read_foreign_reference(archive: Path) -> tuple[dict[str, Any], str]:
+    try:
+        with tarfile.open(archive, "r:*") as bundle:
+            members = [member for member in bundle.getmembers() if member.name == "reference.v1.json"]
+            if len(members) != 1:
+                fail("foreign-reference archive must contain one exact reference.v1.json")
+            handle = bundle.extractfile(members[0])
+            if handle is None:
+                fail("foreign-reference archive reference.v1.json is not a file")
+            payload = handle.read()
+    except (OSError, tarfile.TarError) as exc:
+        raise contract.ContractError(f"cannot read foreign-reference archive {archive}: {exc}") from exc
+    try:
+        value = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise contract.ContractError(f"foreign-reference manifest is invalid JSON: {exc}") from exc
+    if not isinstance(value, dict):
+        fail("foreign-reference manifest must be a JSON object")
+    return value, contract.sha256_root(payload)
+
+
 def materialize_fixture(
     frontier: Path, vela: Path, proposal_id: str
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Bind one exact next Target and one current Decision Inbox entry."""
+    """Bind one accepted source reference to its exact receiver Decision."""
     frontier, vela = frontier.resolve(), vela.resolve()
     if command(("git", "status", "--porcelain"), cwd=frontier):
         fail("frontier checkout must be clean")
@@ -84,14 +112,20 @@ def materialize_fixture(
         fail("read-only inspection changed the Frontier checkout")
 
     targets = next_work.get("targets")
-    if not isinstance(targets, list) or len(targets) != 1:
-        fail("study requires exactly one current Target")
-    target = targets[0]
-    packet = target.get("packet", {})
-    packet_root = packet.get("sha256")
-    packet_path = frontier / packet.get("path", "")
-    if not contract.ROOT.fullmatch(packet_root or "") or digest(packet_path) != packet_root:
-        fail("current Target packet bytes disagree with vela next")
+    availability = next_work.get("availability")
+    if (
+        not isinstance(targets, list)
+        or targets
+        or not isinstance(availability, dict)
+        or availability.get("configured") != 0
+        or availability.get("returned") != 0
+    ):
+        fail("receiver-continuation study requires exactly zero configured and returned Targets")
+    if inbox.get("repository_root") != next_work.get("repository_root"):
+        fail("Decision Inbox and continuation inspection disagree on repository root")
+    inbox_projection_root = inbox.get("projection_root")
+    if not contract.ROOT.fullmatch(inbox_projection_root or ""):
+        fail("Decision Inbox has no rooted projection")
 
     entries = [entry for entry in inbox.get("entries", []) if entry.get("proposal_id") == proposal_id]
     if len(entries) != 1:
@@ -110,6 +144,46 @@ def materialize_fixture(
     if digest(submission_path) != submission_root:
         fail("Submission bytes disagree with the Decision Inbox")
     submission = contract.read_json(submission_path)
+    artifacts = submission.get("artifacts")
+    references = [
+        artifact
+        for artifact in artifacts or []
+        if isinstance(artifact, dict) and artifact.get("kind") == "foreign-reference"
+    ]
+    if len(references) != 1:
+        fail("receiver Submission must bind exactly one foreign-reference artifact")
+    archive_root = references[0].get("digest")
+    archive_path = retained_artifact_path(frontier, archive_root)
+    if digest(archive_path) != archive_root:
+        fail("retained foreign-reference archive bytes disagree with the Submission")
+    reference, reference_root = read_foreign_reference(archive_path)
+    authority = reference.get("authority")
+    source = reference.get("source")
+    source_claim = source.get("claim") if isinstance(source, dict) else None
+    if reference.get("schema") != "vela.foreign-reference.v1":
+        fail("receiver artifact is not a Vela foreign-reference manifest")
+    if not isinstance(authority, dict) or (
+        authority.get("source_standing"),
+        authority.get("local_standing_effect"),
+        authority.get("requires_local_decision"),
+    ) != ("accepted", "none", True):
+        fail("foreign reference must preserve accepted source Standing and require a local Decision")
+    if not isinstance(source, dict) or not isinstance(source_claim, dict):
+        fail("foreign reference has no exact source Claim")
+    source_claim_id = source_claim.get("id")
+    source_claim_root = source_claim.get("root")
+    source_frontier_id = source.get("frontier_id")
+    if (
+        not isinstance(source_frontier_id, str)
+        or len(source_frontier_id) != 20
+        or not source_frontier_id.startswith("vfr_")
+        or not isinstance(source_claim_id, str)
+        or not contract.ROOT.fullmatch(source_claim_root or "")
+    ):
+        fail("foreign reference source Claim identity is malformed")
+    assertion = entry.get("assertion")
+    if not isinstance(assertion, str) or source_claim_id not in assertion or reference_root not in assertion:
+        fail("receiver Proposal does not bind the accepted source Claim and reference root")
 
     standing_delta = entry["standing_delta"]
     counts = standing_delta.get("counts")
@@ -129,19 +203,11 @@ def materialize_fixture(
     }
 
     expected = {
-        "schema": "vela.product-compression-answer.v7",
-        "frontier": {
+        "schema": "vela.product-compression-answer.v8",
+        "receiver": {
             "frontier_id": next_work["frontier_id"],
             "repository_root": next_work["repository_root"],
-        },
-        "next_work": {
-            "target_id": target["target_id"],
-            "target_index_root": next_work["target_index_root"],
-            "packet_sha256": packet_root,
-            "next_command": (
-                f"vela start {target['target_id']} "
-                "--frontier /workspace/frontier --json"
-            ),
+            "configured_targets": 0,
         },
         "decision": {
             "proposal_id": entry["proposal_id"],
@@ -166,20 +232,29 @@ def materialize_fixture(
     contract.validate_answer(expected)
 
     fixture = {
-        "schema": "vela.product-compression-fixture.v4",
+        "schema": "vela.product-compression-fixture.v5",
         "fixture_root": "",
         "vela": {"version": command((str(vela), "--version"), cwd=frontier), "binary_sha256": digest(vela)},
-        "frontier": {
+        "receiver": {
             "frontier_id": next_work["frontier_id"],
             "git_commit": before_commit, "git_tree": before_tree,
             "repository_root": next_work["repository_root"],
-            "target_index_root": next_work["target_index_root"],
+            "inbox_projection_root": inbox_projection_root,
+            "configured_targets": 0,
         },
-        "task": {"proposal_id": proposal_id},
+        "source_anchor": {
+            "frontier_id": source_frontier_id,
+            "reference_root": reference_root,
+            "archive_sha256": archive_root,
+            "claim_id": source_claim_id,
+            "claim_root": source_claim_root,
+            "standing": authority["source_standing"],
+            "local_standing_effect": authority["local_standing_effect"],
+        },
     }
     contract.seal(fixture, "fixture_root")
     answer_key = contract.seal({
-        "schema": "vela.product-compression-answer-key.v7",
+        "schema": "vela.product-compression-answer-key.v8",
         "answer_key_root": "", "fixture_root": fixture["fixture_root"], "expected": expected,
     }, "answer_key_root")
     contract.validate_answer_key(answer_key)
@@ -229,7 +304,7 @@ def build_study(
     vela_linux = vela_linux.resolve()
     if command(("git", "status", "--porcelain"), cwd=frontier):
         fail("frontier checkout must be clean")
-    if command(("git", "rev-parse", "HEAD"), cwd=frontier) != fixture["frontier"]["git_commit"]:
+    if command(("git", "rev-parse", "HEAD"), cwd=frontier) != fixture["receiver"]["git_commit"]:
         fail("frontier checkout does not match the fixture")
     if not vela_linux.is_file() or vela_linux.read_bytes()[:4] != b"\x7fELF":
         fail("guided arm requires an exact Linux Vela executable")
@@ -307,7 +382,7 @@ def build_study(
     }
     contract.write_json(output / "harbor-job.json", job)
     plan = contract.seal({
-        "schema": "vela.product-compression-plan.v9",
+        "schema": "vela.product-compression-plan.v10",
         "plan_root": "",
         "fixture_root": fixture["fixture_root"],
         "answer_key_root": answer_key["answer_key_root"],
@@ -315,8 +390,9 @@ def build_study(
         "harbor_job_root": contract.sha256_root(contract.canonical_bytes(job)),
         "comparison_rule": COMPARISON,
         "claim_limit": (
-            "First-party evidence from one frozen task; no independent-user "
-            "or general scientific-workflow claim."
+            "First-party evidence from one frozen receiver-continuation task; "
+            "no independent-user, full correction-inheritance, or general "
+            "scientific-workflow claim."
         ),
     }, "plan_root")
     contract.write_json(output / "plan.json", plan)
