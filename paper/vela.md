@@ -112,11 +112,11 @@ synthetic implementation qualification are demonstrated. One exact
 map-to-target loop reached a terminal human Decision, replayed Standing, and a
 deterministic remap. The loop reproduced a stale-Target failure that later
 source-local closure and exact completions repaired. The exact four-Frontier
-Atlas is now released. A first-party native Harbor comparison passes one
-frozen pre-Decision quantum-correction gate, but real correction-impact propagation,
+Atlas is now released. Three first-party native Harbor comparisons pass
+bounded quantum-correction, post-Decision Erdős continuation, and Formal
+receiver-continuation gates, but real correction-impact propagation,
 post-Decision remapping of the current pending results, held-out confirmation,
-external independence, and two-fixture cold-use lift remain registered
-experiments.
+and external independence remain registered experiments.
 
 ## 2. Scope and system model
 
@@ -838,6 +838,18 @@ scientific acceptance, post-correction remapping, general execution lift,
 external independence, verifier soundness, nor adoption. No orchestration
 framework was evaluated or retained.
 
+Two later current-head comparisons used the same native Harbor boundary. On a
+post-Decision Erdős continuation, Vela-guided agents were exact 2/2 while
+Git/files agents were exact 0/2; median time fell 13.57 percent and median cost
+24.09 percent. On a Formal foreign-reference receiver continuation,
+Vela-guided agents were again exact 2/2 while Git/files agents were exact 0/2;
+median time fell 52.69 percent and median cost 54.77 percent. The latter compact
+result is rooted at
+`sha256:c0e6b316ce2b446d0b1a05b7f9d1acdb93631b32ae7c2b17d76805a8b650cfda`.
+Both are first-party, single-task results. They establish neither general
+productivity lift nor independent-user advantage, and the Formal receiver
+Proposal remains pending a human Decision.
+
 ### 6.10 Registered benchmark matrix
 
 | Family | Primary | Held-out | Required |
@@ -851,7 +863,7 @@ framework was evaluated or retained.
 | B7 support diversity | pending | entry gate failed | exact route accounting |
 | B8 second Frontier | exact receiver retention, scoped Verification, and clean-clone replay pass with zero accepted delta | entry gate failed | zero imported authority |
 | B9 observability | synthetic pass only | entry gate failed | no silent truncation |
-| B10 cold inheritance | one task-specific Harbor continuation gate passed; two-fixture and external-user gate remains open | entry gate failed | at least 20% median lift on both fixtures |
+| B10 cold inheritance | two task classes pass task-specific Harbor gates; independent-user and real correction-impact gates remain open | entry gate failed | at least 20% median lift on both fixtures |
 
 No aggregate score is reported.
 
@@ -1143,12 +1155,12 @@ predecessors. Two implementations also agree on a bounded synthetic
 correction-impact projection. The first matched
 first-party Codex-session pilot was directionally cheaper and more accurate
 with Vela but failed its registered token budget and exact-answer requirement;
-it is not human-review evidence. A later native Harbor comparison passed its
-one-task pre-Decision quantum-correction gate: Vela-guided agents were exact
-in 2/2 trials while Git/files agents were exact in 0/2, with 51.44 percent
-lower median time and 56.87 percent lower median cost. That result is still
-first-party, single-task evidence and is not a general or independent-user
-claim. A historical foreign-reference envelope
+it is not human-review evidence. Three later native Harbor comparisons passed
+bounded task-specific gates: quantum correction, post-Decision Erdős
+continuation, and Formal foreign-reference receiver continuation. Each had
+Vela-guided agents exact in 2/2 trials and Git/files agents exact in 0/2. These
+remain first-party, single-task results and are not general or independent-user
+claims. A historical foreign-reference envelope
 qualified the real source package in two colocated readers, including its
 authority signature. A second Frontier retained that exact package through a
 pending, non-authoritative Submission, imported a scoped Verification, and

@@ -104,6 +104,15 @@ infrastructure.
   This closes one current-head post-Decision continuation gate. It remains
   first-party evidence from one bounded task, not correction propagation,
   independent adoption, general scientific productivity, or an Erdős result.
+- The Formal foreign-reference receiver-continuation comparison completed four
+  clean native Harbor trials with zero retries. Vela-guided work was exact in
+  2/2 trials while Git/files alone was exact in 0/2; median agent time fell
+  from 286.07 to 135.34 seconds and median cost from $0.5098 to $0.2306. The
+  compact result is rooted at
+  `sha256:c0e6b316ce2b446d0b1a05b7f9d1acdb93631b32ae7c2b17d76805a8b650cfda`.
+  This closes one exact receiver-continuation gate while the local Proposal
+  remains pending a human Decision. It is not independent-user evidence, a
+  full correction-inheritance result, or a general productivity claim.
 - The immutable Canopus `0.8.0` release and tag remain historical evidence.
 
 ### Simplified current source
@@ -286,6 +295,17 @@ exposed the exact accepted range, later verified-but-pending producer
 completion, and exact next Target without either error. This is a bounded
 post-Decision continuation result, not the still-open correction-inheritance
 or independent-participant proof.
+
+The Formal foreign-reference receiver-continuation comparison passed the same
+task-specific gate: all four native Harbor trials were eligible, the
+Vela-guided arm was exact 2/2, and Git/files was exact 0/2. Median agent time
+was 135.34 seconds guided versus 286.07 seconds baseline, and median cost was
+$0.2306 versus $0.5098. The compact result root is
+`sha256:c0e6b316ce2b446d0b1a05b7f9d1acdb93631b32ae7c2b17d76805a8b650cfda`.
+The task required the agent to distinguish accepted foreign source Standing
+from a pending local Proposal and recover the exact Decision packet. It closes
+a second task class, but remains first-party evidence and does not satisfy the
+held-out correction-impact or independent-participant gate.
 
 ### Gate 5 — keep Registry and Atlas exact, not expansive
 

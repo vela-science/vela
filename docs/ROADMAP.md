@@ -43,6 +43,11 @@ identity. This roadmap records only product sequence.
   percent lower median agent time and 24.09 percent lower median cost. It does
   not yet prove correction propagation, independent adoption, or general
   scientific-productivity lift.
+- A third native Harbor comparison passed the Formal foreign-reference
+  receiver-continuation gate: Vela-guided 2/2 exact versus Git/files 0/2, with
+  52.69 percent lower median agent time and 54.77 percent lower median cost.
+  This is still first-party evidence; the local Proposal remains pending a
+  human Decision.
 
 ## Now — prove the product loop
 
