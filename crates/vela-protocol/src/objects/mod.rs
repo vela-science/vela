@@ -1,9 +1,8 @@
-//! Record and identity object types: anchors, attestations, identity, Merkle data, and styling.
+//! Record and identity object types: anchors, attestations, identity, and Merkle data.
 //! Re-exported flat at the crate root; this grouping is file organization only.
 
 pub(crate) mod artifact_reference;
 pub mod claim_record;
-pub mod cli_style;
 pub mod current_repository;
 pub mod execution_binding;
 pub mod identity;

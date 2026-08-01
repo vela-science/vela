@@ -44,14 +44,6 @@ jobs:
         run: cargo build --release -p vela-cli --bin vela
       - name: complete Rust protocol and task-first test union
         run: ./conformance/check-core.sh
-      - name: frozen paper benchmark artifacts
-        run: |
-          python3 -m unittest \
-            paper/artifacts/erdos-424/test_verify_source_transition.py \
-            paper/artifacts/cost/test_measure.py \
-            paper/artifacts/state-lift/test_materialize.py \
-            paper/artifacts/state-lift/test_score.py
-          python3 paper/artifacts/state-lift/validate_output_schema.py
       - name: current Submission and Verification interoperability waist
         env:
           VELA_EPHEMERAL_ACCOUNT_HOME: "1"

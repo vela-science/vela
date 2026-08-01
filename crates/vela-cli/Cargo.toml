@@ -9,7 +9,7 @@ description = "The Vela command-line tool: inspect, submit, verify, decide, and 
 readme = "../../README.md"
 keywords = ["science", "frontier", "protocol", "cli", "replay"]
 categories = ["science", "command-line-utilities"]
-publish = true
+publish = false
 
 # The `vela` product binary remains separate from the reusable protocol
 # kernel so command handling and application dependencies do not enter the
@@ -28,7 +28,6 @@ vela-protocol = { workspace = true }
 vela-authority = { workspace = true }
 vela-edge.workspace = true
 vela-verify = { workspace = true }
-tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }

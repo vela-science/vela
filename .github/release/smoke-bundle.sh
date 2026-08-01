@@ -1,14 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ARCHIVE="${1:?usage: .github/release/smoke-bundle.sh <archive> <version> <require-platform-signature>}"
-EXPECTED_VERSION="${2:?usage: .github/release/smoke-bundle.sh <archive> <version> <require-platform-signature>}"
-REQUIRE_PLATFORM_SIGNATURE="${3:?usage: .github/release/smoke-bundle.sh <archive> <version> <require-platform-signature>}"
-
-case "$REQUIRE_PLATFORM_SIGNATURE" in
-  true|false) ;;
-  *) echo "require-platform-signature must be true or false" >&2; exit 2 ;;
-esac
+ARCHIVE="${1:?usage: .github/release/smoke-bundle.sh <archive> <version>}"
+EXPECTED_VERSION="${2:?usage: .github/release/smoke-bundle.sh <archive> <version>}"
 
 test -f "$ARCHIVE"
 test -f "$ARCHIVE.sha256"
@@ -36,12 +30,6 @@ test -f "$UNPACK/vela"
 test -x "$UNPACK/vela"
 test -z "$(find "$UNPACK" -type l -print -quit)"
 test "$("$UNPACK/vela" --version)" = "vela $EXPECTED_VERSION"
-
-if [ "$REQUIRE_PLATFORM_SIGNATURE" = true ]; then
-  test "$(uname -s)" = Darwin
-  codesign --verify --strict --verbose=2 "$UNPACK/vela"
-  spctl --assess --type execute --verbose=2 "$UNPACK/vela"
-fi
 
 install -m 0755 "$UNPACK/vela" "$PREFIX/bin/vela"
 HOME="$ROOT/home" "$PREFIX/bin/vela" --version

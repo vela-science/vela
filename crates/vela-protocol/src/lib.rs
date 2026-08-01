@@ -12,6 +12,6 @@ pub use kernel::{
 mod computed;
 mod objects;
 pub use objects::{
-    claim_record, cli_style, current_repository, execution_binding, identity, proposal_v1,
-    repository_inputs, repository_origin, submission_v1, verification_record,
+    claim_record, current_repository, execution_binding, identity, proposal_v1, repository_inputs,
+    repository_origin, submission_v1, verification_record,
 };

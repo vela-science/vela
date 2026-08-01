@@ -4,10 +4,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-# The routine contract exercises Vela's complete checked-in Rust test union,
-# current task-first writer boundary, and frozen exact verifiers. External Lean
-# remains an explicit integration lane and is not selected by these targets.
-./conformance/check-retired-surface.sh
+# The routine contract exercises Vela's checked-in Rust test union and current
+# public object boundary. Git history retains removed products; routine CI does
+# not spend time proving that deleted source is still absent.
 PYTHONDONTWRITEBYTECODE=1 python3 conformance/verify.py
 cargo test --quiet --locked --workspace --all-targets
 cargo test --quiet --locked --workspace --doc

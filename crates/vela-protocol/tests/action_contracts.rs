@@ -109,44 +109,42 @@ fn root_action_is_consumer_pinned_strict_and_nonfinalizing() {
     );
     assert_eq!(action["inputs"]["vela-version"]["required"], true);
 
-    let install = script_named(
-        &action,
-        "Install vela (pinned release binary, no from-source build)",
-    );
-    let install_step = action["runs"]["steps"]
+    let validate = script_named(&action, "Validate exact Vela release pin");
+    assert!(validate.contains("requested=\"${VELA_VERSION_INPUT#v}\""));
+    assert!(validate.contains("vela-version is required"));
+    assert!(validate.contains("vela-version must be one stable exact release"));
+
+    let unix_install = script_named(&action, "Install Vela on Unix");
+    let windows_install = script_named(&action, "Install Vela on Windows");
+    let install_steps = action["runs"]["steps"]
         .as_array()
         .expect("composite action must have steps")
-        .iter()
-        .find(|step| {
-            step["name"].as_str()
-                == Some("Install vela (pinned release binary, no from-source build)")
-        })
-        .expect("missing install step");
-    assert_eq!(
-        install_step["env"]["GH_TOKEN"].as_str(),
-        Some("${{ github.token }}"),
-        "the composite action must expose the implicit workflow token to attestation checks"
-    );
-    assert!(install.contains("requested=\"${VELA_VERSION_INPUT#v}\""));
-    assert!(install.contains("vela-version is required"));
-    assert!(install.contains("vela-version must be one stable exact release"));
-    assert!(install.contains("release=\"v$requested\""));
-    assert!(
-        install.contains("https://raw.githubusercontent.com/vela-science/vela/$release/install.sh")
-    );
-    assert!(install.contains("install_root=\"${RUNNER_TEMP:?}/vela-action-$requested\""));
-    assert!(install.contains("VELA_INSTALL_PREFIX=\"$install_root\""));
-    assert!(install.contains("VELA_POLKIT_POLICY_DIR=\"$policy_root\""));
-    assert!(install.contains("\"$install_root/bin/vela\" --version"));
-    assert!(!install.contains("GITHUB_PATH"));
-    assert!(install.contains("installed Vela $installed does not match requested Vela $requested"));
-    assert!(!install.contains("vela.lock"));
+        .iter();
+    for step in install_steps.filter(|step| {
+        matches!(
+            step["name"].as_str(),
+            Some("Install Vela on Unix") | Some("Install Vela on Windows")
+        )
+    }) {
+        assert_eq!(
+            step["env"]["GH_TOKEN"].as_str(),
+            Some("${{ github.token }}"),
+            "each installer must expose the workflow token to attestation checks"
+        );
+    }
+    assert!(unix_install.contains("bash \"$ACTION_PATH/install.sh\""));
+    assert!(unix_install.contains("VELA_INSTALL_PREFIX=\"$install_root\""));
+    assert!(unix_install.contains("\"$install_root/bin/vela\" --version"));
+    assert!(windows_install.contains("install.ps1"));
+    assert!(windows_install.contains("vela.exe"));
 
-    let strict = script_named(&action, "Strict read-only repository verification");
-    assert!(strict.contains("\"$vela_bin\" check \"$FRONTIER\" --strict"));
-    assert!(!strict.contains("--strict --json"));
-    assert!(!strict.contains("STRICT"));
-    assert!(!strict.contains("::notice::"));
+    let unix_strict = script_named(&action, "Strict read-only repository verification on Unix");
+    let windows_strict = script_named(
+        &action,
+        "Strict read-only repository verification on Windows",
+    );
+    assert!(unix_strict.contains("\"$vela_bin\" check \"$FRONTIER\" --strict"));
+    assert!(windows_strict.contains("check $env:FRONTIER --strict"));
 
     for forbidden in [
         "vela frontier",
@@ -165,7 +163,6 @@ fn root_action_is_consumer_pinned_strict_and_nonfinalizing() {
     assert!(!ROOT_ACTION.contains("authority trust pin"));
 
     assert!(!ROOT_ACTION.contains("constellate-science/vela"));
-    assert!(!ROOT_ACTION.contains("/main/install.sh"));
     let package_version = env!("CARGO_PKG_VERSION");
     let action_version = root_action_release_pin();
     if package_version.contains('-') {
@@ -186,15 +183,6 @@ fn root_action_is_consumer_pinned_strict_and_nonfinalizing() {
 fn reviewed_tags_publish_provenance_labeled_cross_platform_bundles() {
     assert!(RELEASE_WORKFLOW.contains("workflow_dispatch:"));
     assert!(RELEASE_WORKFLOW.contains("tags:\n      - \"v*.*.*\""));
-    assert!(RELEASE_WORKFLOW.contains("manual release-candidate builds must use main"));
-    assert!(RELEASE_WORKFLOW.contains("stable-candidate:"));
-    assert!(
-        RELEASE_WORKFLOW
-            .contains("a stable-version manual candidate requires stable-candidate=true")
-    );
-    assert!(RELEASE_WORKFLOW.contains("cargo pkgid --locked -p \"$1\""));
-    assert!(RELEASE_WORKFLOW.contains("package_id=\"${package_id##*#}\""));
-    assert!(RELEASE_WORKFLOW.contains("${package_id##*@}"));
     assert!(RELEASE_WORKFLOW.contains("test \"v$version\" = \"$GITHUB_REF_NAME\""));
     assert!(
         RELEASE_WORKFLOW
@@ -220,49 +208,12 @@ fn reviewed_tags_publish_provenance_labeled_cross_platform_bundles() {
         assert!(RELEASE_WORKFLOW.contains(asset), "missing {asset}");
     }
     assert!(RELEASE_WORKFLOW.contains("test -f \"dist/$asset.sha256\""));
-    assert!(RELEASE_WORKFLOW.contains("shasum -a 256 \"$ASSET\""));
+    assert!(RELEASE_WORKFLOW.contains("shasum -a 256 \"${{ matrix.asset }}\""));
     assert!(RELEASE_WORKFLOW.contains("Get-FileHash -Algorithm SHA256 $name"));
-    assert!(
-        RELEASE_WORKFLOW.contains("Set-Content -Encoding ascii -NoNewline -LiteralPath $checksum")
-    );
-    assert!(RELEASE_WORKFLOW.contains("Test-Path -LiteralPath $checksum -PathType Leaf"));
-    assert!(RELEASE_WORKFLOW.contains("vela.release-trust.v1"));
-    assert!(RELEASE_WORKFLOW.contains("\"artifact_class\": \"portable\""));
-    assert!(RELEASE_WORKFLOW.contains("\"platform_signature\": \"absent\""));
-    assert!(RELEASE_WORKFLOW.contains("test -f \"dist/$asset.trust.json\""));
-    assert!(!RELEASE_WORKFLOW.contains("science.vela.signer.policy"));
+    assert!(RELEASE_WORKFLOW.contains("actions/attest-build-provenance@"));
     assert!(RELEASE_WORKFLOW.contains("gh release create \"$GITHUB_REF_NAME\" dist/*"));
-    assert!(RELEASE_WORKFLOW.contains("prerelease: ${{ steps.version.outputs.prerelease }}"));
-    assert!(RELEASE_WORKFLOW.contains("echo \"prerelease=$prerelease\""));
-    assert!(RELEASE_WORKFLOW.contains(
-        "if: github.event_name == 'push' && needs.metadata.outputs.prerelease != 'true'"
-    ));
-    assert!(RELEASE_WORKFLOW.contains("environment: crates-io"));
+    assert!(RELEASE_WORKFLOW.contains("release_flags+=(--prerelease)"));
     assert!(RELEASE_WORKFLOW.contains("id-token: write"));
-    assert!(
-        RELEASE_WORKFLOW
-            .contains("rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18")
-    );
-    assert!(
-        RELEASE_WORKFLOW
-            .contains("CARGO_REGISTRY_TOKEN: ${{ steps.crates-io-auth.outputs.token }}")
-    );
-    assert!(RELEASE_WORKFLOW.contains(".github/release/publish-crates.sh --execute"));
-    assert!(RELEASE_WORKFLOW.contains("needs: [metadata, publish-crates]"));
-    assert!(RELEASE_WORKFLOW.contains(
-        "needs: [metadata, build, smoke, publish-crates, publish-protocol, registry-smoke]"
-    ));
-    assert!(RELEASE_WORKFLOW.contains("needs.registry-smoke.result == 'success'"));
-    assert!(RELEASE_WORKFLOW.contains("needs.registry-smoke.result == 'skipped'"));
-    assert!(RELEASE_WORKFLOW.contains("needs.metadata.outputs.prerelease == 'true'"));
-    assert!(RELEASE_WORKFLOW.contains("fail-fast: false"));
-    assert!(RELEASE_WORKFLOW.contains("https://crates.io/api/v1/crates/vela-cli/$VERSION"));
-    assert!(RELEASE_WORKFLOW.contains("for _ in $(seq 1 60)"));
-    assert!(
-        RELEASE_WORKFLOW
-            .contains("vela-cli $VERSION was not readable from crates.io within 300 seconds")
-    );
-    assert!(RELEASE_WORKFLOW.contains("cargo install --locked vela-cli --version \"$VERSION\""));
     assert!(RELEASE_WORKFLOW.contains("github.event_name == 'push'"));
     assert!(RELEASE_WORKFLOW.contains("--verify-tag"));
     assert!(RELEASE_WORKFLOW.contains("permissions:\n  contents: read"));
@@ -279,9 +230,6 @@ fn reviewed_tags_publish_provenance_labeled_cross_platform_bundles() {
             "release workflow retains mutable action ref {mutable_ref}"
         );
     }
-    assert!(!RELEASE_WORKFLOW.contains("WINDOWS_AUTHENTICODE_PFX"));
-    assert!(!RELEASE_WORKFLOW.contains("MACOS_DEVELOPER_ID_P12"));
-    assert!(!RELEASE_WORKFLOW.contains("vela sign"));
 }
 
 #[test]
@@ -302,8 +250,6 @@ fn fresh_runner_smoke_precedes_publication_and_preserves_platform_checks() {
     for token in [
         "shasum -a 256 -c",
         "vela $EXPECTED_VERSION",
-        "codesign --verify --strict",
-        "spctl --assess --type execute",
         "install -m 0755",
     ] {
         assert!(
@@ -313,7 +259,6 @@ fn fresh_runner_smoke_precedes_publication_and_preserves_platform_checks() {
     }
     for token in [
         "Get-FileHash -Algorithm SHA256",
-        "Get-AuthenticodeSignature",
         "vela $ExpectedVersion",
         "Copy-Item -Force",
         "Remove-Item -Force",

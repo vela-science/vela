@@ -10,7 +10,6 @@
     "typecheck": "bun run --cwd packages/protocol typecheck && bun run --cwd packages/protocol build",
     "test": "bun run --cwd packages/protocol test",
     "test:benchmarks": "python3 -m unittest discover -s benchmarks/product-compression -p 'test_*.py'",
-    "check": "bun run typecheck && bun run test && bun run test:benchmarks",
-    "pack:check": "bun run --cwd packages/protocol pack:check"
+    "check": "bun run typecheck && bun run test && bun run test:benchmarks"
   }
 }

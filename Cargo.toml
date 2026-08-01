@@ -20,13 +20,13 @@ resolver = "3"
 # Release numbering uses `0.RRR.P`, where RRR names the release train and P is
 # the compatible patch within that train. Older `v0.X` markers in comments and
 # research documents are historical proof-slice labels.
-version = "0.950.1"
+version = "0.960.0"
 edition = "2024"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/vela-science/vela"
 homepage = "https://github.com/vela-science/vela"
-# Per-crate `publish` is explicit. Reusable libraries and product binaries are
-# publishable; product binaries remain distributed through Vela releases.
+# Workspace crates are implementation boundaries, not separate products.
+# GitHub Releases distribute the single `vela` binary.
 publish = false
 
 [workspace.dependencies]
@@ -37,7 +37,6 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
 sha2 = "0.10"
-tokio = { version = "1", features = ["full"] }
 chrono = { version = "0.4", features = ["serde"] }
 hex = "0.4"
 colored = "3"
@@ -50,12 +49,11 @@ tempfile = "3"
 libc = "0.2"
 windows-sys = "0.61"
 
-# Internal crates. `version` is required so cargo publish can resolve
-# the dep against crates.io; `path` is used for in-workspace builds.
-vela-protocol = { path = "crates/vela-protocol", version = "0.950.1" }
-vela-authority = { path = "crates/vela-authority", version = "0.950.1" }
-vela-verify = { path = "crates/vela-verify", version = "0.950.1" }
-vela-edge = { path = "crates/vela-edge", version = "0.950.1" }
+# Internal crates share one release identity and are not published separately.
+vela-protocol = { path = "crates/vela-protocol", version = "0.960.0" }
+vela-authority = { path = "crates/vela-authority", version = "0.960.0" }
+vela-verify = { path = "crates/vela-verify", version = "0.960.0" }
+vela-edge = { path = "crates/vela-edge", version = "0.960.0" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

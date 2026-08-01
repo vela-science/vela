@@ -2,12 +2,6 @@ name: release
 
 on:
   workflow_dispatch:
-    inputs:
-      stable-candidate:
-        description: Build and smoke a stable-version commit without publishing it.
-        required: false
-        type: boolean
-        default: false
   push:
     tags:
       - "v*.*.*"
@@ -20,13 +14,12 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.version.outputs.version }}
-      prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - name: Bind the candidate or release identity
-        id: version
+      - id: version
+        name: Bind release identity
         shell: bash
         run: |
           version="$(python3 - <<'PY'
@@ -35,32 +28,12 @@ jobs:
               print(tomllib.load(source)["workspace"]["package"]["version"])
           PY
           )"
-          case "$version" in
-            *-*) prerelease=true ;;
-            *) prerelease=false ;;
-          esac
-          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
-            test "v$version" = "$GITHUB_REF_NAME" || {
-              echo "release tag $GITHUB_REF_NAME does not match Vela workspace version v$version" >&2
-              exit 1
-            }
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            test "v$version" = "$GITHUB_REF_NAME"
           else
-            test "$GITHUB_REF" = "refs/heads/main" || {
-              echo "manual release-candidate builds must use main" >&2
-              exit 1
-            }
-            case "$version" in
-              *-*) ;;
-              *)
-                test "${{ inputs['stable-candidate'] }}" = "true" || {
-                  echo "a stable-version manual candidate requires stable-candidate=true" >&2
-                  exit 1
-                }
-                ;;
-            esac
+            test "$GITHUB_REF" = refs/heads/main
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
 
   build:
     needs: metadata
@@ -85,41 +58,15 @@ jobs:
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable 2026-07-19
-      - name: Install the exact auditable-build wrapper
-        run: cargo install cargo-auditable --version 0.7.5 --locked
-      - name: Require every Vela workspace package to match the bound version
+      - name: Build auditable release binary
         shell: bash
-        env:
-          EXPECTED_VERSION: ${{ needs.metadata.outputs.version }}
         run: |
-          package_version() {
-            local package_id
-            package_id="$(cargo pkgid --locked -p "$1")"
-            package_id="${package_id##*#}"
-            printf '%s' "${package_id##*@}"
-          }
-          version="$(package_version vela-cli)"
-          test "$version" = "$EXPECTED_VERSION" || {
-            echo "Vela workspace version $version does not match bound version $EXPECTED_VERSION" >&2
-            exit 1
-          }
-          for package in vela-authority vela-edge vela-protocol vela-verify; do
-            observed="$(package_version "$package")"
-            test "$observed" = "$version" || {
-              echo "Vela workspace version mismatch: vela-cli=$version, $package=$observed" >&2
-              exit 1
-            }
-          done
-      - name: Build release binary
-        run: cargo auditable build --locked --release -p vela-cli --bin vela
-      - name: Stage Unix bundle
+          cargo install cargo-auditable --version 0.7.5 --locked
+          cargo auditable build --locked --release -p vela-cli --bin vela
+      - name: Stage Unix binary
         if: runner.os != 'Windows'
-        env:
-          ASSET: ${{ matrix.asset }}
-        run: |
-          mkdir -p dist stage
-          cp target/release/vela stage/
-      - name: Stage Windows bundle
+        run: mkdir -p dist stage && cp target/release/vela stage/
+      - name: Stage Windows binary
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
@@ -134,91 +81,44 @@ jobs:
           syft-version: v1.50.0
           upload-artifact: false
           upload-release-assets: false
-      - name: Require the SBOM to contain the Vela dependency graph
+      - name: Verify SBOM includes Vela
         shell: bash
-        env:
-          ASSET: ${{ matrix.asset }}
         run: |
           python_bin=python3
           command -v "$python_bin" >/dev/null 2>&1 || python_bin=python
-          "$python_bin" .github/release/check-sbom.py "dist/$ASSET.spdx.json"
-      - name: Prepare Linux archive
+          "$python_bin" .github/release/check-sbom.py "dist/${{ matrix.asset }}.spdx.json"
+      - name: Archive Linux bundle
         if: runner.os == 'Linux'
-        env:
-          ASSET: ${{ matrix.asset }}
-        run: tar -C stage -czf "dist/$ASSET" .
-      - name: Prepare macOS archive
+        run: tar -C stage -czf "dist/${{ matrix.asset }}" .
+      - name: Archive macOS bundle
         if: runner.os == 'macOS'
-        shell: bash
-        env:
-          ASSET: ${{ matrix.asset }}
-        run: ditto -c -k --norsrc stage/ "dist/$ASSET"
-      - name: Prepare Windows archive
+        run: ditto -c -k --norsrc stage/ "dist/${{ matrix.asset }}"
+      - name: Archive Windows bundle
         if: runner.os == 'Windows'
         shell: pwsh
-        env:
-          ASSET: ${{ matrix.asset }}
-        run: |
-          Compress-Archive -Path stage/vela.exe -DestinationPath "dist/$env:ASSET"
-      - name: Record the exact portable trust tier
-        shell: bash
-        env:
-          ASSET: ${{ matrix.asset }}
-          VERSION: ${{ needs.metadata.outputs.version }}
-        run: |
-          python3 - "$ASSET" "$VERSION" "$GITHUB_SHA" > "dist/$ASSET.trust.json" <<'PY'
-          import json
-          import sys
-
-          asset, version, commit = sys.argv[1:]
-          platform = (
-              "macos" if "macos" in asset else
-              "windows" if "windows" in asset else
-              "linux"
-          )
-          print(json.dumps({
-              "schema": "vela.release-trust.v1",
-              "artifact": asset,
-              "artifact_class": "portable",
-              "github_attestation": "required",
-              "platform": platform,
-              "platform_signature": "absent",
-              "source_commit": commit,
-              "version": version,
-          }, sort_keys=True, separators=(",", ":")))
-          PY
-      - name: Write archive and SBOM checksums on Unix
+        run: Compress-Archive -Path stage/vela.exe -DestinationPath "dist/${{ matrix.asset }}"
+      - name: Write checksums on Unix
         if: runner.os != 'Windows'
         shell: bash
-        env:
-          ASSET: ${{ matrix.asset }}
         run: |
           cd dist
-          shasum -a 256 "$ASSET" > "$ASSET.sha256"
-          shasum -a 256 "$ASSET.spdx.json" > "$ASSET.spdx.json.sha256"
-          shasum -a 256 "$ASSET.trust.json" > "$ASSET.trust.json.sha256"
-      - name: Write archive and SBOM checksums on Windows
+          shasum -a 256 "${{ matrix.asset }}" > "${{ matrix.asset }}.sha256"
+          shasum -a 256 "${{ matrix.asset }}.spdx.json" > "${{ matrix.asset }}.spdx.json.sha256"
+      - name: Write checksums on Windows
         if: runner.os == 'Windows'
         shell: pwsh
-        env:
-          ASSET: ${{ matrix.asset }}
         run: |
           Set-Location dist
-          foreach ($name in @($env:ASSET, "$($env:ASSET).spdx.json", "$($env:ASSET).trust.json")) {
+          foreach ($name in @("${{ matrix.asset }}", "${{ matrix.asset }}.spdx.json")) {
             $digest = (Get-FileHash -Algorithm SHA256 $name).Hash.ToLowerInvariant()
-            $checksum = "$($name).sha256"
-            Set-Content -Encoding ascii -NoNewline -LiteralPath $checksum -Value "$digest  $name"
-            if (-not (Test-Path -LiteralPath $checksum -PathType Leaf)) {
-              throw "checksum sidecar was not written: $checksum"
-            }
+            Set-Content -Encoding ascii -NoNewline "$name.sha256" "$digest  $name"
           }
-      - name: Attest archive and SBOM provenance
+      - name: Attest archive and SBOM
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
           subject-path: |
             dist/${{ matrix.asset }}
             dist/${{ matrix.asset }}.spdx.json
-            dist/${{ matrix.asset }}.trust.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ matrix.asset }}
@@ -247,205 +147,17 @@ jobs:
         with:
           name: ${{ matrix.asset }}
           path: dist
-      - name: Smoke exact Unix bundle in a fresh prefix
+      - name: Smoke Unix bundle
         if: runner.os != 'Windows'
-        shell: bash
-        env:
-          ASSET: ${{ matrix.asset }}
-          EXPECTED_VERSION: ${{ needs.metadata.outputs.version }}
-          REQUIRE_PLATFORM_SIGNATURE: false
-        run: .github/release/smoke-bundle.sh "dist/$ASSET" "$EXPECTED_VERSION" "$REQUIRE_PLATFORM_SIGNATURE"
-      - name: Smoke exact Windows bundle in a fresh prefix
+        run: .github/release/smoke-bundle.sh "dist/${{ matrix.asset }}" "${{ needs.metadata.outputs.version }}"
+      - name: Smoke Windows bundle
         if: runner.os == 'Windows'
         shell: pwsh
-        env:
-          ASSET: ${{ matrix.asset }}
-          EXPECTED_VERSION: ${{ needs.metadata.outputs.version }}
-          REQUIRE_PLATFORM_SIGNATURE: false
-        run: .github/release/smoke-bundle.ps1 -Archive "dist/$env:ASSET" -ExpectedVersion $env:EXPECTED_VERSION -RequirePlatformSignature ($env:REQUIRE_PLATFORM_SIGNATURE -eq "true")
-
-  publish-crates:
-    if: github.event_name == 'push' && needs.metadata.outputs.prerelease != 'true'
-    needs: [metadata, smoke]
-    runs-on: ubuntu-24.04
-    environment: crates-io
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable 2026-07-19
-      - name: Exchange GitHub OIDC identity for a short-lived crates.io token
-        id: crates-io-auth
-        uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
-      - name: Publish the dependency-ordered immutable crate graph
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ steps.crates-io-auth.outputs.token }}
-        run: .github/release/publish-crates.sh --execute
-
-  publish-protocol:
-    if: github.event_name == 'push' && needs.metadata.outputs.prerelease != 'true'
-    needs: [metadata, smoke]
-    runs-on: ubuntu-24.04
-    environment: npm
-    permissions:
-      contents: read
-      id-token: write
-      attestations: write
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: 1.3.12
-          no-cache: true
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
-          registry-url: https://registry.npmjs.org
-          package-manager-cache: false
-      - run: bun install --frozen-lockfile
-      - name: Build, test, and pack the public Protocol package
-        run: |
-          bun run --cwd packages/protocol test
-          mkdir -p dist
-          bun pm pack --cwd packages/protocol --destination "$GITHUB_WORKSPACE/dist"
-          set -- "$GITHUB_WORKSPACE"/dist/vela-science-protocol-*.tgz
-          test "$#" -eq 1
-      - name: Smoke the exact packed Protocol package
-        run: |
-          archive="$(find "$GITHUB_WORKSPACE/dist" -maxdepth 1 -name 'vela-science-protocol-*.tgz' -print)"
-          test -n "$archive"
-          node .github/release/publish-protocol.mjs check "$archive"
-          smoke_root="$(mktemp -d)"
-          (
-            cd "$smoke_root"
-            npm init -y >/dev/null
-            npm install \
-              --ignore-scripts \
-              --no-audit \
-              --no-fund \
-              --save-exact \
-              "$archive" >/dev/null
-            node --input-type=module <<'NODE'
-          import {
-            protocolDigest,
-            sha256At,
-          } from "@vela-science/protocol";
-
-          const root = protocolDigest({ schema: "vela.protocol-pack-smoke.v1" });
-          if (sha256At(root, "packed Protocol root") !== root) {
-            throw new Error("packed Protocol root validator disagrees with canonical digest");
-          }
-          NODE
-          )
-      - name: Attest the exact Protocol archive
-        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
-        with:
-          subject-path: dist/vela-science-protocol-*.tgz
-      - name: Verify the GitHub build attestation
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          archive="$(find dist -maxdepth 1 -name 'vela-science-protocol-*.tgz' -print)"
-          test -n "$archive"
-          gh attestation verify "$archive" \
-            --repo "$GITHUB_REPOSITORY" \
-            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" \
-            --source-ref "$GITHUB_REF" \
-            --source-digest "$GITHUB_SHA" \
-            --deny-self-hosted-runners
-      - name: Publish or verify immutable npm bytes
-        run: |
-          archive="$(find dist -maxdepth 1 -name 'vela-science-protocol-*.tgz' -print)"
-          node .github/release/publish-protocol.mjs --execute "$archive"
-      - name: Verify npm provenance
-        run: |
-          package=$(node -p 'require("./packages/protocol/package.json").name')
-          version=$(node -p 'require("./packages/protocol/package.json").version')
-          spec="$package@$version"
-          predicate=""
-          for _ in $(seq 1 24); do
-            predicate=$(npm view "$spec" dist.attestations.provenance.predicateType 2>/dev/null || true)
-            test -n "$predicate" && break
-            sleep 5
-          done
-          test "$predicate" = "https://slsa.dev/provenance/v1"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: vela-protocol-npm
-          path: dist/vela-science-protocol-*.tgz
-          if-no-files-found: error
-
-  registry-smoke:
-    if: github.event_name == 'push' && needs.metadata.outputs.prerelease != 'true'
-    needs: [metadata, publish-crates]
-    name: registry-smoke-${{ matrix.os }}
-    strategy:
-      # Registry indexes and CDN edges do not expose a newly published crate at
-      # exactly the same instant on every platform. Preserve every platform's
-      # evidence instead of cancelling the matrix when one edge is slower.
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, macos-15, windows-2025]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable 2026-07-19
-      - name: Install exact immutable crates.io package
-        shell: bash
-        env:
-          VERSION: ${{ needs.metadata.outputs.version }}
-        run: |
-          package_url="https://crates.io/api/v1/crates/vela-cli/$VERSION"
-          ready=false
-          for _ in $(seq 1 60); do
-            if curl \
-              --user-agent "vela-release-smoke/$VERSION (https://github.com/vela-science/vela)" \
-              --fail --silent --show-error \
-              "$package_url" >/dev/null
-            then
-              ready=true
-              break
-            fi
-            sleep 5
-          done
-          "$ready" || {
-            echo "vela-cli $VERSION was not readable from crates.io within 300 seconds" >&2
-            exit 1
-          }
-          root="$RUNNER_TEMP/vela-registry-install"
-          cargo install --locked vela-cli --version "$VERSION" --root "$root"
-          "$root/bin/vela" --version | grep -F "vela $VERSION"
+        run: .github/release/smoke-bundle.ps1 -Archive "dist/${{ matrix.asset }}" -ExpectedVersion "${{ needs.metadata.outputs.version }}"
 
   publish:
-    if: >-
-      ${{
-        always() &&
-        github.event_name == 'push' &&
-        needs.metadata.result == 'success' &&
-        needs.build.result == 'success' &&
-        needs.smoke.result == 'success' &&
-        (
-          needs.publish-protocol.result == 'success' ||
-          (
-            needs.metadata.outputs.prerelease == 'true' &&
-            needs.publish-protocol.result == 'skipped'
-          )
-        ) &&
-        (
-          needs.registry-smoke.result == 'success' ||
-          (
-            needs.metadata.outputs.prerelease == 'true' &&
-            needs.registry-smoke.result == 'skipped'
-          )
-        )
-      }}
-    needs: [metadata, build, smoke, publish-crates, publish-protocol, registry-smoke]
+    if: github.event_name == 'push'
+    needs: [metadata, build, smoke]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -458,28 +170,18 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - name: Publish immutable release assets
+      - name: Publish immutable GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          for asset in \
-            vela-linux-x86_64.tar.gz \
-            vela-macos-aarch64.zip \
-            vela-windows-x86_64.zip
-          do
+          for asset in vela-linux-x86_64.tar.gz vela-macos-aarch64.zip vela-windows-x86_64.zip; do
             test -f "dist/$asset"
             test -f "dist/$asset.sha256"
             test -f "dist/$asset.spdx.json"
             test -f "dist/$asset.spdx.json.sha256"
-            test -f "dist/$asset.trust.json"
-            test -f "dist/$asset.trust.json.sha256"
           done
-          release_flags=(
-            --verify-tag
-            --title "$GITHUB_REF_NAME"
-            --notes-from-tag
-          )
+          release_flags=()
           if [[ "$GITHUB_REF_NAME" == *-* ]]; then
             release_flags+=(--prerelease)
           fi
-          gh release create "$GITHUB_REF_NAME" dist/* "${release_flags[@]}"
+          gh release create "$GITHUB_REF_NAME" dist/* "${release_flags[@]}" --verify-tag --title "$GITHUB_REF_NAME" --notes-from-tag

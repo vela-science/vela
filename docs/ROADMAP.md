@@ -28,9 +28,9 @@ identity. This roadmap records only product sequence.
   Erdős authority.
 - The Observatory exposes a rebuildable, SELECT-only Math Source Registry and
   Math Atlas. Git remains authoritative.
-- A frozen first-party Harbor study found the exact Frontier handoff 2/2 with
-  Vela versus 0/2 from Git/files alone, while reducing median agent time by
-  69.38 percent. Independent-user lift remains unproved.
+- Product-compression v6 is a compact historical summary, not a complete
+  reproducible Harbor artifact package. Repeat the comparison on current
+  Frontier state before making a comprehension-lift claim.
 - Vela owns no agent runner, scheduler, graph database, hosted authority, or
   second writer.
 
@@ -111,9 +111,10 @@ and a reproduced gap.
 
 ## Release posture
 
-- Vela remains at `0.950.1` until the current compatible simplification and a
-  user-visible improvement pass release checks.
-- `@vela-science/protocol@0.1.0` changes only with a Vela contract release.
+- Vela `0.960.0` is the single candidate for the current repository-v4 and
+  direct Target Index v5 boundary. Publish only after its exact release checks.
+- The TypeScript protocol boundary remains internal until a real external
+  consumer earns a registry package.
 - Canopus `0.8.0` remains historical evidence; there is no second active
   runner or release train.
 - Vela Web remains on the `0.430.0` product line until a measured reader or

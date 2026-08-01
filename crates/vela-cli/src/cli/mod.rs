@@ -2,9 +2,9 @@ use vela_protocol::sign;
 
 use std::path::Path;
 
+use crate::style;
 use clap::Parser;
 use serde_json::json;
-use vela_protocol::cli_style as style;
 
 #[derive(Parser)]
 #[command(name = "vela", version)]
@@ -40,7 +40,7 @@ pub(crate) use lifecycle::*;
 pub(crate) use output::*;
 pub(crate) use records::*;
 pub(crate) use surface::*;
-pub async fn run_command() {
+pub fn run_command() {
     // Deliberately NO dotenv here. `dotenvy::dotenv()` walks the working
     // tree upward, and vela runs inside CLONED frontier repos — a
     // committed .env could silently inject VELA_ACTOR_ID / VELA_KEY_PATH for
@@ -58,7 +58,7 @@ pub async fn run_command() {
             frontier,
             all,
             json,
-        } => cmd_doctor(frontier.as_deref(), all, json).await,
+        } => cmd_doctor(frontier.as_deref(), all, json),
         Commands::Status { frontier, json } => {
             cmd_status_compact(&crate::ui::resolve_frontier(frontier), json)
         }
@@ -130,15 +130,6 @@ pub async fn run_command() {
             json,
         } => cmd_init(&path, name.as_deref(), scope.as_deref(), json),
         Commands::Review { action } => cmd_review(action),
-        Commands::Claim {
-            command:
-                ClaimCommands::Show {
-                    frontier,
-                    claim_id,
-                    view,
-                    json,
-                },
-        } => crate::current_read::cmd_claim_show(&frontier, &claim_id, &view, json),
         Commands::Show {
             frontier,
             object_id,
@@ -339,12 +330,12 @@ pub async fn run_command() {
                         );
                         println!(
                             "  {:<18} {}",
-                            vela_protocol::cli_style::dim("proposal"),
+                            style::dim("proposal"),
                             safe_text::inline(&outcome.proposal_id)
                         );
                         println!(
                             "  {:<18} {}",
-                            vela_protocol::cli_style::dim("accepted delta"),
+                            style::dim("accepted delta"),
                             outcome.accepted_event_delta
                         );
                     }
@@ -379,6 +370,5 @@ pub fn run_from_args() {
         }
         Some(_) => {}
     }
-    let runtime = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
-    runtime.block_on(run_command());
+    run_command();
 }

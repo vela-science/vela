@@ -9,7 +9,7 @@ description = "Core library for the Vela scientific knowledge protocol: replayab
 readme = "../../README.md"
 keywords = ["science", "frontier", "protocol", "ed25519", "replay"]
 categories = ["science", "data-structures", "cryptography"]
-publish = true
+publish = false
 
 [lib]
 name = "vela_protocol"
@@ -28,7 +28,6 @@ serde_yaml.workspace = true
 sha2.workspace = true
 chrono.workspace = true
 hex.workspace = true
-colored.workspace = true
 ed25519-dalek.workspace = true
 base64.workspace = true
 unicode-normalization.workspace = true

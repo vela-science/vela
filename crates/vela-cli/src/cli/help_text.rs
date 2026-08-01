@@ -71,7 +71,7 @@ KNOWN PROPOSAL
   When a full vpr_ ID is supplied, start with `vela review show`. It returns
   either the pending Review Packet or the signed terminal Decision record.
   A rejected proposal's candidate Claim is intentionally absent from
-  accepted `claim show` and `log` views; that is not deletion.";
+  accepted `show` and `log` views; that is not deletion.";
 
 pub const LOG: &str = "\
 EXAMPLES
@@ -134,18 +134,9 @@ EXAMPLES
 Human decisions use the local OS principal and repository authority. Vela does
 not create or store a human signing identity.";
 
-pub const CLAIM: &str = "\
-EXAMPLES
-  vela claim show . vcl_6d4a…      read one current Claim
-  vela submit --claim \"…\" --artifact result.json:witness --as agent:demo
-                                    submit new work as Submission v1
-
-Claim inspection is read-only. Historical Finding bytes remain available from
-the repository's pinned predecessor and historical Vela release. Submission v1
-plus `vela submit` is the current producer write path.";
-
 pub const SHOW: &str = "\
 EXAMPLES
+  vela show . vcl_0123456789abcdef --json
   vela show . vsb_0123456789abcdef --json
   vela show . vpr_0123456789abcdef --json
 

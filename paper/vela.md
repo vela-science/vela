@@ -42,11 +42,12 @@ human Decision, clean-clone replayed the transition, and rebuilt a read-only
 candidate map. The map cardinality did not change, while the Claim Standing,
 repository root, graph roots, and projection root changed exactly. The Target
 packet initially failed to advance, so that candidate was not activated.
-Source-local closure and three later exact completions now close producer work
-through `10430200` and expose `10430201..10430400` as the next nonduplicate
-range. The released Vela Web `v0.430.0` four-Frontier Atlas contains 4,147
-graph nodes. Three corrected bounded Erdős results, one current Formal result,
-and the quantum-certificate result remain pending human Decisions; one
+Source-local closure and later exact completions now close producer work
+through `10430400` and expose `10430401..10430600` as the next nonduplicate
+range. The released Vela Web `v0.430.0` Atlas remains a predecessor projection;
+the current Git Frontiers are authoritative until the repository-v4 reader is
+refreshed. Current Erdős, Formal, and quantum-certificate Proposals remain
+pending human Decisions; one
 broader-worded Erdős predecessor Proposal remains retained separately rather
 than being rewritten. These facts do not establish acceptance, inheritance
 lift, external independence, or cold-use value. The evidence therefore does
@@ -412,9 +413,9 @@ vela-edge       replaceable Git/filesystem and derived analysis adapters
 vela-cli        porcelain and repository transactions
 ```
 
-Canopus is an optional TypeScript producer and evaluation harness in the same
-release repository. `@vela-science/protocol` is an independent TypeScript
-consumer of public object contracts. Neither is required for canonical replay.
+Canopus `0.8.0` is retained historical evidence from the earlier producer
+harness. The current workspace keeps one internal TypeScript reader for
+cross-language object conformance. Neither is required for canonical replay.
 
 The correction-impact reference reader is Rust in `vela-edge`. The clean-room
 reader is dependency-free Python and imports no Rust implementation. Both
@@ -640,11 +641,12 @@ local Standing effect `none` and exposes zero current offers. This establishes
 source-local Target progression for the two demonstrated stale edges. It does
 not establish cold-user lift or automatic domain-generic closure.
 
-Subsequent exact completions close Erdős producer work through `10430200` and
-leave `10430201..10430400` as the next nonduplicate range. Vela Web `v0.430.0`
-now serves the exact current four-Frontier Atlas with 4,147 graph nodes. The
-three corrected bounded Erdős results, the current Formal exact-proof result,
-and the quantum-certificate result all remain pending human Decisions; their
+Subsequent exact completions close Erdős producer work through `10430400` and
+leave `10430401..10430600` as the next nonduplicate range. Vela Web `v0.430.0`
+still serves a predecessor projection; the current repository-v4 Git heads are
+authoritative until its reader and projection are refreshed. Current Erdős,
+Formal exact-proof, and quantum-certificate Proposals remain pending human
+Decisions; their
 Verifications do not change Standing. The earlier broader-worded Erdős
 Proposal remains retained and pending rather than replacing the corrected
 bounded record.
@@ -820,34 +822,14 @@ history rewrite was required.
 ### 6.9 Framework-neutral execution evaluation
 
 Stage A was a registered repair replication, not an untouched preregistered
-comparison. Three earlier plans stopped on their registered token ceilings.
-Completed plan
-`sha256:9fbfd54fd40db4e2b02ded895365468c596f54e4dc0e19ae09630a80fb28125b`
-then produced 12 outcomes with six verifier passes. After those outputs
-exposed an answer-free task-contract defect, repair plan
-`sha256:31268241f0f1ada92fd78d245643ad9274308a74d617a965e8e2bcb46195fd47`
-amended that completed plan and registered 12 fresh assignments. The repaired
-run held task facts, verifiers, model family, custody rules, and publication
-rules constant across Canopus, native Codex, and native Codex with the same
-packet. Two tasks and two fresh repetitions per arm produced 12 retained
-outcomes. Eleven passed their frozen verifier. The repaired report root is
-`sha256:43be5378169f2911eb09773b2a9ffbbf8364c080e37dc874b13188ccff144bfb`.
-
-| Arm | Passes | Observed tokens | Wall time | Passes / 1M tokens | Passes / hour |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Canopus | 4 / 4 | 853,514 | 324.375 s | 4.687 | 44.393 |
-| Native Codex | 3 / 4 | 1,207,939 | 616.799 s | 2.484 | 17.510 |
-| Same-packet native | 4 / 4 | 2,253,673 | 449.045 s | 1.775 | 32.068 |
-
-Canopus improved passes per observed token by 88.7 percent over native Codex
-and 164.0 percent over same-packet native. It improved passes per hour by
-153.5 percent and 38.4 percent, respectively. This is two repetitions per task
-and arm, all first-party. It supports baseline utility for the bounded runner,
-not a stable population estimate, external adoption, or the protocol claim.
-The report does not score all-in cost or expert-minutes, so it does not satisfy
-the campaign's primary execution-lift metric. The stopped runs, the six-pass
-completed predecessor, and the repaired replication must all ship in any
-public artifact package.
+comparison. Three earlier plans stopped on their registered token ceilings,
+and a later run repaired an answer-free task-contract defect. The surviving
+local cache reported directional improvement for the bounded Canopus path, but
+the repository does not retain the complete native trials needed to recompute
+its aggregate figures and it did not score all-in cost or expert-minutes.
+Accordingly, this paper makes no execution-lift claim from that run. A current
+comparison must use Harbor directly and retain the task, job, trials, answers,
+verifier outputs, exclusions, and all failed runs.
 The registered call ceiling could not fit Stage B, so no orchestration
 framework was evaluated or retained.
 
@@ -1166,11 +1148,11 @@ scoped Verification, terminal human Decision, clean-clone replay, and
 deterministic remap. Its first candidate exposed a stale-Target failure. A
 subsequent source-local closure pass retained the completed packet and proved
 its coverage from exact ancestor bytes. Later exact completions close producer
-work through `10430200` and expose `10430201..10430400` as the next
-nonduplicate range without changing Standing. The exact Vela Web `v0.430.0`
-four-Frontier Atlas now contains 4,147 graph nodes. Three corrected bounded
-Erdős results, one current Formal result, and the quantum-certificate result
-remain pending human Decisions, so their post-Decision remaps remain
+work through `10430400` and expose `10430401..10430600` as the next
+nonduplicate range without changing Standing. Vela Web `v0.430.0` remains a
+predecessor projection until the repository-v4 reader refresh. Current Erdős,
+Formal, and quantum-certificate Proposals remain pending human Decisions, so
+their post-Decision remaps remain
 unfinished. An earlier broader-worded Erdős Proposal remains retained
 separately. The frozen held-out selector also found no qualifying candidate.
 The stronger claim, that this mechanism preserves useful scientific

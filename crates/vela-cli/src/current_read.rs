@@ -444,68 +444,6 @@ pub(crate) fn show_payload(frontier: &Path, object_id: &str) -> Result<Value, St
     ))
 }
 
-pub(crate) fn claim_payload(frontier: &Path, claim_id: &str, view: &str) -> Result<Value, String> {
-    let context = load_context(frontier)?;
-    let (claim, claim_root, standing) = load_claim(frontier, &context, claim_id)?;
-    let proposals = proposal_views(&context, claim_id);
-    let payload = match view {
-        "record" => json!({
-            "ok": true,
-            "command": "claim.show",
-            "schema": "vela.claim-view.v1",
-            "view": "record",
-            "frontier_id": context.repository.frontier_id,
-            "repository_root": context.repository_root,
-            "claim_id": claim_id,
-            "claim_root": claim_root,
-            "source_era": "current",
-            "source_schema": claim.schema,
-            "record": claim,
-        }),
-        "standing" => json!({
-            "ok": true,
-            "command": "claim.show",
-            "schema": "vela.claim-view.v1",
-            "view": "standing",
-            "frontier_id": context.repository.frontier_id,
-            "repository_root": context.repository_root,
-            "claim_id": claim_id,
-            "claim_root": claim_root,
-            "source_era": "current",
-            "standing": standing,
-            "proposals": proposals,
-        }),
-        "evidence" => json!({
-            "ok": true,
-            "command": "claim.show",
-            "schema": "vela.claim-view.v1",
-            "view": "evidence",
-            "frontier_id": context.repository.frontier_id,
-            "repository_root": context.repository_root,
-            "claim_id": claim_id,
-            "claim_root": claim_root,
-            "source_era": "current",
-            "evidence": claim.evidence,
-            "verification_records": verification_views(frontier, &context, claim_id)?,
-        }),
-        "attribution" => json!({
-            "ok": true,
-            "command": "claim.show",
-            "schema": "vela.claim-view.v1",
-            "view": "attribution",
-            "frontier_id": context.repository.frontier_id,
-            "repository_root": context.repository_root,
-            "claim_id": claim_id,
-            "claim_root": claim_root,
-            "source_era": "current",
-            "created_at": claim.created_at,
-            "provenance": claim.provenance,
-        }),
-        other => return Err(format!("unsupported Claim view {other:?}")),
-    };
-    Ok(payload)
-}
-
 pub(crate) fn why_payload(frontier: &Path, claim_id: &str) -> Result<Value, String> {
     let context = load_context(frontier)?;
     let (claim, claim_root, standing) = load_claim(frontier, &context, claim_id)?;
@@ -638,20 +576,6 @@ pub(crate) fn cmd_show(frontier: &Path, object_id: &str, json_out: bool) {
         println!(
             "{}",
             serde_json::to_string_pretty(&projection).expect("serialize current object projection")
-        );
-    }
-}
-
-pub(crate) fn cmd_claim_show(frontier: &Path, claim_id: &str, view: &str, json_out: bool) {
-    crate::ui::set_mode("claim.show", json_out);
-    let projection =
-        claim_payload(frontier, claim_id, view).unwrap_or_else(|error| fail_return(&error));
-    if json_out {
-        print_json(&projection);
-    } else {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&projection).expect("serialize current Claim projection")
         );
     }
 }

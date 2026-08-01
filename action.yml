@@ -3,10 +3,10 @@
 # Consume from a frontier repository:
 #
 #   - uses: actions/checkout@v5
-#   - uses: vela-science/vela@v0.950.1
+#   - uses: vela-science/vela@v0.960.0
 #     with:
 #       frontier: .
-#       vela-version: v0.950.1
+#       vela-version: v0.960.0
 #
 # Current repositories carry one signed repository origin and authority
 # initialization record. The action verifies that closed boundary directly
@@ -23,20 +23,17 @@ inputs:
     default: "."
   vela-version:
     description: >-
-      Required reviewed Vela release tag (e.g. v0.950.1). The consumer chooses
+      Required reviewed Vela release tag (e.g. v0.960.0). The consumer chooses
       this pin; proposed Frontier bytes cannot select or downgrade the verifier.
     required: true
 
 runs:
   using: composite
   steps:
-    - name: Install vela (pinned release binary, no from-source build)
+    - name: Validate exact Vela release pin
       shell: bash
       env:
         VELA_VERSION_INPUT: ${{ inputs.vela-version }}
-        FRONTIER: ${{ inputs.frontier }}
-        ACTION_PATH: ${{ github.action_path }}
-        GH_TOKEN: ${{ github.token }}
       run: |
         set -euo pipefail
         requested="${VELA_VERSION_INPUT#v}"
@@ -48,23 +45,19 @@ runs:
           echo "::error::vela-version must be one stable exact release"
           exit 1
         fi
-        release="v$requested"
+    - name: Install Vela on Unix
+      if: runner.os != 'Windows'
+      shell: bash
+      env:
+        VELA_VERSION_INPUT: ${{ inputs.vela-version }}
+        ACTION_PATH: ${{ github.action_path }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        requested="${VELA_VERSION_INPUT#v}"
         install_root="${RUNNER_TEMP:?}/vela-action-$requested"
-        policy_root="$install_root/share/polkit-1/actions"
-        # install.sh ships with this exact action tag. It fetches the platform
-        # asset from the matching GitHub release and verifies its SHA-256.
-        if [ -f "$ACTION_PATH/install.sh" ]; then
-          VELA_VERSION="$release" \
-            VELA_INSTALL_PREFIX="$install_root" \
-            VELA_POLKIT_POLICY_DIR="$policy_root" \
-            bash "$ACTION_PATH/install.sh"
-        else
-          curl -fsSL "https://raw.githubusercontent.com/vela-science/vela/$release/install.sh" \
-            | VELA_VERSION="$release" \
-                VELA_INSTALL_PREFIX="$install_root" \
-                VELA_POLKIT_POLICY_DIR="$policy_root" \
-                bash
-        fi
+        VELA_VERSION="v$requested" VELA_INSTALL_PREFIX="$install_root" \
+          bash "$ACTION_PATH/install.sh"
         version_output="$("$install_root/bin/vela" --version)"
         installed="${version_output##* }"
         installed="${installed#v}"
@@ -74,7 +67,25 @@ runs:
         fi
         echo "$version_output (matches the consumer pin)"
 
-    - name: Strict read-only repository verification
+    - name: Install Vela on Windows
+      if: runner.os == 'Windows'
+      shell: pwsh
+      env:
+        VELA_VERSION_INPUT: ${{ inputs.vela-version }}
+        ACTION_PATH: ${{ github.action_path }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        $requested = $env:VELA_VERSION_INPUT.TrimStart('v')
+        $installRoot = Join-Path $env:RUNNER_TEMP "vela-action-$requested\bin"
+        & (Join-Path $env:ACTION_PATH "install.ps1") -Version "v$requested" -InstallDir $installRoot
+        $versionOutput = & (Join-Path $installRoot "vela.exe") --version
+        if ($versionOutput -ne "vela $requested") {
+          throw "installed Vela does not match requested Vela $requested"
+        }
+        Write-Host "$versionOutput (matches the consumer pin)"
+
+    - name: Strict read-only repository verification on Unix
+      if: runner.os != 'Windows'
       shell: bash
       env:
         FRONTIER: ${{ inputs.frontier }}
@@ -88,3 +99,18 @@ runs:
           exit 1
         fi
         echo "strict verification OK — exact repository and scientific-state roots reproduce"
+
+    - name: Strict read-only repository verification on Windows
+      if: runner.os == 'Windows'
+      shell: pwsh
+      env:
+        FRONTIER: ${{ inputs.frontier }}
+        VELA_VERSION_INPUT: ${{ inputs.vela-version }}
+      run: |
+        $requested = $env:VELA_VERSION_INPUT.TrimStart('v')
+        $vela = Join-Path $env:RUNNER_TEMP "vela-action-$requested\bin\vela.exe"
+        & $vela check $env:FRONTIER --strict
+        if ($LASTEXITCODE -ne 0) {
+          throw "strict Vela verification failed"
+        }
+        Write-Host "strict verification OK — exact repository and scientific-state roots reproduce"

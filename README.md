@@ -102,10 +102,11 @@ it does not prove that a Claim is true.
 
 ## Quick start
 
-Install the released CLI from crates.io:
+Install the GitHub-attested release:
 
 ```bash
-cargo install vela-cli --version 0.950.1 --locked
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.960.0/install.sh | \
+  VELA_VERSION=v0.960.0 bash
 vela --version
 ```
 
@@ -231,7 +232,7 @@ crates/             Vela protocol, replay, repository authority, and CLI
 packages/protocol/  Authority-free TypeScript contracts and validators
 conformance/        Shared cross-implementation fixtures
                      plus repository-wide protocol checks
-.github/release/    Rust artifact publication and smoke tooling
+.github/release/    Binary artifact publication and smoke tooling
 ```
 
 The immutable public `@vela-science/canopus@0.8.0` and its Git tag remain
@@ -245,10 +246,10 @@ Package-local tooling stays with its package. The repository has no catch-all
 top-level `scripts/` directory. The root `install.sh` is the public product
 installer, not a tooling bucket.
 
-The immutable Protocol `0.1.0` and Canopus `0.8.0` packages were published from
-`product-v0.8.0`. Current source cannot republish those identities. Routine
-development does not advance versions or copy release facts across the
-workspace.
+The Rust crates and TypeScript Protocol package are internal implementation
+boundaries, tested together and released as one `vela` binary. A registry
+package will return only after a real external consumer needs it. The immutable
+Canopus `0.8.0` package remains historical evidence from `product-v0.8.0`.
 
 ## Security model
 
@@ -278,7 +279,6 @@ cargo clippy -p vela-cli --all-targets -- -D warnings
 python3 conformance/verify.py
 bun install --frozen-lockfile
 bun run check
-bun run pack:check
 ```
 
 Use focused tests for ordinary changes. The deterministic release union runs

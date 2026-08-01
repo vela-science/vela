@@ -7,7 +7,7 @@ repository.workspace = true
 homepage.workspace = true
 description = "Replaceable filesystem, Git, and non-authoritative analysis adapters for Vela."
 readme = "../../README.md"
-publish = true
+publish = false
 [lib]
 name = "vela_edge"
 path = "src/lib.rs"

@@ -9,7 +9,7 @@ description = "Restricted standards-based authorization evaluation for Vela repo
 readme = "../../README.md"
 keywords = ["science", "authorization", "cedar", "policy", "provenance"]
 categories = ["authentication", "science"]
-publish = true
+publish = false
 
 [lib]
 name = "vela_authority"

@@ -59,11 +59,15 @@ If the first two answers are no, or the third is yes without a measured gap,
 delete or defer it. Failed experiments leave compact evidence, not active
 infrastructure.
 
-## Current state — 2026-07-31
+## Current state — 2026-08-01
 
 ### Shipped and verified
 
-- Vela `0.950.1` and `@vela-science/protocol@0.1.0` are immutable releases.
+- Vela `0.950.1` is the last immutable release. The locally qualified
+  `0.960.0` candidate is the single binary release boundary for repository v4,
+  direct Target Index v5, direct Submission lineage, and retired
+  workflow/runtime surfaces. Internal Rust and TypeScript packages are no
+  longer published as parallel products.
 - Four mathematical Frontiers use the current repository contract and replay
   from clean Git checkouts.
 - Real Erdős, Formal, and quantum Submissions have separate scoped
@@ -71,13 +75,13 @@ infrastructure.
 - A prior real human Decision changed Standing exactly once and reproduced by
   replay.
 - Vela Web has a root-bound Math Source Registry and read-only Math Atlas over
-  the four Frontiers. The live deployment manifest, not this document, is the
-  authority for its current projection root and deployment identity.
-- The native Harbor product-compression v6 result is retained at
-  `paper/artifacts/product-compression-v6/`. On one exact Frontier handoff,
-  Vela-guided was exact 2/2 versus Git/files 0/2, with 69.38 percent lower
-  median agent time and 86.71 percent lower median cost. This is bounded
-  first-party product evidence, not independent adoption evidence.
+  the four Frontiers. Its production projection currently lags the four
+  repository-v4 heads and still reports retired Registration rows. Source Git
+  is authoritative until the `0.960.0` reader refresh is deployed.
+- Product-compression v6 retains a rooted plan and compact historical summary,
+  but not the native Harbor trials required by the current evidence contract.
+  Its reported lift is not publication-grade. The next comparison must retain
+  the complete native Harbor job, trials, answers, and verifier outputs.
 - The immutable Canopus `0.8.0` release and tag remain historical evidence.
 
 ### Simplified current source
@@ -262,10 +266,10 @@ reputation score, or `1.0.0` schedule.
 
 | Surface | Current posture | Next earned change |
 | --- | --- | --- |
-| Vela | `0.950.1`; current simplification is unreleased | compatible release only after green checks and a user-visible defect fix |
-| TypeScript protocol | `0.1.0` immutable | publish only a contract change from a Vela tag |
+| Vela | `0.960.0` candidate; focused checks green, release union pending | publish once, then use this exact release for the current Atlas refresh |
+| TypeScript protocol | internal `0.2.0` workspace boundary | publish only after a real external consumer exists |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | exact Registry and Atlas production projection matches current Frontier heads | earn product changes through cold-use evidence |
+| Vela Web | exact Registry and Atlas implementation; production projection is stale | ingest repository v4/status v3, remove Registration projection, refresh from `0.960.0` |
 | Frontiers | canonical Git sources with pending human Decisions | decide or cancel exact Proposals, replay, remap |
 | Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 

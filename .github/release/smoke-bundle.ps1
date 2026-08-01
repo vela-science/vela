@@ -1,8 +1,7 @@
 # Release-workflow implementation; not part of the installed product.
 param(
   [Parameter(Mandatory = $true)][string]$Archive,
-  [Parameter(Mandatory = $true)][string]$ExpectedVersion,
-  [Parameter(Mandatory = $true)][bool]$RequirePlatformSignature
+  [Parameter(Mandatory = $true)][string]$ExpectedVersion
 )
 
 $ErrorActionPreference = "Stop"
@@ -30,13 +29,7 @@ New-Item -ItemType Directory -Force $Unpack, $Bin | Out-Null
 try {
   Expand-Archive $Archive -DestinationPath $Unpack
   $Vela = Join-Path $Unpack "vela.exe"
-  foreach ($Binary in @($Vela)) {
-    if (-not (Test-Path $Binary -PathType Leaf)) { throw "missing release binary: $Binary" }
-    if ($RequirePlatformSignature) {
-      $Signature = Get-AuthenticodeSignature $Binary
-      if ($Signature.Status -ne "Valid") { throw "invalid Authenticode signature for $Binary`: $($Signature.Status)" }
-    }
-  }
+  if (-not (Test-Path $Vela -PathType Leaf)) { throw "missing release binary: $Vela" }
   if ((& $Vela --version) -ne "vela $ExpectedVersion") { throw "vela version mismatch" }
 
   foreach ($Binary in @("vela.exe")) {

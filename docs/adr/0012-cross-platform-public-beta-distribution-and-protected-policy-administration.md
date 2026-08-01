@@ -1,8 +1,13 @@
 # ADR 0012: Cross-platform public-beta distribution and protected policy administration
 
-- Status: Accepted (2026-07-19)
+- Status: Partially superseded (2026-08-01)
 - Target: Vela `v0.910.0`
 - Protocol effect: none
+
+> Current disposition: the custody and Decision-boundary analysis remains
+> historical design evidence. Vela `0.960.0` supersedes this ADR's distribution
+> section with one GitHub-attested `vela` binary; crates.io/npm publication,
+> package-registry smoke jobs, and custom release-trust metadata are retired.
 
 ## Context
 

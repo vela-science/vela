@@ -134,12 +134,6 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         action: ReviewAction,
     },
-    /// Inspect one current Claim.
-    #[command(after_long_help = crate::cli::help_text::CLAIM)]
-    Claim {
-        #[command(subcommand)]
-        command: ClaimCommands,
-    },
     /// Show one exact Vela object by its stable id.
     #[command(after_long_help = crate::cli::help_text::SHOW)]
     Show {
@@ -391,24 +385,6 @@ pub(crate) enum AuthorityTrustAction {
         /// Exact currently installed root when advancing a verified origin pin.
         #[arg(long)]
         previous_record_root: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
-}
-
-// Claim and artifact nouns stay on the compact current surface.
-#[derive(Subcommand)]
-pub(crate) enum ClaimCommands {
-    /// Read-only projection of one current Claim.
-    Show {
-        /// Current Frontier repository
-        frontier: PathBuf,
-        /// Current Claim (`vcl_<hex>`) id
-        claim_id: String,
-        /// record | standing | evidence | attribution
-        #[arg(long, default_value = "record")]
-        view: String,
-        /// Emit stable JSON instead of the human view
         #[arg(long)]
         json: bool,
     },

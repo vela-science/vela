@@ -21,9 +21,9 @@
 
 use std::sync::Mutex;
 
+use crate::style;
 use colored::Colorize;
 use serde_json::json;
-use vela_protocol::cli_style as style;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorKind {

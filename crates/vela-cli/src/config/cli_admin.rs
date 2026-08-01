@@ -1,7 +1,7 @@
 use crate::cli::{fail_return, parse_signing_key, print_identity_created, print_json};
 use crate::cli_commands::IdAction;
+use crate::style;
 use serde_json::json;
-use vela_protocol::cli_style as style;
 use vela_protocol::sign;
 
 /// Manage file-backed producer identities.

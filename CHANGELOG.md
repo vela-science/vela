@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+## v0.960.0 — 2026-08-01 — One direct scientific-state product
+
+- Make repository v4 the only live Frontier contract. Submission records bind
+  their Proposal and Claim lineage directly; live Registration Records and
+  predecessor-era compatibility readers are removed after all four canonical
+  Frontiers passed exact state-preserving compaction.
+- Make Target Index v5 one directly generated, atomically replaced tracked
+  projection. Remove candidate, seal, apply, repair, lease, and local Attempt
+  ceremony while retaining exact source, packet, repository, and Git binding.
+- Authenticate routine Submission and Verification evidence with its own
+  producer or verifier identity. Repository authority is used only for the
+  consequential human Decision that changes Standing.
+- Replace the bundled agent runner and retired Canopus product surface with
+  native tools plus direct Harbor task contracts. Preserve only rooted
+  benchmark evidence and Vela-specific semantic scoring.
+- Add status v3 and Decision Inbox v2 so review and producer work remain
+  independent, protocol-satisfied evidence is distinguished from a human
+  recommendation, and every possible Decision shows its exact Standing delta.
+- Remove unused capability grants, local workflow settings, vendor-specific
+  agent configuration, completed recovery payloads, and the unearned reusable
+  foreign-reference runtime. Historical evidence remains reproducible beside
+  the paper.
+- Ship one GitHub-attested `vela` binary instead of publishing five internal
+  Rust crates and an unused npm package. Keep the TypeScript 0.2.0 boundary
+  private and tested in the workspace until a real external consumer exists.
+- Move CLI presentation out of the protocol crate, remove Tokio's unused
+  runtime, replace bespoke release-trust sidecars with GitHub provenance, and
+  stop running historical paper executors in routine product CI.
+- Remove negative conformance machinery whose only purpose was to prove that
+  retired directories and a rejected foreign-transfer feature stayed absent.
+- Collapse `claim show` into the existing `show` and `why` readers, remove dead
+  platform-signature smoke branches, and make the pinned composite action use
+  the native installer on Unix and Windows.
+
 - Order the Decision Inbox by actionable protocol-satisfied entries before
   blocked cleanup, while preserving oldest-first order within each group.
   This changes only the deterministic read projection and its root; it does

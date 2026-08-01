@@ -16,11 +16,7 @@ pub(crate) fn print_advanced_help() {
     print!("{}", advanced_help_text());
 }
 
-/// The curated, grouped command reference (`vela help advanced`). Kept
-/// hand-curated for legibility — clap's flat alphabetical dump is worse UX —
-/// but `mod surface_tests` asserts every released subcommand appears here,
-/// so it can never silently omit a newly-added command (the drift the old
-/// hand-maintained allowlist suffered, now caught at the help layer too).
+/// The curated, grouped command reference (`vela help advanced`).
 pub(crate) fn advanced_help_text() -> String {
     format!(
         r#"Vela {}
@@ -46,7 +42,6 @@ Daily product:
   doctor        Blockers plus one safe next action
 
 Nouns and setup:
-  claim         record, standing, evidence, and attribution views
   id            optional file-backed producer identity
   agents        regenerate agent adapters from VELA.md
   config        closed local/frontier configuration
