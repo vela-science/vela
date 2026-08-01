@@ -146,12 +146,14 @@ Submission identity is over the exact closed canonical bytes.
 
 `vela.registration-record.v1` proves that Vela validated and retained one
 Submission, its Artifacts, resulting Claim Record, and pending Proposal inside
-one repository-authority transaction.
+one bounded routine-evidence transaction.
 
-It binds unchanged authority-event before/after roots for object-only intake,
-the repository roots, object roots, principal attribution, and transaction
-identity. Registration proves intake, not truth, verification, or acceptance.
-Its Artifact list uses full lowercase content hashes.
+It binds unchanged authority-event before/after roots, the repository roots,
+object roots, principal attribution, and transaction identity. The producer
+signature authenticates the Submission; intake does not read or create a
+repository-authority record. Registration proves intake, not truth,
+verification, or acceptance. Its Artifact list uses full lowercase content
+hashes.
 
 ### 3.5 Verification Record
 
@@ -176,8 +178,9 @@ Outcomes are:
 pass fail inconclusive error
 ```
 
-Import is an object-only repository-authority transaction. It changes no Claim
-Standing and appends no scientific Event.
+Import is a bounded routine-evidence transaction authenticated by the verifier
+signature. It reads no repository-authority key, changes no Claim Standing,
+and appends no scientific Event.
 
 ### 3.6 Proposal
 

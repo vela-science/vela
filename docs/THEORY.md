@@ -106,14 +106,18 @@ s = (
 ```
 
 Registering `s` retains the exact Submission, Artifacts, Claim Record,
-Registration Record, and pending Proposal in one repository-authority
-transaction:
+Registration Record, and pending Proposal in one routine-evidence transaction
+authenticated by the producer signature:
 
 ```text
 Register(s, M) -> (M', pending Proposal)
 ```
 
 Registration changes no accepted Claim.
+
+Routine evidence intake reads no repository-authority key. It may append exact
+content-addressed evidence and rebuild deterministic projections; it may not
+write a Decision, Event, policy, authority state, or accepted Standing.
 
 A Verification Record binds the exact Frontier, Claim, Submission, Proposal,
 Artifacts, verifier, method, environment, scoped property, outcome, and
