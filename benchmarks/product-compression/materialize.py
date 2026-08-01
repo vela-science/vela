@@ -113,8 +113,25 @@ def materialize(
         fail("Submission bytes disagree with the Decision Inbox")
     submission = study.read_json(submission_path)
 
+    standing_delta = entry["standing_delta"]
+    counts = standing_delta.get("counts")
+    if not isinstance(counts, dict):
+        fail("Decision Inbox Standing delta has no integrity counts")
+    unchanged = counts.get("unchanged_accepted_claims")
+    global_counts = counts.get("global_accepted_claims")
+    if not isinstance(unchanged, int) or not isinstance(global_counts, dict):
+        fail("Decision Inbox Standing counts are malformed")
+    for field in ("before", "if_accept", "if_reject"):
+        accepted = standing_delta.get(field, {}).get("accepted")
+        if not isinstance(accepted, list) or global_counts.get(field) != unchanged + len(accepted):
+            fail("Decision Inbox Standing counts disagree with the exact scoped delta")
+    participant_delta = {
+        field: standing_delta[field]
+        for field in ("transition", "scope", "before", "if_accept", "if_reject")
+    }
+
     expected = {
-        "schema": "vela.product-compression-answer.v4",
+        "schema": "vela.product-compression-answer.v5",
         "frontier": {
             "frontier_id": next_work["frontier_id"],
             "repository_root": next_work["repository_root"],
@@ -123,7 +140,6 @@ def materialize(
             "target_id": target["target_id"],
             "target_index_root": next_work["target_index_root"],
             "packet_sha256": packet_root,
-            "next_command": f"vela start {target['target_id']} --frontier . --as agent:<name> --json",
         },
         "decision": {
             "proposal_id": entry["proposal_id"],
@@ -132,12 +148,11 @@ def materialize(
             "proposed_claim_id": entry["claim_id"],
             "verification_ids": [item["verification_record_id"] for item in verifications],
             "verification_set_root": entry["inputs"]["verification_set_root"],
-            "inbox_projection_root": inbox["projection_root"],
             "inbox_entry_root": entry["entry_root"],
             "protocol_gate": entry["readiness"]["protocol_gate"],
             "human_decision_required": entry["readiness"]["human_decision_required"],
             "verification_is_acceptance": False,
-            "standing_delta": entry["standing_delta"],
+            "standing_delta": participant_delta,
             "staleness": entry["staleness"]["state"],
             "next_if_accept_code": "replay_and_recompute_targets",
             "next_if_reject_code": "replay_without_standing_change",
@@ -161,7 +176,7 @@ def materialize(
     }
     study.seal(fixture, "fixture_root")
     answer_key = study.seal({
-        "schema": "vela.product-compression-answer-key.v4",
+        "schema": "vela.product-compression-answer-key.v5",
         "answer_key_root": "", "fixture_root": fixture["fixture_root"], "expected": expected,
     }, "answer_key_root")
     study.validate_answer_key(answer_key)

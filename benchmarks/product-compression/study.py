@@ -12,7 +12,9 @@ import shlex
 import shutil
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
+from statistics import median
 from typing import Any, Iterable, Sequence
 
 ROOT = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -50,7 +52,6 @@ COMPARISON_RULE = {
     "exactness_rule": "guided_dominates_or_ties_baseline",
     "efficiency_when_exactness_tied": "median_elapsed_improves_at_least_20_percent",
     "cost_rule": "guided_median_cost_no_regression",
-    "telemetry_only": ["tool_call_count", "observed_tokens", "uncached_token_proxy"],
 }
 MAYBE_TEXT = (str, type(None))
 STANDING = [{"claim_id": str, "claim_root": str}]
@@ -61,23 +62,18 @@ STANDING_DELTA = {
     "before": STANDING_STATE,
     "if_accept": STANDING_STATE,
     "if_reject": STANDING_STATE,
-    "counts": {
-        "unchanged_accepted_claims": int,
-        "global_accepted_claims": {"before": int, "if_accept": int, "if_reject": int},
-    },
 }
 ANSWER = {
     "schema": str,
     "frontier": {"frontier_id": str, "repository_root": str},
     "next_work": {
         "target_id": str, "target_index_root": str, "packet_sha256": str,
-        "next_command": str,
     },
     "decision": {
         "proposal_id": str, "proposal_root": str, "source_submission_id": str,
         "proposed_claim_id": str, "verification_ids": [str],
-        "verification_set_root": str, "inbox_projection_root": str,
-        "inbox_entry_root": str, "protocol_gate": str, "human_decision_required": bool,
+        "verification_set_root": str, "inbox_entry_root": str,
+        "protocol_gate": str, "human_decision_required": bool,
         "verification_is_acceptance": bool, "standing_delta": STANDING_DELTA,
         "staleness": str,
         "next_if_accept_code": str, "next_if_reject_code": str,
@@ -109,7 +105,6 @@ PLAN = {
         "exactness_rule": str,
         "efficiency_when_exactness_tied": str,
         "cost_rule": str,
-        "telemetry_only": [str],
     },
     "assignments": [{"pair": str, "order": [str]}],
     "publication_policy": {"publish_all_sessions": bool, "publish_failures": bool,
@@ -204,15 +199,13 @@ def rooted(value: dict[str, Any], field: str, location: str = "$") -> None:
 
 def validate_answer(value: Any) -> None:
     shape(value, ANSWER)
-    if value["schema"] != "vela.product-compression-answer.v4":
+    if value["schema"] != "vela.product-compression-answer.v5":
         raise ContractError("$.schema: wrong answer schema")
     frontier, work, review = value["frontier"], value["next_work"], value["decision"]
     matches(frontier["frontier_id"], PATTERNS["frontier"], "$.frontier.frontier_id")
     roots(frontier, ("repository_root",), "$.frontier")
     matches(work["target_id"], re.compile(r"^[A-Za-z0-9._:-]+$"), "$.next_work.target_id")
     roots(work, ("target_index_root", "packet_sha256"), "$.next_work")
-    if not work["next_command"].startswith("vela start "):
-        raise ContractError("$.next_work.next_command: expected exact vela start command")
     id_links = (("proposal_id", "proposal"), ("source_submission_id", "submission"),
                 ("proposed_claim_id", "claim"))
     for field, kind in id_links:
@@ -223,7 +216,7 @@ def validate_answer(value: Any) -> None:
         matches(verification_id, PATTERNS["verification"], f"$.decision.verification_ids[{index}]")
     if len(set(review["verification_ids"])) != len(review["verification_ids"]):
         raise ContractError("$.decision.verification_ids: duplicate Verification")
-    roots(review, ("proposal_root", "verification_set_root", "inbox_projection_root", "inbox_entry_root"), "$.decision")
+    roots(review, ("proposal_root", "verification_set_root", "inbox_entry_root"), "$.decision")
     if review["protocol_gate"] not in {"satisfied", "blocked"} or review["staleness"] not in {"current", "stale"}:
         raise ContractError("$.decision: invalid readiness state")
     required_review = (True, False, "replay_and_recompute_targets", "replay_without_standing_change")
@@ -257,13 +250,6 @@ def validate_answer(value: Any) -> None:
         raise ContractError("$.decision.standing_delta.if_reject: rejection must preserve scoped Standing")
     if len(accepted) != len(before) + 1 or len(additions) != 1 or additions[0]["claim_id"] != review["proposed_claim_id"]:
         raise ContractError("$.decision.standing_delta.if_accept: must add exactly proposed Claim")
-    counts = delta["counts"]
-    nonnegative({"unchanged_accepted_claims": counts["unchanged_accepted_claims"]}, "$.decision.standing_delta.counts")
-    nonnegative(counts["global_accepted_claims"], "$.decision.standing_delta.counts.global_accepted_claims")
-    global_counts = counts["global_accepted_claims"]
-    for field, scoped in (("before", before), ("if_accept", accepted), ("if_reject", rejected)):
-        if global_counts[field] != counts["unchanged_accepted_claims"] + len(scoped):
-            raise ContractError(f"$.decision.standing_delta.counts.global_accepted_claims.{field}: disagrees with scoped delta")
     if delta["before"]["repository_root"] != value["frontier"]["repository_root"]:
         raise ContractError("$.decision.standing_delta.before.repository_root: does not bind inspected repository")
     if value["safety"] != {"authority_action_performed": False, "accepted_state_changed": False}:
@@ -272,7 +258,7 @@ def validate_answer(value: Any) -> None:
 
 def validate_plan(value: Any) -> None:
     shape(value, PLAN)
-    if value["schema"] != "vela.product-compression-plan.v4":
+    if value["schema"] != "vela.product-compression-plan.v5":
         raise ContractError("$.schema: wrong plan schema")
     roots(value, ("fixture_root", "answer_key_root"), "$")
     executor = value["executor"]
@@ -323,7 +309,7 @@ def validate_plan(value: Any) -> None:
 
 def validate_answer_key(value: Any) -> None:
     shape(value, {"schema": str, "answer_key_root": str, "fixture_root": str, "expected": ANSWER})
-    if value["schema"] != "vela.product-compression-answer-key.v4":
+    if value["schema"] != "vela.product-compression-answer-key.v5":
         raise ContractError("$.schema: wrong answer-key schema")
     roots(value, ("fixture_root",), "$")
     validate_answer(value["expected"])
@@ -360,7 +346,7 @@ def freeze_plan(
         }, "tool_contract_root")
 
     value = {
-        "schema": "vela.product-compression-plan.v4",
+        "schema": "vela.product-compression-plan.v5",
         "plan_root": "",
         "fixture_root": fixture_root,
         "answer_key_root": key["answer_key_root"],
@@ -686,6 +672,110 @@ study.write_json(Path("/logs/verifier/reward.json"), {
     return result
 
 
+def file_tree_root(directory: Path) -> dict[str, Any]:
+    """Root Harbor's immutable output without replacing its result model."""
+    if not directory.is_dir():
+        raise ContractError(f"Harbor job directory does not exist: {directory}")
+    rows: list[bytes] = []
+    total_bytes = 0
+    files = sorted((path for path in directory.rglob("*") if path.is_file()), key=lambda path: path.relative_to(directory).as_posix())
+    if any(path.is_symlink() for path in directory.rglob("*")):
+        raise ContractError("Harbor output contains a symlink")
+    for path in files:
+        payload = path.read_bytes()
+        rows.append(f"{hashlib.sha256(payload).hexdigest()}  ./{path.relative_to(directory).as_posix()}\n".encode())
+        total_bytes += len(payload)
+    return {"root": sha256_root(b"".join(rows)), "files": len(files), "bytes": total_bytes}
+
+
+def _timestamp_ms(start: Any, finish: Any) -> int:
+    if not isinstance(start, str) or not isinstance(finish, str):
+        raise ContractError("Harbor trial is missing agent timing")
+    try:
+        delta = datetime.fromisoformat(finish.replace("Z", "+00:00")) - datetime.fromisoformat(start.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ContractError("Harbor trial has invalid agent timing") from exc
+    milliseconds = int(delta.total_seconds() * 1_000)
+    if milliseconds < 0:
+        raise ContractError("Harbor trial has negative elapsed time")
+    return milliseconds
+
+
+def _summarize_trial(job: Path, session_id: str) -> dict[str, Any]:
+    matches = [path for path in job.iterdir() if path.is_dir() and re.fullmatch(rf"[0-9]+-{re.escape(session_id)}__.+", path.name)]
+    if len(matches) != 1:
+        raise ContractError(f"Harbor job must contain one trial for {session_id}")
+    result = read_json(matches[0] / "result.json")
+    if not isinstance(result, dict) or not isinstance(result.get("task_name"), str) or not result["task_name"].endswith(session_id):
+        raise ContractError(f"Harbor trial does not bind {session_id}")
+    if result.get("finished_at") is None or result.get("exception_info") is not None:
+        raise ContractError(f"Harbor trial {session_id} did not finish cleanly")
+    rewards = (result.get("verifier_result") or {}).get("rewards")
+    if not isinstance(rewards, dict) or rewards.get("eligible") not in {0, 1} or rewards.get("exact") not in {0, 1}:
+        raise ContractError(f"Harbor trial {session_id} has invalid native rewards")
+    execution, agent = result.get("agent_execution"), result.get("agent_result")
+    if not isinstance(execution, dict) or not isinstance(agent, dict) or not isinstance(agent.get("cost_usd"), (int, float)):
+        raise ContractError(f"Harbor trial {session_id} is missing native metrics")
+    return {
+        "session_id": session_id,
+        "arm": session_id.rsplit("-", 1)[0],
+        "trial_id": result.get("id"),
+        "eligible": bool(rewards["eligible"]),
+        "exact": bool(rewards["exact"]),
+        "agent_elapsed_ms": _timestamp_ms(execution.get("started_at"), execution.get("finished_at")),
+        "cost_usd": agent["cost_usd"],
+    }
+
+
+def summarize_harbor(plan_path: Path, job: Path) -> dict[str, Any]:
+    """Apply Vela's frozen comparison rule to one native Harbor job."""
+    plan = read_json(plan_path)
+    validate_plan(plan)
+    job_result = read_json(job / "result.json")
+    stats = job_result.get("stats") if isinstance(job_result, dict) else None
+    if not isinstance(stats, dict) or job_result.get("finished_at") is None:
+        raise ContractError("Harbor job is not terminal")
+    if job_result.get("n_total_trials") != 4 or any(stats.get(field) != 0 for field in ("n_running_trials", "n_pending_trials", "n_errored_trials", "n_cancelled_trials", "n_retries")):
+        raise ContractError("Harbor job must contain four clean, terminal, unretried trials")
+    expected = [session for assignment in plan["assignments"] for session in assignment["order"]]
+    sessions = [_summarize_trial(job, session) for session in expected]
+
+    arms: dict[str, dict[str, Any]] = {}
+    for arm in ARMS:
+        selected = [session for session in sessions if session["arm"] == arm]
+        arms[arm] = {
+            "eligible": sum(session["eligible"] for session in selected),
+            "exact": sum(session["eligible"] and session["exact"] for session in selected),
+            "median_agent_elapsed_ms": median(session["agent_elapsed_ms"] for session in selected),
+            "median_cost_usd": median(session["cost_usd"] for session in selected),
+        }
+    baseline, guided = arms["git-files"], arms["vela-guided"]
+    elapsed_improvement = round((baseline["median_agent_elapsed_ms"] - guided["median_agent_elapsed_ms"]) * 10_000 / baseline["median_agent_elapsed_ms"])
+    cost_no_regression = guided["median_cost_usd"] <= baseline["median_cost_usd"]
+    all_eligible = all(session["eligible"] for session in sessions)
+    guided_exact = guided["exact"] == 2
+    tied_exact = baseline["exact"] == guided["exact"] == 2
+    if all_eligible and guided_exact and guided["exact"] > baseline["exact"] and cost_no_regression:
+        outcome = "pass_task_specific_exactness_advantage"
+    elif all_eligible and tied_exact and cost_no_regression and elapsed_improvement >= 2_000:
+        outcome = "pass_efficiency_when_exactness_tied"
+    else:
+        outcome = "failed_no_product_lift_credit"
+    result = {
+        "schema": "vela.product-compression-native-harbor-result.v3",
+        "result_root": "",
+        "plan_root": plan["plan_root"],
+        "job": {"id": job_result.get("id"), **file_tree_root(job)},
+        "sessions": sessions,
+        "comparison": {"arms": arms, "elapsed_improvement_basis_points": elapsed_improvement},
+        "conclusion": {
+            "outcome": outcome,
+            "claim_limit": "First-party evidence from one frozen task; no independent-user or general scientific-workflow claim.",
+        },
+    }
+    return seal(result, "result_root")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -706,6 +796,10 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--vela-linux", type=Path, required=True)
     prepare.add_argument("--job-name", required=True)
     prepare.add_argument("--output", type=Path, required=True)
+    summarize = commands.add_parser("summarize-harbor")
+    summarize.add_argument("--plan", type=Path, required=True)
+    summarize.add_argument("--job", type=Path, required=True)
+    summarize.add_argument("--output", type=Path, required=True)
     return parser
 
 
@@ -726,6 +820,19 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.plan, args.materials, args.frontier, args.vela_linux,
                 args.job_name, args.output,
             )))
+        elif args.command == "summarize-harbor":
+            job = args.job.resolve()
+            output = args.output.resolve()
+            if output == job or job in output.parents:
+                raise ContractError("summary output must remain outside the immutable Harbor job directory")
+            result = summarize_harbor(args.plan, job)
+            write_json(output, result)
+            sys.stdout.buffer.write(canonical_bytes({
+                "ok": True,
+                "result_root": result["result_root"],
+                "outcome": result["conclusion"]["outcome"],
+                "output": str(output),
+            }))
         return 0
     except ContractError as exc:
         print(f"error: {exc}", file=sys.stderr)
