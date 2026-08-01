@@ -86,16 +86,6 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         action: VerifyAction,
     },
-    /// Generate vendor agent-config adapters from the canonical `VELA.md`
-    /// (one source of truth; the adapter files are disposable, regenerable
-    /// leaves). `AGENTS.md`, `CLAUDE.md`, `.cursor/rules/vela.mdc`,
-    /// `.github/copilot-instructions.md` regenerate from
-    /// VELA.md; the deletion test holds (delete them, sync, they return).
-    #[command(after_long_help = crate::cli::help_text::AGENTS)]
-    Agents {
-        #[command(subcommand)]
-        action: AgentsAction,
-    },
     /// Is the SCIENCE intact: re-run every stored witness through the
     /// frozen exact verifiers, from scratch — same input, same answer,
     /// any machine. Complements `vela check`, which verifies the log
@@ -352,35 +342,6 @@ pub(crate) enum IdAction {
     Keygen {
         #[arg(long, default_value = ".vela/keys")]
         out: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-}
-
-/// Regenerable instruction adapters for supported agent tools.
-#[derive(Subcommand)]
-pub(crate) enum AgentsAction {
-    /// Regenerate the adapter files from VELA.md (idempotent; writes only
-    /// what changed).
-    Sync {
-        /// Worktree root holding VELA.md (default: current directory).
-        #[arg(default_value = ".")]
-        root: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Check that the adapters are in sync with VELA.md. Exit 1 on drift or
-    /// a missing adapter (use in CI).
-    Doctor {
-        #[arg(default_value = ".")]
-        root: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Show which adapters would change on the next `sync`.
-    Diff {
-        #[arg(default_value = ".")]
-        root: PathBuf,
         #[arg(long)]
         json: bool,
     },

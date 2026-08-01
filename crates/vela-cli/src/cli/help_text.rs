@@ -160,11 +160,6 @@ Why derives current or retained superseded Claim standing from covered
 Proposal, Verification, Decision, and authority history and binds the
 explanation to current roots.";
 
-pub const AGENTS: &str = "\
-EXAMPLES
-  vela agents sync .     regenerate CLAUDE.md/AGENTS.md/.cursor from VELA.md
-  vela agents doctor .   assert the adapters are in sync (no drift)";
-
 #[cfg(test)]
 mod tests {
     use super::REVIEW;

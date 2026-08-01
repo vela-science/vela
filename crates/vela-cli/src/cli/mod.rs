@@ -81,7 +81,6 @@ pub async fn run_command() {
             );
         }
         Commands::Verification { action } => cmd_verify_evidence(action),
-        Commands::Agents { action } => crate::cli_agents::cmd_agents(action),
         Commands::Completions { shell } => {
             use clap::CommandFactory;
             let mut cmd = Cli::command();
