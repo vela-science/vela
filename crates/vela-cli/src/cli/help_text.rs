@@ -24,8 +24,9 @@ EXAMPLES
                                 inspect the exact target, packet, and read roots
 
 Start is stateless and write-free. It validates the current repository and
-Target Index, builds the exact TargetTaskBinding, and prints a direct Submission
-example. It creates no lease, Attempt, counter, lock, Event, or Standing change.
+Target Index, prints the exact packet and read roots, and includes the exact
+Submission binding when the packet declares rooted execution contracts. It
+creates no lease, Attempt, counter, lock, Event, or Standing change.
 
 SEE ALSO
   vela next   the ranked offer this claims from

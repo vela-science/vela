@@ -155,13 +155,16 @@ infrastructure.
   `29202cfb`, and Sidon `e07b6317`; the database sync, corpus checks, source
   evidence retention, activation, pruning, and production redeploy passed.
 - The same release adds the exact `openai/ten-proofs` source adapter to the
-  existing 11-source Registry and exposes one bounded
-  `erdos:183:astra-fidelity` obligation beside the continuing Erdős 1056
-  work. It does not create an Astra Frontier, infer statement fidelity, or
-  change Standing.
+  existing 11-source Registry. The bounded `erdos:183:astra-fidelity` work
+  now retains a source-bound producer report whose conclusion is `faithful`
+  across definitions, quantifiers, hypotheses, and conclusion. Submission
+  `vsb_d6301c8383af8bc5` remains pending review as Proposal
+  `vpr_3635f052644495be`; it has no independent Verification and changed no
+  accepted Event or Standing. No Astra Frontier or Astra-specific product was
+  created.
 - Two empty local PostgreSQL reconstructions matched every production table,
   Frontier, and source-registry root. The retained evidence artifact root is
-  `sha256:b4aaaa303db2dc5c66fb0cbaccc19face4e65767de5ee74d4ca250c93666409c`.
+  `sha256:e5de95a63f9ab3f66fd8c35fe28b49a8b451d9a25994d0ffa78948ae2a8ace5c`.
 - Pending Proposal sheets now project Vela's exact Decision Inbox packet:
   protocol readiness, the accept/reject Standing delta, limits, next
   obligation, and copyable roots. The Observatory remains read-only.
@@ -389,11 +392,14 @@ The August 1 Astra strategic memo is adopted only through this existing seam.
 Its central observation sharpens the campaign thesis: candidate discovery is
 becoming abundant, while exact source identity, statement fidelity, scoped
 verification, correction-aware Standing, and a safe next obligation remain
-scarce. The next earned step is one `ERDOS-183-ASTRA-FIDELITY` Target in the
-existing Erdős Frontier, comparing the pinned teorth statement, OpenAI
-manuscript theorem, and Lean declaration across definitions, quantifiers,
-hypotheses, and conclusion. Any result uses the ordinary Submission,
-Verification, and human Decision path; checker passage alone changes nothing.
+scarce. The `ERDOS-183-ASTRA-FIDELITY` producer pass compared the pinned
+teorth statement, OpenAI manuscript theorem, and Lean declaration and found
+no definition, quantifier, hypothesis, or conclusion mismatch. The report is
+rooted at
+`sha256:dc40f2221ab2a2e0101e328026f1a4bd6a439c47e9c215677deb671ee42da368`.
+Its Claim remains pending until a separately scoped reviewer recomputes the
+source roots and report matrix; even a passing Verification would not choose a
+human Decision or change Standing.
 
 Do not create an Astra Frontier, universal status ladder, reviewer service,
 source-monitoring daemon, graph store, or standalone Scientific Release
@@ -466,7 +472,7 @@ reputation score, or `1.0.0` schedule.
 | Vela | `0.962.1` is published with direct producer withdrawal, compacted-lineage reconstruction, and current-root Decision checks; release checks are green | keep one train and release only for demonstrated changes |
 | Cross-language readers | standalone Python and JavaScript conformance readers | keep package-free until a real external consumer requires a library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; the current checkpoint binds projection root `sha256:a5fb257a67b0b2c4a5320a24a74ca44a0ad0c0be64940ee68269b6abe4a160d5`, 11 exact sources, 6,713 native records, and clean-room artifact `sha256:b4aaaa303db2dc5c66fb0cbaccc19face4e65767de5ee74d4ca250c93666409c` | keep the exact source projection; add no Astra-specific UI or broader execution until a real consumer earns it |
+| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; the current checkpoint binds projection root `sha256:a5fb257a67b0b2c4a5320a24a74ca44a0ad0c0be64940ee68269b6abe4a160d5`, 11 exact sources, 6,713 native records, and current-head clean-room artifact `sha256:e5de95a63f9ab3f66fd8c35fe28b49a8b451d9a25994d0ffa78948ae2a8ace5c` | keep the exact source projection; add no Astra-specific UI or broader execution until a real consumer earns it |
 | Frontiers | canonical Git sources with pending human Decisions; the obsolete Formal duplicate is withdrawn with zero accepted delta | decide or cancel exact remaining Proposals, replay, remap |
 | Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 

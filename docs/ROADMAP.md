@@ -30,6 +30,10 @@ identity. This roadmap records only product sequence.
   not external-participant independence or acceptance.
 - A correction from Erdős was retained and checked by Formal without importing
   Erdős authority.
+- The pinned OpenAI `ten-proofs` release has an exact source adapter,
+  clean-room Lean and Comparator reproduction, and a bounded Erdős 183
+  statement-fidelity Submission. Its `faithful` producer conclusion remains
+  pending independent Verification and changed no Standing.
 - The Observatory exposes a rebuildable, SELECT-only Math Source Registry and
   Math Atlas. Git remains authoritative.
 - Vela owns no agent runner, scheduler, graph database, hosted authority, or
