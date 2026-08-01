@@ -194,12 +194,14 @@ struct EntryInputs<'a> {
     claim: &'a ClaimRecordV1,
     submission: &'a SubmissionV1,
     verifications: &'a [(String, VerificationRecordV1)],
+    pending_conflicts: &'a [String],
     authority_heads: &'a DecisionInboxAuthorityHeads,
 }
 
 fn acceptance_blockers(
     submission: &SubmissionV1,
     records: &[(String, VerificationRecordV1)],
+    pending_conflicts: &[String],
 ) -> Vec<DecisionInboxBlocker> {
     let mut blockers = Vec::new();
     for (_, record) in records {
@@ -227,6 +229,15 @@ fn acceptance_blockers(
                 ),
             });
         }
+    }
+    for proposal_id in pending_conflicts {
+        blockers.push(DecisionInboxBlocker {
+            code: "same_execution_pending".into(),
+            subject: proposal_id.clone(),
+            detail: format!(
+                "Proposal {proposal_id} binds the same exact producer run, attempt, artifacts, scope, requested change, and verifier contract. Resolve one wording before acceptance."
+            ),
+        });
     }
     blockers.sort();
     blockers.dedup();
@@ -399,7 +410,7 @@ fn derive_entry(inputs: EntryInputs<'_>) -> Result<DecisionInboxEntry, String> {
         ));
     }
 
-    let blockers = acceptance_blockers(submission, records);
+    let blockers = acceptance_blockers(submission, records, inputs.pending_conflicts);
     let accepted = next_repository(
         inputs.repository,
         proposal,
@@ -598,6 +609,12 @@ pub(crate) fn project(frontier: &Path) -> Result<DecisionInboxProjection, String
         let submission = submission_for_proposal(frontier, &repository, &proposal)?;
         let verifications =
             exact_verifications(frontier, &repository, &proposal, &claim, &submission)?;
+        let pending_conflicts = crate::current_repository_decision::pending_submission_conflicts(
+            frontier,
+            &repository,
+            &proposal,
+            &submission,
+        )?;
         entries.push(derive_entry(EntryInputs {
             repository: &repository,
             repository_root: &repository_root,
@@ -606,6 +623,7 @@ pub(crate) fn project(frontier: &Path) -> Result<DecisionInboxProjection, String
             claim: &claim,
             submission: &submission,
             verifications: &verifications,
+            pending_conflicts: &pending_conflicts,
             authority_heads: &authority_heads,
         })?);
     }
@@ -1023,6 +1041,7 @@ mod tests {
             claim,
             submission,
             verifications: &[(verification.canonical_root().unwrap(), verification.clone())],
+            pending_conflicts: &[],
             authority_heads,
         })
         .unwrap()
@@ -1277,6 +1296,41 @@ mod tests {
             ]
         );
         assert!(entry.next_obligation.now.contains("2 acceptance blocker"));
+    }
+
+    #[test]
+    fn same_execution_wording_retry_blocks_acceptance_without_hiding_rejection() {
+        let requirement = "Replay the exact fixture.";
+        let subject = claim("A bounded fixture result.", 1, Vec::new());
+        let submission = submission(requirement);
+        let proposal = proposal("claim.add", &subject, &submission);
+        let verification = verification(&proposal, &submission, requirement, "pass");
+        let repository = repository(
+            Vec::new(),
+            vec![claim_standing(&subject, "pending_review")],
+            &proposal,
+            &submission,
+            &verification,
+        );
+        let proposal_reference = repository.proposals.first().unwrap();
+        let entry = derive_entry(EntryInputs {
+            repository: &repository,
+            repository_root: &repository.canonical_root().unwrap(),
+            proposal_reference,
+            proposal: &proposal,
+            claim: &subject,
+            submission: &submission,
+            verifications: &[(verification.canonical_root().unwrap(), verification)],
+            pending_conflicts: &["vpr_correctedwording".into()],
+            authority_heads: &heads(),
+        })
+        .unwrap();
+
+        assert_eq!(entry.readiness.protocol_gate, "blocked");
+        assert!(entry.readiness.rejection_available);
+        assert_eq!(entry.readiness.blockers.len(), 1);
+        assert_eq!(entry.readiness.blockers[0].code, "same_execution_pending");
+        assert_eq!(entry.readiness.blockers[0].subject, "vpr_correctedwording");
     }
 
     #[test]

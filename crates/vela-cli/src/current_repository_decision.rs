@@ -243,6 +243,94 @@ pub(crate) fn require_acceptance_evidence(
     Ok(())
 }
 
+/// Return whether two pending Submissions are alternate semantic renderings
+/// of the same exact producer execution.
+///
+/// A shared artifact is not enough: one run may support multiple Claims. The
+/// collision key therefore requires the same producer, source system, run,
+/// attempt, requested change, scoped conditions, artifacts, and verifier
+/// contract. The assertion may differ because corrected wording is the common
+/// reason the same execution is submitted twice.
+pub(crate) fn same_exact_producer_execution(left: &SubmissionV1, right: &SubmissionV1) -> bool {
+    let Some(left_run) = left.provenance.source_run.as_deref() else {
+        return false;
+    };
+    let Some(right_run) = right.provenance.source_run.as_deref() else {
+        return false;
+    };
+    let Some(left_attempt) = left.provenance.source_attempt.as_deref() else {
+        return false;
+    };
+    let Some(right_attempt) = right.provenance.source_attempt.as_deref() else {
+        return false;
+    };
+    if left_run.is_empty()
+        || left_attempt.is_empty()
+        || left_run != right_run
+        || left_attempt != right_attempt
+    {
+        return false;
+    }
+
+    let mut left_artifacts = left
+        .artifacts
+        .iter()
+        .map(|artifact| (&artifact.kind, &artifact.digest))
+        .collect::<Vec<_>>();
+    let mut right_artifacts = right
+        .artifacts
+        .iter()
+        .map(|artifact| (&artifact.kind, &artifact.digest))
+        .collect::<Vec<_>>();
+    left_artifacts.sort();
+    right_artifacts.sort();
+
+    !left_artifacts.is_empty()
+        && left.provenance.producer == right.provenance.producer
+        && left.provenance.source_system == right.provenance.source_system
+        && left.requested_change == right.requested_change
+        && left.claim.claim_type == right.claim.claim_type
+        && left.claim.conditions == right.claim.conditions
+        && left_artifacts == right_artifacts
+        && left.verification_requirements == right.verification_requirements
+        && left.execution_binding == right.execution_binding
+}
+
+/// Find unresolved sibling Proposals that bind the same exact producer
+/// execution. Accepting either sibling while both remain pending would make a
+/// wording retry look like two independent scientific advances.
+pub(crate) fn pending_submission_conflicts(
+    frontier: &Path,
+    repository: &CurrentRepositoryV3,
+    proposal: &ProposalV1,
+    submission: &SubmissionV1,
+) -> Result<Vec<String>, String> {
+    let decisions =
+        crate::current_repository::load_current_proposal_decisions(frontier, repository)?;
+    let mut conflicts = Vec::new();
+    for reference in &repository.proposals {
+        if reference.id == proposal.proposal_id || decisions.contains_key(&reference.id) {
+            continue;
+        }
+        let sibling = read_exact(
+            frontier,
+            &reference.path,
+            &reference.root,
+            ProposalV1::parse,
+            ProposalV1::canonical_bytes,
+        )?;
+        if sibling.action != proposal.action {
+            continue;
+        }
+        let sibling_submission = submission_for_proposal(frontier, repository, &sibling)?;
+        if same_exact_producer_execution(submission, &sibling_submission) {
+            conflicts.push(sibling.proposal_id);
+        }
+    }
+    conflicts.sort();
+    Ok(conflicts)
+}
+
 fn load_origin(frontier: &Path) -> Result<RepositoryOriginV1, String> {
     let bytes = fs::read(frontier.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
@@ -296,6 +384,14 @@ pub(crate) fn prepare(
     let verifications = exact_verifications(frontier, &repository, &proposal, &claim, &submission)?;
     if action == DecisionAction::Accept {
         require_acceptance_evidence(&submission, &verifications)?;
+        let conflicts =
+            pending_submission_conflicts(frontier, &repository, &proposal, &submission)?;
+        if !conflicts.is_empty() {
+            return Err(format!(
+                "current acceptance is blocked by unresolved sibling Proposal(s) {} from the same exact producer execution; reject or withdraw the obsolete wording first",
+                conflicts.join(", ")
+            ));
+        }
     }
     let profile = vela_protocol::current_repository::CurrentFrontierProfileV2::from_yaml_str(
         &fs::read_to_string(frontier.join("frontier.yaml"))
@@ -1057,6 +1153,23 @@ mod tests {
             require_acceptance_evidence(&submission, &[(root('1'), passing), (root('5'), failing)])
                 .is_err()
         );
+    }
+
+    #[test]
+    fn execution_collision_requires_the_complete_exact_attempt_identity() {
+        let mut original = submission();
+        original.provenance.source_attempt = Some("attempt_fixture".into());
+        let mut refined_wording = original.clone();
+        refined_wording.claim.assertion = "A more precise bounded fixture result.".into();
+        assert!(same_exact_producer_execution(&original, &refined_wording));
+
+        let mut another_attempt = refined_wording.clone();
+        another_attempt.provenance.source_attempt = Some("attempt_other".into());
+        assert!(!same_exact_producer_execution(&original, &another_attempt));
+
+        let mut another_artifact = refined_wording;
+        another_artifact.artifacts[0].digest = root('b');
+        assert!(!same_exact_producer_execution(&original, &another_artifact));
     }
 
     #[test]
