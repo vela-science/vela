@@ -266,6 +266,15 @@ A positive claim requires zero authority errors and at least 20 percent median
 improvement on its registered primary metric. First-party runs debug the
 method; they do not establish adoption or independence.
 
+The held-out correction selector now reads the current repository-v4 Frontier
+epoch and was rerun against Erdős `da791f88`, Formal `6cbc2cb5`, Sidon
+`e07b6317`, and Quantum `29202cfb`. Its retained byte root is
+`sha256:c6462c22e049e2fc392ec129769bb8230f95b14f74eabf4714c3654366e555a9`.
+The result remains `no_qualifying_candidate`: only the excluded Erdős 424
+writer-qualification case appears, and it lacks the required consequential
+topology. The campaign records the negative gate and does not manufacture a
+synthetic substitute.
+
 The first current native Harbor comparison passed its registered
 task-specific exactness gate. A second comparison now tests current-head
 continuation after a real authorized bounded transition. The next benchmark

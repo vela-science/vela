@@ -569,6 +569,14 @@ The deterministic result at
 therefore records `no_qualifying_candidate`. The held-out entry gate failed;
 the experiment did not substitute a synthetic case.
 
+After the four Frontiers advanced to repository v4, the selector was updated
+only to recognize that repository epoch and rerun against Erdős `da791f88`,
+Formal `6cbc2cb5`, Sidon `e07b6317`, and Quantum `29202cfb`. The retained
+current-head result has byte root
+`sha256:c6462c22e049e2fc392ec129769bb8230f95b14f74eabf4714c3654366e555a9`
+and reaches the same negative outcome. This maintenance rerun does not replace
+or reinterpret the frozen first execution.
+
 ### 6.5 Living map-to-target qualification
 
 The prospective product loop freezes one read projection before work. Erdős

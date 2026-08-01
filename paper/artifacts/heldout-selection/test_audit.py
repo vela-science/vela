@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib.util
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 MODULE_PATH = Path(__file__).with_name("audit.py")
@@ -16,6 +17,25 @@ SPEC.loader.exec_module(AUDIT)
 
 
 class HeldoutSelectionTests(unittest.TestCase):
+    def test_current_repository_epoch_is_supported(self) -> None:
+        with patch.object(
+            AUDIT,
+            "git_json",
+            return_value={"schema": "vela.repository.v4", "accepted_claims": []},
+        ):
+            value = AUDIT.repository_at(Path("frontier"), "head")
+
+        self.assertEqual(value["schema"], "vela.repository.v4")
+
+    def test_unknown_repository_epoch_fails_closed(self) -> None:
+        with patch.object(
+            AUDIT,
+            "git_json",
+            return_value={"schema": "vela.repository.v5", "accepted_claims": []},
+        ):
+            with self.assertRaisesRegex(ValueError, "not a supported Vela repository epoch"):
+                AUDIT.repository_at(Path("frontier"), "head")
+
     def test_topology_requires_each_declared_route_class(self) -> None:
         predecessor = f"vcl_{'a' * 64}"
         independent = f"vcl_{'e' * 64}"

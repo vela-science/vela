@@ -36,3 +36,12 @@ The canonical result is `result.v1.json`, byte root
 `sha256:f80cf6b81c9b056535ccf17a24b1631d8f3e57d3bc3ecea65d7516c1b831be5b`.
 Its outcome is `no_qualifying_candidate`, which is the preregistered failed
 held-out entry gate. No synthetic or preferred case replaces it.
+
+The 2026-08-01 current-head rerun is retained separately as
+`result.2026-08-01.json`, byte root
+`sha256:c6462c22e049e2fc392ec129769bb8230f95b14f74eabf4714c3654366e555a9`.
+It adds repository-v4 reader support and scans Erdős `da791f88`, Formal
+`6cbc2cb5`, Sidon `e07b6317`, and Quantum `29202cfb`. It reaches the same
+`no_qualifying_candidate` outcome: the only candidate remains the excluded
+Erdős 424 qualification case and still lacks the required consequence
+topology. The original frozen result remains unchanged.

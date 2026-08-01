@@ -59,7 +59,8 @@ def git_json(repo: Path, revision: str, path: str) -> dict[str, Any]:
 def repository_at(repo: Path, revision: str) -> dict[str, Any]:
     value = git_json(repo, revision, ".vela/repository.json")
     require(
-        value.get("schema") in {"vela.repository.v2", "vela.repository.v3"},
+        value.get("schema")
+        in {"vela.repository.v2", "vela.repository.v3", "vela.repository.v4"},
         f"{repo.name}@{revision} is not a supported Vela repository epoch",
     )
     return value
