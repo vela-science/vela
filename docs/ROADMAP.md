@@ -54,6 +54,10 @@ identity. This roadmap records only product sequence.
   52.69 percent lower median agent time and 54.77 percent lower median cost.
   This is still first-party evidence; the local Proposal remains pending a
   human Decision.
+- The Astra source-fidelity comparison completed with all four trials eligible
+  but 0/4 exact. The guided arm was faster and cheaper, but the registered gate
+  failed and earns no product-lift claim. Its one-off task implementation was
+  not retained as active harness surface.
 
 ## Now — prove the product loop
 

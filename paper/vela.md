@@ -33,6 +33,8 @@ quantum-correction comparison. In the latter, Vela-guided agents returned 2/2
 exact answers while Git/files agents returned 0/2; median agent time fell
 51.44 percent and median cost fell 56.87 percent. This is first-party,
 single-task evidence, not general productivity or independent-user evidence.
+A later Astra source-fidelity comparison returned 0/2 exact in both arms and
+therefore earned no product-lift credit, despite lower guided time and cost.
 Neither experiment has the consequential topology or external independence
 required by the registered benchmark. The
 frozen held-out selector subsequently found no qualifying candidate, so confirmatory
@@ -51,10 +53,10 @@ Source-local closure and later exact completions now close producer work
 through `10430400` and expose `10430401..10430600` as the next nonduplicate
 range. The retained 2026-08-01 Vela Web Atlas checkpoint uses the repository-v4
 reader. Its exact projection at root
-`sha256:9ca8bca4b4a7d9430d494094863c3b57e838159f858248c987abde26153ba107`
-contains 4,136 graph nodes, 2,589 edges, 6,713 native source records, and 5,845
+`sha256:a96c527f9c69225666cb4bcb3346a6a1e46e6b25fd6ed47a428ebd5e3aa03183`
+contains 4,139 graph nodes, 2,591 edges, 6,713 native source records, and 5,845
 Frontier bindings, including the later non-authorizing Formal withdrawal.
-Five Erdős, two Formal, and one quantum-certificate Proposal remain pending
+Six Erdős, two Formal, and one quantum-certificate Proposal remain pending
 human Decisions; one
 broader-worded Erdős predecessor Proposal remains retained separately rather
 than being rewritten. These facts do not establish acceptance, inheritance
@@ -114,7 +116,8 @@ deterministic remap. The loop reproduced a stale-Target failure that later
 source-local closure and exact completions repaired. The exact four-Frontier
 Atlas is now released. Three first-party native Harbor comparisons pass
 bounded quantum-correction, post-Decision Erdős continuation, and Formal
-receiver-continuation gates, but real correction-impact propagation,
+receiver-continuation gates. A fourth Astra source-fidelity comparison failed
+its exactness gate. Real correction-impact propagation,
 post-Decision remapping of the current pending results, held-out confirmation,
 and external independence remain registered experiments.
 
@@ -662,8 +665,8 @@ not establish cold-user lift or automatic domain-generic closure.
 Subsequent exact completions close Erdős producer work through `10430400` and
 leave `10430401..10430600` as the next nonduplicate range. The retained
 2026-08-01 Vela Web checkpoint serves the exact repository-v4 projection at
-root `sha256:9ca8bca4b4a7d9430d494094863c3b57e838159f858248c987abde26153ba107`.
-Five Erdős, two Formal, and one quantum-certificate Proposal remain pending
+root `sha256:a96c527f9c69225666cb4bcb3346a6a1e46e6b25fd6ed47a428ebd5e3aa03183`.
+Six Erdős, two Formal, and one quantum-certificate Proposal remain pending
 human Decisions; their
 Verifications do not change Standing. The earlier broader-worded Erdős
 Proposal remains retained and pending rather than replacing the corrected
@@ -857,6 +860,15 @@ result is rooted at
 Both are first-party, single-task results. They establish neither general
 productivity lift nor independent-user advantage, and the Formal receiver
 Proposal remains pending a human Decision.
+
+A fourth comparison tested one Astra / Erdős 183 source-fidelity packet. All
+four trials were eligible, but both arms returned 0/2 exact; the registered
+gate therefore failed. Guided median time was 51.09 percent lower and median
+cost was 66.12 percent lower, but those directional differences receive no
+product-lift credit. The compact negative result is rooted at
+`sha256:371f341311d1f1a3bbc850594a90dd0a1627e655308635d2ffa87b3081a2e823`.
+Its prose-sensitive exact scorer is retained as a limitation, not relaxed after
+the outputs existed.
 
 ### 6.10 Registered benchmark matrix
 
@@ -1079,14 +1091,14 @@ authentication. The first state-reading pilot used first-party Codex model
 sessions and failed its hard token budget. The later native Harbor comparison
 passed one narrower pre-Decision quantum-correction gate, but it also used first-party
 Codex trials and one task. Neither result establishes human reviewer-time,
-two-fixture cold-inheritance lift, or independent adoption. The
+two-fixture cold-inheritance lift, or independent adoption. The Harbor
 benchmark has not measured federation or recurring external use. SHA-256 and
 Ed25519 are assumed secure. Git hosting availability is operationally useful
 but not canonical.
 
 The Math Atlas has passed rooted, bounded Neon ingestion and clean-room
 reconstruction on the current schema. Its exact production projection contains
-4,136 graph nodes, 2,589 edges, 6,713 native source records, and 5,845
+4,139 graph nodes, 2,591 edges, 6,713 native source records, and 5,845
 Frontier bindings. No 1,000,000-record result exists. These results establish
 bounded reconstruction and operation, not general scalability, adoption, or
 user value. Current counts describe the audited corpus, not a capacity limit
@@ -1168,7 +1180,8 @@ bounded task-specific gates: quantum correction, post-Decision Erdős
 continuation, and Formal foreign-reference receiver continuation. Each had
 Vela-guided agents exact in 2/2 trials and Git/files agents exact in 0/2. These
 remain first-party, single-task results and are not general or independent-user
-claims. A historical foreign-reference envelope
+claims. A fourth Astra source-fidelity comparison failed with 0/2 exact in
+both arms and earns no lift claim. A historical foreign-reference envelope
 qualified the real source package in two colocated readers, including its
 authority signature. A second Frontier retained that exact package through a
 pending, non-authoritative Submission, imported a scoped Verification, and
@@ -1184,7 +1197,7 @@ its coverage from exact ancestor bytes. Later exact completions close producer
 work through `10430400` and expose `10430401..10430600` as the next
 nonduplicate range without changing Standing. The production Atlas uses the
 repository-v4 reader and includes the later non-authorizing Formal withdrawal.
-Five Erdős, two Formal, and one quantum-certificate Proposal remain pending
+Six Erdős, two Formal, and one quantum-certificate Proposal remain pending
 human Decisions, so their post-Decision remaps remain
 unfinished. An earlier broader-worded Erdős Proposal remains retained
 separately. The frozen held-out selector also found no qualifying candidate.

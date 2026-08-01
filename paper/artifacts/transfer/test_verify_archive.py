@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import importlib.util
+import json
 import subprocess
 import sys
 import tarfile
@@ -17,6 +18,10 @@ MATERIALIZE = Path(__file__).resolve().parent / "materialize_real_reference.py"
 REFERENCE_ROOT = (
     "sha256:b7b330ae6ea4915d5bac218233f0a272"
     "ee961060682be6d22f6a8ea1b78c4ed6"
+)
+OBJECT_SET_ROOT = (
+    "sha256:f9cc936b42f7ee624d98583332454dbb"
+    "46b68c00fa2819d990cea4d6d7daec8a"
 )
 
 
@@ -103,6 +108,95 @@ class VerifyArchiveTest(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("authority_signature=verified", result.stdout)
+
+    def test_archive_is_readable_from_a_minimal_empty_environment(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            staging = Path(raw)
+            reader_dir = staging / "paper" / "artifacts" / "transfer"
+            canonical_dir = staging / "conformance" / "readers" / "python"
+            input_dir = staging / "input"
+            reader_dir.mkdir(parents=True)
+            canonical_dir.mkdir(parents=True)
+            input_dir.mkdir()
+
+            for source, destination in [
+                (VERIFY, reader_dir / "verify_archive.py"),
+                (
+                    VERIFY.parent / "verify_foreign_reference.py",
+                    reader_dir / "verify_foreign_reference.py",
+                ),
+                (
+                    ROOT / "conformance" / "readers" / "python" / "canonical.py",
+                    canonical_dir / "canonical.py",
+                ),
+            ]:
+                destination.write_bytes(source.read_bytes())
+
+            archive = input_dir / "erdos-424-reference.tar.gz"
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(PACK),
+                    "--package-root",
+                    str(PACKAGE),
+                    "--output",
+                    str(archive),
+                ],
+                cwd=ROOT,
+                check=True,
+            )
+
+            empty_home = staging / "empty-home"
+            empty_home.mkdir()
+            result = subprocess.run(
+                [
+                    "/usr/bin/env",
+                    "-i",
+                    "PATH=/usr/bin:/bin",
+                    f"HOME={empty_home}",
+                    "PYTHONDONTWRITEBYTECODE=1",
+                    sys.executable,
+                    str(reader_dir / "verify_archive.py"),
+                    "--archive",
+                    str(archive),
+                    "--expected-root",
+                    REFERENCE_ROOT,
+                    "--json",
+                ],
+                cwd=Path(tempfile.gettempdir()),
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            observed = json.loads(result.stdout)
+            self.assertEqual(
+                observed,
+                {
+                    "archive": str(archive.resolve()),
+                    "authority_signature": "verified",
+                    "local_standing_effect": "none",
+                    "object_count": 11,
+                    "object_set_root": OBJECT_SET_ROOT,
+                    "ok": True,
+                    "reference_root": REFERENCE_ROOT,
+                    "schema": "vela.foreign-reference-archive-verification.v1",
+                    "semantic_chain": "verified",
+                },
+            )
+            self.assertEqual(
+                sorted(
+                    path.relative_to(staging).as_posix()
+                    for path in staging.rglob("*")
+                    if path.is_file()
+                ),
+                [
+                    "conformance/readers/python/canonical.py",
+                    "input/erdos-424-reference.tar.gz",
+                    "paper/artifacts/transfer/verify_archive.py",
+                    "paper/artifacts/transfer/verify_foreign_reference.py",
+                ],
+            )
 
     def test_path_escape_fails(self) -> None:
         with tempfile.TemporaryDirectory() as raw:

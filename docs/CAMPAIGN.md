@@ -175,8 +175,10 @@ infrastructure.
   obligation, and copyable roots. The Observatory remains read-only.
 - The current Registry adapter artifact has an immutable GitHub release
   locator and independently reproduced byte root.
-- External cold-user lift, correction propagation, and independently governed
-  interoperability remain unproved.
+- External cold-user lift, correction propagation, and organizationally
+  independent interoperability remain unproved. The bounded technical B8
+  transfer already passes between distinct Frontier authority keysets with no
+  imported Standing.
 
 ## Active gates
 
@@ -408,15 +410,39 @@ passes with explicit shared model, operator, and machine limitations. It does
 not establish novelty, community acceptance, or external independence, and it
 does not choose a human Decision or change Standing.
 
+The resulting Astra scorecard is deliberately narrower than the release:
+
+| Layer | Exact result | Claim ceiling |
+| --- | --- | --- |
+| Source identity | one immutable OpenAI commit/tree, one exact teorth observation, and one retained Erdős statement snapshot | the observations are source- and time-bound; neither source governs the other |
+| Reproduction | 1 of 12 declared Comparator profiles passed Lean, Nanoda, and the retained hardened Linux path | no claim about the other eleven profiles or the whole release |
+| Statement fidelity | 1 of 1 selected statements received a six-part producer matrix, zero recorded discrepancies, and one separately scoped first-party Verification | shared model family, operator, and machine do not establish external independence |
+| Novelty and mathematical review | 0 external novelty reviews and 0 independent mathematical re-proofs | kernel passage and fidelity review do not establish novelty, importance, or consensus |
+| Authority | 0 human Decisions, 0 accepted Events, and 0 Standing changes | the pending Proposal is evidence awaiting an attributed human choice, not an accepted result |
+| Product value | four first-party cold-agent Harbor trials completed; 0 of 4 exact | the registered gate failed, so no usability, adoption, or reviewer-efficiency claim |
+
+The registered product test preserved those denominators. It measured whether
+a cold agent could locate the exact source observation, distinguish reproduced
+checking from statement fidelity and Standing, identify the source-timing
+disagreement, and recover the pending Proposal's Decision packet plus next
+valid obligation. For this class of external release, the operating rule is:
+reference broadly, snapshot selectively, admit narrowly.
+
+The frozen Harbor study completed with all four trials eligible but neither arm
+exact. The Vela-guided arm was 51.09 percent faster and 66.12 percent cheaper
+at the median, but it receives no product-lift credit. Both guided answers
+recovered nearly all frozen facts; one omitted the explicit `pending_review`
+field, the other added a truthful limit, and both paraphrased a prose field that
+the frozen scorer required byte-for-byte. The result remains failed. A future
+study must encode semantic distinctions as bounded fields before execution;
+the scorer cannot be relaxed after outputs exist. The compact result root is
+`sha256:371f341311d1f1a3bbc850594a90dd0a1627e655308635d2ffa87b3081a2e823`.
+
 Do not create an Astra Frontier, universal status ladder, reviewer service,
 source-monitoring daemon, graph store, or standalone Scientific Release
 Manifest schema. Do not run the other eleven Comparator profiles for a vanity
 count. A broader export or product surface is earned only by a named second
-consumer. If product lift is tested, reuse the current Harbor comparison and
-measure whether a cold reader identifies the reported claim, reproduced
-checks, unresolved fidelity and novelty, source disagreement, and exact next
-obligation at least 20% faster than from the raw OpenAI and teorth materials,
-with zero authority errors.
+consumer. Do not rerun the failed task merely to seek a favorable score.
 
 ## Verification
 

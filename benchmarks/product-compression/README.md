@@ -113,16 +113,19 @@ Trajectories, session logs, recordings, credentials, Docker caches, and other
 generated execution state do not belong in Git.
 
 Current compact results are
-[`paper/artifacts/product-compression-v11`](../../paper/artifacts/product-compression-v11/README.md)
+[`paper/artifacts/product-compression-v11`](../../paper/artifacts/product-compression-v11/README.md),
+[`paper/artifacts/product-compression-erdos-post-decision-2026-08-01`](../../paper/artifacts/product-compression-erdos-post-decision-2026-08-01/README.md),
 and
-[`paper/artifacts/product-compression-erdos-post-decision-2026-08-01`](../../paper/artifacts/product-compression-erdos-post-decision-2026-08-01/README.md).
+[`paper/artifacts/product-compression-formal-foreign-reference-2026-08-01`](../../paper/artifacts/product-compression-formal-foreign-reference-2026-08-01/README.md).
+The failed Astra source-fidelity gate is retained separately at
+[`paper/artifacts/product-compression-astra-fidelity-2026-08-01`](../../paper/artifacts/product-compression-astra-fidelity-2026-08-01/README.md).
 Their complete native Harbor studies and jobs are retained outside the source tree
 under a SHA-256 manifest so generated execution state does not become product
 code.
 
 ## History
 
-The active tree keeps only the current pre-Decision correction and
-post-Decision continuation results. Earlier failed, superseded, and invalidated
-iterations remain available in Git history; they are not active harnesses,
-compatibility targets, or runtime inputs.
+The active harness keeps only scenarios that remain useful. Failed,
+superseded, and invalidated task implementations do not remain as runtime
+surface merely to reproduce old runs; their frozen inputs, outputs, and
+claim-limited compact results remain available as evidence.
