@@ -103,6 +103,20 @@ fn git_text(frontier: &Path, args: &[&str]) -> String {
         .to_string()
 }
 
+fn configure_test_git_identity(frontier: &Path) {
+    for (key, value) in [
+        ("user.name", "Vela Test"),
+        ("user.email", "vela@example.invalid"),
+    ] {
+        let configured = Command::new("git")
+            .current_dir(frontier)
+            .args(["config", key, value])
+            .status()
+            .expect("configure test Git identity");
+        assert!(configured.success());
+    }
+}
+
 fn install_current_target_index(frontier: &Path, _socket: &Path) {
     std::fs::create_dir_all(frontier.join("domain")).expect("domain directory");
     std::fs::write(frontier.join("domain/source.json"), br#"{"open":[1056]}"#)
@@ -442,6 +456,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             "--json",
         ],
     ));
+    configure_test_git_identity(&frontier);
     let authority = success_json(&run(
         &frontier,
         Some(agent.socket()),
