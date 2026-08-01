@@ -11,11 +11,12 @@ import re
 import sys
 from pathlib import Path, PurePosixPath
 
-from readers.python.canonical import canonical_bytes
+REPO_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(REPO_ROOT / "conformance"))
 
+from readers.python.canonical import canonical_bytes  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_PACKAGE = ROOT / "paper" / "artifacts" / "transfer" / "erdos-424"
+DEFAULT_PACKAGE = REPO_ROOT / "paper" / "artifacts" / "transfer" / "erdos-424"
 REQUIRED_ROLES = {
     "applied_event",
     "authority_keyset",

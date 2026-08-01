@@ -63,11 +63,7 @@ def main() -> int:
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     archive_path = args.archive.expanduser().resolve()
-    verifier = (
-        Path(__file__).resolve().parents[3]
-        / "conformance"
-        / "verify_foreign_reference.py"
-    )
+    verifier = Path(__file__).resolve().parent / "verify_foreign_reference.py"
     try:
         with tempfile.TemporaryDirectory(prefix="vela-foreign-reference-") as raw:
             package = Path(raw)

@@ -121,7 +121,6 @@ def main() -> int:
         "verify_current_objects.py",
         "verify_correction_impact.py",
         "verify_transfer_contract_gap.py",
-        "verify_foreign_reference.py",
     )
     for script in checks:
         print(f"\n== {script.removeprefix('verify_').removesuffix('.py')} ==")

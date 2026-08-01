@@ -25,7 +25,7 @@ HERE = Path(__file__).resolve().parent
 PLAN = HERE / "scientific-change-package-plan.v1.json"
 AMENDMENT = HERE / "scientific-change-package-plan-amendment-001.v1.json"
 READER = HERE / "read_scientific_change_package.py"
-NATIVE_VERIFIER = ROOT / "conformance" / "verify_foreign_reference.py"
+NATIVE_VERIFIER = HERE / "verify_foreign_reference.py"
 PLAN_ROOT = "sha256:72d84fd4ceeb69c170beaf2e63dc22a801db6e99b749123c87a2f42ebbf07e42"
 PLAN_BYTES_SHA256 = (
     "sha256:63efd8b095cce421cbbb5aab7f0e21f03deeb3322f7c7de33eb5a20cd0a32fd9"

@@ -1083,11 +1083,13 @@ scalability, adoption, or user value. Current counts describe the audited
 corpus, not a capacity limit or a reason to add partitioning, a graph database,
 or vector infrastructure.
 
-The public protocol has no foreign-reference object. The derived edge-layer
-envelope passes the real Erdős source qualification in two implementations,
+The public protocol has no foreign-reference object. The historical evidence
+envelope passed the real Erdős source qualification in two implementations,
 and a second Frontier retained and verified the terminal source correction
-without importing authority. This passes B8 for one first-party case. It does
-not establish external independence, recurring transfer, or value over a plain
+without importing authority. This passes B8 for one first-party case. The
+reusable Rust reader was subsequently removed from the current runtime because
+the experiment did not earn a supported adapter contract. It does not
+establish external independence, recurring transfer, or value over a plain
 rooted manifest.
 
 If the real correction, second-Frontier, held-out, or cold-use gates fail, the
@@ -1100,9 +1102,9 @@ Current implementation qualification:
 
 ```bash
 cargo test -p vela-edge --test correction_impact
-cargo test -p vela-edge --test foreign_reference
 python3 conformance/verify_correction_impact.py
-python3 conformance/verify_foreign_reference.py --json
+python3 paper/artifacts/transfer/verify_foreign_reference.py --json
+python3 -m unittest paper.artifacts.transfer.test_scientific_change_package
 python3 -m unittest paper/artifacts/cost/test_measure.py
 python3 -m unittest paper/artifacts/state-lift/test_score.py
 python3 -m unittest discover \
@@ -1151,13 +1153,15 @@ chain through the ordinary `show` and `why` path. Two implementations also
 agree on a bounded synthetic correction-impact projection. The first matched
 first-party Codex-session pilot was directionally cheaper and more accurate
 with Vela but failed its registered token budget and exact-answer requirement;
-it is not human-review evidence. A derived foreign-reference
-envelope now qualifies the real source package in two colocated readers,
-including its authority signature. A second Frontier retained that exact
-package through a pending, non-authoritative Submission, imported a scoped
-Verification, and replayed the resulting repository from a clean clone with
-zero accepted-state delta. This passes the bounded transfer and authority
-containment gate. A prospective living-map loop reached an exact Submission,
+it is not human-review evidence. A historical foreign-reference envelope
+qualified the real source package in two colocated readers, including its
+authority signature. A second Frontier retained that exact package through a
+pending, non-authoritative Submission, imported a scoped Verification, and
+replayed the resulting repository from a clean clone with zero accepted-state
+delta. This passes the bounded transfer and authority-containment gate. The
+reusable runtime reader was removed after the experiment did not earn a shared
+adapter contract; the exact reader and bytes remain with the paper evidence. A
+prospective living-map loop reached an exact Submission,
 scoped Verification, terminal human Decision, clean-clone replay, and
 deterministic remap. Its first candidate exposed a stale-Target failure. A
 subsequent source-local closure pass retained the completed packet and proved

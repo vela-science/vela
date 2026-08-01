@@ -1,16 +1,18 @@
 # ADR 0029: Derived foreign reference and local authority containment
 
-- Status: Proposed
+- Status: Closed — historical experiment; no shared contract promotion
 - Proposed: 2026-07-29
-- Protocol effect: none while Proposed
-- Product effect: experiment only
+- Protocol effect: none
+- Product effect: evidence companion only; current runtime support removed
 - Authority effect: none
 - Service effect: none
 - Evidence update: all enumerated first-party transfer steps pass at Formal
   commit `dfaf16f96a4b4f520bd43aa129b0be91beac359b`; the Proposal remains pending
   and local accepted Standing is unchanged.
-- Remaining promotion gate: a held-out case, independently controlled
-  consumer, and measured value over a plain rooted manifest.
+- Disposition: the first-party experiment remains reproducible under
+  `paper/artifacts/transfer/`; absent a held-out independently controlled
+  consumer and measured value over a plain rooted manifest, Vela does not own
+  or ship this adapter contract.
 - Gate boundary: this promotion gate does not block a human Decision about the
   receiver's exact bounded Claim. It blocks promoting the derived envelope
   into a supported shared contract or claiming independent product value.
@@ -47,13 +49,17 @@ B8. It is not eligible to add a federation service, global identifier system,
 resolver, Registry, second writer, distributed transaction, or
 imported authority.
 
-## Decision proposed
+## Historical experiment
+
+The following design records the bounded experiment that was run. It is not a
+current runtime contract. The reusable Rust reader was removed after the
+promotion gate failed; the dependency-free reader and exact bytes remain with
+the paper evidence so the result stays reproducible.
 
 ### 1. Begin with a derived envelope
 
-Define non-protocol `vela.foreign-reference.v1` in the replaceable
-`vela-edge` reader layer. The envelope is a canonical manifest over exact
-source bytes. It binds:
+The experiment defined non-protocol `vela.foreign-reference.v1` as a canonical
+manifest over exact source bytes. It binds:
 
 - source Frontier ID;
 - current source Git commit, tree, and repository root;

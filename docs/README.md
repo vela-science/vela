@@ -20,7 +20,7 @@
 - [Math-first compounding product architecture ADR](adr/0025-math-first-compounding-product-architecture.md)
 - [Proposed correction benchmark and whitepaper evidence contract ADR](adr/0026-correction-benchmark-and-whitepaper-evidence-contract.md)
 - [Living Frontier map and native-system boundary ADR](adr/0028-living-frontier-map-and-native-system-boundary.md)
-- [Proposed derived foreign reference and authority containment ADR](adr/0029-derived-foreign-reference-and-local-authority-containment.md)
+- [Closed foreign-reference experiment ADR](adr/0029-derived-foreign-reference-and-local-authority-containment.md)
 - [Math Atlas, Math Source Registry, and Target-closure ADR](adr/0030-root-bound-math-source-registry-atlas-and-target-closure.md)
 - [One product and removable Agent executor ADR](adr/0031-one-product-and-removable-agent-executor.md)
 - [Self-authenticated evidence and human Decision authority ADR](adr/0032-self-authenticated-evidence-and-human-decision-authority.md)
