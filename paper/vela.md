@@ -28,10 +28,10 @@ mathematical Frontiers found no qualifying historical correction fixture among
 qualification vector, but that result does not satisfy the scientific,
 federation, external-reproduction, or user-value gates. The current evidence
 also includes one accepted, first-party source-statement supersession, one
-failed broad state-reading pilot, and one later native Harbor
-receiver-continuation comparison. In the latter, Vela-guided agents returned
-2/2 exact answers while Git/files agents returned 0/2; median agent time fell
-67.82 percent and median cost fell 69.44 percent. This is first-party,
+failed broad state-reading pilot, and one later native Harbor pre-Decision
+quantum-correction comparison. In the latter, Vela-guided agents returned 2/2
+exact answers while Git/files agents returned 0/2; median agent time fell
+51.44 percent and median cost fell 56.87 percent. This is first-party,
 single-task evidence, not general productivity or independent-user evidence.
 Neither experiment has the consequential topology or external independence
 required by the registered benchmark. The
@@ -51,11 +51,11 @@ Source-local closure and later exact completions now close producer work
 through `10430400` and expose `10430401..10430600` as the next nonduplicate
 range. The production Vela Web Atlas uses the repository-v4 reader. Its exact
 projection at root
-`sha256:4d19454046eed0dc4236db7f7bb459e0d838b0e8a00af92ac3637c9177a4f9f5`
+`sha256:e5e66b8ec14fa6ddc8e5f0424a0349f7dab218cefe6d107c08a4a69d0e900d2a`
 contains 4,136 graph nodes, 2,589 edges, 6,701 native source records, and 5,844
 Frontier bindings, including the later non-authorizing Formal withdrawal.
-Current Erdős, two Formal, and one
-quantum-certificate Proposal remain pending human Decisions; one
+Five Erdős, two Formal, and one quantum-certificate Proposal remain pending
+human Decisions; one
 broader-worded Erdős predecessor Proposal remains retained separately rather
 than being rewritten. These facts do not establish acceptance, inheritance
 lift across two fixtures, external independence, or human cold-use value. The
@@ -113,7 +113,7 @@ map-to-target loop reached a terminal human Decision, replayed Standing, and a
 deterministic remap. The loop reproduced a stale-Target failure that later
 source-local closure and exact completions repaired. The exact four-Frontier
 Atlas is now released. A first-party native Harbor comparison passes one
-frozen receiver-continuation gate, but real correction-impact propagation,
+frozen pre-Decision quantum-correction gate, but real correction-impact propagation,
 post-Decision remapping of the current pending results, held-out confirmation,
 external independence, and two-fixture cold-use lift remain registered
 experiments.
@@ -654,9 +654,9 @@ not establish cold-user lift or automatic domain-generic closure.
 Subsequent exact completions close Erdős producer work through `10430400` and
 leave `10430401..10430600` as the next nonduplicate range. Vela Web `0.430.0`
 serves the exact repository-v4 projection at root
-`sha256:4d19454046eed0dc4236db7f7bb459e0d838b0e8a00af92ac3637c9177a4f9f5`.
-Current Erdős, Formal exact-proof, and quantum-certificate Proposals remain pending human
-Decisions; their
+`sha256:e5e66b8ec14fa6ddc8e5f0424a0349f7dab218cefe6d107c08a4a69d0e900d2a`.
+Five Erdős, two Formal, and one quantum-certificate Proposal remain pending
+human Decisions; their
 Verifications do not change Standing. The earlier broader-worded Erdős
 Proposal remains retained and pending rather than replacing the corrected
 bounded record.
@@ -1057,7 +1057,7 @@ organizational independence.
 Repository authority remains operationally heavier than ordinary producer
 authentication. The first state-reading pilot used first-party Codex model
 sessions and failed its hard token budget. The later native Harbor comparison
-passed one narrower receiver-continuation gate, but it also used first-party
+passed one narrower pre-Decision quantum-correction gate, but it also used first-party
 Codex trials and one task. Neither result establishes human reviewer-time,
 two-fixture cold-inheritance lift, or independent adoption. The
 benchmark has not measured federation or recurring external use. SHA-256 and
@@ -1142,9 +1142,9 @@ agree on a bounded synthetic correction-impact projection. The first matched
 first-party Codex-session pilot was directionally cheaper and more accurate
 with Vela but failed its registered token budget and exact-answer requirement;
 it is not human-review evidence. A later native Harbor comparison passed its
-one-task receiver-continuation gate: Vela-guided agents were exact in 2/2
-trials while Git/files agents were exact in 0/2, with 67.82 percent lower
-median time and 69.44 percent lower median cost. That result is still
+one-task pre-Decision quantum-correction gate: Vela-guided agents were exact
+in 2/2 trials while Git/files agents were exact in 0/2, with 51.44 percent
+lower median time and 56.87 percent lower median cost. That result is still
 first-party, single-task evidence and is not a general or independent-user
 claim. A historical foreign-reference envelope
 qualified the real source package in two colocated readers, including its
@@ -1162,8 +1162,8 @@ its coverage from exact ancestor bytes. Later exact completions close producer
 work through `10430400` and expose `10430401..10430600` as the next
 nonduplicate range without changing Standing. The production Atlas uses the
 repository-v4 reader and includes the later non-authorizing Formal withdrawal.
-Current Erdős, Formal, and quantum-certificate
-Proposals remain pending human Decisions, so their post-Decision remaps remain
+Five Erdős, two Formal, and one quantum-certificate Proposal remain pending
+human Decisions, so their post-Decision remaps remain
 unfinished. An earlier broader-worded Erdős Proposal remains retained
 separately. The frozen held-out selector also found no qualifying candidate.
 The stronger claim, that this mechanism preserves useful scientific

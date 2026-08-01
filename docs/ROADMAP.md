@@ -31,9 +31,9 @@ identity. This roadmap records only product sequence.
 - Vela owns no agent runner, scheduler, graph database, hosted authority, or
   second writer.
 - The current native Harbor product-compression comparison passed its bounded
-  receiver-continuation gate: Vela-guided 2/2 exact versus Git/files 0/2, with
-  67.82 percent lower median agent time. This remains first-party, single-task
-  evidence.
+  pre-Decision quantum-correction gate: Vela-guided 2/2 exact versus Git/files
+  0/2, with 51.44 percent lower median agent time and 56.87 percent lower
+  median cost. This remains first-party, single-task evidence.
 
 ## Now — prove the product loop
 
