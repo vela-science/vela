@@ -40,22 +40,29 @@ Routine Submission and Verification intake uses a bounded
 1. verifies the producer or verifier signature over the complete record;
 2. permits only new content-addressed evidence and deterministic projections;
 3. rejects deletion, replacement, policy/schema/authority paths, Events, and
-   accepted-Standing changes;
+   accepted-Standing changes, while permitting one exact pending-Claim
+   projection removal only when paired with a valid appended producer
+   Withdrawal;
 4. requires Event, authority, and accepted-Standing roots to remain identical;
 5. uses the existing repository write barrier and exact Git publication path;
 6. never loads a repository-authority or human key.
 
 Human Decision, repository initialization, policy/schema changes, and authority
 administration continue to use the repository-authority transaction. An agent
-cannot accept, reject, or cancel a Proposal.
+cannot accept or reject a Proposal. The producer that signed a Submission may
+withdraw only its own still-pending Proposal by signing a
+`vela.proposal-withdrawal.v1` lifecycle record with that exact key. This uses
+the routine evidence transaction and changes no accepted Claim, Event, or
+authority state.
 
 ## Strict replay
 
 Strict verification must establish both planes without conflating them:
 
-- verify every Submission and Verification signature;
+- verify every Submission, Verification, and Proposal Withdrawal signature;
 - verify content-addressed object paths and Artifact bytes;
-- validate Claim, Proposal, Submission, and Verification links directly;
+- validate Claim, Proposal, Submission, Verification, and Withdrawal links
+  directly;
 - replay signed Decision Events to derive accepted Standing;
 - rebuild deterministic projections and compare their exact bytes;
 - require evidence referenced by an accepted Decision to remain present; and
@@ -86,6 +93,8 @@ The change is complete only when tests prove:
 - their actor signatures remain mandatory;
 - evidence writes leave Event and accepted-Standing roots unchanged;
 - Verification `pass` never becomes acceptance;
+- producer withdrawal requires the exact retained Submission identity, closes
+  only a pending Proposal, and leaves accepted Standing byte-identical;
 - routine writers cannot write Events, Decisions, policy, schema, membership,
   authority state, or accepted Claims;
 - new evidence is content-addressed and idempotent while collisions, rewrites,

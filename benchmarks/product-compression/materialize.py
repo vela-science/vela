@@ -74,7 +74,7 @@ def materialize_fixture(
 
     before_commit = command(("git", "rev-parse", "HEAD"), cwd=frontier)
     before_tree = command(("git", "rev-parse", "HEAD^{tree}"), cwd=frontier)
-    next_work = json_command((str(vela), "next", str(frontier), "--limit", "1", "--json"), cwd=frontier)
+    next_work = json_command((str(vela), "next", ".", "--limit", "1", "--json"), cwd=frontier)
     inbox = json_command((str(vela), "review", "inbox", str(frontier), "--json"), cwd=frontier)
 
     if (before_commit, before_tree) != (
@@ -129,7 +129,7 @@ def materialize_fixture(
     }
 
     expected = {
-        "schema": "vela.product-compression-answer.v6",
+        "schema": "vela.product-compression-answer.v7",
         "frontier": {
             "frontier_id": next_work["frontier_id"],
             "repository_root": next_work["repository_root"],
@@ -138,12 +138,19 @@ def materialize_fixture(
             "target_id": target["target_id"],
             "target_index_root": next_work["target_index_root"],
             "packet_sha256": packet_root,
+            "next_command": (
+                f"vela start {target['target_id']} "
+                "--frontier /workspace/frontier --json"
+            ),
         },
         "decision": {
             "proposal_id": entry["proposal_id"],
             "proposal_root": entry["inputs"]["proposal_root"],
             "source_submission_id": submission["submission_id"],
             "proposed_claim_id": entry["claim_id"],
+            "assertion": entry["assertion"],
+            "conditions": entry["conditions"],
+            "limits": entry["limits"],
             "verification_ids": [item["verification_record_id"] for item in verifications],
             "verification_set_root": entry["inputs"]["verification_set_root"],
             "inbox_entry_root": entry["entry_root"],
@@ -172,7 +179,7 @@ def materialize_fixture(
     }
     contract.seal(fixture, "fixture_root")
     answer_key = contract.seal({
-        "schema": "vela.product-compression-answer-key.v6",
+        "schema": "vela.product-compression-answer-key.v7",
         "answer_key_root": "", "fixture_root": fixture["fixture_root"], "expected": expected,
     }, "answer_key_root")
     contract.validate_answer_key(answer_key)
@@ -275,7 +282,10 @@ def build_study(
                 {"TOOL_GUIDANCE": guidance},
             )
             render(task / "task.toml", {"ARM": arm})
-            render(environment / "Dockerfile", {"VELA_INSTALL": vela_install})
+            render(
+                environment / "Dockerfile",
+                {"CODEX_VERSION": codex_version, "VELA_INSTALL": vela_install},
+            )
             task_rows.append({
                 "path": task.relative_to(output).as_posix(),
                 "root": tree_root(task),
@@ -297,7 +307,7 @@ def build_study(
     }
     contract.write_json(output / "harbor-job.json", job)
     plan = contract.seal({
-        "schema": "vela.product-compression-plan.v8",
+        "schema": "vela.product-compression-plan.v9",
         "plan_root": "",
         "fixture_root": fixture["fixture_root"],
         "answer_key_root": answer_key["answer_key_root"],

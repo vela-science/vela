@@ -59,7 +59,7 @@ def validate_answer(value: Any) -> None:
     compares a participant answer with the exact answer key.
     """
     try:
-        if value["schema"] != "vela.product-compression-answer.v6":
+        if value["schema"] != "vela.product-compression-answer.v7":
             raise ContractError("$.schema: wrong answer schema")
         frontier = value["frontier"]
         work = value["next_work"]
@@ -72,6 +72,15 @@ def validate_answer(value: Any) -> None:
     require_root(frontier.get("repository_root"), "$.frontier.repository_root")
     require_root(work.get("target_index_root"), "$.next_work.target_index_root")
     require_root(work.get("packet_sha256"), "$.next_work.packet_sha256")
+    expected_next = f"vela start {work.get('target_id')} --frontier /workspace/frontier --json"
+    if work.get("next_command") != expected_next:
+        raise ContractError("$.next_work.next_command: must start the exact Target")
+    if not isinstance(decision.get("assertion"), str) or not decision["assertion"]:
+        raise ContractError("$.decision.assertion: must identify the proposed scientific statement")
+    if not isinstance(decision.get("conditions"), list):
+        raise ContractError("$.decision.conditions: must be an array")
+    if not isinstance(decision.get("limits"), list) or not decision["limits"]:
+        raise ContractError("$.decision.limits: must retain at least one scope limit")
     for field in ("proposal_root", "verification_set_root", "inbox_entry_root"):
         require_root(decision.get(field), f"$.decision.{field}")
 
@@ -117,7 +126,7 @@ def validate_answer(value: Any) -> None:
 
 
 def validate_answer_key(value: Any) -> None:
-    if not isinstance(value, dict) or value.get("schema") != "vela.product-compression-answer-key.v6":
+    if not isinstance(value, dict) or value.get("schema") != "vela.product-compression-answer-key.v7":
         raise ContractError("answer key has the wrong schema")
     require_root(value.get("fixture_root"), "$.fixture_root")
     require_root(value.get("answer_key_root"), "$.answer_key_root")

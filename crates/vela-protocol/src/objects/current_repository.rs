@@ -155,6 +155,8 @@ pub struct CurrentRepositoryV4 {
     pub accepted_claims: Vec<ClaimStandingRefV1>,
     pub pending_claims: Vec<ClaimStandingRefV1>,
     pub proposals: Vec<RepositoryObjectRefV1>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub proposal_withdrawals: Vec<RepositoryObjectRefV1>,
     pub submissions: Vec<RepositoryObjectRefV1>,
     pub verifications: Vec<RepositoryObjectRefV1>,
     pub artifacts: Vec<RepositoryObjectRefV1>,
@@ -192,6 +194,7 @@ impl CurrentRepositoryV4 {
         verify_claim_refs("accepted_claims", &self.accepted_claims, "accepted")?;
         verify_claim_refs("pending_claims", &self.pending_claims, "pending_review")?;
         verify_object_refs("proposals", &self.proposals)?;
+        verify_object_refs("proposal_withdrawals", &self.proposal_withdrawals)?;
         verify_object_refs("submissions", &self.submissions)?;
         verify_object_refs("verifications", &self.verifications)?;
         verify_object_refs("artifacts", &self.artifacts)?;
@@ -205,6 +208,7 @@ impl CurrentRepositoryV4 {
             .chain(
                 self.proposals
                     .iter()
+                    .chain(&self.proposal_withdrawals)
                     .chain(&self.submissions)
                     .chain(&self.verifications)
                     .chain(&self.artifacts)
@@ -519,6 +523,7 @@ mod tests {
             accepted_claims: vec![claim('c', "accepted")],
             pending_claims: vec![claim('d', "pending_review")],
             proposals: vec![],
+            proposal_withdrawals: vec![],
             submissions: vec![],
             verifications: vec![],
             artifacts: vec![],

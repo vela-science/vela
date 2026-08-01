@@ -105,6 +105,20 @@ system. Harbor owns benchmark execution. Those systems may retain their own
 run or attempt identities as ordinary provenance, but Vela does not create or
 authorize them.
 
+When a producer supersedes or abandons its own still-pending Proposal, it can
+remove that item from human review without invoking repository authority:
+
+```bash
+vela review withdraw . <vpr_id> \
+  --as agent:<name> \
+  --reason "Superseded by a corrected Submission." \
+  --json
+```
+
+The command requires the exact key that signed the retained Submission. It
+appends a lifecycle record, creates no scientific Event, and cannot change
+accepted Standing.
+
 `vela status` is the compact Frontier summary. Its `decision_inbox` projection
 reports pending, ready, and blocked consequence counts plus rooted projection
 identities. The suggested next action may inspect the Inbox or select and

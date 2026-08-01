@@ -47,14 +47,9 @@ fn ensure_pending_proposal(
     repository: &CurrentRepositoryV4,
     proposal_id: &str,
 ) -> Result<(), String> {
-    let decisions =
-        crate::current_repository::load_current_proposal_decisions(frontier, repository)?;
-    ensure_pending_standing(
-        proposal_id,
-        decisions
-            .get(proposal_id)
-            .map(|decision| decision.standing.as_str()),
-    )
+    let standings =
+        crate::current_repository::load_current_proposal_standings(frontier, repository)?;
+    ensure_pending_standing(proposal_id, standings.get(proposal_id).map(String::as_str))
 }
 
 fn ensure_pending_standing(proposal_id: &str, standing: Option<&str>) -> Result<(), String> {
@@ -766,6 +761,7 @@ mod tests {
                 root: proposal_root.clone(),
                 path: proposal_path,
             }],
+            proposal_withdrawals: Vec::new(),
             submissions: vec![RepositoryObjectRefV1 {
                 schema: submission.schema,
                 id: submission.submission_id,

@@ -33,6 +33,10 @@ identity. This roadmap records only product sequence.
   Frontier state before making a comprehension-lift claim.
 - Vela owns no agent runner, scheduler, graph database, hosted authority, or
   second writer.
+- The current native Harbor product-compression comparison passed its bounded
+  task-specific gate: Vela-guided 2/2 exact versus Git/files 0/2, with 75.70
+  percent lower median agent time. This remains first-party, single-task
+  evidence.
 
 ## Now — prove the product loop
 
@@ -41,7 +45,8 @@ identity. This roadmap records only product sequence.
 For one technically eligible Proposal:
 
 1. show the bounded Claim, evidence, Verification, and exact Standing diff;
-2. let the human authority accept, reject, or cancel;
+2. let the human authority accept or reject, or let the exact producer
+   withdraw obsolete pending work without authority;
 3. replay the before and after roots;
 4. refresh the read projection; and
 5. expose the exact next Target or explicit absence of one.
@@ -111,14 +116,16 @@ and a reproduced gap.
 
 ## Release posture
 
-- Vela `0.961.0` is the single candidate for the current repository-v4 and
-  direct Target Index v5 boundary. Publish only after its exact release checks.
+- Vela `0.961.0` is the published release for the current repository-v4 and
+  direct Target Index v5 boundary. Keep one binary release train and release
+  only for demonstrated product or correctness changes.
 - Standalone conformance readers preserve cross-language verification without
   a second package or release train.
 - Canopus `0.8.0` remains historical evidence; there is no second active
   runner or release train.
-- Vela Web remains on the `0.430.0` product line until a measured reader or
-  workflow improvement earns another release.
+- Vela Web remains on the `0.430.x` product line. Its manifest binds the exact
+  deployed commit and projection root directly; projection refreshes may
+  advance rooted source state without a tag or pretend application release.
 - A canonical whitepaper must distinguish implemented facts, bounded evidence,
   proposed work, and unproved adoption claims.
 - No `1.0.0` date is scheduled.

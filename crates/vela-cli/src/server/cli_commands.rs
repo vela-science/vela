@@ -1,17 +1,11 @@
-//! CLI command surface — the clap `Commands` enum and its `*Action`
-//! subcommand enums, split out of `cli.rs` so the ~5k lines of command
-//! definitions live apart from the handler functions and dispatch. Pure
-//! data: the handlers and `run_command` dispatch stay in `cli.rs`.
+//! CLI command surface. This module contains clap data only; handlers and
+//! dispatch stay in `cli.rs`.
 //!
 //! ## Flag-naming conventions (one name per concept, no aliases)
-//! - **Acting identity** → `--as`, everywhere a command acts under an
-//!   identity (land, attach, artifact retirement…).
-//!   The value defaults from `$VELA_ACTOR_ID`, so the flag is usually omitted.
-//!   `--verifier-actor` names a mechanical verifier identity (CI, lean
-//!   keypairs) that is never a decision-maker.
-//! - **Targets** → `--hub` (a registry/peer base URL the client talks to),
-//!   `--to` (a publish/append destination), `--from` (a read source). One
-//!   meaning each; do not overload.
+//! - **Acting identity** → `--as` for producer or verifier evidence.
+//!   It may default from `$VELA_ACTOR_ID`; a human Decision never does.
+//! - **Frontier** → `--frontier` or the positional Frontier path, according to
+//!   the command's ordinary reading order.
 
 use clap::{ArgGroup, Subcommand};
 use std::path::PathBuf;
@@ -50,9 +44,7 @@ pub(crate) enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// v0.42: Show what's pending right now — the daily-driver
-    /// equivalent of `git status`. One screen: counts, the inbox,
-    /// the audit. Read in two seconds.
+    /// Show the Frontier's current Standing, review queue, and integrity state.
     #[command(after_long_help = crate::cli::help_text::STATUS)]
     Status {
         frontier: Option<PathBuf>,
@@ -121,7 +113,7 @@ pub(crate) enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// Inspect or perform one exact Proposal action.
+    /// Inspect or perform one exact Proposal lifecycle action.
     #[command(after_long_help = crate::cli::help_text::REVIEW)]
     Review {
         #[command(subcommand)]
@@ -355,7 +347,7 @@ pub(crate) enum ReviewAction {
         #[arg(long)]
         json: bool,
     },
-    /// Show one pending Review Packet or one exact terminal decision record.
+    /// Show one pending Review Packet, Decision, or producer Withdrawal.
     Show {
         frontier: PathBuf,
         proposal_id: String,
@@ -375,6 +367,18 @@ pub(crate) enum ReviewAction {
     Reject {
         frontier: PathBuf,
         proposal_id: String,
+        #[arg(long)]
+        reason: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Withdraw your own still-pending Proposal using its Submission identity.
+    Withdraw {
+        frontier: PathBuf,
+        proposal_id: String,
+        /// Exact producer identity that signed the retained Submission.
+        #[arg(long = "as")]
+        actor: String,
         #[arg(long)]
         reason: String,
         #[arg(long)]

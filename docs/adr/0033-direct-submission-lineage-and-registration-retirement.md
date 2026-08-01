@@ -34,6 +34,16 @@ The current evidence chain is:
 signed Submission -> Proposal -> Verification Record -> human Decision -> Event -> Standing
 ```
 
+A producer may instead close its own still-pending branch without entering the
+authority chain:
+
+```text
+signed Submission -> Proposal -> producer-signed Withdrawal
+```
+
+Withdrawal is append-only lifecycle evidence. It creates no Event and cannot
+change accepted Standing.
+
 `vela.repository.v4` removes the `registrations` collection. `vela submit`
 writes the signed Submission, its proposed Claim and Proposal, and deterministic
 projections in one routine evidence transaction. Idempotence locates the exact

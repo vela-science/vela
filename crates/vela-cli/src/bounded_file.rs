@@ -40,7 +40,7 @@ impl std::fmt::Display for BoundedFileError {
 /// Read one explicitly supplied file without allowing its path to swap to a
 /// symlink or different inode while Vela is reading it. Unlike
 /// [`read_bounded_frontier_file`], this accepts a path outside the frontier so
-/// portable Receipt v1 files can be landed directly.
+/// portable Submission and Verification files can be retained directly.
 pub(crate) fn read_bounded_file(
     path: &Path,
     max_bytes: u64,

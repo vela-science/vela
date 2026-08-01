@@ -502,6 +502,7 @@ impl FrontierBinding {
 #[serde(rename_all = "snake_case")]
 pub(crate) enum OperationKind {
     Submission,
+    ProposalWithdrawal,
     Verification,
     Decision,
     Maintenance,
@@ -2072,7 +2073,7 @@ fn completed_postimage_is_rematerializable(write: &StagedWrite) -> bool {
         // remain the current head forever. This exception is deliberately
         // limited to completed-history checks: active installation and
         // completion still require the exact planned postimage, while every
-        // immutable event, authority record, Proposal, Receipt, and evidence
+        // immutable event, authority record, Proposal, Submission, and evidence
         // object remains byte-exact.
         || write.path.as_str() == ".vela/repository.json"
 }
@@ -4118,6 +4119,7 @@ mod tests {
             accepted_claims: Vec::new(),
             pending_claims: Vec::new(),
             proposals: Vec::new(),
+            proposal_withdrawals: Vec::new(),
             submissions: Vec::new(),
             verifications: Vec::new(),
             artifacts: Vec::new(),

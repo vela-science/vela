@@ -66,10 +66,14 @@ EXAMPLES
   vela review show . vpr_8b49… --json one pending Review Packet or terminal Decision
   vela review reject . vpr_8b49… --reason \"insufficient evidence\" --json
                                         execute one exact attributed rejection
+  vela review withdraw . vpr_8b49… --as agent:producer \
+    --reason \"superseded by corrected work\" --json
+                                        close your own pending Proposal without authority
 
 KNOWN PROPOSAL
   When a full vpr_ ID is supplied, start with `vela review show`. It returns
-  either the pending Review Packet or the signed terminal Decision record.
+  either the pending Review Packet, signed terminal Decision, or exact
+  producer Withdrawal.
   A rejected proposal's candidate Claim is intentionally absent from
   accepted `show` and `log` views; that is not deletion.";
 

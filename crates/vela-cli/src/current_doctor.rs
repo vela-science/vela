@@ -167,12 +167,16 @@ fn current_doctor_payload(frontier: &Path, all: bool) -> Result<Value, String> {
     } else {
         "tracked_dirt"
     };
+    let standings =
+        crate::current_repository::load_current_proposal_standings(&frontier, &repository)?;
     let decisions =
         crate::current_repository::load_current_proposal_decisions(&frontier, &repository)?;
+    let withdrawals =
+        crate::current_repository::load_current_proposal_withdrawals(&frontier, &repository)?;
     let pending = repository
         .proposals
         .iter()
-        .filter(|proposal| !decisions.contains_key(&proposal.id))
+        .filter(|proposal| !standings.contains_key(&proposal.id))
         .collect::<Vec<_>>();
     let target_index = target_index_diagnostic(&frontier, &repository, &repository_root)?;
     let authority = trust_diagnostic(&frontier, &repository, &origin)?;
@@ -257,6 +261,7 @@ fn current_doctor_payload(frontier: &Path, all: bool) -> Result<Value, String> {
         payload["details"] = json!({
             "origin": boundary,
             "decisions": decisions,
+            "proposal_withdrawals": withdrawals,
             "serve": "retired_from_current_product",
             "historical_policy": "available_only_through_the_pinned_predecessor_release",
             "historical_actor_registry": "available_only_through_the_pinned_predecessor_release",

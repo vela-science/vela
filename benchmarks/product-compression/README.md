@@ -62,11 +62,14 @@ python3 benchmarks/product-compression/materialize.py \
   --job-name vela-product-compression \
   --output "$VELA_BENCH_CACHE/study"
 
-env -u OPENAI_API_KEY CODEX_AUTH_JSON_PATH="$HOME/.codex/auth.json" \
-  harbor run \
-    --config "$VELA_BENCH_CACHE/study/harbor-job.json" \
-    --max-retries 0 \
-    --jobs-dir "$VELA_BENCH_CACHE/runs"
+(
+  cd "$VELA_BENCH_CACHE/study"
+  env -u OPENAI_API_KEY CODEX_AUTH_JSON_PATH="$HOME/.codex/auth.json" \
+    harbor run \
+      --config harbor-job.json \
+      --max-retries 0 \
+      --jobs-dir "$VELA_BENCH_CACHE/runs"
+)
 
 python3 benchmarks/product-compression/summarize.py \
   --plan "$VELA_BENCH_CACHE/study/plan.json" \
@@ -87,6 +90,12 @@ answer key, Harbor job config/result, each trial config/result, participant
 answer, verifier output/reward, compact summary, and a SHA-256 manifest.
 Trajectories, session logs, recordings, credentials, Docker caches, and other
 generated execution state do not belong in Git.
+
+The current compact result is
+[`paper/artifacts/product-compression-v9`](../../paper/artifacts/product-compression-v9/README.md).
+Its complete native Harbor study and job are retained outside the source tree
+under a SHA-256 manifest so generated execution state does not become product
+code.
 
 ## History
 

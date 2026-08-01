@@ -22,14 +22,22 @@ def root(char: str) -> str:
 def answer() -> dict:
     claim = f"vcl_{'d' * 64}"
     return {
-        "schema": "vela.product-compression-answer.v6",
+        "schema": "vela.product-compression-answer.v7",
         "frontier": {"frontier_id": "vfr_0123456789abcdef", "repository_root": root("1")},
-        "next_work": {"target_id": "erdos:1056", "target_index_root": root("2"), "packet_sha256": root("3")},
+        "next_work": {
+            "target_id": "erdos:1056",
+            "target_index_root": root("2"),
+            "packet_sha256": root("3"),
+            "next_command": "vela start erdos:1056 --frontier /workspace/frontier --json",
+        },
         "decision": {
             "proposal_id": "vpr_0123456789abcdef",
             "proposal_root": root("a"),
             "source_submission_id": "vsb_0123456789abcdef",
             "proposed_claim_id": claim,
+            "assertion": "This exact bounded computation found no witness.",
+            "conditions": ["The retained range and algorithm."],
+            "limits": ["This does not establish universal nonexistence."],
             "verification_ids": ["vvr_0123456789abcdef"],
             "verification_set_root": root("f"),
             "inbox_entry_root": root("c"),
@@ -52,7 +60,7 @@ def answer() -> dict:
 
 def answer_key(fixture_root: str = root("9")) -> dict:
     return contract.seal({
-        "schema": "vela.product-compression-answer-key.v6",
+        "schema": "vela.product-compression-answer-key.v7",
         "answer_key_root": "",
         "fixture_root": fixture_root,
         "expected": answer(),
@@ -77,7 +85,7 @@ def fixture(commit: str = "1" * 40, tree: str = "2" * 40) -> dict:
 
 def plan() -> dict:
     return contract.seal({
-        "schema": "vela.product-compression-plan.v8",
+        "schema": "vela.product-compression-plan.v9",
         "plan_root": "",
         "fixture_root": root("9"),
         "answer_key_root": answer_key()["answer_key_root"],
@@ -146,10 +154,18 @@ class ProductCompressionTests(unittest.TestCase):
         with self.assertRaisesRegex(contract.ContractError, "rejection must preserve"):
             contract.validate_answer(value)
 
+    def test_contract_binds_next_command_to_target(self) -> None:
+        value = answer()
+        value["next_work"]["next_command"] = (
+            "vela start erdos:9999 --frontier /workspace/frontier --json"
+        )
+        with self.assertRaisesRegex(contract.ContractError, "must start the exact Target"):
+            contract.validate_answer(value)
+
     def test_answer_key_is_content_bound(self) -> None:
         key = answer_key()
         contract.validate_answer_key(key)
-        key["expected"]["next_work"]["target_id"] = "erdos:9999"
+        key["expected"]["next_work"]["packet_sha256"] = root("4")
         with self.assertRaisesRegex(contract.ContractError, "root mismatch"):
             contract.validate_answer_key(key)
 
@@ -208,13 +224,17 @@ class ProductCompressionTests(unittest.TestCase):
                 source, key, frontier, binary, "test-model", "0.1.0",
                 "vela-product-compression-test", output,
             )
-            self.assertEqual(prepared["schema"], "vela.product-compression-plan.v8")
+            self.assertEqual(prepared["schema"], "vela.product-compression-plan.v9")
             self.assertEqual(len(prepared["task_roots"]), 2)
             baseline = output / "tasks/git-files"
             guided = output / "tasks/vela-guided"
             self.assertNotIn("{{", (baseline / "instruction.md").read_text())
             self.assertNotIn("COPY vela", (baseline / "environment/Dockerfile").read_text())
             self.assertIn("COPY vela", (guided / "environment/Dockerfile").read_text())
+            self.assertIn(
+                "npm install --global @openai/codex@0.1.0",
+                (baseline / "environment/Dockerfile").read_text(),
+            )
             self.assertEqual(contract.read_json(output / "fixture.json"), source)
             self.assertEqual(contract.read_json(output / "answer-key.json"), key)
             self.assertEqual(contract.read_json(output / "harbor-job.json")["n_attempts"], 2)
@@ -236,6 +256,10 @@ class ProductCompressionTests(unittest.TestCase):
             self.assertIn(
                 'environment_mode = "separate"',
                 (guided / "task.toml").read_text(),
+            )
+            self.assertIn(
+                "apk add --no-cache bash python3",
+                (guided / "tests/Dockerfile").read_text(),
             )
 
     def test_native_harbor_summary_records_bounded_lift(self) -> None:

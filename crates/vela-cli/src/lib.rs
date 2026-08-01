@@ -25,6 +25,7 @@ pub(crate) mod current_read;
 pub(crate) mod current_repository_decision;
 pub(crate) mod current_submission;
 pub(crate) mod current_verification;
+pub(crate) mod current_withdrawal;
 pub(crate) mod current_work;
 pub(crate) mod decision_inbox;
 pub(crate) mod git_hardened;

@@ -47,5 +47,14 @@ pub(crate) fn cmd_review(action: ReviewAction) {
             reason,
             json,
         ),
+        ReviewAction::Withdraw {
+            frontier,
+            proposal_id,
+            actor,
+            reason,
+            json,
+        } => {
+            crate::current_withdrawal::cmd_withdraw(&frontier, &proposal_id, &actor, &reason, json)
+        }
     }
 }

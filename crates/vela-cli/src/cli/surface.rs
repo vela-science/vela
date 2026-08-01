@@ -35,7 +35,7 @@ Daily product:
   submit        Retain authenticated producer input for review
   show          One exact object, its root, era, and authority effect
   why           Root-bound explanation of one Claim's Standing
-  review        Inspect or perform one exact authorized Proposal action
+  review        Inspect or perform one exact Proposal lifecycle action
   check         Replay, signatures, parity, and repository integrity
   reproduce     Re-run stored witnesses with frozen verifiers
   log           Recent signed events or one finding's history

@@ -661,6 +661,7 @@ mod tests {
             accepted_claims: Vec::new(),
             pending_claims: Vec::new(),
             proposals: Vec::new(),
+            proposal_withdrawals: Vec::new(),
             submissions: Vec::new(),
             verifications: Vec::new(),
             artifacts: Vec::new(),

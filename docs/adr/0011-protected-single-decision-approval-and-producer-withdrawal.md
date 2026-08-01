@@ -1,13 +1,27 @@
 # ADR 0011: Human-governed authority and producer withdrawal
 
-- Status: Accepted
+- Status: Accepted historically; withdrawal wire contract superseded by ADRs
+  0032 and 0033
 - Release gate: satisfied 2026-07-17 by protected rebind, current-platform UX
   review, cross-platform package evidence, and final release verification
 - Target release: Vela `v0.901.0`
-- Protocol effect: one signed, non-scientific `proposal.withdrawn` event
+- Current protocol effect: one producer-signed, non-scientific
+  `vela.proposal-withdrawal.v1` lifecycle record; no Event
+- Historical protocol effect: one retired `proposal.withdrawn` Event
 - Local product effect: protected custody, bounded authority sessions, and identity v2
 - Authority effect: none
 - Last research review: 2026-07-17
+
+> **Current-era disposition (2026-08-01).** The Receipt-backed
+> `proposal.withdrawn` Event described below was retired with the predecessor
+> runtime by ADRs 0032 and 0033. Its durable product requirement is now
+> implemented more narrowly: `vela review withdraw` appends one
+> `vela.proposal-withdrawal.v1` record signed by the exact identity of the
+> Proposal's retained `vela.submission.v1`. The record closes only a pending
+> Proposal and removes its Claim from the pending projection. It creates no
+> Event or authority record, reads no repository-authority key, and cannot
+> change accepted Standing. Historical text below is retained as decision
+> provenance, not as the current wire contract.
 
 ## Context
 

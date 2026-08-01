@@ -305,11 +305,11 @@ pub(crate) fn pending_submission_conflicts(
     proposal: &ProposalV1,
     submission: &SubmissionV1,
 ) -> Result<Vec<String>, String> {
-    let decisions =
-        crate::current_repository::load_current_proposal_decisions(frontier, repository)?;
+    let standings =
+        crate::current_repository::load_current_proposal_standings(frontier, repository)?;
     let mut conflicts = Vec::new();
     for reference in &repository.proposals {
-        if reference.id == proposal.proposal_id || decisions.contains_key(&reference.id) {
+        if reference.id == proposal.proposal_id || standings.contains_key(&reference.id) {
             continue;
         }
         let sibling = read_exact(
@@ -898,6 +898,7 @@ mod tests {
             accepted_claims: Vec::new(),
             pending_claims: Vec::new(),
             proposals: Vec::new(),
+            proposal_withdrawals: Vec::new(),
             submissions: Vec::new(),
             verifications: Vec::new(),
             artifacts: Vec::new(),

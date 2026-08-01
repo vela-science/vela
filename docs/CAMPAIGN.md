@@ -36,7 +36,9 @@ These are the reasons Vela exists and are not simplification targets:
 
 1. Evidence is not Standing.
 2. Verification is not acceptance.
-3. Agents cannot accept, reject, or cancel a Proposal.
+3. Agents cannot accept or reject a Proposal. A producer may withdraw only its
+   own exact still-pending Proposal with the Submission identity that created
+   it.
 4. Only an authorized Decision changes Standing.
 5. Accepted transitions replay from exact Git state.
 6. Corrections append; they do not erase prior accepted state.
@@ -63,28 +65,27 @@ infrastructure.
 
 ### Shipped and verified
 
-- Vela `0.950.1` is the last published immutable release. The `0.960.0` and
-  `0.960.1` tags exposed Windows release defects before publication, so the
-  locally qualified `0.961.0` candidate is the single binary release boundary
-  for repository v4,
-  direct Target Index v5, direct Submission lineage, and retired
-  workflow/runtime surfaces. Internal Rust crates are not published as
-  parallel products, and the unused TypeScript protocol package has been
-  removed.
+- Vela `0.961.0` is the published binary release for repository v4, direct
+  Target Index v5, direct Submission lineage, and the retired workflow/runtime
+  surfaces. Internal Rust crates are not published as parallel products, and
+  the unused TypeScript protocol package has been removed.
 - Four mathematical Frontiers use the current repository contract and replay
   from clean Git checkouts.
 - Real Erdős, Formal, and quantum Submissions have separate scoped
   Verifications while their accepted-state delta remains zero.
 - A prior real human Decision changed Standing exactly once and reproduced by
   replay.
-- Vela Web has a root-bound Math Source Registry and read-only Math Atlas over
-  the four Frontiers. Its production projection currently lags the four
-  repository-v4 heads and still reports retired Registration rows. Source Git
-  is authoritative until the `0.961.0` reader refresh is deployed.
-- Product-compression v6 retains a rooted plan and compact historical summary,
-  but not the native Harbor trials required by the current evidence contract.
-  Its reported lift is not publication-grade. The next comparison must retain
-  the complete native Harbor job, trials, answers, and verifier outputs.
+- Vela Web has a live root-bound Math Source Registry and read-only Math Atlas
+  over the exact four repository-v4 Frontier heads. The current projection uses
+  `observatory.v8`, contains no Registration contract, and retains 6,701 native
+  source records and 5,845 source bindings. Source Git remains authoritative.
+- Product-compression v9 completed four clean native Harbor trials with zero
+  retries. Vela-guided work was exact in 2/2 trials while Git/files alone was
+  exact in 0/2; median agent time fell from 296.86 to 72.13 seconds and median
+  cost from $0.7275 to $0.1097. The compact result is rooted at
+  `sha256:970ed8a122d08ba1b9e25cee513fee7141cb54e1321c3d38f0ba22d51fc2e077`.
+  This is first-party evidence from one frozen task, not an independent-user or
+  general scientific-productivity claim.
 - The immutable Canopus `0.8.0` release and tag remain historical evidence.
 
 ### Simplified current source
@@ -115,8 +116,10 @@ infrastructure.
   promoting the derived envelope into a supported shared contract or claiming
   independent product value. A human Decision made earlier must retain that
   limitation explicitly.
-- The production Atlas must be refreshed whenever canonical Frontier heads
-  change; source Git remains authoritative during projection lag.
+- The production Atlas is current at projection root
+  `sha256:43d5e4ab8b034ba12677a6423a3228e7a0537003e4c351915a00c9d0df178fbc`.
+  It must be refreshed whenever canonical Frontier heads change; source Git
+  remains authoritative during projection lag.
 - The current Registry adapter artifact has an immutable GitHub release
   locator and independently reproduced byte root.
 - External cold-user lift, correction propagation, and independently governed
@@ -139,7 +142,8 @@ For one real pending Proposal:
 2. show its Submission, decisive artifacts, verifier requirements, and scoped
    Verification results;
 3. show what Standing would change and what would remain unchanged;
-4. let the human authority accept, reject, or cancel;
+4. let the human authority accept or reject, or let the exact producer
+   withdraw obsolete pending work without authority;
 5. verify the exact before/after roots and replay;
 6. rebuild the read projection; and
 7. expose the next valid Target or explicit absence of one.
@@ -198,6 +202,11 @@ A positive claim requires zero authority errors and at least 20 percent median
 improvement on its registered primary metric. First-party runs debug the
 method; they do not establish adoption or independence.
 
+The first current native Harbor comparison passed its registered
+task-specific exactness gate. The next benchmark must test continuation after
+a real correction or use a cold independent participant; more harness
+infrastructure is not an acceptable substitute.
+
 ### Gate 5 — keep Registry and Atlas exact, not expansive
 
 - Git Frontiers remain canonical.
@@ -232,7 +241,7 @@ record it separately as infrastructure state.
 
 Human action is required only for:
 
-1. accepting, rejecting, or cancelling an exact scientific Proposal;
+1. accepting or rejecting an exact scientific Proposal;
 2. changing repository authority, policy, or schema;
 3. expanding a bounded campaign's scope, budget, risk, or external effect;
 4. publishing or deploying a release; and
@@ -268,10 +277,10 @@ reputation score, or `1.0.0` schedule.
 
 | Surface | Current posture | Next earned change |
 | --- | --- | --- |
-| Vela | `0.961.0` candidate; focused checks green, release union pending | publish once, then use this exact release for the current Atlas refresh |
+| Vela | `0.961.0` published; focused and release checks green | keep one binary release train; release only for a demonstrated change |
 | Cross-language readers | standalone Python and JavaScript conformance readers | keep package-free until a real external consumer requires a library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | exact Registry and Atlas implementation; production projection is stale | ingest repository v4/status v3, remove Registration projection, refresh from `0.961.0` |
+| Vela Web | live exact Registry/Atlas on repository v4 and `observatory.v8`; manifest binds deployed commit `f507aa49` and the current projection root | keep projection refresh independent of app version; release web code only for a demonstrated product change |
 | Frontiers | canonical Git sources with pending human Decisions | decide or cancel exact Proposals, replay, remap |
 | Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 

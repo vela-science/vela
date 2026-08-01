@@ -16,6 +16,7 @@ use vela_protocol::current_repository::{
     ClaimStandingRefV1, CurrentRepositoryV4, RepositoryObjectRefV1,
 };
 use vela_protocol::proposal_v1::ProposalV1;
+use vela_protocol::proposal_withdrawal_v1::ProposalWithdrawalV1;
 use vela_protocol::repository_origin::RepositoryOriginV1;
 
 use crate::cli::{fail_return, print_json};
@@ -26,6 +27,7 @@ struct CurrentReadContext {
     repository_root: String,
     proposals: Vec<(RepositoryObjectRefV1, ProposalV1)>,
     decisions: BTreeMap<String, CurrentProposalDecision>,
+    withdrawals: BTreeMap<String, ProposalWithdrawalV1>,
     authority_events: Vec<AuthorityEventV1>,
 }
 
@@ -69,6 +71,8 @@ fn load_context(frontier: &Path) -> Result<CurrentReadContext, String> {
     let authority = crate::cli::load_current_repository_authority(frontier, &repository, &origin)?;
     let decisions =
         crate::current_repository::load_current_proposal_decisions(frontier, &repository)?;
+    let withdrawals =
+        crate::current_repository::load_current_proposal_withdrawals(frontier, &repository)?;
     let proposals = repository
         .proposals
         .iter()
@@ -89,6 +93,7 @@ fn load_context(frontier: &Path) -> Result<CurrentReadContext, String> {
         repository_root,
         proposals,
         decisions,
+        withdrawals,
         authority_events: authority.history.authority_events,
     })
 }
@@ -136,12 +141,21 @@ fn proposal_claim(
             proposal.proposal_id
         ));
     }
-    let standing = context
-        .decisions
-        .get(&proposal.proposal_id)
-        .map(|decision| decision.standing.clone())
-        .unwrap_or_else(|| "pending_review".into());
+    let standing = proposal_standing(context, &proposal.proposal_id);
     Ok(Some((claim, standing)))
+}
+
+fn proposal_standing(context: &CurrentReadContext, proposal_id: &str) -> String {
+    context.decisions.get(proposal_id).map_or_else(
+        || {
+            if context.withdrawals.contains_key(proposal_id) {
+                "withdrawn".into()
+            } else {
+                "pending_review".into()
+            }
+        },
+        |decision| decision.standing.clone(),
+    )
 }
 
 fn supersession_event<'a>(
@@ -248,6 +262,7 @@ fn proposal_views(context: &CurrentReadContext, claim_id: &str) -> Vec<Value> {
                 "proposal": proposal,
                 "proposal_root": reference.root,
                 "decision": context.decisions.get(&proposal.proposal_id),
+                "withdrawal": context.withdrawals.get(&proposal.proposal_id),
             })
         })
         .collect()
@@ -360,12 +375,17 @@ pub(crate) fn show_payload(frontier: &Path, object_id: &str) -> Result<Value, St
     if object_id.starts_with("vcl_")
         && let Ok((claim, root, standing)) = load_claim(frontier, &context, object_id)
     {
+        let effect = if standing == "withdrawn" {
+            "producer withdrew the pending Proposal; this Claim never entered accepted scientific Standing".to_string()
+        } else {
+            format!("scientific standing is {standing}, derived from current authority")
+        };
         return Ok(object_projection(
             &context,
             object_id,
             "claim",
             vela_protocol::claim_record::CLAIM_RECORD_V1_SCHEMA,
-            &format!("scientific standing is {standing}, derived from current authority"),
+            &effect,
             root,
             serde_json::to_value(claim).map_err(|error| error.to_string())?,
         ));
@@ -380,11 +400,12 @@ pub(crate) fn show_payload(frontier: &Path, object_id: &str) -> Result<Value, St
             object_id,
             "proposal",
             vela_protocol::proposal_v1::PROPOSAL_V1_SCHEMA,
-            "requests a scientific-state change; standing is derived from an authorized Decision",
+            "requests a scientific-state change; a producer may withdraw it, but only an authorized Decision changes accepted Standing",
             reference.root.clone(),
             json!({
                 "proposal": proposal,
                 "decision": context.decisions.get(object_id),
+                "withdrawal": context.withdrawals.get(object_id),
             }),
         ));
     }
@@ -398,6 +419,11 @@ pub(crate) fn show_payload(frontier: &Path, object_id: &str) -> Result<Value, St
             &context.repository.verifications,
             "verification_record",
             "verification observation; no accepted-state authority",
+        ),
+        (
+            &context.repository.proposal_withdrawals,
+            "proposal_withdrawal",
+            "producer-owned pending lifecycle closure; no accepted-state authority",
         ),
         (
             &context.repository.artifacts,

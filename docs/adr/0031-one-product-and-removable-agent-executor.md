@@ -57,7 +57,8 @@ the work.
 
 - Evidence is not Standing.
 - Verification is not acceptance.
-- An agent cannot accept, reject, or cancel a Proposal.
+- An agent cannot accept or reject a Proposal. The exact producer may withdraw
+  only its own still-pending Proposal under ADR 0032.
 - Only an authorized human Decision changes Standing.
 - Accepted transitions replay without any agent runner.
 - Corrections append; current Vela does not rewrite historical evidence.

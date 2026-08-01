@@ -165,10 +165,10 @@ pub(crate) fn proposal_reproduction_files(
             proposal_reference.id
         ));
     }
-    let decisions = crate::current_repository::load_current_proposal_decisions(path, &repository)?;
-    let standing = decisions
+    let standings = crate::current_repository::load_current_proposal_standings(path, &repository)?;
+    let standing = standings
         .get(proposal_id)
-        .map(|decision| decision.standing.as_str())
+        .map(String::as_str)
         .unwrap_or("pending_review");
     if standing != "pending_review" {
         return Err(format!(

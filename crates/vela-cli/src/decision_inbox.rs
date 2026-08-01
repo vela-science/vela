@@ -574,8 +574,8 @@ pub(crate) fn project(frontier: &Path) -> Result<DecisionInboxProjection, String
             .map_err(|error| format!("read current repository origin: {error}"))?,
     )?;
     let authority = crate::cli::load_current_repository_authority(frontier, &repository, &origin)?;
-    let decisions =
-        crate::current_repository::load_current_proposal_decisions(frontier, &repository)?;
+    let standings =
+        crate::current_repository::load_current_proposal_standings(frontier, &repository)?;
     let authority_heads = DecisionInboxAuthorityHeads {
         policy_bundle_root: repository.authority_policy_root.clone(),
         authority_keyset_root: repository.authority_keyset_root.clone(),
@@ -589,7 +589,7 @@ pub(crate) fn project(frontier: &Path) -> Result<DecisionInboxProjection, String
 
     let mut entries = Vec::new();
     for proposal_reference in &repository.proposals {
-        if decisions.contains_key(&proposal_reference.id) {
+        if standings.contains_key(&proposal_reference.id) {
             continue;
         }
         let proposal = crate::current_repository_decision::read_exact(
@@ -993,6 +993,7 @@ mod tests {
                 &proposal_root,
                 "proposals",
             )],
+            proposal_withdrawals: Vec::new(),
             submissions: vec![RepositoryObjectRefV1 {
                 schema: vela_protocol::submission_v1::SUBMISSION_V1_SCHEMA.into(),
                 id: submission.submission_id.clone(),

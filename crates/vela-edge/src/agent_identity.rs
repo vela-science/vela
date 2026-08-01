@@ -26,13 +26,8 @@ const AGENT_KEY_ENV: &str = "VELA_AGENT_KEY_HEX";
 /// agent-grade objects (leases,
 /// records); every decision verb still refuses agent actors outright.
 pub fn agent_signing_key(explicit_actor: Option<&str>) -> Result<SigningKey, String> {
-    if let Ok(hex_str) = std::env::var(AGENT_KEY_ENV) {
-        let bytes =
-            hex::decode(hex_str.trim()).map_err(|e| format!("decode {AGENT_KEY_ENV}: {e}"))?;
-        let arr: [u8; 32] = bytes
-            .try_into()
-            .map_err(|_| format!("{AGENT_KEY_ENV} must be 32 hex bytes"))?;
-        return Ok(SigningKey::from_bytes(&arr));
+    if let Some(key) = environment_key()? {
+        return Ok(key);
     }
     let actor = explicit_actor
         .map(str::to_string)
@@ -53,10 +48,49 @@ pub fn agent_signing_key(explicit_actor: Option<&str>) -> Result<SigningKey, Str
     mint_or_load_agent_key(&base, &actor)
 }
 
-/// The mint itself, factored for tests: `<base>/<sanitized-actor>/private.key`
-/// (hex seed, 0600), created once and reused for the actor's lifetime on
-/// this machine.
-fn mint_or_load_agent_key(base: &Path, actor: &str) -> Result<SigningKey, String> {
+/// Load the already-established identity for an exact producer.
+///
+/// Lifecycle actions such as Proposal withdrawal must prove continuity with
+/// the retained Submission. They therefore fail if its key is unavailable
+/// instead of silently minting a replacement that cannot verify.
+pub fn existing_agent_signing_key(actor: &str) -> Result<SigningKey, String> {
+    if let Some(key) = environment_key()? {
+        return Ok(key);
+    }
+    validate_agent_actor(actor)?;
+    let home = std::env::var("HOME").map_err(|_| "HOME unset".to_string())?;
+    let key_path = actor_key_path(&std::path::PathBuf::from(home).join(".vela/agents"), actor);
+    if !key_path.is_file() {
+        return Err(format!(
+            "producer identity key is unavailable at {}; withdrawal requires the exact key that signed the Submission",
+            key_path.display()
+        ));
+    }
+    load_agent_key(&key_path)
+}
+
+fn environment_key() -> Result<Option<SigningKey>, String> {
+    let Ok(hex_str) = std::env::var(AGENT_KEY_ENV) else {
+        return Ok(None);
+    };
+    let bytes = hex::decode(hex_str.trim()).map_err(|e| format!("decode {AGENT_KEY_ENV}: {e}"))?;
+    let arr: [u8; 32] = bytes
+        .try_into()
+        .map_err(|_| format!("{AGENT_KEY_ENV} must be 32 hex bytes"))?;
+    Ok(Some(SigningKey::from_bytes(&arr)))
+}
+
+fn validate_agent_actor(actor: &str) -> Result<(), String> {
+    if actor.starts_with("agent:") || actor.starts_with("ci:") || actor.starts_with("verifier:") {
+        Ok(())
+    } else {
+        Err(format!(
+            "agent key custody is for agent:/ci:/verifier: actors, not '{actor}' — human authority uses the authenticated platform principal"
+        ))
+    }
+}
+
+fn actor_key_path(base: &Path, actor: &str) -> std::path::PathBuf {
     let safe: String = actor
         .chars()
         .map(|c| {
@@ -67,19 +101,32 @@ fn mint_or_load_agent_key(base: &Path, actor: &str) -> Result<SigningKey, String
             }
         })
         .collect();
-    let dir = base.join(safe);
-    let key_path = dir.join("private.key");
+    base.join(safe).join("private.key")
+}
+
+fn load_agent_key(key_path: &Path) -> Result<SigningKey, String> {
+    let hex_str = std::fs::read_to_string(key_path)
+        .map_err(|e| format!("read {}: {e}", key_path.display()))?;
+    let bytes =
+        hex::decode(hex_str.trim()).map_err(|e| format!("decode {}: {e}", key_path.display()))?;
+    let arr: [u8; 32] = bytes
+        .try_into()
+        .map_err(|_| format!("{} must be 32 hex bytes", key_path.display()))?;
+    Ok(SigningKey::from_bytes(&arr))
+}
+
+/// The mint itself, factored for tests: `<base>/<sanitized-actor>/private.key`
+/// (hex seed, 0600), created once and reused for the actor's lifetime on
+/// this machine.
+fn mint_or_load_agent_key(base: &Path, actor: &str) -> Result<SigningKey, String> {
+    let key_path = actor_key_path(base, actor);
+    let dir = key_path
+        .parent()
+        .ok_or_else(|| "agent key path has no parent".to_string())?;
     if key_path.exists() {
-        let hex_str = std::fs::read_to_string(&key_path)
-            .map_err(|e| format!("read {}: {e}", key_path.display()))?;
-        let bytes = hex::decode(hex_str.trim())
-            .map_err(|e| format!("decode {}: {e}", key_path.display()))?;
-        let arr: [u8; 32] = bytes
-            .try_into()
-            .map_err(|_| format!("{} must be 32 hex bytes", key_path.display()))?;
-        return Ok(SigningKey::from_bytes(&arr));
+        return load_agent_key(&key_path);
     }
-    std::fs::create_dir_all(&dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
+    std::fs::create_dir_all(dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
     let mut seed = [0u8; 32];
     use rand::RngCore;
     rand::rngs::OsRng.fill_bytes(&mut seed);

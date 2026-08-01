@@ -15,6 +15,7 @@ use vela_protocol::current_repository::{
 };
 use vela_protocol::events::{EventKind, NULL_HASH};
 use vela_protocol::proposal_v1::ProposalV1;
+use vela_protocol::proposal_withdrawal_v1::ProposalWithdrawalV1;
 use vela_protocol::repository_origin::RepositoryOriginV1;
 use vela_protocol::submission_v1::SubmissionV1;
 use vela_protocol::verification_record::VerificationRecordV1;
@@ -85,6 +86,7 @@ pub(crate) fn cmd_check_repository(frontier: &Path, json_out: bool) {
             "accepted_claims": repository.accepted_claims.len(),
             "pending_claims": repository.pending_claims.len(),
             "proposals": repository.proposals.len(),
+            "proposal_withdrawals": repository.proposal_withdrawals.len(),
             "submissions": repository.submissions.len(),
             "verifications": repository.verifications.len(),
             "artifacts": repository.artifacts.len()
@@ -226,6 +228,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
                 "pending_review": 0,
                 "accepted_review": 0,
                 "rejected_review": 0,
+                "withdrawn_review": 0,
                 "submissions": 0,
                 "verifications": 0,
                 "artifacts": 0
@@ -262,21 +265,25 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let tree = git_text(&frontier, &["rev-parse", "HEAD^{tree}"])
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let decisions = load_current_proposal_decisions(&frontier, &repository)
+    let standings = load_current_proposal_standings(&frontier, &repository)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let pending_proposals = repository
         .proposals
         .iter()
-        .filter(|proposal| !decisions.contains_key(&proposal.id))
+        .filter(|proposal| !standings.contains_key(&proposal.id))
         .collect::<Vec<_>>();
     let pending_review = pending_proposals.len();
-    let accepted_review = decisions
+    let accepted_review = standings
         .values()
-        .filter(|decision| decision.standing == "accepted")
+        .filter(|standing| standing.as_str() == "accepted")
         .count();
-    let rejected_review = decisions
+    let rejected_review = standings
         .values()
-        .filter(|decision| decision.standing == "rejected")
+        .filter(|standing| standing.as_str() == "rejected")
+        .count();
+    let withdrawn_review = standings
+        .values()
+        .filter(|standing| standing.as_str() == "withdrawn")
         .count();
     let ready_target_count = vela_edge::target_index::assess_current_target_index(
         &frontier,
@@ -333,6 +340,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             "pending_review": pending_review,
             "accepted_review": accepted_review,
             "rejected_review": rejected_review,
+            "withdrawn_review": withdrawn_review,
             "submissions": repository.submissions.len(),
             "verifications": repository.verifications.len(),
             "artifacts": repository.artifacts.len()
@@ -674,42 +682,149 @@ pub(crate) fn load_current_proposal_decisions(
     current_proposal_decisions(&authority.history.authority_events)
 }
 
+pub(crate) fn load_current_proposal_standings(
+    frontier: &Path,
+    repository: &CurrentRepositoryV4,
+) -> Result<BTreeMap<String, String>, String> {
+    let decisions = load_current_proposal_decisions(frontier, repository)?;
+    let mut standings = decisions
+        .into_iter()
+        .map(|(proposal_id, decision)| (proposal_id, decision.standing))
+        .collect::<BTreeMap<_, _>>();
+    for proposal_id in load_current_proposal_withdrawals(frontier, repository)?.into_keys() {
+        if standings
+            .insert(proposal_id.clone(), "withdrawn".into())
+            .is_some()
+        {
+            return Err(format!(
+                "current Proposal {proposal_id} has both a producer Withdrawal and an authority Decision"
+            ));
+        }
+    }
+    Ok(standings)
+}
+
+pub(crate) fn load_current_proposal_withdrawals(
+    frontier: &Path,
+    repository: &CurrentRepositoryV4,
+) -> Result<BTreeMap<String, ProposalWithdrawalV1>, String> {
+    let mut withdrawals = BTreeMap::new();
+    for reference in &repository.proposal_withdrawals {
+        let bytes = read_rooted_object(frontier, &reference.path, &reference.root)?;
+        let withdrawal = ProposalWithdrawalV1::parse(&bytes)?;
+        if withdrawal.withdrawal_id != reference.id
+            || withdrawal.canonical_root()? != reference.root
+        {
+            return Err(format!(
+                "current Proposal Withdrawal {} differs from its repository reference",
+                reference.id
+            ));
+        }
+        let proposal_reference = repository
+            .proposals
+            .iter()
+            .find(|candidate| {
+                candidate.id == withdrawal.proposal_id && candidate.root == withdrawal.proposal_root
+            })
+            .ok_or_else(|| {
+                format!(
+                    "Proposal Withdrawal {} does not bind one exact retained Proposal",
+                    withdrawal.withdrawal_id
+                )
+            })?;
+        let proposal = ProposalV1::parse(&read_rooted_object(
+            frontier,
+            &proposal_reference.path,
+            &proposal_reference.root,
+        )?)?;
+        let submission_reference = repository
+            .submissions
+            .iter()
+            .find(|candidate| {
+                candidate.id == withdrawal.submission_id
+                    && candidate.root == withdrawal.submission_root
+            })
+            .ok_or_else(|| {
+                format!(
+                    "Proposal Withdrawal {} does not bind one exact retained Submission",
+                    withdrawal.withdrawal_id
+                )
+            })?;
+        let submission = SubmissionV1::parse(&read_rooted_object(
+            frontier,
+            &submission_reference.path,
+            &submission_reference.root,
+        )?)?;
+        withdrawal.verify_with(&proposal, &submission)?;
+        if withdrawals
+            .insert(withdrawal.proposal_id.clone(), withdrawal)
+            .is_some()
+        {
+            return Err(format!(
+                "current Proposal {} has more than one Withdrawal",
+                proposal.proposal_id
+            ));
+        }
+    }
+    Ok(withdrawals)
+}
+
 fn validate_current_proposal_standing(
     root: &Path,
-    accepted_claims: &[vela_protocol::current_repository::ClaimStandingRefV1],
-    pending_claims: &[vela_protocol::current_repository::ClaimStandingRefV1],
-    proposals: &[RepositoryObjectRefV1],
+    repository: &CurrentRepositoryV4,
     events: &[AuthorityEventV1],
 ) -> Result<(), String> {
+    let withdrawals = load_current_proposal_withdrawals(root, repository)?;
     let decisions = current_proposal_decisions(events)?;
-    for proposal_id in decisions.keys() {
-        if !proposals.iter().any(|proposal| proposal.id == *proposal_id) {
+    let mut standings = decisions
+        .iter()
+        .map(|(proposal_id, decision)| (proposal_id.clone(), decision.standing.clone()))
+        .collect::<BTreeMap<_, _>>();
+    for proposal_id in withdrawals.keys() {
+        if standings
+            .insert(proposal_id.clone(), "withdrawn".into())
+            .is_some()
+        {
+            return Err(format!(
+                "current Proposal {proposal_id} has both a producer Withdrawal and an authority Decision"
+            ));
+        }
+    }
+    for proposal_id in standings.keys() {
+        if !repository
+            .proposals
+            .iter()
+            .any(|proposal| proposal.id == *proposal_id)
+        {
             return Err(format!(
                 "current Decision targets Proposal {proposal_id} outside the repository"
             ));
         }
     }
-    for reference in proposals {
+    for reference in &repository.proposals {
         let bytes = read_rooted_object(root, &reference.path, &reference.root)?;
         let proposal = ProposalV1::parse(&bytes)?;
         let claim = rooted_claim_for_proposal(root, &proposal)?;
-        let pending = pending_claims.iter().any(|candidate| {
+        let pending = repository.pending_claims.iter().any(|candidate| {
             candidate.claim_id == proposal.subject.id
                 && candidate.claim_root == proposal.subject.root
         });
-        let accepted = accepted_claims.iter().any(|candidate| {
+        let accepted = repository.accepted_claims.iter().any(|candidate| {
             candidate.claim_id == proposal.subject.id
                 && candidate.claim_root == proposal.subject.root
         });
         let decision = decisions.get(&proposal.proposal_id);
-        let standing = decision
-            .map(|decision| decision.standing.as_str())
+        let standing = standings
+            .get(&proposal.proposal_id)
+            .map(String::as_str)
             .unwrap_or("pending_review");
         let expected = match (proposal.action.as_str(), standing) {
             ("claim.add" | "claim.revise", "pending_review") => (true, false),
             ("claim.add" | "claim.revise", "accepted") => (false, true),
             ("claim.add" | "claim.revise", "rejected") => (false, false),
+            ("claim.add" | "claim.revise", "withdrawn") => (false, false),
             ("claim.withdraw", "pending_review" | "rejected") => (false, true),
+            ("claim.withdraw", "withdrawn") => (false, true),
             ("claim.withdraw", "accepted") => (false, false),
             (action, standing) => {
                 return Err(format!(
@@ -801,9 +916,9 @@ pub(crate) fn cmd_current_review_list(
 ) {
     crate::ui::set_mode("review list", json_out);
     let status = status.unwrap_or("pending_review");
-    if !["pending_review", "accepted", "rejected", "all"].contains(&status) {
+    if !["pending_review", "accepted", "rejected", "withdrawn", "all"].contains(&status) {
         crate::cli::fail_return::<()>(
-            "current review status must be pending_review, accepted, rejected, or all",
+            "current review status must be pending_review, accepted, rejected, withdrawn, or all",
         );
     }
     let frontier = frontier.canonicalize().unwrap_or_else(|error| {
@@ -816,6 +931,8 @@ pub(crate) fn cmd_current_review_list(
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let decisions = load_current_proposal_decisions(&frontier, &repository)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let withdrawals = load_current_proposal_withdrawals(&frontier, &repository)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let mut items = repository
         .proposals
         .iter()
@@ -825,9 +942,17 @@ pub(crate) fn cmd_current_review_list(
             let proposal =
                 ProposalV1::parse(&bytes).unwrap_or_else(|error| crate::cli::fail_return(&error));
             let decision = decisions.get(&proposal.proposal_id);
-            let standing = decision
-                .map(|decision| decision.standing.as_str())
-                .unwrap_or("pending_review");
+            let withdrawal = withdrawals.get(&proposal.proposal_id);
+            let standing = decision.map_or_else(
+                || {
+                    if withdrawal.is_some() {
+                        "withdrawn"
+                    } else {
+                        "pending_review"
+                    }
+                },
+                |decision| decision.standing.as_str(),
+            );
             if status != "all" && standing != status {
                 return None;
             }
@@ -845,7 +970,8 @@ pub(crate) fn cmd_current_review_list(
                     "submission_id": proposal.producer_package.id,
                     "reason": proposal.reason,
                     "caveats": proposal.caveats,
-                    "decision": decision
+                    "decision": decision,
+                    "withdrawal": withdrawal
                 }),
             ))
         })
@@ -921,6 +1047,8 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let decisions = load_current_proposal_decisions(&frontier, &repository)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let withdrawals = load_current_proposal_withdrawals(&frontier, &repository)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let reference = repository
         .proposals
         .iter()
@@ -932,10 +1060,16 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let proposal =
         ProposalV1::parse(&proposal_bytes).unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let standing = decisions
-        .get(proposal_id)
-        .map(|decision| decision.standing.as_str())
-        .unwrap_or("pending_review");
+    let standing = decisions.get(proposal_id).map_or_else(
+        || {
+            if withdrawals.contains_key(proposal_id) {
+                "withdrawn"
+            } else {
+                "pending_review"
+            }
+        },
+        |decision| decision.standing.as_str(),
+    );
     let claim_path =
         crate::current_submission::rooted_path("records/claims/sha256", &proposal.subject.root)
             .unwrap_or_else(|error| crate::cli::fail_return(&error));
@@ -979,6 +1113,7 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
         })
         .collect::<Vec<_>>();
     let decision = decisions.get(proposal_id);
+    let withdrawal = withdrawals.get(proposal_id);
     let decision_inbox = crate::decision_inbox::review_context(&frontier, proposal_id)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let payload = json!({
@@ -995,8 +1130,9 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
         "submission": submission,
         "verification_records": verifications,
         "decision": decision,
+        "withdrawal": withdrawal,
         "decision_inbox": decision_inbox,
-        "authority_boundary": "Verification records report bounded checks. Only a repository-authority Decision can change standing.",
+        "authority_boundary": "Verification records report bounded checks. A producer may close its own pending Proposal; only a repository-authority Decision can change accepted scientific Standing.",
     });
     if json_out {
         crate::cli::print_json(&payload);
@@ -1213,13 +1349,7 @@ pub(crate) fn load_current_repository_at(
     }
     if require_authority_record {
         let loaded = crate::cli::load_current_repository_authority(root, &repository, &origin)?;
-        validate_current_proposal_standing(
-            root,
-            &repository.accepted_claims,
-            &repository.pending_claims,
-            &repository.proposals,
-            &loaded.history.authority_events,
-        )?;
+        validate_current_proposal_standing(root, &repository, &loaded.history.authority_events)?;
         let mut records = Vec::with_capacity(loaded.history.authority_envelopes.len());
         for envelope in &loaded.history.authority_envelopes {
             records.push(crate::cli::authority_record_from_envelope(envelope)?);
@@ -1510,6 +1640,7 @@ fn read_current_object_set(
             repository
                 .proposals
                 .iter()
+                .chain(&repository.proposal_withdrawals)
                 .chain(&repository.submissions)
                 .chain(&repository.verifications)
                 .chain(&repository.artifacts)
@@ -1671,13 +1802,7 @@ fn verify_current_repository_authority(
             predecessor.archived_actor_registry_root.as_str()
         });
     let loaded = crate::cli::load_current_repository_authority(root, repository, origin)?;
-    validate_current_proposal_standing(
-        root,
-        &repository.accepted_claims,
-        &repository.pending_claims,
-        &repository.proposals,
-        &loaded.history.authority_events,
-    )?;
+    validate_current_proposal_standing(root, repository, &loaded.history.authority_events)?;
     let initialization_event_id = loaded
         .verification
         .initialization_event_id
@@ -1860,6 +1985,7 @@ fn verify_current_repository_authority(
             repository
                 .proposals
                 .iter()
+                .chain(&repository.proposal_withdrawals)
                 .chain(&repository.submissions)
                 .chain(&repository.verifications)
                 .chain(&repository.artifacts)
@@ -1899,6 +2025,7 @@ fn verify_current_repository_authority(
             repository
                 .proposals
                 .iter()
+                .chain(&repository.proposal_withdrawals)
                 .chain(&repository.submissions)
                 .chain(&repository.verifications)
                 .chain(&repository.artifacts)
@@ -2157,7 +2284,33 @@ pub(crate) fn verify_routine_evidence_overlay(
         return Err("routine evidence changes accepted scientific Standing".into());
     }
 
-    require_retained_claim_refs(
+    let removed_pending = authority_checkpoint
+        .pending_claims
+        .iter()
+        .filter(|retained| {
+            !current
+                .pending_claims
+                .iter()
+                .any(|candidate| candidate.claim_id == retained.claim_id && candidate == *retained)
+        })
+        .count();
+    let added_withdrawals = current
+        .proposal_withdrawals
+        .iter()
+        .filter(|candidate| {
+            !authority_checkpoint
+                .proposal_withdrawals
+                .iter()
+                .any(|retained| retained.id == candidate.id && retained == *candidate)
+        })
+        .count();
+    if removed_pending > added_withdrawals {
+        return Err(
+            "routine evidence removes pending Claims without one appended Proposal Withdrawal per removal"
+                .into(),
+        );
+    }
+    require_unchanged_or_removed_claim_refs(
         "pending Claim",
         &authority_checkpoint.pending_claims,
         &current.pending_claims,
@@ -2166,6 +2319,11 @@ pub(crate) fn verify_routine_evidence_overlay(
         "Proposal",
         &authority_checkpoint.proposals,
         &current.proposals,
+    )?;
+    require_retained_object_refs(
+        "Proposal Withdrawal",
+        &authority_checkpoint.proposal_withdrawals,
+        &current.proposal_withdrawals,
     )?;
     require_retained_object_refs(
         "Submission",
@@ -2185,19 +2343,18 @@ pub(crate) fn verify_routine_evidence_overlay(
     Ok(())
 }
 
-fn require_retained_claim_refs(
+fn require_unchanged_or_removed_claim_refs(
     label: &str,
     checkpoint: &[ClaimStandingRefV1],
     current: &[ClaimStandingRefV1],
 ) -> Result<(), String> {
     for retained in checkpoint {
-        match current
+        if let Some(candidate) = current
             .iter()
             .find(|candidate| candidate.claim_id == retained.claim_id)
+            && candidate != retained
         {
-            Some(candidate) if candidate == retained => {}
-            Some(_) => return Err(format!("routine evidence rewrites retained {label}")),
-            None => return Err(format!("routine evidence removes retained {label}")),
+            return Err(format!("routine evidence rewrites retained {label}"));
         }
     }
     Ok(())
@@ -2776,6 +2933,7 @@ mod tests {
             accepted_claims: Vec::new(),
             pending_claims: Vec::new(),
             proposals: Vec::new(),
+            proposal_withdrawals: Vec::new(),
             submissions: Vec::new(),
             verifications: Vec::new(),
             artifacts: Vec::new(),
@@ -2813,6 +2971,22 @@ mod tests {
             .submissions
             .push(object_reference("submissions", "vsb_0000000000000001", '7'));
         verify_routine_evidence_overlay(&checkpoint, &current).unwrap();
+
+        let mut withdrawn = current.clone();
+        withdrawn.pending_claims.clear();
+        withdrawn.proposal_withdrawals.push(object_reference(
+            "proposal-withdrawals",
+            "vpw_0000000000000001",
+            'a',
+        ));
+        verify_routine_evidence_overlay(&current, &withdrawn).unwrap();
+
+        let mut unbound_removal = current.clone();
+        unbound_removal.pending_claims.clear();
+        assert_eq!(
+            verify_routine_evidence_overlay(&current, &unbound_removal).unwrap_err(),
+            "routine evidence removes pending Claims without one appended Proposal Withdrawal per removal"
+        );
 
         let mut accepted = current.clone();
         accepted.accepted_claims = vec![ClaimStandingRefV1 {

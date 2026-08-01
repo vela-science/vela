@@ -308,7 +308,16 @@ Proposal.
 pending Proposal and its exact current objects. It advances the repository
 manifest and changes no Standing.
 
-### 5.5 Decide
+### 5.5 Withdraw a pending Proposal
+
+`vela review withdraw` is producer-owned queue hygiene. It appends one
+`vela.proposal-withdrawal.v1` signed by the exact key bound in the Proposal's
+retained Submission and removes only that Proposal's Claim from the pending
+projection. It reads no repository-authority key, emits no Event, and leaves
+accepted Standing unchanged. A decided Proposal cannot be withdrawn, and a
+withdrawn Proposal cannot later be decided or verified.
+
+### 5.6 Decide
 
 `vela review accept|reject` rederives the complete Decision Plan, authenticates
 and authorizes the semantic principal, rechecks the read set, requests the
@@ -346,8 +355,8 @@ Strict replay verifies:
 3. contiguous authority records and valid DSSE signatures;
 4. activated keyset and Cedar material;
 5. canonical object schemas and full roots;
-6. Proposal, Submission, Verification, Claim, Artifact, and
-   Event relations;
+6. Proposal, Submission, Verification, Withdrawal, Claim, Artifact, and Event
+   relations;
 7. repository-manifest parity;
 8. accepted and pending Claim sets; and
 9. transaction-journal integrity.
@@ -391,8 +400,10 @@ and the declared frozen verifiers.
 
 The public write boundaries are:
 
-- `vela.submission.v1` for producer input; and
-- `vela.verification-record.v1` for verifier observations.
+- `vela.submission.v1` for producer input;
+- `vela.verification-record.v1` for verifier observations; and
+- `vela.proposal-withdrawal.v1` for producer-owned closure of one pending
+  Proposal.
 
 Adapters disclose source identity, versions, exact roots, transformations,
 losses, and nonclaims. They never emit Vela authority Events or infer Standing.
