@@ -1136,6 +1136,15 @@ struct RepositoryAuthorityWriteAuthorization {
 }
 
 #[derive(Debug)]
+struct RoutineEvidenceWriteAuthorization {
+    frontier_id: String,
+    origin_id: String,
+    repository_root: ContentDigest,
+    authority_record_root: ContentDigest,
+    authority_event_log_root: ContentDigest,
+}
+
+#[derive(Debug)]
 struct FreshRepositoryAuthorization {
     frontier_id: String,
     context_root: ContentDigest,
@@ -1203,6 +1212,60 @@ fn verify_repository_authority_write_era(
     root: &Path,
 ) -> Result<RepositoryAuthorityWriteAuthorization, FrontierTxnError> {
     verify_current_repository_authority_write_era(root)
+}
+
+fn verify_routine_evidence_write_era(
+    root: &Path,
+) -> Result<RoutineEvidenceWriteAuthorization, FrontierTxnError> {
+    let intent = "routine_evidence";
+    let repository =
+        crate::current_repository::verify_current_repository_at(root, true).map_err(|error| {
+            FrontierTxnError::RepositoryWriteIntentDenied {
+                intent,
+                reason: format!("current repository origin is invalid: {error}"),
+            }
+        })?;
+    let origin_bytes = fs::read(root.join(".vela/origin.json"))
+        .map_err(|error| FrontierTxnError::Io(format!("read repository origin: {error}")))?;
+    let origin = vela_protocol::repository_origin::RepositoryOriginV1::parse(&origin_bytes)
+        .map_err(|error| FrontierTxnError::RepositoryWriteIntentDenied {
+            intent,
+            reason: format!("current repository origin is invalid: {error}"),
+        })?;
+    let authority = crate::cli::load_current_repository_authority(root, &repository, &origin)
+        .map_err(|error| FrontierTxnError::RepositoryWriteIntentDenied {
+            intent,
+            reason: format!("current repository-authority history is invalid: {error}"),
+        })?;
+    if authority.verification.closed {
+        return Err(FrontierTxnError::RepositoryWriteIntentDenied {
+            intent,
+            reason: "repository-authority history is closed".into(),
+        });
+    }
+    let authority_record_root = authority
+        .verification
+        .final_authority_record_root
+        .as_deref()
+        .ok_or_else(|| FrontierTxnError::RepositoryWriteIntentDenied {
+            intent,
+            reason: "current repository-authority history has no head record".into(),
+        })?;
+    let repository_root = ContentDigest::parse(repository.canonical_root().map_err(|error| {
+        FrontierTxnError::RepositoryWriteIntentDenied {
+            intent,
+            reason: format!("current repository has no valid root: {error}"),
+        }
+    })?)?;
+    Ok(RoutineEvidenceWriteAuthorization {
+        frontier_id: repository.frontier_id,
+        origin_id: origin.origin_id,
+        repository_root,
+        authority_record_root: ContentDigest::parse(authority_record_root.to_string())?,
+        authority_event_log_root: ContentDigest::parse(
+            authority.verification.final_event_log_root,
+        )?,
+    })
 }
 
 fn verify_current_repository_authority_write_era(
@@ -1630,6 +1693,14 @@ impl FrontierRecoveryBarrier {
         })
     }
 
+    fn authorize_for_routine_evidence(self) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
+        let authorization = verify_routine_evidence_write_era(&self.root)?;
+        Ok(CanonicalWriteBarrier {
+            recovery: self,
+            authorization: FrontierTxnAuthorization::RoutineEvidence(authorization),
+        })
+    }
+
     fn authorize_for_fresh_repository(self) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
         let trusted_user_home = operating_system_account_home()?;
         let authorization = verify_fresh_repository_authorization(&self.root, &trusted_user_home)?;
@@ -1682,6 +1753,21 @@ fn reverify_transaction_authorization(
                 return Err(FrontierTxnError::StaleWriteAuthorization {
                     expected: expected.boundary_event_root.clone(),
                     actual: actual.boundary_event_root,
+                });
+            }
+            Ok(())
+        }
+        FrontierTxnAuthorization::RoutineEvidence(expected) => {
+            let actual = verify_routine_evidence_write_era(root)?;
+            if actual.frontier_id != expected.frontier_id
+                || actual.origin_id != expected.origin_id
+                || actual.repository_root != expected.repository_root
+                || actual.authority_record_root != expected.authority_record_root
+                || actual.authority_event_log_root != expected.authority_event_log_root
+            {
+                return Err(FrontierTxnError::StaleWriteAuthorization {
+                    expected: expected.repository_root.clone(),
+                    actual: actual.repository_root,
                 });
             }
             Ok(())
@@ -2243,6 +2329,7 @@ pub(crate) struct FrontierTxn {
 enum FrontierTxnAuthorization {
     FreshRepository(FreshRepositoryAuthorization),
     RepositoryAuthority(RepositoryAuthorityWriteAuthorization),
+    RoutineEvidence(RoutineEvidenceWriteAuthorization),
     #[cfg(test)]
     TestHarness,
 }
@@ -2252,6 +2339,7 @@ impl FrontierTxnAuthorization {
         match self {
             Self::FreshRepository(authorization) => Some(&authorization.frontier_id),
             Self::RepositoryAuthority(authorization) => Some(&authorization.frontier_id),
+            Self::RoutineEvidence(authorization) => Some(&authorization.frontier_id),
             #[cfg(test)]
             Self::TestHarness => None,
         }
@@ -2364,6 +2452,19 @@ impl FrontierTxn {
         // Fail an Era-0 repository before creating even the ignored lock.
         verify_repository_authority_write_era(&root)?;
         Self::acquire_recovery_barrier(&root, journal_dir)?.authorize_for_repository_authority()
+    }
+
+    pub(crate) fn acquire_routine_evidence_write_barrier(
+        frontier_root: &Path,
+        journal_dir: &Path,
+    ) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
+        let root = canonical_frontier_root(frontier_root)?;
+        // Reject invalid, closed, or pre-current repositories before creating
+        // even the ignored lock. Routine evidence binds the repository and
+        // authority heads but deliberately does not require a caller-local
+        // trust pin; no scientific Standing can change through this path.
+        verify_routine_evidence_write_era(&root)?;
+        Self::acquire_recovery_barrier(&root, journal_dir)?.authorize_for_routine_evidence()
     }
 
     pub(crate) fn acquire_repository_authority_initialization_barrier(

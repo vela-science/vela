@@ -449,12 +449,14 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             .expect("idempotent pin writes")
             .is_empty()
     );
-    let _anchor = RemoveOnDrop(std::path::PathBuf::from(
+    let anchor_path = std::path::PathBuf::from(
         pinned["authority_trust_anchor_path"]
             .as_str()
             .expect("trust anchor path"),
-    ));
+    );
+    let _anchor = RemoveOnDrop(anchor_path.clone());
     install_current_target_index(&frontier, agent.socket());
+    std::fs::remove_file(&anchor_path).expect("remove routine writer trust pin");
     let actor = "agent:current-submission-regression";
     let attempt = success_json(&run(
         &frontier,
@@ -1046,6 +1048,46 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         replayed_import["verification_record_id"],
         verified["verification_record_id"]
     );
+
+    // Routine evidence does not depend on caller-local authority custody, but
+    // a later human Decision still requires the independent sequence-one pin.
+    let unpinned_decision = run(
+        &frontier,
+        Some(agent.socket()),
+        &[
+            "review",
+            "reject",
+            ".",
+            proposal_id,
+            "--reason",
+            "The fixture proves the evidence path but is not a scientific result.",
+            "--json",
+        ],
+    );
+    assert!(!unpinned_decision.status.success());
+    let unpinned_error = format!(
+        "{}{}",
+        String::from_utf8_lossy(&unpinned_decision.stdout),
+        String::from_utf8_lossy(&unpinned_decision.stderr)
+    );
+    assert!(
+        unpinned_error.contains("independent sequence-one pin"),
+        "unexpected unpinned Decision error: {unpinned_error}"
+    );
+    let repinned = success_json(&run(
+        &frontier,
+        None,
+        &[
+            "authority",
+            "trust",
+            "pin",
+            ".",
+            "--record-root",
+            record_root,
+            "--json",
+        ],
+    ));
+    assert_eq!(repinned["operation"], "installed");
 
     // A later human Decision must checkpoint the exact self-authenticated
     // evidence overlay instead of requiring each routine write to have carried

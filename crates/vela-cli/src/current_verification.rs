@@ -480,7 +480,7 @@ fn import_inner(
     ensure_pending_proposal(frontier, &repository, &record.subject.proposal_id)?;
 
     let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier)?;
-    let barrier = crate::frontier_txn::FrontierTxn::acquire_repository_authority_write_barrier(
+    let barrier = crate::frontier_txn::FrontierTxn::acquire_routine_evidence_write_barrier(
         frontier,
         &journal_dir,
     )
