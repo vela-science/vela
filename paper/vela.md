@@ -739,34 +739,9 @@ therefore passes B8 and authority non-escalation. It does not demonstrate
 external independence, performance lift, or readiness for a Registry or
 Atlas.
 
-The matched Git-versus-Vela state-reading protocol is frozen at root
+The historical Git-versus-Vela state-reading protocol is frozen at root
 `sha256:68fb039088302d19f02cf2628c16004e174649b1f952a63a0fd35210c0dd0ef8`.
-It gives both arms identical terminal repository, evidence, verifier, Git, and
-documentation bytes; only the Vela arm receives the exact read-only CLI. A
-dependency-free exact-field scorer is frozen at source root
-`sha256:c949f9dec835cbe97bb89a22ccc006e8e767f88b86dfc6c4a0083732ff3fcd63`.
-It rejects task-instance drift and reports false authority statements as hard
-failures.
-
-The subjects were first-party Codex model sessions, not human reviewers. This
-protocol can debug the task and scorer but cannot establish human
-comprehension, reviewer efficiency, or external adoption.
-
-The terminal materializer was frozen while the Proposal remained pending. A
-pre-execution amendment at root
-`sha256:432ba0ac55997130db9b7a4f6004f0ec3bbed7f3e419b4faf2eb75fe0c472c0d`
-replaces only a non-reproducible prepared Verification binding discovered
-before import, Decision, or model output. The amended materializer source root
-is
-`sha256:fb458e26e1a0d83efc4622d3c670ed798395d22ca59b5f9e6acb5546e01b70e4`.
-It has separate, precommitted accepted and rejected next-action rules and a
-shared set of scope limits. It refuses to emit the task instance, answer key,
-or amendment unless the exact terminal Decision, scoped Verification,
-historical intake receipt, source transition, repositories, binaries, runtime, and model
-bindings agree. This prevents selection of an answer key after the Decision
-outcome or after model output.
-
-The first matched pair is a registered negative result, root
+Its first matched pair is a registered negative result, root
 `sha256:af9af17824e15b14ea77aa2e9afec135b997cdcf026beb050b80cc51563e753a`.
 The Git-only arm answered 22 of 25 exact fields in 268.040 seconds using
 2,401,939 observed tokens. The Vela arm answered 24 of 25 in 146.425 seconds
@@ -778,6 +753,14 @@ remaining repetitions were not run. This pilot establishes neither state lift
 nor external user value. It identifies a narrower product task: reduce the
 question surface and remove evidence ambiguity before registering another
 state-reading study.
+
+The active tree retains the frozen protocol and amendment chain, terminal task
+and answer key, completed structured answers and scores, and the dependency-free
+exact-field scorer. It no longer carries the raw Codex event streams or the
+custom runner, materializer, schema validator, and report generator as active
+infrastructure. Prospective evaluation uses Harbor directly through
+`benchmarks/product-compression`; Harbor owns trial execution and raw results,
+while Vela supplies only the bounded fixture and exact scoring boundary.
 
 ### 6.8 Formal vertical slice
 
