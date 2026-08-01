@@ -14,6 +14,7 @@
 - [Verification](VERIFICATION.md)
 - [Roots](ROOTS.md)
 - [Target Index](TARGET_INDEX.md)
+- [ADR 0034: Direct Target Index generation](adr/0034-direct-target-index-generation.md)
 - [Threat model](THREAT_MODEL.md)
 - [Current repository origin ADR](adr/0027-pre-release-current-state-compaction.md)
 - [Math-first compounding product architecture ADR](adr/0025-math-first-compounding-product-architecture.md)

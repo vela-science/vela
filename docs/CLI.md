@@ -58,7 +58,7 @@ init status next start submit show why review check reproduce log doctor
 ## Advanced commands
 
 ```text
-claim id agents config verification authority target-index repository
+claim id agents config verification authority repository
 ```
 
 - `claim` provides current Claim record, standing, evidence, and attribution
@@ -72,7 +72,10 @@ claim id agents config verification authority target-index repository
 - `verification import` retains a non-authorizing scoped Verification Record.
 - `authority` initializes or inspects the repository writer and public trust
   roots.
-- `target-index` inspects or seals derived producer Targets.
+
+Frontier-owned domain adapters generate the optional tracked `targets.json`
+catalogue. `check`, `next`, and `start` validate it; Vela has no separate
+Target Index maintenance command.
 
 `vela help advanced` is the executable source for this grouping.
 

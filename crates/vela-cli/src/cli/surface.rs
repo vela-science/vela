@@ -56,7 +56,6 @@ Advanced verification and integration:
 
 Advanced setup:
   authority     initialize standard repository authority for a fresh Frontier
-  target-index  inspect, diagnose, or seal derived producer targets
 Hidden utility:
   completions   generate shell completion scripts
 "#,

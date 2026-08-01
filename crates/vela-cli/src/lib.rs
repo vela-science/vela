@@ -33,7 +33,6 @@ pub(crate) mod current_repository;
 pub(crate) mod frontier_txn;
 mod operation_journal;
 mod server;
-mod target_index;
 pub(crate) mod ui;
 pub(crate) mod workflow;
 pub(crate) use server::{cli_commands, cli_engine};

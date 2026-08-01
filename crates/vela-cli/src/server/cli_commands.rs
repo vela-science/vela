@@ -134,13 +134,6 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         action: ReviewAction,
     },
-    /// Seal, diagnose, or inspect the optional derived producer target index.
-    /// These commands never grant scientific authority.
-    #[command(hide = true)]
-    TargetIndex {
-        #[command(subcommand)]
-        action: TargetIndexAction,
-    },
     /// Inspect one current Claim.
     #[command(after_long_help = crate::cli::help_text::CLAIM)]
     Claim {
@@ -263,39 +256,6 @@ pub(crate) enum Commands {
     Completions {
         /// bash | zsh | fish
         shell: String,
-    },
-}
-
-#[derive(Subcommand)]
-pub(crate) enum TargetIndexAction {
-    /// Derive all seal-owned roots and exact packet digests from a closed
-    /// domain candidate. Check is write-free; apply writes only targets.json.
-    #[command(group(ArgGroup::new("target_index_seal_mode").required(true).multiple(false).args(["check", "apply"])))]
-    Seal {
-        frontier: PathBuf,
-        #[arg(long)]
-        candidate: PathBuf,
-        #[arg(long)]
-        check: bool,
-        #[arg(long)]
-        apply: bool,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Report stale codes and the exact candidate-seal check without changing
-    /// roots, packets, or target semantics.
-    Repair {
-        frontier: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Inspect the complete index or one exact full target ID. Inspection
-    /// never creates an offer or lease.
-    Inspect {
-        frontier: PathBuf,
-        target_id: Option<String>,
-        #[arg(long)]
-        json: bool,
     },
 }
 

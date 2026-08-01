@@ -44,7 +44,7 @@ vela submit \
   --json
 ```
 
-`next` returns Offers from the fresh Target Index v4. `start` revalidates one
+`next` returns Offers from the fresh Target Index v5. `start` revalidates one
 exact Target and prints a write-free briefing; the native agent, workbench, or
 scientific tool performs the work. `submit` authenticates and retains the
 resulting Submission and creates a pending Proposal. It does not create

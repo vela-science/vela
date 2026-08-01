@@ -319,18 +319,21 @@ Any drift or failure before the commit marker produces no canonical mutation.
 
 ## 6. Target Index
 
-`vela.target-index.v4` is derived and non-authoritative. It binds:
+`vela.target-index.v5` is derived and non-authoritative. It binds:
 
 - repository origin and root;
 - exact source and input roots;
 - ordered Targets;
-- packet and task contracts;
-- verifier profiles; and
+- packet and task contracts; and
 - deterministic rank facts.
 
 `next` validates the full index and returns producer work only. `start`
 revalidates the selected Target and packet. A stale or invalid index grants no
 Offer.
+
+The Frontier's domain adapter writes the final tracked index directly. Vela
+does not maintain a candidate, seal, apply, inspect, or repair lifecycle for
+this disposable projection.
 
 Ranking and graph position never imply authority.
 

@@ -129,8 +129,8 @@ archive, and pinned historical release.
   valid historical projection, not the current state.
 - A checkout contains a valid authority chain but no pinned sequence-one root:
   it has not selected the intended authority fork.
-- A Target Index rederives but names an old repository root: it is stale and
-  yields no Offer.
+- A tracked Target Index names an old repository root or mismatched
+  input/packet bytes: it is stale and yields no Offer.
 
 ## Conformance
 

@@ -130,7 +130,6 @@ pub async fn run_command() {
             json,
         } => cmd_init(&path, name.as_deref(), scope.as_deref(), json),
         Commands::Review { action } => cmd_review(action),
-        Commands::TargetIndex { action } => crate::target_index::cmd_target_index(action),
         Commands::Claim {
             command:
                 ClaimCommands::Show {

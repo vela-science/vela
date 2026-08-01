@@ -270,8 +270,8 @@ pub(crate) fn rebind_target_index(
         return Ok(Vec::new());
     }
     let bytes = fs::read(&path).map_err(|error| format!("read current Target Index: {error}"))?;
-    let mut index: vela_edge::target_index::TargetIndexV4 = serde_json::from_slice(&bytes)
-        .map_err(|error| format!("parse Target Index v4: {error}"))?;
+    let mut index: vela_edge::target_index::TargetIndexV5 = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("parse Target Index v5: {error}"))?;
     index.validate()?;
     if index.canonical_bytes()? != bytes || index.repository.origin_id != repository.origin_id {
         return Err("current Target Index is not an exact canonical origin member".into());
@@ -283,7 +283,7 @@ pub(crate) fn rebind_target_index(
         .any(|entry| entry.path == ".vela/repository.json")
     {
         return Err(
-            "target_index_invalid_path: current Target Index input \".vela/repository.json\" duplicates the mutable repository binding; regenerate and seal the domain candidate without it"
+            "target_index_invalid_path: current Target Index input \".vela/repository.json\" duplicates the mutable repository binding; regenerate targets.json without it"
                 .into(),
         );
     }

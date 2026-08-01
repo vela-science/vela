@@ -141,7 +141,7 @@ checked-in runtime configuration file.
 | `.vela/authority/` | Canonical authentication history | Append through repository authority only |
 | `records/**/sha256/` | Canonical content-addressed objects | Never hand-edit or rename |
 | `frontier.yaml` | Descriptive profile | Edit deliberately; any root change must be governed before canonical writes continue |
-| `targets.json` and packets | Derived work projection | Seal and freshness-check; never treat as Standing |
+| `targets.json` and packets | Derived work projection | Generate directly and freshness-check; never treat as Standing |
 | domain-native files | Source and evidence | Keep stable, reviewable identities |
 | `.vela/operation-journals/`, `.vela/work/` | Recovery/private coordination | Never scientific state |
 | `README.md`, `SCOPE.md`, `VELA.md` | Human and agent guidance | Keep aligned with the current product |
@@ -162,7 +162,8 @@ Verification checks:
 - every authority event is covered exactly once;
 - active keyset and Cedar policy roots match the manifest;
 - Claim and Proposal Standing is deterministic;
-- optional Target Index inputs match the current repository root; and
+- the optional Target Index, its declared inputs, and packets exactly match
+  tracked `HEAD` bytes and the current repository root; and
 - rejected active legacy paths are absent.
 
 `vela check` fails until native authority initialization completes.

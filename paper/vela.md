@@ -628,7 +628,7 @@ A subsequent source-local closure pass repaired that defect without changing
 Standing. Erdős commit
 `f2f4a4f5d5c322f5c57f99d100fce97333f7aeb1` retains closure envelope
 `sha256:14e93d4cdbb65ddb3b389f8ea219b74340beca6014381fefe88deb64d2e59d7e`,
-revalidates the completed packet from exact ancestor Git bytes, and seals
+revalidates the completed packet from exact ancestor Git bytes, and publishes
 Target Index
 `sha256:84314593f22bbeae251090838273394db6685f7f437070154a085b1f403b7fd3`.
 At that checkpoint, the first actionable offer was the contiguous range

@@ -21,7 +21,7 @@ Require:
 - contiguous repository-authority history;
 - canonical object and repository-root parity;
 - no active or corrupt recovery journal;
-- exact Target Index status;
+- exact tracked Target Index root and status;
 - frozen verifier results for claims being cited; and
 - no private coordination or credential material in tracked files.
 

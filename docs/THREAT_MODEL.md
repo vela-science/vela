@@ -118,9 +118,10 @@ copy retains.
 ### Stale or malicious work projection
 
 The Target Index is derived but binds the current repository origin/root,
-source inputs, packets, task contracts, and deterministic rank facts. `next`
-validates the full index; `start` revalidates the chosen Target and prints a
-write-free briefing.
+exact tracked source inputs, tracked packets, task contracts, and deterministic
+rank facts. `next` validates the full index; `start` revalidates the chosen
+Target and prints a write-free briefing. A domain adapter writes the tracked
+index directly; no maintenance command can bless mutable worktree bytes.
 
 A stale or invalid index yields no Offer. Ranking and graph position never
 create authority.

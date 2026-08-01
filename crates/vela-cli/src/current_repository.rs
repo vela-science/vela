@@ -1248,7 +1248,7 @@ pub(crate) fn verify_current_repository_at(
     if root.join("targets.json").is_file() {
         let bytes = fs::read(root.join("targets.json"))
             .map_err(|error| format!("read current Target Index: {error}"))?;
-        let index: vela_edge::target_index::TargetIndexV4 = serde_json::from_slice(&bytes)
+        let index: vela_edge::target_index::TargetIndexV5 = serde_json::from_slice(&bytes)
             .map_err(|error| format!("parse current Target Index: {error}"))?;
         index.validate()?;
         if index.canonical_bytes()?.as_slice() != bytes.as_slice()

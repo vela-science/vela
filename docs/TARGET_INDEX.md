@@ -1,123 +1,57 @@
 # Target Index
 
-`targets.json` is a derived bridge between domain work and Vela's producer
-loop. It makes bounded work addressable without making ranking, graphs, or a
-domain ontology authoritative.
+The Target Index is one optional, tracked `targets.json` file owned by a
+Frontier. It is a derived work catalogue, not scientific Standing and not an
+authority surface.
 
-Domain tools own Target meaning, ordering, packet construction, and packet
-schemas. Vela owns the closed seal and freshness checks.
+Current repositories use `vela.target-index.v5`. A domain adapter writes the
+final canonical index directly. Vela does not maintain a candidate, seal,
+apply, inspect, or repair lifecycle for this derived file.
 
-## Current contract
+## Contract
 
-Current repositories use `vela.target-index.v4`. The index binds:
+The index binds:
 
-- Frontier ID;
-- current repository origin ID and root;
-- source Git object format, commit, and tree;
-- a complete sorted input manifest and root;
-- sealing Vela version;
-- ordered Targets;
-- exact packet paths, schemas, sizes, and digests; and
-- full index root.
+- the exact Frontier and current repository root;
+- one exact Git source commit and tree;
+- the sorted tracked input paths and their byte roots;
+- each open Target's stable ID, rank, objective, labels, and packet;
+- each packet's schema, path, size, and SHA-256 root; and
+- an index root over the complete canonical document.
 
-Targets sort by ascending `(rank, id)` and use unique full IDs. States are:
+Every entry has `presence: "open"`. A generator removes unavailable work
+instead of preserving paused, blocked, done, or retired pseudo-history in the
+current catalogue. Git retains prior catalogues when historical inspection is
+needed.
 
-```text
-open paused blocked done retired
-```
+`targets.json`, every declared input, and every packet must be unchanged
+tracked regular files at `HEAD`. Declared inputs must also match the exact
+source commit. A mismatch makes the affected offer unavailable; it never
+falls back to worktree bytes or an older index.
 
-The index is derived, deletable, and non-authoritative.
+The domain adapter owns ranking and target semantics. It must emit canonical
+JSON with targets sorted by ascending `(rank, id)`. Vela owns only validation,
+the automatic repository-root/index-root rebind performed by an ordinary
+repository transaction, and the runtime `check`, `next`, and `start` gates.
 
-## Candidate and seal
-
-A domain generator emits `vela.target-index-candidate.v1` at an ignored path.
-It declares:
-
-- Frontier ID;
-- exact source Git commit;
-- every tracked input that influenced membership, order, description, labels,
-  or packets; and
-- ordered Target semantics and packet paths.
-
-Vela validates the candidate, resolves every input from the source commit,
-reads each packet once, fills byte lengths and digests, binds the current
-repository origin/root, and computes the index root. It never invents or
-reranks domain semantics.
+## Producer flow
 
 ```bash
-vela target-index repair . --json
-vela target-index seal . \
-  --candidate .vela/tmp/target-index-candidate.json \
-  --check --json
-vela target-index seal . \
-  --candidate .vela/tmp/target-index-candidate.json \
-  --apply --json
-vela target-index inspect . [<full-target-id>] --json
+# The Frontier's domain adapter updates and commits targets.json and packets.
+vela check . --json
+vela next . --json
+vela start <full-target-id> --frontier . --json
 ```
 
-`repair` is diagnostic. `seal --check` is write-free. `seal --apply` writes
-only `targets.json` atomically and does not stage or commit it.
+`next` returns only fresh open entries. `start` binds the exact index, source,
+input, packet, repository, and Git read set before producer work begins.
+Submission revalidates the retained binding. None of these operations changes
+scientific Standing.
 
-The index and packets yield no Offer until their working bytes exactly match
-tracked Git blobs.
+## Failure behavior
 
-## Freshness
-
-At inspection, Offer, and briefing time Vela verifies:
-
-- the index and relevant packets are tracked regular files;
-- the source commit exists, is an ancestor of `HEAD`, and has the declared
-  tree;
-- the source tree does not contain the sealed output blob;
-- every declared input path, mode, size, and digest matches;
-- the current origin ID and repository root match;
-- Target, packet, input, and index roots rederive; and
-- the selected Target is open.
-
-Any mismatch is a typed stale condition, not an advisory. There is no force or
-non-strict work bypass.
-
-## Offers and briefings
-
-`vela next` validates every open entry before counting or returning it:
-
-```text
-configured = open entries
-stale      = entries excluded by freshness failure
-fresh      = configured - stale
-returned   = offers after the requested limit
-```
-
-`vela next` does not pretend that private or external work is shared
-availability. `vela start` rechecks the selected entry and returns one
-write-free briefing bound to:
-
-- current repository origin and root;
-- Target Index and input roots;
-- source Git commit/tree;
-- exact Target and packet;
-- completion contract and packet; and
-- a direct Submission template.
-
-It writes no file, lease, Attempt, budget, or canonical object and reads no
-authority key.
-
-The briefing proves only that the Target and packet are exact at inspection
-time. Native agents and scientific tools own execution state. A later direct
-Submission is independently authenticated and reviewed on its retained exact
-objects. Semantic fit remains an explicit Verification and human-review
-question; Vela does not add a heuristic semantic validator to the Target
-Index.
-
-## Inspection
-
-`target-index inspect` may display a stale Target by full ID. It labels it
-unactionable and returns exact stale codes. Packet content appears only when
-its binding still matches.
-
-Deleting `targets.json` removes catalogue convenience only. It changes no
-Claim, Proposal, Decision, Event, or Standing.
-
-Structural graph ranking and Discovery Calculus output remain separate rooted
-advice. They cannot reorder `vela next` without a domain generator producing
-and sealing a new candidate.
+Vela fails closed when the index is untracked, non-canonical, bound to another
+Frontier or repository root, based on unavailable or changed source/input
+bytes, or names a packet whose tracked bytes, schema, size, or digest differ.
+The repair is deliberately ordinary: fix the domain adapter or source data,
+regenerate `targets.json`, review the Git diff, and commit it.
