@@ -1,0 +1,75 @@
+{
+  "schema": "vela.astra-erdos-183-evidence.v1",
+  "observed_on": "2026-08-01",
+  "release": {
+    "repository": "https://github.com/openai/ten-proofs",
+    "commit": "29362184c2b698c1b279bc85b3957ee813646c63",
+    "tree": "730bf2c6a13dbb96606024c5fd681a48633fb393",
+    "license": "Apache-2.0",
+    "blob_count": 43,
+    "comparator_profile_count": 12,
+    "lake_manifest_sha256": "a6faf8302fe77f77f499446c27b8829b1af8dbc7847298b682556baa2a0b135e",
+    "lean_toolchain_sha256": "2773c517aa90b66ea8a2c52bddddf84393157797f8341be0df45294fff7fd32e"
+  },
+  "erdos_183": {
+    "profile": "ComparatorChallenges/I_MulticolorTriangleRamsey.json",
+    "profile_sha256": "03c4a87dfda6588dc685afbd4c6da4338f652166b24df0c4ff2f819ca22f5fd7",
+    "challenge_sha256": "12f969e50e5b09579849e25692c8cfc1d9351d09278ec9c5e4ea7c36756a6273",
+    "solution_sha256": "a87bd60efe16dab00ba07ea4069f22b8dbc991b3f3ba34ae5088b1f8b1987cd3",
+    "theorems": [
+      "ErdosProblems.MulticolourTriangleRamsey.erdos_183",
+      "ErdosProblems.MulticolourTriangleRamsey.erdos_problem_183_explicit",
+      "ErdosProblems.MulticolourTriangleRamsey.triangleRamseyNumber_log_sharp_coefficients",
+      "ErdosProblems.MulticolourTriangleRamsey.triangleRamseyNumber_log_isTheta"
+    ],
+    "permitted_axioms": [
+      "propext",
+      "Quot.sound",
+      "Classical.choice"
+    ]
+  },
+  "environment": {
+    "os": "Darwin 27.0.0 arm64",
+    "lean": "4.32.0",
+    "lean_commit": "8c9756b28d64dab099da31a4c09229a9e6a2ef35",
+    "rustc": "1.89.0",
+    "comparator_commit": "07bc4ea40f2266dcb861820a2ec1fa3244ed307f",
+    "comparator_binary_sha256": "f791dac756dc3e1fc6755f2153369f77b86e72d5bf5213cb1bae430436870952",
+    "lean4export_commit": "4e7915201d3f9f04470d9eae002fa695f7cdc589",
+    "lean4export_binary_sha256": "0f8da62eec908fc213ecde71d3850294ca57e84b6b911a9c9dd0c6ed396591bd",
+    "lean4checker_commit": "b7398199245524275543dec6113229c9bb4902e5",
+    "nanoda_commit": "ddfac2bf5a7b56cb46e141494427ff3dd55963c7",
+    "nanoda_tree": "af60d38d45e5f35815f5c21b42d12b4c4e84e4d3",
+    "nanoda_lock_sha256": "59619e080e1e0939ef95b7678885f4f7ab6ca93053516ac84a41fcc88f4804ec",
+    "nanoda_binary_sha256": "e02ce0aafef052ca0c0c42d2751be32ffdf45105d5006284b496badc95fe5ead",
+    "sandbox": "comparator fake-landrun development shim; unsandboxed"
+  },
+  "checks": {
+    "lake_build_all": {
+      "outcome": "pass",
+      "jobs": 8666
+    },
+    "comparator_erdos_183": {
+      "outcome": "pass",
+      "nanoda_kernel": "accept",
+      "lean_kernel": "accept",
+      "hardened_sandbox": false
+    }
+  },
+  "source_observation": {
+    "repository": "https://github.com/teorth/erdosproblems",
+    "commit": "8138974387d9030542daabe67faaa33eff9356f8",
+    "tree": "7ed44c260d7eb63a067cf5a16afdb645d494ef06",
+    "problems_sha256": "a4358d57b591fc92c75981c160a11f43a561de6b5e8478d8f9629511759a9213",
+    "problem": 183,
+    "status": "open",
+    "formal_status": "unformalized",
+    "last_update": "2025-08-31"
+  },
+  "nonclaims": [
+    "The macOS Comparator run was not sandboxed and is not a hardened clean-room execution.",
+    "Kernel and Comparator passage do not establish statement fidelity, novelty, community acceptance, or Vela Standing.",
+    "The two source observations have independent authority and neither silently governs the other.",
+    "No Frontier state or scientific Decision was changed by these checks."
+  ]
+}

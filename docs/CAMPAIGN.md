@@ -263,7 +263,28 @@ satisfy the post-correction or independent-participant gate.
 
 One bounded external-release pilot is earned by OpenAI's August 2026
 `ten-proofs` release because it directly exercises the existing source,
-verification, and fidelity boundaries:
+verification, and fidelity boundaries. The observed release is pinned to Git
+commit `29362184c2b698c1b279bc85b3957ee813646c63` and tree
+`730bf2c6a13dbb96606024c5fd681a48633fb393`; the moving upstream `main` is not
+an acceptable identity. The release contains 43 Git blobs and twelve declared
+Comparator profiles under Apache-2.0. Its Erdős #183 slice binds:
+
+- `I_MulticolorTriangleRamsey.json` and its generated challenge;
+- `MulticolorTriangleRamsey.lean` and the theorem family rooted at
+  `ErdosProblems.MulticolourTriangleRamsey.erdos_183`;
+- Lean `v4.32.0`; and
+- the exact Comparator, Mathlib, Lean4Export, and Lean4Checker revisions in the
+  retained Lake manifest.
+
+The current independently acquired `teorth/erdosproblems` source is pinned to
+commit `8138974387d9030542daabe67faaa33eff9356f8`, tree
+`7ed44c260d7eb63a067cf5a16afdb645d494ef06`, and source-file SHA-256
+`a4358d57b591fc92c75981c160a11f43a561de6b5e8478d8f9629511759a9213`.
+It still labels problem 183 `open` and `unformalized`. That disagreement is a
+source-state conflict for inspection; it is not evidence that either source
+governs the other or that Vela may silently change Standing.
+
+The pilot therefore:
 
 1. observe one exact release through the existing source-adapter contract;
 2. pin the native Git commit/tree, Lean toolchain, dependency lock, declared
@@ -278,8 +299,18 @@ verification, and fidelity boundaries:
 
 This pilot adds no protocol object, Frontier, runner, Astra-specific product
 page, universal status ladder, reviewer service, or global acceptance claim.
-The other eleven profiles and a general release-manifest export remain
-deferred until the first path is reproducible and a real consumer earns them.
+The local macOS Comparator development shim is not a hardened sandbox and must
+not be reported as independent clean-room passage. The other eleven profile
+executions and a general release-manifest export remain deferred until the
+first path is reproducible and a real consumer earns them.
+
+The first local reproduction is now complete: `lake build All` passed 8,666
+jobs and the pinned Erdős #183 profile passed both Lean's default kernel and a
+pinned Nanoda build. The exact environment, byte roots, and nonclaims are in
+`paper/artifacts/astra-erdos-183/result.v1.json` (SHA-256
+`3eb97061e898cdb2a2427e105f51da7f134d831d1e2db4576ae23b6310ef911c`).
+Because this macOS run used Comparator's unsandboxed development shim, the
+Linux Landrun execution remains pending and no Frontier state changed.
 
 ## Verification
 
