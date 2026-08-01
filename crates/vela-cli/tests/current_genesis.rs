@@ -267,13 +267,9 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
             .expect("local trust anchor path"),
     ));
 
-    let verified = success_json(&run(
-        &frontier,
-        None,
-        &["repository", "verify", ".", "--json"],
-    ));
+    let verified = success_json(&run(&frontier, None, &["check", ".", "--json"]));
     assert_eq!(verified["ok"], true);
-    let checked = success_json(&run(&frontier, None, &["check", ".", "--strict", "--json"]));
+    let checked = success_json(&run(&frontier, None, &["check", ".", "--json"]));
     assert_eq!(checked["repository_root"], verified["repository_root"]);
     let status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
     assert_eq!(status["schema"], "vela.status.v3");
@@ -327,7 +323,7 @@ fn current_check_refuses_retired_repositories_before_parsing_them() {
     .expect("write retired profile marker");
 
     for command in [
-        vec!["check", ".", "--strict", "--json"],
+        vec!["check", ".", "--json"],
         vec!["reproduce", ".", "--json"],
     ] {
         let output = run(temporary.path(), None, &command);
@@ -388,7 +384,7 @@ fn current_check_blocks_sensitive_local_files() {
     std::fs::write(frontier.join("accidental-private.key"), "not a real key")
         .expect("write sensitive-looking file");
 
-    let output = run(&frontier, None, &["check", ".", "--strict", "--json"]);
+    let output = run(&frontier, None, &["check", ".", "--json"]);
     assert_eq!(output.status.code(), Some(1));
     let payload: Value = serde_json::from_slice(&output.stdout).expect("decode error JSON");
     assert!(
@@ -860,11 +856,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         .expect("read after commit");
     assert!(after.status.success());
     assert_ne!(before.stdout, after.stdout);
-    let checked = success_json(&run(
-        &frontier,
-        None,
-        &["repository", "verify", ".", "--json"],
-    ));
+    let checked = success_json(&run(&frontier, None, &["check", ".", "--json"]));
     assert_eq!(checked["counts"]["accepted_claims"], 0);
     assert_eq!(checked["counts"]["pending_claims"], 1);
     assert_eq!(checked["counts"]["verifications"], 1);
@@ -949,11 +941,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         review["decision_inbox"]["entry"]["standing_delta"]["counts"]["global_accepted_claims"],
         serde_json::json!({"before": 0, "if_accept": 1, "if_reject": 0})
     );
-    let after_inspection = success_json(&run(
-        &frontier,
-        None,
-        &["repository", "verify", ".", "--json"],
-    ));
+    let after_inspection = success_json(&run(&frontier, None, &["check", ".", "--json"]));
     assert_eq!(
         after_inspection["repository_root"],
         checked["repository_root"]
@@ -980,7 +968,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         "git clone: {}",
         String::from_utf8_lossy(&cloned.stderr)
     );
-    let replayed = success_json(&run(&clone, None, &["repository", "verify", ".", "--json"]));
+    let replayed = success_json(&run(&clone, None, &["check", ".", "--json"]));
     assert_eq!(replayed["repository_root"], checked["repository_root"]);
     assert_eq!(replayed["counts"]["accepted_claims"], 0);
     assert!(
@@ -1064,11 +1052,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     ));
     assert_eq!(rejected["action"], "reject");
     assert_eq!(rejected["scientific_state_changed"], false);
-    let decided = success_json(&run(
-        &frontier,
-        None,
-        &["repository", "verify", ".", "--json"],
-    ));
+    let decided = success_json(&run(&frontier, None, &["check", ".", "--json"]));
     assert_eq!(decided["counts"]["accepted_claims"], 0);
     assert_eq!(decided["counts"]["pending_claims"], 0);
 
@@ -1084,11 +1068,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         "git clone: {}",
         String::from_utf8_lossy(&cloned.stderr)
     );
-    let replayed_decision = success_json(&run(
-        &decided_clone,
-        None,
-        &["repository", "verify", ".", "--json"],
-    ));
+    let replayed_decision = success_json(&run(&decided_clone, None, &["check", ".", "--json"]));
     assert_eq!(
         replayed_decision["repository_root"],
         decided["repository_root"]

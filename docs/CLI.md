@@ -24,7 +24,7 @@ vela verification import . verification.json \
   --json
 
 vela review show . <vpr_id> --json
-vela check . --strict --json
+vela check . --json
 vela why . <claim_id> --json
 ```
 
@@ -50,7 +50,7 @@ init status next start submit show why review check reproduce log doctor
 | `show` | Inspect one exact typed object and its authority effect. |
 | `why` | Explain one Claim's Standing from retained roots and history. |
 | `review` | List, show, accept, or reject one exact Proposal. |
-| `check` | Verify repository structure, roots, replay, authority, and strict signals. |
+| `check` | Verify repository structure, roots, replay, and authority. |
 | `reproduce` | Run retained evidence through its frozen verifier. |
 | `log` | Read admitted Event history. |
 | `doctor` | Report blockers and one safe repair action. |
@@ -73,7 +73,6 @@ claim id agents config verification authority target-index repository
 - `authority` initializes or inspects the repository writer and public trust
   roots.
 - `target-index` inspects or seals derived producer Targets.
-- `repository verify` verifies the signed current origin and active repository.
 
 `vela help advanced` is the executable source for this grouping.
 
@@ -274,7 +273,7 @@ against the current sequence-one authority record.
 ## Repository verification
 
 ```bash
-vela repository verify <frontier> --json
+vela check <frontier> --json
 ```
 
 The command verifies the current manifest, native-genesis or signed-predecessor
@@ -297,7 +296,7 @@ coordination, test telemetry, or secret material.
 
 ## Fail-closed behavior
 
-Non-strict checks may report defects for diagnosis. They never grant trust,
+Checks fail closed on defects. Diagnostic output never grants trust,
 signature validity, authority, or historical exemption.
 
 Canonical writes refuse:

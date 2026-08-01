@@ -8,9 +8,8 @@ not create scientific acceptance.
 
 ```bash
 vela status . --json
-vela check . --strict --json
+vela check . --json
 vela reproduce .
-vela repository verify . --json
 git status --short
 ```
 
@@ -60,7 +59,7 @@ git clone <frontier-url>
 cd <frontier>
 git checkout <full-commit>
 vela authority trust pin . --record-root sha256:... --json
-vela check . --strict --json
+vela check . --json
 vela reproduce .
 ```
 

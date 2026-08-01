@@ -9,7 +9,7 @@ opens a Proposal. Neither act verifies or accepts the Claim.
 git clone <frontier-url>
 cd <frontier>
 vela status . --json
-vela check . --strict --json
+vela check . --json
 vela next . --limit 1 --json
 ```
 

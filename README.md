@@ -173,7 +173,7 @@ vela verification record . <vpr_id> \
   --json
 
 vela review show . <vpr_id> --json
-vela check . --strict --json
+vela check . --json
 vela why . <claim_id> --json
 ```
 

@@ -28,25 +28,12 @@ pub(crate) const HELP_AS_OF: &str = "Answer as of this RFC3339 instant, e.g. 202
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
-    /// Verify the current repository origin and authority boundary.
-    #[command(hide = true)]
-    Repository {
-        #[command(subcommand)]
-        action: RepositoryAction,
-    },
-    /// Is the LOG intact: replay, signatures, hash parity (--strict is
-    /// the bar CI and the hub hold a repo to). Checks the record, not
+    /// Is the LOG intact: replay, signatures, and hash parity. Checks the record, not
     /// the science — `vela reproduce` re-runs the verifiers themselves.
     #[command(after_long_help = crate::cli::help_text::CHECK)]
     Check {
         /// Current Frontier repository. Defaults to the current directory.
         source: Option<PathBuf>,
-        /// Require the complete current repository verification gate.
-        ///
-        /// Current repositories always fail closed; this flag remains the
-        /// explicit publication spelling used by CI and documentation.
-        #[arg(long)]
-        strict: bool,
         /// Output stable JSON
         #[arg(long)]
         json: bool,
@@ -483,17 +470,6 @@ pub(crate) enum AuthorityTrustAction {
         /// Exact currently installed root when advancing a verified origin pin.
         #[arg(long)]
         previous_record_root: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
-}
-
-#[derive(Subcommand)]
-pub(crate) enum RepositoryAction {
-    /// Verify one current repository and its authority history.
-    Verify {
-        #[arg(default_value = ".")]
-        frontier: PathBuf,
         #[arg(long)]
         json: bool,
     },

@@ -53,16 +53,7 @@ pub async fn run_command() {
     let cli = Cli::parse();
     crate::ui::set_quiet(cli.quiet);
     match cli.command {
-        Commands::Repository { action } => match action {
-            RepositoryAction::Verify { frontier, json } => {
-                crate::current_repository::cmd_repository_verify(&frontier, json)
-            }
-        },
-        Commands::Check {
-            source,
-            strict,
-            json,
-        } => cmd_check(source.as_deref(), strict, json),
+        Commands::Check { source, json } => cmd_check(source.as_deref(), json),
         Commands::Doctor {
             frontier,
             all,
@@ -378,7 +369,7 @@ pub fn run_from_args() {
             // v0.47: top-level help shows the daily flow. The full
             // 30+ subcommand list lives behind `vela help advanced`.
             if args.get(2).map(String::as_str) == Some("advanced") {
-                print_strict_help();
+                print_advanced_help();
             } else {
                 print_product_help();
             }

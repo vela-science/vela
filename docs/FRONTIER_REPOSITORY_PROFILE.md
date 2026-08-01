@@ -149,7 +149,7 @@ checked-in runtime configuration file.
 ## Verification
 
 ```bash
-vela repository verify . --json
+vela check . --json
 vela status . --json
 vela doctor . --all --json
 ```
@@ -165,5 +165,5 @@ Verification checks:
 - optional Target Index inputs match the current repository root; and
 - rejected active legacy paths are absent.
 
-`repository verify` fails until native authority initialization completes.
+`vela check` fails until native authority initialization completes.
 Git publication transports bytes; it does not create scientific acceptance.

@@ -80,7 +80,7 @@ EXAMPLES
 pub const CHECK: &str = "\
 EXAMPLES
   vela check .           replay-verify the frontier
-  vela check . --strict  every signal is fatal";
+  vela check . --json    verify every repository invariant";
 
 pub const REPRODUCE: &str = "\
 EXAMPLES

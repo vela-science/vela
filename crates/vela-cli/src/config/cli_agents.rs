@@ -233,7 +233,7 @@ paths. Release certification runs the deterministic full Vela union. Live
 network and platform-pinned adapter checks stay explicit and cannot block an
 unrelated Vela release. A selected suite fails if a required verifier toolchain
 is absent; a non-selected suite is not a pass.
-`vela check . --strict` is the current repository integrity bar. `vela
+`vela check .` is the current repository integrity bar. `vela
 reproduce <frontier>` re-runs the frozen verifiers over stored witnesses from
 scratch. Run it before claiming a reproduction, and never silently break the
 reproduction of a retained result.

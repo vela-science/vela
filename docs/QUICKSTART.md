@@ -9,7 +9,7 @@ checks; only an authorized human Decision changes Standing.
 ```bash
 git clone <frontier-url>
 cd <frontier>
-vela check . --strict --json
+vela check . --json
 vela status . --json
 vela reproduce .
 ```

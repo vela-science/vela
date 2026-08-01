@@ -144,7 +144,7 @@ Verification, or Event mutation.
 Resolve disputes from an exact Git checkout:
 
 ```bash
-vela check . --strict --json
+vela check . --json
 vela reproduce .
 ```
 

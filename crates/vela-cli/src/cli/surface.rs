@@ -12,8 +12,8 @@ pub(crate) fn print_product_help() {
     println!("Run `vela help advanced` for setup and verification commands.");
 }
 
-pub(crate) fn print_strict_help() {
-    print!("{}", strict_help_text());
+pub(crate) fn print_advanced_help() {
+    print!("{}", advanced_help_text());
 }
 
 /// The curated, grouped command reference (`vela help advanced`). Kept
@@ -21,7 +21,7 @@ pub(crate) fn print_strict_help() {
 /// but `mod surface_tests` asserts every released subcommand appears here,
 /// so it can never silently omit a newly-added command (the drift the old
 /// hand-maintained allowlist suffered, now caught at the help layer too).
-pub(crate) fn strict_help_text() -> String {
+pub(crate) fn advanced_help_text() -> String {
     format!(
         r#"Vela {}
 Version control for scientific state.
@@ -40,7 +40,7 @@ Daily product:
   show          One exact object, its root, era, and authority effect
   why           Root-bound explanation of one Claim's Standing
   review        Inspect or perform one exact authorized Proposal action
-  check         Replay, signatures, parity, and strict signals
+  check         Replay, signatures, parity, and repository integrity
   reproduce     Re-run stored witnesses with frozen verifiers
   log           Recent signed events or one finding's history
   doctor        Blockers plus one safe next action
@@ -57,8 +57,6 @@ Advanced verification and integration:
 Advanced setup:
   authority     initialize standard repository authority for a fresh Frontier
   target-index  inspect, diagnose, or seal derived producer targets
-  repository    verify the current repository origin and authority boundary
-
 Hidden utility:
   completions   generate shell completion scripts
 "#,

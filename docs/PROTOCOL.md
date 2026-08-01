@@ -352,7 +352,7 @@ Strict replay verifies:
 Standing is derived only from valid admitted Events. It is never read from a
 database, Web page, mutable status field, verifier outcome, or Git branch name.
 
-Non-strict checking reports defects but grants no trust or exemption.
+`vela check` fails closed on defects and grants no trust or exemption.
 
 ## 8. Correction
 
@@ -381,7 +381,7 @@ cannot:
 - accept or reject a Proposal; or
 - define Standing.
 
-Disagreement is resolved from an exact Git checkout with `vela check --strict`
+Disagreement is resolved from an exact Git checkout with `vela check`
 and the declared frozen verifiers.
 
 ## 10. Interoperability
