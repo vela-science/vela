@@ -114,7 +114,7 @@ def fixture(
     scenario: str = materialize.SCENARIOS[0], commit: str = "1" * 40, tree: str = "2" * 40,
 ) -> dict:
     return contract.seal({
-        "schema": "vela.product-compression-fixture.v6",
+        "schema": "vela.product-compression-fixture.v7",
         "fixture_root": "",
         "scenario": scenario,
         "vela": {"version": "vela test", "binary_sha256": root("7")},
@@ -192,6 +192,37 @@ def write_job(directory: Path, scenario: str, exact_trials: set[tuple[str, int]]
     })
 
 
+def continuation_answer() -> dict:
+    value = {
+        "schema": "vela.product-compression-answer.v9",
+        "scenario": materialize.SCENARIOS[2],
+        "frontier": {
+            "frontier_id": "vfr_0123456789abcdef", "repository_root": root("1"),
+            "target_index_root": root("2"), "configured_targets": 1,
+        },
+        "continuation": {
+            "accepted_claim_id": f"vcl_{'a' * 64}", "accepted_claim_root": root("a"),
+            "standing_basis": "compacted_origin", "origin_root": root("b"),
+            "archive_bytes_re_read": False,
+            "proposal_id": "vpr_0123456789abcdef", "proposal_root": root("c"),
+            "submission_id": "vsb_0123456789abcdef", "submission_root": root("d"),
+            "verification_id": "vvr_0123456789abcdef", "verification_root": root("e"),
+            "decision_event_id": "vev_0123456789abcdef", "decision_event_root": root("f"),
+            "decision_actor": "human", "accepted_first": 1, "accepted_through": 200,
+            "producer_claim_id": f"vcl_{'b' * 64}", "producer_claim_root": root("3"),
+            "producer_proposal_id": "vpr_fedcba9876543210", "producer_proposal_root": root("4"),
+            "producer_verification_id": "vvr_fedcba9876543210", "producer_verification_root": root("5"),
+            "producer_standing": "pending_review",
+            "producer_first": 201, "producer_complete_through": 400,
+            "next_target_id": "target:test", "next_first": 401, "next_last": 600,
+            "packet_root": root("6"), "verifier_profile": "test-v1",
+            "verification_is_acceptance": False, "producer_completion_changes_standing": False,
+            "next_target_changes_standing": False,
+        },
+    }
+    return value
+
+
 def load_verifier():
     path = Path(__file__).parent / "task" / "tests" / "verify.py"
     spec = importlib.util.spec_from_file_location("product_compression_verify", path)
@@ -254,6 +285,19 @@ class ProductCompressionTests(unittest.TestCase):
         value = answer(materialize.SCENARIOS[1])
         value["decision"]["standing_delta"]["counts"]["global_accepted_claims"]["if_accept"] += 1
         with self.assertRaisesRegex(contract.ContractError, "counts"):
+            contract.validate_answer(value)
+
+    def test_post_decision_continuation_is_exact(self) -> None:
+        contract.validate_answer(continuation_answer())
+        value = continuation_answer()
+        value["continuation"]["next_first"] += 1
+        with self.assertRaisesRegex(contract.ContractError, "first post-completion Target"):
+            contract.validate_answer(value)
+
+    def test_post_decision_preserves_authority_boundary(self) -> None:
+        value = continuation_answer()
+        value["continuation"]["verification_is_acceptance"] = True
+        with self.assertRaisesRegex(contract.ContractError, "authority is misstated"):
             contract.validate_answer(value)
 
     def test_answer_key_is_content_bound(self) -> None:

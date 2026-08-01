@@ -7,10 +7,7 @@ named in `/opt/vela-input/fixture.json`.
 
 {{SCENARIO_INSTRUCTION}}
 
-Reject any typo or unrelated Proposal. Report its Submission, every scoped
-Verification and nonclaim, the exact conditional Standing change, and all three
-current/accept/reject next obligations. This Frontier has no configured Target;
-do not invent one.
+{{OUTPUT_INSTRUCTION}}
 
 Write exactly one JSON answer conforming to
 `/opt/vela-input/answer.schema.json` at `/logs/artifacts/answer.json`. Do not

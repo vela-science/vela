@@ -87,6 +87,15 @@ infrastructure.
   This is first-party evidence from one frozen pre-Decision quantum correction,
   not a scientific Decision, post-correction remap, independent-user, or
   general scientific-productivity claim.
+- The current-head Erdős post-Decision continuation comparison also completed
+  four clean native Harbor trials with zero retries. Vela-guided work was exact
+  in 2/2 trials while Git/files alone was exact in 0/2; median agent time fell
+  from 185.75 to 160.53 seconds and median cost from $0.4730 to $0.3591. The
+  compact result is rooted at
+  `sha256:e3a2bfafeae5f1573c1e5b95bee1321227fd26984e569e3b60b9ec81cafa409c`.
+  This closes one current-head post-Decision continuation gate. It remains
+  first-party evidence from one bounded task, not correction propagation,
+  independent adoption, general scientific productivity, or an Erdős result.
 - The immutable Canopus `0.8.0` release and tag remain historical evidence.
 
 ### Simplified current source
@@ -236,9 +245,11 @@ improvement on its registered primary metric. First-party runs debug the
 method; they do not establish adoption or independence.
 
 The first current native Harbor comparison passed its registered
-task-specific exactness gate. The next benchmark must test continuation after
-a real correction or use a cold independent participant; more harness
-infrastructure is not an acceptable substitute.
+task-specific exactness gate. A second comparison now tests current-head
+continuation after a real authorized bounded transition. The next benchmark
+must test a real correction with downstream inheritance or use a cold
+independent participant; more harness infrastructure is not an acceptable
+substitute.
 
 The Quantum supersession comparison passed its registered task-specific gate:
 all four native Harbor trials were eligible, the Vela-guided arm was exact 2/2,
@@ -248,6 +259,18 @@ result root is
 `sha256:c7ebb794bd66f71e20a5eca1a427df12f52d51332610b019cdd897b9943b9063`.
 This remains a bounded first-party pre-Decision robustness result; it does not
 satisfy the post-correction or independent-participant gate.
+
+The Erdős post-Decision continuation comparison also passed its registered
+task-specific gate: all four native Harbor trials were eligible, the
+Vela-guided arm was exact 2/2, and Git/files was exact 0/2. Median agent time
+was 160.53 seconds guided versus 185.75 seconds baseline, and median cost was
+$0.3591 versus $0.4730. The compact result root is
+`sha256:e3a2bfafeae5f1573c1e5b95bee1321227fd26984e569e3b60b9ec81cafa409c`.
+The Git/files arm repeatedly confused the human `review.accepted` event with
+the separate `finding.asserted` event. Vela exposed the accepted range, later
+verified-but-pending producer completion, and exact next Target without that
+authority error. This is a bounded post-Decision continuation result, not the
+still-open correction-inheritance or independent-participant proof.
 
 ### Gate 5 — keep Registry and Atlas exact, not expansive
 

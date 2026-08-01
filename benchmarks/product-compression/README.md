@@ -44,7 +44,7 @@ is exact twice, is at least as exact as the baseline, and has no median cost
 regression. If both arms are exact twice, Vela must reduce median agent time by
 at least 20 percent.
 
-The materializer currently supports two explicit scenarios without a generic
+The materializer currently supports three explicit scenarios without a generic
 correction framework:
 
 - `formal-foreign-reference-continuation`: find a pending local Decision over
@@ -52,6 +52,9 @@ correction framework:
 - `quantum-certificate-supersession`: find a pending correction to one accepted
   quantum-code Claim, distinguish its two verifier scopes, and report the exact
   accept/reject branches.
+- `erdos-post-decision-continuation`: recover one accepted bounded transition,
+  separate later verified-but-pending producer completion, and identify the
+  exact first non-overlapping Target without changing Standing.
 
 These are first-party comprehension and continuation tasks. They do not
 establish independent adoption, general scientific productivity, scientific
@@ -105,14 +108,17 @@ answer, verifier output/reward, compact summary, and a SHA-256 manifest.
 Trajectories, session logs, recordings, credentials, Docker caches, and other
 generated execution state do not belong in Git.
 
-The current compact result is
-[`paper/artifacts/product-compression-v11`](../../paper/artifacts/product-compression-v11/README.md).
-Its complete native Harbor study and job are retained outside the source tree
+Current compact results are
+[`paper/artifacts/product-compression-v11`](../../paper/artifacts/product-compression-v11/README.md)
+and
+[`paper/artifacts/product-compression-erdos-post-decision-2026-08-01`](../../paper/artifacts/product-compression-erdos-post-decision-2026-08-01/README.md).
+Their complete native Harbor studies and jobs are retained outside the source tree
 under a SHA-256 manifest so generated execution state does not become product
 code.
 
 ## History
 
-The active tree keeps only the current v11 result. Earlier failed, superseded,
-and invalidated iterations remain available in Git history; they are not active
-harnesses, compatibility targets, or runtime inputs.
+The active tree keeps only the current pre-Decision correction and
+post-Decision continuation results. Earlier failed, superseded, and invalidated
+iterations remain available in Git history; they are not active harnesses,
+compatibility targets, or runtime inputs.

@@ -2,13 +2,18 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "scenario", "frontier", "decision"],
+  "required": ["schema", "scenario", "frontier"],
   "properties": {
     "schema": {"const": "vela.product-compression-answer.v9"},
-    "scenario": {"enum": ["formal-foreign-reference-continuation", "quantum-certificate-supersession"]},
+    "scenario": {"enum": ["formal-foreign-reference-continuation", "quantum-certificate-supersession", "erdos-post-decision-continuation"]},
     "frontier": {"$ref": "#/$defs/frontier"},
-    "decision": {"$ref": "#/$defs/decision"}
+    "decision": {"$ref": "#/$defs/decision"},
+    "continuation": {"$ref": "#/$defs/continuation"}
   },
+  "oneOf": [
+    {"properties": {"scenario": {"enum": ["formal-foreign-reference-continuation", "quantum-certificate-supersession"]}}, "required": ["decision"], "not": {"required": ["continuation"]}},
+    {"properties": {"scenario": {"const": "erdos-post-decision-continuation"}}, "required": ["continuation"], "not": {"required": ["decision"]}}
+  ],
   "$defs": {
     "root": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
     "frontier": {
@@ -18,7 +23,8 @@
       "properties": {
         "frontier_id": {"type": "string", "pattern": "^vfr_[0-9a-f]{16}$"},
         "repository_root": {"$ref": "#/$defs/root"},
-        "configured_targets": {"const": 0}
+        "target_index_root": {"$ref": "#/$defs/root"},
+        "configured_targets": {"enum": [0, 1]}
       }
     },
     "standing": {
@@ -130,6 +136,20 @@
         "now": {"type": "string", "minLength": 1},
         "if_accept": {"type": "string", "minLength": 1},
         "if_reject": {"type": "string", "minLength": 1}
+      }
+    },
+    "continuation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["accepted_claim_id", "accepted_claim_root", "standing_basis", "origin_root", "archive_bytes_re_read", "proposal_id", "proposal_root", "submission_id", "submission_root", "verification_id", "verification_root", "decision_event_id", "decision_event_root", "decision_actor", "accepted_first", "accepted_through", "producer_claim_id", "producer_claim_root", "producer_proposal_id", "producer_proposal_root", "producer_verification_id", "producer_verification_root", "producer_standing", "producer_first", "producer_complete_through", "next_target_id", "next_first", "next_last", "packet_root", "verifier_profile", "verification_is_acceptance", "producer_completion_changes_standing", "next_target_changes_standing"],
+      "properties": {
+        "accepted_claim_id": {"type": "string"}, "accepted_claim_root": {"$ref": "#/$defs/root"}, "standing_basis": {"const": "compacted_origin"}, "origin_root": {"$ref": "#/$defs/root"}, "archive_bytes_re_read": {"const": false},
+        "proposal_id": {"type": "string"}, "proposal_root": {"$ref": "#/$defs/root"}, "submission_id": {"type": "string"}, "submission_root": {"$ref": "#/$defs/root"},
+        "verification_id": {"type": "string"}, "verification_root": {"$ref": "#/$defs/root"}, "decision_event_id": {"type": "string"}, "decision_event_root": {"$ref": "#/$defs/root"}, "decision_actor": {"const": "human"},
+        "accepted_first": {"type": "integer"}, "accepted_through": {"type": "integer"},
+        "producer_claim_id": {"type": "string"}, "producer_claim_root": {"$ref": "#/$defs/root"}, "producer_proposal_id": {"type": "string"}, "producer_proposal_root": {"$ref": "#/$defs/root"}, "producer_verification_id": {"type": "string"}, "producer_verification_root": {"$ref": "#/$defs/root"}, "producer_standing": {"const": "pending_review"},
+        "producer_first": {"type": "integer"}, "producer_complete_through": {"type": "integer"},
+        "next_target_id": {"type": "string"}, "next_first": {"type": "integer"}, "next_last": {"type": "integer"}, "packet_root": {"$ref": "#/$defs/root"}, "verifier_profile": {"type": "string"},
+        "verification_is_acceptance": {"const": false}, "producer_completion_changes_standing": {"const": false}, "next_target_changes_standing": {"const": false}
       }
     },
     "decision": {

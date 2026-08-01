@@ -11,6 +11,7 @@ from typing import Any
 
 
 ROOT = re.compile(r"^sha256:[0-9a-f]{64}$")
+POST_DECISION_SCENARIO = "erdos-post-decision-continuation"
 
 
 class ContractError(ValueError):
@@ -63,17 +64,31 @@ def validate_answer(value: Any) -> None:
             raise ContractError("$.schema: wrong answer schema")
         scenario = value["scenario"]
         frontier = value["frontier"]
+    except (KeyError, TypeError) as exc:
+        raise ContractError(f"answer is missing a required field: {exc}") from exc
+
+    if scenario not in {
+        "formal-foreign-reference-continuation",
+        "quantum-certificate-supersession",
+        POST_DECISION_SCENARIO,
+    }:
+        raise ContractError("$.scenario: unsupported scenario")
+    require_root(frontier.get("repository_root"), "$.frontier.repository_root")
+    if scenario == POST_DECISION_SCENARIO:
+        validate_terminal_continuation(frontier, value.get("continuation"))
+        if "decision" in value:
+            raise ContractError("$.decision: post-Decision scenario cannot contain a pending Decision")
+        return
+    if frontier.get("configured_targets") != 0:
+        raise ContractError("$.frontier.configured_targets: Frontier must have no invented Target")
+    if "continuation" in value:
+        raise ContractError("$.continuation: pending-Decision scenario cannot contain a terminal continuation")
+    try:
         decision = value["decision"]
         delta = decision["standing_delta"]
         scope = delta["scope"]
     except (KeyError, TypeError) as exc:
-        raise ContractError(f"answer is missing a required field: {exc}") from exc
-
-    if scenario not in {"formal-foreign-reference-continuation", "quantum-certificate-supersession"}:
-        raise ContractError("$.scenario: unsupported scenario")
-    require_root(frontier.get("repository_root"), "$.frontier.repository_root")
-    if frontier.get("configured_targets") != 0:
-        raise ContractError("$.frontier.configured_targets: Frontier must have no invented Target")
+        raise ContractError(f"answer is missing a required Decision field: {exc}") from exc
     if not isinstance(decision.get("assertion"), str) or not decision["assertion"]:
         raise ContractError("$.decision.assertion: must identify the proposed scientific statement")
     if not isinstance(decision.get("conditions"), list):
@@ -179,6 +194,36 @@ def validate_answer(value: Any) -> None:
         replacement = [{"claim_id": claim_id, "claim_root": decision.get("proposed_claim_root")}]
         if before != predecessor or rejected != predecessor or accepted != replacement:
             raise ContractError("$.decision.standing_delta: supersession must replace exactly the accepted predecessor")
+
+
+def validate_terminal_continuation(frontier: dict[str, Any], continuation: Any) -> None:
+    if frontier.get("configured_targets") != 1:
+        raise ContractError("$.frontier.configured_targets: post-Decision scenario requires one Target")
+    require_root(frontier.get("target_index_root"), "$.frontier.target_index_root")
+    if not isinstance(continuation, dict):
+        raise ContractError("$.continuation: expected object")
+    for field in (
+        "accepted_claim_root", "origin_root", "proposal_root", "submission_root",
+        "verification_root", "decision_event_root", "producer_claim_root",
+        "producer_proposal_root", "producer_verification_root", "packet_root",
+    ):
+        require_root(continuation.get(field), f"$.continuation.{field}")
+    if (
+        continuation.get("standing_basis") != "compacted_origin"
+        or continuation.get("archive_bytes_re_read") is not False
+        or continuation.get("decision_actor") != "human"
+        or continuation.get("producer_standing") != "pending_review"
+        or any(continuation.get(field) is not False for field in (
+            "verification_is_acceptance", "producer_completion_changes_standing",
+            "next_target_changes_standing",
+        ))
+    ):
+        raise ContractError("$.continuation: scientific Standing or authority is misstated")
+    for first, last in (("accepted_first", "accepted_through"), ("producer_first", "producer_complete_through"), ("next_first", "next_last")):
+        if not isinstance(continuation.get(first), int) or not isinstance(continuation.get(last), int) or continuation[last] < continuation[first]:
+            raise ContractError(f"$.continuation.{first}: invalid range")
+    if continuation["next_first"] != continuation["producer_complete_through"] + 1:
+        raise ContractError("$.continuation.next_target: not the first post-completion Target")
 
 
 def validate_answer_key(value: Any) -> None:

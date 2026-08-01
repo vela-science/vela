@@ -21,6 +21,7 @@ ARMS = ("git-files", "vela-guided")
 SCENARIOS = (
     "formal-foreign-reference-continuation",
     "quantum-certificate-supersession",
+    "erdos-post-decision-continuation",
 )
 COMPARISON = {
     "required_repetitions_per_arm": 2,
@@ -157,6 +158,68 @@ def inspect_current_decision(frontier: Path, vela: Path, proposal_id: str) -> di
         "submission": submission,
         "submission_root": submission_root,
         "verifications": verifications,
+    }
+
+
+def inspect_terminal_continuation(
+    frontier: Path, vela: Path, accepted_claim_id: str,
+) -> dict[str, Any]:
+    """Read one accepted transition and its current Target without writes."""
+    frontier, vela = frontier.resolve(), vela.resolve()
+    if command(("git", "status", "--porcelain"), cwd=frontier):
+        fail("frontier checkout must be clean")
+    commit = command(("git", "rev-parse", "HEAD"), cwd=frontier)
+    tree = command(("git", "rev-parse", "HEAD^{tree}"), cwd=frontier)
+    next_work = json_command((str(vela), "next", ".", "--limit", "1", "--json"), cwd=frontier)
+    why = json_command((str(vela), "why", ".", accepted_claim_id, "--json"), cwd=frontier)
+    if (commit, tree) != (
+        command(("git", "rev-parse", "HEAD"), cwd=frontier),
+        command(("git", "rev-parse", "HEAD^{tree}"), cwd=frontier),
+    ) or command(("git", "status", "--porcelain"), cwd=frontier):
+        fail("read-only inspection changed the Frontier checkout")
+    try:
+        [target] = next_work["targets"]
+        packet_root = target["packet"]["sha256"]
+        packet = contract.read_json(frontier / target["packet"]["path"])
+        chain = why["chain"]
+        [proposal], [verification] = chain["proposals"], chain["verification_records"]
+        decision = next(item for item in chain["authority_events"] if item["event"]["content"]["kind"] == "review.accepted")
+        applied = next(item for item in chain["authority_events"] if item["event"]["content"]["kind"] == "finding.asserted")
+        accepted = packet["accepted_state"]["latest_bounded_negative"]
+        producer = packet["producer_completion"]["latest_verified_submission"]
+        producer_review = json_command(
+            (str(vela), "review", "show", ".", producer["proposal_id"], "--json"), cwd=frontier,
+        )
+        next_range = packet["target"]["next_bounded_range"]
+    except (KeyError, TypeError, ValueError, StopIteration) as exc:
+        raise contract.ContractError(f"incomplete post-Decision continuation: {exc}") from exc
+    if (
+        next_work["availability"] != {"configured": 1, "stale": 0, "fresh": 1, "returned": 1}
+        or why["frontier_id"] != next_work["frontier_id"]
+        or why["repository_root"] != next_work["repository_root"]
+        or why["claim_id"] != accepted_claim_id
+        or why["standing"] != "accepted"
+        or chain["standing_basis"] != "compacted_origin"
+        or why["interpretation"] != {
+            "submission_is_acceptance": False,
+            "verification_is_acceptance": False,
+            "standing_is_derived": True,
+        }
+        or digest(frontier / target["packet"]["path"]) != packet_root
+        or accepted["claim_id"] != accepted_claim_id
+        or accepted["claim_root"] != why["claim_root"]
+        or producer_review["standing"] != "pending_review"
+        or producer_review["proposal_root"] != producer["proposal_root"]
+        or producer["range"]["last"] + 1 != next_range["first"]
+        or packet["completion_contract"]["duplicate_range_forbidden"] is not True
+    ):
+        fail("post-Decision continuation does not match current accepted Standing and Target")
+    return {
+        "frontier": frontier, "vela": vela, "commit": commit, "tree": tree,
+        "next_work": next_work, "why": why, "chain": chain, "target": target,
+        "packet_root": packet_root, "proposal": proposal, "verification": verification,
+        "decision": decision, "applied": applied, "accepted": accepted,
+        "producer": producer, "producer_review": producer_review, "next_range": next_range,
     }
 
 
@@ -335,6 +398,67 @@ def quantum_certificate_scenario(inspection: dict[str, Any]) -> tuple[dict[str, 
     return anchor, expected_answer(inspection, SCENARIOS[1], requested_change), instruction, claim_limit
 
 
+def terminal_continuation_answer(inspection: dict[str, Any]) -> dict[str, Any]:
+    why, chain, target = inspection["why"], inspection["chain"], inspection["target"]
+    proposal, verification = inspection["proposal"], inspection["verification"]
+    decision, applied = inspection["decision"], inspection["applied"]
+    producer = inspection["producer"]
+    result = {
+        "schema": "vela.product-compression-answer.v9",
+        "scenario": SCENARIOS[2],
+        "frontier": {
+            "frontier_id": why["frontier_id"], "repository_root": why["repository_root"],
+            "target_index_root": inspection["next_work"]["target_index_root"], "configured_targets": 1,
+        },
+        "continuation": {
+            "accepted_claim_id": why["claim_id"], "accepted_claim_root": why["claim_root"],
+            "standing_basis": chain["standing_basis"], "origin_root": chain["standing_basis_detail"]["origin_root"],
+            "archive_bytes_re_read": chain["standing_basis_detail"]["archive_bytes_re_read"],
+            "proposal_id": proposal["proposal"]["proposal_id"], "proposal_root": proposal["proposal_root"],
+            "submission_id": proposal["proposal"]["producer_package"]["id"], "submission_root": proposal["proposal"]["producer_package"]["root"],
+            "verification_id": verification["verification_record"]["verification_record_id"], "verification_root": verification["verification_record_root"],
+            "decision_event_id": decision["authority_event_id"], "decision_event_root": decision["authority_event_root"], "decision_actor": decision["event"]["content"]["actor"]["type"],
+            "accepted_first": inspection["accepted"]["range"]["first"], "accepted_through": inspection["accepted"]["range"]["last"],
+            "producer_claim_id": producer["claim_id"], "producer_claim_root": producer["claim_root"],
+            "producer_proposal_id": producer["proposal_id"], "producer_proposal_root": producer["proposal_root"],
+            "producer_verification_id": producer["verification_id"], "producer_verification_root": producer["verification_root"],
+            "producer_standing": inspection["producer_review"]["standing"],
+            "producer_first": producer["range"]["first"], "producer_complete_through": producer["range"]["last"],
+            "next_target_id": target["target_id"], "next_first": inspection["next_range"]["first"], "next_last": inspection["next_range"]["last"],
+            "packet_root": inspection["packet_root"], "verifier_profile": target["verifier_profile"],
+            "verification_is_acceptance": False, "producer_completion_changes_standing": False, "next_target_changes_standing": False,
+        },
+    }
+    contract.validate_answer(result)
+    return result
+
+
+def erdos_post_decision_scenario(
+    inspection: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any], str, str]:
+    """Qualify one accepted Erdős transition and its exact current continuation."""
+    why = inspection["why"]
+    anchor = {
+        "accepted_claim": {"claim_id": why["claim_id"], "claim_root": why["claim_root"]},
+        "target_id": inspection["target"]["target_id"], "packet_root": inspection["packet_root"],
+    }
+    instruction = (
+        "The fixture identifies one accepted bounded Claim and its exact closed Target slice. "
+        "From the current checkout, recover the Submission, passing Verification, and human "
+        "Decision that give the Claim Standing. Distinguish accepted coverage from the latest "
+        "verified producer completion that remains pending review. Then identify the "
+        "first current non-overlapping Target, packet, and verifier, and preserve the limits on "
+        "what its execution, Submission, or Verification could change."
+    )
+    claim_limit = (
+        "First-party evidence from one current-head post-Decision Erdős continuation task. It may "
+        "measure exact cold continuation and separation of accepted Standing from verified pending "
+        "producer completion; it does not establish correction propagation, external independence, "
+        "general scientific productivity, or resolution of Erdős problem 1056."
+    )
+    return anchor, terminal_continuation_answer(inspection), instruction, claim_limit
+
+
 SCENARIO_BUILDERS = {
     SCENARIOS[0]: formal_foreign_reference_scenario,
     SCENARIOS[1]: quantum_certificate_scenario,
@@ -342,16 +466,20 @@ SCENARIO_BUILDERS = {
 
 
 def materialize_fixture(
-    frontier: Path, vela: Path, proposal_id: str, scenario: str
+    frontier: Path, vela: Path, subject_id: str, scenario: str,
 ) -> tuple[dict[str, Any], dict[str, Any], str, str]:
-    """Bind one explicit scenario to one exact current Decision packet."""
-    if scenario not in SCENARIO_BUILDERS:
+    """Bind one explicit scenario to one exact current Frontier state."""
+    if scenario not in SCENARIOS:
         fail(f"unsupported scenario: {scenario}")
-    inspection = inspect_current_decision(frontier, vela, proposal_id)
-    anchor, expected, instruction, claim_limit = SCENARIO_BUILDERS[scenario](inspection)
+    if scenario == SCENARIOS[2]:
+        inspection = inspect_terminal_continuation(frontier, vela, subject_id)
+        anchor, expected, instruction, claim_limit = erdos_post_decision_scenario(inspection)
+    else:
+        inspection = inspect_current_decision(frontier, vela, subject_id)
+        anchor, expected, instruction, claim_limit = SCENARIO_BUILDERS[scenario](inspection)
     next_work = inspection["next_work"]
     fixture = contract.seal({
-        "schema": "vela.product-compression-fixture.v6",
+        "schema": "vela.product-compression-fixture.v7",
         "fixture_root": "",
         "scenario": scenario,
         "vela": {
@@ -363,8 +491,12 @@ def materialize_fixture(
             "git_commit": inspection["commit"],
             "git_tree": inspection["tree"],
             "repository_root": next_work["repository_root"],
-            "inbox_projection_root": inspection["inbox_projection_root"],
-            "configured_targets": 0,
+            "configured_targets": next_work["availability"]["configured"],
+            **(
+                {"target_index_root": next_work["target_index_root"]}
+                if scenario == SCENARIOS[2]
+                else {"inbox_projection_root": inspection["inbox_projection_root"]}
+            ),
         },
         "anchor": anchor,
     }, "fixture_root")
@@ -473,7 +605,8 @@ def build_study(
                 guidance = (
                     "You may also use the installed read-only `vela` CLI: "
                     "`vela status . --json`, "
-                    "`vela next . --json`, `vela show . <id> --json`, and "
+                    "`vela next . --json`, `vela show . <id> --json`, "
+                    "`vela why . <claim-id> --json`, and "
                     "`vela review show . <id> --json`."
                 )
             render(
@@ -481,6 +614,17 @@ def build_study(
                 {
                     "TOOL_GUIDANCE": guidance,
                     "SCENARIO_INSTRUCTION": scenario_instruction,
+                    "OUTPUT_INSTRUCTION": (
+                        "Report the accepted transition, accepted closure, later pending producer "
+                        "closures, exact next Target, and authority-boundary semantics. Do not run "
+                        "the Target or act on any pending Proposal."
+                        if fixture["scenario"] == SCENARIOS[2]
+                        else
+                        "Reject any typo or unrelated Proposal. Report its Submission, every scoped "
+                        "Verification and nonclaim, the exact conditional Standing change, and all "
+                        "three current/accept/reject next obligations. This Frontier has no configured "
+                        "Target; do not invent one."
+                    ),
                 },
             )
             render(task / "task.toml", {"SCENARIO": fixture["scenario"], "ARM": arm})
@@ -529,7 +673,7 @@ def build_study(
 def materialize(
     frontier: Path,
     vela: Path,
-    proposal_id: str,
+    subject_id: str,
     scenario: str,
     vela_linux: Path,
     model: str,
@@ -538,7 +682,7 @@ def materialize(
     output: Path,
 ) -> dict[str, Any]:
     fixture, answer_key, instruction, claim_limit = materialize_fixture(
-        frontier, vela, proposal_id, scenario,
+        frontier, vela, subject_id, scenario,
     )
     return build_study(
         fixture, answer_key, instruction, claim_limit, frontier, vela_linux,
@@ -550,7 +694,9 @@ def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
     result.add_argument("--frontier", type=Path, required=True)
     result.add_argument("--vela", type=Path, required=True)
-    result.add_argument("--proposal", required=True)
+    identity = result.add_mutually_exclusive_group(required=True)
+    identity.add_argument("--proposal")
+    identity.add_argument("--accepted-claim")
     result.add_argument("--scenario", choices=SCENARIOS, required=True)
     result.add_argument("--vela-linux", type=Path, required=True)
     result.add_argument("--model", required=True)
@@ -563,10 +709,12 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
+        if (args.scenario == SCENARIOS[2]) != (args.accepted_claim is not None):
+            fail("post-Decision scenario requires --accepted-claim; pending scenarios require --proposal")
         plan = materialize(
             args.frontier,
             args.vela,
-            args.proposal,
+            args.proposal or args.accepted_claim,
             args.scenario,
             args.vela_linux,
             args.model,
