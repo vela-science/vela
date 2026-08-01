@@ -264,7 +264,7 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
     let checked = success_json(&run(&frontier, None, &["check", ".", "--strict", "--json"]));
     assert_eq!(checked["repository_root"], verified["repository_root"]);
     let status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
-    assert_eq!(status["schema"], "vela.status.v2");
+    assert_eq!(status["schema"], "vela.status.v3");
     assert_eq!(status["integrity"]["replay"], "verified");
     assert_eq!(status["integrity"]["strict"], "pass");
     assert_eq!(status["work"]["active_attempt_count"], 0);
@@ -274,8 +274,10 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
             .as_str()
             .is_some_and(|root| root.starts_with("sha256:"))
     );
+    assert!(status["actions"]["review"].is_null());
+    assert_eq!(status["actions"]["work"]["mode"], "inspect");
     assert!(
-        status["next_action"]
+        status["actions"]["work"]["command"]
             .as_str()
             .is_some_and(|command| command.starts_with("vela next "))
     );
@@ -890,7 +892,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert_eq!(checked["counts"]["pending_claims"], 1);
     assert_eq!(checked["counts"]["verifications"], 1);
     let status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
-    assert_eq!(status["schema"], "vela.status.v2");
+    assert_eq!(status["schema"], "vela.status.v3");
     assert_eq!(status["integrity"]["strict"], "pass");
     assert_eq!(status["work"]["active_attempt_count"], 1);
     assert_eq!(status["work"]["first_attempt"]["usage"]["verifications"], 1);
@@ -907,10 +909,17 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             .as_str()
             .is_some_and(|root| root.starts_with("sha256:"))
     );
-    let next_action = status["next_action"].as_str().expect("status next action");
-    assert!(next_action.starts_with("vela review inbox "));
-    assert!(!next_action.contains(" accept "));
-    assert!(!next_action.contains(" reject "));
+    let review_action = status["actions"]["review"]["command"]
+        .as_str()
+        .expect("status review action");
+    assert!(review_action.starts_with("vela review inbox "));
+    assert!(!review_action.contains(" accept "));
+    assert!(!review_action.contains(" reject "));
+    let work_action = status["actions"]["work"]["command"]
+        .as_str()
+        .expect("status work action");
+    assert_eq!(status["actions"]["work"]["mode"], "resume");
+    assert!(work_action.contains("Continue Attempt"));
     assert!(
         serde_json::to_vec(&status).expect("encode status").len() <= 16 * 1024,
         "status exceeds the compact projection budget"
@@ -921,6 +930,37 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert!(human_status.lines().count() <= 40);
     assert!(!human_status.contains("review accept"));
     assert!(!human_status.contains("review reject"));
+    let dropped = success_json(&run(
+        &frontier,
+        None,
+        &[
+            "start",
+            "erdos:1056",
+            "--frontier",
+            ".",
+            "--drop",
+            "--reason",
+            "handoff complete",
+            "--as",
+            actor,
+            "--json",
+        ],
+    ));
+    assert_eq!(dropped["command"], "start.drop");
+    let parallel_status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
+    assert_eq!(parallel_status["decision_inbox"]["pending_count"], 1);
+    assert_eq!(parallel_status["actions"]["work"]["mode"], "inspect");
+    assert_eq!(parallel_status["actions"]["work"]["ready_target_count"], 1);
+    assert!(
+        parallel_status["actions"]["review"]["command"]
+            .as_str()
+            .is_some_and(|command| command.starts_with("vela review inbox "))
+    );
+    assert!(
+        parallel_status["actions"]["work"]["command"]
+            .as_str()
+            .is_some_and(|command| command.starts_with("vela next "))
+    );
     let human_inbox = run(&frontier, None, &["review", "inbox", "."]);
     assert!(human_inbox.status.success());
     let human_inbox = String::from_utf8(human_inbox.stdout).expect("inbox text");

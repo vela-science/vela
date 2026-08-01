@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Replace the initialized `vela.status.v2` scalar `next_action` with
+  `vela.status.v3` independent `actions.review` and `actions.work` lanes.
+  Pending human Decisions no longer hide a fresh Target or active Attempt, and
+  producer work remains explicitly independent of scientific acceptance.
 - Replace the ambiguous Decision Inbox Standing fields with one explicit,
   target-scoped `standing_delta`. The rooted v2 projection shows the affected
   Claim set, accepted Standing before/after each possible Decision, exact

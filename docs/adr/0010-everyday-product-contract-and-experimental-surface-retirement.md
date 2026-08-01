@@ -92,7 +92,7 @@ state. Historical tags retain its implementation.
 
 These schemas project current state. They do not enter the canonical store.
 
-### `vela.status.v1`
+### `vela.status.v3`
 
 `vela status <frontier> --json` returns:
 
@@ -103,9 +103,10 @@ These schemas project current state. They do not enter the canonical store.
 - current Claim, review, Submission, Verification, and Artifact counts;
 - the active private Attempt count plus the first exact authorization scope,
   budget, usage, and expiry;
-- Decision Inbox pending, ready, and blocked counts plus its projection root and
-  first entry root; and
-- one read-only inspection or producer-continuation action.
+- Decision Inbox pending, protocol-ready, and protocol-blocked counts plus its
+  projection root and first entry root; and
+- independent `actions.review` and `actions.work` lanes so a pending human
+  Decision never hides a fresh Target or active Attempt.
 
 Erdős output must remain at most 16 KiB. Human output must remain at most 40
 lines. The default projection contains no Decision Brief, packet body, review

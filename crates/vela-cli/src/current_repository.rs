@@ -428,16 +428,31 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
     let inbox_projection = crate::decision_inbox::project(&frontier)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let (decision_inbox, pending_decision_count) = decision_inbox_status_summary(&inbox_projection);
-    let next_action = if pending_decision_count > 0 {
-        format!("vela review inbox {} --json", frontier.display())
-    } else if active_attempt_count > 0 {
-        active_attempt_next_action(&frontier, &work)
-            .unwrap_or_else(|error| crate::cli::fail_return(&error))
+    let ready_target_count = current_target_packets.len();
+    let review_action = (pending_decision_count > 0).then(|| {
+        json!({
+            "pending_count": pending_decision_count,
+            "command": format!("vela review inbox {} --json", frontier.display()),
+        })
+    });
+    let work_action = if active_attempt_count > 0 {
+        json!({
+            "mode": "resume",
+            "active_attempt_count": active_attempt_count,
+            "ready_target_count": ready_target_count,
+            "command": active_attempt_next_action(&frontier, &work)
+                .unwrap_or_else(|error| crate::cli::fail_return(&error)),
+        })
     } else {
-        format!("vela next {} --limit 1 --json", frontier.display())
+        json!({
+            "mode": "inspect",
+            "active_attempt_count": 0,
+            "ready_target_count": ready_target_count,
+            "command": format!("vela next {} --limit 1 --json", frontier.display()),
+        })
     };
     let payload = json!({
-        "schema": "vela.status.v2",
+        "schema": "vela.status.v3",
         "ok": true,
         "command": "status",
         "frontier": {
@@ -475,7 +490,10 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         },
         "work": work,
         "decision_inbox": decision_inbox,
-        "next_action": next_action,
+        "actions": {
+            "review": review_action,
+            "work": work_action,
+        },
     });
     if json_out {
         crate::cli::print_json(&payload);
@@ -558,9 +576,18 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
                 .as_str()
                 .unwrap_or("none")
         );
+        if let Some(review) = payload["actions"]["review"].as_object() {
+            println!(
+                "  review    {} pending · {}",
+                review["pending_count"],
+                review["command"].as_str().unwrap_or("unavailable")
+            );
+        }
         println!(
-            "  next      {}",
-            payload["next_action"].as_str().unwrap_or("none")
+            "  work      {}",
+            payload["actions"]["work"]["command"]
+                .as_str()
+                .unwrap_or("unavailable")
         );
     }
 }
