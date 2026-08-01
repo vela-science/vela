@@ -237,8 +237,8 @@ class ProductCompressionTests(unittest.TestCase):
             self.assertNotIn("COPY vela", (baseline / "environment/Dockerfile").read_text())
             self.assertIn("COPY vela", (guided / "environment/Dockerfile").read_text())
             self.assertIn(".receiver.git_commit", (guided / "environment/Dockerfile").read_text())
-            self.assertNotIn(
-                "@openai/codex",
+            self.assertIn(
+                "@openai/codex@0.1.0",
                 (baseline / "environment/Dockerfile").read_text(),
             )
             self.assertIn(
