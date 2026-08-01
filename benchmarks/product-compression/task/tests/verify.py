@@ -22,6 +22,17 @@ def read(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def normalized_answer(value: Any) -> Any:
+    """Canonicalize fields whose contract is an unordered set."""
+    if not isinstance(value, dict):
+        return value
+    normalized = json.loads(json.dumps(value))
+    decision = normalized.get("decision")
+    if isinstance(decision, dict) and isinstance(decision.get("verification_ids"), list):
+        decision["verification_ids"].sort()
+    return normalized
+
+
 def outcome(answer: Any, key: Any, fixture: Any) -> dict[str, Any]:
     eligibility: list[str] = []
     correctness: list[str] = []
@@ -31,7 +42,7 @@ def outcome(answer: Any, key: Any, fixture: Any) -> dict[str, Any]:
         eligibility.append("fixture_invalid")
     elif not isinstance(key, dict) or key.get("fixture_root") != fixture["fixture_root"]:
         eligibility.append("fixture_answer_key_mismatch")
-    if not isinstance(key, dict) or answer != key.get("expected"):
+    if not isinstance(key, dict) or normalized_answer(answer) != normalized_answer(key.get("expected")):
         correctness.append("answer_mismatch")
     return {
         "eligible": not eligibility,

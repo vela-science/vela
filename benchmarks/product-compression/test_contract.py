@@ -191,6 +191,21 @@ class ProductCompressionTests(unittest.TestCase):
         key = answer_key(source["fixture_root"])
         exact = verifier.outcome(answer(), key, source)
         self.assertEqual((exact["eligible"], exact["exact"]), (True, True))
+        reordered = answer()
+        reordered["decision"]["verification_ids"] = [
+            "vvr_fedcba9876543210",
+            "vvr_0123456789abcdef",
+        ]
+        expected = answer()
+        expected["decision"]["verification_ids"] = list(reversed(reordered["decision"]["verification_ids"]))
+        reordered_key = contract.seal({
+            "schema": "vela.product-compression-answer-key.v8",
+            "answer_key_root": "",
+            "fixture_root": source["fixture_root"],
+            "expected": expected,
+        }, "answer_key_root")
+        order_independent = verifier.outcome(reordered, reordered_key, source)
+        self.assertEqual((order_independent["eligible"], order_independent["exact"]), (True, True))
         wrong = answer()
         wrong["decision"]["proposal_id"] = "vpr_b81d87fce0d9c81c"
         mismatch = verifier.outcome(wrong, key, source)
