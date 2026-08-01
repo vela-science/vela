@@ -78,7 +78,7 @@ infrastructure.
 - Vela Web has a live root-bound Math Source Registry and read-only Math Atlas
   over the exact four repository-v4 Frontier heads. The current projection uses
   `observatory.v8`, contains no Registration contract, and retains 6,701 native
-  source records and 5,844 source bindings. Source Git remains authoritative.
+  source records and 5,845 source bindings. Source Git remains authoritative.
 - Product-compression v11 completed four clean native Harbor trials with zero
   retries. Vela-guided work was exact in 2/2 trials while Git/files alone was
   exact in 0/2; median agent time fell from 239.22 to 116.16 seconds and median
@@ -122,12 +122,15 @@ infrastructure.
   promoting the derived envelope into a supported shared contract or claiming
   independent product value. A human Decision made earlier must retain that
   limitation explicitly.
-- The production Atlas was rebuilt on 2026-08-01 from all four cleaned
-  Frontier heads and is exact at projection root
-  `sha256:e5e66b8ec14fa6ddc8e5f0424a0349f7dab218cefe6d107c08a4a69d0e900d2a`.
+- The retained 2026-08-01 production Atlas checkpoint was rebuilt from all four
+  cleaned Frontier heads and is exact at projection root
+  `sha256:f65fcf8509ec2b91f944675e46fdc067032fc17a975b19f23d538197ae5b8521`.
   Its manifest binds Erdős `3f594b53`, Formal `6cbc2cb5`, Quantum
   `29202cfb`, and Sidon `e07b6317`; the database sync, corpus checks, source
   evidence retention, activation, pruning, and production redeploy passed.
+- Two empty local PostgreSQL reconstructions matched every production table,
+  Frontier, and source-registry root. The retained evidence artifact root is
+  `sha256:d1d7eefc397a43960c4a9757aca97dac445c124d6ab00a369cdc1e4522066dcb`.
 - Pending Proposal sheets now project Vela's exact Decision Inbox packet:
   protocol readiness, the accept/reject Standing delta, limits, next
   obligation, and copyable roots. The Observatory remains read-only.
@@ -339,7 +342,7 @@ reputation score, or `1.0.0` schedule.
 | Vela | `0.962.0` is published with direct producer withdrawal and the current repository reader; release checks are green | keep one train and release only for demonstrated changes |
 | Cross-language readers | standalone Python and JavaScript conformance readers | keep package-free until a real external consumer requires a library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; deployment `0.430.0` binds commit `67608e850f5d320b4571aa85d0243e4de4ad7b99` and exact projection root `sha256:e5e66b8ec14fa6ddc8e5f0424a0349f7dab218cefe6d107c08a4a69d0e900d2a` | run the bounded `ten-proofs` source/verification pilot through existing adapters; add no infrastructure |
+| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; the retained 2026-08-01 checkpoint binds projection root `sha256:f65fcf8509ec2b91f944675e46fdc067032fc17a975b19f23d538197ae5b8521` and clean-room artifact `sha256:d1d7eefc397a43960c4a9757aca97dac445c124d6ab00a369cdc1e4522066dcb` | run the bounded `ten-proofs` source/verification pilot through existing adapters; add no infrastructure |
 | Frontiers | canonical Git sources with pending human Decisions; the obsolete Formal duplicate is withdrawn with zero accepted delta | decide or cancel exact remaining Proposals, replay, remap |
 | Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 

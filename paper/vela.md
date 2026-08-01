@@ -49,10 +49,10 @@ repository root, graph roots, and projection root changed exactly. The Target
 packet initially failed to advance, so that candidate was not activated.
 Source-local closure and later exact completions now close producer work
 through `10430400` and expose `10430401..10430600` as the next nonduplicate
-range. The production Vela Web Atlas uses the repository-v4 reader. Its exact
-projection at root
-`sha256:e5e66b8ec14fa6ddc8e5f0424a0349f7dab218cefe6d107c08a4a69d0e900d2a`
-contains 4,136 graph nodes, 2,589 edges, 6,701 native source records, and 5,844
+range. The retained 2026-08-01 Vela Web Atlas checkpoint uses the repository-v4
+reader. Its exact projection at root
+`sha256:f65fcf8509ec2b91f944675e46fdc067032fc17a975b19f23d538197ae5b8521`
+contains 4,136 graph nodes, 2,589 edges, 6,701 native source records, and 5,845
 Frontier bindings, including the later non-authorizing Formal withdrawal.
 Five Erdős, two Formal, and one quantum-certificate Proposal remain pending
 human Decisions; one
@@ -652,9 +652,9 @@ source-local Target progression for the two demonstrated stale edges. It does
 not establish cold-user lift or automatic domain-generic closure.
 
 Subsequent exact completions close Erdős producer work through `10430400` and
-leave `10430401..10430600` as the next nonduplicate range. Vela Web `0.430.0`
-serves the exact repository-v4 projection at root
-`sha256:e5e66b8ec14fa6ddc8e5f0424a0349f7dab218cefe6d107c08a4a69d0e900d2a`.
+leave `10430401..10430600` as the next nonduplicate range. The retained
+2026-08-01 Vela Web checkpoint serves the exact repository-v4 projection at
+root `sha256:f65fcf8509ec2b91f944675e46fdc067032fc17a975b19f23d538197ae5b8521`.
 Five Erdős, two Formal, and one quantum-certificate Proposal remain pending
 human Decisions; their
 Verifications do not change Standing. The earlier broader-worded Erdős
@@ -1066,7 +1066,7 @@ but not canonical.
 
 The Math Atlas has passed rooted, bounded Neon ingestion and clean-room
 reconstruction on the current schema. Its exact production projection contains
-4,136 graph nodes, 2,589 edges, 6,701 native source records, and 5,844
+4,136 graph nodes, 2,589 edges, 6,701 native source records, and 5,845
 Frontier bindings. No 1,000,000-record result exists. These results establish
 bounded reconstruction and operation, not general scalability, adoption, or
 user value. Current counts describe the audited corpus, not a capacity limit
