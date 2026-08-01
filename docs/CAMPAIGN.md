@@ -65,7 +65,7 @@ infrastructure.
 
 ### Shipped and verified
 
-- Vela `0.961.0` is the published binary release for repository v4, direct
+- Vela `0.962.0` is the release candidate for repository v4, direct
   Target Index v5, direct Submission lineage, and the retired workflow/runtime
   surfaces. Internal Rust crates are not published as parallel products, and
   the unused TypeScript protocol package has been removed.
@@ -303,7 +303,7 @@ reputation score, or `1.0.0` schedule.
 
 | Surface | Current posture | Next earned change |
 | --- | --- | --- |
-| Vela | `0.961.0` published; focused and release checks green | keep one binary release train; release only for a demonstrated change |
+| Vela | `0.962.0` release candidate includes direct producer withdrawal and the current repository reader; focused checks green | publish one exact binary release, then keep one train and release only for demonstrated changes |
 | Cross-language readers | standalone Python and JavaScript conformance readers | keep package-free until a real external consumer requires a library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
 | Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; deployment label `0.430.0` currently binds untagged commit `9f01321b`, and the projection predates Formal withdrawal `1835345` | atomically refresh the changed Frontier head, then reconcile one exact patch tag, deployed commit, and manifest; add no infrastructure |

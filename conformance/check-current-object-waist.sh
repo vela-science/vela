@@ -135,7 +135,7 @@ repository_root_after="$(jq -r '.roots.repository' "$root/status.json")"
 [[ "$(jq -r '.verification_records | length' "$root/review.json")" == 1 ]]
 [[ "$(jq -r '.standing' "$root/review.json")" == pending_review ]]
 [[ "$(jq -r '.decision' "$root/review.json")" == null ]]
-[[ "$(jq -r '.authority_boundary' "$root/review.json")" == "Verification records report bounded checks. Only a repository-authority Decision can change standing." ]]
+[[ "$(jq -r '.authority_boundary' "$root/review.json")" == "Verification records report bounded checks. A producer may close its own pending Proposal; only a repository-authority Decision can change accepted scientific Standing." ]]
 [[ "$(jq -r '.schema' "$root/inbox.json")" == vela.decision-inbox.v2 ]]
 [[ "$(jq -r '.entries | length' "$root/inbox.json")" == 1 ]]
 [[ "$(jq -r '.decision_inbox.entry.entry_root' "$root/review.json")" == "$(jq -r '.entries[0].entry_root' "$root/inbox.json")" ]]

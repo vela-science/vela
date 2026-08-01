@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.962.0 — 2026-08-01 — Direct proposal lifecycle and native evaluation
+
 - Add producer-owned withdrawal for one exact still-pending Proposal. The
   retained Submission identity signs the append-only lifecycle record; no
   repository-authority key, Event, Decision, or accepted-Standing mutation is
