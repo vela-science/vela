@@ -289,7 +289,8 @@ The pilot therefore:
 1. observe one exact release through the existing source-adapter contract;
 2. pin the native Git commit/tree, Lean toolchain, dependency lock, declared
    review state, and all twelve source-declared Comparator profiles;
-3. run `lake build All`, then one clean-room Erdős #183 Comparator profile;
+3. run `lake build All`, then one Erdős #183 Comparator profile under real
+   Linux Landrun with an outer offline, unprivileged container boundary;
 4. record checker passage with explicit nonclaims about statement fidelity,
    novelty, community acceptance, and local Standing;
 5. acquire the current Erdős #183 source through the exact adapter before
@@ -299,18 +300,43 @@ The pilot therefore:
 
 This pilot adds no protocol object, Frontier, runner, Astra-specific product
 page, universal status ladder, reviewer service, or global acceptance claim.
-The local macOS Comparator development shim is not a hardened sandbox and must
-not be reported as independent clean-room passage. The other eleven profile
-executions and a general release-manifest export remain deferred until the
-first path is reproducible and a real consumer earns them.
+The local macOS Comparator development shim is not a hardened sandbox. The
+Linux execution now passes under real Landrun/Landlock plus an offline,
+capability-free Docker boundary, but uses one content-hashed argv wrapper to
+restore the nested delimiter that Landrun strips. It is not the literal native
+`systemd-run` guarantee documented by Comparator and is not an independent
+scientific Decision. The other eleven profiles and a general release-manifest
+export remain deferred until a real consumer earns them.
 
 The first local reproduction is now complete: `lake build All` passed 8,666
 jobs and the pinned Erdős #183 profile passed both Lean's default kernel and a
 pinned Nanoda build. The exact environment, byte roots, and nonclaims are in
 `paper/artifacts/astra-erdos-183/result.v1.json` (SHA-256
-`3eb97061e898cdb2a2427e105f51da7f134d831d1e2db4576ae23b6310ef911c`).
-Because this macOS run used Comparator's unsandboxed development shim, the
-Linux Landrun execution remains pending and no Frontier state changed.
+`cd38ac37a3abd04c045e2905886fa418155a1838cb755bc351f96341a84179cd`).
+The second Linux execution passed both kernels and Comparator under real
+Landrun/Landlock with no network, no capabilities, no host checkout, and an
+ephemeral filesystem. Exact environment and wrapper roots are retained in the
+same result. No Frontier state changed.
+
+The August 1 Astra strategic memo is adopted only through this existing seam.
+Its central observation sharpens the campaign thesis: candidate discovery is
+becoming abundant, while exact source identity, statement fidelity, scoped
+verification, correction-aware Standing, and a safe next obligation remain
+scarce. The next earned step is one `ERDOS-183-ASTRA-FIDELITY` Target in the
+existing Erdős Frontier, comparing the pinned teorth statement, OpenAI
+manuscript theorem, and Lean declaration across definitions, quantifiers,
+hypotheses, and conclusion. Any result uses the ordinary Submission,
+Verification, and human Decision path; checker passage alone changes nothing.
+
+Do not create an Astra Frontier, universal status ladder, reviewer service,
+source-monitoring daemon, graph store, or standalone Scientific Release
+Manifest schema. Do not run the other eleven Comparator profiles for a vanity
+count. A broader export or product surface is earned only by a named second
+consumer. If product lift is tested, reuse the current Harbor comparison and
+measure whether a cold reader identifies the reported claim, reproduced
+checks, unresolved fidelity and novelty, source disagreement, and exact next
+obligation at least 20% faster than from the raw OpenAI and teorth materials,
+with zero authority errors.
 
 ## Verification
 
@@ -373,7 +399,7 @@ reputation score, or `1.0.0` schedule.
 | Vela | `0.962.1` is published with direct producer withdrawal, compacted-lineage reconstruction, and current-root Decision checks; release checks are green | keep one train and release only for demonstrated changes |
 | Cross-language readers | standalone Python and JavaScript conformance readers | keep package-free until a real external consumer requires a library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; the retained 2026-08-01 checkpoint binds projection root `sha256:9ca8bca4b4a7d9430d494094863c3b57e838159f858248c987abde26153ba107`, 11 exact sources, 6,713 native records, and clean-room artifact `sha256:b4aaaa303db2dc5c66fb0cbaccc19face4e65767de5ee74d4ca250c93666409c` | run the #183 profile under hardened Linux Landrun before claiming independent clean-room Comparator passage; add no infrastructure |
+| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; the retained 2026-08-01 checkpoint binds projection root `sha256:9ca8bca4b4a7d9430d494094863c3b57e838159f858248c987abde26153ba107`, 11 exact sources, 6,713 native records, and clean-room artifact `sha256:b4aaaa303db2dc5c66fb0cbaccc19face4e65767de5ee74d4ca250c93666409c` | keep the exact source projection; add no Astra-specific UI or broader execution until a real consumer earns it |
 | Frontiers | canonical Git sources with pending human Decisions; the obsolete Formal duplicate is withdrawn with zero accepted delta | decide or cancel exact remaining Proposals, replay, remap |
 | Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 

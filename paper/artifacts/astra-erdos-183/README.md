@@ -23,9 +23,16 @@ COMPARATOR_NANODA=/path/to/pinned/nanoda_bin \
 ```
 
 `lake build All` completed 8,666 jobs. Comparator reported that both Nanoda and
-Lean's default kernel accepted the solution. Because macOS used Comparator's
-explicitly insecure development shim in place of Landrun, this is a truthful
-local reproduction, not a hardened sandbox or an independent clean-room
-claim. A Linux Landrun execution remains the next verifier-strengthening step.
+Lean's default kernel accepted the solution.
+
+A second execution reproduced the same result as an unprivileged user in an
+offline Linux container with every capability dropped, no-new-privileges,
+private IPC, bounded processes, and real Landrun/Landlock confinement. Both
+kernels accepted all four theorems and Comparator exited successfully. One
+upstream argv defect remains: Landrun strips Lean4Export's nested `--`, so the
+passing run used a content-hashed 14-line wrapper that restores only that
+delimiter. The result is therefore a hardened offline Docker+Landrun
+reproduction, not the literal pre-Linux-7.1 native `systemd-run` guarantee in
+Comparator's documentation and not an independent scientific Decision.
 
 The exact result and all nonclaims are in `result.v1.json`.

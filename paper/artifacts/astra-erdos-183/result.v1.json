@@ -44,6 +44,40 @@
     "nanoda_binary_sha256": "e02ce0aafef052ca0c0c42d2751be32ffdf45105d5006284b496badc95fe5ead",
     "sandbox": "comparator fake-landrun development shim; unsandboxed"
   },
+  "hardened_environment": {
+    "platform": "linux/arm64",
+    "kernel": "6.10.14-linuxkit",
+    "runtime_user": "10001:10001",
+    "ubuntu_24_04_manifest_sha256": "4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90",
+    "go_builder_manifest_sha256": "ea341baa9bd5ba6784f6d7161ace70544349a6242d54d34a0fbfd2c4d51c9d58",
+    "rust_1_89_builder_manifest_sha256": "948f9b08a66e7fe01b03a98ef1c7568292e07ec2e4fe90d88c07bb14563c84ff",
+    "temporary_image_manifest_sha256": "661c0a6a35f5880bacc3d5dd9d73a46801b7c0993e6d112528f39c2c2261ccf9",
+    "temporary_image_config_sha256": "d6196c4b894a2ff2e376984c3ccf51cf26aa55cbe09c708ab8916eb8ecd87738",
+    "comparator_tree": "79f0781a192adeb817e5baebe294953505db7d87",
+    "landrun_commit": "811cfff51ceaf3d9843708aa6d22e9b84ccac8b4",
+    "landrun_tree": "43dceb21e38ff9cb4a711d780dd5ef89adf0fd15",
+    "landrun_go_mod_sha256": "92873259cb8ed0f2765cd99a1b3dc36b768fef859d13ffecb155df33b5b309b1",
+    "landrun_go_sum_sha256": "a6a5ec06c4b78ca140c76fdbe171b82a5521a808abc5805ea6eba568e29763e5",
+    "landrun_version": "0.1.18",
+    "landrun_binary_sha256": "61eb4f6a81830543a1e95a70486e66ffd2c98fe665eff540e5e5d32d3a3c8648",
+    "nanoda_binary_sha256": "ebb652e23aa07851fd3c158a401809bb8d6e9c921be0d9364587378d6c2643c3",
+    "nanoda_cargo_toml_sha256": "1d8683568046c9781457382b929d7ea33d5e233ef0d833b870c6df4e4cba3db0",
+    "nanoda_cargo_lock_sha256": "59619e080e1e0939ef95b7678885f4f7ab6ca93053516ac84a41fcc88f4804ec",
+    "comparator_binary_sha256": "ce794dcc1e6dba963288dd12ce0b246eeb51b8f729ff817101a1c73bdfe6f572",
+    "lean4export_binary_sha256": "07f027214782863413437993b0d195a12ad903be104c27aac561a4bf42d2b5ed",
+    "argv_wrapper_source_sha256": "dd0556000e812a6cc774ad41c02130d4d1eecc94477d6de16697279a7cc3c90a",
+    "argv_wrapper_binary_sha256": "d13344ef46d33a29ab53089ce91e3cdd5e7cb96068f8b21dc4e8c6015fe087af",
+    "isolation": [
+      "capabilities dropped",
+      "no-new-privileges",
+      "network none",
+      "private IPC",
+      "PID limit 2048",
+      "ephemeral filesystem",
+      "no host checkout"
+    ],
+    "compatibility_boundary": "A static argv wrapper restores the nested -- delimiter that Landrun 0.1.18 removes before invoking Lean4Export; Comparator, Landrun, Lean4Export, and Nanoda are otherwise unmodified."
+  },
   "checks": {
     "lake_build_all": {
       "outcome": "pass",
@@ -54,6 +88,18 @@
       "nanoda_kernel": "accept",
       "lean_kernel": "accept",
       "hardened_sandbox": false
+    },
+    "comparator_erdos_183_hardened": {
+      "outcome": "pass",
+      "challenge_build_jobs": 8655,
+      "solution_build_jobs": 8656,
+      "nanoda_kernel": "accept",
+      "lean_kernel": "accept",
+      "landrun_landlock": true,
+      "outer_offline_container": true,
+      "literal_native_systemd_restrict_address_families": false,
+      "unmodified_zero_shim_invocation": false,
+      "zero_shim_failure": "Landrun removes Lean4Export's nested -- delimiter, causing unknown module prefix 'Nat'."
     }
   },
   "source_observation": {
@@ -68,6 +114,8 @@
   },
   "nonclaims": [
     "The macOS Comparator run was not sandboxed and is not a hardened clean-room execution.",
+    "The hardened Linux run used real Landrun plus an offline unprivileged Docker boundary, but not Comparator's literal native systemd-run RestrictAddressFamilies invocation.",
+    "The hardened Linux run required a content-hashed argv compatibility wrapper because the pinned Landrun removes Lean4Export's nested delimiter.",
     "Kernel and Comparator passage do not establish statement fidelity, novelty, community acceptance, or Vela Standing.",
     "The two source observations have independent authority and neither silently governs the other.",
     "No Frontier state or scientific Decision was changed by these checks."
