@@ -65,7 +65,7 @@ infrastructure.
 
 ### Shipped and verified
 
-- Vela `0.962.0` is the release candidate for repository v4, direct
+- Vela `0.962.0` is the published release for repository v4, direct
   Target Index v5, direct Submission lineage, and the retired workflow/runtime
   surfaces. Internal Rust crates are not published as parallel products, and
   the unused TypeScript protocol package has been removed.
@@ -78,7 +78,7 @@ infrastructure.
 - Vela Web has a live root-bound Math Source Registry and read-only Math Atlas
   over the exact four repository-v4 Frontier heads. The current projection uses
   `observatory.v8`, contains no Registration contract, and retains 6,701 native
-  source records and 5,845 source bindings. Source Git remains authoritative.
+  source records and 5,844 source bindings. Source Git remains authoritative.
 - Product-compression v10 completed four clean native Harbor trials with zero
   retries. Vela-guided work was exact in 2/2 trials while Git/files alone was
   exact in 0/2; median agent time fell from 283.78 to 91.31 seconds and median
@@ -122,11 +122,9 @@ infrastructure.
   promoting the derived envelope into a supported shared contract or claiming
   independent product value. A human Decision made earlier must retain that
   limitation explicitly.
-- The production Atlas was exact at projection root
-  `sha256:43d5e4ab8b034ba12677a6423a3228e7a0537003e4c351915a00c9d0df178fbc`.
-  Formal advanced afterward through the non-authorizing withdrawal above, so
-  the projection now requires one ordinary atomic refresh. Source Git remains
-  authoritative during that bounded lag.
+- The production Atlas is exact at projection root
+  `sha256:4d19454046eed0dc4236db7f7bb459e0d838b0e8a00af92ac3637c9177a4f9f5`
+  and includes Formal commit `1835345012248e33ff3c29dccc68a56c12f02827`.
 - The current Registry adapter artifact has an immutable GitHub release
   locator and independently reproduced byte root.
 - External cold-user lift, correction propagation, and independently governed
@@ -303,10 +301,10 @@ reputation score, or `1.0.0` schedule.
 
 | Surface | Current posture | Next earned change |
 | --- | --- | --- |
-| Vela | `0.962.0` release candidate includes direct producer withdrawal and the current repository reader; focused checks green | publish one exact binary release, then keep one train and release only for demonstrated changes |
+| Vela | `0.962.0` is published with direct producer withdrawal and the current repository reader; release checks are green | keep one train and release only for demonstrated changes |
 | Cross-language readers | standalone Python and JavaScript conformance readers | keep package-free until a real external consumer requires a library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; deployment label `0.430.0` currently binds untagged commit `9f01321b`, and the projection predates Formal withdrawal `1835345` | atomically refresh the changed Frontier head, then reconcile one exact patch tag, deployed commit, and manifest; add no infrastructure |
+| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; deployment `0.430.0` binds commit `d1404985569e85514d3510b755d8db9afa7802ca` and exact projection root `sha256:4d19454046eed0dc4236db7f7bb459e0d838b0e8a00af92ac3637c9177a4f9f5` | change only for a demonstrated reader-efficiency or correctness need; add no infrastructure |
 | Frontiers | canonical Git sources with pending human Decisions; the obsolete Formal duplicate is withdrawn with zero accepted delta | decide or cancel exact remaining Proposals, replay, remap |
 | Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 

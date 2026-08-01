@@ -49,11 +49,12 @@ repository root, graph roots, and projection root changed exactly. The Target
 packet initially failed to advance, so that candidate was not activated.
 Source-local closure and later exact completions now close producer work
 through `10430400` and expose `10430401..10430600` as the next nonduplicate
-range. The production Vela Web Atlas uses the repository-v4 reader and its
-last exact projection contains 4,136 graph nodes, 2,590 edges, 6,701 native
-source records, and 5,845 Frontier bindings. A later non-authorizing Formal
-withdrawal now awaits the next atomic projection refresh; Git Frontiers remain
-authoritative during that lag. Current Erdős, two Formal, and one
+range. The production Vela Web Atlas uses the repository-v4 reader. Its exact
+projection at root
+`sha256:4d19454046eed0dc4236db7f7bb459e0d838b0e8a00af92ac3637c9177a4f9f5`
+contains 4,136 graph nodes, 2,589 edges, 6,701 native source records, and 5,844
+Frontier bindings, including the later non-authorizing Formal withdrawal.
+Current Erdős, two Formal, and one
 quantum-certificate Proposal remain pending human Decisions; one
 broader-worded Erdős predecessor Proposal remains retained separately rather
 than being rewritten. These facts do not establish acceptance, inheritance
@@ -651,10 +652,10 @@ source-local Target progression for the two demonstrated stale edges. It does
 not establish cold-user lift or automatic domain-generic closure.
 
 Subsequent exact completions close Erdős producer work through `10430400` and
-leave `10430401..10430600` as the next nonduplicate range. Vela Web `v0.430.0`
-still serves a predecessor projection; the current repository-v4 Git heads are
-authoritative until its reader and projection are refreshed. Current Erdős,
-Formal exact-proof, and quantum-certificate Proposals remain pending human
+leave `10430401..10430600` as the next nonduplicate range. Vela Web `0.430.0`
+serves the exact repository-v4 projection at root
+`sha256:4d19454046eed0dc4236db7f7bb459e0d838b0e8a00af92ac3637c9177a4f9f5`.
+Current Erdős, Formal exact-proof, and quantum-certificate Proposals remain pending human
 Decisions; their
 Verifications do not change Standing. The earlier broader-worded Erdős
 Proposal remains retained and pending rather than replacing the corrected
@@ -1063,8 +1064,8 @@ Ed25519 are assumed secure. Git hosting availability is operationally useful
 but not canonical.
 
 The Math Atlas has passed rooted, bounded Neon ingestion and clean-room
-reconstruction on the current schema. Its last exact production projection
-contains 4,136 graph nodes, 2,590 edges, 6,701 native source records, and 5,845
+reconstruction on the current schema. Its exact production projection contains
+4,136 graph nodes, 2,589 edges, 6,701 native source records, and 5,844
 Frontier bindings. No 1,000,000-record result exists. These results establish
 bounded reconstruction and operation, not general scalability, adoption, or
 user value. Current counts describe the audited corpus, not a capacity limit
@@ -1158,9 +1159,9 @@ deterministic remap. Its first candidate exposed a stale-Target failure. A
 subsequent source-local closure pass retained the completed packet and proved
 its coverage from exact ancestor bytes. Later exact completions close producer
 work through `10430400` and expose `10430401..10430600` as the next
-nonduplicate range without changing Standing. The production Atlas now uses
-the repository-v4 reader; one later non-authorizing Formal withdrawal awaits
-the next atomic refresh. Current Erdős, Formal, and quantum-certificate
+nonduplicate range without changing Standing. The production Atlas uses the
+repository-v4 reader and includes the later non-authorizing Formal withdrawal.
+Current Erdős, Formal, and quantum-certificate
 Proposals remain pending human Decisions, so their post-Decision remaps remain
 unfinished. An earlier broader-worded Erdős Proposal remains retained
 separately. The frozen held-out selector also found no qualifying candidate.
