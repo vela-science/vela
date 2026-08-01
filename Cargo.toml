@@ -50,10 +50,10 @@ libc = "0.2"
 windows-sys = "0.61"
 
 # Internal crates share one release identity and are not published separately.
-vela-protocol = { path = "crates/vela-protocol", version = "0.961.0" }
-vela-authority = { path = "crates/vela-authority", version = "0.961.0" }
-vela-verify = { path = "crates/vela-verify", version = "0.961.0" }
-vela-edge = { path = "crates/vela-edge", version = "0.961.0" }
+vela-protocol = { path = "crates/vela-protocol" }
+vela-authority = { path = "crates/vela-authority" }
+vela-verify = { path = "crates/vela-verify" }
+vela-edge = { path = "crates/vela-edge" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
