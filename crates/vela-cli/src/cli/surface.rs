@@ -8,7 +8,7 @@ pub(crate) fn print_product_help() {
     println!("Usage: vela <COMMAND>\n");
     println!("  init       status     next       start");
     println!("  submit     show       why        review");
-    println!("  check      reproduce  log        doctor\n");
+    println!("  check      reproduce  log\n");
     println!("Run `vela help advanced` for setup and verification commands.");
 }
 
@@ -39,7 +39,6 @@ Daily product:
   check         Replay, signatures, parity, and repository integrity
   reproduce     Re-run stored witnesses with frozen verifiers
   log           Recent signed events or one finding's history
-  doctor        Blockers plus one safe next action
 
 Advanced verification and integration:
   verification  Retain non-authorizing scoped Verification Records

@@ -48,11 +48,6 @@ pub fn run_command() {
     crate::ui::set_quiet(cli.quiet);
     match cli.command {
         Commands::Check { source, json } => cmd_check(source.as_deref(), json),
-        Commands::Doctor {
-            frontier,
-            all,
-            json,
-        } => cmd_doctor(frontier.as_deref(), all, json),
         Commands::Status { frontier, json } => {
             cmd_status_compact(&crate::ui::resolve_frontier(frontier), json)
         }

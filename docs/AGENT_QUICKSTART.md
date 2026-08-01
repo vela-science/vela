@@ -39,8 +39,8 @@ vela submit --frontier . \
 
 The agent, workbench, notebook, proof assistant, or laboratory system performs
 the work directly. Vela does not wrap it. `start` writes no Attempt, lease,
-budget, or workflow state; it only returns the exact Target packet and a direct
-Submission template. The producer retains native files and submits only the
+budget, or workflow state; it only returns the exact Target briefing. The
+producer retains native files and submits only the
 bounded artifact and Claim needed for review. Benchmarks use Harbor tasks
 directly rather than a Vela-owned runner.
 

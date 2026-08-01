@@ -127,14 +127,14 @@ Create and inspect a bounded Frontier:
   --scope "Does X hold under Y?"
 
 ./target/release/vela status ../my-frontier --json
-./target/release/vela doctor ../my-frontier --all
+./target/release/vela check ../my-frontier --json
 ```
 
-`init` creates a Profile v2 bootstrap, not scientific authority. `status` and
-`doctor` report the uninitialized authority boundary without inventing an old
-event log. A fresh Frontier administrator can establish the repository writer
+`init` creates a Profile v2 bootstrap, not scientific authority. `status`
+reports the uninitialized authority boundary without inventing an old event
+log. A fresh Frontier administrator can establish the repository writer
 with one dedicated Ed25519 identity already loaded in the normal OpenSSH
-agent:
+agent with per-use confirmation (`ssh-add -c`):
 
 ```bash
 ./target/release/vela authority init ../my-frontier \
@@ -143,14 +143,16 @@ agent:
 ```
 
 The resulting sequence-one authority-record root must be distributed through
-an independent trusted channel.
+an independent trusted channel. Keep the authority-agent socket out of native
+agent Campaigns; an unconstrained socket would let any same-user process ask
+for an authority signature.
 
 ## Typical workflow
 
 ```bash
 vela status . --json
 vela next . --limit 1 --json
-# Optional: print the exact Target packet and Submission template.
+# Optional: print the exact stateless Target briefing.
 vela start <target> --frontier . --json
 
 # Produce the bounded artifact and run the declared verifier.
@@ -189,7 +191,7 @@ their own exact records; neither reads repository-authority credentials.
 The ordinary CLI is intentionally small:
 
 ```text
-init status next start submit verification show why review check reproduce log doctor
+init status next start submit verification show why review check reproduce log
 ```
 
 Current advanced surfaces:

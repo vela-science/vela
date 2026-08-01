@@ -69,8 +69,8 @@ It binds the `frontier_id`, Profile root, generation, initial object-set root,
 and full origin identity carried by `vela.repository.v4`. Unknown or
 substituted origins fail closed.
 
-A native `vela init` writes Profile v2 and scaffolding only. `status` and
-`doctor` identify the repository as `authority_uninitialized`. One
+A native `vela init` writes Profile v2 and scaffolding only. `status`
+identifies the repository as `authority_uninitialized`. One
 `vela authority init` transaction installs the genesis, manifest, keyset,
 policy, sequence-1 authority event and record, then creates the initial
 unsigned Git commit.
@@ -151,7 +151,6 @@ checked-in runtime configuration file.
 ```bash
 vela check . --json
 vela status . --json
-vela doctor . --all --json
 ```
 
 Verification checks:

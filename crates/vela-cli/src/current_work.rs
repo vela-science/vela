@@ -1,9 +1,8 @@
 //! Stateless producer briefing for one exact current Target.
 //!
 //! `vela start` is a read-only orientation command. It verifies the current
-//! repository and Target Index, constructs the exact producer-task binding,
-//! and prints the information needed to author a bounded Submission. It does
-//! not create a lease, Attempt, lock, counter, budget, or status record.
+//! repository and Target Index, then prints the exact information needed to
+//! author a bounded Submission. It does not create or retain execution state.
 
 use std::path::Path;
 
@@ -17,6 +16,10 @@ const AUTHORITY_CEILING: &str =
 fn briefing(frontier: &Path, target_id: &str) -> Result<Value, String> {
     let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
+    let profile = crate::current_repository::verify_current_profile_at(frontier)?;
+    if profile.profile_root()? != repository.profile_root {
+        return Err("current Frontier Profile does not match the repository profile root".into());
+    }
     let assessment = vela_edge::target_index::assess_current_target_index(
         frontier,
         &repository.frontier_id,
@@ -24,6 +27,16 @@ fn briefing(frontier: &Path, target_id: &str) -> Result<Value, String> {
         &repository_root,
     )?
     .ok_or_else(|| "current repository has no Target Index".to_string())?;
+    if !assessment.global_issues.is_empty()
+        || assessment
+            .target_issues
+            .get(target_id)
+            .is_some_and(|issues| !issues.is_empty())
+    {
+        return Err(format!(
+            "current Target {target_id:?} is stale or invalid; run `vela check` for details"
+        ));
+    }
     let target = assessment
         .index
         .targets
@@ -35,40 +48,34 @@ fn briefing(frontier: &Path, target_id: &str) -> Result<Value, String> {
         .packet_value(target_id)
         .cloned()
         .ok_or_else(|| format!("current Target {target_id:?} has no verified packet"))?;
-    let binding = vela_edge::target_index::build_current_target_task_binding(
-        frontier,
-        &assessment,
-        &repository.frontier_id,
-        &repository.origin_id,
-        &repository_root,
-        target_id,
-    )?;
-    binding.validate()?;
-
-    let submit_example = format!(
-        "vela submit --frontier {} --claim <bounded-result> --type <type> --replayability <class> --artifact <path>:<kind> --caveat <limit> --as agent:<name> --json",
-        frontier.display()
-    );
+    let verifier = packet
+        .get("verifier_profile")
+        .or_else(|| packet.get("verifier"))
+        .cloned();
 
     Ok(json!({
-        "schema": "vela.start-briefing.v1",
-        "ok": true,
-        "command": "start",
-        "frontier_id": repository.frontier_id,
-        "target": target,
-        "packet": packet,
-        "binding": binding,
-        "roots": {
-            "repository": repository_root,
-            "target_index": assessment.index.index_root,
-            "git_commit": binding.claim_read_set.git_commit,
-            "git_tree": binding.claim_read_set.git_tree,
-            "packet": binding.packet.sha256,
-            "binding": binding.binding_root,
+        "schema": "vela.start-briefing.v2",
+        "target": {
+            "id": target.id,
+            "title": target.title,
         },
+        "objective": target.objective,
+        "scope": profile.scope,
+        "packet": packet,
+        "packet_root": target.packet.sha256,
+        "repository": {
+            "frontier_id": repository.frontier_id,
+            "origin_id": repository.origin_id,
+            "root": repository_root,
+        },
+        "target_index_root": assessment.index.index_root,
+        "git": {
+            "object_format": assessment.index.source.git_object_format,
+            "commit": assessment.index.source.git_commit,
+            "tree": assessment.index.source.git_tree,
+        },
+        "verifier": verifier,
         "authority_ceiling": AUTHORITY_CEILING,
-        "submit_example": submit_example,
-        "writes": false,
     }))
 }
 
@@ -84,24 +91,15 @@ pub(crate) fn cmd_start(frontier: &Path, target: &str, json_out: bool) {
         );
         println!(
             "  objective {}",
-            safe_text::inline(
-                result["target"]["objective"]
-                    .as_str()
-                    .unwrap_or("unavailable")
-            )
+            safe_text::inline(result["objective"].as_str().unwrap_or("unavailable"))
         );
         println!(
             "  packet    {}",
-            safe_text::inline(result["roots"]["packet"].as_str().unwrap_or("unavailable"))
+            safe_text::inline(result["packet_root"].as_str().unwrap_or("unavailable"))
         );
-        println!(
-            "  next      {}",
-            safe_text::inline(
-                result["submit_example"]
-                    .as_str()
-                    .unwrap_or("vela submit --help")
-            )
-        );
+        if let Some(verifier) = result["verifier"].as_str() {
+            println!("  verifier  {}", safe_text::inline(verifier));
+        }
     }
 }
 

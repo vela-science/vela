@@ -22,9 +22,10 @@ verifier profile, and exact next command.
 vela start <target> --frontier . --json
 ```
 
-This optional command revalidates the Target and packet, then prints a
-write-free briefing and direct Submission template. Run the bounded work in
-the native agent, workbench, proof assistant, notebook, or laboratory system.
+This optional command revalidates the Target and packet, then prints their
+exact identities, Frontier scope, verifier profile, and authority ceiling.
+Run the bounded work in the native agent, workbench, proof assistant, notebook,
+or laboratory system.
 Retain exact frontier-relative Artifacts. A failed or negative result is useful
 only when its scope, search space, algorithm, and limits are explicit.
 

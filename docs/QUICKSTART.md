@@ -29,7 +29,7 @@ This local public pin grants no authority and changes no Frontier byte.
 
 ```bash
 vela next . --limit 1 --json
-# Optional: print the exact Target packet and Submission template.
+# Optional: print the exact stateless Target briefing.
 vela start <target> --json
 
 # Run the exact verifier and retain its artifact.
@@ -67,10 +67,10 @@ vela init ./frontier \
 ```
 
 The result is a Profile v2 bootstrap with no Event, Claim, Decision, or
-scientific authority. `status` and `doctor` work immediately and report the
-single `repository_authority_uninitialized` blocker. Load one dedicated
-Ed25519 repository-authority key into your standard OpenSSH agent, then
-establish the writer:
+scientific authority. `status` works immediately and reports the single
+`repository_authority_uninitialized` blocker. Load one dedicated
+Ed25519 repository-authority key into your standard OpenSSH agent with per-use
+confirmation (`ssh-add -c`), then establish the writer:
 
 ```bash
 vela authority init ./frontier \
@@ -87,6 +87,7 @@ verifier evidence authenticates itself and does not use this key. Initialization
 grants no scientific standing. It also installs the creator's local trust anchor,
 so there is no second setup command. Distribute the returned full authority-record
 root independently; other consumers pin that published root once after cloning.
+Do not expose the authority-agent socket to an agent Campaign.
 
 ## Predecessor repositories
 

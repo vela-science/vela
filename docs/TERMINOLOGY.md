@@ -65,7 +65,7 @@ produce -> preserve -> check -> decide -> reuse
 ## Daily commands
 
 ```text
-init status next start submit show why review check reproduce log doctor
+init status next start submit show why review check reproduce log
 ```
 
 | Command | Meaning |
@@ -81,7 +81,6 @@ init status next start submit show why review check reproduce log doctor
 | `check` | Validate schemas, roots, signatures, replay, and policy consistency |
 | `reproduce` | Rerun retained evidence or a verifier from exact or declared inputs |
 | `log` | Read canonical history |
-| `doctor` | Diagnose operational blockers and show one repair action |
 
 ## Required distinctions
 

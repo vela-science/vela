@@ -43,10 +43,10 @@ vela next . --json
 vela start <full-target-id> --frontier . --json
 ```
 
-`next` returns only fresh open entries. `start` binds the exact index, source,
-input, packet, repository, and Git read set before producer work begins.
-Submission revalidates the retained binding. None of these operations changes
-scientific Standing.
+`next` returns only fresh open entries. `start` revalidates the exact index,
+source, inputs, packet, and repository, then prints their identities in a
+stateless briefing. Submission does not depend on or consume `start` output.
+Neither operation changes scientific Standing.
 
 ## Failure behavior
 

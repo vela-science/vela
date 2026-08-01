@@ -283,10 +283,11 @@ authority record. It changes no scientific Standing.
 
 - repository origin and root;
 - Target Index root;
-- Target and packet;
-- source Git commit/tree;
-- completion contract and packet; and
-- a direct Submission template with a `pending_review` authority ceiling.
+- Target objective and Frontier scope;
+- exact packet and packet root;
+- source Git identity;
+- declared verifier profile; and
+- the human-Decision authority ceiling.
 
 It creates no file, lease, Attempt, counter, budget, canonical Event,
 repository record, or authority-key read. Vela does not launch or wrap an

@@ -21,8 +21,3 @@ pub(crate) fn cmd_log(
         serde_json::to_string_pretty(&payload).expect("serialize current log")
     );
 }
-
-pub(crate) fn cmd_doctor(frontier: Option<&Path>, all: bool, json_output: bool) {
-    let frontier = frontier.unwrap_or_else(|| Path::new("."));
-    crate::current_doctor::cmd_current_doctor(frontier, all, json_output);
-}

@@ -40,9 +40,10 @@ the work.
    historical replay evidence. Current Vela carries no compatibility parser or
    copied source for that private product.
 3. Keep `vela start` as a stateless, write-free Target briefing. It verifies
-   one Frontier and exact Target packet, then returns the roots, content, and a
-   direct Submission template. It creates no lease, Attempt, expiry, budget,
-   counter, lock, or authorization.
+   one Frontier and exact Target packet, then returns only the target,
+   objective, Frontier scope, packet and root, repository/index/Git identities,
+   verifier, and authority ceiling. It creates no lease, Attempt, expiry,
+   budget, counter, lock, or authorization.
 4. Submission and Verification are direct self-authenticated routine-evidence
    transactions. They do not depend on `start` or consume Vela-owned execution
    state.

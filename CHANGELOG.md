@@ -15,6 +15,12 @@
   semantic answer contract, exact scorer, and compact rooted result.
 - Remove stale Receipt-era comments and clarify that routine evidence intake
   and producer withdrawal are not scientific authority operations.
+- Remove the duplicate `doctor` projection. `status` owns frontier orientation,
+  `check` owns integrity, and native Git owns worktree diagnostics.
+- Remove unused agent, verifier, and provisional platform-presence authority
+  adapters. Routine evidence uses its native signed records; consequential
+  Decisions use the local principal plus a confirmation-constrained OpenSSH
+  authority key.
 
 ## v0.961.0 — 2026-08-01 — Lean identity and release boundary
 

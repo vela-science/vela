@@ -56,7 +56,6 @@ inputs. These profiles are not interchangeable.
 | Proposal ID/root `vpr_…` | Candidate transition | Decision or Event |
 | Artifact digest | Exact retained evidence bytes | Scientific meaning or availability elsewhere |
 | Target Index root | Derived current producer catalogue | Work authority or Standing |
-| Target-task binding root | Exact Target, packet, source, and starting roots | Verification or Decision |
 | Projection root | One derived reader artifact | Any source root |
 | Release checksum | Exact binary/archive bytes | Source commit or build attestation |
 

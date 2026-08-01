@@ -124,11 +124,6 @@ EXAMPLES
 JSON mode requires both --name and --scope. The next action is one explicit
 repository-authority initialization; no scientific state or old event log is created.";
 
-pub const DOCTOR: &str = "\
-EXAMPLES
-  vela doctor                     blockers plus one next action
-  vela doctor --all               full setup and tool diagnostics";
-
 pub const SHOW: &str = "\
 EXAMPLES
   vela show . vcl_0123456789abcdef --json

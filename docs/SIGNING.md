@@ -61,7 +61,13 @@ vela review accept . <vpr_id> \
   --json
 ```
 
-The command is the semantic action. Vela:
+The command is the semantic action. The repository-authority key must be held
+by a standard OpenSSH agent with confirmation required for every use (for
+example, load it with `ssh-add -c`). Do not expose that agent socket to an
+agent Campaign. Vela cannot infer human intent from an unconstrained agent
+socket; exposing one defeats the Decision boundary.
+
+Vela:
 
 1. derives the exact Review Packet and transaction plan;
 2. binds the Proposal, action, reason, principal, policy, authority head,
@@ -69,17 +75,17 @@ The command is the semantic action. Vela:
 3. authenticates the local operating-system principal;
 4. evaluates the retained policy;
 5. rechecks every transaction input;
-6. asks the OpenSSH agent to sign the covering authority record; and
+6. asks the OpenSSH agent to sign the covering authority record;
 7. installs the transaction through the recoverable journal; and
 8. publishes the exact delta as one local Git commit.
 
 There is no copied root or timestamp, custom signer helper, Vela human key,
 approval session, batch mode, wildcard, `--yes`, or persistent semantic
-approval.
+approval. OpenSSH owns key custody and the one per-Decision confirmation.
 
-An agent may prepare or explain this command. It may not invoke acceptance or
-rejection on the human's behalf, access the authority key, or infer a Decision
-from a prompt or signature request.
+An agent may prepare or explain this command. It may not receive the
+repository-authority agent socket, invoke acceptance or rejection on the
+human's behalf, or infer a Decision from a prompt or signature request.
 
 ## Producer identity
 

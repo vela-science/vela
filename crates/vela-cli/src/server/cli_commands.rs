@@ -31,19 +31,6 @@ pub(crate) enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// Diagnose the current Frontier and report one recovery action.
-    #[command(after_long_help = crate::cli::help_text::DOCTOR)]
-    Doctor {
-        /// Frontier JSON file or Vela repo. Defaults to the release frontier
-        /// when run from the repository root.
-        frontier: Option<PathBuf>,
-        /// Include tool inventory, setup diagnostics, and every suggested command.
-        #[arg(long)]
-        all: bool,
-        /// Output stable JSON.
-        #[arg(long)]
-        json: bool,
-    },
     /// Show the Frontier's current Standing, review queue, and integrity state.
     #[command(after_long_help = crate::cli::help_text::STATUS)]
     Status {

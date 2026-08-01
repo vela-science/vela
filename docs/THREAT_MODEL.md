@@ -92,8 +92,11 @@ reason, principal, policy, authority head, ordered Verification Records, read
 set, binary identity, and canonical delta.
 
 Any drift aborts before the commit marker. Agent producer identities are
-refused for human review. There is no batch approval, wildcard, copied
-confirmation root, custom signer, or Vela-managed human key.
+refused for human review. The repository-authority key remains outside agent
+execution and is loaded into a standard OpenSSH agent with per-use
+confirmation. There is no batch approval, wildcard, copied confirmation root,
+custom signer, or Vela-managed human key. An unconstrained authority-agent
+socket exposed to an agent is a custody failure, not proof of human intent.
 
 ### Repository-authority substitution
 

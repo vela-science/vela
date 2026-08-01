@@ -124,7 +124,7 @@ fn install_current_target_index(frontier: &Path, _socket: &Path) {
     std::fs::create_dir_all(frontier.join("site/problems")).expect("packet directory");
     std::fs::write(
         frontier.join("site/problems/1056.json"),
-        br#"{"problem":1056,"schema":"erdos-frontier.problem-work.v1"}"#,
+        br#"{"problem":1056,"schema":"erdos-frontier.problem-work.v1","verifier_profile":"exact-replay-v1"}"#,
     )
     .expect("target packet");
     let committed = Command::new("git")
@@ -520,10 +520,55 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         None,
         &["start", "erdos:1056", "--frontier", ".", "--json"],
     ));
-    assert_eq!(briefing["schema"], "vela.start-briefing.v1");
-    assert_eq!(briefing["writes"], false);
-    assert!(briefing.get("attempt_id").is_none());
+    assert_eq!(briefing["schema"], "vela.start-briefing.v2");
     assert_eq!(briefing["target"]["id"], "erdos:1056");
+    assert_eq!(briefing["objective"], "Produce one bounded artifact.");
+    assert_eq!(
+        briefing["scope"]["question"],
+        "Commit and replay one current authenticated Submission."
+    );
+    assert_eq!(briefing["packet"]["problem"], 1056);
+    assert_eq!(briefing["verifier"], "exact-replay-v1");
+    assert!(vela_protocol::execution_binding::is_full_sha256_root(
+        briefing["packet_root"].as_str().expect("packet root")
+    ));
+    assert!(
+        briefing["repository"]["origin_id"]
+            .as_str()
+            .expect("origin id")
+            .starts_with("vro_")
+    );
+    assert!(briefing["target_index_root"].as_str().is_some());
+    assert!(briefing["git"]["commit"].as_str().is_some());
+    assert!(briefing["git"]["tree"].as_str().is_some());
+    assert!(
+        briefing["authority_ceiling"]
+            .as_str()
+            .expect("authority ceiling")
+            .contains("human Decision")
+    );
+    let keys = briefing
+        .as_object()
+        .expect("start briefing object")
+        .keys()
+        .map(String::as_str)
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(
+        keys,
+        std::collections::BTreeSet::from([
+            "authority_ceiling",
+            "git",
+            "objective",
+            "packet",
+            "packet_root",
+            "repository",
+            "schema",
+            "scope",
+            "target",
+            "target_index_root",
+            "verifier",
+        ])
+    );
 
     let artifact = b"{\"bounded\":true}\n";
     let artifact_digest = format!("sha256:{}", hex::encode(Sha256::digest(artifact)));

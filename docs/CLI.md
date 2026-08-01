@@ -37,7 +37,7 @@ Decision, Event, or accepted Standing.
 Default help exposes exactly:
 
 ```text
-init status next start submit show why review check reproduce log doctor
+init status next start submit show why review check reproduce log
 ```
 
 | Command | Contract |
@@ -53,7 +53,6 @@ init status next start submit show why review check reproduce log doctor
 | `check` | Verify repository structure, roots, replay, and authority. |
 | `reproduce` | Run retained evidence through its frozen verifier. |
 | `log` | Read admitted Event history. |
-| `doctor` | Report blockers and one safe repair action. |
 
 ## Advanced commands
 
@@ -84,9 +83,8 @@ producer queue.
 - the exact target and packet;
 - the repository origin and root;
 - the Target Index root;
-- the Git commit and tree;
-- the completion contract;
-- the producer identity used in the direct Submission template; and
+- the source Git identity;
+- the Frontier scope and declared verifier profile; and
 - the explicit boundary that evidence may enter review but only a human
   Decision changes Standing.
 
@@ -231,10 +229,12 @@ vela review accept . <vpr_id> \
 The action, reason, principal, Proposal, policy, authority head, read set, and
 canonical delta are covered by one repository-authority transaction. There is
 no batch mode, copied confirmation root, custom signer, or Vela-managed human
-key.
+key. Load the dedicated authority key into a standard OpenSSH agent with
+per-use confirmation (`ssh-add -c`) and do not expose that socket to agent
+execution.
 
 Agents may prepare or explain the command. They may not invoke it on a human's
-behalf or access repository-authority credentials.
+behalf or access the repository-authority agent socket.
 
 ## Repository setup
 
@@ -246,10 +246,11 @@ vela init ./my-frontier \
   --scope "Does X hold?"
 ```
 
-Initialization writes Profile v2 and scaffolding only. `status` and `doctor`
-report `authority_uninitialized`; strict repository verification remains
+Initialization writes Profile v2 and scaffolding only. `status` reports
+`authority_uninitialized`; strict repository verification remains
 blocked. To establish the repository writer, load one dedicated Ed25519
-identity in the normal OpenSSH agent and run:
+identity in the normal OpenSSH agent with per-use confirmation (`ssh-add -c`)
+and run:
 
 ```bash
 vela authority init ./my-frontier \
