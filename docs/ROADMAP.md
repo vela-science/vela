@@ -28,6 +28,9 @@ identity. This roadmap records only product sequence.
   Erdős authority.
 - The Observatory exposes a rebuildable, SELECT-only Math Source Registry and
   Math Atlas. Git remains authoritative.
+- A frozen first-party Harbor study found the exact Frontier handoff 2/2 with
+  Vela versus 0/2 from Git/files alone, while reducing median agent time by
+  69.38 percent. Independent-user lift remains unproved.
 - Vela owns no agent runner, scheduler, graph database, hosted authority, or
   second writer.
 

@@ -72,8 +72,10 @@ evidence, not active compatibility targets. In particular, v4 is classified as
 an invalid study because its answer key graded a host-specific command and an
 unrelated whole-inbox root. It is not evidence for or against product lift.
 
-The active source contract is v5. Old generated tasks and custom-runner
-calibrations are not part of the current implementation.
+The active answer contract is v5. The current v6 plan keeps that contract and
+uses a 15-minute execution safety limit after a five-minute pilot timed out by
+roughly five seconds. Old generated tasks and custom-runner calibrations are not
+part of the current implementation.
 
 ## Run locally
 
@@ -83,27 +85,27 @@ python3 -m unittest discover \
 
 python3 benchmarks/product-compression/materialize.py \
   --frontier /exact/frontier --vela /exact/vela \
-  --proposal vpr_<id> --output jobs/product-compression-v5/materials
+  --proposal vpr_<id> --output jobs/product-compression-v6/materials
 
 python3 benchmarks/product-compression/study.py freeze-plan \
-  --materials jobs/product-compression-v5/materials \
+  --materials jobs/product-compression-v6/materials \
   --model gpt-5.6-terra --codex-version 0.145.0 \
   --vela-linux /exact/static-linux-vela --vela-version 'vela 0.950.1' \
-  --output jobs/product-compression-v5/plan.json
+  --output jobs/product-compression-v6/plan.json
 
 python3 benchmarks/product-compression/study.py prepare-harbor \
-  --plan jobs/product-compression-v5/plan.json \
-  --materials jobs/product-compression-v5/materials \
+  --plan jobs/product-compression-v6/plan.json \
+  --materials jobs/product-compression-v6/materials \
   --frontier /exact/frontier --vela-linux /exact/static-linux-vela \
-  --job-name vela-product-compression-v5-native \
-  --output jobs/product-compression-v5/harbor-native
+  --job-name vela-product-compression-v6-native \
+  --output jobs/product-compression-v6/harbor-native
 
-cd jobs/product-compression-v5/harbor-native
+cd jobs/product-compression-v6/harbor-native
 env -u OPENAI_API_KEY CODEX_AUTH_JSON_PATH="$HOME/.codex/auth.json" \
   harbor run --config harbor-job.json --max-retries 0 --jobs-dir ../runs
 
 python3 ../../../../benchmarks/product-compression/study.py summarize-harbor \
-  --plan ../plan.json --job ../runs/vela-product-compression-v5-native \
+  --plan ../plan.json --job ../runs/vela-product-compression-v6-native \
   --output ../result.json
 ```
 

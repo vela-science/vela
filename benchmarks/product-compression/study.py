@@ -39,7 +39,7 @@ HARBOR_ALLOWED_HOSTS = (
     "api.openai.com", "chatgpt.com", "*.chatgpt.com", "*.auth.openai.com",
 )
 DEFAULT_LIMITS = {
-    "elapsed_ms": 300_000,
+    "elapsed_ms": 900_000,
     "per_tool_reported_output_bytes": 131_072,
     "total_tool_reported_output_bytes": 524_288,
     "trajectory_bytes": 2_097_152,
@@ -258,7 +258,7 @@ def validate_answer(value: Any) -> None:
 
 def validate_plan(value: Any) -> None:
     shape(value, PLAN)
-    if value["schema"] != "vela.product-compression-plan.v5":
+    if value["schema"] != "vela.product-compression-plan.v6":
         raise ContractError("$.schema: wrong plan schema")
     roots(value, ("fixture_root", "answer_key_root"), "$")
     executor = value["executor"]
@@ -346,7 +346,7 @@ def freeze_plan(
         }, "tool_contract_root")
 
     value = {
-        "schema": "vela.product-compression-plan.v5",
+        "schema": "vela.product-compression-plan.v6",
         "plan_root": "",
         "fixture_root": fixture_root,
         "answer_key_root": key["answer_key_root"],

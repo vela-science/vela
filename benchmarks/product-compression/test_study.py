@@ -60,7 +60,7 @@ def frozen_plan() -> dict:
         return harness.seal({"tool_contract_root": "", "interface": interface, "vela_available": available}, "tool_contract_root")
 
     value = {
-        "schema": "vela.product-compression-plan.v5", "plan_root": "",
+        "schema": "vela.product-compression-plan.v6", "plan_root": "",
         "fixture_root": root("9"), "answer_key_root": answer_key()["answer_key_root"],
         "executor": harness.seal({"executor_root": "", **harness.HARBOR}, "executor_root"),
         "model": harness.seal({"id": "test-model", "agent": "codex", "agent_version": "0.1.0", "config_root": ""}, "config_root"),

@@ -73,9 +73,11 @@ infrastructure.
 - Vela Web has a root-bound Math Source Registry and read-only Math Atlas over
   the four Frontiers. The live deployment manifest, not this document, is the
   authority for its current projection root and deployment identity.
-- The corrected native Harbor product-compression result is retained at
-  `paper/artifacts/product-compression-v3/`. It is first-party directional
-  evidence, not adoption evidence.
+- The native Harbor product-compression v6 result is retained at
+  `paper/artifacts/product-compression-v6/`. On one exact Frontier handoff,
+  Vela-guided was exact 2/2 versus Git/files 0/2, with 69.38 percent lower
+  median agent time and 86.71 percent lower median cost. This is bounded
+  first-party product evidence, not independent adoption evidence.
 - The immutable Canopus `0.8.0` release and tag remain historical evidence.
 
 ### Simplified current source
