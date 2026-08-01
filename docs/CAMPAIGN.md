@@ -79,13 +79,14 @@ infrastructure.
   over the exact four repository-v4 Frontier heads. The current projection uses
   `observatory.v8`, contains no Registration contract, and retains 6,701 native
   source records and 5,845 source bindings. Source Git remains authoritative.
-- Product-compression v9 completed four clean native Harbor trials with zero
+- Product-compression v10 completed four clean native Harbor trials with zero
   retries. Vela-guided work was exact in 2/2 trials while Git/files alone was
-  exact in 0/2; median agent time fell from 296.86 to 72.13 seconds and median
-  cost from $0.7275 to $0.1097. The compact result is rooted at
-  `sha256:970ed8a122d08ba1b9e25cee513fee7141cb54e1321c3d38f0ba22d51fc2e077`.
-  This is first-party evidence from one frozen task, not an independent-user or
-  general scientific-productivity claim.
+  exact in 0/2; median agent time fell from 283.78 to 91.31 seconds and median
+  cost from $0.5660 to $0.1730. The compact result is rooted at
+  `sha256:da83da0e73ce6ef5c7b1f1fa2b7abc8a32f0ce0db24670c2c14c8a7434d9dfa8`.
+  This is first-party evidence from one frozen receiver-continuation task, not
+  an independent-user, full correction-inheritance, or general
+  scientific-productivity claim.
 - The immutable Canopus `0.8.0` release and tag remain historical evidence.
 
 ### Simplified current source

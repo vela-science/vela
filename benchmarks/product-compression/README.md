@@ -93,7 +93,7 @@ Trajectories, session logs, recordings, credentials, Docker caches, and other
 generated execution state do not belong in Git.
 
 The current compact result is
-[`paper/artifacts/product-compression-v9`](../../paper/artifacts/product-compression-v9/README.md).
+[`paper/artifacts/product-compression-v10`](../../paper/artifacts/product-compression-v10/README.md).
 Its complete native Harbor study and job are retained outside the source tree
 under a SHA-256 manifest so generated execution state does not become product
 code.
