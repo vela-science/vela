@@ -257,7 +257,11 @@ class ProductCompressionTests(unittest.TestCase):
                 (baseline / "environment/Dockerfile").read_text(),
             )
             self.assertIn(
-                "apk add --no-cache bash",
+                "apk add --no-cache bash ca-certificates",
+                (baseline / "environment/Dockerfile").read_text(),
+            )
+            self.assertNotIn(
+                "python3",
                 (baseline / "environment/Dockerfile").read_text(),
             )
             self.assertEqual(contract.read_json(output / "fixture.json"), source)
@@ -285,7 +289,11 @@ class ProductCompressionTests(unittest.TestCase):
                 (guided / "task.toml").read_text(),
             )
             self.assertIn(
-                "apk add --no-cache bash python3",
+                "apk add --no-cache python3",
+                (guided / "tests/Dockerfile").read_text(),
+            )
+            self.assertNotIn(
+                "bash",
                 (guided / "tests/Dockerfile").read_text(),
             )
 

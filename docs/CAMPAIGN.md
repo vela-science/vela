@@ -183,8 +183,10 @@ The minimum product seam is:
   action policy, not through `vela start` or a Vela-owned runner;
 - continuous native work and append-only evidence lineage without a Vela-owned
   runner;
-- a read-only Decision Inbox containing only changes to Standing, scope,
-  budget, policy, external publication, or destructive action; and
+- native action approvals for scope, budget, external publication, and
+  destructive operations;
+- a read-only Vela Decision Inbox containing only proposed changes to
+  scientific Standing; and
 - one exact human Decision transaction bound to current read roots.
 
 Informational receipts belong in a digest, not an approval queue. This design

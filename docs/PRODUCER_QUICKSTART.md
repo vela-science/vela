@@ -59,7 +59,6 @@ vela submit submission.json --frontier . --json
 
 ```bash
 vela show . <vsb_id> --json
-vela show . <vrr_id> --json
 vela review show . <vpr_id> --json
 vela reproduce .
 ```

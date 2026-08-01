@@ -35,6 +35,6 @@ hash. The incompatibility is recorded as a campaign contract gap; it is not
 hidden by an invented identifier.
 
 The signed record uses an ephemeral verifier-only key; no human or repository
-authority key is embedded. `import.sh` replays the verifier and checks every
-file, binary, and Frontier-head pin before asking the human-controlled
-repository transaction layer to retain the non-authorizing Verification.
+authority key is embedded. The Verification is already retained in the Formal
+Frontier. The one-time import wrapper was deleted after import; the report,
+signed record, replay verifier, and Frontier history preserve the evidence.

@@ -28,9 +28,6 @@ identity. This roadmap records only product sequence.
   Erdős authority.
 - The Observatory exposes a rebuildable, SELECT-only Math Source Registry and
   Math Atlas. Git remains authoritative.
-- Product-compression v6 is a compact historical summary, not a complete
-  reproducible Harbor artifact package. Repeat the comparison on current
-  Frontier state before making a comprehension-lift claim.
 - Vela owns no agent runner, scheduler, graph database, hosted authority, or
   second writer.
 - The current native Harbor product-compression comparison passed its bounded

@@ -69,7 +69,6 @@ python3 benchmarks/product-compression/materialize.py \
   env -u OPENAI_API_KEY CODEX_AUTH_JSON_PATH="$HOME/.codex/auth.json" \
     harbor run \
       --config harbor-job.json \
-      --max-retries 0 \
       --jobs-dir "$VELA_BENCH_CACHE/runs"
 )
 

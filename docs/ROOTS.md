@@ -7,7 +7,7 @@ encoding; the containing schema and field identify what was hashed.
 
 1. Security comparisons use the full digest, root kind, and canonicalization
    profile.
-2. Readable prefixes such as `vfr_`, `vcl_`, `vsb_`, `vrr_`, `vvr_`, `vpr_`,
+2. Readable prefixes such as `vfr_`, `vcl_`, `vsb_`, `vvr_`, `vpr_`,
    and `vev_` are routing handles, not interchangeable security roots.
 3. Roots from different domains remain different typed commitments even when
    their 64 hexadecimal characters coincide.

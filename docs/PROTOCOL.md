@@ -209,7 +209,7 @@ Authority records form a contiguous full-root chain. Each record covers:
 
 - sequence and previous record root;
 - exact keyset and policy;
-- authenticated principal and scoped capability;
+- authenticated principal and recorded action authorization;
 - semantic action and intent digest;
 - authority Event before/after roots;
 - repository before/after roots;

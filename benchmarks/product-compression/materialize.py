@@ -368,18 +368,21 @@ def build_study(
     finally:
         bundle.unlink(missing_ok=True)
 
-    job = {
-        "job_name": job_name,
-        "n_attempts": 2,
-        "n_concurrent_trials": 1,
-        "retry": {"max_retries": 0},
-        "agents": [{
-            "name": "codex",
-            "model_name": model,
-            "kwargs": {"version": codex_version},
-        }],
-        "tasks": [{"path": row["path"]} for row in task_rows],
-    }
+    job = json_command(
+        (
+            "harbor", "run",
+            "--path", "tasks",
+            "--agent", "codex",
+            "--model", model,
+            "--agent-kwarg", f"version={codex_version}",
+            "--n-attempts", "2",
+            "--n-concurrent", "1",
+            "--max-retries", "0",
+            "--job-name", job_name,
+            "--print-config",
+        ),
+        cwd=output,
+    )
     contract.write_json(output / "harbor-job.json", job)
     plan = contract.seal({
         "schema": "vela.product-compression-plan.v10",
