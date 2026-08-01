@@ -231,13 +231,15 @@ class ProductCompressionTests(unittest.TestCase):
             self.assertNotIn("{{", (baseline / "instruction.md").read_text())
             self.assertNotIn("COPY vela", (baseline / "environment/Dockerfile").read_text())
             self.assertIn("COPY vela", (guided / "environment/Dockerfile").read_text())
-            self.assertIn(
-                "npm install --global @openai/codex@0.1.0",
+            self.assertNotIn(
+                "@openai/codex",
                 (baseline / "environment/Dockerfile").read_text(),
             )
             self.assertEqual(contract.read_json(output / "fixture.json"), source)
             self.assertEqual(contract.read_json(output / "answer-key.json"), key)
-            self.assertEqual(contract.read_json(output / "harbor-job.json")["n_attempts"], 2)
+            harbor_job = contract.read_json(output / "harbor-job.json")
+            self.assertEqual(harbor_job["n_attempts"], 2)
+            self.assertEqual(harbor_job["agents"][0]["kwargs"]["version"], "0.1.0")
             self.assertEqual(
                 {path.name for path in (baseline / "environment").iterdir()},
                 {"Dockerfile", "answer.schema.json", "fixture.json", "frontier.bundle"},

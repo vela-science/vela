@@ -284,7 +284,7 @@ def build_study(
             render(task / "task.toml", {"ARM": arm})
             render(
                 environment / "Dockerfile",
-                {"CODEX_VERSION": codex_version, "VELA_INSTALL": vela_install},
+                {"VELA_INSTALL": vela_install},
             )
             task_rows.append({
                 "path": task.relative_to(output).as_posix(),
