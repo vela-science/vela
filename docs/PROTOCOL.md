@@ -13,7 +13,7 @@ authorization, or presentation.
 2. Git commits and trees identify published repository bytes.
 3. Producer authentication grants no verification or review authority.
 4. Verification reports one scoped outcome and changes no Standing.
-5. Only an authorized Decision admits a state transition.
+5. Only an authorized human Decision admits a state transition.
 6. Repository authority records the exact authenticated and authorized write;
    it does not supply scientific judgment.
 7. Canonical history is append-only. Corrections add relations and Events
@@ -26,7 +26,7 @@ authorization, or presentation.
 
 ```text
 Target
-  -> Attempt
+  -> native work
   -> Submission
   -> Registration Record
   -> pending Proposal
@@ -39,7 +39,7 @@ Target
 | Object | Role | Authority effect |
 | --- | --- | --- |
 | Target | Derived bounded unit of work | None |
-| Attempt | Local work coordination against exact roots | None |
+| Native run | Execution retained by an external agent or scientific tool | None |
 | Submission | Authenticated producer request and evidence | None |
 | Registration Record | Proof of exact repository intake | None |
 | Claim Record | Versioned assertion, conditions, evidence, and provenance | None by itself |
@@ -296,35 +296,28 @@ authority record. It changes no scientific Standing.
 
 ### 5.2 Start
 
-`vela start` creates `vela.attempt.v9` only in ignored local coordination. The
-Attempt closes over:
+`vela start` is a read-only orientation command. It validates and returns:
 
 - repository origin and root;
 - Target Index root;
 - Target and packet;
 - source Git commit/tree;
-- completion contract;
-- the producer identity;
-- a closed set of Artifact classes;
-- enforced Submission, Verification, Artifact-count, and Artifact-byte
-  budgets;
-- a `pending_review` authority ceiling; and
-- local expiry.
+- completion contract and packet; and
+- a direct Submission template with a `pending_review` authority ceiling.
 
-It creates no canonical Event, repository record, or authority-key read.
-Vela does not launch or wrap an agent, verifier, or workflow engine.
+It creates no file, lease, Attempt, counter, budget, canonical Event,
+repository record, or authority-key read. Vela does not launch or wrap an
+agent, verifier, or workflow engine.
 
 ### 5.3 Submit
 
-`vela submit` installs the exact authenticated Submission, declared Artifacts,
-derived Claim Record, Registration Record, and pending Proposal in one
-recoverable object-only authority transaction.
+`vela submit` installs the exact producer-authenticated Submission, declared
+Artifacts, derived Claim Record, Registration Record, and pending Proposal in
+one bounded routine-evidence transaction.
 
-New Claims enter `pending_claims`. Accepted Standing does not change. A
-successful Submission increments the ignored Attempt counters and leaves the
-authorization active. Every later Submission revalidates the current exact
-Target binding. The Attempt ends only through expiry or explicit `start
---drop`; it cannot accept or reject a Proposal.
+New Claims enter `pending_claims`. Accepted Standing does not change. The
+transaction reads no repository-authority key and cannot accept or reject a
+Proposal.
 
 ### 5.4 Import verification
 

@@ -22,6 +22,7 @@
 - [Proposed derived foreign reference and authority containment ADR](adr/0029-derived-foreign-reference-and-local-authority-containment.md)
 - [Math Atlas, Math Source Registry, and Target-closure ADR](adr/0030-root-bound-math-source-registry-atlas-and-target-closure.md)
 - [One product and removable Agent executor ADR](adr/0031-one-product-and-removable-agent-executor.md)
+- [Self-authenticated evidence and human Decision authority ADR](adr/0032-self-authenticated-evidence-and-human-decision-authority.md)
 
 ## Project documents
 

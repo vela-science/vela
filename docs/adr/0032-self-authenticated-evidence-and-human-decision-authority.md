@@ -106,10 +106,11 @@ changing any Frontier byte.
 
 ## Consequences
 
-Ordinary agents can work for hours under one small local Attempt without
-repeated repository-authority prompts. The Decision boundary becomes clearer:
-producer and verifier signatures authenticate evidence; only an authorized
-human Decision changes Standing.
+Ordinary agents can work for hours in their native execution environment after
+reading one exact Target briefing, without repeated repository-authority
+prompts or a Vela-owned lease. The Decision boundary becomes clearer: producer
+and verifier signatures authenticate evidence; only an authorized human
+Decision changes Standing.
 
 The implementation retains one crash-recovery journal and Git compare-and-swap
 publication because they protect concrete durability and concurrency

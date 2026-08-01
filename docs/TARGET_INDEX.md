@@ -63,7 +63,7 @@ tracked Git blobs.
 
 ## Freshness
 
-At inspection, Offer, and Attempt time Vela verifies:
+At inspection, Offer, and briefing time Vela verifies:
 
 - the index and relevant packets are tracked regular files;
 - the source commit exists, is an ancestor of `HEAD`, and has the declared
@@ -77,7 +77,7 @@ At inspection, Offer, and Attempt time Vela verifies:
 Any mismatch is a typed stale condition, not an advisory. There is no force or
 non-strict work bypass.
 
-## Offers and Attempts
+## Offers and briefings
 
 `vela next` validates every open entry before counting or returning it:
 
@@ -88,34 +88,26 @@ fresh      = configured - stale
 returned   = offers after the requested limit
 ```
 
-`vela next` does not pretend that private local work is shared availability.
-`vela start` performs the exact local Attempt arbitration, rechecks the
-selected entry, and creates one ignored private Attempt bound to:
+`vela next` does not pretend that private or external work is shared
+availability. `vela start` rechecks the selected entry and returns one
+write-free briefing bound to:
 
 - current repository origin and root;
 - Target Index and input roots;
 - source Git commit/tree;
 - exact Target and packet;
-- completion contract;
-- allowed operations and Artifact classes;
-- Submission, Verification, Artifact-count, and Artifact-byte budgets; and
-- local expiry.
+- completion contract and packet; and
+- a direct Submission template.
 
-It writes no canonical object and reads no authority key.
+It writes no file, lease, Attempt, budget, or canonical object and reads no
+authority key.
 
-Each `vela submit` and Attempt-bound `vela verification import` revalidates the
-exact current Target-task binding and binds it into the repository transaction
-read set. A successful registration or import increments the matching private
-Attempt counter rather than deleting the Attempt.
-Starting roots remain exact; the current private read set advances only when
-the same Target source, inputs, and packet remain unchanged. Expiry or
-explicit `start --drop` revokes future use.
-
-That binding proves queue identity, packet/read-set continuity, and enforced
-local evidence budgets. It does not infer that a Claim is scientifically
-responsive to the Target. Semantic fit remains an explicit Verification and
-human-review question; Vela does not add a heuristic semantic validator to the
-Target Index.
+The briefing proves only that the Target and packet are exact at inspection
+time. Native agents and scientific tools own execution state. A later direct
+Submission is independently authenticated and reviewed on its retained exact
+objects. Semantic fit remains an explicit Verification and human-review
+question; Vela does not add a heuristic semantic validator to the Target
+Index.
 
 ## Inspection
 

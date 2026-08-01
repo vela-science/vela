@@ -90,14 +90,15 @@ vela id create --agent --handle worker
 vela id show --json
 ```
 
-It may sign a Submission. An Attempt is ignored local coordination and is not
-a signed protocol object. Producer identity cannot authorize review,
-acceptance, policy administration, recovery, membership, or repository-key
-changes.
+It may sign a Submission. A native workbench may retain its own run or attempt
+identity as provenance, but `vela start` creates no signed or local protocol
+object. Producer identity cannot authorize review, acceptance, policy
+administration, recovery, membership, or repository-key changes.
 
 ```bash
 vela next . --json
-vela start <target> --frontier . --as agent:<handle> --json
+# Optional write-free Target briefing.
+vela start <target> --frontier . --json
 vela submit submission.json --frontier . --as agent:<handle> --json
 ```
 

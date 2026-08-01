@@ -74,7 +74,7 @@ With Vela you can:
 ```text
 workbench
    │
-   ├── Attempt ── Submission ─────────────┐
+   ├── native run ── Submission ──────────┐
    │                                      │
 verifier ── Verification Record ──────────┤
                                           ▼
@@ -94,7 +94,7 @@ Vela keeps four boundaries explicit:
 1. **Git preserves bytes and ancestry.**
 2. **A Submission preserves producer intent and evidence.**
 3. **A Verification Record reports one scoped check.**
-4. **Only an authorized Decision changes Standing.**
+4. **Only an authorized human Decision changes Standing.**
 
 A verifier pass is not scientific acceptance. Git publication is not
 scientific acceptance. A signature proves control of a key over exact bytes;
@@ -149,12 +149,12 @@ an independent trusted channel.
 ```bash
 vela status . --json
 vela next . --limit 1 --json
-vela start <target> --frontier . --as agent:<name> --json
+# Optional: print the exact Target packet and Submission template.
+vela start <target> --frontier . --json
 
 # Produce the bounded artifact and run the declared verifier.
 
 vela submit --frontier . \
-  --attempt <vat_id> \
   --claim "<bounded result>" \
   --type computational \
   --replayability exact \
@@ -179,6 +179,9 @@ vela why . <claim_id> --json
 
 `submit` registers authenticated producer input and a pending Proposal. It
 does not create a Verification Record, Decision, Event, or accepted Standing.
+`start` writes nothing: Codex, Claude, OpenCode, Harbor, laboratory software,
+or another native tool owns execution. Submission and Verification authenticate
+their own exact records; neither reads repository-authority credentials.
 
 ## Command surface
 

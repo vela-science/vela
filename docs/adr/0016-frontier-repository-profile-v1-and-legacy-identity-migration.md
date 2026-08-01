@@ -1,6 +1,8 @@
 # ADR 0016: Frontier Repository Profile v1 and legacy identity migration
 
 - Status: Accepted — 2026-07-23
+- Operational settings portion superseded by accepted ADR 0031; retained as
+  release history
 - Protocol effect: one signed non-scientific boundary event, versioned state
   root, closed repository profile, and derived-root contracts
 - First released in: Vela `v0.914.0`

@@ -119,7 +119,7 @@ attributed Decision state as separate facts.
 The ordinary path is:
 
 ```text
-Attempt and scoped evidence
+native run and scoped evidence
     -> vela submit
     -> Registration Record + pending Proposal
     -> independent Verification Record(s)

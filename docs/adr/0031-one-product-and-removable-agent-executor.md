@@ -3,7 +3,7 @@
 - Status: Accepted
 - Proposed: 2026-07-30
 - Accepted: 2026-07-31
-- Revised: 2026-07-31
+- Revised: 2026-07-31 (stateless Target briefing)
 - Implementation: complete
 - Protocol effect: none
 - Authority effect: none
@@ -39,20 +39,19 @@ the work.
 2. Keep immutable `@vela-science/canopus@0.8.0` and `product-v0.8.0` as
    historical replay evidence. Current Vela carries no compatibility parser or
    copied source for that private product.
-3. Keep `vela start` as a small ignored local lease. The current Attempt binds:
-   - one Frontier and exact Target packet;
-   - one producer identity;
-   - expiry;
-   - allowed Artifact classes; and
-   - Submission, Verification, Artifact-count, and Artifact-byte budgets.
-4. An Attempt may be consumed only by ordinary Submission registration and
-   Verification import. It has no runner binary, execution bundle, Run budget,
-   receipt chain, scheduler, signer cache, or Decision method.
+3. Keep `vela start` as a stateless, write-free Target briefing. It verifies
+   one Frontier and exact Target packet, then returns the roots, content, and a
+   direct Submission template. It creates no lease, Attempt, expiry, budget,
+   counter, lock, or authorization.
+4. Submission and Verification are direct self-authenticated routine-evidence
+   transactions. They do not depend on `start` or consume Vela-owned execution
+   state.
 5. Native agents consume the Target packet directly and call `vela submit`.
    Native verifiers emit `vela.verification-record.v1` and call
    `vela verification import`. They remain replaceable producers.
-6. Private Attempt schemas are current-only. Old ignored files fail clearly and
-   are deleted and recreated; no migration or compatibility layer is carried.
+6. Remove the private Attempt schemas and ignored scratch. Native workbenches
+   may retain their own run identities as optional provenance; Vela carries no
+   migration or compatibility layer for the deleted local policy engine.
 
 ## Invariants
 
@@ -87,5 +86,6 @@ replay and would weaken the authority boundary.
 
 ### Add compatibility for private Attempt and Run files
 
-Rejected. They are ignored local coordination from a pre-release product.
-Historical public Canopus artifacts remain readable with their frozen release.
+Rejected. They were ignored local coordination from a pre-release product and
+are no longer part of the current runtime. Historical public Canopus artifacts
+remain readable with their frozen release.

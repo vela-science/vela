@@ -2,7 +2,7 @@
 
 Vela is version control for scientific state. Git publishes exact bytes;
 agents submit authenticated evidence; Verification Records report scoped
-checks; an authorized Decision changes standing.
+checks; only an authorized human Decision changes Standing.
 
 ## Read an existing Frontier
 
@@ -29,11 +29,12 @@ This local public pin grants no authority and changes no Frontier byte.
 
 ```bash
 vela next . --limit 1 --json
-vela start <target> --as agent:<name> --json
+# Optional: print the exact Target packet and Submission template.
+vela start <target> --json
 
 # Run the exact verifier and retain its artifact.
 
-vela submit --attempt <vat_id> \
+vela submit \
   --claim "<bounded result>" \
   --type computational \
   --replayability exact \
@@ -43,10 +44,12 @@ vela submit --attempt <vat_id> \
   --json
 ```
 
-`next` returns Offers from the fresh Target Index v4. `start` binds one exact
-Target and packet into an Attempt. `submit` registers the resulting Submission,
-issues a Registration Record, and creates a pending Proposal. It does not
-create Verification, a Decision, an Event, or accepted scientific state.
+`next` returns Offers from the fresh Target Index v4. `start` revalidates one
+exact Target and prints a write-free briefing; the native agent, workbench, or
+scientific tool performs the work. `submit` authenticates and registers the
+resulting Submission, issues a Registration Record, and creates a pending
+Proposal. It does not create Verification, a Decision, an Event, or accepted
+scientific state.
 
 Inspect the resulting objects without writing:
 

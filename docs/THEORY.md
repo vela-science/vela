@@ -5,7 +5,7 @@ Status: current pre-1.0 boundary.
 Vela records a narrow chain of scientific state:
 
 ```text
-Target -> Attempt -> Submission -> Verification -> Decision -> Standing
+Target -> native run -> Submission -> Verification -> Decision -> Standing
 ```
 
 It does not decide whether science is true. It preserves the exact objects,
@@ -214,7 +214,7 @@ journal preserves the exact publication operation.
 The current finite corpus checks:
 
 - canonical JSON and content roots;
-- retained Attempt IDs;
+- optional source-workbench run or attempt provenance;
 - principals and delegated capabilities;
 - independent JavaScript emission of Submission and Verification bytes; and
 - exact witness and bounded-Claim agreement.

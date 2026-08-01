@@ -41,11 +41,11 @@ produce -> preserve -> check -> decide -> reuse
 | --- | --- | ---: |
 | Frontier | One independently clonable Git repository with bounded scope, stable identity, canonical history, authority, and correction policy | Boundary only |
 | Frontier map | An exact, removable read projection of current territory, coverage, uncertainty, retained work, and next valid action | None |
-| Problem | A bounded scientific question organizing Claims, Obligations, Targets, and Attempts | None |
+| Problem | A bounded scientific question organizing Claims, Obligations, Targets, and native runs | None |
 | Obligation | One unresolved requirement needed to assess or advance a Claim | None |
 | Target | One machine-addressable, bounded unit of work | None |
 | Offer | A derived recommendation that a Target is available | None |
-| Attempt | One bounded effort against an exact Target | Coordination only |
+| Attempt | Optional provenance name for an effort retained by a native workbench; Vela does not create or govern it | None |
 | Run | One execution occurrence in a workbench or verifier | None |
 | Claim | One exact assertion under explicit scope and conditions | None |
 | Claim Record | Canonical record of a Claim revision, conditions, evidence, provenance, and typed relations | None by itself |
@@ -73,7 +73,7 @@ init status next start submit show why review check reproduce log doctor
 | --- | --- |
 | `status` | Summarize Frontier identity, integrity, blockers, counts, authority readiness, and one next action |
 | `next` | Return ranked Target Offers |
-| `start` | Create or reuse an Attempt; no scientific-state change |
+| `start` | Print a write-free briefing for one exact current Target |
 | `submit` | Validate and register a Submission, then route its Proposal |
 | `show` | Inspect one current or historical typed object |
 | `why` | Explain current standing from exact evidence, verification, Decisions, Events, and corrections |
@@ -115,11 +115,9 @@ Frontier repository authority, Event, and before/after state roots.
 
 ## Lifecycle vocabularies
 
-Attempt:
-
-```text
-available active completed abandoned expired contaminated
-```
+A native workbench may supply its own run or attempt identity as provenance.
+That lifecycle remains defined by the source workbench and never becomes Vela
+Standing.
 
 Submission registration:
 

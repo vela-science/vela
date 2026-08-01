@@ -24,10 +24,10 @@ provisioned.
 ```bash
 vela status . --json
 vela next . --limit 1 --json
-vela start <target> --frontier . --as agent:<name> --json
+# Optional write-free Target briefing.
+vela start <target> --frontier . --json
 
 vela submit --frontier . \
-  --attempt <vat_id> \
   --claim "<scoped result>" \
   --type <computational|theoretical|empirical|negative|contradiction> \
   --replayability <exact|bounded|approximate|unavailable|unknown> \
@@ -38,9 +38,11 @@ vela submit --frontier . \
 ```
 
 The agent, workbench, notebook, proof assistant, or laboratory system performs
-the work directly. Vela does not wrap it. The producer retains native files and
-registers only the bounded artifact and Claim needed for review. Benchmarks use
-Harbor tasks directly rather than a Vela-owned runner.
+the work directly. Vela does not wrap it. `start` writes no Attempt, lease,
+budget, or workflow state; it only returns the exact Target packet and a direct
+Submission template. The producer retains native files and registers only the
+bounded artifact and Claim needed for review. Benchmarks use Harbor tasks
+directly rather than a Vela-owned runner.
 
 Then inspect the exact objects:
 

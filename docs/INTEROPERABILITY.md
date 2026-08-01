@@ -39,7 +39,7 @@ The current CLI exposes closed JSON for:
 
 - status and repository roots;
 - ranked Target Offers;
-- Attempts;
+- write-free Target briefings;
 - typed object inspection;
 - Claim Standing explanations;
 - Proposal lists and Review Packets;

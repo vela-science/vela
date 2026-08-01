@@ -16,21 +16,22 @@ vela next . --limit 1 --json
 Read the returned Offer. It binds the Target, packet, expected outputs,
 verifier profile, and exact next command.
 
-## Start one Attempt
+## Read the exact Target briefing
 
 ```bash
-vela start <target> --frontier . --as agent:<name> --json
+vela start <target> --frontier . --json
 ```
 
-Run only the bounded work and checks named by the Attempt. Retain exact
-frontier-relative Artifacts. A failed or negative result is useful only when
-its scope, search space, algorithm, and limits are explicit.
+This optional command revalidates the Target and packet, then prints a
+write-free briefing and direct Submission template. Run the bounded work in
+the native agent, workbench, proof assistant, notebook, or laboratory system.
+Retain exact frontier-relative Artifacts. A failed or negative result is useful
+only when its scope, search space, algorithm, and limits are explicit.
 
 ## Submit the result
 
 ```bash
 vela submit --frontier . \
-  --attempt <vat_id> \
   --claim "<bounded result>" \
   --type computational \
   --condition "<scope condition>" \
@@ -71,5 +72,8 @@ scientific acceptance.
 
 Fresh `vela init` repositories are structural and report authority as not
 configured. Submission registration fails closed until `vela authority init`
-has established the repository writer and the consumer has installed its
-independently distributed sequence-one trust root.
+has established the repository boundary. Routine Submission and Verification
+intake authenticates the producer or verifier record itself and does not read a
+repository-authority key or require the caller's local trust pin. The
+independently distributed sequence-one trust root remains required for strict
+consumer verification and later authority actions.

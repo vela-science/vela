@@ -84,8 +84,9 @@ infrastructure.
 
 - Current Vela ships no agent runner, Campaign host, scheduler, custom Run
   receipt model, or Canopus compatibility layer.
-- `vela start` optionally creates an ignored local Attempt for exact Target
-  attribution. It is not required to author signed evidence.
+- `vela start` is a write-free exact Target briefing. It creates no Attempt,
+  lease, budget, counter, or authorization and is not required to author
+  signed evidence.
 - Agents and workbenches consume the Target packet directly and register a
   Submission through `vela submit`.
 - Verifiers emit the standard Verification Record and import it through
@@ -118,10 +119,10 @@ infrastructure.
 
 ### Gate 1 — keep the core small and green
 
-The runner and unused capability protocol are already gone. Keep the current
-Attempt local and current-only, remove stale code when encountered, and use
-focused checks during development. Run the full release union only for a real
-release candidate; do not bump versions merely to synchronize metadata.
+The runner, unused capability protocol, and local Attempt policy engine are
+gone. Remove stale code when encountered and use focused checks during
+development. Run the full release union only for a real release candidate; do
+not bump versions merely to synchronize metadata.
 
 ### Gate 2 — complete one clear scientific loop
 
@@ -150,8 +151,8 @@ agent work and one or a few consequential review items.
 
 The minimum product seam is:
 
-- an expiring local lease over one Frontier, Target, allowed evidence classes,
-  duration, and spend/volume limits;
+- a scoped authorization expressed through the native executor's durable
+  action policy, not through `vela start` or a Vela-owned runner;
 - continuous native work and append-only evidence lineage without a Vela-owned
   runner;
 - a read-only Decision Inbox containing only changes to Standing, scope,

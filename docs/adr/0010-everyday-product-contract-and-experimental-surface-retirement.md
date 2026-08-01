@@ -1,6 +1,7 @@
 # ADR 0010: Everyday product contract and experimental surface retirement
 
 - Status: Accepted
+- Product workflow superseded by accepted ADR 0031; retained as release history
 - Accepted: 2026-07-16 at the Vela `v0.900.0` release gate
 - Target release: Vela `v0.900.0`
 - Protocol effect: none

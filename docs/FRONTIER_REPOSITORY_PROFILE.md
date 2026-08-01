@@ -121,17 +121,18 @@ records/receipts/
 Historical Git commits and predecessor tags retain old bytes. They are not
 valid templates for new repositories.
 
-## Runtime settings
+## Runtime behavior
 
-`.vela/settings.toml` contains allowlisted local/product preferences only:
+Frontier repositories do not configure the operator. Runtime behavior stays
+explicit and process-local:
 
-```toml
-schema = "vela.frontier-settings.v1"
-```
+- publication commits locally unless the caller passes `--push`;
+- `NO_COLOR` disables terminal color;
+- `--quiet` or `VELA_ADVICE=0` suppresses advice.
 
 Credentials, keys, commands, hooks, network endpoints, verifier declarations,
-dependencies, policy, actors, and accepted-state settings are forbidden.
-Safety preferences may narrow behavior but may not widen repository authority.
+dependencies, policy, actors, and accepted-state settings never belong in a
+checked-in runtime configuration file.
 
 ## Path ownership
 
@@ -141,7 +142,6 @@ Safety preferences may narrow behavior but may not widen repository authority.
 | `.vela/authority/` | Canonical authentication history | Append through repository authority only |
 | `records/**/sha256/` | Canonical content-addressed objects | Never hand-edit or rename |
 | `frontier.yaml` | Descriptive profile | Edit deliberately; any root change must be governed before canonical writes continue |
-| `.vela/settings.toml` | Runtime preference | Never scientific state |
 | `targets.json` and packets | Derived work projection | Seal and freshness-check; never treat as Standing |
 | domain-native files | Source and evidence | Keep stable, reviewable identities |
 | `.vela/operation-journals/`, `.vela/work/` | Recovery/private coordination | Never scientific state |

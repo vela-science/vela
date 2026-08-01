@@ -12,7 +12,7 @@ true, novel, important, or ethical.
 - the authenticated principal and semantic action behind each canonical write;
 - exact Git commit/tree, repository origin, object sets, and roots;
 - the independently distributed sequence-one authority-record root;
-- Target, packet, Attempt, and Submission bindings; and
+- Target, packet, Submission, and Verification bindings; and
 - deterministic replay and frozen verifier contracts.
 
 ## Boundary
@@ -68,9 +68,9 @@ shortened digest fails strict validation.
 ### Malicious producer input
 
 `submit` treats the Submission and every Artifact as untrusted. It validates
-closed schemas, sizes, paths, digests, producer identity, Attempt and Target
-bindings, current repository context, and declared verification requirements
-before intake.
+closed schemas, sizes, paths, digests, producer identity, Target references,
+current repository context, and declared verification requirements before
+intake.
 
 A producer signature proves origin only. Intake creates a pending Proposal and
 no accepted Standing.
@@ -118,8 +118,9 @@ copy retains.
 ### Stale or malicious work projection
 
 The Target Index is derived but binds the current repository origin/root,
-source inputs, packets, task contracts, and deterministic rank facts.
-`next` validates the full index; `start` revalidates the chosen Target.
+source inputs, packets, task contracts, and deterministic rank facts. `next`
+validates the full index; `start` revalidates the chosen Target and prints a
+write-free briefing.
 
 A stale or invalid index yields no Offer. Ranking and graph position never
 create authority.

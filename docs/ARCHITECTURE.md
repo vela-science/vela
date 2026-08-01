@@ -48,7 +48,7 @@ Decision boundary. Producers and readers remain replaceable.
 ```text
 workbench
    |
-   +-- Attempt -- Submission ------------------+
+   +-- native run -- Submission ---------------+
    |                                           |
 verifier -- Verification Record ---------------+
                                                v
@@ -67,7 +67,7 @@ Each object has one job:
 
 | Object | Meaning | Authority effect |
 | --- | --- | --- |
-| Attempt | Local bounded work against exact starting roots | None |
+| Native run | Activity retained by an external agent or scientific tool | None |
 | Submission | Authenticated producer input | Requests change |
 | Registration Record | Proof that exact input entered the repository | None |
 | Verification Record | Scoped verifier observation over exact inputs | None |

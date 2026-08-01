@@ -1,8 +1,8 @@
 # Vela CLI
 
 Vela is a Git-native scientific-state tool. Producers submit evidence,
-verifiers report scoped results, authorized Decisions change Standing, and Git
-preserves the exact repository history.
+verifiers report scoped results, only an authorized human Decision changes
+Standing, and Git preserves the exact repository history.
 
 ## Ordinary workflow
 
@@ -43,9 +43,9 @@ init status next start submit show why review check reproduce log doctor
 | Command | Contract |
 | --- | --- |
 | `init` | Create a minimal Git-native Frontier from a name and bounded scope. |
-| `status` | Report identity, replay, the active Attempt, Decision Inbox readiness, and one safe next action. |
+| `status` | Report identity, replay, Decision Inbox readiness, and one safe next action. |
 | `next` | Return canonically ranked producer Targets. |
-| `start` | Start one local bounded Attempt against an exact Target. |
+| `start` | Print a write-free briefing for one exact current Target. |
 | `submit` | Build or import one authenticated Submission and pending Proposal. |
 | `show` | Inspect one exact typed object and its authority effect. |
 | `why` | Explain one Claim's Standing from retained roots and history. |
@@ -77,56 +77,41 @@ claim id agents config verification authority target-index repository
 
 `vela help advanced` is the executable source for this grouping.
 
-## Attempts and Submissions
+## Target briefing and Submissions
 
 `vela next` returns a ranked Target Offer. Review work never enters that
 producer queue.
 
-`vela start` creates a local ignored Attempt bound to:
+`vela start` revalidates the selected Target and returns:
 
 - the exact target and packet;
 - the repository origin and root;
 - the Target Index root;
 - the Git commit and tree;
 - the completion contract;
-- the producer identity;
-- a closed set of Artifact classes;
-- enforced Submission, Verification, Artifact, and retained-byte budgets;
-- a `pending_review` authority ceiling; and
-- local expiry.
+- the producer identity used in the direct Submission template; and
+- the explicit boundary that evidence may enter review but only a human
+  Decision changes Standing.
 
-It appends no canonical Event and reads no authority key.
+It writes no file, lease, Attempt, counter, budget, Event, or canonical object
+and reads no authority key.
 
 The default remains one short command:
 
 ```bash
-vela start <target> --as agent:<name> --json
+vela start <target> --json
 ```
 
-Vela does not select, launch, or wrap a runner. The producer uses its native
-agent, workbench, notebook, proof assistant, or laboratory system. Target
-packets that declare typed outputs contribute those Artifact classes;
-otherwise the private fallback is `other`. Repeat `--artifact-class <kind>`
-once for each real producer output class, such as `text/plain`,
-`engine-manifest`, and `verifier-manifest`. `--max-submissions`,
-`--max-verifications`, `--max-artifacts`, and `--max-artifact-bytes` narrow the
-fixed defaults. A successful Attempt-bound Submission or Verification import
-increments its private counter but does not delete the Attempt. An ordinary
-Verification import may instead rely on the durable source-attempt binding
-already retained by the Submission; it does not require private `.vela/work`
-state. Supplying
-`--attempt` explicitly opts into exact live-scope and budget attribution.
-Every later Attempt-bound routine write revalidates the exact current Target
-read set. Expiry or `start <target> --drop` stops future attributed use without
-invalidating retained evidence.
+Vela does not select, launch, wrap, meter, or schedule a runner. The producer
+uses its native agent, workbench, notebook, proof assistant, or laboratory
+system. Harbor owns benchmark execution. Those systems may retain their own
+run or attempt identities as ordinary provenance, but Vela does not create or
+authorize them.
 
-`vela status` is the compact Frontier summary. Its `work` projection reports
-the active Attempt count and the first exact scope, budget, usage, and expiry.
-Its `decision_inbox` projection reports
-pending, ready, and blocked consequence counts plus rooted projection
-identities. The suggested next action may inspect the Inbox, continue the
-active Attempt through its exact `submit --attempt` path, or select the next
-Target; it never accepts or rejects Standing.
+`vela status` is the compact Frontier summary. Its `decision_inbox` projection
+reports pending, ready, and blocked consequence counts plus rooted projection
+identities. The suggested next action may inspect the Inbox or select and
+brief the next Target; it never accepts or rejects Standing.
 
 `vela review inbox --json` returns `vela.decision-inbox.v2`. Each rooted entry
 contains one explicit `standing_delta`: the affected Claim IDs, accepted
@@ -158,16 +143,13 @@ vela submit --frontier . \
 ```
 
 An observed correction or supersession does not need a synthetic work target.
-New Claims may be signed and submitted directly. `--attempt <vat_id>` is
-optional local attribution; when supplied, missing, shortened, stale, or
-mismatched targets fail before intake. Registration creates a pending Proposal
-and cannot decide it.
+New Claims are signed and submitted directly. Registration creates a pending
+Proposal and cannot decide it.
 
 ## Verification
 
 ```bash
 vela verification record . <vpr_id> \
-  --attempt <vat_id> \
   --profile exact-replay-v1 \
   --method verification/method.json \
   --property "Replay the exact retained artifact." \
@@ -185,14 +167,8 @@ and retains it atomically. It changes no Standing.
 
 `vela verification import . verification.json --as verifier:<name> --json`
 remains the interoperability and clean-clone path for an already signed record.
-Its exact Proposal and Submission supply the durable lineage binding; ignored
-private Attempt scratch is not required for replay. Add `--attempt <vat_id>`
-only when the import should consume a live Attempt's Verification budget. In
-that form the ID must exactly match
-`Submission.provenance.source_attempt`, and the Attempt must remain unexpired
-and bound to the current Target read set. Exact retry repairs matching private
-usage when live scratch still exists, while missing or expired scratch cannot
-strand retained canonical evidence. Verifiers do not inherit the producer
+The exact Proposal, Submission, Claim, Artifacts, method, and verifier signature
+supply the durable lineage binding. Verifiers do not inherit the producer
 identity or any Decision capability.
 
 The protocol permits an acceptance action only when the current Proposal and
@@ -309,7 +285,7 @@ active paths. The one-time migration writer is not part of the current binary.
 - `status --json` returns compact identity, full roots, replay, blocker counts,
   object counts, readiness, and one next action.
 - `next --json` returns ranked producer Targets only.
-- `start --json` returns one exact Attempt contract.
+- `start --json` returns one exact write-free Target briefing.
 - `review list --json` returns compact Proposal summaries.
 - `review inbox --json` returns rooted consequence-only decision summaries
   with an explicit target-scoped Standing delta.
