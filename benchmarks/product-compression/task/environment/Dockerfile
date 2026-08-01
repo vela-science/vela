@@ -2,7 +2,7 @@ FROM --platform=linux/amd64 alpine@sha256:14358309a308569c32bdc37e2e0e9694be33a9
 
 # The task runtime has no package-network access. Harbor detects this exact
 # official Codex installation and then owns execution, OAuth, and results.
-RUN apk add --no-cache bash ca-certificates gcompat git jq libgcc nodejs npm ripgrep \
+RUN apk add --no-cache bash ca-certificates gcompat git jq libgcc nodejs npm python3 ripgrep \
  && npm install --global @openai/codex@{{CODEX_VERSION}} \
  && codex --version
 COPY frontier.bundle /opt/vela-input/frontier.bundle

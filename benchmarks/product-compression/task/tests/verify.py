@@ -85,7 +85,7 @@ def main() -> None:
         ),
         **result,
         "network": "none",
-        "verification_environment": "separate",
+        "verification_environment": "harbor_post_agent_no_network",
     }
     logs = Path("/logs/verifier")
     logs.mkdir(parents=True, exist_ok=True)

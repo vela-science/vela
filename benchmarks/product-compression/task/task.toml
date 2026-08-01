@@ -13,7 +13,6 @@ allowed_hosts = ["api.openai.com", "chatgpt.com", "*.chatgpt.com", "*.auth.opena
 
 [verifier]
 timeout_sec = 60.0
-environment_mode = "separate"
 network_mode = "no-network"
 
 [environment]

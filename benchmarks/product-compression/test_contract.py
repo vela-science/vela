@@ -208,6 +208,16 @@ class ProductCompressionTests(unittest.TestCase):
         )
         self.assertIn("mkdir -p /logs/verifier", test_script)
 
+    def test_harbor_verifier_uses_the_native_post_agent_phase(self) -> None:
+        task = (Path(__file__).parent / "task" / "task.toml").read_text(encoding="utf-8")
+        self.assertNotIn("environment_mode", task)
+        self.assertIn('network_mode = "no-network"', task)
+
+        dockerfile = (Path(__file__).parent / "task" / "environment" / "Dockerfile").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("python3", dockerfile)
+
     def test_contract_preserves_authority_boundary(self) -> None:
         contract.validate_answer(answer())
         value = answer()
@@ -319,7 +329,7 @@ class ProductCompressionTests(unittest.TestCase):
             self.assertIn(".frontier.git_commit", (guided / "environment/Dockerfile").read_text())
             self.assertIn("quantum-certificate-supersession", (guided / "task.toml").read_text())
             self.assertIn("@openai/codex@0.1.0", (baseline / "environment/Dockerfile").read_text())
-            self.assertNotIn("python3", (baseline / "environment/Dockerfile").read_text())
+            self.assertIn("python3", (baseline / "environment/Dockerfile").read_text())
             self.assertFalse(any(baseline.rglob("__pycache__")))
             resolved = subprocess.run(
                 ["harbor", "run", "--config", str(output / "harbor-job.json"), "--print-config"],

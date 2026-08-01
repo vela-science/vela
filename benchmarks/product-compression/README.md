@@ -25,9 +25,11 @@ bounded conclusion used by the paper.
 
 Harbor evidence never changes scientific Standing. Verification is not
 acceptance. The task containers receive no authority credentials, no Git
-remote, and no mutable canonical checkout; the verifier runs in a separate
-no-network container. Safety is enforced by custody rather than claimed by the
-participant.
+remote, and no mutable canonical checkout; the verifier runs in Harbor's
+post-agent phase with networking disabled, and its test script always
+overwrites the reward. Safety is enforced by custody and phase policy rather
+than claimed by the participant. A second verifier container is unnecessary
+for this read-only comprehension benchmark.
 
 ## Study
 
