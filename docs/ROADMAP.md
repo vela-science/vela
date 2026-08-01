@@ -113,7 +113,7 @@ and a reproduced gap.
 
 ## Release posture
 
-- Vela `0.962.0` is the published release for the current repository-v4,
+- Vela `0.962.1` is the published release for the current repository-v4,
   direct Target Index v5, and producer-owned Proposal withdrawal boundary.
   Keep one binary release train and release only for demonstrated product or
   correctness changes.

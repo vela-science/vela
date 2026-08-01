@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## v0.962.1 — 2026-08-01 — Compacted lineage and Decision freshness
+
+- Reconstruct `vela why` across signed compacted-origin predecessors so an
+  accepted Claim still exposes its Proposal, scoped Verification, human
+  Decision Events, and exact standing basis after live-record cleanup.
+- Re-check a reviewed Decision packet against the latest repository root before
+  signing, preventing stale evidence or Standing from reaching authority.
+- Retain the current exact Decision Inbox projection and the native Harbor
+  quantum-correction result without adding a runner, hosted authority, or new
+  protocol object.
+
 ## v0.962.0 — 2026-08-01 — Direct proposal lifecycle and native evaluation
 
 - Add producer-owned withdrawal for one exact still-pending Proposal. The
