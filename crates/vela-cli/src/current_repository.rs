@@ -1071,6 +1071,121 @@ fn verification_targets_rooted_proposal(
     Ok(verification_targets_proposal(proposal, &claim, record))
 }
 
+fn proposal_matches_signed_submission(
+    proposal: &ProposalV1,
+    claim: &ClaimRecordV1,
+    submission: &SubmissionV1,
+) -> Result<(), String> {
+    if proposal.actor != submission.provenance.producer || proposal.caveats != submission.caveats {
+        return Err("Proposal actor or caveats disagree with its signed Submission".into());
+    }
+
+    let expected_action = match submission.requested_change.kind.as_str() {
+        "add_claim" => "claim.add",
+        "correct_claim" | "supersede_claim" => "claim.revise",
+        "retract_claim" => "claim.withdraw",
+        kind => return Err(format!("unsupported signed Submission change {kind}")),
+    };
+    if proposal.action != expected_action {
+        return Err("Proposal action disagrees with its signed Submission".into());
+    }
+
+    if proposal.action == "claim.withdraw" {
+        let target = submission
+            .requested_change
+            .target
+            .as_ref()
+            .ok_or_else(|| "withdrawal Submission has no exact Claim target".to_string())?;
+        if proposal.subject.id != target.claim_id || proposal.subject.root != target.claim_root {
+            return Err("withdrawal Proposal does not bind its signed Submission target".into());
+        }
+        return Ok(());
+    }
+
+    if claim.assertion.text != submission.claim.assertion
+        || claim.assertion.kind != submission.claim.claim_type
+        || claim.created_at != submission.provenance.emitted_at
+        || !claim.extensions.is_empty()
+    {
+        return Err("Proposal Claim body disagrees with its signed Submission".into());
+    }
+
+    let mut expected_conditions = submission.claim.conditions.clone();
+    expected_conditions.extend(
+        submission
+            .caveats
+            .iter()
+            .map(|caveat| format!("Caveat: {caveat}")),
+    );
+    if claim.conditions != expected_conditions {
+        return Err("Proposal Claim conditions disagree with its signed Submission".into());
+    }
+
+    let expected_evidence = submission
+        .artifacts
+        .iter()
+        .map(|artifact| {
+            let digest = artifact
+                .digest
+                .strip_prefix("sha256:")
+                .expect("verified Submission Artifact digest is sha256");
+            (
+                "supports",
+                None,
+                artifact.digest.as_str(),
+                Some(format!("records/artifacts/sha256/{digest}")),
+            )
+        })
+        .collect::<Vec<_>>();
+    let observed_evidence = claim
+        .evidence
+        .iter()
+        .map(|evidence| {
+            (
+                evidence.relation.as_str(),
+                evidence.artifact_id.as_deref(),
+                evidence.artifact_root.as_str(),
+                evidence.artifact_path.clone(),
+            )
+        })
+        .collect::<Vec<_>>();
+    if observed_evidence != expected_evidence {
+        return Err("Proposal Claim evidence disagrees with its signed Submission".into());
+    }
+
+    let relation_matches = match submission.requested_change.kind.as_str() {
+        "add_claim" => claim.revision == 1 && claim.relations.is_empty(),
+        "correct_claim" | "supersede_claim" => {
+            let target = submission.requested_change.target.as_ref();
+            claim.revision > 1
+                && claim.relations.len() == 1
+                && target.is_some_and(|target| {
+                    claim.relations[0].target_claim_id == target.claim_id
+                        && claim.relations[0].kind
+                            == if submission.requested_change.kind == "correct_claim" {
+                                "corrects"
+                            } else {
+                                "supersedes"
+                            }
+                })
+        }
+        _ => false,
+    };
+    if !relation_matches {
+        return Err("Proposal Claim relation disagrees with its signed Submission".into());
+    }
+
+    if claim.provenance.len() != 1
+        || claim.provenance[0].kind != "submission"
+        || claim.provenance[0].title
+            != format!("Authenticated Submission {}", submission.submission_id)
+        || claim.provenance[0].authors != [submission.provenance.producer.clone()]
+    {
+        return Err("Proposal Claim provenance disagrees with its signed Submission".into());
+    }
+    Ok(())
+}
+
 /// Load and validate the current repository identity and authority chain.
 pub(crate) fn load_current_repository_at(
     root: &Path,
@@ -1205,6 +1320,7 @@ pub(crate) fn verify_current_repository_at(
             ));
         }
     }
+    let mut proposal_by_submission = BTreeMap::new();
     for reference in &repository.proposals {
         let bytes = object_bytes
             .get(&reference.path)
@@ -1216,6 +1332,49 @@ pub(crate) fn verify_current_repository_at(
             return Err(format!(
                 "{} does not contain the declared canonical Proposal",
                 reference.path
+            ));
+        }
+        let claim = rooted_claim_for_proposal(root, &proposal)?;
+        let submission_reference = repository
+            .submissions
+            .iter()
+            .find(|candidate| candidate.id == proposal.producer_package.id)
+            .ok_or_else(|| {
+                format!(
+                    "{} targets Submission {} outside the current repository",
+                    reference.path, proposal.producer_package.id
+                )
+            })?;
+        if submission_reference.root != proposal.producer_package.root
+            || submission_reference.path != proposal.producer_package.path
+        {
+            return Err(format!(
+                "{} does not bind the current Submission reference",
+                reference.path
+            ));
+        }
+        let submission =
+            SubmissionV1::parse(object_bytes.get(&submission_reference.path).ok_or_else(
+                || {
+                    format!(
+                        "current object {} was not loaded",
+                        submission_reference.path
+                    )
+                },
+            )?)?;
+        proposal_matches_signed_submission(&proposal, &claim, &submission).map_err(|error| {
+            format!(
+                "{} has an invalid producer package: {error}",
+                reference.path
+            )
+        })?;
+        if let Some(previous) = proposal_by_submission.insert(
+            proposal.producer_package.id.clone(),
+            proposal.proposal_id.clone(),
+        ) {
+            return Err(format!(
+                "Submission {} is retained by multiple Proposals: {previous} and {}",
+                proposal.producer_package.id, proposal.proposal_id
             ));
         }
     }
@@ -1231,6 +1390,9 @@ pub(crate) fn verify_current_repository_at(
                 "{} does not contain the declared canonical Submission",
                 reference.path
             ));
+        }
+        if !proposal_by_submission.contains_key(&submission.submission_id) {
+            return Err(format!("{} has no exact retained Proposal", reference.path));
         }
     }
     for reference in &repository.registrations {
@@ -2262,6 +2424,9 @@ mod tests {
     use vela_protocol::events::{NULL_HASH, StateActor, StateTarget};
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject};
+    use vela_protocol::submission_v1::{
+        RequestedChange, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
+    };
     use vela_protocol::verification_record::{
         IndependenceDisclosure, VerificationMethod, VerificationRecordDraft, VerificationScope,
         VerificationSubject,
@@ -2289,6 +2454,133 @@ mod tests {
             root: format!("sha256:{id}"),
             path: format!("records/artifacts/sha256/{id}"),
         }
+    }
+
+    fn signed_submission_and_claim() -> (SubmissionV1, ClaimRecordV1) {
+        let key = SigningKey::from_bytes(&[71_u8; 32]);
+        let producer = "agent:proposal-binding-fixture";
+        let emitted_at = "2026-07-27T00:00:00Z";
+        let identity = IdentityBinding::build(
+            IdentityBindingDraft {
+                actor_id: producer.into(),
+                actor_class: ActorClass::Agent,
+                created_at: emitted_at.into(),
+            },
+            &key,
+        )
+        .unwrap();
+        let submission = SubmissionV1::build(
+            SubmissionDraft {
+                claim: SubmissionClaim {
+                    assertion: "An exact bounded search completed.".into(),
+                    claim_type: "computational".into(),
+                    conditions: vec!["The exact retained range was replayed.".into()],
+                },
+                artifacts: vec![submission_artifact('a')],
+                caveats: vec!["The bounded result is not universal.".into()],
+                replayability: "exact".into(),
+                producer_checks: Vec::new(),
+                verification_requirements: vec!["Replay the exact Artifact.".into()],
+                requested_change: RequestedChange {
+                    kind: "add_claim".into(),
+                    target: None,
+                },
+                provenance: SubmissionProvenance {
+                    producer: producer.into(),
+                    source_system: "fixture".into(),
+                    source_attempt: None,
+                    source_run: None,
+                    emitted_at: emitted_at.into(),
+                },
+                execution_binding: None,
+            },
+            identity,
+            &key,
+        )
+        .unwrap();
+        let claim = ClaimRecordV1::build(
+            1,
+            ClaimAssertion {
+                text: submission.claim.assertion.clone(),
+                kind: submission.claim.claim_type.clone(),
+            },
+            vec![
+                submission.claim.conditions[0].clone(),
+                format!("Caveat: {}", submission.caveats[0]),
+            ],
+            vec![vela_protocol::claim_record::ClaimEvidenceRef {
+                relation: "supports".into(),
+                artifact_id: None,
+                artifact_root: submission.artifacts[0].digest.clone(),
+                artifact_path: Some(format!(
+                    "records/artifacts/sha256/{}",
+                    submission.artifacts[0]
+                        .digest
+                        .strip_prefix("sha256:")
+                        .unwrap()
+                )),
+            }],
+            vec![vela_protocol::claim_record::ClaimSource {
+                kind: "submission".into(),
+                title: format!("Authenticated Submission {}", submission.submission_id),
+                locator: None,
+                authors: vec![producer.into()],
+                year: Some(2026),
+            }],
+            Vec::new(),
+            emitted_at.into(),
+            BTreeMap::new(),
+        )
+        .unwrap();
+        (submission, claim)
+    }
+
+    #[test]
+    fn proposal_directly_binds_its_signed_submission() {
+        let (submission, claim) = signed_submission_and_claim();
+        let proposal = ProposalV1::build(
+            "claim.add".into(),
+            ProposalSubject {
+                kind: "claim".into(),
+                id: claim.claim_id.clone(),
+                root: claim.canonical_root().unwrap(),
+            },
+            submission.provenance.producer.clone(),
+            "2026-07-27T00:00:01Z".into(),
+            "Review the exact signed Submission.".into(),
+            ProposalProducerPackage {
+                kind: "submission_v1".into(),
+                id: submission.submission_id.clone(),
+                root: submission.canonical_root().unwrap(),
+                path: format!(
+                    "records/submissions/sha256/{}.json",
+                    submission
+                        .canonical_root()
+                        .unwrap()
+                        .strip_prefix("sha256:")
+                        .unwrap()
+                ),
+            },
+            submission.caveats.clone(),
+        )
+        .unwrap();
+        proposal_matches_signed_submission(&proposal, &claim, &submission).unwrap();
+
+        let wrong_action = ProposalV1::build(
+            "claim.revise".into(),
+            proposal.subject.clone(),
+            proposal.actor.clone(),
+            proposal.created_at.clone(),
+            proposal.reason.clone(),
+            proposal.producer_package.clone(),
+            proposal.caveats.clone(),
+        )
+        .unwrap();
+        assert!(
+            proposal_matches_signed_submission(&wrong_action, &claim, &submission)
+                .unwrap_err()
+                .contains("action disagrees")
+        );
     }
 
     #[test]
