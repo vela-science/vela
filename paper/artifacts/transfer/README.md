@@ -56,6 +56,7 @@ Rebuild and verify the source package:
 ```bash
 python3 paper/artifacts/transfer/materialize_real_reference.py \
   --source ../erdos-frontier \
+  --source-ref 81e79f008b4fc653888efda810dd8eb48e50cffa \
   --output /tmp/erdos-424
 python3 paper/artifacts/transfer/verify_foreign_reference.py \
   --package-root /tmp/erdos-424

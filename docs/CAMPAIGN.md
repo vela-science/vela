@@ -75,6 +75,14 @@ infrastructure.
   Verifications while their accepted-state delta remains zero.
 - A prior real human Decision changed Standing exactly once and reproduced by
   replay.
+- The retained `[[10,1,4]]` quantum witness has a source-visible alternate
+  reconstruction: the historical capsule checked bounded low-weight Pauli
+  errors, while the current standard-library verifier derives the complete
+  binary-symplectic centralizer and enumerates all 1,536 non-stabilizer logical
+  Paulis. The exact-distance-four result, adversarial tests, strict replay, and
+  two scoped Verification Records pass. This is algorithmic reconstruction,
+  not an independent organization, external participant, or second current
+  implementation; the corrected Claim remains pending a human Decision.
 - Vela Web has a live root-bound Math Source Registry and read-only Math Atlas
   over the exact four repository-v4 Frontier heads. The current projection uses
   `observatory.v8`, contains no Registration contract, and retains 6,713 native
@@ -131,12 +139,17 @@ infrastructure.
   promoting the derived envelope into a supported shared contract or claiming
   independent product value. A human Decision made earlier must retain that
   limitation explicitly.
-- The retained 2026-08-01 production Atlas checkpoint was rebuilt from all four
-  cleaned Frontier heads and is exact at projection root
-  `sha256:9ca8bca4b4a7d9430d494094863c3b57e838159f858248c987abde26153ba107`.
-  Its manifest binds Erdős `3f594b53`, Formal `6cbc2cb5`, Quantum
+- The current production Atlas checkpoint was rebuilt from all four cleaned
+  Frontier heads and is exact at projection root
+  `sha256:a5fb257a67b0b2c4a5320a24a74ca44a0ad0c0be64940ee68269b6abe4a160d5`.
+  Its manifest binds Erdős `da791f88`, Formal `6cbc2cb5`, Quantum
   `29202cfb`, and Sidon `e07b6317`; the database sync, corpus checks, source
   evidence retention, activation, pruning, and production redeploy passed.
+- The same release adds the exact `openai/ten-proofs` source adapter to the
+  existing 11-source Registry and exposes one bounded
+  `erdos:183:astra-fidelity` obligation beside the continuing Erdős 1056
+  work. It does not create an Astra Frontier, infer statement fidelity, or
+  change Standing.
 - Two empty local PostgreSQL reconstructions matched every production table,
   Frontier, and source-registry root. The retained evidence artifact root is
   `sha256:b4aaaa303db2dc5c66fb0cbaccc19face4e65767de5ee74d4ca250c93666409c`.
@@ -424,7 +437,7 @@ reputation score, or `1.0.0` schedule.
 | Vela | `0.962.1` is published with direct producer withdrawal, compacted-lineage reconstruction, and current-root Decision checks; release checks are green | keep one train and release only for demonstrated changes |
 | Cross-language readers | standalone Python and JavaScript conformance readers | keep package-free until a real external consumer requires a library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; the retained 2026-08-01 checkpoint binds projection root `sha256:9ca8bca4b4a7d9430d494094863c3b57e838159f858248c987abde26153ba107`, 11 exact sources, 6,713 native records, and clean-room artifact `sha256:b4aaaa303db2dc5c66fb0cbaccc19face4e65767de5ee74d4ca250c93666409c` | keep the exact source projection; add no Astra-specific UI or broader execution until a real consumer earns it |
+| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; the current checkpoint binds projection root `sha256:a5fb257a67b0b2c4a5320a24a74ca44a0ad0c0be64940ee68269b6abe4a160d5`, 11 exact sources, 6,713 native records, and clean-room artifact `sha256:b4aaaa303db2dc5c66fb0cbaccc19face4e65767de5ee74d4ca250c93666409c` | keep the exact source projection; add no Astra-specific UI or broader execution until a real consumer earns it |
 | Frontiers | canonical Git sources with pending human Decisions; the obsolete Formal duplicate is withdrawn with zero accepted delta | decide or cancel exact remaining Proposals, replay, remap |
 | Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 

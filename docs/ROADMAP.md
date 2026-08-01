@@ -24,6 +24,10 @@ identity. This roadmap records only product sequence.
 - A real Erdős result has completed the full loop and replayed exactly.
 - Formal and quantum results have separate, scoped Verification and remain
   pending human Decisions.
+- The pending quantum correction has an exact alternate-algorithm
+  reconstruction: a source-visible verifier derives the complete symplectic
+  centralizer and reproduces the retained `[[10,1,4]]` certificate. This is
+  not external-participant independence or acceptance.
 - A correction from Erdős was retained and checked by Formal without importing
   Erdős authority.
 - The Observatory exposes a rebuildable, SELECT-only Math Source Registry and
@@ -34,6 +38,11 @@ identity. This roadmap records only product sequence.
   pre-Decision quantum-correction gate: Vela-guided 2/2 exact versus Git/files
   0/2, with 51.44 percent lower median agent time and 56.87 percent lower
   median cost. This remains first-party, single-task evidence.
+- A second current-head Harbor comparison passed a post-Decision Erdős
+  continuation gate: Vela-guided 2/2 exact versus Git/files 0/2, with 13.57
+  percent lower median agent time and 24.09 percent lower median cost. It does
+  not yet prove correction propagation, independent adoption, or general
+  scientific-productivity lift.
 
 ## Now — prove the product loop
 

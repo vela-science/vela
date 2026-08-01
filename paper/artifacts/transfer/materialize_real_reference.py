@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Materialize one exact, non-authoritative cross-Frontier reference package.
 
-The source Frontier remains canonical. This script reads two exact Git trees:
-the current compacted tree and the predecessor transition named by its
-repository origin. It writes only the portable evidence package.
+The source Frontier remains canonical. This script reads the exact retained
+compacted tree and the predecessor transition named by that tree's repository
+origin. Later source commits cannot silently change the evidence package.
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ VERIFICATION_ID = "vvr_ed3383c1cd640d43"
 APPLIED_EVENT_ID = "vev_c0b7450dd55a75f6"
 DECISION_EVENT_ID = "vev_c9edac512e2b3307"
 AUTHORITY_RECORD_ID = "var_64ec1c05368bc2c7"
+SOURCE_COMMIT = "81e79f008b4fc653888efda810dd8eb48e50cffa"
 
 
 def run(*args: str, cwd: Path) -> bytes:
@@ -115,11 +116,20 @@ def write_object(output: Path, package_path: str, value: bytes) -> None:
     destination.write_bytes(value)
 
 
-def materialize(source: Path, output: Path) -> dict[str, object]:
+def resolve_source_snapshot(source: Path, source_ref: str) -> tuple[str, str]:
+    commit = git_text(source, "rev-parse", f"{source_ref}^{{commit}}")
+    tree = git_text(source, "rev-parse", f"{commit}^{{tree}}")
+    return commit, tree
+
+
+def materialize(
+    source: Path,
+    output: Path,
+    source_ref: str = SOURCE_COMMIT,
+) -> dict[str, object]:
     if git_text(source, "status", "--porcelain"):
         raise ValueError("source Frontier is dirty")
-    current_commit = git_text(source, "rev-parse", "HEAD")
-    current_tree = git_text(source, "rev-parse", "HEAD^{tree}")
+    current_commit, current_tree = resolve_source_snapshot(source, source_ref)
     current_manifest_bytes = git_bytes(source, current_commit, ".vela/repository.json")
     current_origin_bytes = git_bytes(source, current_commit, ".vela/origin.json")
     current_manifest = load_json(current_manifest_bytes, "current repository manifest")
@@ -361,6 +371,11 @@ def materialize(source: Path, output: Path) -> dict[str, object]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", required=True, type=Path)
+    parser.add_argument(
+        "--source-ref",
+        default=SOURCE_COMMIT,
+        help="Exact retained compacted source commit (defaults to the frozen evidence commit)",
+    )
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
@@ -372,7 +387,7 @@ def main() -> int:
         shutil.rmtree(output)
     output.mkdir(parents=True)
     try:
-        result = materialize(source, output)
+        result = materialize(source, output, args.source_ref)
         (output / "materialization.v1.json").write_bytes(canonical_bytes(result) + b"\n")
         print(json.dumps(result, indent=2))
         return 0
