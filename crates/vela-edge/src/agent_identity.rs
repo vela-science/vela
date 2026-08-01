@@ -4,7 +4,8 @@
 //! at `~/.vela/agents/<actor>/private.key` on first use (the actor comes
 //! from the tool argument or `VELA_ACTOR_ID`); `VELA_AGENT_KEY_HEX`
 //! overrides when an explicit key is wanted. Minting is refused for
-//! non-agent actors — a human identity is a deliberate `vela id create`.
+//! non-agent actors; human authority uses the platform principal and the
+//! repository-authority signer.
 //! **No silent unsigned submissions, and no key ceremony either.**
 
 use ed25519_dalek::SigningKey;
@@ -21,8 +22,8 @@ const AGENT_KEY_ENV: &str = "VELA_AGENT_KEY_HEX";
 ///    key step at all — identity is a consequence of showing up.
 ///
 /// Custody: minting is refused for anything but `agent:`/`ci:` actors —
-/// a human identity is a deliberate `vela id create`, never a side
-/// effect. The minted key signs only agent-grade objects (leases,
+/// human authority is never a side effect. The minted key signs only
+/// agent-grade objects (leases,
 /// records); every decision verb still refuses agent actors outright.
 pub fn agent_signing_key(explicit_actor: Option<&str>) -> Result<SigningKey, String> {
     if let Ok(hex_str) = std::env::var(AGENT_KEY_ENV) {
@@ -44,7 +45,7 @@ pub fn agent_signing_key(explicit_actor: Option<&str>) -> Result<SigningKey, Str
     if !actor.starts_with("agent:") && !actor.starts_with("ci:") && !actor.starts_with("verifier:")
     {
         return Err(format!(
-            "agent key auto-mint is for agent:/ci:/verifier: actors, not '{actor}' — humans run `vela id create`"
+            "agent key auto-mint is for agent:/ci:/verifier: actors, not '{actor}' — human authority uses the authenticated platform principal"
         ));
     }
     let home = std::env::var("HOME").map_err(|_| "HOME unset".to_string())?;

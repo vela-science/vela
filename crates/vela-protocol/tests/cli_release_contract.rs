@@ -95,6 +95,7 @@ fn advanced_help_uses_current_product_commands() {
     assert!(help.contains("reproduce     Re-run stored witnesses with frozen verifiers"));
     assert!(help.contains("review        Inspect or perform one exact authorized Proposal action"));
     assert!(help.contains("verification  Retain non-authorizing scoped Verification Records"));
+    assert!(!help.contains("  id "));
 
     assert!(!help.contains("bridges derive"));
     assert!(!help.contains("vela workbench"));

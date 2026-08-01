@@ -5,47 +5,7 @@
 //! runtime boundary; producer identities, Submissions, and Verification
 //! Records use only the small byte-signing surface below.
 
-use std::path::Path;
-
 use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
-
-/// Generate an Ed25519 keypair for an authority-free producer or verifier.
-///
-/// The private seed is written as lowercase hex to `private.key`; the public
-/// key is written to `public.key`. Repository-authority credentials are never
-/// loaded through this path.
-pub fn generate_keypair(output_dir: &Path) -> Result<String, String> {
-    use rand::rngs::OsRng;
-
-    std::fs::create_dir_all(output_dir)
-        .map_err(|error| format!("failed to create output directory: {error}"))?;
-    let signing_key = SigningKey::generate(&mut OsRng);
-    let public_hex = pubkey_hex(&signing_key);
-    let private_path = output_dir.join("private.key");
-    std::fs::write(&private_path, hex::encode(signing_key.to_bytes()))
-        .map_err(|error| format!("failed to write private key: {error}"))?;
-    harden_key_permissions(&private_path);
-    std::fs::write(output_dir.join("public.key"), &public_hex)
-        .map_err(|error| format!("failed to write public key: {error}"))?;
-    Ok(public_hex)
-}
-
-/// Set owner-only permissions on a seed file where supported.
-pub fn harden_key_permissions(path: &Path) {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        if let Ok(metadata) = std::fs::metadata(path) {
-            let mut permissions = metadata.permissions();
-            permissions.set_mode(0o600);
-            let _ = std::fs::set_permissions(path, permissions);
-        }
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = path;
-    }
-}
 
 /// Parse a lowercase or uppercase hex-encoded 32-byte Ed25519 seed.
 pub fn signing_key_from_hex(hex_str: &str) -> Result<SigningKey, String> {
@@ -55,13 +15,6 @@ pub fn signing_key_from_hex(hex_str: &str) -> Result<SigningKey, String> {
         .try_into()
         .map_err(|_| "private key must be exactly 32 bytes".to_string())?;
     Ok(SigningKey::from_bytes(&seed))
-}
-
-/// Load the producer/verifier seed format emitted by [`generate_keypair`].
-pub fn load_signing_key_from_path(path: &Path) -> Result<SigningKey, String> {
-    let source = std::fs::read_to_string(path)
-        .map_err(|error| format!("failed to read private key: {error}"))?;
-    signing_key_from_hex(&source)
 }
 
 /// Sign exact canonical bytes.

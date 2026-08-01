@@ -604,15 +604,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let submitted = success_json(&run(
         &frontier,
         None,
-        &[
-            "submit",
-            &submission_path_text,
-            "--frontier",
-            ".",
-            "--as",
-            actor,
-            "--json",
-        ],
+        &["submit", &submission_path_text, "--frontier", ".", "--json"],
     ));
     assert_eq!(submitted["schema"], "vela.submit-result.v1");
     assert_eq!(submitted["route"], "pending_review");

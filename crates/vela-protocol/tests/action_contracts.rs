@@ -204,7 +204,7 @@ fn reviewed_tags_publish_provenance_labeled_cross_platform_bundles() {
     assert!(RELEASE_WORKFLOW.contains("test -f \"dist/$asset.sha256\""));
     assert!(RELEASE_WORKFLOW.contains("shasum -a 256 \"${{ matrix.asset }}\""));
     assert!(RELEASE_WORKFLOW.contains("Get-FileHash -Algorithm SHA256 $name"));
-    assert!(RELEASE_WORKFLOW.contains("\"${name}.sha256\""));
+    assert!(RELEASE_WORKFLOW.contains("-Path \"${name}.sha256\" -Value \"$digest  $name\""));
     assert!(RELEASE_WORKFLOW.contains("actions/attest-build-provenance@"));
     assert!(RELEASE_WORKFLOW.contains("gh release create \"$GITHUB_REF_NAME\" dist/*"));
     assert!(RELEASE_WORKFLOW.contains("release_flags+=(--prerelease)"));

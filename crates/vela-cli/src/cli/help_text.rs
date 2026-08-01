@@ -125,15 +125,6 @@ EXAMPLES
   vela doctor                     blockers plus one next action
   vela doctor --all               full setup and tool diagnostics";
 
-pub const ID: &str = "\
-EXAMPLES
-  vela id create --agent --handle codex-worker
-                        create a file-backed producer identity
-  vela id show          inspect the optional producer identity
-
-Human decisions use the local OS principal and repository authority. Vela does
-not create or store a human signing identity.";
-
 pub const SHOW: &str = "\
 EXAMPLES
   vela show . vcl_0123456789abcdef --json

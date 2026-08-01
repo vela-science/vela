@@ -58,7 +58,7 @@ init status next start submit show why review check reproduce log doctor
 ## Advanced commands
 
 ```text
-claim id agents config verification authority repository
+claim agents config verification authority repository
 ```
 
 - `claim` provides current Claim record, standing, evidence, and attribution
@@ -66,7 +66,6 @@ claim id agents config verification authority repository
 - `why` also resolves a retained superseded Claim through covered authority
   history and returns its exact predecessor, successor, Proposal, applied
   event, and terminal Decision bindings.
-- `id` manages optional file-backed producer identities.
 - `agents` regenerates agent adapters from `VELA.md`.
 - `config` manages closed local and Frontier configuration.
 - `verification import` retains a non-authorizing scoped Verification Record.

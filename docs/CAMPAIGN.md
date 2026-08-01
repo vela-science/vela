@@ -63,9 +63,10 @@ infrastructure.
 
 ### Shipped and verified
 
-- Vela `0.960.0` is the last immutable tag. Its Windows checksum step failed
-  before publication, so the locally qualified `0.960.1` candidate is the
-  single binary release boundary for repository v4,
+- Vela `0.950.1` is the last published immutable release. The `0.960.0` and
+  `0.960.1` tags exposed Windows release defects before publication, so the
+  locally qualified `0.961.0` candidate is the single binary release boundary
+  for repository v4,
   direct Target Index v5, direct Submission lineage, and retired
   workflow/runtime surfaces. Internal Rust crates are not published as
   parallel products, and the unused TypeScript protocol package has been
@@ -79,7 +80,7 @@ infrastructure.
 - Vela Web has a root-bound Math Source Registry and read-only Math Atlas over
   the four Frontiers. Its production projection currently lags the four
   repository-v4 heads and still reports retired Registration rows. Source Git
-  is authoritative until the `0.960.1` reader refresh is deployed.
+  is authoritative until the `0.961.0` reader refresh is deployed.
 - Product-compression v6 retains a rooted plan and compact historical summary,
   but not the native Harbor trials required by the current evidence contract.
   Its reported lift is not publication-grade. The next comparison must retain
@@ -267,10 +268,10 @@ reputation score, or `1.0.0` schedule.
 
 | Surface | Current posture | Next earned change |
 | --- | --- | --- |
-| Vela | `0.960.1` candidate; focused checks green, release union pending | publish once, then use this exact release for the current Atlas refresh |
+| Vela | `0.961.0` candidate; focused checks green, release union pending | publish once, then use this exact release for the current Atlas refresh |
 | Cross-language readers | standalone Python and JavaScript conformance readers | keep package-free until a real external consumer requires a library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | exact Registry and Atlas implementation; production projection is stale | ingest repository v4/status v3, remove Registration projection, refresh from `0.960.1` |
+| Vela Web | exact Registry and Atlas implementation; production projection is stale | ingest repository v4/status v3, remove Registration projection, refresh from `0.961.0` |
 | Frontiers | canonical Git sources with pending human Decisions | decide or cancel exact Proposals, replay, remap |
 | Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 

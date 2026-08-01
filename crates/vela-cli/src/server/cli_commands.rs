@@ -6,11 +6,9 @@
 //! ## Flag-naming conventions (one name per concept, no aliases)
 //! - **Acting identity** → `--as`, everywhere a command acts under an
 //!   identity (land, attach, artifact retirement…).
-//!   The value defaults from the configured identity (`vela id`) or
-//!   `$VELA_ACTOR_ID`, so the flag is usually omitted entirely.
+//!   The value defaults from `$VELA_ACTOR_ID`, so the flag is usually omitted.
 //!   `--verifier-actor` names a mechanical verifier identity (CI, lean
 //!   keypairs) that is never a decision-maker.
-//! - **Signing key** → `--key`. Defaults from `vela id`.
 //! - **Targets** → `--hub` (a registry/peer base URL the client talks to),
 //!   `--to` (a publish/append destination), `--from` (a read source). One
 //!   meaning each; do not overload.
@@ -21,7 +19,8 @@ use std::path::PathBuf;
 /// One meaning per flag, everywhere (the audit's top finding was
 /// semantic drift). These are the canonical help strings, referenced by
 /// every variant that carries the flag.
-pub(crate) const HELP_AS: &str = "Acting identity for this write (reviewer:<you> or agent:<name>). Optional: defaults to your `vela id`";
+pub(crate) const HELP_AS: &str =
+    "Acting identity for this write (agent:<name>). Optional: defaults to $VELA_ACTOR_ID";
 pub(crate) const HELP_REQUIRED_AS: &str =
     "Exact acting identity for this write (reviewer:<you> or agent:<name>)";
 pub(crate) const HELP_AS_OF: &str = "Answer as of this RFC3339 instant, e.g. 2026-07-02T16:00:00Z";
@@ -101,12 +100,6 @@ pub(crate) enum Commands {
         proposal: Option<String>,
         #[arg(long)]
         json: bool,
-    },
-    /// Inspect or create an agent identity used for bounded producer work.
-    #[command(after_long_help = crate::cli::help_text::ID)]
-    Id {
-        #[command(subcommand)]
-        action: IdAction,
     },
     /// Initialize the standard repository-authority writer for a fresh Frontier.
     #[command(hide = true)]
@@ -250,54 +243,6 @@ pub(crate) enum Commands {
     Completions {
         /// bash | zsh | fish
         shell: String,
-    },
-}
-
-#[derive(Subcommand)]
-pub(crate) enum IdAction {
-    /// Create a file-backed agent identity for bounded producer work.
-    Create {
-        /// Agent handle, e.g. `worker-1`. Becomes `agent:worker-1`.
-        #[arg(long)]
-        handle: Option<String>,
-        /// Required compatibility guard: Vela no longer creates human
-        /// signing identities.
-        #[arg(long)]
-        agent: bool,
-        /// Overwrite an existing identity.
-        #[arg(long)]
-        force: bool,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Show the current agent identity.
-    Show {
-        #[arg(long)]
-        json: bool,
-    },
-    /// Adopt an existing agent private key.
-    #[command(hide = true)]
-    Import {
-        /// Path to the existing Ed25519 private key (hex seed).
-        #[arg(long)]
-        key: PathBuf,
-        /// Your handle, e.g. `alice`. Defaults to `$USER`.
-        #[arg(long)]
-        handle: Option<String>,
-        #[arg(long, required = true)]
-        agent: bool,
-        #[arg(long)]
-        force: bool,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Generate a fresh Ed25519 keypair (files only; registers nothing).
-    #[command(hide = true)]
-    Keygen {
-        #[arg(long, default_value = ".vela/keys")]
-        out: PathBuf,
-        #[arg(long)]
-        json: bool,
     },
 }
 

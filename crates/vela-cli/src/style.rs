@@ -9,7 +9,6 @@ use std::io::IsTerminal;
 use std::sync::Once;
 
 pub const MOSS: (u8, u8, u8) = (0x3F, 0x6B, 0x4E);
-pub const BRASS: (u8, u8, u8) = (0x8A, 0x6A, 0x1F);
 pub const MADDER: (u8, u8, u8) = (0x8A, 0x3A, 0x3A);
 
 static INIT: Once = Once::new();
@@ -48,11 +47,6 @@ pub fn chip(label: &str, rgb: (u8, u8, u8)) -> String {
 #[must_use]
 pub fn ok(label: &str) -> String {
     chip(label, MOSS)
-}
-
-#[must_use]
-pub fn warn(label: &str) -> String {
-    chip(label, BRASS)
 }
 
 #[must_use]

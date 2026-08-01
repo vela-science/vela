@@ -42,7 +42,6 @@ Daily product:
   doctor        Blockers plus one safe next action
 
 Nouns and setup:
-  id            optional file-backed producer identity
   agents        regenerate agent adapters from VELA.md
   config        closed local/frontier configuration
 

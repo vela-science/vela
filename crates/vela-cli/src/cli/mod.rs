@@ -1,10 +1,7 @@
-use vela_protocol::sign;
-
 use std::path::Path;
 
 use crate::style;
 use clap::Parser;
-use serde_json::json;
 
 #[derive(Parser)]
 #[command(name = "vela", version)]
@@ -17,7 +14,6 @@ struct Cli {
     command: Commands,
 }
 
-pub(crate) use crate::cli_admin::*;
 pub(crate) use crate::cli_check::*;
 use crate::cli_commands::*;
 use crate::cli_engine::{cmd_reproduce, cmd_verify_evidence};
@@ -26,7 +22,6 @@ pub(crate) use crate::cli_write::*;
 
 mod authority;
 pub(crate) mod help_text;
-mod identity;
 mod lifecycle;
 mod output;
 pub(crate) mod progress;
@@ -35,7 +30,6 @@ pub(crate) mod review_decision;
 pub(crate) mod safe_text;
 mod surface;
 pub(crate) use authority::*;
-pub(crate) use identity::*;
 pub(crate) use lifecycle::*;
 pub(crate) use output::*;
 pub(crate) use records::*;
@@ -43,8 +37,8 @@ pub(crate) use surface::*;
 pub fn run_command() {
     // Deliberately NO dotenv here. `dotenvy::dotenv()` walks the working
     // tree upward, and vela runs inside CLONED frontier repos — a
-    // committed .env could silently inject VELA_ACTOR_ID / VELA_KEY_PATH for
-    // anyone who runs vela in it
+    // committed .env could silently inject VELA_ACTOR_ID or other process
+    // configuration for anyone who runs vela in it
     // (the attack class git blocks via protected configuration and
     // Codex blocks by refusing base-url keys in project config).
     // Configuration comes from the real environment and ~/.vela only.
@@ -101,7 +95,6 @@ pub fn run_command() {
             proposal,
             json,
         } => cmd_reproduce(&path, proposal.as_deref(), json),
-        Commands::Id { action } => cmd_id(action),
         Commands::Authority { action } => match action {
             AuthorityAction::Init {
                 frontier,
@@ -181,12 +174,14 @@ pub fn run_command() {
         } => {
             crate::ui::set_mode("submit", json);
             let dir = crate::ui::resolve_frontier(frontier);
-            let actor = crate::cli_identity::resolve_actor(r#as.as_deref());
+            let authored_actor = submission
+                .is_none()
+                .then(|| crate::cli_identity::resolve_actor(r#as.as_deref()));
             let preflight_identity =
                 vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
                     "schema": "vela.submit-preflight.internal.v1",
                     "frontier": dir.display().to_string(),
-                    "actor": actor,
+                    "actor": authored_actor.as_deref().or(r#as.as_deref()).unwrap_or("signed-submission"),
                     "submission": submission.as_ref().map(|path| path.display().to_string()),
                     "claim": claim,
                     "claim_type": claim_type,
@@ -210,7 +205,7 @@ pub fn run_command() {
             let fail_preflight = |kind, message: String| -> ! {
                 crate::ui::fail_unchanged(kind, &message, &preflight_id, "vela submit --help")
             };
-            let (submission, bundle_root) = if let Some(path) = submission {
+            let (submission, bundle_root, actor) = if let Some(path) = submission {
                 let raw =
                     crate::bounded_file::read_bounded_file(&path, 8 * 1024 * 1024, "Submission v1")
                         .unwrap_or_else(|error| {
@@ -225,9 +220,19 @@ pub fn run_command() {
                     .unwrap_or_else(|error| {
                         fail_preflight(crate::ui::ErrorKind::Domain, error.to_string())
                     });
+                let actor = parsed.authentication.identity_binding.actor_id.clone();
+                if let Some(explicit) = r#as.as_deref().map(str::trim)
+                    && explicit != actor
+                {
+                    fail_preflight(
+                        crate::ui::ErrorKind::Usage,
+                        "--as does not match the signed Submission producer".to_string(),
+                    );
+                }
                 let root = path.parent().map(std::path::Path::to_path_buf);
-                (parsed, root)
+                (parsed, root, actor)
             } else {
+                let actor = authored_actor.expect("locally authored submissions resolve an actor");
                 let Some(claim) = claim else {
                     crate::ui::fail_unchanged(
                         crate::ui::ErrorKind::Usage,
@@ -305,7 +310,7 @@ pub fn run_command() {
                         format!("Submission build: {error}"),
                     )
                 });
-                (authored, None)
+                (authored, None, actor)
             };
             match crate::workflow::submit(&dir, &submission, &actor, bundle_root.as_deref()) {
                 Ok(outcome) => {

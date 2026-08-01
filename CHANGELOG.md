@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## v0.960.1 — 2026-08-01 — Lean release and conformance repair
+## v0.961.0 — 2026-08-01 — Lean identity and release boundary
 
 - Derive the reusable Frontier Action's Vela release from its immutable action
   commit instead of requiring consumers to supply a second version pin.
@@ -13,6 +13,11 @@
 - Remove the unused private TypeScript protocol package and root Bun workspace;
   standalone Python and JavaScript readers keep the cross-language conformance
   boundary without a second package or version.
+- Remove the duplicate `vela id` profile and keygen surface. Locally authored
+  producer work now needs only `--as` or `VELA_ACTOR_ID`; the existing
+  per-actor key resolver handles local custody on first use.
+- Derive the actor for an imported signed Submission from its verified identity
+  binding instead of requiring the importer to repeat `--as`.
 
 ## v0.960.0 — 2026-08-01 — One direct scientific-state product
 

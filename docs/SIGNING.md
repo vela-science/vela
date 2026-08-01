@@ -83,23 +83,22 @@ from a prompt or signature request.
 
 ## Producer identity
 
-An optional file-backed agent identity authenticates bounded producer work:
+Locally authored producer work names one actor with `--as agent:<name>` or
+`VELA_ACTOR_ID=agent:<name>`. Vela creates and reuses one local per-actor key
+on first write; there is no separate identity enrollment command or profile.
+Imported signed Submissions and Verification Records carry their own actor and
+key binding.
 
-```bash
-vela id create --agent --handle worker
-vela id show --json
-```
-
-It may sign a Submission. A native workbench may retain its own run or attempt
-identity as provenance, but `vela start` creates no signed or local protocol
-object. Producer identity cannot authorize review, acceptance, policy
+A native workbench may retain its own run or attempt identity as provenance,
+but `vela start` creates no signed or local protocol object. Producer identity
+cannot authorize review, acceptance, policy
 administration, recovery, membership, or repository-key changes.
 
 ```bash
 vela next . --json
 # Optional write-free Target briefing.
 vela start <target> --frontier . --json
-vela submit submission.json --frontier . --as agent:<handle> --json
+vela submit submission.json --frontier . --json
 ```
 
 Submission intake creates no Verification Record, Decision, Event, or accepted

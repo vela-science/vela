@@ -111,7 +111,7 @@ and a reproduced gap.
 
 ## Release posture
 
-- Vela `0.960.1` is the single candidate for the current repository-v4 and
+- Vela `0.961.0` is the single candidate for the current repository-v4 and
   direct Target Index v5 boundary. Publish only after its exact release checks.
 - Standalone conformance readers preserve cross-language verification without
   a second package or release train.

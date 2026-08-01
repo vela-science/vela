@@ -224,7 +224,7 @@ fn write_scaffold(path: &Path, name: &str, scope: &str) -> Result<(), String> {
     )?;
     write(
         ".gitignore",
-        "/.vela/keys/\n/.vela/operation-journals/\n/.vela/tmp/\n/.vela/work/\n/target/\nnode_modules/\n.DS_Store\n",
+        "/.vela/operation-journals/\n/.vela/tmp/\n/.vela/work/\n/target/\nnode_modules/\n.DS_Store\n",
     )?;
     write(
         ".gitattributes",
