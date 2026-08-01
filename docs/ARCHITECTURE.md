@@ -198,7 +198,7 @@ The target public topology is intentionally small:
 
 | Repository | Sole responsibility |
 | --- | --- |
-| `vela-science/vela` | Product monorepo: Rust implementation, authority-free TypeScript protocol contracts, shared conformance fixtures, releases, architecture |
+| `vela-science/vela` | Product monorepo: Rust implementation, independent conformance readers and fixtures, releases, architecture |
 | `vela-science/vela-web` | Editorial site and read-only Observatory |
 | `vela-science/erdos-frontier` | Canonical Erdős Frontier |
 | `vela-science/formal-conjectures-frontier` | Canonical formal-conjectures Frontier |
@@ -225,8 +225,8 @@ and supported interface versions; unchanged components do not churn merely to
 match the source tag.
 
 - Vela releases the protocol implementation and CLI.
-- The TypeScript protocol package is generated or checked against the same
-  public schemas and fixtures as Rust.
+- Independent Python and JavaScript readers check the portable object waist
+  without creating a second package or release surface.
 - Immutable Canopus `0.8.0` remains frozen for historical Runs that bind its
   exact bytes. Current Vela contains no executor or separate runner release.
 - Each Frontier verifies and reproduces its own exact state.

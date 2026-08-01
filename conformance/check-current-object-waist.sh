@@ -82,11 +82,7 @@ git --git-dir="$remote" symbolic-ref HEAD refs/heads/main
   --reason 'Establish ephemeral authority for a disposable interoperability Frontier.' \
   --json >"$root/authority-init.json"
 publish_fixture_delta 'Initialize disposable repository authority'
-run_json "$root/trust-pin.json" \
-  "$vela" authority trust pin "$frontier" \
-  --record-root "$(jq -r '.authority_record_root' "$root/authority-init.json")" \
-  --json
-trust_pin_path="$(jq -er '.authority_trust_anchor_path' "$root/trust-pin.json")"
+trust_pin_path="$(jq -er '.local_trust.anchor_path' "$root/authority-init.json")"
 
 "$vela" status "$frontier" --json >"$root/status-before.json"
 accepted_claims_before="$(jq -r '.counts.accepted_claims' "$root/status-before.json")"

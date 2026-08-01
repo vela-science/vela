@@ -111,10 +111,10 @@ and a reproduced gap.
 
 ## Release posture
 
-- Vela `0.960.0` is the single candidate for the current repository-v4 and
+- Vela `0.960.1` is the single candidate for the current repository-v4 and
   direct Target Index v5 boundary. Publish only after its exact release checks.
-- The TypeScript protocol boundary remains internal until a real external
-  consumer earns a registry package.
+- Standalone conformance readers preserve cross-language verification without
+  a second package or release train.
 - Canopus `0.8.0` remains historical evidence; there is no second active
   runner or release train.
 - Vela Web remains on the `0.430.0` product line until a measured reader or

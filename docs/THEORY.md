@@ -49,9 +49,8 @@ The current implementations are:
 
 - Rust canonicalization in
   [`canonical.rs`](../crates/vela-protocol/src/kernel/canonical.rs);
-- authority-free TypeScript encoding in
-  [`packages/protocol`](../packages/protocol); and
-- portable vectors in [`conformance`](../conformance).
+- independent Python and JavaScript readers plus portable vectors in
+  [`conformance`](../conformance).
 
 ## 3. Repository state
 

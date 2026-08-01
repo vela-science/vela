@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## v0.960.1 — 2026-08-01 — Lean release and conformance repair
+
+- Derive the reusable Frontier Action's Vela release from its immutable action
+  commit instead of requiring consumers to supply a second version pin.
+- Run the current `vela check --json` contract and remove the stale `--strict`
+  flag.
+- Repair Windows checksum filenames so cross-platform smoke can publish the
+  release.
+- Remove the unused private TypeScript protocol package and root Bun workspace;
+  standalone Python and JavaScript readers keep the cross-language conformance
+  boundary without a second package or version.
+
 ## v0.960.0 — 2026-08-01 — One direct scientific-state product
 
 - Make repository v4 the only live Frontier contract. Submission records bind

@@ -105,8 +105,8 @@ it does not prove that a Claim is true.
 Install the GitHub-attested release:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.960.0/install.sh | \
-  VELA_VERSION=v0.960.0 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.960.1/install.sh | \
+  VELA_VERSION=v0.960.1 bash
 vela --version
 ```
 
@@ -229,9 +229,8 @@ runtime boundaries:
 
 ```text
 crates/             Vela protocol, replay, repository authority, and CLI
-packages/protocol/  Authority-free TypeScript contracts and validators
-conformance/        Shared cross-implementation fixtures
-                     plus repository-wide protocol checks
+conformance/        Independent Python and JavaScript protocol readers,
+                    fixtures, and repository-wide checks
 .github/release/    Binary artifact publication and smoke tooling
 ```
 
@@ -246,10 +245,11 @@ Package-local tooling stays with its package. The repository has no catch-all
 top-level `scripts/` directory. The root `install.sh` is the public product
 installer, not a tooling bucket.
 
-The Rust crates and TypeScript Protocol package are internal implementation
-boundaries, tested together and released as one `vela` binary. A registry
-package will return only after a real external consumer needs it. The immutable
-Canopus `0.8.0` package remains historical evidence from `product-v0.8.0`.
+The Rust crates are internal implementation boundaries, tested together and
+released as one `vela` binary. Cross-language conformance uses small standalone
+readers instead of a second package. A registry package will exist only after a
+real external consumer needs it. The immutable Canopus `0.8.0` package remains
+historical evidence from `product-v0.8.0`.
 
 ## Security model
 
@@ -270,15 +270,14 @@ See [Authority and attribution](docs/SIGNING.md) and the
 
 ## Development
 
-Requires a current stable Rust toolchain. TypeScript package work uses the
-root Bun workspace.
+Requires a current stable Rust toolchain plus Python and Node for the portable
+conformance readers.
 
 ```bash
 cargo check -p vela-cli
 cargo clippy -p vela-cli --all-targets -- -D warnings
 python3 conformance/verify.py
-bun install --frozen-lockfile
-bun run check
+VELA_EPHEMERAL_ACCOUNT_HOME=1 ./conformance/check-current-object-waist.sh
 ```
 
 Use focused tests for ordinary changes. The deterministic release union runs

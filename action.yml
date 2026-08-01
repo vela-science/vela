@@ -3,10 +3,9 @@
 # Consume from a frontier repository:
 #
 #   - uses: actions/checkout@v5
-#   - uses: vela-science/vela@v0.960.0
+#   - uses: vela-science/vela@v0.960.1
 #     with:
 #       frontier: .
-#       vela-version: v0.960.0
 #
 # Current repositories carry one signed repository origin and authority
 # initialization record. The action verifies that closed boundary directly
@@ -21,40 +20,22 @@ inputs:
     description: Path to the frontier directory within the consumer repo.
     required: false
     default: "."
-  vela-version:
-    description: >-
-      Required reviewed Vela release tag (e.g. v0.960.0). The consumer chooses
-      this pin; proposed Frontier bytes cannot select or downgrade the verifier.
-    required: true
-
 runs:
   using: composite
   steps:
-    - name: Validate exact Vela release pin
-      shell: bash
-      env:
-        VELA_VERSION_INPUT: ${{ inputs.vela-version }}
-      run: |
-        set -euo pipefail
-        requested="${VELA_VERSION_INPUT#v}"
-        if [ -z "$requested" ]; then
-          echo "::error::vela-version is required; proposed Frontier bytes cannot select the verifier"
-          exit 1
-        fi
-        if ! printf '%s' "$requested" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-          echo "::error::vela-version must be one stable exact release"
-          exit 1
-        fi
     - name: Install Vela on Unix
       if: runner.os != 'Windows'
       shell: bash
       env:
-        VELA_VERSION_INPUT: ${{ inputs.vela-version }}
         ACTION_PATH: ${{ github.action_path }}
         GH_TOKEN: ${{ github.token }}
       run: |
         set -euo pipefail
-        requested="${VELA_VERSION_INPUT#v}"
+        requested="$(sed -n 's/^version = "\([0-9][0-9.]*\)"$/\1/p' "$ACTION_PATH/Cargo.toml" | head -n 1)"
+        if ! printf '%s' "$requested" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+          echo "::error::the pinned Vela action does not contain one stable release"
+          exit 1
+        fi
         install_root="${RUNNER_TEMP:?}/vela-action-$requested"
         VELA_VERSION="v$requested" VELA_INSTALL_PREFIX="$install_root" \
           bash "$ACTION_PATH/install.sh"
@@ -71,11 +52,13 @@ runs:
       if: runner.os == 'Windows'
       shell: pwsh
       env:
-        VELA_VERSION_INPUT: ${{ inputs.vela-version }}
         ACTION_PATH: ${{ github.action_path }}
         GH_TOKEN: ${{ github.token }}
       run: |
-        $requested = $env:VELA_VERSION_INPUT.TrimStart('v')
+        $manifest = Get-Content (Join-Path $env:ACTION_PATH "Cargo.toml") -Raw
+        $matched = [regex]::Match($manifest, '(?m)^version = "([0-9]+\.[0-9]+\.[0-9]+)"$')
+        if (-not $matched.Success) { throw "the pinned Vela action does not contain one stable release" }
+        $requested = $matched.Groups[1].Value
         $installRoot = Join-Path $env:RUNNER_TEMP "vela-action-$requested\bin"
         & (Join-Path $env:ACTION_PATH "install.ps1") -Version "v$requested" -InstallDir $installRoot
         $versionOutput = & (Join-Path $installRoot "vela.exe") --version
@@ -84,33 +67,34 @@ runs:
         }
         Write-Host "$versionOutput (matches the consumer pin)"
 
-    - name: Strict read-only repository verification on Unix
+    - name: Read-only repository verification on Unix
       if: runner.os != 'Windows'
       shell: bash
       env:
         FRONTIER: ${{ inputs.frontier }}
-        VELA_VERSION_INPUT: ${{ inputs.vela-version }}
       run: |
         set -euo pipefail
-        requested="${VELA_VERSION_INPUT#v}"
+        requested="$(sed -n 's/^version = "\([0-9][0-9.]*\)"$/\1/p' "${{ github.action_path }}/Cargo.toml" | head -n 1)"
         vela_bin="${RUNNER_TEMP:?}/vela-action-$requested/bin/vela"
-        if ! "$vela_bin" check "$FRONTIER" --strict; then
-          echo "::error::strict Vela verification failed; replay, repository context, signatures, committed projections, or trust debt is blocking"
+        if ! "$vela_bin" check "$FRONTIER" --json; then
+          echo "::error::Vela verification failed; replay, repository context, signatures, committed projections, or trust debt is blocking"
           exit 1
         fi
-        echo "strict verification OK — exact repository and scientific-state roots reproduce"
+        echo "verification OK — exact repository and scientific-state roots reproduce"
 
-    - name: Strict read-only repository verification on Windows
+    - name: Read-only repository verification on Windows
       if: runner.os == 'Windows'
       shell: pwsh
       env:
         FRONTIER: ${{ inputs.frontier }}
-        VELA_VERSION_INPUT: ${{ inputs.vela-version }}
       run: |
-        $requested = $env:VELA_VERSION_INPUT.TrimStart('v')
+        $manifest = Get-Content (Join-Path "${{ github.action_path }}" "Cargo.toml") -Raw
+        $matched = [regex]::Match($manifest, '(?m)^version = "([0-9]+\.[0-9]+\.[0-9]+)"$')
+        if (-not $matched.Success) { throw "the pinned Vela action does not contain one stable release" }
+        $requested = $matched.Groups[1].Value
         $vela = Join-Path $env:RUNNER_TEMP "vela-action-$requested\bin\vela.exe"
-        & $vela check $env:FRONTIER --strict
+        & $vela check $env:FRONTIER --json
         if ($LASTEXITCODE -ne 0) {
-          throw "strict Vela verification failed"
+          throw "Vela verification failed"
         }
-        Write-Host "strict verification OK — exact repository and scientific-state roots reproduce"
+        Write-Host "verification OK — exact repository and scientific-state roots reproduce"

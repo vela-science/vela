@@ -99,20 +99,15 @@ fn assert_immutable_action_pins(name: &str, workflow: &str) {
 fn root_action_is_consumer_pinned_strict_and_nonfinalizing() {
     let action = parse_action(ROOT_ACTION);
     assert!(action["inputs"].get("strict").is_none());
+    assert!(action["inputs"].get("vela-version").is_none());
     assert_eq!(
         action["inputs"]
             .as_object()
             .expect("action inputs must be an object")
             .len(),
-        2,
-        "the public action accepts only frontier and one exact release"
+        1,
+        "the public action accepts only the frontier path"
     );
-    assert_eq!(action["inputs"]["vela-version"]["required"], true);
-
-    let validate = script_named(&action, "Validate exact Vela release pin");
-    assert!(validate.contains("requested=\"${VELA_VERSION_INPUT#v}\""));
-    assert!(validate.contains("vela-version is required"));
-    assert!(validate.contains("vela-version must be one stable exact release"));
 
     let unix_install = script_named(&action, "Install Vela on Unix");
     let windows_install = script_named(&action, "Install Vela on Windows");
@@ -132,19 +127,18 @@ fn root_action_is_consumer_pinned_strict_and_nonfinalizing() {
             "each installer must expose the workflow token to attestation checks"
         );
     }
+    assert!(unix_install.contains("$ACTION_PATH/Cargo.toml"));
     assert!(unix_install.contains("bash \"$ACTION_PATH/install.sh\""));
     assert!(unix_install.contains("VELA_INSTALL_PREFIX=\"$install_root\""));
     assert!(unix_install.contains("\"$install_root/bin/vela\" --version"));
     assert!(windows_install.contains("install.ps1"));
     assert!(windows_install.contains("vela.exe"));
 
-    let unix_strict = script_named(&action, "Strict read-only repository verification on Unix");
-    let windows_strict = script_named(
-        &action,
-        "Strict read-only repository verification on Windows",
-    );
-    assert!(unix_strict.contains("\"$vela_bin\" check \"$FRONTIER\" --strict"));
-    assert!(windows_strict.contains("check $env:FRONTIER --strict"));
+    let unix_strict = script_named(&action, "Read-only repository verification on Unix");
+    let windows_strict = script_named(&action, "Read-only repository verification on Windows");
+    assert!(unix_strict.contains("\"$vela_bin\" check \"$FRONTIER\" --json"));
+    assert!(windows_strict.contains("check $env:FRONTIER --json"));
+    assert!(!ROOT_ACTION.contains("--strict"));
 
     for forbidden in [
         "vela frontier",
@@ -210,6 +204,7 @@ fn reviewed_tags_publish_provenance_labeled_cross_platform_bundles() {
     assert!(RELEASE_WORKFLOW.contains("test -f \"dist/$asset.sha256\""));
     assert!(RELEASE_WORKFLOW.contains("shasum -a 256 \"${{ matrix.asset }}\""));
     assert!(RELEASE_WORKFLOW.contains("Get-FileHash -Algorithm SHA256 $name"));
+    assert!(RELEASE_WORKFLOW.contains("\"${name}.sha256\""));
     assert!(RELEASE_WORKFLOW.contains("actions/attest-build-provenance@"));
     assert!(RELEASE_WORKFLOW.contains("gh release create \"$GITHUB_REF_NAME\" dist/*"));
     assert!(RELEASE_WORKFLOW.contains("release_flags+=(--prerelease)"));
