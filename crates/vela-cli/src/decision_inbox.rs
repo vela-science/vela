@@ -541,6 +541,17 @@ fn projection_root(projection: &DecisionInboxProjection) -> Result<String, Strin
     Ok(format!("sha256:{}", hex::encode(digest.finalize())))
 }
 
+fn sort_entries(entries: &mut [DecisionInboxEntry]) {
+    entries.sort_by(|left, right| {
+        let left_priority = usize::from(left.readiness.protocol_gate != "satisfied");
+        let right_priority = usize::from(right.readiness.protocol_gate != "satisfied");
+        left_priority
+            .cmp(&right_priority)
+            .then_with(|| left.created_at.cmp(&right.created_at))
+            .then_with(|| left.proposal_id.cmp(&right.proposal_id))
+    });
+}
+
 /// Rebuild the complete pending scientific Decision Inbox from exact current
 /// repository state. This function performs no writes and has no side effects.
 #[allow(dead_code)]
@@ -598,16 +609,12 @@ pub(crate) fn project(frontier: &Path) -> Result<DecisionInboxProjection, String
             authority_heads: &authority_heads,
         })?);
     }
-    entries.sort_by(|left, right| {
-        left.created_at
-            .cmp(&right.created_at)
-            .then_with(|| left.proposal_id.cmp(&right.proposal_id))
-    });
+    sort_entries(&mut entries);
     let mut projection = DecisionInboxProjection {
         schema: PROJECTION_SCHEMA.into(),
         frontier_id: repository.frontier_id,
         repository_root,
-        order: "created_at_asc_then_proposal_id".into(),
+        order: "protocol_ready_first_then_created_at_asc_then_proposal_id".into(),
         entries,
         projection_root: String::new(),
     };
@@ -1104,6 +1111,43 @@ mod tests {
     }
 
     #[test]
+    fn inbox_places_actionable_decisions_before_blocked_cleanup() {
+        let requirement = "Replay the exact fixture.";
+        let subject = claim("A bounded fixture result.", 1, Vec::new());
+        let submission = submission(requirement);
+        let proposal = proposal("claim.add", &subject, &submission);
+        let verification = verification(&proposal, &submission, requirement, "pass");
+        let repository = repository(
+            Vec::new(),
+            vec![claim_standing(&subject, "pending_review")],
+            &proposal,
+            &submission,
+            &verification,
+        );
+        let mut ready = derive_fixture(
+            &repository,
+            &proposal,
+            &subject,
+            &submission,
+            &verification,
+            &heads(),
+        );
+        ready.proposal_id = "vpr_ready000000000".into();
+        ready.created_at = "2026-07-31T01:00:00Z".into();
+
+        let mut blocked = ready.clone();
+        blocked.proposal_id = "vpr_blocked000000".into();
+        blocked.created_at = "2026-07-30T01:00:00Z".into();
+        blocked.readiness.protocol_gate = "blocked".into();
+
+        let mut entries = vec![blocked, ready];
+        sort_entries(&mut entries);
+
+        assert_eq!(entries[0].proposal_id, "vpr_ready000000000");
+        assert_eq!(entries[1].proposal_id, "vpr_blocked000000");
+    }
+
+    #[test]
     fn review_context_embeds_the_matching_root_bound_entry() {
         let requirement = "Replay the exact fixture.";
         let subject = claim("A bounded fixture result.", 1, Vec::new());
@@ -1129,7 +1173,7 @@ mod tests {
             schema: PROJECTION_SCHEMA.into(),
             frontier_id: repository.frontier_id.clone(),
             repository_root: repository.canonical_root().unwrap(),
-            order: "created_at_asc_then_proposal_id".into(),
+            order: "protocol_ready_first_then_created_at_asc_then_proposal_id".into(),
             entries: vec![entry.clone()],
             projection_root: String::new(),
         };

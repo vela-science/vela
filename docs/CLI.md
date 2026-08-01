@@ -223,8 +223,9 @@ requirement-satisfying, complementary, or blocking using the same predicate as
 the protocol gate. Complementary evidence stays visible and root-bound but
 does not silently satisfy the registered requirement. `review list` remains
 the compact record queue; `review show` remains the complete source packet.
-`status` reports `protocol_ready_count` and `protocol_blocked_count`; neither
-field is a scientific recommendation.
+Entries whose protocol checks are satisfied appear before blocked cleanup;
+each group remains oldest-first. `status` reports `protocol_ready_count` and
+`protocol_blocked_count`; neither field is a scientific recommendation.
 
 An authorized human performs one semantic action:
 

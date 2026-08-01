@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Order the Decision Inbox by actionable protocol-satisfied entries before
+  blocked cleanup, while preserving oldest-first order within each group.
+  This changes only the deterministic read projection and its root; it does
+  not recommend or perform a Decision.
 - Replace the initialized `vela.status.v2` scalar `next_action` with
   `vela.status.v3` independent `actions.review` and `actions.work` lanes.
   Pending human Decisions no longer hide a fresh Target or active Attempt, and
