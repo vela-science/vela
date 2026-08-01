@@ -345,6 +345,9 @@ pub(crate) enum ReviewAction {
     Accept {
         frontier: PathBuf,
         proposal_id: String,
+        /// Require the exact Decision Inbox entry that was reviewed.
+        #[arg(long)]
+        if_entry_root: Option<String>,
         #[arg(long)]
         reason: String,
         #[arg(long)]
@@ -354,6 +357,9 @@ pub(crate) enum ReviewAction {
     Reject {
         frontier: PathBuf,
         proposal_id: String,
+        /// Require the exact Decision Inbox entry that was reviewed.
+        #[arg(long)]
+        if_entry_root: Option<String>,
         #[arg(long)]
         reason: String,
         #[arg(long)]

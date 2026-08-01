@@ -636,7 +636,6 @@ pub(crate) fn project(frontier: &Path) -> Result<DecisionInboxProjection, String
 
 /// Compare a URL- or sidecar-bound entry root with the current derived entry.
 /// The comparison never mutates or silently substitutes the requested root.
-#[allow(dead_code)]
 pub(crate) fn compare_entry_root(
     entry: &DecisionInboxEntry,
     requested_entry_root: &str,
@@ -651,6 +650,36 @@ pub(crate) fn compare_entry_root(
         requested_entry_root: requested_entry_root.into(),
         current_entry_root: entry.entry_root.clone(),
     }
+}
+
+/// Refuse a Decision before authority signing when the reviewed Inbox packet
+/// no longer matches current repository state.
+pub(crate) fn require_current_entry_root(
+    frontier: &Path,
+    proposal_id: &str,
+    requested_entry_root: &str,
+) -> Result<(), String> {
+    let digest = requested_entry_root
+        .strip_prefix("sha256:")
+        .filter(|digest| digest.len() == 64 && digest.bytes().all(|byte| byte.is_ascii_hexdigit()))
+        .ok_or_else(|| "--if-entry-root must be a full sha256 root".to_string())?;
+    if digest.bytes().any(|byte| byte.is_ascii_uppercase()) {
+        return Err("--if-entry-root must use lowercase hexadecimal".into());
+    }
+    let projection = project(frontier)?;
+    let entry = projection
+        .entries
+        .iter()
+        .find(|entry| entry.proposal_id == proposal_id)
+        .ok_or_else(|| format!("{proposal_id}: no current pending Decision Inbox entry"))?;
+    let comparison = compare_entry_root(entry, requested_entry_root);
+    if comparison.state == "current" {
+        return Ok(());
+    }
+    Err(format!(
+        "Decision Inbox entry changed: reviewed {}, current {}; inspect the Proposal again; no authority signature was requested",
+        comparison.requested_entry_root, comparison.current_entry_root,
+    ))
 }
 
 fn review_context_from_projection(

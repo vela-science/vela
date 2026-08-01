@@ -16,22 +16,35 @@ pub(crate) fn cmd_review_decide(
     frontier: PathBuf,
     proposal_id: &str,
     action: DecisionAction,
+    expected_entry_root: Option<&str>,
     reason: String,
     json: bool,
 ) {
     if reason.trim().is_empty() {
         ui::fail_with(ErrorKind::Usage, "--reason must not be empty", None);
     }
-    cmd_current_review_decide(frontier, proposal_id, action, reason, json);
+    cmd_current_review_decide(
+        frontier,
+        proposal_id,
+        action,
+        expected_entry_root,
+        reason,
+        json,
+    );
 }
 
 fn cmd_current_review_decide(
     frontier: PathBuf,
     proposal_id: &str,
     action: DecisionAction,
+    expected_entry_root: Option<&str>,
     reason: String,
     json: bool,
 ) {
+    if let Some(entry_root) = expected_entry_root {
+        crate::decision_inbox::require_current_entry_root(&frontier, proposal_id, entry_root)
+            .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
+    }
     let observed_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
     let prepared = crate::current_repository_decision::prepare(
         &frontier,

@@ -993,6 +993,10 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let inbox = success_json(&run(&frontier, None, &["review", "inbox", ".", "--json"]));
     assert_eq!(inbox["schema"], "vela.decision-inbox.v2");
     assert_eq!(inbox["entries"].as_array().map(Vec::len), Some(1));
+    let reviewed_entry_root = inbox["entries"][0]["entry_root"]
+        .as_str()
+        .expect("Decision Inbox entry root")
+        .to_string();
     let proposal_id = submitted["proposal_id"].as_str().expect("Proposal ID");
     let review = success_json(&run(
         &frontier,
@@ -1021,6 +1025,35 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         checked["repository_root"]
     );
     assert_eq!(after_inspection["counts"]["accepted_claims"], 0);
+    let stale_entry_root = format!("sha256:{}", "0".repeat(64));
+    let stale_decision = run(
+        &frontier,
+        Some(agent.socket()),
+        &[
+            "review",
+            "reject",
+            ".",
+            proposal_id,
+            "--if-entry-root",
+            &stale_entry_root,
+            "--reason",
+            "The reviewed Decision packet is intentionally stale.",
+            "--json",
+        ],
+    );
+    assert!(!stale_decision.status.success());
+    let stale_error = format!(
+        "{}{}",
+        String::from_utf8_lossy(&stale_decision.stdout),
+        String::from_utf8_lossy(&stale_decision.stderr)
+    );
+    assert!(stale_error.contains("Decision Inbox entry changed"));
+    assert!(stale_error.contains("no authority signature was requested"));
+    let after_stale_refusal = success_json(&run(&frontier, None, &["check", ".", "--json"]));
+    assert_eq!(
+        after_stale_refusal["repository_root"],
+        after_inspection["repository_root"]
+    );
     let target_index: Value = serde_json::from_slice(
         &std::fs::read(frontier.join("targets.json")).expect("rebound Target Index"),
     )
@@ -1081,6 +1114,8 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             "reject",
             ".",
             proposal_id,
+            "--if-entry-root",
+            &reviewed_entry_root,
             "--reason",
             "The fixture proves the evidence path but is not a scientific result.",
             "--json",
@@ -1122,6 +1157,8 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             "reject",
             ".",
             proposal_id,
+            "--if-entry-root",
+            &reviewed_entry_root,
             "--reason",
             "The fixture proves the evidence path but is not a scientific result.",
             "--json",

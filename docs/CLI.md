@@ -214,6 +214,7 @@ An authorized human performs one semantic action:
 
 ```bash
 vela review reject . <vpr_id> \
+  --if-entry-root sha256:<entry-root-from-review-show> \
   --reason "The retained evidence does not satisfy the stated conditions." \
   --json
 ```
@@ -222,9 +223,17 @@ or, when eligible:
 
 ```bash
 vela review accept . <vpr_id> \
+  --if-entry-root sha256:<entry-root-from-review-show> \
   --reason "The exact claim, evidence, verification, and conditions support acceptance." \
   --json
 ```
+
+`--if-entry-root` is an optional compare-and-swap guard over the exact Decision
+Inbox packet the human inspected. Observatory and automated review surfaces
+should always pass it. If the Proposal, evidence, policy, authority head, or
+Standing changed, Vela refuses the command before requesting an authority
+signature. A person working entirely in one terminal may omit it; the Decision
+transaction still re-prepares and fail-closes against the current repository.
 
 The action, reason, principal, Proposal, policy, authority head, read set, and
 canonical delta are covered by one repository-authority transaction. There is

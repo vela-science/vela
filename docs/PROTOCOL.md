@@ -259,6 +259,13 @@ Plan binds:
 - current authority head, keyset, and policy; and
 - exact canonical delta.
 
+Clients can pass the exact derived Decision Inbox `entry_root` they presented
+to the reviewer as `--if-entry-root`. Vela recomputes that packet before
+authority signing and refuses a mismatch without requesting a signature. This
+is a freshness guard for user interfaces and automation, not a new canonical
+object or approval ceremony; Decision execution still re-prepares the full
+read set and fails closed under the repository write barrier.
+
 Acceptance requires every declared verification property to have an exact,
 independent passing Verification Record over the same Claim, Submission, and
 Proposal. A fail blocks. Missing, dependent, inconclusive, error, unavailable,

@@ -26,24 +26,28 @@ pub(crate) fn cmd_review(action: ReviewAction) {
         ReviewAction::Accept {
             frontier,
             proposal_id,
+            if_entry_root,
             reason,
             json,
         } => crate::cli::review_decision::cmd_review_decide(
             frontier,
             &proposal_id,
             crate::current_repository_decision::DecisionAction::Accept,
+            if_entry_root.as_deref(),
             reason,
             json,
         ),
         ReviewAction::Reject {
             frontier,
             proposal_id,
+            if_entry_root,
             reason,
             json,
         } => crate::cli::review_decision::cmd_review_decide(
             frontier,
             &proposal_id,
             crate::current_repository_decision::DecisionAction::Reject,
+            if_entry_root.as_deref(),
             reason,
             json,
         ),
