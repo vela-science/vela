@@ -10,8 +10,8 @@
   - ADR 0027 replaces the migration-era and dual-reader design;
   - ADR 0031 removes capabilities, the Vela-owned runner, Campaign host, and
     private Run receipts; and
-  - ADR 0032 proposes removing repository countersignatures from routine
-    Submission and Verification intake.
+  - ADR 0032 removes repository countersignatures from routine Submission and
+    Verification intake.
 
 ## Context
 
@@ -103,10 +103,11 @@ the exact proposed Claim, evidence and Verification set, current authority
 heads, semantic change to Standing, staleness, blockers, and next obligation.
 It has no independent lifecycle and grants no authority.
 
-Routine work should not interrupt a person merely to reproduce internal roots
-or countersign evidence that already authenticates its producer. ADR 0032
-defines the proposed evidence/authority split. Until that change is accepted
-and implemented, the current strict repository contract remains normative.
+Routine work does not interrupt a person merely to reproduce internal roots or
+countersign evidence that already authenticates its producer. ADR 0032 defines
+the implemented evidence/authority split: producer and verifier evidence uses
+the routine append-only path, while only human Decisions and rare repository
+administration use repository authority.
 
 This follows established system boundaries rather than introducing a Vela
 workflow runtime:

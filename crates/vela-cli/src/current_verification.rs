@@ -25,7 +25,7 @@ use crate::config::git_publish::{
     publish_exact_delta,
 };
 use crate::frontier_txn::{ContentDigest, InputBinding, WriteClass};
-use crate::workflow::{VerificationImportOutcome, publication_delta};
+use crate::repository_ops::{VerificationImportOutcome, publication_delta};
 
 const METHOD_MANIFEST_MAX_BYTES: u64 = 1024 * 1024;
 
@@ -435,7 +435,7 @@ fn import_inner(
     }
     ensure_pending_proposal(frontier, &repository, &record.subject.proposal_id)?;
 
-    let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier)?;
+    let journal_dir = crate::repository_ops::frontier_transaction_journal_dir(frontier)?;
     let barrier = crate::frontier_txn::FrontierTxn::acquire_routine_evidence_write_barrier(
         frontier,
         &journal_dir,

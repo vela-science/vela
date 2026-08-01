@@ -33,7 +33,7 @@ use crate::config::git_publish::{
 };
 use crate::frontier_txn::{ContentDigest, FrontierTxn, InputBinding, WriteClass};
 use crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner;
-use crate::workflow::publication_delta;
+use crate::repository_ops::publication_delta;
 
 const PLAN_SCHEMA: &str = "vela.current-review-decision.v1";
 const PLAN_DOMAIN: &[u8] = b"vela.current-review-decision.v1\0";
@@ -653,7 +653,7 @@ pub(crate) fn execute(
     if expected.action != expected_action {
         return Err("current review plan carries another action".into());
     }
-    let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier)?;
+    let journal_dir = crate::repository_ops::frontier_transaction_journal_dir(frontier)?;
     let barrier = FrontierTxn::acquire_repository_authority_write_barrier(frontier, &journal_dir)
         .map_err(|error| error.to_string())?;
     let prepared = prepare(
@@ -739,7 +739,8 @@ pub(crate) fn execute(
         },
     ];
     read_set.sort_by(|left, right| left.name.cmp(&right.name));
-    let (key_id, public_key) = crate::workflow::active_repository_signing_key(&prepared.authority)?;
+    let (key_id, public_key) =
+        crate::repository_ops::active_repository_signing_key(&prepared.authority)?;
     let mut signer = SshAgentRepositoryAuthoritySigner::from_environment(key_id, &public_key)?;
     let executable =
         std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;

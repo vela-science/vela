@@ -1,5 +1,5 @@
-//! CLI command surface. This module contains clap data only; handlers and
-//! dispatch stay in `cli.rs`.
+//! CLI command surface. This module contains Clap data only; handlers and
+//! dispatch stay in `cli.rs` and `command_handlers.rs`.
 //!
 //! ## Flag-naming conventions (one name per concept, no aliases)
 //! - **Acting identity** → `--as` for producer or verifier evidence.

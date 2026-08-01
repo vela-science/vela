@@ -1,4 +1,4 @@
-use crate::cli_commands::ReviewAction;
+use crate::command_spec::ReviewAction;
 
 pub(crate) fn cmd_review(action: ReviewAction) {
     match action {

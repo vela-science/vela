@@ -1,16 +1,14 @@
-//! `vela` — the command-line binary.
+//! `vela` — one CLI over the protocol, evidence, and Decision boundary.
 
-// The CLI / serve / workbench surface, relocated out of the
-// `vela-protocol` library so the substrate crate stays a pure protocol
-// library. These were `vela_protocol::{cli, serve, workbench, cli_*}`
-// before; they now live here and reach into the substrate via
-// `vela_protocol::*`.
-// The standard repository-authority transaction core used by fresh setup,
-// producer intake, verification import, and exact review decisions.
+// Keep the protocol crate read/replay focused. Product commands and local
+// repository writes live here; Vela exposes no server or workbench runtime.
 pub(crate) mod authority_transaction;
 mod bounded_file;
+pub(crate) mod command_handlers;
+pub(crate) mod command_spec;
 mod frontier;
 pub(crate) mod repository_authority_provider;
+pub(crate) mod repository_ops;
 pub(crate) mod routine_evidence_transaction;
 pub(crate) mod style;
 pub(crate) use frontier::cli_read;
@@ -33,10 +31,7 @@ pub(crate) use config::cli_identity;
 pub(crate) mod current_repository;
 pub(crate) mod frontier_txn;
 mod operation_journal;
-mod server;
 pub(crate) mod ui;
-pub(crate) mod workflow;
-pub(crate) use server::{cli_commands, cli_engine};
 
 pub mod cli;
 

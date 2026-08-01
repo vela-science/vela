@@ -23,7 +23,7 @@ use crate::config::git_publish::{
     publish_exact_delta,
 };
 use crate::frontier_txn::{ContentDigest, InputBinding, OperationId, OperationKind, WriteClass};
-use crate::workflow::publication_delta;
+use crate::repository_ops::publication_delta;
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct ProposalWithdrawalOutcome {
@@ -190,7 +190,7 @@ pub(crate) fn withdraw(
         return Err("proposal withdrawal actor must own the exact retained Submission".into());
     }
 
-    let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier)?;
+    let journal_dir = crate::repository_ops::frontier_transaction_journal_dir(frontier)?;
     let barrier = crate::frontier_txn::FrontierTxn::acquire_routine_evidence_write_barrier(
         frontier,
         &journal_dir,

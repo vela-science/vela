@@ -1,6 +1,6 @@
 # ADR 0033: Direct Submission lineage; Registration retirement
 
-- Status: Accepted; implementation and controlled Frontier rewrite in progress
+- Status: Accepted and implemented on `main`
 - Proposed: 2026-08-01
 - Protocol effect: removes `vela.registration-record.v1` and adopts
   `vela.repository.v4`
@@ -58,7 +58,7 @@ in the shipping runtime.
 ## Controlled rewrite
 
 Because the repository manifest is replayed through Git history, the four
-pre-release Frontiers receive one bounded current-state rewrite. It must:
+pre-release Frontiers received one bounded current-state rewrite. It:
 
 1. verify the complete version-3 repository and all direct lineage first;
 2. remove only Registration files and references;

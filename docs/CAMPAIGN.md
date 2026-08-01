@@ -134,6 +134,23 @@ gone. Remove stale code when encountered and use focused checks during
 development. Run the full release union only for a real release candidate; do
 not bump versions merely to synchronize metadata.
 
+The remaining mechanism budget is explicit:
+
+| Mechanism | Disposition | Why |
+| --- | --- | --- |
+| Producer and verifier signatures | Keep | Authenticate exact evidence without granting Standing. |
+| One repository-authority DSSE record per human Decision | Keep | Binds the attributed Decision and exact replayable transition. |
+| Retained Cedar policy material | Freeze | Existing authority history depends on it. Add no policy product, ordinary-work gate, or administration UI; replace it only in a future current-schema cut that deletes more code than it adds. |
+| Crash journal and Git compare-and-swap publication | Keep | Protect partial-write recovery and concurrent publication, not workflow ceremony. |
+| Harbor jobs, OAuth, retries, trajectories, timing, and cost | External | Harbor already owns benchmark execution. Vela keeps only its task fixture and semantic scorer. |
+| Neon branches | Delete/defer | One `main` read projection is enough; rehearse locally in disposable PostgreSQL. |
+| Agent Campaign runtime, scheduler, or transcript store | Reject | Native agents own execution and durable approval state. Vela exposes consequential pending Decisions only. |
+
+No retained mechanism may create another prompt for routine computation,
+artifact creation, Submission, or Verification. A human interruption is
+justified only by a change to Standing, policy/schema/authority, scope or risk,
+external publication, or a destructive action.
+
 ### Gate 2 — complete one clear scientific loop
 
 For one real pending Proposal:

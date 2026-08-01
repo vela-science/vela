@@ -25,7 +25,7 @@ use crate::config::git_publish::{
     publish_exact_delta,
 };
 use crate::frontier_txn::{ContentDigest, InputBinding, WriteClass};
-use crate::workflow::{
+use crate::repository_ops::{
     PreparedSubmissionArtifacts, SubmitOutcome, prepare_submission_artifacts, publication_delta,
     submission_publication_inputs,
 };
@@ -428,7 +428,7 @@ fn submit_inner(
         return Ok(outcome);
     }
 
-    let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier)?;
+    let journal_dir = crate::repository_ops::frontier_transaction_journal_dir(frontier)?;
     let barrier = crate::frontier_txn::FrontierTxn::acquire_routine_evidence_write_barrier(
         frontier,
         &journal_dir,

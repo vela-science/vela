@@ -512,7 +512,7 @@ fn initialize_current_repository_authority(
     let executable =
         std::env::current_exe().map_err(|error| format!("resolve current Vela binary: {error}"))?;
     let binary_sha256 = execution_binary_sha256(&executable)?;
-    let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier)?;
+    let journal_dir = crate::repository_ops::frontier_transaction_journal_dir(frontier)?;
     let barrier =
         FrontierTxn::acquire_repository_authority_initialization_barrier(frontier, &journal_dir)
             .map_err(|error| error.to_string())?;

@@ -15,10 +15,10 @@ struct Cli {
 }
 
 pub(crate) use crate::cli_check::*;
-use crate::cli_commands::*;
-use crate::cli_engine::{cmd_reproduce, cmd_verify_evidence};
 pub(crate) use crate::cli_read::*;
 pub(crate) use crate::cli_write::*;
+use crate::command_handlers::{cmd_reproduce, cmd_verify_evidence};
+use crate::command_spec::*;
 
 mod authority;
 pub(crate) mod help_text;
@@ -282,10 +282,13 @@ pub fn run_command() {
                         "exact execution binding requires all four full roots".to_string(),
                     ),
                 };
-                let requested_change =
-                    crate::workflow::submission_requested_change(corrects, supersedes, target_root)
-                        .unwrap_or_else(|error| fail_preflight(crate::ui::ErrorKind::Usage, error));
-                let authored = crate::workflow::author_submission(
+                let requested_change = crate::repository_ops::submission_requested_change(
+                    corrects,
+                    supersedes,
+                    target_root,
+                )
+                .unwrap_or_else(|error| fail_preflight(crate::ui::ErrorKind::Usage, error));
+                let authored = crate::repository_ops::author_submission(
                     &dir,
                     &actor,
                     claim,
@@ -307,7 +310,7 @@ pub fn run_command() {
                 });
                 (authored, None, actor)
             };
-            match crate::workflow::submit(&dir, &submission, &actor, bundle_root.as_deref()) {
+            match crate::repository_ops::submit(&dir, &submission, &actor, bundle_root.as_deref()) {
                 Ok(outcome) => {
                     if json {
                         let mut payload = serde_json::to_value(&outcome)

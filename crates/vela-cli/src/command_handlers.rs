@@ -1,5 +1,7 @@
+//! Handlers shared by the direct CLI dispatch.
+
 use crate::cli::{collect_witness_files, fail, fail_return, parse_witness, print_json};
-use crate::cli_commands::*;
+use crate::command_spec::*;
 use serde_json::{Value, json};
 use std::path::{Component, Path, PathBuf};
 use vela_protocol::proposal_v1::ProposalV1;
@@ -36,7 +38,7 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                 },
             )
             .unwrap_or_else(|error| fail_return(&error));
-            let result = crate::workflow::import_verification(&frontier, &record, &actor)
+            let result = crate::repository_ops::import_verification(&frontier, &record, &actor)
                 .unwrap_or_else(|error| fail_return(&error));
             print_verification_result(&result, "verification record", json);
         }
@@ -57,7 +59,7 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                         record.display()
                     ))
                 });
-            let result = crate::workflow::import_verification(&frontier, &record, &actor)
+            let result = crate::repository_ops::import_verification(&frontier, &record, &actor)
                 .unwrap_or_else(|error| fail_return(&error));
             print_verification_result(&result, "verification import", json);
         }
@@ -65,7 +67,7 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
 }
 
 fn print_verification_result(
-    result: &crate::workflow::VerificationImportOutcome,
+    result: &crate::repository_ops::VerificationImportOutcome,
     command: &str,
     json_output: bool,
 ) {
