@@ -30,16 +30,29 @@ def git(*arguments: str) -> str:
     ).stdout.strip()
 
 
-def outcome(answer: Any, key: Any, binding: Any, head: str, status: str) -> dict[str, Any]:
+def outcome(
+    answer: Any,
+    key: Any,
+    fixture: Any,
+    head: str,
+    tree: str,
+    status: str,
+) -> dict[str, Any]:
     eligibility: list[str] = []
     correctness: list[str] = []
     if not isinstance(key, dict) or key.get("answer_key_root") != record_root(key, "answer_key_root"):
         eligibility.append("answer_key_invalid")
-    if not isinstance(binding, dict) or binding.get("binding_root") != record_root(binding, "binding_root"):
-        eligibility.append("task_binding_invalid")
-    expected_head = binding.get("frontier", {}).get("git_commit") if isinstance(binding, dict) else None
+    if not isinstance(fixture, dict) or fixture.get("fixture_root") != record_root(fixture, "fixture_root"):
+        eligibility.append("fixture_invalid")
+    elif not isinstance(key, dict) or key.get("fixture_root") != fixture["fixture_root"]:
+        eligibility.append("fixture_answer_key_mismatch")
+    frontier = fixture.get("frontier", {}) if isinstance(fixture, dict) else {}
+    expected_head = frontier.get("git_commit")
+    expected_tree = frontier.get("git_tree")
     if head != expected_head:
         eligibility.append("frontier_head_drift")
+    if tree != expected_tree:
+        eligibility.append("frontier_tree_drift")
     if status:
         eligibility.append("frontier_worktree_drift")
     if not isinstance(key, dict) or answer != key.get("expected"):
@@ -56,11 +69,18 @@ def main() -> None:
     answer_path = Path("/logs/artifacts/answer.json")
     answer = read(answer_path) if answer_path.is_file() else None
     key = read(Path("/tests/answer-key.json"))
-    binding = read(Path("/tests/task-binding.json"))
-    result = outcome(answer, key, binding, git("rev-parse", "HEAD"), git("status", "--porcelain"))
+    fixture = read(Path("/tests/fixture.json"))
+    result = outcome(
+        answer,
+        key,
+        fixture,
+        git("rev-parse", "HEAD"),
+        git("rev-parse", "HEAD^{tree}"),
+        git("status", "--porcelain"),
+    )
     verification = {
-        "schema": "vela.harbor-offline-verification.v2",
-        "binding_root": binding.get("binding_root"),
+        "fixture_root": fixture.get("fixture_root"),
+        "answer_key_root": key.get("answer_key_root"),
         "answer_root": (
             f"sha256:{hashlib.sha256(canonical_bytes(answer)).hexdigest()}"
             if answer is not None else None

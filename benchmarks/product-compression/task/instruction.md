@@ -1,7 +1,7 @@
 # Inspect one exact Frontier handoff
 
 Work only in `/workspace/frontier`, an isolated checkout of the exact commit
-named in `/opt/vela-input/task-binding.json`.
+named in `/opt/vela-input/fixture.json`.
 
 {{TOOL_GUIDANCE}}
 

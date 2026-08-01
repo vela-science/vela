@@ -1,17 +1,30 @@
 #!/usr/bin/env python3
-"""Materialize one current, read-only product-compression fixture."""
+"""Materialize one native Harbor product-compression study."""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Sequence
 
 import contract
+
+
+ARMS = ("git-files", "vela-guided")
+SESSIONS = ("git-files-01", "vela-guided-01", "vela-guided-02", "git-files-02")
+COMPARISON = {
+    "required_repetitions_per_arm": 2,
+    "guided_exact_required": 2,
+    "exactness_rule": "guided_dominates_or_ties_baseline",
+    "efficiency_when_exactness_tied": "median_elapsed_improves_at_least_20_percent",
+    "cost_rule": "guided_median_cost_no_regression",
+}
 
 
 def fail(message: str) -> None:
@@ -25,7 +38,7 @@ def digest(path: Path) -> str:
         raise contract.ContractError(f"cannot hash {path}: {exc}") from exc
 
 
-def command(argv: Sequence[str], *, cwd: Path) -> str:
+def command(argv: Sequence[str], *, cwd: Path | None = None) -> str:
     try:
         result = subprocess.run(argv, cwd=cwd, check=False, capture_output=True, text=True)
     except OSError as exc:
@@ -52,7 +65,7 @@ def relative_content_path(root: str, category: str) -> Path:
     return Path("records") / category / "sha256" / f"{root.removeprefix('sha256:')}.json"
 
 
-def materialize(
+def materialize_fixture(
     frontier: Path, vela: Path, proposal_id: str
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Bind one exact next Target and one current Decision Inbox entry."""
@@ -170,11 +183,170 @@ def materialize(
     return fixture, answer_key
 
 
+def tree_root(directory: Path) -> str:
+    rows = [
+        {
+            "path": path.relative_to(directory).as_posix(),
+            "sha256": contract.sha256_root(path.read_bytes()),
+        }
+        for path in sorted(item for item in directory.rglob("*") if item.is_file())
+    ]
+    return contract.sha256_root(contract.canonical_bytes(rows))
+
+
+def render(path: Path, replacements: dict[str, str]) -> None:
+    text = path.read_text(encoding="utf-8")
+    for marker, replacement in replacements.items():
+        text = text.replace(f"{{{{{marker}}}}}", replacement)
+    if "{{" in text or "}}" in text:
+        fail(f"unresolved task template marker in {path}")
+    path.write_text(text, encoding="utf-8")
+
+
+def build_study(
+    fixture: dict[str, Any],
+    answer_key: dict[str, Any],
+    frontier: Path,
+    vela_linux: Path,
+    model: str,
+    codex_version: str,
+    job_name: str,
+    output: Path,
+) -> dict[str, Any]:
+    """Build the cached Harbor tasks and frozen comparison plan."""
+    if output.exists() and (not output.is_dir() or any(output.iterdir())):
+        fail(f"output must be absent or empty: {output}")
+    if fixture.get("fixture_root") != contract.record_root(fixture, "fixture_root"):
+        fail("fixture root mismatch")
+    contract.validate_answer_key(answer_key)
+    if fixture["fixture_root"] != answer_key["fixture_root"]:
+        fail("fixture and answer key disagree")
+
+    frontier = frontier.resolve()
+    vela_linux = vela_linux.resolve()
+    if command(("git", "status", "--porcelain"), cwd=frontier):
+        fail("frontier checkout must be clean")
+    if command(("git", "rev-parse", "HEAD"), cwd=frontier) != fixture["frontier"]["git_commit"]:
+        fail("frontier checkout does not match the fixture")
+    if not vela_linux.is_file() or vela_linux.read_bytes()[:4] != b"\x7fELF":
+        fail("guided arm requires an exact Linux Vela executable")
+    if not all((model, codex_version, job_name)):
+        fail("model, Codex version, and job name are required")
+
+    output.mkdir(parents=True, exist_ok=True)
+    contract.write_json(output / "fixture.json", fixture)
+    contract.write_json(output / "answer-key.json", answer_key)
+    tasks = output / "tasks"
+    bundle = output / "frontier.bundle"
+    command(("git", "bundle", "create", str(bundle), "HEAD"), cwd=frontier)
+    template = Path(__file__).with_name("task")
+    task_rows = []
+    try:
+        for session in SESSIONS:
+            arm = session.rsplit("-", 1)[0]
+            task = tasks / session
+            shutil.copytree(template, task)
+            environment = task / "environment"
+            tests = task / "tests"
+            shutil.copy2(bundle, environment / "frontier.bundle")
+            shutil.copy2(output / "fixture.json", environment / "fixture.json")
+            shutil.copy2(
+                Path(__file__).with_name("answer.schema.json"),
+                environment / "answer.schema.json",
+            )
+            shutil.copy2(output / "fixture.json", tests / "fixture.json")
+            shutil.copy2(output / "answer-key.json", tests / "answer-key.json")
+
+            vela_install = ""
+            guidance = (
+                "Use ordinary Git and file-reading tools only. "
+                "The `vela` executable is intentionally absent."
+            )
+            if arm == "vela-guided":
+                shutil.copy2(vela_linux, environment / "vela")
+                vela_install = (
+                    "COPY vela /usr/local/bin/vela\n"
+                    "RUN chmod 0555 /usr/local/bin/vela && "
+                    f"test \"$(vela --version)\" = {shlex.quote(fixture['vela']['version'])}"
+                )
+                guidance = (
+                    "You may also use the installed read-only `vela` CLI: "
+                    "`vela status . --json`, "
+                    "`vela next . --json`, `vela show . <id> --json`, and "
+                    "`vela review show . <id> --json`."
+                )
+            render(
+                task / "instruction.md",
+                {"SESSION_ID": session, "TOOL_GUIDANCE": guidance},
+            )
+            render(task / "task.toml", {"SESSION_ID": session})
+            render(environment / "Dockerfile", {"VELA_INSTALL": vela_install})
+            task_rows.append({
+                "path": task.relative_to(output).as_posix(),
+                "root": tree_root(task),
+            })
+    finally:
+        bundle.unlink(missing_ok=True)
+
+    plan = contract.seal({
+        "schema": "vela.product-compression-plan.v7",
+        "plan_root": "",
+        "fixture_root": fixture["fixture_root"],
+        "answer_key_root": answer_key["answer_key_root"],
+        "harbor": {"version": command(("harbor", "--version"))},
+        "agent": {"name": "codex", "model": model, "version": codex_version},
+        "vela": {
+            "version": fixture["vela"]["version"],
+            "linux_sha256": contract.sha256_root(vela_linux.read_bytes()),
+        },
+        "sessions": list(SESSIONS),
+        "tasks": task_rows,
+        "comparison_rule": COMPARISON,
+        "claim_limit": (
+            "First-party evidence from one frozen task; no independent-user "
+            "or general scientific-workflow claim."
+        ),
+    }, "plan_root")
+    contract.write_json(output / "plan.json", plan)
+    contract.write_json(output / "harbor-job.json", {
+        "job_name": job_name,
+        "n_concurrent_trials": 1,
+        "retry": {"max_retries": 0},
+        "agents": [{
+            "name": "codex",
+            "model_name": model,
+            "kwargs": {"version": codex_version},
+        }],
+        "tasks": [{"path": row["path"]} for row in task_rows],
+    })
+    return plan
+
+
+def materialize(
+    frontier: Path,
+    vela: Path,
+    proposal_id: str,
+    vela_linux: Path,
+    model: str,
+    codex_version: str,
+    job_name: str,
+    output: Path,
+) -> dict[str, Any]:
+    fixture, answer_key = materialize_fixture(frontier, vela, proposal_id)
+    return build_study(
+        fixture, answer_key, frontier, vela_linux, model, codex_version, job_name, output,
+    )
+
+
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
     result.add_argument("--frontier", type=Path, required=True)
     result.add_argument("--vela", type=Path, required=True)
     result.add_argument("--proposal", required=True)
+    result.add_argument("--vela-linux", type=Path, required=True)
+    result.add_argument("--model", required=True)
+    result.add_argument("--codex-version", required=True)
+    result.add_argument("--job-name", default="vela-product-compression")
     result.add_argument("--output", type=Path, required=True)
     return result
 
@@ -182,13 +354,22 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
-        fixture, answer_key = materialize(args.frontier, args.vela, args.proposal)
-        args.output.mkdir(parents=True, exist_ok=True)
-        contract.write_json(args.output / "fixture.json", fixture)
-        contract.write_json(args.output / "answer-key.json", answer_key)
+        plan = materialize(
+            args.frontier,
+            args.vela,
+            args.proposal,
+            args.vela_linux,
+            args.model,
+            args.codex_version,
+            args.job_name,
+            args.output,
+        )
         sys.stdout.buffer.write(contract.canonical_bytes({
-            "ok": True, "fixture_root": fixture["fixture_root"],
-            "answer_key_root": answer_key["answer_key_root"], "writes_frontier": False,
+            "ok": True,
+            "plan_root": plan["plan_root"],
+            "fixture_root": plan["fixture_root"],
+            "answer_key_root": plan["answer_key_root"],
+            "writes_frontier": False,
         }))
         return 0
     except contract.ContractError as exc:

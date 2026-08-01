@@ -11,7 +11,8 @@ task format, containers, Codex execution and OAuth, retries, trajectories,
 artifacts, verifier rewards, timing, cost, and raw results. Vela contributes
 only:
 
-- `materialize.py`: one exact Target and Decision-Inbox fixture;
+- `materialize.py`: one exact Target and Decision-Inbox fixture plus the
+  ready-to-run local Harbor task set;
 - `answer.schema.json`: the participant output contract;
 - `task/tests/verify.py`: an offline exact scorer; and
 - `summarize.py`: the prospective two-arm comparison rule.
@@ -49,16 +50,12 @@ export VELA_BENCH_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/vela/harbor/product-com
 mkdir -p "$VELA_BENCH_CACHE"
 
 python3 benchmarks/product-compression/materialize.py \
-  --frontier /exact/frontier --vela /exact/vela \
-  --proposal vpr_<id> --output "$VELA_BENCH_CACHE/materials"
-
-python3 benchmarks/product-compression/prepare.py \
-  --materials "$VELA_BENCH_CACHE/materials" \
   --frontier /exact/frontier \
+  --vela /exact/vela \
+  --proposal vpr_<id> \
   --vela-linux /exact/static-linux-vela \
   --model gpt-5.6-terra \
   --codex-version 0.145.0 \
-  --vela-version 'vela 0.950.1' \
   --job-name vela-product-compression \
   --output "$VELA_BENCH_CACHE/study"
 
@@ -82,7 +79,11 @@ python3 -m unittest discover \
 ```
 
 Compact, claim-limited results cited by the paper belong under
-`paper/artifacts/`. Raw Harbor tasks, trajectories, and caches do not.
+`paper/artifacts/`. A reproducible result retains the frozen plan, fixture,
+answer key, Harbor job config/result, each trial config/result, participant
+answer, verifier output/reward, compact summary, and a SHA-256 manifest.
+Trajectories, session logs, recordings, credentials, Docker caches, and other
+generated execution state do not belong in Git.
 
 ## History
 

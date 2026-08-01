@@ -12,7 +12,7 @@ from statistics import median
 from typing import Any, Sequence
 
 import contract
-import prepare
+import materialize
 
 
 def elapsed_ms(start: Any, finish: Any) -> int:
@@ -59,7 +59,7 @@ def summarize(plan_path: Path, job: Path) -> dict[str, Any]:
     plan = contract.read_json(plan_path)
     if plan.get("schema") != "vela.product-compression-plan.v7" or plan.get("plan_root") != contract.record_root(plan, "plan_root"):
         raise contract.ContractError("invalid product-compression plan")
-    if plan.get("comparison_rule") != prepare.COMPARISON:
+    if plan.get("comparison_rule") != materialize.COMPARISON:
         raise contract.ContractError("unsupported comparison rule")
     job_result_path = job / "result.json"
     job_result = contract.read_json(job_result_path)
@@ -72,7 +72,7 @@ def summarize(plan_path: Path, job: Path) -> dict[str, Any]:
         raise contract.ContractError("Harbor job must contain four clean, terminal, unretried trials")
     sessions = [trial(job, session) for session in plan["sessions"]]
     arms = {}
-    for arm in prepare.ARMS:
+    for arm in materialize.ARMS:
         selected = [session for session in sessions if session["arm"] == arm]
         arms[arm] = {
             "eligible": sum(session["eligible"] for session in selected),

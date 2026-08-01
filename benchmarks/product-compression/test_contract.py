@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 
 import contract
-import prepare
+import materialize
 import summarize
 
 
@@ -51,13 +51,31 @@ def answer() -> dict:
     }
 
 
-def answer_key() -> dict:
+def answer_key(fixture_root: str = root("9")) -> dict:
     return contract.seal({
         "schema": "vela.product-compression-answer-key.v5",
         "answer_key_root": "",
-        "fixture_root": root("9"),
+        "fixture_root": fixture_root,
         "expected": answer(),
     }, "answer_key_root")
+
+
+def fixture(commit: str = "1" * 40, tree: str = "2" * 40) -> dict:
+    return contract.seal({
+        "schema": "vela.product-compression-fixture.v3",
+        "fixture_root": "",
+        "vela": {"version": "vela test", "binary_sha256": root("7")},
+        "frontier": {
+            "frontier_id": "vfr_0123456789abcdef",
+            "remote": "test",
+            "git_commit": commit,
+            "git_tree": tree,
+            "repository_root": root("1"),
+            "target_index_root": root("2"),
+        },
+        "task": {"proposal_id": "vpr_0123456789abcdef"},
+        "participant_files": [],
+    }, "fixture_root")
 
 
 def plan() -> dict:
@@ -69,16 +87,16 @@ def plan() -> dict:
         "harbor": {"version": "0.20.0"},
         "agent": {"name": "codex", "model": "test", "version": "0.1.0"},
         "vela": {"version": "vela test", "linux_sha256": root("8")},
-        "sessions": list(prepare.SESSIONS),
+        "sessions": list(materialize.SESSIONS),
         "tasks": [],
-        "comparison_rule": prepare.COMPARISON,
+        "comparison_rule": materialize.COMPARISON,
         "claim_limit": "First-party evidence from one frozen task; no independent-user or general scientific-workflow claim.",
     }, "plan_root")
 
 
 def write_job(directory: Path, exact_sessions: set[str]) -> None:
     total_cost = 0.0
-    for index, session in enumerate(prepare.SESSIONS, start=1):
+    for index, session in enumerate(materialize.SESSIONS, start=1):
         trial = directory / f"{index:02d}-{session}__trial"
         cost = 0.25 if session.startswith("vela-guided") else 0.5
         total_cost += cost
@@ -156,18 +174,25 @@ class ProductCompressionTests(unittest.TestCase):
 
     def test_harbor_verifier_separates_eligibility_and_exactness(self) -> None:
         verifier = load_verifier()
-        binding = contract.seal({
-            "binding_root": "",
-            "frontier": {"git_commit": "1" * 40},
-        }, "binding_root")
-        exact = verifier.outcome(answer(), answer_key(), binding, "1" * 40, "")
+        source = fixture()
+        key = answer_key(source["fixture_root"])
+        exact = verifier.outcome(
+            answer(), key, source, "1" * 40, "2" * 40, "",
+        )
         self.assertEqual((exact["eligible"], exact["exact"]), (True, True))
         wrong = answer()
         wrong["next_work"]["target_id"] = "erdos:9999"
-        mismatch = verifier.outcome(wrong, answer_key(), binding, "1" * 40, "")
+        mismatch = verifier.outcome(
+            wrong, key, source, "1" * 40, "2" * 40, "",
+        )
         self.assertEqual((mismatch["eligible"], mismatch["exact"]), (True, False))
+        drift = verifier.outcome(
+            answer(), key, source, "1" * 40, "3" * 40, "",
+        )
+        self.assertFalse(drift["eligible"])
+        self.assertIn("frontier_tree_drift", drift["eligibility_failure_codes"])
 
-    def test_prepare_materializes_native_harbor_tasks(self) -> None:
+    def test_materializer_builds_native_harbor_study(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
             frontier = base / "frontier"
@@ -178,42 +203,47 @@ class ProductCompressionTests(unittest.TestCase):
             (frontier / "README.md").write_text("fixture\n")
             subprocess.run(["git", "add", "README.md"], cwd=frontier, check=True)
             subprocess.run(["git", "commit", "-qm", "fixture"], cwd=frontier, check=True)
-            commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=frontier, check=True, capture_output=True, text=True).stdout.strip()
-            tree = subprocess.run(["git", "rev-parse", "HEAD^{tree}"], cwd=frontier, check=True, capture_output=True, text=True).stdout.strip()
+            commit = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=frontier, check=True,
+                capture_output=True, text=True,
+            ).stdout.strip()
+            tree = subprocess.run(
+                ["git", "rev-parse", "HEAD^{tree}"], cwd=frontier, check=True,
+                capture_output=True, text=True,
+            ).stdout.strip()
 
-            materials = base / "materials"
-            key = answer_key()
-            fixture = contract.seal({
-                "schema": "vela.product-compression-fixture.v3",
-                "fixture_root": "",
-                "vela": {"version": "vela test", "binary_sha256": root("7")},
-                "frontier": {
-                    "frontier_id": "vfr_0123456789abcdef",
-                    "remote": "test",
-                    "git_commit": commit,
-                    "git_tree": tree,
-                    "repository_root": root("1"),
-                    "target_index_root": root("2"),
-                },
-                "task": {"proposal_id": "vpr_0123456789abcdef"},
-                "participant_files": [],
-            }, "fixture_root")
-            key["fixture_root"] = fixture["fixture_root"]
-            contract.seal(key, "answer_key_root")
-            contract.write_json(materials / "fixture.json", fixture)
-            contract.write_json(materials / "answer-key.json", key)
+            source = fixture(commit, tree)
+            key = answer_key(source["fixture_root"])
             binary = base / "vela-linux"
             binary.write_bytes(b"\x7fELFtest")
             output = base / "study"
-            prepared = prepare.prepare(
-                materials, frontier, binary, "test-model", "0.1.0", "vela test",
+            prepared = materialize.build_study(
+                source, key, frontier, binary, "test-model", "0.1.0",
                 "vela-product-compression-test", output,
             )
             self.assertEqual(prepared["schema"], "vela.product-compression-plan.v7")
             self.assertEqual(len(prepared["tasks"]), 4)
-            self.assertNotIn("{{", (output / "tasks/git-files-01/instruction.md").read_text())
-            self.assertNotIn("COPY vela", (output / "tasks/git-files-01/environment/Dockerfile").read_text())
-            self.assertIn("COPY vela", (output / "tasks/vela-guided-01/environment/Dockerfile").read_text())
+            baseline = output / "tasks/git-files-01"
+            guided = output / "tasks/vela-guided-01"
+            self.assertNotIn("{{", (baseline / "instruction.md").read_text())
+            self.assertNotIn("COPY vela", (baseline / "environment/Dockerfile").read_text())
+            self.assertIn("COPY vela", (guided / "environment/Dockerfile").read_text())
+            self.assertEqual(contract.read_json(output / "fixture.json"), source)
+            self.assertEqual(contract.read_json(output / "answer-key.json"), key)
+            self.assertEqual(
+                {path.name for path in (baseline / "environment").iterdir()},
+                {"Dockerfile", "answer.schema.json", "fixture.json", "frontier.bundle"},
+            )
+            resolved = subprocess.run(
+                [
+                    "harbor", "run", "--config",
+                    str(output / "harbor-job.json"), "--print-config",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(resolved.returncode, 0, resolved.stderr)
 
     def test_native_harbor_summary_records_bounded_lift(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
