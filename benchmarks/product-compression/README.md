@@ -106,13 +106,13 @@ Trajectories, session logs, recordings, credentials, Docker caches, and other
 generated execution state do not belong in Git.
 
 The current compact result is
-[`paper/artifacts/product-compression-v10`](../../paper/artifacts/product-compression-v10/README.md).
+[`paper/artifacts/product-compression-v11`](../../paper/artifacts/product-compression-v11/README.md).
 Its complete native Harbor study and job are retained outside the source tree
 under a SHA-256 manifest so generated execution state does not become product
 code.
 
 ## History
 
-The active tree keeps only the current v10 result. Earlier failed, superseded,
+The active tree keeps only the current v11 result. Earlier failed, superseded,
 and invalidated iterations remain available in Git history; they are not active
 harnesses, compatibility targets, or runtime inputs.

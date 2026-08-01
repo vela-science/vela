@@ -79,14 +79,14 @@ infrastructure.
   over the exact four repository-v4 Frontier heads. The current projection uses
   `observatory.v8`, contains no Registration contract, and retains 6,701 native
   source records and 5,844 source bindings. Source Git remains authoritative.
-- Product-compression v10 completed four clean native Harbor trials with zero
+- Product-compression v11 completed four clean native Harbor trials with zero
   retries. Vela-guided work was exact in 2/2 trials while Git/files alone was
-  exact in 0/2; median agent time fell from 283.78 to 91.31 seconds and median
-  cost from $0.5660 to $0.1730. The compact result is rooted at
-  `sha256:da83da0e73ce6ef5c7b1f1fa2b7abc8a32f0ce0db24670c2c14c8a7434d9dfa8`.
-  This is first-party evidence from one frozen receiver-continuation task, not
-  an independent-user, full correction-inheritance, or general
-  scientific-productivity claim.
+  exact in 0/2; median agent time fell from 239.22 to 116.16 seconds and median
+  cost from $0.4359 to $0.1880. The compact result is rooted at
+  `sha256:c7ebb794bd66f71e20a5eca1a427df12f52d51332610b019cdd897b9943b9063`.
+  This is first-party evidence from one frozen pre-Decision quantum correction,
+  not a scientific Decision, post-correction remap, independent-user, or
+  general scientific-productivity claim.
 - The immutable Canopus `0.8.0` release and tag remain historical evidence.
 
 ### Simplified current source
@@ -237,9 +237,14 @@ task-specific exactness gate. The next benchmark must test continuation after
 a real correction or use a cold independent participant; more harness
 infrastructure is not an acceptable substitute.
 
-The pending Quantum supersession comparison is a bounded first-party
-pre-Decision robustness check. It may expose a comprehension or harness defect,
-but it cannot satisfy the post-correction or independent-participant gate.
+The Quantum supersession comparison passed its registered task-specific gate:
+all four native Harbor trials were eligible, the Vela-guided arm was exact 2/2,
+and Git/files was exact 0/2. Median agent time was 116.16 seconds guided versus
+239.22 seconds baseline, and median cost was $0.1880 versus $0.4359. The compact
+result root is
+`sha256:c7ebb794bd66f71e20a5eca1a427df12f52d51332610b019cdd897b9943b9063`.
+This remains a bounded first-party pre-Decision robustness result; it does not
+satisfy the post-correction or independent-participant gate.
 
 ### Gate 5 — keep Registry and Atlas exact, not expansive
 

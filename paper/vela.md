@@ -820,22 +820,23 @@ OAuth, container execution, retries, trajectories, timing, cost, and verifier
 outputs. This removes the prior custom runner and prevents the benchmark
 harness from becoming a second Vela product.
 
-Product-compression v10 ran four clean Codex trials with zero retries against
-one frozen receiver-continuation task. The Git/files arm returned 0/2 exact
-answers with median agent time 283.775 seconds and median cost USD 0.5659566.
-The Vela-guided arm returned 2/2 exact answers with median agent time 91.3105
-seconds and median cost USD 0.1729616. The registered task-specific exactness
-gate passed; median time fell 67.82 percent and median cost fell 69.44 percent.
-The compact result is rooted at
-`sha256:da83da0e73ce6ef5c7b1f1fa2b7abc8a32f0ce0db24670c2c14c8a7434d9dfa8`.
+Product-compression v11 ran four clean Codex trials with zero retries against
+one frozen pending quantum-correction task. The Git/files arm returned 0/2
+exact answers with median agent time 239.2165 seconds and median cost USD
+0.435929. The Vela-guided arm returned 2/2 exact answers with median agent time
+116.1595 seconds and median cost USD 0.1880268. The registered task-specific
+exactness gate passed; median time fell 51.44 percent and median cost fell
+56.87 percent. The compact result is rooted at
+`sha256:c7ebb794bd66f71e20a5eca1a427df12f52d51332610b019cdd897b9943b9063`.
 The complete Harbor evidence package is retained outside Git under manifest
 root
-`sha256:874c559163ac9c5db572be0e381c7f20cfb1c394460073d3065a280e02dcb8ec`.
+`sha256:85a37d175ba48bc071935830f68cf4aec6d59726fa318792dee08a5dc18dce28`.
 
-This result is first-party, uses one task and one model configuration, and
-does not measure a human reviewer. It establishes neither general execution
-lift, two-fixture inheritance lift, external independence, nor adoption. No
-orchestration framework was evaluated or retained.
+This result is first-party, pre-Decision, uses one task and one model
+configuration, and does not measure a human reviewer. It establishes neither
+scientific acceptance, post-correction remapping, general execution lift,
+external independence, verifier soundness, nor adoption. No orchestration
+framework was evaluated or retained.
 
 ### 6.10 Registered benchmark matrix
 
