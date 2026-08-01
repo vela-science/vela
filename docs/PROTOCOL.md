@@ -456,6 +456,13 @@ The current binary verifies the repository-origin boundary and current state.
 It does not retain predecessor writers or parse predecessor protocol objects
 as active state.
 
+For accepted Claims, `vela why` may follow the verified compacted-origin chain
+through exact local Git objects. It reports recovered Proposal, Verification,
+Decision, and supersession context as `compacted_origin`, and distinguishes
+`verified_local`, `origin_object_set_only`, and `predecessor_unavailable`.
+This is a read-only explanation path: it never fetches from the network,
+extracts the retained archive, or treats predecessor objects as current state.
+
 Exact historical execution uses the tagged source, commit, tree, Git-object
 manifest, archive digest, canonical roots, and pinned historical binary named
 by the compacted origin. Current verification confirms those commitments

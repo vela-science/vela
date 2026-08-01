@@ -63,6 +63,10 @@ verification authority
 - `why` also resolves a retained superseded Claim through covered authority
   history and returns its exact predecessor, successor, Proposal, applied
   event, and terminal Decision bindings.
+- For an accepted Claim retained through compaction, `why` follows only exact
+  local predecessor Git objects and labels the result `verified_local`,
+  `origin_object_set_only`, or `predecessor_unavailable`. Origin-bound archive
+  roots are disclosed separately from bytes actually re-read.
 - `verification import` retains a non-authorizing scoped Verification Record.
 - `authority` initializes the repository writer for a fresh Frontier. It is an
   exceptional setup surface rather than an ordinary workflow.

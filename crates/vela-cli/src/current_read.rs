@@ -3,7 +3,7 @@
 //! These projections use only the verified repository manifest, its
 //! content-addressed records, and covered repository-authority history.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
 
@@ -17,7 +17,7 @@ use vela_protocol::current_repository::{
 };
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::proposal_withdrawal_v1::ProposalWithdrawalV1;
-use vela_protocol::repository_origin::RepositoryOriginV1;
+use vela_protocol::repository_origin::{RepositoryOriginPredecessorV1, RepositoryOriginV1};
 
 use crate::cli::{fail_return, print_json};
 use crate::current_repository::CurrentProposalDecision;
@@ -25,6 +25,7 @@ use crate::current_repository::CurrentProposalDecision;
 struct CurrentReadContext {
     repository: CurrentRepositoryV4,
     repository_root: String,
+    origin: RepositoryOriginV1,
     proposals: Vec<(RepositoryObjectRefV1, ProposalV1)>,
     decisions: BTreeMap<String, CurrentProposalDecision>,
     withdrawals: BTreeMap<String, ProposalWithdrawalV1>,
@@ -91,11 +92,320 @@ fn load_context(frontier: &Path) -> Result<CurrentReadContext, String> {
     Ok(CurrentReadContext {
         repository,
         repository_root,
+        origin,
         proposals,
         decisions,
         withdrawals,
         authority_events: authority.history.authority_events,
     })
+}
+
+#[derive(Default)]
+struct OriginStandingHistory {
+    status: &'static str,
+    hops: Vec<Value>,
+    proposals: Vec<Value>,
+    verifications: Vec<Value>,
+    authority_events: Vec<Value>,
+}
+
+fn git_blob(frontier: &Path, commit: &str, path: &str) -> Result<Option<Vec<u8>>, String> {
+    let spec = format!("{commit}:{path}");
+    let output = crate::git_hardened::output(frontier, &["show", &spec])?;
+    if output.status.success() {
+        return Ok(Some(output.stdout));
+    }
+    Ok(None)
+}
+
+fn verified_predecessor_manifest(
+    frontier: &Path,
+    predecessor: &RepositoryOriginPredecessorV1,
+) -> Result<Option<Vec<u8>>, String> {
+    let commit_spec = format!("{}^{{commit}}", predecessor.commit);
+    let commit = match crate::git_hardened::text(frontier, &["rev-parse", &commit_spec]) {
+        Ok(commit) => commit,
+        Err(_) => return Ok(None),
+    };
+    if commit != predecessor.commit {
+        return Err("repository origin predecessor resolves to the wrong local commit".into());
+    }
+    let tree_spec = format!("{}^{{tree}}", predecessor.commit);
+    if crate::git_hardened::text(frontier, &["rev-parse", &tree_spec])? != predecessor.tree {
+        return Err(format!(
+            "repository origin predecessor {} has the wrong local tree",
+            predecessor.commit
+        ));
+    }
+    let tag_ref = format!("refs/tags/{}^{{commit}}", predecessor.tag);
+    match crate::git_hardened::text(frontier, &["rev-parse", "--verify", &tag_ref]) {
+        Ok(tag_commit) if tag_commit == predecessor.commit => {}
+        Ok(_) => {
+            return Err(format!(
+                "repository origin predecessor tag {} resolves to the wrong commit",
+                predecessor.tag
+            ));
+        }
+        Err(_) => {
+            return Ok(None);
+        }
+    }
+    let Some(repository_bytes) = git_blob(frontier, &predecessor.commit, ".vela/repository.json")?
+    else {
+        return Err(format!(
+            "repository origin predecessor {} has no repository manifest",
+            predecessor.commit
+        ));
+    };
+    if root_bytes(&repository_bytes) != predecessor.repository_root {
+        return Err(format!(
+            "repository origin predecessor {} repository root mismatch",
+            predecessor.commit
+        ));
+    }
+    Ok(Some(repository_bytes))
+}
+
+fn historical_object(
+    frontier: &Path,
+    commit: &str,
+    reference: &RepositoryObjectRefV1,
+) -> Result<Value, String> {
+    let bytes = git_blob(frontier, commit, &reference.path)?.ok_or_else(|| {
+        format!(
+            "repository origin predecessor {commit} is missing {}",
+            reference.path
+        )
+    })?;
+    if root_bytes(&bytes) != reference.root {
+        return Err(format!(
+            "repository origin predecessor {commit} object {} root mismatch",
+            reference.path
+        ));
+    }
+    serde_json::from_slice(&bytes).map_err(|error| {
+        format!(
+            "parse repository origin predecessor object {}: {error}",
+            reference.path
+        )
+    })
+}
+
+fn manifest_references(
+    manifest: &Value,
+    field: &str,
+) -> Result<Vec<RepositoryObjectRefV1>, String> {
+    manifest
+        .get(field)
+        .and_then(Value::as_array)
+        .map(|references| {
+            references
+                .iter()
+                .cloned()
+                .map(|reference| {
+                    serde_json::from_value(reference)
+                        .map_err(|error| format!("parse predecessor {field} reference: {error}"))
+                })
+                .collect()
+        })
+        .unwrap_or_else(|| Ok(Vec::new()))
+}
+
+fn predecessor_authority_events(
+    frontier: &Path,
+    commit: &str,
+) -> Result<Vec<AuthorityEventV1>, String> {
+    let output = crate::git_hardened::output(
+        frontier,
+        &[
+            "ls-tree",
+            "-r",
+            "--name-only",
+            commit,
+            "--",
+            ".vela/authority/events",
+        ],
+    )?;
+    if !output.status.success() {
+        return Err(format!(
+            "list repository origin predecessor authority events at {commit}: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    let paths = String::from_utf8(output.stdout)
+        .map_err(|error| format!("predecessor authority event paths are not UTF-8: {error}"))?;
+    paths
+        .lines()
+        .filter(|path| path.ends_with(".json"))
+        .map(|path| {
+            let bytes = git_blob(frontier, commit, path)?.ok_or_else(|| {
+                format!("repository origin predecessor {commit} is missing {path}")
+            })?;
+            let event: AuthorityEventV1 = serde_json::from_slice(&bytes)
+                .map_err(|error| format!("parse predecessor authority event {path}: {error}"))?;
+            event.validate()?;
+            if vela_protocol::canonical::to_canonical_bytes(&event)? != bytes {
+                return Err(format!(
+                    "repository origin predecessor authority event {path} is not canonical JSON"
+                ));
+            }
+            Ok(event)
+        })
+        .collect()
+}
+
+fn origin_standing_history(
+    frontier: &Path,
+    context: &CurrentReadContext,
+    claim_id: &str,
+) -> Result<OriginStandingHistory, String> {
+    let Some(mut predecessor) = context.origin.predecessor.clone() else {
+        return Ok(OriginStandingHistory {
+            status: "current_authority",
+            ..OriginStandingHistory::default()
+        });
+    };
+    let mut history = OriginStandingHistory {
+        status: "origin_object_set_only",
+        ..OriginStandingHistory::default()
+    };
+    let mut visited = BTreeSet::new();
+    let mut expected_generation = context.origin.generation.saturating_sub(1);
+    for _ in 0..32 {
+        if !visited.insert(predecessor.commit.clone()) {
+            return Err("repository origin predecessor chain contains a cycle".into());
+        }
+        let Some(repository_bytes) = verified_predecessor_manifest(frontier, &predecessor)? else {
+            history.status = "predecessor_unavailable";
+            history.hops.push(json!({
+                "status": "predecessor_unavailable",
+                "commit": predecessor.commit,
+                "tree": predecessor.tree,
+                "tag": predecessor.tag,
+                "repository_root": predecessor.repository_root,
+                "archive_sha256": predecessor.archive_sha256,
+                "object_manifest_root": predecessor.object_manifest_root,
+                "equivalence_report_root": predecessor.equivalence_report_root,
+            }));
+            return Ok(history);
+        };
+        let manifest: Value = serde_json::from_slice(&repository_bytes)
+            .map_err(|error| format!("parse predecessor repository manifest: {error}"))?;
+        if manifest.get("frontier_id").and_then(Value::as_str)
+            != Some(context.repository.frontier_id.as_str())
+        {
+            return Err("repository origin predecessor belongs to the wrong Frontier".into());
+        }
+
+        let mut related_proposal_ids = BTreeSet::new();
+        for reference in manifest_references(&manifest, "proposals")? {
+            let value = historical_object(frontier, &predecessor.commit, &reference)?;
+            if value.pointer("/subject/id").and_then(Value::as_str) == Some(claim_id) {
+                if let Some(proposal_id) = value.get("proposal_id").and_then(Value::as_str) {
+                    related_proposal_ids.insert(proposal_id.to_string());
+                }
+                history.proposals.push(json!({
+                    "proposal": value,
+                    "proposal_root": reference.root,
+                    "source_commit": predecessor.commit,
+                    "standing_basis": "compacted_origin",
+                }));
+            }
+        }
+        for reference in manifest_references(&manifest, "verifications")? {
+            let value = historical_object(frontier, &predecessor.commit, &reference)?;
+            if value.pointer("/subject/claim_id").and_then(Value::as_str) == Some(claim_id) {
+                history.verifications.push(json!({
+                    "verification_record": value,
+                    "verification_record_root": reference.root,
+                    "source_commit": predecessor.commit,
+                    "standing_basis": "compacted_origin",
+                }));
+            }
+        }
+        for event in predecessor_authority_events(frontier, &predecessor.commit)? {
+            let related = event.content.target.id == claim_id
+                || event
+                    .content
+                    .payload
+                    .get("claim_id")
+                    .and_then(Value::as_str)
+                    == Some(claim_id)
+                || event
+                    .content
+                    .payload
+                    .get("proposal_id")
+                    .and_then(Value::as_str)
+                    .is_some_and(|proposal_id| related_proposal_ids.contains(proposal_id));
+            if related {
+                history.authority_events.push(json!({
+                    "authority_event_id": event.id,
+                    "authority_event_root": event.root()?,
+                    "semantic_event_id": event.semantic_event_id()?,
+                    "event": event,
+                    "source_commit": predecessor.commit,
+                    "standing_basis": "compacted_origin",
+                }));
+            }
+        }
+        history.hops.push(json!({
+            "status": "verified_local",
+            "commit": predecessor.commit,
+            "tree": predecessor.tree,
+            "tag": predecessor.tag,
+            "repository_root": predecessor.repository_root,
+            "archive_sha256": predecessor.archive_sha256,
+            "object_manifest_root": predecessor.object_manifest_root,
+            "equivalence_report_root": predecessor.equivalence_report_root,
+            "archive_verification": "bound_by_origin_not_re_read",
+        }));
+
+        let Some(origin_bytes) = git_blob(frontier, &predecessor.commit, ".vela/origin.json")?
+        else {
+            break;
+        };
+        let nested_origin = RepositoryOriginV1::parse(&origin_bytes)?;
+        if nested_origin.frontier_id != context.origin.frontier_id
+            || nested_origin.profile_root != context.origin.profile_root
+            || nested_origin.generation != expected_generation
+        {
+            return Err(
+                "repository origin predecessor carries an inconsistent nested origin".into(),
+            );
+        }
+        if manifest.get("origin_id").and_then(Value::as_str) != Some(&nested_origin.origin_id)
+            || manifest.get("origin_root").and_then(Value::as_str)
+                != Some(nested_origin.canonical_root()?.as_str())
+        {
+            return Err(
+                "repository origin predecessor manifest does not bind its nested origin".into(),
+            );
+        }
+        let Some(next) = nested_origin.predecessor else {
+            break;
+        };
+        predecessor = next;
+        expected_generation = expected_generation.saturating_sub(1);
+    }
+    if !history.proposals.is_empty()
+        || !history.verifications.is_empty()
+        || !history.authority_events.is_empty()
+    {
+        history.status = "verified_local";
+    }
+    let dedupe = |values: &mut Vec<Value>, pointer: &str| {
+        let mut roots = BTreeSet::new();
+        values.retain(|value| {
+            value
+                .pointer(pointer)
+                .and_then(Value::as_str)
+                .is_none_or(|root| roots.insert(root.to_string()))
+        });
+    };
+    dedupe(&mut history.proposals, "/proposal_root");
+    dedupe(&mut history.verifications, "/verification_record_root");
+    dedupe(&mut history.authority_events, "/authority_event_root");
+    Ok(history)
 }
 
 fn claim_reference<'a>(
@@ -473,6 +783,43 @@ pub(crate) fn show_payload(frontier: &Path, object_id: &str) -> Result<Value, St
 pub(crate) fn why_payload(frontier: &Path, claim_id: &str) -> Result<Value, String> {
     let context = load_context(frontier)?;
     let (claim, claim_root, standing) = load_claim(frontier, &context, claim_id)?;
+    let mut proposals = proposal_views(&context, claim_id);
+    let mut verification_records = verification_views(frontier, &context, claim_id)?;
+    let mut authority_events = related_authority_events(&context, claim_id)?;
+    let current_supersession = supersession_view(&context, claim_id)?;
+    let origin_history = if standing == "accepted" {
+        origin_standing_history(frontier, &context, claim_id)?
+    } else {
+        OriginStandingHistory {
+            status: "current_authority",
+            ..OriginStandingHistory::default()
+        }
+    };
+    proposals.extend(origin_history.proposals);
+    verification_records.extend(origin_history.verifications);
+    authority_events.extend(origin_history.authority_events);
+    let origin_supersession = authority_events.iter().find_map(|view| {
+        let event = view.get("event")?;
+        let predecessor_claim_id = event.pointer("/content/target/id").and_then(Value::as_str);
+        let successor_claim_id = event
+            .pointer("/content/payload/claim_id")
+            .and_then(Value::as_str);
+        (event.pointer("/content/kind").and_then(Value::as_str) == Some("finding.superseded")
+            && (predecessor_claim_id == Some(claim_id) || successor_claim_id == Some(claim_id)))
+        .then(|| {
+            json!({
+                "predecessor_claim_id": predecessor_claim_id,
+                "predecessor_claim_root": event.pointer("/content/before_hash"),
+                "successor_claim_id": successor_claim_id,
+                "successor_claim_root": event.pointer("/content/after_hash"),
+                "proposal_id": event.pointer("/content/payload/proposal_id"),
+                "applied_authority_event_id": view.get("authority_event_id"),
+                "applied_authority_event_root": view.get("authority_event_root"),
+                "applied_semantic_event_id": view.get("semantic_event_id"),
+                "standing_basis": "compacted_origin",
+            })
+        })
+    });
     Ok(json!({
         "ok": true,
         "command": "why",
@@ -483,11 +830,21 @@ pub(crate) fn why_payload(frontier: &Path, claim_id: &str) -> Result<Value, Stri
         "claim_root": claim_root,
         "standing": standing,
         "chain": {
+            "standing_basis": if origin_history.status == "current_authority" { "current_authority" } else { "compacted_origin" },
+            "standing_basis_detail": {
+                "status": origin_history.status,
+                "origin_id": context.origin.origin_id,
+                "origin_root": context.repository.origin_root,
+                "generation": context.origin.generation,
+                "initial_object_set_root": context.origin.initial_object_set_root,
+                "predecessors": origin_history.hops,
+                "archive_bytes_re_read": false,
+            },
             "claim": claim,
-            "proposals": proposal_views(&context, claim_id),
-            "verification_records": verification_views(frontier, &context, claim_id)?,
-            "authority_events": related_authority_events(&context, claim_id)?,
-            "supersession": supersession_view(&context, claim_id)?,
+            "proposals": proposals,
+            "verification_records": verification_records,
+            "authority_events": authority_events,
+            "supersession": current_supersession.or(origin_supersession),
         },
         "interpretation": {
             "submission_is_acceptance": false,
@@ -630,8 +987,69 @@ pub(crate) fn cmd_why(frontier: &Path, claim_id: &str, json_out: bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::process::Command;
     use vela_protocol::authority::{AUTHORITY_MODE, AuthorityEventContentV1};
     use vela_protocol::events::{EventKind, StateActor, StateTarget};
+
+    fn git(repo: &Path, args: &[&str]) -> String {
+        let output = Command::new("git")
+            .args(["-c", "commit.gpgsign=false", "-c", "tag.gpgsign=false"])
+            .arg("-C")
+            .arg(repo)
+            .args(args)
+            .output()
+            .expect("run git fixture command");
+        assert!(
+            output.status.success(),
+            "git {} failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout)
+            .expect("git fixture output")
+            .trim()
+            .to_string()
+    }
+
+    fn predecessor_fixture() -> (tempfile::TempDir, RepositoryOriginPredecessorV1, Vec<u8>) {
+        let temp = tempfile::tempdir().expect("temporary Git repository");
+        git(temp.path(), &["init", "-q"]);
+        git(temp.path(), &["config", "user.name", "Vela Test"]);
+        git(
+            temp.path(),
+            &["config", "user.email", "vela@example.invalid"],
+        );
+        fs::create_dir_all(temp.path().join(".vela")).expect("create fixture .vela");
+        let repository_bytes = br#"{"frontier_id":"vfr_fixture","proposals":[],"schema":"vela.repository.v2","verifications":[]}"#.to_vec();
+        fs::write(temp.path().join(".vela/repository.json"), &repository_bytes)
+            .expect("write fixture repository");
+        git(temp.path(), &["add", ".vela/repository.json"]);
+        git(temp.path(), &["commit", "-q", "-m", "fixture predecessor"]);
+        let commit = git(temp.path(), &["rev-parse", "HEAD^{commit}"]);
+        let tree = git(temp.path(), &["rev-parse", "HEAD^{tree}"]);
+        let tag = "pre-compaction/fixture";
+        git(temp.path(), &["tag", tag, &commit]);
+        let predecessor = RepositoryOriginPredecessorV1 {
+            remote: "https://github.com/vela-science/fixture-frontier.git".into(),
+            tag: tag.into(),
+            commit,
+            tree,
+            repository_root: root_bytes(&repository_bytes),
+            authority_head_root:
+                "sha256:1111111111111111111111111111111111111111111111111111111111111111".into(),
+            archived_event_log_root:
+                "sha256:2222222222222222222222222222222222222222222222222222222222222222".into(),
+            archived_actor_registry_root:
+                "sha256:3333333333333333333333333333333333333333333333333333333333333333".into(),
+            archive_sha256:
+                "sha256:4444444444444444444444444444444444444444444444444444444444444444".into(),
+            object_manifest_root:
+                "sha256:5555555555555555555555555555555555555555555555555555555555555555".into(),
+            equivalence_report_root:
+                "sha256:6666666666666666666666666666666666666666666666666666666666666666".into(),
+        };
+        (temp, predecessor, repository_bytes)
+    }
 
     #[test]
     fn byte_root_is_full_sha256() {
@@ -683,6 +1101,37 @@ mod tests {
                 .content
                 .after_hash,
             "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+        );
+    }
+
+    #[test]
+    fn compacted_predecessor_is_read_only_from_exact_local_git_objects() {
+        let (temp, predecessor, expected) = predecessor_fixture();
+        let observed = verified_predecessor_manifest(temp.path(), &predecessor)
+            .expect("verify local predecessor")
+            .expect("predecessor is available");
+        assert_eq!(observed, expected);
+    }
+
+    #[test]
+    fn unavailable_compacted_predecessor_is_explicit_not_an_empty_chain() {
+        let (temp, mut predecessor, _) = predecessor_fixture();
+        predecessor.commit = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into();
+        assert_eq!(
+            verified_predecessor_manifest(temp.path(), &predecessor)
+                .expect("missing local predecessor is not corruption"),
+            None
+        );
+    }
+
+    #[test]
+    fn compacted_predecessor_with_missing_local_tag_is_explicitly_unavailable() {
+        let (temp, predecessor, _) = predecessor_fixture();
+        git(temp.path(), &["tag", "-d", &predecessor.tag]);
+        assert_eq!(
+            verified_predecessor_manifest(temp.path(), &predecessor)
+                .expect("missing local tag is availability, not corruption"),
+            None
         );
     }
 }

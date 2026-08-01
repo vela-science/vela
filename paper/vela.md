@@ -1136,9 +1136,11 @@ Vela currently demonstrates a compact, replayable separation among
 authenticated producer input, scoped Verification, local human Decision, and
 scientific Standing, including one accepted supersession whose predecessor
 remains recoverable through its retained compaction origin, predecessor tag,
-and archive. The current compact epoch does not expose that full historical
-chain through the ordinary `show` and `why` path. Two implementations also
-agree on a bounded synthetic correction-impact projection. The first matched
+and archive. The ordinary `why` path now recovers that exact local Proposal,
+Verification, Decision, and supersession chain across verified predecessor
+Git objects while distinguishing unread archive commitments and unavailable
+predecessors. Two implementations also agree on a bounded synthetic
+correction-impact projection. The first matched
 first-party Codex-session pilot was directionally cheaper and more accurate
 with Vela but failed its registered token budget and exact-answer requirement;
 it is not human-review evidence. A later native Harbor comparison passed its
