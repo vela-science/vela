@@ -13,6 +13,13 @@
 - Evidence: completed Erdős Submission, Verification, and human Decision loop;
   repaired registered Stage A; current four-Frontier replay
 
+> **Current disposition:** this accepted ADR remains historical evidence for
+> the math-first narrowing. Its `run`, `commit`, `compound`, canonical Attempt,
+> and current Canopus language is superseded by ADRs 0031–0034. The current
+> product loop is `map -> target -> work -> submit -> verify -> decide ->
+> remap`; native tools own execution, Attempt is optional provenance, and
+> Canopus `0.8.0` is frozen historical evidence.
+
 ## Context
 
 Vela's current protocol path accurately separates producer input, scoped

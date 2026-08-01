@@ -74,7 +74,8 @@ pub(crate) enum Commands {
         /// `*.witness.json` under it, or a `witnesses/` subdir).
         #[arg(default_value = ".")]
         path: PathBuf,
-        /// Reproduce only the immutable artifacts bound to this proposal.
+        /// Reproduce the proposal's native witness, or locate its rooted
+        /// source-local replay without executing repository code.
         #[arg(long)]
         proposal: Option<String>,
         #[arg(long)]

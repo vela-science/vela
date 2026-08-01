@@ -141,6 +141,137 @@ fn reproduction_result_path(frontier: &Path, file: &Path, proposal_scoped: bool)
     )
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct NativeReplayHint {
+    command: String,
+    source: Option<String>,
+}
+
+fn proposal_native_replay_hint(
+    frontier: &Path,
+    proposal_id: &str,
+    proposal_path: &str,
+    proposal_root: &str,
+) -> Result<Option<NativeReplayHint>, String> {
+    let reproductions = frontier.join("reproductions");
+    if !reproductions.is_dir() {
+        return Ok(None);
+    }
+
+    let mut capsule_paths = std::fs::read_dir(&reproductions)
+        .map_err(|error| format!("inspect source-local reproductions: {error}"))?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path().join("capsule.json"))
+        .filter(|path| path.is_file())
+        .collect::<Vec<_>>();
+    capsule_paths.sort();
+
+    let mut matches = Vec::new();
+    for capsule_path in capsule_paths {
+        let metadata = std::fs::symlink_metadata(&capsule_path)
+            .map_err(|error| format!("inspect source-local replay capsule: {error}"))?;
+        if !metadata.file_type().is_file() || metadata.file_type().is_symlink() {
+            continue;
+        }
+        let bytes = std::fs::read(&capsule_path)
+            .map_err(|error| format!("read source-local replay capsule: {error}"))?;
+        let capsule: Value = serde_json::from_slice(&bytes)
+            .map_err(|error| format!("parse source-local replay capsule: {error}"))?;
+        if capsule
+            .pointer("/identity/proposal_id")
+            .and_then(Value::as_str)
+            != Some(proposal_id)
+        {
+            continue;
+        }
+        if capsule.get("authority").and_then(Value::as_str) != Some("evidence_only")
+            || capsule.get("standing_effect").and_then(Value::as_str) != Some("none")
+        {
+            return Err(format!(
+                "source-local replay capsule for proposal {proposal_id} must be evidence-only with no Standing effect"
+            ));
+        }
+
+        let retained_proposal_path = capsule
+            .pointer("/inputs/proposal/path")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                format!(
+                    "source-local replay capsule for proposal {proposal_id} has no Proposal path"
+                )
+            })?;
+        let retained_proposal_root = capsule
+            .pointer("/inputs/proposal/sha256")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                format!(
+                    "source-local replay capsule for proposal {proposal_id} has no Proposal root"
+                )
+            })?;
+        if retained_proposal_path != proposal_path || retained_proposal_root != proposal_root {
+            return Err(format!(
+                "source-local replay capsule for proposal {proposal_id} does not bind the exact current Proposal"
+            ));
+        }
+        verified_frontier_file(
+            frontier,
+            "source-local replay Proposal",
+            retained_proposal_path,
+            retained_proposal_root,
+        )?;
+
+        let implementation_path = capsule
+            .pointer("/inputs/implementation/path")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                format!("source-local replay capsule for proposal {proposal_id} has no implementation path")
+            })?;
+        let implementation_root = capsule
+            .pointer("/inputs/implementation/sha256")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                format!("source-local replay capsule for proposal {proposal_id} has no implementation root")
+            })?;
+        let implementation = verified_frontier_file(
+            frontier,
+            "source-local replay implementation",
+            implementation_path,
+            implementation_root,
+        )?;
+        if implementation
+            .extension()
+            .and_then(|extension| extension.to_str())
+            != Some("py")
+        {
+            return Err(format!(
+                "source-local replay implementation for proposal {proposal_id} is not a directly inspectable Python program"
+            ));
+        }
+        let implementation_relative = reproduction_result_path(frontier, &implementation, true);
+        let source = capsule
+            .pointer("/source/repository")
+            .and_then(Value::as_str)
+            .zip(
+                capsule
+                    .pointer("/source/git_commit")
+                    .and_then(Value::as_str),
+            )
+            .map(|(repository, commit)| format!("{repository}@{commit}"));
+        matches.push(NativeReplayHint {
+            command: format!("python3 {implementation_relative} --validate-only"),
+            source,
+        });
+    }
+
+    match matches.len() {
+        0 => Ok(None),
+        1 => Ok(matches.pop()),
+        _ => Err(format!(
+            "proposal {proposal_id} has more than one source-local replay capsule"
+        )),
+    }
+}
+
 pub(crate) fn proposal_reproduction_files(
     path: &Path,
     proposal_id: &str,
@@ -276,9 +407,35 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
     };
     if files.is_empty() {
         if let Some(proposal_id) = proposal_id {
-            fail(&format!(
-                "proposal {proposal_id} has no frontier-local frozen witness to reproduce; inspect its retained artifacts and verifier evidence, or use the producer's exact replay bundle"
-            ));
+            let repository = crate::current_repository::load_current_repository_at(path, true)
+                .unwrap_or_else(|error| fail_return(&error));
+            let proposal = repository
+                .proposals
+                .iter()
+                .find(|reference| reference.id == proposal_id)
+                .unwrap_or_else(|| fail_return(&format!("proposal {proposal_id} does not exist")));
+            match proposal_native_replay_hint(path, proposal_id, &proposal.path, &proposal.root)
+                .unwrap_or_else(|error| fail_return(&error))
+            {
+                Some(hint) => {
+                    let message = match hint.source {
+                        Some(source) => format!(
+                            "proposal {proposal_id} uses a source-local native replay rather than a Vela witness; the capsule binds the exact current Proposal and implementation bytes (full replay source {source})"
+                        ),
+                        None => format!(
+                            "proposal {proposal_id} uses a source-local native replay rather than a Vela witness; the capsule binds the exact current Proposal and implementation bytes"
+                        ),
+                    };
+                    crate::ui::fail_with(
+                        crate::ui::ErrorKind::Domain,
+                        &message,
+                        Some(&hint.command),
+                    );
+                }
+                None => fail(&format!(
+                    "proposal {proposal_id} has no frontier-local frozen witness or rooted source-local replay to reproduce; inspect its retained artifacts and verifier evidence"
+                )),
+            }
         }
         fail(&format!(
             "no witnesses found at {} (expected a `*.witness.json` file, or a directory containing them / a `witnesses/` subdir)",
@@ -459,5 +616,80 @@ mod gate_tests {
         )
         .unwrap_err();
         assert!(tampered.contains("content root"));
+    }
+
+    #[test]
+    fn proposal_native_replay_hint_binds_current_proposal_and_implementation() {
+        let frontier = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(frontier.path().join("records/proposals/sha256")).unwrap();
+        std::fs::create_dir_all(frontier.path().join("reproductions/example")).unwrap();
+
+        let proposal_bytes = br#"{"schema":"fixture-proposal"}"#;
+        let proposal_path = "records/proposals/sha256/proposal.json";
+        std::fs::write(frontier.path().join(proposal_path), proposal_bytes).unwrap();
+        let proposal_root = format!("sha256:{}", hex::encode(Sha256::digest(proposal_bytes)));
+
+        let implementation_bytes = b"#!/usr/bin/env python3\n";
+        let implementation_path = "reproductions/example/replay.py";
+        std::fs::write(
+            frontier.path().join(implementation_path),
+            implementation_bytes,
+        )
+        .unwrap();
+        let implementation_root = format!(
+            "sha256:{}",
+            hex::encode(Sha256::digest(implementation_bytes))
+        );
+
+        std::fs::write(
+            frontier.path().join("reproductions/example/capsule.json"),
+            serde_json::to_vec_pretty(&json!({
+                "authority": "evidence_only",
+                "standing_effect": "none",
+                "identity": {"proposal_id": "vpr_fixture"},
+                "inputs": {
+                    "proposal": {
+                        "path": proposal_path,
+                        "sha256": proposal_root,
+                    },
+                    "implementation": {
+                        "path": implementation_path,
+                        "sha256": implementation_root,
+                    }
+                },
+                "source": {
+                    "repository": "https://example.invalid/source.git",
+                    "git_commit": "0123456789abcdef",
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        let hint = proposal_native_replay_hint(
+            frontier.path(),
+            "vpr_fixture",
+            proposal_path,
+            &proposal_root,
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(
+            hint.command,
+            "python3 reproductions/example/replay.py --validate-only"
+        );
+        assert_eq!(
+            hint.source.as_deref(),
+            Some("https://example.invalid/source.git@0123456789abcdef")
+        );
+
+        let mismatch = proposal_native_replay_hint(
+            frontier.path(),
+            "vpr_fixture",
+            proposal_path,
+            &format!("sha256:{}", "0".repeat(64)),
+        )
+        .unwrap_err();
+        assert!(mismatch.contains("exact current Proposal"));
     }
 }

@@ -144,7 +144,7 @@ checked-in runtime configuration file.
 | `targets.json` and packets | Derived work projection | Generate directly and freshness-check; never treat as Standing |
 | domain-native files | Source and evidence | Keep stable, reviewable identities |
 | `.vela/operation-journals/`, `.vela/work/` | Recovery/private coordination | Never scientific state |
-| `README.md`, `SCOPE.md`, `VELA.md` | Human and agent guidance | Keep aligned with the current product |
+| `README.md`, `SCOPE.md`, `AGENTS.md` | Human and agent guidance | Keep aligned with the current product; `CLAUDE.md` may be a one-line pointer to `AGENTS.md` |
 
 ## Verification
 

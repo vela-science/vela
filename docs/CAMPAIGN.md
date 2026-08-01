@@ -126,6 +126,10 @@ infrastructure.
   Submission through `vela submit`.
 - Verifiers emit the standard Verification Record and import it through
   `vela verification import`.
+- Proposal-scoped reproduction runs Vela-native witnesses directly. When a
+  Frontier instead retains a domain-native replay capsule, Vela validates its
+  exact Proposal and implementation bindings and returns the native command;
+  it does not execute repository code or absorb the domain verifier.
 - Unused capability-grant and delegated-authority protocol machinery is gone.
   Current authority records preserve only the canonical `delegation: null`
   boundary and fail closed on non-null input.

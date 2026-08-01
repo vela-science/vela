@@ -51,12 +51,16 @@ vela reproduce . --proposal <vpr_id> --json
 ```
 
 The output names its scope `pending_proposal` rather than
-`accepted_frontier`, and reports `authority_effect: none`. Vela does not
-advertise this command for a proposal that retains only artifact bytes and a
-producer-side verifier observation. Such a proposal remains inspectable, but
-re-running its external verifier requires the producer's exact replay bundle;
-an integrity digest or historical pass record is not silently treated as a
-locally executable verifier.
+`accepted_frontier`, and reports `authority_effect: none`.
+
+Some domains retain a rooted source-local replay capsule rather than a Vela
+witness. In that case the same command validates the capsule's exact Proposal
+and implementation bindings, refuses to execute repository code, and returns
+the native validation command as its structured error hint. For example, a
+Lean Frontier may point to a retained Python replay that prepares the exact
+source revision and invokes Lean. Vela remains the state and handoff layer;
+the domain-native tool remains the verifier. A digest, historical pass record,
+or source-local script is never silently treated as executable verification.
 
 ## Verifier evidence
 

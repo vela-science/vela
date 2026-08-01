@@ -90,8 +90,10 @@ EXAMPLES
 pub const REPRODUCE: &str = "\
 EXAMPLES
   vela reproduce .                         re-verify this Frontier from scratch
+  vela reproduce . --proposal vpr_8b49…    replay a native witness or locate the rooted domain replay
 
-No trust required: the frozen verifiers re-derive each stored witness.";
+Native witnesses run in process. A rooted source-local replay is returned as
+an exact next command; Vela does not execute repository code.";
 
 pub const VERIFY: &str = "\
 EXAMPLES
