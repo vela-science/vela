@@ -91,7 +91,7 @@ fn advanced_help_uses_current_product_commands() {
             "advanced help omitted current product command: {command}"
         );
     }
-    assert!(help.contains("check         Replay, signatures, parity, and strict signals"));
+    assert!(help.contains("check         Replay, signatures, parity, and repository integrity"));
     assert!(help.contains("reproduce     Re-run stored witnesses with frozen verifiers"));
     assert!(help.contains("review        Inspect or perform one exact authorized Proposal action"));
     assert!(help.contains("verification  Retain non-authorizing scoped Verification Records"));
