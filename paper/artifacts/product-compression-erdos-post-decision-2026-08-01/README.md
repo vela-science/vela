@@ -15,10 +15,12 @@ scientific-state scorer.
   reduction.
 - Errors and retries: zero.
 
-Both Git/files attempts confused the human `review.accepted` event with the
-separate `finding.asserted` event while reconstructing raw history. Both
-Vela-guided attempts recovered the accepted range, the later verified but
-pending producer completion, and the first exact non-overlapping Target.
+One Git/files attempt confused the human `review.accepted` event with the
+separate `finding.asserted` event while reconstructing raw history. The other
+found the Decision but incorrectly extended the later producer-complete range
+back to the accepted boundary. Both Vela-guided attempts recovered the exact
+accepted range, later verified but pending producer completion, and first
+non-overlapping Target.
 
 This passes the prospectively registered task-specific exactness gate because
 the Vela-guided arm was exact twice and the baseline was not. The 20 percent
@@ -32,4 +34,4 @@ its SHA-256 manifest, are retained outside the source tree. The package
 excludes agent trajectories, session logs, and credentials while retaining
 the frozen plan, fixture, answer key, task bytes, Harbor configs and results,
 participant answers, and verifier outputs. Its manifest root is
-`sha256:318b33e7b23d313b631a12235437cd05d68df54b269d9e4042bcf974cf477dab`.
+`sha256:1a602237aa1e7470d365e0ce255d9976bdcfb18653c861c13ab30c25451b3ed2`.

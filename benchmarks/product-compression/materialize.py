@@ -210,6 +210,7 @@ def inspect_terminal_continuation(
         or accepted["claim_root"] != why["claim_root"]
         or producer_review["standing"] != "pending_review"
         or producer_review["proposal_root"] != producer["proposal_root"]
+        or producer["range"]["first"] <= accepted["range"]["last"]
         or producer["range"]["last"] + 1 != next_range["first"]
         or packet["completion_contract"]["duplicate_range_forbidden"] is not True
     ):

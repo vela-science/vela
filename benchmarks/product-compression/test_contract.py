@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import contract
 import materialize
@@ -294,11 +295,106 @@ class ProductCompressionTests(unittest.TestCase):
         with self.assertRaisesRegex(contract.ContractError, "first post-completion Target"):
             contract.validate_answer(value)
 
+        value = continuation_answer()
+        value["continuation"]["producer_first"] = value["continuation"]["accepted_through"]
+        with self.assertRaisesRegex(contract.ContractError, "must follow accepted coverage"):
+            contract.validate_answer(value)
+
     def test_post_decision_preserves_authority_boundary(self) -> None:
         value = continuation_answer()
         value["continuation"]["verification_is_acceptance"] = True
         with self.assertRaisesRegex(contract.ContractError, "authority is misstated"):
             contract.validate_answer(value)
+
+    def test_post_decision_materialization_binds_current_cli_views(self) -> None:
+        accepted_claim = f"vcl_{'a' * 64}"
+        producer_proposal = "vpr_fedcba9876543210"
+        packet = {
+            "accepted_state": {"latest_bounded_negative": {
+                "claim_id": accepted_claim, "claim_root": root("a"),
+                "range": {"first": 1, "last": 200},
+            }},
+            "producer_completion": {"latest_verified_submission": {
+                "claim_id": f"vcl_{'b' * 64}", "claim_root": root("3"),
+                "submission_id": "vsb_fedcba9876543210", "submission_root": root("4"),
+                "proposal_id": producer_proposal, "proposal_root": root("5"),
+                "verification_id": "vvr_fedcba9876543210", "verification_root": root("6"),
+                "range": {"first": 201, "last": 400},
+            }},
+            "target": {"next_bounded_range": {"first": 401, "last": 600}},
+            "completion_contract": {"duplicate_range_forbidden": True},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            frontier = Path(directory).resolve()
+            packet_path = frontier / "targets" / "packet.json"
+            contract.write_json(packet_path, packet)
+            packet_root = materialize.digest(packet_path)
+            next_work = {
+                "frontier_id": "vfr_0123456789abcdef", "repository_root": root("1"),
+                "target_index_root": root("2"),
+                "availability": {"configured": 1, "stale": 0, "fresh": 1, "returned": 1},
+                "targets": [{
+                    "target_id": "target:test", "verifier_profile": "test-v1",
+                    "packet": {"path": "targets/packet.json", "sha256": packet_root},
+                }],
+            }
+            proposal = {
+                "proposal_root": root("7"),
+                "proposal": {
+                    "proposal_id": "vpr_0123456789abcdef",
+                    "producer_package": {"id": "vsb_0123456789abcdef", "root": root("8")},
+                },
+            }
+            verification_row = {
+                "verification_record_root": root("9"),
+                "verification_record": {"verification_record_id": "vvr_0123456789abcdef"},
+            }
+            why = {
+                "frontier_id": next_work["frontier_id"],
+                "repository_root": next_work["repository_root"],
+                "claim_id": accepted_claim, "claim_root": root("a"), "standing": "accepted",
+                "interpretation": {
+                    "submission_is_acceptance": False,
+                    "verification_is_acceptance": False,
+                    "standing_is_derived": True,
+                },
+                "chain": {
+                    "standing_basis": "compacted_origin",
+                    "standing_basis_detail": {"origin_root": root("b"), "archive_bytes_re_read": False},
+                    "proposals": [proposal], "verification_records": [verification_row],
+                    "authority_events": [
+                        {"authority_event_id": "vev_0123456789abcdef", "authority_event_root": root("c"), "event": {"content": {"kind": "review.accepted", "actor": {"type": "human"}}}},
+                        {"authority_event_id": "vev_fedcba9876543210", "authority_event_root": root("d"), "event": {"content": {"kind": "finding.asserted", "actor": {"type": "human"}}}},
+                    ],
+                },
+            }
+            review = {"standing": "pending_review", "proposal_root": root("5")}
+
+            def fake_command(argv, *, cwd=None):
+                self.assertEqual(cwd, frontier)
+                if argv[1:3] == ("status", "--porcelain"):
+                    return ""
+                if argv[1:3] == ("rev-parse", "HEAD"):
+                    return "1" * 40
+                if argv[1:3] == ("rev-parse", "HEAD^{tree}"):
+                    return "2" * 40
+                self.fail(f"unexpected command: {argv}")
+
+            def fake_json(argv, *, cwd):
+                self.assertEqual(cwd, frontier)
+                if argv[1:3] == ("next", "."):
+                    return next_work
+                if argv[1:3] == ("why", "."):
+                    self.assertEqual(argv[3], accepted_claim)
+                    return why
+                if argv[1:4] == ("review", "show", "."):
+                    self.assertEqual(argv[4], producer_proposal)
+                    return review
+                self.fail(f"unexpected JSON command: {argv}")
+
+            with mock.patch.object(materialize, "command", side_effect=fake_command), mock.patch.object(materialize, "json_command", side_effect=fake_json):
+                inspection = materialize.inspect_terminal_continuation(frontier, frontier / "vela", accepted_claim)
+            contract.validate_answer(materialize.terminal_continuation_answer(inspection))
 
     def test_answer_key_is_content_bound(self) -> None:
         key = answer_key()

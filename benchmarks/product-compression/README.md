@@ -61,6 +61,10 @@ establish independent adoption, general scientific productivity, scientific
 acceptance, post-correction remapping, or the full correction-and-inheritance
 breakthrough benchmark.
 
+The benchmark schema names are repository-local rooted task labels, not public
+protocol compatibility promises. Each retained plan and generated task binds
+the exact schema bytes it used.
+
 ## Run
 
 Keep generated Harbor jobs outside the repository:

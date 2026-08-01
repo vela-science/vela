@@ -222,6 +222,8 @@ def validate_terminal_continuation(frontier: dict[str, Any], continuation: Any) 
     for first, last in (("accepted_first", "accepted_through"), ("producer_first", "producer_complete_through"), ("next_first", "next_last")):
         if not isinstance(continuation.get(first), int) or not isinstance(continuation.get(last), int) or continuation[last] < continuation[first]:
             raise ContractError(f"$.continuation.{first}: invalid range")
+    if continuation["producer_first"] <= continuation["accepted_through"]:
+        raise ContractError("$.continuation.producer_first: producer completion must follow accepted coverage")
     if continuation["next_first"] != continuation["producer_complete_through"] + 1:
         raise ContractError("$.continuation.next_target: not the first post-completion Target")
 

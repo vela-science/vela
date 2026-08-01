@@ -266,11 +266,13 @@ Vela-guided arm was exact 2/2, and Git/files was exact 0/2. Median agent time
 was 160.53 seconds guided versus 185.75 seconds baseline, and median cost was
 $0.3591 versus $0.4730. The compact result root is
 `sha256:e3a2bfafeae5f1573c1e5b95bee1321227fd26984e569e3b60b9ec81cafa409c`.
-The Git/files arm repeatedly confused the human `review.accepted` event with
-the separate `finding.asserted` event. Vela exposed the accepted range, later
-verified-but-pending producer completion, and exact next Target without that
-authority error. This is a bounded post-Decision continuation result, not the
-still-open correction-inheritance or independent-participant proof.
+One Git/files attempt confused the human `review.accepted` event with the
+separate `finding.asserted` event. The other found the Decision but incorrectly
+extended the later producer-complete range back to the accepted boundary. Vela
+exposed the exact accepted range, later verified-but-pending producer
+completion, and exact next Target without either error. This is a bounded
+post-Decision continuation result, not the still-open correction-inheritance
+or independent-participant proof.
 
 ### Gate 5 — keep Registry and Atlas exact, not expansive
 
