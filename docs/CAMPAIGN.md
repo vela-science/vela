@@ -122,9 +122,12 @@ infrastructure.
   promoting the derived envelope into a supported shared contract or claiming
   independent product value. A human Decision made earlier must retain that
   limitation explicitly.
-- The production Atlas is exact at projection root
-  `sha256:262e7e1efb4fcec12322f66e8faa2fce9d87545cf422f19d8d48c99e48307a37`
-  and includes Formal commit `1835345012248e33ff3c29dccc68a56c12f02827`.
+- The production Atlas was rebuilt on 2026-08-01 from all four cleaned
+  Frontier heads and is exact at projection root
+  `sha256:e5e66b8ec14fa6ddc8e5f0424a0349f7dab218cefe6d107c08a4a69d0e900d2a`.
+  Its manifest binds Erdős `3f594b53`, Formal `6cbc2cb5`, Quantum
+  `29202cfb`, and Sidon `e07b6317`; the database sync, corpus checks, source
+  evidence retention, activation, pruning, and production redeploy passed.
 - Pending Proposal sheets now project Vela's exact Decision Inbox packet:
   protocol readiness, the accept/reject Standing delta, limits, next
   obligation, and copyable roots. The Observatory remains read-only.
@@ -234,6 +237,10 @@ task-specific exactness gate. The next benchmark must test continuation after
 a real correction or use a cold independent participant; more harness
 infrastructure is not an acceptable substitute.
 
+The pending Quantum supersession comparison is a bounded first-party
+pre-Decision robustness check. It may expose a comprehension or harness defect,
+but it cannot satisfy the post-correction or independent-participant gate.
+
 ### Gate 5 — keep Registry and Atlas exact, not expansive
 
 - Git Frontiers remain canonical.
@@ -245,6 +252,26 @@ infrastructure is not an acceptable substitute.
   affect, and what is the next valid obligation?
 - Do not add a graph database, vector store, universal ontology, hosted
   Registry, or new repository without a measured failed query or consumer.
+
+One bounded external-release pilot is earned by OpenAI's August 2026
+`ten-proofs` release because it directly exercises the existing source,
+verification, and fidelity boundaries:
+
+1. observe one exact release through the existing source-adapter contract;
+2. pin the native Git commit/tree, Lean toolchain, dependency lock, declared
+   review state, and all twelve source-declared Comparator profiles;
+3. run `lake build All`, then one clean-room Erdős #183 Comparator profile;
+4. record checker passage with explicit nonclaims about statement fidelity,
+   novelty, community acceptance, and local Standing;
+5. acquire the current Erdős #183 source through the exact adapter before
+   claiming a source-state conflict; retrieval failure is recorded as
+   unavailable, never inferred as `OPEN`; and
+6. create one fidelity Target only if exact source acquisition succeeds.
+
+This pilot adds no protocol object, Frontier, runner, Astra-specific product
+page, universal status ladder, reviewer service, or global acceptance claim.
+The other eleven profiles and a general release-manifest export remain
+deferred until the first path is reproducible and a real consumer earns them.
 
 ## Verification
 
@@ -307,7 +334,7 @@ reputation score, or `1.0.0` schedule.
 | Vela | `0.962.0` is published with direct producer withdrawal and the current repository reader; release checks are green | keep one train and release only for demonstrated changes |
 | Cross-language readers | standalone Python and JavaScript conformance readers | keep package-free until a real external consumer requires a library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; deployment `0.430.0` binds commit `123f0eeef4a1307755d5a5a0a66d9b78e29cd984` and exact projection root `sha256:262e7e1efb4fcec12322f66e8faa2fce9d87545cf422f19d8d48c99e48307a37` | change only for a demonstrated reader-efficiency or correctness need; add no infrastructure |
+| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; deployment `0.430.0` binds commit `67608e850f5d320b4571aa85d0243e4de4ad7b99` and exact projection root `sha256:e5e66b8ec14fa6ddc8e5f0424a0349f7dab218cefe6d107c08a4a69d0e900d2a` | run the bounded `ten-proofs` source/verification pilot through existing adapters; add no infrastructure |
 | Frontiers | canonical Git sources with pending human Decisions; the obsolete Formal duplicate is withdrawn with zero accepted delta | decide or cancel exact remaining Proposals, replay, remap |
 | Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 
