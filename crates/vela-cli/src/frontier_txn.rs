@@ -1474,7 +1474,7 @@ fn verify_fresh_repository_delta(
                 FrontierTxnError::CorruptPlan("repository manifest has no postimage blob".into())
             })?;
             let bytes = read_blob(blob)?;
-            let repository = vela_protocol::current_repository::CurrentRepositoryV3::parse(&bytes)
+            let repository = vela_protocol::current_repository::CurrentRepositoryV4::parse(&bytes)
                 .map_err(FrontierTxnError::CorruptPlan)?;
             repository_v3_manifests.push(repository);
         } else if !path.starts_with(".vela/authority/")
@@ -1525,7 +1525,6 @@ fn verify_fresh_repository_delta(
         || !repository.pending_claims.is_empty()
         || !repository.proposals.is_empty()
         || !repository.submissions.is_empty()
-        || !repository.registrations.is_empty()
         || !repository.verifications.is_empty()
         || !repository.artifacts.is_empty()
     {
@@ -4109,9 +4108,9 @@ mod tests {
 
     fn fixture_repository(
         origin: &vela_protocol::repository_origin::RepositoryOriginV1,
-    ) -> vela_protocol::current_repository::CurrentRepositoryV3 {
-        vela_protocol::current_repository::CurrentRepositoryV3 {
-            schema: vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V3.into(),
+    ) -> vela_protocol::current_repository::CurrentRepositoryV4 {
+        vela_protocol::current_repository::CurrentRepositoryV4 {
+            schema: vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V4.into(),
             frontier_id: origin.frontier_id.clone(),
             profile_root: origin.profile_root.clone(),
             origin_id: origin.origin_id.clone(),
@@ -4120,7 +4119,6 @@ mod tests {
             pending_claims: Vec::new(),
             proposals: Vec::new(),
             submissions: Vec::new(),
-            registrations: Vec::new(),
             verifications: Vec::new(),
             artifacts: Vec::new(),
             authority_keyset_root: fixture_root('a'),

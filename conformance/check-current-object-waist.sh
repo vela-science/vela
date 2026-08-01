@@ -164,8 +164,6 @@ git clone -q --no-hardlinks "$remote" "$replay"
 jq -cn \
   --arg submission_id "$submission_id" \
   --arg submission_root "$submission_root" \
-  --arg registration_record_id "$(jq -r '.registration_record_id' "$root/submit.json")" \
-  --arg registration_record_root "$(jq -r '.registration_record_root' "$root/submit.json")" \
   --arg proposal_id "$proposal_id" \
   --arg claim_id "$claim_id" \
   --arg verification_record_id "$(jq -r '.verification_record_id' "$root/import.json")" \
@@ -177,8 +175,6 @@ jq -cn \
     ok:true,
     submission_id:$submission_id,
     submission_root:$submission_root,
-    registration_record_id:$registration_record_id,
-    registration_record_root:$registration_record_root,
     proposal_id:$proposal_id,
     claim_id:$claim_id,
     verification_record_id:$verification_record_id,

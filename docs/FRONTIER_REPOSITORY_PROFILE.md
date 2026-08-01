@@ -66,7 +66,7 @@ authority from the profile.
 
 `.vela/origin.json` has one closed schema: `vela.repository-origin.v1`.
 It binds the `frontier_id`, Profile root, generation, initial object-set root,
-and full origin identity carried by `vela.repository.v3`. Unknown or
+and full origin identity carried by `vela.repository.v4`. Unknown or
 substituted origins fail closed.
 
 A native `vela init` writes Profile v2 and scaffolding only. `status` and
@@ -92,7 +92,6 @@ frontier.yaml
 .vela/authority/policy-material/
 records/claims/sha256/
 records/submissions/sha256/
-records/registrations/sha256/
 records/verifications/sha256/
 records/proposals/sha256/
 records/artifacts/sha256/

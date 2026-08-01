@@ -29,11 +29,11 @@ example. It creates no lease, Attempt, counter, lock, Event, or Standing change.
 
 SEE ALSO
   vela next   the ranked offer this claims from
-  vela submit register one authenticated producer Submission";
+  vela submit retain one authenticated producer Submission";
 
 pub const SUBMIT: &str = "\
 EXAMPLES
-  vela submit submission.json                  register a signed Submission v1
+  vela submit submission.json                  retain a signed Submission v1
   vela submit --claim \"a(7) >= 22\" --type computational \
     --replayability exact --artifact w.json:witness --caveat \"bounded search\"
                                                author one signed Submission
@@ -42,10 +42,10 @@ EXAMPLES
     --caveat \"exact source revision only\" --supersedes vcl_0123… \
     --target-root sha256:0123…
                                                request one exact supersession; no synthetic work target is required
-  vela submit submission.json                  register and commit locally
+  vela submit submission.json                  retain and commit locally
   git push                                     publish with ordinary Git
 
-Submission registers authenticated producer input as a pending Proposal. It
+Submission retains authenticated producer input as a pending Proposal. It
 does not create a Verification Record, Decision, Event, or accepted-state
 change. --corrects and --supersedes bind one full accepted Claim ID and root;
 they never decide the Proposal and may describe an observed correction without
@@ -138,7 +138,7 @@ pub const CLAIM: &str = "\
 EXAMPLES
   vela claim show . vcl_6d4a…      read one current Claim
   vela submit --claim \"…\" --artifact result.json:witness --as agent:demo
-                                    register new work as Submission v1
+                                    submit new work as Submission v1
 
 Claim inspection is read-only. Historical Finding bytes remain available from
 the repository's pinned predecessor and historical Vela release. Submission v1

@@ -13,7 +13,7 @@ use sha2::{Digest, Sha256};
 use vela_protocol::authority::AuthorityEventV1;
 use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::current_repository::{
-    ClaimStandingRefV1, CurrentRepositoryV3, RepositoryObjectRefV1,
+    ClaimStandingRefV1, CurrentRepositoryV4, RepositoryObjectRefV1,
 };
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::repository_origin::RepositoryOriginV1;
@@ -22,7 +22,7 @@ use crate::cli::{fail_return, print_json};
 use crate::current_repository::CurrentProposalDecision;
 
 struct CurrentReadContext {
-    repository: CurrentRepositoryV3,
+    repository: CurrentRepositoryV4,
     repository_root: String,
     proposals: Vec<(RepositoryObjectRefV1, ProposalV1)>,
     decisions: BTreeMap<String, CurrentProposalDecision>,
@@ -393,11 +393,6 @@ pub(crate) fn show_payload(frontier: &Path, object_id: &str) -> Result<Value, St
             &context.repository.submissions,
             "submission",
             "authenticated producer input; no accepted-state authority",
-        ),
-        (
-            &context.repository.registrations,
-            "registration_record",
-            "intake provenance; no accepted-state authority",
         ),
         (
             &context.repository.verifications,

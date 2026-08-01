@@ -175,8 +175,8 @@ pub(crate) enum Commands {
     Show {
         /// Frontier repository directory.
         frontier: PathBuf,
-        /// A Claim, Submission, Registration Record, Verification Record,
-        /// Proposal, Artifact, or covered authority Event id.
+        /// A Claim, Submission, Verification Record, Proposal, Artifact, or
+        /// covered authority Event id.
         object_id: String,
         #[arg(long)]
         json: bool,
@@ -217,7 +217,7 @@ pub(crate) enum Commands {
         json: bool,
     },
 
-    /// Register one authenticated Submission and create a pending Proposal.
+    /// Retain one authenticated Submission and create a pending Proposal.
     /// This producer action cannot create Verification, a Decision, an Event,
     /// or accepted scientific state.
     #[command(group(

@@ -1,6 +1,6 @@
 # Producer quickstart
 
-A producer creates evidence. Vela registers an authenticated Submission and
+A producer creates evidence. Vela retains an authenticated Submission and
 opens a Proposal. Neither act verifies or accepts the Claim.
 
 ## Inspect the Frontier
@@ -43,8 +43,8 @@ vela submit --frontier . \
   --json
 ```
 
-The result names the immutable Submission, Vela-issued Registration Record,
-and pending Proposal. The accepted-event delta is zero. Producer-reported
+The result names the immutable Submission and pending Proposal. The
+accepted-event delta is zero. Producer-reported
 `--check` values remain producer claims and never become Verification Records.
 
 A producer from another workbench may pass a complete signed
@@ -71,7 +71,7 @@ Verification Record for their own output, or describe Git publication as
 scientific acceptance.
 
 Fresh `vela init` repositories are structural and report authority as not
-configured. Submission registration fails closed until `vela authority init`
+configured. Submission intake fails closed until `vela authority init`
 has established the repository boundary. Routine Submission and Verification
 intake authenticates the producer or verifier record itself and does not read a
 repository-authority key or require the caller's local trust pin. The

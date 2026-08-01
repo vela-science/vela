@@ -11,13 +11,12 @@ use vela_protocol::authority::AuthorityEventV1;
 use vela_protocol::authority_history::AuthorityInitializationV1;
 use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::current_repository::{
-    ClaimStandingRefV1, CurrentFrontierProfileV2, CurrentRepositoryV3, RepositoryObjectRefV1,
+    ClaimStandingRefV1, CurrentFrontierProfileV2, CurrentRepositoryV4, RepositoryObjectRefV1,
 };
 use vela_protocol::events::{EventKind, NULL_HASH};
 use vela_protocol::proposal_v1::ProposalV1;
-use vela_protocol::registration_record::RegistrationRecordV1;
 use vela_protocol::repository_origin::RepositoryOriginV1;
-use vela_protocol::submission_v1::{SubmissionArtifact, SubmissionV1};
+use vela_protocol::submission_v1::SubmissionV1;
 use vela_protocol::verification_record::VerificationRecordV1;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -87,7 +86,6 @@ pub(crate) fn cmd_repository_verify(frontier: &Path, json_out: bool) {
             "pending_claims": repository.pending_claims.len(),
             "proposals": repository.proposals.len(),
             "submissions": repository.submissions.len(),
-            "registrations": repository.registrations.len(),
             "verifications": repository.verifications.len(),
             "artifacts": repository.artifacts.len()
         },
@@ -229,7 +227,6 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
                 "accepted_review": 0,
                 "rejected_review": 0,
                 "submissions": 0,
-                "registrations": 0,
                 "verifications": 0,
                 "artifacts": 0
             },
@@ -337,7 +334,6 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             "accepted_review": accepted_review,
             "rejected_review": rejected_review,
             "submissions": repository.submissions.len(),
-            "registrations": repository.registrations.len(),
             "verifications": repository.verifications.len(),
             "artifacts": repository.artifacts.len()
         },
@@ -423,7 +419,6 @@ pub(crate) fn verify_current_bootstrap_at(root: &Path) -> Result<CurrentFrontier
         ".vela/claims",
         ".vela/proposals",
         ".vela/submissions",
-        ".vela/registrations",
         ".vela/verifications",
         ".vela/artifacts",
         "records",
@@ -670,7 +665,7 @@ fn current_proposal_decisions(
 
 pub(crate) fn load_current_proposal_decisions(
     frontier: &Path,
-    repository: &CurrentRepositoryV3,
+    repository: &CurrentRepositoryV4,
 ) -> Result<BTreeMap<String, CurrentProposalDecision>, String> {
     let origin_bytes = fs::read(frontier.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
@@ -1190,7 +1185,7 @@ fn proposal_matches_signed_submission(
 pub(crate) fn load_current_repository_at(
     root: &Path,
     require_authority_record: bool,
-) -> Result<CurrentRepositoryV3, String> {
+) -> Result<CurrentRepositoryV4, String> {
     let profile_source = fs::read_to_string(root.join("frontier.yaml"))
         .map_err(|error| format!("read current frontier.yaml: {error}"))?;
     let profile = CurrentFrontierProfileV2::from_yaml_str(&profile_source)?;
@@ -1204,7 +1199,7 @@ pub(crate) fn load_current_repository_at(
     let origin_root = origin.canonical_root()?;
     let repository_bytes = fs::read(root.join(".vela/repository.json"))
         .map_err(|error| format!("read current repository manifest: {error}"))?;
-    let repository = CurrentRepositoryV3::parse(&repository_bytes)?;
+    let repository = CurrentRepositoryV4::parse(&repository_bytes)?;
     if repository.frontier_id != profile.frontier_id
         || repository.frontier_id != origin.frontier_id
         || repository.profile_root != profile_root
@@ -1244,7 +1239,7 @@ pub(crate) fn load_current_repository_at(
 pub(crate) fn verify_current_repository_at(
     root: &Path,
     require_authority_record: bool,
-) -> Result<CurrentRepositoryV3, String> {
+) -> Result<CurrentRepositoryV4, String> {
     let repository = load_current_repository_at(root, false)?;
     let origin_bytes = fs::read(root.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
@@ -1395,53 +1390,6 @@ pub(crate) fn verify_current_repository_at(
             return Err(format!("{} has no exact retained Proposal", reference.path));
         }
     }
-    for reference in &repository.registrations {
-        let bytes = object_bytes
-            .get(&reference.path)
-            .ok_or_else(|| format!("current object {} was not loaded", reference.path))?;
-        let registration = RegistrationRecordV1::parse(bytes)?;
-        if registration.canonical_bytes()?.as_slice() != bytes.as_slice()
-            || registration.registration_record_id != reference.id
-        {
-            return Err(format!(
-                "{} does not contain the declared canonical Registration Record",
-                reference.path
-            ));
-        }
-        let submission_reference = repository
-            .submissions
-            .iter()
-            .find(|candidate| candidate.id == registration.submission_id)
-            .ok_or_else(|| {
-                format!(
-                    "{} targets Submission {} outside the current repository",
-                    reference.path, registration.submission_id
-                )
-            })?;
-        if registration.submission_root != submission_reference.root
-            || registration.submission_path != submission_reference.path
-        {
-            return Err(format!(
-                "{} does not bind the current Submission reference",
-                reference.path
-            ));
-        }
-        let submission =
-            SubmissionV1::parse(object_bytes.get(&submission_reference.path).ok_or_else(
-                || {
-                    format!(
-                        "current object {} was not loaded",
-                        submission_reference.path
-                    )
-                },
-            )?)?;
-        verify_registration_artifacts(
-            &reference.path,
-            &registration.artifact_ids,
-            &submission.artifacts,
-            &repository.artifacts,
-        )?;
-    }
     for reference in &repository.verifications {
         let bytes = object_bytes
             .get(&reference.path)
@@ -1549,50 +1497,9 @@ pub(crate) fn verify_current_repository_at(
     Ok(repository)
 }
 
-fn verify_registration_artifacts(
-    registration_path: &str,
-    registration_artifact_ids: &[String],
-    submission_artifacts: &[SubmissionArtifact],
-    retained_artifacts: &[RepositoryObjectRefV1],
-) -> Result<(), String> {
-    let expected = submission_artifacts
-        .iter()
-        .map(|artifact| {
-            artifact
-                .digest
-                .strip_prefix("sha256:")
-                .map(str::to_string)
-                .ok_or_else(|| {
-                    format!(
-                        "{registration_path} references a Submission with a malformed Artifact digest"
-                    )
-                })
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    // Empty sets are the finite receipt shape emitted before the Registration
-    // writer began carrying the Submission's direct Artifact list. The exact
-    // Submission root remains authoritative for those immutable records.
-    if !registration_artifact_ids.is_empty() && registration_artifact_ids != expected {
-        return Err(format!(
-            "{registration_path} does not bind the referenced Submission's exact ordered Artifact set"
-        ));
-    }
-    for artifact_id in &expected {
-        if !retained_artifacts
-            .iter()
-            .any(|artifact| artifact.id == *artifact_id)
-        {
-            return Err(format!(
-                "{registration_path} names Artifact {artifact_id} outside the current repository"
-            ));
-        }
-    }
-    Ok(())
-}
-
 fn read_current_object_set(
     root: &Path,
-    repository: &CurrentRepositoryV3,
+    repository: &CurrentRepositoryV4,
 ) -> Result<BTreeMap<String, Vec<u8>>, String> {
     let mut references = repository
         .accepted_claims
@@ -1604,7 +1511,6 @@ fn read_current_object_set(
                 .proposals
                 .iter()
                 .chain(&repository.submissions)
-                .chain(&repository.registrations)
                 .chain(&repository.verifications)
                 .chain(&repository.artifacts)
                 .map(|reference| (reference.path.as_str(), reference.root.as_str())),
@@ -1662,7 +1568,7 @@ fn read_current_object_set(
 /// authority objects still fail closed.
 pub(crate) fn verify_current_repository_allow_derived_drift_at(
     root: &Path,
-) -> Result<CurrentRepositoryV3, String> {
+) -> Result<CurrentRepositoryV4, String> {
     let repository = verify_current_repository_at(root, false)?;
     let origin_bytes = fs::read(root.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
@@ -1674,8 +1580,8 @@ pub(crate) fn verify_current_repository_allow_derived_drift_at(
 fn initial_repository(
     root: &Path,
     origin: &RepositoryOriginV1,
-) -> Result<CurrentRepositoryV3, String> {
-    let commit = origin_introducing_commit(root)?;
+) -> Result<CurrentRepositoryV4, String> {
+    let commit = current_origin_commit(root, origin)?;
     let read_blob = |path: &str| -> Result<Vec<u8>, String> {
         let spec = format!("{commit}:{path}");
         let output = crate::git_hardened::output(root, &["show", &spec])?;
@@ -1690,44 +1596,39 @@ fn initial_repository(
     let initial_origin_bytes = read_blob(".vela/origin.json")?;
     let initial_origin = RepositoryOriginV1::parse(&initial_origin_bytes)?;
     if initial_origin != *origin {
-        return Err("current origin differs from its introducing Git commit".into());
+        return Err("current origin differs from its exact boundary commit".into());
     }
     let repository_bytes = read_blob(".vela/repository.json")?;
-    let repository = CurrentRepositoryV3::parse(&repository_bytes)?;
+    let repository = CurrentRepositoryV4::parse(&repository_bytes)?;
     if repository.frontier_id != origin.frontier_id
         || repository.profile_root != origin.profile_root
         || repository.origin_id != origin.origin_id
         || repository.origin_root != origin.canonical_root()?
-        || !repository.pending_claims.is_empty()
-        || !repository.proposals.is_empty()
-        || !repository.submissions.is_empty()
-        || !repository.registrations.is_empty()
-        || !repository.verifications.is_empty()
     {
-        return Err("origin-introducing commit is not one exact repository bootstrap".into());
+        return Err("current origin commit does not bind its exact repository manifest".into());
     }
     Ok(repository)
 }
 
-fn origin_introducing_commit(root: &Path) -> Result<String, String> {
-    let commits = git_text(
-        root,
-        &[
-            "log",
-            "--format=%H",
-            "--diff-filter=A",
-            "--",
-            ".vela/origin.json",
-        ],
-    )?
-    .lines()
-    .filter(|line| !line.is_empty())
-    .map(ToString::to_string)
-    .collect::<Vec<_>>();
-    let [commit] = commits.as_slice() else {
+fn current_origin_commit(root: &Path, origin: &RepositoryOriginV1) -> Result<String, String> {
+    let expected = origin.canonical_bytes()?;
+    let commits = git_text(root, &["log", "--format=%H", "--", ".vela/origin.json"])?
+        .lines()
+        .filter(|line| !line.is_empty())
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+    let mut matching = Vec::new();
+    for commit in commits {
+        let spec = format!("{commit}:.vela/origin.json");
+        let output = crate::git_hardened::output(root, &["show", &spec])?;
+        if output.status.success() && output.stdout == expected {
+            matching.push(commit);
+        }
+    }
+    let [commit] = matching.as_slice() else {
         return Err(format!(
-            "current repository must introduce its origin exactly once; found {} commits",
-            commits.len()
+            "current repository must commit its exact origin once; found {} matching commits",
+            matching.len()
         ));
     };
     Ok(commit.clone())
@@ -1752,7 +1653,7 @@ fn read_rooted_object(root: &Path, path: &str, expected_root: &str) -> Result<Ve
 
 fn verify_current_repository_authority(
     root: &Path,
-    repository: &CurrentRepositoryV3,
+    repository: &CurrentRepositoryV4,
     origin: &RepositoryOriginV1,
 ) -> Result<(), String> {
     let genesis_event_log_root = format!("sha256:{}", vela_protocol::events::event_log_hash(&[]));
@@ -1840,12 +1741,16 @@ fn verify_current_repository_authority(
     let mut initial_objects = initial_repository
         .accepted_claims
         .iter()
+        .chain(&initial_repository.pending_claims)
         .map(|reference| RepositoryObjectRefV1 {
             schema: vela_protocol::claim_record::CLAIM_RECORD_V1_SCHEMA.into(),
             id: reference.claim_id.clone(),
             root: reference.claim_root.clone(),
             path: reference.path.clone(),
         })
+        .chain(initial_repository.proposals.iter().cloned())
+        .chain(initial_repository.submissions.iter().cloned())
+        .chain(initial_repository.verifications.iter().cloned())
         .chain(initial_repository.artifacts.iter().cloned())
         .collect::<Vec<_>>();
     initial_objects.sort_by(|left, right| {
@@ -1956,7 +1861,6 @@ fn verify_current_repository_authority(
                 .proposals
                 .iter()
                 .chain(&repository.submissions)
-                .chain(&repository.registrations)
                 .chain(&repository.verifications)
                 .chain(&repository.artifacts)
                 .map(|reference| (reference.path.clone(), reference.root.clone())),
@@ -1996,7 +1900,6 @@ fn verify_current_repository_authority(
                 .proposals
                 .iter()
                 .chain(&repository.submissions)
-                .chain(&repository.registrations)
                 .chain(&repository.verifications)
                 .chain(&repository.artifacts)
                 .map(|reference| reference.path.as_str()),
@@ -2071,7 +1974,7 @@ fn verify_repository_manifest_delta_chain<'a>(
     Ok(transitions)
 }
 
-fn repository_manifest_at_commit(root: &Path, commit: &str) -> Result<CurrentRepositoryV3, String> {
+fn repository_manifest_at_commit(root: &Path, commit: &str) -> Result<CurrentRepositoryV4, String> {
     let spec = format!("{commit}:.vela/repository.json");
     let output = crate::git_hardened::output(root, &["show", &spec])?;
     if !output.status.success() {
@@ -2080,7 +1983,7 @@ fn repository_manifest_at_commit(root: &Path, commit: &str) -> Result<CurrentRep
             String::from_utf8_lossy(&output.stderr).trim()
         ));
     }
-    CurrentRepositoryV3::parse(&output.stdout)
+    CurrentRepositoryV4::parse(&output.stdout)
 }
 
 /// Replay unsigned evidence-manifest commits from the last exact signed
@@ -2089,7 +1992,7 @@ fn repository_manifest_at_commit(root: &Path, commit: &str) -> Result<CurrentRep
 fn verify_routine_evidence_ancestry(
     root: &Path,
     signed_transitions: &[SignedRepositoryManifestTransition],
-    current: &CurrentRepositoryV3,
+    current: &CurrentRepositoryV4,
 ) -> Result<(), String> {
     let Some(first) = signed_transitions.first() else {
         return Err("authority history has no signed repository checkpoint".into());
@@ -2110,7 +2013,11 @@ fn verify_routine_evidence_ancestry(
             ".vela/repository.json",
         ],
     )?;
-    let origin_commit = origin_introducing_commit(root)?;
+    let origin = RepositoryOriginV1::parse(
+        &fs::read(root.join(".vela/origin.json"))
+            .map_err(|error| format!("read current repository origin: {error}"))?,
+    )?;
+    let origin_commit = current_origin_commit(root, &origin)?;
     let mut versions = Vec::new();
     let mut in_current_history = false;
     for commit in commits.lines().filter(|line| !line.is_empty()) {
@@ -2228,8 +2135,8 @@ fn verify_routine_evidence_ancestry(
 /// identity, authority configuration, accepted Standing, or any retained
 /// reference from the authority checkpoint.
 pub(crate) fn verify_routine_evidence_overlay(
-    authority_checkpoint: &CurrentRepositoryV3,
-    current: &CurrentRepositoryV3,
+    authority_checkpoint: &CurrentRepositoryV4,
+    current: &CurrentRepositoryV4,
 ) -> Result<(), String> {
     authority_checkpoint.verify()?;
     current.verify()?;
@@ -2264,11 +2171,6 @@ pub(crate) fn verify_routine_evidence_overlay(
         "Submission",
         &authority_checkpoint.submissions,
         &current.submissions,
-    )?;
-    require_retained_object_refs(
-        "Registration Record",
-        &authority_checkpoint.registrations,
-        &current.registrations,
     )?;
     require_retained_object_refs(
         "Verification Record",
@@ -2425,7 +2327,7 @@ mod tests {
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject};
     use vela_protocol::submission_v1::{
-        RequestedChange, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
+        RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
     };
     use vela_protocol::verification_record::{
         IndependenceDisclosure, VerificationMethod, VerificationRecordDraft, VerificationScope,
@@ -2443,16 +2345,6 @@ mod tests {
             kind: "fixture".into(),
             path: format!("artifacts/{byte}.json"),
             digest: root(byte),
-        }
-    }
-
-    fn retained_artifact(byte: char) -> RepositoryObjectRefV1 {
-        let id = byte.to_string().repeat(64);
-        RepositoryObjectRefV1 {
-            schema: "content-addressed-artifact".into(),
-            id: id.clone(),
-            root: format!("sha256:{id}"),
-            path: format!("records/artifacts/sha256/{id}"),
         }
     }
 
@@ -2583,52 +2475,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn registration_artifacts_must_match_submission_order_exactly() {
-        let a = "a".repeat(64);
-        let b = "b".repeat(64);
-        let error = verify_registration_artifacts(
-            "records/registrations/sha256/fixture.json",
-            &[b.clone(), a.clone()],
-            &[submission_artifact('a'), submission_artifact('b')],
-            &[retained_artifact('a'), retained_artifact('b')],
-        )
-        .expect_err("reordered Registration artifacts must fail closed");
-        assert!(error.contains("exact ordered Artifact set"));
-
-        verify_registration_artifacts(
-            "records/registrations/sha256/legacy.json",
-            &[],
-            &[submission_artifact('a')],
-            &[retained_artifact('a')],
-        )
-        .expect("empty pre-fix Registration receipts remain replayable");
-
-        let error = verify_registration_artifacts(
-            "records/registrations/sha256/legacy-missing.json",
-            &[],
-            &[submission_artifact('a')],
-            &[],
-        )
-        .expect_err("empty pre-fix receipts still require retained Submission artifacts");
-        assert!(error.contains("outside the current repository"));
-    }
-
-    #[test]
-    fn registration_artifacts_must_all_be_retained() {
-        let a = "a".repeat(64);
-        let b = "b".repeat(64);
-        let error = verify_registration_artifacts(
-            "records/registrations/sha256/fixture.json",
-            &[a, b.clone()],
-            &[submission_artifact('a'), submission_artifact('b')],
-            &[retained_artifact('a')],
-        )
-        .expect_err("missing retained Artifact must fail closed");
-        assert!(error.contains(&format!(
-            "names Artifact {b} outside the current repository"
-        )));
-    }
     fn current_review_lineage() -> (ProposalV1, ClaimRecordV1, VerificationRecordV1) {
         let submission_id = "vsb_ce7f0f4d4b6a4c40".to_string();
         let submission_root = root('2');
@@ -2655,7 +2501,7 @@ mod tests {
             },
             "agent:producer-fixture".into(),
             "2026-07-27T00:00:01Z".into(),
-            "Register the exact bounded result.".into(),
+            "Submit the exact bounded result.".into(),
             ProposalProducerPackage {
                 kind: "submission_v1".into(),
                 id: submission_id.clone(),
@@ -2920,9 +2766,9 @@ mod tests {
         );
     }
 
-    fn repository_fixture() -> CurrentRepositoryV3 {
-        CurrentRepositoryV3 {
-            schema: vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V3.into(),
+    fn repository_fixture() -> CurrentRepositoryV4 {
+        CurrentRepositoryV4 {
+            schema: vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V4.into(),
             frontier_id: "vfr_0123456789abcdef".into(),
             profile_root: root('1'),
             origin_id: "vro_0123456789abcdef".into(),
@@ -2931,7 +2777,6 @@ mod tests {
             pending_claims: Vec::new(),
             proposals: Vec::new(),
             submissions: Vec::new(),
-            registrations: Vec::new(),
             verifications: Vec::new(),
             artifacts: Vec::new(),
             authority_keyset_root: root('3'),

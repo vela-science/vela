@@ -10,7 +10,7 @@ use std::path::{Component, Path, PathBuf};
 use chrono::{SecondsFormat, Utc};
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use vela_protocol::current_repository::{CurrentRepositoryV3, RepositoryObjectRefV1};
+use vela_protocol::current_repository::{CurrentRepositoryV4, RepositoryObjectRefV1};
 use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::submission_v1::SubmissionV1;
@@ -44,7 +44,7 @@ pub(crate) struct VerificationRecordRequest {
 
 fn ensure_pending_proposal(
     frontier: &Path,
-    repository: &CurrentRepositoryV3,
+    repository: &CurrentRepositoryV4,
     proposal_id: &str,
 ) -> Result<(), String> {
     let decisions =
@@ -75,7 +75,7 @@ struct CurrentProposalPackage {
 
 fn load_current_proposal_package(
     frontier: &Path,
-    repository: &CurrentRepositoryV3,
+    repository: &CurrentRepositoryV4,
     proposal_id: &str,
 ) -> Result<CurrentProposalPackage, String> {
     let proposal_reference = repository
@@ -132,7 +132,7 @@ fn load_current_proposal_package(
 
 fn current_subject_for_proposal(
     frontier: &Path,
-    repository: &CurrentRepositoryV3,
+    repository: &CurrentRepositoryV4,
     proposal_id: &str,
 ) -> Result<VerificationSubject, String> {
     let package = load_current_proposal_package(frontier, repository, proposal_id)?;
@@ -313,7 +313,7 @@ fn read_exact_object<T>(
 
 fn load_subject(
     frontier: &Path,
-    repository: &CurrentRepositoryV3,
+    repository: &CurrentRepositoryV4,
     record: &VerificationRecordV1,
 ) -> Result<(ProposalV1, String, SubmissionV1), String> {
     let package = load_current_proposal_package(frontier, repository, &record.subject.proposal_id)?;
@@ -347,7 +347,7 @@ fn load_subject(
 
 fn existing_outcome(
     frontier: &Path,
-    repository: &CurrentRepositoryV3,
+    repository: &CurrentRepositoryV4,
     record: &VerificationRecordV1,
     record_root: &str,
     operation_id: &str,
@@ -386,7 +386,7 @@ fn existing_outcome(
         publication: PublicationOutcome {
             state: PublicationState::Uncommitted {
                 candidate: None,
-                reason: "exact Verification Record is already registered".into(),
+                reason: "exact Verification Record is already retained".into(),
             },
         },
     }))
@@ -596,7 +596,7 @@ fn publication_error(outcome: PublicationOutcome) -> String {
 mod tests {
     use ed25519_dalek::SigningKey;
     use tempfile::TempDir;
-    use vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V3;
+    use vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V4;
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject};
     use vela_protocol::submission_v1::{
@@ -615,7 +615,7 @@ mod tests {
 
     struct Fixture {
         _directory: TempDir,
-        repository: CurrentRepositoryV3,
+        repository: CurrentRepositoryV4,
         record: VerificationRecordV1,
         proposal_root: String,
     }
@@ -752,8 +752,8 @@ mod tests {
             &verifier_key,
         )
         .unwrap();
-        let repository = CurrentRepositoryV3 {
-            schema: CURRENT_REPOSITORY_SCHEMA_V3.into(),
+        let repository = CurrentRepositoryV4 {
+            schema: CURRENT_REPOSITORY_SCHEMA_V4.into(),
             frontier_id: "vfr_0123456789abcdef".into(),
             profile_root: root('1'),
             origin_id: "vro_0123456789abcdef".into(),
@@ -772,7 +772,6 @@ mod tests {
                 root: submission_root,
                 path: submission_path,
             }],
-            registrations: Vec::new(),
             verifications: Vec::new(),
             artifacts: vec![RepositoryObjectRefV1 {
                 schema: "content-addressed-artifact".into(),
@@ -836,7 +835,7 @@ mod tests {
     }
 
     #[test]
-    fn exact_registered_verification_is_idempotent_and_non_authoritative() {
+    fn exact_retained_verification_is_idempotent_and_non_authoritative() {
         let mut fixture = fixture();
         let record_root = fixture.record.canonical_root().unwrap();
         let path =

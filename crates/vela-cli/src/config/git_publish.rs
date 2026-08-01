@@ -605,7 +605,7 @@ mod tests {
         std::fs::write(root.join("unrelated.txt"), b"dirty-after-stage").unwrap();
         let outcome = publish_exact_delta(
             &root.join("frontier"),
-            "register Submission",
+            "retain Submission",
             &["vsb_test".into()],
             &delta,
             preflight,

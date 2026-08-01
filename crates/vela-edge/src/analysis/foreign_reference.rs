@@ -21,7 +21,7 @@ use vela_protocol::authority::{
     verify_authority_envelope,
 };
 use vela_protocol::claim_record::ClaimRecordV1;
-use vela_protocol::current_repository::CurrentRepositoryV3;
+use vela_protocol::current_repository::CurrentRepositoryV4;
 use vela_protocol::events::EventKind;
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::repository_origin::{RepositoryOriginKind, RepositoryOriginV1};
@@ -470,7 +470,7 @@ fn validate_semantic_package(
             .ok_or_else(|| format!("foreign_reference_required_role_missing:{role}"))
     };
 
-    let current = CurrentRepositoryV3::parse(bytes("current_repository_manifest")?)
+    let current = CurrentRepositoryV4::parse(bytes("current_repository_manifest")?)
         .map_err(|_| "foreign_reference_current_repository_invalid".to_string())?;
     if current.frontier_id != reference.source.frontier_id
         || current.canonical_root()? != reference.source.current_repository.repository_root

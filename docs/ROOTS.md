@@ -51,8 +51,7 @@ inputs. These profiles are not interchangeable.
 | Authority Event-log root | Ordered current authority Event set | Repository root or accepted Claim set |
 | Claim ID `vcl_…` | Full content-derived current Claim identity | Standing or Proposal |
 | Claim Record root | Complete canonical Claim Record | Claim ID alone or acceptance |
-| Submission ID/root `vsb_…` | Authenticated producer input | Verification, Registration, or Decision |
-| Registration ID/root `vrr_…` | Exact Vela intake record | Inclusion, correctness, or acceptance |
+| Submission ID/root `vsb_…` | Authenticated producer input retained by an exact Proposal reference | Verification or Decision |
 | Verification ID/root `vvr_…` | Signed scoped verifier observation | Broader truth or authority |
 | Proposal ID/root `vpr_…` | Candidate transition | Decision or Event |
 | Artifact digest | Exact retained evidence bytes | Scientific meaning or availability elsewhere |
@@ -74,11 +73,6 @@ The full Claim Record root also covers relation metadata and source provenance.
 The readable Submission handle derives from the canonical signed preimage with
 the self-ID and authentication signature cleared. The full root covers the
 complete authenticated object.
-
-### Registration Record
-
-The readable Registration handle derives from the canonical record with its
-self-ID cleared. The full root covers the complete Vela-issued record.
 
 ### Verification Record
 
@@ -105,7 +99,7 @@ pre-release predecessor. A compacted origin commits to the predecessor remote,
 tag, commit, tree, repository and authority roots, archive digest, Git-object
 manifest root, and equivalence-report root.
 
-The current `vela.repository.v3` root commits to that origin and every active
+The current `vela.repository.v4` root commits to that origin and every active
 canonical object set. Current bytes do not substitute for predecessor
 signatures; the predecessor remains independently inspectable through its tag,
 archive, and pinned historical release.

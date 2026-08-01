@@ -121,15 +121,16 @@ The ordinary path is:
 ```text
 native run and scoped evidence
     -> vela submit
-    -> Registration Record + pending Proposal
+    -> pending Proposal
     -> independent Verification Record(s)
     -> review accept | review reject
     -> authorized Decision + canonical Event
 ```
 
-Registration proves intake, not correctness or acceptance. A producer cannot
-mint a Verification Record, Decision, Event, or accepted Claim Record. The
-current writer registers a pending Proposal and leaves the consequential
+The signed Submission and its exact Proposal package reference prove retained
+intake, not correctness or acceptance. A producer cannot mint a Verification
+Record, Decision, Event, or accepted Claim Record. The current writer creates
+a pending Proposal and leaves the consequential
 action to an authorized Decision.
 
 For a current Submission, the Decision gate re-reads the exact retained

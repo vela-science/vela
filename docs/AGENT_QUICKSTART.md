@@ -17,7 +17,7 @@ vela init ./frontier --name "<name>" --scope "<bounded question>" --json
 ```
 
 It creates no MCP configuration, verifier, policy, or authority. `vela status`
-will report `Authority: not configured`; canonical Submission registration
+will report `Authority: not configured`; canonical Submission intake
 remains fail-closed until the repository's standard authority profile is
 provisioned.
 
@@ -40,7 +40,7 @@ vela submit --frontier . \
 The agent, workbench, notebook, proof assistant, or laboratory system performs
 the work directly. Vela does not wrap it. `start` writes no Attempt, lease,
 budget, or workflow state; it only returns the exact Target packet and a direct
-Submission template. The producer retains native files and registers only the
+Submission template. The producer retains native files and submits only the
 bounded artifact and Claim needed for review. Benchmarks use Harbor tasks
 directly rather than a Vela-owned runner.
 
@@ -52,8 +52,8 @@ vela review show . <vpr_id> --json
 vela why . <claim_id> --json
 ```
 
-The Submission is producer input. The Registration Record says Vela retained
-it. A Verification Record reports one scoped check. A Proposal requests a
+The signed Submission is retained producer input, and the Proposal binds its
+exact bytes. A Verification Record reports one scoped check. A Proposal requests a
 change. A Decision authorizes or refuses that change. An Event enters canonical
 history. Standing is derived from replay.
 

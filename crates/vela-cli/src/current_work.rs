@@ -12,7 +12,7 @@ use serde_json::{Value, json};
 use crate::cli::safe_text;
 
 const AUTHORITY_CEILING: &str =
-    "Evidence may be registered for review; only an authorized human Decision changes Standing.";
+    "Evidence may be submitted for review; only an authorized human Decision changes Standing.";
 
 fn briefing(frontier: &Path, target_id: &str) -> Result<Value, String> {
     let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;

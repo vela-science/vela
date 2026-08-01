@@ -1,7 +1,7 @@
 //! Current-only producer intake for Profile v2 repositories.
 //!
-//! This path consumes an authenticated Submission, creates current
-//! Claim/Proposal/Registration objects, and advances the repository manifest
+//! This path consumes an authenticated Submission, creates the current Claim
+//! and Proposal, and advances the repository manifest
 //! without changing authority or accepted scientific state.
 
 use std::collections::BTreeMap;
@@ -14,11 +14,9 @@ use vela_protocol::claim_record::{
     ClaimAssertion, ClaimEvidenceRef, ClaimRecordV1, ClaimRelation, ClaimSource,
 };
 use vela_protocol::current_repository::{
-    ClaimStandingRefV1, CurrentRepositoryV3, RepositoryObjectRefV1,
+    ClaimStandingRefV1, CurrentRepositoryV4, RepositoryObjectRefV1,
 };
 use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject, ProposalV1};
-use vela_protocol::registration_record::{RegistrationRecordV1, RegistrationRoots};
-use vela_protocol::repository_origin::RepositoryOriginV1;
 use vela_protocol::submission_v1::SubmissionV1;
 
 use crate::authority_transaction::{AuthorityDerivedDraft, AuthorityObjectDraft};
@@ -37,16 +35,6 @@ pub(crate) fn rooted_path(directory: &str, root: &str) -> Result<String, String>
         .strip_prefix("sha256:")
         .ok_or_else(|| format!("{directory} object root is not sha256"))?;
     Ok(format!("{directory}/{digest}.json"))
-}
-
-fn proposal_set_root(proposals: &[RepositoryObjectRefV1]) -> Result<String, String> {
-    Ok(format!(
-        "sha256:{}",
-        vela_protocol::canonical::sha256_canonical(&json!({
-            "schema": "vela.proposal-set.v1",
-            "proposals": proposals,
-        }))?
-    ))
 }
 
 pub(crate) fn add_object_ref(
@@ -103,7 +91,7 @@ fn add_artifact_ref(
 }
 
 fn add_pending_claim(
-    repository: &mut CurrentRepositoryV3,
+    repository: &mut CurrentRepositoryV4,
     claim: &ClaimRecordV1,
     root: &str,
     path: &str,
@@ -133,7 +121,7 @@ fn add_pending_claim(
 
 fn load_target_claim(
     frontier: &Path,
-    repository: &CurrentRepositoryV3,
+    repository: &CurrentRepositoryV4,
     submission: &SubmissionV1,
 ) -> Result<Option<ClaimRecordV1>, String> {
     let Some(target) = submission.requested_change.target.as_ref() else {
@@ -173,7 +161,7 @@ struct ProposedChange {
 
 fn proposed_change(
     frontier: &Path,
-    repository: &CurrentRepositoryV3,
+    repository: &CurrentRepositoryV4,
     submission: &SubmissionV1,
 ) -> Result<ProposedChange, String> {
     let target = load_target_claim(frontier, repository, submission)?;
@@ -275,7 +263,7 @@ fn proposed_change(
 
 pub(crate) fn rebind_target_index(
     frontier: &Path,
-    repository: &CurrentRepositoryV3,
+    repository: &CurrentRepositoryV4,
 ) -> Result<Vec<AuthorityDerivedDraft>, String> {
     let path = frontier.join("targets.json");
     if !path.is_file() {
@@ -309,7 +297,7 @@ pub(crate) fn rebind_target_index(
 
 fn existing_outcome(
     frontier: &Path,
-    repository: &CurrentRepositoryV3,
+    repository: &CurrentRepositoryV4,
     submission: &SubmissionV1,
     submission_root: &str,
 ) -> Result<Option<SubmitOutcome>, String> {
@@ -324,39 +312,34 @@ fn existing_outcome(
         return Err("Submission ID collides with different canonical bytes".into());
     }
     let mut matching = Vec::new();
-    for reference in &repository.registrations {
+    for reference in &repository.proposals {
         let bytes = fs::read(frontier.join(&reference.path))
-            .map_err(|error| format!("read existing Registration Record: {error}"))?;
-        let registration = RegistrationRecordV1::parse(&bytes)?;
-        if registration.submission_id == submission.submission_id {
-            matching.push((reference, registration));
+            .map_err(|error| format!("read existing Proposal {}: {error}", reference.path))?;
+        let proposal = ProposalV1::parse(&bytes)?;
+        if proposal.producer_package.id == submission.submission_id
+            && proposal.producer_package.root == submission_root
+            && proposal.producer_package.path == existing.path
+        {
+            matching.push((reference, proposal));
         }
     }
-    let [(reference, registration)] = matching.as_slice() else {
+    let [proposal_reference] = matching.as_slice() else {
         return Err(format!(
-            "registered Submission {} must have exactly one Registration Record; found {}",
+            "retained Submission {} must have exactly one Proposal; found {}",
             submission.submission_id,
             matching.len()
         ));
     };
-    let proposal = repository
-        .proposals
-        .iter()
-        .find(|proposal| proposal.id == registration.proposal_id)
-        .ok_or_else(|| "existing Registration Record names a missing Proposal".to_string())?;
-    let operation_id = crate::frontier_txn::OperationId::derive(
-        "submit",
-        registration.transaction_root.as_bytes(),
-    );
+    let (_, proposal) = proposal_reference;
+    let request_root = submit_request_root(repository, submission_root)?;
+    let operation_id = crate::frontier_txn::OperationId::derive("submit", request_root.as_bytes());
     Ok(Some(SubmitOutcome {
         schema: "vela.submit-result.v1",
         operation_id: operation_id.as_str().into(),
         submission_id: submission.submission_id.clone(),
         submission_root: submission_root.to_string(),
-        registration_record_id: registration.registration_record_id.clone(),
-        registration_record_root: reference.root.clone(),
-        proposal_id: proposal.id.clone(),
-        claim_id: registration.claim_id.clone(),
+        proposal_id: proposal.proposal_id.clone(),
+        claim_id: proposal.subject.id.clone(),
         route: "pending_review",
         accepted_event_count_before: 0,
         accepted_event_count_after: 0,
@@ -365,15 +348,30 @@ fn existing_outcome(
         publication: PublicationOutcome {
             state: PublicationState::Uncommitted {
                 candidate: None,
-                reason: "Submission is already registered in the current repository".into(),
+                reason: "Submission is already retained in the current repository".into(),
             },
         },
     }))
 }
 
+fn submit_request_root(
+    repository: &CurrentRepositoryV4,
+    submission_root: &str,
+) -> Result<String, String> {
+    Ok(format!(
+        "sha256:{}",
+        vela_protocol::canonical::sha256_canonical(&json!({
+            "schema": "vela.current-submit-request.v2",
+            "frontier_id": repository.frontier_id,
+            "origin_id": repository.origin_id,
+            "submission_root": submission_root,
+        }))?
+    ))
+}
+
 fn require_unique_source_run(
     frontier: &Path,
-    repository: &CurrentRepositoryV3,
+    repository: &CurrentRepositoryV4,
     submission: &SubmissionV1,
 ) -> Result<(), String> {
     let Some(source_run) = submission.provenance.source_run.as_deref() else {
@@ -384,14 +382,14 @@ fn require_unique_source_run(
             continue;
         }
         let bytes = fs::read(frontier.join(&reference.path))
-            .map_err(|error| format!("read registered Submission for Run uniqueness: {error}"))?;
+            .map_err(|error| format!("read retained Submission for Run uniqueness: {error}"))?;
         let existing = SubmissionV1::parse(&bytes)?;
         if existing.provenance.producer == submission.provenance.producer
             && existing.provenance.source_system == submission.provenance.source_system
             && existing.provenance.source_run.as_deref() == Some(source_run)
         {
             return Err(format!(
-                "Run {source_run} from producer {} in source system {} is already bound to registered Submission {}",
+                "Run {source_run} from producer {} in source system {} is already bound to retained Submission {}",
                 submission.provenance.producer,
                 submission.provenance.source_system,
                 existing.submission_id
@@ -441,15 +439,6 @@ fn submit_inner(
         return Err("current repository changed while acquiring the submit barrier".into());
     }
     require_unique_source_run(frontier, &held_repository, submission)?;
-    let origin_bytes = fs::read(frontier.join(".vela/origin.json"))
-        .map_err(|error| format!("read current repository origin: {error}"))?;
-    let origin = RepositoryOriginV1::parse(&origin_bytes)?;
-    if origin.canonical_bytes()? != origin_bytes {
-        return Err("current repository origin is not canonical JSON".into());
-    }
-    let authority =
-        crate::cli::load_current_repository_authority(frontier, &held_repository, &origin)?;
-
     let fixed_time = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
     let PreparedSubmissionArtifacts {
         writes: artifact_writes,
@@ -485,7 +474,7 @@ fn submit_inner(
         executor.into(),
         fixed_time.clone(),
         format!(
-            "Register authenticated Submission {} for independent verification and authorized review.",
+            "Retain authenticated Submission {} for independent verification and authorized review.",
             submission.submission_id
         ),
         ProposalProducerPackage {
@@ -527,64 +516,8 @@ fn submit_inner(
             &format!("records/artifacts/sha256/{digest}"),
         )?;
     }
-    let request_root = format!(
-        "sha256:{}",
-        vela_protocol::canonical::sha256_canonical(&json!({
-            "schema": "vela.current-submit-request.v1",
-            "frontier_id": held_repository.frontier_id,
-            "origin_id": held_repository.origin_id,
-            "repository_before": repository_root,
-            "submission_root": submission_root,
-            "source_attempt": submission.provenance.source_attempt.as_deref(),
-        }))?
-    );
+    let request_root = submit_request_root(&held_repository, &submission_root)?;
     let operation_id = crate::frontier_txn::OperationId::derive("submit", request_root.as_bytes());
-    let authority_event_root = authority.verification.final_event_log_root.clone();
-    let registration = RegistrationRecordV1::build(
-        held_repository.frontier_id.clone(),
-        submission.submission_id.clone(),
-        submission_root.clone(),
-        submission_path.clone(),
-        fixed_time.clone(),
-        format!("vela-cli@{}", env!("CARGO_PKG_VERSION")),
-        submission
-            .authentication
-            .identity_binding
-            .binding_id
-            .clone(),
-        submission
-            .artifacts
-            .iter()
-            .map(|artifact| {
-                artifact
-                    .digest
-                    .strip_prefix("sha256:")
-                    .expect("verified Submission artifact digest is sha256")
-                    .to_string()
-            })
-            .collect(),
-        proposal.subject.id.clone(),
-        proposal.proposal_id.clone(),
-        "pending_review".into(),
-        request_root.clone(),
-        RegistrationRoots {
-            event_log_before: authority_event_root.clone(),
-            event_log_after: authority_event_root,
-            proposal_after: proposal_set_root(&next_repository.proposals)?,
-        },
-        false,
-    )?;
-    let registration_root = registration.canonical_root()?;
-    let registration_path = rooted_path("records/registrations/sha256", &registration_root)?;
-    add_object_ref(
-        &mut next_repository.registrations,
-        RepositoryObjectRefV1 {
-            schema: registration.schema.clone(),
-            id: registration.registration_record_id.clone(),
-            root: registration_root.clone(),
-            path: registration_path.clone(),
-        },
-    )?;
     next_repository.verify()?;
     let derived_drafts = rebind_target_index(frontier, &next_repository)?;
     object_drafts.extend([
@@ -599,12 +532,6 @@ fn submit_inner(
             object_kind: "submission".into(),
             class: WriteClass::PublicReview,
             postimage: Some(submission.canonical_bytes()?),
-        },
-        AuthorityObjectDraft {
-            path: registration_path,
-            object_kind: "registration_record".into(),
-            class: WriteClass::PublicReview,
-            postimage: Some(registration.canonical_bytes()?),
         },
         AuthorityObjectDraft {
             path: ".vela/repository.json".into(),
@@ -687,8 +614,6 @@ fn submit_inner(
         operation_id: operation_id.as_str().into(),
         submission_id: submission.submission_id.clone(),
         submission_root,
-        registration_record_id: registration.registration_record_id,
-        registration_record_root: registration_root,
         proposal_id: proposal.proposal_id,
         claim_id: proposal.subject.id,
         route: "pending_review",
@@ -713,7 +638,7 @@ fn publication_error(outcome: PublicationOutcome) -> String {
 mod tests {
     use ed25519_dalek::SigningKey;
     use tempfile::TempDir;
-    use vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V3;
+    use vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V4;
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::submission_v1::{
         RequestedChange, RequestedChangeTarget, SubmissionArtifact, SubmissionClaim,
@@ -726,9 +651,9 @@ mod tests {
         format!("sha256:{}", byte.to_string().repeat(64))
     }
 
-    fn repository() -> CurrentRepositoryV3 {
-        CurrentRepositoryV3 {
-            schema: CURRENT_REPOSITORY_SCHEMA_V3.into(),
+    fn repository() -> CurrentRepositoryV4 {
+        CurrentRepositoryV4 {
+            schema: CURRENT_REPOSITORY_SCHEMA_V4.into(),
             frontier_id: "vfr_0123456789abcdef".into(),
             profile_root: root('a'),
             origin_id: "vro_0123456789abcdef".into(),
@@ -737,7 +662,6 @@ mod tests {
             pending_claims: Vec::new(),
             proposals: Vec::new(),
             submissions: Vec::new(),
-            registrations: Vec::new(),
             verifications: Vec::new(),
             artifacts: Vec::new(),
             authority_keyset_root: root('c'),
@@ -797,7 +721,7 @@ mod tests {
 
     fn install_accepted_claim(
         frontier: &Path,
-        repository: &mut CurrentRepositoryV3,
+        repository: &mut CurrentRepositoryV4,
         claim: &ClaimRecordV1,
     ) -> String {
         let claim_root = claim.canonical_root().unwrap();

@@ -588,24 +588,6 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         submitted["publication"]["state"], "committed_local",
         "unexpected publication outcome: {submitted}"
     );
-    let registration_root = submitted["registration_record_root"]
-        .as_str()
-        .expect("Registration Record root");
-    let registration_path = format!(
-        "records/registrations/sha256/{}.json",
-        registration_root
-            .strip_prefix("sha256:")
-            .expect("full Registration Record root")
-    );
-    let registration: Value = serde_json::from_slice(
-        &std::fs::read(frontier.join(registration_path)).expect("retained Registration Record"),
-    )
-    .expect("Registration Record JSON");
-    assert_eq!(
-        registration["artifact_ids"],
-        json!([artifact_stem]),
-        "Registration must retain the exact Submission artifact set"
-    );
     std::fs::remove_file(&transport_artifact)
         .expect("remove producer-side transport path after canonical retention");
 

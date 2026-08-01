@@ -13,6 +13,9 @@
 - Builds on:
   [ADR 0025](0025-math-first-compounding-product-architecture.md) and
   [ADR 0028](0028-living-frontier-map-and-native-system-boundary.md)
+- Lifecycle note: ADR 0033 supersedes this record's Registration terminology
+  and closure links. Its Registry, Atlas, and stale-work decisions remain
+  accepted.
 
 ## Context
 

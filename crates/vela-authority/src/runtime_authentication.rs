@@ -439,7 +439,7 @@ mod tests {
     }
 
     #[test]
-    fn signed_submission_authenticates_at_registration_time_without_becoming_authority() {
+    fn signed_submission_authenticates_at_intake_without_becoming_authority() {
         use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
         use vela_protocol::submission_v1::{
             RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft,

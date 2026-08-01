@@ -7,11 +7,11 @@
 
 mod kernel;
 pub use kernel::{
-    authentication, authority, authority_history, canonical, events, principal, sign, signing_input,
+    authentication, authority, authority_history, canonical, events, principal, sign,
 };
 mod computed;
 mod objects;
 pub use objects::{
     claim_record, cli_style, current_repository, execution_binding, identity, proposal_v1,
-    registration_record, repository_inputs, repository_origin, submission_v1, verification_record,
+    repository_inputs, repository_origin, submission_v1, verification_record,
 };

@@ -28,8 +28,8 @@ vela check . --strict --json
 vela why . <claim_id> --json
 ```
 
-`submit` retains one authenticated Submission, issues its Registration Record,
-and creates a pending Proposal. It does not create a Verification Record,
+`submit` retains one authenticated Submission and creates a pending Proposal.
+It does not create a Verification Record,
 Decision, Event, or accepted Standing.
 
 ## Daily commands
@@ -143,7 +143,7 @@ vela submit --frontier . \
 ```
 
 An observed correction or supersession does not need a synthetic work target.
-New Claims are signed and submitted directly. Registration creates a pending
+New Claims are signed and submitted directly. Submission creates a pending
 Proposal and cannot decide it.
 
 ## Verification

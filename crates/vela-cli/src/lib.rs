@@ -6,7 +6,7 @@
 // before; they now live here and reach into the substrate via
 // `vela_protocol::*`.
 // The standard repository-authority transaction core used by fresh setup,
-// producer registration, verification import, and exact review decisions.
+// producer intake, verification import, and exact review decisions.
 pub(crate) mod authority_transaction;
 mod bounded_file;
 mod frontier;

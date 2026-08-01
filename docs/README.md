@@ -23,6 +23,7 @@
 - [Math Atlas, Math Source Registry, and Target-closure ADR](adr/0030-root-bound-math-source-registry-atlas-and-target-closure.md)
 - [One product and removable Agent executor ADR](adr/0031-one-product-and-removable-agent-executor.md)
 - [Self-authenticated evidence and human Decision authority ADR](adr/0032-self-authenticated-evidence-and-human-decision-authority.md)
+- [Direct Submission lineage and Registration retirement ADR](adr/0033-direct-submission-lineage-and-registration-retirement.md)
 
 ## Project documents
 

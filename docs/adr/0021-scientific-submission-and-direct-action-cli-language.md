@@ -1,6 +1,8 @@
 # ADR 0021: Scientific Submission and direct-action CLI language
 
-- Status: Proposed
+- Status: Superseded by ADR 0033
+- Supersession: the direct `submit -> Proposal` contract remains; Registration
+  Records and their lifecycle language are retired. This record is historical.
 - Target release: Vela `v0.940.0`
 - Evidence update: the real Submission, scoped Verification, human Decision,
   and clean-clone replay loop is complete at Erdős commit

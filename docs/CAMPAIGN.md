@@ -87,7 +87,7 @@ infrastructure.
 - `vela start` is a write-free exact Target briefing. It creates no Attempt,
   lease, budget, counter, or authorization and is not required to author
   signed evidence.
-- Agents and workbenches consume the Target packet directly and register a
+- Agents and workbenches consume the Target packet directly and submit a
   Submission through `vela submit`.
 - Verifiers emit the standard Verification Record and import it through
   `vela verification import`.

@@ -187,9 +187,6 @@ fn routine_object_write(draft: &AuthorityObjectDraft) -> Result<PlannedWrite, St
         ("submission", WriteClass::PublicReview) => {
             rooted_sha256_path(&draft.path, "records/submissions/sha256/", ".json")
         }
-        ("registration_record", WriteClass::PublicReview) => {
-            rooted_sha256_path(&draft.path, "records/registrations/sha256/", ".json")
-        }
         ("verification_record", WriteClass::PublicReview) => {
             rooted_sha256_path(&draft.path, "records/verifications/sha256/", ".json")
         }

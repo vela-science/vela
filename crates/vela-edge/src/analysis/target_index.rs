@@ -15,7 +15,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 use vela_protocol::canonical;
-use vela_protocol::current_repository::CurrentRepositoryV3;
+use vela_protocol::current_repository::CurrentRepositoryV4;
 use vela_protocol::repository_inputs::{
     GitObjectFormat, RetainedObjectEntryV1, RetainedObjectManifestV1,
 };
@@ -945,7 +945,7 @@ fn exact_current_repository(
     frontier_id: &str,
     origin_id: &str,
     repository_root: &str,
-) -> Result<CurrentRepositoryV3, String> {
+) -> Result<CurrentRepositoryV4, String> {
     let path = repo_path.join(".vela/repository.json");
     let bytes = read_regular_file(&path, 8 * 1024 * 1024, "current repository manifest")?;
     let tracked = exact_tracked_head_bytes(repo_path, ".vela/repository.json", 8 * 1024 * 1024)?;
@@ -954,7 +954,7 @@ fn exact_current_repository(
             "current repository manifest differs from the exact tracked HEAD blob".to_string(),
         );
     }
-    let repository = CurrentRepositoryV3::parse(&bytes)?;
+    let repository = CurrentRepositoryV4::parse(&bytes)?;
     if repository.frontier_id != frontier_id
         || repository.origin_id != origin_id
         || repository.canonical_root()? != repository_root

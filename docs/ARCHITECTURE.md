@@ -69,7 +69,6 @@ Each object has one job:
 | --- | --- | --- |
 | Native run | Activity retained by an external agent or scientific tool | None |
 | Submission | Authenticated producer input | Requests change |
-| Registration Record | Proof that exact input entered the repository | None |
 | Verification Record | Scoped verifier observation over exact inputs | None |
 | Claim Record | Versioned assertion and evidence identity | Standing is derived |
 | Proposal | Candidate state transition | None until decided |

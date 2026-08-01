@@ -56,7 +56,7 @@ The current implementations are:
 ## 3. Repository state
 
 A current Frontier is one Git repository whose active scientific index is the
-closed `vela.repository.v3` manifest.
+closed `vela.repository.v4` manifest.
 
 Let:
 
@@ -67,7 +67,6 @@ M = (
   accepted_claims,
   pending_claims,
   submissions,
-  registrations,
   verifications,
   proposals,
   artifacts,
@@ -105,15 +104,15 @@ s = (
 )
 ```
 
-Registering `s` retains the exact Submission, Artifacts, Claim Record,
-Registration Record, and pending Proposal in one routine-evidence transaction
+Submitting `s` retains the exact Submission, Artifacts, Claim Record, and
+pending Proposal in one routine-evidence transaction
 authenticated by the producer signature:
 
 ```text
-Register(s, M) -> (M', pending Proposal)
+Submit(s, M) -> (M', pending Proposal)
 ```
 
-Registration changes no accepted Claim.
+Submission changes no accepted Claim.
 
 Routine evidence intake reads no repository-authority key. It may append exact
 content-addressed evidence and rebuild deterministic projections; it may not

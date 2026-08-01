@@ -355,11 +355,6 @@ pub async fn run_command() {
                         );
                         println!(
                             "  {:<18} {}",
-                            vela_protocol::cli_style::dim("registration"),
-                            safe_text::inline(&outcome.registration_record_id)
-                        );
-                        println!(
-                            "  {:<18} {}",
                             vela_protocol::cli_style::dim("accepted delta"),
                             outcome.accepted_event_delta
                         );

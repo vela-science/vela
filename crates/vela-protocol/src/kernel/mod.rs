@@ -9,4 +9,3 @@ pub mod canonical;
 pub mod events;
 pub mod principal;
 pub mod sign;
-pub mod signing_input;

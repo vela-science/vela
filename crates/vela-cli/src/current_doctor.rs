@@ -31,7 +31,7 @@ fn git_text(frontier: &Path, args: &[&str]) -> Result<String, String> {
 
 fn target_index_diagnostic(
     frontier: &Path,
-    repository: &vela_protocol::current_repository::CurrentRepositoryV3,
+    repository: &vela_protocol::current_repository::CurrentRepositoryV4,
     repository_root: &str,
 ) -> Result<Value, String> {
     let assessment = vela_edge::target_index::assess_current_target_index(
@@ -73,7 +73,7 @@ fn target_index_diagnostic(
 
 fn trust_diagnostic(
     frontier: &Path,
-    repository: &vela_protocol::current_repository::CurrentRepositoryV3,
+    repository: &vela_protocol::current_repository::CurrentRepositoryV4,
     origin: &RepositoryOriginV1,
 ) -> Result<Value, String> {
     let authority = crate::cli::load_current_repository_authority(frontier, repository, origin)?;
@@ -245,7 +245,6 @@ fn current_doctor_payload(frontier: &Path, all: bool) -> Result<Value, String> {
             "pending_claims": repository.pending_claims.len(),
             "pending_review": pending.len(),
             "submissions": repository.submissions.len(),
-            "registrations": repository.registrations.len(),
             "verifications": repository.verifications.len(),
             "artifacts": repository.artifacts.len(),
         },

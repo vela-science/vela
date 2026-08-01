@@ -16,7 +16,7 @@ use vela_authority::CedarEvaluationInput;
 use vela_authority::runtime_authentication::AuthenticationRequest;
 use vela_protocol::authority::{PrincipalSnapshotV1, SemanticApprovalV1};
 use vela_protocol::claim_record::ClaimRecordV1;
-use vela_protocol::current_repository::{ClaimStandingRefV1, CurrentRepositoryV3};
+use vela_protocol::current_repository::{ClaimStandingRefV1, CurrentRepositoryV4};
 use vela_protocol::events::{EventKind, NULL_HASH, StateActor, StateEvent, StateTarget};
 use vela_protocol::principal::PrincipalClass;
 use vela_protocol::proposal_v1::ProposalV1;
@@ -78,7 +78,7 @@ pub(crate) struct CurrentReviewDecisionPlan {
 
 pub(crate) struct PreparedCurrentReviewDecision {
     pub(crate) plan: CurrentReviewDecisionPlan,
-    repository: CurrentRepositoryV3,
+    repository: CurrentRepositoryV4,
     authority: crate::cli::LoadedRepositoryAuthority,
     proposal: ProposalV1,
     claim: ClaimRecordV1,
@@ -104,7 +104,7 @@ pub(crate) fn read_exact<T>(
 
 pub(crate) fn claim_for_proposal(
     frontier: &Path,
-    repository: &CurrentRepositoryV3,
+    repository: &CurrentRepositoryV4,
     proposal: &ProposalV1,
 ) -> Result<ClaimRecordV1, String> {
     let reference = repository
@@ -135,7 +135,7 @@ pub(crate) fn claim_for_proposal(
 
 pub(crate) fn submission_for_proposal(
     frontier: &Path,
-    repository: &CurrentRepositoryV3,
+    repository: &CurrentRepositoryV4,
     proposal: &ProposalV1,
 ) -> Result<SubmissionV1, String> {
     let reference = repository
@@ -167,7 +167,7 @@ pub(crate) fn submission_for_proposal(
 
 pub(crate) fn exact_verifications(
     frontier: &Path,
-    repository: &CurrentRepositoryV3,
+    repository: &CurrentRepositoryV4,
     proposal: &ProposalV1,
     claim: &ClaimRecordV1,
     submission: &SubmissionV1,
@@ -301,7 +301,7 @@ pub(crate) fn same_exact_producer_execution(left: &SubmissionV1, right: &Submiss
 /// wording retry look like two independent scientific advances.
 pub(crate) fn pending_submission_conflicts(
     frontier: &Path,
-    repository: &CurrentRepositoryV3,
+    repository: &CurrentRepositoryV4,
     proposal: &ProposalV1,
     submission: &SubmissionV1,
 ) -> Result<Vec<String>, String> {
@@ -432,12 +432,12 @@ pub(crate) fn prepare(
 }
 
 pub(crate) fn next_repository(
-    current: &CurrentRepositoryV3,
+    current: &CurrentRepositoryV4,
     proposal: &ProposalV1,
     subject_claim: &ClaimRecordV1,
     claim_root: &str,
     action: DecisionAction,
-) -> Result<CurrentRepositoryV3, String> {
+) -> Result<CurrentRepositoryV4, String> {
     let mut repository = current.clone();
     if action == DecisionAction::Reject {
         if proposal.action != "claim.withdraw" {
@@ -525,7 +525,7 @@ fn semantic_event_id(draft: &AuthorityEventDraft) -> String {
 
 fn decision_events(
     plan: &CurrentReviewDecisionPlan,
-    repository: &CurrentRepositoryV3,
+    repository: &CurrentRepositoryV4,
     proposal: &ProposalV1,
     claim: &ClaimRecordV1,
     next_repository_root: &str,
@@ -871,7 +871,7 @@ mod tests {
 
     use ed25519_dalek::SigningKey;
     use vela_protocol::claim_record::{ClaimAssertion, ClaimRelation, ClaimSource};
-    use vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V3;
+    use vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V4;
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject};
     use vela_protocol::submission_v1::{
@@ -888,9 +888,9 @@ mod tests {
         format!("sha256:{}", byte.to_string().repeat(64))
     }
 
-    fn repository() -> CurrentRepositoryV3 {
-        CurrentRepositoryV3 {
-            schema: CURRENT_REPOSITORY_SCHEMA_V3.into(),
+    fn repository() -> CurrentRepositoryV4 {
+        CurrentRepositoryV4 {
+            schema: CURRENT_REPOSITORY_SCHEMA_V4.into(),
             frontier_id: "vfr_0123456789abcdef".into(),
             profile_root: root('a'),
             origin_id: "vro_0123456789abcdef".into(),
@@ -899,7 +899,6 @@ mod tests {
             pending_claims: Vec::new(),
             proposals: Vec::new(),
             submissions: Vec::new(),
-            registrations: Vec::new(),
             verifications: Vec::new(),
             artifacts: Vec::new(),
             authority_keyset_root: root('c'),

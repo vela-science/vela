@@ -46,15 +46,14 @@ vela submit \
 
 `next` returns Offers from the fresh Target Index v4. `start` revalidates one
 exact Target and prints a write-free briefing; the native agent, workbench, or
-scientific tool performs the work. `submit` authenticates and registers the
-resulting Submission, issues a Registration Record, and creates a pending
-Proposal. It does not create Verification, a Decision, an Event, or accepted
-scientific state.
+scientific tool performs the work. `submit` authenticates and retains the
+resulting Submission and creates a pending Proposal. It does not create
+Verification, a Decision, an Event, or accepted scientific state.
 
 Inspect the resulting objects without writing:
 
 ```bash
-vela show . <vsb_or_vrr_or_vpr_id> --json
+vela show . <vsb_or_vpr_id> --json
 vela why . <claim_id> --json
 ```
 

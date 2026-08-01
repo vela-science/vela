@@ -36,7 +36,7 @@ Daily product:
   status        Compact frontier identity, roots, counts, and next action
   next          Ranked Target Offers
   start         Inspect one exact Target and its bounded completion contract
-  submit        Register authenticated producer input for review
+  submit        Retain authenticated producer input for review
   show          One exact object, its root, era, and authority effect
   why           Root-bound explanation of one Claim's Standing
   review        Inspect or perform one exact authorized Proposal action

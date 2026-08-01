@@ -29,7 +29,7 @@ use vela_protocol::authority_history::{
     AuthorityHistoryVerification, AuthorityInitializationV1, verify_authority_history,
 };
 use vela_protocol::canonical::to_canonical_bytes;
-use vela_protocol::current_repository::{CURRENT_REPOSITORY_SCHEMA_V3, CurrentRepositoryV3};
+use vela_protocol::current_repository::{CURRENT_REPOSITORY_SCHEMA_V4, CurrentRepositoryV4};
 use vela_protocol::events::{EventKind, NULL_HASH, StateActor, StateTarget};
 use vela_protocol::principal::PrincipalClass;
 use vela_protocol::repository_origin::RepositoryOriginV1;
@@ -468,8 +468,8 @@ fn initialize_current_repository_authority(
         reason.to_string(),
     )?;
     let origin_root = origin.canonical_root()?;
-    let repository = CurrentRepositoryV3 {
-        schema: CURRENT_REPOSITORY_SCHEMA_V3.into(),
+    let repository = CurrentRepositoryV4 {
+        schema: CURRENT_REPOSITORY_SCHEMA_V4.into(),
         frontier_id: profile.frontier_id.clone(),
         profile_root: profile_root.clone(),
         origin_id: origin.origin_id.clone(),
@@ -478,7 +478,6 @@ fn initialize_current_repository_authority(
         pending_claims: Vec::new(),
         proposals: Vec::new(),
         submissions: Vec::new(),
-        registrations: Vec::new(),
         verifications: Vec::new(),
         artifacts: Vec::new(),
         authority_keyset_root: keyset_root.clone(),
@@ -706,7 +705,7 @@ fn initialize_current_repository_authority(
 /// archived predecessor roots or the protocol null roots.
 pub(crate) fn load_current_repository_authority(
     frontier: &Path,
-    repository: &vela_protocol::current_repository::CurrentRepositoryV3,
+    repository: &vela_protocol::current_repository::CurrentRepositoryV4,
     origin: &vela_protocol::repository_origin::RepositoryOriginV1,
 ) -> Result<LoadedRepositoryAuthority, String> {
     if repository.frontier_id != origin.frontier_id
@@ -1060,11 +1059,6 @@ mod tests {
         assert!(authorization.schema.contains("action \"review_reject\""));
         assert!(!authorization.schema.contains("entity Agent"));
         assert!(!authorization.schema.contains("action \"work_claim\""));
-        assert!(
-            !authorization
-                .schema
-                .contains("action \"submission_register\"")
-        );
         assert!(
             !authorization
                 .schema

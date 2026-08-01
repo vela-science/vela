@@ -69,14 +69,14 @@ fn frontier_display(frontier: &Path) -> String {
     frontier.display().to_string()
 }
 
-fn load_current(frontier: &Path) -> vela_protocol::current_repository::CurrentRepositoryV3 {
+fn load_current(frontier: &Path) -> vela_protocol::current_repository::CurrentRepositoryV4 {
     crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)
         .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None))
 }
 
 fn assess_current(
     frontier: &Path,
-    repository: &vela_protocol::current_repository::CurrentRepositoryV3,
+    repository: &vela_protocol::current_repository::CurrentRepositoryV4,
 ) -> CurrentTargetIndexAssessment {
     let repository_root = repository
         .canonical_root()

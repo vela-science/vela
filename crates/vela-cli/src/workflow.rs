@@ -183,8 +183,6 @@ pub(crate) struct SubmitOutcome {
     pub operation_id: String,
     pub submission_id: String,
     pub submission_root: String,
-    pub registration_record_id: String,
-    pub registration_record_root: String,
     pub proposal_id: String,
     pub claim_id: String,
     pub route: &'static str,

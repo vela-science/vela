@@ -132,8 +132,8 @@ next -> submit
   prints a direct `vela submit` example. It creates no lease or Attempt.
 - `vela submit --claim <result> --type <type>
   --replayability <class> --artifact <path>:<kind> --caveat <limit>
-  --as agent:<you> --json` — build and register one signed Submission v1.
-  Registration creates a pending Proposal and no accepted-state change. A
+  --as agent:<you> --json` — build and submit one signed Submission v1.
+  Submission creates a pending Proposal and no accepted-state change. A
   foreign producer may pass one signed `submission.json`.
 - `vela submit --claim <replacement> --type <type> --replayability <class>
   --artifact <path>:<kind> --caveat <limit> --supersedes <full_vcl_id>
@@ -201,13 +201,12 @@ work does not establish. Producer checks report only what the producer ran;
 independent Verification is a separate signed record. Bounded negative results
 remain useful submissions and save the next Attempt from repeating them.
 
-## Registration and decision
+## Submission and decision
 
-`vela submit` registers the exact Submission and a pending Proposal. It returns
-a Vela-issued Registration Record proving intake, not truth. Independent
-Verification Records may then attach scoped results. Only `review accept` or
-`review reject` creates an authorized Decision; registration and verification
-never imply acceptance.
+`vela submit` retains the exact signed Submission and creates a pending
+Proposal that binds its bytes. Independent Verification Records may then
+attach scoped results. Only `review accept` or `review reject` creates an
+authorized Decision; submission and verification never imply acceptance.
 
 ## Custody
 

@@ -146,7 +146,6 @@ or verifier success.
 | --- | --- | --- |
 | Claim | Exact assertion, scope, evidence, revision, and relations | none by itself |
 | Submission | Authenticated producer request over exact Artifacts | producer attribution |
-| Registration Record | Exact intake and routing record | repository writer |
 | Verification Record | Scoped result over exact Claim, Submission, Proposal, Artifacts, and implementation | verifier attribution |
 | Proposal | Pending requested transition | none |
 | Decision | Accept, reject, or withdraw one exact Proposal | local reviewer |
@@ -159,12 +158,12 @@ Let `S` be a valid Submission, `V*` its retained Verification Records, `P` the
 pending Proposal, and `D` an authorized local Decision.
 
 ```text
-register(S) -> pending(P), accepted-event delta = 0
+submit(S) -> pending(P), accepted-event delta = 0
 verify(V, S, P) -> retained(V), accepted-event delta = 0
 decide(D, P, V*) -> append(Event), replay Standing
 ```
 
-Registration and Verification cannot accept a Claim. A Decision cannot omit
+Submission and Verification cannot accept a Claim. A Decision cannot omit
 or substitute the exact Proposal, Claim, Submission, and required Verification
 inputs.
 
@@ -491,11 +490,11 @@ This fixture tests exact correction authoring and the human Decision boundary.
 It lacks the consequential diamond and cannot satisfy the primary protocol
 benchmark.
 
-**Current status:** the exact Submission was registered as
+**Current status:** the exact Submission was retained as
 `vsb_44cd52724425171f` at root
 `sha256:4cd059848ce06c943e2cafffac0ffa0f14838b5adba022bc4c076df6acc5af12`.
 Its replacement Claim `vcl_4bc14401b203218cb7b9de0141747e0c17cea3a6b0cc522639323ab13e432eaf`
-entered Proposal `vpr_23f32f95d4f073e8`; registration changed no accepted
+entered Proposal `vpr_23f32f95d4f073e8`; the Submission changed no accepted
 state. A deterministic source verifier reproduced both file roots and the exact
 Git diff in two object-database contexts. The first verifier draft was rejected
 before import because default Git diff output abbreviated blob IDs differently
@@ -573,7 +572,7 @@ inclusive range `10429401..10429600` and packet root
 `sha256:6d1a2ca87851deb1fa2133f4f6cf7edb28ee843cb0eef57ea09e826b3fdca63b`.
 
 Canopus retained Run `run_8510dd67-c1d7-4c0a-9724-f87192d1a709`.
-Submission `vsb_b8ebcd819ac327db` registered Proposal
+Submission `vsb_b8ebcd819ac327db` created Proposal
 `vpr_80759f390c4880c0` and bounded Claim
 `vcl_5c740ebb758107f25179b096d9e1b680d0bc62186eb276c8b907a2c1226fd979`
 without changing accepted state. Released Vela 0.950.1 imported scoped
@@ -761,7 +760,7 @@ is
 It has separate, precommitted accepted and rejected next-action rules and a
 shared set of scope limits. It refuses to emit the task instance, answer key,
 or amendment unless the exact terminal Decision, scoped Verification,
-Registration, source transition, repositories, binaries, runtime, and model
+historical intake receipt, source transition, repositories, binaries, runtime, and model
 bindings agree. This prevents selection of an answer key after the Decision
 outcome or after model output.
 
@@ -790,7 +789,7 @@ elaboration and an axiom set limited to `propext`, `Classical.choice`, and
 
 Submission `vsb_c50dc7e85cb76684`, root
 `sha256:9adecb4649fa99a7b0945e99f3197cb72489e17b4bd08fe2bfcdff7d0f1c67d3`,
-registered Proposal `vpr_6c71e12b28f095c9` without changing accepted state.
+created Proposal `vpr_6c71e12b28f095c9` without changing accepted state.
 Scoped Verification `vvr_a898f5218acb57e9`, root
 `sha256:70a2f95366d1f9e55fa46c84d3ffa61f54d957427cdf0bf282017a5d26b324a4`,
 replayed the exact Run and retained its limitations: kernel acceptance does
@@ -901,7 +900,7 @@ The evaluation includes:
 
 - **Producer:** a producer can submit a false or overstated Claim. Whole-body
   authentication preserves attribution, closed schemas reject substitution,
-  and registration leaves Standing unchanged. Only scientific review can
+  and Submission leaves Standing unchanged. Only scientific review can
   address a plausible but false Claim.
 - **Verifier:** a verifier can run an unsound method or lie about its result.
   The record binds the verifier, exact scope, implementation, environment, and

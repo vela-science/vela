@@ -53,7 +53,6 @@ produce -> preserve -> check -> decide -> reuse
 | Artifact | Retained bytes or an immutable locator with exact identity and provenance | None |
 | Evidence | A typed role played by an Artifact or Observation relative to a Claim | None |
 | Submission | The portable producer package offered to a Frontier | None |
-| Registration Record | Vela's record of exact Submission intake and routing | None |
 | Proposal | An exact candidate transition in Frontier standing | None |
 | Verification Record | A verifier's scoped observation over exact inputs under a named method | None |
 | Review Packet | A derived, root-bound presentation of one Proposal | None |
@@ -74,7 +73,7 @@ init status next start submit show why review check reproduce log doctor
 | `status` | Summarize Frontier identity, integrity, blockers, counts, authority readiness, and one next action |
 | `next` | Return ranked Target Offers |
 | `start` | Print a write-free briefing for one exact current Target |
-| `submit` | Validate and register a Submission, then route its Proposal |
+| `submit` | Validate and retain a Submission, then create its Proposal |
 | `show` | Inspect one current or historical typed object |
 | `why` | Explain current standing from exact evidence, verification, Decisions, Events, and corrections |
 | `review accept` | Accept one exact Proposal through repository authority |
@@ -88,7 +87,7 @@ init status next start submit show why review check reproduce log doctor
 
 ```text
 submit != accept
-register != verify
+submit != verify
 verify != accept
 publish != accept
 Git merge != scientific Decision
@@ -99,7 +98,7 @@ correct != erase
 A successful Submission normally means:
 
 ```text
-Submission registered; review required.
+Submission retained; review required.
 Accepted scientific state changed: no.
 ```
 
@@ -119,10 +118,10 @@ A native workbench may supply its own run or attempt identity as provenance.
 That lifecycle remains defined by the source workbench and never becomes Vela
 Standing.
 
-Submission registration:
+Submission:
 
 ```text
-draft submitted registered refused
+draft retained refused
 ```
 
 Proposal:
@@ -175,10 +174,10 @@ Work:
 next start run resume abandon
 ```
 
-Intake:
+Evidence:
 
 ```text
-submit register import
+submit import reproduce
 ```
 
 Evaluation:
@@ -263,5 +262,5 @@ Shared labels, embeddings, graph proximity, `skos:exactMatch`, or
 > Verify the signed predecessor boundary. Write exactly one current epoch.
 > Never rewrite canonical history to make vocabulary cleaner.
 
-See [ADR 0021](adr/0021-scientific-submission-and-direct-action-cli-language.md)
-for the migration, conformance, and acceptance gates.
+See [ADR 0033](adr/0033-direct-submission-lineage-and-registration-retirement.md)
+for the current lifecycle and controlled rewrite gate.

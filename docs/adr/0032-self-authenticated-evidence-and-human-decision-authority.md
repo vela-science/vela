@@ -55,7 +55,7 @@ Strict verification must establish both planes without conflating them:
 
 - verify every Submission and Verification signature;
 - verify content-addressed object paths and Artifact bytes;
-- validate Claim, Proposal, Registration, Submission, and Verification links;
+- validate Claim, Proposal, Submission, and Verification links directly;
 - replay signed Decision Events to derive accepted Standing;
 - rebuild deterministic projections and compare their exact bytes;
 - require evidence referenced by an accepted Decision to remain present; and

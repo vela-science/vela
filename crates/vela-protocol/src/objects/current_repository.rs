@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 
-pub const CURRENT_REPOSITORY_SCHEMA_V3: &str = "vela.repository.v3";
+pub const CURRENT_REPOSITORY_SCHEMA_V4: &str = "vela.repository.v4";
 pub const CURRENT_FRONTIER_PROFILE_SCHEMA_V2: &str = "vela.frontier-profile.v2";
 const PROFILE_NAME_MAX_BYTES: usize = 256;
 const PROFILE_SUMMARY_MAX_BYTES: usize = 2 * 1024;
@@ -146,7 +146,7 @@ pub struct ClaimStandingRefV1 {
 /// explicit and content addressed behind one immutable repository origin.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CurrentRepositoryV3 {
+pub struct CurrentRepositoryV4 {
     pub schema: String,
     pub frontier_id: String,
     pub profile_root: String,
@@ -156,20 +156,19 @@ pub struct CurrentRepositoryV3 {
     pub pending_claims: Vec<ClaimStandingRefV1>,
     pub proposals: Vec<RepositoryObjectRefV1>,
     pub submissions: Vec<RepositoryObjectRefV1>,
-    pub registrations: Vec<RepositoryObjectRefV1>,
     pub verifications: Vec<RepositoryObjectRefV1>,
     pub artifacts: Vec<RepositoryObjectRefV1>,
     pub authority_keyset_root: String,
     pub authority_policy_root: String,
 }
 
-impl CurrentRepositoryV3 {
+impl CurrentRepositoryV4 {
     pub fn parse(bytes: &[u8]) -> Result<Self, String> {
         if bytes.len() > 8 * 1024 * 1024 {
             return Err("current repository exceeds the 8 MiB encoded limit".into());
         }
         let value: Self = serde_json::from_slice(bytes)
-            .map_err(|error| format!("parse current repository v3: {error}"))?;
+            .map_err(|error| format!("parse current repository v4: {error}"))?;
         value.verify()?;
         if value.canonical_bytes()? != bytes {
             return Err("current repository bytes are not canonical JSON".into());
@@ -178,9 +177,9 @@ impl CurrentRepositoryV3 {
     }
 
     pub fn verify(&self) -> Result<(), String> {
-        if self.schema != CURRENT_REPOSITORY_SCHEMA_V3 {
+        if self.schema != CURRENT_REPOSITORY_SCHEMA_V4 {
             return Err(format!(
-                "current repository schema must be `{CURRENT_REPOSITORY_SCHEMA_V3}`"
+                "current repository schema must be `{CURRENT_REPOSITORY_SCHEMA_V4}`"
             ));
         }
         require_prefixed("frontier_id", &self.frontier_id, "vfr_")?;
@@ -194,7 +193,6 @@ impl CurrentRepositoryV3 {
         verify_claim_refs("pending_claims", &self.pending_claims, "pending_review")?;
         verify_object_refs("proposals", &self.proposals)?;
         verify_object_refs("submissions", &self.submissions)?;
-        verify_object_refs("registrations", &self.registrations)?;
         verify_object_refs("verifications", &self.verifications)?;
         verify_object_refs("artifacts", &self.artifacts)?;
 
@@ -208,7 +206,6 @@ impl CurrentRepositoryV3 {
                 self.proposals
                     .iter()
                     .chain(&self.submissions)
-                    .chain(&self.registrations)
                     .chain(&self.verifications)
                     .chain(&self.artifacts)
                     .map(|reference| reference.path.as_str()),
@@ -512,9 +509,9 @@ mod tests {
         }
     }
 
-    fn fixture() -> CurrentRepositoryV3 {
-        CurrentRepositoryV3 {
-            schema: CURRENT_REPOSITORY_SCHEMA_V3.into(),
+    fn fixture() -> CurrentRepositoryV4 {
+        CurrentRepositoryV4 {
+            schema: CURRENT_REPOSITORY_SCHEMA_V4.into(),
             frontier_id: "vfr_0123456789abcdef".into(),
             profile_root: root('a'),
             origin_id: "vro_0123456789abcdef".into(),
@@ -523,7 +520,6 @@ mod tests {
             pending_claims: vec![claim('d', "pending_review")],
             proposals: vec![],
             submissions: vec![],
-            registrations: vec![],
             verifications: vec![],
             artifacts: vec![],
             authority_keyset_root: root('e'),
@@ -542,11 +538,11 @@ mod tests {
     }
 
     #[test]
-    fn current_repository_v3_binds_one_origin() {
+    fn current_repository_v4_binds_one_origin() {
         let repository = fixture();
         repository.verify().unwrap();
         let bytes = repository.canonical_bytes().unwrap();
-        assert_eq!(CurrentRepositoryV3::parse(&bytes).unwrap(), repository);
+        assert_eq!(CurrentRepositoryV4::parse(&bytes).unwrap(), repository);
         let mut tampered = repository;
         tampered.origin_id = "vre_0123456789abcdef".into();
         assert!(tampered.verify().is_err());

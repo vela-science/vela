@@ -6,7 +6,7 @@ true, novel, important, or ethical.
 
 ## Protected assets
 
-- canonical Claim, Submission, Registration, Verification, Proposal, Decision,
+- canonical Claim, Submission, Verification, Proposal, Decision,
   Event, and Artifact bytes;
 - repository-authority keysets, policy material, and history;
 - the authenticated principal and semantic action behind each canonical write;
@@ -20,7 +20,7 @@ true, novel, important, or ethical.
 ```text
 untrusted producer
   -> authenticated Submission + content-addressed Artifacts
-  -> Registration Record + pending Proposal
+  -> pending Proposal
 
 untrusted verifier input
   -> signed scoped Verification Record

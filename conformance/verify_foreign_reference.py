@@ -448,6 +448,8 @@ def verify_package(reference: dict[str, object], package: Path) -> dict[str, obj
     keyset = parsed["authority_keyset"]
     envelope = parsed["authority_record"]
 
+    # This verifier is pinned to the exact historical transfer package. It is
+    # evidence-companion code, not a compatibility reader for the current CLI.
     require(current.get("schema") == "vela.repository.v3", "current repository schema")
     require(current.get("frontier_id") == source["frontier_id"], "current frontier")
     require(sha256_bytes(raw["current_repository_manifest"]) == source["current_repository"]["repository_root"], "current root")

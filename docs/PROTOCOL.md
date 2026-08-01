@@ -28,7 +28,6 @@ authorization, or presentation.
 Target
   -> native work
   -> Submission
-  -> Registration Record
   -> pending Proposal
   -> Verification Record(s)
   -> Decision
@@ -41,7 +40,6 @@ Target
 | Target | Derived bounded unit of work | None |
 | Native run | Execution retained by an external agent or scientific tool | None |
 | Submission | Authenticated producer request and evidence | None |
-| Registration Record | Proof of exact repository intake | None |
 | Claim Record | Versioned assertion, conditions, evidence, and provenance | None by itself |
 | Verification Record | Scoped verifier observation over exact inputs | None |
 | Proposal | Candidate repository transition | None until decided |
@@ -64,7 +62,6 @@ frontier.yaml
 .vela/authority/policy-material/
 records/claims/sha256/
 records/submissions/sha256/
-records/registrations/sha256/
 records/verifications/sha256/
 records/proposals/sha256/
 records/artifacts/sha256/
@@ -72,7 +69,7 @@ targets.json
 ```
 
 `frontier.yaml` identifies the bounded repository. `.vela/repository.json`
-is the closed `vela.repository.v3` index of active object sets.
+is the closed `vela.repository.v4` index of active object sets.
 `.vela/origin.json` is the immutable `vela.repository-origin.v1` commitment.
 
 The active repository contains no predecessor scientific Event log, actor
@@ -93,7 +90,7 @@ Proposal directory, or materialized Project snapshot.
   manifest root, and equivalence-report root.
 
 `vela init` creates Profile v2 and repository scaffolding. `vela authority
-init` installs a genesis origin, repository v3 manifest, keyset, Cedar policy,
+init` installs a genesis origin, repository v4 manifest, keyset, Cedar policy,
 and sequence-one authority history in one recoverable transaction. Until then,
 strict repository verification is blocked.
 
@@ -142,20 +139,7 @@ fail.
 A workbench can produce Submission bytes without importing Vela internals.
 Submission identity is over the exact closed canonical bytes.
 
-### 3.4 Registration Record
-
-`vela.registration-record.v1` proves that Vela validated and retained one
-Submission, its Artifacts, resulting Claim Record, and pending Proposal inside
-one bounded routine-evidence transaction.
-
-It binds unchanged authority-event before/after roots, the repository roots,
-object roots, principal attribution, and transaction identity. The producer
-signature authenticates the Submission; intake does not read or create a
-repository-authority record. Registration proves intake, not truth,
-verification, or acceptance. Its Artifact list uses full lowercase content
-hashes.
-
-### 3.5 Verification Record
+### 3.4 Verification Record
 
 `vela.verification-record.v1` binds:
 
@@ -182,11 +166,10 @@ Import is a bounded routine-evidence transaction authenticated by the verifier
 signature. It reads no repository-authority key, changes no Claim Standing,
 and appends no scientific Event.
 
-### 3.6 Proposal
+### 3.5 Proposal
 
-`vela.proposal.v1` binds the requested transition, exact Claim, Submission,
-Registration Record, base repository root, required verification, and current
-status.
+`vela.proposal.v1` binds the requested transition, exact Claim, signed
+Submission package, required verification, and current status.
 
 Statuses are:
 
@@ -197,7 +180,7 @@ pending_review accepted rejected
 A terminal Proposal retains the exact Decision and authority references. It is
 never deleted or reopened.
 
-### 3.7 Artifact
+### 3.6 Artifact
 
 Artifacts use full SHA-256 content identity and canonical paths under
 `records/artifacts/sha256/`. A Submission can reference only bytes that match
@@ -275,7 +258,7 @@ Proposal. A fail blocks. Missing, dependent, inconclusive, error, unavailable,
 or not-run records do not satisfy the requirement.
 
 Verification eligibility constrains a Decision; it does not perform or
-recommend one, and it does not silently satisfy a separately registered value,
+recommend one, and it does not silently satisfy a separately declared value,
 consumer, or external-independence gate.
 
 Rejection removes the pending transition and leaves accepted Standing
@@ -312,8 +295,8 @@ agent, verifier, or workflow engine.
 ### 5.3 Submit
 
 `vela submit` installs the exact producer-authenticated Submission, declared
-Artifacts, derived Claim Record, Registration Record, and pending Proposal in
-one bounded routine-evidence transaction.
+Artifacts, derived Claim Record, and pending Proposal in one bounded
+routine-evidence transaction.
 
 New Claims enter `pending_claims`. Accepted Standing does not change. The
 transaction reads no repository-authority key and cannot accept or reject a
@@ -360,7 +343,7 @@ Strict replay verifies:
 3. contiguous authority records and valid DSSE signatures;
 4. activated keyset and Cedar material;
 5. canonical object schemas and full roots;
-6. Proposal, Submission, Registration, Verification, Claim, Artifact, and
+6. Proposal, Submission, Verification, Claim, Artifact, and
    Event relations;
 7. repository-manifest parity;
 8. accepted and pending Claim sets; and
@@ -391,7 +374,7 @@ The Observatory, Neon, search, graphs, embeddings, exports, and local indexes
 are projections over verified repository roots. They may improve discovery but
 cannot:
 
-- register a Submission;
+- submit or retain a Submission;
 - import Verification;
 - append an Event;
 - sign an authority record;

@@ -12,7 +12,7 @@ use std::path::Path;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use vela_protocol::claim_record::ClaimRecordV1;
-use vela_protocol::current_repository::{CurrentRepositoryV3, RepositoryObjectRefV1};
+use vela_protocol::current_repository::{CurrentRepositoryV4, RepositoryObjectRefV1};
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::repository_origin::RepositoryOriginV1;
 use vela_protocol::submission_v1::SubmissionV1;
@@ -187,7 +187,7 @@ pub(crate) struct DecisionInboxRootComparison {
 }
 
 struct EntryInputs<'a> {
-    repository: &'a CurrentRepositoryV3,
+    repository: &'a CurrentRepositoryV4,
     repository_root: &'a str,
     proposal_reference: &'a RepositoryObjectRefV1,
     proposal: &'a ProposalV1,
@@ -280,7 +280,7 @@ fn classify_verification(
 }
 
 fn accepted_subset(
-    repository: &CurrentRepositoryV3,
+    repository: &CurrentRepositoryV4,
     affected_claim_ids: &BTreeSet<String>,
 ) -> Vec<AcceptedStanding> {
     let mut values = repository
@@ -297,7 +297,7 @@ fn accepted_subset(
 }
 
 fn accepted_outside_scope(
-    repository: &CurrentRepositoryV3,
+    repository: &CurrentRepositoryV4,
     affected_claim_ids: &BTreeSet<String>,
 ) -> Vec<AcceptedStanding> {
     let mut values = repository
@@ -774,7 +774,7 @@ mod tests {
     use ed25519_dalek::SigningKey;
     use vela_protocol::claim_record::{ClaimAssertion, ClaimRelation, ClaimSource};
     use vela_protocol::current_repository::{
-        CURRENT_REPOSITORY_SCHEMA_V3, ClaimStandingRefV1, RepositoryObjectRefV1,
+        CURRENT_REPOSITORY_SCHEMA_V4, ClaimStandingRefV1, RepositoryObjectRefV1,
     };
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject};
@@ -975,12 +975,12 @@ mod tests {
         proposal: &ProposalV1,
         submission: &SubmissionV1,
         verification: &VerificationRecordV1,
-    ) -> CurrentRepositoryV3 {
+    ) -> CurrentRepositoryV4 {
         let proposal_root = proposal.canonical_root().unwrap();
         let submission_root = submission.canonical_root().unwrap();
         let verification_root = verification.canonical_root().unwrap();
-        CurrentRepositoryV3 {
-            schema: CURRENT_REPOSITORY_SCHEMA_V3.into(),
+        CurrentRepositoryV4 {
+            schema: CURRENT_REPOSITORY_SCHEMA_V4.into(),
             frontier_id: "vfr_0123456789abcdef".into(),
             profile_root: root('1'),
             origin_id: "vro_0123456789abcdef".into(),
@@ -1002,7 +1002,6 @@ mod tests {
                     submission_root.trim_start_matches("sha256:")
                 ),
             }],
-            registrations: Vec::new(),
             verifications: vec![object_reference(
                 vela_protocol::verification_record::VERIFICATION_RECORD_V1_SCHEMA,
                 &verification.verification_record_id,
@@ -1025,7 +1024,7 @@ mod tests {
     }
 
     fn derive_fixture(
-        repository: &CurrentRepositoryV3,
+        repository: &CurrentRepositoryV4,
         proposal: &ProposalV1,
         claim: &ClaimRecordV1,
         submission: &SubmissionV1,
