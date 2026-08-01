@@ -166,6 +166,13 @@ informal statement faithfulness are separate questions.
 
 ## Adding a frozen verifier
 
+The built-in verifier registry is closed to new domain implementations. It is
+retained only so already accepted evidence keeps an exact local replay path.
+New domain checks belong in the Frontier's native, pinned verifier capsule and
+enter Vela as scoped producer evidence or a Verification Record. Promote new
+code into `vela-verify` only to preserve an existing accepted replay contract;
+convenience, discovery, or one producer's workflow is not sufficient.
+
 A verifier belongs in the trusted gate only when it has:
 
 1. a closed input and output contract;

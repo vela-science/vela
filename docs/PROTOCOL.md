@@ -94,6 +94,12 @@ init` installs a genesis origin, repository v4 manifest, keyset, Cedar policy,
 and sequence-one authority history in one recoverable transaction. Until then,
 strict repository verification is blocked.
 
+Cedar is confined to repository-authority Decisions and rare authority
+administration. It is not an agent permission system, campaign runtime, or
+ordinary evidence-ingest gate, and Vela exposes no additional Cedar ceremony
+in the producer workflow. The current restricted profile is frozen unless a
+reproduced authority defect requires a compatible change.
+
 The four controlled repositories use compacted origins whose predecessor
 fields are immutable provenance. The migration writer and alternate repository
 readers are not part of the current binary. Historical execution requires the
