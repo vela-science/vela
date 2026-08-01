@@ -123,8 +123,11 @@ infrastructure.
   independent product value. A human Decision made earlier must retain that
   limitation explicitly.
 - The production Atlas is exact at projection root
-  `sha256:4d19454046eed0dc4236db7f7bb459e0d838b0e8a00af92ac3637c9177a4f9f5`
+  `sha256:262e7e1efb4fcec12322f66e8faa2fce9d87545cf422f19d8d48c99e48307a37`
   and includes Formal commit `1835345012248e33ff3c29dccc68a56c12f02827`.
+- Pending Proposal sheets now project Vela's exact Decision Inbox packet:
+  protocol readiness, the accept/reject Standing delta, limits, next
+  obligation, and copyable roots. The Observatory remains read-only.
 - The current Registry adapter artifact has an immutable GitHub release
   locator and independently reproduced byte root.
 - External cold-user lift, correction propagation, and independently governed
@@ -304,7 +307,7 @@ reputation score, or `1.0.0` schedule.
 | Vela | `0.962.0` is published with direct producer withdrawal and the current repository reader; release checks are green | keep one train and release only for demonstrated changes |
 | Cross-language readers | standalone Python and JavaScript conformance readers | keep package-free until a real external consumer requires a library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; deployment `0.430.0` binds commit `d1404985569e85514d3510b755d8db9afa7802ca` and exact projection root `sha256:4d19454046eed0dc4236db7f7bb459e0d838b0e8a00af92ac3637c9177a4f9f5` | change only for a demonstrated reader-efficiency or correctness need; add no infrastructure |
+| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; deployment `0.430.0` binds commit `123f0eeef4a1307755d5a5a0a66d9b78e29cd984` and exact projection root `sha256:262e7e1efb4fcec12322f66e8faa2fce9d87545cf422f19d8d48c99e48307a37` | change only for a demonstrated reader-efficiency or correctness need; add no infrastructure |
 | Frontiers | canonical Git sources with pending human Decisions; the obsolete Formal duplicate is withdrawn with zero accepted delta | decide or cancel exact remaining Proposals, replay, remap |
 | Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 
