@@ -355,21 +355,15 @@ fn semantic_transition(
     }
 }
 
-fn unique_limits(
-    proposal: &ProposalV1,
-    submission: &SubmissionV1,
-    records: &[(String, VerificationRecordV1)],
-) -> Vec<String> {
-    let mut limits = proposal
+fn decision_limits(proposal: &ProposalV1, submission: &SubmissionV1) -> Vec<String> {
+    proposal
         .caveats
         .iter()
         .chain(&submission.caveats)
         .cloned()
-        .collect::<BTreeSet<_>>();
-    for (_, record) in records {
-        limits.extend(record.scope.does_not_establish.iter().cloned());
-    }
-    limits.into_iter().collect()
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
 }
 
 fn entry_root(entry: &DecisionInboxEntry) -> Result<String, String> {
@@ -510,7 +504,7 @@ fn derive_entry(inputs: EntryInputs<'_>) -> Result<DecisionInboxEntry, String> {
                 },
             },
         },
-        limits: unique_limits(proposal, submission, records),
+        limits: decision_limits(proposal, submission),
         staleness: DecisionInboxStaleness {
             state: "current".into(),
             invalidated_by: vec![
@@ -1565,7 +1559,7 @@ mod tests {
     }
 
     #[test]
-    fn limits_are_deduplicated_and_verification_never_becomes_acceptance() {
+    fn decision_limits_do_not_repeat_verification_scope() {
         let requirement = "Replay the exact fixture.";
         let subject = claim("A bounded fixture result.", 1, Vec::new());
         let submission = submission(requirement);
@@ -1589,14 +1583,16 @@ mod tests {
 
         assert_eq!(entry.requested_decision, "accept_or_reject");
         assert_eq!(entry.staleness.state, "current");
-        assert!(entry.limits.contains(&"Scientific acceptance.".into()));
         assert_eq!(
-            entry
-                .limits
-                .iter()
-                .filter(|limit| limit.as_str() == "Scientific acceptance.")
-                .count(),
-            1
+            entry.limits,
+            vec![
+                "Does not establish an unrestricted result.".to_string(),
+                "Scientific acceptance remains separate.".to_string(),
+            ]
+        );
+        assert_eq!(
+            entry.verification_records[0].does_not_establish,
+            vec!["Scientific acceptance.".to_string()]
         );
         assert!(
             entry
