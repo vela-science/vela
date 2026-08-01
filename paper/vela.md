@@ -27,9 +27,14 @@ mathematical Frontiers found no qualifying historical correction fixture among
 2,831 retained Claims. Rust and clean-room Python readers agree on a synthetic
 qualification vector, but that result does not satisfy the scientific,
 federation, external-reproduction, or user-value gates. The current evidence
-also includes one accepted, first-party source-statement supersession and one
-failed matched first-party Codex-session pilot. Neither has the consequential
-topology or external independence required by the registered benchmark. The
+also includes one accepted, first-party source-statement supersession, one
+failed broad state-reading pilot, and one later native Harbor
+receiver-continuation comparison. In the latter, Vela-guided agents returned
+2/2 exact answers while Git/files agents returned 0/2; median agent time fell
+67.82 percent and median cost fell 69.44 percent. This is first-party,
+single-task evidence, not general productivity or independent-user evidence.
+Neither experiment has the consequential topology or external independence
+required by the registered benchmark. The
 frozen held-out selector subsequently found no qualifying candidate, so confirmatory
 two-fixture credit is unavailable in this campaign. The evidence therefore
 supports local admission, scoped verification, Decision, replay, and
@@ -44,14 +49,16 @@ repository root, graph roots, and projection root changed exactly. The Target
 packet initially failed to advance, so that candidate was not activated.
 Source-local closure and later exact completions now close producer work
 through `10430400` and expose `10430401..10430600` as the next nonduplicate
-range. The released Vela Web `v0.430.0` Atlas remains a predecessor projection;
-the current Git Frontiers are authoritative until the repository-v4 reader is
-refreshed. Current Erdős, Formal, and quantum-certificate Proposals remain
-pending human Decisions; one
+range. The production Vela Web Atlas uses the repository-v4 reader and its
+last exact projection contains 4,136 graph nodes, 2,590 edges, 6,701 native
+source records, and 5,845 Frontier bindings. A later non-authorizing Formal
+withdrawal now awaits the next atomic projection refresh; Git Frontiers remain
+authoritative during that lag. Current Erdős, two Formal, and one
+quantum-certificate Proposal remain pending human Decisions; one
 broader-worded Erdős predecessor Proposal remains retained separately rather
 than being rewritten. These facts do not establish acceptance, inheritance
-lift, external independence, or cold-use value. The evidence therefore does
-not support the full registered protocol claim.
+lift across two fixtures, external independence, or human cold-use value. The
+evidence therefore does not support the full registered protocol claim.
 
 ## 1. Introduction
 
@@ -104,9 +111,11 @@ synthetic implementation qualification are demonstrated. One exact
 map-to-target loop reached a terminal human Decision, replayed Standing, and a
 deterministic remap. The loop reproduced a stale-Target failure that later
 source-local closure and exact completions repaired. The exact four-Frontier
-Atlas is now released, but real correction-impact propagation, post-Decision
-remapping of the current pending results, held-out confirmation, external
-independence, and cold-use lift remain registered experiments.
+Atlas is now released. A first-party native Harbor comparison passes one
+frozen receiver-continuation gate, but real correction-impact propagation,
+post-Decision remapping of the current pending results, held-out confirmation,
+external independence, and two-fixture cold-use lift remain registered
+experiments.
 
 ## 2. Scope and system model
 
@@ -804,17 +813,28 @@ history rewrite was required.
 
 ### 6.9 Framework-neutral execution evaluation
 
-Stage A was a registered repair replication, not an untouched preregistered
-comparison. Three earlier plans stopped on their registered token ceilings,
-and a later run repaired an answer-free task-contract defect. The surviving
-local cache reported directional improvement for the bounded Canopus path, but
-the repository does not retain the complete native trials needed to recompute
-its aggregate figures and it did not score all-in cost or expert-minutes.
-Accordingly, this paper makes no execution-lift claim from that run. A current
-comparison must use Harbor directly and retain the task, job, trials, answers,
-verifier outputs, exclusions, and all failed runs.
-The registered call ceiling could not fit Stage B, so no orchestration
-framework was evaluated or retained.
+The current comparison uses Harbor directly; Vela retains only the frozen task
+materializer, answer contract, and semantic scorer. Harbor owns agent startup,
+OAuth, container execution, retries, trajectories, timing, cost, and verifier
+outputs. This removes the prior custom runner and prevents the benchmark
+harness from becoming a second Vela product.
+
+Product-compression v10 ran four clean Codex trials with zero retries against
+one frozen receiver-continuation task. The Git/files arm returned 0/2 exact
+answers with median agent time 283.775 seconds and median cost USD 0.5659566.
+The Vela-guided arm returned 2/2 exact answers with median agent time 91.3105
+seconds and median cost USD 0.1729616. The registered task-specific exactness
+gate passed; median time fell 67.82 percent and median cost fell 69.44 percent.
+The compact result is rooted at
+`sha256:da83da0e73ce6ef5c7b1f1fa2b7abc8a32f0ce0db24670c2c14c8a7434d9dfa8`.
+The complete Harbor evidence package is retained outside Git under manifest
+root
+`sha256:874c559163ac9c5db572be0e381c7f20cfb1c394460073d3065a280e02dcb8ec`.
+
+This result is first-party, uses one task and one model configuration, and
+does not measure a human reviewer. It establishes neither general execution
+lift, two-fixture inheritance lift, external independence, nor adoption. No
+orchestration framework was evaluated or retained.
 
 ### 6.10 Registered benchmark matrix
 
@@ -829,7 +849,7 @@ framework was evaluated or retained.
 | B7 support diversity | pending | entry gate failed | exact route accounting |
 | B8 second Frontier | exact receiver retention, scoped Verification, and clean-clone replay pass with zero accepted delta | entry gate failed | zero imported authority |
 | B9 observability | synthetic pass only | entry gate failed | no silent truncation |
-| B10 cold inheritance | first pilot failed hard budget | entry gate failed | at least 20% median lift |
+| B10 cold inheritance | one task-specific Harbor continuation gate passed; two-fixture and external-user gate remains open | entry gate failed | at least 20% median lift on both fixtures |
 
 No aggregate score is reported.
 
@@ -1034,19 +1054,21 @@ organizational independence.
 
 Repository authority remains operationally heavier than ordinary producer
 authentication. The first state-reading pilot used first-party Codex model
-sessions and failed its hard token budget; it therefore does not establish
-human reviewer-time or cold-inheritance lift. The
+sessions and failed its hard token budget. The later native Harbor comparison
+passed one narrower receiver-continuation gate, but it also used first-party
+Codex trials and one task. Neither result establishes human reviewer-time,
+two-fixture cold-inheritance lift, or independent adoption. The
 benchmark has not measured federation or recurring external use. SHA-256 and
 Ed25519 are assumed secure. Git hosting availability is operationally useful
 but not canonical.
 
-The Math Atlas has passed a rooted, bounded 100,000-record Neon ingestion and
-read qualification on the existing schema, and Vela Web `v0.430.0` serves an
-exact 4,147-node first-party Atlas. No 1,000,000-record result exists. These
-results establish bounded reconstruction and operation, not general
-scalability, adoption, or user value. Current counts describe the audited
-corpus, not a capacity limit or a reason to add partitioning, a graph database,
-or vector infrastructure.
+The Math Atlas has passed rooted, bounded Neon ingestion and clean-room
+reconstruction on the current schema. Its last exact production projection
+contains 4,136 graph nodes, 2,590 edges, 6,701 native source records, and 5,845
+Frontier bindings. No 1,000,000-record result exists. These results establish
+bounded reconstruction and operation, not general scalability, adoption, or
+user value. Current counts describe the audited corpus, not a capacity limit
+or a reason to add partitioning, a graph database, or vector infrastructure.
 
 The public protocol has no foreign-reference object. The historical evidence
 envelope passed the real Erdős source qualification in two implementations,
@@ -1118,7 +1140,12 @@ chain through the ordinary `show` and `why` path. Two implementations also
 agree on a bounded synthetic correction-impact projection. The first matched
 first-party Codex-session pilot was directionally cheaper and more accurate
 with Vela but failed its registered token budget and exact-answer requirement;
-it is not human-review evidence. A historical foreign-reference envelope
+it is not human-review evidence. A later native Harbor comparison passed its
+one-task receiver-continuation gate: Vela-guided agents were exact in 2/2
+trials while Git/files agents were exact in 0/2, with 67.82 percent lower
+median time and 69.44 percent lower median cost. That result is still
+first-party, single-task evidence and is not a general or independent-user
+claim. A historical foreign-reference envelope
 qualified the real source package in two colocated readers, including its
 authority signature. A second Frontier retained that exact package through a
 pending, non-authoritative Submission, imported a scoped Verification, and
@@ -1132,10 +1159,10 @@ deterministic remap. Its first candidate exposed a stale-Target failure. A
 subsequent source-local closure pass retained the completed packet and proved
 its coverage from exact ancestor bytes. Later exact completions close producer
 work through `10430400` and expose `10430401..10430600` as the next
-nonduplicate range without changing Standing. Vela Web `v0.430.0` remains a
-predecessor projection until the repository-v4 reader refresh. Current Erdős,
-Formal, and quantum-certificate Proposals remain pending human Decisions, so
-their post-Decision remaps remain
+nonduplicate range without changing Standing. The production Atlas now uses
+the repository-v4 reader; one later non-authorizing Formal withdrawal awaits
+the next atomic refresh. Current Erdős, Formal, and quantum-certificate
+Proposals remain pending human Decisions, so their post-Decision remaps remain
 unfinished. An earlier broader-worded Erdős Proposal remains retained
 separately. The frozen held-out selector also found no qualifying candidate.
 The stronger claim, that this mechanism preserves useful scientific

@@ -112,15 +112,21 @@ infrastructure.
 
 - Several technically eligible Proposals still require an attributed human
   Decision or cancellation. Eligibility is not a recommendation.
+- Formal Proposal `vpr_b81d87fce0d9c81c` was producer-withdrawn on 2026-08-01
+  after its corrected successor was retained. The withdrawal changed no
+  accepted Event or Standing. Formal now has two pending Proposals and replays
+  at repository root
+  `sha256:1afb595ad8ae8628e548a74b06ca3d5ce5e7221c7152ee51e54aa65472a722a8`.
 - The Formal cross-Frontier transfer is technically Decision-eligible. A
   held-out consumer and measured value test remain required only before
   promoting the derived envelope into a supported shared contract or claiming
   independent product value. A human Decision made earlier must retain that
   limitation explicitly.
-- The production Atlas is current at projection root
+- The production Atlas was exact at projection root
   `sha256:43d5e4ab8b034ba12677a6423a3228e7a0537003e4c351915a00c9d0df178fbc`.
-  It must be refreshed whenever canonical Frontier heads change; source Git
-  remains authoritative during projection lag.
+  Formal advanced afterward through the non-authorizing withdrawal above, so
+  the projection now requires one ordinary atomic refresh. Source Git remains
+  authoritative during that bounded lag.
 - The current Registry adapter artifact has an immutable GitHub release
   locator and independently reproduced byte root.
 - External cold-user lift, correction propagation, and independently governed
@@ -300,8 +306,8 @@ reputation score, or `1.0.0` schedule.
 | Vela | `0.961.0` published; focused and release checks green | keep one binary release train; release only for a demonstrated change |
 | Cross-language readers | standalone Python and JavaScript conformance readers | keep package-free until a real external consumer requires a library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | live exact Registry/Atlas on repository v4 and `observatory.v8`; manifest binds deployed commit `f507aa49` and the current projection root | keep projection refresh independent of app version; release web code only for a demonstrated product change |
-| Frontiers | canonical Git sources with pending human Decisions | decide or cancel exact Proposals, replay, remap |
+| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; deployment label `0.430.0` currently binds untagged commit `9f01321b`, and the projection predates Formal withdrawal `1835345` | atomically refresh the changed Frontier head, then reconcile one exact patch tag, deployed commit, and manifest; add no infrastructure |
+| Frontiers | canonical Git sources with pending human Decisions; the obsolete Formal duplicate is withdrawn with zero accepted delta | decide or cancel exact remaining Proposals, replay, remap |
 | Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 
 Failure narrows or deletes the system. It does not earn another layer.
