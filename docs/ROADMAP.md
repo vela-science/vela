@@ -34,7 +34,8 @@ identity. This roadmap records only product sequence.
   clean-room Lean and Comparator reproduction, and a bounded Erdős 183
   statement-fidelity Submission. A separately scoped first-party Verification
   recomputed its `faithful` conclusion; the Proposal remains pending a human
-  Decision and changed no Standing.
+  Decision and changed no Standing. The verified producer task is closed so it
+  is not offered again; the exact packet and evidence remain inspectable.
 - The Observatory exposes a rebuildable, SELECT-only Math Source Registry and
   Math Atlas. Git remains authoritative.
 - Vela owns no agent runner, scheduler, graph database, hosted authority, or

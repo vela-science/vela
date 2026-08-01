@@ -150,8 +150,8 @@ infrastructure.
   limitation explicitly.
 - The current production Atlas checkpoint was rebuilt from all four cleaned
   Frontier heads and is exact at projection root
-  `sha256:a5fb257a67b0b2c4a5320a24a74ca44a0ad0c0be64940ee68269b6abe4a160d5`.
-  Its manifest binds Erdős `da791f88`, Formal `6cbc2cb5`, Quantum
+  `sha256:a96c527f9c69225666cb4bcb3346a6a1e46e6b25fd6ed47a428ebd5e3aa03183`.
+  Its manifest binds Erdős `69393e3d`, Formal `6cbc2cb5`, Quantum
   `29202cfb`, and Sidon `e07b6317`; the database sync, corpus checks, source
   evidence retention, activation, pruning, and production redeploy passed.
 - The same release adds the exact `openai/ten-proofs` source adapter to the
@@ -164,10 +164,12 @@ infrastructure.
   `sha256:6da941b2e6946f59b85b31df1f2d4bdc2472d8357f654b79952c1b8c21e53428`,
   recomputed the retained roots and six-dimensional fidelity matrix. The
   Proposal still requires a human Decision and changed no accepted Event or
-  Standing. No Astra Frontier or Astra-specific product was created.
+  Standing. Its exact verified producer work is no longer offered again;
+  `erdos:1056` is the remaining Erdős producer Target. No Astra Frontier or
+  Astra-specific product was created.
 - Two empty local PostgreSQL reconstructions matched every production table,
   Frontier, and source-registry root. The retained evidence artifact root is
-  `sha256:e5de95a63f9ab3f66fd8c35fe28b49a8b451d9a25994d0ffa78948ae2a8ace5c`.
+  `sha256:da6125b81f998a3fae9efdee9d5b73193e8fb3c17cc61780e48835a04fa307ca`.
 - Pending Proposal sheets now project Vela's exact Decision Inbox packet:
   protocol readiness, the accept/reject Standing delta, limits, next
   obligation, and copyable roots. The Observatory remains read-only.
@@ -477,7 +479,7 @@ reputation score, or `1.0.0` schedule.
 | Vela | `0.962.1` is published with direct producer withdrawal, compacted-lineage reconstruction, and current-root Decision checks; release checks are green | keep one train and release only for demonstrated changes |
 | Cross-language readers | standalone Python and JavaScript conformance readers | keep package-free until a real external consumer requires a library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; the current checkpoint binds projection root `sha256:a5fb257a67b0b2c4a5320a24a74ca44a0ad0c0be64940ee68269b6abe4a160d5`, 11 exact sources, 6,713 native records, and current-head clean-room artifact `sha256:e5de95a63f9ab3f66fd8c35fe28b49a8b451d9a25994d0ffa78948ae2a8ace5c` | keep the exact source projection; add no Astra-specific UI or broader execution until a real consumer earns it |
+| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; the current checkpoint binds projection root `sha256:a96c527f9c69225666cb4bcb3346a6a1e46e6b25fd6ed47a428ebd5e3aa03183`, 11 exact sources, 6,713 native records, and current-head clean-room artifact `sha256:da6125b81f998a3fae9efdee9d5b73193e8fb3c17cc61780e48835a04fa307ca` | keep the exact source projection; add no Astra-specific UI or broader execution until a real consumer earns it |
 | Frontiers | canonical Git sources with pending human Decisions; the obsolete Formal duplicate is withdrawn with zero accepted delta | decide or cancel exact remaining Proposals, replay, remap |
 | Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 
