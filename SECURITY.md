@@ -17,8 +17,8 @@ deferred rather than defended.
 
 ## Scope notes
 
-- The trust story never depends on the hub: a consumer's
-  `git clone` + `vela check --strict` verifies everything locally.
+- The trust story never depends on a hosted reader: a consumer's
+  `git clone` + `vela check` verifies everything locally.
   Hub compromise is availability and discovery, not integrity
   (THREAT_MODEL.md A11).
 - No AI or agent identity sits in any trust path; the engine refuses

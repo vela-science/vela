@@ -263,11 +263,12 @@ A Target exposed as current must be:
 - reproducibly ranked from the current head.
 
 Producer-work closure follows the exact domain completion contract. For the
-current Attempt contract, one valid registered Submission completes the
-producer Target. Registration must therefore close that offer, or the owning
-Frontier must block or preserve it with an exact reason why the Submission did
-not satisfy the contract. It must not remain available merely because
-Verification or a human Decision has not occurred.
+current exact-replay contracts, a signed Submission plus the required scoped
+Verification completes the producer Target. The direct Proposal binds those
+objects without a separate intake receipt. The owning Frontier must then close
+the offer, or retain an exact reason why the evidence did not satisfy the
+contract. Work completion remains separate from scientific Standing and must
+not wait for a human Decision when the declared work contract is already met.
 
 Verification and Decision remain separate:
 

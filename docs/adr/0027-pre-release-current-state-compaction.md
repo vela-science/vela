@@ -193,20 +193,21 @@ identity, or a mapping cycle that cannot be represented fails closed.
 
 ### 2. Preserve only live current operations
 
-The compactor retains a Submission, Registration Record, Verification Record,
-Proposal, or Decision only when its exact bytes already reference the
-normalized Claim and Artifact identities and remain valid without a legacy
-reader.
+The compactor retains every accepted Claim and its locally available evidence
+Artifacts. It retains only pending Proposal -> signed Submission ->
+Verification closures whose exact bytes already reference the normalized
+Claim and Artifact identities and remain valid without a predecessor reader.
 
 Everything else is archived with the predecessor:
 
-- terminal operations already reflected in accepted Standing;
+- terminal accepted or rejected operations already reflected in Standing;
 - stale, rejected, withdrawn, or superseded work;
 - pending work whose authenticated bytes bind replaced identities.
 
-Still-useful pending work is resubmitted through the ordinary current producer
-path after compaction. The compactor never rewrites a producer or verifier
-signature.
+Valid pending work remains live through its exact direct lineage. Work whose
+authenticated bytes bind replaced identities is resubmitted through the
+ordinary current producer path after compaction. The compactor never rewrites
+a producer, verifier, Decision, or authority signature.
 
 ### 3. Prove Standing equivalence
 

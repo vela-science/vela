@@ -345,7 +345,7 @@ fn installer_points_to_the_nonfinalizing_task_first_path() {
     assert!(WINDOWS_INSTALLER.contains("VELA_EXPECTED_SHA256"));
     assert!(INSTALLER.contains("differs from the ecosystem-lock SHA-256"));
     assert!(WINDOWS_INSTALLER.contains("differs from the ecosystem-lock SHA-256"));
-    assert!(INSTALLER.contains("vela check . --strict --json"));
+    assert!(INSTALLER.contains("vela check . --json"));
     assert!(INSTALLER.contains("vela next . --json"));
     assert!(INSTALLER.contains("vela start <target>"));
     assert!(INSTALLER.contains("vela submit --frontier . --claim <claim>"));

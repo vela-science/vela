@@ -116,10 +116,10 @@ Standing, completeness, and local Standing effect. It cannot:
 - fetch from a hosted Vela service.
 
 A receiving Frontier may retain the envelope only through the ordinary
-producer path as evidence for a bounded local Claim. Registration must remain
-`pending_review` with accepted-event delta zero. Any later local acceptance,
-rejection, narrowing, or supersession uses that Frontier's ordinary authority
-boundary.
+producer path as evidence for a bounded local Claim. The resulting direct
+Proposal remains pending review and `accepted_event_delta` stays zero. Any
+later local acceptance, rejection, narrowing, or supersession uses that
+Frontier's ordinary authority boundary.
 
 ### 3. Qualify two readers before real retention
 

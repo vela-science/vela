@@ -22,7 +22,6 @@ verification, authorized Decisions, canonical Events, and replayed Standing:
 Target
   -> Attempt
   -> Submission
-  -> Registration Record
   -> Proposal
   -> Verification Record
   -> Decision
