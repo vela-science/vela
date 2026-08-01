@@ -1505,7 +1505,6 @@ pub(crate) fn authority_derived_path(value: &str) -> bool {
     value == "targets.json"
         || value == "frontier.json"
         || value == "vela.lock"
-        || value == ".vela/proof-state.json"
         || value.starts_with("proof/")
 }
 
@@ -3896,8 +3895,8 @@ mod tests {
     fn derived_postimages_share_recovery_without_entering_authority_delta() {
         assert!(authority_derived_path("frontier.json"));
         assert!(authority_derived_path("vela.lock"));
-        assert!(authority_derived_path(".vela/proof-state.json"));
         assert!(authority_derived_path("proof/latest.json"));
+        assert!(!authority_derived_path(".vela/proof-state.json"));
         assert!(
             !authority_derived_path("frontier.yaml"),
             "repository configuration is not a derived materialized view"

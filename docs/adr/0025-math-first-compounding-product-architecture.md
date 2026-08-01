@@ -18,7 +18,9 @@
 > and current Canopus language is superseded by ADRs 0031–0034. The current
 > product loop is `map -> target -> work -> submit -> verify -> decide ->
 > remap`; native tools own execution, Attempt is optional provenance, and
-> Canopus `0.8.0` is frozen historical evidence.
+> Canopus `0.8.0` is frozen historical evidence. The Verification cited below
+> was separately scoped first-party work with shared operator and environment;
+> it was not organizationally or externally independent.
 
 ## Context
 
