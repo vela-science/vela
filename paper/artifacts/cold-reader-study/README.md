@@ -12,7 +12,7 @@ reader sees each scientific fixture only once.
 The fixtures are:
 
 - the accepted Quantum `[[10,1,4]]` correction; and
-- the pending Formal cross-Frontier retention Proposal.
+- the accepted Formal cross-Frontier retention Claim.
 
 The study asks whether readers can identify the exact Claim, evidence,
 Verification scope, Decision and Standing, nonclaims, and next valid action.
@@ -40,6 +40,11 @@ protocol-breakthrough gate.
 
 Eligible failures, timeouts, and null results are retained. No favorable
 stopping, fixture substitution, or post-output scoring change is allowed.
+
+The original frozen plan was superseded before participant one after the human
+repository authority accepted the Formal Proposal. No participant had enrolled
+or viewed evidence. The current plan root-links that predecessor and binds the
+accepted successor; Git retains the earlier bytes.
 
 ## Remaining execution
 

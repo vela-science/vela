@@ -56,11 +56,12 @@ Source-local closure and later exact completions now close producer work
 through `10430400` and expose `10430401..10430600` as the next nonduplicate
 range. The retained 2026-08-02 Vela Web Atlas checkpoint uses the repository-v4
 reader. Its exact projection at root
-`sha256:141ec2f20098b9a89f65d9918dbaae8fc838cdbac3fe7c98618fb6deb36df876`
-contains 4,139 graph nodes, 2,591 edges, 6,713 native source records, and 5,844
-Frontier bindings, including the later non-authorizing Formal withdrawal and
-the accepted Quantum correction and native Formal Lean result. Six Erdős and
-one Formal Proposal remain pending; one
+`sha256:009ce4e9ac941aa94a74cfd6a20b5a3309693691babc7803abe58cb2293026ba`
+contains 4,139 graph nodes, 2,590 edges, 6,713 native source records, and 5,844
+Frontier bindings, including the later non-authorizing Formal withdrawal, the
+accepted Quantum correction, the native Formal Lean result, and the separately
+accepted Formal cross-Frontier retention. Six Erdős Proposals remain pending;
+one
 broader-worded Erdős predecessor Proposal remains retained separately rather
 than being rewritten. These facts do not establish broader scientific
 acceptance, inheritance lift across two fixtures, external independence, or
@@ -672,11 +673,12 @@ not establish cold-user lift or automatic domain-generic closure.
 Subsequent exact completions close Erdős producer work through `10430400` and
 leave `10430401..10430600` as the next nonduplicate range. The current
 2026-08-02 Vela Web checkpoint serves the exact repository-v4 projection at
-root `sha256:141ec2f20098b9a89f65d9918dbaae8fc838cdbac3fe7c98618fb6deb36df876`.
+root `sha256:009ce4e9ac941aa94a74cfd6a20b5a3309693691babc7803abe58cb2293026ba`.
 The Quantum correction is accepted and exposes no remaining producer Target.
-The native Formal Erdős 835 result is also accepted; Formal now retains one
-separate cross-Frontier Proposal pending human Decision. Six Erdős Proposals
-remain pending. Their Verifications do not change Standing. The earlier
+The native Formal Erdős 835 result and bounded cross-Frontier retention are
+both accepted through separate attributed Decisions; the latter does not
+import Erdős authority. Six Erdős Proposals remain pending. Their Verifications
+do not change Standing. The earlier
 broader-worded Erdős Proposal remains retained and pending rather than
 replacing the corrected bounded record.
 
@@ -749,24 +751,27 @@ Both readers rederive every identity, verify producer and verifier signatures,
 follow the compaction origin, and verify the repository-authority DSSE
 signature against the retained keyset. They reject authority escalation,
 silent truncation, source and semantic substitution, object-byte drift, path
-and symlink escape, and signature tampering. Formal Conjectures has retained
+and symlink escape, and signature tampering. Formal Conjectures retained
 the exact archive through corrected Submission `vsb_bb9b64f5d93b8cad` and
-pending Proposal `vpr_7aba66544ffefd99` with accepted-event delta zero.
+Proposal `vpr_7aba66544ffefd99`, initially with accepted-event delta zero.
 A credential-free import preflight verified the signed receiver record, every
 exact subject, repository, authority history, trust anchor, Cedar
 authorization, and canonical transaction set, then stopped at signing without
 changing Git or operation journals. Its result root is
 `sha256:00b135a27088af1049ffe86cc329a5bec10fde098e32ac8342900c84a8a95c09`.
 Repository authority then imported scoped Verification
-`vvr_ebc29eae4f5f4edf`. Remote commit
-`3fe6bf62afd587b9cdeac39f5eb3c62a28fbc0aa` reproduces repository root
+`vvr_ebc29eae4f5f4edf`; a second scoped reader produced
+`vvr_179fb049e70ff620`. The historical receiver audit at remote commit
+`3fe6bf62afd587b9cdeac39f5eb3c62a28fbc0aa` and repository root
 `sha256:5e59e05a5639ac0ec4331ec40fec9f50229b795a1a08d983ba96834d4777b58a`
-from a clean clone. The Proposal remains `pending_review`, no Decision exists,
-and local accepted Standing is unchanged. Receiver audit root
+records the pre-Decision state. Its root
 `sha256:a5867554d4dc9ea4dcd6d415a2be263c84dc0f6fbbe497fb86b427104368d75c`
-therefore passes B8 and authority non-escalation. It does not demonstrate
-external independence, performance lift, or readiness for a Registry or
-Atlas.
+passes B8 and authority non-escalation. The later human Formal Decision event
+`vev_798955d528dc3030` accepted only the bounded retention Claim; applied event
+`vev_973ee78ab0fdfda4` and strict replay produce repository root
+`sha256:f652b5793e2bcccd2863f24adb7dda3ff3dd707ae64e2de8ee447b37fb1c85e7`.
+This does not demonstrate external independence, performance lift, or a
+supported shared adapter contract.
 
 The historical Git-versus-Vela state-reading protocol is frozen at root
 `sha256:68fb039088302d19f02cf2628c16004e174649b1f952a63a0fd35210c0dd0ef8`.
@@ -843,14 +848,21 @@ the second exactly satisfies the registered reconstruction requirement.
 
 An attributed human Decision accepted Proposal `vpr_08a91ee1b770f5cb` through
 signed transition events `vev_539148811887822b` and
-`vev_5491fdcca74f2a98`. Strict replay passes at Formal commit
-`91329575a922a3ea01d053caed403cf36a8037c7`, repository root
-`sha256:69945e0574b2b1b692387c93e1d1a871264b76134fbaee198f87553a07d14850`,
-with 15 accepted Claims and one separate pending cross-Frontier Proposal. The
-Decision establishes only kernel elaboration of the exact retained category-
+`vev_5491fdcca74f2a98`. A later separate attributed Decision accepted bounded
+cross-Frontier Proposal `vpr_7aba66544ffefd99` after two scoped archive
+Verifications. Strict replay passes at Formal commit
+`100d0028bb5b4714ddace4812a77a7ad617ac97c`, repository root
+`sha256:f652b5793e2bcccd2863f24adb7dda3ff3dd707ae64e2de8ee447b37fb1c85e7`,
+with 16 accepted Claims and no pending Proposals. The native Lean Decision
+establishes only kernel elaboration of the exact retained category-
 test equivalence. It does not prove `Erdos835.erdos_835`, answer Erdős problem
 835, establish source-to-informal-statement fidelity, novelty, upstream
 acceptance, or organizationally independent replication.
+
+The cross-Frontier Decision retains one exact Erdős evidence package in Formal
+Standing. It does not import Erdős authority, establish the source mathematics,
+prove product lift over Git, earn a shared adapter contract, or satisfy the
+external-reader value study.
 
 ### 6.9 Framework-neutral execution evaluation
 
@@ -1128,7 +1140,7 @@ but not canonical.
 
 The Math Atlas has passed rooted, bounded Neon ingestion and clean-room
 reconstruction on the current schema. Its exact production projection contains
-4,139 graph nodes, 2,591 edges, 6,713 native source records, and 5,844
+4,139 graph nodes, 2,590 edges, 6,713 native source records, and 5,844
 Frontier bindings. No 1,000,000-record result exists. These results establish
 bounded reconstruction and operation, not general scalability, adoption, or
 user value. Current counts describe the audited corpus, not a capacity limit
@@ -1227,8 +1239,9 @@ its coverage from exact ancestor bytes. Later exact completions close producer
 work through `10430400` and expose `10430401..10430600` as the next
 nonduplicate range without changing Standing. The production Atlas uses the
 repository-v4 reader and includes the later non-authorizing Formal withdrawal
-and accepted Quantum correction. Six Erdős and one Formal Proposal remain
-pending human Decisions; the native Formal Erdős 835 Claim is accepted. The
+and accepted Quantum correction. Six Erdős Proposals remain pending human
+Decisions; the native Formal Erdős 835 Claim and bounded cross-Frontier
+retention are accepted through separate attributed Decisions. The
 Quantum post-Decision remap is complete and
 exposes no remaining producer Target. An earlier broader-worded Erdős Proposal
 remains retained separately. The frozen held-out selector detects the Quantum

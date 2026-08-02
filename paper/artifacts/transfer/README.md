@@ -47,9 +47,14 @@ Formal Conjectures imported scoped Verification `vvr_ebc29eae4f5f4edf`,
 pushed commit `3fe6bf62afd587b9cdeac39f5eb3c62a28fbc0aa`, and reproduced repository
 root
 `sha256:5e59e05a5639ac0ec4331ec40fec9f50229b795a1a08d983ba96834d4777b58a`
-from a clean clone. The Proposal remains `pending_review`, no Decision exists,
-and accepted-event delta is zero. This completes B8 without importing source
-authority. It does not establish external independence or measured lift.
+from a clean clone. That retained audit is the pre-Decision checkpoint. A
+second scoped Verification `vvr_179fb049e70ff620` later satisfied the exact
+registered requirement. Human Decision event `vev_798955d528dc3030` accepted
+only the bounded retention Claim; applied event `vev_973ee78ab0fdfda4` and
+strict replay produce current Formal repository root
+`sha256:f652b5793e2bcccd2863f24adb7dda3ff3dd707ae64e2de8ee447b37fb1c85e7`.
+This completes B8 without importing source authority. It does not establish
+external independence, measured lift, or a supported shared adapter contract.
 
 Rebuild and verify the source package:
 

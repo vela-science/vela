@@ -24,7 +24,8 @@ identity. This roadmap records only product sequence.
 - A real Erdős result has completed the full loop and replayed exactly.
 - Formal and quantum results have separate, scoped Verification. One exact
   Formal Lean result and the Quantum correction have attributed human
-  Decisions; the separate Formal cross-Frontier transfer remains pending.
+  Decisions. The bounded Formal cross-Frontier retention has also completed a
+  separate attributed human Decision without importing Erdős authority.
 - The accepted quantum correction has an exact alternate-algorithm
   reconstruction: a source-visible verifier derives the complete symplectic
   centralizer and reproduces the retained `[[10,1,4]]` certificate. This is
@@ -54,12 +55,12 @@ identity. This roadmap records only product sequence.
 - A third native Harbor comparison passed the Formal foreign-reference
   receiver-continuation gate: Vela-guided 2/2 exact versus Git/files 0/2, with
   52.69 percent lower median agent time and 54.77 percent lower median cost.
-  This is still first-party evidence; the local Proposal remains pending a
-  human Decision.
+  This is still first-party evidence; the later local Decision does not satisfy
+  the unrun external-reader value gate.
 - A four-person external cold-reader pilot is frozen at plan root
-  `sha256:66ec79e3cd550a8e74782e2502ca97ba4b5828fb9d0ed769df90c7279fbce4f8`.
+  `sha256:1fb12c44aa8fce0c2f3d84c70ea0a44574b6d78be92d848431d125919cf62d86`.
   It compares Git and the root-bound Observatory over the accepted Quantum
-  correction and pending Formal transfer, with exact authority-error gates
+  correction and accepted Formal transfer, with exact authority-error gates
   and no new harness. It has not run yet and earns no external-user claim.
 - The Astra source-fidelity comparison completed with all four trials eligible
   but 0/4 exact. The guided arm was faster and cheaper, but the registered gate
@@ -82,11 +83,11 @@ The exact Quantum correction completed the consequential loop:
 
 No agent performed step 2. Verification did not select the outcome.
 
-The Formal cross-Frontier Proposal is technically Decision-eligible. External
-adoption or measured cold-user lift is **not** a protocol prerequisite for that
-Decision. Those tests gate only broader interoperability and product claims.
-If the human decides before those tests, the Decision must retain that
-limitation explicitly.
+The Formal cross-Frontier Proposal is now accepted through an exact attributed
+Decision. External adoption and measured cold-user lift remain unproved; the
+Decision reason explicitly preserves those limits. Those tests gate broader
+interoperability and product claims, not the completed local Standing
+transition.
 
 The native Formal `Erdos835.property_iff_chromaticNumber` Claim has now
 completed Submission, two scoped Verifications, attributed human Decision,

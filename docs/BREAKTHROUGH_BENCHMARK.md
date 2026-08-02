@@ -169,9 +169,9 @@ fixture. The current first-party campaign earns no such credit.
 
 The current product-reading pilot is preregistered separately at
 `paper/artifacts/cold-reader-study/plan.v1.json`, byte root
-`sha256:66ec79e3cd550a8e74782e2502ca97ba4b5828fb9d0ed769df90c7279fbce4f8`.
+`sha256:1fb12c44aa8fce0c2f3d84c70ea0a44574b6d78be92d848431d125919cf62d86`.
 Four external readers will inspect the accepted Quantum correction and the
-pending Formal transfer in a counterbalanced Git-versus-Observatory crossover.
+accepted Formal transfer in a counterbalanced Git-versus-Observatory crossover.
 It measures comprehension and next-action latency only. Because the frozen
 held-out selector still has no qualifying consequential correction topology,
 this pilot cannot satisfy B10 by itself even if its product gate passes.
@@ -226,17 +226,22 @@ reference passes the Rust and dependency-free Python readers at root
 `sha256:b7b330ae6ea4915d5bac218233f0a272ee961060682be6d22f6a8ea1b78c4ed6`,
 including repository-authority signature verification and explicit local
 Standing effect `none`. Formal retained the exact archive through corrected
-Submission `vsb_bb9b64f5d93b8cad` and pending Proposal
+Submission `vsb_bb9b64f5d93b8cad` and Proposal
 `vpr_7aba66544ffefd99`, imported scoped Verification
-`vvr_ebc29eae4f5f4edf`, and reproduced repository root
+`vvr_ebc29eae4f5f4edf`, and reproduced the pre-Decision repository root
 `sha256:5e59e05a5639ac0ec4331ec40fec9f50229b795a1a08d983ba96834d4777b58a`
 from clean remote commit `3fe6bf62afd587b9cdeac39f5eb3c62a28fbc0aa`.
-The Proposal remains `pending_review`, no Decision exists, and accepted-event
-delta is zero. Receiver audit
+Receiver audit
 `paper/artifacts/transfer/erdos-424/receiver-publication.v1.json`, byte root
 `sha256:a5867554d4dc9ea4dcd6d415a2be263c84dc0f6fbbe497fb86b427104368d75c`,
-therefore passes B8 and authority non-escalation. It does not claim external
-independence, performance lift, or eligibility for a Registry or Atlas.
+therefore passes B8 and authority non-escalation for that historical state. A
+second scoped Verification `vvr_179fb049e70ff620` then satisfied the exact
+registered requirement. Attributed human Decision event
+`vev_798955d528dc3030` accepted only the bounded retention Claim; applied event
+`vev_973ee78ab0fdfda4` and strict replay produce current Formal repository root
+`sha256:f652b5793e2bcccd2863f24adb7dda3ff3dd707ae64e2de8ee447b37fb1c85e7`.
+This does not claim external independence, performance lift, or a supported
+shared adapter contract.
 
 The receiver preflight is complete. After deferring SSH-agent access until the
 signature boundary, Vela verified the signed record, every exact subject,

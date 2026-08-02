@@ -1,6 +1,7 @@
 {
   "schema": "vela.external-cold-reader-answer-key.v1",
   "status": "frozen_before_participant_one",
+  "supersedes_answer_key_root": "sha256:b9bbb08a34fb01ad87ad3796c4357bb0ddef9a0533e8ffe770c6e6e223caffbc",
   "scoring_rule": "Score semantic correctness before speed. Exact identifiers or roots are required for two points only where listed. Equivalent bounded wording is accepted; byte-for-byte prose is not required.",
   "tasks": {
     "quantum": {
@@ -35,8 +36,7 @@
     "formal": {
       "proposal": {
         "id": "vpr_7aba66544ffefd99",
-        "entry_root": "sha256:ffd87edf48037199ebd17a768ff55ea9d679dc5dd4d90a90dc9153813d04ab46",
-        "standing": "pending_review"
+        "standing": "accepted"
       },
       "proposed_claim": {
         "id": "vcl_1b3e297c552170bc608ac84bc7e19d1ec234125aa77be7959708f18566d7bb45",
@@ -51,9 +51,14 @@
         "vvr_ebc29eae4f5f4edf"
       ],
       "verification_scope": "The retained exact package, object set, signatures, source authority history, and explicit local Standing effect none verify. This does not import Erdős authority or accept the source Claim in Formal Conjectures.",
-      "decision": null,
-      "local_standing_changed": false,
-      "next_action": "The exact rooted Proposal awaits an attributed human repository-authority accept or reject Decision. The participant must not choose or recommend an outcome, and Verification alone does not determine it."
+      "decision": {
+        "authority_event_id": "vev_798955d528dc3030",
+        "applied_authority_event_id": "vev_973ee78ab0fdfda4",
+        "standing": "accepted",
+        "required_limit": "The Formal Decision retains the exact foreign-reference package only. It does not import Erdős authority, establish mathematical truth or significance, prove product lift over Git, or satisfy the external-reader study."
+      },
+      "local_standing_changed": true,
+      "next_action": "No Target Index or producer offer is configured for Formal Conjectures. The correct answer is the explicit absence of an offer; a participant must not invent one."
     }
   },
   "hard_error_override": "Any hard error defined by plan.v1.json fails the task regardless of point total."

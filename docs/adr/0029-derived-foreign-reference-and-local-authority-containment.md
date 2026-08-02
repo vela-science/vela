@@ -6,9 +6,10 @@
 - Product effect: evidence companion only; current runtime support removed
 - Authority effect: none
 - Service effect: none
-- Evidence update: all enumerated first-party transfer steps pass at Formal
-  commit `dfaf16f96a4b4f520bd43aa129b0be91beac359b`; the Proposal remains pending
-  and local accepted Standing is unchanged.
+- Evidence update: all enumerated first-party transfer steps pass. A later
+  attributed Formal Decision accepted only the bounded retention Claim at
+  commit `100d0028bb5b4714ddace4812a77a7ad617ac97c`; it did not promote the
+  historical adapter into a shared contract or import Erdős authority.
 - Disposition: the first-party experiment remains reproducible under
   `paper/artifacts/transfer/`; absent a held-out independently controlled
   consumer and measured value over a plain rooted manifest, Vela does not own
@@ -44,10 +45,13 @@ non-independent Verification `vvr_ebc29eae4f5f4edf` and reproduced repository
 root
 `sha256:5e59e05a5639ac0ec4331ec40fec9f50229b795a1a08d983ba96834d4777b58a`
 from clean remote commit `3fe6bf62afd587b9cdeac39f5eb3c62a28fbc0aa`.
-The Proposal remains pending, no Decision exists, and the experiment passes
-B8. It is not eligible to add a federation service, global identifier system,
-resolver, Registry, second writer, distributed transaction, or
-imported authority.
+A second scoped Verification later satisfied the exact registered requirement.
+Attributed human Decision event `vev_798955d528dc3030` accepted the bounded
+retention Claim, and strict replay produced current repository root
+`sha256:f652b5793e2bcccd2863f24adb7dda3ff3dd707ae64e2de8ee447b37fb1c85e7`.
+The experiment passes B8 but remains ineligible to add a federation service,
+global identifier system, resolver, Registry, second writer, distributed
+transaction, imported authority, or supported shared adapter contract.
 
 ## Historical experiment
 

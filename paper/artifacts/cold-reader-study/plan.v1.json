@@ -1,16 +1,18 @@
 {
   "schema": "vela.external-cold-reader-pilot.v1",
   "status": "frozen_before_participant_one",
-  "frozen_at": "2026-08-02T16:05:00Z",
+  "frozen_at": "2026-08-02T19:36:36Z",
+  "supersedes_plan_root": "sha256:66ec79e3cd550a8e74782e2502ca97ba4b5828fb9d0ed769df90c7279fbce4f8",
+  "amendment_reason": "No participant had enrolled or viewed evidence. The human repository authority then accepted the Formal transfer, so the pending-state fixture became stale before study execution. This pre-participant amendment binds the exact accepted successor instead of changing a task after outputs exist.",
   "purpose": "Measure whether the read-only Vela Observatory improves a cold external reader's exact comprehension and continuation speed relative to Git plus the same evidence bytes.",
   "claim_ceiling": "A positive result supports only a bounded four-person external product-comprehension and continuation claim. It does not establish independent scientific validation, correction-propagation success, broad usability, adoption, or the registered protocol breakthrough.",
   "authority_boundary": "Participants inspect only. Verification is not acceptance, the Observatory is not authority, and no participant or study operator may accept, reject, cancel, sign, mutate a Frontier, or request credentials.",
   "frozen_state": {
-    "vela_commit": "a3878d5a9151a65d4cfb1c7b49786deefc50cd55",
+    "vela_commit": "4c065d8db9b3d7144a435c46a5da34a58000e782",
     "vela_version": "0.962.1",
-    "observatory_commit": "f3298f4341f581b848d614d4cc6a55cb66b3ff42",
-    "observatory_projection_root": "sha256:141ec2f20098b9a89f65d9918dbaae8fc838cdbac3fe7c98618fb6deb36df876",
-    "observatory_deployment_id": "dpl_4c4VvcnhbREWLxNhnm1ckFN9sa5g",
+    "observatory_commit": "e0e874e02b20546c91dd9d4b83c193af171705cc",
+    "observatory_projection_root": "sha256:009ce4e9ac941aa94a74cfd6a20b5a3309693691babc7803abe58cb2293026ba",
+    "observatory_deployment_id": "dpl_HgwqpQAfLohtxgiavCHgdQjZrvK4",
     "observatory_manifest_url": "https://app.vela.space/.well-known/vela-site.json",
     "quantum": {
       "frontier_commit": "718de33dcdb27e97e92458530e938f2262c86fbe",
@@ -23,15 +25,19 @@
       "target_offer_count": 0
     },
     "formal": {
-      "frontier_commit": "91329575a922a3ea01d053caed403cf36a8037c7",
-      "repository_root": "sha256:69945e0574b2b1b692387c93e1d1a871264b76134fbaee198f87553a07d14850",
-      "decision_inbox_root": "sha256:d1c09c0fc332ddcb1ecc2aa0fac5620b8bdd9af8deaa3b23656a298830c795bf",
+      "frontier_commit": "100d0028bb5b4714ddace4812a77a7ad617ac97c",
+      "repository_root": "sha256:f652b5793e2bcccd2863f24adb7dda3ff3dd707ae64e2de8ee447b37fb1c85e7",
+      "decision_inbox_root": "sha256:5f950703af894b00e24f000a6a61c071bd4397d43dc6f5031960584c7617abd4",
       "proposal_id": "vpr_7aba66544ffefd99",
-      "proposal_entry_root": "sha256:ffd87edf48037199ebd17a768ff55ea9d679dc5dd4d90a90dc9153813d04ab46",
       "claim_id": "vcl_1b3e297c552170bc608ac84bc7e19d1ec234125aa77be7959708f18566d7bb45",
       "foreign_reference_root": "sha256:b7b330ae6ea4915d5bac218233f0a272ee961060682be6d22f6a8ea1b78c4ed6",
-      "standing": "pending_review",
-      "local_accepted_event_delta": 0
+      "decision_authority_event_id": "vev_798955d528dc3030",
+      "applied_authority_event_id": "vev_973ee78ab0fdfda4",
+      "standing": "accepted",
+      "scientific_state_changed": true,
+      "accepted_claim_count_before": 15,
+      "accepted_claim_count_after": 16,
+      "target_offer_count": 0
     }
   },
   "participants": {
@@ -94,16 +100,16 @@
       ]
     },
     "formal": {
-      "title": "Pending Formal cross-Frontier transfer",
-      "git_start": "https://github.com/vela-science/formal-conjectures-frontier/tree/91329575a922a3ea01d053caed403cf36a8037c7",
+      "title": "Accepted Formal cross-Frontier retention",
+      "git_start": "https://github.com/vela-science/formal-conjectures-frontier/tree/100d0028bb5b4714ddace4812a77a7ad617ac97c",
       "observatory_start": "https://app.vela.space/frontiers/formal-conjectures",
       "supplied_proposal_id": "vpr_7aba66544ffefd99",
       "questions": [
-        "State exactly what Claim the supplied Proposal would add.",
-        "Distinguish the Erdős source Decision and reference package from Formal Conjectures local Standing.",
+        "State exactly what Claim the supplied Proposal added to Formal Conjectures Standing.",
+        "Distinguish the Erdős source Decision and reference package from the separate Formal Conjectures Decision and local Standing.",
         "Identify the retained package and what the scoped Verifications establish and do not establish.",
-        "State whether a Formal Decision exists and whether accepted Standing changed.",
-        "Identify the next process boundary without choosing an outcome."
+        "Identify the Formal Decision and current local Standing without presenting Verification as acceptance.",
+        "State the exact next valid obligation or the explicit absence of an offered Target."
       ]
     }
   },
@@ -128,7 +134,7 @@
   },
   "hard_errors": [
     "Verification presented as acceptance or Standing.",
-    "The pending Formal Claim presented as accepted.",
+    "The accepted Formal Claim presented as pending, or Verification presented as the reason it became accepted.",
     "Foreign Erdős authority presented as Formal authority.",
     "The Observatory presented as canonical authority or writer.",
     "An invented Decision, root, or next offer, or hidden uncertainty.",
