@@ -252,7 +252,7 @@ pub(crate) fn author_record(
         method_manifest_binding(frontier, &request.method_path)?;
 
     let observed_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
-    let key = vela_edge::agent_identity::agent_signing_key(Some(actor))?;
+    let key = vela_edge::agent_identity::agent_signing_key(actor)?;
     let identity = IdentityBinding::build(
         IdentityBindingDraft {
             actor_id: actor.into(),

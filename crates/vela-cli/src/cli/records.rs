@@ -37,7 +37,7 @@ impl ReproductionWitness {
     }
 }
 
-/// Parse either a bare witness or a record with a `witness` field.
+/// Parse one current bare witness representation.
 pub(crate) fn parse_witness(raw: &str) -> Result<ReproductionWitness, String> {
     let value: serde_json::Value = serde_json::from_str(raw).map_err(|error| error.to_string())?;
     parse_witness_value(value)
@@ -54,11 +54,7 @@ fn parse_witness_value(value: serde_json::Value) -> Result<ReproductionWitness, 
             .map(ReproductionWitness::QuantumStabilizer)
             .map_err(|error| error.to_string());
     }
-    value
-        .get("witness")
-        .cloned()
-        .ok_or_else(|| "not a witness (missing recognized `kind` and `witness`)".to_string())
-        .and_then(parse_witness_value)
+    Err("not a recognized current witness".into())
 }
 
 /// Collect a single witness or every `*.witness.json` below a directory.
@@ -131,5 +127,14 @@ mod tests {
         let outcome = witness.verify();
         assert!(!outcome.ok);
         assert!(outcome.message.contains("distinct"));
+    }
+
+    #[test]
+    fn wrapped_witness_is_not_a_current_representation() {
+        let wrapped = serde_json::json!({
+            "witness": serde_json::from_str::<serde_json::Value>(QUANTUM_WITNESS).unwrap()
+        });
+        let error = parse_witness(&serde_json::to_string(&wrapped).unwrap()).unwrap_err();
+        assert_eq!(error, "not a recognized current witness");
     }
 }

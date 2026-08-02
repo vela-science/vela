@@ -1,12 +1,14 @@
 [
   {"name":"add","valid":true,"value":{"kind":"add_claim"}},
   {"name":"correct","valid":true,"value":{"kind":"correct_claim","target":{"claim_id":"vcl_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","claim_root":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}},
-  {"name":"supersede","valid":true,"value":{"kind":"supersede_claim","target":{"claim_id":"vf_0123456789abcdef","claim_root":"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}}},
+  {"name":"supersede","valid":true,"value":{"kind":"supersede_claim","target":{"claim_id":"vcl_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","claim_root":"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}}},
   {"name":"retract","valid":true,"value":{"kind":"retract_claim","target":{"claim_id":"vcl_dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd","claim_root":"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"}}},
   {"name":"legacy-revise","valid":false,"value":{"kind":"revise_claim","target":{"claim_id":"vf_0123456789abcdef","claim_root":"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"}}},
-  {"name":"add-with-target","valid":false,"value":{"kind":"add_claim","target":{"claim_id":"vf_0123456789abcdef","claim_root":"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"}}},
+  {"name":"historical-finding-id","valid":false,"value":{"kind":"supersede_claim","target":{"claim_id":"vf_0123456789abcdef","claim_root":"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"}}},
+  {"name":"add-with-target","valid":false,"value":{"kind":"add_claim","target":{"claim_id":"vcl_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","claim_root":"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"}}},
   {"name":"correct-without-target","valid":false,"value":{"kind":"correct_claim"}},
   {"name":"invalid-claim-id","valid":false,"value":{"kind":"retract_claim","target":{"claim_id":"claim-1","claim_root":"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"}}},
-  {"name":"invalid-root","valid":false,"value":{"kind":"supersede_claim","target":{"claim_id":"vf_0123456789abcdef","claim_root":"sha256:not-a-root"}}},
+  {"name":"uppercase-claim-id","valid":false,"value":{"kind":"retract_claim","target":{"claim_id":"vcl_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","claim_root":"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"}}},
+  {"name":"invalid-root","valid":false,"value":{"kind":"supersede_claim","target":{"claim_id":"vcl_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","claim_root":"sha256:not-a-root"}}},
   {"name":"unknown-field","valid":false,"value":{"kind":"add_claim","standing":"accepted"}}
 ]

@@ -1,8 +1,8 @@
 //! Local custody for bounded producer identities used by exact CLI intake.
 //!
 //! Signing key: the agent's own session identity, minted automatically
-//! at `~/.vela/agents/<actor>/private.key` on first use (the actor comes
-//! from the tool argument or `VELA_ACTOR_ID`); `VELA_AGENT_KEY_HEX`
+//! at `~/.vela/agents/<actor>/private.key` on first use (the CLI resolves the
+//! exact actor before calling this boundary); `VELA_AGENT_KEY_HEX`
 //! overrides when an explicit key is wanted. Minting is refused for
 //! non-agent actors; human authority uses the platform principal and the
 //! repository-authority signer.
@@ -17,26 +17,16 @@ const AGENT_KEY_ENV: &str = "VELA_AGENT_KEY_HEX";
 ///
 /// 1. `VELA_AGENT_KEY_HEX` — an explicit key always wins.
 /// 2. The per-actor session key at `~/.vela/agents/<actor>/private.key`,
-///    MINTED on first use. An agent session that exported
-///    `VELA_ACTOR_ID=agent:<name>` (the charter's first rule) needs no
-///    key step at all — identity is a consequence of showing up.
+///    MINTED on first use.
 ///
 /// Custody: minting is refused for anything but `agent:`/`ci:` actors —
 /// human authority is never a side effect. The minted key signs only
 /// agent-grade objects (leases,
 /// records); every decision verb still refuses agent actors outright.
-pub fn agent_signing_key(explicit_actor: Option<&str>) -> Result<SigningKey, String> {
+pub fn agent_signing_key(actor: &str) -> Result<SigningKey, String> {
     if let Some(key) = environment_key()? {
         return Ok(key);
     }
-    let actor = explicit_actor
-        .map(str::to_string)
-        .or_else(|| std::env::var("VELA_ACTOR_ID").ok())
-        .ok_or_else(|| {
-            format!(
-                "no agent identity: set VELA_ACTOR_ID=agent:<name> (or {AGENT_KEY_ENV} for an explicit key)"
-            )
-        })?;
     if !actor.starts_with("agent:") && !actor.starts_with("ci:") && !actor.starts_with("verifier:")
     {
         return Err(format!(
@@ -45,7 +35,7 @@ pub fn agent_signing_key(explicit_actor: Option<&str>) -> Result<SigningKey, Str
     }
     let home = std::env::var("HOME").map_err(|_| "HOME unset".to_string())?;
     let base = std::path::PathBuf::from(home).join(".vela/agents");
-    mint_or_load_agent_key(&base, &actor)
+    mint_or_load_agent_key(&base, actor)
 }
 
 /// Load the already-established identity for an exact producer.

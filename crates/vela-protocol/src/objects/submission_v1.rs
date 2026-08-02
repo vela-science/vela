@@ -102,21 +102,12 @@ impl RequestedChange {
                 Err("Submission requested_change.target must be absent for add_claim".into())
             }
             (_, Some(target)) => {
-                if target.claim_id.starts_with("vcl_") {
-                    require_prefixed_hex(
-                        "requested_change.target.claim_id",
-                        &target.claim_id,
-                        "vcl_",
-                        64,
-                    )?;
-                } else {
-                    require_prefixed_hex(
-                        "requested_change.target.claim_id",
-                        &target.claim_id,
-                        "vf_",
-                        16,
-                    )?;
-                }
+                require_prefixed_hex(
+                    "requested_change.target.claim_id",
+                    &target.claim_id,
+                    "vcl_",
+                    64,
+                )?;
                 require_sha256("requested_change.target.claim_root", &target.claim_root)
             }
             (_, None) => Err(format!(
@@ -410,7 +401,11 @@ fn require_prefixed_hex(
     let Some(hex) = value.strip_prefix(prefix) else {
         return Err(format!("{field} must begin with `{prefix}`"));
     };
-    if hex.len() != hex_len || !hex.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+    if hex.len() != hex_len
+        || !hex
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
         return Err(format!(
             "{field} must contain exactly {hex_len} hexadecimal characters after `{prefix}`"
         ));
@@ -539,21 +534,21 @@ mod tests {
         assert!(error.contains("target is required for correct_claim"));
 
         draft.requested_change.target = Some(RequestedChangeTarget {
-            claim_id: "vf_not_hex".into(),
+            claim_id: "vf_0123456789abcdef".into(),
             claim_root: format!("sha256:{}", "a".repeat(64)),
         });
         let error = SubmissionV1::build(draft.clone(), identity.clone(), &key).unwrap_err();
         assert!(error.contains("requested_change.target.claim_id"));
 
         draft.requested_change.target = Some(RequestedChangeTarget {
-            claim_id: format!("vf_{}", "b".repeat(16)),
+            claim_id: format!("vcl_{}", "b".repeat(64)),
             claim_root: "sha256:not-a-root".into(),
         });
         let error = SubmissionV1::build(draft.clone(), identity.clone(), &key).unwrap_err();
         assert!(error.contains("requested_change.target.claim_root"));
 
         draft.requested_change.target = Some(RequestedChangeTarget {
-            claim_id: format!("vf_{}", "b".repeat(16)),
+            claim_id: format!("vcl_{}", "b".repeat(64)),
             claim_root: format!("sha256:{}", "c".repeat(64)),
         });
         SubmissionV1::build(draft, identity, &key).unwrap();
@@ -563,7 +558,7 @@ mod tests {
     fn add_claim_refuses_a_target() {
         let (mut draft, identity, key) = fixture();
         draft.requested_change.target = Some(RequestedChangeTarget {
-            claim_id: format!("vf_{}", "b".repeat(16)),
+            claim_id: format!("vcl_{}", "b".repeat(64)),
             claim_root: format!("sha256:{}", "c".repeat(64)),
         });
         let error = SubmissionV1::build(draft, identity, &key).unwrap_err();

@@ -193,12 +193,7 @@ impl VerificationRecordV1 {
         if self.authentication.algorithm != VERIFICATION_RECORD_AUTH_ALGORITHM {
             return Err("Verification Record authentication.algorithm must be `ed25519`".into());
         }
-        if !(self.subject.claim_id.starts_with("vcl_") || self.subject.claim_id.starts_with("vf_"))
-        {
-            return Err(
-                "Verification Record subject.claim_id must be vcl_ or historical vf_".into(),
-            );
-        }
+        require_prefixed_hex("subject.claim_id", &self.subject.claim_id, "vcl_", 64)?;
         require_prefixed("subject.submission_id", &self.subject.submission_id, "vsb_")?;
         require_sha256("subject.submission_root", &self.subject.submission_root)?;
         require_prefixed("subject.proposal_id", &self.subject.proposal_id, "vpr_")?;
@@ -271,6 +266,29 @@ fn require_prefixed(field: &str, value: &str, prefix: &str) -> Result<(), String
     Ok(())
 }
 
+fn require_prefixed_hex(
+    field: &str,
+    value: &str,
+    prefix: &str,
+    hex_len: usize,
+) -> Result<(), String> {
+    let Some(hex) = value.strip_prefix(prefix) else {
+        return Err(format!(
+            "Verification Record {field} must begin with `{prefix}`"
+        ));
+    };
+    if hex.len() != hex_len
+        || !hex
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(format!(
+            "Verification Record {field} must contain exactly {hex_len} hexadecimal characters after `{prefix}`"
+        ));
+    }
+    Ok(())
+}
+
 fn require_sha256(field: &str, value: &str) -> Result<(), String> {
     let digest = value
         .strip_prefix("sha256:")
@@ -310,7 +328,7 @@ mod tests {
         .unwrap();
         let draft = VerificationRecordDraft {
             subject: VerificationSubject {
-                claim_id: "vf_fixture".into(),
+                claim_id: format!("vcl_{}", "c".repeat(64)),
                 artifact_ids: vec!["a".repeat(64)],
                 submission_id: "vsb_fixture".into(),
                 submission_root: root('a'),
@@ -355,6 +373,17 @@ mod tests {
         let mut record = VerificationRecordV1::build(draft, identity, &key).unwrap();
         record.subject.submission_root = root('c');
         assert!(record.verify().is_err());
+    }
+
+    #[test]
+    fn historical_finding_ids_are_not_current_claim_references() {
+        let (mut draft, identity, key) = fixture();
+        draft.subject.claim_id = "vf_0123456789abcdef".into();
+        let error = VerificationRecordV1::build(draft, identity, &key).unwrap_err();
+        assert!(
+            error.contains("subject.claim_id must begin with `vcl_`"),
+            "{error}"
+        );
     }
 
     #[test]
