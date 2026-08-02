@@ -111,7 +111,7 @@ struct OriginStandingHistory {
 
 fn git_blob(frontier: &Path, commit: &str, path: &str) -> Result<Option<Vec<u8>>, String> {
     let spec = format!("{commit}:{path}");
-    let output = crate::git_hardened::output(frontier, &["show", &spec])?;
+    let output = vela_edge::git::output(frontier, &["show", &spec])?;
     if output.status.success() {
         return Ok(Some(output.stdout));
     }
@@ -123,7 +123,7 @@ fn verified_predecessor_manifest(
     predecessor: &RepositoryOriginPredecessorV1,
 ) -> Result<Option<Vec<u8>>, String> {
     let commit_spec = format!("{}^{{commit}}", predecessor.commit);
-    let commit = match crate::git_hardened::text(frontier, &["rev-parse", &commit_spec]) {
+    let commit = match vela_edge::git::text(frontier, &["rev-parse", &commit_spec]) {
         Ok(commit) => commit,
         Err(_) => return Ok(None),
     };
@@ -131,14 +131,14 @@ fn verified_predecessor_manifest(
         return Err("repository origin predecessor resolves to the wrong local commit".into());
     }
     let tree_spec = format!("{}^{{tree}}", predecessor.commit);
-    if crate::git_hardened::text(frontier, &["rev-parse", &tree_spec])? != predecessor.tree {
+    if vela_edge::git::text(frontier, &["rev-parse", &tree_spec])? != predecessor.tree {
         return Err(format!(
             "repository origin predecessor {} has the wrong local tree",
             predecessor.commit
         ));
     }
     let tag_ref = format!("refs/tags/{}^{{commit}}", predecessor.tag);
-    match crate::git_hardened::text(frontier, &["rev-parse", "--verify", &tag_ref]) {
+    match vela_edge::git::text(frontier, &["rev-parse", "--verify", &tag_ref]) {
         Ok(tag_commit) if tag_commit == predecessor.commit => {}
         Ok(_) => {
             return Err(format!(
@@ -215,7 +215,7 @@ fn predecessor_authority_events(
     frontier: &Path,
     commit: &str,
 ) -> Result<Vec<AuthorityEventV1>, String> {
-    let output = crate::git_hardened::output(
+    let output = vela_edge::git::output(
         frontier,
         &[
             "ls-tree",

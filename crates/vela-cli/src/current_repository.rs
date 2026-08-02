@@ -1715,7 +1715,7 @@ fn initial_repository(
     let commit = current_origin_commit(root, origin)?;
     let read_blob = |path: &str| -> Result<Vec<u8>, String> {
         let spec = format!("{commit}:{path}");
-        let output = crate::git_hardened::output(root, &["show", &spec])?;
+        let output = vela_edge::git::output(root, &["show", &spec])?;
         if !output.status.success() {
             return Err(format!(
                 "read origin blob {spec}: {}",
@@ -1751,7 +1751,7 @@ fn current_origin_commit(root: &Path, origin: &RepositoryOriginV1) -> Result<Str
     let mut matching = Vec::new();
     for commit in commits {
         let spec = format!("{commit}:.vela/origin.json");
-        let output = crate::git_hardened::output(root, &["show", &spec])?;
+        let output = vela_edge::git::output(root, &["show", &spec])?;
         if output.status.success() && output.stdout == expected {
             matching.push(commit);
         }
@@ -2103,7 +2103,7 @@ fn verify_repository_manifest_delta_chain<'a>(
 
 fn repository_manifest_at_commit(root: &Path, commit: &str) -> Result<CurrentRepositoryV4, String> {
     let spec = format!("{commit}:.vela/repository.json");
-    let output = crate::git_hardened::output(root, &["show", &spec])?;
+    let output = vela_edge::git::output(root, &["show", &spec])?;
     if !output.status.success() {
         return Err(format!(
             "read repository manifest at {commit}: {}",
@@ -2437,7 +2437,7 @@ fn root_bytes(bytes: &[u8]) -> String {
 }
 
 fn git_text(frontier: &Path, args: &[&str]) -> Result<String, String> {
-    crate::git_hardened::text(frontier, args)
+    vela_edge::git::text(frontier, args)
 }
 
 fn is_retired_current_path(path: &str) -> bool {

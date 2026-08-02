@@ -653,8 +653,8 @@ fn initialize_current_repository_authority(
     if verified.canonical_root()? != repository_root {
         return Err("native repository genesis replay produced a different manifest".into());
     }
-    let git_commit = crate::git_hardened::text(frontier, &["rev-parse", "HEAD^{commit}"])?;
-    let git_tree = crate::git_hardened::text(frontier, &["rev-parse", "HEAD^{tree}"])?;
+    let git_commit = vela_edge::git::text(frontier, &["rev-parse", "HEAD^{commit}"])?;
+    let git_tree = vela_edge::git::text(frontier, &["rev-parse", "HEAD^{tree}"])?;
     let local_anchor = AuthorityTrustAnchorV1 {
         schema: AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.to_string(),
         frontier_id: profile.frontier_id.clone(),

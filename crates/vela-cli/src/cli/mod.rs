@@ -14,9 +14,6 @@ struct Cli {
     command: Commands,
 }
 
-pub(crate) use crate::cli_check::*;
-pub(crate) use crate::cli_read::*;
-pub(crate) use crate::cli_write::*;
 use crate::command_handlers::{cmd_reproduce, cmd_verify_evidence};
 use crate::command_spec::*;
 
@@ -374,4 +371,103 @@ pub fn run_from_args() {
         Some(_) => {}
     }
     run_command();
+}
+
+fn cmd_status_compact(path: &Path, json_out: bool) {
+    crate::current_repository::cmd_current_status(path, json_out);
+}
+
+fn cmd_log(
+    path: &Path,
+    object_id: Option<&str>,
+    limit: usize,
+    kind_filter: Option<&str>,
+    as_of: Option<&str>,
+    json: bool,
+) {
+    crate::ui::set_mode("log", json);
+    let payload = crate::current_read::log_payload(path, object_id, limit, kind_filter, as_of)
+        .unwrap_or_else(|error| fail_return(&error));
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&payload).expect("serialize current log")
+    );
+}
+
+fn cmd_review(action: ReviewAction) {
+    match action {
+        ReviewAction::Inbox { frontier, json } => {
+            crate::decision_inbox::cmd_decision_inbox(&frontier, json)
+        }
+        ReviewAction::List {
+            frontier,
+            status,
+            limit,
+            cursor,
+            json,
+        } => crate::current_repository::cmd_current_review_list(
+            &frontier,
+            status.as_deref(),
+            limit,
+            cursor.as_deref(),
+            json,
+        ),
+        ReviewAction::Show {
+            frontier,
+            proposal_id,
+            json,
+        } => crate::current_repository::cmd_current_review_show(&frontier, &proposal_id, json),
+        ReviewAction::Accept {
+            frontier,
+            proposal_id,
+            if_entry_root,
+            reason,
+            json,
+        } => review_decision::cmd_review_decide(
+            frontier,
+            &proposal_id,
+            crate::current_repository_decision::DecisionAction::Accept,
+            if_entry_root.as_deref(),
+            reason,
+            json,
+        ),
+        ReviewAction::Reject {
+            frontier,
+            proposal_id,
+            if_entry_root,
+            reason,
+            json,
+        } => review_decision::cmd_review_decide(
+            frontier,
+            &proposal_id,
+            crate::current_repository_decision::DecisionAction::Reject,
+            if_entry_root.as_deref(),
+            reason,
+            json,
+        ),
+        ReviewAction::Withdraw {
+            frontier,
+            proposal_id,
+            actor,
+            reason,
+            json,
+        } => {
+            crate::current_withdrawal::cmd_withdraw(&frontier, &proposal_id, &actor, &reason, json)
+        }
+    }
+}
+
+fn cmd_check(source: Option<&Path>, json_output: bool) {
+    crate::ui::set_mode("check", json_output);
+    let frontier = source.map_or_else(|| std::path::PathBuf::from("."), Path::to_path_buf);
+    if !frontier.is_dir() || !frontier.join(".vela/origin.json").is_file() {
+        crate::ui::fail_with(
+            crate::ui::ErrorKind::Domain,
+            "this Vela release verifies only current repository origins",
+            Some(
+                "inspect a predecessor with its pinned historical Vela release; current repositories contain `.vela/origin.json`",
+            ),
+        );
+    }
+    crate::current_repository::cmd_check_repository(&frontier, json_output);
 }

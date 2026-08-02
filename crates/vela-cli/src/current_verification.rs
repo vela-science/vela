@@ -198,7 +198,7 @@ fn method_manifest_binding(
     if bytes.is_empty() {
         return Err("Verification method manifest must not be empty".into());
     }
-    let tracked = crate::git_hardened::output(
+    let tracked = vela_edge::git::output(
         frontier,
         &["ls-files", "--error-unmatch", "--", &implementation],
     )?;
@@ -207,7 +207,7 @@ fn method_manifest_binding(
             "Verification method manifest must be retained in the current Git commit".into(),
         );
     }
-    let dirt = crate::git_hardened::text(
+    let dirt = vela_edge::git::text(
         frontier,
         &[
             "status",

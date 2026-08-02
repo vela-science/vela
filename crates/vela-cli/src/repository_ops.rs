@@ -250,14 +250,12 @@ pub(crate) fn prepare_submission_artifacts(
                 &format!("Submission artifact {index}"),
             )
             .map_err(|error| public_artifact_read_error(error, limit, index))?;
-            let tracked = std::process::Command::new("git")
-                .current_dir(frontier)
-                .args(["ls-files", "--error-unmatch", "--", &canonical_path])
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .status()
-                .map_err(|error| format!("inspect canonical Artifact tracking: {error}"))?
-                .success();
+            let tracked = vela_edge::git::output(
+                frontier,
+                &["ls-files", "--error-unmatch", "--", &canonical_path],
+            )?
+            .status
+            .success();
             if !tracked {
                 return Err(format!(
                     "Submission artifact {index} already occupies its canonical path but is untracked; remove it and keep the transport blob beside submission.json under artifacts/sha256/{declared_hex}"

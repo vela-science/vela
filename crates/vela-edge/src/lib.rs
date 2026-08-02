@@ -8,3 +8,4 @@
 mod analysis;
 pub use analysis::{correction_impact, repository_write, target_index};
 pub mod agent_identity;
+pub mod git;

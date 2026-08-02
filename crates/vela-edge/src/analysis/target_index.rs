@@ -7,7 +7,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Component, Path};
-use std::process::{Output, Stdio};
+use std::process::Stdio;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -643,30 +643,12 @@ fn read_regular_file(path: &Path, max_bytes: u64, label: &str) -> Result<Vec<u8>
     Ok(bytes)
 }
 
-fn command(repo: &Path, args: &[&str]) -> Result<Output, String> {
-    super::git_read::hardened_command(repo, "target-index Git repository")?
-        .args(args)
-        .output()
-        .map_err(|error| format!("failed to run git {}: {error}", args.join(" ")))
-}
-
 fn git(repo: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
-    let output = command(repo, args)?;
-    if output.status.success() {
-        return Ok(output.stdout);
-    }
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    Err(if stderr.is_empty() {
-        format!("git {} failed with {}", args.join(" "), output.status)
-    } else {
-        stderr
-    })
+    crate::git::bytes(repo, args)
 }
 
 fn git_text(repo: &Path, args: &[&str]) -> Result<String, String> {
-    String::from_utf8(git(repo, args)?)
-        .map(|value| value.trim().to_string())
-        .map_err(|error| format!("git {} output was not UTF-8: {error}", args.join(" ")))
+    crate::git::text(repo, args)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -759,7 +741,7 @@ fn batch_blobs(repo: &Path, entries: &[&GitTreeEntry]) -> Result<Vec<Vec<u8>>, S
         }
     }
 
-    let mut child = super::git_read::hardened_command(repo, "target-index Git repository")?
+    let mut child = crate::git::command(repo)?
         .args(["cat-file", "--batch"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -1402,7 +1384,7 @@ pub fn assess_current_target_index(
             ));
         }
         let head = git_text(repo_path, &["rev-parse", "HEAD^{commit}"])?;
-        let ancestor = command(
+        let ancestor = crate::git::output(
             repo_path,
             &[
                 "merge-base",
