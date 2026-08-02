@@ -1,17 +1,10 @@
 //! Producer identity binding (`vib_`): a self-signed proof that a key controls
-//! an actor id, plus authoritative revocation.
+//! an actor id.
 //!
 //! An [`IdentityBinding`] is signed by the key it binds, so it proves
 //! possession rather than trusting a mutable actor registry. It also records
 //! `actor_class` (human / agent / org), which must never be interpreted as
 //! repository or review authority.
-//!
-//! ## Revocation is authoritative because it is self-signed
-//!
-//! An [`IdentityRevocation`] (`vir_`) is signed by the same key it revokes. A
-//! holder who loses trust in their own key, or who is done with an id, signs a
-//! revocation; the reducer then derives the binding as inactive on read. No
-//! third party can revoke your binding, and you cannot deny revoking your own.
 //!
 //! ## The honest limit
 //!
@@ -25,7 +18,6 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 pub const IDENTITY_BINDING_SCHEMA: &str = "vela.identity_binding.v0.1";
-pub const IDENTITY_REVOCATION_SCHEMA: &str = "vela.identity_revocation.v0.1";
 
 /// What kind of actor controls the id. Inferred-by-prefix before; bound here.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -38,6 +30,7 @@ pub enum ActorClass {
 
 /// A self-signed proof that `public_key_hex` controls `actor_id`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct IdentityBinding {
     pub schema: String,
     /// `vib_<16hex>`, content-addressed over the body with id/signature zeroed.
@@ -139,78 +132,6 @@ impl IdentityBinding {
     }
 }
 
-/// A self-signed revocation of an [`IdentityBinding`]. Signed by the same key it
-/// revokes, so revocation is authoritative and non-repudiable.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct IdentityRevocation {
-    pub schema: String,
-    pub revocation_id: String,
-    /// The `vib_` being revoked.
-    pub binding_id: String,
-    /// The key that signs (must equal the revoked binding's `public_key_hex`).
-    pub public_key_hex: String,
-    pub reason: String,
-    pub revoked_at: String,
-    pub signature: String,
-}
-
-/// Draft for [`IdentityRevocation::build`].
-pub struct IdentityRevocationDraft {
-    pub binding_id: String,
-    pub reason: String,
-    pub revoked_at: String,
-}
-
-impl IdentityRevocation {
-    pub fn build(draft: IdentityRevocationDraft, key: &SigningKey) -> Result<Self, String> {
-        if !draft.binding_id.starts_with("vib_") {
-            return Err("identity_revocation.binding_id must be a `vib_` id".to_string());
-        }
-        let mut r = IdentityRevocation {
-            schema: IDENTITY_REVOCATION_SCHEMA.to_string(),
-            revocation_id: String::new(),
-            binding_id: draft.binding_id,
-            public_key_hex: hex::encode(key.verifying_key().to_bytes()),
-            reason: draft.reason,
-            revoked_at: draft.revoked_at,
-            signature: String::new(),
-        };
-        let preimage = r.id_preimage_bytes()?;
-        r.signature = hex::encode(crate::sign::sign_bytes(key, &preimage));
-        r.revocation_id = format!("vir_{}", &hex::encode(Sha256::digest(&preimage))[..16]);
-        Ok(r)
-    }
-
-    fn id_preimage_bytes(&self) -> Result<Vec<u8>, String> {
-        let mut p = self.clone();
-        p.revocation_id = String::new();
-        p.signature = String::new();
-        crate::canonical::to_canonical_bytes(&p)
-            .map_err(|e| format!("canonicalize identity_revocation preimage: {e}"))
-    }
-
-    pub fn verify(&self) -> Result<(), String> {
-        let preimage = self.id_preimage_bytes()?;
-        if !crate::sign::verify_action_signature(&preimage, &self.signature, &self.public_key_hex)?
-        {
-            return Err(
-                "identity_revocation signature does not verify under the declared key".to_string(),
-            );
-        }
-        Ok(())
-    }
-
-    /// Authoritative check: this revocation legitimately revokes `binding` iff it
-    /// is signed by the SAME key the binding bound. A revocation signed by any
-    /// other key is not authoritative and is ignored.
-    #[must_use]
-    pub fn authoritatively_revokes(&self, binding: &IdentityBinding) -> bool {
-        self.binding_id == binding.binding_id
-            && self.public_key_hex == binding.public_key_hex
-            && self.verify().is_ok()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -242,42 +163,19 @@ mod tests {
     }
 
     #[test]
+    fn identity_binding_rejects_unknown_fields_before_signature_verification() {
+        let binding = IdentityBinding::build(draft(), &key()).unwrap();
+        let mut value = serde_json::to_value(binding).unwrap();
+        value["unexpected"] = serde_json::json!("must not be discarded");
+        assert!(serde_json::from_value::<IdentityBinding>(value).is_err());
+    }
+
+    #[test]
     fn binding_signed_by_other_key_fails_possession() {
         let mut b = IdentityBinding::build(draft(), &key()).unwrap();
         // Swap in a different key's pubkey: the signature no longer matches the
         // bound key, so proof-of-possession fails.
         b.public_key_hex = hex::encode(key().verifying_key().to_bytes());
         assert!(b.verify().is_err());
-    }
-
-    #[test]
-    fn self_revocation_is_authoritative_and_foreign_is_not() {
-        let k = key();
-        let b = IdentityBinding::build(draft(), &k).unwrap();
-        let rev = IdentityRevocation::build(
-            IdentityRevocationDraft {
-                binding_id: b.binding_id.clone(),
-                reason: "key rotated".into(),
-                revoked_at: "2026-06-10T00:00:00Z".into(),
-            },
-            &k,
-        )
-        .unwrap();
-        assert!(rev.authoritatively_revokes(&b), "same key must revoke");
-
-        // A revocation by a different key targeting the same binding is NOT authoritative.
-        let foreign = IdentityRevocation::build(
-            IdentityRevocationDraft {
-                binding_id: b.binding_id.clone(),
-                reason: "malicious".into(),
-                revoked_at: "2026-06-10T00:00:00Z".into(),
-            },
-            &key(),
-        )
-        .unwrap();
-        assert!(
-            !foreign.authoritatively_revokes(&b),
-            "foreign key cannot revoke"
-        );
     }
 }
