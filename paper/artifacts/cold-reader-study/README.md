@@ -36,15 +36,19 @@ protocol-breakthrough gate.
   policy.
 - `answer-key.v1.json` fixes the semantic answers and hard authority errors
   before participant one.
-- `manifest.sha256` binds both files.
+- `operator-guide.v1.md` freezes the neutral glossary, clock semantics, timeout
+  handling, and non-coaching procedure.
+- `response-form.v1.json` freezes the de-identified answer and timing fields.
+- `manifest.sha256` binds all four study-control files.
 
 Eligible failures, timeouts, and null results are retained. No favorable
 stopping, fixture substitution, or post-output scoring change is allowed.
 
-The original frozen plan was superseded before participant one after the human
-repository authority accepted the Formal Proposal. No participant had enrolled
-or viewed evidence. The current plan root-links that predecessor and binds the
-accepted successor; Git retains the earlier bytes.
+Earlier frozen plans were superseded before participant one: first after the
+human repository authority accepted the Formal Proposal, then to correct one
+Quantum applied-event identifier and remove operator/scoring discretion. No
+participant had enrolled or viewed evidence. The current plan root-links its
+predecessor; Git retains the earlier bytes.
 
 ## Remaining execution
 

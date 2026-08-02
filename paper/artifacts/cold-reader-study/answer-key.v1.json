@@ -1,7 +1,7 @@
 {
   "schema": "vela.external-cold-reader-answer-key.v1",
   "status": "frozen_before_participant_one",
-  "supersedes_answer_key_root": "sha256:b9bbb08a34fb01ad87ad3796c4357bb0ddef9a0533e8ffe770c6e6e223caffbc",
+  "supersedes_answer_key_root": "sha256:25df84114e86970d8c77b7ce3774f0ad8acd2a2fcb1645e54e6c8ad2201d6f7f",
   "scoring_rule": "Score semantic correctness before speed. Exact identifiers or roots are required for two points only where listed. Equivalent bounded wording is accepted; byte-for-byte prose is not required.",
   "tasks": {
     "quantum": {
@@ -23,7 +23,7 @@
       "decision": {
         "proposal_id": "vpr_8715dbb5e2a12442",
         "authority_event_id": "vev_16b21fe1a6d6f064",
-        "applied_authority_event_id": "vev_a1c8f8859afb250c",
+        "applied_authority_event_id": "vev_0682c18a47f1d15a",
         "standing": "accepted"
       },
       "nonclaims": [

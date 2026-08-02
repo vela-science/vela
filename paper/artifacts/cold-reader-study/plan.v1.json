@@ -1,9 +1,9 @@
 {
   "schema": "vela.external-cold-reader-pilot.v1",
   "status": "frozen_before_participant_one",
-  "frozen_at": "2026-08-02T19:36:36Z",
-  "supersedes_plan_root": "sha256:66ec79e3cd550a8e74782e2502ca97ba4b5828fb9d0ed769df90c7279fbce4f8",
-  "amendment_reason": "No participant had enrolled or viewed evidence. The human repository authority then accepted the Formal transfer, so the pending-state fixture became stale before study execution. This pre-participant amendment binds the exact accepted successor instead of changing a task after outputs exist.",
+  "frozen_at": "2026-08-02T20:19:39Z",
+  "supersedes_plan_root": "sha256:1fb12c44aa8fce0c2f3d84c70ea0a44574b6d78be92d848431d125919cf62d86",
+  "amendment_reason": "No participant had enrolled or viewed evidence. This pre-participant amendment corrects the Quantum applied-event identity, freezes the already-required neutral glossary and operator procedure, defines timing and timeout handling, and removes discretion from the correctness comparison.",
   "purpose": "Measure whether the read-only Vela Observatory improves a cold external reader's exact comprehension and continuation speed relative to Git plus the same evidence bytes.",
   "claim_ceiling": "A positive result supports only a bounded four-person external product-comprehension and continuation claim. It does not establish independent scientific validation, correction-propagation success, broad usability, adoption, or the registered protocol breakthrough.",
   "authority_boundary": "Participants inspect only. Verification is not acceptance, the Observatory is not authority, and no participant or study operator may accept, reject, cancel, sign, mutate a Frontier, or request credentials.",
@@ -21,7 +21,7 @@
       "accepted_claim_id": "vcl_cdd52df280c6249b97daa2ce544a8ed260cae6a31d33fd519917bb33c51faa59",
       "superseded_claim_id": "vcl_da1b447d2c2a260ca9ca968066664ac2deee3f99b3d9e6e6f3fdb16a725bc1f8",
       "decision_authority_event_id": "vev_16b21fe1a6d6f064",
-      "applied_authority_event_id": "vev_a1c8f8859afb250c",
+      "applied_authority_event_id": "vev_0682c18a47f1d15a",
       "target_offer_count": 0
     },
     "formal": {
@@ -76,7 +76,9 @@
       "Same neutral glossary for Claim, Verification, Decision, and Standing.",
       "Same task facts and 12-minute cap.",
       "No CLI, search engine, AI assistant, maintainer help, paper, memos, private context, or cross-arm surface."
-    ]
+    ],
+    "operator_guide": "operator-guide.v1.md",
+    "response_instrument": "response-form.v1.json"
   },
   "schedule_minutes": {
     "eligibility_and_orientation": 3,
@@ -130,6 +132,8 @@
       "time_to_exact_next_action_seconds",
       "total_submission_seconds"
     ],
+    "timing_rule": "The task clock starts when the operator reveals the assigned start surface and question sheet. Each milestone is the elapsed monotonic time of the participant's first answer satisfying its answer-key definition. Final submission stops the total clock. At 720 seconds the operator stops the task, preserves all partial answers, records every unmet milestone and total time as 720 seconds, and marks those fields censored=true. A timeout is an eligible failure, not an exclusion.",
+    "correctness_aggregation": "For each scientific task and interface, sum the two participants' 0..10 task scores. Observatory correctness is not lower than Git only when that Observatory sum is greater than or equal to the Git sum for both Quantum and Formal separately. Task-pass counts and hard errors remain separately reported and cannot be offset by aggregate points.",
     "additional_fields": ["confidence_1_to_5", "one_sentence_evidence_reason"]
   },
   "hard_errors": [
@@ -164,14 +168,16 @@
   "positive_gate": {
     "observatory_task_passes": "4 of 4",
     "authority_errors": 0,
-    "correctness": "Observatory is not lower than Git on either task.",
-    "speed": "Observatory median total time and median next-action latency improve by at least 20 percent over Git on each task.",
+    "correctness": "For Quantum and Formal separately, the sum of the two Observatory task scores is greater than or equal to the sum of the two Git task scores.",
+    "speed": "For Quantum and Formal separately, the median of the two Observatory total times and the median of the two Observatory next-action latencies are each at most 80 percent of the corresponding Git median. Censored timeouts enter as 720 seconds.",
     "projection_boundary": "All four participants correctly identify the Observatory as a read-only projection rather than authority."
   },
   "publication_policy": "Retain and publish every eligible outcome, including null and failed results. Label participants as independent product readers, not independent scientific validators.",
   "required_artifacts": [
     "plan.v1.json and its SHA-256",
     "answer-key.v1.json and its SHA-256",
+    "operator-guide.v1.md and its SHA-256",
+    "response-form.v1.json and its SHA-256",
     "frozen commits, URLs, and deployment manifest",
     "assignment table and eligibility or consent codes",
     "de-identified raw answers with cited paths, URLs, IDs, timestamps, timings, confidence, and evidence reason",

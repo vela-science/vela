@@ -1,0 +1,65 @@
+{
+  "schema": "vela.external-cold-reader-response.v1",
+  "participant_code": "P1|P2|P3|P4",
+  "eligibility_confirmed": false,
+  "consent_code": "",
+  "covariates": {
+    "github_familiarity_1_to_5": null,
+    "formal_methods_familiarity_1_to_5": null,
+    "scientific_software_familiarity_1_to_5": null
+  },
+  "tasks": [
+    {
+      "order": 1,
+      "fixture": "quantum|formal",
+      "interface": "observatory|git",
+      "start_url": "",
+      "started_at_utc": "",
+      "answers": ["", "", "", "", ""],
+      "cited_paths_urls_ids": [],
+      "timings_seconds": {
+        "decisive_evidence": null,
+        "correct_standing": null,
+        "exact_next_action": null,
+        "total_submission": null
+      },
+      "timing_censored": {
+        "decisive_evidence": false,
+        "correct_standing": false,
+        "exact_next_action": false,
+        "total_submission": false
+      },
+      "confidence_1_to_5": null,
+      "one_sentence_evidence_reason": "",
+      "timeout": false,
+      "operator_interventions": []
+    },
+    {
+      "order": 2,
+      "fixture": "quantum|formal",
+      "interface": "observatory|git",
+      "start_url": "",
+      "started_at_utc": "",
+      "answers": ["", "", "", "", ""],
+      "cited_paths_urls_ids": [],
+      "timings_seconds": {
+        "decisive_evidence": null,
+        "correct_standing": null,
+        "exact_next_action": null,
+        "total_submission": null
+      },
+      "timing_censored": {
+        "decisive_evidence": false,
+        "correct_standing": false,
+        "exact_next_action": false,
+        "total_submission": false
+      },
+      "confidence_1_to_5": null,
+      "one_sentence_evidence_reason": "",
+      "timeout": false,
+      "operator_interventions": []
+    }
+  ],
+  "deviations": [],
+  "exclusion": null
+}
