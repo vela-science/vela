@@ -310,7 +310,7 @@ fn require_sha256(field: &str, value: &str) -> Result<(), String> {
 mod tests {
     use super::*;
     use crate::identity::{ActorClass, IdentityBindingDraft};
-    use rand::rngs::OsRng;
+    use rand_core::OsRng;
 
     fn root(byte: char) -> String {
         format!("sha256:{}", byte.to_string().repeat(64))

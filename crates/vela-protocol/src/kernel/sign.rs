@@ -58,7 +58,7 @@ mod tests {
 
     #[test]
     fn exact_bytes_verify_and_drift_fails() {
-        use rand::rngs::OsRng;
+        use rand_core::OsRng;
 
         let key = SigningKey::generate(&mut OsRng);
         let signature = hex::encode(sign_bytes(&key, b"bounded claim"));

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Remove unused Authority and Edge dependencies, drop Chrono's unused Serde
+  feature, and use the existing `rand_core` operating-system RNG directly.
+  This removes `rand_chacha`, `ppv-lite86`, and `zerocopy` without changing
+  protocol bytes or cryptographic behavior.
 - Make TOML the sole current Frontier Profile encoding. The one-time file cut
   preserves each profile's canonical JSON root while rejecting retained
   `frontier.yaml` files and removing the deprecated runtime YAML parser.

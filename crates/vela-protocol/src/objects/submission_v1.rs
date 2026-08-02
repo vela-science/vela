@@ -430,7 +430,7 @@ fn require_safe_relative_path(field: &str, value: &str) -> Result<(), String> {
 mod tests {
     use super::*;
     use crate::identity::{IdentityBinding, IdentityBindingDraft};
-    use rand::rngs::OsRng;
+    use rand_core::OsRng;
 
     fn fixture() -> (SubmissionDraft, IdentityBinding, SigningKey) {
         let key = SigningKey::generate(&mut OsRng);

@@ -604,7 +604,7 @@ impl PreparedRepositoryFileReplacement {
         after_temporary_created: impl FnOnce() -> Result<(), String>,
         before_replace: impl FnOnce() -> Result<(), String>,
     ) -> Result<bool, String> {
-        use rand::RngCore;
+        use rand_core::RngCore;
         use rustix::fs::{AtFlags, Mode, OFlags, RenameFlags};
 
         // The lock is advisory by design: it serializes every Vela replacement
@@ -627,7 +627,7 @@ impl PreparedRepositoryFileReplacement {
         }
 
         let parent = self.parent_descriptor();
-        let mut random = rand::rngs::OsRng;
+        let mut random = rand_core::OsRng;
         let (temporary_name, temporary) = loop {
             let candidate = format!(
                 ".vela-replace-{}-{:016x}",

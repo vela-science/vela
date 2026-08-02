@@ -118,8 +118,8 @@ fn mint_or_load_agent_key(base: &Path, actor: &str) -> Result<SigningKey, String
     }
     std::fs::create_dir_all(dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
     let mut seed = [0u8; 32];
-    use rand::RngCore;
-    rand::rngs::OsRng.fill_bytes(&mut seed);
+    use rand_core::RngCore;
+    rand_core::OsRng.fill_bytes(&mut seed);
     let key = SigningKey::from_bytes(&seed);
     std::fs::write(&key_path, hex::encode(seed))
         .map_err(|e| format!("write {}: {e}", key_path.display()))?;

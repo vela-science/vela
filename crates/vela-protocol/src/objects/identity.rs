@@ -135,7 +135,7 @@ impl IdentityBinding {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::rngs::OsRng;
+    use rand_core::OsRng;
 
     fn key() -> SigningKey {
         SigningKey::generate(&mut OsRng)
