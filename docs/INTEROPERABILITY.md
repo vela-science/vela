@@ -117,12 +117,14 @@ must name their source roots.
 
 The retained Erdős 424 RO-Crate 1.3 experiment is a base metadata view over a
 Decision-chain transfer package. It is not a supported Submission profile or
-complete workflow crate: the referenced source-diff evidence payload is not in
-its frozen authority object set, and its deterministic native-reference archive
-does not include the RO-Crate sidecars. Promotion requires one closed,
-allowlisted crate that carries or immutably resolves every evidence payload a
-receiver needs, plus a real independent consumer. Until then, no general
-interchange SDK, profile registry, or import command is warranted.
+complete workflow crate. The attached crate now carries the exact source-diff,
+predecessor and successor sources, and full-index patch needed to reproduce the
+bounded correction, while preserving Vela objects and authority as native
+payloads. Its closed `SHA256SUMS` file is the fixity boundary. Standard archive,
+repository, OCI, or deposit tooling may transport that file set; Vela does not
+maintain a second archive format or extraction runtime. Promotion still
+requires a real independent consumer. Until then, no general interchange SDK,
+profile registry, or import command is warranted.
 
 ## Versioning
 

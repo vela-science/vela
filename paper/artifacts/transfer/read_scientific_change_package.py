@@ -12,13 +12,18 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import subprocess
 import sys
+import tempfile
 from pathlib import Path, PurePosixPath
 
 
 PLAN_ROOT = "sha256:72d84fd4ceeb69c170beaf2e63dc22a801db6e99b749123c87a2f42ebbf07e42"
 AMENDMENT_ROOT = (
     "sha256:38d3cd699bcc4540a01852460ae218d91eb476ad40e7e2cac8886c02ff248ad8"
+)
+EVIDENCE_AMENDMENT_ROOT = (
+    "sha256:ff22ac6c97ded34f0049fa6f75b3f6aea6e88212bfe3ef71672051f5bf26271f"
 )
 RO_CRATE_CONTEXT = "https://w3id.org/ro/crate/1.3/context"
 RO_CRATE_PROFILE = "https://w3id.org/ro/crate/1.3"
@@ -126,9 +131,16 @@ def types(value: object, code: str) -> set[str]:
     return set(entries)
 
 
-def read_plan(plan_path: Path, amendment_path: Path) -> tuple[dict[str, object], dict[str, object]]:
+def read_plan(
+    plan_path: Path,
+    amendment_path: Path,
+    evidence_amendment_path: Path,
+) -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
     _, plan = load_object(plan_path, "plan_unavailable")
     _, amendment = load_object(amendment_path, "plan_amendment_unavailable")
+    _, evidence_amendment = load_object(
+        evidence_amendment_path, "evidence_amendment_unavailable"
+    )
     require(canonical_root(plan) == PLAN_ROOT, "plan_root_mismatch")
     require(
         canonical_root(amendment) == AMENDMENT_ROOT,
@@ -138,7 +150,16 @@ def read_plan(plan_path: Path, amendment_path: Path) -> tuple[dict[str, object],
         amendment.get("prior_plan_root") == PLAN_ROOT,
         "plan_amendment_lineage_mismatch",
     )
-    return plan, amendment
+    require(
+        canonical_root(evidence_amendment) == EVIDENCE_AMENDMENT_ROOT,
+        "evidence_amendment_root_mismatch",
+    )
+    require(
+        evidence_amendment.get("prior_plan_root") == PLAN_ROOT
+        and evidence_amendment.get("prior_amendment_root") == AMENDMENT_ROOT,
+        "evidence_amendment_lineage_mismatch",
+    )
+    return plan, amendment, evidence_amendment
 
 
 def read_native(
@@ -221,6 +242,162 @@ def read_native(
     return native, by_path
 
 
+def git_blob_sha1(value: bytes) -> str:
+    header = f"blob {len(value)}\0".encode("ascii")
+    return hashlib.sha1(header + value).hexdigest()
+
+
+def apply_unified_patch(original: bytes, patch: bytes, expected_path: str) -> bytes:
+    try:
+        patch_lines = patch.decode("utf-8").splitlines()
+    except UnicodeDecodeError:
+        fail("source_transition_encoding_invalid")
+    require(len(patch_lines) >= 5, "source_transition_patch_invalid")
+    require(
+        patch_lines[0] == f"diff --git a/{expected_path} b/{expected_path}"
+        and patch_lines[2] == f"--- a/{expected_path}"
+        and patch_lines[3] == f"+++ b/{expected_path}",
+        "source_transition_patch_path",
+    )
+    with tempfile.TemporaryDirectory(prefix="vela-ro-crate-patch-") as raw:
+        root = Path(raw)
+        target = root / expected_path
+        target.parent.mkdir(parents=True)
+        target.write_bytes(original)
+        patch_path = root / "transition.patch"
+        patch_path.write_bytes(patch)
+        applied = subprocess.run(
+            ["git", "apply", "--whitespace=nowarn", str(patch_path)],
+            cwd=root,
+            check=False,
+            capture_output=True,
+        )
+        require(applied.returncode == 0, "source_transition_patch_replay")
+        return target.read_bytes()
+
+
+def read_evidence(
+    package: Path,
+    amendment: dict[str, object],
+    objects: dict[str, dict[str, object]],
+) -> dict[str, dict[str, str]]:
+    transition = amendment.get("source_transition")
+    require(isinstance(transition, dict), "evidence_amendment_invalid")
+    predecessor = transition.get("predecessor")
+    successor = transition.get("successor")
+    source_diff_entry = transition.get("source_diff")
+    patch_entry = transition.get("full_index_patch")
+    require(
+        all(
+            isinstance(value, dict)
+            for value in (predecessor, successor, source_diff_entry, patch_entry)
+        ),
+        "evidence_amendment_invalid",
+    )
+
+    submission_item = next(
+        (item for item in objects.values() if item.get("role") == "submission"),
+        None,
+    )
+    require(isinstance(submission_item, dict), "submission_missing")
+    _, submission = load_object(
+        safe_file(package, submission_item["path"], "submission_unavailable"),
+        "submission_invalid",
+    )
+    artifacts = submission.get("artifacts")
+    require(isinstance(artifacts, list), "submission_artifacts_invalid")
+    source_artifacts = [
+        item
+        for item in artifacts
+        if isinstance(item, dict) and item.get("kind") == "source-diff"
+    ]
+    require(len(source_artifacts) == 1, "submission_source_diff_invalid")
+
+    entries = {
+        "source_diff": {
+            "path": str(source_diff_entry.get("file")),
+            "sha256": str(source_diff_entry.get("sha256")),
+            "encoding_format": "application/json",
+        },
+        "predecessor": {
+            "path": str(predecessor.get("file")),
+            "sha256": str(predecessor.get("file_sha256")),
+            "encoding_format": "text/plain",
+        },
+        "successor": {
+            "path": str(successor.get("file")),
+            "sha256": str(successor.get("file_sha256")),
+            "encoding_format": "text/plain",
+        },
+        "patch": {
+            "path": str(patch_entry.get("file")),
+            "sha256": str(patch_entry.get("sha256")),
+            "encoding_format": str(patch_entry.get("encoding_format")),
+        },
+    }
+    require(
+        len({entry["path"] for entry in entries.values()}) == 4,
+        "evidence_path_duplicate",
+    )
+    payloads: dict[str, bytes] = {}
+    for role, entry in entries.items():
+        payload = safe_file(package, entry["path"], "evidence_unavailable").read_bytes()
+        require(sha256_bytes(payload) == entry["sha256"], "evidence_root_drift")
+        payloads[role] = payload
+
+    source_artifact = source_artifacts[0]
+    require(
+        source_artifact.get("digest") == entries["source_diff"]["sha256"]
+        and source_artifact.get("path")
+        == ".vela/work/correction-erdos-424/source-diff.json",
+        "submission_source_diff_mismatch",
+    )
+    try:
+        source_diff = json.loads(payloads["source_diff"])
+    except json.JSONDecodeError:
+        fail("source_diff_invalid")
+    require(isinstance(source_diff, dict), "source_diff_invalid")
+    subject = source_diff.get("subject")
+    source_predecessor = source_diff.get("predecessor")
+    source_successor = source_diff.get("successor")
+    require(
+        isinstance(subject, dict)
+        and subject.get("repository") == transition.get("repository")
+        and subject.get("path") == transition.get("path")
+        and isinstance(source_predecessor, dict)
+        and isinstance(source_successor, dict),
+        "source_diff_binding_mismatch",
+    )
+    for source_value, frozen, role in (
+        (source_predecessor, predecessor, "predecessor"),
+        (source_successor, successor, "successor"),
+    ):
+        require(
+            source_value.get("commit") == frozen.get("commit")
+            and source_value.get("tree") == frozen.get("tree")
+            and source_value.get("file_sha256") == entries[role]["sha256"]
+            and source_value.get("statement") == frozen.get("statement"),
+            "source_diff_binding_mismatch",
+        )
+        require(
+            git_blob_sha1(payloads[role]) == frozen.get("git_blob_sha1"),
+            "source_transition_git_blob_mismatch",
+        )
+
+    index_line = payloads["patch"].decode("utf-8").splitlines()[1]
+    require(
+        index_line
+        == "index "
+        f"{predecessor.get('git_blob_sha1')}..{successor.get('git_blob_sha1')} 100644",
+        "source_transition_patch_index",
+    )
+    reproduced = apply_unified_patch(
+        payloads["predecessor"], payloads["patch"], str(transition.get("path"))
+    )
+    require(reproduced == payloads["successor"], "source_transition_patch_result")
+    return entries
+
+
 def read_loss_report(
     package: Path,
     plan: dict[str, object],
@@ -234,6 +411,7 @@ def read_loss_report(
     require(
         loss.get("plan_root") == PLAN_ROOT
         and loss.get("plan_amendment_root") == AMENDMENT_ROOT
+        and loss.get("evidence_amendment_root") == EVIDENCE_AMENDMENT_ROOT
         and loss.get("native_manifest_root") == canonical_root(native)
         and loss.get("object_set_root") == native.get("object_set_root"),
         "loss_report_binding_mismatch",
@@ -283,6 +461,7 @@ def read_ro_crate(
     plan: dict[str, object],
     native: dict[str, object],
     objects: dict[str, dict[str, object]],
+    evidence: dict[str, dict[str, str]],
     loss_bytes: bytes,
     loss: dict[str, object],
 ) -> tuple[bytes, dict[str, object]]:
@@ -311,6 +490,7 @@ def read_ro_crate(
         LOSS_REPORT,
         "https://spdx.org/licenses/MIT.html",
         *objects,
+        *(entry["path"] for entry in evidence.values()),
     }
     require(set(entities) == expected_ids, "ro_crate_entity_set_mismatch")
 
@@ -339,7 +519,14 @@ def read_ro_crate(
         == [NATIVE_MANIFEST],
         "ro_crate_root_metadata_invalid",
     )
-    expected_parts = sorted([NATIVE_MANIFEST, LOSS_REPORT, *objects])
+    expected_parts = sorted(
+        [
+            NATIVE_MANIFEST,
+            LOSS_REPORT,
+            *objects,
+            *(entry["path"] for entry in evidence.values()),
+        ]
+    )
     require(
         refs(root.get("hasPart"), "ro_crate_has_part") == expected_parts,
         "ro_crate_payload_mismatch",
@@ -391,6 +578,16 @@ def read_ro_crate(
             and str(item["role"]) in str(entity.get("description", "")),
             "native_object_entity_mismatch",
         )
+    for item in evidence.values():
+        relative = item["path"]
+        entity = entities[relative]
+        require(
+            "File" in types(entity.get("@type"), "evidence_entity_type")
+            and entity.get("contentSize") == str((package / relative).stat().st_size)
+            and entity.get("encodingFormat") == item["encoding_format"]
+            and entity.get("identifier") == item["sha256"],
+            "evidence_entity_mismatch",
+        )
     require(
         loss.get("ro_crate_metadata_policy")
         == "Package metadata only; Vela semantics remain in the native manifest.",
@@ -403,21 +600,27 @@ def assess(
     package: Path,
     plan_path: Path,
     amendment_path: Path,
+    evidence_amendment_path: Path,
 ) -> dict[str, object]:
-    plan, _ = read_plan(plan_path, amendment_path)
+    plan, _, evidence_amendment = read_plan(
+        plan_path, amendment_path, evidence_amendment_path
+    )
     native, objects = read_native(package, plan)
+    evidence = read_evidence(package, evidence_amendment, objects)
     loss_bytes, loss = read_loss_report(package, plan, native)
     crate_bytes, crate = read_ro_crate(
-        package, plan, native, objects, loss_bytes, loss
+        package, plan, native, objects, evidence, loss_bytes, loss
     )
     return {
         "schema": "vela.scientific-change-package-reader-result.v1",
         "ok": True,
         "plan_root": PLAN_ROOT,
         "plan_amendment_root": AMENDMENT_ROOT,
+        "evidence_amendment_root": EVIDENCE_AMENDMENT_ROOT,
         "native_manifest_root": canonical_root(native),
         "object_set_root": native["object_set_root"],
         "object_count": len(objects),
+        "source_transition_evidence_count": len(evidence),
         "ro_crate_profile": RO_CRATE_PROFILE,
         "ro_crate_metadata_sha256": sha256_bytes(crate_bytes),
         "ro_crate_entity_count": len(crate["@graph"]),
@@ -433,6 +636,7 @@ def assess(
             "authority_non_escalation",
             "ro_crate_1_3_required_structure",
             "exact_native_object_parity",
+            "exact_source_transition_replay",
             "complete_loss_report",
         ],
     }
@@ -443,6 +647,7 @@ def main() -> int:
     parser.add_argument("--package-root", required=True, type=Path)
     parser.add_argument("--plan", required=True, type=Path)
     parser.add_argument("--plan-amendment", required=True, type=Path)
+    parser.add_argument("--evidence-amendment", required=True, type=Path)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     try:
@@ -450,6 +655,7 @@ def main() -> int:
             args.package_root.expanduser().resolve(),
             args.plan.expanduser().resolve(),
             args.plan_amendment.expanduser().resolve(),
+            args.evidence_amendment.expanduser().resolve(),
         )
         if args.json:
             print(canonical_bytes(result).decode("utf-8"))

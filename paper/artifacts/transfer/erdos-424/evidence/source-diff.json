@@ -1,0 +1,31 @@
+{
+  "schema": "vela.source-statement-diff.v1",
+  "subject": {
+    "problem": "Erdos 424",
+    "repository": "https://github.com/google-deepmind/formal-conjectures",
+    "path": "FormalConjectures/ErdosProblems/424.lean"
+  },
+  "predecessor": {
+    "commit": "e751934294a381afd2d5fc1124c5953c8e25f9fa",
+    "tree": "571f59471e87f66e33dd734eb6794125b0c1f8c8",
+    "file_sha256": "sha256:05876ee2a0d7e75f72af414dbb6c415212cfa04ef3941dfbd5d9f7c87e6a30d9",
+    "statement": "theorem erdos_424 : answer(sorry) ↔ generatedSet.HasPosDensity := by"
+  },
+  "successor": {
+    "commit": "8046fbff7b6c801d8debd4a85bf67a0541b78dda",
+    "tree": "774933a12da7926492e0e08cbd46ccbf99178cf8",
+    "file_sha256": "sha256:6b425608614ac52f32a09bfa2a8ad989edef9fb21bbd599ef7bdcc2814b373a2",
+    "statement": "theorem erdos_424 : answer(sorry) ↔ generatedSet.HasPosLowerDensity := by",
+    "source_explanation": "Here positive density is read as positive lower density, rather than requiring the density to exist."
+  },
+  "classification": {
+    "kind": "exact_source_statement_supersession",
+    "reason": "The retained accepted Claim names a mutable theorem page. The exact successor commit narrows that source identity and changes the formal predicate from HasPosDensity to HasPosLowerDensity.",
+    "limits": "This artifact identifies an exact source transition. It does not prove Erdős problem 424, establish that positive lower density is the only valid informal interpretation, or change scientific Standing."
+  },
+  "replay": {
+    "old_file": "git show e751934294a381afd2d5fc1124c5953c8e25f9fa:FormalConjectures/ErdosProblems/424.lean",
+    "new_file": "git show 8046fbff7b6c801d8debd4a85bf67a0541b78dda:FormalConjectures/ErdosProblems/424.lean",
+    "diff": "git diff e751934294a381afd2d5fc1124c5953c8e25f9fa 8046fbff7b6c801d8debd4a85bf67a0541b78dda -- FormalConjectures/ErdosProblems/424.lean"
+  }
+}

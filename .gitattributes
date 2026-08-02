@@ -1,0 +1,2 @@
+# Preserve exact upstream patch bytes, including the predecessor's blank-line whitespace.
+paper/artifacts/transfer/erdos-424/evidence/source-transition.patch -whitespace

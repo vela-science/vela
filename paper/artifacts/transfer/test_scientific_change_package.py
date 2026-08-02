@@ -37,9 +37,11 @@ class ScientificChangePackageTest(unittest.TestCase):
             PACKAGE,
             HERE / "scientific-change-package-plan.v1.json",
             HERE / "scientific-change-package-plan-amendment-001.v1.json",
+            HERE / "scientific-change-package-plan-amendment-002.v1.json",
         )
         self.assertTrue(result["ok"])
         self.assertEqual(result["object_count"], 11)
+        self.assertEqual(result["source_transition_evidence_count"], 4)
         self.assertEqual(
             result["native_manifest_root"],
             "sha256:b7b330ae6ea4915d5bac218233f0a272"
@@ -55,16 +57,22 @@ class ScientificChangePackageTest(unittest.TestCase):
             builder.PLAN_BYTES_SHA256,
         )
         native = builder.load_source(PACKAGE, plan)
+        evidence_amendment = builder.load_frozen(
+            HERE / "scientific-change-package-plan-amendment-002.v1.json",
+            builder.EVIDENCE_AMENDMENT_ROOT,
+            builder.EVIDENCE_AMENDMENT_BYTES_SHA256,
+        )
+        evidence = builder.load_evidence(PACKAGE, evidence_amendment)
         with (
             tempfile.TemporaryDirectory() as raw_a,
             tempfile.TemporaryDirectory() as raw_b,
         ):
             first = Path(raw_a) / "package"
             second = Path(raw_b) / "package"
-            builder.copy_native(PACKAGE, first, native)
-            builder.copy_native(PACKAGE, second, native)
-            first_outputs = builder.write_core(first, plan, native)
-            second_outputs = builder.write_core(second, plan, native)
+            builder.copy_native(PACKAGE, first, native, evidence)
+            builder.copy_native(PACKAGE, second, native, evidence)
+            first_outputs = builder.write_core(first, plan, native, evidence)
+            second_outputs = builder.write_core(second, plan, native, evidence)
             self.assertEqual(first_outputs, second_outputs)
             for name, encoded in first_outputs.items():
                 self.assertEqual(encoded, (PACKAGE / name).read_bytes())
@@ -91,13 +99,21 @@ class ScientificChangePackageTest(unittest.TestCase):
                 builder.PLAN_BYTES_SHA256,
             ),
         )
-        expected = builder.sha256_manifest(PACKAGE, native)
+        evidence = builder.load_evidence(
+            PACKAGE,
+            builder.load_frozen(
+                HERE / "scientific-change-package-plan-amendment-002.v1.json",
+                builder.EVIDENCE_AMENDMENT_ROOT,
+                builder.EVIDENCE_AMENDMENT_BYTES_SHA256,
+            ),
+        )
+        expected = builder.sha256_manifest(PACKAGE, native, evidence)
         observed = (PACKAGE / "SHA256SUMS").read_bytes()
         self.assertEqual(observed, expected)
         self.assertEqual(
             f"sha256:{hashlib.sha256(observed).hexdigest()}",
-            "sha256:e8eabd53d1bf9433956659720e92189"
-            "d724750d6a4a3435fb2c4069d42989628",
+            "sha256:344c4c06b6bedfd33e669c67a6309d"
+            "b3ce8584ba187aacc46a72b59426ccb51d",
         )
 
     def test_result_records_external_profile_gap_without_substitution(self) -> None:

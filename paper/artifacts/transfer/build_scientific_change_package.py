@@ -24,6 +24,9 @@ ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
 PLAN = HERE / "scientific-change-package-plan.v1.json"
 AMENDMENT = HERE / "scientific-change-package-plan-amendment-001.v1.json"
+EVIDENCE_AMENDMENT = (
+    HERE / "scientific-change-package-plan-amendment-002.v1.json"
+)
 READER = HERE / "read_scientific_change_package.py"
 NATIVE_VERIFIER = HERE / "verify_foreign_reference.py"
 PLAN_ROOT = "sha256:72d84fd4ceeb69c170beaf2e63dc22a801db6e99b749123c87a2f42ebbf07e42"
@@ -35,6 +38,12 @@ AMENDMENT_ROOT = (
 )
 AMENDMENT_BYTES_SHA256 = (
     "sha256:787dd740eb597f437033bb89d4a8edb1e582bcc477e1ed8c6f45335182652d04"
+)
+EVIDENCE_AMENDMENT_ROOT = (
+    "sha256:ff22ac6c97ded34f0049fa6f75b3f6aea6e88212bfe3ef71672051f5bf26271f"
+)
+EVIDENCE_AMENDMENT_BYTES_SHA256 = (
+    "sha256:a12abeb2c2b2a2724bc3f662ea1568d5f67fd4324e3a1d71bd465a20ea7630c9"
 )
 GENERATED = [
     "ro-crate-metadata.json",
@@ -115,6 +124,63 @@ def load_source(package: Path, plan: dict[str, object]) -> dict[str, object]:
     return native
 
 
+def evidence_entries(amendment: dict[str, object]) -> list[dict[str, str]]:
+    transition = amendment.get("source_transition")
+    require(isinstance(transition, dict), "evidence_amendment_invalid")
+    predecessor = transition.get("predecessor")
+    successor = transition.get("successor")
+    source_diff = transition.get("source_diff")
+    patch = transition.get("full_index_patch")
+    require(
+        all(
+            isinstance(value, dict)
+            for value in (predecessor, successor, source_diff, patch)
+        ),
+        "evidence_amendment_invalid",
+    )
+    return [
+        {
+            "path": str(source_diff["file"]),
+            "sha256": str(source_diff["sha256"]),
+            "name": "Exact retained source-diff artifact",
+            "encoding_format": "application/json",
+        },
+        {
+            "path": str(predecessor["file"]),
+            "sha256": str(predecessor["file_sha256"]),
+            "name": "Formal Conjectures predecessor source",
+            "encoding_format": "text/plain",
+        },
+        {
+            "path": str(successor["file"]),
+            "sha256": str(successor["file_sha256"]),
+            "name": "Formal Conjectures successor source",
+            "encoding_format": "text/plain",
+        },
+        {
+            "path": str(patch["file"]),
+            "sha256": str(patch["sha256"]),
+            "name": "Exact full-index source transition patch",
+            "encoding_format": str(patch["encoding_format"]),
+        },
+    ]
+
+
+def load_evidence(
+    package: Path, amendment: dict[str, object]
+) -> list[dict[str, str]]:
+    entries = evidence_entries(amendment)
+    require(len({entry["path"] for entry in entries}) == 4, "evidence_path_duplicate")
+    for entry in entries:
+        path = package / entry["path"]
+        require(path.is_file(), f"evidence_missing:{entry['path']}")
+        require(
+            sha256_bytes(path.read_bytes()) == entry["sha256"],
+            f"evidence_root_drift:{entry['path']}",
+        )
+    return entries
+
+
 def loss_report(
     native: dict[str, object],
 ) -> dict[str, object]:
@@ -122,6 +188,7 @@ def loss_report(
         "schema": "vela.ro-crate-loss-report.v1",
         "plan_root": PLAN_ROOT,
         "plan_amendment_root": AMENDMENT_ROOT,
+        "evidence_amendment_root": EVIDENCE_AMENDMENT_ROOT,
         "native_manifest": "reference.v1.json",
         "native_manifest_root": canonical_root(native),
         "object_set_root": native["object_set_root"],
@@ -222,6 +289,7 @@ def crate_metadata(
     package: Path,
     plan: dict[str, object],
     native: dict[str, object],
+    evidence: list[dict[str, str]],
     loss_bytes: bytes,
 ) -> dict[str, object]:
     source = plan["source"]
@@ -263,6 +331,7 @@ def crate_metadata(
                         "reference.v1.json",
                         "vela-loss-report.v1.json",
                         *(str(item["path"]) for item in objects),
+                        *(item["path"] for item in evidence),
                     ]
                 )
             ],
@@ -331,6 +400,22 @@ def crate_metadata(
                 ),
             }
         )
+    for item in evidence:
+        path = package / item["path"]
+        entities.append(
+            {
+                "@id": item["path"],
+                "@type": "File",
+                "name": item["name"],
+                "description": (
+                    "Exact source-transition evidence bound by the frozen "
+                    "evidence amendment and the retained Vela Submission."
+                ),
+                "encodingFormat": item["encoding_format"],
+                "contentSize": str(path.stat().st_size),
+                "identifier": item["sha256"],
+            }
+        )
     entities.sort(key=lambda entity: str(entity["@id"]))
     return {
         "@context": "https://w3id.org/ro/crate/1.3/context",
@@ -338,7 +423,12 @@ def crate_metadata(
     }
 
 
-def copy_native(source: Path, destination: Path, native: dict[str, object]) -> None:
+def copy_native(
+    source: Path,
+    destination: Path,
+    native: dict[str, object],
+    evidence: list[dict[str, str]] | None = None,
+) -> None:
     destination.mkdir(parents=True)
     shutil.copyfile(source / "reference.v1.json", destination / "reference.v1.json")
     for item in native["objects"]:
@@ -346,13 +436,23 @@ def copy_native(source: Path, destination: Path, native: dict[str, object]) -> N
         target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source / relative, target)
+    for item in evidence or []:
+        relative = Path(item["path"])
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source / relative, target)
 
 
 def write_core(
-    package: Path, plan: dict[str, object], native: dict[str, object]
+    package: Path,
+    plan: dict[str, object],
+    native: dict[str, object],
+    evidence: list[dict[str, str]],
 ) -> dict[str, bytes]:
     loss_bytes = encoded_json(loss_report(native))
-    crate_bytes = encoded_json(crate_metadata(package, plan, native, loss_bytes))
+    crate_bytes = encoded_json(
+        crate_metadata(package, plan, native, evidence, loss_bytes)
+    )
     outputs = {
         "ro-crate-metadata.json": crate_bytes,
         "vela-loss-report.v1.json": loss_bytes,
@@ -403,13 +503,28 @@ def package_reader(package: Path) -> dict[str, object]:
             str(PLAN),
             "--plan-amendment",
             str(AMENDMENT),
+            "--evidence-amendment",
+            str(EVIDENCE_AMENDMENT),
             "--json",
         ],
         "package_reader_failed",
     )
 
 
-def external_reader(executable: Path) -> dict[str, object]:
+def external_reader(executable: Path | None) -> dict[str, object]:
+    if executable is None:
+        return {
+            "id": "roc-validator-0.11.2",
+            "status": "unsupported_profile",
+            "required_profile": "ro-crate-1.3",
+            "available_base_profiles": ["ro-crate-1.1", "ro-crate-1.2"],
+            "profile_substitution_performed": False,
+            "validation_performed": False,
+            "observation": (
+                "The frozen external-validator observation records no RO-Crate "
+                "1.3 base profile; the 1.2 profile was not substituted."
+            ),
+        }
     version = subprocess.run(
         [str(executable), "--version"],
         cwd=ROOT,
@@ -479,6 +594,8 @@ def reader_diagnostic(package: Path) -> str:
             str(PLAN),
             "--plan-amendment",
             str(AMENDMENT),
+            "--evidence-amendment",
+            str(EVIDENCE_AMENDMENT),
             "--json",
         ],
         cwd=ROOT,
@@ -538,14 +655,17 @@ def mutation_results(package: Path) -> list[dict[str, object]]:
     return results
 
 
-def sha256_manifest(package: Path, native: dict[str, object]) -> bytes:
+def sha256_manifest(
+    package: Path,
+    native: dict[str, object],
+    evidence: list[dict[str, str]],
+) -> bytes:
     paths = [
-        "reader-result.v1.json",
         "reference.v1.json",
-        "result.v1.json",
         "ro-crate-metadata.json",
         "vela-loss-report.v1.json",
         *(str(item["path"]) for item in native["objects"]),
+        *(item["path"] for item in evidence),
     ]
     lines = [
         f"{hashlib.sha256((package / path).read_bytes()).hexdigest()}  {path}"
@@ -569,7 +689,7 @@ def publish_outputs(destination: Path, outputs: dict[str, bytes]) -> None:
 def build(
     source_package: Path,
     publish_to: Path,
-    external_validator: Path,
+    external_validator: Path | None,
 ) -> dict[str, object]:
     require(
         source_package.resolve() == publish_to.resolve(),
@@ -577,17 +697,28 @@ def build(
     )
     plan = load_frozen(PLAN, PLAN_ROOT, PLAN_BYTES_SHA256)
     load_frozen(AMENDMENT, AMENDMENT_ROOT, AMENDMENT_BYTES_SHA256)
+    evidence_amendment = load_frozen(
+        EVIDENCE_AMENDMENT,
+        EVIDENCE_AMENDMENT_ROOT,
+        EVIDENCE_AMENDMENT_BYTES_SHA256,
+    )
+    require(
+        evidence_amendment.get("prior_plan_root") == PLAN_ROOT
+        and evidence_amendment.get("prior_amendment_root") == AMENDMENT_ROOT,
+        "evidence_amendment_lineage_mismatch",
+    )
     native = load_source(source_package, plan)
+    evidence = load_evidence(source_package, evidence_amendment)
     with (
         tempfile.TemporaryDirectory(prefix="vela-change-package-a-") as raw_a,
         tempfile.TemporaryDirectory(prefix="vela-change-package-b-") as raw_b,
     ):
         first = Path(raw_a) / "package"
         second = Path(raw_b) / "package"
-        copy_native(source_package, first, native)
-        copy_native(source_package, second, native)
-        first_core = write_core(first, plan, native)
-        second_core = write_core(second, plan, native)
+        copy_native(source_package, first, native, evidence)
+        copy_native(source_package, second, native, evidence)
+        first_core = write_core(first, plan, native, evidence)
+        second_core = write_core(second, plan, native, evidence)
         require(first_core == second_core, "core_rebuild_nondeterministic")
 
         native_result = native_reader(first)
@@ -598,6 +729,7 @@ def build(
             "schema": "vela.scientific-change-package-reader-suite-result.v1",
             "plan_root": PLAN_ROOT,
             "plan_amendment_root": AMENDMENT_ROOT,
+            "evidence_amendment_root": EVIDENCE_AMENDMENT_ROOT,
             "native": {
                 "reader": "vela-python-clean-room",
                 "status": "pass",
@@ -631,6 +763,7 @@ def build(
             "plan_root": PLAN_ROOT,
             "plan_bytes_sha256": PLAN_BYTES_SHA256,
             "plan_amendment_root": AMENDMENT_ROOT,
+            "evidence_amendment_root": EVIDENCE_AMENDMENT_ROOT,
             "source": {
                 "frontier_id": plan["source"]["frontier_id"],
                 "claim": plan["source"]["claim"],
@@ -663,6 +796,11 @@ def build(
                     "semantic_loss_count": 6,
                     "unreported_fields": 0,
                 },
+                "source_transition_evidence": {
+                    "file_count": len(evidence),
+                    "files": [item["path"] for item in evidence],
+                    "amendment_root": EVIDENCE_AMENDMENT_ROOT,
+                },
             },
             "readers": {
                 "suite_file": "reader-result.v1.json",
@@ -677,7 +815,7 @@ def build(
                 "generated_outputs_byte_identical": True,
                 "network_during_generation": False,
                 "compared_files": sorted(GENERATED),
-                "sha256_manifest_entry_count": len(native["objects"]) + 5,
+                "sha256_manifest_entry_count": len(native["objects"]) + len(evidence) + 3,
             },
             "authority": {
                 "frontier_mutation": False,
@@ -693,7 +831,7 @@ def build(
         for package in (first, second):
             (package / "result.v1.json").write_bytes(result_bytes)
             (package / "SHA256SUMS").write_bytes(
-                sha256_manifest(package, native)
+                sha256_manifest(package, native, evidence)
             )
 
         for name in GENERATED:
@@ -715,6 +853,7 @@ def build(
             "ok": True,
             "plan_root": PLAN_ROOT,
             "plan_amendment_root": AMENDMENT_ROOT,
+            "evidence_amendment_root": EVIDENCE_AMENDMENT_ROOT,
             "native_manifest_root": canonical_root(native),
             "object_set_root": native["object_set_root"],
             "object_count": len(native["objects"]),
@@ -740,13 +879,17 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-package", required=True, type=Path)
     parser.add_argument("--publish-to", required=True, type=Path)
-    parser.add_argument("--roc-validator", required=True, type=Path)
+    parser.add_argument("--roc-validator", type=Path)
     args = parser.parse_args()
     try:
         result = build(
             args.source_package.expanduser().resolve(),
             args.publish_to.expanduser().resolve(),
-            args.roc_validator.expanduser().resolve(),
+            (
+                args.roc_validator.expanduser().resolve()
+                if args.roc_validator is not None
+                else None
+            ),
         )
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0

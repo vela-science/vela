@@ -28,7 +28,7 @@ This qualifies the source package and the two implementations. It does not
 complete B8 until a second Frontier retains and verifies the package through
 its ordinary non-authoritative producer path.
 
-Formal Conjectures retained the exact archive under corrected Proposal
+Formal Conjectures retained the exact source package under corrected Proposal
 `vpr_7aba66544ffefd99`. A credential-free import preflight then verified the
 signed receiver Verification, its actor, Proposal, Submission, Claim,
 Artifacts, current repository, authority history, trust anchor, Cedar
@@ -67,21 +67,13 @@ python3 paper/artifacts/transfer/verify_foreign_reference.py \
   --package-root /tmp/erdos-424
 ```
 
-Create and verify the deterministic **native foreign-reference archive**:
-
-```bash
-python3 paper/artifacts/transfer/pack_reference.py \
-  --package-root paper/artifacts/transfer/erdos-424 \
-  --output /tmp/erdos-424-reference.tar.gz
-python3 paper/artifacts/transfer/verify_archive.py \
-  --archive /tmp/erdos-424-reference.tar.gz \
-  --expected-root \
-  sha256:b7b330ae6ea4915d5bac218233f0a272ee961060682be6d22f6a8ea1b78c4ed6
-```
-
-That archive intentionally contains only `reference.v1.json` and its exact
-`objects/` tree. It is not an RO-Crate archive: it does not contain
-`ro-crate-metadata.json`, the loss report, or the fixity manifest.
+The earlier deterministic tar helper and Vela-specific archive verifier were
+deleted after this qualification. Their exact archive digest remains in the
+historical receiver evidence, but maintaining a second package format would
+duplicate RO-Crate and standard archive tooling. Current transfer evidence is
+the attached RO-Crate 1.3 view plus its closed `SHA256SUMS` fixity manifest;
+ordinary ZIP, tar, OCI, repository, or deposit tooling may carry those exact
+files without acquiring Vela semantics.
 
 The landscape decision remains intentionally narrow: Vela is scientific state
 and inheritance infrastructure. A reusable package, read-only index, Registry,
@@ -98,35 +90,36 @@ the existing `erdos-424/` package:
    Events, source repository identity, authority evidence, source Standing,
    and local Standing effect `none`.
 2. `ro-crate-metadata.json` is an attached RO-Crate 1.3 metadata view over that
-   same native manifest and the same 11 object files. It introduces no copied
-   object tree, Vela protocol object, import command, or authority.
+   same native manifest, the same 11 object files, and four exact
+   source-transition evidence payloads. It introduces no copied Vela object
+   tree, protocol object, import command, or authority.
 
 The present artifact is a **Decision-chain transfer package**, not a complete
 Vela Submission RO-Crate profile. The retained Submission references source
 artifact
 `sha256:d18024c4333f77144955adf0036ce831e71b331ea7d9cc9cb69958f960f56d6c`,
-but that source-diff payload and its predecessor/successor source bytes are not
-part of the frozen 11-object authority package. An independent reader can
-verify the exact Claim, Verification, Decision, authority chain, and local
-non-authority boundary; it cannot rerun the underlying source-diff check from
-this crate alone. A future portable Submission crate must either include those
-exact evidence bytes or declare them as immutable external references and
-prove retrieval and digest parity.
+and the crate now includes that exact source-diff payload, predecessor and
+successor `424.lean` bytes, and the exact full-index patch. The reader binds the
+Submission digest to those bytes, recomputes both Git blob identities, and
+applies the patch to reproduce the successor. These files are evidence for the
+retained Decision chain; RO-Crate conformance does not make them accepted
+Standing.
 
 The `erdos-424/` directory is an evidence companion, not itself a distributable
 crate directory: later assessment, materialization, receiver-preflight, and
 receiver-publication results coexist there but are deliberately outside the
-RO-Crate `hasPart` set. A future distributed crate must be built from a closed
-allowlist into a clean directory or deterministic archive rather than tarring
-this working evidence directory wholesale.
+RO-Crate `hasPart` set. A real distributor can copy only the paths named by the
+closed fixity manifest into a standard archive or repository deposit. Vela does
+not define another archive format or archive runtime.
 
 `vela-loss-report.v1.json` states the six Vela semantic planes that base
 RO-Crate does not preserve losslessly. `reader-result.v1.json` records the
 existing dependency-free native verifier and a separate standard-library
 RO-Crate reader. `result.v1.json` records two byte-identical clean rebuilds and
-the four required fail-closed mutations. `SHA256SUMS` covers both
-representations, both result files, the loss report, and every retained native
-object.
+the four required fail-closed mutations. `SHA256SUMS` is the archive fixity
+manifest: it covers the metadata, native manifest, loss report, every retained
+native object, and all four source-transition evidence files, but excludes
+itself and evidence-companion result files.
 
 The plan was frozen before any derived output:
 
@@ -136,6 +129,9 @@ sha256:72d84fd4ceeb69c170beaf2e63dc22a801db6e99b749123c87a2f42ebbf07e42
 
 plan amendment root
 sha256:38d3cd699bcc4540a01852460ae218d91eb476ad40e7e2cac8886c02ff248ad8
+
+source-evidence amendment root
+sha256:ff22ac6c97ded34f0049fa6f75b3f6aea6e88212bfe3ef71672051f5bf26271f
 ```
 
 RO-Crate 1.3.0 is the current Recommendation, published 2026-06-22. The
@@ -147,14 +143,14 @@ substitute the older standard. The clean-room reader checks the mandatory
 RO-Crate 1.3 package shape directly; this is not a claim of off-the-shelf 1.3
 validator passage.
 
-Rebuild the sidecars after installing the pinned validator in an isolated
-environment:
+Rebuild the sidecars without an external dependency. `--roc-validator` is an
+optional diagnostic that rechecks the frozen unsupported-profile observation;
+it is not a build prerequisite:
 
 ```bash
 python3 paper/artifacts/transfer/build_scientific_change_package.py \
   --source-package paper/artifacts/transfer/erdos-424 \
-  --publish-to paper/artifacts/transfer/erdos-424 \
-  --roc-validator /path/to/rocrate-validator
+  --publish-to paper/artifacts/transfer/erdos-424
 ```
 
 The builder refuses a different publication directory and refuses to
@@ -165,10 +161,11 @@ python3 paper/artifacts/transfer/read_scientific_change_package.py \
   --package-root paper/artifacts/transfer/erdos-424 \
   --plan paper/artifacts/transfer/scientific-change-package-plan.v1.json \
   --plan-amendment \
-    paper/artifacts/transfer/scientific-change-package-plan-amendment-001.v1.json
+    paper/artifacts/transfer/scientific-change-package-plan-amendment-001.v1.json \
+  --evidence-amendment \
+    paper/artifacts/transfer/scientific-change-package-plan-amendment-002.v1.json
 
-python3 -m unittest \
-  paper.artifacts.transfer.test_scientific_change_package
+python3 -m unittest discover -s paper/artifacts/transfer -p 'test_*.py'
 ```
 
 This completes a first-party base-RO-Crate packaging baseline only. It does not establish

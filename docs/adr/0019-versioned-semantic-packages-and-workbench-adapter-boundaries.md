@@ -33,10 +33,12 @@ scientific standing. Canopus is an optional producer. The Observatory is a
 read-only projection. None of those roles should be enlarged merely to make
 scientific records easier to name, connect, or exchange.
 
-ADR 0015 correctly rejected a proposed one-off Erdős RO-Crate export. The
-existing reader already answered the frozen tasks, and the proposal bundled a
-package manager, ontology registry, normalized database, and mapping-governance
-system before any of them had a demonstrated user. That NO-GO remains valid.
+ADR 0015 correctly rejected promoting a one-off Erdős RO-Crate experiment into
+a shared runtime and product. The existing reader already answered the frozen
+tasks, and the proposal bundled a package manager, ontology registry,
+normalized database, and mapping-governance system before any of them had a
+demonstrated user. That promotion NO-GO remains valid; it does not prohibit a
+bounded, removable evidence fixture.
 
 Later architecture and frontier-calculus work exposes a different, narrower
 need:

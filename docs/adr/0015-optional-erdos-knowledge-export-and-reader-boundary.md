@@ -75,6 +75,11 @@ The exact comparison evidence is recorded in the parent integration report
 `docs/reports/ERDOS_READER_BASELINE_2026-07-22.md`. Rejecting this ADR changes
 no canonical frontier byte, Vela replay result, decision, or public contract.
 
+The later bounded Erdős 424 RO-Crate evidence fixture does not reopen this
+decision. It packages one already-accepted transition for offline inspection;
+it is not the shared runtime, product, ontology program, or service rejected
+here.
+
 ## Proposed decision (not implemented)
 
 Run one evidence-gated experiment: export a frozen Erdős slice as a small
