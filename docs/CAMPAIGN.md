@@ -264,9 +264,13 @@ the pinned RFC 8785 implementation in production, rejects duplicate properties
 recursively and unsafe protocol integers before hashing, and has an independent
 uv-locked Python reader. Authority verification follows DSSE 1.0.2 envelope
 parsing and threshold rules. Exact replay preserved all four Frontier roots.
-The remaining gated work is the common signed-object boundary for Submission
-and Verification, portable JSON Schema 2020-12, and Cedar parity followed by a
-single current-epoch cut with no dual runtime.
+Rust 1.97.1, Node 24, uv, Ruff, and zizmor are now exact locked build inputs.
+TOML is the sole current Frontier Profile encoding; the four canonical profile
+and repository roots survived the one-time file cut unchanged, and retained
+`frontier.yaml` now fails closed. The remaining order is bounded strict JSON at
+every protocol entry point, portable JSON Schema 2020-12 with stable error
+codes, a common DSSE signed-object boundary for Submission and Verification,
+then Cedar parity followed by one current-epoch cut with no dual runtime.
 
 The read projection is intentionally small operationally: one Neon project,
 one `main` branch, and one active `vela_observatory` application database. The
