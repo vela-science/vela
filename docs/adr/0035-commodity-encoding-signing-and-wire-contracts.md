@@ -24,9 +24,12 @@ The current implementation has four different standards postures:
    producer withdrawal instead sign bespoke zeroed-field preimages directly.
 3. Rust types and semantic validators close the current objects, but external
    producers have no published JSON Schema 2020-12 contract.
-4. Cedar is already restricted to repository authority. The retained
-   RO-Crate 1.3 experiment is already a derived transfer view and does not
-   create Standing.
+4. Cedar is restricted to repository authority, but its general policy
+   language, schemas, entity snapshots, bundle rotation, and engine-version
+   lifecycle duplicate a much smaller rule already enforced by Vela: one
+   authenticated human with a fixed role may request one closed authority
+   action on one exact resource. The retained RO-Crate 1.3 experiment is
+   already a derived transfer view and does not create Standing.
 
 The current DSSE implementation also has four envelope-level interoperability
 gaps even though its signatures and PAE are sound: it accepts only standard
@@ -101,7 +104,8 @@ object bytes               RFC 8785 JCS
 object identity            SHA-256 over exact JCS bytes
 signed transport           DSSE 1.0.x + Ed25519
 portable structure         JSON Schema 2020-12
-repository authorization   restricted Cedar
+authorization boundary     AuthZEN 1.0 information model
+repository authorization   closed Vela Authorization Profile v1
 scientific meaning         Vela Decision, Event, Standing, correction
 research-object transfer   RO-Crate 1.3 adapter
 ```
@@ -190,22 +194,48 @@ JSON Schema validates structure. Rust continues to enforce referenced-object
 existence, exact roots, signatures, authority, correction targets, scientific
 semantics, and repository invariants.
 
-### 4. Keep Cedar contained
+### 4. Replace Cedar with a closed AuthZEN-shaped authority profile
 
-Cedar remains restricted to human Decisions and repository administration.
-It is not an ordinary evidence gate, workflow permission system, scientific
-acceptance language, hosted authorization service, or Agent Campaign policy.
+OpenID Authorization API 1.0 standardizes the authorization boundary as
+subject, action, resource, context, and decision while deliberately leaving
+application policy and action meaning to the implementation. Vela adopts that
+information shape, not a network policy-decision service.
 
-Historical Cedar bundles remain exact authenticated-attestation inputs. A
-future current-schema cut may remove Cedar only if a smaller standard
-authorization boundary preserves the same historical and authority invariants.
+The canonical evaluator is a closed **Vela Authorization Profile v1** with only
+the roles and actions exercised today:
 
-For new authority records, retain the exact canonical Cedar request and entity
-snapshot needed to recompute authorization, bind them by root, and re-evaluate
-them during strict history verification with the recorded policy bundle and
-engine profile. If that cost is rejected, documentation must say plainly that
-Cedar authorization is signed and attested rather than replayed. Do not claim
-independent policy replay from roots that cannot reconstruct the request.
+```text
+administrator  authority_initialize authority_rotate authority_close
+               authority_model_update
+reviewer       review_accept review_reject
+```
+
+The authority model binds one exact Frontier and sorted human members to those
+fixed roles. Unknown model versions, actions, roles, members, resources, or
+context fields fail closed. The exact request is retained with the authority
+record and strict history verification recomputes the decision under the exact
+rooted model. This fixes the current Cedar history gap, where replay verifies a
+signed `Allow` attestation but cannot reconstruct the complete evaluation.
+
+Authorization answers only whether the authenticated subject may request the
+action on the exact resource. Verification eligibility, current-root checks,
+semantic approval, correction rules, and the resulting Standing transition
+remain separate deterministic transaction and reducer preconditions. An
+authorization `Allow` is never a scientific Decision.
+
+Reuse the existing intent-bound `SemanticApprovalV1` and repository-authority
+DSSE signature. Do not add signed grant/revocation objects, a configurable
+quorum system, arbitrary conditions, a policy editor, or another signature
+scheme. W3C Verifiable Credentials 2.0 and Bitstring Status List 1.0 may become
+derived role-credential adapters only after real cross-institutional use.
+GNAP and OAuth Rich Authorization Requests remain deferred until Vela has an
+actual hosted API delegation requirement. CEL, Biscuit, OpenFGA, SpiceDB, OPA,
+XACML, and FROST are rejected for the current repository-authority boundary.
+
+Before the cut, run the closed evaluator offline against every retained
+Cedar-backed fixture and transaction and require identical Allow/Deny results,
+plus exact resource binding that the generated Cedar policy currently delegates
+to later semantic checks. Do not ship both evaluators in the current runtime.
 
 ### 5. Retain RO-Crate as the research-object adapter
 
@@ -214,10 +244,10 @@ report, and tests. RO-Crate packages evidence and context; it does not replace
 Submission, Verification, Decision, Event, or Standing.
 
 The current artifact is honestly scoped as a Decision-chain transfer package.
-Its next earned improvement is a deterministic, allowlisted crate archive that
-contains or immutably resolves the evidence a named receiver needs. A Vela
-profile or importer is justified only after a real consumer needs a stable
-shape. Removing the current RO-Crate work is not part of this decision.
+It carries the exact source transition and uses a closed fixity manifest. A
+standard archive, repository, OCI artifact, or deposit may transport that file
+set; Vela does not maintain another archive format. A Vela RO-Crate profile or
+importer is justified only after a real consumer needs a stable shape.
 
 ## Migration
 
@@ -228,15 +258,20 @@ This is one pre-1.0 standards cut, not a compatibility program.
    protocol vectors without changing emitted bytes.
 3. Implement and independently test the common DSSE/JCS boundary.
 4. Generate and validate the portable JSON Schemas.
-5. Close, archive, or explicitly carry every pending Proposal before the
+5. Shadow the closed Authorization Profile against every retained Cedar-backed
+   transaction and fixture; require decision parity and exact resource binding.
+6. Close, archive, or explicitly carry every pending Proposal before the
    repository cut; no agent makes the scientific choice.
-6. Build one exact replacement current state for each controlled Frontier.
-7. Preserve accepted Claims, Decision meaning, and Standing; bind any changed
+7. Build one exact replacement current state for each controlled Frontier. The
+   new sequence-one authority chain installs the rooted authority model; the
+   predecessor tag and pinned binary retain historical Cedar verification.
+8. Preserve accepted Claims, Decision meaning, and Standing; bind any changed
    evidence roots through the administrative cut rather than pretending old
    signers re-signed new bytes.
-8. Strictly replay clean clones, then delete the old writers and readers from
-   the current runtime. Historical Git and pinned binaries preserve old bytes.
-9. Verify and, only if necessary, update the retained RO-Crate transfer view
+9. Strictly replay clean clones, then delete Cedar, its crate/runtime, policy
+   material, actions, writers, and readers from the current runtime. Historical
+   Git and pinned binaries preserve old bytes.
+10. Verify and, only if necessary, update the retained RO-Crate transfer view
    after the standards cut without treating its envelopes as receiver
    authority.
 
@@ -261,9 +296,12 @@ The migration is complete only when tests prove:
 - `keyid` alone never authorizes a signer;
 - every public payload passes both its JSON Schema and Rust semantic validator;
 - unknown nested payload fields fail, including identity fields;
-- each new Cedar-backed authority record can reproduce its authorization result
-  from the retained request, entities, policy bundle, and engine profile, or is
-  explicitly classified as an attested non-replayable historical result;
+- the closed evaluator matches every retained Cedar fixture and transaction;
+- wrong principal/class/frontier/resource/root, unknown action/role/model,
+  stale model, changed read set, and missing or mismatched semantic approval
+  fail closed;
+- strict history verification recomputes the AuthZEN-shaped decision from the
+  exact request and rooted model rather than trusting a recorded result;
 - Submission and Verification still change no accepted Event or Standing;
 - only an attributed human Decision changes Standing;
 - the four post-cut Frontiers strictly replay from clean clones; and
@@ -301,6 +339,20 @@ wire boundary.
 Rejected. Packaging and provenance are evidence inputs, not scientific
 authority or Standing.
 
+### Replace Cedar with another general policy engine
+
+Rejected. OPA, XACML, OpenFGA, SpiceDB, and similar systems preserve or enlarge
+the machinery Vela is deleting. AuthZEN supplies the interoperable request and
+decision boundary; Vela owns only the small domain profile and transition
+semantics.
+
+### Make portable credentials or delegated API tokens canonical authority now
+
+Rejected. VC 2.0, Bitstring Status Lists, GNAP, and OAuth RAR solve real
+interoperability problems, but Vela currently has one local human authority and
+no hosted authorization server. Add them only as earned adapters for a real
+cross-institutional credential or delegated API consumer.
+
 ## References
 
 - RFC 8785, JSON Canonicalization Scheme:
@@ -309,7 +361,12 @@ authority or Standing.
   <https://github.com/secure-systems-lab/dsse>
 - JSON Schema 2020-12:
   <https://json-schema.org/draft/2020-12>
-- Cedar authorization:
-  <https://docs.cedarpolicy.com/auth/authorization.html>
+- OpenID Authorization API 1.0:
+  <https://openid.net/specs/authorization-api-1_0.html>
+- W3C Verifiable Credentials Data Model 2.0:
+  <https://www.w3.org/TR/vc-data-model-2.0/>
+- RFC 9635, GNAP, and RFC 9396, OAuth Rich Authorization Requests:
+  <https://www.rfc-editor.org/rfc/rfc9635.html>
+  <https://www.rfc-editor.org/rfc/rfc9396.html>
 - RO-Crate 1.3:
   <https://www.researchobject.org/ro-crate/specification/1.3/index.html>

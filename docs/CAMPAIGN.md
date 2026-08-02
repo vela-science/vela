@@ -236,7 +236,7 @@ The remaining mechanism budget is explicit:
 | --- | --- | --- |
 | Producer and verifier signatures | Keep | Authenticate exact evidence without granting Standing. |
 | One repository-authority DSSE record per human Decision | Keep | Binds the attributed Decision and exact replayable transition. |
-| Retained Cedar policy material | Freeze | Existing authority history depends on it. Add no policy product, ordinary-work gate, or administration UI; replace it only in a future current-schema cut that deletes more code than it adds. |
+| Cedar policy engine and material | Delete in the pre-1.0 cut | Replace with the closed Vela Authorization Profile over AuthZEN's standard information model. Historical Git and the pinned predecessor binary retain old verification; no dual runtime. |
 | Crash journal and Git compare-and-swap publication | Keep | Protect partial-write recovery and concurrent publication, not workflow ceremony. |
 | Harbor jobs, OAuth, retries, trajectories, timing, and cost | External | Harbor already owns benchmark execution. Vela keeps only its task fixture and semantic scorer. |
 | Neon branches | Delete/defer | One `main` read projection is enough; rehearse locally in disposable PostgreSQL. |
@@ -246,8 +246,9 @@ The proposed pre-1.0 standards cut is recorded in
 [ADR 0035](adr/0035-commodity-encoding-signing-and-wire-contracts.md). It
 replaces `vela.canonical-json/v1` with exact RFC 8785 JCS, replaces bespoke
 signed-record preimages with a common DSSE envelope, publishes JSON Schema
-2020-12 for portable objects, keeps Cedar restricted to authority, and retains
-RO-Crate 1.3 as a derived evidence-transfer adapter. It must begin with a
+2020-12 for portable objects, replaces Cedar with a two-role closed authority
+profile using AuthZEN's subject/action/resource/context/decision shape, and
+retains RO-Crate 1.3 as a derived evidence-transfer adapter. It must begin with a
 dual-encoding audit of every retained Frontier object; it may not silently
 rewrite roots or old signatures.
 
