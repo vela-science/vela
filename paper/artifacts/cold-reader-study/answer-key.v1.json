@@ -1,0 +1,60 @@
+{
+  "schema": "vela.external-cold-reader-answer-key.v1",
+  "status": "frozen_before_participant_one",
+  "scoring_rule": "Score semantic correctness before speed. Exact identifiers or roots are required for two points only where listed. Equivalent bounded wording is accepted; byte-for-byte prose is not required.",
+  "tasks": {
+    "quantum": {
+      "current_claim": {
+        "id": "vcl_cdd52df280c6249b97daa2ce544a8ed260cae6a31d33fd519917bb33c51faa59",
+        "required_meaning": "The retained nine-generator witness defines an explicit [[10,1,4]] stabilizer code with rank 9, encoded dimension 1, and exact logical distance 4 under complete binary-symplectic centralizer reconstruction."
+      },
+      "superseded_claim": {
+        "id": "vcl_da1b447d2c2a260ca9ca968066664ac2deee3f99b3d9e6e6f3fdb16a725bc1f8"
+      },
+      "decisive_artifact": {
+        "root": "sha256:f23ac24e932de13538ac842bc2a467648aa82628577cffff6c71411e59a06a3c",
+        "meaning": "Exact retained stabilizer witness bytes."
+      },
+      "verification_records": [
+        "vvr_606aff748c89df76",
+        "vvr_f0b28f5c257eabb4"
+      ],
+      "decision": {
+        "proposal_id": "vpr_8715dbb5e2a12442",
+        "authority_event_id": "vev_16b21fe1a6d6f064",
+        "applied_authority_event_id": "vev_a1c8f8859afb250c",
+        "standing": "accepted"
+      },
+      "nonclaims": [
+        "No optimality at length 10.",
+        "No uniqueness, novelty, or classification result.",
+        "No organizationally independent replication or broader scientific acceptance."
+      ],
+      "next_action": "No Target Index or producer offer is configured. The correct answer is the explicit absence of an offer; a participant must not invent one."
+    },
+    "formal": {
+      "proposal": {
+        "id": "vpr_7aba66544ffefd99",
+        "entry_root": "sha256:ffd87edf48037199ebd17a768ff55ea9d679dc5dd4d90a90dc9153813d04ab46",
+        "standing": "pending_review"
+      },
+      "proposed_claim": {
+        "id": "vcl_1b3e297c552170bc608ac84bc7e19d1ec234125aa77be7959708f18566d7bb45",
+        "required_meaning": "The exact accepted Erdős Claim and its signed source transition are retained in an 11-object foreign-reference package that two readers verify, with explicit local Formal Standing effect none."
+      },
+      "retained_package": {
+        "foreign_reference_root": "sha256:b7b330ae6ea4915d5bac218233f0a272ee961060682be6d22f6a8ea1b78c4ed6",
+        "archive_sha256": "sha256:3a1f083e55ead5818b3dad5eca163155cab1f8d8905be2b61ab58e3823a2b26c"
+      },
+      "verification_records": [
+        "vvr_179fb049e70ff620",
+        "vvr_ebc29eae4f5f4edf"
+      ],
+      "verification_scope": "The retained exact package, object set, signatures, source authority history, and explicit local Standing effect none verify. This does not import Erdős authority or accept the source Claim in Formal Conjectures.",
+      "decision": null,
+      "local_standing_changed": false,
+      "next_action": "The exact rooted Proposal awaits an attributed human repository-authority accept or reject Decision. The participant must not choose or recommend an outcome, and Verification alone does not determine it."
+    }
+  },
+  "hard_error_override": "Any hard error defined by plan.v1.json fails the task regardless of point total."
+}

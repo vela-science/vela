@@ -167,6 +167,15 @@ interventions, exclusions, and errors. Initial protocol-breakthrough credit
 requires at least one participant external to Vela maintainers on each frozen
 fixture. The current first-party campaign earns no such credit.
 
+The current product-reading pilot is preregistered separately at
+`paper/artifacts/cold-reader-study/plan.v1.json`, byte root
+`sha256:66ec79e3cd550a8e74782e2502ca97ba4b5828fb9d0ed769df90c7279fbce4f8`.
+Four external readers will inspect the accepted Quantum correction and the
+pending Formal transfer in a counterbalanced Git-versus-Observatory crossover.
+It measures comprehension and next-action latency only. Because the frozen
+held-out selector still has no qualifying consequential correction topology,
+this pilot cannot satisfy B10 by itself even if its product gate passes.
+
 ## Required adversarial cases
 
 The benchmark must fail closed or return an explicitly bounded diagnostic with

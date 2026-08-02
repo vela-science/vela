@@ -72,10 +72,10 @@ infrastructure.
 - Four mathematical Frontiers use the current repository contract and replay
   from clean Git checkouts.
 - Real Erdős, Formal, and quantum Submissions have separate scoped
-  Verifications. One Erdős bounded result and the exact Quantum `[[10,1,4]]`
-  correction have completed attributed human Decisions; Formal remains
-  pending.
-- Two bounded human Decisions have changed Standing and reproduced by replay.
+  Verifications. One Erdős bounded result, one exact Formal Lean result, and
+  the exact Quantum `[[10,1,4]]` correction have completed attributed human
+  Decisions. The separate Formal cross-Frontier transfer remains pending.
+- Three bounded human Decisions have changed Standing and reproduced by replay.
 - The retained `[[10,1,4]]` quantum witness has a source-visible alternate
   reconstruction: the historical capsule checked bounded low-weight Pauli
   errors, while the current standard-library verifier derives the complete
@@ -90,7 +90,7 @@ infrastructure.
 - Vela Web has a live root-bound Math Source Registry and read-only Math Atlas
   over the exact four repository-v4 Frontier heads. The current projection uses
   `observatory.v8`, contains no Registration contract, and retains 6,713 native
-  source records and 5,845 source bindings. Source Git remains authoritative.
+  source records and 5,844 source bindings. Source Git remains authoritative.
 - Product-compression v11 completed four clean native Harbor trials with zero
   retries. Vela-guided work was exact in 2/2 trials while Git/files alone was
   exact in 0/2; median agent time fell from 239.22 to 116.16 seconds and median
@@ -148,9 +148,17 @@ infrastructure.
   Decision or cancellation. Eligibility is not a recommendation.
 - Formal Proposal `vpr_b81d87fce0d9c81c` was producer-withdrawn on 2026-08-01
   after its corrected successor was retained. The withdrawal changed no
-  accepted Event or Standing. Formal now has two pending Proposals and replays
-  at repository root
-  `sha256:1afb595ad8ae8628e548a74b06ca3d5ce5e7221c7152ee51e54aa65472a722a8`.
+  accepted Event or Standing. Formal now has one pending cross-Frontier
+  Proposal and one accepted native Lean Claim. It replays at commit
+  `91329575a922a3ea01d053caed403cf36a8037c7`, repository root
+  `sha256:69945e0574b2b1b692387c93e1d1a871264b76134fbaee198f87553a07d14850`.
+- Formal Proposal `vpr_08a91ee1b770f5cb` is accepted through attributed human
+  Decision events `vev_539148811887822b` and `vev_5491fdcca74f2a98`.
+  The accepted Claim is limited to kernel elaboration of the exact retained
+  `Erdos835.property_iff_chromaticNumber` proof at the frozen Lean and Mathlib
+  revisions. It does not prove `Erdos835.erdos_835`, answer Erdős problem 835,
+  establish statement fidelity, novelty, upstream acceptance, or external
+  replication.
 - Erdős Proposals `vpr_b4a4b9ea9c00d6e9` and
   `vpr_96578d006119b322` bind the same exact producer execution. The latter
   states the exact 11-prime bounded result and scope limit; the former is
@@ -165,15 +173,17 @@ infrastructure.
   limitation explicitly.
 - The current production Atlas checkpoint was rebuilt from all four cleaned
   Frontier heads and is exact at projection root
-  `sha256:56ba1ae0deb88a3e7eed008f3c4b57d828c7058efe46dd9f422598b64b77f735`.
-  Its manifest binds Erdős `8428650c`, Formal `b706a90b`, Quantum
+  `sha256:141ec2f20098b9a89f65d9918dbaae8fc838cdbac3fe7c98618fb6deb36df876`.
+  Its manifest binds Erdős `8428650c`, Formal `91329575`, Quantum
   `718de33d`, and Sidon `d2b7480d`. The Quantum source now projects five
   accepted Claims, zero pending Proposals, two scoped Verifications, and the
   exact repository root
   `sha256:cd6ccf48dc04d5d3a96a185ca16be998f456f9531d975132d7cb910334f0ecdb`.
   Database sync, stored-root verification, SELECT-only reader verification,
   source evidence retention, atomic activation, local build, and production
-  deployment all passed.
+  deployment all passed. Formal projects 15 accepted Claims, one pending
+  Proposal, four scoped Verifications, and repository root
+  `sha256:69945e0574b2b1b692387c93e1d1a871264b76134fbaee198f87553a07d14850`.
 - The same release adds the exact `openai/ten-proofs` source adapter to the
   existing 11-source Registry. The bounded `erdos:183:astra-fidelity` work
   now retains a source-bound producer report whose conclusion is `faithful`
@@ -352,6 +362,19 @@ The task required the agent to distinguish accepted foreign source Standing
 from a pending local Proposal and recover the exact Decision packet. It closes
 a second task class, but remains first-party evidence and does not satisfy the
 held-out correction-impact or independent-participant gate.
+
+The next independent-product gate is frozen in
+`paper/artifacts/cold-reader-study/plan.v1.json`, byte root
+`sha256:66ec79e3cd550a8e74782e2502ca97ba4b5828fb9d0ed769df90c7279fbce4f8`.
+It uses four external readers, the accepted Quantum correction, and the
+pending Formal cross-Frontier transfer in a two-task counterbalanced
+Git-versus-Observatory crossover. The semantic answer key was frozen before
+participant one at byte root
+`sha256:b9bbb08a34fb01ad87ad3796c4357bb0ddef9a0533e8ffe770c6e6e223caffbc`.
+No new runner, service, model call, or mutation surface is required. A positive
+result supports only bounded external product-comprehension and continuation
+claims; the failed held-out correction-topology gate still prevents a protocol-
+breakthrough claim.
 
 ### Gate 5 — keep Registry and Atlas exact, not expansive
 
@@ -532,8 +555,8 @@ reputation score, or `1.0.0` schedule.
 | Vela | `0.962.1` is published with direct producer withdrawal, compacted-lineage reconstruction, and current-root Decision checks; release checks are green | keep one train and release only for demonstrated changes |
 | Cross-language readers | standalone Python and JavaScript conformance readers | keep package-free until a real external consumer requires a library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; deployment commit `b99afc34` binds projection root `sha256:56ba1ae0deb88a3e7eed008f3c4b57d828c7058efe46dd9f422598b64b77f735`, 11 exact sources, 6,713 native records, current/proposed Standing Decision packets, the terminal Quantum Decision, and current-head clean-room artifact `sha256:da6125b81f998a3fae9efdee9d5b73193e8fb3c17cc61780e48835a04fa307ca` | keep the exact source projection; add no Astra-specific UI or broader execution until a real consumer earns it |
-| Frontiers | canonical Git sources; the Quantum correction is accepted and replayed, the obsolete Formal duplicate is withdrawn with zero accepted delta, and remaining Proposals await attributed human Decisions or cancellation | decide or cancel exact remaining Proposals, replay, remap |
+| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; deployment commit `f3298f43` binds projection root `sha256:141ec2f20098b9a89f65d9918dbaae8fc838cdbac3fe7c98618fb6deb36df876`, 11 exact sources, 6,713 native records, current/proposed Standing Decision packets, the terminal Quantum and Formal Decisions, and current-head clean-room artifact `sha256:da6125b81f998a3fae9efdee9d5b73193e8fb3c17cc61780e48835a04fa307ca` | keep the exact source projection; add no Astra-specific UI or broader execution until a real consumer earns it |
+| Frontiers | canonical Git sources; the Quantum correction and native Formal Lean result are accepted and replayed, the obsolete Formal duplicate is withdrawn with zero accepted delta, and remaining Proposals await attributed human Decisions or cancellation | decide or cancel exact remaining Proposals, replay, remap |
 | Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 
 Failure narrows or deletes the system. It does not earn another layer.
