@@ -55,6 +55,42 @@ which both encodings agree. That fact is useful but does not prove that all
 retained Claim extensions, Event payloads, authority payloads, or repository
 objects agree.
 
+### Shadow-audit result: 2026-08-02
+
+The frozen parsed-value shadow audit used pinned
+`serde_json_canonicalizer 0.3.2` against clean checkouts at:
+
+- Erdős `8428650c47c0dcb5429e6621a6f023a878fc42c8`;
+- Formal Conjectures `100d0028bb5b4714ddace4812a77a7ad617ac97c`;
+- Quantum Codes `718de33dcdb27e97e92458530e938f2262c86fbe`;
+  and
+- Sidon Sets `d2b7480d404e9e0edbf750798fc33896efe41270`.
+
+The audit recursively rejected duplicate JSON properties before
+canonicalization, compared 3,161 parsed tracked JSON values, and separately
+decoded and compared all seven retained authority-record payloads. Of the
+tracked values, 3,158 were byte-identical under current Vela canonicalization
+and JCS. Every decoded authority payload was byte-identical. The only three
+differences were raw scientific or execution evidence, not canonical Vela
+protocol objects:
+
+- `attack/canopus-trace-306.eval.json`;
+- `attack/erdos1093-deficiency-search-k129.v2.json`; and
+- the archived `erdos573-incidence-construction.v1.json` source artifact.
+
+All 17 integers outside the interoperable IEEE-754 safe-integer range occur in
+the Erdős 1093 raw evidence artifact. Those values must remain exact raw bytes
+or use strings in any future portable Vela object; JCS must never round them
+silently. `conformance/jcs-shadow-audit.v1.json` binds the exact repository
+commits and trees, counts, seven authority payloads, raw exception byte hashes
+and Git blobs, first-difference offsets, unsafe-integer counts, and canonical
+result root. The result supports a root-preserving canonicalizer switch only
+for the compared parsed values and authority payloads at those four heads. It
+does not prove that arbitrary future extension values satisfy I-JSON, authorize
+the switch, or complete the production hashing boundary. Production
+duplicate-property and unsafe-number rejection, independent readers, and the
+closed portable schemas remain required first.
+
 ## Decision
 
 Adopt the following narrow standards spine before 1.0:
@@ -125,9 +161,10 @@ tolerate unknown envelope fields, make `keyid` optional, and count only unique
 trusted signatures that actually verify. This is a parser and conformance
 repair, not a repository migration.
 
-The unused `IdentityRevocation` type has no writer, storage route, reducer, or
-verification consumer. Delete it unless the v2 credential model identifies a
-real revocation consumer. Do not preserve a ceremonial lifecycle in source.
+The unused `IdentityRevocation` type had no writer, storage route, reducer, or
+verification consumer and was deleted in the first standards slice. A future
+credential lifecycle must identify a real revocation consumer before adding a
+replacement. Do not preserve a ceremonial lifecycle in source.
 
 ### 3. Publish JSON Schema 2020-12 for portable objects
 
@@ -199,8 +236,9 @@ This is one pre-1.0 standards cut, not a compatibility program.
    signers re-signed new bytes.
 8. Strictly replay clean clones, then delete the old writers and readers from
    the current runtime. Historical Git and pinned binaries preserve old bytes.
-9. Update the RO-Crate transfer view to carry the current signed envelopes
-   without treating them as receiver authority.
+9. Verify and, only if necessary, update the retained RO-Crate transfer view
+   after the standards cut without treating its envelopes as receiver
+   authority.
 
 No old signature may be copied into a new DSSE envelope, and no agent may
 manufacture a replacement producer, verifier, or human signature.

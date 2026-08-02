@@ -1,0 +1,88 @@
+{
+  "schema": "vela.jcs-shadow-audit-fixture.v1",
+  "result_root": "sha256:66063f8e930bb428c4ab47de186f8cebc6cb6cd523a5c703429543b9b4d20688",
+  "result": {
+    "schema": "vela.jcs-shadow-audit-result.v1",
+    "canonicalizer": {
+      "package": "serde_json_canonicalizer",
+      "version": "0.3.2"
+    },
+    "repositories": [
+      {
+        "name": "erdos-frontier",
+        "remote": "https://github.com/vela-science/erdos-frontier",
+        "commit": "8428650c47c0dcb5429e6621a6f023a878fc42c8",
+        "tree": "9cd497d99dc76feee42fa94ab01fbc3d21a932af",
+        "files": 3000,
+        "matches": 2997,
+        "authority_payloads": 1,
+        "authority_payload_matches": 1
+      },
+      {
+        "name": "formal-conjectures-frontier",
+        "remote": "https://github.com/vela-science/formal-conjectures-frontier",
+        "commit": "100d0028bb5b4714ddace4812a77a7ad617ac97c",
+        "tree": "08284e9382fe298e00777d4cf883e85a8dc8fee7",
+        "files": 61,
+        "matches": 61,
+        "authority_payloads": 3,
+        "authority_payload_matches": 3
+      },
+      {
+        "name": "quantum-codes-frontier",
+        "remote": "https://github.com/vela-science/quantum-codes-frontier",
+        "commit": "718de33dcdb27e97e92458530e938f2262c86fbe",
+        "tree": "3a3da737cff38f8e42e78e2c7d10085a78058691",
+        "files": 22,
+        "matches": 22,
+        "authority_payloads": 2,
+        "authority_payload_matches": 2
+      },
+      {
+        "name": "sidon-frontier",
+        "remote": "https://github.com/vela-science/sidon-frontier",
+        "commit": "d2b7480d404e9e0edbf750798fc33896efe41270",
+        "tree": "f322252a8e7045c68fe9b5aaf15afcf70cbd4a86",
+        "files": 78,
+        "matches": 78,
+        "authority_payloads": 1,
+        "authority_payload_matches": 1
+      }
+    ],
+    "exceptions": [
+      {
+        "repository": "erdos-frontier",
+        "path": "attack/canopus-trace-306.eval.json",
+        "raw_sha256": "sha256:8a9eb1c0b427a20cba17fab52e24bfdfa0f769a502ba3d0b63ad78efa1d7bfe6",
+        "git_blob": "7514e5e073aef0954f4e47f2fb1acb0ef1858070",
+        "first_difference": 245,
+        "unsafe_integer_count": 0
+      },
+      {
+        "repository": "erdos-frontier",
+        "path": "attack/erdos1093-deficiency-search-k129.v2.json",
+        "raw_sha256": "sha256:be38c463036b06cedeef952e9a48e2f60b42da58b623f1905dd46437719cc704",
+        "git_blob": "3c6619951dc1c3dab6786364af30633579936178",
+        "first_difference": 19241,
+        "unsafe_integer_count": 17
+      },
+      {
+        "repository": "erdos-frontier",
+        "path": "sources/archive/vela-internal/5fb261cead755bb11acb1977a31752df1d21e97a/examples/erdos-problems/attack/erdos573-incidence-construction.v1.json",
+        "raw_sha256": "sha256:3f7a994126f321b0ab8fc4d857c0d0c03814667ba0dbf69d9b9370cf951ac0d6",
+        "git_blob": "d6f482e01edcfa93f4d5080ae73006aee0ab62b9",
+        "first_difference": 515,
+        "unsafe_integer_count": 0
+      }
+    ],
+    "totals": {
+      "repositories": 4,
+      "files": 3161,
+      "matches": 3158,
+      "authority_payloads": 7,
+      "authority_payload_matches": 7,
+      "exceptions": 3,
+      "unsafe_integers": 17
+    }
+  }
+}

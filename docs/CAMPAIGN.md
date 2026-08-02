@@ -215,9 +215,11 @@ infrastructure.
   independent interoperability remain unproved. The bounded technical B8
   transfer already passes between distinct Frontier authority keysets with no
   imported Standing. Its attached view targets the current RO-Crate 1.3
-  Recommendation and passes the dependency-free parity reader; the retained
-  result explicitly records that current `roc-validator` releases do not yet
-  ship a 1.3 validation profile.
+  Recommendation, carries the exact source-diff, predecessor, successor, and
+  full-index patch, and passes the dependency-free parity and transition
+  readers. A closed fixity manifest binds the package payload without defining
+  a Vela-specific archive format. The retained result explicitly records that
+  current `roc-validator` releases do not yet ship a 1.3 validation profile.
 
 ## Active gates
 
@@ -248,6 +250,20 @@ signed-record preimages with a common DSSE envelope, publishes JSON Schema
 RO-Crate 1.3 as a derived evidence-transfer adapter. It must begin with a
 dual-encoding audit of every retained Frontier object; it may not silently
 rewrite roots or old signatures.
+
+The frozen 2026-08-02 parsed-value shadow audit recursively rejects duplicate
+JSON properties and binds exact commits, trees, counts, raw exceptions, and a
+canonical result root in `conformance/jcs-shadow-audit.v1.json`. On those four
+clean Frontier heads, 3,158 of 3,161 parsed tracked JSON values and all seven
+decoded authority payloads are JCS-byte-identical. Three exact raw Erdős
+evidence artifacts differ and remain byte-preserved evidence rather than JCS
+protocol objects; one contains all 17 observed unsafe integers. This proves
+only the frozen parsed-value scope, not arbitrary future extension values or
+the production hashing boundary. The existing authority verifier now follows
+DSSE 1.0.2 envelope parsing and threshold rules without changing emitted bytes
+or any Frontier root. Production duplicate-property and unsafe-number
+rejection, the common signed-object boundary, independent readers, and portable
+schemas remain gated work.
 
 No retained mechanism may create another prompt for routine computation,
 artifact creation, Submission, or Verification. A human interruption is
