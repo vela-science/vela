@@ -6,12 +6,6 @@
 - Evidence gate outcome: the exact Erdős baseline found two smaller reader
   defects and no demonstrated need for the proposed export
 
-> **Standards correction (2026-08-02).** This rejected historical proposal
-> named RO-Crate 1.3, but the current RO-Crate Recommendation is 1.2. The later
-> bounded transfer experiment corrects its derived metadata view to 1.2 under
-> a root-linked amendment and passes the external 1.2 validator. References to
-> 1.3 below are preserved only as historical design text, not current guidance.
-
 ## Context
 
 Vela already owns the difficult and irreplaceable part of the system: exact

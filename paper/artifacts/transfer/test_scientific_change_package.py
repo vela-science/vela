@@ -36,7 +36,7 @@ class ScientificChangePackageTest(unittest.TestCase):
         result = reader.assess(
             PACKAGE,
             HERE / "scientific-change-package-plan.v1.json",
-            HERE / "scientific-change-package-plan-amendment-002.v1.json",
+            HERE / "scientific-change-package-plan-amendment-001.v1.json",
         )
         self.assertTrue(result["ok"])
         self.assertEqual(result["object_count"], 11)
@@ -96,25 +96,22 @@ class ScientificChangePackageTest(unittest.TestCase):
         self.assertEqual(observed, expected)
         self.assertEqual(
             f"sha256:{hashlib.sha256(observed).hexdigest()}",
-            "sha256:024a0f699cf1d75ee7ff6839f2d1e7"
-            "20b6f5c48c57faf7f35eb02a11fffcf23b",
+            "sha256:e8eabd53d1bf9433956659720e92189"
+            "d724750d6a4a3435fb2c4069d42989628",
         )
 
-    def test_result_records_external_profile_pass_without_authority(self) -> None:
+    def test_result_records_external_profile_gap_without_substitution(self) -> None:
         result = json.loads((PACKAGE / "result.v1.json").read_bytes())
         readers = json.loads((PACKAGE / "reader-result.v1.json").read_bytes())
         self.assertEqual(
-            result["outcome"], "baseline_complete"
+            result["outcome"], "baseline_complete_with_external_validator_gap"
         )
         self.assertEqual(result["readers"]["native"], "pass")
         self.assertEqual(result["readers"]["ro_crate_clean_room"], "pass")
-        self.assertEqual(result["readers"]["external_ro_crate"], "pass")
-        self.assertEqual(readers["external_ro_crate"]["status"], "pass")
-        self.assertEqual(
-            readers["external_ro_crate"]["total_passed_checks"],
-            readers["external_ro_crate"]["total_checks"],
+        self.assertEqual(result["readers"]["external_ro_crate"], "unsupported_profile")
+        self.assertFalse(
+            readers["external_ro_crate"]["profile_substitution_performed"]
         )
-        self.assertFalse(readers["external_ro_crate"]["network_during_validation"])
         self.assertEqual(result["authority"]["local_standing_effect"], "none")
 
     def test_publisher_rejects_unrelated_destination_and_stale_output(self) -> None:
@@ -128,7 +125,6 @@ class ScientificChangePackageTest(unittest.TestCase):
                 builder.build(
                     PACKAGE,
                     unrelated,
-                    Path("/not/reached"),
                     Path("/not/reached"),
                 )
 
