@@ -20,9 +20,9 @@ use vela_edge::repository_write::load_authority_trust_anchor_from_home;
 
 use crate::operation_journal;
 
-pub(crate) const FRONTIER_TXN_SCHEMA: &str = "vela.frontier-txn.internal.v1";
+pub(crate) const FRONTIER_TXN_SCHEMA: &str = "vela.frontier-txn.internal.v2";
 const FRONTIER_TXN_BLOB_SCHEMA: &str = "vela.frontier-txn-blob.internal.v1";
-const FRONTIER_TXN_MARKER_SCHEMA: &str = "vela.frontier-txn-marker.internal.v1";
+const FRONTIER_TXN_MARKER_SCHEMA: &str = "vela.frontier-txn-marker.internal.v2";
 const CANONICAL_DELTA_SCHEMA: &str = "vela.canonical-delta.internal.v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -805,14 +805,12 @@ pub(crate) struct FrontierTxnPlanSpec {
     pub(crate) request_root: ContentDigest,
     pub(crate) frontier: FrontierBinding,
     pub(crate) fixed_time: String,
-    pub(crate) expected_event_log_root: ContentDigest,
-    pub(crate) resulting_event_log_root: ContentDigest,
-    pub(crate) resulting_event_ids: Vec<String>,
     pub(crate) read_set: Vec<InputBinding>,
     pub(crate) result: serde_json::Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct FrontierTxnPlan {
     schema: String,
     root: ContentDigest,
@@ -821,9 +819,6 @@ pub(crate) struct FrontierTxnPlan {
     pub(crate) request_root: ContentDigest,
     pub(crate) frontier: FrontierBinding,
     pub(crate) fixed_time: String,
-    pub(crate) expected_event_log_root: ContentDigest,
-    pub(crate) resulting_event_log_root: ContentDigest,
-    pub(crate) resulting_event_ids: Vec<String>,
     pub(crate) read_set: Vec<InputBinding>,
     pub(crate) canonical_delta: CanonicalDelta,
     pub(crate) result: serde_json::Value,
@@ -837,9 +832,6 @@ struct PlanCommitment<'a> {
     request_root: &'a ContentDigest,
     frontier: &'a FrontierBinding,
     fixed_time: &'a str,
-    expected_event_log_root: &'a ContentDigest,
-    resulting_event_log_root: &'a ContentDigest,
-    resulting_event_ids: &'a [String],
     read_set: &'a [InputBinding],
     canonical_delta: &'a CanonicalDelta,
     result: &'a serde_json::Value,
@@ -852,7 +844,6 @@ impl FrontierTxnPlan {
     ) -> Result<Self, FrontierTxnError> {
         canonical_delta.verify()?;
         OperationId::parse(spec.operation_id.as_str())?;
-        verify_resulting_event_ids(&spec.resulting_event_ids)?;
         let mut plan = Self {
             schema: FRONTIER_TXN_SCHEMA.to_string(),
             root: ContentDigest::hash([]),
@@ -861,9 +852,6 @@ impl FrontierTxnPlan {
             request_root: spec.request_root,
             frontier: spec.frontier,
             fixed_time: spec.fixed_time,
-            expected_event_log_root: spec.expected_event_log_root,
-            resulting_event_log_root: spec.resulting_event_log_root,
-            resulting_event_ids: spec.resulting_event_ids,
             read_set: spec.read_set,
             canonical_delta,
             result: spec.result,
@@ -880,9 +868,6 @@ impl FrontierTxnPlan {
             request_root: &self.request_root,
             frontier: &self.frontier,
             fixed_time: &self.fixed_time,
-            expected_event_log_root: &self.expected_event_log_root,
-            resulting_event_log_root: &self.resulting_event_log_root,
-            resulting_event_ids: &self.resulting_event_ids,
             read_set: &self.read_set,
             canonical_delta: &self.canonical_delta,
             result: &self.result,
@@ -899,7 +884,6 @@ impl FrontierTxnPlan {
             )));
         }
         OperationId::parse(self.operation_id.as_str())?;
-        verify_resulting_event_ids(&self.resulting_event_ids)?;
         for input in &self.read_set {
             input.verify_shape()?;
         }
@@ -919,13 +903,12 @@ impl FrontierTxnPlan {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct CommitMarker {
     schema: String,
     operation_id: OperationId,
     plan_root: ContentDigest,
     delta_root: ContentDigest,
-    expected_event_log_root: ContentDigest,
-    resulting_event_log_root: ContentDigest,
 }
 
 impl CommitMarker {
@@ -935,8 +918,6 @@ impl CommitMarker {
             operation_id: plan.operation_id.clone(),
             plan_root: plan.root.clone(),
             delta_root: plan.canonical_delta.root.clone(),
-            expected_event_log_root: plan.expected_event_log_root.clone(),
-            resulting_event_log_root: plan.resulting_event_log_root.clone(),
         }
     }
 }
@@ -965,6 +946,7 @@ fn retained_blob_journals() -> BlobRetention {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct FrontierTxnJournal {
     schema: String,
     plan: FrontierTxnPlan,
@@ -2171,56 +2153,27 @@ fn verify_completed_history(
         verify_completed_marker_and_blobs(paths, journal)?;
     }
 
-    let current_events = current_event_log_events(root)?;
-    let current_event_ids = event_ids(&current_events)?;
-    let current_root = event_log_root(&current_events)?;
     let predecessor_repository_root = current_compaction_predecessor_repository_root(root)?;
     let compacted_predecessor_operations =
         compacted_predecessor_operation_ids(completed, predecessor_repository_root.as_ref());
-    let mut current_head = Vec::new();
-    let mut committed_root_cache = BTreeMap::<Vec<String>, Option<ContentDigest>>::new();
-    for (paths, journal) in completed {
-        // Event-log commitments are ID-sorted sets, not append-order chains.
-        // Select the journal's exact committed membership from today's log so
-        // a legitimate later event may sort anywhere without fabricating a
-        // prefix relation.
-        let committed_root = match committed_root_cache.get(&journal.plan.resulting_event_ids) {
-            Some(root) => root.clone(),
-            None => {
-                let root =
-                    event_log_root_for_ids(&current_events, &journal.plan.resulting_event_ids)?;
-                committed_root_cache.insert(journal.plan.resulting_event_ids.clone(), root.clone());
-                root
-            }
-        };
-        if committed_root.as_ref() != Some(&journal.plan.resulting_event_log_root) {
-            return Err(FrontierTxnError::CompletedEventLogMismatch {
-                operation_id: journal.plan.operation_id.as_str().to_string(),
-                expected: journal.plan.resulting_event_log_root.clone(),
-                actual: current_root.clone(),
-            });
-        }
-        // A valid compaction origin archives the exact predecessor repository
-        // root and intentionally removes its object records from the current
-        // generation. Keep verifying the predecessor journal's marker, blobs,
-        // and event commitment above, but do not require its archived
-        // postimages to remain in the compacted repository. The exception is
-        // exact: unrelated historical journals and every current-generation
-        // journal remain subject to normal postimage reachability checks.
-        if journal.plan.resulting_event_ids == current_event_ids
-            && !compacted_predecessor_operations.contains(journal.plan.operation_id.as_str())
-        {
-            current_head.push((paths.clone(), journal.clone()));
-        }
-    }
+    // A valid compaction origin archives the exact predecessor repository
+    // root and intentionally removes its object records from the current
+    // generation. Every other completed journal belongs to the current
+    // postimage transition graph. The retired `.vela/events` set no longer
+    // participates in private crash recovery or completed-history checks.
+    let current_head = completed
+        .iter()
+        .filter(|(_, journal)| {
+            !compacted_predecessor_operations.contains(journal.plan.operation_id.as_str())
+        })
+        .cloned()
+        .collect::<Vec<_>>();
 
-    // Event-neutral transactions can share one event root. Validate that each
-    // durable postimage is either still current or is connected to the current
-    // bytes by another completed transaction's exact preimage -> postimage
-    // edge. Derived views are deliberately excluded from this historical-head
-    // check: a later materialization may replace them without changing the
-    // exact event membership that the completed journal commits to. Active
-    // installation and completion still verify every write class exactly.
+    // Validate that each durable postimage is either still current or is
+    // connected to the current bytes by another completed transaction's exact
+    // preimage -> postimage edge. Derived views are deliberately excluded from
+    // this historical-head check: a later materialization may replace them.
+    // Active installation and completion still verify every write class.
     for (_, journal) in &current_head {
         for write in journal
             .plan
@@ -2845,14 +2798,6 @@ impl FrontierTxn {
                     for input in &self.journal.plan.read_set {
                         input.verify_current(&self.root)?;
                     }
-                    let current_events = current_event_log_events(&self.root)?;
-                    let actual_event_log_root = event_log_root(&current_events)?;
-                    if actual_event_log_root != self.journal.plan.expected_event_log_root {
-                        return Err(FrontierTxnError::StaleEventLog {
-                            expected: self.journal.plan.expected_event_log_root.clone(),
-                            actual: actual_event_log_root,
-                        });
-                    }
                     for write in self.journal.plan.canonical_delta.writes() {
                         let current = inspect_file_state(&self.root, &write.path)?;
                         if current != write.preimage {
@@ -2863,8 +2808,7 @@ impl FrontierTxn {
                             });
                         }
                     }
-                    self.verify_blobs()?;
-                    self.verify_resulting_event_commitment(&current_events)
+                    self.verify_blobs()
                 })();
                 if let Err(error) = preflight {
                     self.abort_prepared()?;
@@ -3174,83 +3118,6 @@ impl FrontierTxn {
         }
     }
 
-    fn verify_resulting_event_commitment(
-        &self,
-        current_events: &[vela_protocol::events::StateEvent],
-    ) -> Result<(), FrontierTxnError> {
-        let mut events = BTreeMap::<String, vela_protocol::events::StateEvent>::new();
-        for event in current_events {
-            if events.insert(event.id.clone(), event.clone()).is_some() {
-                return Err(FrontierTxnError::Io(format!(
-                    "event log contains duplicate event id {}",
-                    event.id
-                )));
-            }
-        }
-
-        for write in self.journal.plan.canonical_delta.writes() {
-            let Some(relative) = write.path.as_str().strip_prefix(".vela/events/") else {
-                continue;
-            };
-            let Some(event_id) = relative.strip_suffix(".json") else {
-                return Err(FrontierTxnError::CorruptPlan(format!(
-                    "event-log write has a non-JSON path: {}",
-                    write.path.as_str()
-                )));
-            };
-            if event_id.is_empty() || event_id.contains('/') {
-                return Err(FrontierTxnError::CorruptPlan(format!(
-                    "event-log write is not one direct event file: {}",
-                    write.path.as_str()
-                )));
-            }
-
-            match &write.postimage {
-                FileState::Absent => {
-                    events.remove(event_id);
-                }
-                FileState::File { .. } => {
-                    let blob = write.payload.as_ref().ok_or_else(|| {
-                        FrontierTxnError::CorruptPlan(format!(
-                            "event-log postimage {} has no journal blob",
-                            write.path.as_str()
-                        ))
-                    })?;
-                    let bytes = self.read_blob(blob)?;
-                    let event = serde_json::from_slice::<vela_protocol::events::StateEvent>(&bytes)
-                        .map_err(|error| {
-                            FrontierTxnError::CorruptPlan(format!(
-                                "event-log postimage {} is not a StateEvent: {error}",
-                                write.path.as_str()
-                            ))
-                        })?;
-                    if event.id != event_id {
-                        return Err(FrontierTxnError::CorruptPlan(format!(
-                            "event-log postimage {} contains event id {}",
-                            write.path.as_str(),
-                            event.id
-                        )));
-                    }
-                    events.insert(event_id.to_string(), event);
-                }
-            }
-        }
-
-        let events = events.into_values().collect::<Vec<_>>();
-        let actual_ids = event_ids(&events)?;
-        let actual_root = event_log_root(&events)?;
-        if actual_ids != self.journal.plan.resulting_event_ids
-            || actual_root != self.journal.plan.resulting_event_log_root
-        {
-            return Err(FrontierTxnError::CorruptPlan(format!(
-                "resulting event-log commitment does not match staged event postimages: planned {}, derived {}",
-                self.journal.plan.resulting_event_log_root.as_str(),
-                actual_root.as_str()
-            )));
-        }
-        Ok(())
-    }
-
     fn read_blob(&self, expected: &JournalBlobRef) -> Result<Vec<u8>, FrontierTxnError> {
         read_blob_at(&self.paths, expected)
     }
@@ -3307,18 +3174,6 @@ impl FrontierTxn {
                     actual: Box::new(actual),
                 });
             }
-        }
-        let events = current_event_log_events(&self.root)?;
-        let actual_event_ids = event_ids(&events)?;
-        let actual = event_log_root(&events)?;
-        if actual_event_ids != self.journal.plan.resulting_event_ids
-            || actual != self.journal.plan.resulting_event_log_root
-        {
-            return Err(FrontierTxnError::CompletedEventLogMismatch {
-                operation_id: self.journal.plan.operation_id.as_str().to_string(),
-                expected: self.journal.plan.resulting_event_log_root.clone(),
-                actual,
-            });
         }
         Ok(())
     }
@@ -3388,10 +3243,6 @@ pub(crate) enum FrontierTxnError {
         expected: ContentDigest,
         actual: ContentDigest,
     },
-    StaleEventLog {
-        expected: ContentDigest,
-        actual: ContentDigest,
-    },
     WriteAuthorizationRequired {
         operation_id: String,
     },
@@ -3426,11 +3277,6 @@ pub(crate) enum FrontierTxnError {
         path: RepoPath,
         expected: Box<FileState>,
         actual: Box<FileState>,
-    },
-    CompletedEventLogMismatch {
-        operation_id: String,
-        expected: ContentDigest,
-        actual: ContentDigest,
     },
     MissingBlob(ContentDigest),
     CorruptBlob(ContentDigest),
@@ -3493,12 +3339,6 @@ impl fmt::Display for FrontierTxnError {
             Self::StaleSnapshot { name, .. } => {
                 write!(formatter, "frontier snapshot {name} changed before commit")
             }
-            Self::StaleEventLog { expected, actual } => write!(
-                formatter,
-                "event log changed before commit: expected {}, found {}",
-                expected.as_str(),
-                actual.as_str()
-            ),
             Self::WriteAuthorizationRequired { operation_id } => write!(
                 formatter,
                 "frontier transaction {operation_id} is Prepared without an in-memory canonical write authorization; explicitly reauthorize before commit"
@@ -3545,16 +3385,6 @@ impl fmt::Display for FrontierTxnError {
                 formatter,
                 "completed frontier transaction {operation_id} has a missing or corrupt postimage at {}",
                 path.as_str()
-            ),
-            Self::CompletedEventLogMismatch {
-                operation_id,
-                expected,
-                actual,
-            } => write!(
-                formatter,
-                "completed frontier transaction {operation_id} does not match the accepted-event root: expected {}, found {}",
-                expected.as_str(),
-                actual.as_str()
             ),
             Self::MissingBlob(digest) => {
                 write!(formatter, "missing transaction blob {}", digest.as_str())
@@ -3656,167 +3486,6 @@ fn validate_target(root: &Path, path: &RepoPath) -> Result<PathBuf, FrontierTxnE
         }
     }
     Ok(root.join(path.as_str()))
-}
-
-fn current_event_log_events(
-    root: &Path,
-) -> Result<Vec<vela_protocol::events::StateEvent>, FrontierTxnError> {
-    let vela_dir = root.join(".vela");
-    let events_dir = vela_dir.join("events");
-    let mut events = Vec::new();
-    for directory in [&vela_dir, &events_dir] {
-        match fs::symlink_metadata(directory) {
-            Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
-                return Err(FrontierTxnError::Io(format!(
-                    "event log directory is not a safe directory: {}",
-                    directory.display()
-                )));
-            }
-            Ok(_) => {}
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => break,
-            Err(error) => {
-                return Err(FrontierTxnError::Io(format!(
-                    "inspect event log directory {}: {error}",
-                    directory.display()
-                )));
-            }
-        }
-    }
-    if events_dir.exists() {
-        let mut paths = fs::read_dir(&events_dir)
-            .map_err(|error| {
-                FrontierTxnError::Io(format!(
-                    "read event log directory {}: {error}",
-                    events_dir.display()
-                ))
-            })?
-            .filter_map(Result::ok)
-            .map(|entry| entry.path())
-            .filter(|path| {
-                path.extension()
-                    .is_some_and(|extension| extension == "json")
-            })
-            .collect::<Vec<_>>();
-        paths.sort();
-        for path in paths {
-            let metadata = fs::symlink_metadata(&path).map_err(|error| {
-                FrontierTxnError::Io(format!(
-                    "inspect event log file {}: {error}",
-                    path.display()
-                ))
-            })?;
-            if metadata.file_type().is_symlink() || !metadata.is_file() {
-                return Err(FrontierTxnError::Io(format!(
-                    "event log entry is not a regular non-symlink file: {}",
-                    path.display()
-                )));
-            }
-            let bytes = fs::read(&path).map_err(|error| {
-                FrontierTxnError::Io(format!("read event log file {}: {error}", path.display()))
-            })?;
-            let event = serde_json::from_slice::<vela_protocol::events::StateEvent>(&bytes)
-                .map_err(|error| {
-                    FrontierTxnError::Io(format!(
-                        "parse event log file {}: {error}",
-                        path.display()
-                    ))
-                })?;
-            let file_id = path
-                .file_stem()
-                .and_then(|value| value.to_str())
-                .ok_or_else(|| {
-                    FrontierTxnError::Io(format!(
-                        "event log filename is not a portable UTF-8 event id: {}",
-                        path.display()
-                    ))
-                })?;
-            if event.id != file_id {
-                return Err(FrontierTxnError::Io(format!(
-                    "event log file {} contains event id {}",
-                    path.display(),
-                    event.id
-                )));
-            }
-            events.push(event);
-        }
-    }
-    events.sort_by(|left, right| left.id.cmp(&right.id));
-    Ok(events)
-}
-
-fn event_log_root(
-    events: &[vela_protocol::events::StateEvent],
-) -> Result<ContentDigest, FrontierTxnError> {
-    for event in events {
-        let derived = vela_protocol::events::event_id(event);
-        if event.id != derived {
-            return Err(FrontierTxnError::CorruptPlan(format!(
-                "event {} does not match its content-derived id {derived}",
-                event.id
-            )));
-        }
-    }
-    ContentDigest::parse(format!(
-        "sha256:{}",
-        vela_protocol::events::event_log_hash(events)
-    ))
-}
-
-fn verify_resulting_event_ids(ids: &[String]) -> Result<(), FrontierTxnError> {
-    if ids.iter().any(|id| id.is_empty()) {
-        return Err(FrontierTxnError::CorruptPlan(
-            "resulting event ids contain an empty id".to_string(),
-        ));
-    }
-    if ids.windows(2).any(|pair| pair[0] >= pair[1]) {
-        return Err(FrontierTxnError::CorruptPlan(
-            "resulting event ids are not sorted and unique".to_string(),
-        ));
-    }
-    Ok(())
-}
-
-fn event_ids(
-    events: &[vela_protocol::events::StateEvent],
-) -> Result<Vec<String>, FrontierTxnError> {
-    let mut ids = events
-        .iter()
-        .map(|event| event.id.clone())
-        .collect::<Vec<_>>();
-    ids.sort();
-    verify_resulting_event_ids(&ids).map_err(|_| {
-        FrontierTxnError::Io("event log contains an empty or duplicate event id".to_string())
-    })?;
-    Ok(ids)
-}
-
-fn event_log_root_for_ids(
-    events: &[vela_protocol::events::StateEvent],
-    ids: &[String],
-) -> Result<Option<ContentDigest>, FrontierTxnError> {
-    verify_resulting_event_ids(ids)?;
-    let mut by_id = BTreeMap::new();
-    for event in events {
-        if by_id.insert(event.id.as_str(), event).is_some() {
-            return Err(FrontierTxnError::Io(format!(
-                "event log contains duplicate event id {}",
-                event.id
-            )));
-        }
-    }
-    let mut selected = Vec::with_capacity(ids.len());
-    for id in ids {
-        let Some(event) = by_id.get(id.as_str()) else {
-            return Ok(None);
-        };
-        selected.push((*event).clone());
-    }
-    event_log_root(&selected).map(Some)
-}
-
-#[cfg(test)]
-fn current_event_log_root(root: &Path) -> Result<ContentDigest, FrontierTxnError> {
-    event_log_root(&current_event_log_events(root)?)
 }
 
 fn inspect_file_state(root: &Path, path: &RepoPath) -> Result<FileState, FrontierTxnError> {
@@ -4205,11 +3874,6 @@ mod tests {
         let frontier_id = crate::current_repository::verify_current_repository_at(root, false)
             .map(|repository| repository.frontier_id)
             .unwrap_or_else(|_| "vfr_test".to_string());
-        let resulting_event_ids = current_event_log_events(root)
-            .unwrap()
-            .into_iter()
-            .map(|event| event.id)
-            .collect();
         FrontierTxnPlan::new(
             FrontierTxnPlanSpec {
                 kind: OperationKind::Submission,
@@ -4217,9 +3881,6 @@ mod tests {
                 request_root,
                 frontier: FrontierBinding::new(root, frontier_id, b"split-layout-v1").unwrap(),
                 fixed_time: "2026-07-13T00:00:00Z".to_string(),
-                expected_event_log_root: current_event_log_root(root).unwrap(),
-                resulting_event_log_root: current_event_log_root(root).unwrap(),
-                resulting_event_ids,
                 read_set: vec![InputBinding {
                     name: "receipt".to_string(),
                     digest: ContentDigest::hash(b"receipt"),
@@ -4261,31 +3922,6 @@ mod tests {
             String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr),
         );
-    }
-
-    fn fixture_event(label: &str) -> vela_protocol::events::StateEvent {
-        let mut event = vela_protocol::events::StateEvent {
-            schema: vela_protocol::events::EVENT_SCHEMA.to_string(),
-            id: String::new(),
-            kind: vela_protocol::events::EventKind::FrontierCreated,
-            target: vela_protocol::events::StateTarget {
-                r#type: "frontier".to_string(),
-                id: "vfr_fixture".to_string(),
-            },
-            actor: vela_protocol::events::StateActor {
-                id: "reviewer:fixture".to_string(),
-                r#type: "human".to_string(),
-            },
-            timestamp: "2026-07-13T00:00:01Z".to_string(),
-            reason: format!("fixture event: {label}"),
-            before_hash: "sha256:null".to_string(),
-            after_hash: "sha256:null".to_string(),
-            payload: json!({}),
-            caveats: vec![],
-            signature: None,
-        };
-        event.id = vela_protocol::events::event_id(&event);
-        event
     }
 
     fn initialize_failpoint_frontier(root: &Path) {
@@ -4596,20 +4232,31 @@ mod tests {
     }
 
     #[test]
-    fn resulting_event_ids_must_be_sorted_unique_and_are_plan_bound() {
-        assert!(verify_resulting_event_ids(&["vev_a".to_string(), "vev_z".to_string()]).is_ok());
-        assert!(verify_resulting_event_ids(&["vev_z".to_string(), "vev_a".to_string()]).is_err());
-        assert!(verify_resulting_event_ids(&["vev_a".to_string(), "vev_a".to_string()]).is_err());
-
+    fn journal_v2_rejects_v1_and_retired_event_fields() {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().join("frontier");
         fs::create_dir_all(&root).unwrap();
         let draft = DeltaDraft::prepare(&root, vec![]).unwrap();
-        let plan = fixture_plan(&root, &draft, b"event id commitment");
-        let original_root = plan.root.clone();
-        let mut changed = plan;
-        changed.resulting_event_ids = vec!["vev_added".to_string()];
-        assert_ne!(changed.compute_root().unwrap(), original_root);
+        let plan = fixture_plan(&root, &draft, b"journal v2 schema");
+
+        let mut retired = serde_json::to_value(&plan).unwrap();
+        retired["expected_event_log_root"] = json!(fixture_root('1'));
+        assert!(serde_json::from_value::<FrontierTxnPlan>(retired).is_err());
+
+        let mut v1 = serde_json::to_value(&plan).unwrap();
+        v1["schema"] = json!("vela.frontier-txn.internal.v1");
+        assert!(matches!(
+            serde_json::from_value::<FrontierTxnPlan>(v1)
+                .unwrap()
+                .verify(),
+            Err(FrontierTxnError::CorruptPlan(message))
+                if message.contains("unexpected frontier transaction schema")
+        ));
+
+        let marker = CommitMarker::from_plan(&plan);
+        let mut retired_marker = serde_json::to_value(marker).unwrap();
+        retired_marker["resulting_event_log_root"] = json!(fixture_root('2'));
+        assert!(serde_json::from_value::<CommitMarker>(retired_marker).is_err());
     }
 
     #[test]
@@ -5501,58 +5148,7 @@ mod tests {
     }
 
     #[test]
-    fn historical_completed_journal_survives_a_later_event_that_sorts_before_it() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(root.join(".vela/events")).unwrap();
-        let first_candidate = fixture_event("sort candidate one");
-        let second_candidate = fixture_event("sort candidate two");
-        let (initial_event, later_event) = if first_candidate.id > second_candidate.id {
-            (first_candidate, second_candidate)
-        } else {
-            (second_candidate, first_candidate)
-        };
-        assert!(later_event.id < initial_event.id);
-        fs::write(
-            root.join(format!(".vela/events/{}.json", initial_event.id)),
-            serde_json::to_vec_pretty(&initial_event).unwrap(),
-        )
-        .unwrap();
-        let draft = DeltaDraft::prepare(
-            &root,
-            vec![PlannedWrite::write(
-                RepoPath::parse("frontier.json").unwrap(),
-                WriteClass::Derived,
-                b"transaction head".to_vec(),
-            )],
-        )
-        .unwrap();
-        let plan = fixture_plan(&root, &draft, b"completed event root");
-        let operation_id = plan.operation_id.clone();
-        let mut txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
-        txn.mark_committed().unwrap();
-        txn.install().unwrap();
-        txn.complete().unwrap();
-        drop(txn);
-
-        fs::write(
-            root.join(format!(".vela/events/{}.json", later_event.id)),
-            serde_json::to_vec_pretty(&later_event).unwrap(),
-        )
-        .unwrap();
-        fs::write(root.join("frontier.json"), b"legitimate later head").unwrap();
-
-        let reopened = FrontierTxn::open_if_present(&root, &journals, &operation_id)
-            .unwrap()
-            .expect("historical completed journal");
-        assert_eq!(reopened.recovery_state(), &RecoveryState::Completed);
-        drop(reopened);
-        drop(FrontierTxn::acquire_recovery_barrier(&root, &journals).unwrap());
-    }
-
-    #[test]
-    fn event_neutral_completed_history_proves_superseded_postimages() {
+    fn completed_history_proves_superseded_postimages() {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().join("frontier");
         let journals = temp.path().join("journals");
@@ -5595,88 +5191,6 @@ mod tests {
         assert_eq!(first_retry.recovery_state(), &RecoveryState::Completed);
         drop(first_retry);
         drop(FrontierTxn::acquire_recovery_barrier(&root, &journals).unwrap());
-    }
-
-    #[test]
-    fn completed_history_allows_derived_rematerialization_without_event_drift() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(root.join(".vela/events")).unwrap();
-
-        let event = fixture_event("derived rematerialization");
-        let event_path = root.join(format!(".vela/events/{}.json", event.id));
-        let event_bytes = serde_json::to_vec_pretty(&event).unwrap();
-        let draft = DeltaDraft::prepare(
-            &root,
-            vec![
-                PlannedWrite::write(
-                    RepoPath::parse(format!(".vela/events/{}.json", event.id)).unwrap(),
-                    WriteClass::Authority,
-                    event_bytes.clone(),
-                ),
-                PlannedWrite::write(
-                    RepoPath::parse("frontier.json").unwrap(),
-                    WriteClass::Derived,
-                    b"materialized by reducer one".to_vec(),
-                ),
-            ],
-        )
-        .unwrap();
-        let mut plan = fixture_plan(&root, &draft, b"derived rematerialization");
-        plan.resulting_event_ids = vec![event.id.clone()];
-        plan.resulting_event_log_root = event_log_root(std::slice::from_ref(&event)).unwrap();
-        plan.root = plan.compute_root().unwrap();
-        let expected_event_root = plan.resulting_event_log_root.clone();
-
-        let mut txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
-        txn.mark_committed().unwrap();
-        txn.install().unwrap();
-        txn.complete().unwrap();
-        drop(txn);
-
-        fs::write(root.join("frontier.json"), b"materialized by reducer two").unwrap();
-
-        drop(FrontierTxn::acquire_recovery_barrier(&root, &journals).unwrap());
-        assert_eq!(fs::read(event_path).unwrap(), event_bytes);
-        let current_events = current_event_log_events(&root).unwrap();
-        assert_eq!(
-            event_log_root(&current_events).unwrap(),
-            expected_event_root
-        );
-    }
-
-    #[test]
-    fn completed_history_still_rejects_authority_postimage_drift() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(root.join(".vela/events")).unwrap();
-
-        let event = fixture_event("authority postimage drift");
-        let event_path = RepoPath::parse(format!(".vela/events/{}.json", event.id)).unwrap();
-        let event_bytes = serde_json::to_vec_pretty(&event).unwrap();
-        let draft = DeltaDraft::prepare(
-            &root,
-            vec![PlannedWrite::write(
-                event_path.clone(),
-                WriteClass::Authority,
-                event_bytes,
-            )],
-        )
-        .unwrap();
-        let mut plan = fixture_plan(&root, &draft, b"authority postimage drift");
-        plan.resulting_event_ids = vec![event.id.clone()];
-        plan.resulting_event_log_root = event_log_root(std::slice::from_ref(&event)).unwrap();
-        plan.root = plan.compute_root().unwrap();
-        let mut txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
-        txn.mark_committed().unwrap();
-        txn.install().unwrap();
-        txn.complete().unwrap();
-        drop(txn);
-
-        fs::write(root.join(event_path.as_str()), b"corrupt authority bytes").unwrap();
-        assert!(FrontierTxn::acquire_recovery_barrier(&root, &journals).is_err());
     }
 
     #[test]
@@ -5735,125 +5249,6 @@ mod tests {
             FrontierTxn::open(&root, &journals, &operation_id),
             Err(FrontierTxnError::CorruptBlob(_))
         ));
-    }
-
-    #[test]
-    fn commit_marker_rejects_the_wrong_resulting_event_root() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(&root).unwrap();
-        let draft = DeltaDraft::prepare(
-            &root,
-            vec![PlannedWrite::write(
-                RepoPath::parse("records/receipt.json").unwrap(),
-                WriteClass::CanonicalEvidence,
-                b"receipt".to_vec(),
-            )],
-        )
-        .unwrap();
-        let mut plan = fixture_plan(&root, &draft, b"wrong resulting root");
-        plan.resulting_event_log_root = ContentDigest::hash(b"not the event log");
-        plan.root = plan.compute_root().unwrap();
-        let operation_id = plan.operation_id.clone();
-        let mut txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
-        assert!(matches!(
-            txn.mark_committed(),
-            Err(FrontierTxnError::CorruptPlan(message))
-                if message.contains("resulting event-log commitment")
-        ));
-        assert_eq!(txn.recovery_state(), &RecoveryState::Aborted);
-        let paths = FrontierTxnPaths::new(&journals, &operation_id);
-        assert!(!paths.marker.exists());
-        assert!(!root.join("records/receipt.json").exists());
-        drop(txn);
-
-        assert_eq!(
-            FrontierTxn::recover(&root, &journals, &operation_id).unwrap(),
-            RecoveryOutcome::Aborted
-        );
-
-        let retry_draft = DeltaDraft::prepare(
-            &root,
-            vec![PlannedWrite::write(
-                RepoPath::parse("records/receipt.json").unwrap(),
-                WriteClass::CanonicalEvidence,
-                b"replacement receipt".to_vec(),
-            )],
-        )
-        .unwrap();
-        let retry_plan = fixture_plan(&root, &retry_draft, b"valid transaction after bad root");
-        let mut retry = FrontierTxn::prepare(&root, &journals, retry_plan, retry_draft).unwrap();
-        retry.mark_committed().unwrap();
-        retry.install().unwrap();
-        retry.complete().unwrap();
-        assert_eq!(
-            fs::read(root.join("records/receipt.json")).unwrap(),
-            b"replacement receipt"
-        );
-    }
-
-    #[test]
-    fn commit_marker_rejects_resulting_event_ids_that_do_not_match_the_root() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(&root).unwrap();
-        let draft = DeltaDraft::prepare(
-            &root,
-            vec![PlannedWrite::write(
-                RepoPath::parse("records/receipt.json").unwrap(),
-                WriteClass::CanonicalEvidence,
-                b"receipt".to_vec(),
-            )],
-        )
-        .unwrap();
-        let mut plan = fixture_plan(&root, &draft, b"wrong resulting event ids");
-        plan.resulting_event_ids = vec!["vev_missing".to_string()];
-        plan.root = plan.compute_root().unwrap();
-        let operation_id = plan.operation_id.clone();
-        let mut txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
-        assert!(matches!(
-            txn.mark_committed(),
-            Err(FrontierTxnError::CorruptPlan(message))
-                if message.contains("resulting event-log commitment")
-        ));
-        assert_eq!(txn.recovery_state(), &RecoveryState::Aborted);
-        assert!(
-            !FrontierTxnPaths::new(&journals, &operation_id)
-                .marker
-                .exists()
-        );
-        assert!(!root.join("records/receipt.json").exists());
-    }
-
-    #[test]
-    fn commit_marker_accepts_the_event_set_derived_from_staged_postimages() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(&root).unwrap();
-        let event = fixture_event("staged event");
-        let event_bytes = serde_json::to_vec_pretty(&event).unwrap();
-        let draft = DeltaDraft::prepare(
-            &root,
-            vec![PlannedWrite::write(
-                RepoPath::parse(format!(".vela/events/{}.json", event.id)).unwrap(),
-                WriteClass::Authority,
-                event_bytes,
-            )],
-        )
-        .unwrap();
-        let mut plan = fixture_plan(&root, &draft, b"valid staged event result");
-        plan.resulting_event_ids = vec![event.id.clone()];
-        plan.resulting_event_log_root = event_log_root(&[event]).unwrap();
-        plan.root = plan.compute_root().unwrap();
-
-        let mut txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
-        txn.mark_committed().unwrap();
-        txn.install().unwrap();
-        txn.complete().unwrap();
-        assert_eq!(txn.recovery_state(), &RecoveryState::Completed);
     }
 
     #[test]
@@ -6154,54 +5549,5 @@ mod tests {
             Err(FrontierTxnError::UnsafeTarget { .. })
         ));
         assert!(!txn.paths.marker.exists());
-    }
-
-    #[test]
-    fn stale_event_root_before_marker_has_zero_frontier_delta() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(root.join(".vela/events")).unwrap();
-        let draft = DeltaDraft::prepare(
-            &root,
-            vec![PlannedWrite::write(
-                RepoPath::parse("pending.json").unwrap(),
-                WriteClass::PublicReview,
-                b"pending".to_vec(),
-            )],
-        )
-        .unwrap();
-        let plan = fixture_plan(&root, &draft, b"stale event root");
-        let mut txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
-        let event = fixture_event("simulate a legacy concurrent writer");
-        fs::write(
-            root.join(format!(".vela/events/{}.json", event.id)),
-            serde_json::to_vec_pretty(&event).unwrap(),
-        )
-        .unwrap();
-
-        let error = txn.mark_committed().unwrap_err();
-
-        assert!(matches!(error, FrontierTxnError::StaleEventLog { .. }));
-        assert_eq!(txn.recovery_state(), &RecoveryState::Aborted);
-        assert!(!txn.paths.marker.exists());
-        assert!(!root.join("pending.json").exists());
-        drop(txn);
-
-        let retry_draft = DeltaDraft::prepare(
-            &root,
-            vec![PlannedWrite::write(
-                RepoPath::parse("pending.json").unwrap(),
-                WriteClass::PublicReview,
-                b"pending".to_vec(),
-            )],
-        )
-        .unwrap();
-        let retry_plan = fixture_plan(&root, &retry_draft, b"stale event root");
-        let mut retry = FrontierTxn::prepare(&root, &journals, retry_plan, retry_draft).unwrap();
-        retry.mark_committed().unwrap();
-        retry.install().unwrap();
-        retry.complete().unwrap();
-        assert_eq!(retry.recovery_state(), &RecoveryState::Completed);
     }
 }

@@ -128,13 +128,6 @@ pub(crate) fn prepare_routine_evidence_transaction(
             .map(|draft| draft.path.as_str())
             .collect(),
     })?;
-    // Current repositories retain scientific Decisions as authority events;
-    // FrontierTxn's retired StateEvent log is intentionally empty.
-    let empty_event_root = ContentDigest::parse(format!(
-        "sha256:{}",
-        vela_protocol::events::event_log_hash(&[])
-    ))
-    .map_err(|error| error.to_string())?;
     let plan = FrontierTxnPlan::new(
         FrontierTxnPlanSpec {
             kind,
@@ -144,9 +137,6 @@ pub(crate) fn prepare_routine_evidence_transaction(
             frontier: FrontierBinding::new(frontier, frontier_id, &layout)
                 .map_err(|error| error.to_string())?,
             fixed_time,
-            expected_event_log_root: empty_event_root.clone(),
-            resulting_event_log_root: empty_event_root,
-            resulting_event_ids: Vec::new(),
             read_set,
             result: serde_json::to_value(DurableResult {
                 schema: RESULT_SCHEMA,

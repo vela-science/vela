@@ -37,7 +37,9 @@ use vela_protocol::authority_history::{
     verify_authority_history,
 };
 use vela_protocol::canonical::to_canonical_bytes;
-use vela_protocol::events::{EventKind, StateActor, StateTarget, event_log_hash};
+#[cfg(test)]
+use vela_protocol::events::event_log_hash;
+use vela_protocol::events::{EventKind, StateActor, StateTarget};
 use vela_protocol::principal::HUMAN_ONLY_AUTHORITY_ACTIONS_V1;
 
 use crate::frontier_txn::{
@@ -598,8 +600,6 @@ where
         ));
     }
 
-    let current_event_root = ContentDigest::parse(format!("sha256:{}", event_log_hash(&[])))
-        .map_err(AuthorityTransactionError::Transaction)?;
     let result = AuthorityTransactionResult {
         operation_id: record.content.operation_id.clone(),
         transaction_id: record.content.transaction_id.clone(),
@@ -644,9 +644,6 @@ where
             )
             .map_err(AuthorityTransactionError::Transaction)?,
             fixed_time: request.recorded_at,
-            expected_event_log_root: current_event_root.clone(),
-            resulting_event_log_root: current_event_root,
-            resulting_event_ids: Vec::new(),
             read_set: request.read_set,
             result: serde_json::to_value(DurableAuthorityTransactionResult {
                 schema: RESULT_SCHEMA.into(),
