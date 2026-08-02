@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Make TOML the sole current Frontier Profile encoding. The one-time file cut
+  preserves each profile's canonical JSON root while rejecting retained
+  `frontier.yaml` files and removing the deprecated runtime YAML parser.
+
 ## v0.962.1 — 2026-08-01 — Compacted lineage and Decision freshness
 
 - Reconstruct `vela why` across signed compacted-origin predecessors so an

@@ -393,8 +393,8 @@ pub(crate) fn prepare(
             ));
         }
     }
-    let profile = vela_protocol::current_repository::CurrentFrontierProfileV2::from_yaml_str(
-        &fs::read_to_string(frontier.join("frontier.yaml"))
+    let profile = vela_protocol::current_repository::CurrentFrontierProfileV2::from_toml_str(
+        &fs::read_to_string(frontier.join("frontier.toml"))
             .map_err(|error| format!("read current Frontier Profile: {error}"))?,
     )?;
     let local = crate::cli::local_session(observed_at)?;

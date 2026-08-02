@@ -52,7 +52,7 @@ Target
 A current Frontier contains:
 
 ```text
-frontier.yaml
+frontier.toml
 .vela/repository.json
 .vela/origin.json
 .vela/authority/events/
@@ -68,7 +68,7 @@ records/artifacts/sha256/
 targets.json
 ```
 
-`frontier.yaml` identifies the bounded repository. `.vela/repository.json`
+`frontier.toml` identifies the bounded repository. `.vela/repository.json`
 is the closed `vela.repository.v4` index of active object sets.
 `.vela/origin.json` is the immutable `vela.repository-origin.v1` commitment.
 

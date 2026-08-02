@@ -380,7 +380,7 @@ pub(crate) fn proposal_reproduction_files(
 pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output: bool) {
     crate::ui::set_mode("reproduce", json_output);
     if path.is_dir()
-        && path.join("frontier.yaml").is_file()
+        && path.join("frontier.toml").is_file()
         && !path.join(".vela/origin.json").is_file()
     {
         crate::ui::fail_with(

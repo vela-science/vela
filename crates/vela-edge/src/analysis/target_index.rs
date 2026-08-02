@@ -245,7 +245,7 @@ fn portable_path_key(path: &str) -> String {
 }
 
 fn is_protected_frontier_path(path: &str) -> bool {
-    path == "frontier.yaml"
+    path == "frontier.toml"
         || path == "frontier.json"
         || path == "vela.lock"
         || path.starts_with(".vela/")

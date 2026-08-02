@@ -170,11 +170,11 @@ fn initialize_in_place(path: &Path, options: &CurrentInitOptions<'_>) -> Result<
     let profile_root = profile.profile_root()?;
 
     fs::write(
-        path.join("frontier.yaml"),
-        serde_yaml::to_string(&profile)
+        path.join("frontier.toml"),
+        toml::to_string_pretty(&profile)
             .map_err(|error| format!("serialize current Profile: {error}"))?,
     )
-    .map_err(|error| format!("write frontier.yaml: {error}"))?;
+    .map_err(|error| format!("write frontier.toml: {error}"))?;
     fs::create_dir_all(path.join(".vela")).map_err(|error| format!("create .vela: {error}"))?;
     write_scaffold(path, name, scope)?;
     initialize_git(path, options.initialize_git)?;
@@ -193,7 +193,7 @@ fn initialize_in_place(path: &Path, options: &CurrentInitOptions<'_>) -> Result<
         "wrote": [
             "README.md",
             "SCOPE.md",
-            "frontier.yaml",
+            "frontier.toml",
             ".gitignore",
             ".gitattributes",
             "VELA.md"
@@ -228,7 +228,7 @@ fn write_scaffold(path: &Path, name: &str, scope: &str) -> Result<(), String> {
     )?;
     write(
         ".gitattributes",
-        "* text=auto eol=lf\n.vela/** -filter -ident -working-tree-encoding -merge -text\nrecords/** -filter -ident -working-tree-encoding -merge diff text eol=lf\nartifacts/** -filter -ident -working-tree-encoding -merge -text\nfrontier.yaml -filter -ident -working-tree-encoding -merge diff text eol=lf\ntargets.json -filter -ident -working-tree-encoding -merge diff text eol=lf\n",
+        "* text=auto eol=lf\n.vela/** -filter -ident -working-tree-encoding -merge -text\nrecords/** -filter -ident -working-tree-encoding -merge diff text eol=lf\nartifacts/** -filter -ident -working-tree-encoding -merge -text\nfrontier.toml -filter -ident -working-tree-encoding -merge diff text eol=lf\ntargets.json -filter -ident -working-tree-encoding -merge diff text eol=lf\n",
     )?;
     write(
         "VELA.md",

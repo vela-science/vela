@@ -7,7 +7,7 @@ const RELEASE_WORKFLOW: &str = include_str!("../../../.github/workflows/release.
 const CONFORMANCE_WORKFLOW: &str = include_str!("../../../.github/workflows/conformance.yml");
 
 fn parse_yaml(source: &str) -> Value {
-    serde_yaml::from_str(source).expect("source must be valid YAML")
+    serde_yaml_ng::from_str(source).expect("source must be valid YAML")
 }
 
 fn steps(container: &Value) -> &[Value] {

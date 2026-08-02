@@ -150,9 +150,9 @@ fn install_current_target_index(frontier: &Path, _socket: &Path) {
     let source = git_text(frontier, &["rev-parse", "HEAD^{commit}"]);
     let source_tree = git_text(frontier, &["rev-parse", "HEAD^{tree}"]);
     let profile_source =
-        std::fs::read_to_string(frontier.join("frontier.yaml")).expect("frontier profile");
+        std::fs::read_to_string(frontier.join("frontier.toml")).expect("frontier profile");
     let frontier_id =
-        vela_protocol::current_repository::CurrentFrontierProfileV2::from_yaml_str(&profile_source)
+        vela_protocol::current_repository::CurrentFrontierProfileV2::from_toml_str(&profile_source)
             .expect("current profile")
             .frontier_id;
     let repository_bytes =
@@ -353,8 +353,8 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
 fn current_check_refuses_retired_repositories_before_parsing_them() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     std::fs::write(
-        temporary.path().join("frontier.yaml"),
-        "schema: vela.frontier-profile.v1\n",
+        temporary.path().join("frontier.toml"),
+        "schema = \"vela.frontier-profile.v1\"\n",
     )
     .expect("write retired profile marker");
 

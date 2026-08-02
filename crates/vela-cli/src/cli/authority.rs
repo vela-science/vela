@@ -613,7 +613,7 @@ fn initialize_current_repository_authority(
             "README.md",
             "SCOPE.md",
             "VELA.md",
-            "frontier.yaml",
+            "frontier.toml",
             ".gitignore",
             ".gitattributes",
             ".vela/origin.json",

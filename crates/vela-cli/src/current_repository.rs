@@ -182,10 +182,10 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         ))
     });
     let profile_source =
-        fs::read_to_string(frontier.join("frontier.yaml")).unwrap_or_else(|error| {
+        fs::read_to_string(frontier.join("frontier.toml")).unwrap_or_else(|error| {
             crate::cli::fail_return(&format!("read current Frontier Profile: {error}"))
         });
-    let profile = CurrentFrontierProfileV2::from_yaml_str(&profile_source)
+    let profile = CurrentFrontierProfileV2::from_toml_str(&profile_source)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     if !frontier.join(".vela/origin.json").exists()
         && !frontier.join(".vela/repository.json").exists()
@@ -409,9 +409,9 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
 }
 
 pub(crate) fn verify_current_profile_at(root: &Path) -> Result<CurrentFrontierProfileV2, String> {
-    let profile_source = fs::read_to_string(root.join("frontier.yaml"))
-        .map_err(|error| format!("read current frontier.yaml: {error}"))?;
-    CurrentFrontierProfileV2::from_yaml_str(&profile_source)
+    let profile_source = fs::read_to_string(root.join("frontier.toml"))
+        .map_err(|error| format!("read current frontier.toml: {error}"))?;
+    CurrentFrontierProfileV2::from_toml_str(&profile_source)
 }
 
 pub(crate) fn verify_current_bootstrap_at(root: &Path) -> Result<CurrentFrontierProfileV2, String> {
@@ -1322,9 +1322,9 @@ pub(crate) fn load_current_repository_at(
     root: &Path,
     require_authority_record: bool,
 ) -> Result<CurrentRepositoryV4, String> {
-    let profile_source = fs::read_to_string(root.join("frontier.yaml"))
-        .map_err(|error| format!("read current frontier.yaml: {error}"))?;
-    let profile = CurrentFrontierProfileV2::from_yaml_str(&profile_source)?;
+    let profile_source = fs::read_to_string(root.join("frontier.toml"))
+        .map_err(|error| format!("read current frontier.toml: {error}"))?;
+    let profile = CurrentFrontierProfileV2::from_toml_str(&profile_source)?;
     let profile_root = profile.profile_root()?;
     if root.join(".vela/epoch.json").exists() {
         return Err("current repository cannot retain an epoch boundary".into());
@@ -2442,6 +2442,7 @@ fn git_text(frontier: &Path, args: &[&str]) -> Result<String, String> {
 
 fn is_retired_current_path(path: &str) -> bool {
     path == ".vela/actors.json"
+        || path == "frontier.yaml"
         || path == "frontier.json"
         || path.starts_with(".vela/events/")
         || path.starts_with(".vela/findings/")
@@ -2492,6 +2493,13 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn current_repository_rejects_retired_profile_paths() {
+        assert!(is_retired_current_path("frontier.yaml"));
+        assert!(is_retired_current_path("frontier.json"));
+        assert!(!is_retired_current_path("frontier.toml"));
+    }
 
     fn root(byte: char) -> String {
         format!("sha256:{}", byte.to_string().repeat(64))

@@ -33,32 +33,34 @@ state. Repositories and readers must not depend on it for replay.
 
 ## Profile v2
 
-`frontier.yaml` is closed, human-readable metadata:
+`frontier.toml` is closed, human-readable metadata:
 
-```yaml
-schema: vela.frontier-profile.v2
-frontier_id: vfr_0123456789abcdef
-name: Bounded human-readable name
-summary: One concise description
-scope:
-  question: Which bounded scientific question does this Frontier maintain?
-  includes: []
-  excludes: []
-maintainers: []
-license:
-  content: CC-BY-4.0
-  code: Apache-2.0
-  data: varies
+```toml
+schema = "vela.frontier-profile.v2"
+frontier_id = "vfr_0123456789abcdef"
+name = "Bounded human-readable name"
+summary = "One concise description"
+maintainers = []
+
+[scope]
+question = "Which bounded scientific question does this Frontier maintain?"
+includes = []
+excludes = []
+
+[license]
+content = "CC-BY-4.0"
+code = "Apache-2.0"
+data = "varies"
 ```
 
-The schema rejects unknown fields, duplicate keys, aliases, merge keys,
-explicit tags, non-NFC text, and disallowed control characters.
+The schema rejects unknown fields, duplicate keys, oversized input, non-NFC
+text, and disallowed control characters.
 
 ```text
 profile_root = sha256(canonical_json(profile))
 ```
 
-YAML comments, whitespace, quoting, key order, and final newlines do not change
+TOML comments, whitespace, quoting, key order, and final newlines do not change
 the root. Maintainers are descriptive and receive no review or repository
 authority from the profile.
 
@@ -82,7 +84,7 @@ is no current migration command.
 ## Current canonical layout
 
 ```text
-frontier.yaml
+frontier.toml
 .vela/origin.json
 .vela/repository.json
 .vela/authority/events/
@@ -140,7 +142,7 @@ checked-in runtime configuration file.
 | `.vela/origin.json`, `.vela/repository.json` | Canonical repository identity | Origin is immutable; manifest changes only through a Vela transaction |
 | `.vela/authority/` | Canonical authentication history | Append through repository authority only |
 | `records/**/sha256/` | Canonical content-addressed objects | Never hand-edit or rename |
-| `frontier.yaml` | Descriptive profile | Edit deliberately; any root change must be governed before canonical writes continue |
+| `frontier.toml` | Descriptive profile | Edit deliberately; any root change must be governed before canonical writes continue |
 | `targets.json` and packets | Derived work projection | Generate directly and freshness-check; never treat as Standing |
 | domain-native files | Source and evidence | Keep stable, reviewable identities |
 | `.vela/operation-journals/`, `.vela/work/` | Recovery/private coordination | Never scientific state |

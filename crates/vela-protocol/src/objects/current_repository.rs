@@ -19,6 +19,7 @@ const PROFILE_QUESTION_MAX_BYTES: usize = 4 * 1024;
 const PROFILE_SCOPE_ITEM_MAX_BYTES: usize = 2 * 1024;
 const PROFILE_MAINTAINER_MAX_BYTES: usize = 256;
 const PROFILE_LICENSE_MAX_BYTES: usize = 256;
+const PROFILE_ENCODED_MAX_BYTES: usize = 64 * 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -54,14 +55,14 @@ pub struct CurrentFrontierProfileV2 {
 }
 
 impl CurrentFrontierProfileV2 {
-    pub fn from_yaml_str(source: &str) -> Result<Self, String> {
-        reject_yaml_indirection(source)?;
-        let value: serde_yaml::Value = serde_yaml::from_str(source).map_err(|error| {
-            format!("invalid {CURRENT_FRONTIER_PROFILE_SCHEMA_V2} YAML: {error}")
-        })?;
-        validate_yaml_structure(&value)?;
-        let profile: Self = serde_yaml::from_value(value).map_err(|error| {
-            format!("invalid {CURRENT_FRONTIER_PROFILE_SCHEMA_V2} YAML: {error}")
+    pub fn from_toml_str(source: &str) -> Result<Self, String> {
+        if source.len() > PROFILE_ENCODED_MAX_BYTES {
+            return Err(format!(
+                "{CURRENT_FRONTIER_PROFILE_SCHEMA_V2} exceeds the 64 KiB encoded limit"
+            ));
+        }
+        let profile: Self = toml::from_str(source).map_err(|error| {
+            format!("invalid {CURRENT_FRONTIER_PROFILE_SCHEMA_V2} TOML: {error}")
         })?;
         profile.validate()?;
         Ok(profile)
@@ -335,106 +336,6 @@ fn validate_unique_profile_text(
     Ok(observed)
 }
 
-/// Reject YAML anchors, aliases, and explicit tags before Serde resolves them.
-fn reject_yaml_indirection(source: &str) -> Result<(), String> {
-    let characters = source.chars().collect::<Vec<_>>();
-    let mut index = 0;
-    let mut single_quoted = false;
-    let mut double_quoted = false;
-    let mut double_escape = false;
-    let mut comment = false;
-    while index < characters.len() {
-        let character = characters[index];
-        if comment {
-            comment = character != '\n';
-            index += 1;
-            continue;
-        }
-        if single_quoted {
-            if character == '\'' {
-                if characters.get(index + 1) == Some(&'\'') {
-                    index += 2;
-                    continue;
-                }
-                single_quoted = false;
-            }
-            index += 1;
-            continue;
-        }
-        if double_quoted {
-            if double_escape {
-                double_escape = false;
-            } else if character == '\\' {
-                double_escape = true;
-            } else if character == '"' {
-                double_quoted = false;
-            }
-            index += 1;
-            continue;
-        }
-        let previous = index
-            .checked_sub(1)
-            .and_then(|offset| characters.get(offset));
-        match character {
-            '\'' => single_quoted = true,
-            '"' => double_quoted = true,
-            '#' if previous.is_none_or(|value| value.is_whitespace()) => comment = true,
-            '&' | '*'
-                if previous.is_none_or(|value| {
-                    value.is_whitespace() || matches!(value, '-' | '[' | '{' | ',' | ':')
-                }) && characters.get(index + 1).is_some_and(|value| {
-                    !value.is_whitespace() && !matches!(value, ']' | '}' | ',' | '#')
-                }) =>
-            {
-                return Err(format!(
-                    "{CURRENT_FRONTIER_PROFILE_SCHEMA_V2} forbids YAML anchors and aliases"
-                ));
-            }
-            '!' if previous.is_none_or(|value| {
-                value.is_whitespace() || matches!(value, '-' | '[' | '{' | ',' | ':')
-            }) && characters.get(index + 1).is_some_and(|value| {
-                !value.is_whitespace() && !matches!(value, ']' | '}' | ',' | '#')
-            }) =>
-            {
-                return Err(format!(
-                    "{CURRENT_FRONTIER_PROFILE_SCHEMA_V2} forbids explicit YAML tags"
-                ));
-            }
-            _ => {}
-        }
-        index += 1;
-    }
-    Ok(())
-}
-
-fn validate_yaml_structure(value: &serde_yaml::Value) -> Result<(), String> {
-    match value {
-        serde_yaml::Value::Mapping(mapping) => {
-            for (key, value) in mapping {
-                if key.as_str() == Some("<<") {
-                    return Err(format!(
-                        "{CURRENT_FRONTIER_PROFILE_SCHEMA_V2} forbids YAML merge keys"
-                    ));
-                }
-                validate_yaml_structure(key)?;
-                validate_yaml_structure(value)?;
-            }
-        }
-        serde_yaml::Value::Sequence(sequence) => {
-            for value in sequence {
-                validate_yaml_structure(value)?;
-            }
-        }
-        serde_yaml::Value::Tagged(_) => {
-            return Err(format!(
-                "{CURRENT_FRONTIER_PROFILE_SCHEMA_V2} forbids explicit YAML tags"
-            ));
-        }
-        _ => {}
-    }
-    Ok(())
-}
-
 fn require_text(field: &str, value: &str) -> Result<(), String> {
     if value.trim().is_empty() || value != value.trim() || value.chars().any(char::is_control) {
         return Err(format!(
@@ -572,9 +473,47 @@ mod tests {
                 data: "CC0-1.0".into(),
             },
         };
-        let yaml = serde_yaml::to_string(&current).unwrap();
-        let parsed = CurrentFrontierProfileV2::from_yaml_str(&yaml).unwrap();
+        let toml = toml::to_string_pretty(&current).unwrap();
+        let parsed = CurrentFrontierProfileV2::from_toml_str(&toml).unwrap();
         assert_eq!(parsed, current);
-        assert!(current.profile_root().unwrap().starts_with("sha256:"));
+        assert_eq!(
+            current.profile_root().unwrap(),
+            "sha256:deb7e30bb8d359c6c6eeec8797bd7f701f13afee4377adf2bbec798a914e1e9b"
+        );
+    }
+
+    #[test]
+    fn current_profile_rejects_unknown_duplicate_and_oversized_toml() {
+        let valid = r#"
+schema = "vela.frontier-profile.v2"
+frontier_id = "vfr_0123456789abcdef"
+name = "Example"
+summary = "A bounded example Frontier."
+maintainers = []
+
+[scope]
+question = "What is true?"
+includes = []
+excludes = []
+
+[license]
+content = "CC-BY-4.0"
+code = "Apache-2.0 OR MIT"
+data = "CC0-1.0"
+"#;
+        CurrentFrontierProfileV2::from_toml_str(valid).unwrap();
+        assert!(
+            CurrentFrontierProfileV2::from_toml_str(&format!("{valid}\nunknown = 1\n")).is_err()
+        );
+        let duplicate = valid.replacen(
+            "name = \"Example\"",
+            "name = \"Example\"\nname = \"Again\"",
+            1,
+        );
+        assert!(CurrentFrontierProfileV2::from_toml_str(&duplicate).is_err());
+        assert!(
+            CurrentFrontierProfileV2::from_toml_str(&"x".repeat(PROFILE_ENCODED_MAX_BYTES + 1))
+                .is_err()
+        );
     }
 }
