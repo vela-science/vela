@@ -106,7 +106,7 @@ impl ClaimRecordV1 {
         if bytes.len() > 8 * 1024 * 1024 {
             return Err("Claim Record exceeds the 8 MiB encoded limit".into());
         }
-        let value: Self = serde_json::from_slice(bytes)
+        let value: Self = crate::canonical::from_json_slice_strict(bytes)
             .map_err(|error| format!("parse Claim Record v1: {error}"))?;
         value.verify()?;
         Ok(value)
@@ -360,6 +360,38 @@ mod tests {
         )
         .unwrap_err();
         assert!(error.contains("cannot carry authority field"));
+    }
+
+    #[test]
+    fn parse_rejects_duplicate_properties_inside_extension_values() {
+        let mut extensions = BTreeMap::new();
+        extensions.insert(
+            "example.extension.v1".into(),
+            serde_json::json!({"detail": {"value": 1}}),
+        );
+        let record = ClaimRecordV1::build(
+            1,
+            ClaimAssertion {
+                text: "A bounded result.".into(),
+                kind: "computational".into(),
+            },
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+            "2026-07-27T00:00:00Z".into(),
+            extensions,
+        )
+        .unwrap();
+        let canonical = String::from_utf8(record.canonical_bytes().unwrap()).unwrap();
+        let duplicated = canonical.replace(
+            r#""detail":{"value":1}"#,
+            r#""detail":{"value":1,"value":2}"#,
+        );
+        assert_ne!(duplicated, canonical);
+
+        let error = ClaimRecordV1::parse(duplicated.as_bytes()).unwrap_err();
+        assert!(error.contains("duplicate JSON property `value`"), "{error}");
     }
 
     #[test]

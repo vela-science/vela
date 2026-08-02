@@ -272,13 +272,15 @@ See [Authority and attribution](docs/SIGNING.md) and the
 
 ## Development
 
-Requires a current stable Rust toolchain plus Python and Node for the portable
-conformance readers.
+Requires a current stable Rust toolchain, [uv](https://docs.astral.sh/uv/), and
+Node for the portable conformance readers. Sync the locked Python environment
+before running the independent reader:
 
 ```bash
+uv sync --project conformance --locked
 cargo check -p vela-cli
 cargo clippy -p vela-cli --all-targets -- -D warnings
-python3 conformance/verify.py
+uv run --project conformance --locked python conformance/verify.py
 VELA_EPHEMERAL_ACCOUNT_HOME=1 ./conformance/check-current-object-waist.sh
 ```
 

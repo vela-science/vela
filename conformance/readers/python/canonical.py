@@ -1,15 +1,10 @@
-"""Dependency-free canonical JSON used by the Python conformance reader."""
+"""RFC 8785 canonical JSON used by the independent Python reader."""
 
 from __future__ import annotations
 
-import json
+import rfc8785
 
 
 def canonical_bytes(value: object) -> bytes:
-    """Encode the bounded vela.canonical-json/v1 value domain."""
-    return json.dumps(
-        value,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
-    ).encode("utf-8")
+    """Encode one I-JSON value using the maintained RFC 8785 package."""
+    return rfc8785.dumps(value)

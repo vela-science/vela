@@ -18,7 +18,7 @@ use serde_json::Value;
 pub use crate::authentication::{
     AuthenticationAssurance, AuthenticationMethod, AuthenticationObservationV1,
 };
-use crate::canonical::{sha256_canonical, to_canonical_bytes};
+use crate::canonical::{from_json_slice_strict, sha256_canonical, to_canonical_bytes};
 use crate::events::{
     EVENT_SCHEMA, EventKind, NULL_HASH, StateActor, StateEvent, StateTarget, compute_event_id,
 };
@@ -699,7 +699,7 @@ pub fn verify_authority_envelope(
         return Err("authority signature threshold was not met".into());
     }
 
-    let record: AuthorityRecordV1 = serde_json::from_slice(&payload)
+    let record: AuthorityRecordV1 = from_json_slice_strict(&payload)
         .map_err(|error| format!("authority record JSON is invalid: {error}"))?;
     if to_canonical_bytes(&record)? != payload {
         return Err("authority record payload is not canonical JSON".into());
@@ -1010,6 +1010,32 @@ mod tests {
             verify_authority_envelope(&envelope, &keyset, "vfr_fixture", 1, None).unwrap();
         assert_eq!(verified.record, record);
         assert_eq!(verified.verified_key_ids, vec!["repo-key-1"]);
+    }
+
+    #[test]
+    fn authority_record_payload_rejects_nested_duplicate_properties() {
+        let (record, keyset, key) = fixture();
+        let canonical = String::from_utf8(to_canonical_bytes(&record).unwrap()).unwrap();
+        let payload = canonical
+            .replace(
+                r#""delegation":null"#,
+                r#""delegation":{"scope":"one","scope":"two"}"#,
+            )
+            .into_bytes();
+        assert_ne!(payload, canonical.as_bytes());
+        let signature = key.sign(&dsse_pae(AUTHORITY_PAYLOAD_TYPE_V1, &payload));
+        let envelope = AuthorityEnvelopeV1 {
+            payload_type: AUTHORITY_PAYLOAD_TYPE_V1.into(),
+            payload: BASE64_STANDARD.encode(&payload),
+            signatures: vec![DsseSignatureV1 {
+                keyid: "repo-key-1".into(),
+                sig: BASE64_STANDARD.encode(signature.to_bytes()),
+            }],
+        };
+
+        let error =
+            verify_authority_envelope(&envelope, &keyset, "vfr_fixture", 1, None).unwrap_err();
+        assert!(error.contains("duplicate JSON property `scope`"), "{error}");
     }
 
     #[test]

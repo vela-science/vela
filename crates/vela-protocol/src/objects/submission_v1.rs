@@ -231,7 +231,7 @@ impl SubmissionV1 {
         if bytes.len() > 8 * 1024 * 1024 {
             return Err("Submission exceeds the 8 MiB encoded limit".into());
         }
-        let value: Self = serde_json::from_slice(bytes)
+        let value: Self = crate::canonical::from_json_slice_strict(bytes)
             .map_err(|error| format!("parse Submission v1: {error}"))?;
         value.verify()?;
         Ok(value)

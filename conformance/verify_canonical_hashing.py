@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Canonical-hashing conformance for the Python content-addressing path.
+"""RFC 8785 conformance for the Python content-addressing path.
 
 Pins the small independent Python canonicalizer against
 `conformance/canonical-hashing.json`, byte-for-byte and by SHA-256.
@@ -25,14 +25,14 @@ sys.path.insert(0, str(HERE / "readers" / "python"))
 try:
     from canonical import canonical_bytes  # type: ignore
 except Exception as e:  # noqa: BLE001
-    print(f"could not import the Python canonicalizer: {e}", file=sys.stderr)
+    print(f"could not import the RFC 8785 canonicalizer: {e}", file=sys.stderr)
     sys.exit(2)
 
 
 def main() -> int:
     vectors_path = HERE / "canonical-hashing.json"
     doc = json.loads(vectors_path.read_text(encoding="utf-8"))
-    if doc.get("format_id") != "vela.canonical-json/v1":
+    if doc.get("format_id") != "RFC8785":
         print("vector file pins the wrong format id", file=sys.stderr)
         return 2
     vectors = doc.get("vectors", [])
@@ -57,11 +57,11 @@ def main() -> int:
 
     print(f"\ncanonical-hashing: {len(vectors)} vectors, {failures} FAILED")
     if failures:
-        print("CANONICAL-JSON DRIFT -- the Python content-address path no longer "
-              "matches the pinned vela.canonical-json/v1 form (Rust will mint "
+        print("JCS DRIFT -- the Python content-address path no longer "
+              "matches RFC 8785 (Rust will mint "
               "different ids than Python re-verifies).")
         return 1
-    print("Python content-address path conforms to vela.canonical-json/v1: OK")
+    print("Python content-address path conforms to RFC 8785: OK")
     return 0
 
 

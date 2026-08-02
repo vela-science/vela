@@ -1,15 +1,15 @@
 {
-  "schema": "vela.canonical-hashing.v1",
-  "format_id": "vela.canonical-json/v1",
-  "doctrine": "Every content-addressed id in the protocol (vf_ finding, vev_ canonical event, vpr_ proposal, the snapshot hash, the event-log leaf) is the SHA-256 of the canonical JSON bytes of a value. Two implementations derive the same id from the same logical content only if their canonicalization is byte-identical. These vectors pin vela.canonical-json/v1 so any implementation can verify byte-for-byte: keys sorted lexicographically at every depth, no inter-token whitespace, UTF-8 preserved verbatim (NOT \\u-escaped), floats in serde_json/Ryu shortest-round-trip form (1.0 keeps its decimal point), array order preserved, non-finite floats rejected.",
+  "schema": "vela.canonical-hashing.v2",
+  "format_id": "RFC8785",
+  "doctrine": "Every content-addressed id in the protocol is the SHA-256 of RFC 8785 JSON Canonicalization Scheme bytes. The input must satisfy the I-JSON constraints: duplicate properties and non-finite numbers fail before hashing, and protocol integers are bounded to the exact IEEE-754 interoperable range. These vectors pin standard UTF-16 property ordering, ECMAScript number serialization, compact UTF-8 output, array-order preservation, and exact SHA-256 roots.",
   "scope": {
     "conforming_implementations": [
-      "Rust: vela_protocol::canonical::to_canonical_bytes / to_canonical_string / sha256_canonical (crates/vela-protocol/src/kernel/canonical.rs)",
-      "Python: conformance/readers/python/canonical.py -- json.dumps(sort_keys=True, separators=(',',':'), ensure_ascii=False)."
+      "Rust: vela_protocol::canonical::to_canonical_bytes / to_canonical_string / sha256_canonical using serde_json_canonicalizer 0.3.2",
+      "Python: conformance/readers/python/canonical.py using rfc8785 0.1.4"
     ],
     "explicitly_out_of_scope": [
-      "JavaScript and TypeScript number encoders use the ECMAScript numeric model and do not preserve the Rust distinction between 1 and 1.0. Current portable protocol objects therefore forbid non-integer numeric fields in content-address preimages unless their schema defines an exact string representation.",
-      "Python default json.dumps WITHOUT ensure_ascii=False renders non-ASCII as \\uXXXX (e.g. amyloid-\\u03b2) and therefore does NOT conform. Any Python content-addressing path MUST pass ensure_ascii=False."
+      "Raw scientific artifacts may contain integers outside the I-JSON interoperable range; they remain exact byte-addressed evidence and are not parsed-and-recanonicalized protocol objects.",
+      "Generic serde_json and Python json.dumps output are not substitutes for RFC 8785."
     ]
   },
   "vectors": [
@@ -26,10 +26,10 @@
       "sha256": "016340518d42e38bf144785a7b4da7cc97a1338321b927915b6c2349721e0040"
     },
     {
-      "name": "floats render with a decimal point (content-address form)",
+      "name": "numbers use RFC 8785 ECMAScript serialization",
       "input": { "ratio": 1.5, "score": 1.0, "tiny": 0.001 },
-      "canonical": "{\"ratio\":1.5,\"score\":1.0,\"tiny\":0.001}",
-      "sha256": "7339335626f370137d3df5ceefd12adf8475b735af4b573a408a1618c13a9ae8"
+      "canonical": "{\"ratio\":1.5,\"score\":1,\"tiny\":0.001}",
+      "sha256": "6d7eb7a70f18fd95888403c4dc7d8926d3f24864be9c6b68dcd738309667568e"
     },
     {
       "name": "large integers are not float-ified",

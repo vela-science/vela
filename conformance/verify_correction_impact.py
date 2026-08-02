@@ -24,16 +24,12 @@ EXPECTED_RULES = {
     "discovery": "discovery_only",
     "supports": "support_route",
 }
+sys.path.insert(0, str(ROOT / "conformance" / "readers" / "python"))
+from canonical import canonical_bytes  # noqa: E402
 
 
 class ContractError(ValueError):
     """A stable fail-closed contract error."""
-
-
-def canonical_bytes(value: object) -> bytes:
-    return json.dumps(
-        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
-    ).encode("utf-8")
 
 
 def canonical_root(value: object) -> str:

@@ -13,12 +13,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CONFORMANCE = ROOT / "conformance"
-
-
-def canonical_bytes(value: object) -> bytes:
-    return json.dumps(
-        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
-    ).encode("utf-8")
+sys.path.insert(0, str(CONFORMANCE / "readers" / "python"))
+from canonical import canonical_bytes  # noqa: E402
 
 
 def verify_sidon_witness(witness: object) -> bool:

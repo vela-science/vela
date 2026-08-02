@@ -27,12 +27,20 @@ jobs:
         with:
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.32"
+          python-version: "3.13"
+          enable-cache: true
+          cache-dependency-glob: conformance/uv.lock
       - name: audit GitHub Actions contracts
-        run: pipx run --spec zizmor==1.28.0 zizmor --offline --min-severity medium .
+        run: uvx --from zizmor==1.28.0 zizmor --offline --min-severity medium .
       - name: install the exact dependency-policy checker
         run: cargo install cargo-deny --version 0.20.2 --locked
       - name: enforce dependency advisories, licenses, bans, and sources
         run: cargo deny --locked check
+      - name: sync the locked independent reader
+        run: uv sync --project conformance --locked
       - name: format
         run: cargo fmt --all -- --check
       - name: clippy (deny warnings)
@@ -40,12 +48,12 @@ jobs:
       - name: build
         run: cargo build --release -p vela-cli --bin vela
       - name: complete Rust protocol and task-first test union
-        run: ./conformance/check-core.sh
+        run: uv run --project conformance --locked ./conformance/check-core.sh
       - name: current Submission and Verification interoperability waist
         env:
           VELA_EPHEMERAL_ACCOUNT_HOME: "1"
         run: ./conformance/check-current-object-waist.sh
       - name: independent authority foundation verifier
-        run: python3 conformance/verify.py
+        run: uv run --project conformance --locked python conformance/verify.py
       - name: reproduce (CLI re-derives the synthetic valid corpus)
         run: ./target/release/vela reproduce crates/vela-verify/corpus/valid/smoke

@@ -1,17 +1,15 @@
-use std::collections::HashSet;
+use std::collections::BTreeMap;
 use std::env;
-use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::{STANDARD as BASE64_STANDARD, URL_SAFE as BASE64_URL_SAFE};
-use serde::de::{self, MapAccess, SeqAccess, Visitor};
-use serde::{Deserialize, Deserializer, Serialize};
-use serde_json::{Map, Number, Value};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sha2::{Digest, Sha256};
-use vela_protocol::canonical::to_canonical_bytes;
+use vela_protocol::canonical::parse_json_value_strict;
 
 const MAX_JCS_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 
@@ -83,99 +81,6 @@ struct CheckoutCounts {
     authority_payloads: usize,
     authority_payload_matches: usize,
     exceptions: Vec<ExceptionResult>,
-}
-
-struct UniqueJson(Value);
-
-impl<'de> Deserialize<'de> for UniqueJson {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_any(UniqueJsonVisitor)
-    }
-}
-
-struct UniqueJsonVisitor;
-
-impl<'de> Visitor<'de> for UniqueJsonVisitor {
-    type Value = UniqueJson;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("JSON without duplicate object properties")
-    }
-
-    fn visit_unit<E>(self) -> Result<Self::Value, E> {
-        Ok(UniqueJson(Value::Null))
-    }
-
-    fn visit_bool<E>(self, value: bool) -> Result<Self::Value, E> {
-        Ok(UniqueJson(Value::Bool(value)))
-    }
-
-    fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E> {
-        Ok(UniqueJson(Value::Number(value.into())))
-    }
-
-    fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E> {
-        Ok(UniqueJson(Value::Number(value.into())))
-    }
-
-    fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        Number::from_f64(value)
-            .map(|number| UniqueJson(Value::Number(number)))
-            .ok_or_else(|| E::custom("non-finite JSON number"))
-    }
-
-    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> {
-        Ok(UniqueJson(Value::String(value.to_owned())))
-    }
-
-    fn visit_string<E>(self, value: String) -> Result<Self::Value, E> {
-        Ok(UniqueJson(Value::String(value)))
-    }
-
-    fn visit_none<E>(self) -> Result<Self::Value, E> {
-        Ok(UniqueJson(Value::Null))
-    }
-
-    fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        UniqueJson::deserialize(deserializer)
-    }
-
-    fn visit_seq<A>(self, mut sequence: A) -> Result<Self::Value, A::Error>
-    where
-        A: SeqAccess<'de>,
-    {
-        let mut values = Vec::new();
-        while let Some(value) = sequence.next_element::<UniqueJson>()? {
-            values.push(value.0);
-        }
-        Ok(UniqueJson(Value::Array(values)))
-    }
-
-    fn visit_map<A>(self, mut object: A) -> Result<Self::Value, A::Error>
-    where
-        A: MapAccess<'de>,
-    {
-        let mut seen = HashSet::new();
-        let mut values = Map::new();
-        while let Some(key) = object.next_key::<String>()? {
-            if !seen.insert(key.clone()) {
-                return Err(de::Error::custom(format!(
-                    "duplicate JSON property `{key}`"
-                )));
-            }
-            values.insert(key, object.next_value::<UniqueJson>()?.0);
-        }
-        Ok(UniqueJson(Value::Object(values)))
-    }
 }
 
 #[test]
@@ -358,10 +263,37 @@ fn read_fixture() -> AuditFixture {
 }
 
 fn parse_unique_json(bytes: &[u8]) -> Result<Value, serde_json::Error> {
-    let mut deserializer = serde_json::Deserializer::from_slice(bytes);
-    let value = UniqueJson::deserialize(&mut deserializer)?.0;
-    deserializer.end()?;
-    Ok(value)
+    parse_json_value_strict(bytes)
+}
+
+// Frozen copy of the pre-JCS Vela canonicalizer. This audit compares retained
+// heads against the historical writer contract, not the current production
+// canonicalizer, so a production migration cannot erase known differences.
+fn legacy_canonical_bytes(value: &Value) -> Result<Vec<u8>, String> {
+    let canonical = legacy_canonicalize(value.clone())?;
+    serde_json::to_vec(&canonical)
+        .map_err(|error| format!("legacy canonical serialization failed: {error}"))
+}
+
+fn legacy_canonicalize(value: Value) -> Result<Value, String> {
+    match value {
+        Value::Object(object) => {
+            let mut sorted = BTreeMap::new();
+            for (key, nested) in object {
+                sorted.insert(key, legacy_canonicalize(nested)?);
+            }
+            Ok(Value::Object(sorted.into_iter().collect()))
+        }
+        Value::Array(values) => values
+            .into_iter()
+            .map(legacy_canonicalize)
+            .collect::<Result<Vec<_>, _>>()
+            .map(Value::Array),
+        Value::Number(ref number) if number.as_f64().is_some_and(|number| !number.is_finite()) => {
+            Err("legacy canonicalization received a non-finite number".into())
+        }
+        other => Ok(other),
+    }
 }
 
 fn jcs_string<T: Serialize>(value: &T) -> String {
@@ -428,9 +360,9 @@ fn audit_checkout(root: &Path, repository: &str) -> CheckoutCounts {
         let value = parse_unique_json(&bytes)
             .unwrap_or_else(|error| panic!("parse {}: {error}", relative.display()));
         counts.files += 1;
-        let current = to_canonical_bytes(&value).expect("current canonicalization");
+        let legacy = legacy_canonical_bytes(&value).expect("legacy canonicalization");
         let jcs = serde_json_canonicalizer::to_vec(&value).expect("JCS canonicalization");
-        if current == jcs {
+        if legacy == jcs {
             counts.matches += 1;
         } else {
             let path = relative.to_string_lossy().into_owned();
@@ -439,7 +371,7 @@ fn audit_checkout(root: &Path, repository: &str) -> CheckoutCounts {
                 path: path.clone(),
                 raw_sha256: format!("sha256:{}", hex::encode(Sha256::digest(&bytes))),
                 git_blob: git(root, &["rev-parse", &format!("HEAD:{path}")]),
-                first_difference: first_difference(&current, &jcs),
+                first_difference: first_difference(&legacy, &jcs),
                 unsafe_integer_count: count_unsafe_integers(&value),
             });
         }
@@ -460,14 +392,14 @@ fn audit_authority_payload(value: &Value, relative: &Path, counts: &mut Checkout
         .or_else(|_| BASE64_URL_SAFE.decode(encoded))
         .expect("DSSE payload base64");
     let value = parse_unique_json(&payload).expect("unique DSSE payload JSON");
-    let current = to_canonical_bytes(&value).expect("current DSSE canonicalization");
+    let legacy = legacy_canonical_bytes(&value).expect("legacy DSSE canonicalization");
     assert_eq!(
-        current, payload,
+        legacy, payload,
         "DSSE payload is not retained canonical JSON"
     );
     let jcs = serde_json_canonicalizer::to_vec(&value).expect("DSSE JCS canonicalization");
     counts.authority_payloads += 1;
-    if current == jcs {
+    if legacy == jcs {
         counts.authority_payload_matches += 1;
     } else {
         panic!("DSSE authority payload differs under JCS");

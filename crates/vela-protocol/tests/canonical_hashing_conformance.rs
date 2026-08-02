@@ -1,4 +1,4 @@
-//! Canonical-hashing conformance — pins `vela.canonical-json/v1`.
+//! Canonical-hashing conformance — pins RFC 8785 JCS.
 //!
 //! `conformance/canonical-hashing.json` is the portable spec of the canonical
 //! JSON form every content-addressed id hashes (see
@@ -26,7 +26,7 @@ fn canonical_hashing_vectors_match_rust() {
     let raw = std::fs::read_to_string(vectors_path()).expect("read canonical-hashing.json");
     let doc: Value = serde_json::from_str(&raw).expect("parse canonical-hashing.json");
     assert_eq!(
-        doc["format_id"], "vela.canonical-json/v1",
+        doc["format_id"], "RFC8785",
         "vector file pins the wrong format id"
     );
     let vectors = doc["vectors"].as_array().expect("vectors is an array");
