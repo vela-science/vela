@@ -22,6 +22,7 @@ resolver = "3"
 # research documents are historical proof-slice labels.
 version = "0.962.1"
 edition = "2024"
+rust-version = "1.97.1"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/vela-science/vela"
 homepage = "https://github.com/vela-science/vela"

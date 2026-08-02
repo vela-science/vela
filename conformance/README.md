@@ -6,7 +6,17 @@ Vela's current public object boundary.
 Run all checks:
 
 ```bash
-python3 conformance/verify.py
+uv sync --project conformance --locked --all-groups
+uv run --project conformance --locked ./conformance/check-core.sh
+```
+
+The independent reader supports Python 3.11 through 3.14. CI uses an exact
+interpreter while `requires-python` keeps the reader contract independent of a
+single minor line. CI-affecting Python tools are part of the same lock:
+
+```bash
+uv run --project conformance --locked ruff check conformance
+uv run --project conformance --locked zizmor --offline --min-severity medium .
 ```
 
 The corpus protects four contract families:

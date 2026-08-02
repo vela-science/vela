@@ -18,15 +18,20 @@ permissions:
 
 jobs:
   rust:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable 2026-07-19
         with:
+          toolchain: "1.97.1"
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.0.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           version: "0.11.32"
@@ -34,7 +39,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: conformance/uv.lock
       - name: audit GitHub Actions contracts
-        run: uvx --from zizmor==1.28.0 zizmor --offline --min-severity medium .
+        run: uv run --project conformance --locked zizmor --offline --min-severity medium .
       - name: install the exact dependency-policy checker
         run: cargo install cargo-deny --version 0.20.2 --locked
       - name: enforce dependency advisories, licenses, bans, and sources
@@ -44,9 +49,9 @@ jobs:
       - name: format
         run: cargo fmt --all -- --check
       - name: clippy (deny warnings)
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
       - name: build
-        run: cargo build --release -p vela-cli --bin vela
+        run: cargo build --locked --release -p vela-cli --bin vela
       - name: complete Rust protocol and task-first test union
         run: uv run --project conformance --locked ./conformance/check-core.sh
       - name: current Submission and Verification interoperability waist
