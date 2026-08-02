@@ -154,10 +154,13 @@ infrastructure.
   limitation explicitly.
 - The current production Atlas checkpoint was rebuilt from all four cleaned
   Frontier heads and is exact at projection root
-  `sha256:a96c527f9c69225666cb4bcb3346a6a1e46e6b25fd6ed47a428ebd5e3aa03183`.
-  Its manifest binds Erdős `69393e3d`, Formal `6cbc2cb5`, Quantum
-  `29202cfb`, and Sidon `e07b6317`; the database sync, corpus checks, source
-  evidence retention, activation, pruning, and production redeploy passed.
+  `sha256:8f3b16d8204f237334724c39ab257ce052df3dd4b840ed047d538033b613653c`.
+  Its manifest binds Erdős `8428650c`, Formal `b706a90b`, Quantum
+  `8b6d53ea`, and Sidon `d2b7480d`. Those commits remove unbound predecessor
+  scaffolding while preserving all four exact scientific repository roots.
+  Database sync, stored-root verification, SELECT-only reader verification,
+  source evidence retention, atomic activation, local build, and production
+  deployment all passed.
 - The same release adds the exact `openai/ten-proofs` source adapter to the
   existing 11-source Registry. The bounded `erdos:183:astra-fidelity` work
   now retains a source-bound producer report whose conclusion is `faithful`
@@ -509,7 +512,7 @@ reputation score, or `1.0.0` schedule.
 | Vela | `0.962.1` is published with direct producer withdrawal, compacted-lineage reconstruction, and current-root Decision checks; release checks are green | keep one train and release only for demonstrated changes |
 | Cross-language readers | standalone Python and JavaScript conformance readers | keep package-free until a real external consumer requires a library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; the current checkpoint binds projection root `sha256:a96c527f9c69225666cb4bcb3346a6a1e46e6b25fd6ed47a428ebd5e3aa03183`, 11 exact sources, 6,713 native records, and current-head clean-room artifact `sha256:da6125b81f998a3fae9efdee9d5b73193e8fb3c17cc61780e48835a04fa307ca` | keep the exact source projection; add no Astra-specific UI or broader execution until a real consumer earns it |
+| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; deployment commit `aa6b4cb4` binds projection root `sha256:8f3b16d8204f237334724c39ab257ce052df3dd4b840ed047d538033b613653c`, 11 exact sources, 6,713 native records, and current-head clean-room artifact `sha256:da6125b81f998a3fae9efdee9d5b73193e8fb3c17cc61780e48835a04fa307ca` | keep the exact source projection; add no Astra-specific UI or broader execution until a real consumer earns it |
 | Frontiers | canonical Git sources with pending human Decisions; the obsolete Formal duplicate is withdrawn with zero accepted delta | decide or cancel exact remaining Proposals, replay, remap |
 | Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 
