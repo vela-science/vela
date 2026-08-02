@@ -22,12 +22,13 @@ identity. This roadmap records only product sequence.
 - Submission and Verification append evidence without changing Standing.
 - Only an attributed human Decision changes Standing.
 - A real Erdős result has completed the full loop and replayed exactly.
-- Formal and quantum results have separate, scoped Verification and remain
-  pending human Decisions.
-- The pending quantum correction has an exact alternate-algorithm
+- Formal and quantum results have separate, scoped Verification. Formal remains
+  pending human Decision.
+- The accepted quantum correction has an exact alternate-algorithm
   reconstruction: a source-visible verifier derives the complete symplectic
   centralizer and reproduces the retained `[[10,1,4]]` certificate. This is
-  not external-participant independence or acceptance.
+  not external-participant independence, optimality, uniqueness, novelty,
+  classification, or broader scientific acceptance.
 - A correction from Erdős was retained and checked by Formal without importing
   Erdős authority.
 - The pinned OpenAI `ten-proofs` release has an exact source adapter,
@@ -61,18 +62,19 @@ identity. This roadmap records only product sequence.
 
 ## Now — prove the product loop
 
-### 1. Complete one consequential Decision
+### 1. Use the completed Quantum Decision as the product-loop checkpoint
 
-For one technically eligible Proposal:
+The exact Quantum correction completed the consequential loop:
 
-1. show the bounded Claim, evidence, Verification, and exact Standing diff;
-2. let the human authority accept or reject, or let the exact producer
-   withdraw obsolete pending work without authority;
-3. replay the before and after roots;
-4. refresh the read projection; and
-5. expose the exact next Target or explicit absence of one.
+1. the Observatory showed the bounded Claim, evidence, two scoped
+   Verifications, and exact Standing diff;
+2. the human authority accepted it with a bounded reason;
+3. strict replay verified the new repository root;
+4. the root-bound read projection advanced atomically; and
+5. the Frontier now exposes an explicit absence of producer work rather than
+   inventing a next Target.
 
-No agent performs step 2. Verification never selects the outcome.
+No agent performed step 2. Verification did not select the outcome.
 
 The Formal cross-Frontier Proposal is technically Decision-eligible. External
 adoption or measured cold-user lift is **not** a protocol prerequisite for that

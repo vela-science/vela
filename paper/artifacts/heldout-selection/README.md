@@ -45,3 +45,14 @@ It adds repository-v4 reader support and scans Erdős `da791f88`, Formal
 `no_qualifying_candidate` outcome: the only candidate remains the excluded
 Erdős 424 qualification case and still lacks the required consequence
 topology. The original frozen result remains unchanged.
+
+The 2026-08-02 post-Decision rerun is retained as
+`result.2026-08-02.json`, byte root
+`sha256:da87f6ebd438a3ef3e46c388ee7ff379a0bab74bc4db1713cf4a46de38952b52`.
+It detects the accepted Quantum `[[10,1,4]]` supersession at commit
+`718de33dcdb27e97e92458530e938f2262c86fbe` in addition to the Erdős 424
+case. The Quantum transition is scientifically real but ineligible because
+the frozen input graph contains no hard dependent, support diamond, or
+non-consequential relation. The result therefore remains
+`no_qualifying_candidate`; no reader trial is run and no relation is invented
+to qualify it.
