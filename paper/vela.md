@@ -992,10 +992,12 @@ The evaluation includes:
 - **Foreign Frontier:** foreign state must be attributed information with no
   imported local authority. A derived edge-layer envelope passes real-source
   semantic, signature, and containment checks without changing the protocol.
-  Formal Conjectures retained it as a pending local Proposal, imported a
-  scoped Verification, and reproduced the resulting root from a clean clone
-  with zero accepted-state delta. B8 passes; external independence and
-  performance lift remain unestablished.
+  Formal Conjectures initially retained it as a pending local Proposal,
+  imported two scoped Verifications, and reproduced the pre-Decision root from
+  a clean clone with zero accepted-state delta. A later attributed human
+  Decision accepted only the bounded retention Claim, after which strict
+  replay reproduced the terminal local Standing. B8 passes; external
+  independence and performance lift remain unestablished.
 - **Implementation:** Rust and clean-room Python reduce shared-code defects but
   share the same specification, fixtures, operator, and project incentives.
   Agreement is implementation diversity, not organizational independence.
@@ -1233,12 +1235,15 @@ claims. A fourth Astra source-fidelity comparison failed with 0/2 exact in
 both arms and earns no lift claim. A historical foreign-reference envelope
 qualified the real source package in two colocated readers, including its
 authority signature. A second Frontier retained that exact package through a
-pending, non-authoritative Submission, imported a scoped Verification, and
-replayed the resulting repository from a clean clone with zero accepted-state
-delta. This passes the bounded transfer and authority-containment gate. The
-reusable runtime reader was removed after the experiment did not earn a shared
-adapter contract; the exact reader and bytes remain with the paper evidence. A
-prospective living-map loop reached an exact Submission,
+Submission that was initially pending and non-authoritative, imported two
+scoped Verifications, and replayed the pre-Decision repository from a clean
+clone with zero accepted-state delta. A later attributed human Decision
+accepted only the bounded local retention Claim, and strict replay reproduced
+the terminal Standing. This passes the bounded transfer and
+authority-containment gate. The reusable runtime reader was removed after the
+experiment did not earn a shared adapter contract; the exact reader and bytes
+remain with the paper evidence. A prospective living-map loop reached an exact
+Submission,
 scoped Verification, terminal human Decision, clean-clone replay, and
 deterministic remap. Its first candidate exposed a stale-Target failure. A
 subsequent source-local closure pass retained the completed packet and proved
