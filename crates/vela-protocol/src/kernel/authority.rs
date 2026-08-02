@@ -7,7 +7,10 @@
 use std::collections::BTreeSet;
 
 use base64::Engine as _;
-use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use base64::engine::general_purpose::{
+    STANDARD as BASE64_STANDARD, STANDARD_NO_PAD as BASE64_STANDARD_NO_PAD,
+    URL_SAFE as BASE64_URL_SAFE, URL_SAFE_NO_PAD as BASE64_URL_SAFE_NO_PAD,
+};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -603,14 +606,13 @@ impl AuthorityRecordV1 {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct DsseSignatureV1 {
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub keyid: String,
     pub sig: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct AuthorityEnvelopeV1 {
     #[serde(rename = "payloadType")]
     pub payload_type: String,
@@ -653,9 +655,50 @@ pub fn verify_authority_envelope(
     if envelope.signatures.is_empty() {
         return Err("authority envelope has no signatures".into());
     }
-    let payload = BASE64_STANDARD
-        .decode(&envelope.payload)
-        .map_err(|error| format!("authority envelope payload is not base64: {error}"))?;
+    let payload = decode_dsse_base64("authority envelope payload", &envelope.payload)?;
+
+    let pae = dsse_pae(&envelope.payload_type, &payload);
+    let mut verified = BTreeSet::new();
+    'signatures: for signed in &envelope.signatures {
+        let Ok(signature_bytes) = decode_dsse_base64("authority signature", &signed.sig) else {
+            continue;
+        };
+        let Ok(signature_bytes) = <[u8; 64]>::try_from(signature_bytes.as_slice()) else {
+            continue;
+        };
+        let signature = Signature::from_bytes(&signature_bytes);
+
+        for key in &keyset.keys {
+            if (!signed.keyid.is_empty() && signed.keyid != key.key_id)
+                || verified.contains(&key.key_id)
+                || expected_sequence < key.valid_from_sequence
+                || key
+                    .valid_through_sequence
+                    .is_some_and(|through| expected_sequence > through)
+            {
+                continue;
+            }
+            let Ok(public_key_bytes) =
+                decode_fixed_hex::<32>("authority public key", &key.public_key)
+            else {
+                continue;
+            };
+            let Ok(public_key) = VerifyingKey::from_bytes(&public_key_bytes) else {
+                continue;
+            };
+            if public_key.verify(&pae, &signature).is_ok() {
+                verified.insert(key.key_id.clone());
+                if verified.len() >= usize::try_from(keyset.threshold).unwrap_or(usize::MAX) {
+                    break 'signatures;
+                }
+                break;
+            }
+        }
+    }
+    if verified.len() < usize::try_from(keyset.threshold).unwrap_or(usize::MAX) {
+        return Err("authority signature threshold was not met".into());
+    }
+
     let record: AuthorityRecordV1 = serde_json::from_slice(&payload)
         .map_err(|error| format!("authority record JSON is invalid: {error}"))?;
     if to_canonical_bytes(&record)? != payload {
@@ -671,48 +714,6 @@ pub fn verify_authority_envelope(
     }
     if record.content.authority_keyset_root != keyset.root()? {
         return Err("authority record does not bind the supplied keyset".into());
-    }
-
-    let pae = dsse_pae(&envelope.payload_type, &payload);
-    let mut verified = BTreeSet::new();
-    for signed in &envelope.signatures {
-        if !verified.insert(signed.keyid.clone()) {
-            return Err(format!("duplicate DSSE signature from {}", signed.keyid));
-        }
-        let key = keyset
-            .keys
-            .iter()
-            .find(|candidate| candidate.key_id == signed.keyid)
-            .ok_or_else(|| format!("unknown authority key {}", signed.keyid))?;
-        if record.content.sequence < key.valid_from_sequence
-            || key
-                .valid_through_sequence
-                .is_some_and(|through| record.content.sequence > through)
-        {
-            return Err(format!(
-                "authority key {} is outside its sequence window",
-                key.key_id
-            ));
-        }
-        let public_key = VerifyingKey::from_bytes(&decode_fixed_hex::<32>(
-            "authority public key",
-            &key.public_key,
-        )?)
-        .map_err(|error| format!("invalid authority public key: {error}"))?;
-        let signature_bytes = BASE64_STANDARD
-            .decode(&signed.sig)
-            .map_err(|error| format!("authority signature is not base64: {error}"))?;
-        let signature = Signature::from_bytes(
-            &signature_bytes
-                .try_into()
-                .map_err(|_| "authority signature must be exactly 64 bytes".to_string())?,
-        );
-        public_key
-            .verify(&pae, &signature)
-            .map_err(|error| format!("authority signature verification failed: {error}"))?;
-    }
-    if verified.len() < usize::try_from(keyset.threshold).unwrap_or(usize::MAX) {
-        return Err("authority signature threshold was not met".into());
     }
 
     Ok(VerifiedAuthorityRecord {
@@ -735,6 +736,15 @@ pub fn dsse_pae(payload_type: &str, payload: &[u8]) -> Vec<u8> {
     output.push(b' ');
     output.extend_from_slice(payload);
     output
+}
+
+fn decode_dsse_base64(name: &str, value: &str) -> Result<Vec<u8>, String> {
+    BASE64_STANDARD
+        .decode(value)
+        .or_else(|_| BASE64_URL_SAFE.decode(value))
+        .or_else(|_| BASE64_STANDARD_NO_PAD.decode(value))
+        .or_else(|_| BASE64_URL_SAFE_NO_PAD.decode(value))
+        .map_err(|error| format!("{name} is not base64: {error}"))
 }
 
 fn require_sha256(name: &str, value: &str) -> Result<(), String> {
@@ -991,14 +1001,65 @@ mod tests {
     #[test]
     fn authority_record_roundtrips_through_dsse() {
         let (record, keyset, key) = fixture();
-        let verified = verify_authority_envelope(
-            &signed_envelope(&record, &key),
-            &keyset,
-            "vfr_fixture",
-            1,
-            None,
-        )
-        .unwrap();
+        let envelope = signed_envelope(&record, &key);
+        assert_eq!(
+            envelope.payload,
+            BASE64_STANDARD.encode(to_canonical_bytes(&record).unwrap())
+        );
+        let verified =
+            verify_authority_envelope(&envelope, &keyset, "vfr_fixture", 1, None).unwrap();
+        assert_eq!(verified.record, record);
+        assert_eq!(verified.verified_key_ids, vec!["repo-key-1"]);
+    }
+
+    #[test]
+    fn authority_record_accepts_dsse_base64_variants() {
+        let (record, keyset, key) = fixture();
+        let mut envelope = signed_envelope(&record, &key);
+        envelope.payload =
+            BASE64_URL_SAFE_NO_PAD.encode(BASE64_STANDARD.decode(&envelope.payload).unwrap());
+        envelope.signatures[0].sig = BASE64_URL_SAFE_NO_PAD
+            .encode(BASE64_STANDARD.decode(&envelope.signatures[0].sig).unwrap());
+
+        let verified =
+            verify_authority_envelope(&envelope, &keyset, "vfr_fixture", 1, None).unwrap();
+        assert_eq!(verified.record, record);
+        assert_eq!(verified.verified_key_ids, vec!["repo-key-1"]);
+    }
+
+    #[test]
+    fn authority_record_accepts_dsse_extensions_and_missing_keyid() {
+        let (record, keyset, key) = fixture();
+        let mut value = serde_json::to_value(signed_envelope(&record, &key)).unwrap();
+        value
+            .as_object_mut()
+            .unwrap()
+            .insert("extension".into(), serde_json::json!({"retained": false}));
+        let signature = value["signatures"][0].as_object_mut().unwrap();
+        signature.remove("keyid");
+        signature.insert("extension".into(), serde_json::json!("ignored"));
+        let envelope: AuthorityEnvelopeV1 = serde_json::from_value(value).unwrap();
+
+        let verified =
+            verify_authority_envelope(&envelope, &keyset, "vfr_fixture", 1, None).unwrap();
+        assert_eq!(verified.record, record);
+        assert_eq!(verified.verified_key_ids, vec!["repo-key-1"]);
+    }
+
+    #[test]
+    fn authority_record_skips_invalid_and_unknown_dsse_signatures() {
+        let (record, keyset, key) = fixture();
+        let mut envelope = signed_envelope(&record, &key);
+        envelope.signatures.insert(
+            0,
+            DsseSignatureV1 {
+                keyid: "unknown-key".into(),
+                sig: "not base64".into(),
+            },
+        );
+
+        let verified =
+            verify_authority_envelope(&envelope, &keyset, "vfr_fixture", 1, None).unwrap();
         assert_eq!(verified.record, record);
         assert_eq!(verified.verified_key_ids, vec!["repo-key-1"]);
     }
@@ -1081,7 +1142,7 @@ mod tests {
     }
 
     #[test]
-    fn authority_record_rejects_noncanonical_payload_and_duplicate_signer() {
+    fn authority_record_rejects_noncanonical_payload_and_does_not_double_count_signer() {
         let (record, keyset, key) = fixture();
         let mut envelope = signed_envelope(&record, &key);
         let decoded = BASE64_STANDARD.decode(&envelope.payload).unwrap();
@@ -1092,9 +1153,26 @@ mod tests {
         envelope.payload = BASE64_STANDARD.encode(pretty);
         assert!(verify_authority_envelope(&envelope, &keyset, "vfr_fixture", 1, None).is_err());
 
-        let mut duplicate = signed_envelope(&record, &key);
+        let second_key = SigningKey::from_bytes(&[8; 32]);
+        let mut threshold_keyset = keyset;
+        threshold_keyset.keys.push(AuthorityKeyV1 {
+            key_id: "repo-key-2".into(),
+            algorithm: AUTHORITY_KEY_ALGORITHM.into(),
+            public_key: hex::encode(second_key.verifying_key().as_bytes()),
+            valid_from_sequence: 1,
+            valid_through_sequence: None,
+            purpose: AUTHORITY_KEY_PURPOSE.into(),
+        });
+        threshold_keyset.threshold = 2;
+        let mut content = record.content;
+        content.authority_keyset_root = threshold_keyset.root().unwrap();
+        let threshold_record = AuthorityRecordV1::new(content).unwrap();
+        let mut duplicate = signed_envelope(&threshold_record, &key);
         duplicate.signatures.push(duplicate.signatures[0].clone());
-        assert!(verify_authority_envelope(&duplicate, &keyset, "vfr_fixture", 1, None).is_err());
+        let error =
+            verify_authority_envelope(&duplicate, &threshold_keyset, "vfr_fixture", 1, None)
+                .unwrap_err();
+        assert!(error.contains("threshold"), "{error}");
     }
 
     #[test]
@@ -1109,10 +1187,7 @@ mod tests {
             None,
         )
         .unwrap_err();
-        assert!(
-            error.contains("keyset") || error.contains("sequence"),
-            "{error}"
-        );
+        assert!(error.contains("threshold"), "{error}");
 
         let (_, mut keyset, _) = fixture();
         keyset.threshold = 2;
