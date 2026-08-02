@@ -67,7 +67,7 @@ python3 paper/artifacts/transfer/verify_foreign_reference.py \
   --package-root /tmp/erdos-424
 ```
 
-Create and verify a deterministic portable archive:
+Create and verify the deterministic **native foreign-reference archive**:
 
 ```bash
 python3 paper/artifacts/transfer/pack_reference.py \
@@ -78,6 +78,10 @@ python3 paper/artifacts/transfer/verify_archive.py \
   --expected-root \
   sha256:b7b330ae6ea4915d5bac218233f0a272ee961060682be6d22f6a8ea1b78c4ed6
 ```
+
+That archive intentionally contains only `reference.v1.json` and its exact
+`objects/` tree. It is not an RO-Crate archive: it does not contain
+`ro-crate-metadata.json`, the loss report, or the fixity manifest.
 
 The landscape decision remains intentionally narrow: Vela is scientific state
 and inheritance infrastructure. A reusable package, read-only index, Registry,
@@ -96,6 +100,25 @@ the existing `erdos-424/` package:
 2. `ro-crate-metadata.json` is an attached RO-Crate 1.3 metadata view over that
    same native manifest and the same 11 object files. It introduces no copied
    object tree, Vela protocol object, import command, or authority.
+
+The present artifact is a **Decision-chain transfer package**, not a complete
+Vela Submission RO-Crate profile. The retained Submission references source
+artifact
+`sha256:d18024c4333f77144955adf0036ce831e71b331ea7d9cc9cb69958f960f56d6c`,
+but that source-diff payload and its predecessor/successor source bytes are not
+part of the frozen 11-object authority package. An independent reader can
+verify the exact Claim, Verification, Decision, authority chain, and local
+non-authority boundary; it cannot rerun the underlying source-diff check from
+this crate alone. A future portable Submission crate must either include those
+exact evidence bytes or declare them as immutable external references and
+prove retrieval and digest parity.
+
+The `erdos-424/` directory is an evidence companion, not itself a distributable
+crate directory: later assessment, materialization, receiver-preflight, and
+receiver-publication results coexist there but are deliberately outside the
+RO-Crate `hasPart` set. A future distributed crate must be built from a closed
+allowlist into a clean directory or deterministic archive rather than tarring
+this working evidence directory wholesale.
 
 `vela-loss-report.v1.json` states the six Vela semantic planes that base
 RO-Crate does not preserve losslessly. `reader-result.v1.json` records the
@@ -148,7 +171,7 @@ python3 -m unittest \
   paper.artifacts.transfer.test_scientific_change_package
 ```
 
-This completes a first-party packaging baseline only. It does not establish
+This completes a first-party base-RO-Crate packaging baseline only. It does not establish
 external adoption, measured continuation lift, RO-Crate validation of Vela
 semantics, or source authority in another Frontier.
 

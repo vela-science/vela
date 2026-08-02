@@ -115,6 +115,15 @@ sequence-one authority trust root, canonical objects, and replay.
 Derived databases, Web pages, graphs, and search indexes are rebuildable and
 must name their source roots.
 
+The retained Erdős 424 RO-Crate 1.3 experiment is a base metadata view over a
+Decision-chain transfer package. It is not a supported Submission profile or
+complete workflow crate: the referenced source-diff evidence payload is not in
+its frozen authority object set, and its deterministic native-reference archive
+does not include the RO-Crate sidecars. Promotion requires one closed,
+allowlisted crate that carries or immutably resolves every evidence payload a
+receiver needs, plus a real independent consumer. Until then, no general
+interchange SDK, profile registry, or import command is warranted.
+
 ## Versioning
 
 Current schemas are closed and versioned. Unknown major schemas fail closed.
