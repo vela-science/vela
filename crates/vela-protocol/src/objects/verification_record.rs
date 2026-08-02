@@ -13,6 +13,7 @@ use crate::identity::IdentityBinding;
 
 pub const VERIFICATION_RECORD_V1_SCHEMA: &str = "vela.verification-record.v1";
 pub const VERIFICATION_RECORD_AUTH_ALGORITHM: &str = "ed25519";
+pub const VERIFICATION_RECORD_MAX_BYTES: usize = 4 * 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -126,7 +127,7 @@ impl VerificationRecordV1 {
     }
 
     pub fn parse(bytes: &[u8]) -> Result<Self, String> {
-        if bytes.len() > 4 * 1024 * 1024 {
+        if bytes.len() > VERIFICATION_RECORD_MAX_BYTES {
             return Err("Verification Record exceeds the 4 MiB encoded limit".into());
         }
         let value: Self = crate::canonical::from_json_slice_strict(bytes)

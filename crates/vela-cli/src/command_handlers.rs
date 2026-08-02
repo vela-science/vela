@@ -7,6 +7,9 @@ use std::path::{Component, Path, PathBuf};
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::submission_v1::SubmissionV1;
 
+const REPLAY_CAPSULE_MAX_BYTES: u64 = 1024 * 1024;
+const WITNESS_MAX_BYTES: u64 = 64 * 1024 * 1024;
+
 pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
     match action {
         VerifyAction::Record {
@@ -49,9 +52,12 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
             json,
         } => {
             crate::ui::set_mode("verification.import", json);
-            let bytes = std::fs::read(&record).unwrap_or_else(|error| {
-                fail_return(&format!("read {}: {error}", record.display()))
-            });
+            let bytes = crate::bounded_file::read_bounded_file(
+                &record,
+                vela_protocol::verification_record::VERIFICATION_RECORD_MAX_BYTES as u64,
+                "Verification Record v1",
+            )
+            .unwrap_or_else(|error| fail_return(&error.to_string()));
             let record = vela_protocol::verification_record::VerificationRecordV1::parse(&bytes)
                 .unwrap_or_else(|error| {
                     fail_return(&format!(
@@ -173,9 +179,13 @@ fn proposal_native_replay_hint(
         if !metadata.file_type().is_file() || metadata.file_type().is_symlink() {
             continue;
         }
-        let bytes = std::fs::read(&capsule_path)
-            .map_err(|error| format!("read source-local replay capsule: {error}"))?;
-        let capsule: Value = serde_json::from_slice(&bytes)
+        let bytes = crate::bounded_file::read_bounded_file(
+            &capsule_path,
+            REPLAY_CAPSULE_MAX_BYTES,
+            "source-local replay capsule",
+        )
+        .map_err(|error| error.to_string())?;
+        let capsule: Value = vela_protocol::canonical::parse_json_value_strict(&bytes)
             .map_err(|error| format!("parse source-local replay capsule: {error}"))?;
         if capsule
             .pointer("/identity/proposal_id")
@@ -368,8 +378,12 @@ pub(crate) fn proposal_reproduction_files(
                 &reference.path,
                 &reference.root,
             )?;
-            let raw = std::fs::read_to_string(&file)
-                .map_err(|error| format!("read current proposal witness: {error}"))?;
+            let raw = crate::bounded_file::read_bounded_file(
+                &file,
+                WITNESS_MAX_BYTES,
+                "current proposal witness",
+            )
+            .map_err(|error| error.to_string())?;
             parse_witness(&raw)
                 .map_err(|error| format!("current proposal artifact is not a frozen witness: {error}"))?;
             Ok(file)
@@ -453,7 +467,7 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
     let mut failed = 0usize;
     for file in &files {
         let result_path = reproduction_result_path(path, file, proposal_id.is_some());
-        let raw = match std::fs::read_to_string(file) {
+        let raw = match crate::bounded_file::read_bounded_file(file, WITNESS_MAX_BYTES, "witness") {
             Ok(r) => r,
             Err(e) => {
                 failed += 1;
@@ -481,17 +495,21 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
         // claim then verifies ONLY if it also strictly dominates the
         // referenced witness — dominance is arithmetic, not opinion.
         if outcome.ok
-            && let Ok(value) = serde_json::from_str::<Value>(&raw)
+            && let Ok(value) = vela_protocol::canonical::parse_json_value_strict(&raw)
             && let Some(prior_rel) = value.get("improves_on").and_then(Value::as_str)
         {
             let prior_path = file
                 .parent()
                 .map(|d| d.join(prior_rel))
                 .unwrap_or_else(|| std::path::PathBuf::from(prior_rel));
-            match std::fs::read_to_string(&prior_path)
-                .map_err(|e| format!("improves_on read {}: {e}", prior_path.display()))
-                .and_then(|p| parse_witness(&p))
-                .and_then(|prior| witness.dominates(&prior))
+            match crate::bounded_file::read_bounded_file(
+                &prior_path,
+                WITNESS_MAX_BYTES,
+                "improves_on witness",
+            )
+            .map_err(|e| e.to_string())
+            .and_then(|p| parse_witness(&p))
+            .and_then(|prior| witness.dominates(&prior))
             {
                 Ok(true) => {
                     outcome.message =

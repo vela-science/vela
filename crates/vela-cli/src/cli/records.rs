@@ -37,9 +37,10 @@ impl ReproductionWitness {
     }
 }
 
-/// Parse one current bare witness representation.
-pub(crate) fn parse_witness(raw: &str) -> Result<ReproductionWitness, String> {
-    let value: serde_json::Value = serde_json::from_str(raw).map_err(|error| error.to_string())?;
+/// Parse one already-bounded current bare witness representation.
+pub(crate) fn parse_witness(raw: &[u8]) -> Result<ReproductionWitness, String> {
+    let value: serde_json::Value = vela_protocol::canonical::parse_json_value_strict(raw)
+        .map_err(|error| error.to_string())?;
     parse_witness_value(value)
 }
 
@@ -112,7 +113,7 @@ mod tests {
 
     #[test]
     fn parses_and_verifies_the_retained_quantum_schema() {
-        let witness = parse_witness(QUANTUM_WITNESS).unwrap();
+        let witness = parse_witness(QUANTUM_WITNESS.as_bytes()).unwrap();
         assert_eq!(witness.kind(), "quantum_stabilizer");
         let outcome = witness.verify();
         assert!(outcome.ok, "{}", outcome.message);
@@ -123,7 +124,8 @@ mod tests {
     fn quantum_schema_still_fails_closed_on_invalid_generators() {
         let mut value: serde_json::Value = serde_json::from_str(QUANTUM_WITNESS).unwrap();
         value["generators"][8] = value["generators"][0].clone();
-        let witness = parse_witness(&serde_json::to_string(&value).unwrap()).unwrap();
+        let encoded = serde_json::to_vec(&value).unwrap();
+        let witness = parse_witness(&encoded).unwrap();
         let outcome = witness.verify();
         assert!(!outcome.ok);
         assert!(outcome.message.contains("distinct"));
@@ -134,7 +136,14 @@ mod tests {
         let wrapped = serde_json::json!({
             "witness": serde_json::from_str::<serde_json::Value>(QUANTUM_WITNESS).unwrap()
         });
-        let error = parse_witness(&serde_json::to_string(&wrapped).unwrap()).unwrap_err();
+        let encoded = serde_json::to_vec(&wrapped).unwrap();
+        let error = parse_witness(&encoded).unwrap_err();
         assert_eq!(error, "not a recognized current witness");
+    }
+
+    #[test]
+    fn witness_parser_rejects_duplicate_properties() {
+        let duplicate = br#"{"schema":"one","schema":"two"}"#;
+        assert!(parse_witness(duplicate).unwrap_err().contains("duplicate"));
     }
 }
