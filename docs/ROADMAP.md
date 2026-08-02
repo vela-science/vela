@@ -58,7 +58,7 @@ identity. This roadmap records only product sequence.
   This is still first-party evidence; the later local Decision does not satisfy
   the unrun external-reader value gate.
 - A four-person external cold-reader pilot is frozen at plan root
-  `sha256:1fb12c44aa8fce0c2f3d84c70ea0a44574b6d78be92d848431d125919cf62d86`.
+  `sha256:992858398fcaac2dd2df2d6b0edd4f03fe50dd2c7eb6195deee28e2cc25f93ca`.
   It compares Git and the root-bound Observatory over the accepted Quantum
   correction and accepted Formal transfer, with exact authority-error gates
   and no new harness. It has not run yet and earns no external-user claim.

@@ -169,7 +169,7 @@ fixture. The current first-party campaign earns no such credit.
 
 The current product-reading pilot is preregistered separately at
 `paper/artifacts/cold-reader-study/plan.v1.json`, byte root
-`sha256:1fb12c44aa8fce0c2f3d84c70ea0a44574b6d78be92d848431d125919cf62d86`.
+`sha256:992858398fcaac2dd2df2d6b0edd4f03fe50dd2c7eb6195deee28e2cc25f93ca`.
 Four external readers will inspect the accepted Quantum correction and the
 accepted Formal transfer in a counterbalanced Git-versus-Observatory crossover.
 It measures comprehension and next-action latency only. Because the frozen
@@ -222,7 +222,7 @@ Report execution lift, state lift, inheritance lift, and adoption separately.
 No combined score can compensate for a hard-gate failure.
 
 Current B8 status is passed for exact retained transfer. The real Erdős 424
-reference passes the Rust and dependency-free Python readers at root
+reference passes the Rust and independently implemented Python readers at root
 `sha256:b7b330ae6ea4915d5bac218233f0a272ee961060682be6d22f6a8ea1b78c4ed6`,
 including repository-authority signature verification and explicit local
 Standing effect `none`. Formal retained the exact archive through corrected

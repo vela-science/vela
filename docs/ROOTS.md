@@ -20,17 +20,20 @@ encoding; the containing schema and field identify what was hashed.
 
 ## Canonical bytes
 
-Current Vela JSON uses `canonical::to_canonical_bytes`:
+Current Vela protocol JSON uses RFC 8785 JSON Canonicalization Scheme (JCS)
+through `canonical::to_canonical_bytes`:
 
-- object keys sort lexicographically at every depth;
+- object keys sort by UTF-16 code units at every depth;
 - array order remains semantic;
 - no insignificant whitespace is emitted;
-- strings use JSON escaping with UTF-8 preserved;
-- numbers use the pinned `serde_json` round-trip form; and
-- non-finite values are rejected.
+- strings use the RFC 8785 JSON escaping rules;
+- numbers use ECMAScript number serialization; and
+- duplicate properties, non-finite values, and protocol integers outside the
+  exact I-JSON/IEEE-754 safe-integer range are rejected before hashing.
 
-This is the Vela canonical JSON profile, not a claim of universal RFC 8785
-equivalence. `conformance/canonical-hashing.json` pins the bytes.
+`conformance/canonical-hashing.json` and the official RFC 8785 vectors pin the
+bytes. Raw scientific and execution evidence remains hashed as exact retained
+bytes; it is not parsed and silently recanonicalized as protocol JSON.
 
 Artifact digests hash exact bytes. Git commit and tree IDs use Git's object
 format. DSSE and OpenSSH signatures use their separately versioned signing
@@ -139,5 +142,5 @@ agree with themselves:
 ```bash
 cargo test -p vela-protocol --test canonical_hashing_conformance
 cargo test -p vela-protocol --test current_object_interop
-python3 conformance/verify.py
+uv run --project conformance --locked python conformance/verify.py
 ```

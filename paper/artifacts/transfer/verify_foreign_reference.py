@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dependency-free clean-room verifier for a foreign-reference package."""
+"""Independent clean-room verifier for a foreign-reference package."""
 
 from __future__ import annotations
 

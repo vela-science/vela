@@ -437,8 +437,8 @@ harness. The current workspace keeps one internal TypeScript reader for
 cross-language object conformance. Neither is required for canonical replay.
 
 The correction-impact reference reader is Rust in `vela-edge`. The clean-room
-reader is dependency-free Python and imports no Rust implementation. Both
-consume the same public JSON fixture bytes.
+reader is independently implemented Python and imports no Rust implementation.
+Both consume the same public JSON fixture bytes.
 
 The Observatory and its Neon projection are read-only conveniences. Removing
 them does not remove canonical Git state.
@@ -748,7 +748,7 @@ The real Erdős reference has 11 required objects, reference root
 and object-set root
 `sha256:f9cc936b42f7ee624d98583332454dbb46b68c00fa2819d990cea4d6d7daec8a`.
 An attached metadata view targets the current RO-Crate 1.3 Recommendation and
-the dependency-free reader proves exact native-object parity. The retained
+the independent Python reader proves exact native-object parity. The retained
 external-tool observation is `unsupported_profile`: current `roc-validator`
 releases expose base profiles only through 1.2. No older profile is
 substituted, and this result is not presented as off-the-shelf 1.3 validation.
@@ -905,8 +905,9 @@ median time fell 52.69 percent and median cost 54.77 percent. The latter compact
 result is rooted at
 `sha256:c0e6b316ce2b446d0b1a05b7f9d1acdb93631b32ae7c2b17d76805a8b650cfda`.
 Both are first-party, single-task results. They establish neither general
-productivity lift nor independent-user advantage, and the Formal receiver
-Proposal remains pending a human Decision.
+productivity lift nor independent-user advantage. The Formal receiver Proposal
+has since been accepted by a human Decision; that later Decision does not
+satisfy the unrun independent-user gate.
 
 A fourth comparison tested one Astra / Erdős 183 source-fidelity packet. All
 four trials were eligible, but both arms returned 0/2 exact; the registered
@@ -1172,11 +1173,15 @@ Current implementation qualification:
 
 ```bash
 cargo test -p vela-edge --test correction_impact
-python3 conformance/verify_correction_impact.py
-python3 paper/artifacts/transfer/verify_foreign_reference.py --json
-python3 -m unittest paper.artifacts.transfer.test_scientific_change_package
-python3 -m unittest paper/artifacts/cost/test_measure.py
-python3 -m unittest discover \
+uv run --project conformance --locked python \
+  conformance/verify_correction_impact.py
+uv run --project conformance --locked python \
+  paper/artifacts/transfer/verify_foreign_reference.py --json
+uv run --project conformance --locked python -m unittest \
+  paper.artifacts.transfer.test_scientific_change_package
+uv run --project conformance --locked python -m unittest \
+  paper/artifacts/cost/test_measure.py
+uv run --project conformance --locked python -m unittest discover \
   -s paper/artifacts/map-target-loop -p 'test_*.py'
 ./conformance/check-core.sh
 ```

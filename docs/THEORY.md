@@ -221,7 +221,7 @@ Run:
 
 ```bash
 cargo test -p vela-protocol
-python3 conformance/verify.py
+uv run --project conformance --locked python conformance/verify.py
 ./conformance/check-core.sh
 ```
 

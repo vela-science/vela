@@ -216,7 +216,7 @@ infrastructure.
   transfer already passes between distinct Frontier authority keysets with no
   imported Standing. Its attached view targets the current RO-Crate 1.3
   Recommendation, carries the exact source-diff, predecessor, successor, and
-  full-index patch, and passes the dependency-free parity and transition
+  full-index patch, and passes the independent Python parity and transition
   readers. A closed fixity manifest binds the package payload without defining
   a Vela-specific archive format. The retained result explicitly records that
   current `roc-validator` releases do not yet ship a 1.3 validation profile.
@@ -252,19 +252,27 @@ retains RO-Crate 1.3 as a derived evidence-transfer adapter. It must begin with 
 dual-encoding audit of every retained Frontier object; it may not silently
 rewrite roots or old signatures.
 
-The frozen 2026-08-02 parsed-value shadow audit recursively rejects duplicate
-JSON properties and binds exact commits, trees, counts, raw exceptions, and a
+The frozen 2026-08-02 parsed-value shadow audit recursively rejected duplicate
+JSON properties and bound exact commits, trees, counts, raw exceptions, and a
 canonical result root in `conformance/jcs-shadow-audit.v1.json`. On those four
 clean Frontier heads, 3,158 of 3,161 parsed tracked JSON values and all seven
-decoded authority payloads are JCS-byte-identical. Three exact raw Erdős
-evidence artifacts differ and remain byte-preserved evidence rather than JCS
-protocol objects; one contains all 17 observed unsafe integers. This proves
-only the frozen parsed-value scope, not arbitrary future extension values or
-the production hashing boundary. The existing authority verifier now follows
-DSSE 1.0.2 envelope parsing and threshold rules without changing emitted bytes
-or any Frontier root. Production duplicate-property and unsafe-number
-rejection, the common signed-object boundary, independent readers, and portable
-schemas remain gated work.
+decoded authority payloads were JCS-byte-identical. Three exact raw Erdős
+evidence artifacts differed and remain byte-preserved evidence rather than JCS
+protocol objects; one contains all 17 observed unsafe integers. Vela now uses
+the pinned RFC 8785 implementation in production, rejects duplicate properties
+recursively and unsafe protocol integers before hashing, and has an independent
+uv-locked Python reader. Authority verification follows DSSE 1.0.2 envelope
+parsing and threshold rules. Exact replay preserved all four Frontier roots.
+The remaining gated work is the common signed-object boundary for Submission
+and Verification, portable JSON Schema 2020-12, and Cedar parity followed by a
+single current-epoch cut with no dual runtime.
+
+The read projection is intentionally small operationally: one Neon project,
+one `main` branch, and one active `vela_observatory` application database. The
+unused `vela_projection` database, empty Registration-era tables, and all
+legacy Hub/Registry tables have been removed. The inert `neondb` shell contains
+no user tables. This cleanup did not move the active release pointer or
+projection root.
 
 No retained mechanism may create another prompt for routine computation,
 artifact creation, Submission, or Verification. A human interruption is
@@ -396,12 +404,12 @@ held-out correction-impact or independent-participant gate.
 
 The next independent-product gate is frozen in
 `paper/artifacts/cold-reader-study/plan.v1.json`, byte root
-`sha256:1fb12c44aa8fce0c2f3d84c70ea0a44574b6d78be92d848431d125919cf62d86`.
+`sha256:992858398fcaac2dd2df2d6b0edd4f03fe50dd2c7eb6195deee28e2cc25f93ca`.
 It uses four external readers, the accepted Quantum correction, and the
 accepted Formal cross-Frontier retention in a two-task counterbalanced
 Git-versus-Observatory crossover. The semantic answer key was frozen before
 participant one at byte root
-`sha256:25df84114e86970d8c77b7ce3774f0ad8acd2a2fcb1645e54e6c8ad2201d6f7f`.
+`sha256:c7c9e97dc16c3169d4d710714a09ce670a874bc24ff68720f892466582a5a6ea`.
 No new runner, service, model call, or mutation surface is required. A positive
 result supports only bounded external product-comprehension and continuation
 claims; the failed held-out correction-topology gate still prevents a protocol-
@@ -533,9 +541,10 @@ Use focused checks during development:
 cargo test -p vela-protocol principal
 cargo test -p vela-protocol authority_record
 cargo test -p vela-cli --test current_genesis
-python3 conformance/verify.py
+uv run --project conformance --locked python conformance/verify.py
 cargo check -p vela-cli
-python3 -m unittest discover -s benchmarks/product-compression -p 'test_*.py'
+uv run --project conformance --locked python -m unittest discover \
+  -s benchmarks/product-compression -p 'test_*.py'
 git diff --check
 ```
 

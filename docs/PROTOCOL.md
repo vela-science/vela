@@ -445,7 +445,7 @@ Focused checks:
 ```bash
 cargo check -p vela-cli
 cargo clippy -p vela-cli --all-targets -- -D warnings
-python3 conformance/verify.py
+uv run --project conformance --locked python conformance/verify.py
 ```
 
 The deterministic full release union runs once per release boundary.

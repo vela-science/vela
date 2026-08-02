@@ -13,9 +13,11 @@
 Vela should own scientific meaning, replay, correction, Decision, and
 Standing. It should not own a novel JSON canonicalizer or signature envelope.
 
-The current implementation has four different standards postures:
+At proposal time, the implementation had four different standards postures.
+The implementation note below records which parts have since shipped and which
+remain open:
 
-1. `vela.canonical-json/v1` is deterministic but is not RFC 8785 JCS. It
+1. `vela.canonical-json/v1` was deterministic but was not RFC 8785 JCS. It
    sorts Rust strings by Unicode scalar value and preserves `serde_json`
    number forms. JCS sorts raw UTF-16 code units and uses ECMAScript number
    serialization over I-JSON values.
@@ -31,30 +33,31 @@ The current implementation has four different standards postures:
    action on one exact resource. The retained RO-Crate 1.3 experiment is
    already a derived transfer view and does not create Standing.
 
-The current DSSE implementation also has four envelope-level interoperability
-gaps even though its signatures and PAE are sound: it accepts only standard
+At proposal time, the DSSE implementation also had four envelope-level
+interoperability gaps even though its signatures and PAE were sound: it
+accepted only standard
 base64, rejects unknown envelope fields, requires `keyid`, and aborts on any
 unknown or invalid extra signature. DSSE 1.0.2 requires standard and URL-safe
 base64 acceptance, treats `keyid` as optional and unauthenticated, tells
 consumers to ignore unknown envelope fields, and permits threshold verification
 to skip signatures that do not verify.
 
-The current Cedar boundary is correctly narrow, but historical verification
-does not re-run Cedar. It verifies the signed Authority Record's retained
+The Cedar boundary remains narrow, but historical verification does not re-run
+Cedar. It verifies the signed Authority Record's retained
 `Allow` result, diagnostics, engine/profile/version, and policy-bundle root.
 The exact request and entity inputs are represented only by roots, so the
 authorization result is an authenticated attestation rather than an
 independently recomputed policy evaluation.
 
-The canonicalization difference is observable. For object keys `U+E000` and
-`U+1F600`, the current Rust/Python order places `U+E000` first, while JCS
+The retired canonicalization difference was observable. For object keys
+`U+E000` and `U+1F600`, the old Rust/Python order placed `U+E000` first, while JCS
 places the non-BMP key first because its leading UTF-16 surrogate is smaller.
 The current vectors also intentionally encode `1.0` as `1.0` and allow a
 `serde_json` construction path to coerce NaN to `null`; JCS emits `1` and
 requires non-finite input to fail.
 
-Current portable Submission and Verification fixtures contain only values for
-which both encodings agree. That fact is useful but does not prove that all
+The portable Submission and Verification fixtures at proposal time contained
+only values for which both encodings agreed. That fact was useful but did not prove that all
 retained Claim extensions, Event payloads, authority payloads, or repository
 objects agree.
 
@@ -89,10 +92,23 @@ commits and trees, counts, seven authority payloads, raw exception byte hashes
 and Git blobs, first-difference offsets, unsafe-integer counts, and canonical
 result root. The result supports a root-preserving canonicalizer switch only
 for the compared parsed values and authority payloads at those four heads. It
-does not prove that arbitrary future extension values satisfy I-JSON, authorize
-the switch, or complete the production hashing boundary. Production
-duplicate-property and unsafe-number rejection, independent readers, and the
-closed portable schemas remain required first.
+does not prove that arbitrary future extension values satisfy I-JSON or
+authorize later wire-contract changes.
+
+### Implementation note: 2026-08-02
+
+The production protocol now uses pinned `serde_json_canonicalizer 0.3.2`,
+passes the official RFC 8785 vectors, rejects duplicate properties recursively,
+and refuses unsafe protocol integers before hashing. An independent Python
+reader uses pinned `rfc8785 0.1.4` through the committed uv lock. The four
+canonical Frontier roots remained unchanged through the switch. Authority
+records now use DSSE 1.0.2-compatible envelope parsing and threshold behavior.
+
+This ADR remains Proposed because the common DSSE boundary for Submission and
+Verification, portable JSON Schema 2020-12 contracts, and the Cedar replacement
+have not shipped. Cedar must not be deleted until the closed evaluator matches
+all retained fixtures and transactions and one explicit current-epoch cut is
+replayed from clean clones.
 
 ## Decision
 
