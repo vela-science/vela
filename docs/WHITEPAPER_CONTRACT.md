@@ -88,6 +88,30 @@ correctly after a Decision without becoming canonical authority?
 The current evidence supports Level 0. Each result table must name the highest
 level it supports.
 
+### Current publication ceiling — 2026-08-02
+
+The retained evidence is sufficient for a bounded engineering report, not the
+registered protocol-breakthrough paper:
+
+- attributed human Decisions, exact replay, and root-bound remapping pass on
+  real Erdős and Quantum results;
+- one first-party cross-Frontier package passes exact retention, scoped
+  receiver Verification, clean-clone replay, and zero imported Standing;
+- three matched native Harbor tasks show task-specific first-party exactness
+  advantages, while one Astra task failed and earns no lift claim; and
+- Rust and dependency-free Python agree on the bounded synthetic
+  correction-impact vectors.
+
+The stronger paper remains gated because the post-Decision Quantum correction
+has no preregistered hard dependent, support diamond, or non-consequential
+relation; the held-out selector therefore retains
+`no_qualifying_candidate` at byte root
+`sha256:da87f6ebd438a3ef3e46c388ee7ff379a0bab74bc4db1713cf4a46de38952b52`.
+No external participant has completed the cold-use fixtures, and no
+organizationally independent implementation has reproduced the registered
+result. Those absences must remain visible rather than being replaced by
+first-party agents, synthetic topology, or a broader claim.
+
 ## Registered evaluation
 
 The paper artifact contains one immutable evaluation plan with:

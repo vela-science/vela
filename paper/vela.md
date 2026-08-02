@@ -36,8 +36,11 @@ single-task evidence, not general productivity or independent-user evidence.
 A later Astra source-fidelity comparison returned 0/2 exact in both arms and
 therefore earned no product-lift credit, despite lower guided time and cost.
 Neither experiment has the consequential topology or external independence
-required by the registered benchmark. The
-frozen held-out selector subsequently found no qualifying candidate, so confirmatory
+required by the registered benchmark. A later attributed human Decision
+accepted the exact bounded Quantum correction, strict replay passed, and the
+read-only projection remapped. The frozen held-out selector detected that real
+correction but found no hard dependent, support diamond, or non-consequential
+relation, so confirmatory
 two-fixture credit is unavailable in this campaign. The evidence therefore
 supports local admission, scoped verification, Decision, replay, and
 supersession. It now also supports one bounded, first-party cross-Frontier
@@ -51,13 +54,13 @@ repository root, graph roots, and projection root changed exactly. The Target
 packet initially failed to advance, so that candidate was not activated.
 Source-local closure and later exact completions now close producer work
 through `10430400` and expose `10430401..10430600` as the next nonduplicate
-range. The retained 2026-08-01 Vela Web Atlas checkpoint uses the repository-v4
+range. The retained 2026-08-02 Vela Web Atlas checkpoint uses the repository-v4
 reader. Its exact projection at root
-`sha256:a96c527f9c69225666cb4bcb3346a6a1e46e6b25fd6ed47a428ebd5e3aa03183`
+`sha256:56ba1ae0deb88a3e7eed008f3c4b57d828c7058efe46dd9f422598b64b77f735`
 contains 4,139 graph nodes, 2,591 edges, 6,713 native source records, and 5,845
-Frontier bindings, including the later non-authorizing Formal withdrawal.
-Six Erdős, two Formal, and one quantum-certificate Proposal remain pending
-human Decisions; one
+Frontier bindings, including the later non-authorizing Formal withdrawal and
+the accepted Quantum correction. Six Erdős and two Formal Proposals remain
+pending human Decisions; one
 broader-worded Erdős predecessor Proposal remains retained separately rather
 than being rewritten. These facts do not establish acceptance, inheritance
 lift across two fixtures, external independence, or human cold-use value. The
@@ -117,9 +120,10 @@ source-local closure and exact completions repaired. The exact four-Frontier
 Atlas is now released. Three first-party native Harbor comparisons pass
 bounded quantum-correction, post-Decision Erdős continuation, and Formal
 receiver-continuation gates. A fourth Astra source-fidelity comparison failed
-its exactness gate. Real correction-impact propagation,
-post-Decision remapping of the current pending results, held-out confirmation,
-and external independence remain registered experiments.
+its exactness gate. Post-Decision Quantum remapping is complete, but real
+correction-impact propagation remains ineligible under the frozen topology.
+Held-out confirmation and external independence remain registered
+experiments.
 
 ## 2. Scope and system model
 
@@ -573,12 +577,14 @@ therefore records `no_qualifying_candidate`. The held-out entry gate failed;
 the experiment did not substitute a synthetic case.
 
 After the four Frontiers advanced to repository v4, the selector was updated
-only to recognize that repository epoch and rerun against Erdős `da791f88`,
-Formal `6cbc2cb5`, Sidon `e07b6317`, and Quantum `29202cfb`. The retained
-current-head result has byte root
-`sha256:c6462c22e049e2fc392ec129769bb8230f95b14f74eabf4714c3654366e555a9`
-and reaches the same negative outcome. This maintenance rerun does not replace
-or reinterpret the frozen first execution.
+only to recognize that repository epoch. The 2026-08-02 post-Decision rerun
+scans Erdős `8428650c`, Formal `b706a90b`, Sidon `d2b7480d`, and Quantum
+`718de33d`. Its retained byte root is
+`sha256:da87f6ebd438a3ef3e46c388ee7ff379a0bab74bc4db1713cf4a46de38952b52`.
+It detects the accepted Quantum supersession but rejects it because the frozen
+graph has no hard dependent, support diamond, or non-consequential relation.
+The outcome remains `no_qualifying_candidate`; this maintenance rerun does not
+replace or reinterpret the frozen first execution.
 
 ### 6.5 Living map-to-target qualification
 
@@ -664,10 +670,10 @@ not establish cold-user lift or automatic domain-generic closure.
 
 Subsequent exact completions close Erdős producer work through `10430400` and
 leave `10430401..10430600` as the next nonduplicate range. The retained
-2026-08-01 Vela Web checkpoint serves the exact repository-v4 projection at
-root `sha256:a96c527f9c69225666cb4bcb3346a6a1e46e6b25fd6ed47a428ebd5e3aa03183`.
-Six Erdős, two Formal, and one quantum-certificate Proposal remain pending
-human Decisions; their
+2026-08-02 Vela Web checkpoint serves the exact repository-v4 projection at
+root `sha256:56ba1ae0deb88a3e7eed008f3c4b57d828c7058efe46dd9f422598b64b77f735`.
+The Quantum correction is accepted and exposes no remaining producer Target;
+six Erdős and two Formal Proposals remain pending human Decisions. Their
 Verifications do not change Standing. The earlier broader-worded Erdős
 Proposal remains retained and pending rather than replacing the corrected
 bounded record.
@@ -843,7 +849,8 @@ The complete Harbor evidence package is retained outside Git under manifest
 root
 `sha256:85a37d175ba48bc071935830f68cf4aec6d59726fa318792dee08a5dc18dce28`.
 
-This result is first-party, pre-Decision, uses one task and one model
+This result is first-party and was run before the later human Quantum
+Decision. It uses one task and one model
 configuration, and does not measure a human reviewer. It establishes neither
 scientific acceptance, post-correction remapping, general execution lift,
 external independence, verifier soundness, nor adoption. No orchestration
@@ -1196,11 +1203,13 @@ subsequent source-local closure pass retained the completed packet and proved
 its coverage from exact ancestor bytes. Later exact completions close producer
 work through `10430400` and expose `10430401..10430600` as the next
 nonduplicate range without changing Standing. The production Atlas uses the
-repository-v4 reader and includes the later non-authorizing Formal withdrawal.
-Six Erdős, two Formal, and one quantum-certificate Proposal remain pending
-human Decisions, so their post-Decision remaps remain
-unfinished. An earlier broader-worded Erdős Proposal remains retained
-separately. The frozen held-out selector also found no qualifying candidate.
+repository-v4 reader and includes the later non-authorizing Formal withdrawal
+and accepted Quantum correction. Six Erdős and two Formal Proposals remain
+pending human Decisions. The Quantum post-Decision remap is complete and
+exposes no remaining producer Target. An earlier broader-worded Erdős Proposal
+remains retained separately. The frozen held-out selector detects the Quantum
+correction but still finds no qualifying candidate because its registered
+consequential topology is absent.
 The stronger claim, that this mechanism preserves useful scientific
 inheritance across real corrections and plural authorities better than Git
 alone, is therefore not satisfied by the audited system.

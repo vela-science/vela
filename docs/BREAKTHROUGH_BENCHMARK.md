@@ -239,14 +239,17 @@ observation is rooted at
 It proves fail-closed readiness and signer ordering; the separately rooted
 publication audit above proves B8.
 
-The frozen held-out selector has also produced a negative result. Its
+The frozen held-out selector has also produced a negative result. Its original
 four-Frontier audit found only the already excluded Erdős 424
-writer-qualification transition, which lacks the required hard dependent,
-support diamond, and non-consequential incoming relation. Result
-`paper/artifacts/heldout-selection/result.v1.json`, byte root
-`sha256:f80cf6b81c9b056535ccf17a24b1631d8f3e57d3bc3ecea65d7516c1b831be5b`,
-records `no_qualifying_candidate`. The held-out entry gate therefore fails
-until a later accepted correction satisfies the preregistered rule.
+writer-qualification transition. The 2026-08-02 post-Decision rerun additionally
+detects the accepted Quantum `[[10,1,4]]` correction at `718de33d`; it too lacks
+the required hard dependent, support diamond, and non-consequential incoming
+relation. Result `paper/artifacts/heldout-selection/result.2026-08-02.json`,
+byte root
+`sha256:da87f6ebd438a3ef3e46c388ee7ff379a0bab74bc4db1713cf4a46de38952b52`,
+records `no_qualifying_candidate`. The held-out entry gate therefore remains
+failed until a later accepted correction naturally satisfies the
+preregistered rule.
 
 That failed held-out entry gate limits the benchmark and whitepaper claim. It
 does not make the exact receiver Proposal scientifically ineligible for a
