@@ -240,6 +240,15 @@ The remaining mechanism budget is explicit:
 | Neon branches | Delete/defer | One `main` read projection is enough; rehearse locally in disposable PostgreSQL. |
 | Agent Campaign runtime, scheduler, or transcript store | Reject | Native agents own execution and durable approval state. Vela exposes consequential pending Decisions only. |
 
+The proposed pre-1.0 standards cut is recorded in
+[ADR 0035](adr/0035-commodity-encoding-signing-and-wire-contracts.md). It
+replaces `vela.canonical-json/v1` with exact RFC 8785 JCS, replaces bespoke
+signed-record preimages with a common DSSE envelope, publishes JSON Schema
+2020-12 for portable objects, keeps Cedar restricted to authority, and retains
+RO-Crate 1.3 as a derived evidence-transfer adapter. It must begin with a
+dual-encoding audit of every retained Frontier object; it may not silently
+rewrite roots or old signatures.
+
 No retained mechanism may create another prompt for routine computation,
 artifact creation, Submission, or Verification. A human interruption is
 justified only by a change to Standing, policy/schema/authority, scope or risk,
