@@ -173,18 +173,19 @@ infrastructure.
   Erdős authority. The Decision does not establish mathematical truth,
   significance, product lift over Git, a supported shared adapter contract, or
   independent consumer value.
-- The current production Atlas checkpoint was rebuilt from all four cleaned
-  Frontier heads and is exact at projection root
-  `sha256:009ce4e9ac941aa94a74cfd6a20b5a3309693691babc7803abe58cb2293026ba`.
-  Its manifest binds Erdős `8428650c`, Formal `100d002`, Quantum
+- The current Neon Atlas head was rebuilt from all four cleaned Frontier heads
+  and is exact at projection root
+  `sha256:c332c5dc8db873f26bc88d696081f9047a188c6431317c7a1bba526c53c635a5`.
+  Its manifest binds Erdős `4dc47e96`, Formal `100d002`, Quantum
   `718de33d`, and Sidon `d2b7480d`. The Quantum source now projects five
   accepted Claims, zero pending Proposals, two scoped Verifications, and the
   exact repository root
   `sha256:cd6ccf48dc04d5d3a96a185ca16be998f456f9531d975132d7cb910334f0ecdb`.
   Database sync, stored-root verification, SELECT-only reader verification,
-  source evidence retention, atomic activation, local build, and production
-  deployment all passed. Formal projects 16 accepted Claims, zero pending
-  Proposals, four scoped Verifications, and repository root
+  source evidence retention, and atomic activation passed. The deployed static
+  manifest still names the preceding release and must be rebuilt from this
+  exact head before the next Observatory release. Formal projects 16 accepted
+  Claims, zero pending Proposals, four scoped Verifications, and repository root
   `sha256:f652b5793e2bcccd2863f24adb7dda3ff3dd707ae64e2de8ee447b37fb1c85e7`.
 - The same release adds the exact `openai/ten-proofs` source adapter to the
   existing 11-source Registry. The bounded `erdos:183:astra-fidelity` work
@@ -593,9 +594,9 @@ reputation score, or `1.0.0` schedule.
 | Surface | Current posture | Next earned change |
 | --- | --- | --- |
 | Vela | `0.962.1` is published with direct producer withdrawal, compacted-lineage reconstruction, and current-root Decision checks; release checks are green | keep one train and release only for demonstrated changes |
-| Cross-language readers | standalone Python and JavaScript conformance readers | keep package-free until a real external consumer requires a library |
+| Cross-language readers | standalone JavaScript reader and uv-locked Python reader | keep the reader surface small until a real external consumer requires a published library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; deployment commit `e0e874e0` binds projection root `sha256:009ce4e9ac941aa94a74cfd6a20b5a3309693691babc7803abe58cb2293026ba`, 11 exact sources, 6,713 native records, current/proposed Standing Decision packets, the terminal Quantum and Formal Decisions, and current-head clean-room artifact `sha256:cd22899c640957cd0096386fec3e1444ab0781402898a1685a94896e97e22544` | keep the exact source projection; add no Astra-specific UI or broader execution until a real consumer earns it |
+| Vela Web | current Neon Registry/Atlas head uses repository v4 and `observatory.v8`; projection root `sha256:c332c5dc8db873f26bc88d696081f9047a188c6431317c7a1bba526c53c635a5` binds Erdős `4dc47e96`, 11 exact sources, 6,713 native records, current/proposed Standing Decision packets, and the terminal Quantum and Formal Decisions; the deployed static manifest remains the preceding checkpoint until an Observatory release rebuilds it | rebuild and verify the exact deployment manifest; add no Astra-specific UI or broader execution until a real consumer earns it |
 | Frontiers | canonical Git sources; the Quantum correction and native Formal Lean result are accepted and replayed, the obsolete Formal duplicate is withdrawn with zero accepted delta, and remaining Proposals await attributed human Decisions or cancellation | decide or cancel exact remaining Proposals, replay, remap |
 | Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 
