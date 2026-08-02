@@ -147,6 +147,13 @@ infrastructure.
   accepted Event or Standing. Formal now has two pending Proposals and replays
   at repository root
   `sha256:1afb595ad8ae8628e548a74b06ca3d5ce5e7221c7152ee51e54aa65472a722a8`.
+- Erdős Proposals `vpr_b4a4b9ea9c00d6e9` and
+  `vpr_96578d006119b322` bind the same exact producer execution. The latter
+  states the exact 11-prime bounded result and scope limit; the former is
+  therefore cleanup-only. Their historical producer signing identities are no
+  longer retained locally, so producer withdrawal correctly fails closed.
+  Resolving either record now requires an attributed human rejection or an
+  explicit choice to leave both pending; no agent may delete or relabel them.
 - The Formal cross-Frontier transfer is technically Decision-eligible. A
   held-out consumer and measured value test remain required only before
   promoting the derived envelope into a supported shared contract or claiming
