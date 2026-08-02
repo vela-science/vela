@@ -178,8 +178,11 @@ infrastructure.
   Frontier, and source-registry root. The retained evidence artifact root is
   `sha256:da6125b81f998a3fae9efdee9d5b73193e8fb3c17cc61780e48835a04fa307ca`.
 - Pending Proposal sheets now project Vela's exact Decision Inbox packet:
-  protocol readiness, the accept/reject Standing delta, limits, next
-  obligation, and copyable roots. The Observatory remains read-only.
+  current and proposed Standing for corrections, protocol readiness, exact
+  verified scope, limits, accept/reject consequences, next obligation, and
+  copyable roots. The Observatory remains read-only and exposes no Decision
+  control. Production commit `f28ccf0f` serves this surface over the unchanged
+  rooted projection.
 - The current Registry adapter artifact has an immutable GitHub release
   locator and independently reproduced byte root.
 - External cold-user lift, correction propagation, and organizationally
@@ -512,7 +515,7 @@ reputation score, or `1.0.0` schedule.
 | Vela | `0.962.1` is published with direct producer withdrawal, compacted-lineage reconstruction, and current-root Decision checks; release checks are green | keep one train and release only for demonstrated changes |
 | Cross-language readers | standalone Python and JavaScript conformance readers | keep package-free until a real external consumer requires a library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; deployment commit `aa6b4cb4` binds projection root `sha256:8f3b16d8204f237334724c39ab257ce052df3dd4b840ed047d538033b613653c`, 11 exact sources, 6,713 native records, and current-head clean-room artifact `sha256:da6125b81f998a3fae9efdee9d5b73193e8fb3c17cc61780e48835a04fa307ca` | keep the exact source projection; add no Astra-specific UI or broader execution until a real consumer earns it |
+| Vela Web | production Registry/Atlas uses repository v4 and `observatory.v8`; deployment commit `f28ccf0f` binds projection root `sha256:8f3b16d8204f237334724c39ab257ce052df3dd4b840ed047d538033b613653c`, 11 exact sources, 6,713 native records, current/proposed Standing Decision packets, and current-head clean-room artifact `sha256:da6125b81f998a3fae9efdee9d5b73193e8fb3c17cc61780e48835a04fa307ca` | keep the exact source projection; add no Astra-specific UI or broader execution until a real consumer earns it |
 | Frontiers | canonical Git sources with pending human Decisions; the obsolete Formal duplicate is withdrawn with zero accepted delta | decide or cancel exact remaining Proposals, replay, remap |
 | Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 
