@@ -1,0 +1,41 @@
+{
+  "schema": "vela.scientific-change-package-interoperability-plan-amendment.v1",
+  "status": "frozen_before_corrected_derived_outputs",
+  "frozen_at": "2026-08-02T19:55:08Z",
+  "prior_plan_root": "sha256:72d84fd4ceeb69c170beaf2e63dc22a801db6e99b749123c87a2f42ebbf07e42",
+  "prior_amendment_root": "sha256:38d3cd699bcc4540a01852460ae218d91eb476ad40e7e2cac8886c02ff248ad8",
+  "reason": "The original plan named RO-Crate 1.3 as an official target, but the RO-Crate community's current Recommendation is 1.2 and the 1.3 profile URI does not identify a released specification. The unsupported-profile result exposed a planning error rather than a validator lag. This amendment corrects the derived packaging view to the actual stable standard without changing any native Vela object, source Claim, Decision, authority boundary, or Standing.",
+  "primary_source_observation": {
+    "specification": "RO-Crate Metadata Specification 1.2",
+    "status": "Recommendation",
+    "published": "2025-06-04",
+    "permalink": "https://w3id.org/ro/crate/1.2",
+    "context": "https://w3id.org/ro/crate/1.2/context",
+    "release": "https://github.com/ResearchObject/ro-crate/releases/tag/1.2.0"
+  },
+  "external_reader": {
+    "tool": "roc-validator",
+    "version": "0.11.3",
+    "profile": "ro-crate-1.2",
+    "validation_level": "required",
+    "mode": "offline_local_package"
+  },
+  "amendment": {
+    "representation": "Generate an attached RO-Crate 1.2 metadata view over the unchanged native manifest and exact 11-object set.",
+    "reader_result": "Require the off-the-shelf roc-validator 0.11.3 RO-Crate 1.2 profile to pass all REQUIRED checks and retain its deterministic JSON report summary.",
+    "publication": "Replace only the derived RO-Crate metadata, loss report, reader result, aggregate result, and SHA256SUMS. Preserve the superseded 1.3 result in Git history and name this correction in current documentation.",
+    "authority": "RO-Crate conformance remains supporting interoperability evidence only and cannot verify Vela signatures, scientific truth, or Standing."
+  },
+  "unchanged": [
+    "Source native manifest, object-set root, object count, Claim, Decision, and authority boundary.",
+    "All mutation, determinism, loss-report, and no-authority requirements.",
+    "No Frontier mutation, credential use, Proposal import, Verification import, or local Decision.",
+    "The original plan and amendment remain immutable audit evidence of the corrected planning error."
+  ],
+  "stop_conditions": [
+    "The validator requires a network fetch or profile substitution.",
+    "Any native Vela object, root, identity, authority evidence, or Standing changes.",
+    "The generated RO-Crate omits a native object or implies Vela authority.",
+    "Any REQUIRED RO-Crate 1.2 validation check fails."
+  ]
+}

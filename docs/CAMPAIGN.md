@@ -214,7 +214,10 @@ infrastructure.
 - External cold-user lift, correction propagation, and organizationally
   independent interoperability remain unproved. The bounded technical B8
   transfer already passes between distinct Frontier authority keysets with no
-  imported Standing.
+  imported Standing. Its attached metadata view now targets the actual
+  RO-Crate 1.2 Recommendation and passes all 65 REQUIRED checks under the
+  off-the-shelf `roc-validator 0.11.3`; the superseded 1.3 attempt is retained
+  as an explicitly corrected planning error.
 
 ## Active gates
 

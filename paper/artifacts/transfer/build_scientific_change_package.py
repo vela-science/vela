@@ -4,7 +4,7 @@
 The exporter is intentionally a read-only artifact builder. It never opens a
 Frontier, invokes a Vela writer, loads credentials, or resolves a remote JSON-LD
 context. The existing `vela.foreign-reference.v1` file is representation A.
-Representation B is an attached RO-Crate 1.3 metadata view over those same
+Representation B is an attached RO-Crate 1.2 metadata view over those same
 exact files, accompanied by an explicit semantic loss report.
 """
 
@@ -23,7 +23,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
 PLAN = HERE / "scientific-change-package-plan.v1.json"
-AMENDMENT = HERE / "scientific-change-package-plan-amendment-001.v1.json"
+AMENDMENT = HERE / "scientific-change-package-plan-amendment-002.v1.json"
 READER = HERE / "read_scientific_change_package.py"
 NATIVE_VERIFIER = HERE / "verify_foreign_reference.py"
 PLAN_ROOT = "sha256:72d84fd4ceeb69c170beaf2e63dc22a801db6e99b749123c87a2f42ebbf07e42"
@@ -31,10 +31,10 @@ PLAN_BYTES_SHA256 = (
     "sha256:63efd8b095cce421cbbb5aab7f0e21f03deeb3322f7c7de33eb5a20cd0a32fd9"
 )
 AMENDMENT_ROOT = (
-    "sha256:38d3cd699bcc4540a01852460ae218d91eb476ad40e7e2cac8886c02ff248ad8"
+    "sha256:dba2fc12e533c811621437b4f449ae2b243c208f6cc092bac198ebc207552c9f"
 )
 AMENDMENT_BYTES_SHA256 = (
-    "sha256:787dd740eb597f437033bb89d4a8edb1e582bcc477e1ed8c6f45335182652d04"
+    "sha256:6161aa654d339439624c610af204a39da74480fdb03472d97b23eedb4e5f5d7d"
 )
 GENERATED = [
     "ro-crate-metadata.json",
@@ -125,7 +125,7 @@ def loss_report(
         "native_manifest": "reference.v1.json",
         "native_manifest_root": canonical_root(native),
         "object_set_root": native["object_set_root"],
-        "ro_crate_profile": "https://w3id.org/ro/crate/1.3",
+        "ro_crate_profile": "https://w3id.org/ro/crate/1.2",
         "ro_crate_metadata_policy": (
             "Package metadata only; Vela semantics remain in the native manifest."
         ),
@@ -231,8 +231,8 @@ def crate_metadata(
             "@id": "ro-crate-metadata.json",
             "@type": "CreativeWork",
             "about": {"@id": "./"},
-            "conformsTo": {"@id": "https://w3id.org/ro/crate/1.3"},
-            "description": "RO-Crate 1.3 metadata descriptor.",
+            "conformsTo": {"@id": "https://w3id.org/ro/crate/1.2"},
+            "description": "RO-Crate 1.2 metadata descriptor.",
         },
         {
             "@id": "./",
@@ -290,7 +290,7 @@ def crate_metadata(
             "@type": ["CreativeWork", "File"],
             "name": "Vela to RO-Crate semantic loss report",
             "description": (
-                "Explicit account of Vela meanings that base RO-Crate 1.3 "
+                "Explicit account of Vela meanings that base RO-Crate 1.2 "
                 "does not represent and that remain in the native manifest."
             ),
             "encodingFormat": "application/json",
@@ -333,7 +333,7 @@ def crate_metadata(
         )
     entities.sort(key=lambda entity: str(entity["@id"]))
     return {
-        "@context": "https://w3id.org/ro/crate/1.3/context",
+        "@context": "https://w3id.org/ro/crate/1.2/context",
         "@graph": entities,
     }
 
@@ -409,7 +409,11 @@ def package_reader(package: Path) -> dict[str, object]:
     )
 
 
-def external_reader(executable: Path) -> dict[str, object]:
+def external_reader(
+    executable: Path,
+    package: Path,
+    cache_path: Path,
+) -> dict[str, object]:
     version = subprocess.run(
         [str(executable), "--version"],
         cwd=ROOT,
@@ -418,53 +422,67 @@ def external_reader(executable: Path) -> dict[str, object]:
         text=True,
     )
     require(
-        version.returncode == 0 and "0.11.2" in version.stdout,
+        version.returncode == 0 and "rocrate-validator 0.11.3" in version.stdout,
         "external_reader_version_mismatch",
     )
-    present = subprocess.run(
-        [
-            str(executable),
-            "profiles",
-            "describe",
-            "ro-crate-1.2",
-            "--no-paging",
-        ],
-        cwd=ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    missing = subprocess.run(
-        [
-            str(executable),
-            "profiles",
-            "describe",
-            "ro-crate-1.3",
-            "--no-paging",
-        ],
-        cwd=ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    require(cache_path.is_file(), "external_reader_cache_unavailable")
+    with tempfile.TemporaryDirectory(prefix="vela-roc-validator-report-") as raw:
+        report_path = Path(raw) / "report.json"
+        validation = subprocess.run(
+            [
+                str(executable),
+                "validate",
+                "--profile-identifier",
+                "ro-crate-1.2",
+                "--no-auto-profile",
+                "--requirement-severity",
+                "required",
+                "--output-format",
+                "json",
+                "--output-file",
+                str(report_path),
+                "--no-paging",
+                "--offline",
+                "--cache-path",
+                str(cache_path),
+                str(package),
+            ],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        require(
+            validation.returncode == 0 and report_path.is_file(),
+            f"external_reader_validation_failed:{validation.stderr.strip()}",
+        )
+        report = json.loads(report_path.read_bytes())
+    statistics = report.get("statistics")
     require(
-        present.returncode == 0
-        and missing.returncode != 0
-        and 'identifier "ro-crate-1.3" could not be found'
-        in f"{missing.stdout}\n{missing.stderr}",
-        "external_reader_profile_observation_mismatch",
+        report.get("passed") is True
+        and report.get("issues") == []
+        and isinstance(statistics, dict)
+        and statistics.get("profiles") == ["ro-crate-1.2"]
+        and statistics.get("total_failed_requirements") == 0
+        and statistics.get("total_failed_checks") == 0
+        and statistics.get("total_passed_requirements")
+        == statistics.get("total_requirements")
+        and statistics.get("total_passed_checks")
+        == statistics.get("total_checks"),
+        "external_reader_report_invalid",
     )
     return {
-        "id": "roc-validator-0.11.2",
-        "status": "unsupported_profile",
-        "required_profile": "ro-crate-1.3",
-        "available_base_profiles": ["ro-crate-1.1", "ro-crate-1.2"],
-        "profile_substitution_performed": False,
-        "validation_performed": False,
-        "observation": (
-            "The installed external validator has no RO-Crate 1.3 base profile; "
-            "the 1.2 profile was not substituted."
-        ),
+        "id": "roc-validator-0.11.3",
+        "status": "pass",
+        "profile": "ro-crate-1.2",
+        "profile_uri": "https://w3id.org/ro/crate/1.2",
+        "requirement_severity": "required",
+        "validation_performed": True,
+        "network_during_validation": False,
+        "total_requirements": statistics["total_requirements"],
+        "total_passed_requirements": statistics["total_passed_requirements"],
+        "total_checks": statistics["total_checks"],
+        "total_passed_checks": statistics["total_passed_checks"],
     }
 
 
@@ -570,6 +588,7 @@ def build(
     source_package: Path,
     publish_to: Path,
     external_validator: Path,
+    external_validator_cache: Path,
 ) -> dict[str, object]:
     require(
         source_package.resolve() == publish_to.resolve(),
@@ -592,7 +611,11 @@ def build(
 
         native_result = native_reader(first)
         clean_room_result = package_reader(first)
-        external_result = external_reader(external_validator)
+        external_result = external_reader(
+            external_validator,
+            first,
+            external_validator_cache,
+        )
         mutations = mutation_results(first)
         reader_suite = {
             "schema": "vela.scientific-change-package-reader-suite-result.v1",
@@ -618,7 +641,7 @@ def build(
                 ],
             },
             "external_ro_crate": external_result,
-            "overall": "pass_with_external_profile_gap",
+            "overall": "pass",
             "standing_effect": "none",
         }
         reader_bytes = encoded_json(reader_suite)
@@ -627,7 +650,7 @@ def build(
 
         result = {
             "schema": "vela.scientific-change-package-interoperability-result.v1",
-            "outcome": "baseline_complete_with_external_validator_gap",
+            "outcome": "baseline_complete",
             "plan_root": PLAN_ROOT,
             "plan_bytes_sha256": PLAN_BYTES_SHA256,
             "plan_amendment_root": AMENDMENT_ROOT,
@@ -651,7 +674,7 @@ def build(
                 },
                 "ro_crate": {
                     "file": "ro-crate-metadata.json",
-                    "profile": "https://w3id.org/ro/crate/1.3",
+                    "profile": "https://w3id.org/ro/crate/1.2",
                     "bytes_sha256": sha256_bytes(first_core["ro-crate-metadata.json"]),
                     "same_native_object_set": True,
                 },
@@ -669,7 +692,7 @@ def build(
                 "suite_root": canonical_root(reader_suite),
                 "native": "pass",
                 "ro_crate_clean_room": "pass",
-                "external_ro_crate": "unsupported_profile",
+                "external_ro_crate": "pass",
             },
             "mutations": mutations,
             "determinism": {
@@ -731,7 +754,7 @@ def build(
             "sha256_manifest_sha256": sha256_bytes(
                 (first / "SHA256SUMS").read_bytes()
             ),
-            "external_ro_crate_profile": "unsupported",
+            "external_ro_crate_profile": "pass",
             "local_standing_effect": "none",
         }
 
@@ -741,12 +764,14 @@ def main() -> int:
     parser.add_argument("--source-package", required=True, type=Path)
     parser.add_argument("--publish-to", required=True, type=Path)
     parser.add_argument("--roc-validator", required=True, type=Path)
+    parser.add_argument("--roc-validator-cache", required=True, type=Path)
     args = parser.parse_args()
     try:
         result = build(
             args.source_package.expanduser().resolve(),
             args.publish_to.expanduser().resolve(),
             args.roc_validator.expanduser().resolve(),
+            args.roc_validator_cache.expanduser().resolve(),
         )
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0

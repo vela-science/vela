@@ -747,6 +747,13 @@ The real Erdős reference has 11 required objects, reference root
 `sha256:b7b330ae6ea4915d5bac218233f0a272ee961060682be6d22f6a8ea1b78c4ed6`,
 and object-set root
 `sha256:f9cc936b42f7ee624d98583332454dbb46b68c00fa2819d990cea4d6d7daec8a`.
+An attached metadata view over the same object set conforms to the current
+RO-Crate 1.2 Recommendation: the dependency-free reader proves exact native
+object parity and `roc-validator 0.11.3` passes all 65 REQUIRED checks offline
+from a warmed official-context cache. The original experiment incorrectly
+named unreleased RO-Crate 1.3; a root-linked amendment preserves that planning
+error and corrects only the derived metadata view. RO-Crate conformance does
+not verify Vela semantics, signatures, scientific truth, or Standing.
 Both readers rederive every identity, verify producer and verifier signatures,
 follow the compaction origin, and verify the repository-authority DSSE
 signature against the retained keyset. They reject authority escalation,
@@ -1274,7 +1281,7 @@ lift.
    management of code, data, and their relationship.” *Journal of Open Source
    Software* 6(63), 3262, 2021.
    [doi.org/10.21105/joss.03262](https://doi.org/10.21105/joss.03262).
-6. RO-Crate community. “RO-Crate Metadata Specification 1.3.”
+6. RO-Crate community. “RO-Crate Metadata Specification 1.2.”
    [researchobject.org/ro-crate/specification.html](https://www.researchobject.org/ro-crate/specification.html).
 7. Workflow Run RO-Crate working group. “Workflow Run RO-Crate.”
    [researchobject.org/workflow-run-crate](https://www.researchobject.org/workflow-run-crate/).

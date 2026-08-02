@@ -93,7 +93,7 @@ the existing `erdos-424/` package:
    exact Claim, Submission, Proposal, Verification, Decision and applied
    Events, source repository identity, authority evidence, source Standing,
    and local Standing effect `none`.
-2. `ro-crate-metadata.json` is an attached RO-Crate 1.3 metadata view over that
+2. `ro-crate-metadata.json` is an attached RO-Crate 1.2 metadata view over that
    same native manifest and the same 11 object files. It introduces no copied
    object tree, Vela protocol object, import command, or authority.
 
@@ -113,23 +113,39 @@ sha256:72d84fd4ceeb69c170beaf2e63dc22a801db6e99b749123c87a2f42ebbf07e42
 
 plan amendment root
 sha256:38d3cd699bcc4540a01852460ae218d91eb476ad40e7e2cac8886c02ff248ad8
+
+corrective amendment root
+sha256:dba2fc12e533c811621437b4f449ae2b243c208f6cc092bac198ebc207552c9f
 ```
 
-The amendment records an external-tool limitation rather than hiding it:
-`roc-validator 0.11.2` provides RO-Crate 1.1 and 1.2 profiles but no 1.3
-profile. The experiment therefore records `unsupported_profile` and refuses
-to substitute the older standard. The clean-room reader checks the mandatory
-RO-Crate 1.3 package shape directly; this is not a claim of off-the-shelf 1.3
-validator passage.
+The first amendment accurately recorded that `roc-validator 0.11.2` did not
+provide the planned `ro-crate-1.3` profile. A later primary-source check found
+the deeper planning defect: RO-Crate 1.2 is the current Recommendation and 1.3
+was not a released standard. Corrective amendment 002 therefore root-links the
+original plan and amendment, changes only the derived packaging view to 1.2,
+and preserves the erroneous 1.3 result in Git history. `roc-validator 0.11.3`
+now passes all 65 REQUIRED checks against the corrected package in offline
+mode using a separately warmed official-context cache. This validates RO-Crate
+conformance, not Vela semantics, signatures, scientific truth, or Standing.
 
 Rebuild the sidecars after installing the pinned validator in an isolated
 environment:
 
 ```bash
+python3 -m venv /tmp/vela-roc-validator-0.11.3
+/tmp/vela-roc-validator-0.11.3/bin/python -m pip install \
+  'roc-validator==0.11.3'
+/tmp/vela-roc-validator-0.11.3/bin/rocrate-validator cache warm \
+  --cache-path /tmp/vela-ro-crate-1.2-cache.sqlite \
+  --profile-identifier ro-crate-1.2 \
+  --url https://w3id.org/ro/crate/1.2/context
+
 python3 paper/artifacts/transfer/build_scientific_change_package.py \
   --source-package paper/artifacts/transfer/erdos-424 \
   --publish-to paper/artifacts/transfer/erdos-424 \
-  --roc-validator /path/to/rocrate-validator
+  --roc-validator \
+    /tmp/vela-roc-validator-0.11.3/bin/rocrate-validator \
+  --roc-validator-cache /tmp/vela-ro-crate-1.2-cache.sqlite
 ```
 
 The builder refuses a different publication directory and refuses to
@@ -140,15 +156,15 @@ python3 paper/artifacts/transfer/read_scientific_change_package.py \
   --package-root paper/artifacts/transfer/erdos-424 \
   --plan paper/artifacts/transfer/scientific-change-package-plan.v1.json \
   --plan-amendment \
-    paper/artifacts/transfer/scientific-change-package-plan-amendment-001.v1.json
+    paper/artifacts/transfer/scientific-change-package-plan-amendment-002.v1.json
 
 python3 -m unittest \
   paper.artifacts.transfer.test_scientific_change_package
 ```
 
-This completes a first-party packaging baseline only. It does not establish
-external adoption, measured continuation lift, RO-Crate validation of Vela
-semantics, or source authority in another Frontier.
+This completes a first-party packaging baseline with off-the-shelf RO-Crate
+1.2 validation. It does not establish external adoption, measured continuation
+lift, validation of Vela semantics, or source authority in another Frontier.
 
 These missing product and adoption results are promotion gates, not protocol
 requirements for a human Decision on the receiver's bounded Claim. If the

@@ -3,7 +3,7 @@
 
 This reader deliberately does not import the exporter, JSON-LD tooling, or a
 Vela authority implementation. It checks the frozen native object set and the
-small RO-Crate 1.3 packaging view. RO-Crate remains metadata; the native
+small RO-Crate 1.2 packaging view. RO-Crate remains metadata; the native
 manifest remains the only source of Vela semantics in this package.
 """
 
@@ -18,10 +18,13 @@ from pathlib import Path, PurePosixPath
 
 PLAN_ROOT = "sha256:72d84fd4ceeb69c170beaf2e63dc22a801db6e99b749123c87a2f42ebbf07e42"
 AMENDMENT_ROOT = (
+    "sha256:dba2fc12e533c811621437b4f449ae2b243c208f6cc092bac198ebc207552c9f"
+)
+PRIOR_AMENDMENT_ROOT = (
     "sha256:38d3cd699bcc4540a01852460ae218d91eb476ad40e7e2cac8886c02ff248ad8"
 )
-RO_CRATE_CONTEXT = "https://w3id.org/ro/crate/1.3/context"
-RO_CRATE_PROFILE = "https://w3id.org/ro/crate/1.3"
+RO_CRATE_CONTEXT = "https://w3id.org/ro/crate/1.2/context"
+RO_CRATE_PROFILE = "https://w3id.org/ro/crate/1.2"
 NATIVE_MANIFEST = "reference.v1.json"
 RO_CRATE_METADATA = "ro-crate-metadata.json"
 LOSS_REPORT = "vela-loss-report.v1.json"
@@ -136,6 +139,10 @@ def read_plan(plan_path: Path, amendment_path: Path) -> tuple[dict[str, object],
     )
     require(
         amendment.get("prior_plan_root") == PLAN_ROOT,
+        "plan_amendment_lineage_mismatch",
+    )
+    require(
+        amendment.get("prior_amendment_root") == PRIOR_AMENDMENT_ROOT,
         "plan_amendment_lineage_mismatch",
     )
     return plan, amendment
@@ -431,7 +438,7 @@ def assess(
             "native_manifest_and_object_roots",
             "decision_presence",
             "authority_non_escalation",
-            "ro_crate_1_3_required_structure",
+            "ro_crate_1_2_required_structure",
             "exact_native_object_parity",
             "complete_loss_report",
         ],
