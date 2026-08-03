@@ -28,7 +28,7 @@
 
 ## Project documents
 
-- [Active action-complete Frontier campaign](CAMPAIGN.md)
+- [Active mathematical breakthrough campaign](CAMPAIGN.md)
 - [Protocol breakthrough benchmark](BREAKTHROUGH_BENCHMARK.md)
 - [Whitepaper evidence contract](WHITEPAPER_CONTRACT.md)
 - [Roadmap](ROADMAP.md)

@@ -1,0 +1,91 @@
+{
+  "schema": "vela.source-campaign-inventory.v1",
+  "recorded_at": "2026-08-03",
+  "purpose": "Separate merged mathematical source, contributor candidates, solved proof shelves, and exploratory campaign lineage before promoting work into a Vela Frontier.",
+  "boundaries": {
+    "merged_upstream": "May bind the exact public statement or source transition used by a Target.",
+    "fork_or_pull_request": "Attributed candidate source evidence only; it is not upstream state or Vela Standing.",
+    "exploratory_campaign": "May supply exact attempts, corrections, retractions, and next routes; it is not a solved-result shelf.",
+    "frontier": "Owns the current Target, accepted Claim bindings, verifier contract, and eventual attributed Decision."
+  },
+  "formal_conjectures": {
+    "upstream": {
+      "repository": "https://github.com/google-deepmind/formal-conjectures.git",
+      "commit": "50ee83fa7dc31c99c03c83f04be90b7fea37d314",
+      "tree": "af55637ba163e4381b00cd0fca0f59158c6998f3"
+    },
+    "erdos_203_statement": {
+      "path": "FormalConjectures/ErdosProblems/203.lean",
+      "blob_sha1": "2bc9f5fb212533aeb94c2328dbb5b53987a9f9ec",
+      "sha256": "sha256:dfd0eb1bf073a27ad74a398acb7c2986b73be9cf72e6dc6ed9fc4618c6538cfb",
+      "declaration": "Erdos203.erdos_203",
+      "status": "merged_upstream"
+    },
+    "contributor_snapshot": {
+      "author": "williamjblair",
+      "query_repository": "google-deepmind/formal-conjectures",
+      "pull_requests_total": 40,
+      "merged": 21,
+      "open": 14,
+      "closed_unmerged": 5,
+      "interpretation": "A substantial live contribution pipeline. Counts describe repository participation only and carry no scientific authority."
+    },
+    "current_fork_candidate": {
+      "repository": "https://github.com/williamjblair/formal-conjectures.git",
+      "branch": "erdos-campaign-batch-3",
+      "commit": "f5ff3378c4961823aa2d7d479dd29b567c05c9a5",
+      "tree": "777853099c86996bc58b22a1b591753d1e7a2d29",
+      "ahead_of_upstream_main": 7,
+      "behind_upstream_main": 1,
+      "problems": [24, 93, 164, 314, 315, 333, 369, 401, 429, 435],
+      "status": "fork_candidate_not_upstream_state"
+    }
+  },
+  "lean_proofs": {
+    "repository": "https://github.com/williamjblair/lean-proofs.git",
+    "main": {
+      "commit": "4f915a323443bfb1709a6805a013812016dca88a",
+      "tree": "a0aaa84d22ed8fab7c2788bced29472953cc1752",
+      "role": "curated_solved_proof_shelf"
+    },
+    "campaigns": [
+      {
+        "branch": "erdos-campaign-2026-07-30",
+        "commit": "94fde841ea6ad90437bd66a91953bfeba13dba0f",
+        "tree": "5b8a3013fbc08edb9e04086aeb4aa9f5c9a09a9a",
+        "unique_commits_vs_main": 53,
+        "problems": [64, 203, 848, 1004, 1139, 1212],
+        "classification": "mixed_exploratory_campaign_with_corrections_and_retractions",
+        "promotion_rule": "Promote only compact exact evidence and the next mechanically verifiable obligation; do not copy the exploratory worktree or large scratch corpus."
+      },
+      {
+        "branch": "codex/erdos686-corrected-package-reconcile",
+        "commit": "800451d2c2dd6624508c0b8525b33a843e30445c",
+        "tree": "f352241c6d9228b065389180f674cfd59bb870f5",
+        "unique_commits_vs_main": 14,
+        "problems": [686, 919],
+        "classification": "partial_formal_package_candidate"
+      },
+      {
+        "branch": "codex/erdos23-two-defect-final",
+        "commit": "2d98b64d6a9c26593609260868f6731831bbc850",
+        "tree": "5da9e2c2c6e9222907d382472f9c28eaac05a4cf",
+        "unique_commits_vs_main": 15,
+        "problems": [23],
+        "classification": "incomplete_two_defect_lean_candidate"
+      }
+    ],
+    "absorbed_branches": [
+      "add-starfleet-verified",
+      "codex/erdos727-full-solve",
+      "erdos699/full-solve"
+    ]
+  },
+  "primary_promotion": {
+    "target": "erdos:203:finite-cover",
+    "statement_source": "formal_conjectures.erdos_203_statement",
+    "research_lineage": "lean_proofs.campaigns[0]",
+    "frontier_repository": "https://github.com/vela-science/erdos-frontier.git",
+    "status": "rooted_target_implemented_not_solved"
+  }
+}

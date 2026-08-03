@@ -113,6 +113,28 @@ organizationally independent implementation has reproduced the registered
 result. Those absences must remain visible rather than being replaced by
 first-party agents, synthetic topology, or a broader claim.
 
+### Next evidence pass — 2026-08-03
+
+The [active mathematical breakthrough campaign](CAMPAIGN.md) does not raise
+this publication ceiling by declaration. It is designed to earn or falsify the
+missing evidence through three linked cases:
+
+1. exact inheritance of the external OpenAI Astra ten-advance release without
+   equating native checking, statement fidelity, novelty, field review, or
+   local Standing;
+2. a complete Erdős 264 correction, proof repair, replay, remap, and
+   cold-successor handoff; and
+3. one preregistered research-level discovery attempt, initially Erdős 203
+   under its merged Formal Conjectures statement, corrected exploratory
+   lineage, and frozen exact verifier. Erdős 647 and Erdős 7 remain named
+   reserves, not post-output substitutions.
+
+One successful scientific case may justify a bounded case study. The stronger
+product claim still requires unique scientific episodes, at least two task
+families, a producer or model-family swap, complete registered denominators,
+zero authority errors, and family-consistent continuation evidence. Repeated
+calls on one source lineage cannot substitute for those conditions.
+
 ## Registered evaluation
 
 The paper artifact contains one immutable evaluation plan with:
