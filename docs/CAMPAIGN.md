@@ -65,8 +65,9 @@ infrastructure.
 
 ### Shipped and verified
 
-- Vela `0.962.1` is the published release for repository v4, direct
-  Target Index v5, direct Submission lineage, and the retired workflow/runtime
+- Vela `0.962.1` is the last published release. The `0.963.0` source candidate
+  carries the current TOML-only Frontier Profile, standards spine, direct
+  Target Index v5, direct Submission lineage, and retired workflow/runtime
   surfaces. Internal Rust crates are not published as parallel products, and
   the unused TypeScript protocol package has been removed.
 - Four mathematical Frontiers use the current repository contract and replay
@@ -597,7 +598,7 @@ reputation score, or `1.0.0` schedule.
 
 | Surface | Current posture | Next earned change |
 | --- | --- | --- |
-| Vela | `0.962.1` is published with direct producer withdrawal, compacted-lineage reconstruction, and current-root Decision checks; release checks are green | keep one train and release only for demonstrated changes |
+| Vela | `0.963.0` is the current source candidate; `0.962.1` is published but predates the TOML-only Frontier contract, so its artifact must not be used for current Frontier replay | publish one verified current-contract train, then keep one release path |
 | Cross-language readers | standalone JavaScript reader and uv-locked Python reader | keep the reader surface small until a real external consumer requires a published library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
 | Vela Web | current Neon Registry/Atlas head uses repository v4 and `observatory.v8`; projection root `sha256:c332c5dc8db873f26bc88d696081f9047a188c6431317c7a1bba526c53c635a5` binds Erdős `4dc47e96`, 11 exact sources, 6,713 native records, current/proposed Standing Decision packets, and the terminal Quantum and Formal Decisions; the deployed static manifest remains the preceding checkpoint until an Observatory release rebuilds it | rebuild and verify the exact deployment manifest; add no Astra-specific UI or broader execution until a real consumer earns it |

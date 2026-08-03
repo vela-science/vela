@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.963.0 — 2026-08-02 — Current contract and standards boundary
+
 - Exercise an initialized current Frontier from every staged release archive.
   The prior version-only smoke could not detect a binary built from stale
   profile-reading code.
@@ -12,6 +14,15 @@
 - Make TOML the sole current Frontier Profile encoding. The one-time file cut
   preserves each profile's canonical JSON root while rejecting retained
   `frontier.yaml` files and removing the deprecated runtime YAML parser.
+- Adopt RFC 8785 canonical JSON, DSSE authority envelopes, and the bounded
+  RO-Crate 1.3 transfer profile while retaining Vela's own Decision and
+  Standing semantics.
+- Remove obsolete fallback readers, private event-journal fields, identity
+  revocation machinery, duplicate Git/process adapters, and unused runtime
+  dependencies.
+- Retain the root-bound Math Source Registry and Atlas as disposable read
+  projections, and keep package distribution behind the earned two-consumer
+  boundary.
 
 ## v0.962.1 — 2026-08-01 — Compacted lineage and Decision freshness
 
