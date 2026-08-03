@@ -46,7 +46,7 @@ def exact_inputs() -> tuple[dict, dict, dict]:
         },
     }
     offer = {
-        "availability": {"configured": 2, "stale": 0, "fresh": 2, "returned": 1},
+        "availability": {"configured": 3, "stale": 0, "fresh": 3, "returned": 1},
         "targets": [
             {
                 "target_id": MATERIALIZER.TARGET_ID,
@@ -81,6 +81,18 @@ def test_significant_repair_must_be_first_current_target() -> None:
     offer["targets"][0]["target_id"] = "erdos:1056"
     with pytest.raises(MATERIALIZER.MaterializationError, match="first Target"):
         MATERIALIZER.validate_target_projection(offer, packet, repository)
+
+
+def test_unrelated_fresh_targets_do_not_invalidate_the_first_target() -> None:
+    offer, packet, repository = exact_inputs()
+    offer["availability"] = {
+        "configured": 19,
+        "stale": 0,
+        "fresh": 19,
+        "returned": 1,
+    }
+    target = MATERIALIZER.validate_target_projection(offer, packet, repository)
+    assert target["target_id"] == MATERIALIZER.TARGET_ID
 
 
 def test_task_is_one_matched_pair_with_separate_native_verifier() -> None:

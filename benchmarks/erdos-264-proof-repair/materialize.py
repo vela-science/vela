@@ -136,8 +136,17 @@ def validate_target_projection(
 ) -> dict[str, Any]:
     availability = offer.get("availability")
     targets = offer.get("targets")
-    if availability != {"configured": 2, "stale": 0, "fresh": 2, "returned": 1}:
-        raise MaterializationError("Erdős 264 must be the first of two fresh Targets")
+    if (
+        not isinstance(availability, dict)
+        or not isinstance(availability.get("configured"), int)
+        or availability["configured"] < 1
+        or availability.get("stale") != 0
+        or availability.get("fresh") != availability["configured"]
+        or availability.get("returned") != 1
+    ):
+        raise MaterializationError(
+            "Erdős 264 must be the first current Target in a fully fresh index"
+        )
     if not isinstance(targets, list) or len(targets) != 1:
         raise MaterializationError("Vela must return one first-ranked Target")
     target = targets[0]

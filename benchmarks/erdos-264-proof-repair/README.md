@@ -28,7 +28,9 @@ the sample size.
 
 Materialization fails until the exact correction Claim has an attributed human
 Decision and `vela next` exposes `erdos:264:parts-i-proof-repair` first. It does
-not perform that Decision.
+not perform that Decision. Additional fresh lower-ranked Targets do not
+invalidate the study; only a stale index or a different first-ranked Target
+does.
 
 ```bash
 python3 benchmarks/erdos-264-proof-repair/materialize.py \
