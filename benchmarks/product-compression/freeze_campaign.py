@@ -234,7 +234,7 @@ def freeze(
             "vela": {
                 "version": version,
                 "binary_sha256": digest(vela),
-                "repository_root": contract.sha256_root(contract.canonical_bytes(vela_git)),
+                "source_identity_root": contract.sha256_root(contract.canonical_bytes(vela_git)),
                 **vela_git,
             },
             "harbor": {"version": command(("harbor", "--version"), cwd=vela_repository)},

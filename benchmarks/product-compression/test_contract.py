@@ -264,7 +264,7 @@ def action_complete_baseline() -> dict:
             "vela": {
                 "version": "vela 0.963.0",
                 "binary_sha256": root("a"),
-                "repository_root": root("b"),
+                "source_identity_root": root("b"),
                 "git_commit": "a" * 40,
                 "git_tree": "b" * 40,
                 "remote": "https://example.invalid/vela.git",

@@ -263,7 +263,7 @@ def validate_action_complete_baseline(value: Any) -> None:
     vela = source.get("vela")
     if not isinstance(vela, dict) or not isinstance(vela.get("version"), str):
         raise ContractError("$.source_state.vela: exact version is required")
-    for field in ("binary_sha256", "repository_root"):
+    for field in ("binary_sha256", "source_identity_root"):
         require_root(vela.get(field), f"$.source_state.vela.{field}")
     for field in ("git_commit", "git_tree", "remote"):
         if not isinstance(vela.get(field), str) or not vela[field]:
