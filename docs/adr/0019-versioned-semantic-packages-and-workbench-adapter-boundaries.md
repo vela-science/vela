@@ -16,6 +16,16 @@
 - Reopen promotion only when extraction deletes maintained duplication or a
   stable licensed workbench export carries an honest bounded scientific result
   through the ordinary Receipt path.
+- 2026-08-02 sharpening: the first admissible reopening experiment is an exact
+  Lean replay contract used by the retained Formal replay and one real Erdős
+  consumer. Keep it source-local until one package root serves both maintained
+  consumers, independent readers agree on that root, and extraction deletes
+  more contract and fixture logic than it adds. Until then, do not add
+  `vela package`, a package lock, a package repository, a static package index,
+  OCI distribution, or a hosted Package Registry. Native toolchains remain
+  owned by Elan, Lake, uv, Cargo, and their peers; package, native, and
+  scientific dependencies remain separate; every package has
+  `authority_effect: none`.
 - Historical result: Source-local mappings remain useful evidence. They do not
   authorize a package, registry, adapter SDK, protocol object, or Vela release.
 
