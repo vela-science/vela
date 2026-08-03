@@ -325,7 +325,7 @@ The slice passes only if:
 - the projection advances only after canonical Git advances; and
 - a fresh producer receives the exact successor Target or an explicit blocker.
 
-#### Live result — awaiting the human Decision
+#### Live result — Decision replayed and successor exposed
 
 The native slice has now reached its single authority checkpoint. Vela's first
 briefing exposed obsolete runner metadata; the live Erdős Target was repaired
@@ -350,23 +350,25 @@ Verification authoring now reuses the retained record rather than minting
 timestamp-only duplicates. The two already retained retry records count as one
 semantic verification, not independent methods or organizations.
 
-The exact read-only packet is retained at
+The exact pre-Decision read-only packet is retained at
 [`decision-packet.erdos-1056.v1.json`](../paper/artifacts/action-complete-frontier-2026-08-03/decision-packet.erdos-1056.v1.json).
-Its protocol gate is satisfied and Proposal Standing remains
-`pending_review`. It makes no recommendation. Only the human repository
-authority may accept, reject, or leave the Proposal pending. Replay, projection
-refresh, successor handoff, and the matched Harbor evaluation remain gated on
-that choice.
+The human repository authority accepted only its exact bounded Claim in
+Decision event `vev_670c0f9318e2332f`; applied event
+`vev_3269cfb46f488c82` changes Standing. The Decision explicitly treats the
+duplicate Verification as one semantic retry and does not claim universal
+nonexistence, a resolution of Erdős 1056, or external independence.
 
 The post-Verification lifecycle has also been repaired and frozen. Exact
 passing evidence now closes producer work without changing scientific
-Standing, so the completed range is not offered again while its Proposal sits
-in the Decision Inbox. At Erdős commit `4e863be985bf0153fd9b911fbc7a31e96c8b15bd`,
-strict repository verification passes, Target Index root
-`sha256:7bb576d03cb347e6ab3b9e8fe683641226e8e9a1dd49237db33e065d4f1f0d9a`
-contains zero producer Targets, and Proposal `vpr_4fa1a06ca64e36e4`
-remains `pending_review`. This is the intended pre-Decision state: no duplicate
-work and no accidental acceptance.
+Standing, so the completed range was not offered again before the Decision.
+After acceptance, strict replay passes at Erdős commit
+`dee20d6b6d71ad73bee297e83b1edfee05dd27c4`; repository root
+`sha256:d07477153b4f3fedff624537fafdb66a24290df14ebdf559687a954b70db3090`
+and Target Index root
+`sha256:3b12aa1302e31cc0fa54bbe082ade7a9e2c971bbd2986ca42cea177da3d27d84`
+expose exactly one fresh producer Target for `10430801..10431000`. The
+Decision-to-next-obligation transition is now implemented; fresh-producer and
+matched causal evaluation remain open.
 
 ### Phase C — preregister the matched Harbor evaluation
 
@@ -408,9 +410,10 @@ Two fresh runs per arm are instrumentation pilots only. They establish that
 the task, scorer, and telemetry work; they cannot support a performance claim.
 The confirmatory sample size is computed from blinded pilot variance for 80%
 power at a two-sided 5% error rate and a preregistered 20% minimum useful
-effect. There is no arbitrary token or model-call budget. Cost and observed
-tokens are outcomes, while each task retains the same bounded scientific and
-compute ceiling in both arms.
+effect. The experimental unit is a distinct frozen scientific task, not a
+repeated model call on one fixture. There is no arbitrary token or model-call
+budget. Cost and observed tokens are outcomes, while each task retains the same
+bounded scientific and compute ceiling in both arms.
 
 ### Phase D — measure compounding, not activity
 
@@ -518,7 +521,7 @@ their deletion and evidence gates.
 
 | Research stream | Current disposition | Evidence gate |
 | --- | --- | --- |
-| Action-complete Frontier | **Active product and research proof.** Finish the live Erdős Decision, replay, remap, and fresh-producer handoff. | One native end-to-end loop with no duplicate Target, no authority error, and an exact successor or blocker. |
+| Action-complete Frontier | **Active product and research proof.** The live Erdős Decision, replay, and remap pass; finish the fresh-producer handoff. | One native end-to-end loop with no duplicate Target, no authority error, and an exact successor or blocker. |
 | Human-agent workflow | **Use native agent durability and action approvals.** Vela supplies a Target briefing and a consequence-only Decision Inbox. | One authorization supports ordinary work until one meaningful scientific Decision; no Vela runner or transcript store. |
 | Harbor evaluation | **Keep as the sole execution/evaluation harness.** Vela owns only exact fixture materialization and semantic scoring. | Valid matched pilots, power-derived confirmation, full failure retention, and at least two task families before a general lift claim. |
 | Observatory and Math Atlas | **Keep as root-bound read projections.** Refresh after canonical Git changes; change UI only for a measured comprehension failure. | Exact source roots, SELECT-only reads, no hidden authority, and at least 20 percent improvement for any new product surface. |
@@ -530,27 +533,24 @@ their deletion and evidence gates.
 
 ### Ordered work after the human Decision
 
-1. **Replay and remap.** Verify the exact Decision transaction, preserve the
-   pre-Decision evidence, rebuild the Target Index and read projection, and
-   prove that the next bounded obligation begins after `10430800`.
-2. **Fresh-producer handoff.** Give a different producer only the rooted
+1. **Fresh-producer handoff.** Give a different producer only the rooted
    Frontier and native tools. It must identify the exact successor or blocker
    without prior session state.
-3. **Five-class Harbor pilot.** Run matched `git-files` and `vela-guided`
+2. **Five-class Harbor pilot.** Run matched `git-files` and `vela-guided`
    tasks for Target continuation, Standing discrimination, cross-Frontier
    inheritance, controlled correction impact, and explicit Target absence.
    Two attempts per arm validate instrumentation only.
-4. **Power-derived confirmation.** Use blinded pilot variance to determine
+3. **Power-derived confirmation.** Use blinded pilot variance to determine
    repetitions. Confirm on at least two scientific task families and one
    producer or model-family swap. Retain all eligible failures.
-5. **Real correction-and-inheritance case.** Select a qualifying correction
+4. **Real correction-and-inheritance case.** Select a qualifying correction
    with closed downstream ground truth. Measure affected-set precision and
    recall, surviving-route recall, stale-use rate, repair time, and the next
    valid obligation. Do not substitute a synthetic fixture for this claim.
-6. **Product compression test.** Observe a cold researcher using the existing
+5. **Product compression test.** Observe a cold researcher using the existing
    CLI and Observatory. Earn only the smallest change that reduces time to the
    exact evidence, Standing diff, or next obligation by at least 20 percent.
-7. **Evidence and publication.** Publish a concise result—positive, neutral,
+6. **Evidence and publication.** Publish a concise result—positive, neutral,
    or negative—with exact roots, costs, failures, uncertainty, and scope. Only
    then revise the canonical whitepaper and activate an earned follow-on goal.
 
@@ -752,6 +752,21 @@ completion, and exact next Target without either error. This is a bounded
 post-Decision continuation result, not the still-open correction-inheritance
 proof. No external-user evidence was collected or claimed.
 
+The current action-complete instrumentation pilot reran the simplified
+Decision-to-next-obligation task after the human Decision and exact Target
+remap. All four trials were eligible and exact. Median agent time was 101.77
+seconds Vela-guided versus 162.01 seconds Git/files, a 37.18 percent reduction;
+median cost was $0.1754 versus $0.4771, a 63.22 percent reduction. Its compact
+result root is
+`sha256:605342e91cacdeb1667476ae41c61ebea2b1daa7e8f2bc88a199453c95d3bd3a`.
+This validates current materialization, custody, scoring, and telemetry only.
+Two repetitions of one task earn no inferential or general performance claim.
+The simple pilot variance would imply roughly 26 repetitions per arm for a 20
+percent elapsed-time effect, but repeating the same task 52 times would be
+pseudoreplication. The next pilot must first cover distinct instances across
+the five registered task classes, after which the task-level confirmatory
+sample is frozen.
+
 The Formal foreign-reference receiver-continuation comparison passed the same
 task-specific gate: all four native Harbor trials were eligible, the
 Vela-guided arm was exact 2/2, and Git/files was exact 0/2. Median agent time
@@ -951,7 +966,7 @@ reputation score, or `1.0.0` schedule.
 | Cross-language readers | standalone JavaScript reader and uv-locked Python reader | keep the reader surface small until a real external consumer requires a published library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
 | Vela Web | deployed `0.430.0` Registry/Atlas head uses `observatory.v8`; projection root `sha256:8bc68a34296b7e33bee7ca2321333bf84ea9d6b96867b55dd2c64ff85394917e` binds Vela `0.963.0`, all four current Frontier tips, 11 exact sources, 6,713 native records, and 5,844 explicit bindings | add no broader graph, registry, or execution surface until a named consumer earns it |
-| Frontiers | canonical Git sources; the Quantum correction, native Formal Lean result, and exact Erdős range through `10430600` are accepted and replayed, the obsolete Formal duplicate is withdrawn with zero accepted delta, and remaining Proposals await attributed human Decisions or cancellation | decide or cancel exact remaining Proposals, replay, remap |
+| Frontiers | canonical Git sources; the Quantum correction, native Formal Lean result, and latest accepted Erdős bounded range ending at `10430800` are replayed, the obsolete Formal duplicate is withdrawn with zero accepted delta, and remaining Proposals await attributed human Decisions or cancellation | complete the fresh-producer handoff; decide or cancel only exact evidence-ready Proposals |
 | Paper | bounded technical evidence exists | canonical whitepaper only after the real correction-and-inheritance gate |
 
 Failure narrows or deletes the system. It does not earn another layer.

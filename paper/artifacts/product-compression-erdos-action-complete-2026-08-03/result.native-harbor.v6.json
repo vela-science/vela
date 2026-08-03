@@ -1,0 +1,69 @@
+{
+  "comparison": {
+    "arms": {
+      "git-files": {
+        "eligible": 2,
+        "exact": 2,
+        "median_agent_elapsed_ms": 162009.5,
+        "median_cost_usd": 0.4770728
+      },
+      "vela-guided": {
+        "eligible": 2,
+        "exact": 2,
+        "median_agent_elapsed_ms": 101774.0,
+        "median_cost_usd": 0.1754484
+      }
+    },
+    "elapsed_improvement_basis_points": 3718
+  },
+  "conclusion": {
+    "claim_limit": "First-party evidence from one current-head post-Decision Erdős continuation task. It may measure exact cold continuation from an authorized Decision to the next obligation; it does not establish correction propagation, external independence, general scientific productivity, or resolution of Erdős problem 1056.",
+    "outcome": "pass_efficiency_when_exactness_tied"
+  },
+  "harbor_job": {
+    "id": "eb5cb792-6388-48a6-ac5e-b9a2e7074c3a",
+    "result_sha256": "sha256:ebec137280b58604f0a571150e32ce1fdf22690d21d7716a6f8d29eb6a4d26e0"
+  },
+  "plan_root": "sha256:aaa441a7c84456e52c5abe7d65df0066495b4e38f43775afe499bea10e8aa84a",
+  "result_root": "sha256:605342e91cacdeb1667476ae41c61ebea2b1daa7e8f2bc88a199453c95d3bd3a",
+  "scenario": "erdos-post-decision-continuation",
+  "schema": "vela.product-compression-native-harbor-result.v6",
+  "trials": [
+    {
+      "agent_elapsed_ms": 199943,
+      "arm": "git-files",
+      "cost_usd": 0.5904024,
+      "eligible": true,
+      "exact": true,
+      "trial_id": "5405b086-b4ca-4f54-9a0a-5740176e847f",
+      "trial_result_sha256": "sha256:4538a5a60d1b26ea3e0a4cab0b188a28ab08901ca7a20a2a39c46504d1b1566a"
+    },
+    {
+      "agent_elapsed_ms": 124076,
+      "arm": "git-files",
+      "cost_usd": 0.36374320000000004,
+      "eligible": true,
+      "exact": true,
+      "trial_id": "2fa4ffef-da0b-4d4f-8821-e2e1cbf2af6e",
+      "trial_result_sha256": "sha256:1f021bb1363d2c8f96fb76e5545a2482cdb0897b42b22faa44a28bbaf1e3f171"
+    },
+    {
+      "agent_elapsed_ms": 117145,
+      "arm": "vela-guided",
+      "cost_usd": 0.1849496,
+      "eligible": true,
+      "exact": true,
+      "trial_id": "d473ee20-ebe0-40cc-b403-0b7d4ee33d96",
+      "trial_result_sha256": "sha256:5bc8fe08ed5b6c3a64b5f00308b07dcc89d07e821a056cfad0571b887101d79d"
+    },
+    {
+      "agent_elapsed_ms": 86403,
+      "arm": "vela-guided",
+      "cost_usd": 0.1659472,
+      "eligible": true,
+      "exact": true,
+      "trial_id": "ce27f191-491f-43c2-be9f-e908d9713873",
+      "trial_result_sha256": "sha256:84536912d3ecff03c9ed7c4d95a129a5b65209491d21c9e259f9ce5f29aa49cf"
+    }
+  ]
+}

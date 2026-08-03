@@ -182,14 +182,23 @@ def inspect_terminal_continuation(
         packet_root = target["packet"]["sha256"]
         packet = contract.read_json(frontier / target["packet"]["path"])
         chain = why["chain"]
-        [proposal], [verification] = chain["proposals"], chain["verification_records"]
+        [proposal] = chain["proposals"]
+        verification_candidate = chain["verification_records"][0]
+        if "verification_record" in verification_candidate:
+            verification = verification_candidate
+        else:
+            repository = contract.read_json(frontier / ".vela" / "repository.json")
+            verification_row = next(
+                row for row in repository["verifications"]
+                if row["id"] == verification_candidate["verification_record_id"]
+            )
+            verification = {
+                "verification_record": verification_candidate,
+                "verification_record_root": verification_row["root"],
+            }
         decision = next(item for item in chain["authority_events"] if item["event"]["content"]["kind"] == "review.accepted")
         applied = next(item for item in chain["authority_events"] if item["event"]["content"]["kind"] == "finding.asserted")
         accepted = packet["accepted_state"]["latest_bounded_negative"]
-        producer = packet["producer_completion"]["latest_verified_submission"]
-        producer_review = json_command(
-            (str(vela), "review", "show", ".", producer["proposal_id"], "--json"), cwd=frontier,
-        )
         next_range = packet["target"]["next_bounded_range"]
     except (KeyError, TypeError, ValueError, StopIteration) as exc:
         raise contract.ContractError(f"incomplete post-Decision continuation: {exc}") from exc
@@ -208,10 +217,8 @@ def inspect_terminal_continuation(
         or digest(frontier / target["packet"]["path"]) != packet_root
         or accepted["claim_id"] != accepted_claim_id
         or accepted["claim_root"] != why["claim_root"]
-        or producer_review["standing"] != "pending_review"
-        or producer_review["proposal_root"] != producer["proposal_root"]
-        or producer["range"]["first"] <= accepted["range"]["last"]
-        or producer["range"]["last"] + 1 != next_range["first"]
+        or packet.get("producer_completion") not in (None, {})
+        or accepted["range"]["last"] + 1 != next_range["first"]
         or packet["completion_contract"]["duplicate_range_forbidden"] is not True
     ):
         fail("post-Decision continuation does not match current accepted Standing and Target")
@@ -220,7 +227,7 @@ def inspect_terminal_continuation(
         "next_work": next_work, "why": why, "chain": chain, "target": target,
         "packet_root": packet_root, "proposal": proposal, "verification": verification,
         "decision": decision, "applied": applied, "accepted": accepted,
-        "producer": producer, "producer_review": producer_review, "next_range": next_range,
+        "next_range": next_range,
     }
 
 
@@ -403,7 +410,6 @@ def terminal_continuation_answer(inspection: dict[str, Any]) -> dict[str, Any]:
     why, chain, target = inspection["why"], inspection["chain"], inspection["target"]
     proposal, verification = inspection["proposal"], inspection["verification"]
     decision, applied = inspection["decision"], inspection["applied"]
-    producer = inspection["producer"]
     result = {
         "schema": "vela.product-compression-answer.v9",
         "scenario": SCENARIOS[2],
@@ -420,14 +426,10 @@ def terminal_continuation_answer(inspection: dict[str, Any]) -> dict[str, Any]:
             "verification_id": verification["verification_record"]["verification_record_id"], "verification_root": verification["verification_record_root"],
             "decision_event_id": decision["authority_event_id"], "decision_event_root": decision["authority_event_root"], "decision_actor": decision["event"]["content"]["actor"]["type"],
             "accepted_first": inspection["accepted"]["range"]["first"], "accepted_through": inspection["accepted"]["range"]["last"],
-            "producer_claim_id": producer["claim_id"], "producer_claim_root": producer["claim_root"],
-            "producer_proposal_id": producer["proposal_id"], "producer_proposal_root": producer["proposal_root"],
-            "producer_verification_id": producer["verification_id"], "producer_verification_root": producer["verification_root"],
-            "producer_standing": inspection["producer_review"]["standing"],
-            "producer_first": producer["range"]["first"], "producer_complete_through": producer["range"]["last"],
             "next_target_id": target["target_id"], "next_first": inspection["next_range"]["first"], "next_last": inspection["next_range"]["last"],
             "packet_root": inspection["packet_root"], "verifier_profile": target["verifier_profile"],
-            "verification_is_acceptance": False, "producer_completion_changes_standing": False, "next_target_changes_standing": False,
+            "verification_is_acceptance": False, "decision_changes_standing": True,
+            "next_target_changes_standing": False,
         },
     }
     contract.validate_answer(result)
@@ -446,15 +448,14 @@ def erdos_post_decision_scenario(
     instruction = (
         "The fixture identifies one accepted bounded Claim and its exact closed Target slice. "
         "From the current checkout, recover the Submission, passing Verification, and human "
-        "Decision that give the Claim Standing. Distinguish accepted coverage from the latest "
-        "verified producer completion that remains pending review. Then identify the "
-        "first current non-overlapping Target, packet, and verifier, and preserve the limits on "
+        "Decision that give the Claim Standing. Then identify the first current non-overlapping "
+        "Target, packet, and verifier, and preserve the limits on "
         "what its execution, Submission, or Verification could change."
     )
     claim_limit = (
         "First-party evidence from one current-head post-Decision Erdős continuation task. It may "
-        "measure exact cold continuation and separation of accepted Standing from verified pending "
-        "producer completion; it does not establish correction propagation, external independence, "
+        "measure exact cold continuation from an authorized Decision to the next obligation; it "
+        "does not establish correction propagation, external independence, "
         "general scientific productivity, or resolution of Erdős problem 1056."
     )
     return anchor, terminal_continuation_answer(inspection), instruction, claim_limit
@@ -616,8 +617,8 @@ def build_study(
                     "TOOL_GUIDANCE": guidance,
                     "SCENARIO_INSTRUCTION": scenario_instruction,
                     "OUTPUT_INSTRUCTION": (
-                        "Report the accepted transition, accepted closure, later pending producer "
-                        "closures, exact next Target, and authority-boundary semantics. Do not run "
+                        "Report the accepted transition, exact next Target, and authority-boundary "
+                        "semantics. Do not run "
                         "the Target or act on any pending Proposal."
                         if fixture["scenario"] == SCENARIOS[2]
                         else

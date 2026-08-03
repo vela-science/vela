@@ -211,28 +211,23 @@ def validate_terminal_continuation(frontier: dict[str, Any], continuation: Any) 
         raise ContractError("$.continuation: expected object")
     for field in (
         "accepted_claim_root", "origin_root", "proposal_root", "submission_root",
-        "verification_root", "decision_event_root", "producer_claim_root",
-        "producer_proposal_root", "producer_verification_root", "packet_root",
+        "verification_root", "decision_event_root", "packet_root",
     ):
         require_root(continuation.get(field), f"$.continuation.{field}")
     if (
         continuation.get("standing_basis") != "compacted_origin"
         or continuation.get("archive_bytes_re_read") is not False
         or continuation.get("decision_actor") != "human"
-        or continuation.get("producer_standing") != "pending_review"
-        or any(continuation.get(field) is not False for field in (
-            "verification_is_acceptance", "producer_completion_changes_standing",
-            "next_target_changes_standing",
-        ))
+        or continuation.get("decision_changes_standing") is not True
+        or continuation.get("verification_is_acceptance") is not False
+        or continuation.get("next_target_changes_standing") is not False
     ):
         raise ContractError("$.continuation: scientific Standing or authority is misstated")
-    for first, last in (("accepted_first", "accepted_through"), ("producer_first", "producer_complete_through"), ("next_first", "next_last")):
+    for first, last in (("accepted_first", "accepted_through"), ("next_first", "next_last")):
         if not isinstance(continuation.get(first), int) or not isinstance(continuation.get(last), int) or continuation[last] < continuation[first]:
             raise ContractError(f"$.continuation.{first}: invalid range")
-    if continuation["producer_first"] <= continuation["accepted_through"]:
-        raise ContractError("$.continuation.producer_first: producer completion must follow accepted coverage")
-    if continuation["next_first"] != continuation["producer_complete_through"] + 1:
-        raise ContractError("$.continuation.next_target: not the first post-completion Target")
+    if continuation["next_first"] != continuation["accepted_through"] + 1:
+        raise ContractError("$.continuation.next_target: not the first post-Decision Target")
 
 
 def validate_answer_key(value: Any) -> None:
@@ -302,7 +297,7 @@ def validate_action_complete_baseline(value: Any) -> None:
             if not isinstance(target, dict) or target.get("target_id") != "erdos:1056":
                 raise ContractError("$.source_state.frontiers[erdos].target: exact Target is required")
             require_root(target.get("packet_root"), "$.source_state.frontiers[erdos].target.packet_root")
-            if target.get("next_range") != {"first": 10430601, "last": 10430800, "inclusive": True}:
+            if target.get("next_range") != {"first": 10430801, "last": 10431000, "inclusive": True}:
                 raise ContractError("$.source_state.frontiers[erdos].target.next_range: unexpected range")
         else:
             if availability != {"configured": 0, "stale": 0, "fresh": 0, "returned": 0}:

@@ -50,6 +50,16 @@ claim. Confirmatory repetitions are computed from blinded pilot variance for
 percent minimum useful effect. Cost and observed tokens are measured outcomes,
 not arbitrary campaign budgets.
 
+The confirmation unit is a distinct frozen scientific task, not a repeated
+model call on one fixture. The primary endpoint is exact action-complete
+continuation with zero authority error. Elapsed time to an exact answer is the
+single inferential performance endpoint; cost to an exact answer is secondary.
+All eligible failures remain in the denominator. A general positive result
+requires at least two scientific task families, a producer or model-family
+swap, a point estimate above the registered 20 percent useful-effect threshold,
+and a two-sided 95 percent interval excluding no lift. No secondary metric can
+rescue a failed exactness or authority gate.
+
 The materializer currently supports three explicit scenarios without a generic
 correction framework:
 
@@ -58,9 +68,9 @@ correction framework:
 - `quantum-certificate-supersession`: find a pending correction to one accepted
   quantum-code Claim, distinguish its two verifier scopes, and report the exact
   accept/reject branches.
-- `erdos-post-decision-continuation`: recover one accepted bounded transition,
-  separate later verified-but-pending producer completion, and identify the
-  exact first non-overlapping Target without changing Standing.
+- `erdos-post-decision-continuation`: recover one accepted bounded transition
+  and identify the exact first non-overlapping Target produced by the current
+  post-Decision remap without changing Standing.
 
 These are first-party comprehension and continuation tasks. They do not
 establish independent adoption, general scientific productivity, scientific
@@ -173,6 +183,8 @@ Current compact results are
 [`paper/artifacts/product-compression-erdos-post-decision-2026-08-01`](../../paper/artifacts/product-compression-erdos-post-decision-2026-08-01/README.md),
 and
 [`paper/artifacts/product-compression-formal-foreign-reference-2026-08-01`](../../paper/artifacts/product-compression-formal-foreign-reference-2026-08-01/README.md).
+The current action-complete instrumentation pilot is retained at
+[`paper/artifacts/product-compression-erdos-action-complete-2026-08-03`](../../paper/artifacts/product-compression-erdos-action-complete-2026-08-03/README.md).
 The failed Astra source-fidelity gate is retained separately at
 [`paper/artifacts/product-compression-astra-fidelity-2026-08-01`](../../paper/artifacts/product-compression-astra-fidelity-2026-08-01/README.md).
 Their complete native Harbor studies and jobs are retained outside the source tree

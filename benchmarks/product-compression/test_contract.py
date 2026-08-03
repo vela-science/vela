@@ -211,14 +211,9 @@ def continuation_answer() -> dict:
             "verification_id": "vvr_0123456789abcdef", "verification_root": root("e"),
             "decision_event_id": "vev_0123456789abcdef", "decision_event_root": root("f"),
             "decision_actor": "human", "accepted_first": 1, "accepted_through": 200,
-            "producer_claim_id": f"vcl_{'b' * 64}", "producer_claim_root": root("3"),
-            "producer_proposal_id": "vpr_fedcba9876543210", "producer_proposal_root": root("4"),
-            "producer_verification_id": "vvr_fedcba9876543210", "producer_verification_root": root("5"),
-            "producer_standing": "pending_review",
-            "producer_first": 201, "producer_complete_through": 400,
-            "next_target_id": "target:test", "next_first": 401, "next_last": 600,
+            "next_target_id": "target:test", "next_first": 201, "next_last": 400,
             "packet_root": root("6"), "verifier_profile": "test-v1",
-            "verification_is_acceptance": False, "producer_completion_changes_standing": False,
+            "verification_is_acceptance": False, "decision_changes_standing": True,
             "next_target_changes_standing": False,
         },
     }
@@ -251,7 +246,7 @@ def action_complete_baseline() -> dict:
                 "target_id": "erdos:1056",
                 "packet_root": root("f"),
                 "verifier_profile": "erdos-1056-k15-bounded-replay-v1",
-                "next_range": {"first": 10430601, "last": 10430800, "inclusive": True},
+                "next_range": {"first": 10430801, "last": 10431000, "inclusive": True},
             }
         else:
             row["next_action"] = "No Target Index is configured; inspect the Frontier before inventing work."
@@ -450,12 +445,7 @@ class ProductCompressionTests(unittest.TestCase):
         contract.validate_answer(continuation_answer())
         value = continuation_answer()
         value["continuation"]["next_first"] += 1
-        with self.assertRaisesRegex(contract.ContractError, "first post-completion Target"):
-            contract.validate_answer(value)
-
-        value = continuation_answer()
-        value["continuation"]["producer_first"] = value["continuation"]["accepted_through"]
-        with self.assertRaisesRegex(contract.ContractError, "must follow accepted coverage"):
+        with self.assertRaisesRegex(contract.ContractError, "first post-Decision Target"):
             contract.validate_answer(value)
 
     def test_post_decision_preserves_authority_boundary(self) -> None:
@@ -466,20 +456,12 @@ class ProductCompressionTests(unittest.TestCase):
 
     def test_post_decision_materialization_binds_current_cli_views(self) -> None:
         accepted_claim = f"vcl_{'a' * 64}"
-        producer_proposal = "vpr_fedcba9876543210"
         packet = {
             "accepted_state": {"latest_bounded_negative": {
                 "claim_id": accepted_claim, "claim_root": root("a"),
                 "range": {"first": 1, "last": 200},
             }},
-            "producer_completion": {"latest_verified_submission": {
-                "claim_id": f"vcl_{'b' * 64}", "claim_root": root("3"),
-                "submission_id": "vsb_fedcba9876543210", "submission_root": root("4"),
-                "proposal_id": producer_proposal, "proposal_root": root("5"),
-                "verification_id": "vvr_fedcba9876543210", "verification_root": root("6"),
-                "range": {"first": 201, "last": 400},
-            }},
-            "target": {"next_bounded_range": {"first": 401, "last": 600}},
+            "target": {"next_bounded_range": {"first": 201, "last": 400}},
             "completion_contract": {"duplicate_range_forbidden": True},
         }
         with tempfile.TemporaryDirectory() as directory:
@@ -526,8 +508,6 @@ class ProductCompressionTests(unittest.TestCase):
                     ],
                 },
             }
-            review = {"standing": "pending_review", "proposal_root": root("5")}
-
             def fake_command(argv, *, cwd=None):
                 self.assertEqual(cwd, frontier)
                 if argv[1:3] == ("status", "--porcelain"):
@@ -545,9 +525,6 @@ class ProductCompressionTests(unittest.TestCase):
                 if argv[1:3] == ("why", "."):
                     self.assertEqual(argv[3], accepted_claim)
                     return why
-                if argv[1:4] == ("review", "show", "."):
-                    self.assertEqual(argv[4], producer_proposal)
-                    return review
                 self.fail(f"unexpected JSON command: {argv}")
 
             with mock.patch.object(materialize, "command", side_effect=fake_command), mock.patch.object(materialize, "json_command", side_effect=fake_json):
