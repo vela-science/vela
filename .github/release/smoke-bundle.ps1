@@ -32,6 +32,20 @@ try {
   if (-not (Test-Path $Vela -PathType Leaf)) { throw "missing release binary: $Vela" }
   if ((& $Vela --version) -ne "vela $ExpectedVersion") { throw "vela version mismatch" }
 
+  # Exercise the current public profile contract from the staged artifact. A
+  # version-only smoke cannot detect release bytes built from stale source.
+  $Frontier = Join-Path $Root "frontier"
+  & $Vela init $Frontier `
+    --name "Release smoke" `
+    --scope "Does this bundle read the current Frontier profile?" `
+    --json | Out-Null
+  $Profile = Join-Path $Frontier "frontier.toml"
+  if (-not (Test-Path $Profile -PathType Leaf)) { throw "current Frontier profile missing" }
+  if (Test-Path (Join-Path $Frontier "frontier.yaml")) { throw "retired Frontier profile emitted" }
+  $Status = (& $Vela status $Frontier --json | Out-String) | ConvertFrom-Json
+  if ($Status.schema -ne "vela.status.v1") { throw "current status schema mismatch" }
+  if ($Status.phase -ne "authority_uninitialized") { throw "current status phase mismatch" }
+
   foreach ($Binary in @("vela.exe")) {
     Copy-Item -Force (Join-Path $Unpack $Binary) (Join-Path $Bin $Binary)
   }

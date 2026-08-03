@@ -31,6 +31,20 @@ test -x "$UNPACK/vela"
 test -z "$(find "$UNPACK" -type l -print -quit)"
 test "$("$UNPACK/vela" --version)" = "vela $EXPECTED_VERSION"
 
+# A version-only smoke allowed a stale binary with a current version string to
+# ship. Exercise the current public profile contract from the staged artifact
+# so release bytes must agree with the source tree's actual product boundary.
+FRONTIER="$ROOT/frontier"
+"$UNPACK/vela" init "$FRONTIER" \
+  --name "Release smoke" \
+  --scope "Does this bundle read the current Frontier profile?" \
+  --json > "$ROOT/init.json"
+test -f "$FRONTIER/frontier.toml"
+test ! -e "$FRONTIER/frontier.yaml"
+"$UNPACK/vela" status "$FRONTIER" --json > "$ROOT/status.json"
+grep -q '"schema": "vela.status.v1"' "$ROOT/status.json"
+grep -q '"phase": "authority_uninitialized"' "$ROOT/status.json"
+
 install -m 0755 "$UNPACK/vela" "$PREFIX/bin/vela"
 HOME="$ROOT/home" "$PREFIX/bin/vela" --version
 

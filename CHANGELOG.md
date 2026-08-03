@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Exercise an initialized current Frontier from every staged release archive.
+  The prior version-only smoke could not detect a binary built from stale
+  profile-reading code.
 - Remove unused Authority and Edge dependencies, drop Chrono's unused Serde
   feature, and use the existing `rand_core` operating-system RNG directly.
   This removes `rand_chacha`, `ppv-lite86`, and `zerocopy` without changing
