@@ -771,6 +771,16 @@ freeze unique target blocks, randomized arm order, restricted time-to-exact,
 and a blinded sample-size re-estimation; historical v11/v6 pilot results remain
 unchanged.
 
+Public reporting uses a recognizable scorecard rather than Vela-only acronyms.
+The headline metrics are authority-correct exact pass@1 across distinct frozen
+tasks, restricted time-to-exact with every inexact answer charged the registered
+900 seconds, all-in cost per attempted task, and exact
+correction-and-inheritance outcomes. ETY, VPAC, FIE, and CPI remain secondary
+mechanistic labels. No positive claim is earned unless exactness and authority
+gates pass, the paired interval supports the registered effect, and at least one
+real correction reports affected-set precision/recall, surviving-route recall,
+false pruning, exact repair obligation, and cold-successor continuation.
+
 The Formal foreign-reference receiver-continuation comparison passed the same
 task-specific gate: all four native Harbor trials were eligible, the
 Vela-guided arm was exact 2/2, and Git/files was exact 0/2. Median agent time

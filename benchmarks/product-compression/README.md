@@ -63,6 +63,28 @@ two-sided 95 percent interval excluding no lift. No secondary metric can rescue
 a failed exactness or authority gate. The confirmatory plan and result use a
 new contract; historical v11/v6 pilot evidence is never reinterpreted.
 
+### Public scorecard
+
+The public result leads with metrics that are recognizable outside Vela:
+
+1. **Authority-correct exact pass@1**: exact answers divided by all eligible
+   attempted frozen tasks, with the paired arm difference and 95 percent
+   interval. Authority errors are a separate zero-tolerance hard gate.
+2. **Restricted time-to-exact**: an inexact or timed-out task receives the
+   registered 900-second limit. Report the paired geometric-mean time ratio and
+   a task-blocked 95 percent interval. Never condition the headline on success.
+3. **All-in cost per attempted task**: report total and median dollars, observed
+   tokens, and cost per exact pass without hiding failed attempts.
+4. **Real correction and inheritance**: report affected-set precision and
+   recall, surviving-route recall, false pruning, exact repair obligation, and
+   cold-successor next-obligation pass@1 for each qualifying real correction.
+
+ETY, VPAC, FIE, and CPI remain useful mechanistic labels in the evidence
+companion. They are not the headline vocabulary. A synthetic correction fixture
+is a negative control and conformance case; it cannot earn product, scientific,
+or protocol-breakthrough credit. A result from these Harbor-native custom tasks
+must not be called a Terminal-Bench score or leaderboard result.
+
 New studies use the v10 answer, v8 fixture, v12 plan, and v7 compact-result
 contracts. Every two-attempt study is explicitly marked `claim_credit: false`;
 it can validate instrumentation or reveal a failure, but cannot earn a general

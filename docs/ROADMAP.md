@@ -101,6 +101,12 @@ experimental units. The current plug-in estimate is 40 unique target blocks
 per arm, with arm order randomized inside each block and inexact answers charged
 the registered restricted time instead of being excluded.
 
+The public result will lead with authority-correct exact pass@1, restricted
+time-to-exact, cost per attempted task, and real correction-and-inheritance
+exactness. Vela-specific ETY/VPAC/FIE/CPI names stay in the evidence companion.
+Synthetic corrections and repeated invocations of one fixture cannot earn
+headline claim credit.
+
 The active campaign defines the full phases, ETY/VPAC/FIE/CPI metrics,
 correction-resilience gates, product seams, and stop conditions.
 
