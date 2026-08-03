@@ -8,6 +8,9 @@ The ownership boundary is strict:
 
 - this directory tracks benchmark instructions, exact contracts, thin fixture
   compilers, deterministic Vela-specific checks, and compact frozen plans;
+- [`erdos-264-proof-repair`](erdos-264-proof-repair/README.md) is the one
+  Decision-gated native Lean episode; Harbor executes one matched pair and a
+  separate verifier checks the exact scientific artifact;
 - `jobs/` holds ignored Harbor jobs, trials, trajectories, generated fixtures,
   temporary binaries, container state, and debugging output;
 - `paper/artifacts/` holds only compact, immutable result summaries and roots
