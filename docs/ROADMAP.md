@@ -67,7 +67,31 @@ identity. This roadmap records only product sequence.
   failed and earns no product-lift claim. Its one-off task implementation was
   not retained as active harness surface.
 
-## Now — prove the product loop
+## Now — prove the action-complete Frontier thesis
+
+The next pass uses the current exact Erdős Target as one real native-agent
+vertical slice, then measures whether Vela improves exact continuation,
+Standing discrimination, cross-Frontier inheritance, correction reasoning,
+and explicit no-work blocking over matched Git/files baselines.
+
+```text
+choose exact Target
+-> authorize native work once
+-> submit bounded evidence
+-> verify without changing Standing
+-> review one consequential Decision
+-> replay and remap
+-> hand the exact next obligation to a fresh producer
+```
+
+The benchmark remains Harbor-native. Two runs per arm may validate the
+instrumentation, but confirmatory repetitions are power-derived from blinded
+pilot variance rather than an arbitrary token or model-call cap. A positive
+claim requires zero authority errors, at least 20 percent improvement on its
+registered primary metric, and survival across a producer or model swap.
+
+The active campaign defines the full phases, ETY/VPAC/FIE/CPI metrics,
+correction-resilience gates, product seams, and stop conditions.
 
 ### 1. Use the completed Quantum Decision as the product-loop checkpoint
 
@@ -95,7 +119,7 @@ strict replay, and projection refresh. Its scope remains kernel acceptance of
 one exact declaration splice, not a proof of Erdős problem 835 or a statement-
 fidelity, novelty, or external-replication claim.
 
-### 2. Compress long-running work
+### 2. Complete one live native-agent handoff
 
 A cold researcher should be able to:
 
@@ -115,7 +139,7 @@ Routine computation, artifacts, receipts, replay, and scoped Verification must
 not require repeated authority prompts. Reuse the native platform's durable
 run and action-approval mechanisms; do not build a Vela runner.
 
-### 3. Measure value with Harbor directly
+### 3. Measure compounding value with Harbor directly
 
 Use Harbor for agent, environment, trajectory, retry, and verifier execution.
 Keep only Vela-specific task materialization and semantic scoring here.
@@ -132,6 +156,12 @@ First-party runs can establish only bounded task performance. They cannot
 establish adoption or organizational independence. A positive performance
 claim requires zero authority errors and at least 20 percent median improvement
 over the matched baseline.
+
+The first confirmatory pass covers exact Target continuation, Standing
+discrimination, bounded cross-Frontier inheritance, a controlled
+closed-ground-truth correction fixture, and explicit no-Target behavior. The
+controlled fixture does not replace the separate gate for a real correction
+with downstream Frontier topology.
 
 ## Then — earn expansion
 

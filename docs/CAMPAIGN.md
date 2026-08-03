@@ -2,11 +2,14 @@
 
 ## Objective
 
-> Ship Vela as a clear, usable scientific-state product: let a researcher
-> choose one valid Target, use any native tool to produce exact evidence,
-> distinguish Verification from acceptance, make one consequential human
-> Decision, replay the resulting Standing, and expose the next valid
-> obligation.
+> Prove or falsify Vela's action-complete Frontier thesis through one
+> native-agent, correction-aware campaign: a cold researcher selects an exact
+> Target, authorizes ordinary agent work once, receives bounded Submission and
+> Verification evidence without repeated Vela ceremony, reviews one
+> consequential Decision, replays the resulting Standing, hands the exact next
+> obligation to a different producer, and measures causal lift against matched
+> flat-state baselines—without adding a Vela runner, hosted Registry, graph
+> authority, or automatic Decision.
 
 This is the detailed active execution document. [ROADMAP.md](ROADMAP.md) holds
 the shorter sequence; Git history and retained artifacts hold historical
@@ -239,6 +242,210 @@ infrastructure.
   readers. A closed fixity manifest binds the package payload without defining
   a Vela-specific archive format. The retained result explicitly records that
   current `roc-validator` releases do not yet ship a 1.3 validation profile.
+
+## Next big pass — action-complete Frontier proof
+
+The next pass is not another architecture train. It is one causal product
+demonstration built from the current system:
+
+> A cold researcher selects one exact Target, authorizes a native agent once,
+> receives bounded evidence without repeated Vela ceremony, reviews one
+> consequential scientific change, replays the resulting Standing, and hands
+> the exact next obligation to a different producer.
+
+The pass must prove or falsify the stronger thesis behind the current bounded
+results:
+
+> Under matched information, tools, model, and compute, an action-complete,
+> correction-aware Frontier causes more exact, reusable scientific progress
+> per unit of scarce expert judgment than flat Git files and retrieval alone.
+
+### Phase A — freeze the causal baseline
+
+Before a new run:
+
+1. bind the exact Vela binary, four Frontier commits and roots, Observatory
+   projection root, Harbor version, model identity, native agent, environment,
+   scorer, and benchmark plan;
+2. record the current Erdős Target `erdos:1056`, range
+   `10430601..10430800`, packet root, verifier, accepted boundary, and six
+   pending Proposals;
+3. record that Formal, Quantum, and Sidon currently return an explicit
+   no-Target result rather than inventing producer work; and
+4. freeze the matched baseline from the same canonical Git and evidence bytes.
+
+The baseline receives the same scientific information as the Vela arm. The
+only treatment is the action-complete Target, Standing, evidence, correction,
+and next-obligation projection supplied by Vela.
+
+### Phase B — complete the native-agent vertical slice
+
+Use Codex or another native agent with its normal OAuth, durable session, and
+native action policy. Vela supplies no runner, lease database, scheduler,
+transcript store, or approval loop.
+
+The live slice is:
+
+```text
+choose erdos:1056
+-> inspect the exact Target packet
+-> authorize ordinary native work once
+-> compute and retain the exact bounded artifact
+-> submit producer-authenticated evidence
+-> import one requirement-scoped Verification
+-> inspect one consequence-bearing Decision packet
+-> human accept, reject, or leave pending
+-> replay and rebuild the read projection
+-> hand the exact next obligation to a fresh producer
+```
+
+Routine computation, artifact writes, local tests, Submission, Verification,
+replay, and report generation must not ask for repository authority. Native
+approval remains appropriate for external publication, destructive actions,
+scope or spend escalation, and sensitive tools. Only the scientific Decision
+changes Standing, and no agent performs it.
+
+The slice passes only if:
+
+- the agent performs no stale, duplicate, or overlapping range;
+- the Claim and caveat describe the exact retained scope;
+- Submission and Verification change zero accepted Events;
+- the Decision packet binds current read roots and is stale-safe;
+- the attributed human Decision, if made, replays exactly;
+- the projection advances only after canonical Git advances; and
+- a fresh producer receives the exact successor Target or an explicit blocker.
+
+### Phase C — preregister the matched Harbor evaluation
+
+Retain one benchmark implementation: native Harbor task directories plus the
+small Vela-specific materializer and semantic scorer already under
+`benchmarks/product-compression`. Do not add a Vela harness, Canopus successor,
+custom trajectory format, or parallel run database.
+
+Use heterogeneous task classes:
+
+1. **Target continuation** — recover the exact next bounded action after a
+   Decision without crossing accepted, producer-complete, or pending ranges.
+2. **Standing discrimination** — distinguish Submission, passing Verification,
+   pending Proposal, accepted Decision, and current Standing.
+3. **Cross-Frontier inheritance** — inspect a bounded foreign package without
+   importing the origin Frontier's authority.
+4. **Correction impact** — compute surviving, invalidated, and newly blocked
+   obligations from a closed-ground-truth correction fixture.
+5. **Explicit absence** — return the exact blocker when a Frontier has no
+   configured Target instead of inventing work.
+
+The correction fixture is a controlled product benchmark, not evidence that a
+real Frontier correction with downstream topology has occurred. The existing
+held-out selector remains the gate for that real claim and currently reports
+no qualifying candidate.
+
+Every comparison must:
+
+- freeze the plan before outputs exist;
+- use fresh sessions and randomized arm order;
+- hold model, tools, source bytes, verifier, retry policy, and environment
+  constant;
+- give the baseline every underlying scientific fact;
+- forbid answer-key or scorer leakage;
+- retain every eligible failure; and
+- allow only a recorded infrastructure retry before model output.
+
+Two fresh runs per arm are instrumentation pilots only. They establish that
+the task, scorer, and telemetry work; they cannot support a performance claim.
+The confirmatory sample size is computed from blinded pilot variance for 80%
+power at a two-sided 5% error rate and a preregistered 20% minimum useful
+effect. There is no arbitrary token or model-call budget. Cost and observed
+tokens are outcomes, while each task retains the same bounded scientific and
+compute ceiling in both arms.
+
+### Phase D — measure compounding, not activity
+
+Primary gates:
+
+- **Exact Transition Yield (ETY):** exact, policy-valid Frontier transitions
+  per attempted task;
+- **Verified Progress per All-In Cost (VPAC):** verifier-passing bounded
+  results divided by compute cost plus expert minutes;
+- **Frontier Inheritance Effect (FIE):** improvement when continuing from a
+  rooted Frontier rather than flat source and evidence;
+- **Cross-Producer Inheritance (CPI):** probability that a fresh producer takes
+  the exact valid next action without hidden context; and
+- **Correction resilience:** impact precision/recall, stale-state use, false
+  pruning, surviving-route recovery, and repair time.
+
+Supporting measures are time to first correct action, completion rate, exact
+replay rate, stale or duplicate work, claim overstatement, expert
+interruptions, expert minutes, observed tokens, wall time, and cost.
+
+No positive Vela claim is allowed unless:
+
+- both arms satisfy the same correctness and authority contract;
+- Vela has zero verification-as-acceptance or unauthorized-Decision errors;
+- the registered primary metric improves by at least 20%;
+- the result survives a fresh producer or model swap; and
+- the retained report includes failures, exclusions, uncertainty, and exact
+  roots.
+
+If the result is neutral or negative, publish the bounded result and simplify.
+Do not respond by adding a runner, graph store, service, or ontology.
+
+### Phase E — earn only the minimum product change
+
+Run a cold-use observation against the existing CLI and Observatory before
+changing either. The current product already exposes the exact Erdős Target,
+bounded objective, verifier identity, pending Decisions, replay state, and next
+range. A product change is earned only by a measured comprehension or
+continuation failure.
+
+Likely seams, in priority order, are:
+
+1. one copyable native-agent briefing from the exact Target packet;
+2. one Decision packet that makes the Standing diff, decisive evidence,
+   uncertainty, consequences, and next obligation legible;
+3. one post-Decision handoff showing the exact successor Target; and
+4. one evidence-lineage/correction-impact view when it answers a demonstrated
+   user question faster than the current record view.
+
+The Observatory remains a read-only projection. Agent progress and
+informational receipts stay in the native executor; they do not enter the
+Decision Inbox. No graph position, ranking, verifier result, or model output
+implies authority.
+
+### Phase F — publication and expansion gates
+
+After the live loop and confirmatory evaluation:
+
+- refresh the evidence companion with exact plans, roots, failures, and
+  reproducibility;
+- revise the canonical whitepaper only to the claim ceiling actually earned;
+- release Vela or Vela Web only for demonstrated code or product changes; and
+- keep Registry, Atlas, interoperability adapters, and package extraction
+  bounded by named consumers.
+
+The first package candidate remains exact Lean replay, but it is a read-only
+duplication audit rather than a package project. Extract it only after two
+maintained consumers exist and the extraction deletes more duplicated code
+than it adds. Do not create a package registry, package manager, new
+repository, hosted service, or public CLI ahead of that evidence.
+
+### Completion contract
+
+The pass is complete when all of the following are true:
+
+1. one real Target completes the native-agent evidence-to-Decision-to-remap
+   loop without repeated Vela ceremony;
+2. the next valid obligation survives a fresh producer or model handoff;
+3. the preregistered Harbor comparison produces a valid positive, neutral, or
+   negative result across the heterogeneous task classes;
+4. a controlled correction benchmark passes or fails transparently, while the
+   real-correction selector remains honest;
+5. the CLI and read projection correctly return either one valid Target or an
+   explicit blocker for every canonical Frontier;
+6. no new runner, authority surface, canonical database, graph store, or
+   package ecosystem is introduced; and
+7. the paper, roadmap, manifests, and public claims match the retained evidence
+   exactly.
 
 ## Active gates
 

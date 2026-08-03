@@ -28,7 +28,7 @@
 
 ## Project documents
 
-- [Active usable Vela and Math Atlas campaign](CAMPAIGN.md)
+- [Active action-complete Frontier campaign](CAMPAIGN.md)
 - [Protocol breakthrough benchmark](BREAKTHROUGH_BENCHMARK.md)
 - [Whitepaper evidence contract](WHITEPAPER_CONTRACT.md)
 - [Roadmap](ROADMAP.md)
