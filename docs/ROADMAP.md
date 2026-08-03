@@ -27,10 +27,12 @@ identity. This roadmap records only product sequence.
   Decisions. The bounded Formal cross-Frontier retention has also completed a
   separate attributed human Decision without importing Erdős authority.
 - The accepted quantum correction has an exact alternate-algorithm
-  reconstruction: a source-visible verifier derives the complete symplectic
-  centralizer and reproduces the retained `[[10,1,4]]` certificate. This is
-  not external-participant independence, optimality, uniqueness, novelty,
-  classification, or broader scientific acceptance.
+  reconstruction relative to the historical capsule: a source-visible verifier
+  derives the complete phase-free symplectic centralizer and reproduces the
+  retained `[[10,1,4]]` certificate. Its two current Verification Records share
+  that verifier implementation and custody. This is not a second current
+  implementation, external-participant independence, optimality, uniqueness,
+  novelty, classification, or broader scientific acceptance.
 - A correction from Erdős was retained and checked by Formal without importing
   Erdős authority.
 - The pinned OpenAI `ten-proofs` release has an exact source adapter,

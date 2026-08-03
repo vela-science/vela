@@ -44,8 +44,8 @@ relation, so confirmatory
 two-fixture credit is unavailable in this campaign. The evidence therefore
 supports local admission, scoped verification, Decision, replay, and
 supersession. It now also supports one bounded, first-party cross-Frontier
-transfer with exact receiver Verification, clean-clone replay, and zero
-authority escalation. A separate prospective product loop derived a 4,032-node
+transfer with two exact first-party receiver Verifications, clean-clone replay,
+and zero authority escalation. A separate prospective product loop derived a 4,032-node
 map from an exact compact repository, selected its first Target, retained and
 verified the resulting bounded Run, accepted the exact bounded Claim through a
 human Decision, clean-clone replayed the transition, and rebuilt a read-only
@@ -567,11 +567,11 @@ and selects the first qualifying case in canonical Decision order. If no case
 qualifies, the benchmark records a failed held-out entry gate rather than
 substituting a synthetic or preferred fixture.
 
-The source-only selector was then run against the four exact current heads and
-their retained compaction predecessors. It found one accepted transition after
-the baselines: the Erdős 424 writer-qualification case. That case is excluded
-from held-out use and has no hard dependent, support diamond, or
-non-consequential incoming relation. No other Frontier supplied a candidate.
+The source-only selector was then run against the four exact then-current,
+frozen heads and their retained compaction predecessors. It found one accepted
+transition after the baselines: the Erdős 424 writer-qualification case. That
+case is excluded from held-out use and has no hard dependent, support diamond,
+or non-consequential incoming relation. No other Frontier supplied a candidate.
 The deterministic result at
 `paper/artifacts/heldout-selection/result.v1.json`, byte root
 `sha256:f80cf6b81c9b056535ccf17a24b1631d8f3e57d3bc3ecea65d7516c1b831be5b`,
@@ -855,8 +855,9 @@ An attributed human Decision accepted Proposal `vpr_08a91ee1b770f5cb` through
 signed transition events `vev_539148811887822b` and
 `vev_5491fdcca74f2a98`. A later separate attributed Decision accepted bounded
 cross-Frontier Proposal `vpr_7aba66544ffefd99` after two scoped archive
-Verifications. Strict replay passes at Formal commit
-`100d0028bb5b4714ddace4812a77a7ad617ac97c`, repository root
+Verifications. The Decision checkpoint is Formal commit
+`100d0028bb5b4714ddace4812a77a7ad617ac97c`; strict replay at the current
+Frontier commit `2d28519aaaf1003070703ad85edf4d1d28cf5839` has repository root
 `sha256:f652b5793e2bcccd2863f24adb7dda3ff3dd707ae64e2de8ee447b37fb1c85e7`,
 with 16 accepted Claims and no pending Proposals. The native Lean Decision
 establishes only kernel elaboration of the exact retained category-
@@ -931,7 +932,7 @@ the outputs existed.
 | B7 support diversity | pending | entry gate failed | exact route accounting |
 | B8 second Frontier | exact receiver retention, scoped Verification, and clean-clone replay pass with zero accepted delta | entry gate failed | zero imported authority |
 | B9 observability | synthetic pass only | entry gate failed | no silent truncation |
-| B10 cold inheritance | two task classes pass task-specific Harbor gates; independent-user and real correction-impact gates remain open | entry gate failed | at least 20% median lift on both fixtures |
+| B10 cold inheritance | three task classes pass task-specific Harbor gates; independent-user and real correction-impact gates remain open | entry gate failed | at least 20% median lift on both fixtures |
 
 No aggregate score is reported.
 

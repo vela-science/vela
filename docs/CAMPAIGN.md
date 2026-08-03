@@ -81,8 +81,9 @@ infrastructure.
 - The retained `[[10,1,4]]` quantum witness has a source-visible alternate
   reconstruction: the historical capsule checked bounded low-weight Pauli
   errors, while the current standard-library verifier derives the complete
-  binary-symplectic centralizer and enumerates all 1,536 non-stabilizer logical
-  Paulis. The exact-distance-four result, adversarial tests, strict replay, and
+  binary-symplectic centralizer and enumerates all 1,536 phase-free
+  centralizer-minus-stabilizer representatives. The exact-distance-four result,
+  adversarial tests, strict replay, and
   two scoped Verification Records pass. Human Decision event
   `vev_16b21fe1a6d6f064` accepted that exact bounded Claim at commit
   `718de33dcdb27e97e92458530e938f2262c86fbe`. This is algorithmic
@@ -151,8 +152,9 @@ infrastructure.
 - Formal Proposal `vpr_b81d87fce0d9c81c` was producer-withdrawn on 2026-08-01
   after its corrected successor was retained. The withdrawal changed no
   accepted Event or Standing. The corrected cross-Frontier Proposal is now
-  accepted alongside the native Lean Claim. Formal replays at commit
-  `100d0028bb5b4714ddace4812a77a7ad617ac97c`, repository root
+  accepted alongside the native Lean Claim. The Decision checkpoint is commit
+  `100d0028bb5b4714ddace4812a77a7ad617ac97c`; the current Frontier replays at
+  commit `2d28519aaaf1003070703ad85edf4d1d28cf5839`, repository root
   `sha256:f652b5793e2bcccd2863f24adb7dda3ff3dd707ae64e2de8ee447b37fb1c85e7`.
 - Formal Proposal `vpr_08a91ee1b770f5cb` is accepted through attributed human
   Decision events `vev_539148811887822b` and `vev_5491fdcca74f2a98`.
@@ -170,11 +172,11 @@ infrastructure.
   explicit choice to leave both pending; no agent may delete or relabel them.
 - Erdős Proposal `vpr_635f1e6c1811f48c` retains the exact bounded negative
   result over `10430401..10430600`: 13 primes, maximum multiplicity 11 at
-  `p = 10430491`, residue `4382886`. Independent implementation
-  Verification `vvr_c99f40656e9fc08c` passes the exact requirement with zero
-  accepted-event delta. The Proposal remains pending human Decision, producer
-  work is closed through `10430600`, and the current next range is
-  `10430601..10430800`.
+  `p = 10430491`, residue `4382886`. Requirement-scoped Verification
+  `vvr_c99f40656e9fc08c` and the structurally independent sieve/direct-array
+  Verification `vvr_66b3e2ed0278eb0b` both pass with zero accepted-event
+  delta. The Proposal remains pending human Decision, producer work is closed
+  through `10430600`, and the current next range is `10430601..10430800`.
 - Formal cross-Frontier Proposal `vpr_7aba66544ffefd99` is accepted through
   attributed human Decision event `vev_798955d528dc3030` and applied event
   `vev_973ee78ab0fdfda4`. It retains the exact foreign package without importing
@@ -383,12 +385,10 @@ the latter has no hard dependent, support diamond, or non-consequential
 relation in the frozen graph. The campaign records the negative gate, runs no
 reader trial, and does not manufacture a synthetic substitute or graph edge.
 
-The first current native Harbor comparison passed its registered
-task-specific exactness gate. A second comparison now tests current-head
-continuation after a real authorized bounded transition. The next benchmark
-must test a real correction with downstream inheritance or use a cold
-independent participant; more harness infrastructure is not an acceptable
-substitute.
+Three current native Harbor comparisons passed their registered task-specific
+exactness gates. The next benchmark must test a real correction with downstream
+inheritance or use a cold independent participant; more harness infrastructure
+is not an acceptable substitute.
 
 The Quantum supersession comparison passed its registered task-specific gate:
 all four native Harbor trials were eligible, the Vela-guided arm was exact 2/2,

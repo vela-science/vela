@@ -95,8 +95,9 @@ registered protocol-breakthrough paper:
 
 - attributed human Decisions, exact replay, and root-bound remapping pass on
   real Erdős and Quantum results;
-- one first-party cross-Frontier package passes exact retention, scoped
-  receiver Verification, clean-clone replay, and zero imported Standing;
+- one first-party cross-Frontier package passes exact retention, two
+  first-party scoped receiver Verifications, clean-clone replay, and zero
+  imported Standing;
 - three matched native Harbor tasks show task-specific first-party exactness
   advantages, while one Astra task failed and earns no lift claim; and
 - Rust and dependency-free Python agree on the bounded synthetic

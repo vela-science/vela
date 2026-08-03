@@ -317,12 +317,13 @@ That is implementation qualification only. The real correction fixture,
 second Frontier, and cold-use evidence remain incomplete. The held-out entry
 gate has failed because the frozen selector found no qualifying candidate.
 
-The 2026-07-29 source audit found no qualifying historical fixture. The four
-current Frontiers retain 2,831 Claim records and no current correction,
-supersession, or retraction relation. Erdős 281 has the required dependency
-shape without a real correction. Erdős 128 has a real upstream statement
-correction, but the accepted Claim binds a mutable theorem URL rather than the
-statement's source commit, path, and content root. Erdős 1197 has an exact,
+The 2026-07-29 source audit found no qualifying historical fixture. At those
+frozen pre-campaign heads, the four Frontiers retained 2,831 Claim records and
+no accepted correction, supersession, or retraction relation. Erdős 281 has
+the required dependency shape without a real correction. Erdős 128 has a real
+upstream statement correction, but the accepted Claim binds a mutable theorem
+URL rather than the statement's source commit, path, and content root. Erdős
+1197 has an exact,
 kernel-clean complete proof alongside an explicitly conditional proof, but
 that is independent completion rather than correction; its conflicting
 `replicates` and `contradicts` labels are an adversarial relation-semantics
