@@ -1,4 +1,4 @@
-# Inspect one exact Frontier continuation
+# Inspect one exact Frontier state
 
 Work only in `/workspace/frontier`, an isolated checkout of the exact commit
 named in `/opt/vela-input/fixture.json`.

@@ -63,7 +63,12 @@ two-sided 95 percent interval excluding no lift. No secondary metric can rescue
 a failed exactness or authority gate. The confirmatory plan and result use a
 new contract; historical v11/v6 pilot evidence is never reinterpreted.
 
-The materializer currently supports three explicit scenarios without a generic
+New studies use the v10 answer, v8 fixture, v12 plan, and v7 compact-result
+contracts. Every two-attempt study is explicitly marked `claim_credit: false`;
+it can validate instrumentation or reveal a failure, but cannot earn a general
+performance claim.
+
+The materializer currently supports four explicit scenarios without a generic
 correction framework:
 
 - `formal-foreign-reference-continuation`: find a pending local Decision over
@@ -74,6 +79,9 @@ correction framework:
 - `erdos-post-decision-continuation`: recover one accepted bounded transition
   and identify the exact first non-overlapping Target produced by the current
   post-Decision remap without changing Standing.
+- `explicit-target-absence`: distinguish the missing canonical root
+  `targets.json` from nested historical target evidence and return no work
+  instead of inventing a scientific objective.
 
 These are first-party comprehension and continuation tasks. They do not
 establish independent adoption, general scientific productivity, scientific

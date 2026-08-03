@@ -4,15 +4,17 @@
   "additionalProperties": false,
   "required": ["schema", "scenario", "frontier"],
   "properties": {
-    "schema": {"const": "vela.product-compression-answer.v9"},
-    "scenario": {"enum": ["formal-foreign-reference-continuation", "quantum-certificate-supersession", "erdos-post-decision-continuation"]},
+    "schema": {"const": "vela.product-compression-answer.v10"},
+    "scenario": {"enum": ["formal-foreign-reference-continuation", "quantum-certificate-supersession", "erdos-post-decision-continuation", "explicit-target-absence"]},
     "frontier": {"$ref": "#/$defs/frontier"},
     "decision": {"$ref": "#/$defs/decision"},
-    "continuation": {"$ref": "#/$defs/continuation"}
+    "continuation": {"$ref": "#/$defs/continuation"},
+    "absence": {"$ref": "#/$defs/absence"}
   },
   "oneOf": [
-    {"properties": {"scenario": {"enum": ["formal-foreign-reference-continuation", "quantum-certificate-supersession"]}}, "required": ["decision"], "not": {"required": ["continuation"]}},
-    {"properties": {"scenario": {"const": "erdos-post-decision-continuation"}}, "required": ["continuation"], "not": {"required": ["decision"]}}
+    {"properties": {"scenario": {"enum": ["formal-foreign-reference-continuation", "quantum-certificate-supersession"]}}, "required": ["decision"], "not": {"anyOf": [{"required": ["continuation"]}, {"required": ["absence"]}]}},
+    {"properties": {"scenario": {"const": "erdos-post-decision-continuation"}}, "required": ["continuation"], "not": {"anyOf": [{"required": ["decision"]}, {"required": ["absence"]}]}},
+    {"properties": {"scenario": {"const": "explicit-target-absence"}}, "required": ["absence"], "not": {"anyOf": [{"required": ["decision"]}, {"required": ["continuation"]}]}}
   ],
   "$defs": {
     "root": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
@@ -136,6 +138,32 @@
         "now": {"type": "string", "minLength": 1},
         "if_accept": {"type": "string", "minLength": 1},
         "if_reject": {"type": "string", "minLength": 1}
+      }
+    },
+    "absence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_index_path", "target_index_configured", "availability", "returned_target_ids", "blocker_code", "next_valid_action", "may_invent_target", "standing_changed", "authority_action_required"],
+      "properties": {
+        "target_index_path": {"type": "string", "minLength": 1},
+        "target_index_configured": {"type": "boolean"},
+        "availability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["configured", "stale", "fresh", "returned"],
+          "properties": {
+            "configured": {"type": "integer", "minimum": 0},
+            "stale": {"type": "integer", "minimum": 0},
+            "fresh": {"type": "integer", "minimum": 0},
+            "returned": {"type": "integer", "minimum": 0}
+          }
+        },
+        "returned_target_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "blocker_code": {"enum": ["target_index_not_configured", "target_index_stale", "no_eligible_targets"]},
+        "next_valid_action": {"enum": ["inspect_frontier", "repair_target_index", "inspect_blockers"]},
+        "may_invent_target": {"type": "boolean"},
+        "standing_changed": {"type": "boolean"},
+        "authority_action_required": {"type": "boolean"}
       }
     },
     "continuation": {

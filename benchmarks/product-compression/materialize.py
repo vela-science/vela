@@ -22,6 +22,7 @@ SCENARIOS = (
     "formal-foreign-reference-continuation",
     "quantum-certificate-supersession",
     "erdos-post-decision-continuation",
+    "explicit-target-absence",
 )
 COMPARISON = {
     "required_repetitions_per_arm": 2,
@@ -231,6 +232,44 @@ def inspect_terminal_continuation(
     }
 
 
+def inspect_target_absence(frontier: Path, vela: Path) -> dict[str, Any]:
+    """Read one exact no-work result without inventing a Target."""
+    frontier, vela = frontier.resolve(), vela.resolve()
+    if command(("git", "status", "--porcelain"), cwd=frontier):
+        fail("frontier checkout must be clean")
+    commit = command(("git", "rev-parse", "HEAD"), cwd=frontier)
+    tree = command(("git", "rev-parse", "HEAD^{tree}"), cwd=frontier)
+    if command(("git", "ls-tree", "--name-only", "HEAD", "--", "targets.json"), cwd=frontier):
+        fail("target-absence scenario requires no canonical targets.json")
+    status = json_command((str(vela), "status", ".", "--json"), cwd=frontier)
+    next_work = json_command((str(vela), "next", ".", "--limit", "1", "--json"), cwd=frontier)
+    if (commit, tree) != (
+        command(("git", "rev-parse", "HEAD"), cwd=frontier),
+        command(("git", "rev-parse", "HEAD^{tree}"), cwd=frontier),
+    ) or command(("git", "status", "--porcelain"), cwd=frontier):
+        fail("read-only inspection changed the Frontier checkout")
+    if (
+        next_work.get("availability") != {"configured": 0, "stale": 0, "fresh": 0, "returned": 0}
+        or next_work.get("targets") != []
+        or next_work.get("next_action")
+        != "No Target Index is configured; inspect the Frontier before inventing work."
+        or status.get("integrity") != {
+            "replay": "verified", "strict": "pass", "blocker_count": 0, "blockers_by_code": {},
+        }
+        or status.get("frontier", {}).get("id") != next_work.get("frontier_id")
+        or status.get("roots", {}).get("repository") != next_work.get("repository_root")
+    ):
+        fail("Frontier does not expose the exact no-work state")
+    return {
+        "frontier": frontier,
+        "vela": vela,
+        "commit": commit,
+        "tree": tree,
+        "status": status,
+        "next_work": next_work,
+    }
+
+
 def verification_projection(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {
@@ -253,7 +292,7 @@ def expected_answer(
     next_work = inspection["next_work"]
     standing_delta = entry["standing_delta"]
     result = {
-        "schema": "vela.product-compression-answer.v9",
+        "schema": contract.ANSWER_SCHEMA,
         "scenario": scenario,
         "frontier": {
             "frontier_id": next_work["frontier_id"],
@@ -411,7 +450,7 @@ def terminal_continuation_answer(inspection: dict[str, Any]) -> dict[str, Any]:
     proposal, verification = inspection["proposal"], inspection["verification"]
     decision, applied = inspection["decision"], inspection["applied"]
     result = {
-        "schema": "vela.product-compression-answer.v9",
+        "schema": contract.ANSWER_SCHEMA,
         "scenario": SCENARIOS[2],
         "frontier": {
             "frontier_id": why["frontier_id"], "repository_root": why["repository_root"],
@@ -461,6 +500,47 @@ def erdos_post_decision_scenario(
     return anchor, terminal_continuation_answer(inspection), instruction, claim_limit
 
 
+def target_absence_scenario(
+    inspection: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any], str, str]:
+    """Qualify one exact absence instead of rewarding invented work."""
+    next_work = inspection["next_work"]
+    expected = {
+        "schema": contract.ANSWER_SCHEMA,
+        "scenario": SCENARIOS[3],
+        "frontier": {
+            "frontier_id": next_work["frontier_id"],
+            "repository_root": next_work["repository_root"],
+            "configured_targets": 0,
+        },
+        "absence": {
+            "target_index_path": "targets.json",
+            "target_index_configured": False,
+            "availability": next_work["availability"],
+            "returned_target_ids": [],
+            "blocker_code": "target_index_not_configured",
+            "next_valid_action": "inspect_frontier",
+            "may_invent_target": False,
+            "standing_changed": False,
+            "authority_action_required": False,
+        },
+    }
+    contract.validate_answer(expected)
+    instruction = (
+        "Determine whether this exact Frontier currently offers any producer Target. "
+        "If the repository has no configured Target Index, report the semantic reason "
+        "`target_index_not_configured`, the next action `inspect_frontier_before_inventing_work`, "
+        "and no target. Do not derive work from accepted Claims, source files, graph position, "
+        "or scientific importance."
+    )
+    claim_limit = (
+        "First-party evidence from one exact Frontier no-work state. It may measure refusal to "
+        "invent work; it does not establish scientific completeness, adoption, productivity, or "
+        "that the Frontier has no valuable unanswered questions."
+    )
+    return {"canonical_target_index_path": "targets.json"}, expected, instruction, claim_limit
+
+
 SCENARIO_BUILDERS = {
     SCENARIOS[0]: formal_foreign_reference_scenario,
     SCENARIOS[1]: quantum_certificate_scenario,
@@ -468,20 +548,27 @@ SCENARIO_BUILDERS = {
 
 
 def materialize_fixture(
-    frontier: Path, vela: Path, subject_id: str, scenario: str,
+    frontier: Path, vela: Path, subject_id: str | None, scenario: str,
 ) -> tuple[dict[str, Any], dict[str, Any], str, str]:
     """Bind one explicit scenario to one exact current Frontier state."""
     if scenario not in SCENARIOS:
         fail(f"unsupported scenario: {scenario}")
-    if scenario == SCENARIOS[2]:
+    if scenario == SCENARIOS[3]:
+        inspection = inspect_target_absence(frontier, vela)
+        anchor, expected, instruction, claim_limit = target_absence_scenario(inspection)
+    elif scenario == SCENARIOS[2]:
+        if subject_id is None:
+            fail("post-Decision scenario requires an accepted Claim")
         inspection = inspect_terminal_continuation(frontier, vela, subject_id)
         anchor, expected, instruction, claim_limit = erdos_post_decision_scenario(inspection)
     else:
+        if subject_id is None:
+            fail("pending-Decision scenario requires a Proposal")
         inspection = inspect_current_decision(frontier, vela, subject_id)
         anchor, expected, instruction, claim_limit = SCENARIO_BUILDERS[scenario](inspection)
     next_work = inspection["next_work"]
     fixture = contract.seal({
-        "schema": "vela.product-compression-fixture.v7",
+        "schema": contract.FIXTURE_SCHEMA,
         "fixture_root": "",
         "scenario": scenario,
         "vela": {
@@ -493,17 +580,25 @@ def materialize_fixture(
             "git_commit": inspection["commit"],
             "git_tree": inspection["tree"],
             "repository_root": next_work["repository_root"],
-            "configured_targets": next_work["availability"]["configured"],
+            **(
+                {}
+                if scenario == SCENARIOS[3]
+                else {"configured_targets": next_work["availability"]["configured"]}
+            ),
             **(
                 {"target_index_root": next_work["target_index_root"]}
                 if scenario == SCENARIOS[2]
-                else {"inbox_projection_root": inspection["inbox_projection_root"]}
+                else (
+                    {}
+                    if scenario == SCENARIOS[3]
+                    else {"inbox_projection_root": inspection["inbox_projection_root"]}
+                )
             ),
         },
         "anchor": anchor,
     }, "fixture_root")
     answer_key = contract.seal({
-        "schema": "vela.product-compression-answer-key.v9",
+        "schema": contract.ANSWER_KEY_SCHEMA,
         "answer_key_root": "",
         "fixture_root": fixture["fixture_root"],
         "scenario": scenario,
@@ -621,11 +716,16 @@ def build_study(
                         "semantics. Do not run "
                         "the Target or act on any pending Proposal."
                         if fixture["scenario"] == SCENARIOS[2]
-                        else
-                        "Reject any typo or unrelated Proposal. Report its Submission, every scoped "
-                        "Verification and nonclaim, the exact conditional Standing change, and all "
-                        "three current/accept/reject next obligations. This Frontier has no configured "
-                        "Target; do not invent one."
+                        else (
+                            "Report the exact absence. Do not invent or recommend a Target and do "
+                            "not treat absence as a scientific or authority conclusion."
+                            if fixture["scenario"] == SCENARIOS[3]
+                            else
+                            "Reject any typo or unrelated Proposal. Report its Submission, every scoped "
+                            "Verification and nonclaim, the exact conditional Standing change, and all "
+                            "three current/accept/reject next obligations. This Frontier has no configured "
+                            "Target; do not invent one."
+                        )
                     ),
                 },
             )
@@ -658,7 +758,7 @@ def build_study(
     )
     contract.write_json(output / "harbor-job.json", job)
     plan = contract.seal({
-        "schema": "vela.product-compression-plan.v11",
+        "schema": contract.PLAN_SCHEMA,
         "plan_root": "",
         "scenario": fixture["scenario"],
         "fixture_root": fixture["fixture_root"],
@@ -666,6 +766,7 @@ def build_study(
         "task_roots": task_rows,
         "harbor_job_root": contract.sha256_root(contract.canonical_bytes(job)),
         "comparison_rule": COMPARISON,
+        "claim_credit": False,
         "claim_limit": claim_limit,
     }, "plan_root")
     contract.write_json(output / "plan.json", plan)
@@ -675,7 +776,7 @@ def build_study(
 def materialize(
     frontier: Path,
     vela: Path,
-    subject_id: str,
+    subject_id: str | None,
     scenario: str,
     vela_linux: Path,
     model: str,
@@ -696,9 +797,10 @@ def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
     result.add_argument("--frontier", type=Path, required=True)
     result.add_argument("--vela", type=Path, required=True)
-    identity = result.add_mutually_exclusive_group(required=True)
+    identity = result.add_mutually_exclusive_group()
     identity.add_argument("--proposal")
     identity.add_argument("--accepted-claim")
+    identity.add_argument("--absence", action="store_true")
     result.add_argument("--scenario", choices=SCENARIOS, required=True)
     result.add_argument("--vela-linux", type=Path, required=True)
     result.add_argument("--model", required=True)
@@ -711,8 +813,20 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
-        if (args.scenario == SCENARIOS[2]) != (args.accepted_claim is not None):
-            fail("post-Decision scenario requires --accepted-claim; pending scenarios require --proposal")
+        expected_identity = (
+            "accepted_claim" if args.scenario == SCENARIOS[2]
+            else "absence" if args.scenario == SCENARIOS[3]
+            else "proposal"
+        )
+        supplied = [
+            name for name, present in (
+                ("proposal", args.proposal is not None),
+                ("accepted_claim", args.accepted_claim is not None),
+                ("absence", args.absence),
+            ) if present
+        ]
+        if supplied != [expected_identity]:
+            fail(f"{args.scenario} requires --{expected_identity.replace('_', '-')}")
         plan = materialize(
             args.frontier,
             args.vela,

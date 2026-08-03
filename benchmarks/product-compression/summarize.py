@@ -58,8 +58,10 @@ def trial(result_path: Path, scenario: str) -> dict[str, Any]:
 
 def summarize(plan_path: Path, job: Path) -> dict[str, Any]:
     plan = contract.read_json(plan_path)
-    if plan.get("schema") != "vela.product-compression-plan.v11" or plan.get("plan_root") != contract.record_root(plan, "plan_root"):
+    if plan.get("schema") != contract.PLAN_SCHEMA or plan.get("plan_root") != contract.record_root(plan, "plan_root"):
         raise contract.ContractError("invalid product-compression plan")
+    if plan.get("claim_credit") is not False:
+        raise contract.ContractError("instrumentation plan must explicitly deny claim credit")
     scenario = plan.get("scenario")
     if scenario not in materialize.SCENARIOS:
         raise contract.ContractError("product-compression plan has an unsupported scenario")
@@ -93,13 +95,13 @@ def summarize(plan_path: Path, job: Path) -> dict[str, Any]:
     all_eligible = all(item["eligible"] for item in trials)
     cost_ok = guided["median_cost_usd"] <= baseline["median_cost_usd"]
     if all_eligible and guided["exact"] == 2 and guided["exact"] > baseline["exact"] and cost_ok:
-        outcome = "pass_task_specific_exactness_advantage"
+        outcome = "instrumentation_exactness_advantage_observed"
     elif all_eligible and baseline["exact"] == guided["exact"] == 2 and cost_ok and improvement >= 2_000:
-        outcome = "pass_efficiency_when_exactness_tied"
+        outcome = "instrumentation_efficiency_observed"
     else:
         outcome = "failed_no_product_lift_credit"
     return contract.seal({
-        "schema": "vela.product-compression-native-harbor-result.v6",
+        "schema": contract.RESULT_SCHEMA,
         "result_root": "",
         "scenario": scenario,
         "plan_root": plan["plan_root"],
@@ -109,7 +111,11 @@ def summarize(plan_path: Path, job: Path) -> dict[str, Any]:
         },
         "trials": trials,
         "comparison": {"arms": arms, "elapsed_improvement_basis_points": improvement},
-        "conclusion": {"outcome": outcome, "claim_limit": plan["claim_limit"]},
+        "conclusion": {
+            "outcome": outcome,
+            "claim_credit": False,
+            "claim_limit": plan["claim_limit"],
+        },
     }, "result_root")
 
 

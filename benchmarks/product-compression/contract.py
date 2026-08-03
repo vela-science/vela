@@ -11,7 +11,13 @@ from typing import Any
 
 
 ROOT = re.compile(r"^sha256:[0-9a-f]{64}$")
+ANSWER_SCHEMA = "vela.product-compression-answer.v10"
+ANSWER_KEY_SCHEMA = "vela.product-compression-answer-key.v10"
+FIXTURE_SCHEMA = "vela.product-compression-fixture.v8"
+PLAN_SCHEMA = "vela.product-compression-plan.v12"
+RESULT_SCHEMA = "vela.product-compression-native-harbor-result.v7"
 POST_DECISION_SCENARIO = "erdos-post-decision-continuation"
+TARGET_ABSENCE_SCENARIO = "explicit-target-absence"
 ACTION_COMPLETE_TASK_CLASSES = (
     "target_continuation",
     "standing_discrimination",
@@ -67,7 +73,7 @@ def validate_answer(value: Any) -> None:
     compares a participant answer with the exact answer key.
     """
     try:
-        if value["schema"] != "vela.product-compression-answer.v9":
+        if value["schema"] != ANSWER_SCHEMA:
             raise ContractError("$.schema: wrong answer schema")
         scenario = value["scenario"]
         frontier = value["frontier"]
@@ -78,9 +84,15 @@ def validate_answer(value: Any) -> None:
         "formal-foreign-reference-continuation",
         "quantum-certificate-supersession",
         POST_DECISION_SCENARIO,
+        TARGET_ABSENCE_SCENARIO,
     }:
         raise ContractError("$.scenario: unsupported scenario")
     require_root(frontier.get("repository_root"), "$.frontier.repository_root")
+    if scenario == TARGET_ABSENCE_SCENARIO:
+        validate_target_absence(frontier, value.get("absence"))
+        if "decision" in value or "continuation" in value:
+            raise ContractError("$.absence: target-absence scenario cannot contain scientific state changes")
+        return
     if scenario == POST_DECISION_SCENARIO:
         validate_terminal_continuation(frontier, value.get("continuation"))
         if "decision" in value:
@@ -203,6 +215,23 @@ def validate_answer(value: Any) -> None:
             raise ContractError("$.decision.standing_delta: supersession must replace exactly the accepted predecessor")
 
 
+def validate_target_absence(frontier: dict[str, Any], absence: Any) -> None:
+    if frontier.get("configured_targets") != 0:
+        raise ContractError("$.frontier.configured_targets: target-absence scenario requires zero Targets")
+    if not isinstance(absence, dict) or absence != {
+        "target_index_path": "targets.json",
+        "target_index_configured": False,
+        "availability": {"configured": 0, "stale": 0, "fresh": 0, "returned": 0},
+        "returned_target_ids": [],
+        "blocker_code": "target_index_not_configured",
+        "next_valid_action": "inspect_frontier",
+        "may_invent_target": False,
+        "standing_changed": False,
+        "authority_action_required": False,
+    }:
+        raise ContractError("$.absence: exact no-work result is required")
+
+
 def validate_terminal_continuation(frontier: dict[str, Any], continuation: Any) -> None:
     if frontier.get("configured_targets") != 1:
         raise ContractError("$.frontier.configured_targets: post-Decision scenario requires one Target")
@@ -231,7 +260,7 @@ def validate_terminal_continuation(frontier: dict[str, Any], continuation: Any) 
 
 
 def validate_answer_key(value: Any) -> None:
-    if not isinstance(value, dict) or value.get("schema") != "vela.product-compression-answer-key.v9":
+    if not isinstance(value, dict) or value.get("schema") != ANSWER_KEY_SCHEMA:
         raise ContractError("answer key has the wrong schema")
     require_root(value.get("fixture_root"), "$.fixture_root")
     require_root(value.get("answer_key_root"), "$.answer_key_root")

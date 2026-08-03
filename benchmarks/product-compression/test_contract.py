@@ -54,7 +54,7 @@ def answer(scenario: str = materialize.SCENARIOS[0]) -> dict:
     affected = [proposed, target] if quantum else [proposed]
     unchanged = 4 if quantum else 14
     result = {
-        "schema": "vela.product-compression-answer.v9",
+        "schema": contract.ANSWER_SCHEMA,
         "scenario": scenario,
         "frontier": {
             "frontier_id": "vfr_0123456789abcdef",
@@ -116,7 +116,7 @@ def fixture(
     scenario: str = materialize.SCENARIOS[0], commit: str = "1" * 40, tree: str = "2" * 40,
 ) -> dict:
     return contract.seal({
-        "schema": "vela.product-compression-fixture.v7",
+        "schema": contract.FIXTURE_SCHEMA,
         "fixture_root": "",
         "scenario": scenario,
         "vela": {"version": "vela test", "binary_sha256": root("7")},
@@ -134,12 +134,17 @@ def fixture(
 
 def answer_key(source: dict | None = None) -> dict:
     source = source or fixture()
+    expected = (
+        absence_answer()
+        if source["scenario"] == materialize.SCENARIOS[3]
+        else answer(source["scenario"])
+    )
     return contract.seal({
-        "schema": "vela.product-compression-answer-key.v9",
+        "schema": contract.ANSWER_KEY_SCHEMA,
         "answer_key_root": "",
         "fixture_root": source["fixture_root"],
         "scenario": source["scenario"],
-        "expected": answer(source["scenario"]),
+        "expected": expected,
     }, "answer_key_root")
 
 
@@ -147,7 +152,7 @@ def plan(scenario: str = materialize.SCENARIOS[0]) -> dict:
     source = fixture(scenario)
     key = answer_key(source)
     return contract.seal({
-        "schema": "vela.product-compression-plan.v11",
+        "schema": contract.PLAN_SCHEMA,
         "plan_root": "",
         "scenario": scenario,
         "fixture_root": source["fixture_root"],
@@ -155,6 +160,7 @@ def plan(scenario: str = materialize.SCENARIOS[0]) -> dict:
         "task_roots": [],
         "harbor_job_root": root("8"),
         "comparison_rule": materialize.COMPARISON,
+        "claim_credit": False,
         "claim_limit": "Bounded first-party benchmark evidence only.",
     }, "plan_root")
 
@@ -196,7 +202,7 @@ def write_job(directory: Path, scenario: str, exact_trials: set[tuple[str, int]]
 
 def continuation_answer() -> dict:
     value = {
-        "schema": "vela.product-compression-answer.v9",
+        "schema": contract.ANSWER_SCHEMA,
         "scenario": materialize.SCENARIOS[2],
         "frontier": {
             "frontier_id": "vfr_0123456789abcdef", "repository_root": root("1"),
@@ -218,6 +224,29 @@ def continuation_answer() -> dict:
         },
     }
     return value
+
+
+def absence_answer() -> dict:
+    return {
+        "schema": contract.ANSWER_SCHEMA,
+        "scenario": materialize.SCENARIOS[3],
+        "frontier": {
+            "frontier_id": "vfr_0123456789abcdef",
+            "repository_root": root("1"),
+            "configured_targets": 0,
+        },
+        "absence": {
+            "target_index_path": "targets.json",
+            "target_index_configured": False,
+            "availability": {"configured": 0, "stale": 0, "fresh": 0, "returned": 0},
+            "returned_target_ids": [],
+            "blocker_code": "target_index_not_configured",
+            "next_valid_action": "inspect_frontier",
+            "may_invent_target": False,
+            "standing_changed": False,
+            "authority_action_required": False,
+        },
+    }
 
 
 def action_complete_baseline() -> dict:
@@ -454,6 +483,54 @@ class ProductCompressionTests(unittest.TestCase):
         with self.assertRaisesRegex(contract.ContractError, "authority is misstated"):
             contract.validate_answer(value)
 
+    def test_target_absence_rejects_invented_work(self) -> None:
+        contract.validate_answer(absence_answer())
+        value = absence_answer()
+        value["absence"]["returned_target_ids"] = ["invented:work"]
+        with self.assertRaisesRegex(contract.ContractError, "exact no-work result"):
+            contract.validate_answer(value)
+
+    def test_target_absence_materialization_binds_current_cli_view(self) -> None:
+        next_work = {
+            "frontier_id": "vfr_0123456789abcdef",
+            "repository_root": root("1"),
+            "availability": {"configured": 0, "stale": 0, "fresh": 0, "returned": 0},
+            "targets": [],
+            "next_action": "No Target Index is configured; inspect the Frontier before inventing work.",
+        }
+        status = {
+            "frontier": {"id": next_work["frontier_id"]},
+            "roots": {"repository": next_work["repository_root"]},
+            "integrity": {"replay": "verified", "strict": "pass", "blocker_count": 0, "blockers_by_code": {}},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            frontier = Path(directory).resolve()
+
+            def fake_command(argv, *, cwd=None):
+                self.assertEqual(cwd, frontier)
+                if argv[1:3] == ("status", "--porcelain"):
+                    return ""
+                if argv[1:3] == ("rev-parse", "HEAD"):
+                    return "1" * 40
+                if argv[1:3] == ("rev-parse", "HEAD^{tree}"):
+                    return "2" * 40
+                if argv[1:3] == ("ls-tree", "--name-only"):
+                    return ""
+                self.fail(f"unexpected command: {argv}")
+
+            def fake_json(argv, *, cwd):
+                self.assertEqual(cwd, frontier)
+                if argv[1:3] == ("next", "."):
+                    return next_work
+                if argv[1:3] == ("status", "."):
+                    return status
+                self.fail(f"unexpected JSON command: {argv}")
+
+            with mock.patch.object(materialize, "command", side_effect=fake_command), mock.patch.object(materialize, "json_command", side_effect=fake_json):
+                inspection = materialize.inspect_target_absence(frontier, frontier / "vela")
+            _, expected, _, _ = materialize.target_absence_scenario(inspection)
+            contract.validate_answer(expected)
+
     def test_post_decision_materialization_binds_current_cli_views(self) -> None:
         accepted_claim = f"vcl_{'a' * 64}"
         packet = {
@@ -593,7 +670,8 @@ class ProductCompressionTests(unittest.TestCase):
                 frontier, binary, "test-model", "0.1.0",
                 "vela-product-compression-test", output,
             )
-            self.assertEqual(prepared["schema"], "vela.product-compression-plan.v11")
+            self.assertEqual(prepared["schema"], contract.PLAN_SCHEMA)
+            self.assertIs(prepared["claim_credit"], False)
             self.assertEqual(prepared["scenario"], materialize.SCENARIOS[1])
             self.assertEqual(len(prepared["task_roots"]), 2)
             baseline = output / "tasks/git-files"
@@ -622,9 +700,10 @@ class ProductCompressionTests(unittest.TestCase):
             contract.write_json(plan_path, plan(scenario))
             write_job(job, scenario, {("vela-guided", 1), ("vela-guided", 2)})
             result = summarize.summarize(plan_path, job)
-            self.assertEqual(result["schema"], "vela.product-compression-native-harbor-result.v6")
+            self.assertEqual(result["schema"], contract.RESULT_SCHEMA)
             self.assertEqual(result["scenario"], scenario)
-            self.assertEqual(result["conclusion"]["outcome"], "pass_task_specific_exactness_advantage")
+            self.assertEqual(result["conclusion"]["outcome"], "instrumentation_exactness_advantage_observed")
+            self.assertIs(result["conclusion"]["claim_credit"], False)
             self.assertEqual(result["result_root"], contract.record_root(result, "result_root"))
 
     def test_native_harbor_summary_preserves_negative_result(self) -> None:
