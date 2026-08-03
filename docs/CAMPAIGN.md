@@ -270,12 +270,17 @@ unlimited heartbeats. The normalized guided artifact
 `sha256:9ba4b0c8aa144985aac8df40ee070c0ffe4ab7b59915d9b44eb90b42f96935e8`
 then passed the exact source-local verifier with only `Classical.choice`,
 `Quot.sound`, and `propext`. Submission `vsb_d0af649f7155e0ed` and scoped
-Verifications `vvr_47f1732ee550cfd7` and `vvr_3c05f6340fee38be` leave
+Verifications `vvr_47f1732ee550cfd7` and `vvr_3c05f6340fee38be` initially left
 accepted-event delta zero. Decision Inbox entry
 `sha256:badec76bae5a1141ce213408f5f1e5d77b1a85102789b2580a14796346321e2d`
-has no protocol blockers; Proposal `vpr_69b5b3e26d39acbe` awaits one attributed
-human Decision. The derived Target Index closes duplicate proof work and exposes
-the next producer queue without implying acceptance.
+had no protocol blockers. An attributed human accepted Proposal
+`vpr_69b5b3e26d39acbe` in Frontier commit `ea44055f33ec04509385454228fd6cba8fcfe562`.
+Clean-clone replay reproduced repository root `sha256:f53da5…`, Proposal
+Standing `accepted`, and Target Index `sha256:f6c405…`. A different context-free
+producer recovered `erdos:203:finite-cover` and its exact packet, verifier,
+authority ceiling, and first useful action in 98 seconds without private
+predecessor context. This closes the correction/inheritance workflow case but
+does not alter the frozen matched result or earn a causal-lift claim.
 
 ### C. Fresh mathematical discovery
 

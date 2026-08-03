@@ -69,6 +69,7 @@ fn briefing(frontier: &Path, target_id: &str) -> Result<Value, String> {
         },
         "target_index_root": assessment.index.index_root,
         "git": {
+            "role": "target_index_source",
             "object_format": assessment.index.source.git_object_format,
             "commit": assessment.index.source.git_commit,
             "tree": assessment.index.source.git_tree,

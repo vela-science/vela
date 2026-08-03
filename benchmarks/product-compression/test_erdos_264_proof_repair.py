@@ -176,7 +176,7 @@ def test_retained_study_reports_the_null_result_without_harbor_rewards() -> None
         result, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode() + b"\n"
     assert expected_root == (
-        "sha256:d305b445f5a218b9abbd36a6b140b3da1926f970e32c14f19fc7635fbb42e7e9"
+        "sha256:f9c009ec0e53cfd0362b924b440ba44cee243af5248906da1c82f516ec4c7585"
     )
     assert expected_root == "sha256:" + hashlib.sha256(canonical).hexdigest()
     assert result["comparison"]["exact_pass_at_1"] == {
@@ -192,4 +192,10 @@ def test_retained_study_reports_the_null_result_without_harbor_rewards() -> None
     assert result["post_study_repair"]["decision_packet"]["protocol_gate"] == (
         "satisfied"
     )
+    assert result["post_study_repair"]["human_decision"]["outcome"] == "accepted"
+    assert result["post_study_repair"]["clean_clone_replay"]["outcome"] == "pass"
+    handoff = result["post_study_repair"]["cold_successor_handoff"]
+    assert handoff["outcome"] == "pass"
+    assert handoff["private_predecessor_context_needed"] is False
+    assert handoff["next_target_id"] == "erdos:203:finite-cover"
     assert result["authority"] == "non_authoritative"

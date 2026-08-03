@@ -49,11 +49,18 @@ normalization was then rechecked byte-for-byte as
 This is a separate repair episode and does not rescore the frozen 0/0 study.
 
 The normalized artifact is retained in Erdős Frontier. Submission
-`vsb_d0af649f7155e0ed` produced pending Proposal
-`vpr_69b5b3e26d39acbe`. Complementary scoped Verification
+`vsb_d0af649f7155e0ed` produced Proposal `vpr_69b5b3e26d39acbe`.
+Complementary scoped Verification
 `vvr_47f1732ee550cfd7` records the exact proof observation; requirement-satisfying
 Verification `vvr_3c05f6340fee38be` makes Decision Inbox entry
 `sha256:badec76bae5a1141ce213408f5f1e5d77b1a85102789b2580a14796346321e2d`
-protocol-ready with accepted-event delta zero. The next action is one attributed
-human Decision, followed by replay, correction-impact remap, and handoff of the
-exact next valid obligation. No agent Decision has occurred.
+protocol-ready with accepted-event delta zero. An attributed human accepted the
+exact packet in Frontier commit `ea44055f33ec04509385454228fd6cba8fcfe562`.
+Clean-clone replay reproduced repository root `sha256:f53da5…`; a different
+context-free producer then recovered `erdos:203:finite-cover`, its exact packet,
+verifier, authority ceiling, and first useful action in 98 seconds without
+private predecessor context. The agent did not make the Decision.
+
+This closes the action-complete correction and handoff case. It does not rescue
+the frozen matched result: exact pass@1 remains `0/1` for both arms, so this
+study demonstrates workflow closure but not causal Vela lift.

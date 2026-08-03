@@ -48,6 +48,14 @@ source, inputs, packet, and repository, then prints their identities in a
 stateless briefing. Submission does not depend on or consume `start` output.
 Neither operation changes scientific Standing.
 
+The offer reports both `queue_position` and `rank`. `queue_position` is the
+one-based order among currently open, fresh Targets. `rank` is the stable
+configured priority, so the first remaining Target can legitimately have rank
+two after all rank-one work closes. The `start` briefing labels the bound Git
+identity `target_index_source`; it can be an ancestor of the current
+`frontier_head` because the derived index is rebound without changing its
+scientific source inputs.
+
 ## Failure behavior
 
 Vela fails closed when the index is untracked, non-canonical, bound to another

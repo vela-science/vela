@@ -515,6 +515,9 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     install_current_target_index(&frontier, agent.socket());
     std::fs::remove_file(&anchor_path).expect("remove routine writer trust pin");
     let actor = "agent:current-submission-regression";
+    let offer = success_json(&run(&frontier, None, &["next", ".", "--json"]));
+    assert_eq!(offer["targets"][0]["queue_position"], 1);
+    assert_eq!(offer["targets"][0]["rank"], 1);
     let briefing = success_json(&run(
         &frontier,
         None,
@@ -539,6 +542,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             .starts_with("vro_")
     );
     assert!(briefing["target_index_root"].as_str().is_some());
+    assert_eq!(briefing["git"]["role"], "target_index_source");
     assert!(briefing["git"]["commit"].as_str().is_some());
     assert!(briefing["git"]["tree"].as_str().is_some());
     assert!(
@@ -936,6 +940,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert_eq!(checked["counts"]["verifications"], 1);
     let status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
     assert_eq!(status["schema"], "vela.status.v3");
+    assert_eq!(status["git"]["role"], "frontier_head");
     assert_eq!(status["integrity"]["strict"], "pass");
     assert_eq!(status["work"]["ready_target_count"], 1);
     assert_eq!(status["decision_inbox"]["pending_count"], 1);

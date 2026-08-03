@@ -318,6 +318,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             "profile_root": repository.profile_root
         },
         "git": {
+            "role": "frontier_head",
             "commit": commit,
             "tree": tree
         },
@@ -490,8 +491,10 @@ pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
     let offers = fresh
         .into_iter()
         .take(limit)
-        .map(|target| {
+        .enumerate()
+        .map(|(position, target)| {
             json!({
+                "queue_position": position + 1,
                 "rank": target.rank,
                 "lane": "produce",
                 "target_id": target.id,

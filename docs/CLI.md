@@ -79,7 +79,9 @@ Target Index maintenance command.
 
 ## Target briefing and Submissions
 
-`vela next` returns a ranked Target Offer. Review work never enters that
+`vela next` returns a ranked Target Offer. `queue_position` is the Target's
+current place among open work; `rank` is its stable configured priority and may
+begin above one after earlier Targets close. Review work never enters that
 producer queue.
 
 `vela start` revalidates the selected Target and returns:
@@ -87,7 +89,8 @@ producer queue.
 - the exact target and packet;
 - the repository origin and root;
 - the Target Index root;
-- the source Git identity;
+- the source Git identity, explicitly labeled `target_index_source` so it is
+  not confused with the current `frontier_head` reported by `status`;
 - the Frontier scope and declared verifier profile; and
 - the explicit boundary that evidence may enter review but only a human
   Decision changes Standing.

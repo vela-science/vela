@@ -1,6 +1,6 @@
 {
   "schema": "vela.erdos-264-proof-repair-result.v1",
-  "result_root": "sha256:d305b445f5a218b9abbd36a6b140b3da1926f970e32c14f19fc7635fbb42e7e9",
+  "result_root": "sha256:f9c009ec0e53cfd0362b924b440ba44cee243af5248906da1c82f516ec4c7585",
   "authority": "non_authoritative",
   "claim_credit": false,
   "registered_plan": {
@@ -103,7 +103,7 @@
       "submission_id": "vsb_d0af649f7155e0ed",
       "proposal_id": "vpr_69b5b3e26d39acbe",
       "claim_id": "vcl_930b7bb4b4bb11cc3b35de01690ff106ab47c464e828bdafb18d26d3998a1616",
-      "standing": "pending_review"
+      "standing": "accepted"
     },
     "verification": {
       "complementary_record": {
@@ -127,7 +127,55 @@
       "protocol_gate": "satisfied",
       "human_decision_required": true,
       "blockers": []
+    },
+    "human_decision": {
+      "outcome": "accepted",
+      "frontier_commit": "ea44055f33ec04509385454228fd6cba8fcfe562",
+      "repository_root_before": "sha256:c140453eaa36a314fdbbc524aea84a7bb6e91f89eeface403487fe3c3bfad574",
+      "repository_root_after": "sha256:f53da541680e2317cd96d64237fa0ced9eb6e4776b03023d5675d0e76b35bc2c",
+      "decision_plan_root": "sha256:66ae2dd431eb0d51acfea851d2298f600ec600e1956633140fb75ed348b7f505",
+      "decision_event_id": "vev_7abd13c53ee521f6",
+      "applied_event_id": "vev_5eb96e970f11d8f3",
+      "authority_record_id": "var_39e6894a8f9021d0",
+      "authority_record_root": "sha256:8cc7b9f31b4efcac27f747bd4371cb870870d063b8bbd17418bc51068026b3b3",
+      "accepted_claims_before": 2774,
+      "accepted_claims_after": 2775,
+      "scientific_state_changed": true,
+      "authentication": "local_os_session",
+      "transaction_signer": "repository_authority",
+      "human_key_read": false
+    },
+    "clean_clone_replay": {
+      "outcome": "pass",
+      "clone_commit": "ea44055f33ec04509385454228fd6cba8fcfe562",
+      "repository_root": "sha256:f53da541680e2317cd96d64237fa0ced9eb6e4776b03023d5675d0e76b35bc2c",
+      "proposal_standing": "accepted",
+      "target_index_root": "sha256:f6c4052381c43b0a95202d2f1634a23bb4f4987b588156c0c92736cafce3ebff",
+      "next_target_id": "erdos:203:finite-cover",
+      "packet_root": "sha256:0f01ede4b4ad111ec101f73c99e03f09553084cb96a1d3784928709e6ed4aed3",
+      "verifier_profile": "erdos-203-exact-affine-cover-v1",
+      "authority_ceiling": "Evidence may be submitted for review; only an authorized human Decision changes Standing."
+    },
+    "cold_successor_handoff": {
+      "outcome": "pass",
+      "producer": "context-free Codex subagent",
+      "elapsed_seconds": 98,
+      "private_predecessor_context_needed": false,
+      "clone_commit": "ea44055f33ec04509385454228fd6cba8fcfe562",
+      "repository_root": "sha256:f53da541680e2317cd96d64237fa0ced9eb6e4776b03023d5675d0e76b35bc2c",
+      "accepted_claims": 2775,
+      "pending_claims": 6,
+      "target_index_root": "sha256:f6c4052381c43b0a95202d2f1634a23bb4f4987b588156c0c92736cafce3ebff",
+      "next_target_id": "erdos:203:finite-cover",
+      "packet_root": "sha256:0f01ede4b4ad111ec101f73c99e03f09553084cb96a1d3784928709e6ed4aed3",
+      "verifier_profile": "erdos-203-exact-affine-cover-v1",
+      "first_useful_action": "Begin the packet-designated structured parallel-direction construction using the retained corrected exact lattice kernel and prime pool, targeting the sole allowed certificate artifact without claiming acceptance.",
+      "limits": [
+        "The successor is a first-party Codex agent on the same operator machine, not an external participant.",
+        "The handoff measures exact continuation and comprehension, not completion of Erdős 203.",
+        "The matched Harbor study remains 0/1 exact passes in each arm and earns no causal-lift claim."
+      ]
     }
   },
-  "next_obligation": "An attributed human reviews Proposal vpr_69b5b3e26d39acbe. The agent may not decide it. After the human outcome, replay Standing, recompute correction impact, and hand the exact next valid obligation to a different producer."
+  "next_obligation": "The action-complete correction loop is closed. A different cold producer recovered erdos:203:finite-cover as the exact next obligation; any new work on it begins a separate bounded campaign."
 }

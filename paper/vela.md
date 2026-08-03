@@ -1135,12 +1135,14 @@ lineage, and replayable Standing.
 The current corpus is mathematical and first-party. It contains one accepted
 source-statement supersession and one real merged Erdős 264 correction with five
 direct theorem consumers. An attributed human Decision accepted that exact
-source correction. A later fresh-agent repair of the retained hosted proof now
-has a source-preserving Lean artifact and separately scoped passing Verification,
-but its new Claim remains pending human Decision and therefore cannot yet count
-as accepted post-correction inheritance. This does not prove every part or
-informal variant of Erdős 264, establish broader statement fidelity, or earn a
-general Vela performance claim.
+source correction. A later fresh-agent repair of the retained hosted proof has
+a source-preserving Lean artifact, separately scoped passing Verification, and
+an attributed accepting Decision. Clean-clone replay recovered the accepted
+successor and a different context-free producer recovered the exact next
+obligation without private predecessor context. This is an action-complete
+correction-and-inheritance case, but it does not prove every part or informal
+variant of Erdős 264, establish broader statement fidelity, or earn a general
+Vela performance claim. Its registered matched comparison remains a null result.
 The synthetic graph fixes relation meanings in advance and cannot show that real
 scientific repositories encode them correctly. The clean-room implementation is
 colocated and does not establish organizational independence.
