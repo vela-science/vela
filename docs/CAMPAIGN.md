@@ -170,6 +170,13 @@ reviewer should see the semantic Standing diff, affected and surviving routes,
 unreviewed gaps, and the exact next obligation without reconstructing them from
 raw records.
 
+Measure that compression directly: time to decisive source, time to reconstruct
+the producer transformation, errors distinguishing Verification from Decision,
+precision and recall of affected and surviving correction routes, and cold
+successor time to the next exact obligation. Count reviewer judgment separately
+from context reconstruction. Object, graph, and agent-call volume are not
+success metrics.
+
 ## Current evidence ceiling
 
 The repository currently supports these statements:
@@ -184,7 +191,9 @@ The repository currently supports these statements:
    and earns no lift claim.
 5. The Erdős 264 source correction is real, semantic, externally maintained,
    and accepted by attributed Decision `vev_0325f467077ed92e`. The native Lean
-   repair and cold-successor handoff remain open.
+   repair now has a source-preserving artifact, scoped passing Verification,
+   and pending Proposal. No human Decision or post-Decision successor handoff
+   has occurred.
 
 The repository does not yet support claims of general scientific-productivity
 lift, a new mathematical discovery, external-user value, community acceptance,
@@ -244,6 +253,29 @@ Required sequence:
 
 This is a consequential correction-and-inheritance result. It is not a new
 theorem and may not be reported as one.
+
+#### 2026-08-03 matched-study and repair result
+
+The frozen Harbor study remains a null result: Git/files `0/1`, Vela-guided
+`0/1`, no Harbor rewards, and `claim_credit: false`. The flat artifact is
+Lean-invalid. The guided artifact is substantially stronger and used less
+observed time and model cost, but its frozen verifier inherited Lean's implicit
+200,000-heartbeat enclosing-command limit. Both post-agent Harbor verifier
+images also failed to unpack after Docker Desktop exhausted storage. These
+secondary differences and infrastructure failures do not rescue the exactness
+gate and may not be retroactively rescored.
+
+A separate post-study repair made the undeclared verifier budget explicit with
+unlimited heartbeats. The normalized guided artifact
+`sha256:9ba4b0c8aa144985aac8df40ee070c0ffe4ab7b59915d9b44eb90b42f96935e8`
+then passed the exact source-local verifier with only `Classical.choice`,
+`Quot.sound`, and `propext`. Submission `vsb_d0af649f7155e0ed` and scoped
+Verifications `vvr_47f1732ee550cfd7` and `vvr_3c05f6340fee38be` leave
+accepted-event delta zero. Decision Inbox entry
+`sha256:badec76bae5a1141ce213408f5f1e5d77b1a85102789b2580a14796346321e2d`
+has no protocol blockers; Proposal `vpr_69b5b3e26d39acbe` awaits one attributed
+human Decision. The derived Target Index closes duplicate proof work and exposes
+the next producer queue without implying acceptance.
 
 ### C. Fresh mathematical discovery
 

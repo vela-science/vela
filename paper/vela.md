@@ -1134,12 +1134,13 @@ lineage, and replayable Standing.
 
 The current corpus is mathematical and first-party. It contains one accepted
 source-statement supersession and one real merged Erdős 264 correction with five
-direct theorem consumers. The latter has an exact Submission and passing scoped
-Verification, but remains pending human Decision and therefore cannot yet count
-as post-correction evidence. Its verifier also establishes that the retained
-hosted partial proof still binds an older natural-valued perturbation definition
-rather than the corrected integer-valued definition. This creates a concrete
-repair obligation; it does not prove Erdős 264 or establish proof compatibility.
+direct theorem consumers. An attributed human Decision accepted that exact
+source correction. A later fresh-agent repair of the retained hosted proof now
+has a source-preserving Lean artifact and separately scoped passing Verification,
+but its new Claim remains pending human Decision and therefore cannot yet count
+as accepted post-correction inheritance. This does not prove every part or
+informal variant of Erdős 264, establish broader statement fidelity, or earn a
+general Vela performance claim.
 The synthetic graph fixes relation meanings in advance and cannot show that real
 scientific repositories encode them correctly. The clean-room implementation is
 colocated and does not establish organizational independence.
@@ -1265,7 +1266,8 @@ and expose `10430801..10431000` as the next nonduplicate range. The last deploye
 Atlas uses the
 repository-v4 reader and includes the later non-authorizing Formal withdrawal
 and accepted Quantum correction. Seven Erdős Proposals remain pending human
-Decisions, including the independently verified Erdős 264 source correction;
+Decisions, including the scoped verified Erdős 264 proof repair; the source
+correction itself is already accepted;
 the native Formal Erdős 835 Claim and bounded cross-Frontier retention are
 accepted through separate attributed Decisions. The
 Quantum post-Decision remap is complete and

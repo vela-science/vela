@@ -166,7 +166,8 @@ rework or recheck the retained proof against the corrected definition, with the
 native Lean kernel as verifier. A bounded RO-Crate transfer to Formal may then
 test independent readability without importing Erdős authority.
 
-The exact successor is now available at Erdős Frontier source commit
+The exact successor used by the frozen study was available at Erdős Frontier
+source commit
 `9b08906923b89c1174262f000c3fa50925b291f5` as
 `erdos:264:parts-i-proof-repair`; its packet root is
 `sha256:dc0454b0d6460a841060edbf325e35ae3cbf8408f15e123f634fff5b4641fa7b`.
@@ -181,6 +182,20 @@ New studies use the v10 answer, v8 fixture, v12 plan, and v7 compact-result
 contracts. Every two-attempt study is explicitly marked `claim_credit: false`;
 it can validate instrumentation or reveal a failure, but cannot earn a general
 performance claim.
+
+The retained compact result is
+`paper/artifacts/erdos-264-proof-repair-2026-08-03/result.v1.json`, root
+`sha256:d305b445f5a218b9abbd36a6b140b3da1926f970e32c14f19fc7635fbb42e7e9`.
+It binds `claim_credit: false`, exact pass@1 `0/1` for each arm, zero Harbor
+rewards, and the non-rescoring rule. A later engineering episode made the
+previously undeclared heartbeat policy explicit, reverified the normalized
+artifact, and retained passing scoped Verification `vvr_47f1732ee550cfd7`.
+Requirement-satisfying Verification `vvr_3c05f6340fee38be` makes the exact
+Decision packet protocol-ready without changing Standing. That repair is not a
+benchmark retry. Its updated packet root is
+`sha256:112931d7959a3f9201ea4c8402daef3d91ae25410aba1c8fc6765ce69888e3de`;
+the current derived Target Index closes the completed proof work while Proposal
+`vpr_69b5b3e26d39acbe` remains pending human review.
 
 The materializer currently supports four explicit scenarios without a generic
 correction framework:

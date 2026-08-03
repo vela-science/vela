@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import pathlib
 import tomllib
@@ -16,6 +17,10 @@ assert SPEC is not None and SPEC.loader is not None
 MATERIALIZER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MATERIALIZER)
 DECISION_PACKET = ROOT / "paper/artifacts/erdos-264/decision-packet.v1.json"
+STUDY_RESULT = (
+    ROOT
+    / "paper/artifacts/erdos-264-proof-repair-2026-08-03/result.v1.json"
+)
 
 
 def exact_inputs() -> tuple[dict, dict, dict]:
@@ -161,3 +166,30 @@ def test_task_has_no_vocabulary_for_a_vela_runner_or_authority_action() -> None:
     assert "review accept" not in source
     assert "review reject" not in source
     assert 'n-attempts", "2' not in source
+
+
+def test_retained_study_reports_the_null_result_without_harbor_rewards() -> None:
+    result = json.loads(STUDY_RESULT.read_text())
+    expected_root = result["result_root"]
+    result["result_root"] = ""
+    canonical = json.dumps(
+        result, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode() + b"\n"
+    assert expected_root == (
+        "sha256:d305b445f5a218b9abbd36a6b140b3da1926f970e32c14f19fc7635fbb42e7e9"
+    )
+    assert expected_root == "sha256:" + hashlib.sha256(canonical).hexdigest()
+    assert result["comparison"]["exact_pass_at_1"] == {
+        "git_files": 0,
+        "vela_guided": 0,
+    }
+    assert result["harbor"]["completed_trials"] == 2
+    assert result["harbor"]["errored_trials"] == 2
+    assert result["harbor"]["recorded_rewards"] == 0
+    assert all(not arm["registered_exact_pass"] for arm in result["arms"])
+    assert result["claim_credit"] is False
+    assert result["post_study_repair"]["verification"]["accepted_event_delta"] == 0
+    assert result["post_study_repair"]["decision_packet"]["protocol_gate"] == (
+        "satisfied"
+    )
+    assert result["authority"] == "non_authoritative"

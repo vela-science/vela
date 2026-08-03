@@ -1,0 +1,133 @@
+{
+  "schema": "vela.erdos-264-proof-repair-result.v1",
+  "result_root": "sha256:d305b445f5a218b9abbd36a6b140b3da1926f970e32c14f19fc7635fbb42e7e9",
+  "authority": "non_authoritative",
+  "claim_credit": false,
+  "registered_plan": {
+    "plan_root": "sha256:008f7c4d882610c920e4d901d85d63c70e756191152e23a1d052e199c622476f",
+    "plan_file_sha256": "sha256:41137a227fec137e15245176a79c4259c58b543d73442bdfbee9a9a052732973",
+    "fixture_root": "sha256:d1b31fec56008cae234e348a4cb33844db7719dd37e34acf3500e1f0ca84323e",
+    "scientific_episode_root": "sha256:46048521e3882f79f1033c1585636ad5132dd1d05af7c41f3d3a0a97fc277f8f",
+    "attempts_per_arm": 1,
+    "primary_outcome": "exact native Lean pass for the frozen corrected theorem"
+  },
+  "harbor": {
+    "version": "0.20.0",
+    "job_result_sha256": "sha256:43278187feacca7395f5a35b5bc26b0aa59a24fca5fdecbf76af29ff2c03e0a5",
+    "job_lock_sha256": "sha256:0a90c741aabc98ae56837f1368ca187ec689787a00ae4366426a08a253da0345",
+    "completed_trials": 2,
+    "errored_trials": 2,
+    "recorded_rewards": 0,
+    "aggregate_input_tokens": 13330009,
+    "aggregate_cached_input_tokens": 12886016,
+    "aggregate_output_tokens": 51787,
+    "aggregate_model_cost_usd": 4.0866332,
+    "infrastructure_outcome": "Both post-agent separate-verifier image builds exhausted Docker Desktop storage while unpacking the pinned Formal Conjectures and mathlib image. Harbor therefore recorded RuntimeError for both trials and no verifier rewards."
+  },
+  "arms": [
+    {
+      "arm": "git-files",
+      "trial": "git-files__d9U6gdP",
+      "artifact_sha256": "sha256:bb068fab669bb1e014a11d59131bee95341e0835448aafca1b339b6aaeee9e8d",
+      "trial_result_sha256": "sha256:120cc861d2bebddcab8e74f59509a6d6682fff5c6da2b7fbfc073ad9a4fb4633",
+      "trajectory_sha256": "sha256:a89ff1d68a8521e09965e1656c23eace78370216dad5e27afa2f87cd31dc1d08",
+      "agent_log_sha256": "sha256:a783f83c6be360dd6d09d90f344c8ec4742b90caff9a9370321eecda6dfa2772",
+      "agent_seconds": 5284.937122,
+      "trial_seconds": 6286.794509,
+      "input_tokens": 7812383,
+      "cached_input_tokens": 7521536,
+      "output_tokens": 25815,
+      "model_cost_usd": 2.3957812,
+      "registered_exact_pass": false,
+      "artifact_outcome": "The candidate is incomplete and fails native Lean compilation. The agent explicitly refused to present it as a completed repair.",
+      "harbor_outcome": "artifact failure; post-agent verifier infrastructure error"
+    },
+    {
+      "arm": "vela-guided",
+      "trial": "vela-guided__SV4Vnnr",
+      "artifact_sha256": "sha256:09788d5f6537222db4564f91e087e0196ef8bc721adcdde58f11e3aa878489b7",
+      "trial_result_sha256": "sha256:11c2f7e35f2fc6521b6b1826f4869688c141722bf7a46771ed34ce81ec7efb57",
+      "trajectory_sha256": "sha256:d8cad97ee23d53e852817715759bd1eb841478886aa6afc88008463fe4b3a19a",
+      "agent_log_sha256": "sha256:f917ee5c14bcf4939bc2c1b77e53ec84bcc54efe52d4161345691c1adfa544ff",
+      "agent_seconds": 1162.409664,
+      "trial_seconds": 2212.337673,
+      "input_tokens": 5517626,
+      "cached_input_tokens": 5364480,
+      "output_tokens": 25972,
+      "model_cost_usd": 1.690852,
+      "registered_exact_pass": false,
+      "artifact_outcome": "The candidate preserves the frozen source outside the target theorem and compiles under native Lean with unlimited heartbeats, but the frozen native-default verifier times out in nested elaboration contexts. It is not a completed repair under the registered contract.",
+      "harbor_outcome": "artifact failure; post-agent verifier infrastructure error"
+    }
+  ],
+  "comparison": {
+    "exact_pass_at_1": {
+      "git_files": 0,
+      "vela_guided": 0
+    },
+    "agent_time_ratio_guided_over_git_files": 0.2199475688,
+    "model_cost_ratio_guided_over_git_files": 0.7057664571,
+    "bounded_conclusion": "This single matched correction case does not demonstrate Vela lift. The guided path found the exact Target and produced a much stronger candidate with lower observed time and model cost, but both arms failed the preregistered exactness gate and both Harbor verifier phases suffered the same infrastructure error.",
+    "claim_limits": [
+      "No statistical performance claim follows from one attempt per arm.",
+      "No Harbor reward was recorded for either arm.",
+      "Unlimited-heartbeat compilation is not the registered native-default pass.",
+      "Neither candidate changes scientific Standing.",
+      "The study does not establish external adoption, theorem discovery, or protocol breakthrough."
+    ]
+  },
+  "post_study_repair": {
+    "relationship_to_registered_result": "A separate engineering episode. The frozen comparison remains 0/1 exact passes in each arm and is never rescored.",
+    "diagnosis": "The registered contract required native Lean passage but did not declare an elaboration heartbeat budget. The frozen verifier inherited Lean's implicit 200000-heartbeat enclosing-command limit; the guided artifact passes unchanged when the verifier makes unlimited heartbeats explicit.",
+    "original_guided_artifact_sha256": "sha256:09788d5f6537222db4564f91e087e0196ef8bc721adcdde58f11e3aa878489b7",
+    "retained_normalized_artifact_sha256": "sha256:9ba4b0c8aa144985aac8df40ee070c0ffe4ab7b59915d9b44eb90b42f96935e8",
+    "normalization": "Trailing whitespace only; the exact normalized artifact was reverified after normalization.",
+    "verifier_contract": {
+      "heartbeat_mode": "unlimited",
+      "result_contract_root": "sha256:666b6e1b60e9c5d8b8b0ec7d9c3062e9e237360f6f7d9b379ccdfa29d05d9c2c",
+      "verifier_capsule_root": "sha256:bf64cbb1d43b31432482fede2f000d96dbd6e95769bb639124aada4f2b1bfdfe",
+      "target_packet_root": "sha256:112931d7959a3f9201ea4c8402daef3d91ae25410aba1c8fc6765ce69888e3de",
+      "checks": {
+        "source_identity_exact": true,
+        "only_target_theorem_changed": true,
+        "native_lean_passed": true,
+        "permitted_axioms_only": true
+      },
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ]
+    },
+    "submission": {
+      "submission_id": "vsb_d0af649f7155e0ed",
+      "proposal_id": "vpr_69b5b3e26d39acbe",
+      "claim_id": "vcl_930b7bb4b4bb11cc3b35de01690ff106ab47c464e828bdafb18d26d3998a1616",
+      "standing": "pending_review"
+    },
+    "verification": {
+      "complementary_record": {
+        "verification_record_id": "vvr_47f1732ee550cfd7",
+        "verification_record_root": "sha256:ff1bc383fd71698f9b58a1d1031e1b51b2d80890fe8bc7b229c9ee74b2b10516",
+        "outcome": "pass"
+      },
+      "requirement_satisfying_record": {
+        "verification_record_id": "vvr_3c05f6340fee38be",
+        "verification_record_root": "sha256:9f39c297721c4fee479ac8ecb4b649806a2d3bdd928305e485b8cef0637c1b8c",
+        "outcome": "pass"
+      },
+      "accepted_event_delta": 0,
+      "independence_limit": "Same human operator and machine; no external-participant or organizational independence is claimed."
+    },
+    "target_index_after_verification": "sha256:77f34e1a5cca438f29eb5b70ad702e8f603244fc64ff30e7a0d61d1aca265476",
+    "decision_packet": {
+      "repository_root": "sha256:c140453eaa36a314fdbbc524aea84a7bb6e91f89eeface403487fe3c3bfad574",
+      "entry_root": "sha256:badec76bae5a1141ce213408f5f1e5d77b1a85102789b2580a14796346321e2d",
+      "verification_set_root": "sha256:6be4add349be1c3d9c73f4bd81fc2512c24359079c8cbe1d6ed985b33036efad",
+      "protocol_gate": "satisfied",
+      "human_decision_required": true,
+      "blockers": []
+    }
+  },
+  "next_obligation": "An attributed human reviews Proposal vpr_69b5b3e26d39acbe. The agent may not decide it. After the human outcome, replay Standing, recompute correction impact, and hand the exact next valid obligation to a different producer."
+}
