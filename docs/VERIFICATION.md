@@ -84,7 +84,6 @@ Durable independent evidence is retained with:
 vela verification record . <vpr_id> \
   --profile exact-replay-v1 \
   --method verification/method.json \
-  --property "Replay the exact retained artifact." \
   --outcome pass \
   --does-not-establish "Scientific acceptance." \
   --independent-of agent:<producer> \
@@ -97,6 +96,11 @@ unchanged in the current Git commit. Its exact bytes become the record's
 environment root. Vela resolves the current Claim, Submission, Proposal, and
 Submission Artifacts before it loads or creates the verifier's local agent key,
 then signs and imports the record through the ordinary atomic intake path.
+When the Submission declares exactly one verification requirement, that exact
+requirement becomes the Verification property automatically. A Submission with
+multiple requirements must select one exact requirement with `--property`.
+An additional observation must use `--property ... --complementary`; it remains
+useful evidence but does not satisfy a registered requirement.
 Missing, decided, or stale Proposals and missing, dirty, untracked, empty,
 symlinked, oversized, or escaping method paths fail closed.
 

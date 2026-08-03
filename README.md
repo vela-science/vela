@@ -170,7 +170,6 @@ vela submit --frontier . \
 vela verification record . <vpr_id> \
   --profile exact-replay-v1 \
   --method verification/method.json \
-  --property "Replay the exact retained artifact." \
   --outcome pass \
   --does-not-establish "Scientific acceptance." \
   --as verifier:<name> \
@@ -183,6 +182,10 @@ vela why . <claim_id> --json
 
 `submit` registers authenticated producer input and a pending Proposal. It
 does not create a Verification Record, Decision, Event, or accepted Standing.
+When the Submission declares one verification requirement, `verification
+record` uses it directly. Additional observations require an explicit
+`--property ... --complementary` so they cannot be mistaken for evidence that
+satisfies the registered gate.
 `start` writes nothing: Codex, Claude, OpenCode, Harbor, laboratory software,
 or another native tool owns execution. Submission and Verification authenticate
 their own exact records; neither reads repository-authority credentials.

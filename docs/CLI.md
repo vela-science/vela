@@ -165,7 +165,6 @@ Proposal and cannot decide it.
 vela verification record . <vpr_id> \
   --profile exact-replay-v1 \
   --method verification/method.json \
-  --property "Replay the exact retained artifact." \
   --outcome pass \
   --does-not-establish "Scientific acceptance." \
   --independent-of agent:<producer> \
@@ -177,6 +176,12 @@ A Verification Record binds the Submission, Proposal, Claim, Artifacts,
 method-manifest bytes, environment, scope, outcome, and verifier identity. The
 command resolves the exact current Proposal package, signs the scoped record,
 and retains it atomically. It changes no Standing.
+
+The ordinary one-requirement case needs no copied property string: Vela uses
+the Submission's sole exact verification requirement. With multiple
+requirements, pass one exact requirement through `--property`. Use
+`--property ... --complementary` only for an observation that does not satisfy
+the registered gate.
 
 `vela verification import . verification.json --as verifier:<name> --json`
 remains the interoperability and clean-clone path for an already signed record.
