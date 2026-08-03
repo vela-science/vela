@@ -43,7 +43,11 @@ protocol-breakthrough gate.
   Observatory deployment before participant one, records the answer-key
   revalidation, and adds a fail-closed manifest preflight without changing the
   study method.
-- `manifest.sha256` binds the five study-control files.
+- `amendment.v2.json` supersedes that presentation identity after a
+  pre-participant Browser preflight exposed and repaired exact-ID discovery.
+  It records the deployed repair and successful navigation preflight without
+  changing the method or answer key.
+- `manifest.sha256` binds the six study-control files.
 
 Eligible failures, timeouts, and null results are retained. No favorable
 stopping, fixture substitution, or post-output scoring change is allowed.
@@ -59,6 +63,13 @@ participant one. `amendment.v1.json` preserves the plan and answer key byte for
 byte while binding execution to the current public deployment and requiring an
 exact public-manifest preflight before every participant. Any deployment or
 projection drift stops the study; it is not repaired after participant one.
+
+That preflight found one real product defect before enrollment: the command
+palette searched only a bounded generic slice and could not resolve the
+supplied exact Formal Proposal ID. The deployed repair queries the exact
+root-bound search projection and makes an exact match the keyboard-selected
+action. `amendment.v2.json` binds that final surface. No participant saw either
+earlier deployment.
 
 ## Remaining execution
 

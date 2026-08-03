@@ -59,9 +59,10 @@ identity. This roadmap records only product sequence.
   the unrun external-reader value gate.
 - A four-person external cold-reader pilot is frozen at plan root
   `sha256:992858398fcaac2dd2df2d6b0edd4f03fe50dd2c7eb6195deee28e2cc25f93ca`.
-  Its pre-participant Observatory amendment is frozen at
-  `sha256:571660505fbf7fd9f5f0c09d992ae2bf37791d5f3de600ef8844da88fdd07626`
-  and binds the current public manifest without changing the study method.
+  Its final pre-participant Observatory amendment is frozen at
+  `sha256:fd08aa450053702e87971aeaa20b68d64f564c8f7e73e527f003c0b74c02a4e3`
+  and binds the current public manifest and repaired exact-ID flow without
+  changing the study method.
   It compares Git and the root-bound Observatory over the accepted Quantum
   correction and accepted Formal transfer, with exact authority-error gates
   and no new harness. It has not run yet and earns no external-user claim.

@@ -1,0 +1,73 @@
+{
+  "schema": "vela.external-cold-reader-pilot-amendment.v1",
+  "status": "frozen_before_participant_one",
+  "frozen_at": "2026-08-03T02:08:00Z",
+  "amends_plan_root": "sha256:992858398fcaac2dd2df2d6b0edd4f03fe50dd2c7eb6195deee28e2cc25f93ca",
+  "supersedes_amendment_root": "sha256:571660505fbf7fd9f5f0c09d992ae2bf37791d5f3de600ef8844da88fdd07626",
+  "answer_key_root": "sha256:c7c9e97dc16c3169d4d710714a09ce670a874bc24ff68720f892466582a5a6ea",
+  "participant_exposure_before_amendment": 0,
+  "reason": "The pre-participant Browser preflight found that the command palette did not query the exact root-bound index, so the supplied Formal Proposal ID returned no result even though the full search API resolved it. The Observatory repair was completed, tested, deployed, and verified before participant one. This amendment updates presentation identity only; the study method and scientific fixtures remain unchanged.",
+  "unchanged": [
+    "participant eligibility and exclusions",
+    "fixture identities and pinned Git starting commits",
+    "task questions and neutral glossary",
+    "counterbalancing and contamination controls",
+    "timing, timeout, scoring, hard-error, exclusion, stop, and publication rules",
+    "semantic answer key and claim ceiling",
+    "projection root and both canonical Frontier repository roots"
+  ],
+  "observatory": {
+    "canonical_url": "https://app.vela.space/",
+    "manifest_url": "https://app.vela.space/.well-known/vela-site.json",
+    "manifest_schema": "vela.site-deployment.v4",
+    "manifest_sha256": "sha256:08742a825b1a864a7f5e18a897e14e156fe3cbe4cbdaf3ec491330b985947898",
+    "site_version": "0.430.0",
+    "site_commit": "ab825cfe8a6a2d6729864ec3f65d6641bc69bdc7",
+    "deployment_id": "dpl_9Z1fiCGELZ9dnU252d7FPUCt5ui2",
+    "projection_root": "sha256:7e50aced8fabd11efe90f94aa91588d8e9ef071cf90c21d903256dc00066166a",
+    "vela_version": "vela 0.963.0",
+    "vela_release_commit": "50ab6f267cf325988e6d903ddafa5c0070c9f015",
+    "operator_preflight": "Immediately before each participant sees evidence, retrieve the canonical manifest without credentials and require its exact byte SHA-256, site commit, deployment ID, projection root, Vela version, and both source repository roots to match this amendment. Stop the study on any mismatch.",
+    "participant_surface": "Use the canonical app.vela.space URLs from plan.v1.json. Exactness is enforced by the public-manifest preflight rather than participant credentials."
+  },
+  "fixtures": {
+    "quantum": {
+      "pinned_git_commit": "718de33dcdb27e97e92458530e938f2262c86fbe",
+      "projected_source_commit": "6f4a1e8631fe1db6a7d9365301df50f6045cbc0f",
+      "projected_source_tree": "5e9bb52b0f84b1c718bc46d80bf81b5b40f0f115",
+      "repository_root": "sha256:cd6ccf48dc04d5d3a96a185ca16be998f456f9531d975132d7cb910334f0ecdb",
+      "proposal_id": "vpr_8715dbb5e2a12442",
+      "claim_id": "vcl_cdd52df280c6249b97daa2ce544a8ed260cae6a31d33fd519917bb33c51faa59",
+      "projected_standing": "accepted"
+    },
+    "formal": {
+      "pinned_git_commit": "100d0028bb5b4714ddace4812a77a7ad617ac97c",
+      "projected_source_commit": "2d28519aaaf1003070703ad85edf4d1d28cf5839",
+      "projected_source_tree": "9158249e68a12fa9a2bffd1b0d892d54d153b1eb",
+      "repository_root": "sha256:f652b5793e2bcccd2863f24adb7dda3ff3dd707ae64e2de8ee447b37fb1c85e7",
+      "proposal_id": "vpr_7aba66544ffefd99",
+      "claim_id": "vcl_1b3e297c552170bc608ac84bc7e19d1ec234125aa77be7959708f18566d7bb45",
+      "projected_standing": "accepted"
+    }
+  },
+  "answer_key_revalidation": {
+    "result": "pass",
+    "records_checked": 4,
+    "accepted_records_found": 4,
+    "semantic_changes": 0
+  },
+  "browser_preflight": {
+    "result": "pass",
+    "start_surfaces": [
+      "https://app.vela.space/frontiers/quantum-codes",
+      "https://app.vela.space/frontiers/formal-conjectures"
+    ],
+    "verified_flows": [
+      "Quantum overview to Review to accepted Proposal to scoped Verification chain",
+      "Formal overview to exact Proposal lookup to selected command result to URL-bound accepted Proposal sheet",
+      "keyboard Enter on the exact Formal Proposal result opens the canonical review URL",
+      "both overviews state the explicit absence of a configured producer offer"
+    ],
+    "authority_mutations_exposed": 0
+  }
+}
