@@ -278,6 +278,15 @@ The baseline receives the same scientific information as the Vela arm. The
 only treatment is the action-complete Target, Standing, evidence, correction,
 and next-obligation projection supplied by Vela.
 
+Phase A is frozen in
+[`paper/artifacts/action-complete-frontier-2026-08-03`](../paper/artifacts/action-complete-frontier-2026-08-03/README.md)
+at baseline root
+`sha256:46f931b202618ef6437a23f0c49f9172cafa739c1b1b69465f5171f1caa39a4c`.
+The freezer independently confirmed all four strict-replaying heads, the live
+read-only projection, Erdős's one exact next range, three explicit no-Target
+states, Harbor custody, and the benchmark implementation roots without writing
+any Frontier.
+
 ### Phase B — complete the native-agent vertical slice
 
 Use Codex or another native agent with its normal OAuth, durable session, and
