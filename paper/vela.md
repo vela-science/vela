@@ -1132,11 +1132,16 @@ lineage, and replayable Standing.
 ## 9. Limitations
 
 The current corpus is mathematical and first-party. It contains one accepted
-source-statement supersession, but no qualifying correction fixture with the
-registered consequential topology. The synthetic graph fixes relation meanings
-in advance and cannot show that real scientific repositories encode them
-correctly. The clean-room implementation is colocated and does not establish
-organizational independence.
+source-statement supersession and one real merged Erdős 264 correction with five
+direct theorem consumers. The latter has an exact Submission and passing scoped
+Verification, but remains pending human Decision and therefore cannot yet count
+as post-correction evidence. Its verifier also establishes that the retained
+hosted partial proof still binds an older natural-valued perturbation definition
+rather than the corrected integer-valued definition. This creates a concrete
+repair obligation; it does not prove Erdős 264 or establish proof compatibility.
+The synthetic graph fixes relation meanings in advance and cannot show that real
+scientific repositories encode them correctly. The clean-room implementation is
+colocated and does not establish organizational independence.
 
 Repository authority remains operationally heavier than ordinary producer
 authentication. The first state-reading pilot used first-party Codex model
@@ -1257,9 +1262,10 @@ attributed human Decision accept only the bounded result through `10430600`
 and expose `10430601..10430800` as the next nonduplicate range. The production
 Atlas uses the
 repository-v4 reader and includes the later non-authorizing Formal withdrawal
-and accepted Quantum correction. Six Erdős Proposals remain pending human
-Decisions; the native Formal Erdős 835 Claim and bounded cross-Frontier
-retention are accepted through separate attributed Decisions. The
+and accepted Quantum correction. Seven Erdős Proposals remain pending human
+Decisions, including the independently verified Erdős 264 source correction;
+the native Formal Erdős 835 Claim and bounded cross-Frontier retention are
+accepted through separate attributed Decisions. The
 Quantum post-Decision remap is complete and
 exposes no remaining producer Target. An earlier broader-worded Erdős Proposal
 remains retained separately. The frozen held-out selector detects the Quantum

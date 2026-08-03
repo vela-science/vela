@@ -85,6 +85,30 @@ is a negative control and conformance case; it cannot earn product, scientific,
 or protocol-breakthrough credit. A result from these Harbor-native custom tasks
 must not be called a Terminal-Bench score or leaderboard result.
 
+### Scientific-significance eligibility
+
+A task may contribute to the public correction-and-inheritance result only when
+all of the following are true before either arm runs:
+
+- the underlying change occurred in a real, independently maintained scientific
+  source repository and was not authored for this benchmark;
+- it changes the admissible scientific statement, evidence, or downstream
+  obligations rather than only formatting, metadata, or Vela bookkeeping;
+- predecessor and successor commits, trees, source bytes, and a closed affected
+  scope are exact and independently recomputable;
+- at least one accepted Claim is genuinely corrected while unrelated Standing
+  has a known invariant set that must survive unchanged;
+- the resulting repair or continuation obligation is useful to a named native
+  project and can be checked by that project's own verifier or kernel; and
+- a cold successor must recover and act on the obligation without access to an
+  answer-bearing trajectory.
+
+Passing this gate makes a task eligible; it does not make one task statistically
+significant. A public performance claim still requires the preregistered number
+of distinct frozen task blocks, both task families, the exactness hard gate, and
+the registered confidence interval. Repeated sessions, adjacent slices of one
+episode, and synthetic fixtures cannot increase the experimental-unit count.
+
 ### Current enrollment gate
 
 The 2026-08-03 corpus audit found only three independent frozen paired blocks:
@@ -116,14 +140,17 @@ and
 the canonical full-index diff root is
 `sha256:a1935f112f5e086cac55d0933f6aa5588893aa7452512d5a0319e12fba4a472f`.
 
-This is a candidate, not a completed result. A qualifying study must preserve
-the independent problem Claim, supersede the stale mutable formalization
-locator, separately audit the retained partial-proof Claim, classify all five
-exact downstream theorem consumers as affected, surviving, or unresolved, and
-hand a cold successor the exact repair obligation. A bounded RO-Crate transfer
-to Formal may test independent readability without importing Erdős authority.
-Only the resulting human-governed correction and receiver evidence can earn
-real correction-and-inheritance credit.
+The exact source transition now has Submission `vsb_0030695bb694112c`, pending
+Proposal `vpr_2f52fe736670aff8`, and passing scoped Verification
+`vvr_dca5ba7f3288acbf`. The Verification pins the five direct consumers and the
+current hosted partial proof. That proof still binds its own natural-valued
+perturbation definition, not the corrected integer-valued definition. The
+Proposal therefore remains evidence awaiting a human Decision; it has not
+changed Standing and earns no post-correction benchmark credit. If accepted,
+the first useful cold-successor task is to rework or recheck the retained proof
+against the corrected definition, with the native Lean kernel as verifier. A
+bounded RO-Crate transfer to Formal may then test independent readability
+without importing Erdős authority.
 
 New studies use the v10 answer, v8 fixture, v12 plan, and v7 compact-result
 contracts. Every two-attempt study is explicitly marked `claim_credit: false`;

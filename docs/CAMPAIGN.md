@@ -781,6 +781,16 @@ gates pass, the paired interval supports the registered effect, and at least one
 real correction reports affected-set precision/recall, surviving-route recall,
 false pruning, exact repair obligation, and cold-successor continuation.
 
+The scientific task itself must also pass a frozen significance gate before it
+can contribute to that result: it must be a real independently authored source
+change, alter scientific meaning or obligations rather than Vela metadata,
+have exact predecessor/successor bytes and a closed affected scope, correct at
+least one accepted Claim while preserving a known unrelated invariant set, and
+produce a useful native-project obligation with a deterministic verifier. This
+eligibility gate prevents a statistically tidy study over toy tasks from being
+reported as meaningful scientific-workflow evidence. It does not replace the
+registered multi-block power and confidence-interval requirements.
+
 A full Frontier-history audit finds only three independent frozen paired blocks
 available now: two Erdős post-Decision continuations and one Formal
 cross-Frontier receiver continuation. Current-epoch history contains five
@@ -792,18 +802,20 @@ counted as new experimental units. The evidence campaign must create natural
 new scientific episodes and a second cross-Frontier chain before running a
 confirmatory claim study.
 
-The next real correction candidate is the merged Erdős 264 formal-statement
-change at `0598b8f281060a18416d60753fd75621d659bb07`: its perturbation type
-changes from naturals to integers and it has five exact downstream theorem
-consumers. This is materially stronger than another arbitrary bounded range or
-the earlier unmerged Erdős 424 source case. Freeze the source diff and current
-equivalence, preserve the independent problem Claim, supersede only the stale
-formalization locator, audit the partial hosted-proof Claim, compute the exact
-affected/surviving/unresolved set, and hand the resulting obligation to a cold
-successor. A separately governed Formal receiver may inspect a bounded RO-Crate
-export, but importing evidence must not import Erdős authority. No benchmark
-credit exists before the independent Verification and attributed human
-Decision complete this real correction.
+The next real correction is the merged Erdős 264 formal-statement change at
+`0598b8f281060a18416d60753fd75621d659bb07`: its perturbation type changes
+from naturals to integers and it has five exact downstream theorem consumers.
+The exact diff is retained by Submission `vsb_0030695bb694112c`; scoped
+Verification `vvr_dca5ba7f3288acbf` passes; Proposal
+`vpr_2f52fe736670aff8` remains `pending_review` with accepted-event delta zero.
+The verifier also pins the hosted partial proof at
+`plby/lean-proofs@68da20b96673899166e94638f5a7fffeb7231d35` and finds that it
+still uses its local natural-valued perturbation definition. It is not rebound
+to the corrected statement. This is materially stronger than another arbitrary
+bounded range: the exact next obligation is to rework or recheck that proof and
+the five consumers under the corrected integer definition. No post-correction
+benchmark credit exists before an attributed human Decision and cold-successor
+result.
 
 The Formal foreign-reference receiver-continuation comparison passed the same
 task-specific gate: all four native Harbor trials were eligible, the
