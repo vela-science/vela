@@ -368,7 +368,7 @@ Required comparisons:
 - Decision/evidence location time and correctness;
 - continuation from an exact changed Frontier root;
 - correction impact comprehension; and
-- bounded export inspection by an independent reader or Frontier.
+- bounded export inspection by a separately governed Frontier.
 
 A positive claim requires zero authority errors and at least 20 percent median
 improvement on its registered primary metric. First-party runs debug the
@@ -387,8 +387,7 @@ reader trial, and does not manufacture a synthetic substitute or graph edge.
 
 Three current native Harbor comparisons passed their registered task-specific
 exactness gates. The next benchmark must test a real correction with downstream
-inheritance or use a cold independent participant; more harness infrastructure
-is not an acceptable substitute.
+inheritance; more harness infrastructure is not an acceptable substitute.
 
 The Quantum supersession comparison passed its registered task-specific gate:
 all four native Harbor trials were eligible, the Vela-guided arm was exact 2/2,
@@ -412,7 +411,7 @@ extended the later producer-complete range back to the accepted boundary. Vela
 exposed the exact accepted range, later verified-but-pending producer
 completion, and exact next Target without either error. This is a bounded
 post-Decision continuation result, not the still-open correction-inheritance
-or independent-participant proof.
+proof. No external-user evidence was collected or claimed.
 
 The Formal foreign-reference receiver-continuation comparison passed the same
 task-specific gate: all four native Harbor trials were eligible, the
@@ -423,26 +422,14 @@ $0.2306 versus $0.5098. The compact result root is
 The task required the agent to distinguish accepted foreign source Standing
 from a pending local Proposal and recover the exact Decision packet. It closes
 a second task class, but remains first-party evidence and does not satisfy the
-held-out correction-impact or independent-participant gate.
+held-out correction-impact gate.
 
-The next independent-product gate is frozen in
-`paper/artifacts/cold-reader-study/plan.v1.json`, byte root
-`sha256:992858398fcaac2dd2df2d6b0edd4f03fe50dd2c7eb6195deee28e2cc25f93ca`.
-Before participant one, the final presentation identity was root-linked to the
-current public Observatory by `amendment.v3.json`, byte root
-`sha256:afecfa850f71db79ba776a06e1a9f3943aa2123b8974eb601207f4721d80e8c8`.
-The amendment records the repaired exact-ID path but changes no fixture,
-question, timing, score, or semantic answer; it requires the public manifest to
-match exactly before every participant.
-It uses four external readers, the accepted Quantum correction, and the
-accepted Formal cross-Frontier retention in a two-task counterbalanced
-Git-versus-Observatory crossover. The semantic answer key was frozen before
-participant one at byte root
-`sha256:c7c9e97dc16c3169d4d710714a09ce670a874bc24ff68720f892466582a5a6ea`.
-No new runner, service, model call, or mutation surface is required. A positive
-result supports only bounded external product-comprehension and continuation
-claims; the failed held-out correction-topology gate still prevents a protocol-
-breakthrough claim.
+The unrun external cold-reader study was removed from the active tree before
+collecting any response. Vela therefore makes no external-user, adoption, or
+organizational-independence claim. Product evidence remains the registered
+first-party Harbor comparisons; the next protocol-level gate is a real
+correction with downstream inheritance, not another runner or participant
+ceremony.
 
 ### Gate 5 — keep Registry and Atlas exact, not expansive
 

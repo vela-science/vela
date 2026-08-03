@@ -57,17 +57,11 @@ identity. This roadmap records only product sequence.
 - A third native Harbor comparison passed the Formal foreign-reference
   receiver-continuation gate: Vela-guided 2/2 exact versus Git/files 0/2, with
   52.69 percent lower median agent time and 54.77 percent lower median cost.
-  This is still first-party evidence; the later local Decision does not satisfy
-  the unrun external-reader value gate.
-- A four-person external cold-reader pilot is frozen at plan root
-  `sha256:992858398fcaac2dd2df2d6b0edd4f03fe50dd2c7eb6195deee28e2cc25f93ca`.
-  Its final pre-participant Observatory amendment is frozen at
-  `sha256:afecfa850f71db79ba776a06e1a9f3943aa2123b8974eb601207f4721d80e8c8`
-  and binds the current public manifest and repaired exact-ID flow without
-  changing the study method.
-  It compares Git and the root-bound Observatory over the accepted Quantum
-  correction and accepted Formal transfer, with exact authority-error gates
-  and no new harness. It has not run yet and earns no external-user claim.
+  This is still first-party evidence and earns no external-user or adoption
+  claim.
+- The unrun external cold-reader pilot and its active artifacts were removed.
+  The next evidence gate is a real correction with downstream inheritance,
+  evaluated with the existing Harbor boundary rather than a new harness.
 - The Astra source-fidelity comparison completed with all four trials eligible
   but 0/4 exact. The guided arm was faster and cheaper, but the registered gate
   failed and earns no product-lift claim. Its one-off task implementation was
@@ -134,10 +128,10 @@ Measure separately:
 - correction impact comprehension; and
 - inspection of a bounded foreign package without imported authority.
 
-First-party runs debug the method. External users are required only before
-claiming adoption or independent lift. A positive performance claim requires
-zero authority errors and at least 20 percent median improvement over the
-matched baseline.
+First-party runs can establish only bounded task performance. They cannot
+establish adoption or organizational independence. A positive performance
+claim requires zero authority errors and at least 20 percent median improvement
+over the matched baseline.
 
 ## Then — earn expansion
 

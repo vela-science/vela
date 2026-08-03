@@ -867,8 +867,8 @@ acceptance, or organizationally independent replication.
 
 The cross-Frontier Decision retains one exact Erdős evidence package in Formal
 Standing. It does not import Erdős authority, establish the source mathematics,
-prove product lift over Git, earn a shared adapter contract, or satisfy the
-external-reader value study.
+prove product lift over Git, earn a shared adapter contract, or provide
+external-user evidence.
 
 ### 6.9 Framework-neutral execution evaluation
 

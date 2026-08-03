@@ -163,23 +163,15 @@ documentation. Without live maintainer coaching, measure:
 
 The median must improve by at least 20 percent on both fixtures without lower
 answer correctness or more false scientific admission. Publish all
-interventions, exclusions, and errors. Initial protocol-breakthrough credit
-requires at least one participant external to Vela maintainers on each frozen
-fixture. The current first-party campaign earns no such credit.
+interventions, exclusions, and errors. The current first-party campaign can
+support only bounded task-performance claims; it provides no external-user,
+adoption, or organizational-independence evidence.
 
-The current product-reading pilot is preregistered separately at
-`paper/artifacts/cold-reader-study/plan.v1.json`, byte root
-`sha256:992858398fcaac2dd2df2d6b0edd4f03fe50dd2c7eb6195deee28e2cc25f93ca`.
-Its final pre-participant presentation amendment is frozen at byte root
-`sha256:afecfa850f71db79ba776a06e1a9f3943aa2123b8974eb601207f4721d80e8c8`;
-it preserves the method and answer key while binding the study to the exact
-current public Observatory manifest, the repaired exact-ID flow, and a
-fail-closed preflight.
-Four external readers will inspect the accepted Quantum correction and the
-accepted Formal transfer in a counterbalanced Git-versus-Observatory crossover.
-It measures comprehension and next-action latency only. Because the frozen
-held-out selector still has no qualifying consequential correction topology,
-this pilot cannot satisfy B10 by itself even if its product gate passes.
+The unrun external cold-reader pilot was removed before collecting any
+response. It is not an active benchmark gate. Protocol-breakthrough credit now
+depends on the registered real correction-and-inheritance case, including
+correct downstream impact and exact next obligation, rather than on an
+unavailable participant cohort.
 
 ## Required adversarial cases
 
