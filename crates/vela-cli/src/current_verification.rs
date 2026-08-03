@@ -228,6 +228,56 @@ fn method_manifest_binding(
     ))
 }
 
+fn matches_request(
+    record: &VerificationRecordV1,
+    subject: &VerificationSubject,
+    method: &VerificationMethod,
+    scope: &VerificationScope,
+    outcome: &str,
+    verifier: &str,
+    independence: &IndependenceDisclosure,
+) -> bool {
+    record.subject == *subject
+        && record.method == *method
+        && record.scope == *scope
+        && record.outcome == outcome
+        && record.verifier == verifier
+        && record.independence == *independence
+        && record.output_artifact_ids.is_empty()
+}
+
+fn existing_semantic_record(
+    frontier: &Path,
+    repository: &CurrentRepositoryV4,
+    subject: &VerificationSubject,
+    method: &VerificationMethod,
+    scope: &VerificationScope,
+    outcome: &str,
+    verifier: &str,
+    independence: &IndependenceDisclosure,
+) -> Result<Option<VerificationRecordV1>, String> {
+    for reference in &repository.verifications {
+        let record = read_exact_object(
+            frontier,
+            reference,
+            VerificationRecordV1::parse,
+            VerificationRecordV1::canonical_bytes,
+        )?;
+        if matches_request(
+            &record,
+            subject,
+            method,
+            scope,
+            outcome,
+            verifier,
+            independence,
+        ) {
+            return Ok(Some(record));
+        }
+    }
+    Ok(None)
+}
+
 pub(crate) fn author_record(
     frontier: &Path,
     request: VerificationRecordRequest,
@@ -250,6 +300,31 @@ pub(crate) fn author_record(
     let subject = current_subject_for_proposal(frontier, &repository, &request.proposal_id)?;
     let (implementation, environment_root) =
         method_manifest_binding(frontier, &request.method_path)?;
+    let method = VerificationMethod {
+        profile: request.profile,
+        implementation,
+        environment_root,
+    };
+    let scope = VerificationScope {
+        property: request.property,
+        does_not_establish: request.does_not_establish,
+    };
+    let independence = IndependenceDisclosure {
+        declared_independent_of: request.independent_of,
+        shared_dependencies: request.shared_dependencies,
+    };
+    if let Some(record) = existing_semantic_record(
+        frontier,
+        &repository,
+        &subject,
+        &method,
+        &scope,
+        &request.outcome,
+        actor,
+        &independence,
+    )? {
+        return Ok(record);
+    }
 
     let observed_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
     let key = vela_edge::agent_identity::agent_signing_key(actor)?;
@@ -264,21 +339,11 @@ pub(crate) fn author_record(
     VerificationRecordV1::build(
         VerificationRecordDraft {
             subject,
-            method: VerificationMethod {
-                profile: request.profile,
-                implementation,
-                environment_root,
-            },
-            scope: VerificationScope {
-                property: request.property,
-                does_not_establish: request.does_not_establish,
-            },
+            method,
+            scope,
             outcome: request.outcome,
             verifier: actor.into(),
-            independence: IndependenceDisclosure {
-                declared_independent_of: request.independent_of,
-                shared_dependencies: request.shared_dependencies,
-            },
+            independence,
             output_artifact_ids: Vec::new(),
             started_at: observed_at.clone(),
             completed_at: observed_at,
@@ -874,6 +939,32 @@ mod tests {
         .unwrap();
         assert!(outcome.idempotent);
         assert_eq!(outcome.accepted_event_delta, 0);
+    }
+
+    #[test]
+    fn semantic_retry_reuses_the_retained_verification() {
+        let fixture = fixture();
+        assert!(matches_request(
+            &fixture.record,
+            &fixture.record.subject,
+            &fixture.record.method,
+            &fixture.record.scope,
+            &fixture.record.outcome,
+            &fixture.record.verifier,
+            &fixture.record.independence,
+        ));
+
+        let mut changed_scope = fixture.record.scope.clone();
+        changed_scope.property.push_str(" changed");
+        assert!(!matches_request(
+            &fixture.record,
+            &fixture.record.subject,
+            &fixture.record.method,
+            &changed_scope,
+            &fixture.record.outcome,
+            &fixture.record.verifier,
+            &fixture.record.independence,
+        ));
     }
 
     #[test]
