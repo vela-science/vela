@@ -85,6 +85,46 @@ is a negative control and conformance case; it cannot earn product, scientific,
 or protocol-breakthrough credit. A result from these Harbor-native custom tasks
 must not be called a Terminal-Bench score or leaderboard result.
 
+### Current enrollment gate
+
+The 2026-08-03 corpus audit found only three independent frozen paired blocks:
+
+| Family | Frozen block | Fixture root | Compact result root |
+| --- | --- | --- | --- |
+| Target continuation | Erdős `10430401..10430600` successor | `sha256:12d83db55b65eed830b9e55b9284df9fe2f01191f78c92424c6d7712b7fdf89e` | `sha256:e3a2bfafeae5f1573c1e5b95bee1321227fd26984e569e3b60b9ec81cafa409c` |
+| Target continuation | Erdős `10430801..10431000` successor | `sha256:47d51e239cf2732e197e12667f3e07b4231c78744983543fa5de658dafc5c545` | `sha256:605342e91cacdeb1667476ae41c61ebea2b1daa7e8f2bc88a199453c95d3bd3a` |
+| Cross-Frontier inheritance | Erdős correction retained by Formal | `sha256:35ff7f7866a8854a004ada54447903b9ddcc868dd5d1f5691b58f04d10970530` | `sha256:c0e6b316ce2b446d0b1a05b7f9d1acdb93631b32ae7c2b17d76805a8b650cfda` |
+
+Current-epoch history contains five accepted Decisions total: two Erdős, two
+Formal, one Quantum, and none in Sidon. Only the Formal case is a real
+source-to-receiver chain. Therefore the preregistered 20+20 confirmation is not
+yet enrollable. Repeated model calls, duplicate caches, schema refreezes, and
+artificially sliced adjacent ranges are not independent task blocks. The next
+evidence work must accrue natural distinct Decisions across different Targets
+and at least one additional independently governed cross-Frontier transfer.
+
+### Next real correction benchmark
+
+The strongest currently identified case is the merged Erdős 264 formalization
+correction, commit `0598b8f281060a18416d60753fd75621d659bb07` over
+`593e6b76702c5dbffaaa91b59f4faaed705d04ce`. It changes the perturbation
+function from `ℕ → ℕ` to `ℕ → ℤ`, admitting negative perturbations and removing
+a vacuous nonzero premise. The old and corrected file roots are respectively
+`sha256:98386d8f28112c5e952ec40c4ee439c27f3ff7560a4e767b493ccebc628fb29f`
+and
+`sha256:5a3a0fb7063ed77d644a5c1cab503851e68d87b02c0882db8fa52e801aba1166`;
+the exact binary-diff root is
+`sha256:5b38d07ebfe50833b296e979424ec78135b2ab0a67cb0478813749ff902f1f90`.
+
+This is a candidate, not a completed result. A qualifying study must preserve
+the independent problem Claim, supersede the stale mutable formalization
+locator, separately audit the retained partial-proof Claim, classify all five
+exact downstream theorem consumers as affected, surviving, or unresolved, and
+hand a cold successor the exact repair obligation. A bounded RO-Crate transfer
+to Formal may test independent readability without importing Erdős authority.
+Only the resulting human-governed correction and receiver evidence can earn
+real correction-and-inheritance credit.
+
 New studies use the v10 answer, v8 fixture, v12 plan, and v7 compact-result
 contracts. Every two-attempt study is explicitly marked `claim_credit: false`;
 it can validate instrumentation or reveal a failure, but cannot earn a general
@@ -202,6 +242,15 @@ Run focused contract tests with:
 ```bash
 python3 -m unittest discover \
   -s benchmarks/product-compression -p 'test_*.py'
+```
+
+Run the isolated confirmatory analysis tests with the exact statistical
+dependency declared in the script:
+
+```bash
+uv run --script benchmarks/product-compression/confirmatory.py --help
+uv run --with scipy==1.18.0 python -m unittest discover \
+  -s benchmarks/product-compression -p 'test_confirmatory.py'
 ```
 
 Compact, claim-limited results cited by the paper belong under

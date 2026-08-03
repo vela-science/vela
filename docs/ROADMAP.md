@@ -107,6 +107,19 @@ exactness. Vela-specific ETY/VPAC/FIE/CPI names stay in the evidence companion.
 Synthetic corrections and repeated invocations of one fixture cannot earn
 headline claim credit.
 
+The current honest enrollment inventory is three independent paired blocks:
+two Erdős continuations and one Formal cross-Frontier transfer. Five accepted
+Decisions exist across the four Frontiers, but only one cross-Frontier chain.
+Do not launch the 40-block confirmation until natural scientific work supplies
+the missing distinct blocks and at least one additional governed transfer.
+
+The next high-value scientific episode is the merged Erdős 264 formalization
+correction: one exact semantic change, five downstream theorem consumers, one
+stale locator to supersede, one retained partial proof to audit, and a credible
+second cross-Frontier transfer. It earns benchmark credit only after exact
+impact classification, independent Verification, an attributed human Decision,
+and a cold successor recovers the next obligation.
+
 The active campaign defines the full phases, ETY/VPAC/FIE/CPI metrics,
 correction-resilience gates, product seams, and stop conditions.
 

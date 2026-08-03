@@ -781,6 +781,30 @@ gates pass, the paired interval supports the registered effect, and at least one
 real correction reports affected-set precision/recall, surviving-route recall,
 false pruning, exact repair obligation, and cold-successor continuation.
 
+A full Frontier-history audit finds only three independent frozen paired blocks
+available now: two Erdős post-Decision continuations and one Formal
+cross-Frontier receiver continuation. Current-epoch history contains five
+accepted Decisions total—Erdős two, Formal two, Quantum one, Sidon zero—and
+only one genuine source-to-receiver chain. The 40-block confirmation is
+therefore not yet enrollable. Duplicate caches, schema revisions, repeated
+sessions, and arbitrary subdivision of neighboring Erdős ranges cannot be
+counted as new experimental units. The evidence campaign must create natural
+new scientific episodes and a second cross-Frontier chain before running a
+confirmatory claim study.
+
+The next real correction candidate is the merged Erdős 264 formal-statement
+change at `0598b8f281060a18416d60753fd75621d659bb07`: its perturbation type
+changes from naturals to integers and it has five exact downstream theorem
+consumers. This is materially stronger than another arbitrary bounded range or
+the earlier unmerged Erdős 424 source case. Freeze the source diff and current
+equivalence, preserve the independent problem Claim, supersede only the stale
+formalization locator, audit the partial hosted-proof Claim, compute the exact
+affected/surviving/unresolved set, and hand the resulting obligation to a cold
+successor. A separately governed Formal receiver may inspect a bounded RO-Crate
+export, but importing evidence must not import Erdős authority. No benchmark
+credit exists before the independent Verification and attributed human
+Decision complete this real correction.
+
 The Formal foreign-reference receiver-continuation comparison passed the same
 task-specific gate: all four native Harbor trials were eligible, the
 Vela-guided arm was exact 2/2, and Git/files was exact 0/2. Median agent time
