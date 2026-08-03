@@ -211,6 +211,28 @@ class ConfirmatoryTests(unittest.TestCase):
         ):
             confirmatory.validate_plan(value)
 
+    def test_undersized_balanced_plan_cannot_earn_claim_credit(self) -> None:
+        value = plan()
+        value["blocks"] = value["blocks"][:10] + value["blocks"][20:30]
+        value["randomization"]["assignment_root"] = confirmatory.root(
+            confirmatory.canonical_bytes(
+                [
+                    {
+                        "block_id": block["block_id"],
+                        "arm_order": block["arm_order"],
+                        "execution_wave": block["execution_wave"],
+                    }
+                    for block in value["blocks"]
+                ]
+            )
+        )
+        value["plan_root"] = confirmatory.record_root(value, "plan_root")
+        with self.assertRaisesRegex(
+            confirmatory.ContractError,
+            "block count does not match the registered initial sample",
+        ):
+            confirmatory.validate_plan(value)
+
     def test_paired_table_keeps_neither_exact_distinct(self) -> None:
         rows = [
             {"block_id": "one", "arm": "git-files", "exact": False},

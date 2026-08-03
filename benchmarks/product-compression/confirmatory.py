@@ -154,6 +154,10 @@ def validate_plan(plan: Any) -> dict[str, Any]:
     blocks = plan.get("blocks")
     if not isinstance(blocks, list) or not blocks:
         raise ContractError("plan has no frozen blocks")
+    if len(blocks) != sample["initial_blocks"]:
+        raise ContractError(
+            "plan block count does not match the registered initial sample"
+        )
     seen: dict[str, set[str]] = defaultdict(set)
     family_counts = Counter()
     first_arm_counts: dict[str, Counter[str]] = defaultdict(Counter)
@@ -202,6 +206,13 @@ def validate_plan(plan: Any) -> dict[str, Any]:
         )
     if len(set(family_counts.values())) != 1:
         raise ContractError("confirmatory blocks must balance both families")
+    if any(
+        family_counts[family] != sample["initial_blocks_per_family"]
+        for family in FAMILIES
+    ):
+        raise ContractError(
+            "plan family counts do not match the registered initial sample"
+        )
     if any(
         abs(counts[ARMS[0]] - counts[ARMS[1]]) > 1
         for counts in first_arm_counts.values()
