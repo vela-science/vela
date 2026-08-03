@@ -279,10 +279,16 @@ parsing and threshold rules. Exact replay preserved all four Frontier roots.
 Rust 1.97.1, Node 24, uv, Ruff, and zizmor are now exact locked build inputs.
 TOML is the sole current Frontier Profile encoding; the four canonical profile
 and repository roots survived the one-time file cut unchanged, and retained
-`frontier.yaml` now fails closed. The remaining order is bounded strict JSON at
-every protocol entry point, portable JSON Schema 2020-12 with stable error
-codes, a common DSSE signed-object boundary for Submission and Verification,
-then Cedar parity followed by one current-epoch cut with no dual runtime.
+`frontier.yaml` now fails closed. The dependency-free closed Authorization
+Profile now passes shadow parity against all seven current Cedar-backed
+transactions and seven fail-closed negative cases. Its fixture independently
+reproduces every retained legacy request root and freezes the candidate model
+and request roots without changing the runtime or any Frontier. The remaining
+order is bounded strict JSON at every protocol entry point, portable JSON
+Schema 2020-12 with stable error codes, a common DSSE signed-object boundary
+for Submission and Verification, retained exact authorization model/request
+inputs, and one current-epoch cut followed by clean-clone replay and Cedar
+deletion. There is no dual writer or dual current runtime.
 
 The read projection is intentionally small operationally: one Neon project,
 one `main` branch, and one active `vela_observatory` application database. The

@@ -104,11 +104,22 @@ reader uses pinned `rfc8785 0.1.4` through the committed uv lock. The four
 canonical Frontier roots remained unchanged through the switch. Authority
 records now use DSSE 1.0.2-compatible envelope parsing and threshold behavior.
 
+The dependency-free Vela Authorization Profile evaluator now exists in shadow
+mode. It has two human roles, six closed actions, explicit Frontier-owned
+resource identity, exact authentication/read-set/intent bindings, and stable
+fail-closed reason codes. The frozen
+`conformance/fixtures/authorization-profile-parity-v1.json` corpus binds the
+current four Frontier heads and all seven retained authority transactions. It
+independently reproduces every legacy Cedar request root, golden-locks the four
+candidate model roots and seven candidate request roots, and proves Allow
+parity plus seven negative boundary cases. No denied Cedar evaluation was ever
+published, and the shadow evaluator is not called by the writer.
+
 This ADR remains Proposed because the common DSSE boundary for Submission and
-Verification, portable JSON Schema 2020-12 contracts, and the Cedar replacement
-have not shipped. Cedar must not be deleted until the closed evaluator matches
-all retained fixtures and transactions and one explicit current-epoch cut is
-replayed from clean clones.
+Verification, portable JSON Schema 2020-12 contracts, retained model/request
+history, and the explicit current-epoch cut have not shipped. Cedar must not be
+deleted until strict history recomputes the closed evaluation and all four
+replacement Frontiers replay from clean clones.
 
 ## Decision
 

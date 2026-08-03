@@ -7,7 +7,7 @@
 
 mod kernel;
 pub use kernel::{
-    authentication, authority, authority_history, canonical, events, principal, sign,
+    authentication, authority, authority_history, authorization, canonical, events, principal, sign,
 };
 mod computed;
 mod objects;

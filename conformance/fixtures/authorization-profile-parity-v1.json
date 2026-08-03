@@ -1,0 +1,317 @@
+{
+  "schema": "vela.authorization-profile-parity.v1",
+  "frozen_heads": {
+    "erdos-frontier": "41e1fc3120dc91836a06eacd0799f7ce103553a2",
+    "formal-conjectures-frontier": "2d28519aaaf1003070703ad85edf4d1d28cf5839",
+    "quantum-codes-frontier": "6f4a1e8631fe1db6a7d9365301df50f6045cbc0f",
+    "sidon-frontier": "8c7bcbfde2fa7821db6c674cf3888ebac8a44820"
+  },
+  "principal_id": "local:device-sha256:67fbb8e56377e6868e9f941524e0bf39cfb4fd2a4bfdd25c2edb93fc82f86213|uid:501",
+  "legacy_material": {
+    "cedar_schema_root": "sha256:2563eb2848122e4bf366be8101abff7b17dfc6d49e1aab7541db1ac73df86ad7",
+    "common_policy_root": "sha256:c997e39a024934e7355f73422ac10f401398e2ff593dc89de6ffe25c97d452ec",
+    "sidon_policy_root": "sha256:00798b82b39fb956ff9c500c6d91ff3265ef4eaa383573c5750d040220f2cd2f"
+  },
+  "models": [
+    {
+      "source_repository": "erdos-frontier",
+      "model": {
+        "schema": "vela.authorization-model.v1",
+        "profile": "vela.repository-authorization.v1",
+        "frontier_id": "vfr_0a25edabc16db143",
+        "members": [
+          {
+            "principal_id": "local:device-sha256:67fbb8e56377e6868e9f941524e0bf39cfb4fd2a4bfdd25c2edb93fc82f86213|uid:501",
+            "principal_class": "human",
+            "role": "administrator"
+          },
+          {
+            "principal_id": "local:device-sha256:67fbb8e56377e6868e9f941524e0bf39cfb4fd2a4bfdd25c2edb93fc82f86213|uid:501",
+            "principal_class": "human",
+            "role": "reviewer"
+          }
+        ],
+        "previous_model_root": null
+      },
+      "expected_model_root": "sha256:a3651656160c38370ff7b3f259babae3893aaa6d29d5ae885bbbfac8965154d4"
+    },
+    {
+      "source_repository": "formal-conjectures-frontier",
+      "model": {
+        "schema": "vela.authorization-model.v1",
+        "profile": "vela.repository-authorization.v1",
+        "frontier_id": "vfr_97d7d25957384f80",
+        "members": [
+          {
+            "principal_id": "local:device-sha256:67fbb8e56377e6868e9f941524e0bf39cfb4fd2a4bfdd25c2edb93fc82f86213|uid:501",
+            "principal_class": "human",
+            "role": "administrator"
+          },
+          {
+            "principal_id": "local:device-sha256:67fbb8e56377e6868e9f941524e0bf39cfb4fd2a4bfdd25c2edb93fc82f86213|uid:501",
+            "principal_class": "human",
+            "role": "reviewer"
+          }
+        ],
+        "previous_model_root": null
+      },
+      "expected_model_root": "sha256:0c2192a6612038bef1abc0220d27f071cdb93c3ee5fe72e83882afecc0c4ae51"
+    },
+    {
+      "source_repository": "quantum-codes-frontier",
+      "model": {
+        "schema": "vela.authorization-model.v1",
+        "profile": "vela.repository-authorization.v1",
+        "frontier_id": "vfr_001f148c07eebecb",
+        "members": [
+          {
+            "principal_id": "local:device-sha256:67fbb8e56377e6868e9f941524e0bf39cfb4fd2a4bfdd25c2edb93fc82f86213|uid:501",
+            "principal_class": "human",
+            "role": "administrator"
+          },
+          {
+            "principal_id": "local:device-sha256:67fbb8e56377e6868e9f941524e0bf39cfb4fd2a4bfdd25c2edb93fc82f86213|uid:501",
+            "principal_class": "human",
+            "role": "reviewer"
+          }
+        ],
+        "previous_model_root": null
+      },
+      "expected_model_root": "sha256:5638c0b60ecc719cbbaf3045fb5597c056cec4133a8960fbf06c722f928b3497"
+    },
+    {
+      "source_repository": "sidon-frontier",
+      "model": {
+        "schema": "vela.authorization-model.v1",
+        "profile": "vela.repository-authorization.v1",
+        "frontier_id": "vfr_496956067dc5ad79",
+        "members": [
+          {
+            "principal_id": "local:device-sha256:67fbb8e56377e6868e9f941524e0bf39cfb4fd2a4bfdd25c2edb93fc82f86213|uid:501",
+            "principal_class": "human",
+            "role": "administrator"
+          },
+          {
+            "principal_id": "local:device-sha256:67fbb8e56377e6868e9f941524e0bf39cfb4fd2a4bfdd25c2edb93fc82f86213|uid:501",
+            "principal_class": "human",
+            "role": "reviewer"
+          }
+        ],
+        "previous_model_root": null
+      },
+      "expected_model_root": "sha256:ff82626adfe4eab6963fd5fc0bbdf212bec2d18d7288843899202d17fec6697f"
+    }
+  ],
+  "cases": [
+    {
+      "source_repository": "erdos-frontier",
+      "record_id": "var_7f7700bbca5a556d",
+      "record_root": "sha256:006ddcf5f56e82d90dbfd92d941f85ebf01aa22c047627e261260c02aaba9833",
+      "sequence": 1,
+      "frontier_id": "vfr_0a25edabc16db143",
+      "action": "authority_initialize",
+      "resource_type": "frontier",
+      "resource_id": "vfr_0a25edabc16db143",
+      "role": "administrator",
+      "legacy_request_root": "sha256:bacc3534afad85556445e7c3fdc0960e6395a64a99e1723493decb9fa18fc23f",
+      "legacy_policy_bundle_root": "sha256:3c0743077d051b5a84e932dcfe6fc4e764fe39738a3040aebdc11276f53ee83f",
+      "legacy_entity_snapshot_root": "sha256:68e534baba599a16986db595f3c409f0b0a6f5b484418a7015cf6da5ca53bdcc",
+      "legacy_authentication": {
+        "method": "local_os_session",
+        "assurance": "local_session",
+        "authenticated_at": "2026-08-01T06:41:05Z",
+        "observed_at": "2026-08-01T06:41:05Z",
+        "expires_at": "2026-08-01T07:41:05Z",
+        "user_presence": false,
+        "user_verification": false,
+        "recovery_recent": false
+      },
+      "authentication_root": "sha256:97c5be8e0502e61c6b600b32ff521068de6ec3267f0db415539727e7a034f14f",
+      "transaction_read_set_root": "sha256:c7b14fb79015d4609a6e7b68abced68094d4cd7c66c0f124e3055a292ff0eab4",
+      "intent_digest": "sha256:cf2d963710c9383d8ca03781bdabc2d5fe33412dccb4a3caef46305571f4617b",
+      "candidate_request_root": "sha256:51c46ed8a7f2a117b71b02109bf9ea9567dfd0c800ba1e40db1068000f769947"
+    },
+    {
+      "source_repository": "formal-conjectures-frontier",
+      "record_id": "var_d3d429d8ae2da3ea",
+      "record_root": "sha256:306ee9aa3711405ec4d685ef3ffc2554a8045c1cffd68a8d1e0d606e85c5f4d9",
+      "sequence": 1,
+      "frontier_id": "vfr_97d7d25957384f80",
+      "action": "authority_initialize",
+      "resource_type": "frontier",
+      "resource_id": "vfr_97d7d25957384f80",
+      "role": "administrator",
+      "legacy_request_root": "sha256:a3b2627c0c6421fa6369c9a5570bd7a16c704972a57d982938ac1420e4d252d6",
+      "legacy_policy_bundle_root": "sha256:79225bfd3bba30a1517b8d27dbaf8c984ef3fd3e3633477a0b1fd2e47977cb93",
+      "legacy_entity_snapshot_root": "sha256:fc3563c741dbf4c4cec1bbf449f66f9ccb4fad5d71fc8b78116927ff1aba29e6",
+      "legacy_authentication": {
+        "method": "local_os_session",
+        "assurance": "local_session",
+        "authenticated_at": "2026-08-01T06:36:26Z",
+        "observed_at": "2026-08-01T06:36:26Z",
+        "expires_at": "2026-08-01T07:36:26Z",
+        "user_presence": false,
+        "user_verification": false,
+        "recovery_recent": false
+      },
+      "authentication_root": "sha256:a7e5b68f1af5a772fca126cc19d6bacb3c3d867fbef4d27cdd63c4cd28ba1dd1",
+      "transaction_read_set_root": "sha256:419fe4b1286726e0267f46d30c5e5f17d5eccc2dcfc32355e0d69d372d462974",
+      "intent_digest": "sha256:da097f100e7487c6cf73b5f5584c2bf79d8603bf465b7a3cf7c81809de4e7d38",
+      "candidate_request_root": "sha256:209f31e727a68efcea9ad79a345b607338e373c3de162de6faa3f8a895d6005e"
+    },
+    {
+      "source_repository": "formal-conjectures-frontier",
+      "record_id": "var_0fc27d0a149c7227",
+      "record_root": "sha256:6416a83d3ee3007f8a1e6ead5ce1e00b24a335885bc1fc7d52b4993f2a8bde0b",
+      "sequence": 2,
+      "frontier_id": "vfr_97d7d25957384f80",
+      "action": "review_accept",
+      "resource_type": "proposal",
+      "resource_id": "vpr_08a91ee1b770f5cb",
+      "role": "reviewer",
+      "legacy_request_root": "sha256:91dd0d9c18487b6eb998229550e88647acc2a8da0f7207661829e688673c83f6",
+      "legacy_policy_bundle_root": "sha256:79225bfd3bba30a1517b8d27dbaf8c984ef3fd3e3633477a0b1fd2e47977cb93",
+      "legacy_entity_snapshot_root": "sha256:fc3563c741dbf4c4cec1bbf449f66f9ccb4fad5d71fc8b78116927ff1aba29e6",
+      "legacy_authentication": {
+        "method": "local_os_session",
+        "assurance": "local_session",
+        "authenticated_at": "2026-08-02T01:17:24Z",
+        "observed_at": "2026-08-02T01:17:24Z",
+        "expires_at": "2026-08-02T02:17:24Z",
+        "user_presence": false,
+        "user_verification": false,
+        "recovery_recent": false
+      },
+      "authentication_root": "sha256:866c00a747351c6e155fbdf13d1db01c69a50f5e7f1a38ba4b788e8acf7f61a2",
+      "transaction_read_set_root": "sha256:b67d9a2d3914f2637efc3a7c5969fde71553ee0aadf47c4e5022068280037dfd",
+      "intent_digest": "sha256:630e9db3a6ebe875da033883160889f44d7597eaeb7443b930c5ed3ed0b526fe",
+      "candidate_request_root": "sha256:949a294417505821b53c8d02f23ee1453179170d7c5a4cfe8f4e89a85d0f6351"
+    },
+    {
+      "source_repository": "formal-conjectures-frontier",
+      "record_id": "var_9687447dd8c2649e",
+      "record_root": "sha256:5857d1080f76362de00ba3c52ecc4d39b33151f432e8e9eb53cb7782420bff5b",
+      "sequence": 3,
+      "frontier_id": "vfr_97d7d25957384f80",
+      "action": "review_accept",
+      "resource_type": "proposal",
+      "resource_id": "vpr_7aba66544ffefd99",
+      "role": "reviewer",
+      "legacy_request_root": "sha256:b851d600bcf98359fe7016ccf41a80aa07f8f8f77a866e4fe97afc6a0a2deb29",
+      "legacy_policy_bundle_root": "sha256:79225bfd3bba30a1517b8d27dbaf8c984ef3fd3e3633477a0b1fd2e47977cb93",
+      "legacy_entity_snapshot_root": "sha256:fc3563c741dbf4c4cec1bbf449f66f9ccb4fad5d71fc8b78116927ff1aba29e6",
+      "legacy_authentication": {
+        "method": "local_os_session",
+        "assurance": "local_session",
+        "authenticated_at": "2026-08-02T16:23:30Z",
+        "observed_at": "2026-08-02T16:23:30Z",
+        "expires_at": "2026-08-02T17:23:30Z",
+        "user_presence": false,
+        "user_verification": false,
+        "recovery_recent": false
+      },
+      "authentication_root": "sha256:53d2a82fd181b38318d1dc7cc5c0d960e96825ecdf5f7ecbf4d8bb46997df919",
+      "transaction_read_set_root": "sha256:1d89a2fe05cba7face6a0255e743e844b33ac414447c25b5b4104e588067002d",
+      "intent_digest": "sha256:0d3c9c0089f0db6434c7b96ebdc3d2c4c78e318db0f6a27e5eb1e61a0ab3d40b",
+      "candidate_request_root": "sha256:e84848fb13af1ca8d20f61ae3e7dea1f3165a0788c4ca3bdce7ad63be84052c4"
+    },
+    {
+      "source_repository": "quantum-codes-frontier",
+      "record_id": "var_44457433680dc100",
+      "record_root": "sha256:1e8051e68c7a8286a14de8cdc670234bc6669466ebcd19262c07f4146398ee8d",
+      "sequence": 1,
+      "frontier_id": "vfr_001f148c07eebecb",
+      "action": "authority_initialize",
+      "resource_type": "frontier",
+      "resource_id": "vfr_001f148c07eebecb",
+      "role": "administrator",
+      "legacy_request_root": "sha256:63f71b8891c3029599a1554cc7eb335edb8fd41d2af3ad935ca79bea3f3c223d",
+      "legacy_policy_bundle_root": "sha256:c895b10b607662629851c332338edaf85ae7fb2c41fc00c07e1b030bfe5ccde4",
+      "legacy_entity_snapshot_root": "sha256:d365b44123b11cc285c0e1e13e40d08eb1b34d9ce2d63e0240dfca0af7b3da33",
+      "legacy_authentication": {
+        "method": "local_os_session",
+        "assurance": "local_session",
+        "authenticated_at": "2026-08-01T06:36:24Z",
+        "observed_at": "2026-08-01T06:36:24Z",
+        "expires_at": "2026-08-01T07:36:24Z",
+        "user_presence": false,
+        "user_verification": false,
+        "recovery_recent": false
+      },
+      "authentication_root": "sha256:b112bfb45db4481bc5f302b94849ebe06dc3c012ca526fb9e490e5564356e17e",
+      "transaction_read_set_root": "sha256:03d6268008ea5d7fc82f489688aef0e941c770f186c695b309516d23cbe9fbc5",
+      "intent_digest": "sha256:2509f6b8406744698dd94a41c195db4514c94f1150bc7c1a4f3efae27ebe5913",
+      "candidate_request_root": "sha256:3ed1a6d6a4d848b08129822e93b60a4d3d569adb4ae87f91d72dbc67c3d1b92d"
+    },
+    {
+      "source_repository": "quantum-codes-frontier",
+      "record_id": "var_8466e2201593c154",
+      "record_root": "sha256:5a344e809d541262bd134b3f5fd47d0b63ad6c6351e3474de5263f87eb1bdebc",
+      "sequence": 2,
+      "frontier_id": "vfr_001f148c07eebecb",
+      "action": "review_accept",
+      "resource_type": "proposal",
+      "resource_id": "vpr_8715dbb5e2a12442",
+      "role": "reviewer",
+      "legacy_request_root": "sha256:d908d384f77e1c4294c1c21e0c79fefbed1f9810663cfcb82e416555e52aa517",
+      "legacy_policy_bundle_root": "sha256:c895b10b607662629851c332338edaf85ae7fb2c41fc00c07e1b030bfe5ccde4",
+      "legacy_entity_snapshot_root": "sha256:d365b44123b11cc285c0e1e13e40d08eb1b34d9ce2d63e0240dfca0af7b3da33",
+      "legacy_authentication": {
+        "method": "local_os_session",
+        "assurance": "local_session",
+        "authenticated_at": "2026-08-02T00:48:19Z",
+        "observed_at": "2026-08-02T00:48:19Z",
+        "expires_at": "2026-08-02T01:48:19Z",
+        "user_presence": false,
+        "user_verification": false,
+        "recovery_recent": false
+      },
+      "authentication_root": "sha256:ea9ab5408a42776b6d7b42cfbf1ab1a0bddc60407c22e85687c361f632c941fc",
+      "transaction_read_set_root": "sha256:7ca8f741880a880574bda0412d82b73f98ee93499213410c0a028c3000791189",
+      "intent_digest": "sha256:ffb4a12f419784fe8eec10fa8a5106d59dd3e8960b39922b2b8dd9e7d53e435d",
+      "candidate_request_root": "sha256:dece28a18377c66582ab20dd5ff127e04e811804f7e9ded4c60583a1c5056932"
+    },
+    {
+      "source_repository": "sidon-frontier",
+      "record_id": "var_b6fa67ddf77ebb17",
+      "record_root": "sha256:7f86eb890dfb0170d2db0f79393742ee4d60ebcb1a1aa68986927edd982cbccb",
+      "sequence": 1,
+      "frontier_id": "vfr_496956067dc5ad79",
+      "action": "authority_initialize",
+      "resource_type": "frontier",
+      "resource_id": "vfr_496956067dc5ad79",
+      "role": "administrator",
+      "legacy_request_root": "sha256:8deb0c53ba62b1690a73ab3a834d651c1f94556753acdd4be16f2f1f90a7815e",
+      "legacy_policy_bundle_root": "sha256:86fc32aa189d1df2af003243364c6d735b097e112db856e41660c47661b06a42",
+      "legacy_entity_snapshot_root": "sha256:daa1ea6d15dc202ab23c5adeb9493a5c6bd2fc0dc01b08025a7a819c0c87565d",
+      "legacy_authentication": {
+        "method": "local_os_session",
+        "assurance": "local_session",
+        "authenticated_at": "2026-08-01T06:36:28Z",
+        "observed_at": "2026-08-01T06:36:28Z",
+        "expires_at": "2026-08-01T07:36:28Z",
+        "user_presence": false,
+        "user_verification": false,
+        "recovery_recent": false
+      },
+      "authentication_root": "sha256:0d4c95e225813df8b81330906334aeab9111cfc7a03a9a6d3ab4e5eee4fc5089",
+      "transaction_read_set_root": "sha256:6d4a67a5a6ab82b68e0e9fc4b7d0b393ababa2fb3a455043164257c21135d2e8",
+      "intent_digest": "sha256:45d1968e63f4811017d841f6b509d3801538f02904881131c47d2a5761774dce",
+      "candidate_request_root": "sha256:692d2270e5bbbef32d6702a1c7432e6c762035c0f149b8501e442acaf433ebf0"
+    }
+  ],
+  "negative_cases": [
+    { "mutation": "unbound_principal", "expected_reason": "unknown_member" },
+    { "mutation": "machine_principal", "expected_reason": "principal_class_mismatch" },
+    { "mutation": "wrong_role", "expected_reason": "role_action_mismatch" },
+    { "mutation": "wrong_frontier", "expected_reason": "frontier_mismatch" },
+    { "mutation": "wrong_resource_frontier", "expected_reason": "resource_frontier_mismatch" },
+    { "mutation": "wrong_resource_type", "expected_reason": "resource_type_mismatch" },
+    { "mutation": "recovery_recent", "expected_reason": "recovery_session_forbidden" }
+  ],
+  "limitations": [
+    "The corpus proves parity for the seven retained Allow transactions only; denied Cedar evaluations were never published.",
+    "The candidate evaluator remains shadow-only and does not write Frontiers or change Standing.",
+    "The Sidon legacy Cedar policy contains an unused automatic lane that is intentionally excluded from the closed profile."
+  ]
+}
