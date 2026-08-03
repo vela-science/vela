@@ -13,7 +13,8 @@ state, and one honest next obligation per selected result.
 - One Erdős 183 Comparator profile has passed Lean, Nanoda, and the retained
   hardened Linux path.
 - The Erdős 183 fidelity Claim has a passing scoped Verification but remains
-  pending human Decision.
+  pending human Decision. Its exact source-local checkpoint is owned by
+  [`erdos-frontier`](https://github.com/vela-science/erdos-frontier/blob/main/campaigns/erdos-183-astra-fidelity.md).
 - Eleven Comparator profiles and nine broader result-family mappings remain
   incomplete.
 
@@ -30,8 +31,9 @@ state, and one honest next obligation per selected result.
    Vela Verification, and local Standing.
 5. Complete definition/quantifier/hypothesis/conclusion matrices for Erdős 146,
    180, and 183.
-6. Resolve the pending Erdős 183 packet only by explicit human Decision or
-   documented deferral.
+6. Resolve the source-local Erdős 183 checkpoint only by explicit human
+   Decision or documented deferral; this cross-Frontier campaign must not
+   duplicate or exercise Erdős repository authority.
 7. Derive one next obligation for each result selected for further review.
 
 ## Completion gate
