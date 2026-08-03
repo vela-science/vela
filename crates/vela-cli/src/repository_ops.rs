@@ -345,26 +345,30 @@ pub(crate) fn submission_publication_inputs(
         .artifacts
         .iter()
         .map(|artifact| PathBuf::from(&artifact.path))
-        .filter(|relative| {
-            !relative.is_absolute()
-                && relative
-                    .components()
-                    .all(|component| matches!(component, std::path::Component::Normal(_)))
-        })
-        .filter(|relative| {
-            let lexical = canonical_frontier.join(relative);
-            std::fs::symlink_metadata(&lexical)
-                .ok()
-                .is_some_and(|metadata| metadata.file_type().is_file())
-                && lexical
-                    .canonicalize()
-                    .ok()
-                    .is_some_and(|canonical| canonical == lexical)
-        })
+        .filter_map(|relative| canonical_submission_input(&canonical_frontier, &relative))
         .collect::<Vec<_>>();
     inputs.sort();
     inputs.dedup();
     Ok(inputs)
+}
+
+fn canonical_submission_input(frontier: &Path, relative: &Path) -> Option<PathBuf> {
+    if relative.is_absolute()
+        || !relative
+            .components()
+            .all(|component| matches!(component, std::path::Component::Normal(_)))
+    {
+        return None;
+    }
+    let lexical = frontier.join(relative);
+    let regular = std::fs::symlink_metadata(&lexical)
+        .ok()
+        .is_some_and(|metadata| metadata.file_type().is_file());
+    let exact = lexical
+        .canonicalize()
+        .ok()
+        .is_some_and(|canonical| canonical == lexical);
+    (regular && exact).then_some(lexical)
 }
 
 pub(crate) fn submit(
@@ -506,7 +510,8 @@ pub(crate) fn publication_delta(
 
 #[cfg(test)]
 mod tests {
-    use super::submission_requested_change;
+    use super::{canonical_submission_input, submission_requested_change};
+    use std::path::Path;
 
     fn root(character: char) -> String {
         format!("sha256:{}", character.to_string().repeat(64))
@@ -568,5 +573,21 @@ mod tests {
             submission_requested_change(None, None, Some(root('d'))).expect_err("orphan root"),
             "--target-root requires --corrects or --supersedes"
         );
+    }
+
+    #[test]
+    fn submission_preflight_input_is_absolute_and_frontier_bound() {
+        let temporary = tempfile::tempdir().expect("temporary frontier");
+        let frontier = temporary.path().canonicalize().expect("canonical frontier");
+        let artifact = frontier.join("artifacts").join("evidence.json");
+        std::fs::create_dir_all(artifact.parent().expect("artifact parent"))
+            .expect("create artifact parent");
+        std::fs::write(&artifact, b"{}\n").expect("write artifact");
+
+        let input = canonical_submission_input(&frontier, Path::new("artifacts/evidence.json"))
+            .expect("tracked source input");
+
+        assert!(input.is_absolute());
+        assert_eq!(input, artifact);
     }
 }
