@@ -209,14 +209,19 @@ infrastructure.
   Astra-specific product was created.
 - Two empty local PostgreSQL reconstructions matched every production table,
   Frontier, and source-registry root. The retained evidence artifact root is
-  `sha256:cd22899c640957cd0096386fec3e1444ab0781402898a1685a94896e97e22544`.
+  `sha256:6a2609b8afe15a5398b0410cb7456b6831b72cec1e67b90e9553d907c886e6d2`.
+  It binds Vela `0.963.0`, the released macOS binary root, all four current
+  Frontier commits, the current source-adapter artifact, and two byte-identical
+  empty-database reconstructions. The frozen adapter input proves deterministic
+  reconstruction, not future reacquisition from mutable upstream sources.
 - Proposal sheets now project Vela's exact Decision Inbox packet:
   current and proposed Standing for corrections, protocol readiness, exact
   verified scope, limits, accept/reject consequences, next obligation, and
   copyable roots. The Observatory remains read-only and exposes no Decision
   control. Terminal Decisions expose the attributed reason and exact Decision
-  event. Production commit `b99afc34` serves this surface over the current
-  rooted projection without client-console errors.
+  event. Production commit `ab825cfe` serves this surface over the current
+  rooted projection without client-console errors and resolves exact Proposal
+  IDs through the root-bound search API rather than a truncated preload.
 - The current Registry adapter artifact has an immutable GitHub release
   locator and independently reproduced byte root.
 - External cold-user lift, correction propagation, and organizationally
