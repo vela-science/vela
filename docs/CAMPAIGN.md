@@ -506,7 +506,17 @@ time by only 5.2%. Explicit iteration 2 retained `8/8` exactness and zero
 authority errors but improved median time by only 6.7%. Iteration 3 reduced the
 brief to a numbered 212-word answer order and again achieved `8/8` with zero
 authority errors; its 19.1% median improvement still falls short of the exact
-20% gate. All three iterations fail the release gate.
+20% gate. All three iterations fail the usability-claim gate.
+
+The first frozen Erdős 730 instrumentation iteration retained four fresh,
+context-isolated sessions per arm. Its flat median was 21.25 seconds and its
+Dossier median was 18.64 seconds, a 12.28% improvement that also fails the exact
+20% gate. A post-hoc semantic audit found all eight Dossier fields materially
+correct, zero actual authority errors, and three lexical false negatives in the
+frozen scorer; it does not rescore the registered failure. No omitted failure,
+caveat, or shared dependency was found, and no second same-model iteration is
+authorized merely to chase the threshold.
+
 The usability claim therefore remains unearned. The operator later authorized
 the exact read-only projection for public inspection after deterministic,
 SELECT-only, same-root HTML/JSON, and deployment gates passed. That deployment

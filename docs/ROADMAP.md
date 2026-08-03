@@ -47,6 +47,12 @@ versioned internal usability iterations recovered all eight fields with zero
 Dossier-arm authority errors, but improved median time by only 5.2%, 6.7%, and
 19.1%. The third result is not rounded into the required 20% gate, so no
 usability, reviewer-efficiency, adoption, or productivity claim is earned.
+The first frozen Erdős 730 iteration likewise failed: the flat median was 21.25
+seconds and the Dossier median was 18.64 seconds, a 12.28% improvement. A
+post-hoc semantic audit identified lexical scorer false negatives and found all
+eight fields materially correct with zero actual authority errors, but it does
+not rescore the frozen result or authorize another same-model threshold-chasing
+iteration. Exact public availability remains distinct from product evidence.
 
 ### 1. Freeze
 

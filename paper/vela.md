@@ -1318,6 +1318,16 @@ product gate or support external review, global acceptance, novelty, a native
 4.27.0 port, or Vela-caused discovery. Public Dossier qualification is reserved
 for a frozen multi-case study with fresh human reviewers.
 
+The first frozen instrumentation pass on this second case also remained
+negative. Four context-isolated sessions per arm produced a 21.25-second flat
+median and an 18.64-second Dossier median, a 12.28% reduction below the exact
+20% gate. A post-hoc audit found materially correct recovery of all eight fields
+and zero actual authority errors, while diagnosing three semantically
+equivalent phrases rejected by the frozen lexical scorer. That diagnosis does
+not rescore the result. Together the two cases support an exact,
+correction-aware read record, but not reviewer-efficiency, adoption,
+productivity, or causal-lift claims.
+
 ## 12. References
 
 1. Scott Chacon and Ben Straub. “Git Internals: Plumbing and Porcelain.”
