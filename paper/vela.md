@@ -54,9 +54,9 @@ repository root, graph roots, and projection root changed exactly. The Target
 packet initially failed to advance, so that candidate was not activated.
 Source-local closure and later exact completions now close producer work
 through `10430600` and expose `10430601..10430800` as the next nonduplicate
-range. The retained 2026-08-02 Vela Web Atlas checkpoint uses the repository-v4
+range. The retained 2026-08-03 Vela Web Atlas checkpoint uses the repository-v4
 reader. Its exact projection at root
-`sha256:7e50aced8fabd11efe90f94aa91588d8e9ef071cf90c21d903256dc00066166a`
+`sha256:513e6af1c4eb7cd32ae0bea320d81e1543ea149dcc00a60f86b838aa000eeed9`
 contains 4,142 graph nodes, 2,592 edges, 6,713 native source records, and 5,844
 Frontier bindings, including the later non-authorizing Formal withdrawal, the
 accepted Quantum correction, the native Formal Lean result, and the separately
@@ -672,8 +672,8 @@ not establish cold-user lift or automatic domain-generic closure.
 
 Subsequent exact completions close Erdős producer work through `10430600` and
 leave `10430601..10430800` as the next nonduplicate range. The current
-2026-08-02 Vela Web checkpoint serves the exact repository-v4 projection at
-root `sha256:7e50aced8fabd11efe90f94aa91588d8e9ef071cf90c21d903256dc00066166a`.
+2026-08-03 Vela Web checkpoint serves the exact repository-v4 projection at
+root `sha256:513e6af1c4eb7cd32ae0bea320d81e1543ea149dcc00a60f86b838aa000eeed9`.
 The Quantum correction is accepted and exposes no remaining producer Target.
 The native Formal Erdős 835 result and bounded cross-Frontier retention are
 both accepted through separate attributed Decisions; the latter does not

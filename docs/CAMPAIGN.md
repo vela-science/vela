@@ -185,9 +185,9 @@ infrastructure.
   independent consumer value.
 - The current Neon Atlas head was rebuilt from all four cleaned Frontier heads
   and is exact at projection root
-  `sha256:7e50aced8fabd11efe90f94aa91588d8e9ef071cf90c21d903256dc00066166a`.
+  `sha256:513e6af1c4eb7cd32ae0bea320d81e1543ea149dcc00a60f86b838aa000eeed9`.
   Its deployed manifest binds Vela `0.963.0`, Erdős `41e1fc31`, Formal
-  `2d28519`, Quantum `6f4a1e8`, and Sidon `8c7bcbf`. The Quantum source projects five
+  `2d28519`, Quantum `d02f260`, and Sidon `8c7bcbf`. The Quantum source projects five
   accepted Claims, zero pending Proposals, two scoped Verifications, and the
   exact repository root
   `sha256:cd6ccf48dc04d5d3a96a185ca16be998f456f9531d975132d7cb910334f0ecdb`.
@@ -429,8 +429,8 @@ The next independent-product gate is frozen in
 `paper/artifacts/cold-reader-study/plan.v1.json`, byte root
 `sha256:992858398fcaac2dd2df2d6b0edd4f03fe50dd2c7eb6195deee28e2cc25f93ca`.
 Before participant one, the final presentation identity was root-linked to the
-current public Observatory by `amendment.v2.json`, byte root
-`sha256:fd08aa450053702e87971aeaa20b68d64f564c8f7e73e527f003c0b74c02a4e3`.
+current public Observatory by `amendment.v3.json`, byte root
+`sha256:afecfa850f71db79ba776a06e1a9f3943aa2123b8974eb601207f4721d80e8c8`.
 The amendment records the repaired exact-ID path but changes no fixture,
 question, timing, score, or semantic answer; it requires the public manifest to
 match exactly before every participant.
@@ -624,7 +624,7 @@ reputation score, or `1.0.0` schedule.
 | Vela | `0.963.0` is published with the TOML-only Frontier contract, standards spine, and exact cross-platform release smokes | keep one release path and release only for demonstrated changes |
 | Cross-language readers | standalone JavaScript reader and uv-locked Python reader | keep the reader surface small until a real external consumer requires a published library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | deployed `0.430.0` Registry/Atlas head uses `observatory.v8`; projection root `sha256:7e50aced8fabd11efe90f94aa91588d8e9ef071cf90c21d903256dc00066166a` binds Vela `0.963.0`, all four current Frontier tips, 11 exact sources, 6,713 native records, and 5,844 explicit bindings | add no broader graph, registry, or execution surface until a named consumer earns it |
+| Vela Web | deployed `0.430.0` Registry/Atlas head uses `observatory.v8`; projection root `sha256:513e6af1c4eb7cd32ae0bea320d81e1543ea149dcc00a60f86b838aa000eeed9` binds Vela `0.963.0`, all four current Frontier tips, 11 exact sources, 6,713 native records, and 5,844 explicit bindings | add no broader graph, registry, or execution surface until a named consumer earns it |
 | Frontiers | canonical Git sources; the Quantum correction and native Formal Lean result are accepted and replayed, the obsolete Formal duplicate is withdrawn with zero accepted delta, and remaining Proposals await attributed human Decisions or cancellation | decide or cancel exact remaining Proposals, replay, remap |
 | Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 

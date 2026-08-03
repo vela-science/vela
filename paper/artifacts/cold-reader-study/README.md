@@ -47,7 +47,11 @@ protocol-breakthrough gate.
   pre-participant Browser preflight exposed and repaired exact-ID discovery.
   It records the deployed repair and successful navigation preflight without
   changing the method or answer key.
-- `manifest.sha256` binds the six study-control files.
+- `amendment.v3.json` updates only presentation identity after a README-only
+  Quantum commit advanced the projected source commit and tree without changing
+  the scientific repository root or study fixture. A fresh production preflight
+  passed before participant one.
+- `manifest.sha256` binds the seven study-control files.
 
 Eligible failures, timeouts, and null results are retained. No favorable
 stopping, fixture substitution, or post-output scoring change is allowed.
@@ -69,7 +73,10 @@ palette searched only a bounded generic slice and could not resolve the
 supplied exact Formal Proposal ID. The deployed repair queries the exact
 root-bound search projection and makes an exact match the keyboard-selected
 action. `amendment.v2.json` binds that final surface. No participant saw either
-earlier deployment.
+earlier deployment. A later documentation-only Quantum commit changed the
+projected Git identity but not the repository root or any accepted object;
+`amendment.v3.json` binds the refreshed projection and revalidated routes before
+participant one.
 
 ## Remaining execution
 

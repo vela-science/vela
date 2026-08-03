@@ -62,7 +62,7 @@ identity. This roadmap records only product sequence.
 - A four-person external cold-reader pilot is frozen at plan root
   `sha256:992858398fcaac2dd2df2d6b0edd4f03fe50dd2c7eb6195deee28e2cc25f93ca`.
   Its final pre-participant Observatory amendment is frozen at
-  `sha256:fd08aa450053702e87971aeaa20b68d64f564c8f7e73e527f003c0b74c02a4e3`
+  `sha256:afecfa850f71db79ba776a06e1a9f3943aa2123b8974eb601207f4721d80e8c8`
   and binds the current public manifest and repaired exact-ID flow without
   changing the study method.
   It compares Git and the root-bound Observatory over the accepted Quantum
