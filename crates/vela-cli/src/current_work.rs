@@ -13,42 +13,6 @@ use crate::cli::safe_text;
 const AUTHORITY_CEILING: &str =
     "Evidence may be submitted for review; only an authorized human Decision changes Standing.";
 
-fn execution_binding(
-    packet_root: &str,
-    packet: &Value,
-) -> Result<Option<vela_protocol::execution_binding::ExecutionBindingV1>, String> {
-    let Some(contracts) = packet.get("execution_contracts") else {
-        return Ok(None);
-    };
-    let contracts = contracts
-        .as_object()
-        .ok_or_else(|| "Target packet execution_contracts must be an object".to_string())?;
-    let root = |field: &str| -> Result<String, String> {
-        let value = contracts
-            .get(field)
-            .and_then(|locator| locator.get("sha256"))
-            .and_then(Value::as_str)
-            .ok_or_else(|| {
-                format!("Target packet execution_contracts.{field}.sha256 is missing")
-            })?;
-        if !vela_protocol::execution_binding::is_full_sha256_root(value) {
-            return Err(format!(
-                "Target packet execution_contracts.{field}.sha256 must be a full lowercase sha256 root"
-            ));
-        }
-        Ok(value.to_string())
-    };
-    let binding = vela_protocol::execution_binding::ExecutionBindingV1 {
-        schema: vela_protocol::execution_binding::EXECUTION_BINDING_SCHEMA.to_string(),
-        packet_root: packet_root.to_string(),
-        profile_root: root("producer_profile")?,
-        verifier_capsule_root: root("verifier_capsule")?,
-        result_contract_root: root("result_contract")?,
-    };
-    binding.validate()?;
-    Ok(Some(binding))
-}
-
 fn briefing(frontier: &Path, target_id: &str) -> Result<Value, String> {
     let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
@@ -88,9 +52,7 @@ fn briefing(frontier: &Path, target_id: &str) -> Result<Value, String> {
         .get("verifier_profile")
         .or_else(|| packet.get("verifier"))
         .cloned();
-    let execution_binding = execution_binding(&target.packet.sha256, &packet)?;
-
-    let mut result = json!({
+    let result = json!({
         "schema": "vela.start-briefing.v2",
         "target": {
             "id": target.id,
@@ -114,16 +76,6 @@ fn briefing(frontier: &Path, target_id: &str) -> Result<Value, String> {
         "verifier": verifier,
         "authority_ceiling": AUTHORITY_CEILING,
     });
-    if let Some(binding) = execution_binding {
-        result
-            .as_object_mut()
-            .expect("start briefing is an object")
-            .insert(
-                "execution_binding".to_string(),
-                serde_json::to_value(binding)
-                    .map_err(|error| format!("serialize exact execution binding: {error}"))?,
-            );
-    }
     Ok(result)
 }
 
@@ -148,28 +100,6 @@ pub(crate) fn cmd_start(frontier: &Path, target: &str, json_out: bool) {
         if let Some(verifier) = result["verifier"].as_str() {
             println!("  verifier  {}", safe_text::inline(verifier));
         }
-        if let Some(binding) = result["execution_binding"].as_object() {
-            println!(
-                "  profile   {}",
-                safe_text::inline(binding["profile_root"].as_str().unwrap_or("unavailable"))
-            );
-            println!(
-                "  capsule   {}",
-                safe_text::inline(
-                    binding["verifier_capsule_root"]
-                        .as_str()
-                        .unwrap_or("unavailable")
-                )
-            );
-            println!(
-                "  result    {}",
-                safe_text::inline(
-                    binding["result_contract_root"]
-                        .as_str()
-                        .unwrap_or("unavailable")
-                )
-            );
-        }
     }
 }
 
@@ -182,56 +112,5 @@ mod tests {
         assert!(AUTHORITY_CEILING.contains("Evidence"));
         assert!(AUTHORITY_CEILING.contains("human Decision"));
         assert!(AUTHORITY_CEILING.contains("Standing"));
-    }
-
-    #[test]
-    fn rooted_packet_contracts_become_one_submission_binding() {
-        let packet = json!({
-            "execution_contracts": {
-                "producer_profile": {"sha256": format!("sha256:{}", "2".repeat(64))},
-                "verifier_capsule": {"sha256": format!("sha256:{}", "3".repeat(64))},
-                "result_contract": {"sha256": format!("sha256:{}", "4".repeat(64))},
-            }
-        });
-        let binding = execution_binding(&format!("sha256:{}", "1".repeat(64)), &packet)
-            .unwrap()
-            .unwrap();
-
-        assert_eq!(binding.schema, "vela.execution-binding.v1");
-        assert_eq!(binding.packet_root, format!("sha256:{}", "1".repeat(64)));
-        assert_eq!(binding.profile_root, format!("sha256:{}", "2".repeat(64)));
-        assert_eq!(
-            binding.verifier_capsule_root,
-            format!("sha256:{}", "3".repeat(64))
-        );
-        assert_eq!(
-            binding.result_contract_root,
-            format!("sha256:{}", "4".repeat(64))
-        );
-    }
-
-    #[test]
-    fn malformed_packet_contracts_fail_closed() {
-        let packet = json!({
-            "execution_contracts": {
-                "producer_profile": {"sha256": "sha256:short"},
-                "verifier_capsule": {"sha256": format!("sha256:{}", "3".repeat(64))},
-                "result_contract": {"sha256": format!("sha256:{}", "4".repeat(64))},
-            }
-        });
-
-        assert!(execution_binding(&format!("sha256:{}", "1".repeat(64)), &packet).is_err());
-    }
-
-    #[test]
-    fn packets_without_execution_contracts_remain_valid() {
-        assert_eq!(
-            execution_binding(
-                &format!("sha256:{}", "1".repeat(64)),
-                &json!({"verifier_profile": "review-v1"}),
-            )
-            .unwrap(),
-            None
-        );
     }
 }
