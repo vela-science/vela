@@ -1,0 +1,81 @@
+{
+  "schema": "vela.campaign-decision-packet.v1",
+  "authority_boundary": "This is a read-only packet for one human choice. Passing Verification is scoped evidence, not acceptance, and this packet neither recommends nor performs a Decision.",
+  "frontier": {
+    "id": "vfr_0a25edabc16db143",
+    "git_commit": "4509a731317b040a8e4031a704c16a03076ae89f",
+    "git_tree": "a341c72b2140ed857846c99aafb23928239adcef",
+    "repository_root": "sha256:60c2a1393147d5264f909f4d023b35d7a81e1c6e9eda31bcfea3140d313b1466"
+  },
+  "decision_inbox": {
+    "projection_root": "sha256:303e15ba1bf6482c3b51ac239a2d612c638367156f7eebe3718c7a6c75c449e7",
+    "entry_root": "sha256:2975c7cbbb52e68c93c29539f0ff5bcf2b9ccc545645887022795aff2268f8b5",
+    "protocol_gate": "satisfied",
+    "human_decision_required": true,
+    "blockers": [],
+    "options": ["accept", "reject", "leave_pending"]
+  },
+  "actions": {
+    "inspect": "vela review show . vpr_2f52fe736670aff8 --json",
+    "accept": "vela review accept . vpr_2f52fe736670aff8 --if-entry-root sha256:2975c7cbbb52e68c93c29539f0ff5bcf2b9ccc545645887022795aff2268f8b5 --reason '<human reason>' --json",
+    "reject": "vela review reject . vpr_2f52fe736670aff8 --if-entry-root sha256:2975c7cbbb52e68c93c29539f0ff5bcf2b9ccc545645887022795aff2268f8b5 --reason '<human reason>' --json",
+    "leave_pending": "No command. Standing remains unchanged."
+  },
+  "proposal": {
+    "proposal_id": "vpr_2f52fe736670aff8",
+    "proposal_root": "sha256:e39bffa8b082252788ac39d56879ccbfe83e9684775ef648bb9cdb18ec22c981",
+    "standing": "pending_review",
+    "submission_id": "vsb_0030695bb694112c",
+    "submission_root": "sha256:d1d8268c3965d6de989281783fb7d1671146fac89a50c86ab4aa52e7b5f3fef8",
+    "claim_id": "vcl_5a7df5408c6b11aa52745af2ce1203db3b39cb9a9404c27309f4ee490ffb1386",
+    "claim_root": "sha256:4d3f546331886ba10891c1ceb46267993d41b99ed746a19b74d91ccb9448b16e",
+    "verification_set_root": "sha256:cb4a416dccd78b689c4758948d0ecfa7535f212dda51a320d83b6e4f2bc2383b"
+  },
+  "correction": {
+    "publication": "arXiv:2406.17593",
+    "source_repository": "https://github.com/google-deepmind/formal-conjectures",
+    "path": "FormalConjectures/ErdosProblems/264.lean",
+    "before_commit": "593e6b76702c5dbffaaa91b59f4faaed705d04ce",
+    "after_commit": "0598b8f281060a18416d60753fd75621d659bb07",
+    "full_index_diff_root": "sha256:a1935f112f5e086cac55d0933f6aa5588893aa7452512d5a0319e12fba4a472f",
+    "evidence_artifact_root": "sha256:4443284e9856a2df1902dd81fb443f4042fb28b510278bfa2fe23ef935be3173",
+    "semantic_delta": "The perturbation changes from a bounded natural-valued function to a bounded integer-valued function, admitting negative perturbations and requiring both upper and lower bounds.",
+    "direct_consumer_count": 5
+  },
+  "verification": {
+    "record_id": "vvr_dca5ba7f3288acbf",
+    "record_root": "sha256:7916115d50fc14cb5def642a7e98546f5ae0bffd348b6bfd2fb2936c0e68799d",
+    "outcome": "pass",
+    "profile": "erdos-264-source-transition-v1",
+    "scope": "Exact source identities, semantic delta, complete five-consumer matrix, and hosted-proof compatibility classification.",
+    "does_not_establish": [
+      "Erdos problem 264 or any affected theorem is proved.",
+      "The hosted partial proof is compatible with the corrected definition.",
+      "External-participant independence.",
+      "Scientific acceptance or Standing."
+    ]
+  },
+  "standing_delta": {
+    "transition": "supersede one accepted mutable-source Claim with one exact corrected-source Claim",
+    "before_repository_root": "sha256:60c2a1393147d5264f909f4d023b35d7a81e1c6e9eda31bcfea3140d313b1466",
+    "if_accept_repository_root": "sha256:7b4f3c057bd97f9f04d7dea67d3ea77d13c4156fa5abb78c6a4288278ceb7094",
+    "if_reject_repository_root": "sha256:b3e518e25ccab32a0bb78939471aa32eefebf7dd9680d5e9647737ae2e43b627",
+    "superseded_claim_id": "vcl_6b7736bc99918aee6ef5c3870861e3585cb1d07f4eaf199e4f4755b0375b9327",
+    "unchanged_accepted_claims": 2773,
+    "global_accepted_claim_count": 2774
+  },
+  "successor": {
+    "target_id": "erdos:264:parts-i-proof-repair",
+    "target_packet_root": "sha256:b86f8bb54a63a60217545a82f41b1ea1e1bb77a6e69be0667a49ab87b8bb29d4",
+    "before_decision": "withheld",
+    "if_accept": "must become the first rank-1 Target while the unrelated Erdos 1056 Target remains available",
+    "native_completion": "Repair Erdos264.erdos_264.parts.i under the corrected definition and pass the pinned Lean verifier."
+  },
+  "benchmark": {
+    "vela_commit": "be08ec6b600f1804416693b4083c973e27c86767",
+    "task": "benchmarks/erdos-264-proof-repair",
+    "evidence_level": "real_correction_case",
+    "result_before_decision": null,
+    "claim_limit": "One correction-continuation case only; not new-theorem discovery, statistical agent lift, external adoption, or protocol breakthrough."
+  }
+}

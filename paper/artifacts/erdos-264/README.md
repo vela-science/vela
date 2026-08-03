@@ -31,3 +31,9 @@ does not invalidate the proof under its own local definition; it creates an
 exact repair obligation. This evidence does not prove Erdős problem 264 or
 change scientific Standing. A Vela Submission and Verification remain evidence
 until an attributed human Decision.
+
+[`decision-packet.v1.json`](decision-packet.v1.json) freezes the one current,
+protocol-ready human choice and its exact accept/reject Standing roots. It is
+read-only evidence: it does not recommend or perform a Decision. Its successor
+section binds the native Lean obligation that may become available only after
+acceptance.

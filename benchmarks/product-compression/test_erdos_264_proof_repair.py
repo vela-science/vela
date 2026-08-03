@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import pathlib
 import tomllib
 
@@ -14,6 +15,7 @@ SPEC = importlib.util.spec_from_file_location(
 assert SPEC is not None and SPEC.loader is not None
 MATERIALIZER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MATERIALIZER)
+DECISION_PACKET = ROOT / "paper/artifacts/erdos-264/decision-packet.v1.json"
 
 
 def exact_inputs() -> tuple[dict, dict, dict]:
@@ -107,6 +109,33 @@ def test_case_binds_recognizable_scientific_episode_and_limits_credit() -> None:
     assert '"scientific_episode_root": episode_root' in source
     assert '"new theorem discovery"' in source
     assert '"statistical agent lift"' in source
+
+
+def test_decision_packet_binds_one_human_choice_and_native_successor() -> None:
+    packet = json.loads(DECISION_PACKET.read_text())
+    assert packet["authority_boundary"].startswith(
+        "This is a read-only packet for one human choice."
+    )
+    assert packet["decision_inbox"] == {
+        "projection_root": "sha256:303e15ba1bf6482c3b51ac239a2d612c638367156f7eebe3718c7a6c75c449e7",
+        "entry_root": "sha256:2975c7cbbb52e68c93c29539f0ff5bcf2b9ccc545645887022795aff2268f8b5",
+        "protocol_gate": "satisfied",
+        "human_decision_required": True,
+        "blockers": [],
+        "options": ["accept", "reject", "leave_pending"],
+    }
+    assert packet["proposal"]["proposal_id"] == "vpr_2f52fe736670aff8"
+    assert (
+        "--if-entry-root " + packet["decision_inbox"]["entry_root"]
+        in packet["actions"]["accept"]
+    )
+    assert "<human reason>" in packet["actions"]["accept"]
+    assert packet["verification"]["outcome"] == "pass"
+    assert packet["standing_delta"]["unchanged_accepted_claims"] == 2773
+    assert packet["successor"]["target_id"] == MATERIALIZER.TARGET_ID
+    assert packet["successor"]["before_decision"] == "withheld"
+    assert packet["benchmark"]["evidence_level"] == "real_correction_case"
+    assert packet["benchmark"]["result_before_decision"] is None
 
 
 def test_task_has_no_vocabulary_for_a_vela_runner_or_authority_action() -> None:
