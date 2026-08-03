@@ -302,7 +302,7 @@ def validate_action_complete_baseline(value: Any) -> None:
             if not isinstance(target, dict) or target.get("target_id") != "erdos:1056":
                 raise ContractError("$.source_state.frontiers[erdos].target: exact Target is required")
             require_root(target.get("packet_root"), "$.source_state.frontiers[erdos].target.packet_root")
-            if target.get("next_range") != {"first": 10430601, "last": 10430800}:
+            if target.get("next_range") != {"first": 10430601, "last": 10430800, "inclusive": True}:
                 raise ContractError("$.source_state.frontiers[erdos].target.next_range: unexpected range")
         else:
             if availability != {"configured": 0, "stale": 0, "fresh": 0, "returned": 0}:

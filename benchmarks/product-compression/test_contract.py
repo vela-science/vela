@@ -251,7 +251,7 @@ def action_complete_baseline() -> dict:
                 "target_id": "erdos:1056",
                 "packet_root": root("f"),
                 "verifier_profile": "erdos-1056-k15-bounded-replay-v1",
-                "next_range": {"first": 10430601, "last": 10430800},
+                "next_range": {"first": 10430601, "last": 10430800, "inclusive": True},
             }
         else:
             row["next_action"] = "No Target Index is configured; inspect the Frontier before inventing work."
