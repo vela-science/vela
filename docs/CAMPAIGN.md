@@ -2,11 +2,13 @@
 
 ## Active work package
 
-The active work package is now the second reusable Result Dossier case defined
-by the [multi-case qualification campaign](RESULT_DOSSIER_QUALIFICATION_CAMPAIGN.md).
-The completed Erdős 730 boundary supplies the case; no reviewer recruitment or
-projection activation begins until the shared rendering and matched-flat gates
-pass. The complete remaining portfolio and its gates are indexed in
+The active scientific work package is now the
+[Astra release map](ASTRA_RELEASE_MAP_CAMPAIGN.md): complete all ten result
+families, twelve Comparator profiles, the exact axiom inventory, the Erdős 146,
+180, and 183 fidelity matrices, and an explicit Decision or documented deferral
+for Erdős 183. The exact public Result Dossiers for Erdős 264 and 730 remain a
+separate product-evidence lane; their human usability claim is still unearned.
+The complete remaining portfolio and its gates are indexed in
 [`CAMPAIGN_PORTFOLIO.md`](CAMPAIGN_PORTFOLIO.md).
 
 ADR 0038 separates scientific qualification from public product qualification.
@@ -24,7 +26,8 @@ Verification `vvr_3b6d523c55a24dc9`. Attributed human Decision event
 `vev_0ab843df6ad373ec` accepted the exact bounded Claim and strict replay
 reproduces repository root
 `sha256:821cf0d94778f647305107943572f4916a6cf63fe5ea12506a471fabc07b7474`.
-The completed Target is retired; the rooted handoff now feeds Dossier case two.
+The completed Target is retired; the rooted handoff now feeds Dossier case two,
+which is implemented and publicly readable without a usability claim.
 
 ## Objective
 
@@ -485,7 +488,8 @@ failure. This phase earns a case-study claim, not general lift.
 
 ### Phase 1.5 — qualify the Result Dossier product surface
 
-Status: **implemented locally; public-release timing gate not earned.**
+Status: **public exact-record projection deployed; usability-claim gate not
+earned.**
 
 1. Bind the complete Erdős 264 correction, repair, Verifications, Decisions,
    null benchmark, replay, nonclaims, and successor Target into one removable
@@ -494,8 +498,8 @@ Status: **implemented locally; public-release timing gate not earned.**
    verify SELECT-only reader access.
 3. Compare it with an information-matched flat case file in fresh isolated
    sessions, retaining every failure and versioned revision.
-4. Activate and deploy only after the frozen content, authority, timing, and
-   same-root HTML/JSON gates all pass.
+4. Keep publication of the exact read-only record distinct from any later
+   usability or reviewer-efficiency claim.
 
 Iteration 1 recovered `8/8` fields in every Dossier session but improved median
 time by only 5.2%. Explicit iteration 2 retained `8/8` exactness and zero
@@ -503,10 +507,12 @@ authority errors but improved median time by only 6.7%. Iteration 3 reduced the
 brief to a numbered 212-word answer order and again achieved `8/8` with zero
 authority errors; its 19.1% median improvement still falls short of the exact
 20% gate. All three iterations fail the release gate.
-The projection therefore remains noncanonical and undeployed. Under the frozen
-iteration-3 plan, Astra and Erdős 730 were not unlocked. ADR 0038 prospectively
-replaces that serial rule: scientific qualification may proceed without
-activating the Dossier or borrowing any product claim.
+The usability claim therefore remains unearned. The operator later authorized
+the exact read-only projection for public inspection after deterministic,
+SELECT-only, same-root HTML/JSON, and deployment gates passed. That deployment
+does not rescore the failed study. Under the frozen iteration-3 plan, Astra and
+Erdős 730 were not unlocked. ADR 0038 prospectively replaces that serial rule:
+scientific qualification may proceed without borrowing any product claim.
 
 Gate: `8/8` exact recovery, zero authority errors, no omitted failure, caveat,
 or shared dependency, at least 20% lower median time than the flat baseline,

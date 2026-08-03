@@ -46,7 +46,7 @@ or an automatic Standing change.
 The implementation order is:
 
 1. qualify reusable Result Dossier cases, then prove the projection materially
-   usable through the multi-case human gate in ADR 0039;
+   usable through the [Vela Web multi-case human gate](https://github.com/vela-science/vela-web/blob/main/docs/result-dossier-qualification.md);
 2. publish and check the current portable read/write structure without changing
    object bytes or writer behavior;
 3. complete a separately reviewed DSSE v2 and authorization-history cut only

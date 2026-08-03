@@ -13,6 +13,7 @@
   <a href="https://app.vela.space">Observatory</a> ·
   <a href="docs/QUICKSTART.md">Quickstart</a> ·
   <a href="docs/ARCHITECTURE.md">Architecture</a> ·
+  <a href="docs/REPOSITORY_BOUNDARIES.md">Repository boundaries</a> ·
   <a href="docs/PROTOCOL.md">Protocol</a> ·
   <a href="docs/THREAT_MODEL.md">Security</a>
 </p>

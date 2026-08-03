@@ -11,8 +11,7 @@
 
 The first three Erdős 264 Result Dossier iterations recovered every registered
 field with zero authority errors. Their median-time improvements were 5.2%,
-6.7%, and 19.1198%; all fail the exact 20% public-release gate. The v9
-projection therefore remains inactive and undeployed.
+6.7%, and 19.1198%; all fail the exact 20% usability-claim gate.
 
 That gate correctly governs a product claim. It does not show that Astra
 source qualification, Erdős 730 source-equivalence work, or a fresh discovery
@@ -45,11 +44,11 @@ or Standing it displays.
 ## Active order
 
 1. qualify `erdos:730:external-proof-boundary`;
-2. use the completed boundary as the second Dossier case without activating
-   v9;
+2. use the completed boundary as the second Dossier case without inferring a
+   usability result from publication;
 3. complete the Astra ten-result map and resolve the pending Erdős 183 packet;
 4. run the real-reviewer Dossier qualification across multiple cases;
-5. release only if the frozen product gate passes;
+5. make a reviewer-efficiency claim only if the frozen product gate passes;
 6. attempt Erdős 203 as the fresh-discovery campaign; and
 7. begin confirmatory autonomous-research adapters only after reusable cases
    and the product gate are both earned.
@@ -66,3 +65,10 @@ surfaces remain separately gated.
   released.
 - No scientific result can be reported as product lift, and no product result
   can be reported as scientific acceptance.
+
+## Later implementation note
+
+The operator subsequently authorized public deployment of the exact read-only
+projection after deterministic reconstruction, SELECT-only access, same-root
+HTML/JSON, and deployment checks passed. That publication does not alter this
+decision, rescore the failed timing studies, or earn a usability claim.

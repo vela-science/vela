@@ -1298,12 +1298,13 @@ successor Target into one cold-reader surface. Three frozen, first-party
 internal iterations recovered all eight registered fields with zero Dossier-arm
 authority errors, but reduced median wall time by only 5.2%, 6.7%, and 19.1%
 against an information-matched flat case file. Even the third result misses the
-exact registered 20% product gate.
-The candidate therefore remains noncanonical and undeployed. These sessions
-cannot establish external validation, causal Vela lift, reviewer efficiency,
-adoption, or general productivity. A passing product qualification, a second
-reusable fixture, and independent evidence remain necessary for the stronger
-claim.
+exact registered 20% product gate. The exact read-only projection was later
+published after deterministic reconstruction, SELECT-only storage, same-root
+HTML/JSON, and deployment checks passed, but the failed timing result was not
+rescored. These sessions cannot establish external validation, causal Vela
+lift, reviewer efficiency, adoption, or general productivity. A passing human
+product qualification and independent evidence remain necessary for the
+stronger claim.
 
 This failed product gate does not invalidate separately scoped scientific
 qualification. The Erdős 730 evidence lane subsequently reproduced the exact

@@ -2,66 +2,16 @@
 
 ## Unreleased
 
-- Close the real Erdős 264 correction-and-inheritance episode. The corrected
-  source Claim and the repaired `Erdos264.erdos_264.parts.i` Claim are both
-  accepted through attributed human Decisions, strict replay reproduces
-  repository root
-  `sha256:f53da541680e2317cd96d64237fa0ced9eb6e4776b03023d5675d0e76b35bc2c`,
-  and a context-free successor recovered `erdos:203:finite-cover` in 98
-  seconds without private predecessor state.
-- Preserve the preregistered Erdős 264 matched result as a null exactness
-  result (`0/1` in each arm). The later unlimited-heartbeat proof repair is a
-  separate post-study episode and does not retroactively rescore the study.
-- Prepare the current correction episode for a root-bound, non-authoritative
-  Result Dossier in the read-only Observatory. This adds no protocol object,
-  runner, authority path, or scientific Standing.
-- Retain two frozen internal Result Dossier usability iterations. Both achieved
-  exact `8/8` recovery with zero authority or Standing errors in the Dossier
-  arm, but median time improved only 5.2% and 6.7% against the information-
-  matched flat arm. Both miss the registered 20% release gate, carry
-  `claim_credit: false`, and authorize no projection activation or deployment.
-- Retain a third frozen iteration using a numbered, evidence-linked reviewer
-  brief. It again recovered all `8/8` fields with zero authority errors and
-  reduced median time by 19.1%, but that remains below the exact 20% release
-  gate; the projection therefore remains inactive and undeployed.
-- Qualify the noncanonical `observatory.v9` candidate in two empty PostgreSQL
-  reconstructions with SELECT-only reader parity. The run also exposed that
-  current Target priority ranks are legitimately non-unique; the v9 read model
-  uses Target identity, not rank, as the uniqueness boundary.
-- Accept a removable protocol-edge and adoption order that keeps scientific
-  semantics and human Decision authority inside Vela while commodity standards
-  remain replaceable boundaries. Publish an honest current-surface inventory,
-  freeze the v1 conformance fixture roots, and add checked JSON Schema 2020-12
-  descriptions without changing protocol bytes, writers, or Standing.
-- Accept independent product and scientific-evidence lanes after the third
-  Dossier timing failure. The failed 19.1198% result continues to block v9
-  activation and product claims, while exact scientific qualification may
-  proceed without borrowing usability evidence.
-- Make `erdos:730:external-proof-boundary` the active scientific campaign and
-  define executable follow-on campaigns for multi-case human Dossier review,
-  the Astra ten-result map, Erdős 203 discovery, autonomous-research
-  qualification, and the portable protocol waist.
-- Produce the first Erdős 730 boundary result. The exact-source verifier passes
-  across the pinned Formal Conjectures and `lean-proofs` trees, all 74 retained
-  proof modules contain no forbidden escape token, and clean Lean 4.29.1 native
-  replay passes for the terminal theorem and audit. The report concludes source
-  equivalence at
-  `sha256:42db39dd2b51e7821e02fc1acbb3e43cde83f269a8cb491f2925ad3aa233d106`
-  while preserving `semantic_review_required: true`, no accepted state change,
-  and the separate Lean 4.27.0 Formal Conjectures boundary.
-- Retain the Erdős 730 producer report as Submission
-  `vsb_46bd0d7cef0d2fa6`, then complete a fresh source-first semantic review and
-  requirement-satisfying scoped Verification `vvr_3b6d523c55a24dc9`. The
-  consequence-complete Decision entry was protocol-ready at
-  `sha256:cdbf8a2919a1c6ac137ab21468e74d6556bdebd4c250f7aee6adf45a76c3400d`.
-- Accept the exact bounded Erdős 730 external-proof Claim through attributed
-  human Decision event `vev_0ab843df6ad373ec`. Strict replay reproduces the
-  predicted repository root
-  `sha256:821cf0d94778f647305107943572f4916a6cf63fe5ea12506a471fabc07b7474`.
-  The generated Target Index retires the completed Target and roots a
-  post-Decision handoff to the second non-authoritative Result Dossier case;
-  external review, novelty, global acceptance, and a Lean 4.27.0 port remain
-  explicit nonclaims.
+- Publish checked JSON Schema 2020-12 descriptions, current-object fixtures,
+  and cross-reader conformance checks for existing authority, Submission,
+  Verification, and Withdrawal structures without changing their bytes,
+  writers, authority, or Standing semantics.
+- Accept the removable protocol-edge and independent evidence-lane boundaries.
+  Vela retains its scientific semantics and human Decision authority while
+  commodity standards and read projections remain replaceable.
+- Reconcile the paper and cross-repository portfolio against exact Frontier and
+  Vela Web evidence. Case-specific execution plans now live with their owning
+  Frontier or product repository; this documentation pass is not a core release.
 
 ## v0.963.0 — 2026-08-02 — Current contract and standards boundary
 

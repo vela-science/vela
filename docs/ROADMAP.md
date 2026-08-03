@@ -28,25 +28,25 @@ establish a new discovery, general productivity lift, or external adoption.
 ## Now — turn scientific state into a usable product
 
 The Result Dossier remains a removable read projection, not a protocol object
-or authority path. Its public release still requires the product gate. ADR
-0038 now separates that release decision from internally useful scientific
-qualification:
+or authority path. Its exact read-only case record is public; a usability or
+reviewer-efficiency claim still requires the product gate. ADR 0038 separates
+that claim decision from internally useful scientific qualification:
 
 ```text
 accepted Erdős 264 state
 → Erdős 730 external-proof boundary
-→ second reusable Dossier case, still inactive
+→ second reusable Dossier case and exact public read projection
 → Astra ten-result map and Erdős 183 Decision/deferral
 → multi-case human Dossier qualification
 → Erdős 203 discovery campaign
 ```
 
-Current gate status, 2026-08-03: the local `observatory.v9` candidate passes
-root, reconstruction, storage, and SELECT-only checks. Three explicitly
+Current gate status, 2026-08-03: `observatory.v9` passes root, reconstruction,
+storage, SELECT-only, HTML/JSON, and deployment checks. Three explicitly
 versioned internal usability iterations recovered all eight fields with zero
 Dossier-arm authority errors, but improved median time by only 5.2%, 6.7%, and
-19.1%. The third result is not rounded into the required 20% gate, so the
-projection is not activated or publicly deployed.
+19.1%. The third result is not rounded into the required 20% gate, so no
+usability, reviewer-efficiency, adoption, or productivity claim is earned.
 
 ### 1. Freeze
 
@@ -87,9 +87,14 @@ novelty, and a Lean 4.27.0 port remain nonclaims.
 - Preserve the Lean 4.27.0 statement/import boundary.
 - Complete all six semantic equivalence dimensions independently.
 - Prepare scoped Verification and a consequence-complete human packet.
-- Use the completed state as Dossier case two without activating v9.
+- Use the completed state as Dossier case two without inferring authority or a
+  usability result from publication.
 
 ### 4. Complete the Astra release map
+
+**Active scientific work package.** The completed Erdős 730 packet and public
+read-only Dossier release satisfy the entry sequence; product-usability claims
+remain independently gated.
 
 - Bind all ten advertised result families and twelve Comparator profiles.
 - Reproduce native checks in the hardened offline environment.
@@ -107,7 +112,7 @@ study begins.
 - Freeze matched flat cases and a case-blocked human-review design.
 - Recruit no reviewer before the design, sample, and scoring are rooted.
 - Require zero authority errors, complete recovery, and at least 20% median
-  time reduction before activation or deployment.
+  time reduction before making a reviewer-efficiency claim.
 
 ### 6. Attempt a fresh result
 
@@ -167,13 +172,14 @@ The next product surface must help a cold researcher answer:
 4. What exact action is valid next?
 
 If a CLI or Observatory change does not reduce time or error on one of those
-questions by at least 20 percent, do not ship it.
+questions by at least 20 percent, do not claim that it improved usability.
 
-This gate is currently active and failing on time, not content. Do not activate,
-deploy, or claim a usable public Dossier until the multi-case human campaign
-passes without weakening the baseline, omitting caveats, or changing the
-authority boundary. The gate does not block separately scoped scientific
-qualification under ADR 0038, and that work earns no product claim.
+This gate is currently failing on time, not content. The exact read-only record
+is public, but do not claim reviewer efficiency, adoption, or general usability
+until the multi-case human campaign passes without weakening the baseline,
+omitting caveats, or changing the authority boundary. The gate does not block
+separately scoped scientific qualification under ADR 0038, and that work earns
+no product claim.
 
 ## Breakthrough gate
 
