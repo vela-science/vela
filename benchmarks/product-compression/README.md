@@ -38,11 +38,17 @@ The two matched arms inspect the same isolated Frontier commit:
 - `git-files`: ordinary Git and file-reading tools;
 - `vela-guided`: the same tools plus one exact read-only Vela binary.
 
-Harbor runs two native attempts per task. All four
-must be eligible. Vela receives bounded task-specific credit only when its arm
-is exact twice, is at least as exact as the baseline, and has no median cost
-regression. If both arms are exact twice, Vela must reduce median agent time by
-at least 20 percent.
+The retained v9 studies ran two native attempts per arm. All four trials had
+to be eligible, and the compact result applied a bounded task-specific rule.
+Those studies remain valid for their stated historical claims.
+
+The next action-complete campaign uses two attempts per arm only as an
+instrumentation pilot. It may confirm that task materialization, custody,
+scoring, and telemetry work, but it may not support a general performance
+claim. Confirmatory repetitions are computed from blinded pilot variance for
+80 percent power, a two-sided 5 percent error rate, and a preregistered 20
+percent minimum useful effect. Cost and observed tokens are measured outcomes,
+not arbitrary campaign budgets.
 
 The materializer currently supports three explicit scenarios without a generic
 correction framework:
@@ -60,6 +66,28 @@ These are first-party comprehension and continuation tasks. They do not
 establish independent adoption, general scientific productivity, scientific
 acceptance, post-correction remapping, or the full correction-and-inheritance
 breakthrough benchmark.
+
+## Next preregistered tranche
+
+After the live Erdős human Decision, the same Harbor boundary will cover five
+explicit task classes:
+
+1. `target_continuation` — find the first valid nonduplicate action after a
+   rooted Decision and remap;
+2. `standing_discrimination` — distinguish Submission, passing Verification,
+   pending Proposal, Decision, and current Standing;
+3. `cross_frontier_inheritance` — inspect a bounded foreign package without
+   importing origin authority;
+4. `controlled_correction_impact` — recover affected, surviving, and blocked
+   relations from a closed-ground-truth correction fixture; and
+5. `explicit_target_absence` — return the exact blocker instead of inventing
+   work.
+
+The first three retained scenarios may supply task material where their exact
+roots still qualify, but no generic correction engine or parallel Vela harness
+will be added. A real correction-and-inheritance claim remains separately
+gated on a qualifying canonical correction with closed downstream ground
+truth. The controlled fixture cannot satisfy that gate by itself.
 
 The benchmark schema names are repository-local rooted task labels, not public
 protocol compatibility promises. Each retained plan and generated task binds

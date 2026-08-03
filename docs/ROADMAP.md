@@ -69,10 +69,17 @@ identity. This roadmap records only product sequence.
 
 ## Now — prove the action-complete Frontier thesis
 
-The next pass uses the current exact Erdős Target as one real native-agent
-vertical slice, then measures whether Vela improves exact continuation,
-Standing discrimination, cross-Frontier inheritance, correction reasoning,
-and explicit no-work blocking over matched Git/files baselines.
+The live native-agent slice has completed exact producer work and scoped
+Verification for Erdős range `10430601..10430800`. The verified range no
+longer appears in `vela next`, so routine work cannot be duplicated while its
+Proposal remains pending. The next authority checkpoint is one attributed
+human Decision; no agent may perform it.
+
+After that Decision, the pass replays and remaps the Frontier, hands the exact
+successor obligation to a fresh producer, then measures whether Vela improves
+exact continuation, Standing discrimination, cross-Frontier inheritance,
+correction reasoning, and explicit no-work blocking over matched Git/files
+baselines.
 
 ```text
 choose exact Target
@@ -92,6 +99,24 @@ registered primary metric, and survival across a producer or model swap.
 
 The active campaign defines the full phases, ETY/VPAC/FIE/CPI metrics,
 correction-resilience gates, product seams, and stop conditions.
+
+The recent memos do not justify parallel Registry, runtime, graph, or package
+trains. The active work order is:
+
+1. human Decision, strict replay, projection refresh, and exact successor;
+2. different-producer handoff;
+3. five-class Harbor instrumentation pilot;
+4. power-derived confirmation across at least two task families;
+5. one real correction-and-inheritance case;
+6. only measured CLI or Observatory compression;
+7. evidence companion and canonical-paper revision at the claim ceiling
+   actually earned.
+
+A future package layer remains an earned follow-on. Its first candidate is one
+source-local exact Lean replay contract, and it advances only after two
+maintained consumers, net deletion of duplicated implementation, deterministic
+cross-platform reconstruction, and zero authority effect. No hosted Package
+Registry or package CLI belongs in the current pass.
 
 ### 1. Use the completed Quantum Decision as the product-loop checkpoint
 

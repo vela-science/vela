@@ -64,7 +64,7 @@ If the first two answers are no, or the third is yes without a measured gap,
 delete or defer it. Failed experiments leave compact evidence, not active
 infrastructure.
 
-## Current state — 2026-08-02
+## Current state — 2026-08-03
 
 ### Shipped and verified
 
@@ -213,8 +213,9 @@ infrastructure.
   `sha256:6da941b2e6946f59b85b31df1f2d4bdc2472d8357f654b79952c1b8c21e53428`,
   recomputed the retained roots and six-dimensional fidelity matrix. The
   Proposal still requires a human Decision and changed no accepted Event or
-  Standing. Its exact verified producer work is no longer offered again;
-  `erdos:1056` is the remaining Erdős producer Target. No Astra Frontier or
+  Standing. Its exact verified producer work is no longer offered again. The
+  later native `erdos:1056` range is now also producer-complete and no longer
+  appears in `vela next`; its Proposal remains pending. No Astra Frontier or
   Astra-specific product was created.
 - Two empty local PostgreSQL reconstructions matched every production table,
   Frontier, and source-registry root. The retained evidence artifact root is
@@ -357,6 +358,16 @@ authority may accept, reject, or leave the Proposal pending. Replay, projection
 refresh, successor handoff, and the matched Harbor evaluation remain gated on
 that choice.
 
+The post-Verification lifecycle has also been repaired and frozen. Exact
+passing evidence now closes producer work without changing scientific
+Standing, so the completed range is not offered again while its Proposal sits
+in the Decision Inbox. At Erdős commit `4e863be985bf0153fd9b911fbc7a31e96c8b15bd`,
+strict repository verification passes, Target Index root
+`sha256:7bb576d03cb347e6ab3b9e8fe683641226e8e9a1dd49237db33e065d4f1f0d9a`
+contains zero producer Targets, and Proposal `vpr_4fa1a06ca64e36e4`
+remains `pending_review`. This is the intended pre-Decision state: no duplicate
+work and no accidental acceptance.
+
 ### Phase C — preregister the matched Harbor evaluation
 
 Retain one benchmark implementation: native Harbor task directories plus the
@@ -488,6 +499,81 @@ The pass is complete when all of the following are true:
    package ecosystem is introduced; and
 7. the paper, roadmap, manifests, and public claims match the retained evidence
    exactly.
+
+## Research synthesis and work disposition — 2026-08-03
+
+The recent architecture, product, standards, Registry, package, Astra, and
+action-complete-Frontier memos converge on one program rather than several
+parallel products. The durable Vela control point is the exact transition from
+evidence and scoped Verification to a named authority's correction-aware
+Standing, followed by a safe handoff. Every other idea is either a native-tool
+integration, a disposable read projection, a benchmark, or an earned future
+package.
+
+This disposition folds in the July 29–August 2 canonical-thesis, Math Atlas,
+human-agent UX, Frontier-repository, action-complete-Frontier, Astra,
+standards/tooling, and package/toolchain memos. Earlier broader proposals remain
+research context; this campaign is the executable intersection that survived
+their deletion and evidence gates.
+
+| Research stream | Current disposition | Evidence gate |
+| --- | --- | --- |
+| Action-complete Frontier | **Active product and research proof.** Finish the live Erdős Decision, replay, remap, and fresh-producer handoff. | One native end-to-end loop with no duplicate Target, no authority error, and an exact successor or blocker. |
+| Human-agent workflow | **Use native agent durability and action approvals.** Vela supplies a Target briefing and a consequence-only Decision Inbox. | One authorization supports ordinary work until one meaningful scientific Decision; no Vela runner or transcript store. |
+| Harbor evaluation | **Keep as the sole execution/evaluation harness.** Vela owns only exact fixture materialization and semantic scoring. | Valid matched pilots, power-derived confirmation, full failure retention, and at least two task families before a general lift claim. |
+| Observatory and Math Atlas | **Keep as root-bound read projections.** Refresh after canonical Git changes; change UI only for a measured comprehension failure. | Exact source roots, SELECT-only reads, no hidden authority, and at least 20 percent improvement for any new product surface. |
+| Astra and other scientific releases | **Treat as source observations, not new Frontiers.** The OpenAI release adapter and fidelity work are the current case. | Exact source binding, clean-room native checks, explicit fidelity/novelty obligations, and bounded local Decisions. |
+| RO-Crate 1.3 and provenance standards | **Keep as derived, loss-explicit interoperability.** | An independent reader can inspect the package without importing origin authority; no transfer format changes Standing. |
+| Vela package subsystem | **Long-range, earned layer; not part of this active pass.** Start only with a source-local exact Lean replay experiment. | Two maintained consumers, cross-platform root agreement, adversarial conformance, net deletion of duplicate code, and zero authority effect. |
+| Hosted Package Registry, global graph, workflow engine, agent runtime, package marketplace | **Deferred or rejected.** | Reconsider only after repeated external demand and a named failure that native tools plus a thin adapter cannot solve. |
+| Standards hardening | **Correctness lane, not a parallel product train.** Complete only changes required for portable evidence and clean replay. | Root-preserving conformance or one explicit pre-1.0 cut, clean-clone replay, then deletion of superseded runtime code. |
+
+### Ordered work after the human Decision
+
+1. **Replay and remap.** Verify the exact Decision transaction, preserve the
+   pre-Decision evidence, rebuild the Target Index and read projection, and
+   prove that the next bounded obligation begins after `10430800`.
+2. **Fresh-producer handoff.** Give a different producer only the rooted
+   Frontier and native tools. It must identify the exact successor or blocker
+   without prior session state.
+3. **Five-class Harbor pilot.** Run matched `git-files` and `vela-guided`
+   tasks for Target continuation, Standing discrimination, cross-Frontier
+   inheritance, controlled correction impact, and explicit Target absence.
+   Two attempts per arm validate instrumentation only.
+4. **Power-derived confirmation.** Use blinded pilot variance to determine
+   repetitions. Confirm on at least two scientific task families and one
+   producer or model-family swap. Retain all eligible failures.
+5. **Real correction-and-inheritance case.** Select a qualifying correction
+   with closed downstream ground truth. Measure affected-set precision and
+   recall, surviving-route recall, stale-use rate, repair time, and the next
+   valid obligation. Do not substitute a synthetic fixture for this claim.
+6. **Product compression test.** Observe a cold researcher using the existing
+   CLI and Observatory. Earn only the smallest change that reduces time to the
+   exact evidence, Standing diff, or next obligation by at least 20 percent.
+7. **Evidence and publication.** Publish a concise result—positive, neutral,
+   or negative—with exact roots, costs, failures, uncertainty, and scope. Only
+   then revise the canonical whitepaper and activate an earned follow-on goal.
+
+### Thesis promotion gates
+
+The current active goal remains the bounded action-complete proof. A broader
+"compounding scientific state" claim is promoted only after all of the
+following hold:
+
+- positive Frontier Inheritance Effect with uncertainty excluding no
+  improvement in at least two task families;
+- at least 20 percent VPAC lift over the strongest same-information baseline;
+- positive cross-producer inheritance under a producer or model-family swap;
+- exact recovery from one real correction with no stale accepted use, false
+  pruning, or lost independent route;
+- one consequential scientific result or correction and one separately
+  controlled reproducer; and
+- no simpler flat packet or retrieval arm matching the whole result.
+
+Until those gates pass, Vela may claim exact scientific-state, replay,
+correction, and bounded task-comprehension value. It may not claim a general
+scientific-discovery breakthrough, external adoption, or a need for a hosted
+Registry.
 
 ## Active gates
 
