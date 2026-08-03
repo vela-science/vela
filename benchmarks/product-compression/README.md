@@ -154,26 +154,28 @@ and
 the canonical full-index diff root is
 `sha256:a1935f112f5e086cac55d0933f6aa5588893aa7452512d5a0319e12fba4a472f`.
 
-The exact source transition now has Submission `vsb_0030695bb694112c`, pending
-Proposal `vpr_2f52fe736670aff8`, and passing scoped Verification
-`vvr_dca5ba7f3288acbf`. The Verification pins the five direct consumers and the
-current hosted partial proof. That proof still binds its own natural-valued
-perturbation definition, not the corrected integer-valued definition. The
-Proposal therefore remains evidence awaiting a human Decision; it has not
-changed Standing and earns no post-correction benchmark credit. If accepted,
-the first useful cold-successor task is to rework or recheck the retained proof
-against the corrected definition, with the native Lean kernel as verifier. A
-bounded RO-Crate transfer to Formal may then test independent readability
-without importing Erdős authority.
+The exact source transition has Submission `vsb_0030695bb694112c`, Proposal
+`vpr_2f52fe736670aff8`, passing scoped Verification
+`vvr_dca5ba7f3288acbf`, and attributed human Decision event
+`vev_0325f467077ed92e`. The Decision accepted only the corrected source Claim;
+strict replay preserved unrelated Standing. The Verification pins the five
+direct consumers and the current hosted partial proof. That proof still binds
+its own natural-valued perturbation definition, not the corrected
+integer-valued definition. The first useful cold-successor task is therefore to
+rework or recheck the retained proof against the corrected definition, with the
+native Lean kernel as verifier. A bounded RO-Crate transfer to Formal may then
+test independent readability without importing Erdős authority.
 
-The exact successor is already frozen at Erdős Frontier
-`4509a731317b040a8e4031a704c16a03076ae89f` as
-`erdos:264:parts-i-proof-repair`. It remains absent from `vela next` until the
-correction Claim is accepted. Its native verifier binds the current public
-Formal Conjectures source, theorem signature, Lean and mathlib revisions, and
-permits no change outside the target proof. This prevents the benchmark from
-substituting an easier synthetic task after seeing model output while retaining
-the human Decision as the only gate that can change Standing.
+The exact successor is now available at Erdős Frontier source commit
+`9b08906923b89c1174262f000c3fa50925b291f5` as
+`erdos:264:parts-i-proof-repair`; its packet root is
+`sha256:dc0454b0d6460a841060edbf325e35ae3cbf8408f15e123f634fff5b4641fa7b`.
+Its native verifier binds the current public Formal Conjectures source, theorem
+signature, Lean and mathlib revisions, and permits no change outside the target
+proof. This prevents the benchmark from substituting an easier synthetic task
+after seeing model output. The completed source Decision remains the only
+authority transition so far; a repair artifact or passing verifier cannot
+change Standing.
 
 New studies use the v10 answer, v8 fixture, v12 plan, and v7 compact-result
 contracts. Every two-attempt study is explicitly marked `claim_credit: false`;

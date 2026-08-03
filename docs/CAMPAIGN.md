@@ -99,7 +99,10 @@ Frontier Standing. ErdősProblems.com and Formal Conjectures still call problem
 730 open, the proof predates this campaign, and no external mathematical review
 or Vela Decision has occurred. The proof is pinned to Lean 4.29.1 while current
 Formal Conjectures is pinned to Lean 4.27.0, so a direct combined import is not
-yet evidence. The next bounded loop is source-equivalence verification, an
+yet evidence. Erdős Frontier commit `89824cd3e9d52498bbfdaf3c0e71292991e3a9f1`
+now binds those exact sources as `erdos:730:external-proof-boundary`; its clean
+native replay checks the full terminal theorem and audit under Lean 4.29.1.
+The next bounded loop is source-equivalence verification, an
 accepted external-proof boundary or exact port and affirmative bridge, clean
 mechanical replay, independently scoped semantic review, Submission,
 Verification, and one human Decision. It may support a retrospective
@@ -158,6 +161,14 @@ RO-Crate 1.3                 derived research-object transfer
 
 The Observatory and Atlas remain root-bound, read-only projections. No model,
 rank, graph, verifier, database, or benchmark may change Standing.
+
+Decision packets and read projections should explain the existing state through
+four derived routes rather than new protocol objects: exact source, native
+transformation or check, scientific reasoning and uncertainty, and attributed
+authority. Informational receipts stay outside the Decision queue. A cold
+reviewer should see the semantic Standing diff, affected and surviving routes,
+unreviewed gaps, and the exact next obligation without reconstructing them from
+raw records.
 
 ## Current evidence ceiling
 
@@ -350,6 +361,8 @@ Instrumentation pilots and case studies may use fewer blocks but must set
 
 - cost per assigned attempt and per exact pass;
 - expert minutes to find decisive evidence and make the Decision;
+- cold-review errors in locating the authority boundary, correction blast
+  radius, and next valid obligation;
 - duplicate work and repeated certified failure;
 - number and class of failed routes retained;
 - clean-clone reproduction rate;
