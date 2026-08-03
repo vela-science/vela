@@ -126,6 +126,7 @@ fn verification_help_exposes_ordinary_authoring_without_key_flags() {
         "--profile",
         "--method",
         "--property",
+        "--complementary",
         "--outcome",
         "--does-not-establish",
         "--independent-of",

@@ -100,7 +100,6 @@ EXAMPLES
   vela verification record . vpr_8b49… \\
     --profile exact-replay-v1 \\
     --method verification/method.json \\
-    --property \"Replay the exact retained artifact.\" \\
     --outcome pass \\
     --does-not-establish \"Scientific acceptance.\" \\
     --independent-of agent:producer \\
@@ -111,6 +110,9 @@ EXAMPLES
     --as verifier:independent-check --json
         import an already signed interoperable record
 
+When the Submission has one verification requirement, omitting `--property`
+uses that exact requirement and produces requirement-satisfying evidence. Use
+`--property ... --complementary` only for an additional scoped observation.
 The record binds the exact Submission, Proposal, Claim, artifacts, method,
 manifest bytes, environment, scope, outcome, and verifier identity. It never
 accepts the Proposal or changes Standing.

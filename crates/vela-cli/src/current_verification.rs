@@ -34,7 +34,8 @@ pub(crate) struct VerificationRecordRequest {
     pub(crate) proposal_id: String,
     pub(crate) profile: String,
     pub(crate) method_path: PathBuf,
-    pub(crate) property: String,
+    pub(crate) property: Option<String>,
+    pub(crate) complementary: bool,
     pub(crate) outcome: String,
     pub(crate) does_not_establish: Vec<String>,
     pub(crate) independent_of: Vec<String>,
@@ -125,12 +126,10 @@ fn load_current_proposal_package(
     })
 }
 
-fn current_subject_for_proposal(
-    frontier: &Path,
+fn current_subject_for_package(
     repository: &CurrentRepositoryV4,
-    proposal_id: &str,
+    package: &CurrentProposalPackage,
 ) -> Result<VerificationSubject, String> {
-    let package = load_current_proposal_package(frontier, repository, proposal_id)?;
     let mut artifact_ids = Vec::with_capacity(package.submission.artifacts.len());
     for artifact in &package.submission.artifacts {
         let artifact_id = artifact
@@ -157,11 +156,11 @@ fn current_subject_for_proposal(
     }
 
     Ok(VerificationSubject {
-        claim_id: package.proposal.subject.id,
+        claim_id: package.proposal.subject.id.clone(),
         artifact_ids,
-        submission_id: package.submission.submission_id,
-        submission_root: package.proposal.producer_package.root,
-        proposal_id: package.proposal.proposal_id,
+        submission_id: package.submission.submission_id.clone(),
+        submission_root: package.proposal.producer_package.root.clone(),
+        proposal_id: package.proposal.proposal_id.clone(),
     })
 }
 
@@ -226,6 +225,34 @@ fn method_manifest_binding(
         implementation,
         format!("sha256:{}", hex::encode(Sha256::digest(&bytes))),
     ))
+}
+
+fn resolve_property(
+    requested: Option<String>,
+    complementary: bool,
+    requirements: &[String],
+) -> Result<String, String> {
+    match (requested, complementary) {
+        (None, false) if requirements.len() == 1 => Ok(requirements[0].clone()),
+        (None, false) if requirements.is_empty() => Err(
+            "--property is required because this Submission has no registered verification requirement"
+                .into(),
+        ),
+        (None, false) => Err(format!(
+            "--property is required because this Submission has {} registered verification requirements; use one exact requirement",
+            requirements.len()
+        )),
+        (None, true) => Err("--complementary requires --property".into()),
+        (Some(property), false) if requirements.contains(&property) => Ok(property),
+        (Some(property), false) => Err(format!(
+            "Verification property {property:?} does not exactly match a registered requirement; omit --property when there is one requirement, use one exact requirement, or add --complementary for an explicitly complementary observation"
+        )),
+        (Some(property), true) if requirements.contains(&property) => Err(
+            "--complementary cannot label a property that exactly satisfies a registered requirement"
+                .into(),
+        ),
+        (Some(property), true) => Ok(property),
+    }
 }
 
 fn matches_request(
@@ -297,7 +324,13 @@ pub(crate) fn author_record(
     // key resolver is allowed to mint or load a signer.
     let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
     ensure_pending_proposal(frontier, &repository, &request.proposal_id)?;
-    let subject = current_subject_for_proposal(frontier, &repository, &request.proposal_id)?;
+    let package = load_current_proposal_package(frontier, &repository, &request.proposal_id)?;
+    let property = resolve_property(
+        request.property,
+        request.complementary,
+        &package.submission.verification_requirements,
+    )?;
+    let subject = current_subject_for_package(&repository, &package)?;
     let (implementation, environment_root) =
         method_manifest_binding(frontier, &request.method_path)?;
     let method = VerificationMethod {
@@ -306,7 +339,7 @@ pub(crate) fn author_record(
         environment_root,
     };
     let scope = VerificationScope {
-        property: request.property,
+        property,
         does_not_establish: request.does_not_establish,
     };
     let independence = IndependenceDisclosure {
@@ -965,6 +998,51 @@ mod tests {
             &fixture.record.verifier,
             &fixture.record.independence,
         ));
+    }
+
+    #[test]
+    fn sole_registered_requirement_is_the_default_verification_property() {
+        let requirements = vec!["Replay the exact retained artifact.".to_string()];
+        assert_eq!(
+            resolve_property(None, false, &requirements).unwrap(),
+            requirements[0]
+        );
+        assert_eq!(
+            resolve_property(Some(requirements[0].clone()), false, &requirements).unwrap(),
+            requirements[0]
+        );
+    }
+
+    #[test]
+    fn ambiguous_or_complementary_properties_require_explicit_intent() {
+        let requirements = vec![
+            "Replay the exact retained artifact.".to_string(),
+            "Inspect its declared scope.".to_string(),
+        ];
+        let ambiguous = resolve_property(None, false, &requirements).unwrap_err();
+        assert!(ambiguous.contains("2 registered verification requirements"));
+
+        let unmatched = resolve_property(
+            Some("Inspect another property.".into()),
+            false,
+            &requirements,
+        )
+        .unwrap_err();
+        assert!(unmatched.contains("does not exactly match"));
+
+        assert_eq!(
+            resolve_property(
+                Some("Inspect another property.".into()),
+                true,
+                &requirements
+            )
+            .unwrap(),
+            "Inspect another property."
+        );
+
+        let mislabeled =
+            resolve_property(Some(requirements[0].clone()), true, &requirements).unwrap_err();
+        assert!(mislabeled.contains("exactly satisfies"));
     }
 
     #[test]

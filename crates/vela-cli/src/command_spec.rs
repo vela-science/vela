@@ -243,9 +243,14 @@ pub(crate) enum VerifyAction {
         /// Verification environment.
         #[arg(long)]
         method: PathBuf,
-        /// Exact property observed by the verifier.
+        /// Exact property observed by the verifier. Omit to use the Proposal's
+        /// sole registered verification requirement.
         #[arg(long)]
-        property: String,
+        property: Option<String>,
+        /// Retain an observation that does not satisfy a registered
+        /// verification requirement.
+        #[arg(long, requires = "property")]
+        complementary: bool,
         /// pass | fail | error | inconclusive
         #[arg(long)]
         outcome: String,
