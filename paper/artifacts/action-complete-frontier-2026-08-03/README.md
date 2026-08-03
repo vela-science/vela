@@ -31,3 +31,14 @@ performance, productivity, adoption, independence, interoperability, or
 scientific claim. The controlled correction task remains a closed-ground-truth
 product benchmark and cannot substitute for a real correction with downstream
 Frontier topology. No agent or verifier may perform a scientific Decision.
+
+The subsequent native-agent slice is frozen separately in
+[`decision-packet.erdos-1056.v1.json`](decision-packet.erdos-1056.v1.json),
+rooted at:
+
+```text
+sha256:ff80c86c5f7208d0f46ffa3a38af2c9b19cb34ab7f71b83fdb7d4cbda4cb117a
+```
+
+That packet records a protocol-eligible pending Proposal and its exact
+accept/reject consequences. It does not recommend or perform either Decision.

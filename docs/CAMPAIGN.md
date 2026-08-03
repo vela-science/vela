@@ -324,6 +324,39 @@ The slice passes only if:
 - the projection advances only after canonical Git advances; and
 - a fresh producer receives the exact successor Target or an explicit blocker.
 
+#### Live result — awaiting the human Decision
+
+The native slice has now reached its single authority checkpoint. Vela's first
+briefing exposed obsolete runner metadata; the live Erdős Target was repaired
+to retain only a Frontier-owned scientific producer profile, result contract,
+and frozen verifier. The prescribed model, token budget, Canopus image, Agent
+mission, and execution bundle were removed. `vela start` is again a compact,
+write-free Target briefing.
+
+A native C++ producer then searched every prime in `10430601..10430800` in
+2.16 seconds with no Vela runner. The retained artifact reports 15 primes,
+maximum multiplicity 11 at `p = 10430729`, residue `5661996`, and root
+`sha256:35c1e28a62478957014a14fb3360ee26bdff474af825b97aa0135835710f8058`.
+The separately frozen Linux ARM64 verifier recomputed the range under a
+network-denied, read-only container and matched the exact bytes.
+
+Submission `vsb_50298472b83a63a0` created Proposal
+`vpr_4fa1a06ca64e36e4` with zero accepted-Event delta. The scoped verifier
+record also changed zero accepted Events. An accidental command retry exposed
+and repaired two concrete workflow defects: failed publication preflight now
+aborts its marker-free transaction automatically, and semantically identical
+Verification authoring now reuses the retained record rather than minting
+timestamp-only duplicates. The two already retained retry records count as one
+semantic verification, not independent methods or organizations.
+
+The exact read-only packet is retained at
+[`decision-packet.erdos-1056.v1.json`](../paper/artifacts/action-complete-frontier-2026-08-03/decision-packet.erdos-1056.v1.json).
+Its protocol gate is satisfied and Proposal Standing remains
+`pending_review`. It makes no recommendation. Only the human repository
+authority may accept, reject, or leave the Proposal pending. Replay, projection
+refresh, successor handoff, and the matched Harbor evaluation remain gated on
+that choice.
+
 ### Phase C — preregister the matched Harbor evaluation
 
 Retain one benchmark implementation: native Harbor task directories plus the
