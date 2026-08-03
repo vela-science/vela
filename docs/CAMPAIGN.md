@@ -174,9 +174,13 @@ infrastructure.
   result over `10430401..10430600`: 13 primes, maximum multiplicity 11 at
   `p = 10430491`, residue `4382886`. Requirement-scoped Verification
   `vvr_c99f40656e9fc08c` and the structurally independent sieve/direct-array
-  Verification `vvr_66b3e2ed0278eb0b` both pass with zero accepted-event
-  delta. The Proposal remains pending human Decision, producer work is closed
-  through `10430600`, and the current next range is `10430601..10430800`.
+  Verification `vvr_66b3e2ed0278eb0b` both passed with zero accepted-event
+  delta. An attributed human Decision accepted only that bounded Claim through
+  event `vev_37fa3d9f9be64e58` and applied event `vev_f1f961cb81e75490`.
+  Strict replay at commit `1d191a3f65bae4b85aa5db58eb4f43cb5e6b94b2`
+  yields repository root
+  `sha256:e9b67253e139e2fd365aa0f7dce0949f898174895f1602c59fd6c5b0d862c443`;
+  the exact next nonoverlapping range is `10430601..10430800`.
 - Formal cross-Frontier Proposal `vpr_7aba66544ffefd99` is accepted through
   attributed human Decision event `vev_798955d528dc3030` and applied event
   `vev_973ee78ab0fdfda4`. It retains the exact foreign package without importing
@@ -185,8 +189,8 @@ infrastructure.
   independent consumer value.
 - The current Neon Atlas head was rebuilt from all four cleaned Frontier heads
   and is exact at projection root
-  `sha256:513e6af1c4eb7cd32ae0bea320d81e1543ea149dcc00a60f86b838aa000eeed9`.
-  Its deployed manifest binds Vela `0.963.0`, Erdős `41e1fc31`, Formal
+  `sha256:8bc68a34296b7e33bee7ca2321333bf84ea9d6b96867b55dd2c64ff85394917e`.
+  Its deployed manifest binds Vela `0.963.0`, Erdős `1d191a3f`, Formal
   `2d28519`, Quantum `d02f260`, and Sidon `8c7bcbf`. The Quantum source projects five
   accepted Claims, zero pending Proposals, two scoped Verifications, and the
   exact repository root
@@ -611,8 +615,8 @@ reputation score, or `1.0.0` schedule.
 | Vela | `0.963.0` is published with the TOML-only Frontier contract, standards spine, and exact cross-platform release smokes | keep one release path and release only for demonstrated changes |
 | Cross-language readers | standalone JavaScript reader and uv-locked Python reader | keep the reader surface small until a real external consumer requires a published library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | deployed `0.430.0` Registry/Atlas head uses `observatory.v8`; projection root `sha256:513e6af1c4eb7cd32ae0bea320d81e1543ea149dcc00a60f86b838aa000eeed9` binds Vela `0.963.0`, all four current Frontier tips, 11 exact sources, 6,713 native records, and 5,844 explicit bindings | add no broader graph, registry, or execution surface until a named consumer earns it |
-| Frontiers | canonical Git sources; the Quantum correction and native Formal Lean result are accepted and replayed, the obsolete Formal duplicate is withdrawn with zero accepted delta, and remaining Proposals await attributed human Decisions or cancellation | decide or cancel exact remaining Proposals, replay, remap |
-| Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
+| Vela Web | deployed `0.430.0` Registry/Atlas head uses `observatory.v8`; projection root `sha256:8bc68a34296b7e33bee7ca2321333bf84ea9d6b96867b55dd2c64ff85394917e` binds Vela `0.963.0`, all four current Frontier tips, 11 exact sources, 6,713 native records, and 5,844 explicit bindings | add no broader graph, registry, or execution surface until a named consumer earns it |
+| Frontiers | canonical Git sources; the Quantum correction, native Formal Lean result, and exact Erdős range through `10430600` are accepted and replayed, the obsolete Formal duplicate is withdrawn with zero accepted delta, and remaining Proposals await attributed human Decisions or cancellation | decide or cancel exact remaining Proposals, replay, remap |
+| Paper | bounded technical evidence exists | canonical whitepaper only after the real correction-and-inheritance gate |
 
 Failure narrows or deletes the system. It does not earn another layer.

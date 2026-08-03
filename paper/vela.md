@@ -56,12 +56,12 @@ Source-local closure and later exact completions now close producer work
 through `10430600` and expose `10430601..10430800` as the next nonduplicate
 range. The retained 2026-08-03 Vela Web Atlas checkpoint uses the repository-v4
 reader. Its exact projection at root
-`sha256:513e6af1c4eb7cd32ae0bea320d81e1543ea149dcc00a60f86b838aa000eeed9`
+`sha256:8bc68a34296b7e33bee7ca2321333bf84ea9d6b96867b55dd2c64ff85394917e`
 contains 4,142 graph nodes, 2,592 edges, 6,713 native source records, and 5,844
 Frontier bindings, including the later non-authorizing Formal withdrawal, the
 accepted Quantum correction, the native Formal Lean result, and the separately
-accepted Formal cross-Frontier retention. Seven Erdős Proposals remain pending;
-one
+accepted Formal cross-Frontier retention. The exact bounded Erdős range through
+`10430600` is also accepted. Six Erdős Proposals remain pending; one
 broader-worded Erdős predecessor Proposal remains retained separately rather
 than being rewritten. These facts do not establish broader scientific
 acceptance, inheritance lift across two fixtures, external independence, or
@@ -673,12 +673,13 @@ not establish cold-user lift or automatic domain-generic closure.
 Subsequent exact completions close Erdős producer work through `10430600` and
 leave `10430601..10430800` as the next nonduplicate range. The current
 2026-08-03 Vela Web checkpoint serves the exact repository-v4 projection at
-root `sha256:513e6af1c4eb7cd32ae0bea320d81e1543ea149dcc00a60f86b838aa000eeed9`.
+root `sha256:8bc68a34296b7e33bee7ca2321333bf84ea9d6b96867b55dd2c64ff85394917e`.
 The Quantum correction is accepted and exposes no remaining producer Target.
 The native Formal Erdős 835 result and bounded cross-Frontier retention are
 both accepted through separate attributed Decisions; the latter does not
-import Erdős authority. Seven Erdős Proposals remain pending. Their Verifications
-do not change Standing. The earlier
+import Erdős authority. The bounded Erdős result through `10430600` is accepted
+through a separate attributed Decision. Six Erdős Proposals remain pending;
+their Verifications do not change Standing. The earlier
 broader-worded Erdős Proposal remains retained and pending rather than
 replacing the corrected bounded record.
 
@@ -1251,11 +1252,12 @@ Submission,
 scoped Verification, terminal human Decision, clean-clone replay, and
 deterministic remap. Its first candidate exposed a stale-Target failure. A
 subsequent source-local closure pass retained the completed packet and proved
-its coverage from exact ancestor bytes. Later exact completions close producer
-work through `10430600` and expose `10430601..10430800` as the next
-nonduplicate range without changing Standing. The production Atlas uses the
+its coverage from exact ancestor bytes. Later exact completions and an
+attributed human Decision accept only the bounded result through `10430600`
+and expose `10430601..10430800` as the next nonduplicate range. The production
+Atlas uses the
 repository-v4 reader and includes the later non-authorizing Formal withdrawal
-and accepted Quantum correction. Seven Erdős Proposals remain pending human
+and accepted Quantum correction. Six Erdős Proposals remain pending human
 Decisions; the native Formal Erdős 835 Claim and bounded cross-Frontier
 retention are accepted through separate attributed Decisions. The
 Quantum post-Decision remap is complete and
