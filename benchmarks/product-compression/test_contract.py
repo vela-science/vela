@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest import mock
 
 import contract
+import freeze_campaign
 import materialize
 import summarize
 
@@ -224,6 +225,100 @@ def continuation_answer() -> dict:
     return value
 
 
+def action_complete_baseline() -> dict:
+    slugs = ("erdos", "formal-conjectures", "quantum-codes", "sidon-sets")
+    frontiers = []
+    for index, slug in enumerate(slugs, start=1):
+        row = {
+            "slug": slug,
+            "git_commit": str(index) * 40,
+            "git_tree": chr(96 + index) * 40,
+            "remote": f"https://example.invalid/{slug}.git",
+            "frontier_id": f"vfr_{index:016x}",
+            "repository_root": root(str(index)),
+            "status_root": root(chr(96 + index)),
+            "offer_root": root(str(index + 4)),
+            "integrity": {"replay": "verified", "strict": "pass", "blocker_count": 0},
+            "availability": (
+                {"configured": 1, "stale": 0, "fresh": 1, "returned": 1}
+                if slug == "erdos"
+                else {"configured": 0, "stale": 0, "fresh": 0, "returned": 0}
+            ),
+            "counts": {"accepted_claims": index},
+        }
+        if slug == "erdos":
+            row["target"] = {
+                "target_id": "erdos:1056",
+                "packet_root": root("f"),
+                "verifier_profile": "erdos-1056-k15-bounded-replay-v1",
+                "next_range": {"first": 10430601, "last": 10430800},
+            }
+        else:
+            row["next_action"] = "No Target Index is configured; inspect the Frontier before inventing work."
+        frontiers.append(row)
+    value = {
+        "schema": "vela.action-complete-campaign-baseline.v1",
+        "baseline_root": "",
+        "observed_at": "2026-08-03T12:00:00Z",
+        "source_state": {
+            "vela": {
+                "version": "vela 0.963.0",
+                "binary_sha256": root("a"),
+                "repository_root": root("b"),
+                "git_commit": "a" * 40,
+                "git_tree": "b" * 40,
+                "remote": "https://example.invalid/vela.git",
+            },
+            "harbor": {"version": "0.20.0"},
+            "frontiers": frontiers,
+            "observatory": {
+                "url": "https://app.vela.space/.well-known/vela-site.json",
+                "manifest_sha256": root("c"),
+                "schema": "vela.site-deployment.v4",
+                "authority": "read_only_projection",
+                "site_version": "0.430.0",
+                "site_commit": "c" * 40,
+                "projection_schema": "vela.observatory-release-manifest.v9",
+                "read_model_schema": "observatory.v8",
+                "projection_root": root("d"),
+                "vela_version": "vela 0.963.0",
+                "vela_binary_sha256": root("e"),
+                "frontiers": [
+                    {
+                        "slug": row["slug"],
+                        "git_commit": row["git_commit"],
+                        "git_tree": row["git_tree"],
+                        "repository_root": row["repository_root"],
+                    }
+                    for row in frontiers
+                ],
+            },
+        },
+        "benchmark": {
+            "implementation": "native_harbor",
+            "arms": ["git-files", "vela-guided"],
+            "task_classes": list(contract.ACTION_COMPLETE_TASK_CLASSES),
+            "contract_roots": {"contract": root("1"), "task_template": root("2")},
+            "custody": {
+                "answer_key_available_to_agent": False,
+                "authority_credentials_available_to_agent": False,
+                "canonical_checkout_mutable": False,
+                "automatic_decision": False,
+            },
+            "instrumentation_pilot": {"repetitions_per_arm": 2, "claim_credit": False},
+            "confirmatory_design": {
+                "power": 0.8,
+                "two_sided_alpha": 0.05,
+                "minimum_useful_effect": 0.2,
+                "sample_size_rule": "computed_from_blinded_pilot_variance",
+            },
+            "primary_metrics": ["ETY", "VPAC", "FIE", "CPI", "correction_resilience"],
+        },
+        "limitations": ["Bounded test baseline."],
+    }
+    return contract.seal(value, "baseline_root")
+
+
 def load_verifier():
     path = Path(__file__).parent / "task" / "tests" / "verify.py"
     spec = importlib.util.spec_from_file_location("product_compression_verify", path)
@@ -234,6 +329,69 @@ def load_verifier():
 
 
 class ProductCompressionTests(unittest.TestCase):
+    def test_action_complete_baseline_is_content_bound(self) -> None:
+        value = action_complete_baseline()
+        contract.validate_action_complete_baseline(value)
+        value["source_state"]["frontiers"][0]["repository_root"] = root("9")
+        with self.assertRaisesRegex(contract.ContractError, "root mismatch"):
+            contract.validate_action_complete_baseline(value)
+
+    def test_action_complete_baseline_rejects_projection_drift(self) -> None:
+        value = action_complete_baseline()
+        value["source_state"]["observatory"]["frontiers"][0]["git_commit"] = "f" * 40
+        value = contract.seal(value, "baseline_root")
+        with self.assertRaisesRegex(contract.ContractError, "source drift"):
+            contract.validate_action_complete_baseline(value)
+
+    def test_action_complete_baseline_rejects_wrong_target_or_invented_work(self) -> None:
+        value = action_complete_baseline()
+        value["source_state"]["frontiers"][0]["target"]["next_range"]["first"] += 1
+        value = contract.seal(value, "baseline_root")
+        with self.assertRaisesRegex(contract.ContractError, "unexpected range"):
+            contract.validate_action_complete_baseline(value)
+
+        value = action_complete_baseline()
+        value["source_state"]["frontiers"][1]["availability"]["configured"] = 1
+        value = contract.seal(value, "baseline_root")
+        with self.assertRaisesRegex(contract.ContractError, "exact absence"):
+            contract.validate_action_complete_baseline(value)
+
+    def test_action_complete_baseline_rejects_answer_or_authority_exposure(self) -> None:
+        for field in ("answer_key_available_to_agent", "authority_credentials_available_to_agent", "automatic_decision"):
+            value = action_complete_baseline()
+            value["benchmark"]["custody"][field] = True
+            value = contract.seal(value, "baseline_root")
+            with self.assertRaisesRegex(contract.ContractError, "isolation"):
+                contract.validate_action_complete_baseline(value)
+
+    def test_action_complete_baseline_rejects_pilot_claim_credit(self) -> None:
+        value = action_complete_baseline()
+        value["benchmark"]["instrumentation_pilot"]["claim_credit"] = True
+        value = contract.seal(value, "baseline_root")
+        with self.assertRaisesRegex(contract.ContractError, "pilot cannot earn"):
+            contract.validate_action_complete_baseline(value)
+
+    def test_campaign_projection_removes_local_checkout_paths(self) -> None:
+        status = {
+            "frontier": {"id": "vfr_0123456789abcdef"},
+            "git": {"commit": "a" * 40, "tree": "b" * 40},
+            "integrity": {"replay": "verified", "strict": "pass", "blocker_count": 0},
+            "roots": {"repository": root("1")},
+            "counts": {},
+            "work": {"ready_target_count": 0},
+            "decision_inbox": {"pending_count": 0, "projection_root": root("2")},
+            "actions": {"work": {"command": "vela next /private/local/path --json"}},
+        }
+        offer = {
+            "frontier_id": "vfr_0123456789abcdef",
+            "repository_root": root("1"),
+            "availability": {"configured": 0, "stale": 0, "fresh": 0, "returned": 0},
+            "targets": [],
+            "next_action": "Inspect before inventing work.",
+        }
+        self.assertNotIn("actions", freeze_campaign.stable_status(status))
+        self.assertNotIn("/private/local/path", json.dumps(freeze_campaign.stable_offer(offer)))
+
     def test_harbor_verifier_creates_its_output_directory(self) -> None:
         test_script = (Path(__file__).parent / "task" / "tests" / "test.sh").read_text(
             encoding="utf-8"

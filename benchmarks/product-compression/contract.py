@@ -12,6 +12,13 @@ from typing import Any
 
 ROOT = re.compile(r"^sha256:[0-9a-f]{64}$")
 POST_DECISION_SCENARIO = "erdos-post-decision-continuation"
+ACTION_COMPLETE_TASK_CLASSES = (
+    "target_continuation",
+    "standing_discrimination",
+    "cross_frontier_inheritance",
+    "controlled_correction_impact",
+    "explicit_target_absence",
+)
 
 
 class ContractError(ValueError):
@@ -238,3 +245,120 @@ def validate_answer_key(value: Any) -> None:
         raise ContractError("answer key scenario does not match expected answer")
     if value["answer_key_root"] != record_root(value, "answer_key_root"):
         raise ContractError("$.answer_key_root: root mismatch")
+
+
+def validate_action_complete_baseline(value: Any) -> None:
+    """Validate the rooted, non-normative baseline for the next campaign."""
+    if not isinstance(value, dict) or value.get("schema") != "vela.action-complete-campaign-baseline.v1":
+        raise ContractError("campaign baseline has the wrong schema")
+    require_root(value.get("baseline_root"), "$.baseline_root")
+    if value["baseline_root"] != record_root(value, "baseline_root"):
+        raise ContractError("$.baseline_root: root mismatch")
+    if not isinstance(value.get("observed_at"), str) or not value["observed_at"]:
+        raise ContractError("$.observed_at: required")
+
+    source = value.get("source_state")
+    if not isinstance(source, dict):
+        raise ContractError("$.source_state: required")
+    vela = source.get("vela")
+    if not isinstance(vela, dict) or not isinstance(vela.get("version"), str):
+        raise ContractError("$.source_state.vela: exact version is required")
+    for field in ("binary_sha256", "repository_root"):
+        require_root(vela.get(field), f"$.source_state.vela.{field}")
+    for field in ("git_commit", "git_tree", "remote"):
+        if not isinstance(vela.get(field), str) or not vela[field]:
+            raise ContractError(f"$.source_state.vela.{field}: required")
+
+    harbor = source.get("harbor")
+    if not isinstance(harbor, dict) or not isinstance(harbor.get("version"), str) or not harbor["version"]:
+        raise ContractError("$.source_state.harbor.version: required")
+
+    frontiers = source.get("frontiers")
+    if not isinstance(frontiers, list) or len(frontiers) != 4:
+        raise ContractError("$.source_state.frontiers: exactly four Frontiers are required")
+    expected_slugs = {"erdos", "formal-conjectures", "quantum-codes", "sidon-sets"}
+    by_slug = {
+        item.get("slug"): item
+        for item in frontiers
+        if isinstance(item, dict) and isinstance(item.get("slug"), str)
+    }
+    if set(by_slug) != expected_slugs or len(by_slug) != len(frontiers):
+        raise ContractError("$.source_state.frontiers: canonical slugs are required exactly once")
+    for slug, frontier in by_slug.items():
+        for field in ("repository_root", "status_root", "offer_root"):
+            require_root(frontier.get(field), f"$.source_state.frontiers[{slug}].{field}")
+        for field in ("frontier_id", "git_commit", "git_tree", "remote"):
+            if not isinstance(frontier.get(field), str) or not frontier[field]:
+                raise ContractError(f"$.source_state.frontiers[{slug}].{field}: required")
+        if frontier.get("integrity") != {"replay": "verified", "strict": "pass", "blocker_count": 0}:
+            raise ContractError(f"$.source_state.frontiers[{slug}].integrity: strict replay must pass")
+        availability = frontier.get("availability")
+        if not isinstance(availability, dict):
+            raise ContractError(f"$.source_state.frontiers[{slug}].availability: required")
+        if slug == "erdos":
+            if availability != {"configured": 1, "stale": 0, "fresh": 1, "returned": 1}:
+                raise ContractError("$.source_state.frontiers[erdos].availability: one exact Target is required")
+            target = frontier.get("target")
+            if not isinstance(target, dict) or target.get("target_id") != "erdos:1056":
+                raise ContractError("$.source_state.frontiers[erdos].target: exact Target is required")
+            require_root(target.get("packet_root"), "$.source_state.frontiers[erdos].target.packet_root")
+            if target.get("next_range") != {"first": 10430601, "last": 10430800}:
+                raise ContractError("$.source_state.frontiers[erdos].target.next_range: unexpected range")
+        else:
+            if availability != {"configured": 0, "stale": 0, "fresh": 0, "returned": 0}:
+                raise ContractError(f"$.source_state.frontiers[{slug}].availability: must expose exact absence")
+            if not isinstance(frontier.get("next_action"), str) or not frontier["next_action"]:
+                raise ContractError(f"$.source_state.frontiers[{slug}].next_action: blocker is required")
+
+    observatory = source.get("observatory")
+    if not isinstance(observatory, dict):
+        raise ContractError("$.source_state.observatory: required")
+    for field in ("manifest_sha256", "projection_root"):
+        require_root(observatory.get(field), f"$.source_state.observatory.{field}")
+    if observatory.get("authority") != "read_only_projection":
+        raise ContractError("$.source_state.observatory.authority: must remain read-only")
+    projected = observatory.get("frontiers")
+    if not isinstance(projected, list) or len(projected) != 4:
+        raise ContractError("$.source_state.observatory.frontiers: exact projection heads required")
+    projected_by_slug = {item.get("slug"): item for item in projected if isinstance(item, dict)}
+    for slug, frontier in by_slug.items():
+        projection = projected_by_slug.get(slug)
+        if not isinstance(projection, dict) or any(
+            projection.get(field) != frontier[field]
+            for field in ("git_commit", "git_tree", "repository_root")
+        ):
+            raise ContractError(f"$.source_state.observatory.frontiers[{slug}]: source drift")
+
+    benchmark = value.get("benchmark")
+    if not isinstance(benchmark, dict) or benchmark.get("implementation") != "native_harbor":
+        raise ContractError("$.benchmark.implementation: Harbor must own execution")
+    if benchmark.get("arms") != ["git-files", "vela-guided"]:
+        raise ContractError("$.benchmark.arms: matched arms are required")
+    if benchmark.get("task_classes") != list(ACTION_COMPLETE_TASK_CLASSES):
+        raise ContractError("$.benchmark.task_classes: exact heterogeneous task set required")
+    custody = benchmark.get("custody")
+    if custody != {
+        "answer_key_available_to_agent": False,
+        "authority_credentials_available_to_agent": False,
+        "canonical_checkout_mutable": False,
+        "automatic_decision": False,
+    }:
+        raise ContractError("$.benchmark.custody: scientific and authority isolation is required")
+    pilot = benchmark.get("instrumentation_pilot")
+    if pilot != {"repetitions_per_arm": 2, "claim_credit": False}:
+        raise ContractError("$.benchmark.instrumentation_pilot: pilot cannot earn claim credit")
+    confirmatory = benchmark.get("confirmatory_design")
+    if not isinstance(confirmatory, dict) or (
+        confirmatory.get("power"),
+        confirmatory.get("two_sided_alpha"),
+        confirmatory.get("minimum_useful_effect"),
+        confirmatory.get("sample_size_rule"),
+    ) != (0.8, 0.05, 0.2, "computed_from_blinded_pilot_variance"):
+        raise ContractError("$.benchmark.confirmatory_design: power-derived design is required")
+    if benchmark.get("primary_metrics") != ["ETY", "VPAC", "FIE", "CPI", "correction_resilience"]:
+        raise ContractError("$.benchmark.primary_metrics: compounding metrics are required")
+    roots = benchmark.get("contract_roots")
+    if not isinstance(roots, dict) or not roots:
+        raise ContractError("$.benchmark.contract_roots: benchmark implementation must be bound")
+    for name, root in roots.items():
+        require_root(root, f"$.benchmark.contract_roots.{name}")

@@ -98,6 +98,34 @@ python3 benchmarks/product-compression/summarize.py \
   --output "$VELA_BENCH_CACHE/result.json"
 ```
 
+Before starting a new action-complete campaign, freeze the exact current
+read-only baseline. Download the deployed Observatory manifest once, then bind
+it to the clean Vela and Frontier checkouts:
+
+```bash
+curl -fsSL https://app.vela.space/.well-known/vela-site.json \
+  -o /tmp/vela-site.json
+
+python3 benchmarks/product-compression/freeze_campaign.py \
+  --vela-repository "$PWD" \
+  --vela "$PWD/target/release/vela" \
+  --frontier erdos="$HOME/personal/erdos-frontier" \
+  --frontier formal-conjectures="$HOME/personal/formal-conjectures-frontier" \
+  --frontier quantum-codes="$HOME/personal/quantum-codes-frontier" \
+  --frontier sidon-sets="$HOME/personal/sidon-frontier" \
+  --observatory-manifest /tmp/vela-site.json \
+  --observed-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --output /tmp/vela-action-complete-baseline.json
+```
+
+The freezer makes no scientific write. It fails if any checkout is dirty, a
+Frontier does not replay strictly, the live projection does not bind the exact
+four heads, Erdős does not expose its one expected next range, or another
+Frontier invents work instead of returning its explicit blocker. It also binds
+the Harbor-native custody, pilot, power, metric, and implementation contracts.
+Model, agent, and task assignments remain part of the later frozen Harbor plan
+rather than this source-state baseline.
+
 Run focused contract tests with:
 
 ```bash
