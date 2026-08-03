@@ -80,7 +80,7 @@ infrastructure.
   the exact Quantum `[[10,1,4]]` correction have completed attributed human
   Decisions. The bounded Formal cross-Frontier retention has also completed a
   separate attributed human Decision without importing Erdős authority.
-- Four bounded human Decisions have changed Standing and reproduced by replay.
+- Five bounded human Decisions have changed Standing and reproduced by replay.
 - The retained `[[10,1,4]]` quantum witness has a source-visible alternate
   reconstruction: the historical capsule checked bounded low-weight Pauli
   errors, while the current standard-library verifier derives the complete
@@ -93,8 +93,8 @@ infrastructure.
   reconstruction, not an independent organization, external participant, or
   second current implementation; the Decision establishes no optimality,
   uniqueness, novelty, classification, or broader scientific acceptance.
-- Vela Web has a live root-bound Math Source Registry and read-only Math Atlas
-  over the exact four repository-v4 Frontier heads. The current projection uses
+- Vela Web has a root-bound Math Source Registry and read-only Math Atlas. The
+  last deployed checkpoint uses
   `observatory.v8`, contains no Registration contract, and retains 6,713 native
   source records and 5,844 source bindings. Source Git remains authoritative.
 - Product-compression v11 completed four clean native Harbor trials with zero
@@ -190,8 +190,8 @@ infrastructure.
   Erdős authority. The Decision does not establish mathematical truth,
   significance, product lift over Git, a supported shared adapter contract, or
   independent consumer value.
-- The current Neon Atlas head was rebuilt from all four cleaned Frontier heads
-  and is exact at projection root
+- The last deployed Neon Atlas checkpoint was rebuilt from four cleaned Frontier
+  heads and is exact for those pinned inputs at projection root
   `sha256:8bc68a34296b7e33bee7ca2321333bf84ea9d6b96867b55dd2c64ff85394917e`.
   Its deployed manifest binds Vela `0.963.0`, Erdős `1d191a3f`, Formal
   `2d28519`, Quantum `d02f260`, and Sidon `8c7bcbf`. The Quantum source projects five
@@ -438,7 +438,8 @@ No positive Vela claim is allowed unless:
 
 - both arms satisfy the same correctness and authority contract;
 - Vela has zero verification-as-acceptance or unauthorized-Decision errors;
-- the registered primary metric improves by at least 20%;
+- the restricted time-to-exact point ratio is at most `0.80`, its upper 95
+  percent bound is below `1`, and neither task family reverses direction;
 - the result survives a fresh producer or model swap; and
 - the retained report includes failures, exclusions, uncertainty, and exact
   roots.
@@ -709,9 +710,11 @@ Required comparisons:
 - correction impact comprehension; and
 - bounded export inspection by a separately governed Frontier.
 
-A positive claim requires zero authority errors and at least 20 percent median
-improvement on its registered primary metric. First-party runs debug the
-method; they do not establish adoption or independence.
+A model-specific positive claim requires zero authority errors, the registered
+exactness noninferiority gate, a restricted time-to-exact point ratio at most
+`0.80`, an upper 95 percent bound below `1`, and no task-family reversal.
+First-party runs do not establish adoption, independence, or protocol
+breakthrough.
 
 The held-out correction selector now reads the current repository-v4 Frontier
 epoch and was rerun after the Quantum Decision against Erdős `8428650c`,
@@ -816,6 +819,18 @@ bounded range: the exact next obligation is to rework or recheck that proof and
 the five consumers under the corrected integer definition. No post-correction
 benchmark credit exists before an attributed human Decision and cold-successor
 result.
+
+If the human Decision accepts that exact transition, the first successor task
+is not another synthetic graph query. It is a source-assisted native Lean
+repair of only `Erdos264.erdos_264.parts.i`: adapt the public Aristotle/Harmonic
+proof's bounded natural-valued witness to the corrected integer-valued
+definition, while preserving the exact target signature. Every arm receives
+the same pinned Formal Conjectures and `plby/lean-proofs` sources. The task does
+not reveal the natural-to-integer bridge, helper location, consumer matrix, or
+answer key. An isolated `lake env lean` verifier rejects `sorry`, `admit`, new
+axioms, unsafe escapes, source mutation, or any axiom beyond `propext`,
+`Classical.choice`, and `Quot.sound`. This is a real semantic-repair case study,
+not new-theorem discovery or standalone statistical evidence.
 
 The Formal foreign-reference receiver-continuation comparison passed the same
 task-specific gate: all four native Harbor trials were eligible, the

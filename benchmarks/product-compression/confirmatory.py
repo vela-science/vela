@@ -21,16 +21,16 @@ import math
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
-from statistics import fmean, variance
+from statistics import fmean, median, variance
 from typing import Any, Sequence
 
 from scipy import stats
 
 
 ROOT_PREFIX = "sha256:"
-PLAN_SCHEMA = "vela.product-compression-confirmatory-plan.v1"
-RESULT_SCHEMA = "vela.product-compression-confirmatory-result.v1"
-TRIAL_EXPORT_SCHEMA = "vela.product-compression-confirmatory-trials.v1"
+PLAN_SCHEMA = "vela.product-compression-confirmatory-plan.v2"
+RESULT_SCHEMA = "vela.product-compression-confirmatory-result.v2"
+TRIAL_EXPORT_SCHEMA = "vela.product-compression-confirmatory-trials.v2"
 ARMS = ("git-files", "vela-guided")
 FAMILIES = ("target_continuation", "cross_frontier_inheritance")
 
@@ -177,7 +177,14 @@ def validate_plan(plan: Any) -> dict[str, Any]:
             raise ContractError("unsupported task family")
         seen["block_id"].add(block_id)
         family_counts[family] += 1
-        for field in ("instance_root", "fixture_root", "answer_key_root"):
+        for field in (
+            "episode_root",
+            "lineage_cluster_root",
+            "common_information_root",
+            "instance_root",
+            "fixture_root",
+            "answer_key_root",
+        ):
             value = require_root(block.get(field), f"block.{field}")
             if value in seen[field]:
                 raise ContractError(f"duplicate {field}")
@@ -189,6 +196,13 @@ def validate_plan(plan: Any) -> dict[str, Any]:
             task = tasks[arm]
             if not isinstance(task, dict) or not isinstance(task.get("task_name"), str):
                 raise ContractError("invalid task binding")
+            if task.get("common_information_root") != block["common_information_root"]:
+                raise ContractError("paired tasks must bind identical common information")
+            expected_treatment = (
+                "git_files_only" if arm == "git-files" else "read_only_vela_cli"
+            )
+            if task.get("treatment") != expected_treatment:
+                raise ContractError("task treatment manifest drift")
             task_root = require_root(task.get("task_root"), "block.tasks.task_root")
             if task_root in seen["task_root"]:
                 raise ContractError("duplicate task_root")
@@ -281,6 +295,23 @@ def paired_table(rows: list[dict[str, Any]]) -> dict[str, int]:
     }
 
 
+def secondary_metrics(rows: list[dict[str, Any]], arm: str) -> dict[str, Any]:
+    selected = [row for row in rows if row["arm"] == arm]
+    costs = [float(row["cost_usd"]) for row in selected]
+    exact = sum(row["exact"] for row in selected)
+    expert_minutes = [float(row["expert_minutes"]) for row in selected]
+    return {
+        "total_cost_usd": sum(costs),
+        "median_cost_per_attempt_usd": median(costs),
+        "cost_per_exact_pass_usd": sum(costs) / exact if exact else None,
+        "total_expert_minutes": sum(expert_minutes),
+        "median_expert_minutes_per_attempt": median(expert_minutes),
+        "total_input_tokens": sum(row["input_tokens"] for row in selected),
+        "total_output_tokens": sum(row["output_tokens"] for row in selected),
+        "total_tool_calls": sum(row["tool_calls"] for row in selected),
+    }
+
+
 def family_effect(differences: list[float]) -> dict[str, float | int | list[float]]:
     if len(differences) < 2:
         raise ContractError("each family requires at least two blocks")
@@ -368,6 +399,13 @@ def analyze(plan: Any, trial_export: Any) -> dict[str, Any]:
         cost = row.get("cost_usd")
         if not isinstance(cost, (int, float)) or not math.isfinite(cost) or cost < 0:
             raise ContractError("invalid trial cost")
+        expert_minutes = row.get("expert_minutes")
+        if (
+            not isinstance(expert_minutes, (int, float))
+            or not math.isfinite(expert_minutes)
+            or expert_minutes < 0
+        ):
+            raise ContractError("invalid trial expert minutes")
         for field in ("input_tokens", "output_tokens", "tool_calls"):
             if not isinstance(row.get(field), int) or row[field] < 0:
                 raise ContractError(f"invalid trial {field}")
@@ -431,6 +469,10 @@ def analyze(plan: Any, trial_export: Any) -> dict[str, Any]:
         outcome = "confirmatory_at_least_20_percent"
     else:
         outcome = "confirmatory_pooled_two_family_efficiency"
+    efficiency_credit = outcome in {
+        "confirmatory_pooled_two_family_efficiency",
+        "confirmatory_at_least_20_percent",
+    }
     result = {
         "schema": RESULT_SCHEMA,
         "result_root": "",
@@ -473,31 +515,21 @@ def analyze(plan: Any, trial_export: Any) -> dict[str, Any]:
             "strong_20_percent_passed": strong,
             "family_consistency_passed": consistent,
         },
-        "secondary": {
-            arm: {
-                "total_cost_usd": sum(
-                    float(row["cost_usd"]) for row in normalized if row["arm"] == arm
-                ),
-                "total_input_tokens": sum(
-                    row["input_tokens"] for row in normalized if row["arm"] == arm
-                ),
-                "total_output_tokens": sum(
-                    row["output_tokens"] for row in normalized if row["arm"] == arm
-                ),
-                "total_tool_calls": sum(
-                    row["tool_calls"] for row in normalized if row["arm"] == arm
-                ),
-            }
-            for arm in ARMS
-        },
+        "secondary": {arm: secondary_metrics(normalized, arm) for arm in ARMS},
         "trials": normalized,
         "conclusion": {
             "outcome": outcome,
-            "claim_credit": outcome
-            in {
-                "confirmatory_pooled_two_family_efficiency",
-                "confirmatory_at_least_20_percent",
-            },
+            "workflow_efficiency_claim_credit": efficiency_credit,
+            "claim_scope": (
+                "model-specific first-party two-family workflow efficiency"
+                if efficiency_credit
+                else "none"
+            ),
+            "protocol_breakthrough_claim_credit": False,
+            "protocol_breakthrough_blocker": (
+                "This analysis does not establish a human-governed real correction, "
+                "post-Decision remap, or cold-successor native repair."
+            ),
             "claim_limit": plan.get("claim_limit"),
         },
     }

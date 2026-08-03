@@ -21,6 +21,9 @@ def plan() -> dict:
             {
                 "block_id": block_id,
                 "family": family,
+                "episode_root": f"sha256:{index + 500:064x}",
+                "lineage_cluster_root": f"sha256:{index + 600:064x}",
+                "common_information_root": f"sha256:{index + 700:064x}",
                 "instance_root": f"sha256:{index + 1:064x}",
                 "fixture_root": f"sha256:{index + 100:064x}",
                 "answer_key_root": f"sha256:{index + 200:064x}",
@@ -28,6 +31,12 @@ def plan() -> dict:
                     arm: {
                         "task_name": f"vela/{block_id}-{arm}",
                         "task_root": f"sha256:{index * 2 + arm_index + 300:064x}",
+                        "common_information_root": f"sha256:{index + 700:064x}",
+                        "treatment": (
+                            "git_files_only"
+                            if arm == "git-files"
+                            else "read_only_vela_cli"
+                        ),
                     }
                     for arm_index, arm in enumerate(confirmatory.ARMS)
                 },
@@ -138,6 +147,7 @@ def trials(
                     if exact
                     else None,
                     "cost_usd": 0.2 if guided else 0.4,
+                    "expert_minutes": 0.0,
                     "input_tokens": 1_000,
                     "output_tokens": 200,
                     "tool_calls": 3,
@@ -172,7 +182,20 @@ class ConfirmatoryTests(unittest.TestCase):
         self.assertEqual(
             result["conclusion"]["outcome"], "confirmatory_at_least_20_percent"
         )
-        self.assertTrue(result["conclusion"]["claim_credit"])
+        self.assertTrue(
+            result["conclusion"]["workflow_efficiency_claim_credit"]
+        )
+        self.assertFalse(
+            result["conclusion"]["protocol_breakthrough_claim_credit"]
+        )
+        self.assertAlmostEqual(
+            result["secondary"]["vela-guided"]["cost_per_exact_pass_usd"],
+            0.2,
+        )
+        self.assertAlmostEqual(
+            result["secondary"]["git-files"]["median_cost_per_attempt_usd"],
+            0.4,
+        )
         self.assertEqual(
             result["result_root"], confirmatory.record_root(result, "result_root")
         )
@@ -200,7 +223,9 @@ class ConfirmatoryTests(unittest.TestCase):
     def test_authority_error_fails_before_efficiency(self) -> None:
         result = confirmatory.analyze(plan(), trials(authority_error=3))
         self.assertEqual(result["conclusion"]["outcome"], "failed_integrity")
-        self.assertFalse(result["conclusion"]["claim_credit"])
+        self.assertFalse(
+            result["conclusion"]["workflow_efficiency_claim_credit"]
+        )
 
     def test_duplicate_instance_fails(self) -> None:
         value = plan()
@@ -208,6 +233,28 @@ class ConfirmatoryTests(unittest.TestCase):
         value["plan_root"] = confirmatory.record_root(value, "plan_root")
         with self.assertRaisesRegex(
             confirmatory.ContractError, "duplicate instance_root"
+        ):
+            confirmatory.validate_plan(value)
+
+    def test_repackaged_episode_fails_even_with_unique_fixture_roots(self) -> None:
+        value = plan()
+        value["blocks"][1]["lineage_cluster_root"] = value["blocks"][0][
+            "lineage_cluster_root"
+        ]
+        value["plan_root"] = confirmatory.record_root(value, "plan_root")
+        with self.assertRaisesRegex(
+            confirmatory.ContractError, "duplicate lineage_cluster_root"
+        ):
+            confirmatory.validate_plan(value)
+
+    def test_paired_arms_must_bind_identical_common_information(self) -> None:
+        value = plan()
+        value["blocks"][0]["tasks"]["vela-guided"][
+            "common_information_root"
+        ] = sha("9")
+        value["plan_root"] = confirmatory.record_root(value, "plan_root")
+        with self.assertRaisesRegex(
+            confirmatory.ContractError, "identical common information"
         ):
             confirmatory.validate_plan(value)
 

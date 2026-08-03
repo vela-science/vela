@@ -45,10 +45,10 @@ Those studies remain valid for their stated historical claims.
 The next action-complete campaign uses two attempts per arm only as an
 instrumentation pilot. It may confirm that task materialization, custody,
 scoring, and telemetry work, but it may not support a general performance
-claim. Confirmatory repetitions are computed from blinded pilot variance for
-80 percent power, a two-sided 5 percent error rate, and a preregistered 20
-percent minimum useful effect. Cost and observed tokens are measured outcomes,
-not arbitrary campaign budgets.
+claim. Confirmatory repetitions are computed from blinded pilot variance with
+a conservative two-sample plug-in rule for 80 percent power, a two-sided 5
+percent error rate, and a preregistered 20 percent minimum useful effect. Cost
+and observed tokens are measured outcomes, not arbitrary campaign budgets.
 
 The confirmation unit is a distinct frozen scientific task, not a repeated
 model call on one fixture. The primary endpoint is target-blocked time to an
@@ -61,15 +61,19 @@ within each frozen target block, a producer or model-family swap, a point
 estimate above the registered 20 percent useful-effect threshold, and a
 two-sided 95 percent interval excluding no lift. No secondary metric can rescue
 a failed exactness or authority gate. The confirmatory plan and result use a
-new contract; historical v11/v6 pilot evidence is never reinterpreted.
+new contract; historical v11/v6 pilot evidence is never reinterpreted. The v2
+analyzer itself awards only a model-specific, first-party workflow-efficiency
+scope. A producer or model-family replication is required before generalizing
+that result.
 
 ### Public scorecard
 
 The public result leads with metrics that are recognizable outside Vela:
 
 1. **Authority-correct exact pass@1**: exact answers divided by all eligible
-   attempted frozen tasks, with the paired arm difference and 95 percent
-   interval. Authority errors are a separate zero-tolerance hard gate.
+   attempted frozen tasks, with the paired outcome table and the registered
+   conservative Bonferroni Clopper-Pearson lower bound on the arm difference.
+   Authority errors are a separate zero-tolerance hard gate.
 2. **Restricted time-to-exact**: an inexact or timed-out task receives the
    registered 900-second limit. Report the paired geometric-mean time ratio and
    a task-blocked 95 percent interval. Never condition the headline on success.
@@ -126,6 +130,16 @@ yet enrollable. Repeated model calls, duplicate caches, schema refreezes, and
 artificially sliced adjacent ranges are not independent task blocks. The next
 evidence work must accrue natural distinct Decisions across different Targets
 and at least one additional independently governed cross-Frontier transfer.
+
+The executable v2 confirmation contract binds a unique scientific-episode root
+and lineage-cluster root for every block, requires exactly 40 blocks with 20 per
+family, and requires both arms to bind the same common-information root. The
+only registered treatment difference is ordinary Git/files tooling versus the
+read-only Vela CLI. Repackaging one episode under new fixture or answer bytes
+therefore fails validation instead of inflating enrollment. Even a passing v2
+analysis explicitly cannot award protocol-breakthrough credit; that requires
+the separate human-governed real-correction, replay, remap, and cold-successor
+evidence.
 
 ### Next real correction benchmark
 

@@ -53,15 +53,16 @@ candidate map. The map cardinality did not change, while the Claim Standing,
 repository root, graph roots, and projection root changed exactly. The Target
 packet initially failed to advance, so that candidate was not activated.
 Source-local closure and later exact completions now close producer work
-through `10430600` and expose `10430601..10430800` as the next nonduplicate
+through `10430800` and expose `10430801..10431000` as the next nonduplicate
 range. The retained 2026-08-03 Vela Web Atlas checkpoint uses the repository-v4
 reader. Its exact projection at root
 `sha256:8bc68a34296b7e33bee7ca2321333bf84ea9d6b96867b55dd2c64ff85394917e`
 contains 4,142 graph nodes, 2,592 edges, 6,713 native source records, and 5,844
 Frontier bindings, including the later non-authorizing Formal withdrawal, the
-accepted Quantum correction, the native Formal Lean result, and the separately
-accepted Formal cross-Frontier retention. The exact bounded Erdős range through
-`10430600` is also accepted. Six Erdős Proposals remain pending; one
+  accepted Quantum correction, the native Formal Lean result, and the separately
+  accepted Formal cross-Frontier retention. The exact bounded Erdős range through
+  `10430800` is also accepted, and `10430801..10431000` is the current exact
+  next range. Seven Erdős Proposals remain pending; one
 broader-worded Erdős predecessor Proposal remains retained separately rather
 than being rewritten. These facts do not establish broader scientific
 acceptance, inheritance lift across two fixtures, external independence, or
@@ -670,15 +671,15 @@ local Standing effect `none` and exposes zero current offers. This establishes
 source-local Target progression for the two demonstrated stale edges. It does
 not establish cold-user lift or automatic domain-generic closure.
 
-Subsequent exact completions close Erdős producer work through `10430600` and
-leave `10430601..10430800` as the next nonduplicate range. The current
+Subsequent exact completions close Erdős producer work through `10430800` and
+leave `10430801..10431000` as the next nonduplicate range. The last deployed
 2026-08-03 Vela Web checkpoint serves the exact repository-v4 projection at
 root `sha256:8bc68a34296b7e33bee7ca2321333bf84ea9d6b96867b55dd2c64ff85394917e`.
 The Quantum correction is accepted and exposes no remaining producer Target.
 The native Formal Erdős 835 result and bounded cross-Frontier retention are
 both accepted through separate attributed Decisions; the latter does not
-import Erdős authority. The bounded Erdős result through `10430600` is accepted
-through a separate attributed Decision. Six Erdős Proposals remain pending;
+import Erdős authority. The bounded Erdős result through `10430800` is accepted
+through a separate attributed Decision. Seven Erdős Proposals remain pending;
 their Verifications do not change Standing. The earlier
 broader-worded Erdős Proposal remains retained and pending rather than
 replacing the corrected bounded record.
@@ -933,7 +934,7 @@ the outputs existed.
 | B7 support diversity | pending | entry gate failed | exact route accounting |
 | B8 second Frontier | exact receiver retention, scoped Verification, and clean-clone replay pass with zero accepted delta | entry gate failed | zero imported authority |
 | B9 observability | synthetic pass only | entry gate failed | no silent truncation |
-| B10 cold inheritance | three task classes pass task-specific Harbor gates; independent-user and real correction-impact gates remain open | entry gate failed | at least 20% median lift on both fixtures |
+| B10 cold inheritance | three task classes pass task-specific Harbor gates; independent-user and real correction-impact gates remain open | entry gate failed | restricted time-to-exact ratio ≤0.80, upper 95% bound <1, no family reversal |
 
 No aggregate score is reported.
 
@@ -1154,9 +1155,10 @@ Ed25519 are assumed secure. Git hosting availability is operationally useful
 but not canonical.
 
 The Math Atlas has passed rooted, bounded Neon ingestion and clean-room
-reconstruction on the current schema. Its exact production projection contains
-4,139 graph nodes, 2,590 edges, 6,713 native source records, and 5,844
-Frontier bindings. No 1,000,000-record result exists. These results establish
+reconstruction on the current schema. Its last exact deployed checkpoint
+contains 4,142 graph nodes, 2,592 edges, 6,713 native source records, and 5,844
+Frontier bindings. It does not include the later Erdős correction Proposal. No
+1,000,000-record result exists. These results establish
 bounded reconstruction and operation, not general scalability, adoption, or
 user value. Current counts describe the audited corpus, not a capacity limit
 or a reason to add partitioning, a graph database, or vector infrastructure.
@@ -1258,8 +1260,8 @@ scoped Verification, terminal human Decision, clean-clone replay, and
 deterministic remap. Its first candidate exposed a stale-Target failure. A
 subsequent source-local closure pass retained the completed packet and proved
 its coverage from exact ancestor bytes. Later exact completions and an
-attributed human Decision accept only the bounded result through `10430600`
-and expose `10430601..10430800` as the next nonduplicate range. The production
+attributed human Decision accept only the bounded result through `10430800`
+and expose `10430801..10431000` as the next nonduplicate range. The last deployed
 Atlas uses the
 repository-v4 reader and includes the later non-authorizing Formal withdrawal
 and accepted Quantum correction. Seven Erdős Proposals remain pending human
