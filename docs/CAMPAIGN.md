@@ -417,6 +417,11 @@ held-out correction-impact or independent-participant gate.
 The next independent-product gate is frozen in
 `paper/artifacts/cold-reader-study/plan.v1.json`, byte root
 `sha256:992858398fcaac2dd2df2d6b0edd4f03fe50dd2c7eb6195deee28e2cc25f93ca`.
+Before participant one, presentation identity was root-linked to the current
+public Observatory by `amendment.v1.json`, byte root
+`sha256:571660505fbf7fd9f5f0c09d992ae2bf37791d5f3de600ef8844da88fdd07626`.
+The amendment changes no fixture, question, timing, score, or semantic answer;
+it requires the public manifest to match exactly before every participant.
 It uses four external readers, the accepted Quantum correction, and the
 accepted Formal cross-Frontier retention in a two-task counterbalanced
 Git-versus-Observatory crossover. The semantic answer key was frozen before

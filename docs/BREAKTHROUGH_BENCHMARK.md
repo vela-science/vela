@@ -170,6 +170,10 @@ fixture. The current first-party campaign earns no such credit.
 The current product-reading pilot is preregistered separately at
 `paper/artifacts/cold-reader-study/plan.v1.json`, byte root
 `sha256:992858398fcaac2dd2df2d6b0edd4f03fe50dd2c7eb6195deee28e2cc25f93ca`.
+Its pre-participant presentation amendment is frozen at byte root
+`sha256:571660505fbf7fd9f5f0c09d992ae2bf37791d5f3de600ef8844da88fdd07626`;
+it preserves the method and answer key while binding the study to the exact
+current public Observatory manifest and a fail-closed preflight.
 Four external readers will inspect the accepted Quantum correction and the
 accepted Formal transfer in a counterbalanced Git-versus-Observatory crossover.
 It measures comprehension and next-action latency only. Because the frozen

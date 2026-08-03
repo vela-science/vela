@@ -39,7 +39,11 @@ protocol-breakthrough gate.
 - `operator-guide.v1.md` freezes the neutral glossary, clock semantics, timeout
   handling, and non-coaching procedure.
 - `response-form.v1.json` freezes the de-identified answer and timing fields.
-- `manifest.sha256` binds all four study-control files.
+- `amendment.v1.json` root-links the frozen plan to the exact current public
+  Observatory deployment before participant one, records the answer-key
+  revalidation, and adds a fail-closed manifest preflight without changing the
+  study method.
+- `manifest.sha256` binds the five study-control files.
 
 Eligible failures, timeouts, and null results are retained. No favorable
 stopping, fixture substitution, or post-output scoring change is allowed.
@@ -49,6 +53,12 @@ human repository authority accepted the Formal Proposal, then to correct one
 Quantum applied-event identifier and remove operator/scoring discretion. No
 participant had enrolled or viewed evidence. The current plan root-links its
 predecessor; Git retains the earlier bytes.
+
+The plan's original Observatory deployment was then superseded before
+participant one. `amendment.v1.json` preserves the plan and answer key byte for
+byte while binding execution to the current public deployment and requiring an
+exact public-manifest preflight before every participant. Any deployment or
+projection drift stops the study; it is not repaired after participant one.
 
 ## Remaining execution
 
