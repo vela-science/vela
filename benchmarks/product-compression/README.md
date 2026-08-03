@@ -166,6 +166,15 @@ against the corrected definition, with the native Lean kernel as verifier. A
 bounded RO-Crate transfer to Formal may then test independent readability
 without importing Erdős authority.
 
+The exact successor is already frozen at Erdős Frontier
+`4509a731317b040a8e4031a704c16a03076ae89f` as
+`erdos:264:parts-i-proof-repair`. It remains absent from `vela next` until the
+correction Claim is accepted. Its native verifier binds the current public
+Formal Conjectures source, theorem signature, Lean and mathlib revisions, and
+permits no change outside the target proof. This prevents the benchmark from
+substituting an easier synthetic task after seeing model output while retaining
+the human Decision as the only gate that can change Standing.
+
 New studies use the v10 answer, v8 fixture, v12 plan, and v7 compact-result
 contracts. Every two-attempt study is explicitly marked `claim_credit: false`;
 it can validate instrumentation or reveal a failure, but cannot earn a general

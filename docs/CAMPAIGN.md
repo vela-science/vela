@@ -820,6 +820,18 @@ the five consumers under the corrected integer definition. No post-correction
 benchmark credit exists before an attributed human Decision and cold-successor
 result.
 
+The successor contract is now precommitted in Erdős Frontier
+`4509a731317b040a8e4031a704c16a03076ae89f` as Target
+`erdos:264:parts-i-proof-repair`. It binds Formal Conjectures
+`e6d6b867dc85eec2f88bc47496b4314c623f9f92`, Lean 4.27.0, mathlib
+`a3a10db0e9d66acbebf76c5e6a135066525ac900`, the exact theorem signature,
+one replacement source artifact, and a native verifier that rejects unrelated
+source edits, proof escapes, compilation failure, and unexpected axioms. The
+Target generator deliberately withholds the offer while the correction Claim
+is pending, exposes it only if that exact Claim becomes accepted, and closes it
+only after an exact passing Verification. That lifecycle is tested and changes
+no Standing by itself.
+
 If the human Decision accepts that exact transition, the first successor task
 is not another synthetic graph query. It is a source-assisted native Lean
 repair of only `Erdos264.erdos_264.parts.i`: adapt the public Aristotle/Harmonic
