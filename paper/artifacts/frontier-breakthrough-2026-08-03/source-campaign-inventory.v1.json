@@ -28,6 +28,7 @@
       "merged": 21,
       "open": 14,
       "closed_unmerged": 5,
+      "upstream_contributor_rank": 13,
       "interpretation": "A substantial live contribution pipeline. Counts describe repository participation only and carry no scientific authority."
     },
     "current_fork_candidate": {
@@ -57,7 +58,37 @@
         "unique_commits_vs_main": 53,
         "problems": [64, 203, 848, 1004, 1139, 1212],
         "classification": "mixed_exploratory_campaign_with_corrections_and_retractions",
-        "promotion_rule": "Promote only compact exact evidence and the next mechanically verifiable obligation; do not copy the exploratory worktree or large scratch corpus."
+        "promotion_rule": "Promote only compact exact evidence and the next mechanically verifiable obligation; do not copy the exploratory worktree or large scratch corpus.",
+        "high_value_slices": [
+          {
+            "problem": 1212,
+            "source_path": "ErdosProblems/Erdos1212.lean",
+            "source_commit": "73d6c9bad8eb360f84497e997b84c3647bd8c646",
+            "blob_sha1": "b246efb4d1ff3b5959d71079a8e5c45cb25e65c1",
+            "sha256": "sha256:ad7212a737a9304a105897f3699bab939adb98360a1be375fb3b915bc06b7db2",
+            "status": "kernel_checked_structural_core_not_solution",
+            "surviving_result": "Seventeen definitions and theorems covering the hub reduction, parity, blocked-row facts, elevator shafts, palette walls, and sparsity/counting cores compile without sorry or admit.",
+            "retraction_commit": "e142351",
+            "next_obligation": "Formalize and prove the remaining phase-correlation or candidate-dispersion step. The retracted pair-counting closure and its 2 percent margin receive no standing."
+          },
+          {
+            "problem": 64,
+            "status": "computational_candidate_requires_certificate_replay",
+            "candidate_results": "Minimal-counterexample lemmas, a claimed bound improvement from 17 to 19, and a vertex-transitive census through order 1280.",
+            "next_obligation": "Replay compact certificates and split the general bound, census, and greater-than-two-thirds statements into independently scoped evidence."
+          },
+          {
+            "problem": 848,
+            "status": "threshold_candidate_with_missing_large_range_certificate",
+            "candidate_result": "An explicit threshold improvement from 2.636e17 to 9.107e16, a factor of approximately 2.89.",
+            "next_obligation": "Replay the exact arithmetic threshold and reconcile the absent finite_cert_1000000.json before making the million-range claim."
+          },
+          {
+            "problem": 203,
+            "status": "corrected_negative_lineage_bound_to_existing_target",
+            "next_obligation": "Continue the existing erdos:203:finite-cover Target; do not duplicate it or revive the retracted 99.98 percent coverage result."
+          }
+        ]
       },
       {
         "branch": "codex/erdos686-corrected-package-reconcile",
@@ -65,7 +96,8 @@
         "tree": "f352241c6d9228b065389180f674cfd59bb870f5",
         "unique_commits_vs_main": 14,
         "problems": [686, 919],
-        "classification": "partial_formal_package_candidate"
+        "classification": "superseded_scratch_not_ingestion_candidate",
+        "promotion_rule": "Do not ingest the unique scratch commits: exact checks expose tactic or implicit failures and sorryAx dependencies. Audit only the banked canonical 686 artifacts if this line is revived."
       },
       {
         "branch": "codex/erdos23-two-defect-final",
@@ -73,7 +105,12 @@
         "tree": "5da9e2c2c6e9222907d382472f9c28eaac05a4cf",
         "unique_commits_vs_main": 15,
         "problems": [23],
-        "classification": "incomplete_two_defect_lean_candidate"
+        "classification": "compiled_partial_proof_package_candidate",
+        "source_path": "ErdosProblems/Erdos23GapGBTwoDefectFinal.lean",
+        "blob_sha1": "f2d892619e19923ef7bd64c2db48770406cb94c8",
+        "sha256": "sha256:6e3ba37a4d9f5797298c555437ec3d209a27eddeb0568b1b12da64ee31bca429",
+        "surviving_result": "Three theorems compile without sorry or admit; the final dispatcher and bridge to the canonical Formal Conjectures declaration remain missing.",
+        "next_obligation": "Bind the exact theorem trio as partial evidence and expose the missing dispatcher and statement bridge as the Target."
       }
     ],
     "absorbed_branches": [

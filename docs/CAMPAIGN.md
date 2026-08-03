@@ -85,6 +85,31 @@ attributed candidate evidence. `lean-proofs/main` remains the curated solved
 proof shelf; its campaign branches remain exact exploratory lineage. Neither
 contributor status nor branch location changes Standing.
 
+The branch audit also changes what the campaign should promote next. The
+`lean-proofs` campaign history is not disposable scratch, but neither is it a
+second source of truth:
+
+- Erdős 1212 contains a kernel-checked 17-declaration structural core, followed
+  by an explicit retraction of the proposed closing argument after a factor-
+  `Z` pair-counting error. Promote the surviving exact core and one formal
+  phase-correlation obligation; retain the retraction and give the void closing
+  argument no credit.
+- Erdős 23 contains three compiled two-defect theorems. Promote that exact
+  partial package only after binding it to the missing dispatcher and Formal
+  Conjectures statement bridge.
+- Erdős 64 is the strongest computational candidate, but its bound and census
+  claims require compact certificate replay before separate Submissions.
+- Erdős 848 records a reproducible threshold candidate, while its claimed
+  million-range certificate is absent and must not be inferred from smaller
+  retained certificates.
+- Unique Erdős 686 reconciliation branches are superseded scratch with known
+  Lean failures. If the line is revived, start from the banked canonical
+  artifacts rather than importing those branch tips.
+
+This promotion queue is an evidence-triage result, not a declaration that any
+listed problem is solved. Exact source inventory and hashes live in the rooted
+campaign artifact.
+
 ## Product boundary
 
 Vela owns:
