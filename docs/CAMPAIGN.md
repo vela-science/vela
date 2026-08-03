@@ -761,11 +761,15 @@ result root is
 `sha256:605342e91cacdeb1667476ae41c61ebea2b1daa7e8f2bc88a199453c95d3bd3a`.
 This validates current materialization, custody, scoring, and telemetry only.
 Two repetitions of one task earn no inferential or general performance claim.
-The simple pilot variance would imply roughly 26 repetitions per arm for a 20
-percent elapsed-time effect, but repeating the same task 52 times would be
+The geometric-mean time ratio is 0.639, with an approximate Welch 95 percent
+interval of 0.150–2.724. The blinded log-time standard deviation yields a
+plug-in minimum of 39 observations per arm for a 20 percent effect, rounded to
+40 to balance two task families. Repeating one fixture 80 times would still be
 pseudoreplication. The next pilot must first cover distinct instances across
-the five registered task classes, after which the task-level confirmatory
-sample is frozen.
+the five registered task classes. A separate confirmatory contract will then
+freeze unique target blocks, randomized arm order, restricted time-to-exact,
+and a blinded sample-size re-estimation; historical v11/v6 pilot results remain
+unchanged.
 
 The Formal foreign-reference receiver-continuation comparison passed the same
 task-specific gate: all four native Harbor trials were eligible, the

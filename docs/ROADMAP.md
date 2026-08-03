@@ -97,7 +97,9 @@ claim requires zero authority errors, at least 20 percent improvement on its
 registered primary metric, a two-sided 95 percent interval excluding no lift,
 and survival across at least two scientific task families plus a producer or
 model swap. Distinct frozen tasks, not repeated calls on one fixture, are the
-experimental units.
+experimental units. The current plug-in estimate is 40 unique target blocks
+per arm, with arm order randomized inside each block and inexact answers charged
+the registered restricted time instead of being excluded.
 
 The active campaign defines the full phases, ETY/VPAC/FIE/CPI metrics,
 correction-resilience gates, product seams, and stop conditions.

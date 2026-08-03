@@ -19,13 +19,14 @@ credentials or a mutable canonical checkout.
 
 This is a successful instrumentation pilot, not a statistically confirmatory
 performance result. Two repetitions of one task cannot establish general lift
-or independence. The observed variance would require approximately 26
-repetitions per arm to detect a 20 percent elapsed-time effect with the simple
-unpaired normal approximation, but repeating one task 52 times would be the
-wrong experimental design: the frozen scientific task, not the model call, is
-the experimental unit. The next pilot therefore adds distinct task instances
-across all five registered classes before a task-level confirmatory sample is
-frozen.
+or independence. The geometric-mean time ratio is 0.639, but its approximate
+Welch 95 percent interval is 0.150–2.724. Using the blinded log-time standard
+deviation, the plug-in minimum for a 20 percent effect is 39 observations per
+arm, rounded to 40 to balance two task families. Repeating one task 80 times
+would still be the wrong experimental design: the frozen scientific target,
+not the model call, is the experimental unit. The next pilot therefore adds
+distinct task instances across all five registered classes before a separate
+task-blocked confirmatory contract is frozen.
 
 The complete generated study and selected native Harbor evidence are retained
 outside Git under a 62-entry SHA-256 manifest. Agent trajectories, session

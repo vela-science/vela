@@ -51,14 +51,17 @@ percent minimum useful effect. Cost and observed tokens are measured outcomes,
 not arbitrary campaign budgets.
 
 The confirmation unit is a distinct frozen scientific task, not a repeated
-model call on one fixture. The primary endpoint is exact action-complete
-continuation with zero authority error. Elapsed time to an exact answer is the
-single inferential performance endpoint; cost to an exact answer is secondary.
-All eligible failures remain in the denominator. A general positive result
-requires at least two scientific task families, a producer or model-family
-swap, a point estimate above the registered 20 percent useful-effect threshold,
-and a two-sided 95 percent interval excluding no lift. No secondary metric can
-rescue a failed exactness or authority gate.
+model call on one fixture. The primary endpoint is target-blocked time to an
+exact, authority-correct continuation, analyzed on the log scale. An inexact
+answer receives the registered 900-second restricted time rather than being
+dropped, so fast wrong answers cannot win. Cost to an exact answer is
+secondary. All eligible failures remain in the denominator. A general positive
+result requires at least two scientific task families, randomized arm order
+within each frozen target block, a producer or model-family swap, a point
+estimate above the registered 20 percent useful-effect threshold, and a
+two-sided 95 percent interval excluding no lift. No secondary metric can rescue
+a failed exactness or authority gate. The confirmatory plan and result use a
+new contract; historical v11/v6 pilot evidence is never reinterpreted.
 
 The materializer currently supports three explicit scenarios without a generic
 correction framework:
