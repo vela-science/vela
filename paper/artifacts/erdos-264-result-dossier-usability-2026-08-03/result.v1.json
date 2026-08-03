@@ -1,0 +1,45 @@
+{
+  "schema": "vela.result-dossier-usability-result.v1",
+  "result_root": "sha256:b4037713c705f7308083939d9bab6319be9998c04ba22e91932abeadb5e5829d",
+  "root_definition": "sha256 of RFC 8785-style canonical JSON after removing result_root",
+  "authority": "non_authoritative",
+  "claim_credit": false,
+  "plan_file_sha256": "sha256:0e13beab1826b8b0e8323006a3b9e094fdf70bf91daf4b85abc7f2e681f54cd4",
+  "status": "gate_failed",
+  "sessions": {
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "high",
+    "valid_per_arm": 4,
+    "invalid_attempts_excluded": 1,
+    "invalid_attempt_reason": "The first launch inherited user MCP configuration and attempted connector initialization despite the frozen no-network session contract; its answer is retained but excluded, then the session was repeated with --ignore-user-config."
+  },
+  "arms": {
+    "flat": {
+      "wall_seconds": [20.43, 22.55, 23.9, 19.44],
+      "median_wall_seconds": 21.49,
+      "exact_question_counts": [7, 8, 8, 8],
+      "authority_or_standing_errors": 0
+    },
+    "dossier": {
+      "wall_seconds": [18.51, 19.51, 29.35, 21.24],
+      "median_wall_seconds": 20.375,
+      "exact_question_counts": [8, 8, 8, 8],
+      "authority_or_standing_errors": 0,
+      "omitted_failures_caveats_or_shared_dependencies": 0
+    }
+  },
+  "comparison": {
+    "median_time_improvement": 0.0518845975,
+    "required_improvement": 0.2,
+    "time_gate_passed": false,
+    "content_gate_passed": true,
+    "release_gate_passed": false
+  },
+  "scoring_note": "Flat session 1 omitted that neither arm met the registered exactness gate when explaining the null benchmark; it named only the shared infrastructure failures and non-rescoring rule. All dossier sessions recovered all eight registered fields.",
+  "decision": "Retain this iteration unchanged, revise the projection, and repeat only as an explicitly versioned usability iteration. Do not activate or deploy this candidate.",
+  "claim_limits": [
+    "These are same-model first-party sessions, not independent scientific episodes.",
+    "Timing includes local process and service variance and supports only this internal release gate.",
+    "No external validation, reviewer-efficiency, adoption, productivity, or causal Vela-lift claim follows."
+  ]
+}

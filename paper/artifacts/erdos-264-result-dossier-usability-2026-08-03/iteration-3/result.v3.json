@@ -1,0 +1,47 @@
+{
+  "schema": "vela.result-dossier-usability-result.v3",
+  "iteration": 3,
+  "result_root": "sha256:22474527d841a3362b3ee1fc4fff3bec85fc334c464e99d074e816f66d402265",
+  "root_definition": "sha256 of RFC 8785 canonical JSON after removing result_root",
+  "authority": "non_authoritative",
+  "claim_credit": false,
+  "plan_file_sha256": "sha256:e88b20172cf2831f8796c2f9ea5fa6cea565db2858d4abdd6c1dbec9fbc0a73c",
+  "dossier_view_sha256": "sha256:4320347ed9b7bf8b041cd9533878f36e4c0c53c146918dab81cbe4c5f668d3c1",
+  "observations_sha256": "sha256:4590346f7696aba8355d9f6d9bfd1eecd50927c2ba9472b0add2ab6cdcf2d6d0",
+  "predecessor_result_root": "sha256:8abc95a7e8675e994d716b6227d1fccd4976ae1c83722fc65865fd0aa7490f65",
+  "status": "gate_failed",
+  "sessions": {
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "high",
+    "valid_per_arm": 4,
+    "configuration": "ephemeral, ignored user configuration and repository rules, read-only sandbox, no network or parent-path use"
+  },
+  "arms": {
+    "flat": {
+      "wall_seconds": [19.47, 20.86, 25.02, 20.04],
+      "median_wall_seconds": 20.45,
+      "exact_question_counts": [8, 8, 8, 8],
+      "authority_or_standing_errors": 0
+    },
+    "dossier": {
+      "wall_seconds": [14.55, 18.02, 15.06, 18.65],
+      "median_wall_seconds": 16.54,
+      "exact_question_counts": [8, 8, 8, 8],
+      "authority_or_standing_errors": 0,
+      "omitted_failures_caveats_or_shared_dependencies": 0
+    }
+  },
+  "comparison": {
+    "median_time_improvement": 0.191198044,
+    "required_improvement": 0.2,
+    "time_gate_passed": false,
+    "content_gate_passed": true,
+    "release_gate_passed": false
+  },
+  "decision": "Retain iteration 3 unchanged. The 19.1% median improvement is not rounded into the 20% release gate. Do not activate or deploy the Result Dossier and do not begin the gated Astra or Erdős 730 lane under this plan.",
+  "claim_limits": [
+    "These are same-model first-party sessions, not independent scientific episodes.",
+    "The observed speed difference is internal instrumentation and does not support a reviewer-efficiency or productivity claim.",
+    "No external validation, adoption, causal Vela lift, or general usability result follows."
+  ]
+}

@@ -5,6 +5,8 @@ requires-python = ">=3.11,<3.15"
 dependencies = [
     # Apache-2.0; maintained by Trail of Bits.
     "rfc8785==0.1.4",
+    # MIT; JSON Schema 2020-12 validator for the independent wire check.
+    "jsonschema==4.26.0",
 ]
 
 [dependency-groups]

@@ -14,7 +14,7 @@ stop conditions. This roadmap records only product sequence.
 - Four mathematical Frontiers replay from canonical Git repositories.
 - Submission and Verification append evidence without changing Standing.
 - Only an attributed human Decision changes Standing.
-- Five bounded human Decisions have replayed across the current evidence base.
+- Eight bounded human Decisions have replayed across the current evidence base.
 - A root-bound Math Source Registry and read-only Atlas project exact source
   and Frontier state without becoming authority.
 - Three first-party Harbor tasks produced exact task-specific handoff gains;
@@ -25,17 +25,28 @@ stop conditions. This roadmap records only product sequence.
 These facts establish a serious state and authority substrate. They do not yet
 establish a new discovery, general productivity lift, or external adoption.
 
-## Now — flagship mathematical breakthrough campaign
+## Now — turn scientific state into a usable product
 
-One campaign must connect scientific consequence to product evidence:
+The Result Dossier remains a removable read projection, not a protocol object
+or authority path. Its public release still requires the product gate. ADR
+0038 now separates that release decision from internally useful scientific
+qualification:
 
 ```text
-Astra release map
-+ real Erdős 264 correction
-+ one fresh discovery attempt
-+ cold-successor inheritance
-+ matched Harbor confirmation
+accepted Erdős 264 state
+→ Erdős 730 external-proof boundary
+→ second reusable Dossier case, still inactive
+→ Astra ten-result map and Erdős 183 Decision/deferral
+→ multi-case human Dossier qualification
+→ Erdős 203 discovery campaign
 ```
+
+Current gate status, 2026-08-03: the local `observatory.v9` candidate passes
+root, reconstruction, storage, and SELECT-only checks. Three explicitly
+versioned internal usability iterations recovered all eight fields with zero
+Dossier-arm authority errors, but improved median time by only 5.2%, 6.7%, and
+19.1%. The third result is not rounded into the required 20% gate, so the
+projection is not activated or publicly deployed.
 
 ### 1. Freeze
 
@@ -47,6 +58,12 @@ Astra release map
 
 ### 2. Complete Erdős 264
 
+**Completed 2026-08-03.** The source correction and repaired formal Claim are
+accepted, strict replay reproduces the exact current state, and a different
+context-free producer recovered `erdos:203:finite-cover` in 98 seconds. The
+registered matched study remains `0/1` exact in each arm and earns no causal
+lift claim.
+
 - Preserve the completed human Decision on the exact source correction.
 - Confirm strict replay and the remapped repair Target.
 - Fresh-agent repair of `Erdos264.erdos_264.parts.i` under the corrected
@@ -57,7 +74,22 @@ Astra release map
 
 This is the qualifying real correction case, not a novelty claim.
 
-### 3. Complete the Astra release map
+### 3. Qualify the Erdős 730 external-proof boundary
+
+**Completed 2026-08-03.** Source-first semantic Verification passed, an
+attributed human Decision accepted the exact bounded external-proof Claim,
+strict replay reproduced the predicted repository root, and a rooted handoff
+retired the completed Target. External mathematical review, global acceptance,
+novelty, and a Lean 4.27.0 port remain nonclaims.
+
+- Reproduce exact external and Formal Conjectures source identity.
+- Compile the terminal theorem under Lean 4.29.1.
+- Preserve the Lean 4.27.0 statement/import boundary.
+- Complete all six semantic equivalence dimensions independently.
+- Prepare scoped Verification and a consequence-complete human packet.
+- Use the completed state as Dossier case two without activating v9.
+
+### 4. Complete the Astra release map
 
 - Bind all ten advertised result families and twelve Comparator profiles.
 - Reproduce native checks in the hardened offline environment.
@@ -65,7 +97,19 @@ This is the qualifying real correction case, not a novelty claim.
 - Keep novelty, field review, source status, local Decision, and downstream
   inheritance distinct.
 
-### 4. Attempt a fresh result
+### 5. Qualify the multi-case Result Dossier
+
+**Active pre-recruitment work package.** Build Erdős 730 as case two, then
+freeze the shared renderer and information-matched flat case before any human
+study begins.
+
+- Generalize only the code genuinely shared by Erdős 264 and 730.
+- Freeze matched flat cases and a case-blocked human-review design.
+- Recruit no reviewer before the design, sample, and scoring are rooted.
+- Require zero authority errors, complete recovery, and at least 20% median
+  time reduction before activation or deployment.
+
+### 6. Attempt a fresh result
 
 - Primary candidate: Erdős 203, using its merged Formal Conjectures statement,
   corrected exploratory campaign, and exact affine-cover verifier.
@@ -78,14 +122,14 @@ This is the qualifying real correction case, not a novelty claim.
 A new theorem, counterexample, exact witness, or meaningful bounded advance is
 success. A clean null is useful evidence but not a breakthrough.
 
-### 5. Decide and inherit
+### 7. Decide and inherit
 
 - Present one consequence-complete Decision packet.
 - Human accepts, rejects, or defers.
 - Replay and remap the exact outcome.
 - Give the next valid obligation to a different producer or model family.
 
-### 6. Confirm or falsify lift
+### 8. Confirm or falsify lift
 
 - Unique scientific episodes, not repeated model calls, are the units.
 - At least two task families and one producer/model swap.
@@ -95,7 +139,7 @@ success. A clean null is useful evidence but not a breakthrough.
   bound below 1 for useful lift.
 - Real correction precision, recall, route survival, and stale-use gates pass.
 
-### 7. Publish at the evidence ceiling
+### 9. Publish at the evidence ceiling
 
 - A concise canonical Vela paper explains scientific state, correction-aware
   authority, and one vivid end-to-end result.
@@ -124,6 +168,12 @@ The next product surface must help a cold researcher answer:
 
 If a CLI or Observatory change does not reduce time or error on one of those
 questions by at least 20 percent, do not ship it.
+
+This gate is currently active and failing on time, not content. Do not activate,
+deploy, or claim a usable public Dossier until the multi-case human campaign
+passes without weakening the baseline, omitting caveats, or changing the
+authority boundary. The gate does not block separately scoped scientific
+qualification under ADR 0038, and that work earns no product claim.
 
 ## Breakthrough gate
 

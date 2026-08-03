@@ -1,0 +1,46 @@
+{
+  "schema": "vela.result-dossier-usability-result.v2",
+  "iteration": 2,
+  "result_root": "sha256:8abc95a7e8675e994d716b6227d1fccd4976ae1c83722fc65865fd0aa7490f65",
+  "root_definition": "sha256 of RFC 8785-style canonical JSON after removing result_root",
+  "authority": "non_authoritative",
+  "claim_credit": false,
+  "plan_file_sha256": "sha256:7dc95a99f8ab5a507b982b3675d266e9ef5468d53078108436b25f23fc585bfe",
+  "dossier_view_sha256": "sha256:e34c71a84d8a2b0df5ff8f56bf9309dd52a4be606fc33d4e7b8e72a89315f242",
+  "predecessor_result_root": "sha256:b4037713c705f7308083939d9bab6319be9998c04ba22e91932abeadb5e5829d",
+  "status": "gate_failed",
+  "sessions": {
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "high",
+    "valid_per_arm": 4,
+    "configuration": "ephemeral, ignored user configuration and repository rules, read-only sandbox, no network or parent-path use"
+  },
+  "arms": {
+    "flat": {
+      "wall_seconds": [20.3, 18.64, 17.97, 18.97],
+      "median_wall_seconds": 18.805,
+      "exact_question_counts": [8, 8, 8, 8],
+      "authority_or_standing_errors": 0
+    },
+    "dossier": {
+      "wall_seconds": [16.9, 16.43, 18.18, 19.62],
+      "median_wall_seconds": 17.54,
+      "exact_question_counts": [8, 8, 8, 8],
+      "authority_or_standing_errors": 0,
+      "omitted_failures_caveats_or_shared_dependencies": 0
+    }
+  },
+  "comparison": {
+    "median_time_improvement": 0.0672693433,
+    "required_improvement": 0.2,
+    "time_gate_passed": false,
+    "content_gate_passed": true,
+    "release_gate_passed": false
+  },
+  "decision": "Retain iteration 2 unchanged. The Result Dossier implementation may continue through local qualification, but the projection must not be activated and the Observatory must not be deployed publicly under this plan.",
+  "claim_limits": [
+    "These are same-model first-party sessions, not independent scientific episodes.",
+    "The observed speed difference is internal instrumentation and does not support a reviewer-efficiency or productivity claim.",
+    "No external validation, adoption, causal Vela lift, or general usability result follows."
+  ]
+}

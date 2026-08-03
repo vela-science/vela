@@ -1,0 +1,29 @@
+{
+  "standing": "The source-correction Claim and exact `Erdos264.erdos_264.parts.i` repair Claim are accepted.",
+  "correction": "Bounded perturbations changed from `b : ℕ → ℕ` to `b : ℕ → ℤ`, with upper and lower boundedness.",
+  "affected_declarations": [
+    "Erdos264.erdos_264.parts.i",
+    "parts.ii",
+    "variants.example",
+    "variants.ko_tao_neg",
+    "variants.ko_tao_pos"
+  ],
+  "verifications": [
+    "`vvr_3c05f6340fee38be` passed the clean-checkout artifact, signature, unrelated bytes, toolchain, unlimited-heartbeat, and exact-axiom checks.",
+    "`vvr_47f1732ee550cfd7` passed native Lean for the same artifact and three axioms.",
+    "The verifications are complementary, not a second independent method; neither accepted the Claim."
+  ],
+  "decision": "A human under repository authority accepted the correction in `vev_0325f467077ed92e` and the repair in `vev_7abd13c53ee521f6`.",
+  "benchmark_null_reason": "Git/files and Vela-guided remain `0/1`; neither met the registered exactness gate. Shared Docker storage failures produced RuntimeError and no Harbor rewards. The later repair is separate and was never rescored.",
+  "next_target": "`erdos:203:finite-cover`, packet `sha256:0f01ede4b4ad111ec101f73c99e03f09553084cb96a1d3784928709e6ed4aed3`.",
+  "nonclaims": [
+    "No full Erdős 264 solution.",
+    "No new discovery.",
+    "No broad statement fidelity.",
+    "No external independence.",
+    "No causal Vela lift.",
+    "No reviewer-efficiency result.",
+    "No adoption result.",
+    "No general productivity result."
+  ]
+}

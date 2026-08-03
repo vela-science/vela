@@ -115,6 +115,7 @@ def main() -> int:
     checks = (
         "verify_canonical_hashing.py",
         "verify_current_objects.py",
+        "verify_wire_schemas.py",
         "verify_correction_impact.py",
     )
     for script in checks:

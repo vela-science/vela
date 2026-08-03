@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.science/schemas/proposal-withdrawal-v1.schema.json",
+  "title": "Vela Proposal Withdrawal v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "withdrawal_id", "proposal_id", "proposal_root", "submission_id", "submission_root", "actor", "reason", "created_at", "authentication"],
+  "properties": {
+    "schema": {"const": "vela.proposal-withdrawal.v1"},
+    "withdrawal_id": {"pattern": "^vpw_.+$"},
+    "proposal_id": {"pattern": "^vpr_.+$"},
+    "proposal_root": {"$ref": "#/$defs/sha256"},
+    "submission_id": {"pattern": "^vsb_.+$"},
+    "submission_root": {"$ref": "#/$defs/sha256"},
+    "actor": {"$ref": "#/$defs/text"},
+    "reason": {"$ref": "#/$defs/text"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "authentication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "signature"],
+      "properties": {
+        "algorithm": {"const": "ed25519"},
+        "signature": {"type": "string", "pattern": "^[0-9a-f]{128}$"}
+      }
+    }
+  },
+  "$defs": {
+    "text": {"type": "string", "minLength": 1, "pattern": "^\\S(?:[\\s\\S]*\\S)?$"},
+    "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

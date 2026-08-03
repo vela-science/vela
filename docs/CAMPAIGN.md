@@ -1,5 +1,31 @@
 # Active Vela campaign
 
+## Active work package
+
+The active work package is now the second reusable Result Dossier case defined
+by the [multi-case qualification campaign](RESULT_DOSSIER_QUALIFICATION_CAMPAIGN.md).
+The completed Erdős 730 boundary supplies the case; no reviewer recruitment or
+projection activation begins until the shared rendering and matched-flat gates
+pass. The complete remaining portfolio and its gates are indexed in
+[`CAMPAIGN_PORTFOLIO.md`](CAMPAIGN_PORTFOLIO.md).
+
+ADR 0038 separates scientific qualification from public product qualification.
+The failed Result Dossier gate remains binding on activation and product
+claims, but no longer prevents internally useful source, proof, and fidelity
+work from proceeding in its own evidence lane.
+
+The producer, independent-review, and human-Decision milestones have passed.
+The rooted Erdős
+730 equivalence report
+(`sha256:42db39dd2b51e7821e02fc1acbb3e43cde83f269a8cb491f2925ad3aa233d106`)
+survived the source-local verifier and clean native compilation of the terminal
+theorem and audit. Fresh source-first review produced requirement-satisfying
+Verification `vvr_3b6d523c55a24dc9`. Attributed human Decision event
+`vev_0ab843df6ad373ec` accepted the exact bounded Claim and strict replay
+reproduces repository root
+`sha256:821cf0d94778f647305107943572f4916a6cf63fe5ea12506a471fabc07b7474`.
+The completed Target is retired; the rooted handoff now feeds Dossier case two.
+
 ## Objective
 
 > Prove or falsify Vela's action-complete Frontier thesis through a flagship
@@ -94,20 +120,19 @@ coefficients with identical prime-factor support. The terminal declaration
 `admit` and reports only `propext`, `Classical.choice`, and `Quot.sound`.
 Its local `PairSet` repeats the current Formal Conjectures predicate exactly.
 
-This is the campaign's leading completed mathematical evidence object, not yet
-Frontier Standing. ErdősProblems.com and Formal Conjectures still call problem
-730 open, the proof predates this campaign, and no external mathematical review
-or Vela Decision has occurred. The proof is pinned to Lean 4.29.1 while current
-Formal Conjectures is pinned to Lean 4.27.0, so a direct combined import is not
-yet evidence. Erdős Frontier commit `89824cd3e9d52498bbfdaf3c0e71292991e3a9f1`
-now binds those exact sources as `erdos:730:external-proof-boundary`; its clean
-native replay checks the full terminal theorem and audit under Lean 4.29.1.
-The next bounded loop is source-equivalence verification, an
-accepted external-proof boundary or exact port and affirmative bridge, clean
-mechanical replay, independently scoped semantic review, Submission,
-Verification, and one human Decision. It may support a retrospective
-correction-aware case, but not a claim that Vela caused the discovery or
-improved productivity.
+ErdősProblems.com and Formal Conjectures still call problem 730 open, the proof
+predates this campaign, and no external mathematical review has occurred. The
+proof is pinned to Lean 4.29.1 while current Formal Conjectures is pinned to
+Lean 4.27.0, so a direct combined import is not evidence. The Erdős Frontier
+bound those exact sources as `erdos:730:external-proof-boundary`; clean native
+replay checked the terminal theorem and audit, a fresh source-first semantic
+review concluded equivalence, and scoped Verification passed. An attributed
+human Decision then accepted only the local external-proof-boundary Claim.
+Strict replay reproduces repository root
+`sha256:821cf0d94778f647305107943572f4916a6cf63fe5ea12506a471fabc07b7474`.
+The completed Target now supplies Dossier case two, not a claim that Vela
+caused the discovery, improved productivity, supplied a Lean 4.27.0 port, or
+established global acceptance.
 
 The branch audit also changes what the campaign should promote next. The
 `lean-proofs` campaign history is not disposable scratch, but neither is it a
@@ -191,13 +216,18 @@ The repository currently supports these statements:
    and earns no lift claim.
 5. The Erdős 264 source correction is real, semantic, externally maintained,
    and accepted by attributed Decision `vev_0325f467077ed92e`. The native Lean
-   repair now has a source-preserving artifact, scoped passing Verification,
-   and pending Proposal. No human Decision or post-Decision successor handoff
-   has occurred.
+   repair has a source-preserving artifact, two scoped passing Verifications,
+   and accepted Proposal `vpr_69b5b3e26d39acbe`. Clean replay reproduces
+   repository root
+   `sha256:f53da541680e2317cd96d64237fa0ced9eb6e4776b03023d5675d0e76b35bc2c`,
+   and a different context-free producer recovered the exact successor
+   `erdos:203:finite-cover` in 98 seconds.
 
 The repository does not yet support claims of general scientific-productivity
 lift, a new mathematical discovery, external-user value, community acceptance,
-or a protocol breakthrough.
+or a causal protocol breakthrough. The completed Erdős 264 workflow is an
+action-complete correction-and-inheritance case; its registered matched study
+remains a null result.
 
 ## Workstreams
 
@@ -441,6 +471,9 @@ no unresolved source-status conflict hidden from the plan.
 
 ### Phase 1 — complete the real correction
 
+Status: **complete as an action-complete workflow case; causal-lift gate not
+earned.**
+
 1. Preserve and replay the completed human-gated Erdős 264 Decision.
 2. Confirm the remapped native repair Target.
 3. Run the native Lean repair and matched Harbor case.
@@ -450,7 +483,52 @@ no unresolved source-status conflict hidden from the plan.
 Gate: a complete correction-and-inheritance chain or a precisely located
 failure. This phase earns a case-study claim, not general lift.
 
-### Phase 2 — complete the Astra map
+### Phase 1.5 — qualify the Result Dossier product surface
+
+Status: **implemented locally; public-release timing gate not earned.**
+
+1. Bind the complete Erdős 264 correction, repair, Verifications, Decisions,
+   null benchmark, replay, nonclaims, and successor Target into one removable
+   read projection.
+2. Reconstruct the `observatory.v9` candidate twice from empty databases and
+   verify SELECT-only reader access.
+3. Compare it with an information-matched flat case file in fresh isolated
+   sessions, retaining every failure and versioned revision.
+4. Activate and deploy only after the frozen content, authority, timing, and
+   same-root HTML/JSON gates all pass.
+
+Iteration 1 recovered `8/8` fields in every Dossier session but improved median
+time by only 5.2%. Explicit iteration 2 retained `8/8` exactness and zero
+authority errors but improved median time by only 6.7%. Iteration 3 reduced the
+brief to a numbered 212-word answer order and again achieved `8/8` with zero
+authority errors; its 19.1% median improvement still falls short of the exact
+20% gate. All three iterations fail the release gate.
+The projection therefore remains noncanonical and undeployed. Under the frozen
+iteration-3 plan, Astra and Erdős 730 were not unlocked. ADR 0038 prospectively
+replaces that serial rule: scientific qualification may proceed without
+activating the Dossier or borrowing any product claim.
+
+Gate: `8/8` exact recovery, zero authority errors, no omitted failure, caveat,
+or shared dependency, at least 20% lower median time than the flat baseline,
+and deterministic HTML/JSON from one release root.
+
+### Phase 2 — qualify the Erdős 730 external-proof boundary
+
+Status: **complete as an accepted local external-proof boundary.** The result
+does not establish global solution status, external review, novelty, or a Lean
+4.27.0 port.
+
+1. Recompute exact external and Formal Conjectures source identity.
+2. Reproduce the terminal theorem under Lean 4.29.1.
+3. Preserve the Lean 4.27.0 Formal Conjectures boundary.
+4. Complete the six-dimension source-equivalence matrix independently.
+5. Import scoped Verification and prepare an explicit human packet.
+
+Gate: an `equivalent`, `not_equivalent`, or `indeterminate` report that binds
+all exact sources and toolchains, survives mechanical replay, and implies no
+Standing without a later human Decision.
+
+### Phase 2.5 — complete the Astra map
 
 1. Reproduce the twelve declared profiles.
 2. Build the ten-result claim and theorem inventory.

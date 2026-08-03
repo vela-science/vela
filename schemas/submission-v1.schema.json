@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.science/schemas/submission-v1.schema.json",
+  "title": "Vela Submission v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "submission_id", "claim", "artifacts", "caveats", "replayability", "producer_checks", "verification_requirements", "requested_change", "provenance", "authentication"],
+  "properties": {
+    "schema": {"const": "vela.submission.v1"},
+    "submission_id": {"pattern": "^vsb_[0-9a-f]{16}$"},
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assertion", "type", "conditions"],
+      "properties": {
+        "assertion": {"$ref": "#/$defs/text"},
+        "type": {"enum": ["computational", "theoretical", "empirical", "negative", "contradiction"]},
+        "conditions": {"type": "array", "items": {"$ref": "#/$defs/text"}}
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "path", "digest"],
+        "properties": {
+          "kind": {"$ref": "#/$defs/text"},
+          "path": {"$ref": "#/$defs/safeRelativePath"},
+          "digest": {"$ref": "#/$defs/sha256"}
+        }
+      }
+    },
+    "caveats": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/text"}},
+    "replayability": {"enum": ["exact", "bounded", "approximate", "unavailable", "unknown"]},
+    "producer_checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["method", "outcome", "authority"],
+        "properties": {
+          "method": {"$ref": "#/$defs/text"},
+          "outcome": {"enum": ["pass", "fail", "error", "skipped", "unknown"]},
+          "authority": {"const": "producer_reported"}
+        }
+      }
+    },
+    "verification_requirements": {"type": "array", "items": {"$ref": "#/$defs/text"}},
+    "requested_change": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {"kind": {"const": "add_claim"}}
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "target"],
+          "properties": {
+            "kind": {"enum": ["correct_claim", "supersede_claim", "retract_claim"]},
+            "target": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["claim_id", "claim_root"],
+              "properties": {
+                "claim_id": {"$ref": "#/$defs/claimId"},
+                "claim_root": {"$ref": "#/$defs/sha256"}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer", "source_system", "emitted_at"],
+      "properties": {
+        "producer": {"pattern": "^(agent|ci):[^\\s]+$", "maxLength": 16384},
+        "source_system": {"$ref": "#/$defs/text"},
+        "source_attempt": {"pattern": "^vat_[0-9a-f]{64}$"},
+        "source_run": {"$ref": "#/$defs/text"},
+        "emitted_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "execution_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "packet_root", "profile_root", "verifier_capsule_root", "result_contract_root"],
+      "properties": {
+        "schema": {"const": "vela.execution-binding.v1"},
+        "packet_root": {"$ref": "#/$defs/sha256"},
+        "profile_root": {"$ref": "#/$defs/sha256"},
+        "verifier_capsule_root": {"$ref": "#/$defs/sha256"},
+        "result_contract_root": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "authentication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "identity_binding", "signature"],
+      "properties": {
+        "algorithm": {"const": "ed25519"},
+        "identity_binding": {"$ref": "#/$defs/identityBinding"},
+        "signature": {"$ref": "#/$defs/signature"}
+      }
+    }
+  },
+  "$defs": {
+    "text": {"type": "string", "minLength": 1, "maxLength": 16384, "pattern": "^\\S(?:[\\s\\S]*\\S)?$"},
+    "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "claimId": {"type": "string", "pattern": "^vcl_[0-9a-f]{64}$"},
+    "signature": {"type": "string", "pattern": "^[0-9a-f]{128}$"},
+    "safeRelativePath": {"type": "string", "minLength": 1, "maxLength": 16384, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))\\S(?:[\\s\\S]*\\S)?$"},
+    "identityBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "binding_id", "actor_id", "actor_class", "public_key_hex", "created_at", "signature"],
+      "properties": {
+        "schema": {"const": "vela.identity_binding.v0.1"},
+        "binding_id": {"pattern": "^vib_[0-9a-f]{16}$"},
+        "actor_id": {"$ref": "#/$defs/text"},
+        "actor_class": {"enum": ["human", "agent", "org"]},
+        "public_key_hex": {"pattern": "^[0-9a-f]{64}$"},
+        "created_at": {"type": "string", "format": "date-time"},
+        "signature": {"$ref": "#/$defs/signature"}
+      }
+    }
+  }
+}

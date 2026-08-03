@@ -59,10 +59,10 @@ reader. Its exact projection at root
 `sha256:8bc68a34296b7e33bee7ca2321333bf84ea9d6b96867b55dd2c64ff85394917e`
 contains 4,142 graph nodes, 2,592 edges, 6,713 native source records, and 5,844
 Frontier bindings, including the later non-authorizing Formal withdrawal, the
-  accepted Quantum correction, the native Formal Lean result, and the separately
-  accepted Formal cross-Frontier retention. The exact bounded Erdős range through
-  `10430800` is also accepted, and `10430801..10431000` is the current exact
-  next range. Seven Erdős Proposals remain pending; one
+accepted Quantum correction, the native Formal Lean result, and the separately
+accepted Formal cross-Frontier retention. The exact bounded Erdős range through
+`10430800` is also accepted, and `10430801..10431000` is the current exact
+next range. Six Erdős Proposals remain pending; one
 broader-worded Erdős predecessor Proposal remains retained separately rather
 than being rewritten. These facts do not establish broader scientific
 acceptance, inheritance lift across two fixtures, external independence, or
@@ -679,8 +679,12 @@ The Quantum correction is accepted and exposes no remaining producer Target.
 The native Formal Erdős 835 result and bounded cross-Frontier retention are
 both accepted through separate attributed Decisions; the latter does not
 import Erdős authority. The bounded Erdős result through `10430800` is accepted
-through a separate attributed Decision. Seven Erdős Proposals remain pending;
-their Verifications do not change Standing. The earlier
+through a separate attributed Decision. Six Erdős Proposals remain pending;
+their Verifications do not change Standing. The separate Erdős 264 source
+correction and native proof repair are accepted through attributed Decisions,
+and strict replay reproduces repository root
+`sha256:f53da541680e2317cd96d64237fa0ced9eb6e4776b03023d5675d0e76b35bc2c`.
+The earlier
 broader-worded Erdős Proposal remains retained and pending rather than
 replacing the corrected bounded record.
 
@@ -1265,11 +1269,16 @@ subsequent source-local closure pass retained the completed packet and proved
 its coverage from exact ancestor bytes. Later exact completions and an
 attributed human Decision accept only the bounded result through `10430800`
 and expose `10430801..10431000` as the next nonduplicate range. The last deployed
-Atlas uses the
-repository-v4 reader and includes the later non-authorizing Formal withdrawal
-and accepted Quantum correction. Seven Erdős Proposals remain pending human
-Decisions, including the scoped verified Erdős 264 proof repair; the source
-correction itself is already accepted;
+Atlas uses the repository-v4 reader and includes the later non-authorizing
+Formal withdrawal and accepted Quantum correction. Six Erdős Proposals remain
+pending human Decisions. The Erdős 264 source correction and scoped native
+proof repair are both accepted through separate attributed Decisions; strict
+replay reproduces repository root
+`sha256:f53da541680e2317cd96d64237fa0ced9eb6e4776b03023d5675d0e76b35bc2c`,
+and a context-free producer recovered successor Target
+`erdos:203:finite-cover` in 98 seconds. The matched comparison remains `0/1`
+exact in both arms; the later successful unlimited-heartbeat repair is a
+separate post-study episode and does not retroactively rescore it;
 the native Formal Erdős 835 Claim and bounded cross-Frontier retention are
 accepted through separate attributed Decisions. The
 Quantum post-Decision remap is complete and
@@ -1282,10 +1291,31 @@ inheritance across real corrections and plural authorities better than Git
 alone, is therefore not satisfied by the audited system.
 
 This result narrows the next experiment. Vela retains the admission and replay
-mechanisms already shown useful. It does not promote the synthetic
-correction-impact reader or claim a protocol breakthrough without a real
-consequential correction, a qualifying second fixture, and measured cold-user
-lift.
+mechanisms already shown useful and now has one action-complete real correction
+case. A rooted, non-authoritative Result Dossier candidate binds the correction,
+repair, Verifications, Decisions, null comparison, replay, caveats, and
+successor Target into one cold-reader surface. Three frozen, first-party
+internal iterations recovered all eight registered fields with zero Dossier-arm
+authority errors, but reduced median wall time by only 5.2%, 6.7%, and 19.1%
+against an information-matched flat case file. Even the third result misses the
+exact registered 20% product gate.
+The candidate therefore remains noncanonical and undeployed. These sessions
+cannot establish external validation, causal Vela lift, reviewer efficiency,
+adoption, or general productivity. A passing product qualification, a second
+reusable fixture, and independent evidence remain necessary for the stronger
+claim.
+
+This failed product gate does not invalidate separately scoped scientific
+qualification. The Erdős 730 evidence lane subsequently reproduced the exact
+terminal proof, concluded source-statement equivalence, preserved the Lean
+4.29.1/4.27.0 boundary, passed scoped source-first Verification, and reached an
+attributed human Decision accepting only the local external-proof-boundary
+Claim. Replay reproduces repository root
+`sha256:821cf0d94778f647305107943572f4916a6cf63fe5ea12506a471fabc07b7474`.
+This supplies a second reusable Dossier case but cannot retroactively pass the
+product gate or support external review, global acceptance, novelty, a native
+4.27.0 port, or Vela-caused discovery. Public Dossier qualification is reserved
+for a frozen multi-case study with fresh human reviewers.
 
 ## 12. References
 
