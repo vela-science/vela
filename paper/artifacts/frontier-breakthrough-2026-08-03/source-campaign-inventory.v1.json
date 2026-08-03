@@ -33,11 +33,12 @@
     "current_fork_candidate": {
       "repository": "https://github.com/williamjblair/formal-conjectures.git",
       "branch": "erdos-campaign-batch-3",
-      "commit": "f5ff3378c4961823aa2d7d479dd29b567c05c9a5",
-      "tree": "777853099c86996bc58b22a1b591753d1e7a2d29",
-      "ahead_of_upstream_main": 7,
+      "commit": "abbeb42743a980bb27a6bec04990470c3533b152",
+      "tree": "4c6467d2c6c465538fb56c217bd43b2b07f0f355",
+      "ahead_of_upstream_main": 8,
       "behind_upstream_main": 1,
-      "problems": [24, 93, 164, 314, 315, 333, 369, 401, 429, 435],
+      "problems": [24, 93, 164, 290, 314, 315, 333, 369, 401, 429, 435],
+      "supporting_library_change": "FormalConjecturesForMathlib/NumberTheory/Harmonic.lean",
       "status": "fork_candidate_not_upstream_state"
     }
   },
