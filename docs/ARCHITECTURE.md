@@ -261,6 +261,32 @@ Only level 0 of this **package** ladder is active. A package carries reusable
 language or capability but confers no Standing. A package Registry distributes
 packages but is not scientific authority.
 
+### Rust ecosystem comparison
+
+Rust separates the Cargo client and resolver, the crates.io publication
+service, the immutable registry index, docs.rs derived documentation, and
+rustup toolchain distribution because each has an independently demonstrated
+operational boundary. Vela adopts that separation of responsibilities without
+copying the repository or service count prematurely:
+
+- native package managers continue to resolve native dependencies;
+- source-local Vela profiles remain in their owning repositories at level 0;
+- if level 1 is earned, reusable package sources move to one
+  `vela-science/vela-packages` repository with exact Git releases and content
+  roots, not to a repository named `vela-registry`;
+- package inspection, validation, and acquisition remain subcommands of the
+  existing `vela` executable rather than a second package-manager binary;
+- if level 2 is earned, the existing Vela Web deployment generates and serves
+  a root-bound sparse read index over released packages; and
+- a stateful publication service is level 3 work, justified only by external
+  publishers who require namespace delegation, authentication, yanking,
+  advisories, and operational ownership.
+
+Package bytes, index entries, generated documentation, and discovery records
+remain replaceable distribution artifacts. None is a Frontier, Decision,
+Event, or source of Standing. Until level 1 is earned, there is no new package
+repository, package command surface, index, database, or service to maintain.
+
 Accepted ADR 0030 defines the current Math Source Registry because exact
 observation must bind native source identity, rights, snapshots, adapters,
 coverage, and omissions before any Atlas view is trustworthy. That deployed
