@@ -65,8 +65,8 @@ infrastructure.
 
 ### Shipped and verified
 
-- Vela `0.962.1` is the last published release. The `0.963.0` source candidate
-  carries the current TOML-only Frontier Profile, standards spine, direct
+- Vela `0.963.0` is the published current-contract release. It carries the
+  TOML-only Frontier Profile, standards spine, direct
   Target Index v5, direct Submission lineage, and retired workflow/runtime
   surfaces. Internal Rust crates are not published as parallel products, and
   the unused TypeScript protocol package has been removed.
@@ -168,6 +168,13 @@ infrastructure.
   longer retained locally, so producer withdrawal correctly fails closed.
   Resolving either record now requires an attributed human rejection or an
   explicit choice to leave both pending; no agent may delete or relabel them.
+- Erdős Proposal `vpr_635f1e6c1811f48c` retains the exact bounded negative
+  result over `10430401..10430600`: 13 primes, maximum multiplicity 11 at
+  `p = 10430491`, residue `4382886`. Independent implementation
+  Verification `vvr_c99f40656e9fc08c` passes the exact requirement with zero
+  accepted-event delta. The Proposal remains pending human Decision, producer
+  work is closed through `10430600`, and the current next range is
+  `10430601..10430800`.
 - Formal cross-Frontier Proposal `vpr_7aba66544ffefd99` is accepted through
   attributed human Decision event `vev_798955d528dc3030` and applied event
   `vev_973ee78ab0fdfda4`. It retains the exact foreign package without importing
@@ -176,16 +183,15 @@ infrastructure.
   independent consumer value.
 - The current Neon Atlas head was rebuilt from all four cleaned Frontier heads
   and is exact at projection root
-  `sha256:c332c5dc8db873f26bc88d696081f9047a188c6431317c7a1bba526c53c635a5`.
-  Its manifest binds Erdős `4dc47e96`, Formal `100d002`, Quantum
-  `718de33d`, and Sidon `d2b7480d`. The Quantum source now projects five
+  `sha256:7e50aced8fabd11efe90f94aa91588d8e9ef071cf90c21d903256dc00066166a`.
+  Its deployed manifest binds Vela `0.963.0`, Erdős `41e1fc31`, Formal
+  `2d28519`, Quantum `6f4a1e8`, and Sidon `8c7bcbf`. The Quantum source projects five
   accepted Claims, zero pending Proposals, two scoped Verifications, and the
   exact repository root
   `sha256:cd6ccf48dc04d5d3a96a185ca16be998f456f9531d975132d7cb910334f0ecdb`.
   Database sync, stored-root verification, SELECT-only reader verification,
-  source evidence retention, and atomic activation passed. The deployed static
-  manifest still names the preceding release and must be rebuilt from this
-  exact head before the next Observatory release. Formal projects 16 accepted
+  source evidence retention, atomic activation, and production deployment
+  passed. Formal projects 16 accepted
   Claims, zero pending Proposals, four scoped Verifications, and repository root
   `sha256:f652b5793e2bcccd2863f24adb7dda3ff3dd707ae64e2de8ee447b37fb1c85e7`.
 - The same release adds the exact `openai/ten-proofs` source adapter to the
@@ -598,10 +604,10 @@ reputation score, or `1.0.0` schedule.
 
 | Surface | Current posture | Next earned change |
 | --- | --- | --- |
-| Vela | `0.963.0` is the current source candidate; `0.962.1` is published but predates the TOML-only Frontier contract, so its artifact must not be used for current Frontier replay | publish one verified current-contract train, then keep one release path |
+| Vela | `0.963.0` is published with the TOML-only Frontier contract, standards spine, and exact cross-platform release smokes | keep one release path and release only for demonstrated changes |
 | Cross-language readers | standalone JavaScript reader and uv-locked Python reader | keep the reader surface small until a real external consumer requires a published library |
 | Canopus | `0.8.0` historical evidence | no current source or release train |
-| Vela Web | current Neon Registry/Atlas head uses repository v4 and `observatory.v8`; projection root `sha256:c332c5dc8db873f26bc88d696081f9047a188c6431317c7a1bba526c53c635a5` binds Erdős `4dc47e96`, 11 exact sources, 6,713 native records, current/proposed Standing Decision packets, and the terminal Quantum and Formal Decisions; the deployed static manifest remains the preceding checkpoint until an Observatory release rebuilds it | rebuild and verify the exact deployment manifest; add no Astra-specific UI or broader execution until a real consumer earns it |
+| Vela Web | deployed `0.430.0` Registry/Atlas head uses `observatory.v8`; projection root `sha256:7e50aced8fabd11efe90f94aa91588d8e9ef071cf90c21d903256dc00066166a` binds Vela `0.963.0`, all four current Frontier tips, 11 exact sources, 6,713 native records, and 5,844 explicit bindings | add no broader graph, registry, or execution surface until a named consumer earns it |
 | Frontiers | canonical Git sources; the Quantum correction and native Formal Lean result are accepted and replayed, the obsolete Formal duplicate is withdrawn with zero accepted delta, and remaining Proposals await attributed human Decisions or cancellation | decide or cancel exact remaining Proposals, replay, remap |
 | Paper | bounded technical evidence exists | canonical whitepaper only after correction, continuation, and independent-reader gates |
 

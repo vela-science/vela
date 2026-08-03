@@ -152,10 +152,9 @@ and a reproduced gap.
 
 ## Release posture
 
-- Vela `0.962.1` is the last published release but predates the TOML-only
-  Frontier Profile now used by every canonical Frontier. Release the verified
-  `0.963.0` current-contract train, then keep one binary release path and
-  release only for demonstrated product or correctness changes.
+- Vela `0.963.0` is the published current-contract release used by every
+  canonical Frontier. Keep one binary release path and release only for
+  demonstrated product or correctness changes.
 - Standalone conformance readers preserve cross-language verification without
   a second package or release train.
 - Canopus `0.8.0` remains historical evidence; there is no second active
