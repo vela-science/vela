@@ -113,8 +113,8 @@ a vacuous nonzero premise. The old and corrected file roots are respectively
 `sha256:98386d8f28112c5e952ec40c4ee439c27f3ff7560a4e767b493ccebc628fb29f`
 and
 `sha256:5a3a0fb7063ed77d644a5c1cab503851e68d87b02c0882db8fa52e801aba1166`;
-the exact binary-diff root is
-`sha256:5b38d07ebfe50833b296e979424ec78135b2ab0a67cb0478813749ff902f1f90`.
+the canonical full-index diff root is
+`sha256:a1935f112f5e086cac55d0933f6aa5588893aa7452512d5a0319e12fba4a472f`.
 
 This is a candidate, not a completed result. A qualifying study must preserve
 the independent problem Claim, supersede the stale mutable formalization
