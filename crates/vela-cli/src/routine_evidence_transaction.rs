@@ -53,6 +53,10 @@ impl PreparedRoutineEvidenceTransaction {
         self.transaction.canonical_delta_root()
     }
 
+    pub(crate) fn abort_prepared(&mut self) -> Result<(), FrontierTxnError> {
+        self.transaction.abort_prepared()
+    }
+
     pub(crate) fn mark_committed(&mut self) -> Result<(), FrontierTxnError> {
         self.transaction.mark_committed()
     }

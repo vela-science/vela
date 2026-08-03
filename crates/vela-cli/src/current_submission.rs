@@ -565,16 +565,28 @@ fn submit_inner(
         derived_drafts,
     )?;
 
-    let public = prepared
-        .resolved_public_writes()
-        .map_err(|error| error.to_string())?;
-    let delta_root = prepared.canonical_delta_root().to_string();
-    let publish_options = PublishOptions::local()
-        .with_preflight_inputs(submission_publication_inputs(frontier, submission)?);
-    let delta = publication_delta(frontier, &delta_root, public)?
-        .ok_or_else(|| "Submission transaction had no public Git delta".to_string())?;
-    let preflight = exact_publication_preflight(frontier, &delta, &publish_options)
-        .map_err(publication_error)?;
+    let precommit = (|| {
+        let public = prepared
+            .resolved_public_writes()
+            .map_err(|error| error.to_string())?;
+        let delta_root = prepared.canonical_delta_root().to_string();
+        let publish_options = PublishOptions::local()
+            .with_preflight_inputs(submission_publication_inputs(frontier, submission)?);
+        let delta = publication_delta(frontier, &delta_root, public)?
+            .ok_or_else(|| "Submission transaction had no public Git delta".to_string())?;
+        let preflight = exact_publication_preflight(frontier, &delta, &publish_options)
+            .map_err(publication_error)?;
+        Ok::<_, String>((delta, preflight, publish_options))
+    })();
+    let (delta, preflight, publish_options) = match precommit {
+        Ok(value) => value,
+        Err(error) => {
+            prepared
+                .abort_prepared()
+                .map_err(|abort| format!("{error}; abort failed: {abort}"))?;
+            return Err(error);
+        }
+    };
     prepared
         .mark_committed()
         .map_err(|error| error.to_string())?;
