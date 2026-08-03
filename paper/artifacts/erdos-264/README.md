@@ -13,6 +13,7 @@ Run:
 ```bash
 python3 paper/artifacts/erdos-264/verify_source_transition.py \
   --source-repo /Users/williamblair/personal/formal-conjectures \
+  --proof-repo /path/to/plby/lean-proofs \
   --frontier /Users/williamblair/personal/erdos-frontier \
   --artifact /Users/williamblair/personal/erdos-frontier/artifacts/fidelity/erdos-264-source-transition.v1.json
 ```
@@ -23,6 +24,10 @@ cross-checkout identity.
 
 All five direct theorem declarations remain present at the merged successor,
 but their statements inherit the corrected definition and their bodies remain
-`sorry`. Presence is not proof. This evidence does not prove Erdős problem 264,
-validate the hosted partial proof, or change scientific Standing. A Vela
-Submission and Verification remain evidence until an attributed human Decision.
+`sorry`. Presence is not proof. The retained hosted proof is also checked at an
+exact upstream commit: it still defines bounded natural perturbations and is
+therefore not rebound to the corrected integer-perturbation definition. That
+does not invalidate the proof under its own local definition; it creates an
+exact repair obligation. This evidence does not prove Erdős problem 264 or
+change scientific Standing. A Vela Submission and Verification remain evidence
+until an attributed human Decision.

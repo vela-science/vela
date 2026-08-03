@@ -38,6 +38,17 @@ ARTIFACT_ROOT = (
     "sha256:4443284e9856a2df1902dd81fb443f4042fb28b510278bfa2fe23ef935be3173"
 )
 
+PARTIAL_PROOF_COMMIT = "68da20b96673899166e94638f5a7fffeb7231d35"
+PARTIAL_PROOF_TREE = "1d42e6d9d0fecef7de0c6c2a6e3cf7d58283bab8"
+PARTIAL_PROOF_PATH = "src/v4.29.1/ErdosProblems/Erdos264.lean"
+PARTIAL_PROOF_BLOB = "30b1d357d90888a38a3703d7503c6ec34ae7dc7f"
+PARTIAL_PROOF_FILE_ROOT = (
+    "sha256:10c61b6082a51a85d7b0e41bffc7ee0799d46183b6a3848a9816cf9e943fedf2"
+)
+PARTIAL_PROOF_DEFINITION_ROOT = (
+    "sha256:c26a30b29fa4c6bf261bb298d6e4d104e07cb19cd79e4093f286a9817ab06d04"
+)
+
 PROBLEM_CLAIM = (
     "vcl_a9601802c65da247739eec2247cfcc5ae3016961673d346227af4e469f36fe82",
     "sha256:254621848ba12e76bff9970be183532499be6d86e4ee50e6bed341dc6739f00d",
@@ -84,7 +95,7 @@ def git(repo: Path, *args: str) -> bytes:
 
 def definition(source: bytes) -> bytes:
     start = source.index(b"def IsIrrationalitySequence")
-    end = source.index(b"\n\n/--", start)
+    end = source.index(b"\n\n", start)
     return source[start:end] + b"\n"
 
 
@@ -145,7 +156,12 @@ def verify_claim(frontier: Path, claim_id: str, claim_root: str) -> None:
     )
 
 
-def verify(source_repo: Path, frontier: Path, artifact_path: Path) -> dict[str, object]:
+def verify(
+    source_repo: Path,
+    proof_repo: Path,
+    frontier: Path,
+    artifact_path: Path,
+) -> dict[str, object]:
     artifact_bytes, artifact = load_artifact(artifact_path)
     old = git(source_repo, "show", f"{PREDECESSOR}:{SOURCE_PATH}")
     new = git(source_repo, "show", f"{SUCCESSOR}:{SOURCE_PATH}")
@@ -187,6 +203,32 @@ def verify(source_repo: Path, frontier: Path, artifact_path: Path) -> dict[str, 
     )
     require(
         sha256(canonical_diff(source_repo)) == DIFF_ROOT, "full-index diff mismatch"
+    )
+
+    proof = git(proof_repo, "show", f"{PARTIAL_PROOF_COMMIT}:{PARTIAL_PROOF_PATH}")
+    require(
+        git(proof_repo, "rev-parse", f"{PARTIAL_PROOF_COMMIT}^{{tree}}")
+        .decode()
+        .strip()
+        == PARTIAL_PROOF_TREE,
+        "partial-proof repository tree mismatch",
+    )
+    require(
+        git(proof_repo, "rev-parse", f"{PARTIAL_PROOF_COMMIT}:{PARTIAL_PROOF_PATH}")
+        .decode()
+        .strip()
+        == PARTIAL_PROOF_BLOB,
+        "partial-proof source blob mismatch",
+    )
+    require(sha256(proof) == PARTIAL_PROOF_FILE_ROOT, "partial-proof source mismatch")
+    proof_definition_root = sha256(definition(proof))
+    require(
+        proof_definition_root == PARTIAL_PROOF_DEFINITION_ROOT,
+        "partial-proof local definition mismatch",
+    )
+    require(
+        proof_definition_root != SUCCESSOR_DEFINITION_ROOT,
+        "partial proof unexpectedly binds the corrected definition",
     )
 
     found_consumers = consumer_symbols(new)
@@ -262,6 +304,16 @@ def verify(source_repo: Path, frontier: Path, artifact_path: Path) -> dict[str, 
                 "claim_root": PARTIAL_PROOF_CLAIM[1],
             },
         },
+        "partial_proof_binding": {
+            "repository": "https://github.com/plby/lean-proofs",
+            "commit": PARTIAL_PROOF_COMMIT,
+            "path": PARTIAL_PROOF_PATH,
+            "file_root": PARTIAL_PROOF_FILE_ROOT,
+            "local_definition_root": PARTIAL_PROOF_DEFINITION_ROOT,
+            "corrected_definition_root": SUCCESSOR_DEFINITION_ROOT,
+            "compatibility": "not_rebound_to_corrected_definition",
+            "next_obligation": "Rework or recheck the retained proof against the corrected integer-perturbation definition before using it as support for the corrected statement.",
+        },
         "checks": {
             "source_objects_exact": True,
             "full_index_diff_exact": True,
@@ -269,11 +321,13 @@ def verify(source_repo: Path, frontier: Path, artifact_path: Path) -> dict[str, 
             "direct_consumer_set_complete": True,
             "all_direct_consumers_proof_unresolved": True,
             "frontier_claim_bytes_exact": True,
+            "partial_proof_source_exact": True,
+            "partial_proof_uses_corrected_definition": False,
         },
         "limits": [
             "This verifies exact source identity, semantic definition bytes, and the direct consumer inventory.",
             "It does not prove Erdos problem 264 or any direct consumer theorem.",
-            "It does not establish compatibility of the retained hosted partial proof.",
+            "The hosted proof remains evidence about its own retained natural-perturbation definition; this source comparison does not prove or disprove it under that definition.",
             "It is scoped Verification evidence, not scientific acceptance or Standing.",
         ],
     }
@@ -282,6 +336,7 @@ def verify(source_repo: Path, frontier: Path, artifact_path: Path) -> dict[str, 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-repo", type=Path, required=True)
+    parser.add_argument("--proof-repo", type=Path, required=True)
     parser.add_argument("--frontier", type=Path, required=True)
     parser.add_argument("--artifact", type=Path, required=True)
     parser.add_argument("--output", type=Path)
@@ -289,6 +344,7 @@ def main() -> int:
     try:
         result = verify(
             args.source_repo.resolve(),
+            args.proof_repo.resolve(),
             args.frontier.resolve(),
             args.artifact.resolve(),
         )
