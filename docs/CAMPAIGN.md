@@ -85,6 +85,27 @@ attributed candidate evidence. `lean-proofs/main` remains the curated solved
 proof shelf; its campaign branches remain exact exploratory lineage. Neither
 contributor status nor branch location changes Standing.
 
+One result in that source pipeline is qualitatively stronger than the other
+candidate branches. At exact `lean-proofs` commit `4f915a3`, Erdős 730 has a
+complete kernel-checked proof: an explicit quadratic family has positive lower
+density, hence infinitely many consecutive pairs have central binomial
+coefficients with identical prime-factor support. The terminal declaration
+`Erdos730.FullDensityTheorem.pairSet_infinite` compiles without `sorry` or
+`admit` and reports only `propext`, `Classical.choice`, and `Quot.sound`.
+Its local `PairSet` repeats the current Formal Conjectures predicate exactly.
+
+This is the campaign's leading completed mathematical evidence object, not yet
+Frontier Standing. ErdősProblems.com and Formal Conjectures still call problem
+730 open, the proof predates this campaign, and no external mathematical review
+or Vela Decision has occurred. The proof is pinned to Lean 4.29.1 while current
+Formal Conjectures is pinned to Lean 4.27.0, so a direct combined import is not
+yet evidence. The next bounded loop is source-equivalence verification, an
+accepted external-proof boundary or exact port and affirmative bridge, clean
+mechanical replay, independently scoped semantic review, Submission,
+Verification, and one human Decision. It may support a retrospective
+correction-aware case, but not a claim that Vela caused the discovery or
+improved productivity.
+
 The branch audit also changes what the campaign should promote next. The
 `lean-proofs` campaign history is not disposable scratch, but neither is it a
 second source of truth:

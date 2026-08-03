@@ -48,7 +48,35 @@
     "main": {
       "commit": "4f915a323443bfb1709a6805a013812016dca88a",
       "tree": "a0aaa84d22ed8fab7c2788bced29472953cc1752",
-      "role": "curated_solved_proof_shelf"
+      "role": "curated_solved_proof_shelf",
+      "flagship_complete_result": {
+        "problem": 730,
+        "terminal_solve_commit": "8c85623069b3923afe418876d06459dbc4d24a51",
+        "terminal_solve_tree": "cbc948c8b3693cc38a2ab5ff3d3d3117fb63d573",
+        "source_path": "ErdosProblems/Erdos730FullDensityTheorem.lean",
+        "blob_sha1": "e9cdee0c5f5f1b82d4d371696f0c3db46345c4ca",
+        "sha256": "sha256:7f341400b34cd3241007dce7365aa84c367546ffda0acf164d7a32e003f98ba0",
+        "declaration": "Erdos730.FullDensityTheorem.pairSet_infinite",
+        "stronger_declaration": "Erdos730.FullDensityTheorem.candidatePositiveDensity",
+        "result": "An explicit quadratic family has lower density greater than 107/2500, so infinitely many consecutive pairs have central binomial coefficients with identical prime-factor support.",
+        "kernel_status": "compiled_without_sorry_or_admit",
+        "axioms": [
+          "Classical.choice",
+          "Quot.sound",
+          "propext"
+        ],
+        "formal_conjectures_binding": {
+          "repository": "https://github.com/google-deepmind/formal-conjectures.git",
+          "commit": "50ee83fa7dc31c99c03c83f04be90b7fea37d314",
+          "tree": "af55637ba163e4381b00cd0fca0f59158c6998f3",
+          "path": "FormalConjectures/ErdosProblems/730.lean",
+          "blob_sha1": "d37ca5fc59eb615e7406dff2c7881e1600d15d58",
+          "sha256": "sha256:c8e532aa2916312501375df4e30ca4770fdeb3968d39622dda5cdfc5f9fa26e7",
+          "declaration": "Erdos730.erdos_730"
+        },
+        "external_status": "erdosproblems.com and Formal Conjectures still list the problem as open; kernel verification is not external community acceptance.",
+        "next_obligation": "First verify source equivalence across the pinned Lean 4.29.1 proof and Lean 4.27.0 Formal Conjectures environments. Then port the terminal dependency cone or provide an accepted external formal_proof package with an exact affirmative bridge, perform independently scoped semantic review, and route a bounded Submission and Verification to one human Decision."
+      }
     },
     "campaigns": [
       {
@@ -125,5 +153,11 @@
     "research_lineage": "lean_proofs.campaigns[0]",
     "frontier_repository": "https://github.com/vela-science/erdos-frontier.git",
     "status": "rooted_target_implemented_not_solved"
+  },
+  "flagship_evidence": {
+    "result": "lean_proofs.main.flagship_complete_result",
+    "frontier_repository": "https://github.com/vela-science/erdos-frontier.git",
+    "status": "retrospective_complete_proof_requires_source_binding_verification_and_human_decision",
+    "claim_boundary": "This is a complete kernel-checked proof of the formalized statement and a stronger consecutive-pair result. It predates this Vela campaign, so it cannot establish that Vela caused the discovery or improved research performance."
   }
 }
