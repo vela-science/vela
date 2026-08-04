@@ -18,6 +18,7 @@ pub(crate) const HELP_AS: &str =
 pub(crate) const HELP_REQUIRED_AS: &str =
     "Exact acting identity for this write (reviewer:<you> or agent:<name>)";
 pub(crate) const HELP_AS_OF: &str = "Answer as of this RFC3339 instant, e.g. 2026-07-02T16:00:00Z";
+pub(crate) const HELP_JSON: &str = "Output stable JSON for programmatic callers";
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
@@ -28,20 +29,22 @@ pub(crate) enum Commands {
         /// Current Frontier repository. Defaults to the current directory.
         source: Option<PathBuf>,
         /// Output stable JSON
-        #[arg(long)]
+        #[arg(long, help = HELP_JSON)]
         json: bool,
     },
     /// Show the Frontier's current Standing, review queue, and integrity state.
     #[command(after_long_help = crate::cli::help_text::STATUS)]
     Status {
+        /// Current Frontier repository. Defaults to upward discovery from the current directory.
         frontier: Option<PathBuf>,
         /// Output stable JSON for programmatic callers.
-        #[arg(long)]
+        #[arg(long, help = HELP_JSON)]
         json: bool,
     },
     /// Recent covered repository-authority events, newest first.
     #[command(after_long_help = crate::cli::help_text::LOG)]
     Log {
+        /// Current Frontier repository. Defaults to upward discovery from the current directory.
         frontier: Option<PathBuf>,
         /// A full current object id: restrict the log to its covered history.
         object_id: Option<String>,
@@ -55,7 +58,7 @@ pub(crate) enum Commands {
         #[arg(long = "as-of", help = HELP_AS_OF)]
         as_of: Option<String>,
         /// Output stable JSON.
-        #[arg(long)]
+        #[arg(long, help = HELP_JSON)]
         json: bool,
     },
     /// Retain and inspect non-authorizing Verification Records.
@@ -78,7 +81,7 @@ pub(crate) enum Commands {
         /// source-local replay without executing repository code.
         #[arg(long)]
         proposal: Option<String>,
-        #[arg(long)]
+        #[arg(long, help = HELP_JSON)]
         json: bool,
     },
     /// Initialize the standard repository-authority writer for a fresh Frontier.
@@ -90,6 +93,7 @@ pub(crate) enum Commands {
     /// Initialize a minimal .vela frontier repository.
     #[command(after_long_help = crate::cli::help_text::INIT)]
     Init {
+        /// Directory to create as a native Frontier.
         #[arg(default_value = ".")]
         path: PathBuf,
         /// Human-readable frontier name. Required in --json mode.
@@ -98,7 +102,7 @@ pub(crate) enum Commands {
         /// The bounded research question. Required in --json mode.
         #[arg(long)]
         scope: Option<String>,
-        #[arg(long)]
+        #[arg(long, help = HELP_JSON)]
         json: bool,
     },
     /// Inspect or perform one exact Proposal lifecycle action.
@@ -115,7 +119,7 @@ pub(crate) enum Commands {
         /// A Claim, Submission, Verification Record, Proposal, Artifact, or
         /// covered authority Event id.
         object_id: String,
-        #[arg(long)]
+        #[arg(long, help = HELP_JSON)]
         json: bool,
     },
     /// Explain why one current Claim has its derived standing.
@@ -127,7 +131,7 @@ pub(crate) enum Commands {
         frontier: PathBuf,
         /// Current Claim id (`vcl_...`).
         claim_id: String,
-        #[arg(long)]
+        #[arg(long, help = HELP_JSON)]
         json: bool,
     },
     /// THE offer: ranked open targets with the compounding payload
@@ -139,7 +143,7 @@ pub(crate) enum Commands {
         frontier: Option<PathBuf>,
         #[arg(long, default_value_t = 5)]
         limit: usize,
-        #[arg(long)]
+        #[arg(long, help = HELP_JSON)]
         json: bool,
     },
 
@@ -150,7 +154,7 @@ pub(crate) enum Commands {
         target: String,
         #[arg(long)]
         frontier: Option<PathBuf>,
-        #[arg(long)]
+        #[arg(long, help = HELP_JSON)]
         json: bool,
     },
 
@@ -214,7 +218,7 @@ pub(crate) enum Commands {
         result_contract_root: Option<String>,
         #[arg(long, help = HELP_AS)]
         r#as: Option<String>,
-        #[arg(long)]
+        #[arg(long, help = HELP_JSON)]
         json: bool,
     },
 
@@ -266,16 +270,18 @@ pub(crate) enum VerifyAction {
         shared_dependency: Vec<String>,
         #[arg(long = "as", help = HELP_REQUIRED_AS)]
         actor: String,
-        #[arg(long)]
+        #[arg(long, help = HELP_JSON)]
         json: bool,
     },
     /// Import one signed, content-addressed Verification Record.
     Import {
+        /// Current Frontier repository.
         frontier: PathBuf,
+        /// Signed Verification Record JSON to validate and retain.
         record: PathBuf,
         #[arg(long = "as", help = HELP_REQUIRED_AS)]
         actor: String,
-        #[arg(long)]
+        #[arg(long, help = HELP_JSON)]
         json: bool,
     },
 }
@@ -284,6 +290,7 @@ pub(crate) enum VerifyAction {
 pub(crate) enum AuthorityAction {
     /// Bind a fresh Frontier to one loaded OpenSSH-agent Ed25519 identity.
     Init {
+        /// Native Frontier bootstrap to bind. Defaults to the current directory.
         #[arg(default_value = ".")]
         frontier: PathBuf,
         /// Full OpenSSH SHA256 fingerprint, key ID, or raw public-key hex.
@@ -293,7 +300,7 @@ pub(crate) enum AuthorityAction {
         /// Why this repository authority is being established.
         #[arg(long)]
         reason: String,
-        #[arg(long)]
+        #[arg(long, help = HELP_JSON)]
         json: bool,
     },
     /// Manage independently distributed repository-authority trust roots.
@@ -307,6 +314,7 @@ pub(crate) enum AuthorityAction {
 pub(crate) enum AuthorityTrustAction {
     /// Install one public local pin for the exact sequence-1 authority record.
     Pin {
+        /// Current Frontier repository. Defaults to the current directory.
         #[arg(default_value = ".")]
         frontier: PathBuf,
         /// Full sequence-1 authority-record root from an independent channel.
@@ -315,7 +323,7 @@ pub(crate) enum AuthorityTrustAction {
         /// Exact currently installed root when advancing a verified origin pin.
         #[arg(long)]
         previous_record_root: Option<String>,
-        #[arg(long)]
+        #[arg(long, help = HELP_JSON)]
         json: bool,
     },
 }
@@ -324,63 +332,79 @@ pub(crate) enum AuthorityTrustAction {
 pub(crate) enum ReviewAction {
     /// Derive the current consequence-only Decision Inbox.
     Inbox {
+        /// Current Frontier repository.
         frontier: PathBuf,
-        #[arg(long)]
+        #[arg(long, help = HELP_JSON)]
         json: bool,
     },
     /// List compact proposal summaries. Defaults to pending review.
     List {
+        /// Current Frontier repository.
         frontier: PathBuf,
+        /// Standing filter: pending_review, accepted, rejected, withdrawn, or all.
         #[arg(long)]
         status: Option<String>,
+        /// Maximum number of proposals to return.
         #[arg(long, default_value_t = 50)]
         limit: usize,
+        /// Opaque continuation cursor from the previous page.
         #[arg(long)]
         cursor: Option<String>,
-        #[arg(long)]
+        #[arg(long, help = HELP_JSON)]
         json: bool,
     },
     /// Show one pending Review Packet, Decision, or producer Withdrawal.
     Show {
+        /// Current Frontier repository.
         frontier: PathBuf,
+        /// Exact Proposal ID (`vpr_...`).
         proposal_id: String,
-        #[arg(long)]
+        #[arg(long, help = HELP_JSON)]
         json: bool,
     },
     /// Accept exactly one Proposal through repository authority.
     Accept {
+        /// Current Frontier repository.
         frontier: PathBuf,
+        /// Exact pending Proposal ID (`vpr_...`).
         proposal_id: String,
         /// Require the exact Decision Inbox entry that was reviewed.
         #[arg(long)]
         if_entry_root: Option<String>,
         #[arg(long)]
+        /// Human reason covered by the Decision signature.
         reason: String,
-        #[arg(long)]
+        #[arg(long, help = HELP_JSON)]
         json: bool,
     },
     /// Reject exactly one Proposal through repository authority.
     Reject {
+        /// Current Frontier repository.
         frontier: PathBuf,
+        /// Exact pending Proposal ID (`vpr_...`).
         proposal_id: String,
         /// Require the exact Decision Inbox entry that was reviewed.
         #[arg(long)]
         if_entry_root: Option<String>,
         #[arg(long)]
+        /// Human reason covered by the Decision signature.
         reason: String,
-        #[arg(long)]
+        #[arg(long, help = HELP_JSON)]
         json: bool,
     },
     /// Withdraw your own still-pending Proposal using its Submission identity.
     Withdraw {
+        /// Current Frontier repository.
         frontier: PathBuf,
+        /// Exact still-pending Proposal ID (`vpr_...`).
         proposal_id: String,
         /// Exact producer identity that signed the retained Submission.
         #[arg(long = "as")]
         actor: String,
         #[arg(long)]
+        /// Producer reason retained with the Withdrawal.
         reason: String,
-        #[arg(long)]
+        #[arg(long, help = HELP_JSON)]
         json: bool,
     },
 }

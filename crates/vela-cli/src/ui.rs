@@ -215,8 +215,8 @@ pub fn header(command: &str, subject: &str, note: Option<&str>) {
 /// Resolve the frontier argument: an explicit path wins; otherwise walk
 /// upward from cwd for a frontier-shaped `.vela` (the git discovery
 /// pattern — `vela status` from anywhere inside a frontier just works).
-/// Discover only a current repository origin; predecessor layouts require their
-/// pinned historical Vela release.
+/// Discover a current repository or its native pre-authority bootstrap;
+/// predecessor layouts require their pinned historical Vela release.
 pub fn resolve_frontier(explicit: Option<std::path::PathBuf>) -> std::path::PathBuf {
     if let Some(path) = explicit {
         return path;
@@ -231,10 +231,13 @@ pub fn resolve_frontier(explicit: Option<std::path::PathBuf>) -> std::path::Path
     let started = cur.clone();
     loop {
         let store = cur.join(".vela");
-        if store.is_dir()
-            && store.join("origin.json").is_file()
-            && store.join("repository.json").is_file()
-        {
+        let current =
+            store.join("origin.json").is_file() && store.join("repository.json").is_file();
+        let bootstrap = store.is_dir()
+            && cur.join("frontier.toml").is_file()
+            && !store.join("origin.json").exists()
+            && !store.join("repository.json").exists();
+        if current || bootstrap {
             return cur;
         }
         if !cur.pop() {
@@ -248,6 +251,54 @@ pub fn resolve_frontier(explicit: Option<std::path::PathBuf>) -> std::path::Path
             );
         }
     }
+}
+
+/// Refuse commands that require an initialized current repository with one
+/// phase-aware, actionable error. `status` and `authority init` deliberately do
+/// not call this helper because they are the two valid bootstrap operations.
+pub fn require_initialized_frontier(frontier: &std::path::Path) {
+    let store = frontier.join(".vela");
+    let origin = store.join("origin.json");
+    let repository = store.join("repository.json");
+    if origin.is_file() && repository.is_file() {
+        return;
+    }
+    if !frontier.is_dir() {
+        fail_with(
+            ErrorKind::NotFound,
+            &format!("Frontier directory does not exist: {}", frontier.display()),
+            Some("pass an existing Frontier path, or run `vela init <dir>`"),
+        );
+    }
+    if store.is_dir()
+        && frontier.join("frontier.toml").is_file()
+        && !origin.exists()
+        && !repository.exists()
+    {
+        let next = format!(
+            "vela authority init '{}' --reason 'Establish repository authority.' --json",
+            frontier.display()
+        );
+        fail_with(
+            ErrorKind::Domain,
+            "repository authority is not initialized",
+            Some(&next),
+        );
+    }
+    if origin.exists() || repository.exists() {
+        fail_with(
+            ErrorKind::Domain,
+            "current repository is incomplete: expected both `.vela/origin.json` and `.vela/repository.json`",
+            Some("restore the exact missing tracked file, then run `vela check`"),
+        );
+    }
+    fail_with(
+        ErrorKind::Domain,
+        "this Vela release verifies only current repository origins",
+        Some(
+            "inspect a predecessor with its pinned historical Vela release; create new work with `vela init <dir>`",
+        ),
+    );
 }
 
 #[cfg(test)]

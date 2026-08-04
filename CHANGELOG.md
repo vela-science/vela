@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## v0.964.0 — 2026-08-04 — Phase-aware CLI and campaign evidence
+
+- Make the native pre-authority Frontier phase a first-class CLI experience:
+  upward discovery now finds a fresh bootstrap, every command that requires
+  repository authority fails with the same structured diagnostic and exact
+  recovery command, and review Decision preflight preserves the JSON error
+  contract. Complete missing positional and `--json` help text and retain the
+  cold-start behavior in an end-to-end regression test.
+
 - Record two bounded Erdős 203 exclusions without importing their machinery
   into Vela: exact overlap counting, reproduced by a separately implemented
   source-first checker, excludes the 31-tile `n | 5040` family and the larger

@@ -57,6 +57,8 @@ pub fn run_command() {
             json,
         } => {
             let frontier = crate::ui::resolve_frontier(frontier);
+            crate::ui::set_mode("log", json);
+            crate::ui::require_initialized_frontier(&frontier);
             cmd_log(
                 &frontier,
                 object_id.as_deref(),
@@ -132,6 +134,7 @@ pub fn run_command() {
         } => {
             crate::ui::set_mode("next", json);
             let dir = crate::ui::resolve_frontier(frontier);
+            crate::ui::require_initialized_frontier(&dir);
             crate::current_repository::cmd_current_next(&dir, limit, json);
         }
         Commands::Start {
@@ -141,6 +144,7 @@ pub fn run_command() {
         } => {
             crate::ui::set_mode("start", json);
             let dir = crate::ui::resolve_frontier(frontier);
+            crate::ui::require_initialized_frontier(&dir);
             crate::current_work::cmd_start(&dir, &target, json);
         }
         Commands::Submit {
@@ -307,6 +311,7 @@ pub fn run_command() {
                 });
                 (authored, None, actor)
             };
+            crate::ui::require_initialized_frontier(&dir);
             match crate::repository_ops::submit(&dir, &submission, &actor, bundle_root.as_deref()) {
                 Ok(outcome) => {
                     if json {
@@ -459,15 +464,7 @@ fn cmd_review(action: ReviewAction) {
 
 fn cmd_check(source: Option<&Path>, json_output: bool) {
     crate::ui::set_mode("check", json_output);
-    let frontier = source.map_or_else(|| std::path::PathBuf::from("."), Path::to_path_buf);
-    if !frontier.is_dir() || !frontier.join(".vela/origin.json").is_file() {
-        crate::ui::fail_with(
-            crate::ui::ErrorKind::Domain,
-            "this Vela release verifies only current repository origins",
-            Some(
-                "inspect a predecessor with its pinned historical Vela release; current repositories contain `.vela/origin.json`",
-            ),
-        );
-    }
+    let frontier = crate::ui::resolve_frontier(source.map(Path::to_path_buf));
+    crate::ui::require_initialized_frontier(&frontier);
     crate::current_repository::cmd_check_repository(&frontier, json_output);
 }

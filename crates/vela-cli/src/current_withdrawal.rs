@@ -374,6 +374,7 @@ pub(crate) fn cmd_withdraw(
     json_out: bool,
 ) {
     crate::ui::set_mode("proposal withdraw", json_out);
+    crate::ui::require_initialized_frontier(frontier);
     let frontier = frontier.canonicalize().unwrap_or_else(|error| {
         crate::cli::fail_return(&format!("resolve current Frontier: {error}"))
     });

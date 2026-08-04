@@ -27,6 +27,7 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
             json,
         } => {
             crate::ui::set_mode("verification.record", json);
+            crate::ui::require_initialized_frontier(&frontier);
             let record = crate::current_verification::author_record(
                 &frontier,
                 crate::current_verification::VerificationRecordRequest {
@@ -54,6 +55,7 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
             json,
         } => {
             crate::ui::set_mode("verification.import", json);
+            crate::ui::require_initialized_frontier(&frontier);
             let bytes = crate::bounded_file::read_bounded_file(
                 &record,
                 vela_protocol::verification_record::VERIFICATION_RECORD_MAX_BYTES as u64,
@@ -395,17 +397,8 @@ pub(crate) fn proposal_reproduction_files(
 
 pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output: bool) {
     crate::ui::set_mode("reproduce", json_output);
-    if path.is_dir()
-        && path.join("frontier.toml").is_file()
-        && !path.join(".vela/origin.json").is_file()
-    {
-        crate::ui::fail_with(
-            crate::ui::ErrorKind::Domain,
-            "this Vela release reproduces only current repository origins",
-            Some(
-                "inspect a predecessor with its pinned historical Vela release; current repositories contain `.vela/origin.json`",
-            ),
-        );
+    if path.is_dir() && path.join("frontier.toml").is_file() {
+        crate::ui::require_initialized_frontier(path);
     }
     let mut scope = if path.is_file() {
         "standalone_artifact"

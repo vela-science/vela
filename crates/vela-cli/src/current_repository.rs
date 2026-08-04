@@ -918,6 +918,7 @@ pub(crate) fn cmd_current_review_list(
     json_out: bool,
 ) {
     crate::ui::set_mode("review list", json_out);
+    crate::ui::require_initialized_frontier(frontier);
     let status = status.unwrap_or("pending_review");
     if !["pending_review", "accepted", "rejected", "withdrawn", "all"].contains(&status) {
         crate::cli::fail_return::<()>(
@@ -1040,6 +1041,7 @@ pub(crate) fn cmd_current_review_list(
 
 pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_out: bool) {
     crate::ui::set_mode("review show", json_out);
+    crate::ui::require_initialized_frontier(frontier);
     let frontier = frontier.canonicalize().unwrap_or_else(|error| {
         crate::cli::fail_return(&format!(
             "resolve current Frontier {}: {error}",
