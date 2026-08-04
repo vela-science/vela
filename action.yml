@@ -3,7 +3,7 @@
 # Consume from a frontier repository:
 #
 #   - uses: actions/checkout@v5
-#   - uses: vela-science/vela@v0.965.1
+#   - uses: vela-science/vela@v0.965.2
 #     with:
 #       frontier: .
 #

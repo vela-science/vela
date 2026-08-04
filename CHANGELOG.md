@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## v0.965.2 — 2026-08-04 — Deterministic release signer fixture
+
+- Provision a disposable Ed25519 SSH-agent identity in each release smoke so
+  the clean Linux, macOS, and Windows runners exercise successful one-command
+  Frontier initialization deterministically.
+- No protocol behavior changes from `v0.965.0`.
+
 ## v0.965.1 — 2026-08-04 — Release contract correction
 
 - Correct the release-bundle smoke tests to exercise the current one-command

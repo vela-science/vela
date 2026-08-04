@@ -25,6 +25,9 @@ $Unpack = Join-Path $Root "unpack"
 $Prefix = Join-Path $Root "prefix"
 $Bin = Join-Path $Prefix "bin"
 New-Item -ItemType Directory -Force $Unpack, $Bin | Out-Null
+$AgentWasRunning = $false
+$AuthorityKey = Join-Path $Root "authority"
+$TrustPinPath = $null
 
 try {
   Expand-Archive $Archive -DestinationPath $Unpack
@@ -34,15 +37,32 @@ try {
 
   # Exercise the current public profile contract from the staged artifact. A
   # version-only smoke cannot detect release bytes built from stale source.
+  $Agent = Get-Service ssh-agent -ErrorAction Stop
+  $AgentWasRunning = $Agent.Status -eq "Running"
+  if (-not $AgentWasRunning) {
+    Set-Service ssh-agent -StartupType Manual
+    Start-Service ssh-agent
+  }
+  & ssh-keygen -q -t ed25519 -N '""' -C "Vela release smoke" -f $AuthorityKey
+  if ($LASTEXITCODE -ne 0) { throw "failed to generate disposable release-smoke key" }
+  & ssh-add $AuthorityKey | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "failed to load disposable release-smoke key" }
+  $FingerprintLine = (& ssh-keygen -lf "$AuthorityKey.pub" -E sha256 | Out-String).Trim()
+  if ($LASTEXITCODE -ne 0) { throw "failed to fingerprint disposable release-smoke key" }
+  $AuthorityFingerprint = ($FingerprintLine -split '\s+')[1]
+  if (-not $AuthorityFingerprint.StartsWith("SHA256:")) { throw "invalid release-smoke key fingerprint" }
   $Frontier = Join-Path $Root "frontier"
   & $Vela init $Frontier `
     --name "Release smoke" `
     --scope "Does this bundle read the current Frontier profile?" `
+    --key $AuthorityFingerprint `
     --json | Set-Content -Encoding utf8 (Join-Path $Root "init.json")
+  if ($LASTEXITCODE -ne 0) { throw "one-command Frontier initialization failed" }
   $Profile = Join-Path $Frontier "frontier.toml"
   if (-not (Test-Path $Profile -PathType Leaf)) { throw "current Frontier profile missing" }
   if (Test-Path (Join-Path $Frontier "frontier.yaml")) { throw "retired Frontier profile emitted" }
   $Initialized = (Get-Content -Raw (Join-Path $Root "init.json")) | ConvertFrom-Json
+  $TrustPinPath = $Initialized.authority.local_trust.anchor_path
   $Status = (& $Vela status $Frontier --json | Out-String) | ConvertFrom-Json
   if ($Initialized.schema -ne "vela.frontier-init.v3") { throw "current init schema mismatch" }
   if ($Initialized.authority.state -ne "initialized") { throw "Frontier authority was not initialized" }
@@ -68,6 +88,15 @@ try {
     if (Test-Path $Installed) { throw "uninstall left product byte: $Installed" }
   }
 } finally {
+  if ($TrustPinPath -and $TrustPinPath -match '[\\/]\.vela[\\/]trust[\\/]authorities[\\/]vfr_[^\\/]+\.json$') {
+    Remove-Item -Force -ErrorAction SilentlyContinue $TrustPinPath
+  }
+  if (Test-Path $AuthorityKey -PathType Leaf) {
+    & ssh-add -d $AuthorityKey 2>&1 | Out-Null
+  }
+  if (-not $AgentWasRunning) {
+    Stop-Service ssh-agent -ErrorAction SilentlyContinue
+  }
   Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $Root
 }
 

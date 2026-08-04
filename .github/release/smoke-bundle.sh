@@ -15,7 +15,20 @@ test -f "$ARCHIVE.spdx.json.sha256"
 )
 
 ROOT="$(mktemp -d)"
-trap 'rm -rf "$ROOT"' EXIT
+agent_started=false
+trust_pin_path=""
+cleanup() {
+  case "$trust_pin_path" in
+    */.vela/trust/authorities/vfr_*.json)
+      rm -f -- "$trust_pin_path"
+      ;;
+  esac
+  if [[ "$agent_started" == true ]]; then
+    ssh-agent -k >/dev/null 2>&1 || true
+  fi
+  rm -rf "$ROOT"
+}
+trap cleanup EXIT
 UNPACK="$ROOT/unpack"
 PREFIX="$ROOT/prefix"
 mkdir -p "$UNPACK" "$PREFIX/bin" "$ROOT/home"
@@ -34,16 +47,26 @@ test "$("$UNPACK/vela" --version)" = "vela $EXPECTED_VERSION"
 # A version-only smoke allowed a stale binary with a current version string to
 # ship. Exercise the current public profile contract from the staged artifact
 # so release bytes must agree with the source tree's actual product boundary.
+for executable in ssh-agent ssh-add ssh-keygen; do
+  command -v "$executable" >/dev/null 2>&1
+done
+python_bin=python3
+command -v "$python_bin" >/dev/null 2>&1 || python_bin=python
+ssh-keygen -q -t ed25519 -N '' -C 'Vela release smoke' -f "$ROOT/authority"
+eval "$(ssh-agent -s)" >/dev/null
+agent_started=true
+ssh-add "$ROOT/authority" >/dev/null
+AUTHORITY_FINGERPRINT="$(ssh-keygen -lf "$ROOT/authority.pub" -E sha256 | awk '{print $2}')"
 FRONTIER="$ROOT/frontier"
 "$UNPACK/vela" init "$FRONTIER" \
   --name "Release smoke" \
   --scope "Does this bundle read the current Frontier profile?" \
+  --key "$AUTHORITY_FINGERPRINT" \
   --json > "$ROOT/init.json"
+trust_pin_path="$("$python_bin" -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["authority"]["local_trust"]["anchor_path"])' "$ROOT/init.json")"
 test -f "$FRONTIER/frontier.toml"
 test ! -e "$FRONTIER/frontier.yaml"
 "$UNPACK/vela" status "$FRONTIER" --json > "$ROOT/status.json"
-python_bin=python3
-command -v "$python_bin" >/dev/null 2>&1 || python_bin=python
 "$python_bin" - "$ROOT/init.json" "$ROOT/status.json" <<'PY'
 import json
 import sys
