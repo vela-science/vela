@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Retain the second frozen Erdős 730 Result Dossier instrument without
+  rescoring it: all eight fields were materially correct under post-hoc review,
+  but the registered Dossier median regressed by 27.60%. Retire same-case model
+  timing and route the product-evidence lane to multi-case human qualification.
+- Record that Vela Web replaced the numbered Observatory read-model contract
+  with the stable `vela.observatory-release-manifest` and rooted forward
+  database migrations. This documentation update changes no Vela protocol
+  object, writer, authority path, or release version.
 - Publish checked JSON Schema 2020-12 descriptions, current-object fixtures,
   and cross-reader conformance checks for existing authority, Submission,
   Verification, and Withdrawal structures without changing their bytes,

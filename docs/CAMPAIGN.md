@@ -8,13 +8,18 @@ families, twelve Comparator profiles, the exact axiom inventory, the Erdős 146,
 180, and 183 fidelity matrices, and an explicit Decision or documented deferral
 for Erdős 183. The exact public Result Dossiers for Erdős 264 and 730 remain a
 separate product-evidence lane; their human usability claim is still unearned.
+Two frozen Erdős 730 model-instrumentation iterations are now retained as
+failures: 12.28% improvement in iteration 1 and a 27.60% regression in the
+named-defect iteration 2. The same-case model-timing lane is retired; the next
+product qualification is the frozen multi-case human study.
 The complete remaining portfolio and its gates are indexed in
 [`CAMPAIGN_PORTFOLIO.md`](CAMPAIGN_PORTFOLIO.md).
 
 ADR 0038 separates scientific qualification from public product qualification.
-The failed Result Dossier gate remains binding on activation and product
-claims, but no longer prevents internally useful source, proof, and fidelity
-work from proceeding in its own evidence lane.
+The failed Result Dossier gate remains binding on usability and
+reviewer-efficiency claims; it does not require deactivating the exact,
+read-only case records or prevent useful source, proof, and fidelity work from
+proceeding in its own evidence lane.
 
 The producer, independent-review, and human-Decision milestones have passed.
 The rooted Erdős
@@ -494,8 +499,9 @@ earned.**
 1. Bind the complete Erdős 264 correction, repair, Verifications, Decisions,
    null benchmark, replay, nonclaims, and successor Target into one removable
    read projection.
-2. Reconstruct the `observatory.v9` candidate twice from empty databases and
-   verify SELECT-only reader access.
+2. Reconstruct the stable `vela.observatory-release-manifest` candidate twice
+   from empty databases and verify rooted forward migrations plus SELECT-only
+   reader access.
 3. Compare it with an information-matched flat case file in fresh isolated
    sessions, retaining every failure and versioned revision.
 4. Keep publication of the exact read-only record distinct from any later
@@ -514,15 +520,21 @@ Dossier median was 18.64 seconds, a 12.28% improvement that also fails the exact
 20% gate. A post-hoc semantic audit found all eight Dossier fields materially
 correct, zero actual authority errors, and three lexical false negatives in the
 frozen scorer; it does not rescore the registered failure. No omitted failure,
-caveat, or shared dependency was found, and no second same-model iteration is
-authorized merely to chase the threshold.
+caveat, or shared dependency was found. A single named-defect iteration 2
+tested the product's eight-field answer map under a frozen revised scorer. It
+also failed: 16.705-second flat median, 21.315-second Dossier median, and a
+27.60% regression. Its post-hoc audit again found all eight fields materially
+correct with zero actual authority errors and no material dependency omission,
+but does not rescore the result. Further same-case model timing is retired.
 
 The usability claim therefore remains unearned. The operator later authorized
 the exact read-only projection for public inspection after deterministic,
 SELECT-only, same-root HTML/JSON, and deployment gates passed. That deployment
 does not rescore the failed study. Under the frozen iteration-3 plan, Astra and
 Erdős 730 were not unlocked. ADR 0038 prospectively replaces that serial rule:
-scientific qualification may proceed without borrowing any product claim.
+scientific qualification may proceed without borrowing any product claim. The
+next product qualification is a frozen, case-blocked multi-case study with
+fresh qualified humans.
 
 Gate: `8/8` exact recovery, zero authority errors, no omitted failure, caveat,
 or shared dependency, at least 20% lower median time than the flat baseline,

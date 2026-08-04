@@ -1324,7 +1324,15 @@ median and an 18.64-second Dossier median, a 12.28% reduction below the exact
 20% gate. A post-hoc audit found materially correct recovery of all eight fields
 and zero actual authority errors, while diagnosing three semantically
 equivalent phrases rejected by the frozen lexical scorer. That diagnosis does
-not rescore the result. Together the two cases support an exact,
+not rescore the result. One preregistered named-defect iteration then presented
+the same facts as the product's eight-field reviewer map and corrected the
+scorer before observation. It also failed: the flat median was 16.705 seconds
+and the Dossier median was 21.315 seconds, a 27.60% regression. Post-hoc
+semantic review again found all eight fields materially correct in every
+Dossier session with zero actual authority errors and no material dependency
+omission, but cannot rescore the frozen failure. The same-case model-timing
+lane is therefore retired rather than sampled until a favorable draw appears.
+Together the two cases support an exact,
 correction-aware read record, but not reviewer-efficiency, adoption,
 productivity, or causal-lift claims.
 
