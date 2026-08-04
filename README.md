@@ -109,8 +109,8 @@ Install the GitHub-attested release:
 Vela supports Linux x86-64 and macOS Apple-silicon release bundles.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.966.0/install.sh | \
-  VELA_VERSION=v0.966.0 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.966.1/install.sh | \
+  VELA_VERSION=v0.966.1 bash
 vela --version
 ```
 

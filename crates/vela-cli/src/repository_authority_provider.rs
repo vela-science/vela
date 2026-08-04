@@ -308,7 +308,10 @@ fn ssh_agent_sockets() -> Vec<PathBuf> {
     if let Some(socket) = env::var_os("SSH_AUTH_SOCK").filter(|value| !value.is_empty()) {
         return vec![PathBuf::from(socket)];
     }
+    #[cfg(target_os = "macos")]
     let mut sockets = Vec::new();
+    #[cfg(not(target_os = "macos"))]
+    let sockets = Vec::new();
     #[cfg(target_os = "macos")]
     if let Ok(output) = Command::new("/bin/launchctl")
         .args(["getenv", "SSH_AUTH_SOCK"])

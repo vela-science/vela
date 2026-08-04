@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## v0.966.1 — 2026-08-04 — Linux certification correction
+
+- Keep launchd socket discovery macOS-local without triggering an unused-mut
+  error under Linux's strict clippy gate. No protocol or product behavior
+  changes from `v0.966.0`.
+
 ## v0.966.0 — 2026-08-04 — Session-authenticated authority
 
 - Replace per-signature SSH confirmation with session-authenticated local

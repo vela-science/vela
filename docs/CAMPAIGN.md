@@ -19,7 +19,7 @@ The current tranche is successful when a new operator can:
 5. reproduce the repository from a clean clone; and
 6. get one truthful next action from every command and failure.
 
-Vela `0.966.0` removes per-signature authority confirmation, narrows the
+Vela `0.966.1` removes per-signature authority confirmation, narrows the
 SSH-agent boundary to the two standard messages Vela uses, and removes the
 remaining native Windows branches. The
 repository service key is loaded once per authenticated operating-system
