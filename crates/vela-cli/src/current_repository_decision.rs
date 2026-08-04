@@ -16,7 +16,9 @@ use vela_authority::CedarEvaluationInput;
 use vela_authority::runtime_authentication::AuthenticationRequest;
 use vela_protocol::authority::{PrincipalSnapshotV1, SemanticApprovalV1};
 use vela_protocol::claim_record::ClaimRecordV1;
-use vela_protocol::current_repository::{ClaimStandingRefV1, CurrentRepositoryV4};
+use vela_protocol::current_repository::{
+    ClaimStandingRefV1, CurrentRepositoryV4, RepositoryObjectRefV1,
+};
 use vela_protocol::events::{EventKind, NULL_HASH, StateActor, StateEvent, StateTarget};
 use vela_protocol::principal::PrincipalClass;
 use vela_protocol::proposal_v1::ProposalV1;
@@ -31,7 +33,9 @@ use crate::authority_transaction::{
 use crate::config::git_publish::{
     PublicationState, PublishOptions, exact_publication_preflight, publish_exact_delta,
 };
-use crate::frontier_txn::{ContentDigest, FrontierTxn, InputBinding, WriteClass};
+use crate::frontier_txn::{
+    ContentDigest, FrontierRecoveryBarrier, FrontierTxn, InputBinding, WriteClass,
+};
 use crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner;
 use crate::repository_ops::publication_delta;
 
@@ -78,10 +82,14 @@ pub(crate) struct CurrentReviewDecisionPlan {
 
 pub(crate) struct PreparedCurrentReviewDecision {
     pub(crate) plan: CurrentReviewDecisionPlan,
-    repository: CurrentRepositoryV4,
-    authority: crate::cli::LoadedRepositoryAuthority,
-    proposal: ProposalV1,
-    claim: ClaimRecordV1,
+    pub(crate) repository: CurrentRepositoryV4,
+    pub(crate) authority: crate::cli::LoadedRepositoryAuthority,
+    pub(crate) proposal_reference: RepositoryObjectRefV1,
+    pub(crate) proposal: ProposalV1,
+    pub(crate) claim: ClaimRecordV1,
+    pub(crate) submission: SubmissionV1,
+    pub(crate) verifications: Vec<(String, VerificationRecordV1)>,
+    pub(crate) pending_conflicts: Vec<String>,
 }
 
 pub(crate) fn read_exact<T>(
@@ -371,7 +379,8 @@ pub(crate) fn prepare(
         .proposals
         .iter()
         .find(|proposal| proposal.id == proposal_id)
-        .ok_or_else(|| format!("current repository has no Proposal {proposal_id}"))?;
+        .ok_or_else(|| format!("current repository has no Proposal {proposal_id}"))?
+        .clone();
     let proposal = read_exact(
         frontier,
         &proposal_reference.path,
@@ -382,14 +391,14 @@ pub(crate) fn prepare(
     let claim = claim_for_proposal(frontier, &repository, &proposal)?;
     let submission = submission_for_proposal(frontier, &repository, &proposal)?;
     let verifications = exact_verifications(frontier, &repository, &proposal, &claim, &submission)?;
+    let pending_conflicts =
+        pending_submission_conflicts(frontier, &repository, &proposal, &submission)?;
     if action == DecisionAction::Accept {
         require_acceptance_evidence(&submission, &verifications)?;
-        let conflicts =
-            pending_submission_conflicts(frontier, &repository, &proposal, &submission)?;
-        if !conflicts.is_empty() {
+        if !pending_conflicts.is_empty() {
             return Err(format!(
                 "current acceptance is blocked by unresolved sibling Proposal(s) {} from the same exact producer execution; reject or withdraw the obsolete wording first",
-                conflicts.join(", ")
+                pending_conflicts.join(", ")
             ));
         }
     }
@@ -426,9 +435,29 @@ pub(crate) fn prepare(
         plan,
         repository,
         authority,
+        proposal_reference,
         proposal,
         claim,
+        submission,
+        verifications,
+        pending_conflicts,
     })
+}
+
+/// Acquire the frontier write barrier before loading any mutable Decision
+/// input, then prepare the complete verified Decision exactly once.
+pub(crate) fn prepare_locked(
+    frontier: &Path,
+    proposal_id: &str,
+    action: DecisionAction,
+    reason: &str,
+    observed_at: &str,
+) -> Result<(PreparedCurrentReviewDecision, FrontierRecoveryBarrier), String> {
+    let journal_dir = crate::repository_ops::frontier_transaction_journal_dir(frontier)?;
+    let barrier = FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir)
+        .map_err(|error| error.to_string())?;
+    let prepared = prepare(frontier, proposal_id, action, reason, observed_at)?;
+    Ok((prepared, barrier))
 }
 
 pub(crate) fn next_repository(
@@ -641,11 +670,13 @@ fn decision_events(
     Ok(vec![domain, review])
 }
 
-pub(crate) fn execute(
+pub(crate) fn execute_prepared(
     frontier: &Path,
-    expected: &CurrentReviewDecisionPlan,
+    prepared: PreparedCurrentReviewDecision,
+    recovery_barrier: FrontierRecoveryBarrier,
     action: DecisionAction,
 ) -> Result<AuthorityTransactionResult, String> {
+    let expected = &prepared.plan;
     let expected_action = match action {
         DecisionAction::Accept => "review_accept",
         DecisionAction::Reject => "review_reject",
@@ -653,22 +684,9 @@ pub(crate) fn execute(
     if expected.action != expected_action {
         return Err("current review plan carries another action".into());
     }
-    let journal_dir = crate::repository_ops::frontier_transaction_journal_dir(frontier)?;
-    let barrier = FrontierTxn::acquire_repository_authority_write_barrier(frontier, &journal_dir)
+    let barrier = recovery_barrier
+        .authorize_verified_repository_authority(&prepared.repository, &prepared.authority)
         .map_err(|error| error.to_string())?;
-    let prepared = prepare(
-        frontier,
-        &expected.proposal_id,
-        action,
-        &expected.reason,
-        &expected.observed_at,
-    )?;
-    if prepared.plan != *expected {
-        return Err(
-            "current review facts changed under the authority barrier; no signature was requested"
-                .into(),
-        );
-    }
     let recorded_at =
         crate::cli::canonical_whole_second_time("current review decision", &expected.observed_at)?;
     let local = crate::cli::local_session(&recorded_at)?;

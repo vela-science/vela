@@ -250,12 +250,15 @@ transaction still re-prepares and fail-closes against the current repository.
 The action, reason, principal, Proposal, policy, authority head, read set, and
 canonical delta are covered by one repository-authority transaction. There is
 no batch mode, copied confirmation root, custom signer, or Vela-managed human
-key. Load the dedicated authority key into a standard OpenSSH agent with
-per-use confirmation (`ssh-add -c`) and do not expose that socket to agent
-execution.
+key. Load the dedicated authority key once for the current operating-system
+session (`ssh-add --apple-use-keychain` on macOS or `ssh-add -t 8h` on Linux).
+Vela does not require OpenSSH's per-signature `-c` confirmation.
 
-Agents may prepare or explain the command. They may not invoke it on a human's
-behalf or access the repository-authority agent socket.
+A trusted native agent session may execute a Decision that the operator
+explicitly authorized. The scope is the named Decision or campaign; each
+transaction still requires its own current Inbox root, reason, policy Allow,
+read-set recheck, and authority record. Never forward `SSH_AUTH_SOCK` to
+remote, untrusted, or proposal-supplied code.
 
 ## Repository setup
 

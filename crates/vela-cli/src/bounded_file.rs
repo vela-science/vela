@@ -3,7 +3,7 @@
 //! The read happens through one already-open descriptor. Path identity is
 //! checked before and after the bounded read, so a concurrent rename or
 //! symlink swap cannot substitute different bytes after validation on the
-//! supported Unix and Windows targets.
+//! supported Linux and macOS targets.
 
 use std::io::Read;
 use std::path::{Component, Path};

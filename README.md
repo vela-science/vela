@@ -106,12 +106,11 @@ it does not prove that a Claim is true.
 
 Install the GitHub-attested release:
 
-Vela currently publishes and supports Linux x86-64 and macOS Apple-silicon
-release bundles. Native Windows distribution is deferred.
+Vela supports Linux x86-64 and macOS Apple-silicon release bundles.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.965.3/install.sh | \
-  VELA_VERSION=v0.965.3 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.966.0/install.sh | \
+  VELA_VERSION=v0.966.0 bash
 vela --version
 ```
 
@@ -143,9 +142,10 @@ If signing is unavailable, the Profile is retained safely; load the key and
 rerun the same `vela init` command.
 
 The resulting sequence-one authority-record root must be distributed through
-an independent trusted channel. Keep the authority-agent socket out of native
-agent runs; an unconstrained socket would let any same-user process ask
-for an authority signature.
+an independent trusted channel. Load the dedicated repository key once for the
+current operating-system session. A trusted native agent may execute an exact
+Decision the operator authorized; never forward the authority-agent socket to
+remote, untrusted, or proposal-supplied code.
 
 ## Typical workflow
 
@@ -264,7 +264,7 @@ canonical write. It does not replace scientific judgment.
 - Producer identities can authenticate bounded work only.
 - Human semantic actions are direct `review accept` or `review reject`
   commands.
-- Vela reads no human seed file and ships no custom signer.
+- Vela reads no human seed file and ships no custom signer daemon.
 - The OpenSSH agent signs the exact repository-authority record.
 - Preflight or signing failure creates no committed transaction.
 - Consumers pin the sequence-one authority-record root independently.

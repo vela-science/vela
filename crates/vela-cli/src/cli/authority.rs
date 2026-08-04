@@ -921,10 +921,7 @@ pub(crate) fn local_session(observed_at: &str) -> Result<LocalOsSession, String>
         .map_err(|error| format!("local session observation time is invalid: {error}"))?
         .with_timezone(&Utc);
     let device = local_device_identifier()?;
-    #[cfg(unix)]
     let subject = format!("uid:{}", rustix::process::geteuid().as_raw());
-    #[cfg(windows)]
-    let subject = local_windows_subject()?;
     let issuer = format!(
         "device-sha256:{}",
         hex::encode(Sha256::digest(device.as_bytes()))
@@ -977,31 +974,6 @@ fn local_device_identifier() -> Result<String, String> {
         return Err("Linux machine identity is malformed".into());
     }
     Ok(value.to_ascii_lowercase())
-}
-
-#[cfg(windows)]
-fn local_device_identifier() -> Result<String, String> {
-    local_windows_subject()
-}
-
-#[cfg(windows)]
-fn local_windows_subject() -> Result<String, String> {
-    let output = Command::new("whoami")
-        .args(["/user", "/fo", "csv", "/nh"])
-        .output()
-        .map_err(|error| format!("inspect Windows account SID: {error}"))?;
-    if !output.status.success() {
-        return Err("Windows account SID command failed".into());
-    }
-    let text = String::from_utf8(output.stdout)
-        .map_err(|_| "Windows account SID output is not UTF-8".to_string())?;
-    let sid = text
-        .split(',')
-        .nth(1)
-        .map(|value| value.trim().trim_matches('"'))
-        .filter(|value| value.starts_with("S-1-"))
-        .ok_or_else(|| "Windows account SID is unavailable".to_string())?;
-    Ok(format!("sid:{sid}"))
 }
 
 fn canonical_root(value: &impl Serialize) -> Result<String, String> {

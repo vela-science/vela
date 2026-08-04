@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+## v0.966.0 — 2026-08-04 — Session-authenticated authority
+
+- Replace per-signature SSH confirmation with session-authenticated local
+  repository authority. A dedicated repository service key is loaded once per
+  operating-system session while every Decision retains its exact Cedar,
+  compare-and-swap, semantic, read-set, DSSE, and replay checks.
+- Replace the broad private SSH-agent implementation with a bounded Unix
+  adapter for the two standard messages Vela uses. RustCrypto's maintained
+  `ssh-key` and `ssh-encoding` crates own key, signature, and RFC 4251 encoding;
+  Vela owns only capped socket framing, exact Ed25519 selection, deferred
+  access, DSSE PAE, and local verification. This avoids both home-grown
+  cryptography and a lightly governed agent-client dependency.
+- Resolve the standard macOS launchd agent at signing time when a long-running
+  GUI process lacks an inherited `SSH_AUTH_SOCK`; an explicit socket remains
+  authoritative and Linux behavior remains unchanged.
+- Prepare and root-check a Decision once under the recovery lock instead of
+  rebuilding the same repository projection several times before signing.
+- Delete the remaining native Windows implementation branches and path rules.
+  The supported runtime is Linux x86-64 and macOS Apple silicon; unsupported
+  platform code no longer complicates the authority, trust, or write paths.
+
 ## v0.965.3 — 2026-08-04 — Focused supported release surface
 
 - Narrow supported release distribution to Linux x86-64 and macOS Apple

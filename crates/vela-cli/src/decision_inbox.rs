@@ -19,8 +19,9 @@ use vela_protocol::submission_v1::SubmissionV1;
 use vela_protocol::verification_record::VerificationRecordV1;
 
 use crate::current_repository_decision::{
-    DecisionAction, claim_for_proposal, exact_verifications, next_repository,
-    submission_for_proposal, verification_satisfies_requirement, verification_set_root,
+    DecisionAction, PreparedCurrentReviewDecision, claim_for_proposal, exact_verifications,
+    next_repository, submission_for_proposal, verification_satisfies_requirement,
+    verification_set_root,
 };
 
 const ENTRY_SCHEMA: &str = "vela.decision-inbox-entry.v2";
@@ -652,13 +653,7 @@ pub(crate) fn compare_entry_root(
     }
 }
 
-/// Refuse a Decision before authority signing when the reviewed Inbox packet
-/// no longer matches current repository state.
-pub(crate) fn require_current_entry_root(
-    frontier: &Path,
-    proposal_id: &str,
-    requested_entry_root: &str,
-) -> Result<(), String> {
+fn validate_requested_entry_root(requested_entry_root: &str) -> Result<(), String> {
     let digest = requested_entry_root
         .strip_prefix("sha256:")
         .filter(|digest| digest.len() == 64 && digest.bytes().all(|byte| byte.is_ascii_hexdigit()))
@@ -666,13 +661,47 @@ pub(crate) fn require_current_entry_root(
     if digest.bytes().any(|byte| byte.is_ascii_uppercase()) {
         return Err("--if-entry-root must use lowercase hexadecimal".into());
     }
-    let projection = project(frontier)?;
-    let entry = projection
-        .entries
-        .iter()
-        .find(|entry| entry.proposal_id == proposal_id)
-        .ok_or_else(|| format!("{proposal_id}: no current pending Decision Inbox entry"))?;
-    let comparison = compare_entry_root(entry, requested_entry_root);
+    Ok(())
+}
+
+/// Derive the reviewed Inbox packet from the exact repository, authority, and
+/// scientific objects already verified under the Decision write barrier.
+pub(crate) fn entry_for_prepared(
+    prepared: &PreparedCurrentReviewDecision,
+) -> Result<DecisionInboxEntry, String> {
+    let authority_heads = DecisionInboxAuthorityHeads {
+        policy_bundle_root: prepared.repository.authority_policy_root.clone(),
+        authority_keyset_root: prepared.repository.authority_keyset_root.clone(),
+        authority_record_root: prepared
+            .authority
+            .verification
+            .final_authority_record_root
+            .clone()
+            .ok_or_else(|| "Decision Inbox requires a current authority-record head".to_string())?,
+        authority_event_log_root: prepared.authority.verification.final_event_log_root.clone(),
+    };
+    derive_entry(EntryInputs {
+        repository: &prepared.repository,
+        repository_root: &prepared.plan.repository_root,
+        proposal_reference: &prepared.proposal_reference,
+        proposal: &prepared.proposal,
+        claim: &prepared.claim,
+        submission: &prepared.submission,
+        verifications: &prepared.verifications,
+        pending_conflicts: &prepared.pending_conflicts,
+        authority_heads: &authority_heads,
+    })
+}
+
+/// Refuse a Decision before authority signing when the reviewed Inbox packet
+/// differs from the exact packet prepared under the write barrier.
+pub(crate) fn require_prepared_entry_root(
+    prepared: &PreparedCurrentReviewDecision,
+    requested_entry_root: &str,
+) -> Result<(), String> {
+    validate_requested_entry_root(requested_entry_root)?;
+    let entry = entry_for_prepared(prepared)?;
+    let comparison = compare_entry_root(&entry, requested_entry_root);
     if comparison.state == "current" {
         return Ok(());
     }

@@ -59,6 +59,10 @@ exact bytes. A Verification Record reports one scoped check. A Proposal requests
 change. A Decision authorizes or refuses that change. An Event enters canonical
 history. Standing is derived from replay.
 
-Agents may reproduce evidence and explain these links. They may not invoke
-repository-authority decisions, use authority credentials, treat a verifier
-pass as acceptance, or rewrite retained history.
+Agents may reproduce evidence and explain these links. A trusted native agent
+may invoke an exact repository-authority Decision only when the operator has
+explicitly authorized that named Decision or campaign. It must use the current
+Inbox root and the standard provider, preserve every policy and semantic
+check, and report the resulting authority record. It may not infer authority
+from a verifier pass, broaden the authorized scope, or rewrite retained
+history.

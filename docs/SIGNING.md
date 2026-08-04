@@ -37,6 +37,11 @@ The initial local provider is the normal OpenSSH agent. Vela asks it to sign
 the exact authority record with the key selected by the Frontier keyset. Vela
 does not create, store, reveal, or recover a human signing seed.
 
+`vela.authority-keyset.v1` deliberately fixes Ed25519. The algorithm field is
+explicit so a future keyset profile can add a qualified P-256 hardware provider
+or ML-DSA archival co-signature without guessing or reinterpreting v1 history.
+Passkeys authenticate people; repository keys authenticate the service role.
+
 ## Human Decisions
 
 Inspect one pending Proposal:
@@ -61,11 +66,28 @@ vela review accept . <vpr_id> \
   --json
 ```
 
-The command is the semantic action. The repository-authority key must be held
-by a standard OpenSSH agent with confirmation required for every use (for
-example, load it with `ssh-add -c`). Do not expose that agent socket to an
-agent Campaign. Vela cannot infer human intent from an unconstrained agent
-socket; exposing one defeats the Decision boundary.
+The command is the semantic action. The repository-authority key is a service
+identity held by the standard OpenSSH agent, not a personal approval key. Load
+the dedicated key once for the current operating-system session:
+
+```bash
+# macOS: retain the key in the login Keychain and load it into the current agent
+ssh-add --apple-use-keychain ~/.ssh/vela_repository_authority_ed25519
+
+# Linux: bound unattended use to the current eight-hour work session
+ssh-add -t 8h ~/.ssh/vela_repository_authority_ed25519
+```
+
+Do not add `-c` unless you deliberately want OpenSSH to prompt for every
+signature. Vela does not require that prompt. The authenticated operating-
+system session establishes the human principal; the exact CLI action, Cedar
+evaluation, compare-and-swap root, reason, read set, and signed postimage
+establish the Decision.
+
+On macOS, Vela consults launchd for the standard login-session agent when a
+long-running GUI process has no inherited `SSH_AUTH_SOCK`. An explicitly set
+socket always wins. This discovery reconnects to OpenSSH only; Vela does not
+run an agent daemon, cache a private key, or invent a second signing session.
 
 Vela:
 
@@ -80,12 +102,16 @@ Vela:
 8. publishes the exact delta as one local Git commit.
 
 There is no copied root or timestamp, custom signer helper, Vela human key,
-approval session, batch mode, wildcard, `--yes`, or persistent semantic
-approval. OpenSSH owns key custody and the one per-Decision confirmation.
+approval session, batch mode, wildcard, or `--yes`. OpenSSH owns local key
+custody; Vela owns validation of the exact authority payload. A trusted native
+agent session may execute a Decision that the operator explicitly authorized.
+That authorization does not weaken Vela's per-Decision policy, current-root,
+semantic, or replay checks and does not authorize unrelated Decisions.
 
-An agent may prepare or explain this command. It may not receive the
-repository-authority agent socket, invoke acceptance or rejection on the
-human's behalf, or infer a Decision from a prompt or signature request.
+`SSH_AUTH_SOCK` is a powerful local capability. Do not forward it to remote,
+untrusted, or proposal-supplied code. Hosted and shared deployments should
+replace the local provider with a policy-constrained workload or KMS signer,
+not forward a developer's SSH agent.
 
 ## Producer identity
 

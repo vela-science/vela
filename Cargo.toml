@@ -20,7 +20,7 @@ resolver = "3"
 # Release numbering uses `0.RRR.P`, where RRR names the release train and P is
 # the compatible patch within that train. Older `v0.X` markers in comments and
 # research documents are historical proof-slice labels.
-version = "0.965.3"
+version = "0.966.0"
 edition = "2024"
 rust-version = "1.97.1"
 license = "Apache-2.0 OR MIT"
@@ -45,18 +45,19 @@ hex = "0.4"
 colored = "3"
 ed25519-dalek = { version = "2", features = ["rand_core", "zeroize"] }
 base64 = "0.22"
+ssh-key = { version = "0.6", default-features = false, features = ["std"] }
+ssh-encoding = { version = "0.2", features = ["std"] }
 cedar-policy = { version = "=4.11.2", default-features = false }
 unicode-normalization = "0.1"
 rand_core = { version = "0.6", features = ["getrandom"] }
 tempfile = "3"
 libc = "0.2"
-windows-sys = "0.61"
 
 # Internal crates share one release identity and are not published separately.
-vela-protocol = { path = "crates/vela-protocol", version = "0.965.3" }
-vela-authority = { path = "crates/vela-authority", version = "0.965.3" }
-vela-verify = { path = "crates/vela-verify", version = "0.965.3" }
-vela-edge = { path = "crates/vela-edge", version = "0.965.3" }
+vela-protocol = { path = "crates/vela-protocol", version = "0.966.0" }
+vela-authority = { path = "crates/vela-authority", version = "0.966.0" }
+vela-verify = { path = "crates/vela-verify", version = "0.966.0" }
+vela-edge = { path = "crates/vela-edge", version = "0.966.0" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

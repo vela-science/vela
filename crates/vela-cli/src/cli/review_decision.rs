@@ -49,12 +49,8 @@ fn cmd_current_review_decide(
     reason: String,
     json: bool,
 ) {
-    if let Some(entry_root) = expected_entry_root {
-        crate::decision_inbox::require_current_entry_root(&frontier, proposal_id, entry_root)
-            .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
-    }
     let observed_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
-    let prepared = crate::current_repository_decision::prepare(
+    let (prepared, recovery_barrier) = crate::current_repository_decision::prepare_locked(
         &frontier,
         proposal_id,
         action,
@@ -62,15 +58,20 @@ fn cmd_current_review_decide(
         &observed_at,
     )
     .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
+    if let Some(entry_root) = expected_entry_root {
+        crate::decision_inbox::require_prepared_entry_root(&prepared, entry_root)
+            .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
+    }
+    let plan = prepared.plan.clone();
     if !json {
         println!(
             "review decision · {} · {}",
             action.as_str(),
-            safe_inline(&prepared.plan.proposal_id)
+            safe_inline(&plan.proposal_id)
         );
-        println!("  frontier: {}", safe_inline(&prepared.plan.frontier_name));
-        println!("  claim: {}", safe_inline(&prepared.plan.claim_id));
-        println!("  reason: {}", safe_inline(&prepared.plan.reason));
+        println!("  frontier: {}", safe_inline(&plan.frontier_name));
+        println!("  claim: {}", safe_inline(&plan.claim_id));
+        println!("  reason: {}", safe_inline(&plan.reason));
         println!("  authority: local OS session → repository authority");
         println!(
             "  scientific state change: {}",
@@ -82,24 +83,29 @@ fn cmd_current_review_decide(
         );
         println!("  executing this exact proposal, action, and reason");
     }
-    let result = crate::current_repository_decision::execute(&frontier, &prepared.plan, action)
-        .unwrap_or_else(|error| ui::fail_with(ErrorKind::Custody, &error, None));
+    let result = crate::current_repository_decision::execute_prepared(
+        &frontier,
+        prepared,
+        recovery_barrier,
+        action,
+    )
+    .unwrap_or_else(|error| ui::fail_with(ErrorKind::Custody, &error, None));
     let payload = serde_json::json!({
         "ok": true,
         "command": format!("review.{}", action.as_str()),
         "schema": "vela.review-decision.v3",
         "frontier": frontier.display().to_string(),
-        "frontier_id": prepared.plan.frontier_id,
-        "repository_before": prepared.plan.repository_root,
-        "proposal_id": prepared.plan.proposal_id,
-        "proposal_root": prepared.plan.proposal_root,
-        "claim_id": prepared.plan.claim_id,
-        "claim_root": prepared.plan.claim_root,
-        "verification_set_root": prepared.plan.verification_set_root,
-        "principal_id": prepared.plan.principal_id,
+        "frontier_id": plan.frontier_id,
+        "repository_before": plan.repository_root,
+        "proposal_id": plan.proposal_id,
+        "proposal_root": plan.proposal_root,
+        "claim_id": plan.claim_id,
+        "claim_root": plan.claim_root,
+        "verification_set_root": plan.verification_set_root,
+        "principal_id": plan.principal_id,
         "action": action.as_str(),
-        "reason": prepared.plan.reason,
-        "decision_plan_root": prepared.plan.plan_root,
+        "reason": plan.reason,
+        "decision_plan_root": plan.plan_root,
         "event_ids": result.event_ids,
         "authority_record_id": result.authority_record_id,
         "authority_record_root": result.authority_record_root,

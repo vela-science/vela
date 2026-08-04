@@ -11,9 +11,6 @@
 use std::path::Path;
 use std::process::{Command, Output};
 
-#[cfg(windows)]
-const NULL_DEVICE: &str = "NUL";
-#[cfg(not(windows))]
 const NULL_DEVICE: &str = "/dev/null";
 
 /// Construct a read-only Git command isolated from ambient Git configuration

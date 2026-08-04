@@ -20,7 +20,7 @@ fn init_frontier(dir: &std::path::Path) {
     let out = Command::new(vela_bin())
         .current_dir(dir)
         .env("HOME", dir)
-        .env_remove("SSH_AUTH_SOCK")
+        .env("SSH_AUTH_SOCK", dir.join("missing-ssh-agent.sock"))
         .args([
             "init",
             ".",

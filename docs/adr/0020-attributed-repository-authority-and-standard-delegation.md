@@ -11,7 +11,9 @@
   - ADR 0031 removes capabilities, the Vela-owned runner, Campaign host, and
     private Run receipts; and
   - ADR 0032 removes repository countersignatures from routine Submission and
-    Verification intake.
+    Verification intake; and
+  - ADR 0037 replaces per-signature SSH confirmation with session-authenticated
+    local repository authority.
 
 ## Context
 
@@ -170,10 +172,12 @@ Standing.
 Rejected. People decide semantic consequences; deterministic transaction code
 binds exact roots and postimages.
 
-### Cache a high-power repository key for routine agent work
+### Cache a high-power repository key for routine evidence work
 
 Rejected. Hiding prompts would preserve the wrong semantic boundary and expose
-an authority credential to ordinary evidence intake.
+an authority credential to ordinary evidence intake. ADR 0037 separately
+permits a dedicated repository service key during an explicitly authorized
+local authority session; it does not make that key part of producer work.
 
 ### Build a Vela runner to make approval state durable
 

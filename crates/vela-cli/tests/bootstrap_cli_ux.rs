@@ -38,7 +38,7 @@ fn run(cwd: &Path, socket: Option<&Path>, args: &[&str]) -> Output {
     if let Some(socket) = socket {
         command.env("SSH_AUTH_SOCK", socket);
     } else {
-        command.env_remove("SSH_AUTH_SOCK");
+        command.env("SSH_AUTH_SOCK", cwd.join("missing-ssh-agent.sock"));
     }
     command.output().expect("run vela")
 }

@@ -8,131 +8,26 @@
 //! the same provider boundary.
 
 use std::env;
+#[cfg(unix)]
 use std::io::{Read, Write};
-use std::path::Path;
+#[cfg(unix)]
+use std::os::unix::net::UnixStream;
+use std::path::{Path, PathBuf};
+#[cfg(target_os = "macos")]
+use std::process::{Command, Stdio};
+#[cfg(unix)]
+use std::time::Duration;
 
 use base64::Engine as _;
-use base64::engine::general_purpose::{STANDARD as BASE64_STANDARD, STANDARD_NO_PAD};
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
-use sha2::{Digest, Sha256};
+use ssh_encoding::{Decode, Encode, Reader};
+use ssh_key::Signature as SshSignature;
+use ssh_key::public::KeyData;
+use ssh_key::{Algorithm as SshAlgorithm, HashAlg};
 use vela_protocol::authority::{AUTHORITY_PAYLOAD_TYPE_V1, DsseSignatureV1, dsse_pae};
 
 use crate::authority_transaction::RepositoryAuthoritySigner;
-
-const SSH_AGENT_FAILURE: u8 = 5;
-const SSH2_AGENTC_REQUEST_IDENTITIES: u8 = 11;
-const SSH2_AGENT_IDENTITIES_ANSWER: u8 = 12;
-const SSH2_AGENTC_SIGN_REQUEST: u8 = 13;
-const SSH2_AGENT_SIGN_RESPONSE: u8 = 14;
-const SSH_ED25519: &[u8] = b"ssh-ed25519";
-const MAX_AGENT_MESSAGE: usize = 1024 * 1024;
-
-trait AgentIo: Read + Write {}
-impl<T: Read + Write> AgentIo for T {}
-
-struct AgentConnection {
-    stream: Box<dyn AgentIo>,
-}
-
-impl AgentConnection {
-    fn connect(path: &Path) -> Result<Self, String> {
-        #[cfg(unix)]
-        {
-            let stream = std::os::unix::net::UnixStream::connect(path)
-                .map_err(|error| format!("connect to SSH agent: {error}"))?;
-            return Ok(Self {
-                stream: Box::new(stream),
-            });
-        }
-        #[cfg(windows)]
-        {
-            let stream = std::fs::OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(path)
-                .map_err(|error| format!("connect to SSH agent named pipe: {error}"))?;
-            return Ok(Self {
-                stream: Box::new(stream),
-            });
-        }
-        #[allow(unreachable_code)]
-        Err("SSH agent transport is unsupported on this platform".into())
-    }
-
-    fn exchange(&mut self, message: &[u8]) -> Result<Vec<u8>, String> {
-        if message.len() > MAX_AGENT_MESSAGE {
-            return Err("SSH agent request exceeds the bounded message size".into());
-        }
-        self.stream
-            .write_all(&(message.len() as u32).to_be_bytes())
-            .and_then(|()| self.stream.write_all(message))
-            .and_then(|()| self.stream.flush())
-            .map_err(|error| format!("write SSH agent request: {error}"))?;
-        let mut length = [0_u8; 4];
-        self.stream
-            .read_exact(&mut length)
-            .map_err(|error| format!("read SSH agent response length: {error}"))?;
-        let length = u32::from_be_bytes(length) as usize;
-        if length == 0 || length > MAX_AGENT_MESSAGE {
-            return Err(format!("SSH agent response length {length} is invalid"));
-        }
-        let mut response = vec![0_u8; length];
-        self.stream
-            .read_exact(&mut response)
-            .map_err(|error| format!("read SSH agent response: {error}"))?;
-        if response[0] == SSH_AGENT_FAILURE {
-            return Err("SSH agent refused the request".into());
-        }
-        Ok(response)
-    }
-
-    fn identities(&mut self) -> Result<Vec<AgentIdentity>, String> {
-        let response = self.exchange(&[SSH2_AGENTC_REQUEST_IDENTITIES])?;
-        let mut cursor = SshCursor::new(&response);
-        cursor.expect_byte(SSH2_AGENT_IDENTITIES_ANSWER, "identities response")?;
-        let count = cursor.read_u32("identity count")? as usize;
-        if count > 4096 {
-            return Err("SSH agent identity count exceeds the bounded maximum".into());
-        }
-        let mut identities = Vec::with_capacity(count);
-        for _ in 0..count {
-            let key_blob = cursor.read_string("identity key")?.to_vec();
-            let _comment = cursor.read_string("identity comment")?;
-            identities.push(AgentIdentity::parse(key_blob)?);
-        }
-        cursor.finish("identities response")?;
-        Ok(identities)
-    }
-
-    fn sign(&mut self, key_blob: &[u8], message: &[u8]) -> Result<[u8; 64], String> {
-        let mut request = vec![SSH2_AGENTC_SIGN_REQUEST];
-        push_string(&mut request, key_blob)?;
-        push_string(&mut request, message)?;
-        request.extend_from_slice(&0_u32.to_be_bytes());
-        let response = self.exchange(&request)?;
-        let mut cursor = SshCursor::new(&response);
-        cursor.expect_byte(SSH2_AGENT_SIGN_RESPONSE, "signature response")?;
-        let signature_blob = cursor.read_string("signature blob")?;
-        cursor.finish("signature response")?;
-
-        let mut signature = SshCursor::new(signature_blob);
-        if signature.read_string("signature algorithm")? != SSH_ED25519 {
-            return Err("SSH agent returned a non-Ed25519 signature".into());
-        }
-        let bytes = signature.read_string("Ed25519 signature")?;
-        let bytes: [u8; 64] = bytes
-            .try_into()
-            .map_err(|_| "SSH agent returned a non-64-byte Ed25519 signature".to_string())?;
-        signature.finish("Ed25519 signature blob")?;
-        Ok(bytes)
-    }
-}
-
-#[derive(Clone)]
-struct AgentIdentity {
-    key_blob: Vec<u8>,
-    ed25519_public_key: Option<[u8; 32]>,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RepositoryAuthorityIdentity {
@@ -141,96 +36,157 @@ pub(crate) struct RepositoryAuthorityIdentity {
     pub(crate) public_key: String,
 }
 
-impl AgentIdentity {
-    fn parse(key_blob: Vec<u8>) -> Result<Self, String> {
-        let mut cursor = SshCursor::new(&key_blob);
-        let algorithm = cursor.read_string("identity algorithm")?;
-        let ed25519_public_key = if algorithm == SSH_ED25519 {
-            let key = cursor.read_string("Ed25519 public key")?;
-            Some(
-                key.try_into()
-                    .map_err(|_| "SSH agent returned a malformed Ed25519 key".to_string())?,
-            )
-        } else {
-            None
-        };
-        if ed25519_public_key.is_some() {
-            cursor.finish("Ed25519 identity")?;
+const SSH_AGENT_FAILURE: u8 = 5;
+const SSH2_AGENTC_REQUEST_IDENTITIES: u8 = 11;
+const SSH2_AGENT_IDENTITIES_ANSWER: u8 = 12;
+const SSH2_AGENTC_SIGN_REQUEST: u8 = 13;
+const SSH2_AGENT_SIGN_RESPONSE: u8 = 14;
+const MAX_AGENT_FRAME_LEN: usize = 1024 * 1024 - 1;
+const MAX_AGENT_IDENTITIES: u32 = 256;
+
+#[derive(Clone, Debug)]
+struct OpenSshAgentIdentity {
+    /// Exact public-key blob returned by the agent and sent back for signing.
+    blob: Vec<u8>,
+    key_data: KeyData,
+}
+
+/// The deliberately small part of the OpenSSH agent protocol Vela needs.
+///
+/// Cryptographic parsing and encoding remain in RustCrypto's `ssh-key` and
+/// `ssh-encoding` crates. This adapter owns only Unix-socket framing for the
+/// standard request-identities and sign-request messages.
+#[cfg(unix)]
+struct OpenSshAgentClient {
+    stream: UnixStream,
+}
+
+#[cfg(unix)]
+impl OpenSshAgentClient {
+    fn connect(socket_path: &Path) -> Result<Self, String> {
+        let stream = UnixStream::connect(socket_path)
+            .map_err(|error| format!("connect to SSH agent: {error}"))?;
+        let timeout = Some(Duration::from_secs(10));
+        stream
+            .set_read_timeout(timeout)
+            .map_err(|error| format!("set SSH agent read timeout: {error}"))?;
+        stream
+            .set_write_timeout(timeout)
+            .map_err(|error| format!("set SSH agent write timeout: {error}"))?;
+        Ok(Self { stream })
+    }
+
+    fn request_identities(&mut self) -> Result<Vec<OpenSshAgentIdentity>, String> {
+        let response = self.exchange(&[SSH2_AGENTC_REQUEST_IDENTITIES])?;
+        let mut reader = response.as_slice();
+        let message = u8::decode(&mut reader)
+            .map_err(|error| format!("decode SSH agent identity response: {error}"))?;
+        if message == SSH_AGENT_FAILURE {
+            return Err("SSH agent refused the identity request".into());
         }
-        Ok(Self {
-            key_blob,
-            ed25519_public_key,
-        })
-    }
-}
-
-struct SshCursor<'a> {
-    bytes: &'a [u8],
-    position: usize,
-}
-
-impl<'a> SshCursor<'a> {
-    fn new(bytes: &'a [u8]) -> Self {
-        Self { bytes, position: 0 }
-    }
-
-    fn expect_byte(&mut self, expected: u8, label: &str) -> Result<(), String> {
-        let actual = *self
-            .bytes
-            .get(self.position)
-            .ok_or_else(|| format!("SSH agent {label} is truncated"))?;
-        self.position += 1;
-        if actual != expected {
+        if message != SSH2_AGENT_IDENTITIES_ANSWER {
             return Err(format!(
-                "SSH agent {label} has message type {actual}, expected {expected}"
+                "SSH agent returned unexpected identity response {message}"
             ));
         }
-        Ok(())
-    }
-
-    fn read_u32(&mut self, label: &str) -> Result<u32, String> {
-        let end = self
-            .position
-            .checked_add(4)
-            .ok_or_else(|| format!("SSH agent {label} length overflow"))?;
-        let bytes: [u8; 4] = self
-            .bytes
-            .get(self.position..end)
-            .ok_or_else(|| format!("SSH agent {label} is truncated"))?
-            .try_into()
-            .expect("four-byte slice");
-        self.position = end;
-        Ok(u32::from_be_bytes(bytes))
-    }
-
-    fn read_string(&mut self, label: &str) -> Result<&'a [u8], String> {
-        let length = self.read_u32(label)? as usize;
-        let end = self
-            .position
-            .checked_add(length)
-            .ok_or_else(|| format!("SSH agent {label} length overflow"))?;
-        let value = self
-            .bytes
-            .get(self.position..end)
-            .ok_or_else(|| format!("SSH agent {label} is truncated"))?;
-        self.position = end;
-        Ok(value)
-    }
-
-    fn finish(&self, label: &str) -> Result<(), String> {
-        if self.position != self.bytes.len() {
-            return Err(format!("SSH agent {label} has trailing bytes"));
+        let count = u32::decode(&mut reader)
+            .map_err(|error| format!("decode SSH agent identity count: {error}"))?;
+        if count > MAX_AGENT_IDENTITIES {
+            return Err(format!(
+                "SSH agent returned {count} identities, maximum is {MAX_AGENT_IDENTITIES}"
+            ));
         }
-        Ok(())
+        let mut identities = Vec::new();
+        for _ in 0..count {
+            let blob = Vec::<u8>::decode(&mut reader)
+                .map_err(|error| format!("decode SSH agent identity blob: {error}"))?;
+            let _comment = Vec::<u8>::decode(&mut reader)
+                .map_err(|error| format!("decode SSH agent identity comment: {error}"))?;
+            let mut key_reader = blob.as_slice();
+            if let Ok(key_data) = KeyData::decode(&mut key_reader)
+                && key_reader.finish(()).is_ok()
+                && key_data.ed25519().is_some()
+            {
+                identities.push(OpenSshAgentIdentity { blob, key_data });
+            }
+        }
+        reader
+            .finish(identities)
+            .map_err(|error| format!("decode SSH agent identity response: {error}"))
     }
-}
 
-fn push_string(output: &mut Vec<u8>, value: &[u8]) -> Result<(), String> {
-    let length =
-        u32::try_from(value.len()).map_err(|_| "SSH agent field exceeds u32".to_string())?;
-    output.extend_from_slice(&length.to_be_bytes());
-    output.extend_from_slice(value);
-    Ok(())
+    fn sign(
+        &mut self,
+        identity: &OpenSshAgentIdentity,
+        data: &[u8],
+    ) -> Result<SshSignature, String> {
+        let mut request = vec![SSH2_AGENTC_SIGN_REQUEST];
+        identity
+            .blob
+            .as_slice()
+            .encode(&mut request)
+            .map_err(|error| format!("encode SSH agent identity: {error}"))?;
+        data.encode(&mut request)
+            .map_err(|error| format!("encode SSH agent signing payload: {error}"))?;
+        0u32.encode(&mut request)
+            .map_err(|error| format!("encode SSH agent signing flags: {error}"))?;
+
+        let response = self.exchange(&request)?;
+        let mut reader = response.as_slice();
+        let message = u8::decode(&mut reader)
+            .map_err(|error| format!("decode SSH agent signing response: {error}"))?;
+        if message == SSH_AGENT_FAILURE {
+            return Err("SSH agent refused the signing request".into());
+        }
+        if message != SSH2_AGENT_SIGN_RESPONSE {
+            return Err(format!(
+                "SSH agent returned unexpected signing response {message}"
+            ));
+        }
+        let signature_blob = Vec::<u8>::decode(&mut reader)
+            .map_err(|error| format!("decode SSH agent signature blob: {error}"))?;
+        reader
+            .finish(())
+            .map_err(|error| format!("decode SSH agent signing response: {error}"))?;
+        let mut signature_reader = signature_blob.as_slice();
+        let signature = SshSignature::decode(&mut signature_reader)
+            .map_err(|error| format!("decode SSH agent signature: {error}"))?;
+        signature_reader
+            .finish(signature)
+            .map_err(|error| format!("decode SSH agent signature: {error}"))
+    }
+
+    fn exchange(&mut self, request: &[u8]) -> Result<Vec<u8>, String> {
+        if request.is_empty() || request.len() > MAX_AGENT_FRAME_LEN {
+            return Err(format!(
+                "SSH agent request is {} bytes, expected 1..={MAX_AGENT_FRAME_LEN}",
+                request.len()
+            ));
+        }
+        let request_len = u32::try_from(request.len())
+            .map_err(|_| "SSH agent request length exceeds uint32".to_string())?;
+        self.stream
+            .write_all(&request_len.to_be_bytes())
+            .and_then(|()| self.stream.write_all(request))
+            .map_err(|error| format!("write SSH agent request: {error}"))?;
+
+        let mut header = [0u8; 4];
+        self.stream
+            .read_exact(&mut header)
+            .map_err(|error| format!("read SSH agent response length: {error}"))?;
+        let response_len = usize::try_from(u32::from_be_bytes(header))
+            .map_err(|_| "SSH agent response length exceeds usize".to_string())?;
+        if response_len == 0 || response_len > MAX_AGENT_FRAME_LEN {
+            return Err(format!(
+                "SSH agent response is {response_len} bytes, expected 1..={MAX_AGENT_FRAME_LEN}"
+            ));
+        }
+        let mut response = vec![0u8; response_len];
+        self.stream
+            .read_exact(&mut response)
+            .map_err(|error| format!("read SSH agent response: {error}"))?;
+        Ok(response)
+    }
 }
 
 /// OpenSSH-agent-backed Ed25519 repository authority.
@@ -240,8 +196,8 @@ fn push_string(output: &mut Vec<u8>, value: &[u8]) -> Result<(), String> {
 /// keys, and algorithm substitution are rejected because
 /// `vela.authority-keyset.v1` currently admits only raw Ed25519 verification.
 pub(crate) struct SshAgentRepositoryAuthoritySigner {
-    connection: Option<AgentConnection>,
-    identity: Option<AgentIdentity>,
+    connection: Option<OpenSshAgentClient>,
+    identity: Option<OpenSshAgentIdentity>,
     key_id: String,
     expected_public_key: [u8; 32],
 }
@@ -260,11 +216,12 @@ impl SshAgentRepositoryAuthoritySigner {
             return Err("SSH agent socket path is empty".into());
         }
         let expected_public_key = decode_ed25519_public_key(expected_public_key_hex)?;
-        let mut connection = AgentConnection::connect(socket_path)?;
+        let mut connection = OpenSshAgentClient::connect(socket_path)?;
         let matches = connection
-            .identities()?
+            .request_identities()
+            .map_err(|error| format!("list SSH agent identities: {error}"))?
             .into_iter()
-            .filter(|identity| identity.ed25519_public_key == Some(expected_public_key))
+            .filter(|identity| ed25519_public_key(identity) == Some(expected_public_key))
             .collect::<Vec<_>>();
         let [identity] = matches.as_slice() else {
             return Err(format!(
@@ -312,62 +269,89 @@ impl SshAgentRepositoryAuthoritySigner {
         if self.connection.is_some() || self.identity.is_some() {
             return Err("repository-authority signer has partial agent state".into());
         }
-        let socket = env::var_os("SSH_AUTH_SOCK")
-            .or({
-                #[cfg(windows)]
-                {
-                    Some(r"\\.\pipe\openssh-ssh-agent".into())
+        let sockets = ssh_agent_sockets();
+        if sockets.is_empty() {
+            return Err(
+                "repository authority signer is unavailable because no standard OpenSSH agent socket is available; load the dedicated repository key once into the login session"
+                    .into(),
+            );
+        }
+        let mut failures = Vec::new();
+        for socket in sockets {
+            match Self::connect(
+                &socket,
+                self.key_id.clone(),
+                &hex::encode(self.expected_public_key),
+            ) {
+                Ok(connected) => {
+                    self.connection = connected.connection;
+                    self.identity = connected.identity;
+                    return Ok(());
                 }
-                #[cfg(not(windows))]
-                {
-                    None
-                }
-            })
-            .ok_or_else(|| "SSH_AUTH_SOCK is not set".to_string())?;
-        let connected = Self::connect(
-            Path::new(&socket),
-            self.key_id.clone(),
-            &hex::encode(self.expected_public_key),
-        )?;
-        self.connection = connected.connection;
-        self.identity = connected.identity;
-        Ok(())
+                Err(error) => failures.push(error),
+            }
+        }
+        Err(format!(
+            "repository authority signer could not use the current OpenSSH agent session: {}",
+            failures.join("; ")
+        ))
     }
+}
+
+/// Resolve the standard agent endpoints available to this login session.
+///
+/// GUI applications can outlive the shell that refreshed `SSH_AUTH_SOCK`.
+/// macOS launchd owns the login-session endpoint, so consult it when the
+/// inherited process environment is missing or stale. No private key or
+/// repository configuration is read during endpoint discovery.
+fn ssh_agent_sockets() -> Vec<PathBuf> {
+    if let Some(socket) = env::var_os("SSH_AUTH_SOCK").filter(|value| !value.is_empty()) {
+        return vec![PathBuf::from(socket)];
+    }
+    let mut sockets = Vec::new();
+    #[cfg(target_os = "macos")]
+    if let Ok(output) = Command::new("/bin/launchctl")
+        .args(["getenv", "SSH_AUTH_SOCK"])
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .output()
+        && output.status.success()
+        && let Ok(value) = String::from_utf8(output.stdout)
+    {
+        let value = value.trim();
+        if !value.is_empty() {
+            let socket = PathBuf::from(value);
+            if !sockets.contains(&socket) {
+                sockets.push(socket);
+            }
+        }
+    }
+    sockets
 }
 
 pub(crate) fn select_repository_authority_identity(
     selector: Option<&str>,
 ) -> Result<RepositoryAuthorityIdentity, String> {
-    let socket = env::var_os("SSH_AUTH_SOCK")
-        .or({
-            #[cfg(windows)]
-            {
-                Some(r"\\.\pipe\openssh-ssh-agent".into())
-            }
-            #[cfg(not(windows))]
-            {
-                None
-            }
-        })
+    let sockets = ssh_agent_sockets();
+    let mut connection = sockets
+        .iter()
+        .find_map(|socket| OpenSshAgentClient::connect(socket).ok())
         .ok_or_else(|| {
             "no standard OpenSSH agent is available; start one and load one dedicated Ed25519 repository-authority key"
                 .to_string()
         })?;
-    let mut connection = AgentConnection::connect(Path::new(&socket))?;
     let mut identities = connection
-        .identities()?
+        .request_identities()
+        .map_err(|error| format!("list SSH agent identities: {error}"))?
         .into_iter()
         .filter_map(|identity| {
-            identity.ed25519_public_key.map(|public_key| {
-                let fingerprint = format!(
-                    "SHA256:{}",
-                    STANDARD_NO_PAD.encode(Sha256::digest(&identity.key_blob))
-                );
-                RepositoryAuthorityIdentity {
-                    key_id: format!("ssh-ed25519:{fingerprint}"),
-                    fingerprint,
-                    public_key: hex::encode(public_key),
-                }
+            let ed25519 = identity.key_data.ed25519()?;
+            let public_key_bytes = ed25519.0;
+            let fingerprint = identity.key_data.fingerprint(HashAlg::Sha256).to_string();
+            Some(RepositoryAuthorityIdentity {
+                key_id: format!("ssh-ed25519:{fingerprint}"),
+                fingerprint,
+                public_key: hex::encode(public_key_bytes),
             })
         })
         .collect::<Vec<_>>();
@@ -430,11 +414,17 @@ impl RepositoryAuthoritySigner for SshAgentRepositoryAuthoritySigner {
             .identity
             .as_ref()
             .ok_or_else(|| "repository-authority signer has no selected identity".to_string())?;
-        let signature = Signature::from_bytes(
-            &connection
-                .sign(&identity.key_blob, &pae)
-                .map_err(|error| format!("SSH agent signing failed: {error}"))?,
-        );
+        let agent_signature = connection
+            .sign(identity, &pae)
+            .map_err(|error| format!("SSH agent signing failed: {error}"))?;
+        if agent_signature.algorithm() != SshAlgorithm::Ed25519 {
+            return Err("SSH agent returned a non-Ed25519 signature".into());
+        }
+        let signature_bytes: [u8; 64] = agent_signature
+            .as_bytes()
+            .try_into()
+            .map_err(|_| "SSH agent returned a non-64-byte Ed25519 signature".to_string())?;
+        let signature = Signature::from_bytes(&signature_bytes);
         let verifying_key = VerifyingKey::from_bytes(&self.expected_public_key)
             .map_err(|error| format!("configured repository public key is invalid: {error}"))?;
         verifying_key.verify(&pae, &signature).map_err(|error| {
@@ -445,6 +435,10 @@ impl RepositoryAuthoritySigner for SshAgentRepositoryAuthoritySigner {
             sig: BASE64_STANDARD.encode(signature.to_bytes()),
         }])
     }
+}
+
+fn ed25519_public_key(identity: &OpenSshAgentIdentity) -> Option<[u8; 32]> {
+    identity.key_data.ed25519().map(|key| key.0)
 }
 
 fn decode_ed25519_public_key(value: &str) -> Result<[u8; 32], String> {
@@ -461,6 +455,8 @@ fn decode_ed25519_public_key(value: &str) -> Result<[u8; 32], String> {
 #[cfg(all(test, unix))]
 mod tests {
     use std::fs;
+    use std::io::{Read, Write};
+    use std::os::unix::net::UnixStream;
     use std::process::{Child, Command, Stdio};
     use std::thread;
     use std::time::Duration;
@@ -536,17 +532,92 @@ mod tests {
 
         let public = fs::read_to_string(private_key.with_extension("pub")).unwrap();
         let encoded = public.split_whitespace().nth(1).unwrap();
-        let key_blob = BASE64_STANDARD.decode(encoded).unwrap();
-        AgentIdentity::parse(key_blob)
-            .unwrap()
-            .ed25519_public_key
-            .unwrap()
+        let key = ssh_key::PublicKey::from_openssh(&format!("ssh-ed25519 {encoded}")).unwrap();
+        key.key_data().ed25519().unwrap().0
+    }
+
+    fn load_unsupported_fixture_identity(guard: &AgentGuard) {
+        let private_key = guard.directory.path().join("unsupported-rsa-fixture");
+        let status = Command::new("ssh-keygen")
+            .args(["-q", "-t", "rsa", "-b", "2048", "-N", "", "-f"])
+            .arg(&private_key)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        let status = Command::new("ssh-add")
+            .arg(&private_key)
+            .env("SSH_AUTH_SOCK", &guard.socket)
+            .env("SSH_ASKPASS_REQUIRE", "never")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .unwrap();
+        assert!(status.success());
+    }
+
+    fn client_with_response(response: Vec<u8>) -> (OpenSshAgentClient, thread::JoinHandle<()>) {
+        let (client, mut server) = UnixStream::pair().unwrap();
+        let handle = thread::spawn(move || {
+            let mut request_len = [0u8; 4];
+            server.read_exact(&mut request_len).unwrap();
+            let mut request = vec![0u8; u32::from_be_bytes(request_len) as usize];
+            server.read_exact(&mut request).unwrap();
+            server
+                .write_all(&(response.len() as u32).to_be_bytes())
+                .unwrap();
+            server.write_all(&response).unwrap();
+        });
+        (OpenSshAgentClient { stream: client }, handle)
+    }
+
+    #[test]
+    fn ssh_agent_adapter_ignores_unsupported_identity_algorithms() {
+        let mut unsupported_blob = Vec::new();
+        b"future-key@example.test"
+            .as_slice()
+            .encode(&mut unsupported_blob)
+            .unwrap();
+        b"opaque-key-data"
+            .as_slice()
+            .encode(&mut unsupported_blob)
+            .unwrap();
+        let mut response = vec![SSH2_AGENT_IDENTITIES_ANSWER];
+        1u32.encode(&mut response).unwrap();
+        unsupported_blob.as_slice().encode(&mut response).unwrap();
+        b"unsupported fixture"
+            .as_slice()
+            .encode(&mut response)
+            .unwrap();
+        let (mut client, handle) = client_with_response(response);
+
+        assert!(client.request_identities().unwrap().is_empty());
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn ssh_agent_adapter_rejects_oversized_identity_sets_and_trailing_data() {
+        let mut oversized = vec![SSH2_AGENT_IDENTITIES_ANSWER];
+        (MAX_AGENT_IDENTITIES + 1).encode(&mut oversized).unwrap();
+        let (mut client, handle) = client_with_response(oversized);
+        let error = client.request_identities().unwrap_err();
+        assert!(error.contains("maximum"), "{error}");
+        handle.join().unwrap();
+
+        let mut trailing = vec![SSH2_AGENT_IDENTITIES_ANSWER];
+        0u32.encode(&mut trailing).unwrap();
+        trailing.push(0xff);
+        let (mut client, handle) = client_with_response(trailing);
+        let error = client.request_identities().unwrap_err();
+        assert!(error.contains("trailing data"), "{error}");
+        handle.join().unwrap();
     }
 
     #[test]
     fn ssh_agent_provider_signs_only_the_exact_dsse_pae_with_the_bound_key() {
         let guard = start_agent();
         let public_key = load_fixture_identity(&guard);
+        load_unsupported_fixture_identity(&guard);
         let mut provider = SshAgentRepositoryAuthoritySigner::connect(
             &guard.socket,
             "repository-key-1",

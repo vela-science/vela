@@ -19,9 +19,14 @@ The current tranche is successful when a new operator can:
 5. reproduce the repository from a clean clone; and
 6. get one truthful next action from every command and failure.
 
-Vela `0.965.3` removes the separate authority-initialization ceremony and the
-empty-Frontier dead end. The remaining work is defect-driven: exercise this
-loop on real Frontiers, fix reproduced failures, and delete redundant paths.
+Vela `0.966.0` removes per-signature authority confirmation, narrows the
+SSH-agent boundary to the two standard messages Vela uses, and removes the
+remaining native Windows branches. The
+repository service key is loaded once per authenticated operating-system
+session while every Decision retains its exact policy, current-root, semantic,
+read-set, signature, and replay checks. The remaining work is defect-driven:
+exercise this loop on real Frontiers, fix reproduced failures, and delete
+redundant paths.
 
 ## Boundaries
 

@@ -241,13 +241,9 @@ impl Drop for RepositoryRootWriteLock<'_> {
 /// leave the reserved `.vela-replace-*` recovery artifact, but cannot redirect
 /// the write outside the pinned repository directory.
 ///
-/// Linux/Android and Apple platforms expose the required no-replace/exchange
-/// rename primitives. Other platforms fail closed at preparation rather than
-/// falling back to a path-based rename with a known TOCTOU gap. Native Windows
-/// is intentionally included in that fail-closed set until a runtime-tested
-/// implementation can retain the displaced exact preimage through a
-/// handle-relative atomic exchange; neither path-based `ReplaceFileW` nor
-/// replace-only `FileRenameInfoEx` supplies that complete contract.
+/// Linux and Apple platforms expose the required no-replace/exchange rename
+/// primitives. Unsupported platforms fail closed at preparation rather than
+/// falling back to a path-based rename with a known TOCTOU gap.
 #[derive(Debug)]
 pub struct PreparedRepositoryFileReplacement {
     #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
@@ -884,15 +880,7 @@ impl PreparedRepositoryFileReplacement {
     }
 }
 
-#[cfg(windows)]
-pub const REPOSITORY_FILE_MUTATION_UNAVAILABLE: &str = "native Windows repository-file mutation is blocked in this build: Vela has not validated a handle-relative atomic exchange and rollback primitive that preserves exact-preimage and reparse-point guarantees; run this mutation from WSL2 with the checkout on its Linux filesystem, or from a supported Unix host (read, check, and reproduce remain available)";
-
-#[cfg(not(any(
-    target_os = "linux",
-    target_os = "android",
-    target_vendor = "apple",
-    windows
-)))]
+#[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
 pub const REPOSITORY_FILE_MUTATION_UNAVAILABLE: &str = "repository-file mutation is unavailable on this platform because Vela cannot provide descriptor-relative no-clobber/exchange replacement";
 
 #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
@@ -1257,7 +1245,6 @@ fn ensure_private_directory(path: &Path) -> Result<(), String> {
                     parent.display()
                 ));
             }
-            #[cfg_attr(windows, allow(unused_mut))]
             let mut builder = fs::DirBuilder::new();
             #[cfg(unix)]
             {
@@ -1282,7 +1269,6 @@ fn ensure_trusted_parent_directory(path: &Path) -> Result<(), String> {
             path.display()
         )),
         None => {
-            #[cfg_attr(windows, allow(unused_mut))]
             let mut builder = fs::DirBuilder::new();
             #[cfg(unix)]
             {
@@ -1406,35 +1392,6 @@ fn require_private_file(_path: &Path, _metadata: &fs::Metadata) -> Result<(), St
 mod tests {
     use super::*;
     use serde_json::json;
-
-    #[cfg(windows)]
-    #[test]
-    fn native_windows_repository_file_mutation_is_explicitly_fail_closed() {
-        let exact = PreparedRepositoryFileReplacement::prepare_exact(
-            Path::new(r"C:\vela-fixture"),
-            Path::new(".vela/repository.json"),
-            Some(b"old"),
-            b"new",
-            RepositoryFileReplacementMode::PreserveExisting,
-            1024,
-        )
-        .unwrap_err();
-        let observed = PreparedRepositoryFileReplacement::prepare_observed(
-            Path::new(r"C:\vela-fixture"),
-            Path::new("targets.json"),
-            b"new",
-            RepositoryFileReplacementMode::Exact(0o644),
-            1024,
-        )
-        .unwrap_err();
-        for error in [exact, observed] {
-            assert_eq!(error, REPOSITORY_FILE_MUTATION_UNAVAILABLE);
-            assert!(error.contains("native Windows"));
-            assert!(error.contains("handle-relative atomic exchange"));
-            assert!(error.contains("WSL2"));
-            assert!(error.contains("read, check, and reproduce remain available"));
-        }
-    }
 
     fn authority_trust_anchor() -> AuthorityTrustAnchorV1 {
         AuthorityTrustAnchorV1 {

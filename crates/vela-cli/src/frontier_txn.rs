@@ -96,26 +96,6 @@ impl OperationId {
 #[serde(transparent)]
 pub(crate) struct RepoPath(String);
 
-fn is_windows_reserved_path_segment(segment: &str) -> bool {
-    if segment.trim_end_matches([' ', '.']) != segment {
-        return true;
-    }
-    let stem = segment
-        .split_once('.')
-        .map_or(segment, |(stem, _extension)| stem)
-        .to_ascii_uppercase();
-    matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL" | "CLOCK$")
-        || stem
-            .strip_prefix("COM")
-            .or_else(|| stem.strip_prefix("LPT"))
-            .is_some_and(|suffix| {
-                matches!(
-                    suffix,
-                    "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "¹" | "²" | "³"
-                )
-            })
-}
-
 impl RepoPath {
     pub(crate) fn parse(value: impl Into<String>) -> Result<Self, FrontierTxnError> {
         let value = value.into();
@@ -148,13 +128,6 @@ impl RepoPath {
                 return Err(FrontierTxnError::InvalidPath {
                     path: value,
                     reason: ".git is outside the frontier write boundary".to_string(),
-                });
-            }
-            if is_windows_reserved_path_segment(segment) {
-                return Err(FrontierTxnError::InvalidPath {
-                    path: value,
-                    reason: "path component is not portable across supported Git filesystems"
-                        .to_string(),
                 });
             }
             if segment
@@ -1273,6 +1246,13 @@ fn verify_current_repository_authority_write_era(
             intent: "repository_authority",
             reason: format!("current repository-authority history is invalid: {error}"),
         })?;
+    verified_repository_authority_write_authorization(&repository, &authority)
+}
+
+fn verified_repository_authority_write_authorization(
+    repository: &vela_protocol::current_repository::CurrentRepositoryV4,
+    authority: &crate::cli::LoadedRepositoryAuthority,
+) -> Result<RepositoryAuthorityWriteAuthorization, FrontierTxnError> {
     if authority.verification.closed {
         return Err(FrontierTxnError::RepositoryWriteIntentDenied {
             intent: "repository_authority",
@@ -1332,7 +1312,7 @@ fn verify_current_repository_authority_write_era(
             ),
         })?;
     Ok(RepositoryAuthorityWriteAuthorization {
-        frontier_id: repository.frontier_id,
+        frontier_id: repository.frontier_id.clone(),
         boundary_event_id: initialization_event_id.to_string(),
         boundary_event_root: ContentDigest::parse(event.root().map_err(|error| {
             FrontierTxnError::RepositoryWriteIntentDenied {
@@ -1595,52 +1575,6 @@ pub(crate) fn operating_system_account_home() -> Result<PathBuf, FrontierTxnErro
     }
 }
 
-#[cfg(windows)]
-#[allow(unsafe_code)]
-pub(crate) fn operating_system_account_home() -> Result<PathBuf, FrontierTxnError> {
-    use std::os::windows::ffi::OsStringExt;
-    use windows_sys::Win32::System::Com::CoTaskMemFree;
-    use windows_sys::Win32::UI::Shell::{FOLDERID_Profile, KF_FLAG_DEFAULT, SHGetKnownFolderPath};
-
-    let mut raw = std::ptr::null_mut();
-    // SAFETY: Windows allocates a NUL-terminated UTF-16 string for the current
-    // user's Profile known folder. We copy it before releasing the allocation
-    // with the documented COM task allocator.
-    let status = unsafe {
-        SHGetKnownFolderPath(
-            &FOLDERID_Profile,
-            KF_FLAG_DEFAULT as u32,
-            std::ptr::null_mut(),
-            &mut raw,
-        )
-    };
-    if status < 0 || raw.is_null() {
-        return Err(FrontierTxnError::RepositoryTrustAnchor(format!(
-            "resolve operating-system Profile known folder: HRESULT {status:#x}"
-        )));
-    }
-    let mut length = 0_usize;
-    while unsafe { *raw.add(length) } != 0 {
-        length += 1;
-    }
-    let wide = unsafe { std::slice::from_raw_parts(raw, length) };
-    let home = PathBuf::from(OsString::from_wide(wide));
-    unsafe { CoTaskMemFree(raw.cast()) };
-    if home.as_os_str().is_empty() {
-        return Err(FrontierTxnError::RepositoryTrustAnchor(
-            "operating-system Profile known folder is empty".to_string(),
-        ));
-    }
-    Ok(home)
-}
-
-#[cfg(not(any(unix, windows)))]
-pub(crate) fn operating_system_account_home() -> Result<PathBuf, FrontierTxnError> {
-    Err(FrontierTxnError::RepositoryTrustAnchor(
-        "this platform has no supported operating-system account-home resolver".to_string(),
-    ))
-}
-
 impl FrontierRecoveryBarrier {
     /// Return the already-verified completed plan for one operation while this
     /// barrier owns the frontier lock. This closes the race where another
@@ -1665,10 +1599,20 @@ impl FrontierRecoveryBarrier {
         Ok(None)
     }
 
-    pub(crate) fn authorize_for_repository_authority(
+    /// Authorize a repository-authority write from state that was completely
+    /// verified after this recovery barrier acquired the frontier lock.
+    ///
+    /// This avoids repeating the same repository and authority replay inside
+    /// one Decision while preserving the independent trust-anchor check and
+    /// the exact delta authorization performed when the transaction is
+    /// prepared.
+    pub(crate) fn authorize_verified_repository_authority(
         self,
+        repository: &vela_protocol::current_repository::CurrentRepositoryV4,
+        authority: &crate::cli::LoadedRepositoryAuthority,
     ) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
-        let authorization = verify_repository_authority_write_era(&self.root)?;
+        let authorization =
+            verified_repository_authority_write_authorization(repository, authority)?;
         Ok(CanonicalWriteBarrier {
             recovery: self,
             authorization: FrontierTxnAuthorization::RepositoryAuthority(authorization),
@@ -2399,16 +2343,6 @@ impl FrontierTxn {
             journal_dir: journal_dir.to_path_buf(),
             lock,
         })
-    }
-
-    pub(crate) fn acquire_repository_authority_write_barrier(
-        frontier_root: &Path,
-        journal_dir: &Path,
-    ) -> Result<CanonicalWriteBarrier, FrontierTxnError> {
-        let root = canonical_frontier_root(frontier_root)?;
-        // Fail an Era-0 repository before creating even the ignored lock.
-        verify_repository_authority_write_era(&root)?;
-        Self::acquire_recovery_barrier(&root, journal_dir)?.authorize_for_repository_authority()
     }
 
     pub(crate) fn acquire_routine_evidence_write_barrier(
@@ -4059,13 +3993,6 @@ mod tests {
             "records/less<than",
             "records/greater>than",
             "records/pipe|name",
-            "records/trailing-space ",
-            "records/trailing-dot.",
-            "records/CON",
-            "records/nul.json",
-            "records/COM1.txt",
-            "records/LPT¹.txt",
-            "records/CLOCK$",
             "records/cafe\u{301}.json",
         ] {
             assert!(

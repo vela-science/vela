@@ -66,15 +66,16 @@ vela init ./frontier \
   --json
 ```
 
-Before running `init`, load one dedicated Ed25519 repository-authority key into
-your standard OpenSSH agent with per-use confirmation (`ssh-add -c`). `init`
+Before running `init`, load one dedicated Ed25519 repository-authority key once
+for the current operating-system session (`ssh-add --apple-use-keychain` on
+macOS or `ssh-add -t 8h` on Linux). `init`
 creates the Profile, root-bound sequence-1 authority record, local trust anchor,
 and initial Git commit in one command. It creates no Claim, Decision, or
 scientific Standing. When the agent exposes more than one Ed25519 identity,
 add `--key SHA256:<full-fingerprint>`. If signing is unavailable, load the key
 and rerun the same `vela init ./frontier --json`; the retained Profile makes
-that retry safe. Vela reads no private-key file. Do not expose the authority
-agent socket to an agent Campaign.
+that retry safe. Vela reads no private-key file. Do not forward the authority
+agent socket to remote or untrusted code.
 
 ## Predecessor repositories
 

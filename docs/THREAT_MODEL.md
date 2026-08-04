@@ -92,11 +92,14 @@ reason, principal, policy, authority head, ordered Verification Records, read
 set, binary identity, and canonical delta.
 
 Any drift aborts before the commit marker. Agent producer identities are
-refused for human review. The repository-authority key remains outside agent
-execution and is loaded into a standard OpenSSH agent with per-use
-confirmation. There is no batch approval, wildcard, copied confirmation root,
-custom signer, or Vela-managed human key. An unconstrained authority-agent
-socket exposed to an agent is a custody failure, not proof of human intent.
+refused as human review principals. The repository-authority service key is
+loaded once into the standard OpenSSH agent for the authenticated local OS
+session. There is no batch approval, wildcard, copied confirmation root,
+custom signer, or Vela-managed human key. A trusted native agent may execute a
+named Decision or campaign the operator explicitly authorized; the native
+runner supplies that workflow authorization while Vela still checks each exact
+Decision. Forwarding the unconstrained authority-agent socket to remote,
+untrusted, or proposal-supplied code remains a custody failure.
 
 ### Repository-authority substitution
 
