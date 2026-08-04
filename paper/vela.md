@@ -1362,6 +1362,14 @@ Together the two cases support an exact,
 correction-aware read record, but not reviewer-efficiency, adoption,
 productivity, or causal-lift claims.
 
+The next tranche has executable pre-recruitment machinery rather than another
+model-timing iteration. It can root and reverify the two-case production input,
+counterbalance anonymous assignments, retain all eight answers plus independent
+blinded scorecards, require distinct adjudication, and calculate the bounded
+feasibility gate. It is deliberately `claim_credit: false`, cannot authorize a
+public claim, and remains unfrozen until recruitment, consent, privacy, timing,
+exclusion, and scorer obligations are resolved. No human session has run.
+
 The completed Astra native map now closes its producer tranche at the current
 evidence ceiling rather than converting green kernel checks into scientific
 Standing. A separate source-first mechanical check qualifies its Erdős 146

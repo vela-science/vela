@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Record Vela Web's executable pre-recruitment Result Dossier qualification
+  kit at commit `f858dd23`: exact production-input rooting and reverification,
+  counterbalanced anonymous assignment, retained answers, independent blinded
+  scorecards, mandatory distinct adjudication, and bounded analysis. The kit
+  remains claim-credit-false; no study plan is frozen, no human session has
+  run, and no usability, reviewer-efficiency, adoption, or productivity claim
+  is authorized.
+
 ## v0.964.0 — 2026-08-04 — Phase-aware CLI and campaign evidence
 
 - Make the native pre-authority Frontier phase a first-class CLI experience:

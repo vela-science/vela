@@ -39,7 +39,12 @@ their human usability claim is still unearned.
 Two frozen Erdős 730 model-instrumentation iterations are now retained as
 failures: 12.28% improvement in iteration 1 and a 27.60% regression in the
 named-defect iteration 2. The same-case model-timing lane is retired; the next
-product qualification is the frozen multi-case human study.
+product qualification is the frozen multi-case human study. Vela Web commit
+`f858dd23` now supplies fail-closed candidate, counterbalanced assignment,
+auditable answer/scoring, adjudication, and bounded-analysis machinery. It
+hard-codes no claim credit and authorizes neither recruitment nor a public
+claim; recruitment ownership, consent, privacy, timing, exclusion, and scorer
+fields remain unresolved.
 The complete remaining portfolio and its gates are indexed in
 [`CAMPAIGN_PORTFOLIO.md`](CAMPAIGN_PORTFOLIO.md).
 
@@ -588,6 +593,12 @@ Erdős 730 were not unlocked. ADR 0038 prospectively replaces that serial rule:
 scientific qualification may proceed without borrowing any product claim. The
 next product qualification is a frozen, case-blocked multi-case study with
 fresh qualified humans.
+
+The executable pre-recruitment kit reverifies live Dossier bytes and local flat
+fixtures before anonymous assignment, retains all eight answers and two
+independent blinded scorecards, requires distinct adjudication on disagreement,
+and always leaves public claim authorization false. This is instrument
+readiness, not a frozen plan, reviewer evidence, or permission to recruit.
 
 Gate: `8/8` exact recovery, zero authority errors, no omitted failure, caveat,
 or shared dependency, at least 20% lower median time than the flat baseline,

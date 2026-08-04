@@ -41,7 +41,7 @@ accepted Erdős 264 state
 → Erdős 203 discovery campaign
 ```
 
-Current gate status, 2026-08-03: the unnumbered
+Current gate status, 2026-08-04: the unnumbered
 `vela.observatory-release-manifest` passes root, reconstruction, storage,
 SELECT-only, HTML/JSON, and deployment checks. Three explicitly
 versioned internal usability iterations recovered all eight fields with zero
@@ -128,13 +128,19 @@ product-usability claims remain independently gated.
 
 ### 5. Qualify the multi-case Result Dossier
 
-**Active pre-recruitment work package.** Build Erdős 730 as case two, then
-freeze the shared renderer and information-matched flat case before any human
-study begins.
+**Active pre-recruitment work package.** Both public cases and their matched
+flat fixtures now exist. Vela Web commit `f858dd23` adds a fail-closed tool that
+roots one production candidate, reverifies it before assignment, creates an
+exactly counterbalanced anonymous crossover, retains submitted answers and two
+blinded scorecards, requires distinct adjudication on disagreement, and
+calculates the bounded gate without authorizing a public claim. The plan is not
+frozen and no human session has run.
 
 - Generalize only the code genuinely shared by Erdős 264 and 730.
-- Freeze matched flat cases and a case-blocked human-review design.
-- Recruit no reviewer before the design, sample, and scoring are rooted.
+- Root the final candidate only after recruitment ownership, consent, privacy,
+  compensation, device, timing, retry, exclusion, and scorer fields are fixed.
+- Recruit no reviewer before the final design, sample, assignment, and scoring
+  are rooted.
 - Require zero authority errors, complete recovery, and at least 20% median
   time reduction before making a reviewer-efficiency claim.
 
