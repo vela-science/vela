@@ -129,19 +129,22 @@ product-usability claims remain independently gated.
 ### 5. Qualify the multi-case Result Dossier
 
 **Active pre-recruitment work package.** Both public cases and their matched
-flat fixtures now exist. Deployed Vela Web commit `d63e5f9c` adds a fail-closed
-tool that roots one production candidate, reverifies it before assignment,
-creates an exactly counterbalanced anonymous crossover, retains submitted
-answers and two blinded scorecards, requires distinct adjudication on
-disagreement, and calculates the bounded gate without authorizing a public
-claim. The plan is not
-frozen and no human session has run.
-The exact pre-recruitment production observation is retained at
-`sha256:64c5905217d4d49f641366b7a5fa2712aba29f28881d27e1247dec0d60616619`.
+flat fixtures now exist. Deployed Vela Web product commit `bbb038c6` roots one
+production candidate and a standalone four-presentation bundle, creates an
+exactly counterbalanced anonymous crossover and sixteen rooted timed packets,
+captures self-rooted answers plus visibility interruptions, requires two
+blinded scorecards and distinct adjudication on disagreement, verifies the
+packet-set chain, and calculates the bounded gate without authorizing a public
+claim. The plan is not frozen and no human session has run.
+The exact candidate is retained at
+`sha256:301caa82ecdabbc843707841ffc418bd094980f089d507377b4e6999cb35addb`;
+the standalone presentation bundle is retained at
+`sha256:4f636bee2020a87ffab89c3e55dc332c18c488618e887bc1770f841079a9fd21`.
 
 - Generalize only the code genuinely shared by Erdős 264 and 730.
-- Root the final candidate only after recruitment ownership, consent, privacy,
-  compensation, device, timing, retry, exclusion, and scorer fields are fixed.
+- Freeze the assignment only after recruitment ownership, consent, privacy,
+  compensation, reserve, reviewer/scorer, calendar, and sensitivity fields are
+  fixed; candidate and presentation bytes are already rooted.
 - Recruit no reviewer before the final design, sample, assignment, and scoring
   are rooted.
 - Require zero authority errors, complete recovery, and at least 20% median

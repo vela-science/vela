@@ -3,14 +3,19 @@
 ## Unreleased
 
 - Record Vela Web's executable pre-recruitment Result Dossier qualification
-  kit at deployed commit `d63e5f9c`: exact production-input rooting and
-  reverification,
-  counterbalanced anonymous assignment, retained answers, independent blinded
-  scorecards, mandatory distinct adjudication, and bounded analysis. The kit
-  remains claim-credit-false; no study plan is frozen, no human session has
-  run, and no usability, reviewer-efficiency, adoption, or productivity claim
-  is authorized. The retained pre-recruitment observation is rooted at
-  `sha256:64c5905217d4d49f641366b7a5fa2712aba29f28881d27e1247dec0d60616619`.
+  kit at deployed product commit `bbb038c6` and evidence commit `d2d9b02a`:
+  exact production-input rooting and reverification, four standalone
+  no-subresource presentations, counterbalanced anonymous assignment, sixteen
+  rooted timed packets, self-rooted answers, visibility-interruption exclusion,
+  independently rooted packet-set analysis, blinded scoring and adjudication,
+  and positive, neutral, and negative report templates. The current candidate
+  root is `sha256:301caa82ecdabbc843707841ffc418bd094980f089d507377b4e6999cb35addb`;
+  the presentation-bundle root is
+  `sha256:4f636bee2020a87ffab89c3e55dc332c18c488618e887bc1770f841079a9fd21`.
+  The kit remains claim-credit-false; uncertainty and the confirmatory gate are
+  explicitly unevaluated, no assignment or study plan is frozen, no human
+  session has run, and no usability, reviewer-efficiency, adoption, or
+  productivity claim is authorized.
 
 ## v0.964.0 — 2026-08-04 — Phase-aware CLI and campaign evidence
 

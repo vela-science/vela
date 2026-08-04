@@ -1363,15 +1363,20 @@ correction-aware read record, but not reviewer-efficiency, adoption,
 productivity, or causal-lift claims.
 
 The next tranche has executable pre-recruitment machinery rather than another
-model-timing iteration. It can root and reverify the two-case production input,
-counterbalance anonymous assignments, retain all eight answers plus independent
-blinded scorecards, require distinct adjudication, and calculate the bounded
-feasibility gate. It is deliberately `claim_credit: false`, cannot authorize a
-public claim, and remains unfrozen until recruitment, consent, privacy, timing,
-exclusion, and scorer obligations are resolved. No human session has run.
-The retained production-input observation is rooted at
-`sha256:64c5905217d4d49f641366b7a5fa2712aba29f28881d27e1247dec0d60616619`;
-that root identifies inputs, not a usability result.
+model-timing iteration. It roots and reverifies the two-case production input,
+archives four standalone presentations, counterbalances anonymous assignments,
+creates exact timed packets, retains all eight answers plus interruption data
+and independent blinded scorecards, requires distinct adjudication, verifies
+the packet-set chain, and calculates the bounded feasibility gate. It is
+deliberately `claim_credit: false`; uncertainty and the confirmatory gate remain
+explicitly unevaluated. It cannot authorize a public claim and remains unfrozen
+until recruitment, consent, privacy, compensation, calendar, reserve,
+reviewer/scorer, and sensitivity obligations are resolved. No human session
+has run. The retained candidate is rooted at
+`sha256:301caa82ecdabbc843707841ffc418bd094980f089d507377b4e6999cb35addb`;
+the presentation bundle is rooted at
+`sha256:4f636bee2020a87ffab89c3e55dc332c18c488618e887bc1770f841079a9fd21`.
+Those roots identify inputs and instrumentation, not a usability result.
 
 The completed Astra native map now closes its producer tranche at the current
 evidence ceiling rather than converting green kernel checks into scientific

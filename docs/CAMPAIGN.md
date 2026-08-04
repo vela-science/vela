@@ -40,14 +40,18 @@ Two frozen Erdős 730 model-instrumentation iterations are now retained as
 failures: 12.28% improvement in iteration 1 and a 27.60% regression in the
 named-defect iteration 2. The same-case model-timing lane is retired; the next
 product qualification is the frozen multi-case human study. Deployed Vela Web
-commit `d63e5f9c` now supplies fail-closed candidate, counterbalanced assignment,
-auditable answer/scoring, adjudication, and bounded-analysis machinery. It
-hard-codes no claim credit and authorizes neither recruitment nor a public
-claim; recruitment ownership, consent, privacy, timing, exclusion, and scorer
-fields remain unresolved.
-The retained pre-recruitment production observation is rooted at
-`sha256:64c5905217d4d49f641366b7a5fa2712aba29f28881d27e1247dec0d60616619`;
-it is not a frozen study plan.
+product commit `bbb038c6` now supplies a fail-closed candidate, four standalone
+presentations, counterbalanced assignment, rooted timed packets and responses,
+visibility-interruption exclusion, exact packet-set analysis, blinded scoring,
+adjudication, and bounded report templates. It hard-codes no claim credit and
+authorizes neither recruitment nor a public claim; recruitment ownership,
+consent, private retention, compensation, reviewer/scorer identities, calendar
+dates, and the confirmatory sensitivity method remain unresolved.
+The retained candidate is rooted at
+`sha256:301caa82ecdabbc843707841ffc418bd094980f089d507377b4e6999cb35addb`;
+its standalone presentation bundle is rooted at
+`sha256:4f636bee2020a87ffab89c3e55dc332c18c488618e887bc1770f841079a9fd21`.
+Neither root is a frozen study plan or usability result.
 The complete remaining portfolio and its gates are indexed in
 [`CAMPAIGN_PORTFOLIO.md`](CAMPAIGN_PORTFOLIO.md).
 
