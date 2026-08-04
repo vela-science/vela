@@ -106,11 +106,18 @@ novelty, and a Lean 4.27.0 port remain nonclaims.
 read-only Dossier release satisfy the entry sequence; product-usability claims
 remain independently gated.
 
-- Bind all ten advertised result families and twelve Comparator profiles.
-- Reproduce native checks in the hardened offline environment.
+- **Completed native tranche:** bind all ten advertised result families,
+  twelve Comparator profiles, and 41 terminal theorem declarations at rooted
+  source and file identities.
+- **Completed native tranche:** reproduce every profile in the hardened
+  network-disabled environment; all twelve pass Comparator, Nanoda, and Lean's
+  default kernel, with the exact three-axiom inventory retained at
+  `sha256:5a60c3be27036c65a6a37bf55dce71abcb024cfecece92b8e7dcaf1324b095d0`.
 - Complete statement-fidelity matrices for Erdős 146, 180, and 183.
-- Keep novelty, field review, source status, local Decision, and downstream
-  inheritance distinct.
+- Complete the ten-family manuscript, external-review/status, local Standing,
+  and downstream-obligation map without inferring novelty or acceptance.
+- Resolve Erdős 183 only through an explicit human Decision or documented
+  deferral in the source-owning Frontier.
 
 ### 5. Qualify the multi-case Result Dossier
 

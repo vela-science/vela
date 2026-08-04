@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Retain the complete native Astra release-map replay: all ten advertised
+  result families, twelve JSON-declared Comparator profiles, and 41 terminal
+  theorem declarations pass the rooted network-disabled Linux path, Nanoda,
+  and Lean's default kernel. The exact axiom audit reports only `propext`,
+  `Classical.choice`, and `Quot.sound`. The unadvertised source commit, stale
+  aggregate challenge target, Docker disk incidents, compatibility wrapper,
+  and all scientific nonclaims remain explicit; fidelity and human Decisions
+  are still open.
 - Open the ADR 0019 Level 0 experiment with a source-local exact Lean replay
   contract candidate, closed schemas, maintained RFC 8785 root construction,
   file-root verification, and fail-closed axiom vectors. The experiment adds no

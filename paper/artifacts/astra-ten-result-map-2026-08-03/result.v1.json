@@ -1,0 +1,375 @@
+{
+  "schema": "vela.astra-ten-result-map-evidence.v1",
+  "self_root_rule": "sha256 of RFC 8785 JCS with self_root omitted",
+  "self_root": "sha256:5a60c3be27036c65a6a37bf55dce71abcb024cfecece92b8e7dcaf1324b095d0",
+  "observed_on": "2026-08-03",
+  "authority_boundary": "This is cross-release replay evidence, not a Vela Claim, Verification, Decision, Event, Standing transition, Astra Frontier, or statement-fidelity judgment.",
+  "release": {
+    "repository": "https://github.com/openai/ten-proofs",
+    "commit": "29362184c2b698c1b279bc85b3957ee813646c63",
+    "tree": "730bf2c6a13dbb96606024c5fd681a48633fb393",
+    "license": "Apache-2.0",
+    "ordinary_heads_or_tags_advertise_commit": false,
+    "direct_sha_fetch": "pass",
+    "acquisition": "git clone --no-checkout --filter=blob:none followed by git fetch --no-tags origin 29362184c2b698c1b279bc85b3957ee813646c63 and checkout FETCH_HEAD",
+    "lean": "4.32.0",
+    "lean_toolchain_sha256": "2773c517aa90b66ea8a2c52bddddf84393157797f8341be0df45294fff7fd32e",
+    "lake_manifest_sha256": "a6faf8302fe77f77f499446c27b8829b1af8dbc7847298b682556baa2a0b135e",
+    "mathlib_commit": "81a5d257c8e410db227a6665ed08f64fea08e997",
+    "manuscript": {
+      "url": "https://cdn.openai.com/pdf/ten-proofs-oai.pdf",
+      "bytes": 2266371,
+      "sha256": "64b900d5fae6fe22f2ae1b8e3b712d20055194a6c81cf343a2455e5898ac7dd6"
+    },
+    "reasoning_walkthroughs": {
+      "url": "https://cdn.openai.com/pdf/reasoning-walkthroughs.pdf",
+      "bytes": 441468,
+      "sha256": "13b95999f060c0be2142089cfb8b17b75e9231c3c1f3fa0980445ff1b35f0b3b"
+    }
+  },
+  "inventory": {
+    "advertised_result_families": 10,
+    "comparator_profiles": 12,
+    "terminal_theorem_declarations": 41,
+    "permitted_axioms": [
+      "propext",
+      "Quot.sound",
+      "Classical.choice"
+    ],
+    "actual_axioms_for_every_terminal_declaration": [
+      "propext",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "axiom_audit": "lake env lean over import All with #print axioms for all 41 terminal declarations",
+    "axiom_audit_outcome": "pass"
+  },
+  "profiles": [
+    {
+      "id": "A",
+      "result_family": "High-dimensional sphere packing",
+      "profile": "ComparatorChallenges/A_SpherePacking.json",
+      "profile_sha256": "f952d88af50b26cb738b9b6d508929e5f20066db14d3394e71a6de1def8ea424",
+      "challenge_module": "ComparatorChallenges.A_SpherePacking",
+      "challenge_sha256": "50cb73be0e1f28247a155cae143ddbbf7168dae216aaa65112e62f5f0eaa3ce1",
+      "solution_module": "SpherePacking",
+      "solution_sha256": "06c5b69c5b6adba06978d8065fe17b1bd00e9f72749d50657a50e15f7b1e075e",
+      "theorem_names": [
+        "PackingBounds.FullMain.exact_limit",
+        "PackingBounds.FullMain.exact_binary_exponent",
+        "PackingBounds.PackingBridge.sphere_packing_sharp_asymptotic_upper",
+        "PackingBounds.sharpFullCohnElkiesManuscriptConclusions"
+      ],
+      "comparator": "pass",
+      "nanoda_kernel": "accept",
+      "lean_kernel": "accept"
+    },
+    {
+      "id": "B-binary",
+      "result_family": "Binary and spherical codes",
+      "profile": "ComparatorChallenges/B_BinaryCodes.json",
+      "profile_sha256": "b100ddca78898d7df24225bef99c54be286ad5251cbd0806e584b7646a3700b2",
+      "challenge_module": "ComparatorChallenges.B_BinaryCodes",
+      "challenge_sha256": "a3e7a033a8d04799a6cf5b08ea7dbae2d3d2237b5021a0547ce8d54c1ee9605c",
+      "solution_module": "MetricCodes",
+      "solution_sha256": "bf0265c9106376b63551e421ca8f7f6c1da8f48a6fa14e4f6219d250288f82a9",
+      "theorem_names": [
+        "MetricCodes.Hamming.binaryRate_lt_classicalRate",
+        "MetricCodes.Hamming.exists_binaryRate_improvement",
+        "MetricCodes.Johnson.binaryRate_le_combinedVariationalRate",
+        "MetricCodes.MRRW.strict_mrrw2",
+        "MetricCodes.Johnson.binaryRate_lt_mrrw",
+        "MetricCodes.Johnson.exists_binaryRate_mrrw_improvement"
+      ],
+      "comparator": "pass",
+      "nanoda_kernel": "accept",
+      "lean_kernel": "accept"
+    },
+    {
+      "id": "B-spherical",
+      "result_family": "Binary and spherical codes",
+      "profile": "ComparatorChallenges/B_SphericalCodes.json",
+      "profile_sha256": "7948559e8ad303165c696c4e82e806f2507f5248045f07655e81433b4e36e6eb",
+      "challenge_module": "ComparatorChallenges.B_SphericalCodes",
+      "challenge_sha256": "591f42e6c48095f51e23d0cf5d8c4a72ae0bea31e378a88fa779f051e5628c8e",
+      "solution_module": "MetricCodes",
+      "solution_sha256": "bf0265c9106376b63551e421ca8f7f6c1da8f48a6fa14e4f6219d250288f82a9",
+      "theorem_names": [
+        "MetricCodes.Spherical.kissing_variationalRate_lt",
+        "MetricCodes.Spherical.packingExponent_gt",
+        "MetricCodes.Spherical.classicalPackingObjective_lt_packingExponent",
+        "MetricCodes.Spherical.classicalPackingExponent_lt_packingExponent",
+        "MetricCodes.Spherical.HigherHierarchy.hierarchyPackingExponent_eq_criticalBinaryExponent",
+        "MetricCodes.Spherical.HigherHierarchy.hierarchyKissingExponent_lt_published",
+        "SpherePacking.packingConstant_sharp_binary_asymptotic_upper"
+      ],
+      "comparator": "pass",
+      "nanoda_kernel": "accept",
+      "lean_kernel": "accept"
+    },
+    {
+      "id": "C",
+      "result_family": "Arithmetic circuit complexity",
+      "profile": "ComparatorChallenges/C_PermanentFormulaLowerBound.json",
+      "profile_sha256": "f80482f4a163041e036e26bb687690559cc36504e347b0ea3df0d626cfb965bb",
+      "challenge_module": "ComparatorChallenges.C_PermanentFormulaLowerBound",
+      "challenge_sha256": "fc97578bcbb072ff82383e4c903107130ba3dd1a2209235ab32270c7df37f83d",
+      "solution_module": "Permanent",
+      "solution_sha256": "3bd469c20bc2277a13be3f9353ce47ad0c2070a330355daa78a9e59f1ca1d3c6",
+      "theorem_names": [
+        "PermanentFormulaLowerBound.permanent_divisionFree_formula_logarithmic_lower_bound",
+        "PermanentFormulaLowerBound.permanent_rational_formula_logarithmic_lower_bound"
+      ],
+      "comparator": "pass",
+      "nanoda_kernel": "accept",
+      "lean_kernel": "accept"
+    },
+    {
+      "id": "D",
+      "result_family": "Non-sofic groups",
+      "profile": "ComparatorChallenges/D_NonSoficGroup.json",
+      "profile_sha256": "08c8e3666435ebfd1a946643f51221780f433224748debef6264e15953a66459",
+      "challenge_module": "ComparatorChallenges.D_NonSoficGroup",
+      "challenge_sha256": "346774c20eea754cf9bb2aaeffda8facae5aad74109bb70699e416f9da9c4adf",
+      "solution_module": "NonSoficGroup",
+      "solution_sha256": "0dfd4e1bd9fae091f7d2c65f98a2e3a48d73a20656de263e604261740803c155",
+      "theorem_names": [
+        "SoficGroups.SourceTopLevelCompressionFinal.exists_finitelyPresented_nonsofic_group"
+      ],
+      "comparator": "pass",
+      "nanoda_kernel": "accept",
+      "lean_kernel": "accept"
+    },
+    {
+      "id": "E",
+      "result_family": "Connes's rigidity conjecture",
+      "profile": "ComparatorChallenges/E_ConnesRigidity.json",
+      "profile_sha256": "ca2bdd2752cc9839a63d8d5217408c1ae934eb0c93dc241580a18bf16fd36f6c",
+      "challenge_module": "ComparatorChallenges.E_ConnesRigidity",
+      "challenge_sha256": "e03bbc49c0576b35dee3dcd527853567abe49ac2522fdb0c450b6a1aa0ec0a90",
+      "solution_module": "ConnesRigidity",
+      "solution_sha256": "98a936bd96e8b02e67adb1de875ec48721d1ab5a559496be28bfe19bfd002326",
+      "theorem_names": [
+        "ConnesRigidity.exists_nonisomorphic_propertyT_icc_groups_with_isomorphic_factors",
+        "ConnesRigidity.exists_infinite_pairwise_nonisomorphic_propertyT_icc_groups_with_isomorphic_factors"
+      ],
+      "comparator": "pass",
+      "nanoda_kernel": "accept",
+      "lean_kernel": "accept"
+    },
+    {
+      "id": "F",
+      "result_family": "Ehrhart's volume conjecture",
+      "profile": "ComparatorChallenges/F_EhrhartVolumeInequality.json",
+      "profile_sha256": "60ff36064f6596a014005b91b13908db4673334e07b3a9117755684671de7d53",
+      "challenge_module": "ComparatorChallenges.F_EhrhartVolumeInequality",
+      "challenge_sha256": "bcfba89a1b7fa68fcc3b20cc4be8f264987f6641b8b3ebe1288be4654021d926",
+      "solution_module": "EhrhartVolumeInequality",
+      "solution_sha256": "a53831876938285e3106e5ad29a0733db024406cff0547210ac4b431f44121f7",
+      "theorem_names": [
+        "Ehrhart.Volume.ehrhart_volume_inequality_for_sets",
+        "Ehrhart.SimplexVolume.exists_centeredBody_sharp",
+        "Ehrhart.SimplexVolume.barycenter_centeredSimplex",
+        "Ehrhart.SimplexVolume.normalizedVolume_centeredSimplex"
+      ],
+      "comparator": "pass",
+      "nanoda_kernel": "accept",
+      "lean_kernel": "accept"
+    },
+    {
+      "id": "G",
+      "result_family": "Quantum parallel repetition",
+      "profile": "ComparatorChallenges/G_QuantumParallelRepetition.json",
+      "profile_sha256": "0a6577bcd92f582766321fd2cc974afb849e5be10463867c50ed11bd09b75a39",
+      "challenge_module": "ComparatorChallenges.G_QuantumParallelRepetition",
+      "challenge_sha256": "ba00b8922f5e4d3134c9cda360ea40bbfa64bcae42f24a3e98d062890b0387e8",
+      "solution_module": "QuantumParallelRepetition",
+      "solution_sha256": "e9e667ee66b0d712717962923ec2bc42fd8c278386360c278e08d6ab944de75b",
+      "theorem_names": [
+        "QuantumParallelRepetition.distributionUniformExponential",
+        "QuantumParallelRepetition.standardQuantumParallelRepetition"
+      ],
+      "comparator": "pass",
+      "nanoda_kernel": "accept",
+      "lean_kernel": "accept"
+    },
+    {
+      "id": "H",
+      "result_family": "Closest vector problem",
+      "profile": "ComparatorChallenges/H_GapCVP.json",
+      "profile_sha256": "08208d08d267bf25928b3cc630520eea79362b778bd5e2b6989b1547263168e9",
+      "challenge_module": "ComparatorChallenges.H_GapCVP",
+      "challenge_sha256": "2e8f30f3a6f9b827f912747387e8c8d25868123fa3cc2334da283c6e9bfd5352",
+      "solution_module": "GapCVP",
+      "solution_sha256": "aa04286e00ae10cc78bfac2d8c3775ae2a2b4d010f7b15a022af489abfef0294",
+      "theorem_names": [
+        "GapCVP.Comparator.gapCVP400IsNPHard",
+        "GapCVP.Comparator.binaryNearestCodewordIsNPHard",
+        "GapCVP.Comparator.binarySyndromeDecodingIsNPHard",
+        "GapCVP.Comparator.finitePNormGapCVPIsNPHard"
+      ],
+      "comparator": "pass",
+      "nanoda_kernel": "accept",
+      "lean_kernel": "accept"
+    },
+    {
+      "id": "I",
+      "result_family": "Multicolor Ramsey numbers",
+      "profile": "ComparatorChallenges/I_MulticolorTriangleRamsey.json",
+      "profile_sha256": "03c4a87dfda6588dc685afbd4c6da4338f652166b24df0c4ff2f819ca22f5fd7",
+      "challenge_module": "ComparatorChallenges.I_MulticolorTriangleRamsey",
+      "challenge_sha256": "12f969e50e5b09579849e25692c8cfc1d9351d09278ec9c5e4ea7c36756a6273",
+      "solution_module": "MulticolorTriangleRamsey",
+      "solution_sha256": "a87bd60efe16dab00ba07ea4069f22b8dbc991b3f3ba34ae5088b1f8b1987cd3",
+      "theorem_names": [
+        "ErdosProblems.MulticolourTriangleRamsey.erdos_183",
+        "ErdosProblems.MulticolourTriangleRamsey.erdos_problem_183_explicit",
+        "ErdosProblems.MulticolourTriangleRamsey.triangleRamseyNumber_log_sharp_coefficients",
+        "ErdosProblems.MulticolourTriangleRamsey.triangleRamseyNumber_log_isTheta"
+      ],
+      "comparator": "pass",
+      "nanoda_kernel": "accept",
+      "lean_kernel": "accept",
+      "statement_fidelity": "pending source-local human Decision or documented deferral"
+    },
+    {
+      "id": "J-180",
+      "result_family": "Extremal number conjectures",
+      "profile": "ComparatorChallenges/J_CompactnessConjecture.json",
+      "profile_sha256": "e9a7a93409f01b4ca611ddb21a6c69821f9fde60dd385651aa62f4ebe68ba3a6",
+      "challenge_module": "ComparatorChallenges.J_CompactnessConjecture",
+      "challenge_sha256": "0640640051c055e453df5551696ebaa61f3fa9d647ba9ec38b1734d280898801",
+      "solution_module": "CompactnessAndDegeneracy",
+      "solution_sha256": "ed50917cd60c231551698a276efbef4161e34c8ff9ecb069f3b9c937d030a68c",
+      "theorem_names": [
+        "CompactnessConjecture.quantitativeCompactnessCounterexample",
+        "CompactnessConjecture.compactnessCounterexample_bigO",
+        "CompactnessConjecture.not_erdos_180"
+      ],
+      "comparator": "pass",
+      "nanoda_kernel": "accept",
+      "lean_kernel": "accept",
+      "statement_fidelity": "matrix pending"
+    },
+    {
+      "id": "J-146",
+      "result_family": "Extremal number conjectures",
+      "profile": "ComparatorChallenges/J_TwoDegenerateGraphs.json",
+      "profile_sha256": "48e77981fb8a5f29e444f619cabb98d7c5df95d7150fb8808a17d94b05b38426",
+      "challenge_module": "ComparatorChallenges.J_TwoDegenerateGraphs",
+      "challenge_sha256": "9565db54e089c8a3d5be1d463c06429283aee131f0506306bb4bfaf64dfbdf9e",
+      "solution_module": "CompactnessAndDegeneracy",
+      "solution_sha256": "ed50917cd60c231551698a276efbef4161e34c8ff9ecb069f3b9c937d030a68c",
+      "theorem_names": [
+        "TwoDegenerateGraphs.twoDegenerateExtremalCounterexample",
+        "TwoDegenerateGraphs.not_erdos_146"
+      ],
+      "comparator": "pass",
+      "nanoda_kernel": "accept",
+      "lean_kernel": "accept",
+      "statement_fidelity": "matrix pending"
+    }
+  ],
+  "hardened_environment": {
+    "platform": "linux/arm64",
+    "kernel": "6.10.14-linuxkit",
+    "runtime_user": "10001:10001",
+    "image_manifest_sha256": "e1ce83d14429c834eb2d693576716676fd23b9b94a1dc3397e007e614424180b",
+    "image_config_sha256": "2b28d2ba718ebaa40207fcaf68f96370fb4b33dac9e838279754b4c4d89d885a",
+    "image_size_bytes": 4482365113,
+    "ubuntu_24_04_manifest_sha256": "4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90",
+    "go_1_25_builder_manifest_sha256": "ea341baa9bd5ba6784f6d7161ace70544349a6242d54d34a0fbfd2c4d51c9d58",
+    "rust_1_89_builder_manifest_sha256": "948f9b08a66e7fe01b03a98ef1c7568292e07ec2e4fe90d88c07bb14563c84ff",
+    "comparator_commit": "07bc4ea40f2266dcb861820a2ec1fa3244ed307f",
+    "comparator_tree": "79f0781a192adeb817e5baebe294953505db7d87",
+    "comparator_binary_sha256": "ce794dcc1e6dba963288dd12ce0b246eeb51b8f729ff817101a1c73bdfe6f572",
+    "lean4export_commit": "4e7915201d3f9f04470d9eae002fa695f7cdc589",
+    "lean4export_tree": "7442aa1ae92f4a6df62ca1f33b08069ce883a670",
+    "lean4export_binary_sha256": "07f027214782863413437993b0d195a12ad903be104c27aac561a4bf42d2b5ed",
+    "lean4checker_commit": "b7398199245524275543dec6113229c9bb4902e5",
+    "lean4checker_tree": "0b58345199ba9dcc8cc53fa37c926e02cdddfe63",
+    "landrun_commit": "811cfff51ceaf3d9843708aa6d22e9b84ccac8b4",
+    "landrun_version": "0.1.18",
+    "landrun_binary_sha256": "9b1c84cca98a2284836b3c5d3ce1e354032e9880cd2495f8f2bd02054b4666da",
+    "nanoda_commit": "ddfac2bf5a7b56cb46e141494427ff3dd55963c7",
+    "nanoda_tree": "af60d38d45e5f35815f5c21b42d12b4c4e84e4d3",
+    "nanoda_binary_sha256": "9f739f953ab0a5c0679ce902564b682b40b8125eee578f031b80268344f44f32",
+    "dockerfile_sha256": "aad9741fdba89ab330315ea556377f577c45b1564f7f53ea7f646c270cd1b1a7",
+    "lean4export_wrapper_sha256": "c3014fe1660f8928ac77ea5b2ba6d0393626e0fd2cb33de8c08103cc4e8eb553",
+    "replay_script_sha256": "92732ae7228637041adc086a0792ec3d83605162c37aebf7c344cfe250c701ad",
+    "isolation": [
+      "network none",
+      "all Linux capabilities dropped",
+      "no-new-privileges",
+      "private IPC",
+      "PID limit 2048",
+      "ephemeral container filesystem",
+      "unprivileged uid 10001",
+      "no host checkout"
+    ],
+    "compatibility_boundary": "The pinned Landrun removes Lean4Export's nested -- delimiter; a static rooted wrapper restores only that delimiter. Comparator, Landrun, Lean4Export, Lean4Checker, Nanoda, the source, and the profile JSON are otherwise unmodified."
+  },
+  "checks": {
+    "clean_source_build": {
+      "outcome": "pass",
+      "jobs": 8691
+    },
+    "hardened_profile_replay": {
+      "outcome": "pass",
+      "profiles_passed": 12,
+      "profiles_total": 12,
+      "nanoda_accepts": 12,
+      "lean_kernel_accepts": 12
+    },
+    "macos_development_shim_instrumentation": {
+      "outcome": "pass",
+      "profiles_passed": 12,
+      "profiles_total": 12,
+      "claim_credit": false,
+      "sandbox": "unsandboxed fake-landrun development shim"
+    },
+    "aggregate_challenge_target": {
+      "outcome": "infrastructure_error",
+      "command": "lake build ComparatorChallenges lean4export comparator",
+      "error": "lakefile.toml names nonexistent ComparatorChallenges.C_PermanentSuperquadraticStandalone",
+      "profile_effect": "none; the twelve JSON-declared challenge modules were compiled and replayed directly"
+    }
+  },
+  "incidents": [
+    {
+      "stage": "source acquisition",
+      "outcome": "repaired",
+      "observation": "A normal current clone did not contain the pinned commit because no advertised head or tag reaches it.",
+      "resolution": "Fetch the exact SHA explicitly and verify commit and tree before building.",
+      "scientific_score_effect": "none"
+    },
+    {
+      "stage": "Docker image unpack",
+      "outcome": "infrastructure_error",
+      "observation": "Docker reported no space left on device while unpacking the retained Mathlib layer.",
+      "resolution": "Remove two obsolete reproducible Erdős 264 warm images and prune only unused Docker build cache.",
+      "scientific_score_effect": "none"
+    },
+    {
+      "stage": "first hardened profile launch",
+      "outcome": "invalid_preflight",
+      "observation": "All three containers reported no space left on device before a challenge module could be built.",
+      "resolution": "Prune the exact reclaimable 14.08 GB Formal Conjectures build-cache record, then restart all profiles from the beginning.",
+      "scientific_score_effect": "none; no profile was counted before the clean restart"
+    }
+  ],
+  "open_obligations": [
+    "Complete consequence-aware statement-fidelity matrices for Erdős 146, 180, and 183 in the source-owning Frontier.",
+    "Resolve the existing Erdős 183 packet only by an explicit attributed human Decision or a documented deferral.",
+    "Map manuscript wording, external review/status, local Vela Standing, and one exact downstream obligation for each selected result without inferring acceptance."
+  ],
+  "nonclaims": [
+    "Comparator and kernel passage do not establish statement fidelity, novelty, field acceptance, source-registry status, or Vela Standing.",
+    "The challenge modules intentionally contain sorry declarations; their role is interface comparison, not proof evidence.",
+    "The direct-SHA source fetch is reproducible at observation time but the commit is not currently reachable from an advertised head or tag.",
+    "The compatibility wrapper means this is not an unmodified zero-shim Comparator invocation.",
+    "No Astra Frontier, Vela Claim, Verification, Decision, Event, Target, package, registry, protocol schema, or authority path was created.",
+    "No result is described here as globally solved or accepted.",
+    "The replay map does not complete the pending human fidelity and Decision obligations for Erdős 146, 180, or 183."
+  ]
+}

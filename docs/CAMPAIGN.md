@@ -3,10 +3,13 @@
 ## Active work package
 
 The active scientific work package is now the
-[Astra release map](ASTRA_RELEASE_MAP_CAMPAIGN.md): complete all ten result
-families, twelve Comparator profiles, the exact axiom inventory, the Erdős 146,
-180, and 183 fidelity matrices, and an explicit Decision or documented deferral
-for Erdős 183. The exact public Result Dossiers for Erdős 264 and 730 remain a
+[Astra release map](ASTRA_RELEASE_MAP_CAMPAIGN.md). Its native replay tranche is
+complete: all ten result families, twelve Comparator profiles, and 41 terminal
+theorem declarations passed the rooted hardened path, and every declaration's
+exact axiom inventory is `propext`, `Classical.choice`, and `Quot.sound`. The
+active tranche is now the consequence-aware result map, Erdős 146/180/183
+fidelity matrices, and an explicit Decision or documented deferral for Erdős
+183. The exact public Result Dossiers for Erdős 264 and 730 remain a
 separate product-evidence lane; their human usability claim is still unearned.
 Two frozen Erdős 730 model-instrumentation iterations are now retained as
 failures: 12.28% improvement in iteration 1 and a 27.60% regression in the
@@ -14,6 +17,11 @@ named-defect iteration 2. The same-case model-timing lane is retired; the next
 product qualification is the frozen multi-case human study.
 The complete remaining portfolio and its gates are indexed in
 [`CAMPAIGN_PORTFOLIO.md`](CAMPAIGN_PORTFOLIO.md).
+
+The retained Astra replay result is rooted at
+`sha256:5a60c3be27036c65a6a37bf55dce71abcb024cfecece92b8e7dcaf1324b095d0`.
+It is native-checking evidence only. It creates no Astra Frontier, scientific
+Decision, novelty result, or statement-fidelity conclusion.
 
 ADR 0038 separates scientific qualification from public product qualification.
 The failed Result Dossier gate remains binding on usability and
@@ -262,6 +270,16 @@ Running all twelve profiles is earned here because the campaign uses the
 release as one complete, recognizable state-ingestion case. Checker passage is
 still only one layer of evidence. No local Decision may be described as global
 mathematical consensus.
+
+Native replay status, 2026-08-03: the exact commit/tree, manuscript and
+walkthrough roots, Lean 4.32.0 manifest, twelve profile roots, 41 declarations,
+and hardened toolchain are retained. `lake build All` passed 8,691 jobs; every
+profile passed Comparator, Nanoda, and Lean's default kernel in network-disabled
+Linux containers. The aggregate challenge target has one stale nonexistent
+module entry, so qualification followed the twelve JSON declarations directly.
+The pinned source commit requires explicit SHA fetch because no current
+advertised head or tag reaches it. These are retained provenance and
+infrastructure boundaries, not scientific acceptance.
 
 ### B. Erdős 264 correction and inheritance
 
@@ -558,8 +576,11 @@ Standing without a later human Decision.
 
 ### Phase 2.5 — complete the Astra map
 
-1. Reproduce the twelve declared profiles.
-2. Build the ten-result claim and theorem inventory.
+1. **Complete:** reproduce the twelve declared profiles under the retained
+   hardened contract; all twelve pass both kernels.
+2. **Native inventory complete:** bind all ten families and 41 terminal theorem
+   declarations with exact roots and axioms. The consequence-aware claim,
+   manuscript, external-status, and Standing map remains open.
 3. Complete the three Erdős fidelity matrices.
 4. Record conflicting source statuses as separate observations.
 5. Generate exact follow-on obligations without automatic acceptance.

@@ -10,22 +10,35 @@ state, and one honest next obligation per selected result.
 ## Entry state
 
 - Exact release commit: `29362184c2b698c1b279bc85b3957ee813646c63`
-- One Erdős 183 Comparator profile has passed Lean, Nanoda, and the retained
-  hardened Linux path.
+- The exact commit is not currently reachable from an advertised head or tag,
+  but direct SHA fetch succeeds and reproduces tree
+  `730bf2c6a13dbb96606024c5fd681a48633fb393`.
+- All ten advertised result families and twelve Comparator profiles pass
+  Comparator, Nanoda, and Lean's default kernel in the retained
+  network-disabled Linux path.
+- The exact inventory contains 41 terminal theorem declarations. A complete
+  `#print axioms` audit reports `propext`, `Classical.choice`, and
+  `Quot.sound` for every declaration.
+- The rooted replay result is
+  `sha256:5a60c3be27036c65a6a37bf55dce71abcb024cfecece92b8e7dcaf1324b095d0`.
 - The Erdős 183 fidelity Claim has a passing scoped Verification but remains
   pending human Decision. Its exact source-local checkpoint is owned by
   [`erdos-frontier`](https://github.com/vela-science/erdos-frontier/blob/main/campaigns/erdos-183-astra-fidelity.md).
-- Eleven Comparator profiles and nine broader result-family mappings remain
-  incomplete.
+- The Erdős 146, 180, and 183 fidelity matrices and the consequence-aware
+  ten-family status map remain incomplete.
+- The aggregate Lake challenge target is stale because it names nonexistent
+  module `ComparatorChallenges.C_PermanentSuperquadraticStandalone`; this
+  does not invalidate the twelve JSON-declared profile runs.
 
 ## Work packages
 
-1. Freeze release commit/tree, PDFs, discovery notes, Lean project, manifest,
-   licenses, toolchains, and all twelve profile roots.
-2. Build `All` from a clean, offline checkout and record the complete axiom and
-   declaration inventory.
-3. Run every declared Comparator profile under the same retained hardened
-   contract; preserve every failure and infrastructure incident.
+1. **Complete:** freeze release commit/tree, both PDF roots, Lean project,
+   manifest, license, toolchains, and all twelve profile roots.
+2. **Complete:** build `All` from a clean pinned checkout and record the
+   complete 41-declaration axiom inventory.
+3. **Complete:** run every declared Comparator profile under the retained
+   hardened contract; preserve the stale aggregate target and Docker
+   disk-exhaustion incidents without scoring either as a scientific failure.
 4. Create a ten-family map separating announcement wording, manuscript theorem,
    Lean declaration, checker result, novelty claim, external review/status,
    Vela Verification, and local Standing.
@@ -35,6 +48,9 @@ state, and one honest next obligation per selected result.
    Decision or documented deferral; this cross-Frontier campaign must not
    duplicate or exercise Erdős repository authority.
 7. Derive one next obligation for each result selected for further review.
+
+The replay result closes only the native-checking portion of this campaign.
+Items 4–7 remain the active scientific work.
 
 ## Completion gate
 

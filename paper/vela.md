@@ -925,6 +925,18 @@ product-lift credit. The compact negative result is rooted at
 Its prose-sensitive exact scorer is retained as a limitation, not relaxed after
 the outputs existed.
 
+Separately from that product comparison, the exact Astra native-release map
+now covers all ten advertised result families, twelve JSON-declared Comparator
+profiles, and 41 terminal theorem declarations. A clean pinned build completed
+8,691 jobs, every profile passed Comparator, Nanoda, and Lean's default kernel
+inside network-disabled Linux containers, and `#print axioms` reported exactly
+`propext`, `Classical.choice`, and `Quot.sound` for every terminal declaration.
+The retained result root is
+`sha256:5a60c3be27036c65a6a37bf55dce71abcb024cfecece92b8e7dcaf1324b095d0`.
+This is proof-replay and inventory evidence, not statement-fidelity, novelty,
+field-acceptance, or Vela-Standing evidence. The Erdős 146, 180, and 183
+fidelity and human-Decision obligations remain open.
+
 ### 6.10 Registered benchmark matrix
 
 | Family | Primary | Held-out | Required |
