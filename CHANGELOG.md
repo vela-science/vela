@@ -11,6 +11,10 @@
 - Add an independent Rust/RFC 8785 reader for the frozen Lean replay candidate
   root. Agreement with the Python reader is package-integrity evidence only;
   it does not satisfy cross-platform replay or net-deletion gates.
+- Retain the first package qualification as a Level 1 promotion no-go: Formal
+  and Erdős consume the same exact root and leave historical authority evidence
+  unchanged, but the experiment added 1,017 maintained lines and deleted zero.
+  No package repository, release, CLI, index, or registry is earned.
 - Retain the second frozen Erdős 730 Result Dossier instrument without
   rescoring it: all eight fields were materially correct under post-hoc review,
   but the registered Dossier median regressed by 27.60%. Retire same-case model

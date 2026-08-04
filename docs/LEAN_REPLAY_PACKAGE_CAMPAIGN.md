@@ -108,3 +108,17 @@ Level 1 is earned only when all of these pass:
 5. native toolchains remain native;
 6. removal or upgrade has zero authority effect; and
 7. the measured maintained-code and fixture balance is net deletion.
+
+## First qualification result
+
+The frozen root is consumed by Formal and Erdős and independently reproduced
+by maintained Python and Rust RFC 8785 readers. Promotion nevertheless remains
+a no-go: the initial candidate and integrations added 1,017 maintained lines
+and deleted zero. Historical verifier implementations are rooted evidence and
+were correctly left unchanged. The retained result is
+[`qualification.v1.json`](../research/lean-replay-contract-evidence/qualification.v1.json).
+
+The next valid package action is one future, non-frozen Lean replay recurrence
+where the shared contract actually replaces duplicated maintained mechanics,
+plus a separately qualified Linux network-denial profile. No registry work is
+earned by the current result.
