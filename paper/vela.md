@@ -1369,6 +1369,9 @@ blinded scorecards, require distinct adjudication, and calculate the bounded
 feasibility gate. It is deliberately `claim_credit: false`, cannot authorize a
 public claim, and remains unfrozen until recruitment, consent, privacy, timing,
 exclusion, and scorer obligations are resolved. No human session has run.
+The retained production-input observation is rooted at
+`sha256:64c5905217d4d49f641366b7a5fa2712aba29f28881d27e1247dec0d60616619`;
+that root identifies inputs, not a usability result.
 
 The completed Astra native map now closes its producer tranche at the current
 evidence ceiling rather than converting green kernel checks into scientific

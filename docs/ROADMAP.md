@@ -129,12 +129,15 @@ product-usability claims remain independently gated.
 ### 5. Qualify the multi-case Result Dossier
 
 **Active pre-recruitment work package.** Both public cases and their matched
-flat fixtures now exist. Vela Web commit `f858dd23` adds a fail-closed tool that
-roots one production candidate, reverifies it before assignment, creates an
-exactly counterbalanced anonymous crossover, retains submitted answers and two
-blinded scorecards, requires distinct adjudication on disagreement, and
-calculates the bounded gate without authorizing a public claim. The plan is not
+flat fixtures now exist. Deployed Vela Web commit `d63e5f9c` adds a fail-closed
+tool that roots one production candidate, reverifies it before assignment,
+creates an exactly counterbalanced anonymous crossover, retains submitted
+answers and two blinded scorecards, requires distinct adjudication on
+disagreement, and calculates the bounded gate without authorizing a public
+claim. The plan is not
 frozen and no human session has run.
+The exact pre-recruitment production observation is retained at
+`sha256:64c5905217d4d49f641366b7a5fa2712aba29f28881d27e1247dec0d60616619`.
 
 - Generalize only the code genuinely shared by Erdős 264 and 730.
 - Root the final candidate only after recruitment ownership, consent, privacy,

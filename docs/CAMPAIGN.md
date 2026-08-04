@@ -39,12 +39,15 @@ their human usability claim is still unearned.
 Two frozen Erdős 730 model-instrumentation iterations are now retained as
 failures: 12.28% improvement in iteration 1 and a 27.60% regression in the
 named-defect iteration 2. The same-case model-timing lane is retired; the next
-product qualification is the frozen multi-case human study. Vela Web commit
-`f858dd23` now supplies fail-closed candidate, counterbalanced assignment,
+product qualification is the frozen multi-case human study. Deployed Vela Web
+commit `d63e5f9c` now supplies fail-closed candidate, counterbalanced assignment,
 auditable answer/scoring, adjudication, and bounded-analysis machinery. It
 hard-codes no claim credit and authorizes neither recruitment nor a public
 claim; recruitment ownership, consent, privacy, timing, exclusion, and scorer
 fields remain unresolved.
+The retained pre-recruitment production observation is rooted at
+`sha256:64c5905217d4d49f641366b7a5fa2712aba29f28881d27e1247dec0d60616619`;
+it is not a frozen study plan.
 The complete remaining portfolio and its gates are indexed in
 [`CAMPAIGN_PORTFOLIO.md`](CAMPAIGN_PORTFOLIO.md).
 
