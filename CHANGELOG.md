@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Open the ADR 0019 Level 0 experiment with a source-local exact Lean replay
+  contract candidate, closed schemas, maintained RFC 8785 root construction,
+  file-root verification, and fail-closed axiom vectors. The experiment adds no
+  package release, CLI, Frontier lock, registry, protocol object, or authority
+  effect; promotion still requires two consumers, independent root agreement,
+  clean network-disabled reconstruction, and net deletion.
 - Retain the second frozen Erdős 730 Result Dossier instrument without
   rescoring it: all eight fields were materially correct under post-hoc review,
   but the registered Dossier median regressed by 27.60%. Retire same-case model

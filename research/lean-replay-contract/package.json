@@ -1,0 +1,67 @@
+{
+  "$schema": "./schemas/package-candidate.v1.schema.json",
+  "schema": "vela.package-candidate.v1",
+  "package": {
+    "id": "vela-science/lean-replay-contract",
+    "version": "0.0.0-source-local",
+    "kind": "replay-contract",
+    "title": "Exact Lean replay contract candidate",
+    "domains": [
+      "formal-methods",
+      "lean",
+      "mathematics"
+    ],
+    "license": "Apache-2.0 OR MIT"
+  },
+  "authority_effect": "none",
+  "source": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "path": "research/lean-replay-contract",
+    "exact_revision_location": "consumer-reference"
+  },
+  "imports": [],
+  "native_dependencies": [
+    {
+      "ecosystem": "python",
+      "name": "rfc8785",
+      "version": "0.1.4",
+      "lock_reference": "requirements.lock.txt"
+    },
+    {
+      "ecosystem": "elan-lake",
+      "name": "lean-and-mathlib",
+      "version": "consumer-pinned",
+      "lock_reference": "consumer-native-locks"
+    }
+  ],
+  "interfaces": {
+    "accepts": [
+      "space.vela/lean-replay-request/v1"
+    ],
+    "emits": [
+      "space.vela/lean-replay-result/v1"
+    ]
+  },
+  "implementation": {
+    "kind": "python-library",
+    "path": "lean_replay_contract.py",
+    "network": "disabled-by-caller-and-checked-platform-policy"
+  },
+  "exports": [
+    {
+      "id": "space.vela/lean-replay-request/v1",
+      "path": "schemas/lean-replay-request.v1.schema.json"
+    },
+    {
+      "id": "space.vela/lean-replay-result/v1",
+      "path": "schemas/lean-replay-result.v1.schema.json"
+    }
+  ],
+  "limitations": [
+    "This source-local candidate is not a released package or supported registry surface.",
+    "It does not create a Vela Verification Record or change Standing.",
+    "The built-in network-denial command currently supports macOS sandbox-exec; Linux reconstruction must supply and qualify an equivalent external sandbox.",
+    "Consumer-specific theorem boundaries and scientific interpretations remain outside the shared contract."
+  ]
+}
+

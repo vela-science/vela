@@ -37,6 +37,15 @@ reviewers, and their negative timing results are not pooled or rerun. Erdős
 730, Astra, and Erdős 203 can produce scientific evidence without that release,
 but cannot be described as Dossier adoption or Vela productivity lift.
 
+## Independent adoption experiment
+
+The [source-local Lean replay package campaign](LEAN_REPLAY_PACKAGE_CAMPAIGN.md)
+runs independently of the scientific ordering above. It may share one exact
+generic replay-contract root between Formal and Erdős only when doing so
+deletes maintained duplication. It adds no package CLI, Frontier lock, Web
+index, registry, authority path, or scientific claim, and it cannot delay or
+promote Astra evidence.
+
 ## Reporting ceiling
 
 Every campaign ends with one of:
