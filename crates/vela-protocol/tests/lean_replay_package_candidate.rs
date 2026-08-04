@@ -95,4 +95,3 @@ fn independent_reader_reproduces_frozen_package_root() {
         .expect("RFC 8785 canonical package descriptor");
     assert_eq!(sha256(&canonical), EXPECTED_ROOT);
 }
-
