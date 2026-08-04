@@ -107,8 +107,8 @@ it does not prove that a Claim is true.
 Install the GitHub-attested release:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.965.1/install.sh | \
-  VELA_VERSION=v0.965.1 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.965.2/install.sh | \
+  VELA_VERSION=v0.965.2 bash
 vela --version
 ```
 

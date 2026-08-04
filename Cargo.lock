@@ -1712,7 +1712,7 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "vela-authority"
-version = "0.965.1"
+version = "0.965.2"
 dependencies = [
  "cedar-policy",
  "ed25519-dalek",
@@ -1726,7 +1726,7 @@ dependencies = [
 
 [[package]]
 name = "vela-cli"
-version = "0.965.1"
+version = "0.965.2"
 dependencies = [
  "base64",
  "chrono",
@@ -1753,7 +1753,7 @@ dependencies = [
 
 [[package]]
 name = "vela-edge"
-version = "0.965.1"
+version = "0.965.2"
 dependencies = [
  "ed25519-dalek",
  "hex",
@@ -1770,7 +1770,7 @@ dependencies = [
 
 [[package]]
 name = "vela-protocol"
-version = "0.965.1"
+version = "0.965.2"
 dependencies = [
  "base64",
  "chrono",
@@ -1790,7 +1790,7 @@ dependencies = [
 
 [[package]]
 name = "vela-verify"
-version = "0.965.1"
+version = "0.965.2"
 dependencies = [
  "serde",
  "serde_json",

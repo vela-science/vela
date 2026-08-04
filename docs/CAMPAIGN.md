@@ -19,7 +19,7 @@ The current tranche is successful when a new operator can:
 5. reproduce the repository from a clean clone; and
 6. get one truthful next action from every command and failure.
 
-Vela `0.965.1` removes the separate authority-initialization ceremony and the
+Vela `0.965.2` removes the separate authority-initialization ceremony and the
 empty-Frontier dead end. The remaining work is defect-driven: exercise this
 loop on real Frontiers, fix reproduced failures, and delete redundant paths.
 
