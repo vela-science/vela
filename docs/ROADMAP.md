@@ -117,11 +117,12 @@ product-usability claims remain independently gated.
   known Vela state, unknown external-review fields, and one next obligation at
   `sha256:f219d4a1fe8ab71e516012fc8bd60a06db863e56be2c2be3920104b7472282dc`.
 - **Matrices complete at current evidence ceiling:** 183 is faithful and
-  verified but pending Decision; 146 is faithful producer evidence; 180 is a
-  qualified original-versus-corrected-statement mismatch whose witness refutes
-  both formulations.
-- Independently verify the 146/180 matrices and prepare a source-first 180
-  correction packet if the mismatch survives review.
+  verified but pending Decision; a source-first mechanical check qualifies 146
+  as faithful and 180 as a material original-versus-corrected-statement
+  mismatch whose witness refutes both formulations.
+- **Completed non-authority follow-up:** retain a chronology-preserving Erdős
+  180 correction packet. A source owner may open a correction Target or defer;
+  no protocol action is inferred where no Target exists.
 - Resolve Erdős 183 only through an explicit human Decision or documented
   deferral in the source-owning Frontier.
 
@@ -145,10 +146,12 @@ study begins.
 - Primary Target: Erdős 203, using its merged Formal Conjectures statement,
   corrected exploratory campaign, exact rooted briefing, and independent
   affine-cover verifier.
-- **First bounded advance:** a preregistered source-local direction ledger and
-  separate mechanical checker exclude the complete 31-tile `n | 5040` family
-  by exact overlap counting. This is not a global answer, accepted Claim, or
-  reason to widen Vela's protocol surface.
+- **Bounded advances:** preregistered source-local overlap ledgers and a
+  separate mechanical checker exclude the complete 31-tile `n | 5040` and
+  33-tile `n | 10080` families. The separately frozen 55-tile `n | 55440`
+  experiment returned `no_conclusion`, retiring the same global inequality for
+  the next tranche. None is a global answer, accepted Claim, or reason to widen
+  Vela's protocol surface.
 - Fixed reserves: Erdős 647, Erdős 7, and one Astra-derived downstream
   obligation.
 - One long-horizon native-agent campaign, all failures retained.

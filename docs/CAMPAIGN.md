@@ -10,24 +10,32 @@ the corrected lattice source, the retraction of the earlier 99.98% result, and
 the independent affine-cover verifier. A passing verifier may create scoped
 evidence for review; it cannot create scientific Standing.
 
-The first claim-credit-false engineering tranche did not find a cover, but its
-preregistered structural ledger produced a real bounded advance: an exact
-overlap-counting obstruction excludes the 31 distinct-prime tiles whose orders
-divide 5040. A separately implemented source-first checker reproduces every
-fraction. The artifact remains source-local in the Erdős Frontier; no Claim,
-Verification record, Decision, or global nonexistence conclusion is inferred.
+The claim-credit-false engineering tranche did not find a cover, but its
+preregistered structural ledgers produced two real bounded advances: exact
+overlap-counting obstructions exclude all 31 distinct-prime tiles whose orders
+divide 5040 and all 33 whose orders divide 10080. A separately implemented
+source-first checker reproduces every fraction. A separately frozen 55-tile
+`n | 55440` pass returned `no_conclusion`, so the same global inequality is
+retired for the next tranche. The 10080 exclusion and 55440 null are rooted at
+`sha256:e1ad8e2fa75fa55c278b7e26daa61a8aef53ce12b26559d25c6a5d7125022d17`
+and
+`sha256:c4e63f2cec41e39c9c6bcbb08207a76892900d6b88c47d672aee2c63025322bd`.
+All artifacts remain source-local in the Erdős
+Frontier; no Claim, Verification record, Decision, or global nonexistence
+conclusion is inferred.
 
 The [Astra release map](ASTRA_RELEASE_MAP_CAMPAIGN.md) is complete at its
 current evidence ceiling: all ten result families, twelve Comparator profiles,
 and 41 terminal theorem declarations passed the rooted hardened path, and
 every declaration's exact axiom inventory is `propext`, `Classical.choice`,
 and `Quot.sound`. The consequence-aware map and three Erdős matrices are also
-retained. Separately scoped Verification of 146 and 180, a source-first Erdős
-180 correction packet if the mismatch survives review, and the attributed
-human Decision or deferral for Erdős 183 remain review-queue obligations, not
-reasons to manufacture more producer output. The exact public Result Dossiers
-for Erdős 264 and 730 remain a separate product-evidence lane; their human
-usability claim is still unearned.
+retained. A source-first mechanical check now qualifies 146 and 180 at their
+non-authoritative evidence ceiling, and a chronology-preserving Erdős 180
+correction packet is ready for a source owner without performing a correction.
+The attributed human Decision or deferral for Erdős 183 remains a review-queue
+obligation, not a reason to manufacture more producer output. The exact public
+Result Dossiers for Erdős 264 and 730 remain a separate product-evidence lane;
+their human usability claim is still unearned.
 Two frozen Erdős 730 model-instrumentation iterations are now retained as
 failures: 12.28% improvement in iteration 1 and a 27.60% regression in the
 named-defect iteration 2. The same-case model-timing lane is retired; the next
@@ -44,10 +52,11 @@ The consequence-aware map is now rooted at
 `sha256:f219d4a1fe8ab71e516012fc8bd60a06db863e56be2c2be3920104b7472282dc`.
 It records all ten families without inventing external review. The three Erdős
 matrices are complete at their current evidence ceiling: 183 is faithful and
-verified but pending human Decision; 146 is faithful producer evidence pending
-separate Verification; and 180 exposes a material source/formalization boundary
+verified but pending human Decision; 146 is mechanically qualified as faithful;
+and 180 is mechanically qualified as a material source/formalization boundary
 between the unrestricted original question and corrected cyclic-family
-conjecture. The same explicit witness refutes both 180 formulations.
+conjecture. The same explicit witness refutes both 180 formulations, and the
+prepared correction packet preserves their chronology without authority effect.
 
 ADR 0038 separates scientific qualification from public product qualification.
 The failed Result Dossier gate remains binding on usability and
@@ -608,8 +617,9 @@ Standing without a later human Decision.
    declarations with exact roots and axioms. The consequence-aware claim,
    manuscript, external-status, and Standing map is now retained with unknown
    fields explicitly unassessed.
-3. **Complete at producer/review ceiling:** retain all three Erdős fidelity
-   matrices; 146 and 180 still require separate scoped Verification.
+3. **Complete at source-local evidence ceiling:** retain all three Erdős
+   fidelity matrices; a separate mechanical checker qualifies 146 and 180,
+   while no protocol Verification is invented without source-owning Targets.
 4. **Complete:** record older source status and later release claims as separate
    timed observations, including the 180 statement correction boundary.
 5. **Complete:** generate exact follow-on obligations without automatic

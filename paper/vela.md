@@ -934,19 +934,21 @@ inside network-disabled Linux containers, and `#print axioms` reported exactly
 The retained result root is
 `sha256:5a60c3be27036c65a6a37bf55dce71abcb024cfecece92b8e7dcaf1324b095d0`.
 This is proof-replay and inventory evidence, not statement-fidelity, novelty,
-field-acceptance, or Vela-Standing evidence. The Erdős 146, 180, and 183
-fidelity and human-Decision obligations remain open.
+field-acceptance, or Vela-Standing evidence. Separate source-first checking now
+qualifies the 146 and 180 matrices at a non-authoritative evidence ceiling; the
+Erdős 183 human-Decision obligation remains open.
 
 A separate rooted consequence map now keeps those layers distinct for all ten
 families. It leaves theorem-level fidelity and external review for the first
 eight families explicitly unassessed. Among the three Erdős cases, 183 is
 faithful with scoped Verification but remains pending human Decision; 146 is
-faithful producer evidence pending separate Verification; and 180 has a
+mechanically qualified as faithful; and 180 is mechanically qualified with a
 material source boundary. The retained Erdős 180 statement asks the
 unrestricted finite-family question, whereas the manuscript and Lean formalize
 the corrected nonempty cyclic-family restriction. Their explicit connected
 bipartite cyclic-family witness refutes both formulations, but the predicates
-must not be called identical. The consequence-map root is
+must not be called identical. A chronology-preserving correction packet is
+prepared without changing the source. The consequence-map root is
 `sha256:f219d4a1fe8ab71e516012fc8bd60a06db863e56be2c2be3920104b7472282dc`.
 
 ### 6.10 Registered benchmark matrix
@@ -1362,22 +1364,31 @@ productivity, or causal-lift claims.
 
 The completed Astra native map now closes its producer tranche at the current
 evidence ceiling rather than converting green kernel checks into scientific
-Standing. Its Erdős 146 and 180 matrices await separate source-local
-Verification, and the verified Erdős 183 fidelity Claim still awaits an
-attributed human Decision or deferral. The next producer lane is therefore the
+Standing. A separate source-first mechanical check qualifies its Erdős 146
+matrix as faithful and Erdős 180 as a material original-versus-corrected
+predicate mismatch; a chronology-preserving 180 correction packet performs no
+source or authority mutation. The verified Erdős 183 fidelity Claim still
+awaits an attributed human Decision or deferral. The next producer lane is the
 already-offered source-owning Target `erdos:203:finite-cover`, whose exact
 briefing preserves the corrected lattice engine, the retracted 99.98% episode,
 the finite-certificate contract, and an independent affine-cover verifier.
 That activation neither passes the separate human Dossier gate nor implies
 that an Erdős 203 witness exists.
 
-The first source-local engineering tranche subsequently produced a bounded
-structural obstruction rather than a cover: exact mandatory-overlap counting
-excludes the 31 distinct-prime tiles whose subgroup orders divide 5040. A
-separately implemented checker reproduced the pinned pool, coordinate maps,
-pair indices, and contradiction fractions. This claim-credit-false evidence
-does not exclude larger-order families, answer Erdős 203 globally, create a
-Vela Verification, or change Standing.
+The source-local engineering tranche subsequently produced bounded structural
+obstructions rather than a cover: exact mandatory-overlap counting excludes
+the 31 distinct-prime tiles whose subgroup orders divide 5040 and the 33 whose
+orders divide 10080. A separately implemented checker reproduced the pinned
+pool, coordinate maps, every pair index, and all contradiction fractions. A
+separately frozen 55-tile `n | 55440` experiment returned `no_conclusion`, so
+the same global inequality is retired for the next tranche. The latter two
+producer roots are
+`sha256:e1ad8e2fa75fa55c278b7e26daa61a8aef53ce12b26559d25c6a5d7125022d17`
+and
+`sha256:c4e63f2cec41e39c9c6bcbb08207a76892900d6b88c47d672aee2c63025322bd`.
+This claim-credit-
+false evidence does not answer Erdős 203 globally, create a Vela Verification,
+or change Standing.
 
 ## 12. References
 

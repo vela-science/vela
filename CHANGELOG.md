@@ -2,16 +2,19 @@
 
 ## Unreleased
 
-- Record the first bounded Erdős 203 campaign advance without importing its
-  machinery into Vela: exact overlap counting, reproduced by a separately
-  implemented source-first checker, excludes the 31-tile `n | 5040` family.
-  The result remains source-local, claim-credit-false, non-authoritative, and
-  does not imply global nonexistence or scientific Standing.
+- Record two bounded Erdős 203 exclusions without importing their machinery
+  into Vela: exact overlap counting, reproduced by a separately implemented
+  source-first checker, excludes the 31-tile `n | 5040` family and the larger
+  33-tile `n | 10080` family. A separately preregistered `n | 55440` pass
+  returned `no_conclusion`, so that global inequality is retired for the next
+  tranche. These results remain source-local, claim-credit-false,
+  non-authoritative, and do not imply global nonexistence or Standing.
 - Close the Astra release map at its current evidence ceiling and activate the
   source-owning Erdős 203 finite-cover producer lane. The existing rooted
   briefing preserves the corrected lattice kernel, retracted 99.98% result,
-  exact certificate contract, and independent verifier; Astra 146/180
-  Verification and the Erdős 183 human checkpoint remain separate review work.
+  exact certificate contract, and independent verifier; Astra 146/180 now have
+  a passing source-first mechanical check and a chronology-preserving Erdős
+  180 correction packet, while the Erdős 183 human checkpoint remains open.
 - Retain the complete native Astra release-map replay: all ten advertised
   result families, twelve JSON-declared Comparator profiles, and 41 terminal
   theorem declarations pass the rooted network-disabled Linux path, Nanoda,
@@ -25,8 +28,10 @@
   evidence, preserve the verified Erdős 183 Claim as pending human Decision,
   and identify a material Erdős 180 boundary: the retained statement is
   unrestricted, while the manuscript and Lean formalize the corrected cyclic-
-  family conjecture. The explicit counterexample refutes both formulations;
-  separate Verification and source correction remain open.
+  family conjecture. The explicit counterexample refutes both formulations.
+  A source-first checker now qualifies both matrices at their non-authoritative
+  evidence ceiling, and an exact correction packet preserves both 180
+  formulations without performing a source or Standing change.
 - Open the ADR 0019 Level 0 experiment with a source-local exact Lean replay
   contract candidate, closed schemas, maintained RFC 8785 root construction,
   file-root verification, and fail-closed axiom vectors. The experiment adds no

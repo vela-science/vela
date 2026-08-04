@@ -29,11 +29,12 @@ state, and one honest next obligation per selected result.
   It leaves theorem-level fidelity and external review for families 1–8
   explicitly unassessed rather than inventing status.
 - All three Erdős fidelity matrices now exist. Erdős 183 is faithful with a
-  passing scoped Verification but remains pending human Decision. Erdős 146 is
-  faithful producer evidence pending separate Verification. Erdős 180 retains
-  a material qualified mismatch: the source asks the unrestricted question,
-  while the manuscript and Lean formalize its corrected cyclic-family form;
-  the explicit witness refutes both.
+  passing scoped Verification but remains pending human Decision. A separate
+  source-first mechanical checker qualifies Erdős 146 as faithful and Erdős
+  180 as a material mismatch: the source asks the unrestricted question, while
+  the manuscript and Lean formalize its corrected cyclic-family form; the
+  explicit witness refutes both. No protocol Verification is invented without
+  a source-owning Target.
 - The aggregate Lake challenge target is stale because it names nonexistent
   module `ComparatorChallenges.C_PermanentSuperquadraticStandalone`; this
   does not invalidate the twelve JSON-declared profile runs.
@@ -51,18 +52,19 @@ state, and one honest next obligation per selected result.
    announcement wording, manuscript binding, Lean declaration set, checker
    result, fidelity, novelty/external-review status, Vela evidence, local
    Standing, and next obligation. Unknown review fields remain `not_assessed`.
-5. **Producer matrices complete:** complete definition, quantifier, hypothesis,
-   conclusion, source-timing, discrepancy, and nonclaim matrices for Erdős 146,
-   180, and 183. Separate Verification remains open for 146 and 180.
+5. **Source-local matrices complete:** complete definition, quantifier,
+   hypothesis, conclusion, source-timing, discrepancy, and nonclaim matrices
+   for Erdős 146, 180, and 183. The 146/180 source-first checker passes and the
+   chronology-preserving 180 correction packet is prepared without changing
+   source state.
 6. Resolve the source-local Erdős 183 checkpoint only by explicit human
    Decision or documented deferral; this cross-Frontier campaign must not
    duplicate or exercise Erdős repository authority.
 7. **Complete:** derive one explicit next obligation for every family without
    automatic acceptance.
 
-The remaining active scientific work is separately scoped Verification of the
-146/180 producer matrices, a source-first Erdős 180 correction packet if that
-Verification passes, and the explicit human Erdős 183 Decision or deferral.
+The remaining Astra authority work is the explicit human Erdős 183 Decision or
+deferral and any separately opened, human-owned Erdős 180 source correction.
 
 ## Completion gate
 
