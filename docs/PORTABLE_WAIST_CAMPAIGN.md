@@ -64,8 +64,8 @@ Decision tool. Verify the live primary specification before implementation.
 The exact Lean replay contract is the first package candidate. It remains
 source-local until two maintained consumers produce net deletion. No package
 CLI, resolver, Registry, or hosted index is built before that evidence.
-The executable experiment and its exact stop conditions are in
-[`LEAN_REPLAY_PACKAGE_CAMPAIGN.md`](LEAN_REPLAY_PACKAGE_CAMPAIGN.md).
+The first experiment failed the net-deletion gate and is retained in Git
+history; it does not remain an active campaign.
 
 ## Stop conditions
 

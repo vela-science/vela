@@ -71,11 +71,11 @@ It binds the `frontier_id`, Profile root, generation, initial object-set root,
 and full origin identity carried by `vela.repository.v4`. Unknown or
 substituted origins fail closed.
 
-A native `vela init` writes Profile v2 and scaffolding only. `status`
-identifies the repository as `authority_uninitialized`. One
-`vela authority init` transaction installs the genesis, manifest, keyset,
-policy, sequence-1 authority event and record, then creates the initial
-unsigned Git commit.
+A native `vela init` writes Profile v2 and scaffolding, then installs the
+genesis, manifest, keyset, policy, sequence-1 authority event and record and
+creates the initial unsigned Git commit. If signing cannot complete, the exact
+Profile remains as a resumable bootstrap and `status` reports
+`authority_uninitialized`; rerunning `vela init` completes the same lifecycle.
 
 The four compacted pre-release repositories retain one exact predecessor block
 inside their origin. It is provenance, not an alternate active schema. There

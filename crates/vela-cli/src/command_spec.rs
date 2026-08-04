@@ -84,13 +84,13 @@ pub(crate) enum Commands {
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
-    /// Initialize the standard repository-authority writer for a fresh Frontier.
+    /// Manage independently distributed repository-authority trust roots.
     #[command(hide = true)]
     Authority {
         #[command(subcommand)]
         action: AuthorityAction,
     },
-    /// Initialize a minimal .vela frontier repository.
+    /// Create a signed, replayable Frontier ready for scientific work.
     #[command(after_long_help = crate::cli::help_text::INIT)]
     Init {
         /// Directory to create as a native Frontier.
@@ -102,6 +102,14 @@ pub(crate) enum Commands {
         /// The bounded research question. Required in --json mode.
         #[arg(long)]
         scope: Option<String>,
+        /// Full OpenSSH SHA256 fingerprint, key ID, or raw public-key hex for
+        /// repository authority. Omit when the agent exposes exactly one
+        /// Ed25519 identity.
+        #[arg(long)]
+        key: Option<String>,
+        /// Why repository authority is being established.
+        #[arg(long, default_value = "Establish repository authority.")]
+        reason: String,
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
@@ -288,21 +296,6 @@ pub(crate) enum VerifyAction {
 
 #[derive(Subcommand)]
 pub(crate) enum AuthorityAction {
-    /// Bind a fresh Frontier to one loaded OpenSSH-agent Ed25519 identity.
-    Init {
-        /// Native Frontier bootstrap to bind. Defaults to the current directory.
-        #[arg(default_value = ".")]
-        frontier: PathBuf,
-        /// Full OpenSSH SHA256 fingerprint, key ID, or raw public-key hex.
-        /// Omit only when the agent exposes exactly one Ed25519 identity.
-        #[arg(long)]
-        key: Option<String>,
-        /// Why this repository authority is being established.
-        #[arg(long)]
-        reason: String,
-        #[arg(long, help = HELP_JSON)]
-        json: bool,
-    },
     /// Manage independently distributed repository-authority trust roots.
     Trust {
         #[command(subcommand)]

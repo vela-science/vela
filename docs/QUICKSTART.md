@@ -66,28 +66,15 @@ vela init ./frontier \
   --json
 ```
 
-The result is a Profile v2 bootstrap with no Event, Claim, Decision, or
-scientific authority. `status` works immediately and reports the single
-`repository_authority_uninitialized` blocker. Load one dedicated
-Ed25519 repository-authority key into your standard OpenSSH agent with per-use
-confirmation (`ssh-add -c`), then establish the writer:
-
-```bash
-vela authority init ./frontier \
-  --reason "Establish the repository writer for this bounded Frontier." \
-  --json
-```
-
-When the agent exposes more than one Ed25519 identity, add
-`--key SHA256:<full-fingerprint>`. Vela reads no private-key file. The command
-is valid only over untouched structural genesis and creates one root-bound
-sequence-1 authority record plus the initial unsigned Git commit. It establishes
-the human Decision and repository-administration boundary; routine producer and
-verifier evidence authenticates itself and does not use this key. Initialization
-grants no scientific standing. It also installs the creator's local trust anchor,
-so there is no second setup command. Distribute the returned full authority-record
-root independently; other consumers pin that published root once after cloning.
-Do not expose the authority-agent socket to an agent Campaign.
+Before running `init`, load one dedicated Ed25519 repository-authority key into
+your standard OpenSSH agent with per-use confirmation (`ssh-add -c`). `init`
+creates the Profile, root-bound sequence-1 authority record, local trust anchor,
+and initial Git commit in one command. It creates no Claim, Decision, or
+scientific Standing. When the agent exposes more than one Ed25519 identity,
+add `--key SHA256:<full-fingerprint>`. If signing is unavailable, load the key
+and rerun the same `vela init ./frontier --json`; the retained Profile makes
+that retry safe. Vela reads no private-key file. Do not expose the authority
+agent socket to an agent Campaign.
 
 ## Predecessor repositories
 

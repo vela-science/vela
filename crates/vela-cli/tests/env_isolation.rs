@@ -20,6 +20,7 @@ fn init_frontier(dir: &std::path::Path) {
     let out = Command::new(vela_bin())
         .current_dir(dir)
         .env("HOME", dir)
+        .env_remove("SSH_AUTH_SOCK")
         .args([
             "init",
             ".",
@@ -30,7 +31,12 @@ fn init_frontier(dir: &std::path::Path) {
         ])
         .output()
         .expect("init");
-    assert!(out.status.success(), "init failed: {out:?}");
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "expected signing refusal: {out:?}"
+    );
+    assert!(dir.join("frontier.toml").is_file());
 }
 
 fn run_in(dir: &std::path::Path, args: &[&str]) -> std::process::Output {
@@ -48,9 +54,9 @@ fn run_in(dir: &std::path::Path, args: &[&str]) -> std::process::Output {
 fn command_errors_use_stable_exit_codes() {
     let tmp = tempfile::TempDir::new().unwrap();
     init_frontier(tmp.path());
-    // `init` creates a Profile v2 shell. Until repository authority is
-    // initialized, `check` rejects it as a domain error rather than falling
-    // through to a retired profile loader.
+    // A failed signing attempt retains a resumable Profile v2 shell. Until
+    // `init` is rerun with a key, `check` rejects it as a domain error rather
+    // than falling through to a retired profile loader.
     let out = run_in(tmp.path(), &["check", "--json"]);
     assert_eq!(
         out.status.code(),

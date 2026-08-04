@@ -69,20 +69,11 @@ run_json() {
   --name 'Interop Frontier' \
   --scope 'Exercise current Submission and Verification Record interoperability.' \
   --json >"$root/init.json"
+trust_pin_path="$(jq -er '.authority.local_trust.anchor_path' "$root/init.json")"
 git init -q --bare "$remote"
-git -C "$frontier" init -q
-git -C "$frontier" branch -M main
-git -C "$frontier" add --all
-git -C "$frontier" commit -q -m 'Initialize disposable Frontier'
 git -C "$frontier" remote add origin "$remote"
 git -C "$frontier" push -q -u origin main
 git --git-dir="$remote" symbolic-ref HEAD refs/heads/main
-
-"$vela" authority init "$frontier" \
-  --reason 'Establish ephemeral authority for a disposable interoperability Frontier.' \
-  --json >"$root/authority-init.json"
-publish_fixture_delta 'Initialize disposable repository authority'
-trust_pin_path="$(jq -er '.local_trust.anchor_path' "$root/authority-init.json")"
 
 "$vela" status "$frontier" --json >"$root/status-before.json"
 accepted_claims_before="$(jq -r '.counts.accepted_claims' "$root/status-before.json")"

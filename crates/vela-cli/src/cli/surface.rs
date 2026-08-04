@@ -28,7 +28,7 @@ Usage:
   vela <COMMAND>
 
 Daily product:
-  init          Create a minimal Git-native frontier
+  init          Create a signed, replayable Git-native Frontier
   status        Compact frontier identity, roots, counts, and next action
   next          Ranked Target Offers
   start         Inspect one exact Target and its bounded completion contract
@@ -44,7 +44,7 @@ Advanced verification and integration:
   verification  Retain non-authorizing scoped Verification Records
 
 Advanced setup:
-  authority     initialize standard repository authority for a fresh Frontier
+  authority     pin an independently published repository trust root
 Hidden utility:
   completions   generate shell completion scripts
 "#,

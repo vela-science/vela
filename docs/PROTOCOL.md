@@ -284,12 +284,10 @@ review Events.
 
 ### 5.1 Initialize
 
-`vela init` creates structural repository identity only.
-
-`vela authority init` is valid only for an untouched current structural
-Frontier. It binds one loaded OpenSSH-agent Ed25519 identity, current keyset,
-Cedar bundle, authenticated OS principal, and reason in the sequence-one
-authority record. It changes no scientific Standing.
+`vela init` creates the structural repository identity and binds one loaded
+OpenSSH-agent Ed25519 identity, current keyset, Cedar bundle, authenticated OS
+principal, and reason in the sequence-one authority record. It is resumable
+after signing failure and changes no scientific Standing.
 
 ### 5.2 Start
 

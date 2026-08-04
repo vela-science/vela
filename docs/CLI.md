@@ -259,7 +259,7 @@ behalf or access the repository-authority agent socket.
 
 ## Repository setup
 
-Create a structural Frontier:
+Create a signed, replayable Frontier:
 
 ```bash
 vela init ./my-frontier \
@@ -267,20 +267,13 @@ vela init ./my-frontier \
   --scope "Does X hold?"
 ```
 
-Initialization writes Profile v2 and scaffolding only. `status` reports
-`authority_uninitialized`; strict repository verification remains
-blocked. To establish the repository writer, load one dedicated Ed25519
-identity in the normal OpenSSH agent with per-use confirmation (`ssh-add -c`)
-and run:
+Initialization writes Profile v2, binds one Ed25519 identity from the normal
+OpenSSH agent, installs the repository origin and local trust anchor, and
+commits the verified initial state. If signing fails, the Profile is retained;
+load the key and rerun the same `vela init` command. Use `--key` when the agent
+contains more than one Ed25519 identity.
 
-```bash
-vela authority init ./my-frontier \
-  --reason "Establish the repository writer for this bounded Frontier." \
-  --json
-```
-
-Initialization installs the creator's matching local trust anchor. Independent
-consumers install the returned sequence-one authority-record root after
+Independent consumers install the returned sequence-one authority-record root after
 obtaining it through a separate channel:
 
 ```bash

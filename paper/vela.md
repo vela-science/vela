@@ -1341,8 +1341,7 @@ Claim. Replay reproduces repository root
 `sha256:821cf0d94778f647305107943572f4916a6cf63fe5ea12506a471fabc07b7474`.
 This supplies a second reusable Dossier case but cannot retroactively pass the
 product gate or support external review, global acceptance, novelty, a native
-4.27.0 port, or Vela-caused discovery. Public Dossier qualification is reserved
-for a frozen multi-case study with fresh human reviewers.
+4.27.0 port, or Vela-caused discovery.
 
 The first frozen instrumentation pass on this second case also remained
 negative. Four context-isolated sessions per arm produced a 21.25-second flat
@@ -1362,29 +1361,11 @@ Together the two cases support an exact,
 correction-aware read record, but not reviewer-efficiency, adoption,
 productivity, or causal-lift claims.
 
-The next tranche has executable pre-recruitment machinery rather than another
-model-timing iteration. It roots and reverifies the two-case production input
-and archives four standalone presentations. Before any assignment, a mandatory
-study freeze binds completed operator commitments, private consent and
-eligibility roots, the amendment policy, rubric, timing and analysis code, and
-all three report templates. Its exact root propagates through counterbalanced
-assignments. A second mandatory enrollment checkpoint binds the eight assigned
-reviewer slots to distinct private identities and reviewer-specific consent and
-eligibility records, plus distinct operator, scorer, adjudicator, and
-availability records, before packets can exist. The plan and enrollment roots
-propagate through timed packets, all eight answers, interruption data,
-packet-set verification, independent blinded scorecards, adjudication, and the
-bounded feasibility result. It is deliberately `claim_credit: false`; uncertainty and
-the confirmatory gate remain explicitly unevaluated. It cannot authorize a
-public claim and remains unfrozen until recruitment, consent, privacy,
-compensation, calendar, reserve, reviewer/scorer, and analysis obligations are
-resolved. No human session has run. Deployed product commit `c4032478`,
-production deployment `dpl_HqRhYJJbqQZhUZuiNqW3bBeAwHxU`, and evidence commit
-`2b56908e` retain the candidate at
-`sha256:6ae55b2a06b253f85f4c74cf352cd9d6025cdfb13213d186a7c3a8a8ef35b5a8`;
-the presentation bundle is rooted at
-`sha256:452039248d80b8eee3c98344cf9253e81c34e976fe3faa7ae8e718bf6202806b`.
-Those roots identify inputs and instrumentation, not a usability result.
+The proposed multi-reviewer follow-up was never run and has been retired. Its
+recruitment, assignment, enrollment, and scoring machinery is not part of the
+Vela product. The public Dossiers remain exact read-only case records. This
+paper makes no reviewer-efficiency, external-validation, adoption,
+productivity, or causal-lift claim from them.
 
 The completed Astra native map now closes its producer tranche at the current
 evidence ceiling rather than converting green kernel checks into scientific
