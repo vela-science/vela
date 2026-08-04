@@ -102,9 +102,9 @@ novelty, and a Lean 4.27.0 port remain nonclaims.
 
 ### 4. Complete the Astra release map
 
-**Active scientific work package.** The completed Erdős 730 packet and public
-read-only Dossier release satisfy the entry sequence; product-usability claims
-remain independently gated.
+**Completed at the current evidence ceiling.** The completed Erdős 730 packet
+and public read-only Dossier release satisfy the entry sequence;
+product-usability claims remain independently gated.
 
 - **Completed native tranche:** bind all ten advertised result families,
   twelve Comparator profiles, and 41 terminal theorem declarations at rooted
@@ -139,8 +139,12 @@ study begins.
 
 ### 6. Attempt a fresh result
 
-- Primary candidate: Erdős 203, using its merged Formal Conjectures statement,
-  corrected exploratory campaign, and exact affine-cover verifier.
+**Active producer lane.** The exact current Frontier queue offers
+`erdos:203:finite-cover` first.
+
+- Primary Target: Erdős 203, using its merged Formal Conjectures statement,
+  corrected exploratory campaign, exact rooted briefing, and independent
+  affine-cover verifier.
 - Fixed reserves: Erdős 647, Erdős 7, and one Astra-derived downstream
   obligation.
 - One long-horizon native-agent campaign, all failures retained.

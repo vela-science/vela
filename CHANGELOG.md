@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Close the Astra release map at its current evidence ceiling and activate the
+  source-owning Erdős 203 finite-cover producer lane. The existing rooted
+  briefing preserves the corrected lattice kernel, retracted 99.98% result,
+  exact certificate contract, and independent verifier; Astra 146/180
+  Verification and the Erdős 183 human checkpoint remain separate review work.
 - Retain the complete native Astra release-map replay: all ten advertised
   result families, twelve JSON-declared Comparator profiles, and 41 terminal
   theorem declarations pass the rooted network-disabled Linux path, Nanoda,

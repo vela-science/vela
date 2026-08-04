@@ -2,17 +2,25 @@
 
 ## Active work package
 
-The active scientific work package is now the
-[Astra release map](ASTRA_RELEASE_MAP_CAMPAIGN.md). Its native replay tranche is
-complete: all ten result families, twelve Comparator profiles, and 41 terminal
-theorem declarations passed the rooted hardened path, and every declaration's
-exact axiom inventory is `propext`, `Classical.choice`, and `Quot.sound`. The
-consequence-aware map and three Erdős matrices are also retained. The active
-scientific tranche is separately scoped Verification of 146 and 180, an Erdős
-180 source-correction packet if verified, and an explicit human Decision or
-documented deferral for Erdős 183. The exact public Result Dossiers for Erdős
-264 and 730 remain a
-separate product-evidence lane; their human usability claim is still unearned.
+The active scientific producer work package is now the source-owning Erdős
+Frontier campaign `erdos:203:finite-cover`. Its exact current briefing binds
+repository root
+`sha256:821cf0d94778f647305107943572f4916a6cf63fe5ea12506a471fabc07b7474`,
+the corrected lattice source, the retraction of the earlier 99.98% result, and
+the independent affine-cover verifier. A passing verifier may create scoped
+evidence for review; it cannot create scientific Standing.
+
+The [Astra release map](ASTRA_RELEASE_MAP_CAMPAIGN.md) is complete at its
+current evidence ceiling: all ten result families, twelve Comparator profiles,
+and 41 terminal theorem declarations passed the rooted hardened path, and
+every declaration's exact axiom inventory is `propext`, `Classical.choice`,
+and `Quot.sound`. The consequence-aware map and three Erdős matrices are also
+retained. Separately scoped Verification of 146 and 180, a source-first Erdős
+180 correction packet if the mismatch survives review, and the attributed
+human Decision or deferral for Erdős 183 remain review-queue obligations, not
+reasons to manufacture more producer output. The exact public Result Dossiers
+for Erdős 264 and 730 remain a separate product-evidence lane; their human
+usability claim is still unearned.
 Two frozen Erdős 730 model-instrumentation iterations are now retained as
 failures: 12.28% improvement in iteration 1 and a 27.60% regression in the
 named-defect iteration 2. The same-case model-timing lane is retired; the next

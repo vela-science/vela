@@ -1360,6 +1360,17 @@ Together the two cases support an exact,
 correction-aware read record, but not reviewer-efficiency, adoption,
 productivity, or causal-lift claims.
 
+The completed Astra native map now closes its producer tranche at the current
+evidence ceiling rather than converting green kernel checks into scientific
+Standing. Its Erdős 146 and 180 matrices await separate source-local
+Verification, and the verified Erdős 183 fidelity Claim still awaits an
+attributed human Decision or deferral. The next producer lane is therefore the
+already-offered source-owning Target `erdos:203:finite-cover`, whose exact
+briefing preserves the corrected lattice engine, the retracted 99.98% episode,
+the finite-certificate contract, and an independent affine-cover verifier.
+That activation neither passes the separate human Dossier gate nor implies
+that an Erdős 203 witness exists.
+
 ## 12. References
 
 1. Scott Chacon and Ben Straub. “Git Internals: Plumbing and Porcelain.”
