@@ -1371,6 +1371,14 @@ the finite-certificate contract, and an independent affine-cover verifier.
 That activation neither passes the separate human Dossier gate nor implies
 that an Erdős 203 witness exists.
 
+The first source-local engineering tranche subsequently produced a bounded
+structural obstruction rather than a cover: exact mandatory-overlap counting
+excludes the 31 distinct-prime tiles whose subgroup orders divide 5040. A
+separately implemented checker reproduced the pinned pool, coordinate maps,
+pair indices, and contradiction fractions. This claim-credit-false evidence
+does not exclude larger-order families, answer Erdős 203 globally, create a
+Vela Verification, or change Standing.
+
 ## 12. References
 
 1. Scott Chacon and Ben Straub. “Git Internals: Plumbing and Porcelain.”

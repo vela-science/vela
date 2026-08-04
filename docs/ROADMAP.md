@@ -145,6 +145,10 @@ study begins.
 - Primary Target: Erdős 203, using its merged Formal Conjectures statement,
   corrected exploratory campaign, exact rooted briefing, and independent
   affine-cover verifier.
+- **First bounded advance:** a preregistered source-local direction ledger and
+  separate mechanical checker exclude the complete 31-tile `n | 5040` family
+  by exact overlap counting. This is not a global answer, accepted Claim, or
+  reason to widen Vela's protocol surface.
 - Fixed reserves: Erdős 647, Erdős 7, and one Astra-derived downstream
   obligation.
 - One long-horizon native-agent campaign, all failures retained.

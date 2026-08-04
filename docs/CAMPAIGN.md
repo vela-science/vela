@@ -10,6 +10,13 @@ the corrected lattice source, the retraction of the earlier 99.98% result, and
 the independent affine-cover verifier. A passing verifier may create scoped
 evidence for review; it cannot create scientific Standing.
 
+The first claim-credit-false engineering tranche did not find a cover, but its
+preregistered structural ledger produced a real bounded advance: an exact
+overlap-counting obstruction excludes the 31 distinct-prime tiles whose orders
+divide 5040. A separately implemented source-first checker reproduces every
+fraction. The artifact remains source-local in the Erdős Frontier; no Claim,
+Verification record, Decision, or global nonexistence conclusion is inferred.
+
 The [Astra release map](ASTRA_RELEASE_MAP_CAMPAIGN.md) is complete at its
 current evidence ceiling: all ten result families, twelve Comparator profiles,
 and 41 terminal theorem declarations passed the rooted hardened path, and

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Record the first bounded Erdős 203 campaign advance without importing its
+  machinery into Vela: exact overlap counting, reproduced by a separately
+  implemented source-first checker, excludes the 31-tile `n | 5040` family.
+  The result remains source-local, claim-credit-false, non-authoritative, and
+  does not imply global nonexistence or scientific Standing.
 - Close the Astra release map at its current evidence ceiling and activate the
   source-owning Erdős 203 finite-cover producer lane. The existing rooted
   briefing preserves the corrected lattice kernel, retracted 99.98% result,
