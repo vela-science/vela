@@ -46,8 +46,6 @@ jobs:
             asset: vela-linux-x86_64.tar.gz
           - runner: macos-15
             asset: vela-macos-aarch64.zip
-          - runner: windows-2025
-            asset: vela-windows-x86_64.zip
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -65,15 +63,8 @@ jobs:
         run: |
           cargo install cargo-auditable --version 0.7.5 --locked
           cargo auditable build --locked --release -p vela-cli --bin vela
-      - name: Stage Unix binary
-        if: runner.os != 'Windows'
+      - name: Stage binary
         run: mkdir -p dist stage && cp target/release/vela stage/
-      - name: Stage Windows binary
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force dist, stage | Out-Null
-          Copy-Item target/release/vela.exe stage/
       - name: Generate SPDX SBOM
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
         with:
@@ -95,26 +86,12 @@ jobs:
       - name: Archive macOS bundle
         if: runner.os == 'macOS'
         run: ditto -c -k --norsrc stage/ "dist/${{ matrix.asset }}"
-      - name: Archive Windows bundle
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: Compress-Archive -Path stage/vela.exe -DestinationPath "dist/${{ matrix.asset }}"
-      - name: Write checksums on Unix
-        if: runner.os != 'Windows'
+      - name: Write checksums
         shell: bash
         run: |
           cd dist
           shasum -a 256 "${{ matrix.asset }}" > "${{ matrix.asset }}.sha256"
           shasum -a 256 "${{ matrix.asset }}.spdx.json" > "${{ matrix.asset }}.spdx.json.sha256"
-      - name: Write checksums on Windows
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          Set-Location dist
-          foreach ($name in @("${{ matrix.asset }}", "${{ matrix.asset }}.spdx.json")) {
-            $digest = (Get-FileHash -Algorithm SHA256 $name).Hash.ToLowerInvariant()
-            Set-Content -Encoding ascii -NoNewline -Path "${name}.sha256" -Value "$digest  $name"
-          }
       - name: Attest archive and SBOM
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
@@ -138,8 +115,6 @@ jobs:
             asset: vela-linux-x86_64.tar.gz
           - runner: macos-15
             asset: vela-macos-aarch64.zip
-          - runner: windows-2025
-            asset: vela-windows-x86_64.zip
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -149,13 +124,8 @@ jobs:
         with:
           name: ${{ matrix.asset }}
           path: dist
-      - name: Smoke Unix bundle
-        if: runner.os != 'Windows'
+      - name: Smoke release bundle
         run: .github/release/smoke-bundle.sh "dist/${{ matrix.asset }}" "${{ needs.metadata.outputs.version }}"
-      - name: Smoke Windows bundle
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: .github/release/smoke-bundle.ps1 -Archive "dist/${{ matrix.asset }}" -ExpectedVersion "${{ needs.metadata.outputs.version }}"
 
   publish:
     if: github.event_name == 'push'
@@ -176,7 +146,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          for asset in vela-linux-x86_64.tar.gz vela-macos-aarch64.zip vela-windows-x86_64.zip; do
+          for asset in vela-linux-x86_64.tar.gz vela-macos-aarch64.zip; do
             test -f "dist/$asset"
             test -f "dist/$asset.sha256"
             test -f "dist/$asset.spdx.json"
