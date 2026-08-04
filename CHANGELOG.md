@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## v0.965.1 — 2026-08-04 — Release contract correction
+
+- Correct the release-bundle smoke tests to exercise the current one-command
+  Frontier initialization contract: `vela.frontier-init.v3`, replay-verified
+  `vela.status.v3`, zero integrity blockers, and the direct-submission next step.
+- No protocol behavior changes from `v0.965.0`.
+
 ## v0.965.0 — 2026-08-04 — One-command Frontier creation
 
 - Make `vela init` create a signed, replayable Frontier in one command. Remove
