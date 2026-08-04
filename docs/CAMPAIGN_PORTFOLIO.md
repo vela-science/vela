@@ -2,8 +2,9 @@
 
 This file is the routing table for remaining work. Each linked campaign owns
 its inputs, outputs, gates, stop conditions, and nonclaims. The active
-scientific work package is the Astra release map. Human Dossier qualification
-remains a separate pre-recruitment product lane.
+scientific work package is the source-owning Erdős 203 finite-cover campaign.
+The Astra release map is complete at its current evidence ceiling, while human
+Dossier qualification remains a separate pre-recruitment product lane.
 
 ## Governing sequence
 
@@ -11,8 +12,8 @@ remains a separate pre-recruitment product lane.
 |---|---|---|---|---|
 | 1 | [Erdős 730 external-proof boundary](https://github.com/vela-science/erdos-frontier/blob/main/campaigns/erdos-730-external-proof-boundary.md) | **Complete — exact local Claim accepted and replayed** | Exact target and verifier already present | Verified equivalence report, human Decision, and rooted handoff |
 | 2 | [Result Dossier qualification](https://github.com/vela-science/vela-web/blob/main/docs/result-dossier-qualification.md) | **Pre-recruitment — public exact record; same-model timing retired after two 730 failures** | Completed 730 boundary | Frozen multi-case human study and bounded result |
-| 3 | [Astra release map](ASTRA_RELEASE_MAP_CAMPAIGN.md) | **Active** | Exact ten-proofs release | Ten-family map, twelve profile replays, three fidelity matrices |
-| 4 | [Erdős 203 discovery](https://github.com/vela-science/erdos-frontier/blob/main/campaigns/erdos-203-finite-cover.md) | Queued | Astra/730 obligations resolved or explicitly deferred | Novel verified artifact or clean bounded null |
+| 3 | [Astra release map](ASTRA_RELEASE_MAP_CAMPAIGN.md) | **Complete at the current evidence ceiling** | Exact ten-proofs release | Ten-family map, twelve profile replays, and three source-local fidelity matrices; Erdős 183 awaits its separate human Decision |
+| 4 | [Erdős 203 discovery](https://github.com/vela-science/erdos-frontier/blob/main/campaigns/erdos-203-finite-cover.md) | **Active — first exact bounded obstruction retained** | Astra producer tranche complete and source-owning Target offered | Novel verified artifact or clean bounded null |
 | 5 | [Autonomous-research qualification](AUTONOMOUS_RESEARCH_QUALIFICATION_CAMPAIGN.md) | Gated | Product gate plus two reusable cases | Frozen Phase 0 result; no general lift claim |
 | parallel | [Portable waist](PORTABLE_WAIST_CAMPAIGN.md) | Conformance only | Named consumer or protocol migration ADR | Checked schemas/fixtures or explicit no-change result |
 
@@ -36,6 +37,12 @@ gate passes. The retained Erdős 730 model iterations are instrumentation, not
 reviewers, and their negative timing results are not pooled or rerun. Erdős
 730, Astra, and Erdős 203 can produce scientific evidence without that release,
 but cannot be described as Dossier adoption or Vela productivity lift.
+
+The first Erdős 203 producer tranche excludes only the 31 pinned tiles whose
+orders divide 5040: exact mandatory-overlap accounting contradicts a cover for
+that bounded family. It is not a global solution, a Vela Verification, or an
+accepted Decision. Larger-order families remain the active scientific
+obligation.
 
 ## Independent adoption experiment
 
