@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Adopt the problem-centred map and frontier-to-commons foundry as Vela's next
+  product programme. `problems.science` will use the existing Vela Web codebase,
+  root-bound read model, source registry, and release manifest; native
+  Frontiers and maintained libraries retain their authority. No protocol,
+  package registry, second database, or Vela core release is introduced.
+
 ## v0.966.1 — 2026-08-04 — Linux certification correction
 
 - Keep launchd socket discovery macOS-local without triggering an unused-mut

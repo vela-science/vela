@@ -9,21 +9,29 @@ create -> submit -> verify -> decide -> replay
 
 ## Now
 
-- Make `vela init` a complete, resumable one-command operation.
-- Make empty and active Frontiers return useful next actions.
-- Keep JSON output stable, closed, and actionable on success and failure.
-- Exercise Submission, Verification, Decision, correction, and clean-clone
-  replay as one end-to-end CLI product.
-- Remove obsolete commands, compatibility paths, studies, and case-specific
-  campaign material from Vela core.
+- Launch `problems.science` from the existing Vela Web codebase, read model,
+  source registry, and release manifest.
+- Make the Erdős collection useful through broad source coverage and a small
+  set of exact deep cases with source-qualified status and current work.
+- Turn three Formal Conjectures or Erdős artifacts into explicit upstream,
+  source-local, archive, or no-extraction dispositions.
+- Generate the first reviewer-ready upstream dossier from exact native
+  evidence and statement-fidelity review.
+- Keep Vela core on focused, defect-driven maintenance while the product and
+  scientific work stay in their owning repositories.
 
 ## Next
 
-- Fix concrete failures found by sustained use on maintained Frontiers.
-- Reduce repeated code where deletion preserves exact roots and fail-closed
-  behavior.
-- Maintain the portable JSON Schema and conformance waist for existing objects.
-- Improve read-only Web projections without adding authority or duplicate state.
+- Add VibeMathed as an attributed source observation after its identity,
+  revision, rights, pagination, and deletion semantics pass audit.
+- Complete one correction cascade and one external producer handoff through
+  the public map.
+- Run a bounded Physlib pilot after maintainer policy or direct alignment
+  supports the selected contribution class.
+- Reach fifty high-quality deep problem pages only as source and Frontier
+  evidence earns them.
+- Measure evidence-location time, fidelity defects, reviewer effort, reuse,
+  and correction recovery.
 
 ## Only after demand
 
@@ -33,11 +41,15 @@ create -> submit -> verify -> decide -> replay
   root and the extraction deletes more maintained code than it adds.
 - Add hosted services only when local Git-native operation is insufficient for
   an observed user need.
+- Extract a Vela Math package or static package index only after two
+  independent maintained consumers prove the same contract and net deletion.
 
 ## Not planned
 
 - A Vela agent runner, scheduler, graph authority, automatic Decision path,
   hosted package registry, or reviewer-recruitment program.
+- A `vela-math` repository, competing theorem library, universal ontology, or
+  separate canonical `problems.science` database.
 - General usability, productivity, adoption, or scientific-lift claims from
   internal instrumentation.
 - Source-specific scientific campaigns in the Vela core repository.

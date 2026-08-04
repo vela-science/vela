@@ -1,32 +1,34 @@
 # Current Vela work
 
-Vela core has one job: make exact scientific state easy to create, inspect,
-verify, decide, replay, and transfer without becoming a research runner or a
-hosted authority service.
+Vela now has a complete local operator loop. The active programme is to turn
+the exact state already held in Frontiers into a useful public problem map and
+reviewer-ready contributions to native scientific commons.
 
 ## Active product loop
 
 ```text
-init -> submit -> verify -> decide -> replay
+map problem -> select bounded work -> preserve evidence -> verify -> decide
+            -> prepare reusable candidate -> upstream or retain -> remap
 ```
 
-The current tranche is successful when a new operator can:
+The current tranche is successful when:
 
-1. create a signed, replayable Frontier with one `vela init` command;
-2. submit bounded evidence without first building a Target adapter;
-3. retain scoped Verification without confusing it with acceptance;
-4. make one explicit attributed Decision;
-5. reproduce the repository from a clean clone; and
-6. get one truthful next action from every command and failure.
+1. `problems.science` serves a useful Erdős-first map from the existing Vela
+   Web release and read model;
+2. every consequential status is qualified by its native source or named
+   Frontier;
+3. deep problem pages show what stands, what is contested, what is missing,
+   and the next valid action;
+4. three Formal Conjectures or Erdős artifacts receive explicit extraction
+   dispositions;
+5. one exact upstream dossier makes a bounded candidate easier for a native
+   maintainer to assess; and
+6. one correction or dependency change remains traceable through the public
+   map without rewriting scientific history.
 
-Vela `0.966.1` removes per-signature authority confirmation, narrows the
-SSH-agent boundary to the two standard messages Vela uses, and removes the
-remaining native Windows branches. The
-repository service key is loaded once per authenticated operating-system
-session while every Decision retains its exact policy, current-root, semantic,
-read-set, signature, and replay checks. The remaining work is defect-driven:
-exercise this loop on real Frontiers, fix reproduced failures, and delete
-redundant paths.
+Vela core remains on defect-driven maintenance. Real Frontier use may expose a
+CLI or replay defect worth fixing, but the core repository will not absorb
+problem pages, candidate profiles, source adapters, or case dossiers.
 
 ## Boundaries
 
@@ -38,12 +40,19 @@ redundant paths.
 
 Vela core will not run reviewer-recruitment studies, maintain case-specific
 campaign portfolios, host a package registry, schedule research agents, or add
-an interoperability service without a concrete second consumer. Git history
-preserves retired experiments; they are not active product surface.
+an interoperability service without a concrete second consumer. The programme
+adds no `vela-math` repository, second database, universal ontology, or
+automatic authority path. Git history preserves retired experiments; they are
+not active product surface.
 
 ## Acceptance
 
-Every core change must pass the focused crate tests, cold-start lifecycle,
+The public wedge must bind the same source commits, repository roots, Claims,
+Verifications, Decisions, Targets, and release root as the Observatory. The
+first foundry case must retain exact native checks, statement-fidelity scope,
+dependencies, AI attribution, nonclaims, and requested maintainer decisions.
+
+Every core change still passes focused crate tests, cold-start lifecycle,
 clean-clone replay, formatting, and `git diff --check`. A release candidate also
-passes the repository release check. Claims are limited to the behavior those
-checks establish.
+passes the repository release check. Claims remain limited to the behavior
+those checks establish.
