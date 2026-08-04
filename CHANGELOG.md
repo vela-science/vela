@@ -2,20 +2,21 @@
 
 ## Unreleased
 
-- Record Vela Web's executable pre-recruitment Result Dossier qualification
-  kit at deployed product commit `bbb038c6` and evidence commit `d2d9b02a`:
-  exact production-input rooting and reverification, four standalone
-  no-subresource presentations, counterbalanced anonymous assignment, sixteen
-  rooted timed packets, self-rooted answers, visibility-interruption exclusion,
-  independently rooted packet-set analysis, blinded scoring and adjudication,
-  and positive, neutral, and negative report templates. The current candidate
-  root is `sha256:301caa82ecdabbc843707841ffc418bd094980f089d507377b4e6999cb35addb`;
+- Record Vela Web's fail-closed pre-recruitment Result Dossier qualification
+  kit at deployed product commit `fb806d4c`, production deployment
+  `dpl_HGiwtrgPpxatF8JWTUEehHyGYtat`, and evidence commit `231884ac`. Before an
+  assignment can exist, a mandatory rooted study freeze now binds the exact
+  candidate and four-presentation bundle, completed operator commitments,
+  private consent and eligibility roots, reviewer contract, amendment policy,
+  rubric, timing and analysis code, and all three report templates. The exact
+  plan root then propagates through assignment, packets, responses, packet set,
+  sessions, and result. The retained candidate root is
+  `sha256:66c58993fa5bb5ad00fb84064b1e7d5e0fbaf2fecbb0e677af3dd30c4fc2e25b`;
   the presentation-bundle root is
-  `sha256:4f636bee2020a87ffab89c3e55dc332c18c488618e887bc1770f841079a9fd21`.
-  The kit remains claim-credit-false; uncertainty and the confirmatory gate are
-  explicitly unevaluated, no assignment or study plan is frozen, no human
-  session has run, and no usability, reviewer-efficiency, adoption, or
-  productivity claim is authorized.
+  `sha256:4e0fcd796e8f055d7b8ad896676c4f443ed5cca8051b9e7f10b61e30e692138f`.
+  The kit remains claim-credit-false; no completed private commitments, study
+  plan, assignment, or human session are retained, and no usability,
+  reviewer-efficiency, adoption, or productivity claim is authorized.
 
 ## v0.964.0 — 2026-08-04 — Phase-aware CLI and campaign evidence
 

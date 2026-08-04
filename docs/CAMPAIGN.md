@@ -40,17 +40,20 @@ Two frozen Erdős 730 model-instrumentation iterations are now retained as
 failures: 12.28% improvement in iteration 1 and a 27.60% regression in the
 named-defect iteration 2. The same-case model-timing lane is retired; the next
 product qualification is the frozen multi-case human study. Deployed Vela Web
-product commit `bbb038c6` now supplies a fail-closed candidate, four standalone
-presentations, counterbalanced assignment, rooted timed packets and responses,
-visibility-interruption exclusion, exact packet-set analysis, blinded scoring,
-adjudication, and bounded report templates. It hard-codes no claim credit and
-authorizes neither recruitment nor a public claim; recruitment ownership,
-consent, private retention, compensation, reviewer/scorer identities, calendar
-dates, and the confirmatory sensitivity method remain unresolved.
+product commit `fb806d4c` and production deployment
+`dpl_HGiwtrgPpxatF8JWTUEehHyGYtat` now require one exact rooted study freeze
+before assignment. That freeze binds the candidate, four standalone
+presentations, completed operator and private-root commitments, reviewer
+contract, amendment policy, rubric, timing and analysis code, and positive,
+neutral, and negative report templates. Its root propagates through the
+counterbalanced assignment, timed packets and responses, packet-set analysis,
+blinded scoring, adjudication, and bounded result. It hard-codes no claim credit
+and authorizes neither recruitment nor a public claim; the private commitments
+remain unresolved and no plan or assignment is retained.
 The retained candidate is rooted at
-`sha256:301caa82ecdabbc843707841ffc418bd094980f089d507377b4e6999cb35addb`;
+`sha256:66c58993fa5bb5ad00fb84064b1e7d5e0fbaf2fecbb0e677af3dd30c4fc2e25b`;
 its standalone presentation bundle is rooted at
-`sha256:4f636bee2020a87ffab89c3e55dc332c18c488618e887bc1770f841079a9fd21`.
+`sha256:4e0fcd796e8f055d7b8ad896676c4f443ed5cca8051b9e7f10b61e30e692138f`.
 Neither root is a frozen study plan or usability result.
 The complete remaining portfolio and its gates are indexed in
 [`CAMPAIGN_PORTFOLIO.md`](CAMPAIGN_PORTFOLIO.md).
@@ -602,10 +605,13 @@ next product qualification is a frozen, case-blocked multi-case study with
 fresh qualified humans.
 
 The executable pre-recruitment kit reverifies live Dossier bytes and local flat
-fixtures before anonymous assignment, retains all eight answers and two
-independent blinded scorecards, requires distinct adjudication on disagreement,
-and always leaves public claim authorization false. This is instrument
-readiness, not a frozen plan, reviewer evidence, or permission to recruit.
+fixtures, then refuses anonymous assignment until `human:freeze` has rooted the
+complete operator, consent, eligibility, privacy, timing, amendment, scoring,
+and reporting contract. Every later descriptor must carry that exact plan root.
+It retains all eight answers and two independent blinded scorecards, requires
+distinct adjudication on disagreement, and always leaves public claim
+authorization false. This is instrument readiness, not a frozen plan, reviewer
+evidence, or permission to recruit.
 
 Gate: `8/8` exact recovery, zero authority errors, no omitted failure, caveat,
 or shared dependency, at least 20% lower median time than the flat baseline,
