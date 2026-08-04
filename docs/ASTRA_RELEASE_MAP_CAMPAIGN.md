@@ -24,8 +24,16 @@ state, and one honest next obligation per selected result.
 - The Erdős 183 fidelity Claim has a passing scoped Verification but remains
   pending human Decision. Its exact source-local checkpoint is owned by
   [`erdos-frontier`](https://github.com/vela-science/erdos-frontier/blob/main/campaigns/erdos-183-astra-fidelity.md).
-- The Erdős 146, 180, and 183 fidelity matrices and the consequence-aware
-  ten-family status map remain incomplete.
+- The consequence-aware ten-family map is rooted at
+  `sha256:f219d4a1fe8ab71e516012fc8bd60a06db863e56be2c2be3920104b7472282dc`.
+  It leaves theorem-level fidelity and external review for families 1–8
+  explicitly unassessed rather than inventing status.
+- All three Erdős fidelity matrices now exist. Erdős 183 is faithful with a
+  passing scoped Verification but remains pending human Decision. Erdős 146 is
+  faithful producer evidence pending separate Verification. Erdős 180 retains
+  a material qualified mismatch: the source asks the unrestricted question,
+  while the manuscript and Lean formalize its corrected cyclic-family form;
+  the explicit witness refutes both.
 - The aggregate Lake challenge target is stale because it names nonexistent
   module `ComparatorChallenges.C_PermanentSuperquadraticStandalone`; this
   does not invalidate the twelve JSON-declared profile runs.
@@ -39,18 +47,22 @@ state, and one honest next obligation per selected result.
 3. **Complete:** run every declared Comparator profile under the retained
    hardened contract; preserve the stale aggregate target and Docker
    disk-exhaustion incidents without scoring either as a scientific failure.
-4. Create a ten-family map separating announcement wording, manuscript theorem,
-   Lean declaration, checker result, novelty claim, external review/status,
-   Vela Verification, and local Standing.
-5. Complete definition/quantifier/hypothesis/conclusion matrices for Erdős 146,
-   180, and 183.
+4. **Complete as a bounded read model:** create a ten-family map separating
+   announcement wording, manuscript binding, Lean declaration set, checker
+   result, fidelity, novelty/external-review status, Vela evidence, local
+   Standing, and next obligation. Unknown review fields remain `not_assessed`.
+5. **Producer matrices complete:** complete definition, quantifier, hypothesis,
+   conclusion, source-timing, discrepancy, and nonclaim matrices for Erdős 146,
+   180, and 183. Separate Verification remains open for 146 and 180.
 6. Resolve the source-local Erdős 183 checkpoint only by explicit human
    Decision or documented deferral; this cross-Frontier campaign must not
    duplicate or exercise Erdős repository authority.
-7. Derive one next obligation for each result selected for further review.
+7. **Complete:** derive one explicit next obligation for every family without
+   automatic acceptance.
 
-The replay result closes only the native-checking portion of this campaign.
-Items 4–7 remain the active scientific work.
+The remaining active scientific work is separately scoped Verification of the
+146/180 producer matrices, a source-first Erdős 180 correction packet if that
+Verification passes, and the explicit human Erdős 183 Decision or deferral.
 
 ## Completion gate
 

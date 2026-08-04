@@ -937,6 +937,18 @@ This is proof-replay and inventory evidence, not statement-fidelity, novelty,
 field-acceptance, or Vela-Standing evidence. The Erdős 146, 180, and 183
 fidelity and human-Decision obligations remain open.
 
+A separate rooted consequence map now keeps those layers distinct for all ten
+families. It leaves theorem-level fidelity and external review for the first
+eight families explicitly unassessed. Among the three Erdős cases, 183 is
+faithful with scoped Verification but remains pending human Decision; 146 is
+faithful producer evidence pending separate Verification; and 180 has a
+material source boundary. The retained Erdős 180 statement asks the
+unrestricted finite-family question, whereas the manuscript and Lean formalize
+the corrected nonempty cyclic-family restriction. Their explicit connected
+bipartite cyclic-family witness refutes both formulations, but the predicates
+must not be called identical. The consequence-map root is
+`sha256:f219d4a1fe8ab71e516012fc8bd60a06db863e56be2c2be3920104b7472282dc`.
+
 ### 6.10 Registered benchmark matrix
 
 | Family | Primary | Held-out | Required |

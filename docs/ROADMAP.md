@@ -113,9 +113,15 @@ remain independently gated.
   network-disabled environment; all twelve pass Comparator, Nanoda, and Lean's
   default kernel, with the exact three-axiom inventory retained at
   `sha256:5a60c3be27036c65a6a37bf55dce71abcb024cfecece92b8e7dcaf1324b095d0`.
-- Complete statement-fidelity matrices for Erdős 146, 180, and 183.
-- Complete the ten-family manuscript, external-review/status, local Standing,
-  and downstream-obligation map without inferring novelty or acceptance.
+- **Completed bounded map:** retain all ten families, exact native bindings,
+  known Vela state, unknown external-review fields, and one next obligation at
+  `sha256:f219d4a1fe8ab71e516012fc8bd60a06db863e56be2c2be3920104b7472282dc`.
+- **Matrices complete at current evidence ceiling:** 183 is faithful and
+  verified but pending Decision; 146 is faithful producer evidence; 180 is a
+  qualified original-versus-corrected-statement mismatch whose witness refutes
+  both formulations.
+- Independently verify the 146/180 matrices and prepare a source-first 180
+  correction packet if the mismatch survives review.
 - Resolve Erdős 183 only through an explicit human Decision or documented
   deferral in the source-owning Frontier.
 

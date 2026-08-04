@@ -7,9 +7,11 @@ The active scientific work package is now the
 complete: all ten result families, twelve Comparator profiles, and 41 terminal
 theorem declarations passed the rooted hardened path, and every declaration's
 exact axiom inventory is `propext`, `Classical.choice`, and `Quot.sound`. The
-active tranche is now the consequence-aware result map, Erdős 146/180/183
-fidelity matrices, and an explicit Decision or documented deferral for Erdős
-183. The exact public Result Dossiers for Erdős 264 and 730 remain a
+consequence-aware map and three Erdős matrices are also retained. The active
+scientific tranche is separately scoped Verification of 146 and 180, an Erdős
+180 source-correction packet if verified, and an explicit human Decision or
+documented deferral for Erdős 183. The exact public Result Dossiers for Erdős
+264 and 730 remain a
 separate product-evidence lane; their human usability claim is still unearned.
 Two frozen Erdős 730 model-instrumentation iterations are now retained as
 failures: 12.28% improvement in iteration 1 and a 27.60% regression in the
@@ -22,6 +24,15 @@ The retained Astra replay result is rooted at
 `sha256:5a60c3be27036c65a6a37bf55dce71abcb024cfecece92b8e7dcaf1324b095d0`.
 It is native-checking evidence only. It creates no Astra Frontier, scientific
 Decision, novelty result, or statement-fidelity conclusion.
+
+The consequence-aware map is now rooted at
+`sha256:f219d4a1fe8ab71e516012fc8bd60a06db863e56be2c2be3920104b7472282dc`.
+It records all ten families without inventing external review. The three Erdős
+matrices are complete at their current evidence ceiling: 183 is faithful and
+verified but pending human Decision; 146 is faithful producer evidence pending
+separate Verification; and 180 exposes a material source/formalization boundary
+between the unrestricted original question and corrected cyclic-family
+conjecture. The same explicit witness refutes both 180 formulations.
 
 ADR 0038 separates scientific qualification from public product qualification.
 The failed Result Dossier gate remains binding on usability and
@@ -580,10 +591,14 @@ Standing without a later human Decision.
    hardened contract; all twelve pass both kernels.
 2. **Native inventory complete:** bind all ten families and 41 terminal theorem
    declarations with exact roots and axioms. The consequence-aware claim,
-   manuscript, external-status, and Standing map remains open.
-3. Complete the three Erdős fidelity matrices.
-4. Record conflicting source statuses as separate observations.
-5. Generate exact follow-on obligations without automatic acceptance.
+   manuscript, external-status, and Standing map is now retained with unknown
+   fields explicitly unassessed.
+3. **Complete at producer/review ceiling:** retain all three Erdős fidelity
+   matrices; 146 and 180 still require separate scoped Verification.
+4. **Complete:** record older source status and later release claims as separate
+   timed observations, including the 180 statement correction boundary.
+5. **Complete:** generate exact follow-on obligations without automatic
+   acceptance.
 
 Gate: all advertised result families are source-bound; every executed check has
 explicit nonclaims; no unsupported novelty or consensus statement appears.

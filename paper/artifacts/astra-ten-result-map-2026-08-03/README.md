@@ -9,6 +9,10 @@ The rooted result is `result.v1.json`:
 
 `sha256:5a60c3be27036c65a6a37bf55dce71abcb024cfecece92b8e7dcaf1324b095d0`
 
+The consequence-aware ten-family read model is `consequence-map.v1.json`:
+
+`sha256:f219d4a1fe8ab71e516012fc8bd60a06db863e56be2c2be3920104b7472282dc`
+
 At the retained boundary, all ten advertised result families, all twelve
 Comparator profiles, and all 41 terminal theorem declarations were present.
 Every profile passed Comparator, Nanoda, and Lean's default kernel. A separate
@@ -55,5 +59,8 @@ infrastructure attempts; every scored profile was restarted from the
 beginning after scoped cache cleanup.
 
 Kernel passage does not establish manuscript fidelity, novelty, field
-acceptance, source status, or Vela Standing. The Erdős 146, 180, and 183
-fidelity and human-Decision obligations remain open and source-local.
+acceptance, source status, or Vela Standing. Source-local review now assesses
+Erdős 146 as faithful producer evidence, retains a qualified original-versus-
+corrected-statement mismatch for Erdős 180, and preserves the verified Erdős
+183 Claim as pending human Decision. The first eight families' theorem-level
+fidelity and external-review status remain explicitly unassessed.

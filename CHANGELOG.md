@@ -10,6 +10,13 @@
   aggregate challenge target, Docker disk incidents, compatibility wrapper,
   and all scientific nonclaims remain explicit; fidelity and human Decisions
   are still open.
+- Add the rooted ten-family consequence map without inventing external review
+  or acceptance. Source-local matrices assess Erdős 146 as faithful producer
+  evidence, preserve the verified Erdős 183 Claim as pending human Decision,
+  and identify a material Erdős 180 boundary: the retained statement is
+  unrestricted, while the manuscript and Lean formalize the corrected cyclic-
+  family conjecture. The explicit counterexample refutes both formulations;
+  separate Verification and source correction remain open.
 - Open the ADR 0019 Level 0 experiment with a source-local exact Lean replay
   contract candidate, closed schemas, maintained RFC 8785 root construction,
   file-root verification, and fail-closed axiom vectors. The experiment adds no
