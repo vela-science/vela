@@ -8,6 +8,9 @@
   package release, CLI, Frontier lock, registry, protocol object, or authority
   effect; promotion still requires two consumers, independent root agreement,
   clean network-disabled reconstruction, and net deletion.
+- Add an independent Rust/RFC 8785 reader for the frozen Lean replay candidate
+  root. Agreement with the Python reader is package-integrity evidence only;
+  it does not satisfy cross-platform replay or net-deletion gates.
 - Retain the second frozen Erdős 730 Result Dossier instrument without
   rescoring it: all eight fields were materially correct under post-hoc review,
   but the registered Dossier median regressed by 27.60%. Retire same-case model

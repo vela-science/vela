@@ -71,6 +71,11 @@ it cannot infer acceptance.
   unsupported sandbox profiles, timeouts, and missing axiom reports; and
 - retain platform, command, input, output, and failure roots.
 
+The independent Rust reader is implemented as a focused Vela protocol test and
+must reproduce the frozen Python/JCS root exactly. This establishes reader
+agreement only; the Linux network-denied native Lean replay and net-deletion
+gates remain separate.
+
 ### Cut 3 — extraction decision
 
 Measure maintained lines and fixtures before and after, cold setup time, failure
@@ -103,4 +108,3 @@ Level 1 is earned only when all of these pass:
 5. native toolchains remain native;
 6. removal or upgrade has zero authority effect; and
 7. the measured maintained-code and fixture balance is net deletion.
-
