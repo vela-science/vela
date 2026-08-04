@@ -254,7 +254,7 @@ pub fn resolve_frontier(explicit: Option<std::path::PathBuf>) -> std::path::Path
 }
 
 /// Refuse commands that require an initialized current repository with one
-/// phase-aware, actionable error. `status` and `authority init` deliberately do
+/// phase-aware, actionable error. `status` and resumable `init` deliberately do
 /// not call this helper because they are the two valid bootstrap operations.
 pub fn require_initialized_frontier(frontier: &std::path::Path) {
     let store = frontier.join(".vela");
@@ -275,10 +275,7 @@ pub fn require_initialized_frontier(frontier: &std::path::Path) {
         && !origin.exists()
         && !repository.exists()
     {
-        let next = format!(
-            "vela authority init '{}' --reason 'Establish repository authority.' --json",
-            frontier.display()
-        );
+        let next = format!("vela init '{}' --json", frontier.display());
         fail_with(
             ErrorKind::Domain,
             "repository authority is not initialized",

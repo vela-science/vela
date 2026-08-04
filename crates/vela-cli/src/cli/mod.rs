@@ -90,12 +90,6 @@ pub fn run_command() {
             json,
         } => cmd_reproduce(&path, proposal.as_deref(), json),
         Commands::Authority { action } => match action {
-            AuthorityAction::Init {
-                frontier,
-                key,
-                reason,
-                json,
-            } => cmd_authority_init(&frontier, key.as_deref(), &reason, json),
             AuthorityAction::Trust { action } => match action {
                 AuthorityTrustAction::Pin {
                     frontier,
@@ -114,8 +108,17 @@ pub fn run_command() {
             path,
             name,
             scope,
+            key,
+            reason,
             json,
-        } => cmd_init(&path, name.as_deref(), scope.as_deref(), json),
+        } => cmd_init(
+            &path,
+            name.as_deref(),
+            scope.as_deref(),
+            key.as_deref(),
+            &reason,
+            json,
+        ),
         Commands::Review { action } => cmd_review(action),
         Commands::Show {
             frontier,

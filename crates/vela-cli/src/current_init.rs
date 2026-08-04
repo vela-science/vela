@@ -128,7 +128,7 @@ pub(crate) fn initialize_current_minimal(
 
     payload["path"] = json!(path.display().to_string());
     payload["next_action"] = json!(format!(
-        "vela authority init {} --reason 'Establish repository authority.' --json",
+        "vela init {} --json",
         shell_arg(&path.display().to_string())
     ));
     Ok(payload)
@@ -199,7 +199,7 @@ fn initialize_in_place(path: &Path, options: &CurrentInitOptions<'_>) -> Result<
             "VELA.md"
         ],
         "next_action": format!(
-            "vela authority init {} --reason 'Establish repository authority.' --json",
+            "vela init {} --json",
             shell_arg(&path.display().to_string())
         )
     }))

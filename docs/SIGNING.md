@@ -119,8 +119,9 @@ Load one dedicated Ed25519 repository-authority identity into the normal
 OpenSSH agent, then run:
 
 ```bash
-vela authority init . \
-  --reason "Establish the repository writer for this bounded Frontier." \
+vela init . \
+  --name "Bounded question" \
+  --scope "Does X hold under Y?" \
   --json
 ```
 
@@ -128,12 +129,12 @@ Vela automatically selects the key only when exactly one plain Ed25519
 identity is loaded. Otherwise, select the full OpenSSH fingerprint with
 `--key SHA256:<fingerprint>`.
 
-Initialization is valid only for an untouched structural Frontier with no
-authority history. It writes the initial keyset, Cedar bundle, exact policy
+Initialization writes the Profile, initial keyset, Cedar bundle, exact policy
 material, initialization Event, and covering sequence-one DSSE record. It
 changes no scientific Standing. The creator's matching local trust anchor is
 installed in the same operation; repeating the returned root as a second local
-setup ceremony is unnecessary.
+setup ceremony is unnecessary. If signing fails, load the key and rerun the
+same `vela init` command.
 
 Distribute the returned full sequence-one authority-record root independently
 of the Frontier checkout.

@@ -70,9 +70,9 @@ Agents and producers do not run `vela review accept` or
 Verification Record for their own output, or describe Git publication as
 scientific acceptance.
 
-Fresh `vela init` repositories are structural and report authority as not
-configured. Submission intake fails closed until `vela authority init`
-has established the repository boundary. Routine Submission and Verification
+`vela init` creates the structural Profile and establishes the repository
+boundary in one command. A failed signing attempt remains resumable by rerunning
+`vela init`; Submission intake fails closed until it completes. Routine Submission and Verification
 intake authenticates the producer or verifier record itself and does not read a
 repository-authority key or require the caller's local trust pin. The
 independently distributed sequence-one trust root remains required for strict

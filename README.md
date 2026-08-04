@@ -107,8 +107,8 @@ it does not prove that a Claim is true.
 Install the GitHub-attested release:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.964.0/install.sh | \
-  VELA_VERSION=v0.964.0 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.965.0/install.sh | \
+  VELA_VERSION=v0.965.0 bash
 vela --version
 ```
 
@@ -132,17 +132,12 @@ Create and inspect a bounded Frontier:
 ./target/release/vela check ../my-frontier --json
 ```
 
-`init` creates a Profile v2 bootstrap, not scientific authority. `status`
-reports the uninitialized authority boundary without inventing an old event
-log. A fresh Frontier administrator can establish the repository writer
-with one dedicated Ed25519 identity already loaded in the normal OpenSSH
-agent with per-use confirmation (`ssh-add -c`):
-
-```bash
-./target/release/vela authority init ../my-frontier \
-  --reason "Establish the repository writer for this bounded Frontier." \
-  --json
-```
+`init` creates the Profile, signs the repository origin with one Ed25519
+identity from the normal OpenSSH agent, installs local trust, and commits the
+replayable Frontier. It creates no scientific Claim or Standing. When the
+agent exposes multiple Ed25519 identities, pass `--key SHA256:<fingerprint>`.
+If signing is unavailable, the Profile is retained safely; load the key and
+rerun the same `vela init` command.
 
 The resulting sequence-one authority-record root must be distributed through
 an independent trusted channel. Keep the authority-agent socket out of native

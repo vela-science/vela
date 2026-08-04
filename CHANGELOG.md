@@ -2,25 +2,18 @@
 
 ## Unreleased
 
-- Record Vela Web's fail-closed pre-recruitment Result Dossier qualification
-  kit at deployed product commit `c4032478`, production deployment
-  `dpl_HqRhYJJbqQZhUZuiNqW3bBeAwHxU`, and evidence commit `2b56908e`. Before an
-  assignment can exist, a mandatory rooted study freeze now binds the exact
-  candidate and four-presentation bundle, completed operator commitments,
-  private consent and eligibility roots, reviewer contract, amendment policy,
-  rubric, timing and analysis code, and all three report templates. The exact
-  plan root then propagates through assignment. Before any packet can exist, a
-  second mandatory rooted enrollment binds exactly eight assigned reviewer
-  slots to distinct private identity, consent, and eligibility records, plus
-  distinct operator, scorer, adjudicator, and availability records. Its root
-  propagates through packets, responses, packet set, scoring, and result. The
-  retained candidate root is
-  `sha256:6ae55b2a06b253f85f4c74cf352cd9d6025cdfb13213d186a7c3a8a8ef35b5a8`;
-  the presentation-bundle root is
-  `sha256:452039248d80b8eee3c98344cf9253e81c34e976fe3faa7ae8e718bf6202806b`.
-  The kit remains claim-credit-false; no completed private commitments, study
-  plan, assignment, enrollment, or human session are retained, and no usability,
-  reviewer-efficiency, adoption, or productivity claim is authorized.
+## v0.965.0 — 2026-08-04 — One-command Frontier creation
+
+- Make `vela init` create a signed, replayable Frontier in one command. Remove
+  the separate `vela authority init` command and its user-visible bootstrap
+  ceremony. A signing failure retains only the exact Profile; after loading an
+  Ed25519 key, rerunning the same `vela init` safely completes initialization.
+- Make an empty Frontier actionable: `status` and `next` now lead to direct
+  Submission when no Frontier-owned Target Index exists, while configured
+  Target indexes continue to lead through `next` and `start`.
+- Retire the unrun multi-reviewer Result Dossier program and its qualification
+  machinery. Public Dossiers remain exact read-only records; no usability,
+  reviewer-efficiency, adoption, or productivity claim is made.
 
 ## v0.964.0 — 2026-08-04 — Phase-aware CLI and campaign evidence
 
@@ -76,8 +69,8 @@
   No package repository, release, CLI, index, or registry is earned.
 - Retain the second frozen Erdős 730 Result Dossier instrument without
   rescoring it: all eight fields were materially correct under post-hoc review,
-  but the registered Dossier median regressed by 27.60%. Retire same-case model
-  timing and route the product-evidence lane to multi-case human qualification.
+  but the registered Dossier median regressed by 27.60%. Retire the timing lane
+  without making a usability or reviewer-efficiency claim.
 - Record that Vela Web replaced the numbered Observatory read-model contract
   with the stable `vela.observatory-release-manifest` and rooted forward
   database migrations. This documentation update changes no Vela protocol

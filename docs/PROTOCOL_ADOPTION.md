@@ -58,4 +58,5 @@ Before adding an interoperability edge, record:
 
 Prefer the existing CLI JSON or static HTTP read surface when it serves the
 task. Promote an edge only after measured use or two maintained consumers
-justify its maintenance cost. See [ADR 0037](adr/0037-removable-protocol-edges-and-adoption-order.md).
+justify its maintenance cost. The current ordering is maintained in the
+[roadmap](ROADMAP.md).

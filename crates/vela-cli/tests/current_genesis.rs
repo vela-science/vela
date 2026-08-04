@@ -246,7 +246,7 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
 
     let initialized = success_json(&run(
         temporary.path(),
-        None,
+        Some(agent.socket()),
         &[
             "init",
             &frontier_text,
@@ -264,8 +264,8 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
             "--json",
         ],
     ));
-    assert_eq!(initialized["schema"], "vela.frontier-init.v2");
-    assert_eq!(initialized["authority"], "uninitialized");
+    assert_eq!(initialized["schema"], "vela.frontier-init.v3");
+    assert_eq!(initialized["authority"]["state"], "initialized");
     for retired in [
         ".vela/events",
         ".vela/actors.json",
@@ -275,30 +275,8 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
         assert!(!frontier.join(retired).exists(), "retired path {retired}");
     }
 
-    let before = success_json(&run(&frontier, None, &["status", ".", "--json"]));
-    assert_eq!(before["schema"], "vela.status.v1");
-    assert_eq!(before["phase"], "authority_uninitialized");
-    assert_eq!(before["integrity"]["strict"], "blocked");
-
-    let authority = success_json(&run(
-        &frontier,
-        Some(agent.socket()),
-        &[
-            "authority",
-            "init",
-            ".",
-            "--reason",
-            "Establish native repository authority.",
-            "--json",
-        ],
-    ));
-    assert_eq!(
-        authority["schema"],
-        "vela.authority-initialization-result.v2"
-    );
-    assert_eq!(authority["writes_now"], true);
     let _anchor = RemoveOnDrop(std::path::PathBuf::from(
-        authority["local_trust"]["anchor_path"]
+        initialized["authority"]["local_trust"]["anchor_path"]
             .as_str()
             .expect("local trust anchor path"),
     ));
@@ -319,11 +297,11 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
             .is_some_and(|root| root.starts_with("sha256:"))
     );
     assert!(status["actions"]["review"].is_null());
-    assert_eq!(status["actions"]["work"]["mode"], "inspect");
+    assert_eq!(status["actions"]["work"]["mode"], "direct_submission");
     assert!(
         status["actions"]["work"]["command"]
             .as_str()
-            .is_some_and(|command| command.starts_with("vela next "))
+            .is_some_and(|command| command.starts_with("vela submit "))
     );
 
     let clone = temporary.path().join("clone");
@@ -380,9 +358,9 @@ fn current_check_blocks_sensitive_local_files() {
     let agent = EphemeralAgent::start(temporary.path(), "vela sensitive path test");
     let frontier = temporary.path().join("frontier");
     let frontier_text = frontier.to_string_lossy().into_owned();
-    success_json(&run(
+    let initialized = success_json(&run(
         temporary.path(),
-        None,
+        Some(agent.socket()),
         &[
             "init",
             &frontier_text,
@@ -400,20 +378,8 @@ fn current_check_blocks_sensitive_local_files() {
             "--json",
         ],
     ));
-    let authority = success_json(&run(
-        &frontier,
-        Some(agent.socket()),
-        &[
-            "authority",
-            "init",
-            ".",
-            "--reason",
-            "Establish native repository authority.",
-            "--json",
-        ],
-    ));
     let _anchor = RemoveOnDrop(std::path::PathBuf::from(
-        authority["local_trust"]["anchor_path"]
+        initialized["authority"]["local_trust"]["anchor_path"]
             .as_str()
             .expect("local trust anchor path"),
     ));
@@ -436,9 +402,9 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let agent = EphemeralAgent::start(temporary.path(), "vela current submit test");
     let frontier = temporary.path().join("frontier");
     let frontier_text = frontier.to_string_lossy().into_owned();
-    success_json(&run(
+    let initialized = success_json(&run(
         temporary.path(),
-        None,
+        Some(agent.socket()),
         &[
             "init",
             &frontier_text,
@@ -457,19 +423,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         ],
     ));
     configure_test_git_identity(&frontier);
-    let authority = success_json(&run(
-        &frontier,
-        Some(agent.socket()),
-        &[
-            "authority",
-            "init",
-            ".",
-            "--reason",
-            "Establish native repository authority.",
-            "--json",
-        ],
-    ));
-    let record_root = authority["authority_record_root"]
+    let record_root = initialized["authority"]["record_root"]
         .as_str()
         .expect("authority record root");
     let pinned = success_json(&run(
@@ -965,7 +919,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let work_action = status["actions"]["work"]["command"]
         .as_str()
         .expect("status work action");
-    assert_eq!(status["actions"]["work"]["mode"], "inspect");
+    assert_eq!(status["actions"]["work"]["mode"], "target");
     assert!(work_action.starts_with("vela next "));
     assert!(
         serde_json::to_vec(&status).expect("encode status").len() <= 16 * 1024,
@@ -979,7 +933,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert!(!human_status.contains("review reject"));
     let parallel_status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
     assert_eq!(parallel_status["decision_inbox"]["pending_count"], 1);
-    assert_eq!(parallel_status["actions"]["work"]["mode"], "inspect");
+    assert_eq!(parallel_status["actions"]["work"]["mode"], "target");
     assert_eq!(parallel_status["actions"]["work"]["ready_target_count"], 1);
     assert!(
         parallel_status["actions"]["review"]["command"]

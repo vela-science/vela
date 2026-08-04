@@ -124,10 +124,13 @@ SEE ALSO
 pub const INIT: &str = "\
 EXAMPLES
   vela init ./my-frontier --name \"Bounded question\" --scope \"Does X hold?\"
-                                   create a Profile v2 bootstrap
+                                   create a signed, replayable Frontier
 
-JSON mode requires both --name and --scope. The next action is one explicit
-repository-authority initialization; no scientific state or old event log is created.";
+JSON mode requires both --name and --scope. Init binds the new Frontier to one
+OpenSSH-agent Ed25519 identity and creates its signed repository origin in the
+same command. It creates no Claim, Verification, Decision, or scientific
+Standing. If signing is unavailable, the valid Profile is retained and the
+error gives the exact recovery command.";
 
 pub const SHOW: &str = "\
 EXAMPLES

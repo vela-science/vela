@@ -25,14 +25,10 @@
 - [One product and removable Agent executor ADR](adr/0031-one-product-and-removable-agent-executor.md)
 - [Self-authenticated evidence and human Decision authority ADR](adr/0032-self-authenticated-evidence-and-human-decision-authority.md)
 - [Direct Submission lineage and Registration retirement ADR](adr/0033-direct-submission-lineage-and-registration-retirement.md)
-- [Independent product and scientific-evidence lanes ADR](adr/0038-independent-product-and-scientific-evidence-lanes.md)
 
 ## Project documents
 
-- [Active mathematical breakthrough campaign](CAMPAIGN.md)
-- [Campaign portfolio and gates](CAMPAIGN_PORTFOLIO.md)
-- [Astra release-map campaign](ASTRA_RELEASE_MAP_CAMPAIGN.md)
-- [Autonomous-research qualification campaign](AUTONOMOUS_RESEARCH_QUALIFICATION_CAMPAIGN.md)
+- [Current core work](CAMPAIGN.md)
 - [Portable-waist campaign](PORTABLE_WAIST_CAMPAIGN.md)
 - [Protocol breakthrough benchmark](BREAKTHROUGH_BENCHMARK.md)
 - [Whitepaper evidence contract](WHITEPAPER_CONTRACT.md)
@@ -40,7 +36,6 @@
 - [Interoperability boundary](INTEROPERABILITY.md)
 - [Protocol adoption and interoperability](PROTOCOL_ADOPTION.md)
 - [Repository ownership boundaries](REPOSITORY_BOUNDARIES.md)
-- [ADR 0037: Removable protocol edges and adoption order](adr/0037-removable-protocol-edges-and-adoption-order.md)
 - [Theory](THEORY.md)
 - [Publishing](PUBLISHING.md)
 
@@ -52,7 +47,5 @@ Accepted ADRs preserve decisions. Proposed ADRs describe candidates and their
 evidence gates. Git history preserves superseded text; active documents do not
 repeat it as compatibility behavior.
 
-Case-specific execution plans live with their canonical owners: Erdős campaigns
-in [`erdos-frontier`](https://github.com/vela-science/erdos-frontier/tree/main/campaigns)
-and Result Dossier product qualification in
-[`vela-web`](https://github.com/vela-science/vela-web/blob/main/docs/result-dossier-qualification.md).
+Case-specific execution plans live with their canonical owners. Vela core
+retains no reviewer-recruitment or source-specific campaign surface.

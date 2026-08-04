@@ -268,26 +268,6 @@ pub(crate) struct LoadedRepositoryAuthority {
     pub(crate) verification: AuthorityHistoryVerification,
 }
 
-pub(crate) fn cmd_authority_init(
-    frontier: &Path,
-    key_selector: Option<&str>,
-    reason: &str,
-    json_out: bool,
-) {
-    crate::ui::set_mode("authority init", json_out);
-    let result = initialize_repository_authority(frontier, key_selector, reason)
-        .unwrap_or_else(|error| fail_return(&error));
-    if json_out {
-        print_json(&result);
-    } else {
-        println!("repository authority initialized");
-        println!("  key: {}", result["repository_key_fingerprint"]);
-        println!("  authority record: {}", result["authority_record_id"]);
-        println!("  authority root: {}", result["authority_record_root"]);
-        println!("  local trust: installed (independent consumers pin the published root once)");
-    }
-}
-
 pub(crate) fn cmd_authority_trust_pin(
     frontier: &Path,
     record_root: &str,
@@ -407,7 +387,7 @@ fn pin_repository_authority(
     }))
 }
 
-fn initialize_repository_authority(
+pub(crate) fn initialize_repository_authority(
     frontier: &Path,
     key_selector: Option<&str>,
     reason: &str,
@@ -422,7 +402,7 @@ fn initialize_current_repository_authority(
 ) -> Result<Value, String> {
     let reason = reason.trim();
     if reason.is_empty() {
-        return Err("authority init requires a non-empty reason".into());
+        return Err("init requires a non-empty authority reason".into());
     }
     let profile = crate::current_repository::verify_current_bootstrap_at(frontier)?;
     let profile_root = profile.profile_root()?;

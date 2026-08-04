@@ -194,10 +194,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             .unwrap_or_else(|error| crate::cli::fail_return(&error));
         let commit = git_text(&frontier, &["rev-parse", "HEAD^{commit}"]).ok();
         let tree = git_text(&frontier, &["rev-parse", "HEAD^{tree}"]).ok();
-        let next_action = format!(
-            "vela authority init {} --reason 'Establish repository authority.' --json",
-            frontier.display()
-        );
+        let next_action = format!("vela init {} --json", frontier.display());
         let payload = json!({
             "schema": "vela.status.v1",
             "ok": true,
@@ -285,15 +282,18 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         .values()
         .filter(|standing| standing.as_str() == "withdrawn")
         .count();
-    let ready_target_count = vela_edge::target_index::assess_current_target_index(
+    let target_assessment = vela_edge::target_index::assess_current_target_index(
         &frontier,
         &repository.frontier_id,
         &repository.origin_id,
         &repository_root,
     )
-    .unwrap_or_else(|error| crate::cli::fail_return(&error))
-    .map(|assessment| assessment.fresh_open_targets().len())
-    .unwrap_or(0);
+    .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let target_index_configured = target_assessment.is_some();
+    let ready_target_count = target_assessment
+        .as_ref()
+        .map(|assessment| assessment.fresh_open_targets().len())
+        .unwrap_or(0);
     let inbox_projection = crate::decision_inbox::project(&frontier)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let (decision_inbox, pending_decision_count) = decision_inbox_status_summary(&inbox_projection);
@@ -303,11 +303,20 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             "command": format!("vela review inbox {} --json", frontier.display()),
         })
     });
-    let work_action = json!({
-        "mode": "inspect",
-        "ready_target_count": ready_target_count,
-        "command": format!("vela next {} --limit 1 --json", frontier.display()),
-    });
+    let work_action = if target_index_configured {
+        json!({
+            "mode": "target",
+            "ready_target_count": ready_target_count,
+            "command": format!("vela next {} --limit 1 --json", frontier.display()),
+        })
+    } else {
+        json!({
+            "mode": "direct_submission",
+            "ready_target_count": 0,
+            "command": format!("vela submit --frontier {} --help", frontier.display()),
+            "note": "No Target Index is configured. Submit bounded evidence directly or use a Frontier-owned adapter to generate targets.json."
+        })
+    };
     let payload = json!({
         "schema": "vela.status.v3",
         "ok": true,
@@ -475,12 +484,18 @@ pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
                 "returned": 0
             },
             "targets": [],
-            "next_action": "No Target Index is configured; inspect the Frontier before inventing work.",
+            "next_action": format!("vela submit --frontier {} --help", frontier.display()),
+            "note": "No Target Index is configured. Submit bounded evidence directly or use a Frontier-owned adapter to generate targets.json.",
         });
         if json_out {
             crate::cli::print_json(&payload);
         } else {
             println!("next · no configured Target Offers");
+            println!(
+                "  direct    vela submit --frontier {} --help",
+                frontier.display()
+            );
+            println!("  adapter   generate tracked targets.json for ranked Frontier-owned work");
         }
         return;
     };
