@@ -3,7 +3,7 @@
 # Consume from a frontier repository:
 #
 #   - uses: actions/checkout@v5
-#   - uses: vela-science/vela@v0.965.2
+#   - uses: vela-science/vela@v0.965.3
 #     with:
 #       frontier: .
 #
@@ -13,7 +13,7 @@
 # decides, or changes Frontier state.
 
 name: vela-check
-description: Strictly verifies one clean current Git-native Vela Frontier.
+description: Strictly verifies one clean current Git-native Vela Frontier on Linux or macOS.
 
 inputs:
   frontier:
@@ -23,8 +23,15 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Install Vela on Unix
-      if: runner.os != 'Windows'
+    - name: Require a supported runner
+      shell: bash
+      run: |
+        case "${RUNNER_OS:?}" in
+          Linux|macOS) ;;
+          *) echo "::error::vela-check supports Linux and macOS runners"; exit 2 ;;
+        esac
+
+    - name: Install Vela
       shell: bash
       env:
         ACTION_PATH: ${{ github.action_path }}
@@ -48,27 +55,7 @@ runs:
         fi
         echo "$version_output (matches the consumer pin)"
 
-    - name: Install Vela on Windows
-      if: runner.os == 'Windows'
-      shell: pwsh
-      env:
-        ACTION_PATH: ${{ github.action_path }}
-        GH_TOKEN: ${{ github.token }}
-      run: |
-        $manifest = Get-Content (Join-Path $env:ACTION_PATH "Cargo.toml") -Raw
-        $matched = [regex]::Match($manifest, '(?m)^version = "([0-9]+\.[0-9]+\.[0-9]+)"$')
-        if (-not $matched.Success) { throw "the pinned Vela action does not contain one stable release" }
-        $requested = $matched.Groups[1].Value
-        $installRoot = Join-Path $env:RUNNER_TEMP "vela-action-$requested\bin"
-        & (Join-Path $env:ACTION_PATH "install.ps1") -Version "v$requested" -InstallDir $installRoot
-        $versionOutput = & (Join-Path $installRoot "vela.exe") --version
-        if ($versionOutput -ne "vela $requested") {
-          throw "installed Vela does not match requested Vela $requested"
-        }
-        Write-Host "$versionOutput (matches the consumer pin)"
-
-    - name: Read-only repository verification on Unix
-      if: runner.os != 'Windows'
+    - name: Read-only repository verification
       shell: bash
       env:
         FRONTIER: ${{ inputs.frontier }}
@@ -81,20 +68,3 @@ runs:
           exit 1
         fi
         echo "verification OK — exact repository and scientific-state roots reproduce"
-
-    - name: Read-only repository verification on Windows
-      if: runner.os == 'Windows'
-      shell: pwsh
-      env:
-        FRONTIER: ${{ inputs.frontier }}
-      run: |
-        $manifest = Get-Content (Join-Path "${{ github.action_path }}" "Cargo.toml") -Raw
-        $matched = [regex]::Match($manifest, '(?m)^version = "([0-9]+\.[0-9]+\.[0-9]+)"$')
-        if (-not $matched.Success) { throw "the pinned Vela action does not contain one stable release" }
-        $requested = $matched.Groups[1].Value
-        $vela = Join-Path $env:RUNNER_TEMP "vela-action-$requested\bin\vela.exe"
-        & $vela check $env:FRONTIER --json
-        if ($LASTEXITCODE -ne 0) {
-          throw "Vela verification failed"
-        }
-        Write-Host "verification OK — exact repository and scientific-state roots reproduce"

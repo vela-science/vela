@@ -2,11 +2,18 @@
 
 ## Unreleased
 
+## v0.965.3 — 2026-08-04 — Focused supported release surface
+
+- Narrow supported release distribution to Linux x86-64 and macOS Apple
+  silicon. Remove the Windows artifact, installer, action path, and smoke
+  harness instead of spending the release cycle on unused compatibility work.
+- No protocol behavior changes from `v0.965.0`.
+
 ## v0.965.2 — 2026-08-04 — Deterministic release signer fixture
 
-- Provision a disposable Ed25519 SSH-agent identity in each release smoke so
-  the clean Linux, macOS, and Windows runners exercise successful one-command
-  Frontier initialization deterministically.
+- Provision a disposable Ed25519 SSH-agent identity in the Unix release smoke
+  so clean runners exercise successful one-command Frontier initialization
+  deterministically.
 - No protocol behavior changes from `v0.965.0`.
 
 ## v0.965.1 — 2026-08-04 — Release contract correction

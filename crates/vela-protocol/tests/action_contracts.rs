@@ -2,7 +2,6 @@ use serde_json::Value;
 
 const ROOT_ACTION: &str = include_str!("../../../action.yml");
 const INSTALLER: &str = include_str!("../../../install.sh");
-const WINDOWS_INSTALLER: &str = include_str!("../../../install.ps1");
 const RELEASE_WORKFLOW: &str = include_str!("../../../.github/workflows/release.yml");
 const CONFORMANCE_WORKFLOW: &str = include_str!("../../../.github/workflows/conformance.yml");
 
@@ -135,26 +134,20 @@ fn root_action_is_read_only_and_nonfinalizing() {
         "the public action accepts only the frontier path"
     );
 
-    for name in ["Install Vela on Unix", "Install Vela on Windows"] {
-        let step = step_named(&action["runs"], name);
-        assert_eq!(
-            step["env"]["GH_TOKEN"].as_str(),
-            Some("${{ github.token }}"),
-            "each installer must expose the workflow token to attestation checks"
-        );
-    }
-    let unix_strict = script_named(&action["runs"], "Read-only repository verification on Unix");
-    let windows_strict = script_named(
-        &action["runs"],
-        "Read-only repository verification on Windows",
+    let install = step_named(&action["runs"], "Install Vela");
+    assert_eq!(
+        install["env"]["GH_TOKEN"].as_str(),
+        Some("${{ github.token }}"),
+        "the installer must expose the workflow token to attestation checks"
     );
-    assert!(unix_strict.contains("\"$vela_bin\" check \"$FRONTIER\" --json"));
-    assert!(windows_strict.contains("check $env:FRONTIER --json"));
+    assert!(script_named(&action["runs"], "Require a supported runner").contains("Linux|macOS"));
+    let strict = script_named(&action["runs"], "Read-only repository verification");
+    assert!(strict.contains("\"$vela_bin\" check \"$FRONTIER\" --json"));
     assert_no_finalizing_commands(&action);
 }
 
 #[test]
-fn reviewed_tags_publish_provenance_labeled_cross_platform_bundles() {
+fn reviewed_tags_publish_provenance_labeled_supported_bundles() {
     let workflow = parse_yaml(RELEASE_WORKFLOW);
     let triggers = &workflow["on"];
     assert!(triggers.get("workflow_dispatch").is_some());
@@ -199,21 +192,14 @@ fn reviewed_tags_publish_provenance_labeled_cross_platform_bundles() {
         script_named(build, "Verify SBOM includes Vela").contains(".github/release/check-sbom.py")
     );
 
-    let expected_assets = [
-        "vela-linux-x86_64.tar.gz",
-        "vela-macos-aarch64.zip",
-        "vela-windows-x86_64.zip",
-    ];
+    let expected_assets = ["vela-linux-x86_64.tar.gz", "vela-macos-aarch64.zip"];
     assert_eq!(matrix_assets(build), expected_assets);
     assert!(steps(build).iter().any(|step| {
         step["uses"]
             .as_str()
             .is_some_and(|value| value.starts_with("actions/attest-build-provenance@"))
     }));
-    assert!(script_named(build, "Write checksums on Unix").contains("shasum -a 256"));
-    let windows_checksums = script_named(build, "Write checksums on Windows");
-    assert!(windows_checksums.contains("Get-FileHash -Algorithm SHA256"));
-    assert!(windows_checksums.contains("Set-Content"));
+    assert!(script_named(build, "Write checksums").contains("shasum -a 256"));
 
     let publish_script = script_named(publish, "Publish immutable GitHub release");
     for asset in expected_assets {
@@ -230,7 +216,7 @@ fn reviewed_tags_publish_provenance_labeled_cross_platform_bundles() {
 }
 
 #[test]
-fn fresh_runner_smoke_precedes_publication_and_preserves_platform_checks() {
+fn fresh_runner_smoke_precedes_publication_for_supported_platforms() {
     let workflow = parse_yaml(RELEASE_WORKFLOW);
     let build = workflow_job(&workflow, "build");
     let smoke = workflow_job(&workflow, "smoke");
@@ -238,9 +224,8 @@ fn fresh_runner_smoke_precedes_publication_and_preserves_platform_checks() {
     assert_eq!(matrix_assets(smoke), matrix_assets(build));
     assert!(needs(smoke).contains(&"build"));
     assert!(needs(publish).contains(&"smoke"));
-    assert!(script_named(smoke, "Smoke Unix bundle").contains(".github/release/smoke-bundle.sh"));
     assert!(
-        script_named(smoke, "Smoke Windows bundle").contains(".github/release/smoke-bundle.ps1")
+        script_named(smoke, "Smoke release bundle").contains(".github/release/smoke-bundle.sh")
     );
 }
 
@@ -258,7 +243,5 @@ fn every_hosted_action_is_pinned_by_commit() {
 fn installers_verify_release_bytes_and_do_not_ship_a_signer() {
     assert!(!INSTALLER.contains("vela-signer"));
     assert!(!INSTALLER.contains("science.vela.signer.policy"));
-    assert!(!WINDOWS_INSTALLER.contains("vela-signer.exe"));
     assert!(INSTALLER.contains("VELA_EXPECTED_SHA256"));
-    assert!(WINDOWS_INSTALLER.contains("VELA_EXPECTED_SHA256"));
 }

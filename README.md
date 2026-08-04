@@ -106,9 +106,12 @@ it does not prove that a Claim is true.
 
 Install the GitHub-attested release:
 
+Vela currently publishes and supports Linux x86-64 and macOS Apple-silicon
+release bundles. Native Windows distribution is deferred.
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.965.2/install.sh | \
-  VELA_VERSION=v0.965.2 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.965.3/install.sh | \
+  VELA_VERSION=v0.965.3 bash
 vela --version
 ```
 

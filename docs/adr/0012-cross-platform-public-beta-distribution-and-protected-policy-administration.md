@@ -8,6 +8,9 @@
 > historical design evidence. Vela `0.960.0` supersedes this ADR's distribution
 > section with one GitHub-attested `vela` binary; crates.io/npm publication,
 > package-registry smoke jobs, and custom release-trust metadata are retired.
+> Vela `0.965.3` further narrows the supported binary surface to Linux x86-64
+> and macOS Apple silicon. Windows artifacts, installer, action path, and release
+> smoke are retired until native Windows support becomes outcome-critical.
 
 ## Context
 
