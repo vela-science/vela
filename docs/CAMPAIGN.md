@@ -40,20 +40,23 @@ Two frozen Erdős 730 model-instrumentation iterations are now retained as
 failures: 12.28% improvement in iteration 1 and a 27.60% regression in the
 named-defect iteration 2. The same-case model-timing lane is retired; the next
 product qualification is the frozen multi-case human study. Deployed Vela Web
-product commit `fb806d4c` and production deployment
-`dpl_HGiwtrgPpxatF8JWTUEehHyGYtat` now require one exact rooted study freeze
-before assignment. That freeze binds the candidate, four standalone
+product commit `c4032478`, production deployment
+`dpl_HqRhYJJbqQZhUZuiNqW3bBeAwHxU`, and evidence commit `2b56908e` now require
+one exact rooted study freeze before assignment. That freeze binds the candidate, four standalone
 presentations, completed operator and private-root commitments, reviewer
 contract, amendment policy, rubric, timing and analysis code, and positive,
-neutral, and negative report templates. Its root propagates through the
-counterbalanced assignment, timed packets and responses, packet-set analysis,
-blinded scoring, adjudication, and bounded result. It hard-codes no claim credit
-and authorizes neither recruitment nor a public claim; the private commitments
-remain unresolved and no plan or assignment is retained.
+neutral, and negative report templates. After assignment, a second rooted
+enrollment checkpoint binds eight distinct reviewer identities and reviewer-
+specific consent and eligibility records, plus distinct operator, scorer,
+adjudicator, and availability records, before packets can exist. The plan and
+enrollment roots propagate through timed packets and responses, packet-set
+analysis, blinded scoring, adjudication, and bounded result. It hard-codes no
+claim credit and authorizes neither recruitment nor a public claim; the private
+commitments remain unresolved and no plan, assignment, or enrollment is retained.
 The retained candidate is rooted at
-`sha256:66c58993fa5bb5ad00fb84064b1e7d5e0fbaf2fecbb0e677af3dd30c4fc2e25b`;
+`sha256:6ae55b2a06b253f85f4c74cf352cd9d6025cdfb13213d186a7c3a8a8ef35b5a8`;
 its standalone presentation bundle is rooted at
-`sha256:4e0fcd796e8f055d7b8ad896676c4f443ed5cca8051b9e7f10b61e30e692138f`.
+`sha256:452039248d80b8eee3c98344cf9253e81c34e976fe3faa7ae8e718bf6202806b`.
 Neither root is a frozen study plan or usability result.
 The complete remaining portfolio and its gates are indexed in
 [`CAMPAIGN_PORTFOLIO.md`](CAMPAIGN_PORTFOLIO.md).
@@ -607,10 +610,14 @@ fresh qualified humans.
 The executable pre-recruitment kit reverifies live Dossier bytes and local flat
 fixtures, then refuses anonymous assignment until `human:freeze` has rooted the
 complete operator, consent, eligibility, privacy, timing, amendment, scoring,
-and reporting contract. Every later descriptor must carry that exact plan root.
-It retains all eight answers and two independent blinded scorecards, requires
-distinct adjudication on disagreement, and always leaves public claim
-authorization false. This is instrument readiness, not a frozen plan, reviewer
+and reporting contract. After assignment, `human:enroll` refuses packet
+generation until eight assigned reviewers and the operator, scorers, and
+adjudicator bind distinct private identity and reviewer-specific consent,
+eligibility, and availability records. Every later descriptor must carry the
+exact plan and enrollment roots. It retains all eight answers and two
+independent blinded scorecards, requires the enrolled adjudicator on
+disagreement, and always leaves public claim authorization false. This is
+instrument readiness, not a frozen plan, completed enrollment, reviewer
 evidence, or permission to recruit.
 
 Gate: `8/8` exact recovery, zero authority errors, no omitted failure, caveat,

@@ -3,19 +3,23 @@
 ## Unreleased
 
 - Record Vela Web's fail-closed pre-recruitment Result Dossier qualification
-  kit at deployed product commit `fb806d4c`, production deployment
-  `dpl_HGiwtrgPpxatF8JWTUEehHyGYtat`, and evidence commit `231884ac`. Before an
+  kit at deployed product commit `c4032478`, production deployment
+  `dpl_HqRhYJJbqQZhUZuiNqW3bBeAwHxU`, and evidence commit `2b56908e`. Before an
   assignment can exist, a mandatory rooted study freeze now binds the exact
   candidate and four-presentation bundle, completed operator commitments,
   private consent and eligibility roots, reviewer contract, amendment policy,
   rubric, timing and analysis code, and all three report templates. The exact
-  plan root then propagates through assignment, packets, responses, packet set,
-  sessions, and result. The retained candidate root is
-  `sha256:66c58993fa5bb5ad00fb84064b1e7d5e0fbaf2fecbb0e677af3dd30c4fc2e25b`;
+  plan root then propagates through assignment. Before any packet can exist, a
+  second mandatory rooted enrollment binds exactly eight assigned reviewer
+  slots to distinct private identity, consent, and eligibility records, plus
+  distinct operator, scorer, adjudicator, and availability records. Its root
+  propagates through packets, responses, packet set, scoring, and result. The
+  retained candidate root is
+  `sha256:6ae55b2a06b253f85f4c74cf352cd9d6025cdfb13213d186a7c3a8a8ef35b5a8`;
   the presentation-bundle root is
-  `sha256:4e0fcd796e8f055d7b8ad896676c4f443ed5cca8051b9e7f10b61e30e692138f`.
+  `sha256:452039248d80b8eee3c98344cf9253e81c34e976fe3faa7ae8e718bf6202806b`.
   The kit remains claim-credit-false; no completed private commitments, study
-  plan, assignment, or human session are retained, and no usability,
+  plan, assignment, enrollment, or human session are retained, and no usability,
   reviewer-efficiency, adoption, or productivity claim is authorized.
 
 ## v0.964.0 — 2026-08-04 — Phase-aware CLI and campaign evidence

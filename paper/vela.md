@@ -1368,17 +1368,22 @@ and archives four standalone presentations. Before any assignment, a mandatory
 study freeze binds completed operator commitments, private consent and
 eligibility roots, the amendment policy, rubric, timing and analysis code, and
 all three report templates. Its exact root propagates through counterbalanced
-assignments, timed packets, all eight answers, interruption data, packet-set
-verification, independent blinded scorecards, adjudication, and the bounded
-feasibility result. It is deliberately `claim_credit: false`; uncertainty and
+assignments. A second mandatory enrollment checkpoint binds the eight assigned
+reviewer slots to distinct private identities and reviewer-specific consent and
+eligibility records, plus distinct operator, scorer, adjudicator, and
+availability records, before packets can exist. The plan and enrollment roots
+propagate through timed packets, all eight answers, interruption data,
+packet-set verification, independent blinded scorecards, adjudication, and the
+bounded feasibility result. It is deliberately `claim_credit: false`; uncertainty and
 the confirmatory gate remain explicitly unevaluated. It cannot authorize a
 public claim and remains unfrozen until recruitment, consent, privacy,
 compensation, calendar, reserve, reviewer/scorer, and analysis obligations are
-resolved. No human session has run. Deployed product commit `fb806d4c` and
-evidence commit `231884ac` retain the candidate at
-`sha256:66c58993fa5bb5ad00fb84064b1e7d5e0fbaf2fecbb0e677af3dd30c4fc2e25b`;
+resolved. No human session has run. Deployed product commit `c4032478`,
+production deployment `dpl_HqRhYJJbqQZhUZuiNqW3bBeAwHxU`, and evidence commit
+`2b56908e` retain the candidate at
+`sha256:6ae55b2a06b253f85f4c74cf352cd9d6025cdfb13213d186a7c3a8a8ef35b5a8`;
 the presentation bundle is rooted at
-`sha256:4e0fcd796e8f055d7b8ad896676c4f443ed5cca8051b9e7f10b61e30e692138f`.
+`sha256:452039248d80b8eee3c98344cf9253e81c34e976fe3faa7ae8e718bf6202806b`.
 Those roots identify inputs and instrumentation, not a usability result.
 
 The completed Astra native map now closes its producer tranche at the current

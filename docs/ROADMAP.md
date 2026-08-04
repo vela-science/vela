@@ -129,26 +129,31 @@ product-usability claims remain independently gated.
 ### 5. Qualify the multi-case Result Dossier
 
 **Active pre-recruitment work package.** Both public cases and their matched
-flat fixtures now exist. Deployed Vela Web product commit `fb806d4c`, production
-deployment `dpl_HGiwtrgPpxatF8JWTUEehHyGYtat`, and evidence commit `231884ac`
+flat fixtures now exist. Deployed Vela Web product commit `c4032478`, production
+deployment `dpl_HqRhYJJbqQZhUZuiNqW3bBeAwHxU`, and evidence commit `2b56908e`
 root one production candidate and a standalone four-presentation bundle. A
 mandatory `human:freeze` step now rejects assignment until the completed
 operator, private consent and eligibility roots, retention and calendar,
 reviewer/scorer separation, amendment policy, rubric, timing, analysis, and
-report templates are bound into one plan. That plan root is required throughout
-the counterbalanced crossover, sixteen timed packets, self-rooted answers,
-packet set, scoring, adjudication, and bounded result. No plan is frozen and no
-human session has run.
+report templates are bound into one plan. After assignment, mandatory
+`human:enroll` rejects packet generation until exactly eight reviewer slots bind
+distinct private identities and reviewer-specific consent and eligibility
+records, with distinct operator, scorer, adjudicator, and availability records.
+The plan and enrollment roots are required throughout the counterbalanced
+crossover, sixteen timed packets, self-rooted answers, packet set, scoring,
+adjudication, and bounded result. No plan or enrollment is frozen and no human
+session has run.
 The exact candidate is retained at
-`sha256:66c58993fa5bb5ad00fb84064b1e7d5e0fbaf2fecbb0e677af3dd30c4fc2e25b`;
+`sha256:6ae55b2a06b253f85f4c74cf352cd9d6025cdfb13213d186a7c3a8a8ef35b5a8`;
 the standalone presentation bundle is retained at
-`sha256:4e0fcd796e8f055d7b8ad896676c4f443ed5cca8051b9e7f10b61e30e692138f`.
+`sha256:452039248d80b8eee3c98344cf9253e81c34e976fe3faa7ae8e718bf6202806b`.
 
 - Generalize only the code genuinely shared by Erdős 264 and 730.
 - Freeze the study plan and only then its assignment after recruitment
   ownership, consent, privacy, compensation, reserve, reviewer/scorer, calendar,
-  and analysis fields are fixed; candidate and presentation bytes are already
-  rooted.
+  and analysis fields are fixed; freeze the reviewer-specific enrollment after
+  real consent and eligibility records exist and before generating packets.
+  Candidate and presentation bytes are already rooted.
 - Recruit no reviewer before the final design, sample, assignment, and scoring
   are rooted.
 - Require zero authority errors, complete recovery, and at least 20% median
