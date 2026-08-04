@@ -38,13 +38,23 @@ try {
   & $Vela init $Frontier `
     --name "Release smoke" `
     --scope "Does this bundle read the current Frontier profile?" `
-    --json | Out-Null
+    --json | Set-Content -Encoding utf8 (Join-Path $Root "init.json")
   $Profile = Join-Path $Frontier "frontier.toml"
   if (-not (Test-Path $Profile -PathType Leaf)) { throw "current Frontier profile missing" }
   if (Test-Path (Join-Path $Frontier "frontier.yaml")) { throw "retired Frontier profile emitted" }
+  $Initialized = (Get-Content -Raw (Join-Path $Root "init.json")) | ConvertFrom-Json
   $Status = (& $Vela status $Frontier --json | Out-String) | ConvertFrom-Json
-  if ($Status.schema -ne "vela.status.v1") { throw "current status schema mismatch" }
-  if ($Status.phase -ne "authority_uninitialized") { throw "current status phase mismatch" }
+  if ($Initialized.schema -ne "vela.frontier-init.v3") { throw "current init schema mismatch" }
+  if ($Initialized.authority.state -ne "initialized") { throw "Frontier authority was not initialized" }
+  if ($Initialized.scientific_object_count -ne 0) { throw "new Frontier contains scientific objects" }
+  if (-not $Initialized.repository.repository_root.StartsWith("sha256:")) { throw "repository root missing" }
+  if (-not $Initialized.next_action.StartsWith("vela submit ")) { throw "current next action mismatch" }
+  if ($Status.schema -ne "vela.status.v3") { throw "current status schema mismatch" }
+  if ($Status.integrity.replay -ne "verified") { throw "replay was not verified" }
+  if ($Status.integrity.strict -ne "pass") { throw "strict integrity did not pass" }
+  if ($Status.integrity.blocker_count -ne 0) { throw "new Frontier has integrity blockers" }
+  if ($Status.counts.claims -ne 0) { throw "new Frontier contains Claims" }
+  if ($Status.actions.work.mode -ne "direct_submission") { throw "current work action mismatch" }
 
   foreach ($Binary in @("vela.exe")) {
     Copy-Item -Force (Join-Path $Unpack $Binary) (Join-Path $Bin $Binary)
