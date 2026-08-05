@@ -89,10 +89,12 @@ Proposal directory, or materialized Project snapshot.
   commit, tree, repository and authority roots, archive digest, object
   manifest root, and equivalence-report root.
 
-`vela init` creates Profile v2 and repository scaffolding. `vela authority
-init` installs a genesis origin, repository v4 manifest, keyset, Cedar policy,
-and sequence-one authority history in one recoverable transaction. Until then,
-strict repository verification is blocked.
+`vela init` creates Profile v2, the genesis origin, repository v4 manifest,
+keyset, Cedar policy, sequence-one authority history, local trust anchor, and
+initial Git commit in one recoverable transaction. If signing is unavailable,
+the exact Profile remains and the same `vela init` command resumes the
+operation. Strict repository verification remains blocked until that operation
+completes.
 
 Cedar is confined to repository-authority Decisions and rare authority
 administration. It is not an agent permission system, campaign runtime, or

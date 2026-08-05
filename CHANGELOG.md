@@ -7,6 +7,9 @@
   recovery, preserve the exact resume command, and link to secure macOS and
   Linux Ed25519 setup instructions. Human recovery no longer switches the
   retry into JSON mode.
+- Remove stale two-step initialization language from the protocol and agent
+  quickstart. Current documentation now consistently describes one recoverable
+  `vela init` operation.
 - Adopt the problem-centred map and frontier-to-commons foundry as Vela's next
   product programme. `problems.science` will use the existing Vela Web codebase,
   root-bound read model, source registry, and release manifest; native
