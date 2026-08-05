@@ -1043,12 +1043,20 @@ pub(crate) fn cmd_current_review_list(
     } else {
         println!("review · {total} {status} proposal(s)");
         for item in payload["items"].as_array().into_iter().flatten() {
+            /* A decided Proposal shows the Decision's reason, not the
+            Submission's retention reason. The retention line is the same
+            boilerplate on every row and says nothing about why this one
+            was settled the way it was. */
+            let reason = item["decision"]["reason"]
+                .as_str()
+                .or_else(|| item["reason"].as_str())
+                .unwrap_or("");
             println!(
                 "  {}  {}  {}  {}",
                 item["proposal_id"].as_str().unwrap_or(""),
                 item["created_at"].as_str().unwrap_or(""),
                 item["action"].as_str().unwrap_or(""),
-                item["reason"].as_str().unwrap_or("")
+                reason
             );
         }
     }
@@ -1166,10 +1174,30 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
             "  claim: {}",
             payload["proposal"]["subject"]["id"].as_str().unwrap_or("")
         );
+        /* Two reasons exist and they are not interchangeable. The Proposal's
+        reason says why the Submission was retained for review; the
+        Decision's reason is what an authorized human wrote when they
+        changed Standing. Printing the first under a heading that says
+        "accepted" attributes the retention boilerplate to the decider and
+        drops the only sentence in the record that carries their judgment. */
         println!(
-            "  reason: {}",
+            "  submitted: {}",
             payload["proposal"]["reason"].as_str().unwrap_or("")
         );
+        if let Some(decision) = payload["decision"].as_object() {
+            let actor = decision
+                .get("actor")
+                .and_then(Value::as_str)
+                .unwrap_or("actor not recorded");
+            let at = decision
+                .get("decided_at")
+                .and_then(Value::as_str)
+                .unwrap_or("time not recorded");
+            println!("  decided: {standing} by {actor} at {at}");
+            if let Some(reason) = decision.get("reason").and_then(Value::as_str) {
+                println!("  decision reason: {reason}");
+            }
+        }
         println!(
             "  verification records: {}",
             payload["verification_records"]

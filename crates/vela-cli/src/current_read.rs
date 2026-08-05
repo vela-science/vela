@@ -957,11 +957,35 @@ pub(crate) fn cmd_show(frontier: &Path, object_id: &str, json_out: bool) {
     if json_out {
         print_json(&projection);
     } else {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&projection).expect("serialize current object projection")
-        );
+        render_show(&projection);
     }
+}
+
+/// Render `show` for a person: what this object is, what it says, and what it
+/// establishes. The full record stays one `--json` away.
+fn render_show(projection: &Value) {
+    fn text(value: &Value) -> &str {
+        value.as_str().unwrap_or("not recorded")
+    }
+    let kind = text(&projection["object_kind"]);
+    println!("show · {} · {kind}", text(&projection["object_id"]));
+
+    let object = &projection["object"];
+    /* Each object kind has one line that is the thing itself. A Claim is its
+    assertion, a Verification Record its scope, an Event its reason. */
+    let subject = object["assertion"]["text"]
+        .as_str()
+        .or_else(|| object["scope"]["property"].as_str())
+        .or_else(|| object["content"]["reason"].as_str())
+        .or_else(|| object["reason"].as_str());
+    if let Some(subject) = subject {
+        println!("  says      {subject}");
+    }
+
+    println!("  schema    {}", text(&projection["object_schema"]));
+    println!("  root      {}", text(&projection["content_root"]));
+    println!("  era       {}", text(&projection["source_era"]));
+    println!("  effect    {}", text(&projection["authority_effect"]));
 }
 
 pub(crate) fn cmd_why(frontier: &Path, claim_id: &str, json_out: bool) {
@@ -978,12 +1002,86 @@ pub(crate) fn cmd_why(frontier: &Path, claim_id: &str, json_out: bool) {
     if json_out {
         print_json(&projection);
     } else {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&projection)
-                .expect("serialize current standing explanation")
-        );
+        render_why(&projection);
     }
+}
+
+/// Render `why` for a person.
+///
+/// Both branches used to print the same pretty JSON, so the verb whose whole
+/// purpose is answering "why does this stand" answered with 260 lines including
+/// the compaction predecessor archive. The reader wants four things: what
+/// stands, who decided it and what they wrote, what was checked, and what none
+/// of that establishes.
+fn render_why(projection: &Value) {
+    let text = |value: &Value| value.as_str().unwrap_or("not recorded").to_string();
+    let claim_id = text(&projection["claim_id"]);
+    let standing = text(&projection["standing"]);
+    println!("why · {claim_id} · {standing}");
+
+    let chain = &projection["chain"];
+    /* `assertion` is an object — the text and its kind — not a string. */
+    if let Some(assertion) = chain["claim"]["assertion"]["text"].as_str() {
+        println!("  claim     {assertion}");
+    }
+
+    /* The Decision is the only act that changed Standing, so it leads. A
+    Proposal may carry none, which is itself the answer to "why". */
+    let decided = chain["proposals"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find_map(|entry| entry["decision"].as_object());
+    match decided {
+        Some(decision) => {
+            let actor = decision
+                .get("actor")
+                .and_then(Value::as_str)
+                .unwrap_or("actor not recorded");
+            let at = decision
+                .get("decided_at")
+                .and_then(Value::as_str)
+                .unwrap_or("time not recorded");
+            println!("  decided   {standing} by {actor} at {at}");
+            if let Some(reason) = decision.get("reason").and_then(Value::as_str) {
+                println!("  because   {reason}");
+            }
+        }
+        None => println!("  decided   no Decision is retained for this Claim"),
+    }
+
+    let verifications = chain["verification_records"].as_array();
+    match verifications.map(Vec::as_slice).unwrap_or_default() {
+        [] => println!("  checked   no Verification Record is retained"),
+        records => {
+            println!("  checked   {} Verification Record(s)", records.len());
+            for record in records {
+                let outcome = text(&record["outcome"]);
+                let property = record["scope"]["property"]
+                    .as_str()
+                    .unwrap_or("property not recorded");
+                println!("            {outcome} · {property}");
+            }
+        }
+    }
+
+    /* standing_basis distinguishes a Claim carried through compaction from one
+    decided in the current authority chain. Print the count of current-chain
+    events beside it: where a Claim reports `compacted_origin` and still has
+    events here, the two disagree and the reader should see both. */
+    let basis = text(&chain["standing_basis"]);
+    let events = chain["authority_events"].as_array().map_or(0, Vec::len);
+    println!("  basis     {basis} · {events} event(s) in the current authority chain");
+
+    if let Some(by) = chain["supersession"]["superseded_by"].as_str() {
+        println!("  superseded by {by}");
+    }
+
+    /* The three invariants the protocol will not let a reader lose. They are
+    booleans in the payload; a person needs the sentence. */
+    println!(
+        "  a Submission is not an acceptance; a Verification Record reports one bounded check and is not an acceptance; Standing is derived from admitted Events, never read from a field."
+    );
 }
 
 #[cfg(test)]

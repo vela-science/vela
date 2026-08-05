@@ -396,10 +396,31 @@ fn cmd_log(
     crate::ui::set_mode("log", json);
     let payload = crate::current_read::log_payload(path, object_id, limit, kind_filter, as_of)
         .unwrap_or_else(|error| fail_return(&error));
-    println!(
-        "{}",
-        serde_json::to_string_pretty(&payload).expect("serialize current log")
-    );
+    if json {
+        crate::cli::print_json(&payload);
+        return;
+    }
+    /* `--json` was bound, passed to set_mode, and then ignored: both branches
+    printed the same pretty JSON. The reasons in this log are full sentences
+    written by the deciding human and are the most readable thing the CLI
+    holds; they were the hardest to read. */
+    let events = payload["events"]
+        .as_array()
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    println!("log · {} event(s), newest first", events.len());
+    for event in events {
+        let field = |key: &str| event[key].as_str().unwrap_or("not recorded").to_string();
+        println!(
+            "  {}  {}  {}",
+            field("timestamp"),
+            field("kind"),
+            field("target")
+        );
+        if let Some(reason) = event["reason"].as_str() {
+            println!("      {reason}");
+        }
+    }
 }
 
 fn cmd_review(action: ReviewAction) {

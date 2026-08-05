@@ -143,11 +143,17 @@ fn root_action_is_read_only_and_nonfinalizing() {
     assert!(script_named(&action["runs"], "Require a supported runner").contains("Linux|macOS"));
     let strict = script_named(&action["runs"], "Read-only repository verification");
     /* Shape, not verb. Pinning the literal subcommand here is what let the
-       `check` → `replay` rename ship with the Action still calling `check`:
-       this assertion passed on the stale string. Whether the verb exists is
-       proved by running the binary, in vela-cli/tests/action_invocation.rs. */
-    assert!(strict.contains("\"$vela_bin\""), "the step must invoke the pinned binary");
-    assert!(strict.contains("\"$FRONTIER\" --json"), "the step must verify the consumer's frontier as JSON");
+    `check` → `replay` rename ship with the Action still calling `check`:
+    this assertion passed on the stale string. Whether the verb exists is
+    proved by running the binary, in vela-cli/tests/action_invocation.rs. */
+    assert!(
+        strict.contains("\"$vela_bin\""),
+        "the step must invoke the pinned binary"
+    );
+    assert!(
+        strict.contains("\"$FRONTIER\" --json"),
+        "the step must verify the consumer's frontier as JSON"
+    );
     assert_no_finalizing_commands(&action);
 }
 
