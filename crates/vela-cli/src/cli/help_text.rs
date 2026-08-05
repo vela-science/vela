@@ -93,7 +93,8 @@ EXAMPLES
   vela reproduce . --proposal vpr_8b49…    replay a native witness or locate the rooted domain replay
 
 Native witnesses run in process. A rooted source-local replay is returned as
-an exact next command; Vela does not execute repository code.";
+an exact next command; Vela does not execute repository code. Reproduce is the
+user operation; strict replay is the deterministic validation it performs.";
 
 pub const VERIFY: &str = "\
 EXAMPLES

@@ -47,6 +47,44 @@ Target
 | Event | Canonical admitted transition | Changes replay |
 | Standing | Deterministic result of current replay | Derived |
 
+### 2.1 Canonical language and the closed loop
+
+Interfaces use the object names above as proper terms. They do not rename a
+Submission as a pull request, a Verification Record as approval, a Decision as
+verification, or Standing as status. `Review` is the CLI and product area that
+shows Proposals, Verification Records, and Decisions; it is not another
+protocol object. A native run is external execution activity, not a Vela
+Attempt object.
+
+The canonical closed-loop Frontier is:
+
+```text
+Standing
+  -> derived Target Index
+  -> Target
+  -> native work or run
+  -> Submission
+  -> pending Proposal
+  -> Verification Record(s)
+  -> human Decision
+  -> Event
+  -> strict replay
+  -> Standing
+  -> next Target
+```
+
+The loop is a product and operating model, not a new authority path. Targets,
+runs, indexes, search, graphs, and Web projections remain non-authoritative.
+Only the Decision admits an Event; replay deterministically derives Standing;
+the Frontier's domain adapter may then derive the next Target Index.
+
+Canonical user verbs follow the CLI: `init`, `next`, `start`, `submit`,
+`verification record|import`, `review show|accept|reject|withdraw`, `check`,
+`reproduce`, `show`, and `why`. `Reproduce` is the user operation; strict
+replay is the validation it performs. Product navigation may group these exact
+objects under Problems, Frontiers, Work, Review, Activity, and Sources, but it
+must not invent substitute protocol nouns or imply authority from a grouping.
+
 ## 3. Current repository origin
 
 A current Frontier contains:
