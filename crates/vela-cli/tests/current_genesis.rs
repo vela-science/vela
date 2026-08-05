@@ -627,6 +627,49 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         br#"{"command":"sha256sum records/artifacts/sha256/<digest>","schema":"vela.test-method.v1"}"#,
     )
     .expect("method manifest");
+    let untracked_method_home = temporary.path().join("untracked-method-home");
+    std::fs::create_dir_all(&untracked_method_home).expect("untracked method home");
+    let untracked_method = run_with_home(
+        &frontier,
+        Some(agent.socket()),
+        &untracked_method_home,
+        &[
+            "verification",
+            "record",
+            ".",
+            submitted["proposal_id"].as_str().expect("proposal id"),
+            "--profile",
+            "exact-replay-v1",
+            "--method",
+            method_path,
+            "--property",
+            "Replay the retained artifact bytes.",
+            "--outcome",
+            "pass",
+            "--does-not-establish",
+            "Scientific acceptance.",
+            "--as",
+            "verifier:untracked-method-regression",
+            "--json",
+        ],
+    );
+    assert_eq!(untracked_method.status.code(), Some(1));
+    let untracked_method: Value =
+        serde_json::from_slice(&untracked_method.stdout).expect("untracked method error JSON");
+    assert_eq!(untracked_method["command"], "verification.record");
+    assert_eq!(
+        untracked_method["error"]["message"],
+        "Verification method manifest must be retained in the current Git commit"
+    );
+    assert!(
+        untracked_method["error"]["hint"].as_str().is_some_and(
+            |hint| hint.contains(method_path) && hint.contains("current Frontier HEAD")
+        )
+    );
+    assert!(
+        !untracked_method_home.join(".vela/agents").exists(),
+        "method retention preflight must fail before verifier key creation"
+    );
     let staged = Command::new("git")
         .current_dir(&frontier)
         .args(["add", method_path])

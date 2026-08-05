@@ -180,6 +180,10 @@ method-manifest bytes, environment, scope, outcome, and verifier identity. The
 command resolves the exact current Proposal package, signs the scoped record,
 and retains it atomically. It changes no Standing.
 
+The method manifest must be Frontier-relative, tracked, clean, and retained in
+the current Git commit before this command runs. If it is new or changed,
+commit its exact bytes first, then rerun the same command.
+
 The ordinary one-requirement case needs no copied property string: Vela uses
 the Submission's sole exact verification requirement. With multiple
 requirements, pass one exact requirement through `--property`. Use

@@ -79,6 +79,16 @@ fn replay_is_the_only_repository_replay_verb() {
     let retired = run(temporary.path(), None, &["check", "--json"]);
     assert_eq!(retired.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&retired.stderr).contains("unrecognized subcommand 'check'"));
+
+    let verification_help = run(
+        temporary.path(),
+        None,
+        &["verification", "record", "--help"],
+    );
+    assert!(verification_help.status.success());
+    let verification_help = String::from_utf8_lossy(&verification_help.stdout);
+    assert!(verification_help.contains("agent:<name>, ci:<name>, or verifier:<name>"));
+    assert!(!verification_help.contains("reviewer:<you>"));
 }
 
 #[test]
@@ -231,6 +241,20 @@ fn init_creates_a_signed_ready_frontier_in_one_command() {
             .is_some_and(|root| root.starts_with("sha256:"))
     );
     assert!(initialized["repository"]["git_commit"].as_str().is_some());
+
+    let readme = std::fs::read_to_string(frontier.join("README.md")).expect("frontier README");
+    assert!(readme.contains("## Operator loop"));
+    assert!(readme.contains("git add -- verification/method.json"));
+    assert!(readme.contains("vela verification record"));
+    assert!(readme.contains("vela review inbox"));
+    assert!(readme.contains("vela review accept"));
+    assert!(readme.contains("--if-entry-root"));
+    let agent_charter =
+        std::fs::read_to_string(frontier.join("VELA.md")).expect("frontier agent charter");
+    assert!(agent_charter.contains("tracked, clean, and retained"));
+    assert!(agent_charter.contains("vela verification record"));
+    assert!(agent_charter.contains("vela review inbox"));
+    assert!(agent_charter.contains("do not decide it yourself"));
 
     let status = run(&frontier, None, &["status", "--json"]);
     assert!(status.status.success());

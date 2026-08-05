@@ -50,6 +50,48 @@ scientific tool performs the work. `submit` authenticates and retains the
 resulting Submission and creates a pending Proposal. It does not create
 Verification, a Decision, an Event, or accepted scientific state.
 
+## Verify and decide
+
+Retain the exact source-local verification method before recording its result:
+
+```bash
+git add -- verification/method.json
+git commit -m "Retain verification method"
+
+vela verification record . <vpr_id> \
+  --profile exact-replay-v1 \
+  --method verification/method.json \
+  --outcome pass \
+  --does-not-establish "Scientific acceptance." \
+  --independent-of agent:<producer> \
+  --as verifier:<name> \
+  --json
+```
+
+The method path must be Frontier-relative, tracked, clean, and present in the
+current Git commit. This makes the observed method bytes reproducible; a
+passing Verification still does not accept the Claim.
+
+Inspect the consequence-complete packet and use its exact entry root:
+
+```bash
+vela review inbox . --json
+vela review show . <vpr_id> --json
+
+# Authorized operator only; reject is the symmetric alternative.
+vela review accept . <vpr_id> \
+  --reason "<bounded scientific reason>" \
+  --if-entry-root sha256:... \
+  --json
+
+vela replay . --json
+vela why . <claim_id> --json
+```
+
+Only `review accept` or `review reject` changes Standing. A producer or
+verifier hands the rooted inbox entry to the authorized operator rather than
+making that Decision.
+
 Inspect the resulting objects without writing:
 
 ```bash

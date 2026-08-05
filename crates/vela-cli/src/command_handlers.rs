@@ -33,7 +33,7 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                 crate::current_verification::VerificationRecordRequest {
                     proposal_id: proposal,
                     profile,
-                    method_path: method,
+                    method_path: method.clone(),
                     property,
                     complementary,
                     outcome,
@@ -43,7 +43,20 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                     actor: actor.clone(),
                 },
             )
-            .unwrap_or_else(|error| fail_return(&error));
+            .unwrap_or_else(|error| {
+                if matches!(
+                    error.as_str(),
+                    "Verification method manifest must be retained in the current Git commit"
+                        | "Verification method manifest differs from the retained current Git bytes"
+                ) {
+                    let hint = format!(
+                        "Commit the exact method manifest {} at the current Frontier HEAD, then rerun the same vela verification record command",
+                        method.display()
+                    );
+                    crate::ui::fail_with(crate::ui::ErrorKind::Domain, &error, Some(&hint));
+                }
+                fail_return(&error)
+            });
             let result = crate::repository_ops::import_verification(&frontier, &record, &actor)
                 .unwrap_or_else(|error| fail_return(&error));
             print_verification_result(&result, "verification record", json);

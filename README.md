@@ -172,6 +172,9 @@ vela submit --frontier . \
   --as agent:<name> \
   --json
 
+# Verification binds method bytes retained at the current Git commit.
+git add -- verification/method.json
+git commit -m "Retain verification method"
 vela verification record . <vpr_id> \
   --profile exact-replay-v1 \
   --method verification/method.json \

@@ -16,7 +16,7 @@ use std::path::PathBuf;
 pub(crate) const HELP_AS: &str =
     "Acting identity for this write (agent:<name>). Optional: defaults to $VELA_ACTOR_ID";
 pub(crate) const HELP_REQUIRED_AS: &str =
-    "Exact acting identity for this write (reviewer:<you> or agent:<name>)";
+    "Exact acting identity for this write (agent:<name>, ci:<name>, or verifier:<name>)";
 pub(crate) const HELP_AS_OF: &str = "Answer as of this RFC3339 instant, e.g. 2026-07-02T16:00:00Z";
 pub(crate) const HELP_JSON: &str = "Output stable JSON for programmatic callers";
 
@@ -252,7 +252,8 @@ pub(crate) enum VerifyAction {
         #[arg(long)]
         profile: String,
         /// Frontier-relative method manifest whose exact bytes bind the
-        /// Verification environment.
+        /// Verification environment. It must be tracked, clean, and retained
+        /// in the current Git commit.
         #[arg(long)]
         method: PathBuf,
         /// Exact property observed by the verifier. Omit to use the Proposal's
