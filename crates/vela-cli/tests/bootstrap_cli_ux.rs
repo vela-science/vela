@@ -29,12 +29,25 @@ fn unique_name(prefix: &str, temporary: &tempfile::TempDir) -> String {
 }
 
 fn run(cwd: &Path, socket: Option<&Path>, args: &[&str]) -> Output {
+    run_with_advice_setting(cwd, socket, args, "0")
+}
+
+fn run_with_advice(cwd: &Path, socket: Option<&Path>, args: &[&str]) -> Output {
+    run_with_advice_setting(cwd, socket, args, "1")
+}
+
+fn run_with_advice_setting(
+    cwd: &Path,
+    socket: Option<&Path>,
+    args: &[&str],
+    advice: &str,
+) -> Output {
     let mut command = Command::new(env!("CARGO_BIN_EXE_vela"));
     command
         .current_dir(cwd)
         .args(args)
         .env("NO_COLOR", "1")
-        .env("VELA_ADVICE", "0");
+        .env("VELA_ADVICE", advice);
     if let Some(socket) = socket {
         command.env("SSH_AUTH_SOCK", socket);
     } else {
@@ -81,6 +94,14 @@ fn bootstrap_discovery_and_blocked_commands_name_the_one_valid_next_action() {
             .as_str()
             .is_some_and(|message| message.contains("signing could not complete"))
     );
+    let init_hint = initialized["error"]["hint"]
+        .as_str()
+        .expect("init recovery hint");
+    assert!(init_hint.contains("ssh-add /path/to/private-key"));
+    assert!(init_hint.contains("start ssh-agent first on Linux"));
+    assert!(init_hint.contains("docs/QUICKSTART.md#first-time-authority-key-setup"));
+    assert!(init_hint.contains(&format!("vela init '{frontier_text}'")));
+    assert!(init_hint.ends_with("first-time-authority-key-setup"));
 
     let nested = frontier.join("notes/drafts");
     std::fs::create_dir_all(&nested).expect("nested working directory");
@@ -133,6 +154,32 @@ fn bootstrap_discovery_and_blocked_commands_name_the_one_valid_next_action() {
             .as_str()
             .expect("local trust anchor path"),
     ));
+}
+
+#[test]
+fn human_init_recovery_keeps_the_resume_command_human_readable() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let frontier = temporary.path().join("frontier");
+    let frontier_text = frontier.to_string_lossy().into_owned();
+    let initialized = run_with_advice(
+        temporary.path(),
+        None,
+        &[
+            "init",
+            &frontier_text,
+            "--name",
+            "Human recovery",
+            "--scope",
+            "Explain first-time key setup without switching output modes.",
+        ],
+    );
+
+    assert_eq!(initialized.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&initialized.stderr);
+    assert!(stderr.contains("ssh-add /path/to/private-key"));
+    assert!(stderr.contains("key setup: https://github.com/vela-science/vela/"));
+    assert!(stderr.contains(&format!("vela init '{frontier_text}'")));
+    assert!(!stderr.contains("--json"));
 }
 
 #[test]

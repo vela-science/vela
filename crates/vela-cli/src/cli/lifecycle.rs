@@ -103,7 +103,7 @@ pub(crate) fn cmd_init(
     };
     let authority =
         initialize_repository_authority(path, key_selector, reason).unwrap_or_else(|error| {
-            let recovery = resume_command(path, key_selector, reason);
+            let recovery = authority_recovery_hint(path, key_selector, reason, json_output, &error);
             crate::ui::fail_with(
                 crate::ui::ErrorKind::Domain,
                 &format!(
@@ -173,11 +173,38 @@ fn shell_arg(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\"'\"'"))
 }
 
-fn resume_command(path: &Path, key_selector: Option<&str>, reason: &str) -> String {
+fn resume_command(
+    path: &Path,
+    key_selector: Option<&str>,
+    reason: &str,
+    json_output: bool,
+) -> String {
     let mut command = format!("vela init {}", shell_arg(&path.display().to_string()));
     if let Some(key) = key_selector {
         command.push_str(&format!(" --key {}", shell_arg(key)));
     }
-    command.push_str(&format!(" --reason {} --json", shell_arg(reason)));
+    command.push_str(&format!(" --reason {}", shell_arg(reason)));
+    if json_output {
+        command.push_str(" --json");
+    }
     command
+}
+
+fn authority_recovery_hint(
+    path: &Path,
+    key_selector: Option<&str>,
+    reason: &str,
+    json_output: bool,
+    error: &str,
+) -> String {
+    const SETUP: &str = "https://github.com/vela-science/vela/blob/main/docs/QUICKSTART.md#first-time-authority-key-setup";
+    let resume = resume_command(path, key_selector, reason, json_output);
+    if error.contains("multiple Ed25519 identities") {
+        return format!(
+            "choose one listed full fingerprint with --key, then rerun: {resume}; key setup: {SETUP}"
+        );
+    }
+    format!(
+        "load one dedicated Ed25519 key with ssh-add /path/to/private-key (start ssh-agent first on Linux), then rerun: {resume}; key setup: {SETUP}"
+    )
 }

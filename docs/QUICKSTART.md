@@ -59,6 +59,38 @@ vela why . <claim_id> --json
 
 ## Create a new Frontier
 
+### First-time authority key setup
+
+Vela uses one dedicated Ed25519 key from the standard OpenSSH agent. Vela
+does not create, read, or store the private key. If you do not already have a
+dedicated key, create one once with a passphrase:
+
+```bash
+ssh-keygen -t ed25519 -a 64 -f ~/.ssh/vela-authority \
+  -C "Vela repository authority"
+```
+
+Load it once for the current login session on macOS:
+
+```bash
+ssh-add --apple-use-keychain ~/.ssh/vela-authority
+```
+
+Or start an agent and load the key for an eight-hour session on Linux:
+
+```bash
+eval "$(ssh-agent -s)"
+ssh-add -t 8h ~/.ssh/vela-authority
+```
+
+`ssh-add -l` should now list the key's full SHA256 fingerprint. If the agent
+contains multiple Ed25519 keys, pass the intended full fingerprint to
+`vela init --key SHA256:...`. Do not use OpenSSH's per-signature `-c` option;
+Vela performs its own exact policy, current-root, read-set, and local signature
+checks for every Decision.
+
+### Initialize the Frontier
+
 ```bash
 vela init ./frontier \
   --name "Bounded question" \
@@ -67,8 +99,7 @@ vela init ./frontier \
 ```
 
 Before running `init`, load one dedicated Ed25519 repository-authority key once
-for the current operating-system session (`ssh-add --apple-use-keychain` on
-macOS or `ssh-add -t 8h` on Linux). `init`
+for the current operating-system session. `init`
 creates the Profile, root-bound sequence-1 authority record, local trust anchor,
 and initial Git commit in one command. It creates no Claim, Decision, or
 scientific Standing. When the agent exposes more than one Ed25519 identity,

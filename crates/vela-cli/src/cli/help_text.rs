@@ -130,7 +130,14 @@ JSON mode requires both --name and --scope. Init binds the new Frontier to one
 OpenSSH-agent Ed25519 identity and creates its signed repository origin in the
 same command. It creates no Claim, Verification, Decision, or scientific
 Standing. If signing is unavailable, the valid Profile is retained and the
-error gives the exact recovery command.";
+error explains how to load the key and gives the exact recovery command.
+
+FIRST USE
+  ssh-add /path/to/private-key   load one dedicated Ed25519 key
+  ssh-add -l              inspect full SHA256 fingerprints
+
+On Linux, start ssh-agent before ssh-add. Vela never creates, reads, or stores
+the private key.";
 
 pub const SHOW: &str = "\
 EXAMPLES
