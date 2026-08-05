@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Make `replay` the sole repository-integrity verb across the CLI, generated
+  Frontier instructions, JSON output, and current documentation. Retire the
+  ambiguous `check` command instead of retaining an alias; `reproduce` remains
+  the separate operation that reruns scientific witnesses.
 - Make failed first-time `vela init` actionable without adding key custody or
   another setup command: human and JSON errors now name standard OpenSSH
   recovery, preserve the exact resume command, and link to secure macOS and

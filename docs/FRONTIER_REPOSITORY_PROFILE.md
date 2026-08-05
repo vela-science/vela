@@ -151,7 +151,7 @@ checked-in runtime configuration file.
 ## Verification
 
 ```bash
-vela check . --json
+vela replay . --json
 vela status . --json
 ```
 
@@ -167,5 +167,5 @@ Verification checks:
   tracked `HEAD` bytes and the current repository root; and
 - rejected active legacy paths are absent.
 
-`vela check` fails until native authority initialization completes.
+`vela replay` fails until native authority initialization completes.
 Git publication transports bytes; it does not create scientific acceptance.

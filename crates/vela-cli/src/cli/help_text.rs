@@ -82,10 +82,10 @@ pub const LOG: &str = "\
 EXAMPLES
   vela log .   the accepted-event history, newest first";
 
-pub const CHECK: &str = "\
+pub const REPLAY: &str = "\
 EXAMPLES
-  vela check .           replay-verify the frontier
-  vela check . --json    verify every repository invariant";
+  vela replay .           replay-verify the frontier
+  vela replay . --json    verify every repository invariant";
 
 pub const REPRODUCE: &str = "\
 EXAMPLES

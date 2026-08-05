@@ -27,16 +27,22 @@ what was independently checked; what a named Frontier decided; and what a
 later researcher can safely inherit.
 
 Vela is a Git-native protocol and CLI for governed, replayable
-scientific-state transitions. Its product loop is:
+scientific-state transitions. Its complete operator loop is:
 
 ```text
-map -> target -> work -> submit -> verify -> decide -> remap
+init -> submit -> verify -> decide -> replay
 ```
 
 Work can happen in any native tool. A Submission retains bounded producer
 evidence. Checks remain scoped. Only an authorized Decision changes Standing,
 and the resulting map exposes the next valid Target or an explicit blocker.
 Compounding is a measured outcome, not an automatic property of acceptance.
+
+Research navigation wraps that exact loop without adding authority:
+
+```text
+map -> target -> work -> submit -> verify -> decide -> remap
+```
 
 The product hierarchy is deliberate:
 
@@ -131,7 +137,7 @@ Create and inspect a bounded Frontier:
   --scope "Does X hold under Y?"
 
 ./target/release/vela status ../my-frontier --json
-./target/release/vela check ../my-frontier --json
+./target/release/vela replay ../my-frontier --json
 ```
 
 `init` creates the Profile, signs the repository origin with one Ed25519
@@ -175,7 +181,7 @@ vela verification record . <vpr_id> \
   --json
 
 vela review show . <vpr_id> --json
-vela check . --json
+vela replay . --json
 vela why . <claim_id> --json
 ```
 
@@ -194,7 +200,7 @@ their own exact records; neither reads repository-authority credentials.
 The ordinary CLI is intentionally small:
 
 ```text
-init status next start submit verification show why review check reproduce log
+init status next start submit verification show why review replay reproduce log
 ```
 
 Current advanced surfaces:
@@ -206,7 +212,7 @@ verification authority
 Run `vela help advanced` for the grouped contract.
 
 Frontier domain adapters write the optional tracked Target Index directly;
-`check`, `next`, and `start` validate it without a maintenance subcommand.
+`replay`, `next`, and `start` validate it without a maintenance subcommand.
 
 ## Repository model
 

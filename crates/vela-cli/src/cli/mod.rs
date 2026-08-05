@@ -44,7 +44,7 @@ pub fn run_command() {
     let cli = Cli::parse();
     crate::ui::set_quiet(cli.quiet);
     match cli.command {
-        Commands::Check { source, json } => cmd_check(source.as_deref(), json),
+        Commands::Replay { source, json } => cmd_replay(source.as_deref(), json),
         Commands::Status { frontier, json } => {
             cmd_status_compact(&crate::ui::resolve_frontier(frontier), json)
         }
@@ -465,9 +465,9 @@ fn cmd_review(action: ReviewAction) {
     }
 }
 
-fn cmd_check(source: Option<&Path>, json_output: bool) {
-    crate::ui::set_mode("check", json_output);
+fn cmd_replay(source: Option<&Path>, json_output: bool) {
+    crate::ui::set_mode("replay", json_output);
     let frontier = crate::ui::resolve_frontier(source.map(Path::to_path_buf));
     crate::ui::require_initialized_frontier(&frontier);
-    crate::current_repository::cmd_check_repository(&frontier, json_output);
+    crate::current_repository::cmd_replay_repository(&frontier, json_output);
 }

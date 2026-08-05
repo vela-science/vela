@@ -32,13 +32,13 @@ falls back to worktree bytes or an older index.
 The domain adapter owns ranking and target semantics. It must emit canonical
 JSON with targets sorted by ascending `(rank, id)`. Vela owns only validation,
 the automatic repository-root/index-root rebind performed by an ordinary
-repository transaction, and the runtime `check`, `next`, and `start` gates.
+repository transaction, and the runtime `replay`, `next`, and `start` gates.
 
 ## Producer flow
 
 ```bash
 # The Frontier's domain adapter updates and commits targets.json and packets.
-vela check . --json
+vela replay . --json
 vela next . --json
 vela start <full-target-id> --frontier . --json
 ```

@@ -34,7 +34,7 @@ fn briefing(frontier: &Path, target_id: &str) -> Result<Value, String> {
             .is_some_and(|issues| !issues.is_empty())
     {
         return Err(format!(
-            "current Target {target_id:?} is stale or invalid; run `vela check` for details"
+            "current Target {target_id:?} is stale or invalid; run `vela replay` for details"
         ));
     }
     let target = assessment

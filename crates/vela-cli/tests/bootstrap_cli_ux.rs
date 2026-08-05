@@ -68,6 +68,20 @@ fn json(output: &Output) -> Value {
 }
 
 #[test]
+fn replay_is_the_only_repository_replay_verb() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let help = run(temporary.path(), None, &["--help"]);
+    assert!(help.status.success());
+    let help = String::from_utf8_lossy(&help.stdout);
+    assert!(help.contains("replay"));
+    assert!(!help.contains("check"));
+
+    let retired = run(temporary.path(), None, &["check", "--json"]);
+    assert_eq!(retired.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&retired.stderr).contains("unrecognized subcommand 'check'"));
+}
+
+#[test]
 fn bootstrap_discovery_and_blocked_commands_name_the_one_valid_next_action() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let frontier = temporary.path().join("frontier");
@@ -115,7 +129,7 @@ fn bootstrap_discovery_and_blocked_commands_name_the_one_valid_next_action() {
     );
 
     for args in [
-        vec!["check", "--json"],
+        vec!["replay", "--json"],
         vec!["next", "--json"],
         vec!["start", "missing:target", "--json"],
         vec!["review", "inbox", &frontier_text, "--json"],

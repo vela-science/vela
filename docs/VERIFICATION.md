@@ -25,7 +25,7 @@ stored witness bytes and environment pins. It must not consult an unpinned
 network resource or model judgment. The command reports the property each
 verifier checked and refuses malformed or mismatched inputs.
 
-`vela check <frontier> --json` validates the current repository origin:
+`vela replay <frontier> --json` validates the current repository origin:
 content addresses, authority-history continuity, admitted-event replay,
 required Artifacts, exact Git ancestry, retained canonical objects, derived
 parity, and the independently installed sequence-one authority trust root. It
@@ -34,11 +34,11 @@ does not replace the domain verifier.
 Run both from the exact Git tree being cited:
 
 ```bash
-vela check . --json
+vela replay . --json
 vela reproduce .
 ```
 
-`vela check . --json` reports the typed repository-context
+`vela replay . --json` reports the typed repository-context
 defects and keeps that context invalid. It is diagnostic, not a bypass:
 invalid authority or repository context grants no identity, signature, or
 historical exemption, and canonical writers fail before journaling.

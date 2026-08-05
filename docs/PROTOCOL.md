@@ -79,7 +79,7 @@ Only the Decision admits an Event; replay deterministically derives Standing;
 the Frontier's domain adapter may then derive the next Target Index.
 
 Canonical user verbs follow the CLI: `init`, `next`, `start`, `submit`,
-`verification record|import`, `review show|accept|reject|withdraw`, `check`,
+`verification record|import`, `review show|accept|reject|withdraw`, `replay`,
 `reproduce`, `show`, and `why`. `Reproduce` is the user operation; strict
 replay is the validation it performs. Product navigation may group these exact
 objects under Problems, Frontiers, Work, Review, Activity, and Sources, but it
@@ -417,7 +417,7 @@ Strict replay verifies:
 Standing is derived only from valid admitted Events. It is never read from a
 database, Web page, mutable status field, verifier outcome, or Git branch name.
 
-`vela check` fails closed on defects and grants no trust or exemption.
+`vela replay` fails closed on defects and grants no trust or exemption.
 
 ## 8. Correction
 
@@ -446,7 +446,7 @@ cannot:
 - accept or reject a Proposal; or
 - define Standing.
 
-Disagreement is resolved from an exact Git checkout with `vela check`
+Disagreement is resolved from an exact Git checkout with `vela replay`
 and the declared frozen verifiers.
 
 ## 10. Interoperability

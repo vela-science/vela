@@ -31,8 +31,8 @@ pub(crate) struct CurrentProposalDecision {
     pub(crate) applied_event_id: Option<String>,
 }
 
-pub(crate) fn cmd_check_repository(frontier: &Path, json_out: bool) {
-    crate::ui::set_mode("check", json_out);
+pub(crate) fn cmd_replay_repository(frontier: &Path, json_out: bool) {
+    crate::ui::set_mode("replay", json_out);
     let frontier = frontier.canonicalize().unwrap_or_else(|error| {
         crate::cli::fail_return(&format!(
             "resolve current Frontier {}: {error}",
@@ -71,7 +71,7 @@ pub(crate) fn cmd_check_repository(frontier: &Path, json_out: bool) {
     let payload = json!({
         "schema": "vela.repository-verification.v2",
         "ok": true,
-        "command": "check",
+        "command": "replay",
         "frontier": frontier.display().to_string(),
         "frontier_id": repository.frontier_id,
         "git_commit": commit,
@@ -95,7 +95,7 @@ pub(crate) fn cmd_check_repository(frontier: &Path, json_out: bool) {
     if json_out {
         crate::cli::print_json(&payload);
     } else {
-        println!("current repository verified");
+        println!("current repository replay verified");
         println!("  frontier: {}", payload["frontier_id"]);
         println!("  origin: {}", payload["origin_id"]);
         println!("  claims: {}", payload["counts"]["accepted_claims"]);

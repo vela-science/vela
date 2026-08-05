@@ -24,7 +24,7 @@ vela verification import . verification.json \
   --json
 
 vela review show . <vpr_id> --json
-vela check . --json
+vela replay . --json
 vela why . <claim_id> --json
 ```
 
@@ -37,7 +37,7 @@ Decision, Event, or accepted Standing.
 Default help exposes exactly:
 
 ```text
-init status next start submit show why review check reproduce log
+init status next start submit show why review replay reproduce log
 ```
 
 | Command | Contract |
@@ -50,7 +50,7 @@ init status next start submit show why review check reproduce log
 | `show` | Inspect one exact typed object and its authority effect. |
 | `why` | Explain one Claim's Standing from retained roots and history. |
 | `review` | List, show, accept, or reject one exact Proposal. |
-| `check` | Verify repository structure, roots, replay, and authority. |
+| `replay` | Verify repository structure, roots, replay, and authority. |
 | `reproduce` | Run retained evidence through its frozen verifier. |
 | `log` | Read admitted Event history. |
 
@@ -72,7 +72,7 @@ verification authority
   exceptional setup surface rather than an ordinary workflow.
 
 Frontier-owned domain adapters generate the optional tracked `targets.json`
-catalogue. `check`, `next`, and `start` validate it; Vela has no separate
+catalogue. `replay`, `next`, and `start` validate it; Vela has no separate
 Target Index maintenance command.
 
 `vela help advanced` is the executable source for this grouping.
@@ -303,7 +303,7 @@ against the current sequence-one authority record.
 ## Repository verification
 
 ```bash
-vela check <frontier> --json
+vela replay <frontier> --json
 ```
 
 The command verifies the current manifest, native-genesis or signed-predecessor

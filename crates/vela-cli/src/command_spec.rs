@@ -24,8 +24,8 @@ pub(crate) const HELP_JSON: &str = "Output stable JSON for programmatic callers"
 pub(crate) enum Commands {
     /// Is the LOG intact: replay, signatures, and hash parity. Checks the record, not
     /// the science — `vela reproduce` re-runs the verifiers themselves.
-    #[command(after_long_help = crate::cli::help_text::CHECK)]
-    Check {
+    #[command(after_long_help = crate::cli::help_text::REPLAY)]
+    Replay {
         /// Current Frontier repository. Defaults to the current directory.
         source: Option<PathBuf>,
         /// Output stable JSON
@@ -69,7 +69,7 @@ pub(crate) enum Commands {
     },
     /// Is the SCIENCE intact: re-run every stored witness through the
     /// frozen exact verifiers, from scratch — same input, same answer,
-    /// any machine. Complements `vela check`, which verifies the log
+    /// any machine. Complements `vela replay`, which verifies the log
     /// rather than the results.
     #[command(after_long_help = crate::cli::help_text::REPRODUCE)]
     Reproduce {

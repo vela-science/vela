@@ -10,10 +10,16 @@ Historical object names remain valid when describing their exact source era.
 > **Map the territory. Advance one boundary. Leave the next researcher ahead.**
 
 ```text
+init -> submit -> verify -> decide -> replay
+```
+
+Research navigation wraps that exact operator loop:
+
+```text
 map -> target -> work -> submit -> verify -> decide -> remap
 ```
 
-These are product verbs, not renamed protocol objects:
+These navigation verbs are not renamed protocol objects:
 
 ```text
 map       reads exact state, dependencies, disagreement, and gaps
@@ -30,10 +36,10 @@ Commit` remains an optional product-level description of an authorized
 Decision, Event, and root transition. It is not a protocol object, Git merge,
 verifier result, package publication, or new authority path.
 
-The architecture ownership mnemonic remains:
+The operator loop remains:
 
 ```text
-produce -> preserve -> check -> decide -> reuse
+init -> submit -> verify -> decide -> replay
 ```
 
 ## Canonical current vocabulary
@@ -82,7 +88,7 @@ cross-Frontier concept, not a current global authority or completeness claim.
 ## Daily commands
 
 ```text
-init status next start submit show why review check reproduce log
+init status next start submit show why review replay reproduce log
 ```
 
 | Command | Meaning |
@@ -95,7 +101,7 @@ init status next start submit show why review check reproduce log
 | `why` | Explain current standing from exact evidence, verification, Decisions, Events, and corrections |
 | `review accept` | Accept one exact Proposal through repository authority |
 | `review reject` | Reject one exact Proposal through repository authority |
-| `check` | Validate schemas, roots, signatures, replay, and policy consistency |
+| `replay` | Validate schemas, roots, signatures, replay, and policy consistency |
 | `reproduce` | Rerun retained evidence or a verifier from exact or declared inputs |
 | `log` | Read canonical history |
 
@@ -199,7 +205,7 @@ submit import reproduce
 Evaluation:
 
 ```text
-check verify reproduce
+replay verify reproduce
 ```
 
 Authority:

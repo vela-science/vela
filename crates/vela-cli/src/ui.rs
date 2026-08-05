@@ -286,7 +286,7 @@ pub fn require_initialized_frontier(frontier: &std::path::Path) {
         fail_with(
             ErrorKind::Domain,
             "current repository is incomplete: expected both `.vela/origin.json` and `.vela/repository.json`",
-            Some("restore the exact missing tracked file, then run `vela check`"),
+            Some("restore the exact missing tracked file, then run `vela replay`"),
         );
     }
     fail_with(

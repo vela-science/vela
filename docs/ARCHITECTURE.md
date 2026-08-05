@@ -29,7 +29,13 @@ Obligations that follow from that state. Unknown unknowns remain unknown; Vela
 does not manufacture completeness by turning missing source coverage into
 graph nodes.
 
-The product story is:
+The exact operator loop is:
+
+```text
+init -> submit -> verify -> decide -> replay
+```
+
+The research-navigation story around it is:
 
 ```text
 map -> target -> work -> submit -> verify -> decide -> remap

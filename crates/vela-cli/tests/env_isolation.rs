@@ -55,13 +55,13 @@ fn command_errors_use_stable_exit_codes() {
     let tmp = tempfile::TempDir::new().unwrap();
     init_frontier(tmp.path());
     // A failed signing attempt retains a resumable Profile v2 shell. Until
-    // `init` is rerun with a key, `check` rejects it as a domain error rather
+    // `init` is rerun with a key, `replay` rejects it as a domain error rather
     // than falling through to a retired profile loader.
-    let out = run_in(tmp.path(), &["check", "--json"]);
+    let out = run_in(tmp.path(), &["replay", "--json"]);
     assert_eq!(
         out.status.code(),
         Some(1),
-        "check current repository refusal: {out:?}"
+        "replay current repository refusal: {out:?}"
     );
     // Retired state writers fail as usage errors before touching the frontier.
     let out = run_in(tmp.path(), &["state", "anchor", ".", "vf_x", "--json"]);

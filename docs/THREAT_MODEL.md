@@ -151,7 +151,7 @@ Verification, or Event mutation.
 Resolve disputes from an exact Git checkout:
 
 ```bash
-vela check . --json
+vela replay . --json
 vela reproduce .
 ```
 
