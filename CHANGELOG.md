@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.966.2 — 2026-08-05 — Canonical replay and actionable initialization
+
 - Make `replay` the sole repository-integrity verb across the CLI, generated
   Frontier instructions, JSON output, and current documentation. Retire the
   ambiguous `check` command instead of retaining an alias; `reproduce` remains
@@ -17,8 +19,8 @@
 - Adopt the problem-centred map and frontier-to-commons foundry as Vela's next
   product programme. `problems.science` will use the existing Vela Web codebase,
   root-bound read model, source registry, and release manifest; native
-  Frontiers and maintained libraries retain their authority. No protocol,
-  package registry, second database, or Vela core release is introduced.
+  Frontiers and maintained libraries retain their authority. The programme adds
+  no protocol surface, package registry, or second database.
 
 ## v0.966.1 — 2026-08-04 — Linux certification correction
 
