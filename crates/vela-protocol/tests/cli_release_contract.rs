@@ -56,13 +56,13 @@ fn run_expect_failure(args: &[&str]) -> String {
 }
 
 #[test]
-fn check_missing_frontier_reports_error_without_panic() {
+fn replay_missing_frontier_reports_error_without_panic() {
     let tmp = TempDir::new().unwrap();
     let missing = tmp.path().join("missing-frontier.json");
 
-    // `check` distinguishes a missing path from both a native bootstrap and a
+    // `replay` distinguishes a missing path from both a native bootstrap and a
     // retired repository. It must not fall through to a legacy loader.
-    let error = run_expect_failure(&["check", missing.to_str().unwrap()]);
+    let error = run_expect_failure(&["replay", missing.to_str().unwrap()]);
 
     assert!(error.contains("Frontier directory does not exist"));
     assert!(error.contains("vela init <dir>"));
@@ -82,7 +82,7 @@ fn advanced_help_uses_current_product_commands() {
         "show",
         "why",
         "review",
-        "check",
+        "replay",
         "reproduce",
         "log",
     ] {
@@ -91,7 +91,7 @@ fn advanced_help_uses_current_product_commands() {
             "advanced help omitted current product command: {command}"
         );
     }
-    assert!(help.contains("check         Replay, signatures, parity, and repository integrity"));
+    assert!(help.contains("replay        Replay, signatures, parity, and repository integrity"));
     assert!(help.contains("reproduce     Re-run stored witnesses with frozen verifiers"));
     assert!(help.contains("review        Inspect or perform one exact Proposal lifecycle action"));
     assert!(help.contains("verification  Retain non-authorizing scoped Verification Records"));
