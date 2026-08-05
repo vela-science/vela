@@ -250,7 +250,7 @@ fn init_creates_a_signed_ready_frontier_in_one_command() {
     assert!(readme.contains("vela review accept"));
     assert!(readme.contains("--if-entry-root"));
     let agent_charter =
-        std::fs::read_to_string(frontier.join("VELA.md")).expect("frontier agent charter");
+        std::fs::read_to_string(frontier.join("AGENTS.md")).expect("frontier agent charter");
     assert!(agent_charter.contains("tracked, clean, and retained"));
     assert!(agent_charter.contains("vela verification record"));
     assert!(agent_charter.contains("vela review inbox"));

@@ -786,6 +786,13 @@ pub(crate) fn why_payload(frontier: &Path, claim_id: &str) -> Result<Value, Stri
     let mut proposals = proposal_views(&context, claim_id);
     let mut verification_records = verification_views(frontier, &context, claim_id)?;
     let mut authority_events = related_authority_events(&context, claim_id)?;
+    /* Events from the CURRENT authority chain that name this Claim, counted
+    before the origin history is appended below. This is what distinguishes a
+    Claim decided in the live chain from one carried through compaction, and
+    it is per-Claim: `origin_history.status` describes the repository, so
+    deriving the basis from it alone labelled every accepted Claim on a
+    compacted Frontier `compacted_origin`, including ones decided yesterday. */
+    let current_chain_events = authority_events.len();
     let current_supersession = supersession_view(&context, claim_id)?;
     let origin_history = if standing == "accepted" {
         origin_standing_history(frontier, &context, claim_id)?
@@ -830,9 +837,14 @@ pub(crate) fn why_payload(frontier: &Path, claim_id: &str) -> Result<Value, Stri
         "claim_root": claim_root,
         "standing": standing,
         "chain": {
-            "standing_basis": if origin_history.status == "current_authority" { "current_authority" } else { "compacted_origin" },
+            "standing_basis": if current_chain_events > 0 || origin_history.status == "current_authority" {
+                "current_authority"
+            } else {
+                "compacted_origin"
+            },
             "standing_basis_detail": {
                 "status": origin_history.status,
+                "current_chain_events": current_chain_events,
                 "origin_id": context.origin.origin_id,
                 "origin_root": context.repository.origin_root,
                 "generation": context.origin.generation,

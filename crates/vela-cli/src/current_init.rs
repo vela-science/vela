@@ -196,7 +196,8 @@ fn initialize_in_place(path: &Path, options: &CurrentInitOptions<'_>) -> Result<
             "frontier.toml",
             ".gitignore",
             ".gitattributes",
-            "VELA.md"
+            "AGENTS.md",
+            "CLAUDE.md"
         ],
         "next_action": format!(
             "vela init {} --json",
@@ -222,20 +223,47 @@ fn write_scaffold(path: &Path, name: &str, scope: &str) -> Result<(), String> {
             "# Scope\n\n## Question\n\n{scope}\n\n## Includes\n\nNo additional inclusions are declared.\n\n## Excludes\n\nNo exclusions are declared.\n"
         ),
     )?;
+    /* The runtime creates more under `.vela` than this used to list, so a fresh
+    Frontier staged its task leases, workspaces, source inbox, agent state and
+    key material into Git. Three of the four published Frontiers hand-patched
+    exactly these entries; the fourth patched them incompletely and still
+    carries unignored runtime directories. */
     write(
         ".gitignore",
-        "/.vela/operation-journals/\n/.vela/tmp/\n/.vela/work/\n/target/\nnode_modules/\n.DS_Store\n",
+        concat!(
+            "/.vela/operation-journals/\n",
+            "/.vela/tmp/\n",
+            "/.vela/work/\n",
+            "/.vela/tasks/\n",
+            "/.vela/workspaces/\n",
+            "/.vela/source-inbox/\n",
+            "/.vela/agents/\n",
+            "/.vela/keys/\n",
+            "/.vela/artifact-blobs/\n",
+            "/target/\n",
+            "node_modules/\n",
+            ".DS_Store\n",
+        ),
     )?;
     write(
         ".gitattributes",
         "* text=auto eol=lf\n.vela/** -filter -ident -working-tree-encoding -merge -text\nrecords/** -filter -ident -working-tree-encoding -merge diff text eol=lf\nartifacts/** -filter -ident -working-tree-encoding -merge -text\nfrontier.toml -filter -ident -working-tree-encoding -merge diff text eol=lf\ntargets.json -filter -ident -working-tree-encoding -merge diff text eol=lf\n",
     )?;
+    /* AGENTS.md, not VELA.md. FRONTIER_REPOSITORY_PROFILE.md names README.md,
+    SCOPE.md and AGENTS.md as the guidance set, and all four published
+    Frontiers carry AGENTS.md; none has ever had a VELA.md. A scaffold that
+    writes a filename no repository uses guarantees the first act after
+    `vela init` is renaming it. */
     write(
-        "VELA.md",
+        "AGENTS.md",
         &format!(
             "# {name} — agent charter\n\nCanonical state is Git history plus the current `.vela/repository.json` manifest. Producers may inspect exact Target briefings, submit signed evidence directly, and record scoped Verification. Only an authorized human Decision changes scientific standing.\n\nAgents must not invoke `vela review accept` or `vela review reject`, access repository-authority credentials, hand-edit canonical records, or describe Verification as acceptance. A Verification method manifest must be tracked, clean, and retained in the current Git commit before `vela verification record`.\n\n```bash\nvela status . --json\nvela next . --limit 1 --json\nvela start <target> --json\nvela submit --frontier . --claim <bounded-claim> --type computational --replayability exact --artifact <path>:<kind> --caveat <limit> --as agent:<name> --json\nvela verification record . <vpr_id> --profile <profile> --method <committed-method> --outcome <outcome> --does-not-establish <limit> --as verifier:<name> --json\nvela review inbox . --json\nvela replay . --json\n```\n\nHand the rooted Decision Inbox entry to the authorized operator; do not decide it yourself.\n"
         ),
-    )
+    )?;
+    /* One line pointing at the charter. All four published Frontiers carry
+    exactly this file with exactly this content, so the convention is
+    unanimous and was simply never scaffolded. */
+    write("CLAUDE.md", "@AGENTS.md\n")
 }
 
 fn initialize_git(path: &Path, requested: bool) -> Result<(), String> {
