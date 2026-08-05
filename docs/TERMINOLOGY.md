@@ -158,11 +158,32 @@ Verification outcome:
 pass fail inconclusive error
 ```
 
-Claim standing:
+Claim standing, as this vocabulary declares it:
 
 ```text
 unassessed accepted accepted_with_conditions retracted superseded corrected
 ```
+
+**The shipped CLI does not emit that set, and a consumer must not assume it
+does.** What `0.966.2` actually emits as a Claim's standing is:
+
+```text
+accepted pending_review rejected withdrawn superseded
+```
+
+Four declared values — `unassessed`, `accepted_with_conditions`, `retracted`,
+`corrected` — appear in no line of any crate. `retracted` and `corrected` have
+relations behind them (`retracts`, `corrects`) but no standing derivation yet.
+Two emitted values are not declared here at all, and both are Proposal-status
+words: a Claim whose only Proposal is pending reports `pending_review`, and one
+whose Proposal was withdrawn reports `withdrawn`. That is the axis separation
+this document requires, crossed by the implementation.
+
+Reconciling the two is a protocol decision, not a documentation fix, and it has
+a downstream cost already being paid: the first consumer implemented the
+declared vocabulary, so it maps every non-`accepted` standing onto `unassessed`
+— a word nothing emits — and treats two live values as unreachable. Until the
+decision is made, read the emitted set and treat the declared set as intent.
 
 Artifact axes remain separate:
 
