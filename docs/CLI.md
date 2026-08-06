@@ -328,6 +328,25 @@ active paths. The one-time migration writer is not part of the current binary.
 Default JSON does not embed full packet bodies, review collections, private
 coordination, test telemetry, or secret material.
 
+Every `--json` outcome, success or failure, is one object carrying `ok` and
+`command`. A success also names its `schema`; a failure carries an `error` with
+a `kind`, a message, and a hint naming the next command.
+
+The exit code says which kind of failure it was, so a caller can act on it
+without parsing prose:
+
+| Code | Kind | Means |
+| --- | --- | --- |
+| 0 | — | the command did what it says |
+| 1 | `domain` | the domain said no: replay broken, a gate red, a verification failed |
+| 2 | `usage` | the invocation was wrong: a missing or malformed argument |
+| 3 | `not_found` | the object named does not exist in this Frontier |
+| 4 | `custody_refused` | the custody engine or a permission profile refused |
+| 5 | `already_exists` | an idempotent no-op; the thing was already there |
+
+A failure whose cause is genuinely ambiguous reports `domain`, because a
+confident wrong code is worse than an honest general one.
+
 ## Fail-closed behavior
 
 Checks fail closed on defects. Diagnostic output never grants trust,
