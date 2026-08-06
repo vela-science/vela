@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.966.4
+
 - One command, one document. `vela status` answered a Frontier whose repository
   authority had not finished initializing with `vela.status.v1` and a replaying
   one with `vela.status.v3` — not two versions of a contract but one literal
