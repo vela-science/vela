@@ -124,7 +124,12 @@ repository_root_after="$(jq -r '.roots.repository' "$root/status.json")"
 [[ "$(jq -r '.accepted_event_delta' "$root/import.json")" == 0 ]]
 [[ "$(jq -r '.accepted_state_changed' "$root/submit.json")" == false ]]
 [[ "$(jq -r '.verification_records | length' "$root/review.json")" == 1 ]]
-[[ "$(jq -r '.standing' "$root/review.json")" == pending_review ]]
+# `status`, not `standing`. A Proposal has a lifecycle position; a Claim has a
+# ruling. `review show` returned this one under `standing`, which was the last
+# place a Proposal word travelled on the Claim axis, and renaming it left this
+# check reading a key nothing emits — so `jq` answered `null` and the waist
+# failed on a rename that was correct.
+[[ "$(jq -r '.status' "$root/review.json")" == pending_review ]]
 [[ "$(jq -r '.decision' "$root/review.json")" == null ]]
 [[ "$(jq -r '.authority_boundary' "$root/review.json")" == "Verification records report bounded checks. A producer may close its own pending Proposal; only a repository-authority Decision can change accepted scientific Standing." ]]
 [[ "$(jq -r '.schema' "$root/inbox.json")" == vela.decision-inbox.v2 ]]
@@ -169,6 +174,6 @@ jq -cn \
     repository_root:$repository_root,
     accepted_claims:$accepted_claims,
     accepted_event_delta:0,
-    standing:"pending_review",
+    proposal_status:"pending_review",
     clean_clone_replayed:true
   }'
