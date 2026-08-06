@@ -4,17 +4,23 @@
 //! verifier capsule, and result contract used for bounded work. It carries no
 //! verification or decision authority.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub const EXECUTION_BINDING_SCHEMA: &str = "vela.execution-binding.v1";
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ExecutionBindingV1 {
+    #[schemars(schema_with = "crate::wire_schema::execution_binding_schema_tag")]
     pub schema: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub packet_root: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub profile_root: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub verifier_capsule_root: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub result_contract_root: String,
 }
 

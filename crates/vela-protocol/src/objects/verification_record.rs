@@ -5,6 +5,7 @@
 //! Decision and canonical Event.
 
 use ed25519_dalek::SigningKey;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -15,59 +16,88 @@ pub const VERIFICATION_RECORD_V1_SCHEMA: &str = "vela.verification-record.v1";
 pub const VERIFICATION_RECORD_AUTH_ALGORITHM: &str = "ed25519";
 pub const VERIFICATION_RECORD_MAX_BYTES: usize = 4 * 1024 * 1024;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// What a Verification Record may report about the property it checked.
+///
+/// Read by `validate_semantics` and by `crate::wire_schema`, so the vocabulary
+/// is written once. There is deliberately no member meaning "accepted": a
+/// passing Verification is an observation, and Standing moves only by an
+/// authorized Decision and its canonical Event.
+pub const VERIFICATION_OUTCOMES: &[&str] = &["pass", "fail", "error", "inconclusive"];
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct VerificationSubject {
+    #[schemars(schema_with = "crate::wire_schema::claim_id")]
     pub claim_id: String,
+    #[schemars(schema_with = "crate::wire_schema::artifact_reference_id_array")]
     pub artifact_ids: Vec<String>,
+    #[schemars(schema_with = "crate::wire_schema::submission_id_reference")]
     pub submission_id: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub submission_root: String,
+    #[schemars(schema_with = "crate::wire_schema::proposal_id_reference")]
     pub proposal_id: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct VerificationMethod {
+    #[schemars(schema_with = "crate::wire_schema::text")]
     pub profile: String,
+    #[schemars(schema_with = "crate::wire_schema::text")]
     pub implementation: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub environment_root: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct VerificationScope {
+    #[schemars(schema_with = "crate::wire_schema::text")]
     pub property: String,
+    #[schemars(schema_with = "crate::wire_schema::nonempty_text_array")]
     pub does_not_establish: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct IndependenceDisclosure {
+    #[schemars(schema_with = "crate::wire_schema::text_array")]
     pub declared_independent_of: Vec<String>,
+    #[schemars(schema_with = "crate::wire_schema::text_array")]
     pub shared_dependencies: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct VerificationAuthentication {
+    #[schemars(schema_with = "crate::wire_schema::verification_auth_algorithm")]
     pub algorithm: String,
     pub identity_binding: IdentityBinding,
+    #[schemars(schema_with = "crate::wire_schema::ed25519_signature")]
     pub signature: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct VerificationRecordV1 {
+    #[schemars(schema_with = "crate::wire_schema::verification_record_schema_tag")]
     pub schema: String,
+    #[schemars(schema_with = "crate::wire_schema::verification_record_id")]
     pub verification_record_id: String,
     pub subject: VerificationSubject,
     pub method: VerificationMethod,
     pub scope: VerificationScope,
+    #[schemars(schema_with = "crate::wire_schema::verification_outcome")]
     pub outcome: String,
+    #[schemars(schema_with = "crate::wire_schema::text")]
     pub verifier: String,
     pub independence: IndependenceDisclosure,
+    #[schemars(schema_with = "crate::wire_schema::artifact_reference_id_array")]
     pub output_artifact_ids: Vec<String>,
+    #[schemars(schema_with = "crate::wire_schema::timestamp")]
     pub started_at: String,
+    #[schemars(schema_with = "crate::wire_schema::timestamp")]
     pub completed_at: String,
     pub authentication: VerificationAuthentication,
 }
@@ -219,7 +249,7 @@ impl VerificationRecordV1 {
         for limitation in &self.scope.does_not_establish {
             require_text("scope.does_not_establish", limitation)?;
         }
-        if !["pass", "fail", "error", "inconclusive"].contains(&self.outcome.as_str()) {
+        if !VERIFICATION_OUTCOMES.contains(&self.outcome.as_str()) {
             return Err(
                 "Verification Record outcome must be pass, fail, error, or inconclusive".into(),
             );

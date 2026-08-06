@@ -144,4 +144,117 @@ mod tests {
         assert!(require_bounded_text("name", "Alice", 4).is_err());
         assert!(require_bounded_text("name", "Al\nice", 32).is_err());
     }
+
+    /// A corpus wide enough to separate the rules below from each other.
+    fn corpus() -> Vec<String> {
+        let hex64 = "a".repeat(64);
+        let mut values: Vec<String> = [
+            "",
+            " ",
+            "  ",
+            "a",
+            "Alice",
+            " leading",
+            "trailing ",
+            " both ",
+            "inner space",
+            "sha256:",
+            "SHA256:",
+            "0123456789abcdef",
+            "vsb_0123456789abcdef",
+            "agent:fixture",
+            "ci:runner",
+            "agent:",
+            "artifacts/result.json",
+            "../escape",
+            "/absolute",
+        ]
+        .iter()
+        .map(|value| (*value).to_string())
+        .collect();
+        values.push(hex64.clone());
+        values.push(hex64.to_uppercase());
+        values.push("a".repeat(63));
+        values.push("a".repeat(65));
+        values.push("g".repeat(64));
+        values.push(format!("sha256:{hex64}"));
+        values.push(format!("sha256:{}", hex64.to_uppercase()));
+        values.push(format!("sha256:{}", "a".repeat(63)));
+        values.push(format!("SHA256:{hex64}"));
+        values.push("a".repeat(128));
+        values.push("a".repeat(127));
+        values.push("Al\nice".to_string());
+        values.push("tab\there".to_string());
+        values
+    }
+
+    /// Hold each published wire pattern against the predicate it stands for.
+    ///
+    /// The patterns in `crate::wire_schema` are the only place a wire rule is
+    /// written twice — once as a Rust predicate that runs, once as a regular
+    /// expression that ships to implementers. Nothing in the generated schema
+    /// can notice if the two stop agreeing, because the schema is generated
+    /// from the regular expression. This is that check.
+    #[test]
+    fn wire_patterns_agree_with_predicates() {
+        use crate::wire_schema::{
+            ED25519_SIGNATURE_PATTERN, LOWER_HEX_64_PATTERN, SHA256_ROOT_PATTERN,
+        };
+
+        let signature_predicate = |value: &str| {
+            hex::decode(value).is_ok_and(|bytes| bytes.len() == 64)
+                && value.bytes().all(is_lower_hex)
+        };
+        /// A published pattern and the predicate it is the wire spelling of.
+        type WirePattern<'a> = (&'a str, &'a dyn Fn(&str) -> bool);
+
+        let cases: [WirePattern; 3] = [
+            (SHA256_ROOT_PATTERN, &is_full_sha256_root),
+            (LOWER_HEX_64_PATTERN, &is_lower_hex_64),
+            (ED25519_SIGNATURE_PATTERN, &signature_predicate),
+        ];
+        for (pattern, predicate) in cases {
+            let compiled = regex::Regex::new(pattern).expect("wire pattern compiles");
+            for value in corpus() {
+                assert_eq!(
+                    compiled.is_match(&value),
+                    predicate(&value),
+                    "`{pattern}` and its predicate disagree about {value:?}"
+                );
+            }
+        }
+    }
+
+    /// The text pattern is deliberately weaker than `require_text`, in exactly
+    /// one direction.
+    ///
+    /// `^\S(?:[\s\S]*\S)?$` cannot express "no interior control character",
+    /// so the wire schema admits a string the Rust reader then rejects. That
+    /// asymmetry is safe — the reader is the authority, and it is stricter —
+    /// but it must stay one-directional: anything the reader accepts, the
+    /// published schema must also accept, or a valid object would fail
+    /// validation somewhere in the ecosystem.
+    #[test]
+    fn text_pattern_never_rejects_what_the_reader_accepts() {
+        let compiled =
+            regex::Regex::new(crate::wire_schema::TRIMMED_TEXT_PATTERN).expect("pattern compiles");
+        let mut saw_the_known_gap = false;
+        for value in corpus() {
+            let reader_accepts = require_bounded_text("field", &value, 16 * 1024).is_ok()
+                && value == value.trim()
+                && !value.is_empty();
+            if reader_accepts {
+                assert!(
+                    compiled.is_match(&value),
+                    "the reader accepts {value:?} but the published pattern rejects it"
+                );
+            } else if compiled.is_match(&value) {
+                saw_the_known_gap = true;
+            }
+        }
+        assert!(
+            saw_the_known_gap,
+            "the corpus no longer exercises the interior-control-character gap"
+        );
+    }
 }

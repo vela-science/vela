@@ -1,28 +1,44 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vela.science/schemas/authority-envelope-v1.schema.json",
-  "title": "Vela Authority DSSE Envelope v1",
-  "type": "object",
-  "required": ["payloadType", "payload", "signatures"],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
   "properties": {
-    "payloadType": {"const": "application/vnd.vela.authority-record.v1+json"},
-    "payload": {"$ref": "#/$defs/base64"},
+    "payload": {
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9+/_-]+={0,2}$",
+      "type": "string"
+    },
+    "payloadType": {
+      "const": "application/vnd.vela.authority-record.v1+json",
+      "type": "string"
+    },
     "signatures": {
-      "type": "array",
-      "minItems": 1,
       "items": {
-        "type": "object",
-        "required": ["sig"],
+        "additionalProperties": true,
         "properties": {
-          "keyid": {"type": "string"},
-          "sig": {"$ref": "#/$defs/base64"}
+          "keyid": {
+            "type": "string"
+          },
+          "sig": {
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9+/_-]+={0,2}$",
+            "type": "string"
+          }
         },
-        "additionalProperties": true
-      }
+        "required": [
+          "sig"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
     }
   },
-  "additionalProperties": true,
-  "$defs": {
-    "base64": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9+/_-]+={0,2}$"}
-  }
+  "required": [
+    "payloadType",
+    "payload",
+    "signatures"
+  ],
+  "title": "Vela Authority DSSE Envelope v1",
+  "type": "object"
 }

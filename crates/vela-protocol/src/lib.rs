@@ -6,6 +6,7 @@
 //! and pinned Frontier predecessor archives, not through the current runtime.
 
 mod shape;
+pub mod wire_schema;
 
 mod kernel;
 pub use kernel::{

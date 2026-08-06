@@ -5,6 +5,7 @@
 //! an Event. Historical `vela.receipt.v1` remains a separate read-only era.
 
 use ed25519_dalek::SigningKey;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -13,30 +14,69 @@ use crate::identity::{ActorClass, IdentityBinding};
 
 pub const SUBMISSION_V1_SCHEMA: &str = "vela.submission.v1";
 pub const SUBMISSION_V1_AUTH_ALGORITHM: &str = "ed25519";
-const PRODUCER_REPORTED_AUTHORITY: &str = "producer_reported";
+pub(crate) const PRODUCER_REPORTED_AUTHORITY: &str = "producer_reported";
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+// The closed vocabularies below are read by `validate_semantics` and by the
+// wire-schema builders in `crate::wire_schema`. Writing a member in only one of
+// those places is the drift the generated schema exists to prevent, so neither
+// side spells the members itself.
+
+/// What kind of Claim a Submission asserts.
+pub const CLAIM_TYPES: &[&str] = &[
+    "computational",
+    "theoretical",
+    "empirical",
+    "negative",
+    "contradiction",
+];
+
+/// How exactly the producer expects the work to replay.
+pub const REPLAYABILITY_LEVELS: &[&str] =
+    &["exact", "bounded", "approximate", "unavailable", "unknown"];
+
+/// What a producer-reported check may report. `pass` here carries no
+/// verification authority.
+pub const PRODUCER_CHECK_OUTCOMES: &[&str] = &["pass", "fail", "error", "skipped", "unknown"];
+
+/// What change a Submission may request against Claim Standing.
+pub const REQUESTED_CHANGE_KINDS: &[&str] = &[
+    "add_claim",
+    "correct_claim",
+    "supersede_claim",
+    "retract_claim",
+];
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SubmissionClaim {
+    #[schemars(schema_with = "crate::wire_schema::text")]
     pub assertion: String,
     #[serde(rename = "type")]
+    #[schemars(schema_with = "crate::wire_schema::claim_type")]
     pub claim_type: String,
+    #[schemars(schema_with = "crate::wire_schema::text_array")]
     pub conditions: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SubmissionArtifact {
+    #[schemars(schema_with = "crate::wire_schema::text")]
     pub kind: String,
+    #[schemars(schema_with = "crate::wire_schema::safe_relative_path")]
     pub path: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub digest: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ProducerCheck {
+    #[schemars(schema_with = "crate::wire_schema::text")]
     pub method: String,
+    #[schemars(schema_with = "crate::wire_schema::producer_check_outcome")]
     pub outcome: String,
+    #[schemars(schema_with = "crate::wire_schema::producer_reported_authority")]
     pub authority: String,
 }
 
@@ -56,7 +96,7 @@ impl ProducerCheck {
         require_member(
             "producer_checks.outcome",
             &self.outcome,
-            &["pass", "fail", "error", "skipped", "unknown"],
+            PRODUCER_CHECK_OUTCOMES,
         )?;
         if self.authority != PRODUCER_REPORTED_AUTHORITY {
             return Err(
@@ -69,33 +109,44 @@ impl ProducerCheck {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RequestedChangeTarget {
+    #[schemars(schema_with = "crate::wire_schema::claim_id")]
     pub claim_id: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub claim_root: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// `add_claim` opens a new Claim and names no target; every other kind edits an
+/// exact historical Claim and must name one. The `oneOf` below is the wire form
+/// of the match in [`RequestedChange::validate`] — JSON Schema cannot read one
+/// field's requirement off another's value, so the dependency is stated rather
+/// than derived.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[schemars(extend("oneOf" = [
+    {
+        "properties": {"kind": {"const": "add_claim"}},
+        "required": ["kind"],
+        "not": {"required": ["target"]},
+    },
+    {
+        "properties": {"kind": {"enum": ["correct_claim", "supersede_claim", "retract_claim"]}},
+        "required": ["kind", "target"],
+    },
+]))]
 pub struct RequestedChange {
+    #[schemars(schema_with = "crate::wire_schema::requested_change_kind")]
     pub kind: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "RequestedChangeTarget")]
     pub target: Option<RequestedChangeTarget>,
 }
 
 impl RequestedChange {
     pub fn validate(&self) -> Result<(), String> {
-        require_member(
-            "requested_change.kind",
-            &self.kind,
-            &[
-                "add_claim",
-                "correct_claim",
-                "supersede_claim",
-                "retract_claim",
-            ],
-        )?;
+        require_member("requested_change.kind", &self.kind, REQUESTED_CHANGE_KINDS)?;
         match (self.kind.as_str(), self.target.as_ref()) {
             ("add_claim", None) => Ok(()),
             ("add_claim", Some(_)) => {
@@ -118,23 +169,30 @@ impl RequestedChange {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SubmissionProvenance {
+    #[schemars(schema_with = "crate::wire_schema::producer_actor")]
     pub producer: String,
+    #[schemars(schema_with = "crate::wire_schema::text")]
     pub source_system: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(schema_with = "crate::wire_schema::source_attempt_id")]
     pub source_attempt: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(schema_with = "crate::wire_schema::text")]
     pub source_run: Option<String>,
+    #[schemars(schema_with = "crate::wire_schema::timestamp")]
     pub emitted_at: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SubmissionAuthentication {
+    #[schemars(schema_with = "crate::wire_schema::submission_auth_algorithm")]
     pub algorithm: String,
     pub identity_binding: IdentityBinding,
+    #[schemars(schema_with = "crate::wire_schema::ed25519_signature")]
     pub signature: String,
 }
 
@@ -143,20 +201,27 @@ pub struct SubmissionAuthentication {
 /// `submission_id` and `authentication.signature` are cleared for the signed
 /// preimage. Every other field is authenticated. The readable `vsb_` handle is
 /// routing only; [`Self::canonical_root`] is the full object identity.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SubmissionV1 {
+    #[schemars(schema_with = "crate::wire_schema::submission_schema_tag")]
     pub schema: String,
+    #[schemars(schema_with = "crate::wire_schema::submission_id")]
     pub submission_id: String,
     pub claim: SubmissionClaim,
+    #[schemars(length(min = 1))]
     pub artifacts: Vec<SubmissionArtifact>,
+    #[schemars(schema_with = "crate::wire_schema::nonempty_text_array")]
     pub caveats: Vec<String>,
+    #[schemars(schema_with = "crate::wire_schema::replayability")]
     pub replayability: String,
     pub producer_checks: Vec<ProducerCheck>,
+    #[schemars(schema_with = "crate::wire_schema::text_array")]
     pub verification_requirements: Vec<String>,
     pub requested_change: RequestedChange,
     pub provenance: SubmissionProvenance,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "ExecutionBindingV1")]
     pub execution_binding: Option<ExecutionBindingV1>,
     pub authentication: SubmissionAuthentication,
 }
@@ -289,17 +354,7 @@ impl SubmissionV1 {
             return Err("Submission authentication.algorithm must be `ed25519`".into());
         }
         require_text("claim.assertion", &self.claim.assertion)?;
-        require_member(
-            "claim.type",
-            &self.claim.claim_type,
-            &[
-                "computational",
-                "theoretical",
-                "empirical",
-                "negative",
-                "contradiction",
-            ],
-        )?;
+        require_member("claim.type", &self.claim.claim_type, CLAIM_TYPES)?;
         for condition in &self.claim.conditions {
             require_text("claim.conditions", condition)?;
         }
@@ -317,11 +372,7 @@ impl SubmissionV1 {
         for caveat in &self.caveats {
             require_text("caveats", caveat)?;
         }
-        require_member(
-            "replayability",
-            &self.replayability,
-            &["exact", "bounded", "approximate", "unavailable", "unknown"],
-        )?;
+        require_member("replayability", &self.replayability, REPLAYABILITY_LEVELS)?;
         for check in &self.producer_checks {
             check.validate()?;
         }

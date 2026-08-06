@@ -12,6 +12,7 @@ use base64::engine::general_purpose::{
     URL_SAFE as BASE64_URL_SAFE, URL_SAFE_NO_PAD as BASE64_URL_SAFE_NO_PAD,
 };
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -605,18 +606,32 @@ impl AuthorityRecordV1 {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// One DSSE signature entry.
+///
+/// Neither this type nor [`AuthorityEnvelopeV1`] closes its field set. DSSE
+/// requires the transport to tolerate entries it does not understand, so the
+/// absent `deny_unknown_fields` is the rule, not an oversight, and the wire
+/// schema generated from these types stays open for the same reason. The
+/// decoded Vela authority payload underneath remains closed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(extend("additionalProperties" = true))]
 pub struct DsseSignatureV1 {
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub keyid: String,
+    #[schemars(schema_with = "crate::wire_schema::base64_body")]
     pub sig: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(extend("additionalProperties" = true))]
 pub struct AuthorityEnvelopeV1 {
     #[serde(rename = "payloadType")]
+    #[schemars(schema_with = "crate::wire_schema::authority_payload_type_tag")]
     pub payload_type: String,
+    #[schemars(schema_with = "crate::wire_schema::base64_body")]
     pub payload: String,
+    // `verify_authority_envelope` refuses an empty list before it reads a key.
+    #[schemars(length(min = 1))]
     pub signatures: Vec<DsseSignatureV1>,
 }
 

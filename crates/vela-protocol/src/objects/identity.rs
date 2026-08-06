@@ -14,13 +14,14 @@
 //! `docs/SIGNIFICANCE_SLOT.md`. Distinct-personhood is a layer above this one.
 
 use ed25519_dalek::SigningKey;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 pub const IDENTITY_BINDING_SCHEMA: &str = "vela.identity_binding.v0.1";
 
 /// What kind of actor controls the id. Inferred-by-prefix before; bound here.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ActorClass {
     Human,
@@ -29,19 +30,25 @@ pub enum ActorClass {
 }
 
 /// A self-signed proof that `public_key_hex` controls `actor_id`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct IdentityBinding {
+    #[schemars(schema_with = "crate::wire_schema::identity_binding_schema_tag")]
     pub schema: String,
     /// `vib_<16hex>`, content-addressed over the body with id/signature zeroed.
+    #[schemars(schema_with = "crate::wire_schema::identity_binding_id")]
     pub binding_id: String,
     /// Stable namespaced id, e.g. "reviewer:human-reviewer".
+    #[schemars(schema_with = "crate::wire_schema::text")]
     pub actor_id: String,
     pub actor_class: ActorClass,
     /// The Ed25519 public key being bound. MUST equal the signer (proof of
     /// possession): the binding is signed by the key it binds.
+    #[schemars(schema_with = "crate::wire_schema::public_key_hex")]
     pub public_key_hex: String,
+    #[schemars(schema_with = "crate::wire_schema::timestamp")]
     pub created_at: String,
+    #[schemars(schema_with = "crate::wire_schema::ed25519_signature")]
     pub signature: String,
 }
 

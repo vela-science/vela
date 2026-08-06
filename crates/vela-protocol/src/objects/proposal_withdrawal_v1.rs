@@ -5,6 +5,7 @@
 //! or change to accepted Standing.
 
 use ed25519_dalek::SigningKey;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -14,10 +15,12 @@ use crate::submission_v1::SubmissionV1;
 pub const PROPOSAL_WITHDRAWAL_V1_SCHEMA: &str = "vela.proposal-withdrawal.v1";
 pub const PROPOSAL_WITHDRAWAL_V1_AUTH_ALGORITHM: &str = "ed25519";
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ProposalWithdrawalAuthenticationV1 {
+    #[schemars(schema_with = "crate::wire_schema::withdrawal_auth_algorithm")]
     pub algorithm: String,
+    #[schemars(schema_with = "crate::wire_schema::ed25519_signature")]
     pub signature: String,
 }
 
@@ -25,17 +28,26 @@ pub struct ProposalWithdrawalAuthenticationV1 {
 ///
 /// `withdrawal_id` and `authentication.signature` are cleared for the signed
 /// preimage. The retained Submission supplies the public identity binding.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ProposalWithdrawalV1 {
+    #[schemars(schema_with = "crate::wire_schema::proposal_withdrawal_schema_tag")]
     pub schema: String,
+    #[schemars(schema_with = "crate::wire_schema::withdrawal_id_reference")]
     pub withdrawal_id: String,
+    #[schemars(schema_with = "crate::wire_schema::proposal_id_reference")]
     pub proposal_id: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub proposal_root: String,
+    #[schemars(schema_with = "crate::wire_schema::submission_id_reference")]
     pub submission_id: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub submission_root: String,
+    #[schemars(schema_with = "crate::wire_schema::unbounded_text")]
     pub actor: String,
+    #[schemars(schema_with = "crate::wire_schema::unbounded_text")]
     pub reason: String,
+    #[schemars(schema_with = "crate::wire_schema::timestamp")]
     pub created_at: String,
     pub authentication: ProposalWithdrawalAuthenticationV1,
 }
