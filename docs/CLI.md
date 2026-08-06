@@ -99,12 +99,20 @@ retained Proposal, which on the Erdős Frontier is eleven of 2,782 accepted.
 
 ```bash
 vela claims                        # accepted Claims, first page
-vela claims --status all --json    # accepted and pending_review together
+vela claims --status all --json    # accepted and unassessed together
 vela claims --cursor <full_vcl_id> # resume after the last row of the last page
 ```
 
-`--status` takes the manifest's own Standing tokens, `accepted` and
-`pending_review`, or `all`. It defaults to `accepted`.
+`--status` takes the Claim standings the rows report, `accepted` and
+`unassessed`, or `all`. It defaults to `accepted`. A Claim the manifest holds
+pending is `unassessed`: no ruling stands over it.
+
+Rows answer the standing axis only. The Proposal axis is read from retained
+Proposals, which this verb does not open — on a compacted Frontier the Proposal
+that admitted a Claim is usually gone, so a row has nothing to report there.
+`vela why` and `vela show` read both and return `standing` beside
+`proposal_status`; `vela review list --status` filters the Proposal axis and
+keeps the Proposal vocabulary.
 
 It takes `--limit`, `--cursor`, `--status`, and `--json`, and pages through the
 same rule as `review list` — one implementation, not two: the cursor is the

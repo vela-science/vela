@@ -6,7 +6,7 @@
 //! thousands. These tests assert the properties that closed that gap and would
 //! silently reopen: an id that the other read verbs actually accept, a page
 //! boundary that resumes rather than restarts, a Standing filter spelled the
-//! way the manifest spells it, and a row count a caller can trust.
+//! way the rows report Standing, and a row count a caller can trust.
 
 use std::path::Path;
 use std::process::{Command, Output};
@@ -166,35 +166,37 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
         "a Submission cannot make a Claim stand"
     );
 
-    /* `pending_review` is the manifest's own token. Accepting `pending` here
-    would give a caller a filter that matches nothing and reports zero, which
-    reads exactly like an empty queue. */
-    let refused = run(
-        temporary.path(),
-        &home,
-        socket,
-        &["claims", &frontier_text, "--status", "pending", "--json"],
-    );
-    assert_eq!(
-        refused.status.code(),
-        Some(2),
-        "an unknown Standing filter is a usage error"
-    );
-    assert_eq!(json(&refused)["ok"], false);
+    /* The filter spells Claim standings. Accepting a near-miss would give a
+    caller a filter that matches nothing and reports zero, which reads exactly
+    like an empty queue — and `pending_review` is now a near-miss of exactly
+    that kind: it is the Proposal's status, not this Claim's standing. */
+    for near_miss in ["pending", "pending_review"] {
+        let refused = run(
+            temporary.path(),
+            &home,
+            socket,
+            &["claims", &frontier_text, "--status", near_miss, "--json"],
+        );
+        assert_eq!(
+            refused.status.code(),
+            Some(2),
+            "an unknown Standing filter is a usage error"
+        );
+        assert_eq!(json(&refused)["ok"], false);
+    }
 
     let pending = json(&run(
         temporary.path(),
         &home,
         socket,
-        &[
-            "claims",
-            &frontier_text,
-            "--status",
-            "pending_review",
-            "--json",
-        ],
+        &["claims", &frontier_text, "--status", "unassessed", "--json"],
     ));
     let all_ids = ids(&pending);
+    assert_eq!(
+        pending["indexed"],
+        serde_json::json!({"accepted": 0, "unassessed": 3}),
+        "the index counter is keyed by standing, not by Proposal status"
+    );
     assert_eq!(pending["total"], 3);
     assert_eq!(all_ids.len(), 3);
     assert_eq!(pending["unreadable_returned"], 0);
@@ -208,8 +210,16 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
         },
         "rows must come out in the manifest's own Claim id order"
     );
+    /* Asserting `pending_review` as the standing was asserting the collapse.
+    The Proposal's status is answered by `why`, below, and this verb reports
+    only the axis the manifest binds — a row that named a Proposal status would
+    be naming a Proposal it never opened. */
     for item in pending["items"].as_array().expect("items") {
-        assert_eq!(item["standing"], "pending_review");
+        assert_eq!(item["standing"], "unassessed");
+        assert!(
+            item.get("proposal_status").is_none(),
+            "a claims row must not report an axis it does not read"
+        );
         assert_eq!(item["readable"], true);
         assert_eq!(item["assertion_kind"], "theoretical");
         assert!(
@@ -246,7 +256,8 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
     ));
     assert_eq!(why["ok"], true, "claims produced an id `why` refuses");
     assert_eq!(why["claim_id"], claim_id.as_str());
-    assert_eq!(why["standing"], "pending_review");
+    assert_eq!(why["standing"], "unassessed");
+    assert_eq!(why["proposal_status"], "pending_review");
 
     // Paging resumes after the row the cursor names; it does not restart.
     let first = json(&run(
@@ -257,7 +268,7 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
             "claims",
             &frontier_text,
             "--status",
-            "pending_review",
+            "unassessed",
             "--limit",
             "2",
             "--json",
@@ -278,7 +289,7 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
             "claims",
             &frontier_text,
             "--status",
-            "pending_review",
+            "unassessed",
             "--limit",
             "2",
             "--cursor",
@@ -319,7 +330,7 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
         temporary.path(),
         &home,
         socket,
-        &["claims", &frontier_text, "--status", "pending_review"],
+        &["claims", &frontier_text, "--status", "unassessed"],
     ));
     assert!(
         serde_json::from_str::<Value>(rendered.trim()).is_err(),

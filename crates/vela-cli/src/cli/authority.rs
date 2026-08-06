@@ -623,7 +623,6 @@ fn initialize_current_repository_authority(
             "add",
             "--",
             "README.md",
-            "SCOPE.md",
             "AGENTS.md",
             "CLAUDE.md",
             "frontier.toml",

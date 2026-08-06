@@ -4,6 +4,7 @@
 // repository writes live here; Vela exposes no server or workbench runtime.
 pub(crate) mod authority_transaction;
 mod bounded_file;
+pub(crate) mod claim_standing;
 pub(crate) mod command_handlers;
 pub(crate) mod command_spec;
 mod config;

@@ -80,7 +80,7 @@ pub(crate) enum Commands {
         frontier: Option<PathBuf>,
         #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
         frontier_flag: Option<PathBuf>,
-        /// Standing filter: accepted, pending_review, or all.
+        /// Standing filter: accepted, unassessed, or all.
         #[arg(long)]
         status: Option<String>,
         /// Maximum number of Claims to return.
@@ -414,7 +414,7 @@ pub(crate) enum ReviewAction {
         frontier: Option<PathBuf>,
         #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
         frontier_flag: Option<PathBuf>,
-        /// Standing filter: pending_review, accepted, rejected, withdrawn, or all.
+        /// Proposal status filter: pending_review, accepted, rejected, withdrawn, or all.
         #[arg(long)]
         status: Option<String>,
         /// Maximum number of proposals to return.

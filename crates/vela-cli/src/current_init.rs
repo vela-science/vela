@@ -216,7 +216,6 @@ fn initialize_in_place(path: &Path, options: &CurrentInitOptions<'_>) -> Result<
         "scientific_object_count": 0,
         "wrote": [
             "README.md",
-            "SCOPE.md",
             "frontier.toml",
             ".gitignore",
             ".gitattributes",
@@ -241,12 +240,13 @@ fn write_scaffold(path: &Path, name: &str, scope: &str) -> Result<(), String> {
             "# {name}\n\n{scope}\n\nThis is a Vela Frontier. Git stores exact Claims, Submissions, Verification Records, Decisions, and authority history. Derived views are rebuildable.\n\n## Operator loop\n\n```bash\nvela status . --json\nvela next . --limit 1 --json\nvela submit --frontier . --claim \"<bounded result>\" --type computational --replayability exact --artifact <path>:<kind> --caveat \"<limit>\" --as agent:<name> --json\n\n# Verification binds method bytes already retained at the current Git commit.\ngit add -- verification/method.json\ngit commit -m \"Retain verification method\"\nvela verification record . <vpr_id> --profile <profile> --method verification/method.json --outcome pass --does-not-establish \"Scientific acceptance.\" --as verifier:<name> --json\n\nvela review inbox . --json\n# Only an authorized operator may make the exact accept or reject Decision.\nvela review accept . <vpr_id> --reason \"<reason>\" --if-entry-root sha256:... --json\nvela replay . --json\n```\n"
         ),
     )?;
-    write(
-        "SCOPE.md",
-        &format!(
-            "# Scope\n\n## Question\n\n{scope}\n\n## Includes\n\nNo additional inclusions are declared.\n\n## Excludes\n\nNo exclusions are declared.\n"
-        ),
-    )?;
+    /* No SCOPE.md. It restated the scope already in `frontier.toml`, which
+    `profile_root` commits to, and the scaffold could only fill its Includes and
+    Excludes with "none are declared" — so the file arrived saying nothing and
+    then drifted from the declaration it duplicated. Three published Frontiers
+    carried byte-identical copies whose own text said scope lives in
+    `frontier.toml`; they have been deleted, and a fresh `vela init` must not
+    recreate what they dropped. */
     /* The runtime creates more under `.vela` than this used to list, so a fresh
     Frontier staged its task leases, workspaces, source inbox, agent state and
     key material into Git. Three of the four published Frontiers hand-patched
@@ -273,11 +273,10 @@ fn write_scaffold(path: &Path, name: &str, scope: &str) -> Result<(), String> {
         ".gitattributes",
         "* text=auto eol=lf\n.vela/** -filter -ident -working-tree-encoding -merge -text\nrecords/** -filter -ident -working-tree-encoding -merge diff text eol=lf\nartifacts/** -filter -ident -working-tree-encoding -merge -text\nfrontier.toml -filter -ident -working-tree-encoding -merge diff text eol=lf\ntargets.json -filter -ident -working-tree-encoding -merge diff text eol=lf\n",
     )?;
-    /* AGENTS.md, not VELA.md. FRONTIER_REPOSITORY_PROFILE.md names README.md,
-    SCOPE.md and AGENTS.md as the guidance set, and all four published
-    Frontiers carry AGENTS.md; none has ever had a VELA.md. A scaffold that
-    writes a filename no repository uses guarantees the first act after
-    `vela init` is renaming it. */
+    /* AGENTS.md, not VELA.md. FRONTIER_REPOSITORY_PROFILE.md names README.md
+    and AGENTS.md as the guidance set, and all four published Frontiers carry
+    AGENTS.md; none has ever had a VELA.md. A scaffold that writes a filename no
+    repository uses guarantees the first act after `vela init` is renaming it. */
     write(
         "AGENTS.md",
         &format!(

@@ -178,27 +178,42 @@ Claim standing, as this vocabulary declares it:
 unassessed accepted accepted_with_conditions retracted superseded corrected
 ```
 
-**The shipped CLI does not emit that set, and a consumer must not assume it
-does.** What `0.966.2` actually emits as a Claim's standing is:
+The CLI emits four of those six and nothing else. `accepted` follows an
+accepted Decision on a `claim.add` or `claim.revise`, `retracted` follows one on
+a `claim.withdraw`, `superseded` follows a `finding.superseded` Event, and
+`unassessed` covers every Claim over which no ruling stands.
 
-```text
-accepted pending_review rejected withdrawn superseded
-```
+Through `0.966.3` it emitted `pending_review`, `rejected`, and `withdrawn` as
+well. Those are Proposal statuses, and putting them on this axis crossed the
+separation this document exists to hold. The decision, taken deliberately: the
+standing axis reads a ruling, not a queue. Undecided, rejected, and withdrawn
+by the producer are one fact about the Claim — nothing has ruled it in — and
+`unassessed` is the declared word for exactly that.
 
-Four declared values — `unassessed`, `accepted_with_conditions`, `retracted`,
-`corrected` — appear in no line of any crate. `corrected` has a relation behind
-it (`corrects`) but no standing derivation yet; `retracted` has none, because
-retraction moves through the `claim.withdraw` Proposal action.
-Two emitted values are not declared here at all, and both are Proposal-status
-words: a Claim whose only Proposal is pending reports `pending_review`, and one
-whose Proposal was withdrawn reports `withdrawn`. That is the axis separation
-this document requires, crossed by the implementation.
+The distinction those three words carried was not deleted with them. It is a
+fact about the Proposal, so it stays on the Proposal axis and travels beside
+the standing rather than inside it: `vela why --json` and `vela show --json`
+return `standing` and `proposal_status` as separate fields, and `vela show`
+names both in its one line of prose. A reader can still tell a Claim a Decision
+rejected from one nobody has looked at, by asking the field named for the axis
+that answers.
 
-Reconciling the two is a protocol decision, not a documentation fix, and it has
-a downstream cost already being paid: the first consumer implemented the
-declared vocabulary, so it maps every non-`accepted` standing onto `unassessed`
-— a word nothing emits — and treats two live values as unreachable. Until the
-decision is made, read the emitted set and treat the declared set as intent.
+`vela claims` reports the standing axis alone. It reads the repository manifest
+and opens no Proposal, so it has no Proposal status to report — the token the
+manifest binds each claim list is a Proposal-axis word, but it records list
+membership, and on a compacted Frontier the Proposal it refers to is no longer
+retained. Restating it as a Proposal's status would assert a Decision that is
+not there.
+
+`accepted_with_conditions` and `corrected` stay declared and underived. A
+Decision records no conditions; `corrects` is a Claim relation no Decision
+reads. Deriving either from what is retained would be inventing semantics, so
+nothing emits them until the protocol gives each one an act to derive from.
+
+Nothing retained changed. All four Frontiers hold every indexed Claim at
+`accepted` and every pending list is empty, so this moved no repository root
+and no projection root; it changed which word the read surface says when a
+Claim has no ruling.
 
 Claim relations, which are two vocabularies wearing one field name. The
 correction algebra, closed and authoritative:

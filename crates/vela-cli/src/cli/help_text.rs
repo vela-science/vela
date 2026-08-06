@@ -86,7 +86,7 @@ pub const CLAIMS: &str = "\
 EXAMPLES
   vela claims                          what this Frontier holds, first page
   vela claims --limit 5                a short look
-  vela claims --status all --json      accepted and pending_review together, machine view
+  vela claims --status all --json      accepted and unassessed together, machine view
   vela claims --cursor vcl_002c…       resume after the last row of the last page
 
 Rows come out in Claim id order, which is the repository manifest's own order,

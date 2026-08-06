@@ -158,7 +158,9 @@ The transaction must revalidate all inputs immediately before writing. It then
 atomically commits:
 
 - the terminal Proposal;
-- the accepted or rejected Claim Standing;
+- the Claim Standing the verdict establishes — `accepted` where the Decision
+  accepts an addition or a revision, `retracted` where it accepts a withdrawal,
+  and no standing at all where it rejects, since a rejection grants none;
 - the semantic Decision event;
 - the repository manifest;
 - the authority record and its exact write-set root; and

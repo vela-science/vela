@@ -19,6 +19,7 @@ use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::proposal_withdrawal_v1::ProposalWithdrawalV1;
 use vela_protocol::repository_origin::{RepositoryOriginPredecessorV1, RepositoryOriginV1};
 
+use crate::claim_standing::{self, ClaimStanding};
 use crate::cli::{fail_return, print_json};
 use crate::current_repository::CurrentProposalDecision;
 
@@ -408,38 +409,44 @@ fn origin_standing_history(
     Ok(history)
 }
 
+/// The reference carries the manifest's own standing token. Reading that token
+/// onto the standing axis is [`crate::claim_standing`]'s job, not this lookup's,
+/// which is why the two lists are no longer labelled here.
 fn claim_reference<'a>(
     context: &'a CurrentReadContext,
     claim_id: &str,
-) -> Option<(&'a ClaimStandingRefV1, &'static str)> {
+) -> Option<&'a ClaimStandingRefV1> {
     context
         .repository
         .accepted_claims
         .iter()
+        .chain(&context.repository.pending_claims)
         .find(|reference| reference.claim_id == claim_id)
-        .map(|reference| (reference, "accepted"))
-        .or_else(|| {
-            context
-                .repository
-                .pending_claims
-                .iter()
-                .find(|reference| reference.claim_id == claim_id)
-                .map(|reference| (reference, "pending_review"))
-        })
+}
+
+/// The newest retained Proposal about this Claim.
+fn latest_proposal<'a>(
+    context: &'a CurrentReadContext,
+    claim_id: &str,
+) -> Option<&'a (RepositoryObjectRefV1, ProposalV1)> {
+    context
+        .proposals
+        .iter()
+        .filter(|(_, proposal)| proposal.subject.id == claim_id)
+        .max_by(|left, right| left.1.created_at.cmp(&right.1.created_at))
+}
+
+fn claim_proposal_status(context: &CurrentReadContext, claim_id: &str) -> Option<String> {
+    latest_proposal(context, claim_id)
+        .map(|(_, proposal)| proposal_status(context, &proposal.proposal_id))
 }
 
 fn proposal_claim(
     frontier: &Path,
     context: &CurrentReadContext,
     claim_id: &str,
-) -> Result<Option<(ClaimRecordV1, String)>, String> {
-    let mut matches = context
-        .proposals
-        .iter()
-        .filter(|(_, proposal)| proposal.subject.id == claim_id)
-        .collect::<Vec<_>>();
-    matches.sort_by(|left, right| left.1.created_at.cmp(&right.1.created_at));
-    let Some((_, proposal)) = matches.last() else {
+) -> Result<Option<ClaimRecordV1>, String> {
+    let Some((_, proposal)) = latest_proposal(context, claim_id) else {
         return Ok(None);
     };
     let path =
@@ -451,11 +458,13 @@ fn proposal_claim(
             proposal.proposal_id
         ));
     }
-    let standing = proposal_standing(context, &proposal.proposal_id);
-    Ok(Some((claim, standing)))
+    Ok(Some(claim))
 }
 
-fn proposal_standing(context: &CurrentReadContext, proposal_id: &str) -> String {
+/// A Proposal's own status, on the Proposal axis. This was `proposal_standing`
+/// while its one caller handed the result straight back as a Claim's standing;
+/// the name agreed with the collapse instead of exposing it.
+fn proposal_status(context: &CurrentReadContext, proposal_id: &str) -> String {
     context.decisions.get(proposal_id).map_or_else(
         || {
             if context.withdrawals.contains_key(proposal_id) {
@@ -483,7 +492,7 @@ fn superseded_claim(
     frontier: &Path,
     context: &CurrentReadContext,
     claim_id: &str,
-) -> Result<Option<(ClaimRecordV1, String, String)>, String> {
+) -> Result<Option<(ClaimRecordV1, String)>, String> {
     let Some(event) = supersession_event(&context.authority_events, claim_id) else {
         return Ok(None);
     };
@@ -502,28 +511,55 @@ fn superseded_claim(
             event.id
         ));
     }
-    Ok(Some((claim, root, "superseded".into())))
+    Ok(Some((claim, root)))
 }
 
 fn load_claim(
     frontier: &Path,
     context: &CurrentReadContext,
     claim_id: &str,
-) -> Result<Option<(ClaimRecordV1, String, String)>, String> {
-    if let Some((reference, standing)) = claim_reference(context, claim_id) {
+) -> Result<Option<(ClaimRecordV1, String, ClaimStanding)>, String> {
+    let proposal_status = claim_proposal_status(context, claim_id);
+    if let Some(reference) = claim_reference(context, claim_id) {
         let claim = ClaimRecordV1::parse(&read_exact(
             frontier,
             &reference.path,
             &reference.claim_root,
         )?)?;
-        return Ok(Some((claim, reference.claim_root.clone(), standing.into())));
+        let standing = ClaimStanding {
+            standing: claim_standing::from_proposal_status(&reference.standing),
+            proposal_status,
+        };
+        return Ok(Some((claim, reference.claim_root.clone(), standing)));
     }
-    if let Some((claim, standing)) = proposal_claim(frontier, context, claim_id)? {
+    if let Some(claim) = proposal_claim(frontier, context, claim_id)? {
         let root = canonical_root(&claim)?;
+        let standing = ClaimStanding {
+            /* Reached only through a retained Proposal, so this Claim has one
+            and the `unassessed` fallback is unreachable rather than a guess.
+            The Proposal's action is read with its status because the manifest
+            no longer answers here: the one way to reach this branch on a
+            decided Proposal is an accepted `claim.withdraw`, which is exactly
+            the case a verdict alone gets backwards. */
+            standing: match (
+                latest_proposal(context, claim_id),
+                proposal_status.as_deref(),
+            ) {
+                (Some((_, proposal)), Some(status)) => {
+                    claim_standing::from_proposal_outcome(&proposal.action, status)
+                }
+                _ => claim_standing::UNASSESSED,
+            },
+            proposal_status,
+        };
         return Ok(Some((claim, root, standing)));
     }
-    if let Some(claim) = superseded_claim(frontier, context, claim_id)? {
-        return Ok(Some(claim));
+    if let Some((claim, root)) = superseded_claim(frontier, context, claim_id)? {
+        let standing = ClaimStanding {
+            standing: claim_standing::SUPERSEDED,
+            proposal_status,
+        };
+        return Ok(Some((claim, root, standing)));
     }
     /* `Ok(None)` rather than `Err`: a miss and a broken Claim are different
     outcomes with different exit codes, and `show` has to distinguish them
@@ -665,15 +701,42 @@ fn object_projection(
     })
 }
 
+/// `show` gives an object one prose line for what it establishes, so a Claim's
+/// line has to carry both axes: `unassessed` alone cannot tell a reader whether
+/// a Decision rejected this Claim or nobody has looked at it yet.
+fn claim_effect(standing: &ClaimStanding) -> String {
+    let derived = format!(
+        "scientific standing is {}, derived from current authority",
+        standing.standing
+    );
+    match standing.proposal_status.as_deref() {
+        Some(status) if standing.standing == claim_standing::UNASSESSED => format!(
+            "{derived}; the Proposal about it is {status}, and no Decision put this Claim in accepted Standing"
+        ),
+        /* Naming the accepted Proposal without naming what it asked for reads
+        as though the Claim were the thing accepted. What was accepted is its
+        withdrawal, which is the only way this standing is reached. */
+        Some(_) if standing.standing == claim_standing::RETRACTED => {
+            format!("{derived}; a Decision accepted the Proposal to withdraw it")
+        }
+        Some(status) => format!("{derived}; the Proposal about it is {status}"),
+        None => derived,
+    }
+}
+
 pub(crate) fn show_payload(frontier: &Path, object_id: &str) -> Result<Value, String> {
     let context = load_context(frontier)?;
-    if let Some((reference, standing)) = claim_reference(&context, object_id) {
+    if let Some(reference) = claim_reference(&context, object_id) {
+        let standing = ClaimStanding {
+            standing: claim_standing::from_proposal_status(&reference.standing),
+            proposal_status: claim_proposal_status(&context, object_id),
+        };
         return Ok(object_projection(
             &context,
             object_id,
             "claim",
             vela_protocol::claim_record::CLAIM_RECORD_V1_SCHEMA,
-            &format!("scientific standing is {standing}, derived from current authority"),
+            &claim_effect(&standing),
             reference.claim_root.clone(),
             serde_json::from_slice(&read_exact(
                 frontier,
@@ -686,17 +749,12 @@ pub(crate) fn show_payload(frontier: &Path, object_id: &str) -> Result<Value, St
     if object_id.starts_with("vcl_")
         && let Ok(Some((claim, root, standing))) = load_claim(frontier, &context, object_id)
     {
-        let effect = if standing == "withdrawn" {
-            "producer withdrew the pending Proposal; this Claim never entered accepted scientific Standing".to_string()
-        } else {
-            format!("scientific standing is {standing}, derived from current authority")
-        };
         return Ok(object_projection(
             &context,
             object_id,
             "claim",
             vela_protocol::claim_record::CLAIM_RECORD_V1_SCHEMA,
-            &effect,
+            &claim_effect(&standing),
             root,
             serde_json::to_value(claim).map_err(|error| error.to_string())?,
         ));
@@ -805,7 +863,7 @@ pub(crate) fn why_payload(frontier: &Path, claim_id: &str) -> Result<Value, Stri
     compacted Frontier `compacted_origin`, including ones decided yesterday. */
     let current_chain_events = authority_events.len();
     let current_supersession = supersession_view(&context, claim_id)?;
-    let origin_history = if standing == "accepted" {
+    let origin_history = if standing.standing == claim_standing::ACCEPTED {
         origin_standing_history(frontier, &context, claim_id)?
     } else {
         OriginStandingHistory {
@@ -846,7 +904,12 @@ pub(crate) fn why_payload(frontier: &Path, claim_id: &str) -> Result<Value, Stri
         "repository_root": context.repository_root,
         "claim_id": claim_id,
         "claim_root": claim_root,
-        "standing": standing,
+        /* Two axes, two fields, each named for the one it describes. `standing`
+        answers "does this Claim stand?" in the vocabulary TERMINOLOGY.md
+        declares; `proposal_status` answers "what happened to the Proposal about
+        it?" and is where `pending_review`, `rejected`, and `withdrawn` belong. */
+        "standing": standing.standing,
+        "proposal_status": standing.proposal_status,
         "chain": {
             "standing_basis": if current_chain_events > 0 || origin_history.status == "current_authority" {
                 "current_authority"
@@ -1042,7 +1105,14 @@ fn render_why(projection: &Value) {
     let text = |value: &Value| value.as_str().unwrap_or("not recorded").to_string();
     let claim_id = text(&projection["claim_id"]);
     let standing = text(&projection["standing"]);
-    println!("why · {claim_id} · {standing}");
+    /* The header carries both axes because the standing alone no longer says
+    what became of the Proposal, and that is usually the reader's next question
+    on anything that does not stand. */
+    let proposal_status = projection["proposal_status"]
+        .as_str()
+        .map(|status| format!(" · proposal {status}"))
+        .unwrap_or_default();
+    println!("why · {claim_id} · {standing}{proposal_status}");
 
     let chain = &projection["chain"];
     /* `assertion` is an object — the text and its kind — not a string. */
@@ -1067,7 +1137,13 @@ fn render_why(projection: &Value) {
                 .get("decided_at")
                 .and_then(Value::as_str)
                 .unwrap_or("time not recorded");
-            println!("  decided   {standing} by {actor} at {at}");
+            /* The Decision's own verdict, not the Claim's standing: this line
+            reports what the ruling said, and a rejection is a ruling. */
+            let verdict = decision
+                .get("standing")
+                .and_then(Value::as_str)
+                .unwrap_or("verdict not recorded");
+            println!("  decided   {verdict} by {actor} at {at}");
             if let Some(reason) = decision.get("reason").and_then(Value::as_str) {
                 println!("  because   {reason}");
             }

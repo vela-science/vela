@@ -8,9 +8,9 @@
 //!
 //! The same fixture carries the negative the protocol insists on. Immediately
 //! before the Decision the Proposal already has an independent passing
-//! Verification Record. Standing is still `pending_review`, no authority Event
-//! exists, and the authority chain has not moved. A pass is evidence, not
-//! acceptance.
+//! Verification Record. The Claim is still `unassessed` over a Proposal still
+//! `pending_review`, no authority Event exists, and the authority chain has not
+//! moved. A pass is evidence, not acceptance.
 
 #![cfg(unix)]
 
@@ -368,9 +368,17 @@ fn review_accept_admits_the_event_that_moves_standing() {
         &producer_home,
         &["why", ".", &claim_id, "--json"],
     ));
+    /* Asserting `pending_review` here asserted the collapse: that is the
+    Proposal's status, and reading it back as the Claim's standing is what
+    `docs/TERMINOLOGY.md` now forbids. Both axes are checked, because the pass
+    moved neither. */
     assert_eq!(
-        why_before["standing"], "pending_review",
+        why_before["standing"], "unassessed",
         "a passing Verification Record is not an acceptance"
+    );
+    assert_eq!(
+        why_before["proposal_status"], "pending_review",
+        "a passing Verification Record leaves the Proposal awaiting a Decision"
     );
     assert_eq!(
         why_before["interpretation"]["verification_is_acceptance"],
@@ -567,6 +575,7 @@ fn review_accept_admits_the_event_that_moves_standing() {
         &["why", ".", &claim_id, "--json"],
     ));
     assert_eq!(why_after["standing"], "accepted");
+    assert_eq!(why_after["proposal_status"], "accepted");
     assert_eq!(why_after["claim_root"], accepted["claim_root"]);
     assert_eq!(why_after["chain"]["standing_basis"], "current_authority");
     let explained = why_after["chain"]["authority_events"]

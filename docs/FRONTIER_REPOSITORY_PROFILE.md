@@ -232,7 +232,7 @@ checked-in runtime configuration file.
 | `targets.json` and packets | Derived work projection | Generate directly and freshness-check; never treat as Standing |
 | domain-native files | Source and evidence | Keep stable, reviewable identities |
 | `.vela/operation-journals/`, `.vela/work/` | Recovery/private coordination | Never scientific state |
-| `README.md`, `SCOPE.md`, `AGENTS.md` | Human and agent guidance | Keep aligned with the current product; `CLAUDE.md` may be a one-line pointer to `AGENTS.md` |
+| `README.md`, `AGENTS.md` | Human and agent guidance | Keep aligned with the current product; `CLAUDE.md` may be a one-line pointer to `AGENTS.md`. Scope is declared once in `frontier.toml`, which `profile_root` commits to; a `SCOPE.md` restating it drifts and is not scaffolded |
 | `STATEMENT.md`, `technique-sheet.md` | Optional domain guidance | Emerged convention, not contract; Vela reads neither |
 | `.gitattributes` | Byte stability | Keep canonical paths out of every checkout filter, keyword expansion, encoding, and merge driver |
 | `.gitignore` | Working-tree hygiene | Track canonical identity and authority bytes; ignore journals, workspaces, and `.vela/keys/` |

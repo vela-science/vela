@@ -23,6 +23,15 @@
 //! Proposal's own Claim belongs. This verb does not scan the directory, so it
 //! never presents an undecided Claim as something the Frontier holds.
 //!
+//! It does not reach the Proposal axis either, and so does not report it. The
+//! manifest token a row is built from is a Proposal-axis word, but it is the
+//! token of the list the row is in, not the status of any Proposal: on a
+//! compacted Frontier the Proposal that once admitted the Claim is gone, and
+//! restating list membership under a Proposal's name would assert a Decision
+//! that is not there. `vela why` and `vela show` read retained Proposals and
+//! answer both axes; this verb reads the index and answers the one the index
+//! binds.
+//!
 //! Bytes are read only for the rows a page actually returns; `total` is the
 //! index count. A row whose retained bytes cannot be read at their declared
 //! root is returned as itself, marked unreadable and counted, rather than
@@ -46,13 +55,17 @@ use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::current_repository::ClaimStandingRefV1;
 use vela_protocol::repository_origin::RepositoryOriginV1;
 
-/// The Standings the repository manifest can bind, plus the escape hatch.
-/// `accepted` is the default because "what stands?" is the question.
+/// The standings this index can bind, plus the escape hatch. `accepted` is the
+/// default because "what stands?" is the question.
 ///
-/// These are the manifest's own tokens, which `CurrentRepositoryV4::verify`
-/// holds each list to — `pending_review`, not `pending`. They are also the two
-/// `review list` already spells, so one vocabulary covers both list verbs.
-const STATUS_VALUES: [&str; 3] = ["accepted", "pending_review", "all"];
+/// These are the standing axis's own words, not the manifest's. The manifest
+/// binds each list a Proposal-axis token — `CurrentRepositoryV4::verify` holds
+/// the pending list to `pending_review` — and this verb reads those tokens onto
+/// the standing axis through `crate::claim_standing`, so the filter spells what
+/// the rows now report. A Claim in the pending list is `unassessed`: no ruling
+/// stands over it. `review list --status` keeps the Proposal vocabulary, which
+/// is the axis it lists.
+const STATUS_VALUES: [&str; 3] = ["accepted", "unassessed", "all"];
 
 /// How much of one assertion a list row shows. Long enough for the retained
 /// assertions on the live Frontiers to arrive whole, short enough that fifty
@@ -130,7 +143,7 @@ pub(crate) fn cmd_claims(
     if !STATUS_VALUES.contains(&status) {
         crate::cli::fail_kind(
             crate::ui::ErrorKind::Usage,
-            "claims status must be accepted, pending_review, or all",
+            "claims status must be accepted, unassessed, or all",
         );
     }
     let frontier = crate::ui::canonicalize_frontier(frontier);
@@ -154,7 +167,10 @@ pub(crate) fn cmd_claims(
         .accepted_claims
         .iter()
         .chain(&repository.pending_claims)
-        .filter(|reference| status == "all" || reference.standing == status)
+        .filter(|reference| {
+            status == "all"
+                || crate::claim_standing::from_proposal_status(&reference.standing) == status
+        })
         .collect::<Vec<_>>();
     references.sort_by(|left, right| left.claim_id.cmp(&right.claim_id));
 
@@ -168,12 +184,13 @@ pub(crate) fn cmd_claims(
         .iter()
         .map(|reference| {
             let era = era_label(&origin_ids, &reference.claim_id);
+            let standing = crate::claim_standing::from_proposal_status(&reference.standing);
             match read_claim(&frontier, reference) {
                 Ok(claim) => json!({
                     "claim_id": reference.claim_id,
                     "claim_root": reference.claim_root,
                     "path": reference.path,
-                    "standing": reference.standing,
+                    "standing": standing,
                     "origin_era": era,
                     "readable": true,
                     "assertion_kind": claim.assertion.kind,
@@ -187,7 +204,7 @@ pub(crate) fn cmd_claims(
                         "claim_id": reference.claim_id,
                         "claim_root": reference.claim_root,
                         "path": reference.path,
-                        "standing": reference.standing,
+                        "standing": standing,
                         "origin_era": era,
                         "readable": false,
                         "unreadable_reason": error,
@@ -211,12 +228,14 @@ pub(crate) fn cmd_claims(
         "generation": origin.generation,
         "status": status,
         "order": "claim_id_asc",
-        /* Keyed by the manifest's own Standing tokens, the same two `--status`
-        takes, so a caller reading `indexed` and a caller passing `--status`
-        are spelling one vocabulary. */
+        /* Keyed by the standings the rows report and `--status` takes, so a
+        caller reading `indexed` and a caller filtering are spelling one
+        vocabulary. Keying it `pending_review` put a Proposal-status word on
+        the standing axis in a counter, which is the same collapse the rows
+        used to carry. */
         "indexed": {
             "accepted": repository.accepted_claims.len(),
-            "pending_review": repository.pending_claims.len(),
+            "unassessed": repository.pending_claims.len(),
         },
         /* Stated as its own count, never as a share of `total`. The two do not
         subtract: a Frontier can have retired an origin Claim, which is how
@@ -290,20 +309,29 @@ fn render(payload: &Value, status: &str) {
 mod tests {
     use super::*;
 
-    /// The manifest's pending token is `pending_review`. Spelling it `pending`
-    /// here would have made `--status pending` a filter that matches nothing
-    /// and reports zero, which reads exactly like an empty queue.
+    /// The filter has to spell what the rows report, or it matches nothing and
+    /// reports zero — which reads exactly like an empty queue. The manifest's
+    /// pending token is `pending_review`; the rows built from it now say
+    /// `unassessed`, so that is what `--status` takes.
     #[test]
-    fn the_status_filter_spells_the_manifest_standings() {
+    fn the_status_filter_spells_the_standings_the_rows_report() {
         let manifest = vela_protocol::current_repository::ClaimStandingRefV1 {
             claim_id: format!("vcl_{}", "a".repeat(64)),
             claim_root: format!("sha256:{}", "b".repeat(64)),
             standing: "pending_review".into(),
             path: "records/claims/sha256/b.json".into(),
         };
-        assert!(STATUS_VALUES.contains(&manifest.standing.as_str()));
+        assert!(
+            STATUS_VALUES.contains(&crate::claim_standing::from_proposal_status(
+                &manifest.standing
+            ))
+        );
         assert!(STATUS_VALUES.contains(&"accepted"));
         assert!(!STATUS_VALUES.contains(&"pending"));
+        assert!(
+            !STATUS_VALUES.contains(&"pending_review"),
+            "the Claim filter must not take a Proposal-status word"
+        );
     }
 
     /// A Claim id the origin manifest never bound arrived through the current

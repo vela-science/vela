@@ -375,7 +375,6 @@ fn a_colliding_trust_pin_is_not_reported_as_a_signing_failure() {
     for retained in [
         "frontier.toml",
         "README.md",
-        "SCOPE.md",
         "AGENTS.md",
         "CLAUDE.md",
         ".gitignore",
