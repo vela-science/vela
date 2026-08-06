@@ -3,14 +3,9 @@
 # Consume from a frontier repository:
 #
 #   - uses: actions/checkout@v5
-#   - uses: vela-science/vela@v0.966.2
+#   - uses: vela-science/vela@v0.966.3
 #     with:
 #       frontier: .
-#
-# v0.966.2 is the newest tag but its published action.yml invokes `vela
-# check`, a verb that release's own binary rejects, so it fails on every
-# frontier. The repair below is unreleased. Until a tag carries it, the
-# newest pin that verifies is v0.966.1; the reference frontiers pin that.
 #
 # Current repositories carry one signed repository origin and authority
 # initialization record. The action verifies that closed boundary directly

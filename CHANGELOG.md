@@ -2,6 +2,50 @@
 
 ## Unreleased
 
+## v0.966.3 — 2026-08-06 — Answer a person, keep the contracts
+
+- Point the published GitHub Action at `replay`. v0.966.2 renamed the integrity
+  verb and retired `check` with no alias, but shipped an `action.yml` still
+  invoking `check`, so every consumer Frontier's only verification gate would
+  have failed on its first pin bump. The contract test that should have caught
+  it asserted the literal command string, so it passed on the stale verb; it now
+  asserts the shape, and a new test parses the verb out of the Action and runs
+  it against the built binary.
+- Answer a person when a person asks. `show`, `why` and `log` advertised
+  `--json` and printed the same JSON either way, so `vela why` answered "why
+  does this stand" with several hundred lines including the compaction
+  predecessor archive. Each now renders for a reader, and `--json` is unchanged.
+- Print the Decision's reason, not the Proposal's. `review show` and `review
+  list` showed the Submission's retention boilerplate under a heading naming a
+  terminal standing, and never the sentence the deciding human wrote.
+- Read `standing_basis` per Claim. It was derived from the repository's
+  compaction history, so every accepted Claim on a compacted Frontier reported
+  `compacted_origin` — including Claims decided in the current authority chain,
+  whose Events the same payload listed. The count of current-chain events now
+  ships alongside so the derivation is checkable.
+- Make the exit-code contract real and publish it. `fail()` hardcoded the domain
+  kind across every call site, so a missing object and a malformed flag were
+  indistinguishable to a caller. Unambiguous sites are reclassified, the rest
+  deliberately remain domain, and `docs/CLI.md` now carries the table.
+- Keep the JSON envelope on `review inbox` and `reproduce`, which had lost it.
+  The inbox carries it beside the projection rather than inside, because its
+  root is computed over the struct.
+- Scaffold the Frontier the profile describes. `vela init` wrote an agent
+  charter named `VELA.md` that no Frontier uses, and a `.gitignore` covering
+  three of the nine runtime directories, so a fresh Frontier staged its task
+  leases, workspaces and key material into Git.
+- Report a trust-pin collision as a trust-pin collision. `vela init` called it a
+  signing failure and told the operator to load an SSH key that was never the
+  problem.
+- Declare which Claim standings this release actually emits. Four of the six the
+  vocabulary declares appear in no crate, and two that are emitted are not
+  declared. The gap is now stated rather than left for a consumer to implement.
+- Retire the last uses of `check` from `install.sh`, `SECURITY.md` and the
+  Action's own name, collapse fourteen restatements of the sha256-root rule and
+  five copies of the canonical-time parser onto one predicate each, and remove
+  an unused cargo feature, an unreachable observed-preimage path and an
+  actor-kind heuristic that contradicted the authoritative classification.
+
 ## v0.966.2 — 2026-08-05 — Canonical replay and actionable initialization
 
 - Make `replay` the sole repository-integrity verb across the CLI, generated
