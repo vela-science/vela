@@ -9,6 +9,14 @@ version: 2
 # keys only reach package managers that carry semver — and a week is roughly the
 # window in which a compromised publish gets noticed and yanked. A SHA pin
 # records which bytes run, not that those bytes were ever worth running.
+# Groups carry minor and patch only, so a major sits in its own pull request.
+# The first cargo group proposed ten crates at once, three of them major —
+# sha2 0.10 to 0.11, ed25519-dalek 2 to 3, base64 0.22 to 0.23 — which are the
+# crates that produce canonical roots and sign authority envelopes. A hash or
+# signature implementation change has to be verified against retained records
+# deliberately, and bundling it behind a clap patch means either the safe bump
+# waits on the breaking one or the breaking one rides in on the safe one's
+# review.
 updates:
   - package-ecosystem: cargo
     directory: /
@@ -24,6 +32,9 @@ updates:
       cargo:
         patterns:
           - "*"
+        update-types:
+          - minor
+          - patch
 
   # conformance/ and packages/vela-source-manifest/ each carry their own
   # uv.lock. CI runs `uv run --locked`, so a manifest bump that misses the lock
@@ -48,6 +59,9 @@ updates:
       python:
         patterns:
           - "*"
+        update-types:
+          - minor
+          - patch
 
   # Every action in this repository is pinned to a full commit SHA. Dependabot
   # rewrites the SHA in place, which is the only way these pins stay current
@@ -66,3 +80,6 @@ updates:
       workflow-actions:
         patterns:
           - "*"
+        update-types:
+          - minor
+          - patch
