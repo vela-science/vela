@@ -271,7 +271,17 @@ fn write_scaffold(path: &Path, name: &str, scope: &str) -> Result<(), String> {
     )?;
     write(
         ".gitattributes",
-        "* text=auto eol=lf\n.vela/** -filter -ident -working-tree-encoding -merge -text\nrecords/** -filter -ident -working-tree-encoding -merge diff text eol=lf\nartifacts/** -filter -ident -working-tree-encoding -merge -text\nfrontier.toml -filter -ident -working-tree-encoding -merge diff text eol=lf\ntargets.json -filter -ident -working-tree-encoding -merge diff text eol=lf\n",
+        // The record path family is `-text`, not `text eol=lf`.
+        //
+        // A record is content addressed: its root is sha256 over the exact bytes
+        // Git holds. Any end-of-line normalization rewrites those bytes on
+        // checkout, and replay then reads a file whose digest is not the one the
+        // manifest binds. All four published Frontiers carry `-text` here and
+        // had to hand-correct this scaffold to get it; erdos still carries a
+        // comment explaining the fix. `frontier.toml` and `targets.json` keep
+        // `text eol=lf` because they are configuration a human edits, and
+        // neither is hashed by content.
+        "* text=auto eol=lf\n.vela/** -filter -ident -working-tree-encoding -merge -text\nrecords/** -filter -ident -working-tree-encoding -merge -text\nartifacts/** -filter -ident -working-tree-encoding -merge -text\nfrontier.toml -filter -ident -working-tree-encoding -merge diff text eol=lf\ntargets.json -filter -ident -working-tree-encoding -merge diff text eol=lf\n",
     )?;
     /* AGENTS.md, not VELA.md. FRONTIER_REPOSITORY_PROFILE.md names README.md
     and AGENTS.md as the guidance set, and all four published Frontiers carry

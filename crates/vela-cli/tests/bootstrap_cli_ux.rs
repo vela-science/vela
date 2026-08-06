@@ -482,3 +482,60 @@ fn two_repositories_on_the_same_question_receive_different_identities() {
     assert_ne!(identities[0], identities[1]);
     assert_ne!(anchors[0].0, anchors[1].0);
 }
+
+/// Content-addressed paths must never be end-of-line normalized.
+///
+/// A record's root is sha256 over the exact bytes Git holds. `text` or `eol=`
+/// on such a path rewrites them on checkout, and replay then reads a file whose
+/// digest is not the one the manifest binds — so the scaffold shipping
+/// the record family with `text eol=lf` meant every Frontier had to
+/// hand-correct its own `.gitattributes` before it could verify. All four did,
+/// independently.
+/// `FRONTIER_REPOSITORY_PROFILE.md` states the rule; nothing held the scaffold
+/// to it.
+#[test]
+fn the_scaffold_never_normalizes_a_content_addressed_path() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let agent = EphemeralAgent::start(temporary.path(), "vela gitattributes scaffold test");
+    let frontier = temporary.path().join("frontier");
+    let frontier_text = frontier.to_string_lossy().into_owned();
+    let initialized = run(
+        temporary.path(),
+        Some(agent.socket()),
+        &[
+            "init",
+            &frontier_text,
+            "--name",
+            &unique_name("Byte stability", &temporary),
+            "--scope",
+            "Hold content-addressed paths out of every checkout filter.",
+            "--json",
+        ],
+    );
+    assert!(
+        initialized.status.success(),
+        "the fixture frontier must initialize"
+    );
+    let _anchor = RemoveOnDrop(std::path::PathBuf::from(
+        json(&initialized)["authority"]["local_trust"]["anchor_path"]
+            .as_str()
+            .expect("local trust anchor path"),
+    ));
+
+    let attributes = std::fs::read_to_string(frontier.join(".gitattributes"))
+        .expect("scaffolded .gitattributes");
+    for family in [".vela/**", "records/**", "artifacts/**"] {
+        let line = attributes
+            .lines()
+            .find(|line| line.starts_with(family))
+            .unwrap_or_else(|| panic!("the scaffold must declare {family}"));
+        assert!(
+            line.contains("-text"),
+            "{family} must be -text so its bytes survive checkout: {line}"
+        );
+        assert!(
+            !line.contains("eol="),
+            "{family} must not be end-of-line normalized: {line}"
+        );
+    }
+}
