@@ -186,8 +186,9 @@ accepted pending_review rejected withdrawn superseded
 ```
 
 Four declared values — `unassessed`, `accepted_with_conditions`, `retracted`,
-`corrected` — appear in no line of any crate. `retracted` and `corrected` have
-relations behind them (`retracts`, `corrects`) but no standing derivation yet.
+`corrected` — appear in no line of any crate. `corrected` has a relation behind
+it (`corrects`) but no standing derivation yet; `retracted` has none, because
+retraction moves through the `claim.withdraw` Proposal action.
 Two emitted values are not declared here at all, and both are Proposal-status
 words: a Claim whose only Proposal is pending reports `pending_review`, and one
 whose Proposal was withdrawn reports `withdrawn`. That is the axis separation
@@ -198,6 +199,39 @@ a downstream cost already being paid: the first consumer implemented the
 declared vocabulary, so it maps every non-`accepted` standing onto `unassessed`
 — a word nothing emits — and treats two live values as unreachable. Until the
 decision is made, read the emitted set and treat the declared set as intent.
+
+Claim relations, which are two vocabularies wearing one field name. The
+correction algebra, closed and authoritative:
+
+```text
+corrects supersedes
+```
+
+Descriptive relations, which no Decision reads and which move no Standing:
+
+```text
+contradicts depends replicates supports synthesized_from
+```
+
+**This one does match the repositories, and it is the only lifecycle
+vocabulary on this page that does.** All 1,284 relations retained across the
+four Frontiers fall in these two sets, and the split is visible in the records
+themselves: every `supersedes` sits on a revision-2 Claim submitted through the
+correction path, and every descriptive relation sits on a revision-1 Claim
+imported from a corpus. The descriptive set is enumerated from those records
+rather than declared ahead of them, so it is open — a Frontier may write a kind
+it does not name, and that kind gains no authority by being written.
+
+Two spellings are recognised on input and resolve to one canonical name:
+`depends_on` reads as `depends`, `opposes` as `contradicts`. Producers emit the
+canonical spelling; consumers resolve before matching. `revises` and `retracts`
+were declared through `0.966.3` and written into no record; they are withdrawn.
+`conformance/fixtures/claim-relation-vocabulary-v1.json` fixes the pair, and a
+test in `vela-protocol` fails when an implementation drifts from it.
+
+Do not read `evidence[].relation` against this vocabulary. It names the role an
+Artifact plays for one Claim, not a link between two Claims, and every retained
+Claim Record spells it `supports`.
 
 Artifact axes remain separate:
 

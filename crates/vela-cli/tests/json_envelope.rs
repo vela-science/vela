@@ -97,6 +97,7 @@ fn every_json_read_carries_the_envelope() {
         vec!["reproduce", frontier_text.as_str()],
         vec!["review", "inbox", frontier_text.as_str()],
         vec!["review", "list", frontier_text.as_str()],
+        vec!["claims", frontier_text.as_str()],
     ] {
         let mut asked = args.clone();
         asked.push("--json");

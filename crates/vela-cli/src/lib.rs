@@ -7,6 +7,7 @@ mod bounded_file;
 pub(crate) mod command_handlers;
 pub(crate) mod command_spec;
 mod config;
+pub(crate) mod current_claims;
 pub(crate) mod current_init;
 pub(crate) mod current_read;
 pub(crate) mod current_repository_decision;

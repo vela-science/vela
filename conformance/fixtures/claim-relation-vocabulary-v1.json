@@ -1,0 +1,102 @@
+{
+  "schema": "vela.claim-relation-vocabulary-fixture.v1",
+  "subject": "vela.claim-record.v1 relations[].kind",
+  "not_this_field": "`evidence[].relation` is a different axis: it names the role an Artifact plays for one Claim, never a link between two Claims. Every retained Claim Record spells it `supports`. Nothing here applies to it.",
+  "note": "Two vocabularies over one field. The correction algebra is closed and authoritative: acceptance acts on it and Standing moves. Descriptive relations are retained context that no Decision reads. Near-miss spellings resolve to one canonical name so a consumer matching the canonical form cannot silently miss retained records.",
+  "correction_relations": {
+    "authoritative": true,
+    "closed": true,
+    "moves_standing": true,
+    "kinds": ["corrects", "supersedes"]
+  },
+  "descriptive_relations": {
+    "authoritative": false,
+    "closed": false,
+    "moves_standing": false,
+    "enumerated_from": "the four maintained Frontiers, not from intent",
+    "kinds": [
+      "contradicts",
+      "depends",
+      "replicates",
+      "supports",
+      "synthesized_from"
+    ]
+  },
+  "aliases": [
+    {
+      "recorded": "depends_on",
+      "canonical": "depends",
+      "authority": "ADR 0004 named `depends` the canonical stored wire value and `depends_on` the derived-graph rendering.",
+      "retained_uses": 0
+    },
+    {
+      "recorded": "opposes",
+      "canonical": "contradicts",
+      "authority": "`contradicts` is the spelling the repositories hold. `opposes` was declared in PROTOCOL.md and written into no record.",
+      "retained_uses": 0
+    }
+  ],
+  "classification_cases": [
+    { "kind": "corrects", "canonical": "corrects", "class": "correction" },
+    { "kind": "supersedes", "canonical": "supersedes", "class": "correction" },
+    { "kind": "supports", "canonical": "supports", "class": "descriptive" },
+    { "kind": "depends", "canonical": "depends", "class": "descriptive" },
+    { "kind": "depends_on", "canonical": "depends", "class": "descriptive" },
+    {
+      "kind": "contradicts",
+      "canonical": "contradicts",
+      "class": "descriptive"
+    },
+    { "kind": "opposes", "canonical": "contradicts", "class": "descriptive" },
+    {
+      "kind": "synthesized_from",
+      "canonical": "synthesized_from",
+      "class": "descriptive"
+    },
+    { "kind": "replicates", "canonical": "replicates", "class": "descriptive" },
+    { "kind": "revises", "canonical": "revises", "class": "unrecognized" },
+    { "kind": "retracts", "canonical": "retracts", "class": "unrecognized" },
+    {
+      "kind": "generic_link",
+      "canonical": "generic_link",
+      "class": "unrecognized"
+    }
+  ],
+  "rejected_kinds": [
+    "",
+    " ",
+    "Supersedes",
+    "supersedes ",
+    "supersedes-v2",
+    "supersedes.v2",
+    "supersedes2",
+    "_supersedes",
+    "supersedes_",
+    "super__sedes",
+    "synthesized from"
+  ],
+  "census": {
+    "note": "Descriptive observation, not an assertion this fixture verifies. The Frontiers are separate repositories; a checker inside this one cannot reach them. Reproduce with the command below and expect drift as Frontiers advance.",
+    "observed_at": "2026-08-06",
+    "repositories": [
+      "erdos-frontier",
+      "formal-conjectures-frontier",
+      "quantum-codes-frontier",
+      "sidon-frontier"
+    ],
+    "command": "jq -r '.relations[]?.kind' records/claims/sha256/*.json | sort | uniq -c",
+    "relations_by_kind": {
+      "synthesized_from": 699,
+      "supports": 382,
+      "replicates": 165,
+      "depends": 26,
+      "contradicts": 9,
+      "supersedes": 3
+    },
+    "separation": "Every `supersedes` sits on a revision-2 Claim whose sole provenance is a `submission`. Every other relation sits on a revision-1 Claim imported from a corpus. No correction relation has ever been written by an import, and no descriptive relation has ever appeared on a revised Claim.",
+    "never_written": {
+      "note": "Spellings PROTOCOL.md declared through 0.966.3 that no repository has ever recorded. `opposes` and `depends_on` survive as recognised aliases of the spellings that are recorded. `revises` and `retracts` are dropped: retraction moves Standing through the `claim.withdraw` Proposal action and needs no relation, and nothing ever emitted or read `revises`.",
+      "kinds": ["depends_on", "opposes", "retracts", "revises"]
+    }
+  }
+}

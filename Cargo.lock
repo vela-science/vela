@@ -2077,6 +2077,7 @@ dependencies = [
  "ed25519-dalek",
  "hex",
  "libc",
+ "rand_core",
  "rustix",
  "same-file",
  "serde",

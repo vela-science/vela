@@ -71,6 +71,27 @@ pub(crate) enum Commands {
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
+    /// List the Claims this Frontier holds: id, one-line assertion, Standing,
+    /// and origin era. The one verb that produces the full `vcl_` ids `show`
+    /// and `why` require.
+    #[command(after_long_help = crate::cli::help_text::CLAIMS)]
+    Claims {
+        #[arg(value_name = "FRONTIER", help = HELP_FRONTIER)]
+        frontier: Option<PathBuf>,
+        #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
+        frontier_flag: Option<PathBuf>,
+        /// Standing filter: accepted, pending_review, or all.
+        #[arg(long)]
+        status: Option<String>,
+        /// Maximum number of Claims to return.
+        #[arg(long, default_value_t = 50)]
+        limit: usize,
+        /// Opaque continuation cursor from the previous page.
+        #[arg(long)]
+        cursor: Option<String>,
+        #[arg(long, help = HELP_JSON)]
+        json: bool,
+    },
     /// Recent covered repository-authority events, newest first.
     #[command(after_long_help = crate::cli::help_text::LOG)]
     #[command(override_usage = "vela log [OPTIONS] [FRONTIER] [OBJECT_ID]")]

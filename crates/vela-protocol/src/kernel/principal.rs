@@ -227,6 +227,39 @@ mod tests {
     }
 
     #[test]
+    fn account_link_times_must_be_canonical_utc() {
+        human_principal().validate().unwrap();
+
+        // The instant of the fixture's linked_at, written at -04:00.
+        let mut shifted = human_principal();
+        shifted.account_links[0].linked_at = "2026-07-24T08:00:00-04:00".into();
+        let error = shifted
+            .validate()
+            .expect_err("a non-zero offset is not canonical");
+        assert!(error.contains("account linked_at"), "{error}");
+        assert!(error.contains("-04:00"), "{error}");
+
+        let mut plus_zero = human_principal();
+        plus_zero.account_links[0].linked_at = "2026-07-24T12:00:00+00:00".into();
+        assert!(plus_zero.validate().is_err());
+
+        let mut subsecond = human_principal();
+        subsecond.account_links[0].linked_at = "2026-07-24T12:00:00.500Z".into();
+        assert!(subsecond.validate().is_err());
+
+        // revoked_at is guarded on the same terms.
+        let mut revoked = human_principal();
+        revoked.account_links[0].revoked_at = Some("2026-07-24T14:00:00-04:00".into());
+        let revoked_error = revoked
+            .validate()
+            .expect_err("a non-zero offset is not canonical");
+        assert!(
+            revoked_error.contains("account revoked_at"),
+            "{revoked_error}"
+        );
+    }
+
+    #[test]
     fn every_human_governance_action_is_structurally_forbidden_to_machines() {
         for action in HUMAN_ONLY_AUTHORITY_ACTIONS_V1 {
             assert!(!principal_class_may_request(PrincipalClass::Agent, action));

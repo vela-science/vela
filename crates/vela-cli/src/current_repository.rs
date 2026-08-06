@@ -991,28 +991,10 @@ pub(crate) fn cmd_current_review_list(
         })
     });
     let items = items.into_iter().map(|(_, item)| item).collect::<Vec<_>>();
-    let total = items.len();
-    let limit = limit.clamp(1, 100);
-    let start = match cursor {
-        None => 0,
-        Some(cursor) => items
-            .iter()
-            .position(|item| item["proposal_id"].as_str() == Some(cursor))
-            .map(|index| index + 1)
-            .unwrap_or_else(|| {
-                crate::cli::fail_return("review cursor does not name an exact current Proposal")
-            }),
-    };
-    let mut page = items
-        .into_iter()
-        .skip(start)
-        .take(limit + 1)
-        .collect::<Vec<_>>();
-    let has_more = page.len() > limit;
-    page.truncate(limit);
-    let next_cursor = has_more
-        .then(|| page.last().and_then(|item| item["proposal_id"].as_str()))
-        .flatten();
+    let page = crate::cli::page::paginate("review", "Proposal", items, limit, cursor, |item| {
+        item["proposal_id"].as_str()
+    });
+    let total = page.total;
     let payload = json!({
         "schema": "vela.review.v1",
         "ok": true,
@@ -1022,9 +1004,9 @@ pub(crate) fn cmd_current_review_list(
         "status": status,
         "order": "created_at_desc_then_proposal_id",
         "total": total,
-        "returned": page.len(),
-        "next_cursor": next_cursor,
-        "items": page,
+        "returned": page.items.len(),
+        "next_cursor": page.next_cursor,
+        "items": page.items,
     });
     if json_out {
         crate::cli::print_json(&payload);
@@ -1742,7 +1724,12 @@ pub(crate) fn verify_current_repository_allow_derived_drift_at(
     Ok(repository)
 }
 
-fn initial_repository(
+/// The repository manifest exactly as the Frontier's origin commit retains it.
+///
+/// This is the boundary `vela claims` reads a Claim's origin era from: a Claim
+/// the origin manifest already bound came through the last compaction, and
+/// everything else was admitted by the current authority chain since.
+pub(crate) fn initial_repository(
     root: &Path,
     origin: &RepositoryOriginV1,
 ) -> Result<CurrentRepositoryV4, String> {
@@ -1799,7 +1786,11 @@ fn current_origin_commit(root: &Path, origin: &RepositoryOriginV1) -> Result<Str
     Ok(commit.clone())
 }
 
-fn read_rooted_object(root: &Path, path: &str, expected_root: &str) -> Result<Vec<u8>, String> {
+pub(crate) fn read_rooted_object(
+    root: &Path,
+    path: &str,
+    expected_root: &str,
+) -> Result<Vec<u8>, String> {
     let bytes = fs::read(root.join(path))
         .map_err(|error| format!("read current object {path}: {error}"))?;
     if root_bytes(&bytes) != expected_root {

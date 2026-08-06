@@ -6,9 +6,9 @@ pub(crate) fn print_product_help() {
         env!("CARGO_PKG_VERSION")
     );
     println!("Usage: vela <COMMAND>\n");
-    println!("  init       status     next       start");
-    println!("  submit     show       why        review");
-    println!("  replay     reproduce  log\n");
+    println!("  init       status     claims     next");
+    println!("  start      submit     show       why");
+    println!("  review     replay     reproduce  log\n");
     println!("Run `vela help advanced` for setup and verification commands.");
 }
 
@@ -30,6 +30,7 @@ Usage:
 Daily product:
   init          Create a signed, replayable Git-native Frontier
   status        Compact frontier identity, roots, counts, and next action
+  claims        What the Frontier holds: id, assertion, Standing, origin era
   next          Ranked Target Offers
   start         Inspect one exact Target and its bounded completion contract
   submit        Retain authenticated producer input for review

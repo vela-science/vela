@@ -181,7 +181,8 @@ conditions, evidence references, and provenance. Relations use full Claim
 identities. The full canonical record root additionally commits to relation
 metadata and namespaced non-authoritative extensions. Evidence identifiers are
 exact lowercase 64-hex content hashes; aliases and retired migration handles
-fail.
+fail. Section 8 declares the two vocabularies `relations[].kind` draws from.
+`evidence[].relation` is a different axis and draws from neither.
 
 ### 3.3 Submission
 
@@ -505,14 +506,62 @@ database, Web page, mutable status field, verifier outcome, or Git branch name.
 A correction is a new Submission and Proposal targeting the exact accepted
 Claim identity. It preserves the predecessor Claim and Decision.
 
-Current relations include:
+A Claim Record's `relations` field carries two vocabularies that read alike and
+behave nothing alike. Only the first has authority.
+
+### 8.1 The correction algebra
 
 ```text
-revises supersedes corrects retracts supports opposes depends_on
+corrects supersedes
 ```
 
-Acceptance updates Standing according to that exact relation. Consumers can
-therefore reconstruct both what previously stood and what stands now.
+This set is closed and authoritative. A Claim admitted while carrying one of
+these names exactly one accepted predecessor, and acceptance retires that
+predecessor. Standing moves because the Decision admitted a `claim.revise`
+Proposal, and the relation is what tells the replay which accepted Claim the
+successor replaces. A `claim.add` Proposal carries no relation; a
+`claim.withdraw` retracts through its own action and needs none either.
+Consumers can therefore reconstruct both what previously stood and what stands
+now.
+
+### 8.2 Descriptive relations
+
+```text
+contradicts depends replicates supports synthesized_from
+```
+
+These are retained context: where a Claim came from, what it agrees or
+disagrees with, what it rests on. No Decision reads them and none of them moves
+Standing. The set is enumerated from what the maintained Frontiers actually
+hold rather than from intent, and it is open. A Frontier may record a kind
+this list does not name, and doing so grants that kind no authority. A derived
+reader may give a descriptive relation meaning of its own, such as a dependency
+edge or a support route, but that meaning is the reader's and is never Standing.
+
+A relation kind is lowercase ASCII words joined by single underscores, at most
+64 characters. Anything else fails the parse.
+
+### 8.3 Canonical spellings
+
+Retained records cannot be rewritten, so two spellings recognised on input
+resolve to one canonical name:
+
+| Recorded | Canonical | Why |
+| --- | --- | --- |
+| `depends_on` | `depends` | ADR 0004 named `depends` the stored wire value and `depends_on` the derived-graph rendering |
+| `opposes` | `contradicts` | `contradicts` is what the repositories hold; `opposes` was declared and never written |
+
+Producers emit the canonical spelling. Consumers resolve before matching. A
+consumer that matches only `opposes` sees none of the recorded contradictions.
+
+`revises` and `retracts`, declared through `0.966.3`, are withdrawn: nothing
+ever emitted or read either one.
+
+Do not confuse `relations[].kind` with `evidence[].relation`, which names the
+role an Artifact plays for one Claim rather than a link between two Claims.
+
+The vocabulary is fixed by
+`conformance/fixtures/claim-relation-vocabulary-v1.json`.
 
 ## 9. Derived readers
 

@@ -107,6 +107,7 @@ fn json_changes_what_a_read_verb_prints() {
     for verb in [
         vec!["log", frontier.as_str(), "--limit", "5"],
         vec!["status", frontier.as_str()],
+        vec!["claims", frontier.as_str()],
     ] {
         let human = run(temporary.path(), Some(agent.socket()), &verb);
         let name = verb[0];

@@ -52,6 +52,93 @@ pub struct ClaimRelation {
     pub target_claim_id: String,
 }
 
+/// The correction algebra: the relation kinds a Decision acts on.
+///
+/// A Claim admitted while carrying one of these names exactly one accepted
+/// predecessor, and acceptance retires that predecessor. Every other relation
+/// on a Claim Record is retained description and moves no Standing. This set is
+/// closed: adding a name to it is a protocol change, not a vocabulary choice.
+pub const CORRECTION_RELATION_KINDS: &[&str] = &["corrects", "supersedes"];
+
+/// Relations retained as description. Acceptance never reads them.
+///
+/// Enumerated from what the four maintained Frontiers actually retain, not from
+/// intent. A derived reader may give one of these a meaning of its own, such as
+/// a graph edge or a support route, but no reading of them changes Standing,
+/// and a kind absent from this list is not thereby invalid.
+pub const DESCRIPTIVE_RELATION_KINDS: &[&str] = &[
+    "contradicts",
+    "depends",
+    "replicates",
+    "supports",
+    "synthesized_from",
+];
+
+/// Spellings recognised on input, paired with the canonical spelling.
+///
+/// Retained records cannot be rewritten, so both halves of a near-miss have to
+/// resolve to one meaning. `depends` is canonical by ADR 0004, which named it
+/// the stored wire value and `depends_on` the derived-graph rendering.
+/// `contradicts` is canonical because it is the spelling the repositories
+/// actually hold; `opposes` was declared and never written.
+const RELATION_KIND_ALIASES: &[(&str, &str)] =
+    &[("depends_on", "depends"), ("opposes", "contradicts")];
+
+/// What a relation kind does to Standing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClaimRelationClass {
+    /// Acceptance acts on it. Standing moves.
+    Correction,
+    /// Retained description. Standing never moves.
+    Descriptive,
+    /// Well formed and carrying no declared meaning. Standing never moves.
+    Unrecognized,
+}
+
+/// Resolve a recorded spelling to the canonical one. Unknown kinds pass
+/// through unchanged; this narrows near-misses, it does not validate.
+///
+/// Read-side only. Canonical bytes keep the spelling the producer wrote, so
+/// calling this can never move a record root.
+pub fn canonical_relation_kind(kind: &str) -> &str {
+    match RELATION_KIND_ALIASES
+        .iter()
+        .find(|(recorded, _)| *recorded == kind)
+    {
+        Some((_, canonical)) => canonical,
+        None => kind,
+    }
+}
+
+/// Classify a relation kind, resolving near-miss spellings first.
+pub fn claim_relation_class(kind: &str) -> ClaimRelationClass {
+    let canonical = canonical_relation_kind(kind);
+    if CORRECTION_RELATION_KINDS.contains(&canonical) {
+        ClaimRelationClass::Correction
+    } else if DESCRIPTIVE_RELATION_KINDS.contains(&canonical) {
+        ClaimRelationClass::Descriptive
+    } else {
+        ClaimRelationClass::Unrecognized
+    }
+}
+
+impl ClaimRelation {
+    /// The canonical spelling of this relation's kind.
+    pub fn canonical_kind(&self) -> &str {
+        canonical_relation_kind(&self.kind)
+    }
+
+    /// What this relation does to Standing.
+    pub fn class(&self) -> ClaimRelationClass {
+        claim_relation_class(&self.kind)
+    }
+
+    /// Whether acceptance acts on this relation.
+    pub fn moves_standing(&self) -> bool {
+        self.class() == ClaimRelationClass::Correction
+    }
+}
+
 /// A versioned Claim body. The full canonical root is security identity; the
 /// readable `vcl_` prefix is routing only.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -191,7 +278,7 @@ impl ClaimRecordV1 {
             }
         }
         for relation in &self.relations {
-            require_text("relations.kind", &relation.kind)?;
+            require_relation_kind(&relation.kind)?;
             require_full_claim_id("relations.target_claim_id", &relation.target_claim_id)?;
         }
         chrono::DateTime::parse_from_rfc3339(&self.created_at)
@@ -252,6 +339,33 @@ fn require_scientific_text(field: &str, value: &str) -> Result<(), String> {
     {
         return Err(format!(
             "Claim Record {field} must be non-empty, trimmed scientific text"
+        ));
+    }
+    Ok(())
+}
+
+/// A relation kind is a vocabulary token, not free text.
+///
+/// The check is shape only: lowercase ASCII words joined by single underscores,
+/// bounded. It deliberately does not close the set. Closing it would reject the
+/// next Frontier import for describing its corpus in a word this release has
+/// not seen, and the descriptive half of the vocabulary carries no authority
+/// worth defending that way. What the shape does buy is that `Supersedes`,
+/// `supersedes `, and `supersedes-v2` cannot sit next to `supersedes` looking
+/// like the same token to a person and different ones to a matcher.
+fn require_relation_kind(value: &str) -> Result<(), String> {
+    require_text("relations.kind", value)?;
+    let well_formed = value.len() <= 64
+        && !value.starts_with('_')
+        && !value.ends_with('_')
+        && !value.contains("__")
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte == b'_');
+    if !well_formed {
+        return Err(format!(
+            "Claim Record relations.kind `{value}` must be lowercase ASCII words \
+             joined by single underscores, at most 64 characters"
         ));
     }
     Ok(())

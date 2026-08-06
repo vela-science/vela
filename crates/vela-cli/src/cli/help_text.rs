@@ -82,6 +82,34 @@ KNOWN PROPOSAL
   A rejected proposal's candidate Claim is intentionally absent from
   accepted `show` and `log` views; that is not deletion.";
 
+pub const CLAIMS: &str = "\
+EXAMPLES
+  vela claims                          what this Frontier holds, first page
+  vela claims --limit 5                a short look
+  vela claims --status all --json      accepted and pending_review together, machine view
+  vela claims --cursor vcl_002c…       resume after the last row of the last page
+
+Rows come out in Claim id order, which is the repository manifest's own order,
+so a cursor names the same boundary on every call. Each row carries the full
+vcl_ id `vela show` and `vela why` ask for.
+
+ORIGIN ERA
+  `origin` marks a Claim the Frontier's origin commit already bound — on a
+  compacted Frontier, one that came through the compaction. `post_origin`
+  marks one admitted by repository authority since. The reported origin count
+  is its own number, not a share of the total: a Frontier can have retired an
+  origin Claim, so the two do not subtract.
+
+SCOPE
+  This lists the claim index in the repository manifest, which is where a
+  Standing is bound. A Claim belonging to a Proposal that was rejected,
+  withdrawn, or is still pending is retained but holds no Standing; read those
+  through `vela review list --status all`.
+
+SEE ALSO
+  vela show   one exact Claim in full
+  vela why    how that Claim came to stand";
+
 pub const LOG: &str = "\
 EXAMPLES
   vela log               the accepted-event history, newest first

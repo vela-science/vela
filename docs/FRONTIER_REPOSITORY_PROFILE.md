@@ -64,6 +64,35 @@ TOML comments, whitespace, quoting, key order, and final newlines do not change
 the root. Maintainers are descriptive and receive no review or repository
 authority from the profile.
 
+## Frontier identity
+
+`vela init` draws the `frontier_id` once, at genesis, from canonical
+`vela.frontier-genesis-identity.v2` bytes:
+
+```text
+schema           vela.frontier-genesis-identity.v2
+name             exact trimmed profile name
+scope            exact trimmed bounded question
+genesis_entropy  fresh 256-bit draw from the OS CSPRNG
+frontier_id      "vfr_" + sha256(canonical_json(...))[..16 hex chars]
+```
+
+The entropy is what makes the identity name one repository. A Frontier is one
+independently clonable repository with a bounded scope, and two groups may
+legitimately open repositories on the same question with the same wording; they
+are different Frontiers and must not receive the same identity. The user-local
+trust store keys on `vfr_`, so a shared identity would make one repository's
+authority anchor collide with the other's.
+
+The entropy is not retained anywhere, and the derivation is deliberately not
+reproducible. A `frontier_id` is asserted once and then carried: the Profile
+holds it, the origin, manifest, keyset, and Cedar policy bind it, and no reader
+recomputes it from the Profile's name and scope. Retaining the nonce would not
+make the identity checkable, because whoever creates the repository chooses it.
+
+The identity is a repository handle, not a scientific commitment. It is not a
+Git commit, a repository root, or any statement about Standing.
+
 ## Repository origin
 
 `.vela/origin.json` has one closed schema: `vela.repository-origin.v1`.

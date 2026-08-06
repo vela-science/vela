@@ -31,23 +31,31 @@ pub(crate) fn is_lower_hex(byte: u8) -> bool {
     byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)
 }
 
-/// Parse an RFC3339 timestamp and require that it re-serializes to exactly the
-/// bytes supplied, at whole-second resolution.
+/// Parse an RFC3339 timestamp and require the one spelling Vela treats as
+/// canonical: UTC, whole seconds, zero offset written `Z`.
 ///
-/// A zero offset must be spelled `Z`. A non-zero offset that is already in its
-/// canonical spelling is accepted; the error text calls that UTC, which
-/// overstates what is checked. Behavior is preserved verbatim from the two
-/// modules this was lifted out of, because tightening it would reject already
-/// accepted history.
+/// One instant must have one byte sequence. The offset is checked on its own
+/// rather than left to the round-trip, because `to_rfc3339_opts(Secs, true)`
+/// substitutes `Z` only at zero offset and so re-serializes a non-zero offset
+/// back to itself — `2026-08-05T08:00:00-04:00` would round-trip cleanly and
+/// pass, giving the same instant as `2026-08-05T12:00:00Z` a second set of
+/// canonical bytes. The round-trip that follows then catches everything else:
+/// sub-second digits, and the zero-offset spelling `+00:00`.
 pub(crate) fn parse_canonical_time(
     name: &str,
     value: &str,
 ) -> Result<DateTime<chrono::FixedOffset>, String> {
     let parsed = DateTime::parse_from_rfc3339(value)
         .map_err(|error| format!("{name} is not RFC3339: {error}"))?;
+    if parsed.offset().local_minus_utc() != 0 {
+        return Err(format!(
+            "{name} must be UTC with a zero offset spelled Z, not offset {}",
+            parsed.offset()
+        ));
+    }
     if parsed.to_rfc3339_opts(SecondsFormat::Secs, true) != value {
         return Err(format!(
-            "{name} must use canonical whole-second UTC RFC3339"
+            "{name} must be whole-second UTC RFC3339 spelled with Z"
         ));
     }
     Ok(parsed)
@@ -83,11 +91,50 @@ mod tests {
     }
 
     #[test]
-    fn canonical_time_rejects_offsets_and_subseconds() {
+    fn canonical_time_accepts_only_whole_second_z() {
         assert!(parse_canonical_time("recorded_at", "2026-08-05T12:00:00Z").is_ok());
-        assert!(parse_canonical_time("recorded_at", "2026-08-05T12:00:00.500Z").is_err());
-        assert!(parse_canonical_time("recorded_at", "2026-08-05T12:00:00+00:00").is_err());
         assert!(parse_canonical_time("recorded_at", "not a time").is_err());
+
+        // Zero offset, but not the canonical spelling.
+        let plus_zero = parse_canonical_time("recorded_at", "2026-08-05T12:00:00+00:00")
+            .expect_err("+00:00 is not the canonical spelling of a zero offset");
+        assert!(plus_zero.contains("spelled with Z"), "{plus_zero}");
+
+        // Sub-second precision, in the otherwise canonical spelling.
+        let subsecond = parse_canonical_time("recorded_at", "2026-08-05T12:00:00.500Z")
+            .expect_err("sub-second precision is not whole-second");
+        assert!(subsecond.contains("whole-second"), "{subsecond}");
+    }
+
+    #[test]
+    fn canonical_time_rejects_a_non_zero_offset_that_round_trips() {
+        // The instant of 2026-08-05T12:00:00Z, written at -04:00. This is a
+        // whole-second value that re-serializes to exactly the bytes supplied,
+        // so the round-trip alone admits it and one instant gets two canonical
+        // spellings. The offset check is what rejects it.
+        let shifted = "2026-08-05T08:00:00-04:00";
+        assert_eq!(
+            DateTime::parse_from_rfc3339(shifted)
+                .unwrap()
+                .to_rfc3339_opts(SecondsFormat::Secs, true),
+            shifted,
+            "the round-trip alone cannot distinguish this value"
+        );
+        assert_eq!(
+            DateTime::parse_from_rfc3339(shifted).unwrap(),
+            parse_canonical_time("recorded_at", "2026-08-05T12:00:00Z").unwrap(),
+            "the two spellings name the same instant"
+        );
+
+        let error = parse_canonical_time("recorded_at", shifted)
+            .expect_err("a non-zero offset is not canonical");
+        assert!(error.contains("recorded_at"), "{error}");
+        assert!(error.contains("-04:00"), "{error}");
+
+        // Non-zero in the other direction, and a non-zero offset that also
+        // carries sub-second digits.
+        assert!(parse_canonical_time("recorded_at", "2026-08-05T17:30:00+05:30").is_err());
+        assert!(parse_canonical_time("recorded_at", "2026-08-05T08:00:00.500-04:00").is_err());
     }
 
     #[test]

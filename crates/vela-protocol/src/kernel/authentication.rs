@@ -244,6 +244,32 @@ mod tests {
     }
 
     #[test]
+    fn observation_times_must_be_canonical_utc() {
+        human().validate().unwrap();
+
+        // Same instants as the fixture, shifted into a non-zero offset. Each
+        // value is whole-second RFC3339 and every ordering check downstream
+        // still holds, so only the canonical-spelling rule rejects them.
+        let mut shifted = human();
+        shifted.authenticated_at = "2026-07-24T08:00:00-04:00".into();
+        shifted.observed_at = "2026-07-24T08:05:00-04:00".into();
+        shifted.expires_at = "2026-07-24T09:00:00-04:00".into();
+        let error = shifted
+            .validate()
+            .expect_err("a non-zero offset is not canonical");
+        assert!(error.contains("authentication authenticated_at"), "{error}");
+        assert!(error.contains("-04:00"), "{error}");
+
+        let mut plus_zero = human();
+        plus_zero.observed_at = "2026-07-24T12:05:00+00:00".into();
+        assert!(plus_zero.validate().is_err());
+
+        let mut subsecond = human();
+        subsecond.expires_at = "2026-07-24T13:00:00.500Z".into();
+        assert!(subsecond.validate().is_err());
+    }
+
+    #[test]
     fn passkey_requires_exact_identity_presence_and_verification() {
         let mut wrong_identity = human();
         wrong_identity.principal_id = "someone@example.com".into();

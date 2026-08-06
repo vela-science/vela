@@ -1,6 +1,10 @@
 # ADR 0023: Native current repository genesis
 
 - Status: Superseded by accepted ADR 0027
+- Superseded scope: the genesis identity below derived `frontier_id` from the
+  name and scope alone, which gave two unrelated repositories that chose the
+  same wording one identity. `vela.frontier-genesis-identity.v2` adds a fresh
+  per-repository draw; `docs/FRONTIER_REPOSITORY_PROFILE.md` is current
 - Target release: Vela `v0.940.0`
 - Protocol effect: one native `vela.repository-genesis.v1` origin object
 - Product effect: `vela init` creates Profile v2 directly and the ordinary
@@ -55,6 +59,11 @@ vela.lock
 The frontier ID is derived from canonical
 `vela.frontier-genesis-identity.v1` bytes containing the exact trimmed name
 and bounded scope. This gives the profile a stable non-circular identity.
+
+That preimage was later found to identify the question rather than the
+repository. The current schema is
+`vela.frontier-genesis-identity.v2`, which adds a fresh 256-bit
+`genesis_entropy` draw; see `docs/FRONTIER_REPOSITORY_PROFILE.md`.
 
 Before authority exists, `status` and `doctor` return a valid bootstrap view:
 

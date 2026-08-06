@@ -23,6 +23,7 @@ vela verification import . verification.json \
   --as verifier:<name> \
   --json
 
+vela claims . --json
 vela review show . <vpr_id> --json
 vela replay . --json
 vela why . <claim_id> --json
@@ -37,13 +38,14 @@ Decision, Event, or accepted Standing.
 Default help exposes exactly:
 
 ```text
-init status next start submit show why review replay reproduce log
+init status claims next start submit show why review replay reproduce log
 ```
 
 | Command | Contract |
 | --- | --- |
 | `init` | Create a minimal Git-native Frontier from a name and bounded scope. |
 | `status` | Report identity, replay, Decision Inbox readiness, and one safe next action. |
+| `claims` | Page the repository claim index: Claim ID, one-line assertion, Standing, origin era. |
 | `next` | Return canonically ranked producer Targets. |
 | `start` | Print a write-free briefing for one exact current Target. |
 | `submit` | Build or import one authenticated Submission and pending Proposal. |
@@ -86,6 +88,54 @@ catalogue. `replay`, `next`, and `start` validate it; Vela has no separate
 Target Index maintenance command.
 
 `vela help advanced` is the executable source for this grouping.
+
+## Reading what a Frontier holds
+
+`vela claims` pages the claim index in the verified repository manifest. It is
+the only verb that produces Claim IDs; `show` and `why` consume them. Without
+it the Claim surface is reachable only by ID, and on a compacted Frontier the
+rest of the read surface produces few: `review list` reaches the Claim of each
+retained Proposal, which on the Erdős Frontier is eleven of 2,782 accepted.
+
+```bash
+vela claims                        # accepted Claims, first page
+vela claims --status all --json    # accepted and pending_review together
+vela claims --cursor <full_vcl_id> # resume after the last row of the last page
+```
+
+`--status` takes the manifest's own Standing tokens, `accepted` and
+`pending_review`, or `all`. It defaults to `accepted`.
+
+It takes `--limit`, `--cursor`, `--status`, and `--json`, and pages through the
+same rule as `review list` — one implementation, not two: the cursor is the
+last returned row's own ID, never an offset, `--limit` is clamped to 100, and a
+cursor naming no row is refused rather than silently restarting at page one.
+
+Rows come out in Claim ID order, which is the manifest's own order, so a cursor
+names the same boundary on every call. Each row carries the Claim ID, its
+one-line assertion and kind, its Standing, and its origin era:
+
+- `origin` — the Frontier's origin commit already bound this Claim. On a
+  compacted Frontier that means it came through the compaction.
+- `post_origin` — repository authority admitted it after the origin.
+
+`--json` returns `vela.claims.v1`. `total` is the number of indexed Claims
+matching `--status`; `origin_claims` is the size of the origin set. The two do
+not subtract: a Frontier can have retired an origin Claim, which is why the
+quantum-codes Frontier reports 5 accepted Claims over an origin that bound 6.
+
+Retained bytes are read only for the rows a page returns, so `total` is an
+index count and never a claim about bytes that were not read. A row whose
+bytes cannot be read at their declared root comes back as itself with
+`readable: false` and a reason, and is counted in `unreadable_returned` — the
+row is neither dropped from the page nor allowed to fail it, so a partial page
+is never presented as a whole one.
+
+The subject is the claim index, which is where the repository binds Standing.
+The Claim of a Proposal that was rejected, withdrawn, or is still pending is
+retained under `records/claims/` but holds no Standing and is not repository
+state; read those through `vela review list --status all` and
+`vela review show`.
 
 ## Target briefing and Submissions
 
@@ -328,6 +378,9 @@ active paths. The one-time migration writer is not part of the current binary.
 
 - `status --json` returns compact identity, full roots, replay, blocker counts,
   object counts, readiness, and one next action.
+- `claims --json` returns one page of the repository claim index, with the
+  Standing and origin era of each row and an explicit count of rows whose
+  retained bytes could not be read.
 - `next --json` returns ranked producer Targets only.
 - `start --json` returns one exact write-free Target briefing.
 - `review list --json` returns compact Proposal summaries.

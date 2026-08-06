@@ -22,6 +22,7 @@ pub(crate) mod frontier_arg;
 pub(crate) mod help_text;
 mod lifecycle;
 mod output;
+pub(crate) mod page;
 pub(crate) mod progress;
 pub(crate) mod records;
 pub(crate) mod review_decision;
@@ -61,6 +62,24 @@ pub fn run_command() {
             crate::ui::set_mode("status", json);
             cmd_status_compact(
                 &frontier_arg::bind_frontier("status", frontier, frontier_flag),
+                json,
+            );
+        }
+        Commands::Claims {
+            frontier,
+            frontier_flag,
+            status,
+            limit,
+            cursor,
+            json,
+        } => {
+            crate::ui::set_mode("claims", json);
+            let frontier = frontier_arg::bind_frontier("claims", frontier, frontier_flag);
+            crate::current_claims::cmd_claims(
+                &frontier,
+                status.as_deref(),
+                limit,
+                cursor.as_deref(),
                 json,
             );
         }

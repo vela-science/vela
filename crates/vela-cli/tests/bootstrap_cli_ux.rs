@@ -326,10 +326,12 @@ fn review_decision_preflight_keeps_json_error_contract() {
 
 #[test]
 fn a_colliding_trust_pin_is_not_reported_as_a_signing_failure() {
-    // frontier_id is sha256 over {schema, name, scope}, and the pin lives under
-    // the OS account home, so a second init with the same name and scope in any
-    // directory targets the same pin path. That is not a signing failure and no
-    // key operation can clear it.
+    // The pin lives under the OS account home and keys on frontier_id, so a
+    // second authority initialization of the same retained Profile, with a
+    // different key, targets the same pin path with a different record root.
+    // That is not a signing failure and no key operation can clear it. Two
+    // separately created repositories can no longer provoke this, because each
+    // draws its own genesis identity; a copied bootstrap still can.
     let temporary = tempfile::tempdir().expect("temporary directory");
     let name = unique_name("Pin collision", &temporary);
     let scope = "Prove a colliding pin is classified apart from signing.";
@@ -367,18 +369,38 @@ fn a_colliding_trust_pin_is_not_reported_as_a_signing_failure() {
     let second_agent = EphemeralAgent::start(&second_root, "vela pin collision second");
     let second_frontier = temporary.path().join("second/frontier");
     let second_frontier_text = second_frontier.to_string_lossy().into_owned();
+    // Copy the first repository's retained bootstrap, which carries its exact
+    // frontier_id, and resume `vela init` there against the second key.
+    std::fs::create_dir_all(second_frontier.join(".vela")).expect("second bootstrap .vela");
+    for retained in [
+        "frontier.toml",
+        "README.md",
+        "SCOPE.md",
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".gitignore",
+        ".gitattributes",
+    ] {
+        std::fs::copy(
+            first_frontier.join(retained),
+            second_frontier.join(retained),
+        )
+        .unwrap_or_else(|error| panic!("copy retained bootstrap {retained}: {error}"));
+    }
+    let git = Command::new("git")
+        .args(["init", "--quiet", "-b", "main"])
+        .arg(&second_frontier)
+        .output()
+        .expect("git init the copied bootstrap");
+    assert!(
+        git.status.success(),
+        "{}",
+        String::from_utf8_lossy(&git.stderr)
+    );
     let collided = run(
         temporary.path(),
         Some(second_agent.socket()),
-        &[
-            "init",
-            &second_frontier_text,
-            "--name",
-            &name,
-            "--scope",
-            scope,
-            "--json",
-        ],
+        &["init", &second_frontier_text, "--json"],
     );
     assert_eq!(collided.status.code(), Some(1));
     let collided = json(&collided);
@@ -392,4 +414,58 @@ fn a_colliding_trust_pin_is_not_reported_as_a_signing_failure() {
     let hint = collided["error"]["hint"].as_str().expect("collision hint");
     assert!(!hint.contains("ssh-add"), "{hint}");
     assert!(hint.contains("--previous-record-root"), "{hint}");
+}
+
+#[test]
+fn two_repositories_on_the_same_question_receive_different_identities() {
+    // A Frontier is one independently clonable repository, so identity must
+    // distinguish repositories rather than questions. Two groups may open
+    // repositories on the same bounded question with the same wording; neither
+    // may take the other's identity or its user-local trust anchor.
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let name = unique_name("Same question", &temporary);
+    let scope = "Prove independent repositories keep independent identities.";
+
+    let mut identities = Vec::new();
+    let mut anchors = Vec::new();
+    for label in ["first", "second"] {
+        let agent_root = temporary.path().join(label);
+        std::fs::create_dir_all(&agent_root).expect("agent root");
+        let agent = EphemeralAgent::start(&agent_root, &format!("vela same question {label}"));
+        let frontier = agent_root.join("frontier");
+        let frontier_text = frontier.to_string_lossy().into_owned();
+        let created = run(
+            temporary.path(),
+            Some(agent.socket()),
+            &[
+                "init",
+                &frontier_text,
+                "--name",
+                &name,
+                "--scope",
+                scope,
+                "--json",
+            ],
+        );
+        assert!(
+            created.status.success(),
+            "{label}: {}",
+            String::from_utf8_lossy(&created.stderr)
+        );
+        let created = json(&created);
+        anchors.push(RemoveOnDrop(std::path::PathBuf::from(
+            created["authority"]["local_trust"]["anchor_path"]
+                .as_str()
+                .expect("local trust anchor path"),
+        )));
+        identities.push(
+            created["frontier_id"]
+                .as_str()
+                .expect("frontier_id")
+                .to_string(),
+        );
+    }
+
+    assert_ne!(identities[0], identities[1]);
+    assert_ne!(anchors[0].0, anchors[1].0);
 }
