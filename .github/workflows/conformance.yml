@@ -60,5 +60,10 @@ jobs:
         run: ./conformance/check-current-object-waist.sh
       - name: independent authority foundation verifier
         run: uv run --project conformance --locked python conformance/verify.py
+      # The linter runs against a Frontier, and there is none here. What this
+      # job can check is that each of its rules still fires: a rule that has
+      # stopped being able to fail reports coverage it does not have.
+      - name: Frontier repository lint rules
+        run: uv run --project conformance --locked python conformance/test_frontier_lint.py
       - name: reproduce (CLI re-derives the synthetic valid corpus)
         run: ./target/release/vela reproduce crates/vela-verify/corpus/valid/smoke

@@ -158,18 +158,35 @@ records/decision-evidence/
 records/vrc_*.json
 ```
 
-These two are retired but not enforced:
+These are retired without `vela replay` rejecting them. This block is the
+list; `conformance/frontier_lint.py` in `vela` reads it and fails on a file at
+any of these paths, so the retirement is checked without widening what
+verification refuses.
 
+<!-- frontier-lint:retired-paths -->
 ```text
 vela.lock
 proof/
+SCOPE.md
+scripts/write_sources_lock.py
 ```
 
-A Frontier carrying either verifies clean today. They stay on the list because
-they are still wrong, and because two published Frontiers still declare
-`.gitattributes` rules for `proof/**` and `vela.lock` against paths none of
-them has. Enforcing them is a change to what verification rejects rather than a
-documentation change, and those dead declarations have to go first.
+A Frontier carrying any of them verifies clean today, and each is here for its
+own reason.
+
+`vela.lock` and `proof/` are still wrong, and two published Frontiers still
+declare `.gitattributes` rules for `proof/**` and `vela.lock` against paths
+none of them has. Making `vela replay` reject them is a change to what
+verification refuses rather than a documentation change, and those dead
+declarations have to go first.
+
+`SCOPE.md` restated scope that `frontier.toml` already declares and
+`profile_root` already commits to, so it could only ever drift out of
+agreement with it; `vela init` does not scaffold it. `scripts/write_sources_lock.py`
+was one resolver copied into three repositories, replaced by the shared
+`vela-source-manifest` package. Neither is protocol state and neither should
+be: replay has no opinion about a Frontier's build scripts, and acquiring one
+would put the profile's housekeeping inside the thing that decides Standing.
 
 The check is a worktree walk over files, so it sees untracked files but not an
 empty retired directory.
@@ -257,8 +274,8 @@ Verification checks:
 - Claim and Proposal Standing is deterministic;
 - the optional Target Index, its declared inputs, and packets exactly match
   tracked `HEAD` bytes and the current repository root; and
-- the enforced retired paths listed above are absent; the two unenforced ones
-  are not checked.
+- the enforced retired paths listed above are absent; the rest are not replay's
+  to check and are left to `conformance/frontier_lint.py`.
 
 All four published Frontiers gate this in
 `.github/workflows/vela-frontier.yml` on every push and pull request. Each one

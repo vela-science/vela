@@ -62,7 +62,25 @@ pub const ED25519_SIGNATURE_PATTERN: &str = "^[0-9a-f]{128}$";
 pub const TRIMMED_TEXT_PATTERN: &str = r"^\S(?:[\s\S]*\S)?$";
 
 /// A relative path that cannot climb out of the Submission tree.
-pub const SAFE_RELATIVE_PATH_PATTERN: &str = r"^(?!/)(?!.*(?:^|/)\.\.(?:/|$))\S(?:[\s\S]*\S)?$";
+///
+/// The short spelling of this rule is two negative lookaheads — no leading
+/// `/`, and no `..` standing alone between slashes — and that is what this
+/// pattern was. It cost more than it looked. Lookahead is outside the portable
+/// subset the rest of these patterns stay inside, so a consumer built on an
+/// engine without it, such as Rust's `regex`, could not compile the one
+/// published pattern that guards path traversal. It was also unsound: `.` in
+/// `(?!.*(?:^|/)\.\.(?:/|$))` stops at a line terminator, so `a\n/..` walked
+/// past the lookahead in ECMA-262 and in Python alike.
+///
+/// The rule is stated structurally instead. A path is components joined by
+/// `/`, and no component is `..`; the alternation inside each group is a
+/// partition of the components that are not `..` — empty or one character,
+/// then two or more that do not open with a dot, then a dot and one non-dot,
+/// then a dot and two or more further characters. The first component must
+/// open with a character that is neither whitespace nor `/`, which is also
+/// what forbids the leading slash; the last must close on non-whitespace
+/// unless it is empty, which is how a path ending in `/` is admitted.
+pub const SAFE_RELATIVE_PATH_PATTERN: &str = r"^(?:[^\s/]|[^\s./][^/]*[^\s/]|\.[^\s./]|\.[^/][^/]*[^\s/]|(?:[^\s/]|[^\s./][^/]+|\.[^./]|\.[^/][^/]+)(?:/(?:[^/]?|[^./][^/]+|\.[^./]|\.[^/][^/]+))*/(?:[^\s/]|[^./][^/]*[^\s/]|\.[^\s./]|\.[^/][^/]*[^\s/])?)$";
 
 /// A producer identity: an `agent:` or `ci:` namespace and a non-empty body.
 pub const PRODUCER_ACTOR_PATTERN: &str = r"^(agent|ci):[^\s]+$";
@@ -195,19 +213,34 @@ pub fn source_attempt_id(_: &mut SchemaGenerator) -> Schema {
     json_schema!({ "type": "string", "pattern": "^vat_[0-9a-f]{64}$" })
 }
 
+/// A `vsb_` namespace and a body, for readers that do not re-derive the
+/// identifier.
+///
+/// The `.+` is the half that matters. A namespace with nothing after it names
+/// no object, and the readers that check these fields are held to this
+/// spelling by name — see `require_prefixed` in `objects/verification_record.rs`
+/// and `objects/proposal_withdrawal_v1.rs`.
+pub const SUBMISSION_ID_REFERENCE_PATTERN: &str = "^vsb_.+$";
+
+/// A `vpr_` namespace and a body.
+pub const PROPOSAL_ID_REFERENCE_PATTERN: &str = "^vpr_.+$";
+
+/// A `vpw_` namespace and a body.
+pub const WITHDRAWAL_ID_REFERENCE_PATTERN: &str = "^vpw_.+$";
+
 /// A `vsb_` namespace only, for readers that do not re-derive the identifier.
 pub fn submission_id_reference(_: &mut SchemaGenerator) -> Schema {
-    json_schema!({ "type": "string", "pattern": "^vsb_.+$" })
+    json_schema!({ "type": "string", "pattern": SUBMISSION_ID_REFERENCE_PATTERN })
 }
 
 /// A `vpr_` namespace only.
 pub fn proposal_id_reference(_: &mut SchemaGenerator) -> Schema {
-    json_schema!({ "type": "string", "pattern": "^vpr_.+$" })
+    json_schema!({ "type": "string", "pattern": PROPOSAL_ID_REFERENCE_PATTERN })
 }
 
 /// A `vpw_` namespace only.
 pub fn withdrawal_id_reference(_: &mut SchemaGenerator) -> Schema {
-    json_schema!({ "type": "string", "pattern": "^vpw_.+$" })
+    json_schema!({ "type": "string", "pattern": WITHDRAWAL_ID_REFERENCE_PATTERN })
 }
 
 /// A base64 body, permitting both the standard and URL alphabets.

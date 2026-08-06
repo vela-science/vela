@@ -150,12 +150,18 @@ fn decision_inbox_status_summary(
     let protocol_ready_count = projection
         .entries
         .iter()
-        .filter(|entry| entry.readiness.protocol_gate == "satisfied")
+        .filter(|entry| {
+            entry.readiness.protocol_gate
+                == crate::decision_inbox::DecisionInboxProtocolGate::Satisfied
+        })
         .count();
     let protocol_blocked_count = projection
         .entries
         .iter()
-        .filter(|entry| entry.readiness.protocol_gate == "blocked")
+        .filter(|entry| {
+            entry.readiness.protocol_gate
+                == crate::decision_inbox::DecisionInboxProtocolGate::Blocked
+        })
         .count();
     let pending_count = projection.entries.len();
     (

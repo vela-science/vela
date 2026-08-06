@@ -607,4 +607,103 @@ mod tests {
         let error = SubmissionV1::build(draft, identity, &key).unwrap_err();
         assert!(error.contains("target must be absent for add_claim"));
     }
+
+    /// Every string over `.`, `a`, `/` and a space, up to seven characters.
+    ///
+    /// The path pattern reads only four kinds of character — dot, slash,
+    /// whitespace, and everything else — so one representative of each is a
+    /// complete alphabet for it, and enumerating that alphabet decides the two
+    /// rules the pattern carries rather than sampling them. Seven characters
+    /// is two more than the longest string either rule turns on (`/../`, and
+    /// the `..` component alone).
+    fn path_alphabet() -> Vec<String> {
+        let mut values = vec![String::new()];
+        let mut frontier = vec![String::new()];
+        for _ in 0..7 {
+            let mut next = Vec::with_capacity(frontier.len() * 4);
+            for value in &frontier {
+                for character in ['.', 'a', '/', ' '] {
+                    let mut grown = value.clone();
+                    grown.push(character);
+                    next.push(grown);
+                }
+            }
+            values.extend(next.iter().cloned());
+            frontier = next;
+        }
+        values
+    }
+
+    /// The published path pattern accepts exactly what this reader accepts.
+    ///
+    /// This is the check that could not be written while the pattern used
+    /// lookahead, because the crate that would run it here cannot compile
+    /// lookahead — so `Regex::new` succeeding is half the assertion, and the
+    /// portability claim in `schemas/README.md` now has something holding it.
+    #[test]
+    fn safe_path_pattern_agrees_with_the_reader() {
+        let compiled = regex::Regex::new(crate::wire_schema::SAFE_RELATIVE_PATH_PATTERN)
+            .expect("the published path pattern compiles without lookahead");
+
+        let mut accepted = 0usize;
+        let values = path_alphabet();
+        for value in &values {
+            let reader_accepts = require_safe_relative_path("artifacts.path", value).is_ok();
+            accepted += usize::from(reader_accepts);
+            assert_eq!(
+                compiled.is_match(value),
+                reader_accepts,
+                "the published pattern and this reader disagree about {value:?}"
+            );
+        }
+        assert_eq!(values.len(), 21845);
+        assert!(accepted > 0, "the alphabet must exercise both answers");
+
+        for value in [
+            "artifacts/result.json",
+            ".vela/work/run/artifacts/report.json",
+            "records/artifacts/sha256/",
+            "a/./b",
+            "..a",
+            "a..",
+            "a/..b",
+            "...",
+        ] {
+            assert!(compiled.is_match(value), "{value:?} should be accepted");
+            assert!(require_safe_relative_path("artifacts.path", value).is_ok());
+        }
+        for value in [
+            "",
+            "/",
+            "/absolute",
+            "..",
+            "../escape",
+            "a/../b",
+            "a/..",
+            " a",
+            "a ",
+        ] {
+            assert!(!compiled.is_match(value), "{value:?} should be rejected");
+            assert!(require_safe_relative_path("artifacts.path", value).is_err());
+        }
+    }
+
+    /// A line terminator no longer hides a `..` from the published pattern.
+    ///
+    /// The lookahead this pattern replaced was written with `.`, which stops at
+    /// a line terminator in both ECMA-262 and Python, so `a\n/..` reached the
+    /// end of the negative lookahead without the `..` ever being looked at.
+    /// A consumer holding only the schema would have admitted a path that
+    /// climbs out of the tree. The reader has always rejected it, for the
+    /// unrelated reason that the newline is a control character; the point of
+    /// the case is that now the schema rejects it too.
+    #[test]
+    fn safe_path_pattern_sees_past_a_line_terminator() {
+        let compiled =
+            regex::Regex::new(crate::wire_schema::SAFE_RELATIVE_PATH_PATTERN).expect("compiles");
+        for value in ["a\n/..", "a\r/..", "..\n/..", "a\n/../b"] {
+            assert!(!compiled.is_match(value), "{value:?} should be rejected");
+            assert!(require_safe_relative_path("artifacts.path", value).is_err());
+        }
+    }
 }

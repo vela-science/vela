@@ -287,11 +287,25 @@ fn require_text(field: &str, value: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// A reference whose own object derives the identifier, so this reader checks
+/// only that a namespace and a body are both present.
+///
+/// The published patterns for these fields are `^vsb_.+$` and `^vpr_.+$` —
+/// namespace, then at least one character. Testing `starts_with` alone let the namespace stand in
+/// for the whole reference, so a bare `vsb_`, which names nothing, was accepted
+/// here and rejected on the wire. The reader was the looser of the two, which
+/// is the wrong direction: the wire contract is what implementers hold each
+/// other to, and a reader must not admit what it publishes as invalid.
 fn require_prefixed(field: &str, value: &str, prefix: &str) -> Result<(), String> {
     require_text(field, value)?;
-    if !value.starts_with(prefix) {
+    let Some(body) = value.strip_prefix(prefix) else {
         return Err(format!(
             "Verification Record {field} must start with {prefix}"
+        ));
+    };
+    if body.is_empty() {
+        return Err(format!(
+            "Verification Record {field} must carry an identifier after {prefix}"
         ));
     }
     Ok(())
@@ -429,5 +443,55 @@ mod tests {
             let error = VerificationRecordV1::build(draft, identity, &key).unwrap_err();
             assert!(error.contains("full lowercase content hash"), "{error}");
         }
+    }
+
+    /// A namespace with nothing after it names no object.
+    ///
+    /// `^vsb_.+$` and `^vpr_.+$` have always said so, and this reader has not:
+    /// it checked the prefix and left the body unexamined, so a bare `vsb_`
+    /// was refused on the wire and accepted here. The assertions run against
+    /// the published patterns rather than against a second copy of them, so
+    /// the two halves cannot part again without a failure.
+    #[test]
+    fn a_reference_needs_a_body_and_not_only_a_namespace() {
+        use crate::wire_schema::{PROPOSAL_ID_REFERENCE_PATTERN, SUBMISSION_ID_REFERENCE_PATTERN};
+
+        for (pattern, field, bare) in [
+            (
+                SUBMISSION_ID_REFERENCE_PATTERN,
+                "subject.submission_id",
+                "vsb_",
+            ),
+            (PROPOSAL_ID_REFERENCE_PATTERN, "subject.proposal_id", "vpr_"),
+        ] {
+            let compiled = regex::Regex::new(pattern).expect("reference pattern compiles");
+            assert!(
+                !compiled.is_match(bare),
+                "the wire already rejects {bare:?}"
+            );
+            assert!(compiled.is_match(&format!("{bare}fixture")));
+
+            let (mut draft, identity, key) = fixture();
+            if field.ends_with("submission_id") {
+                draft.subject.submission_id = bare.into();
+            } else {
+                draft.subject.proposal_id = bare.into();
+            }
+            let error = VerificationRecordV1::build(draft, identity, &key).unwrap_err();
+            assert!(error.contains(field), "{error}");
+            assert!(
+                error.contains(&format!("must carry an identifier after {bare}")),
+                "{error}"
+            );
+        }
+    }
+
+    /// The tightening reaches no further than the empty body.
+    #[test]
+    fn a_reference_with_a_body_is_still_accepted() {
+        let (mut draft, identity, key) = fixture();
+        draft.subject.submission_id = "vsb_0".into();
+        draft.subject.proposal_id = "vpr_0".into();
+        VerificationRecordV1::build(draft, identity, &key).unwrap();
     }
 }

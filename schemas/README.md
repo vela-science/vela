@@ -43,10 +43,31 @@ them:
   can only reject leading and trailing whitespace; and
 - each object's encoded size ceiling (8 MiB, 4 MiB, and 2 MiB respectively).
 
-`submission-v1.schema.json` also uses regular-expression lookahead to reject
-Artifact paths that escape the tree. Lookahead is available in ECMA-262 and
-Python validators but is outside the portable subset, so a validator built on a
-lookahead-free engine cannot compile that one pattern.
+## Every pattern is portable
+
+No pattern in these files uses lookahead, backreferences, or any other
+construct outside the portable regular subset, so an implementation may compile
+them with a finite-automaton engine that has no backtracking at all.
+`verify_patterns_are_portable` in `conformance/verify_wire_schemas.py` reads
+every pattern in every published document and holds them to that.
+
+The Artifact-path rule in `submission-v1.schema.json` used to be the exception.
+It rejected paths that escape the tree with two negative lookaheads, which
+ECMA-262 and Python provide and Rust's `regex` does not, so the one published
+pattern guarding path traversal was the one a Rust consumer could not compile.
+The rule is now spelled as the structure it describes: components joined by
+`/`, none of which is `..`.
+
+The two spellings agree on every string with no line terminator in it, and
+there the current one is exactly the rule the readers apply:
+`safe_path_pattern_agrees_with_the_reader` in
+`crates/vela-protocol/src/objects/submission_v1.rs` settles that against
+`require_safe_relative_path` over all 21845 strings of up to seven dots,
+slashes, spaces and other characters, rather than over a sample of them. Where
+a line terminator is present the two part, and it was the lookahead that was
+wrong: `.` stops at a line terminator, so in `a\n/..` the `..` was never read
+before the negative lookahead ran out, in ECMA-262 and in Python alike. The
+current pattern rejects that path, as the readers always have.
 
 The current objects still use their v1 signed-preimage contracts. A future
 common DSSE transport is a separate v2 protocol cut under ADR 0035; these files

@@ -230,6 +230,17 @@ fn require_text(field: &str, value: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// A reference whose own object derives the identifier, so this reader checks
+/// only that a namespace and a body are both present. `allow_empty` is for
+/// `withdrawal_id` before it is derived, where the whole field is absent
+/// rather than half-written.
+///
+/// The published patterns for these fields are `^vpw_.+$`, `^vpr_.+$` and
+/// `^vsb_.+$` — namespace, then at least one character. Testing `starts_with` alone let the namespace stand in
+/// for the whole reference, so a bare `vpw_`, which names nothing, was accepted
+/// here and rejected on the wire. The reader was the looser of the two, which
+/// is the wrong direction: the wire contract is what implementers hold each
+/// other to, and a reader must not admit what it publishes as invalid.
 fn require_prefixed(
     field: &str,
     value: &str,
@@ -240,9 +251,14 @@ fn require_prefixed(
         return Ok(());
     }
     require_text(field, value)?;
-    if !value.starts_with(prefix) {
+    let Some(body) = value.strip_prefix(prefix) else {
         return Err(format!(
             "Proposal Withdrawal {field} must start with {prefix}"
+        ));
+    };
+    if body.is_empty() {
+        return Err(format!(
+            "Proposal Withdrawal {field} must carry an identifier after {prefix}"
         ));
     }
     Ok(())
@@ -374,5 +390,97 @@ mod tests {
         )
         .unwrap_err();
         assert!(error.contains("does not match the Submission identity"));
+    }
+
+    /// A namespace with nothing after it names no object.
+    ///
+    /// `^vpw_.+$`, `^vpr_.+$` and `^vsb_.+$` have always said so, and this
+    /// reader has not: it checked the prefix and left the body unexamined, so
+    /// a bare `vpw_` was refused on the wire and accepted here. Each case
+    /// mutates a withdrawal that verified a moment earlier and re-parses its
+    /// bytes, which is the path a reader takes on the way in.
+    #[test]
+    fn a_reference_needs_a_body_and_not_only_a_namespace() {
+        use crate::wire_schema::{
+            PROPOSAL_ID_REFERENCE_PATTERN, SUBMISSION_ID_REFERENCE_PATTERN,
+            WITHDRAWAL_ID_REFERENCE_PATTERN,
+        };
+
+        let (proposal, submission, key) = fixture();
+        let withdrawal = ProposalWithdrawalV1::build(
+            &proposal,
+            proposal.canonical_root().unwrap(),
+            &submission,
+            proposal.actor.clone(),
+            "Superseded by a corrected Submission.".into(),
+            "2026-08-01T01:00:00Z".into(),
+            &key,
+        )
+        .unwrap();
+
+        type Field = fn(&mut ProposalWithdrawalV1, String);
+        let cases: [(&str, &str, &str, Field); 3] = [
+            (
+                WITHDRAWAL_ID_REFERENCE_PATTERN,
+                "withdrawal_id",
+                "vpw_",
+                |value, bare| value.withdrawal_id = bare,
+            ),
+            (
+                PROPOSAL_ID_REFERENCE_PATTERN,
+                "proposal_id",
+                "vpr_",
+                |value, bare| value.proposal_id = bare,
+            ),
+            (
+                SUBMISSION_ID_REFERENCE_PATTERN,
+                "submission_id",
+                "vsb_",
+                |value, bare| value.submission_id = bare,
+            ),
+        ];
+        for (pattern, field, bare, set) in cases {
+            let compiled = regex::Regex::new(pattern).expect("reference pattern compiles");
+            assert!(
+                !compiled.is_match(bare),
+                "the wire already rejects {bare:?}"
+            );
+            assert!(compiled.is_match(&format!("{bare}fixture")));
+
+            let mut mutated = withdrawal.clone();
+            set(&mut mutated, bare.to_string());
+            let error =
+                ProposalWithdrawalV1::parse(&mutated.canonical_bytes().unwrap()).unwrap_err();
+            assert!(error.contains(field), "{error}");
+            assert!(
+                error.contains(&format!("must carry an identifier after {bare}")),
+                "{error}"
+            );
+        }
+    }
+
+    /// An absent `withdrawal_id` is still how an underived draft is spelled,
+    /// which is not the same thing as a namespace with nothing after it.
+    #[test]
+    fn an_underived_withdrawal_id_is_still_absent_rather_than_bare() {
+        let (proposal, submission, key) = fixture();
+        let withdrawal = ProposalWithdrawalV1::build(
+            &proposal,
+            proposal.canonical_root().unwrap(),
+            &submission,
+            proposal.actor.clone(),
+            "Superseded by a corrected Submission.".into(),
+            "2026-08-01T01:00:00Z".into(),
+            &key,
+        )
+        .unwrap();
+
+        let mut unsigned = withdrawal.clone();
+        unsigned.withdrawal_id.clear();
+        unsigned.validate_semantics().unwrap();
+
+        unsigned.withdrawal_id = "vpw_".into();
+        let error = unsigned.validate_semantics().unwrap_err();
+        assert!(error.contains("withdrawal_id"), "{error}");
     }
 }

@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -32,6 +33,43 @@ def validator(name: str) -> Draft202012Validator:
 def expect_rejected(checker: Draft202012Validator, value: object, label: str) -> None:
     if checker.is_valid(value):
         raise AssertionError(f"schema accepted negative case: {label}")
+
+
+def collect_patterns(node: object, seen: list[str]) -> list[str]:
+    if isinstance(node, dict):
+        pattern = node.get("pattern")
+        if isinstance(pattern, str):
+            seen.append(pattern)
+        for value in node.values():
+            collect_patterns(value, seen)
+    elif isinstance(node, list):
+        for value in node:
+            collect_patterns(value, seen)
+    return seen
+
+
+def verify_patterns_are_portable() -> int:
+    """Hold every published pattern to the portable regular subset.
+
+    A pattern that needs lookahead, a backreference, or a possessive quantifier
+    is one an implementer on a finite-automaton engine cannot compile, and the
+    schemas are published for implementers on engines we do not choose. The
+    Artifact-path rule was that pattern once; this keeps a later one from
+    arriving unnoticed.
+    """
+    unportable = re.compile(r"\(\?[=!<]|\\[1-9]|[*+?}]\+")
+    checked = 0
+    for path in sorted(SCHEMAS.glob("*.schema.json")):
+        for pattern in collect_patterns(load_json(path), []):
+            found = unportable.search(pattern)
+            if found:
+                raise AssertionError(
+                    f"{path.name} uses {found.group(0)!r}, "
+                    f"outside the portable subset: {pattern}"
+                )
+            re.compile(pattern)
+            checked += 1
+    return checked
 
 
 def verify_manifest() -> None:
@@ -97,6 +135,27 @@ def main() -> int:
     mutated = copy.deepcopy(submission)
     mutated["artifacts"][0]["digest"] = "sha256:short"
     expect_rejected(submission_check, mutated, "short artifact root")
+    for escape in ("/absolute", "..", "../escape", "a/../b", "a/..", " a", "a\n/.."):
+        mutated = copy.deepcopy(submission)
+        mutated["artifacts"][0]["path"] = escape
+        expect_rejected(submission_check, mutated, f"artifact path {escape!r}")
+    # `artifacts/` ends on a component that is empty, not on whitespace, and
+    # the reader admits it; the published pattern has to admit it too.
+    for safe in (
+        "a",
+        "artifacts/result.json",
+        ".vela/work/run/report.json",
+        "a/./b",
+        "..a",
+        "artifacts/",
+    ):
+        mutated = copy.deepcopy(submission)
+        mutated["artifacts"][0]["path"] = safe
+        submission_check.validate(mutated)
+
+    mutated = copy.deepcopy(verification)
+    mutated["subject"]["submission_id"] = "vsb_"
+    expect_rejected(verification_check, mutated, "submission reference with no body")
     mutated = copy.deepcopy(verification)
     mutated["outcome"] = "accepted"
     expect_rejected(verification_check, mutated, "verification implies acceptance")
@@ -110,8 +169,16 @@ def main() -> int:
     mutated["signatures"] = []
     expect_rejected(authority_envelope_check, mutated, "authority envelope without signatures")
 
+    mutated = copy.deepcopy(withdrawal)
+    mutated["withdrawal_id"] = "vpw_"
+    expect_rejected(withdrawal_check, mutated, "withdrawal reference with no body")
+
+    patterns = verify_patterns_are_portable()
     verify_manifest()
-    print("wire-schemas: ok (4 schemas, 4 positive objects, 7 negative cases)")
+    print(
+        f"wire-schemas: ok (4 schemas, 10 positive objects, 16 negative cases, "
+        f"{patterns} portable patterns)"
+    )
     return 0
 
 

@@ -70,10 +70,21 @@ pub(crate) struct DecisionInboxBlocker {
     pub(crate) detail: String,
 }
 
+/// Whether the protocol's own acceptance checks are clear, which is a verdict
+/// with exactly two states and never a free-form label. Readers downstream of
+/// this packet parse the field as a closed set; a `String` here let this side
+/// widen the wire without the other side ever learning it had.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum DecisionInboxProtocolGate {
+    Satisfied,
+    Blocked,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct DecisionInboxReadiness {
-    pub(crate) protocol_gate: String,
+    pub(crate) protocol_gate: DecisionInboxProtocolGate,
     pub(crate) human_decision_required: bool,
     pub(crate) rejection_available: bool,
     pub(crate) blockers: Vec<DecisionInboxBlocker>,
@@ -436,9 +447,9 @@ fn derive_entry(inputs: EntryInputs<'_>) -> Result<DecisionInboxEntry, String> {
         .map(|(root, record)| classify_verification(submission, root, record))
         .collect::<Vec<_>>();
     let protocol_gate = if blockers.is_empty() {
-        "satisfied"
+        DecisionInboxProtocolGate::Satisfied
     } else {
-        "blocked"
+        DecisionInboxProtocolGate::Blocked
     };
     let now = if blockers.is_empty() {
         "Human repository authority may inspect and accept or reject this exact rooted entry."
@@ -472,7 +483,7 @@ fn derive_entry(inputs: EntryInputs<'_>) -> Result<DecisionInboxEntry, String> {
         verification_requirements: submission.verification_requirements.clone(),
         verification_records,
         readiness: DecisionInboxReadiness {
-            protocol_gate: protocol_gate.into(),
+            protocol_gate,
             human_decision_required: true,
             rejection_available: true,
             blockers,
@@ -549,8 +560,10 @@ fn projection_root(projection: &DecisionInboxProjection) -> Result<String, Strin
 
 fn sort_entries(entries: &mut [DecisionInboxEntry]) {
     entries.sort_by(|left, right| {
-        let left_priority = usize::from(left.readiness.protocol_gate != "satisfied");
-        let right_priority = usize::from(right.readiness.protocol_gate != "satisfied");
+        let left_priority =
+            usize::from(left.readiness.protocol_gate != DecisionInboxProtocolGate::Satisfied);
+        let right_priority =
+            usize::from(right.readiness.protocol_gate != DecisionInboxProtocolGate::Satisfied);
         left_priority
             .cmp(&right_priority)
             .then_with(|| left.created_at.cmp(&right.created_at))
@@ -797,7 +810,7 @@ pub(crate) fn cmd_decision_inbox(frontier: &Path, json_output: bool) {
             .filter(|record| record.protocol_evidence_role == "blocking")
             .count();
         let protocol_blockers = entry.readiness.blockers.len();
-        let readiness = if entry.readiness.protocol_gate == "satisfied" {
+        let readiness = if entry.readiness.protocol_gate == DecisionInboxProtocolGate::Satisfied {
             "protocol checks satisfied; human judgment required"
         } else {
             "protocol checks blocked; human judgment still required"
@@ -1139,7 +1152,10 @@ mod tests {
             &heads(),
         );
 
-        assert_eq!(entry.readiness.protocol_gate, "satisfied");
+        assert_eq!(
+            entry.readiness.protocol_gate,
+            DecisionInboxProtocolGate::Satisfied
+        );
         assert!(entry.readiness.human_decision_required);
         assert!(entry.readiness.rejection_available);
         assert!(entry.readiness.blockers.is_empty());
@@ -1226,7 +1242,7 @@ mod tests {
         let mut blocked = ready.clone();
         blocked.proposal_id = "vpr_blocked000000".into();
         blocked.created_at = "2026-07-30T01:00:00Z".into();
-        blocked.readiness.protocol_gate = "blocked".into();
+        blocked.readiness.protocol_gate = DecisionInboxProtocolGate::Blocked;
 
         let mut entries = vec![blocked, ready];
         sort_entries(&mut entries);
@@ -1342,7 +1358,10 @@ mod tests {
             &heads(),
         );
 
-        assert_eq!(entry.readiness.protocol_gate, "blocked");
+        assert_eq!(
+            entry.readiness.protocol_gate,
+            DecisionInboxProtocolGate::Blocked
+        );
         assert!(entry.readiness.human_decision_required);
         assert!(entry.readiness.rejection_available);
         assert!(
@@ -1395,7 +1414,10 @@ mod tests {
         })
         .unwrap();
 
-        assert_eq!(entry.readiness.protocol_gate, "blocked");
+        assert_eq!(
+            entry.readiness.protocol_gate,
+            DecisionInboxProtocolGate::Blocked
+        );
         assert!(entry.readiness.rejection_available);
         assert_eq!(entry.readiness.blockers.len(), 1);
         assert_eq!(entry.readiness.blockers[0].code, "same_execution_pending");
