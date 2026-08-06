@@ -1,4 +1,7 @@
 #![cfg(unix)]
+/* Each test binary compiles this module separately, so a helper used by some of
+them is dead code in the rest. */
+#![allow(dead_code)]
 
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -70,5 +73,36 @@ impl Drop for EphemeralAgent {
     fn drop(&mut self) {
         let _ = self.child.kill();
         let _ = self.child.wait();
+    }
+}
+
+/// Deletes one installed trust anchor when the test that created it ends.
+///
+/// `vela init` writes a local authority trust anchor under the OS ACCOUNT home,
+/// resolved through `geteuid`/`getpwuid_r`. That deliberately ignores `$HOME` —
+/// there is a test asserting a hostile `HOME` cannot redirect it — so a test
+/// cannot sandbox it by setting an environment variable. Every init-based test
+/// therefore writes into the developer's real trust store and, without this,
+/// leaves the file behind: one run of this suite added dozens.
+///
+/// The anchor path comes back in `init`'s own JSON. Arm the guard from that and
+/// nothing else gets deleted.
+pub struct RemoveAnchorOnDrop(pub PathBuf);
+
+impl RemoveAnchorOnDrop {
+    /// Build from the stdout of `vela init --json`. Returns `None` when the
+    /// init did not report an anchor, which is the case a test asserting a
+    /// FAILED init wants.
+    pub fn from_init_json(stdout: &str) -> Option<Self> {
+        let value: serde_json::Value = serde_json::from_str(stdout.trim()).ok()?;
+        value["authority"]["local_trust"]["anchor_path"]
+            .as_str()
+            .map(|path| Self(PathBuf::from(path)))
+    }
+}
+
+impl Drop for RemoveAnchorOnDrop {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
     }
 }

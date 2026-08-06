@@ -92,6 +92,9 @@ impl Fixture {
                 "--json",
             ],
         );
+        let _anchor = support::RemoveAnchorOnDrop::from_init_json(&String::from_utf8_lossy(
+            &initialized.stdout,
+        ));
         assert!(
             initialized.status.success(),
             "fixture init failed: {}",

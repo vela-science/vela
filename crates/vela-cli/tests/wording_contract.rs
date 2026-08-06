@@ -103,7 +103,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
             .and_then(|value| value.to_str())
             .unwrap_or("unique")
     );
-    run(
+    let initialized = run(
         temporary.path(),
         &home,
         socket,
@@ -117,6 +117,8 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
             "--json",
         ],
     );
+    let _anchor =
+        support::RemoveAnchorOnDrop::from_init_json(&String::from_utf8_lossy(&initialized.stdout));
     configure_git_identity(&frontier);
 
     for verb in ["status", "replay"] {
