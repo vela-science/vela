@@ -4,15 +4,18 @@
 
 - [Quickstart](QUICKSTART.md)
 - [Producer quickstart](PRODUCER_QUICKSTART.md)
+- [Agent quickstart](AGENT_QUICKSTART.md)
 - [CLI contract](CLI.md)
 - [Terminology](TERMINOLOGY.md)
 
 ## Current contracts
 
 - [Protocol](PROTOCOL.md)
+- [Architecture](ARCHITECTURE.md)
 - [Authority and attribution](SIGNING.md)
 - [Verification](VERIFICATION.md)
 - [Roots](ROOTS.md)
+- [Frontier repository profile](FRONTIER_REPOSITORY_PROFILE.md)
 - [Target Index](TARGET_INDEX.md)
 - [ADR 0034: Direct Target Index generation](adr/0034-direct-target-index-generation.md)
 - [Threat model](THREAT_MODEL.md)
@@ -38,6 +41,12 @@
 - [Repository ownership boundaries](REPOSITORY_BOUNDARIES.md)
 - [Theory](THEORY.md)
 - [Publishing](PUBLISHING.md)
+
+This index covers `docs/` completely: a test in `vela-protocol` reads the
+directory and holds every current document to a link here, because an index
+nobody checks is how three documents came to be published on the web while
+this page had never heard of them. The groups are editorial; the coverage is
+not.
 
 [Historical documents](history/README.md) retain predecessor language,
 rejected designs, and dated assessments outside the current documentation

@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+- One command, one document. `vela status` answered a Frontier whose repository
+  authority had not finished initializing with `vela.status.v1` and a replaying
+  one with `vela.status.v3` — not two versions of a contract but one literal
+  that never moved when the contract did. Both branches now report
+  `vela.status.v3` with the same key set: the phase travels in `integrity` and
+  in a third `actions.work.mode`, `authority_uninitialized`, whose command is
+  the `vela init` that clears it. `phase` and `next_action` said the same two
+  things in a shape only that branch had and are gone with it.
+- `review show --json` returned the Proposal's status under the key `standing`,
+  the last place in the CLI where a Proposal word travelled under the Claim
+  word. It is `status` now, which is what `review list` has called it on every
+  row and what `--status` filters.
+- Bind the printed help to the parser. `vela help` and `vela help advanced` are
+  hand-set grids, and nothing held them to the commands clap accepts, so either
+  could advertise a verb the binary does not have. The advanced reference is now
+  asserted equal to the parsed surface and the compact grid is asserted to be
+  drawn from it.
+- One declaration of the Rust version. It was written out in `Cargo.toml`,
+  `rust-toolchain.toml` and both workflows; the workflows now read the toolchain
+  file, and a test holds `rust-version` to its `channel`.
+- `docs/README.md` covers `docs/`. It had never heard of `AGENT_QUICKSTART.md`,
+  `ARCHITECTURE.md` or `FRONTIER_REPOSITORY_PROFILE.md`, all three of which the
+  website publishes; a test now reads the directory and holds the index to it.
+- `frontier_lint` gains `generator-pin`. One of the four Frontiers declared the
+  shared source-manifest generator in a manifest where `uv` locks the rev; the
+  other three carried the same `uvx --from git+…@rev` invocation in prose that
+  nothing read, so `@main` there would have looked exactly like a pin. The rule
+  refuses a generator reference naming anything but a 40-character commit, and
+  refuses a Frontier that names two.
+
 ## v0.966.3 — 2026-08-06 — Answer a person, keep the contracts
 
 - Point the published GitHub Action at `replay`. v0.966.2 renamed the integrity

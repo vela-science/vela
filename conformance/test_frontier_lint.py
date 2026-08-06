@@ -191,6 +191,95 @@ class NonProductionDependency(unittest.TestCase):
         self.assertEqual(findings[0].line, 6)
 
 
+class QualifiedCandidateDependency(unittest.TestCase):
+    """The record that answers for a candidate dependency, held to all of it.
+
+    Built from the records Vela actually retains, not from an imitation: these
+    are the bytes the rule reads in a real run, so a shape change in them fails
+    here rather than quietly widening what passes. Each test perturbs one field
+    of a reference the record covers, because it is the conjunction — package,
+    root, path, repository — that makes it the same dependency.
+    """
+
+    def setUp(self) -> None:
+        self.candidates = lint.qualified_candidates()
+        self.assertTrue(
+            self.candidates,
+            "no qualification record is retained, so the rule's one exit has stopped "
+            "being reachable and every candidate dependency now reports",
+        )
+        self.candidate = self.candidates[0]
+        self.consumer = sorted(self.candidate.consumers)[0]
+
+    def reference(self, **overrides: object) -> str:
+        document: dict[str, object] = {
+            "schema": lint.CONSUMER_REFERENCE_SCHEMA,
+            "package": {"id": self.candidate.package_id, "version": "0.0.0-source-local"},
+            "source": {
+                "repository": "https://github.com/vela-science/vela.git",
+                "commit": "0" * 40,
+                "path": self.candidate.source_path,
+            },
+            "package_root": self.candidate.root,
+            "consumer": f"{self.consumer}/reproductions/x",
+        }
+        document.update(overrides)
+        return json.dumps(document, indent=2)
+
+    def fire(self, **overrides: object) -> set[str]:
+        frontier = FrontierFixture(self)
+        frontier.write("reproductions/x/contract.consumer.v1.json", self.reference(**overrides))
+        return rules(frontier.lint())
+
+    def test_a_recorded_candidate_dependency_is_quiet(self) -> None:
+        self.assertEqual(self.fire(), set())
+
+    def test_the_same_reference_from_a_repository_no_record_names_fires(self) -> None:
+        self.assertEqual(
+            self.fire(consumer="a-fifth-frontier/reproductions/x"),
+            {"non-production-dependency"},
+        )
+
+    def test_a_root_that_has_drifted_from_the_record_fires(self) -> None:
+        self.assertEqual(
+            self.fire(package_root="sha256:" + "0" * 64), {"non-production-dependency"}
+        )
+
+    def test_a_reference_that_names_no_root_fires(self) -> None:
+        frontier = FrontierFixture(self)
+        document = json.loads(self.reference())
+        del document["package_root"]
+        frontier.write("reproductions/x/contract.consumer.v1.json", json.dumps(document, indent=2))
+        self.assertEqual(rules(frontier.lint()), {"non-production-dependency"})
+
+    def test_a_different_package_at_the_same_path_fires(self) -> None:
+        self.assertEqual(
+            self.fire(package={"id": "vela-science/something-else", "version": "0.0.0"}),
+            {"non-production-dependency"},
+        )
+
+    def test_every_retained_record_qualifies_something_unreleased(self) -> None:
+        """A record for a path the rule never inspects qualifies nothing and hides that."""
+        for candidate in self.candidates:
+            with self.subTest(package=candidate.package_id):
+                head = candidate.source_path.split("/")[0]
+                self.assertIn(head, lint.NON_PRODUCTION_DIRECTORIES)
+                self.assertTrue(candidate.root)
+                self.assertTrue(candidate.consumers)
+
+    def test_every_named_qualification_schema_is_retained(self) -> None:
+        """A schema named here but present nowhere is a rule that has stopped reading."""
+        found = set()
+        for path in (lint.VELA_ROOT / lint.QUALIFICATION_TREE).rglob("*.json"):
+            try:
+                document = json.loads(path.read_bytes())
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                continue
+            if isinstance(document, dict) and isinstance(document.get("schema"), str):
+                found.add(document["schema"])
+        self.assertEqual(lint.CANDIDATE_QUALIFICATION_SCHEMAS - found, set())
+
+
 class ActionPinning(unittest.TestCase):
     def workflow(self, uses: str) -> str:
         return textwrap.dedent(
@@ -270,6 +359,87 @@ class ActionPinning(unittest.TestCase):
             ),
         )
         self.assertEqual(rules(frontier.lint()), {"unpinned-action"})
+
+
+class GeneratorPin(unittest.TestCase):
+    """The generator a Frontier locks its sources with, named at one commit.
+
+    The package and its path come from the real `packages/` tree, so the day the
+    shared package is renamed these fixtures follow it instead of testing a
+    string nobody resolves any more.
+    """
+
+    REVISION = "73d278b0020b1699fcf80749104db19860d1bec2"
+    OTHER = "0123456789abcdef0123456789abcdef01234567"
+
+    def setUp(self) -> None:
+        self.package = lint.shared_packages()[0]
+        self.path = self.package.root.relative_to(lint.VELA_ROOT).as_posix()
+
+    def invocation(self, revision: str) -> str:
+        return (
+            "# Regenerate the lock with:\n"
+            f'#     uvx --from "git+https://github.com/vela-science/vela@{revision}'
+            f'#subdirectory={self.path}" vela-source-lock\n'
+            "sources: {}\n"
+        )
+
+    def test_a_declaration_pinning_one_full_commit_is_quiet(self) -> None:
+        frontier = FrontierFixture(self)
+        frontier.write("sources.yaml", self.invocation(self.REVISION))
+        self.assertEqual(rules(frontier.lint()), set())
+
+    def test_a_branch_instead_of_a_commit_is_a_finding(self) -> None:
+        frontier = FrontierFixture(self)
+        frontier.write("sources.yaml", self.invocation("main"))
+        findings = [f for f in frontier.lint() if f.rule == "generator-pin"]
+        self.assertTrue(findings, "an unpinned generator invocation went unreported")
+        self.assertEqual(findings[0].line, 2)
+        self.assertIn("40-character commit", findings[0].message)
+
+    def test_a_short_commit_is_a_finding(self) -> None:
+        frontier = FrontierFixture(self)
+        frontier.write("sources.yaml", self.invocation(self.REVISION[:12]))
+        self.assertEqual(rules(frontier.lint()), {"generator-pin"})
+
+    def test_prose_naming_the_package_path_is_not_a_dependency(self) -> None:
+        """The paragraph that says where the generator lives resolves nothing."""
+        frontier = FrontierFixture(self)
+        frontier.write(
+            "sources.yaml",
+            self.invocation(self.REVISION)
+            + f"# The generator is the shared package at `{self.path}` in the vela repository.\n",
+        )
+        self.assertEqual(rules(frontier.lint()), set())
+
+    def test_two_revisions_in_one_frontier_are_a_finding(self) -> None:
+        frontier = FrontierFixture(self)
+        frontier.write("sources.yaml", self.invocation(self.REVISION))
+        frontier.write(
+            "pyproject.toml",
+            "[tool.uv.sources]\n"
+            f'{self.package.name} = {{ git = "https://github.com/vela-science/vela", '
+            f'rev = "{self.OTHER}", subdirectory = "{self.path}" }}\n',
+        )
+        findings = [f for f in frontier.lint() if f.rule == "generator-pin"]
+        self.assertTrue(findings, "a Frontier naming two generator commits went unreported")
+        self.assertIn("2 different commits", findings[0].message)
+
+    def test_the_same_revision_restated_in_a_lock_is_quiet(self) -> None:
+        frontier = FrontierFixture(self)
+        frontier.write("sources.yaml", self.invocation(self.REVISION))
+        frontier.write(
+            "uv.lock",
+            "[[package]]\n"
+            f'source = {{ git = "https://github.com/vela-science/vela?subdirectory='
+            f'{self.path.replace("/", "%2F")}&rev={self.REVISION}#{self.REVISION}" }}\n',
+        )
+        self.assertEqual(rules(frontier.lint()), set())
+
+    def test_a_frontier_that_does_not_use_the_generator_is_quiet(self) -> None:
+        frontier = FrontierFixture(self)
+        frontier.write("README.md", "# a Frontier with no source declaration\n")
+        self.assertEqual(rules(frontier.lint()), set())
 
 
 class RetiredPaths(unittest.TestCase):

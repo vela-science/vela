@@ -192,9 +192,17 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             .unwrap_or_else(|error| crate::cli::fail_return(&error));
         let commit = git_text(&frontier, &["rev-parse", "HEAD^{commit}"]).ok();
         let tree = git_text(&frontier, &["rev-parse", "HEAD^{tree}"]).ok();
-        let next_action = format!("vela init {} --json", frontier.display());
+        /* One command reports one document. This branch answered `status` with
+        `vela.status.v1` while the initialized branch below answered with
+        `vela.status.v3`: not two versions of one contract but one contract and
+        one literal that never moved when the contract did, so a caller keying
+        on `schema` saw a version it had no reader for and could not tell a
+        cold Frontier from a stale release. The phase is a value, not a schema:
+        it is `integrity`, and it is `actions.work.mode`, which names the one
+        command that clears it. `phase` and `next_action` said the same two
+        things in a shape only this branch had, and are gone with them. */
         let payload = json!({
-            "schema": "vela.status.v1",
+            "schema": "vela.status.v3",
             "ok": true,
             "command": "status",
             "frontier": {
@@ -203,7 +211,9 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
                 "profile_root": profile.profile_root()
                     .unwrap_or_else(|error| crate::cli::fail_return(&error))
             },
-            "git": {"commit": commit, "tree": tree},
+            /* The role is what this Git pointer means, not whether it has
+            reached a commit yet; a bootstrap has the role and null anchors. */
+            "git": {"role": "frontier_head", "commit": commit, "tree": tree},
             "integrity": {
                 "replay": "not_initialized",
                 "strict": "blocked",
@@ -238,8 +248,15 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
                 "projection_root": Value::Null,
                 "first_entry_root": Value::Null
             },
-            "phase": "authority_uninitialized",
-            "next_action": next_action,
+            "actions": {
+                "review": Value::Null,
+                "work": {
+                    "mode": "authority_uninitialized",
+                    "ready_target_count": 0,
+                    "command": format!("vela init {} --json", frontier.display()),
+                    "note": "The retained Frontier Profile has no repository authority yet. Resume `vela init`; nothing else can produce, verify, or decide until it completes."
+                }
+            },
         });
         if json_out {
             crate::cli::print_json(&payload);
@@ -247,7 +264,12 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             println!("vela status · {}", payload["frontier"]["name"]);
             println!("  replay    not initialized");
             println!("  strict    blocked · repository authority uninitialized");
-            println!("  next      {}", payload["next_action"]);
+            println!(
+                "  next      {}",
+                payload["actions"]["work"]["command"]
+                    .as_str()
+                    .unwrap_or("vela init --json")
+            );
         }
         return;
     }
@@ -1062,7 +1084,12 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let proposal =
         ProposalV1::parse(&proposal_bytes).unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let standing = decisions.get(proposal_id).map_or_else(
+    /* `pending_review`, `accepted`, `rejected` and `withdrawn` are the Proposal
+    axis, which TERMINOLOGY.md keeps apart from Claim standing. `review list`
+    already carries this value on each row as `status`, and `--status` filters
+    it by that name; this view called the same value `standing` and was the last
+    place in the CLI where a Proposal word travelled under the Claim word. */
+    let status = decisions.get(proposal_id).map_or_else(
         || {
             if withdrawals.contains_key(proposal_id) {
                 "withdrawn"
@@ -1126,7 +1153,7 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
         "repository_root": repository.canonical_root().unwrap_or_else(|error| crate::cli::fail_return(&error)),
         "proposal_id": proposal.proposal_id,
         "proposal_root": reference.root,
-        "standing": standing,
+        "status": status,
         "proposal": proposal,
         "claim": claim,
         "submission": submission,
@@ -1139,7 +1166,7 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
     if json_out {
         crate::cli::print_json(&payload);
     } else {
-        println!("review · {proposal_id} · {standing}");
+        println!("review · {proposal_id} · {status}");
         println!(
             "  action: {}",
             payload["proposal"]["action"].as_str().unwrap_or("")
@@ -1167,7 +1194,7 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
                 .get("decided_at")
                 .and_then(Value::as_str)
                 .unwrap_or("time not recorded");
-            println!("  decided: {standing} by {actor} at {at}");
+            println!("  decided: {status} by {actor} at {at}");
             if let Some(reason) = decision.get("reason").and_then(Value::as_str) {
                 println!("  decision reason: {reason}");
             }
@@ -2480,6 +2507,15 @@ pub(crate) fn is_retired_current_path(path: &str) -> bool {
     path == ".vela/actors.json"
         || path == "frontier.yaml"
         || path == "frontier.json"
+        // `vela.lock` and `proof/` were a pre-v2 Frontier's dependency lock and
+        // its loose proof directory. Both were documented as retired long
+        // before they were refused: two Frontiers still carried dead
+        // `.gitattributes` rules naming them, and refusing a path while a rule
+        // for it was in the tree would have made a failure ambiguous. Those
+        // rules are gone and no published Frontier names either path, so the
+        // refusal is now the same one every other retired path gets.
+        || path == "vela.lock"
+        || path.starts_with("proof/")
         || path.starts_with(".vela/events/")
         || path.starts_with(".vela/findings/")
         || path.starts_with(".vela/proposals/")
@@ -2535,6 +2571,13 @@ mod tests {
         assert!(is_retired_current_path("frontier.yaml"));
         assert!(is_retired_current_path("frontier.json"));
         assert!(!is_retired_current_path("frontier.toml"));
+        assert!(is_retired_current_path("vela.lock"));
+        assert!(is_retired_current_path("proof/erdos-203.lean"));
+        // The prefix is the directory, not the word: a Frontier is free to
+        // keep proofs anywhere it does not claim this exact retired layout.
+        assert!(!is_retired_current_path(
+            "artifacts/proof-scripts/sidon.lean"
+        ));
     }
 
     fn root(byte: char) -> String {

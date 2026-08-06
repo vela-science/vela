@@ -55,9 +55,19 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+      # Read from `rust-toolchain.toml`, not restated: the published binary and
+      # the conformance run must be built by the same compiler, and the only
+      # way to guarantee that is for neither workflow to hold its own copy of
+      # the number.
+      - id: toolchain
+        shell: bash
+        run: |
+          channel="$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)"
+          test -n "$channel"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable 2026-07-19
         with:
-          toolchain: "1.97.1"
+          toolchain: ${{ steps.toolchain.outputs.channel }}
       - name: Build auditable release binary
         shell: bash
         run: |

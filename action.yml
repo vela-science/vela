@@ -1,4 +1,4 @@
-# vela-replay — strictly verify one clean Git-native Vela frontier.
+# vela-frontier-verify — strictly verify one clean Git-native Vela frontier.
 #
 # Consume from a frontier repository:
 #
@@ -11,9 +11,23 @@
 # initialization record. The action verifies that closed boundary directly
 # with the pinned released binary. It never installs trust state, signs,
 # decides, or changes Frontier state.
+#
+# It then runs the two repository-shape checks that every Frontier owes and
+# none of them owns: the committed source lock against the declaration its own
+# generator reads, and the Frontier lint. Those live here rather than in four
+# workflows because four copies of a check is the shape the lint exists to
+# report. Both are read-only and neither touches the Frontier: `--check` never
+# writes, the linter never writes, and the Python environment they need is
+# built from this repository's own locks inside the action checkout.
+#
+# What each Frontier still owns is its own test suite. The action cannot run
+# that: there is no convention here for what a Frontier's tests are, and
+# inventing one would make this action guess at repositories it cannot see.
 
-name: vela-replay
-description: Strictly verifies one clean current Git-native Vela Frontier on Linux or macOS.
+name: vela-frontier-verify
+description: >-
+  Strictly verifies one clean current Git-native Vela Frontier on Linux or
+  macOS, then checks its source lock and repository shape. Read-only.
 
 inputs:
   frontier:
@@ -28,7 +42,7 @@ runs:
       run: |
         case "${RUNNER_OS:?}" in
           Linux|macOS) ;;
-          *) echo "::error::vela-replay supports Linux and macOS runners"; exit 2 ;;
+          *) echo "::error::vela-frontier-verify supports Linux and macOS runners"; exit 2 ;;
         esac
 
     - name: Install Vela
@@ -68,3 +82,40 @@ runs:
           exit 1
         fi
         echo "verification OK — exact repository and scientific-state roots reproduce"
+
+    # Both shape checks resolve from locks committed in this repository, so what
+    # they install is decided by the SHA the consumer pinned and not by the day
+    # the job ran. The uv version and interpreter match the ones this
+    # repository's own conformance job uses.
+    - name: Install the locked reader for the shape checks
+      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      with:
+        version: "0.11.32"
+        python-version: "3.13"
+
+    - name: Committed source lock matches its declaration
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        FRONTIER: ${{ inputs.frontier }}
+      run: |
+        set -euo pipefail
+        # No declaration, nothing to check. A lock without one is not silently
+        # accepted here — the linter's generated-file rule owns that case, and
+        # restating it would make two owners that can disagree.
+        if [ ! -f "$FRONTIER/sources.yaml" ]; then
+          echo "no source declaration in this Frontier; nothing to check"
+          exit 0
+        fi
+        uv run --project "$ACTION_PATH/packages/vela-source-manifest" --locked \
+          vela-source-lock --check "$FRONTIER"
+
+    - name: Frontier repository shape
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        FRONTIER: ${{ inputs.frontier }}
+      run: |
+        set -euo pipefail
+        uv run --project "$ACTION_PATH/conformance" --locked \
+          python "$ACTION_PATH/conformance/frontier_lint.py" "$FRONTIER"

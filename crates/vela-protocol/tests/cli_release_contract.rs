@@ -55,6 +55,143 @@ fn run_expect_failure(args: &[&str]) -> String {
     )
 }
 
+/// The README's install block advertises a release, so it is release contract.
+///
+/// It had been left on `v0.966.2` through the whole of `v0.966.3`, which is the
+/// one drift a reader meets first: the quick start installs a binary older than
+/// everything the page goes on to describe. Nothing checked it, because the tag
+/// lived only in prose.
+///
+/// This asserts agreement rather than restating the tag. The workspace version
+/// is the declaration; every `v…` the install block carries is read out of the
+/// README and held to it, so bumping the version is the only edit that moves
+/// this test, and forgetting the README is what fails.
+#[test]
+fn readme_install_block_advertises_the_released_version() {
+    const README: &str = include_str!("../../../README.md");
+    let expected = format!("v{}", env!("CARGO_PKG_VERSION"));
+
+    let advertised: Vec<&str> = README
+        .match_indices("https://raw.githubusercontent.com/vela-science/vela/")
+        .map(|(at, prefix)| &README[at + prefix.len()..])
+        .chain(
+            README
+                .match_indices("VELA_VERSION=")
+                .map(|(at, prefix)| &README[at + prefix.len()..]),
+        )
+        .map(|rest| {
+            rest.split(['/', ' ', '\n'])
+                .next()
+                .expect("split always yields one field")
+        })
+        .collect();
+
+    assert!(
+        advertised.len() >= 2,
+        "the README no longer carries an install block to check"
+    );
+    for tag in advertised {
+        assert_eq!(
+            tag, expected,
+            "the README install block advertises {tag}, not the released {expected}"
+        );
+    }
+}
+
+/// The documentation index covers the documentation directory.
+///
+/// `docs/README.md` and the roster `vela-web` publishes from were two lists of
+/// one set, and they disagreed: the site published AGENT_QUICKSTART,
+/// ARCHITECTURE and FRONTIER_REPOSITORY_PROFILE while this index named none of
+/// them. Neither list is the set — `docs/` is — so each is now held to it: the
+/// web script reads the tree at its pinned commit, and this reads the working
+/// tree. `docs/adr/` and `docs/history/` keep their own indexes and are linked
+/// as directories, so only the top level is covered here.
+#[test]
+fn the_documentation_index_lists_every_current_document() {
+    let docs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../docs");
+    let index = std::fs::read_to_string(docs.join("README.md")).expect("read docs/README.md");
+
+    let mut present: Vec<String> = std::fs::read_dir(&docs)
+        .expect("read docs/")
+        .map(|entry| entry.expect("docs/ entry").file_name())
+        .filter_map(|name| name.to_str().map(str::to_string))
+        .filter(|name| name.ends_with(".md") && name != "README.md")
+        .collect();
+    present.sort();
+    assert!(
+        present.len() > 10,
+        "docs/ holds {} markdown files; the test is reading the wrong directory",
+        present.len()
+    );
+
+    let unlinked: Vec<&String> = present
+        .iter()
+        .filter(|name| !index.contains(&format!("]({name})")))
+        .collect();
+    assert!(
+        unlinked.is_empty(),
+        "docs/README.md does not link {unlinked:?}"
+    );
+
+    let linked: Vec<String> = index
+        .match_indices("](")
+        .map(|(at, prefix)| &index[at + prefix.len()..])
+        .filter_map(|rest| rest.split(')').next())
+        .filter(|target| target.ends_with(".md") && !target.contains('/'))
+        .map(str::to_string)
+        .collect();
+    let dangling: Vec<&String> = linked
+        .iter()
+        .filter(|target| !docs.join(target).is_file())
+        .collect();
+    assert!(
+        dangling.is_empty(),
+        "docs/README.md links documents docs/ does not hold: {dangling:?}"
+    );
+}
+
+/// The Rust version is `rust-toolchain.toml`'s to declare, and Cargo's to agree
+/// with.
+///
+/// It was written out in four places: this workspace's `rust-version`, the
+/// toolchain file's `channel`, and a string in each of the two workflows. The
+/// workflows now read the toolchain file. Cargo cannot — there is no way to
+/// point `rust-version` at another file — so the fourth copy stays and is held
+/// here instead. `rust-version` is the MSRV a consumer is promised and
+/// `channel` is what CI builds with; they are different statements, and the one
+/// this project makes is that they are the same version. A bump moves the
+/// toolchain file, and forgetting Cargo is what fails.
+#[test]
+fn the_workspace_msrv_is_the_pinned_toolchain() {
+    const TOOLCHAIN: &str = include_str!("../../../rust-toolchain.toml");
+    const WORKSPACE: &str = include_str!("../../../Cargo.toml");
+
+    fn quoted(document: &str, key: &str) -> String {
+        let values: Vec<&str> = document
+            .lines()
+            .map(str::trim)
+            .filter_map(|line| line.strip_prefix(key))
+            .filter_map(|rest| rest.trim_start().strip_prefix('='))
+            .filter_map(|rest| rest.trim().strip_prefix('"'))
+            .filter_map(|rest| rest.strip_suffix('"'))
+            .collect();
+        assert_eq!(
+            values.len(),
+            1,
+            "expected exactly one `{key}` declaration, found {}",
+            values.len()
+        );
+        values[0].to_string()
+    }
+
+    assert_eq!(
+        quoted(WORKSPACE, "rust-version"),
+        quoted(TOOLCHAIN, "channel"),
+        "Cargo.toml's rust-version and rust-toolchain.toml's channel name different compilers"
+    );
+}
+
 #[test]
 fn replay_missing_frontier_reports_error_without_panic() {
     let tmp = TempDir::new().unwrap();

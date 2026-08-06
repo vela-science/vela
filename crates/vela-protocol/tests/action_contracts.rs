@@ -154,6 +154,38 @@ fn root_action_is_read_only_and_nonfinalizing() {
         strict.contains("\"$FRONTIER\" --json"),
         "the step must verify the consumer's frontier as JSON"
     );
+
+    /* The two shape checks every Frontier owes and none of them owns. They are
+    named here because four repositories consume this file instead of carrying
+    four copies: deleting a step from it silently ungates all four at once. */
+    assert!(
+        script_named(
+            &action["runs"],
+            "Committed source lock matches its declaration"
+        )
+        .contains("vela-source-lock --check")
+    );
+    assert!(
+        script_named(&action["runs"], "Frontier repository shape")
+            .contains("conformance/frontier_lint.py")
+    );
+
+    /* The action now uses a hosted action of its own. Consumers pin this file
+    by SHA and cannot see what it resolves at run time, so an unpinned use here
+    would make their pin promise less than it says. */
+    for step in steps(&action["runs"]) {
+        let Some(use_clause) = step["uses"].as_str() else {
+            continue;
+        };
+        let (_, reference) = use_clause
+            .split_once('@')
+            .unwrap_or_else(|| panic!("the public action has malformed action use {use_clause}"));
+        assert!(
+            reference.len() == 40 && reference.bytes().all(|byte| byte.is_ascii_hexdigit()),
+            "the public action must use one immutable commit SHA: {use_clause}"
+        );
+    }
+
     assert_no_finalizing_commands(&action);
 }
 
@@ -178,7 +210,26 @@ fn reviewed_tags_publish_provenance_labeled_supported_bundles() {
     assert_eq!(publish["permissions"]["contents"].as_str(), Some("write"));
 
     let build_script = script_named(build, "Build auditable release binary");
-    assert!(build_script.contains("cargo install cargo-auditable --version 0.7.5 --locked"));
+    /* This used to name the cargo-auditable version, which is a second copy of
+    a number the workflow already carries: a correct bump reddened the test for
+    a reason that had nothing to do with the release contract. What the release
+    depends on is the shape the Syft pin below is held to — one exact stable
+    version, installed from the locked index. */
+    let auditable_pin = build_script
+        .split_once("cargo install cargo-auditable --version ")
+        .map(|(_, rest)| rest)
+        .expect("the build must install cargo-auditable at one pinned version");
+    let (auditable_version, install_flags) = auditable_pin
+        .split_once(char::is_whitespace)
+        .expect("the cargo-auditable pin must be followed by its install flags");
+    assert!(
+        is_stable_semver(auditable_version),
+        "cargo-auditable must pin a stable exact version, got {auditable_version}"
+    );
+    assert!(
+        install_flags.starts_with("--locked"),
+        "cargo-auditable must install from the locked index"
+    );
     assert!(
         build_script.contains("cargo auditable build --locked --release -p vela-cli --bin vela")
     );
@@ -238,6 +289,51 @@ fn fresh_runner_smoke_precedes_publication_for_supported_platforms() {
     assert!(
         script_named(smoke, "Smoke release bundle").contains(".github/release/smoke-bundle.sh")
     );
+}
+
+/// The one step that installs the Python reader, wherever it is declared.
+fn locked_reader_step<'a>(container: &'a Value, name: &str) -> &'a Value {
+    let mut found = steps(container).iter().filter(|step| {
+        step["uses"]
+            .as_str()
+            .is_some_and(|clause| clause.starts_with("astral-sh/setup-uv@"))
+    });
+    let step = found
+        .next()
+        .unwrap_or_else(|| panic!("{name} must install the locked reader"));
+    assert!(
+        found.next().is_none(),
+        "{name} installs the reader twice; one of them will be the stale one"
+    );
+    step
+}
+
+#[test]
+fn the_action_and_conformance_install_the_same_locked_reader() {
+    // Both run this repository's own `--locked` projects, so they must agree on
+    // the interpreter and the resolver that read those locks. A composite
+    // action cannot borrow a workflow's inputs, so the pin is written twice by
+    // necessity — which is exactly the kind of second copy that goes stale on
+    // the next bump. It is bound here instead of trusted.
+    let action = parse_yaml(ROOT_ACTION);
+    let workflow = parse_yaml(CONFORMANCE_WORKFLOW);
+    let by_action = locked_reader_step(&action["runs"], "the root action");
+    let by_conformance = locked_reader_step(workflow_job(&workflow, "rust"), "conformance");
+
+    assert_eq!(
+        by_action["uses"], by_conformance["uses"],
+        "the action and conformance disagree about which reader they install"
+    );
+    for field in ["version", "python-version"] {
+        assert_eq!(
+            by_action["with"][field], by_conformance["with"][field],
+            "the action and conformance disagree about the reader's {field}"
+        );
+        assert!(
+            by_action["with"][field].as_str().is_some(),
+            "the reader's {field} must be pinned, not left to the day the job ran"
+        );
+    }
 }
 
 #[test]

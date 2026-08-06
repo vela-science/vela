@@ -23,9 +23,19 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+      # `rust-toolchain.toml` is where this workspace says which Rust it is.
+      # The action takes the version as a string, so this reads that file
+      # rather than restating the number: a bump is one edit, in the file
+      # rustup already obeys, and CI cannot be left building a different
+      # compiler than a local `cargo` invocation picks up.
+      - id: toolchain
+        run: |
+          channel="$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)"
+          test -n "$channel"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable 2026-07-19
         with:
-          toolchain: "1.97.1"
+          toolchain: ${{ steps.toolchain.outputs.channel }}
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.0.0
@@ -65,5 +75,11 @@ jobs:
       # stopped being able to fail reports coverage it does not have.
       - name: Frontier repository lint rules
         run: uv run --project conformance --locked python conformance/test_frontier_lint.py
+      # The resolver four Frontiers lock their sources with. It has its own
+      # project and its own lock, so it runs as its own step rather than being
+      # folded into the conformance environment, which would give one of them
+      # an opinion about the other's dependencies.
+      - name: shared source-manifest package
+        run: uv run --project packages/vela-source-manifest --locked --group dev pytest packages/vela-source-manifest/tests -q
       - name: reproduce (CLI re-derives the synthetic valid corpus)
         run: ./target/release/vela reproduce crates/vela-verify/corpus/valid/smoke

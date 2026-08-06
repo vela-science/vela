@@ -49,6 +49,20 @@ VELA_ROOT = Path(__file__).resolve().parent.parent
 # than a stale hash and is meant to be.
 CONSUMER_REFERENCE_SCHEMA = "vela.package-consumer-reference.v1"
 
+# The wire identifiers of the records that qualify a candidate for consumption.
+# A candidate lives where nothing is released, so its location cannot say
+# whether depending on it was decided or drifted into; only a retained
+# qualification record can, and it is the record — not this file — that carries
+# the root, the consumers it was computed over, and the gates still failing.
+# A candidate of a new kind brings its own schema and has to be named here,
+# which is an edit; until then its consumers report, which is the safe way for
+# this to be wrong.
+CANDIDATE_QUALIFICATION_SCHEMAS = frozenset({"vela.lean-replay-package-qualification.v1"})
+
+# Where Vela retains those records. Scanned rather than listed for the same
+# reason `packages/` is: a second record is covered the day it exists.
+QUALIFICATION_TREE = "research"
+
 # Directory names whose contents are, by convention across every repository
 # here, not a released surface: a candidate, a sample, or a test input. A
 # production dependency that resolves into one of these depends on something
@@ -87,6 +101,14 @@ PROFILE_CONTRACT = "docs/FRONTIER_REPOSITORY_PROFILE.md"
 USES_LINE = re.compile(r"^\s*(?:-\s+)?uses:\s*(?P<ref>[^\s#]+)")
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
+
+# A line that resolves something from git, in any of the three spellings a
+# Frontier uses: the `uvx --from git+…` invocation a declaration carries, the
+# `git = …` table in a pyproject, and the `rev=` query `uv.lock` writes. Prose
+# that merely names a package's path is not one of them, which is what keeps
+# this off the sentence explaining where the generator lives.
+GIT_DEPENDENCY = re.compile(r"git\+|(?<![\w-])git\s*=|(?<![\w-])rev\s*=")
+FULL_SHA_IN_TEXT = re.compile(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])")
 
 # How much of a shared module has to reappear in one Frontier file before it is
 # a copy rather than a coincidence. Calibrated against the real bytes, not
@@ -304,6 +326,80 @@ def retired_paths() -> list[str]:
     return entries
 
 
+def _repository_name(url: str) -> str:
+    """The bare repository name in a clone URL, which is what a consumer calls itself."""
+    return url.rstrip("/").rsplit("/", 1)[-1].removesuffix(".git")
+
+
+@dataclass(frozen=True)
+class QualifiedCandidate:
+    package_id: str
+    root: str
+    source_path: str
+    consumers: frozenset[str]
+
+
+def qualified_candidates() -> list[QualifiedCandidate]:
+    """Candidate packages Vela has qualified, read from the records that qualify them.
+
+    The dependency rule below cannot ask a Frontier to stop depending on a
+    candidate that Vela's own retained evidence says is a promotion no-go: that
+    demand is unsatisfiable from either side, and a rule nobody can satisfy is
+    one everybody learns to ignore. What the rule can ask is that the
+    dependency be *recorded* — same package, same root, same unreleased path,
+    and this repository named among the consumers the record was computed over.
+
+    That is a narrower rule, not a softer one. It fires on a reference no record
+    names, on a root that has drifted from the record's, and on a fifth
+    repository that copies a reference without being qualified for it. If the
+    tree of records disappears, every reference fires at once.
+    """
+    container = VELA_ROOT / QUALIFICATION_TREE
+    if not container.is_dir():
+        return []
+    candidates: list[QualifiedCandidate] = []
+    for path in sorted(container.rglob("*.json")):
+        if "__pycache__" in path.parts:
+            continue
+        try:
+            document = json.loads(path.read_bytes())
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            continue
+        if not isinstance(document, dict):
+            continue
+        if document.get("schema") not in CANDIDATE_QUALIFICATION_SCHEMAS:
+            continue
+        package = document.get("package")
+        consumers = document.get("consumers")
+        if not isinstance(package, dict) or not isinstance(consumers, list):
+            raise ConfigurationError(
+                f"{path.relative_to(VELA_ROOT)} carries a qualification schema but no "
+                "package and consumer list; the dependency rule cannot read it"
+            )
+        identifier = package.get("id")
+        root = package.get("root")
+        source_path = package.get("source_path")
+        if not all(isinstance(value, str) for value in (identifier, root, source_path)):
+            raise ConfigurationError(
+                f"{path.relative_to(VELA_ROOT)} no longer names one package id, root and "
+                "source path; the dependency rule cannot read it"
+            )
+        named = {
+            _repository_name(entry["repository"])
+            for entry in consumers
+            if isinstance(entry, dict) and isinstance(entry.get("repository"), str)
+        }
+        candidates.append(
+            QualifiedCandidate(
+                package_id=identifier,
+                root=root,
+                source_path=source_path.strip("/"),
+                consumers=frozenset(named),
+            )
+        )
+    return candidates
+
+
 def lock_schema(package: SharedPackage) -> tuple[str, dict[str, Any]]:
     """The lock schema, resolved through the package's own name for it."""
     try:
@@ -426,13 +522,45 @@ def rule_shared_package_copy(frontier: Frontier, packages: list[SharedPackage]) 
     return findings
 
 
-def rule_non_production_dependency(frontier: Frontier) -> list[Finding]:
-    """No production dependency may resolve into a non-released tree.
+def _qualifies(
+    document: dict[str, Any], declared: str, candidates: list[QualifiedCandidate]
+) -> bool:
+    """Whether one retained qualification record covers exactly this reference.
+
+    Every part is compared, because the parts are what make it the same
+    dependency: a different package, a different root, or a repository the
+    record was not computed over is a dependency nobody qualified.
+    """
+    package = document.get("package")
+    identifier = package.get("id") if isinstance(package, dict) else None
+    root = document.get("package_root")
+    consumer = document.get("consumer")
+    if not all(isinstance(value, str) for value in (identifier, root, consumer)):
+        return False
+    repository = consumer.split("/")[0]
+    return any(
+        candidate.package_id == identifier
+        and candidate.root == root
+        and candidate.source_path == declared.strip("/")
+        and repository in candidate.consumers
+        for candidate in candidates
+    )
+
+
+def rule_non_production_dependency(
+    frontier: Frontier, candidates: list[QualifiedCandidate]
+) -> list[Finding]:
+    """No dependency may resolve into a non-released tree unqualified.
 
     A consumer reference names the exact commit and path it binds. When that
     path opens on `research/` or `examples/`, the Frontier is depending on a
     candidate: nothing promises it will be there next release, and the package
     under it usually says so itself.
+
+    One thing answers for such a dependency, and it is not this file: a retained
+    qualification record naming the same package, the same root, the same path,
+    and this repository. Where that record exists the dependency was decided;
+    where it does not, it drifted in, and that is the case here.
     """
     findings: list[Finding] = []
     needle = CONSUMER_REFERENCE_SCHEMA.encode("utf-8")
@@ -456,6 +584,8 @@ def rule_non_production_dependency(frontier: Frontier) -> list[Finding]:
                 continue
             head = declared.strip("/").split("/")[0]
             if head in NON_PRODUCTION_DIRECTORIES:
+                if _qualifies(document, declared, candidates):
+                    continue
                 package = document.get("package", {})
                 identifier = package.get("id") if isinstance(package, dict) else declared
                 findings.append(
@@ -539,6 +669,77 @@ def rule_action_pinning(frontier: Frontier) -> list[Finding]:
                         f"{action} is pinned to {ref!r}, which is not a 40-character commit SHA",
                     )
                 )
+    return findings
+
+
+def rule_generator_pin(frontier: Frontier, packages: list[SharedPackage]) -> list[Finding]:
+    """A shared package a Frontier depends on is named at one immutable commit.
+
+    The lock is only as reproducible as the generator that writes it, and the
+    generator is not on an index: a Frontier reaches it as a git dependency.
+    One of the four declared that dependency in a manifest, where `uv` resolves
+    and locks the rev; the other three carry the same `uvx --from git+…@rev`
+    invocation in the declaration and nothing at all read it, so `@main` there
+    would have looked exactly like a pin and regenerated the lock with whatever
+    the branch held that morning.
+
+    Shape and agreement, offline, and nothing else. Which commit is right is not
+    a fact this checkout can settle for a Frontier it was not shipped with — the
+    rule that compared a value would go red for a repository whose pin is
+    correct and simply newer. What it can settle is that the reference names a
+    40-character commit rather than a moving ref, and that a Frontier restating
+    it does not restate it differently: erdos-frontier names the same rev in a
+    declaration comment, a manifest, a lock and a module docstring, and four
+    copies of one commit is four things that can disagree.
+    """
+    findings: list[Finding] = []
+    locators = {}
+    for package in packages:
+        relative = package.root.relative_to(VELA_ROOT).as_posix()
+        locators[package.name] = (relative, relative.replace("/", "%2F"))
+    seen: dict[str, dict[str, list[str]]] = {name: {} for name in locators}
+    for path in frontier.walk():
+        if path.suffix in {".png", ".jpg", ".webp", ".woff2", ".zip", ".gz"}:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        relative_path = frontier.relative(path)
+        for number, line in enumerate(text.splitlines(), start=1):
+            if not GIT_DEPENDENCY.search(line):
+                continue
+            for name, (plain, encoded) in locators.items():
+                if plain not in line and encoded not in line:
+                    continue
+                revisions = sorted(set(FULL_SHA_IN_TEXT.findall(line)))
+                if not revisions:
+                    findings.append(
+                        Finding(
+                            "generator-pin",
+                            relative_path,
+                            number,
+                            f"resolves {name} from git without naming a 40-character "
+                            "commit, so what it installs is whatever the ref holds today",
+                        )
+                    )
+                    continue
+                for revision in revisions:
+                    seen[name].setdefault(revision, []).append(f"{relative_path}:{number}")
+    for name, revisions in seen.items():
+        if len(revisions) > 1:
+            where = "; ".join(
+                f"{revision[:12]} at {', '.join(places)}"
+                for revision, places in sorted(revisions.items())
+            )
+            findings.append(
+                Finding(
+                    "generator-pin",
+                    frontier.relative(frontier.root),
+                    0,
+                    f"pins {name} at {len(revisions)} different commits: {where}",
+                )
+            )
     return findings
 
 
@@ -630,6 +831,7 @@ RULES = (
     "shared-package-copy",
     "non-production-dependency",
     "unpinned-action",
+    "generator-pin",
     "retired-path",
     "generated-file",
 )
@@ -640,8 +842,9 @@ def lint(frontier_root: Path) -> list[Finding]:
     packages = shared_packages()
     findings = [
         *rule_shared_package_copy(frontier, packages),
-        *rule_non_production_dependency(frontier),
+        *rule_non_production_dependency(frontier, qualified_candidates()),
         *rule_action_pinning(frontier),
+        *rule_generator_pin(frontier, packages),
         *rule_retired_paths(frontier, retired_paths()),
         *rule_generated_files(frontier, packages),
     ]

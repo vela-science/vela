@@ -112,7 +112,8 @@ Proposals, which this verb does not open — on a compacted Frontier the Proposa
 that admitted a Claim is usually gone, so a row has nothing to report there.
 `vela why` and `vela show` read both and return `standing` beside
 `proposal_status`; `vela review list --status` filters the Proposal axis and
-keeps the Proposal vocabulary.
+keeps the Proposal vocabulary. Every `review` view names that axis `status`,
+including `review show`, which called it `standing` through `0.966.3`.
 
 It takes `--limit`, `--cursor`, `--status`, and `--json`, and pages through the
 same rule as `review list` — one implementation, not two: the cursor is the

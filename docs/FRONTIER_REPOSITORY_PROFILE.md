@@ -103,8 +103,10 @@ substituted origins fail closed.
 A native `vela init` writes Profile v2 and scaffolding, then installs the
 genesis, manifest, keyset, policy, sequence-1 authority event and record and
 creates the initial unsigned Git commit. If signing cannot complete, the exact
-Profile remains as a resumable bootstrap and `status` reports
-`authority_uninitialized`; rerunning `vela init` completes the same lifecycle.
+Profile remains as a resumable bootstrap and `status` reports the same
+`vela.status.v3` document it reports for a replaying Frontier, with
+`integrity.strict` blocked and `actions.work.mode` `authority_uninitialized`;
+rerunning `vela init` completes the same lifecycle.
 
 The four compacted pre-release repositories retain one exact predecessor block
 inside their origin. It is provenance, not an alternate active schema. There
@@ -156,6 +158,8 @@ records/receipts/
 records/review/
 records/decision-evidence/
 records/vrc_*.json
+vela.lock
+proof/
 ```
 
 These are retired without `vela replay` rejecting them. This block is the
@@ -165,20 +169,21 @@ verification refuses.
 
 <!-- frontier-lint:retired-paths -->
 ```text
-vela.lock
-proof/
 SCOPE.md
 scripts/write_sources_lock.py
 ```
 
-A Frontier carrying any of them verifies clean today, and each is here for its
-own reason.
+A Frontier carrying either of them verifies clean today, and each is here for
+its own reason.
 
-`vela.lock` and `proof/` are still wrong, and two published Frontiers still
-declare `.gitattributes` rules for `proof/**` and `vela.lock` against paths
-none of them has. Making `vela replay` reject them is a change to what
-verification refuses rather than a documentation change, and those dead
-declarations have to go first.
+`vela.lock` and `proof/` used to be listed here instead. What kept them out of
+the enforced block was not the protocol: two published Frontiers declared
+`.gitattributes` rules for `proof/**` and `vela.lock` against paths neither of
+them had, and refusing a path while a dead rule for it was still in the tree
+would have made the reason for a failure ambiguous. Both rules are gone
+(erdos-frontier `ddf1d291`, quantum-codes-frontier `53ff1e2`), no published
+Frontier names either path anywhere, and the two have moved up into the block
+`vela replay` enforces.
 
 `SCOPE.md` restated scope that `frontier.toml` already declares and
 `profile_root` already commits to, so it could only ever drift out of
@@ -215,15 +220,18 @@ Of that list only `.gitignore` and `.gitattributes` are scaffolded.
 `.gitattributes` matters more than its position here suggests. Vela never opens
 it, but Git does, and canonical record bytes are content-addressed: a checkout
 filter, keyword expansion, working-tree encoding, or merge driver that rewrites
-them breaks replay. Two of the four published Frontiers have no
-`.gitattributes` at all.
+them breaks replay. All four published Frontiers now carry one, and all four
+hold `.vela/**`, `records/**` and `artifacts/**` to `-text`, because
+end-of-line normalization is a byte rewrite and a content-addressed blob that
+is rewritten no longer hashes to its own name.
 
 The remainder emerged in the Frontiers rather than in this contract, so the
-shapes vary and the coverage is partial: `sources.yaml` is in all four
-repositories, `STATEMENT.md` in three, `witnesses/` in two, and
-`sources.lock.json` in one, written by repository-local Python. A CI workflow
-is in all four and `vela init` scaffolds none of it. Treat these as domain
-conventions worth copying, not as contract.
+shapes vary and the coverage is partial: `sources.yaml` and
+`sources.lock.json` are in all four repositories, `STATEMENT.md` in three, and
+`witnesses/` in two. The lock is written by the shared `vela-source-manifest`
+package, not by a script any Frontier owns. A CI workflow is in all four and
+`vela init` scaffolds none of it. Treat these as domain conventions worth
+copying, not as contract.
 
 ## Runtime behavior
 
@@ -282,7 +290,9 @@ All four published Frontiers gate this in
 pins `vela-science/vela` by commit SHA and passes `frontier: .`; the action
 installs the pinned release and runs `vela replay <frontier> --json`. `vela
 init` does not scaffold that workflow — each Frontier wrote its own copy, so
-they can and do drift to different pins.
+four separate edits are what keeps the pins together. They are together now,
+all four on `b591f8ec` (`v0.966.3`), and nothing but those four edits holds
+them there.
 
 `vela replay` fails until native authority initialization completes.
 Git publication transports bytes; it does not create scientific acceptance.

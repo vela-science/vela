@@ -132,7 +132,18 @@ fn bootstrap_discovery_and_blocked_commands_name_the_one_valid_next_action() {
     let status = run(&nested, None, &["status", "--json"]);
     assert!(status.status.success());
     let status = json(&status);
-    assert_eq!(status["phase"], "authority_uninitialized");
+    /* One command, one document: a cold Frontier and a replaying one both
+    answer `vela.status.v3`, and the phase is a value inside it. */
+    assert_eq!(status["schema"], "vela.status.v3");
+    assert_eq!(status["actions"]["work"]["mode"], "authority_uninitialized");
+    assert!(
+        status["actions"]["work"]["command"]
+            .as_str()
+            .is_some_and(|command| command.starts_with("vela init "))
+    );
+    assert_eq!(status["actions"]["review"], serde_json::Value::Null);
+    assert_eq!(status["integrity"]["replay"], "not_initialized");
+    assert_eq!(status["integrity"]["strict"], "blocked");
     assert_eq!(
         status["integrity"]["blockers_by_code"]["repository_authority_uninitialized"],
         1
@@ -259,6 +270,9 @@ fn init_creates_a_signed_ready_frontier_in_one_command() {
     let status = run(&frontier, None, &["status", "--json"]);
     assert!(status.status.success());
     let status = json(&status);
+    /* The same literal the cold-start test asserts, so the two branches cannot
+    drift back into two documents without one of them failing here. */
+    assert_eq!(status["schema"], "vela.status.v3");
     assert_eq!(status["integrity"]["strict"], "pass");
     assert_eq!(status["actions"]["work"]["mode"], "direct_submission");
     assert!(

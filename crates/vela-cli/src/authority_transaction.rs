@@ -1506,11 +1506,16 @@ fn validate_authority_derived_path(path: &RepoPath) -> Result<(), AuthorityTrans
     )))
 }
 
+/// The materialized views an authority transaction may rewrite in passing.
+///
+/// One entry, because one is all a current repository has. `frontier.json`,
+/// `vela.lock` and `proof/` were here too, and all three are retired paths the
+/// verifier refuses: a writer that admitted them produced a repository
+/// `vela replay` then rejected. Nothing ever asked for them — every production
+/// derived draft is the Target Index rebound by `rebind_target_index` — so the
+/// entries were a standing invitation to write a repository nobody can verify.
 pub(crate) fn authority_derived_path(value: &str) -> bool {
     value == "targets.json"
-        || value == "frontier.json"
-        || value == "vela.lock"
-        || value.starts_with("proof/")
 }
 
 fn authority_object_planned_write(
@@ -3908,19 +3913,26 @@ mod tests {
 
     #[test]
     fn derived_postimages_share_recovery_without_entering_authority_delta() {
-        assert!(authority_derived_path("frontier.json"));
-        assert!(authority_derived_path("vela.lock"));
-        assert!(authority_derived_path("proof/latest.json"));
+        assert!(authority_derived_path("targets.json"));
+        // Every path the verifier retires is refused here too, or the writer
+        // admits a repository replay rejects.
+        for retired in ["frontier.json", "vela.lock", "proof/latest.json"] {
+            assert!(
+                crate::current_repository::is_retired_current_path(retired),
+                "{retired} is no longer retired; this test is stale"
+            );
+            assert!(!authority_derived_path(retired));
+        }
         assert!(!authority_derived_path(".vela/proof-state.json"));
         assert!(
             !authority_derived_path("frontier.toml"),
             "repository configuration is not a derived materialized view"
         );
         let fixture = fixture();
-        fs::write(fixture.temporary.path().join("frontier.json"), b"before\n").unwrap();
+        fs::write(fixture.temporary.path().join("targets.json"), b"before\n").unwrap();
         let mut request = fixture.request.clone();
         request.derived_drafts = vec![AuthorityDerivedDraft {
-            path: "frontier.json".into(),
+            path: "targets.json".into(),
             postimage: Some(b"after\n".to_vec()),
         }];
         let mut adapter = fixture.adapter();
@@ -3940,7 +3952,7 @@ mod tests {
                 .content
                 .object_delta
                 .iter()
-                .all(|object| object.path != "frontier.json"),
+                .all(|object| object.path != "targets.json"),
             "derived materialization must not become a signed scientific object"
         );
         assert!(
@@ -3951,7 +3963,7 @@ mod tests {
                 .writes()
                 .iter()
                 .any(|write| {
-                    write.path.as_str() == "frontier.json" && write.class == WriteClass::Derived
+                    write.path.as_str() == "targets.json" && write.class == WriteClass::Derived
                 }),
             "the recoverable journal must retain the exact derived postimage"
         );
@@ -3959,7 +3971,7 @@ mod tests {
         prepared.install().unwrap();
         prepared.complete().unwrap();
         assert_eq!(
-            fs::read(fixture.temporary.path().join("frontier.json")).unwrap(),
+            fs::read(fixture.temporary.path().join("targets.json")).unwrap(),
             b"after\n"
         );
     }
@@ -4025,13 +4037,13 @@ mod tests {
     fn derived_drift_and_derived_only_authority_attempts_fail_closed() {
         let drift_fixture = fixture();
         fs::write(
-            drift_fixture.temporary.path().join("vela.lock"),
+            drift_fixture.temporary.path().join("targets.json"),
             b"before\n",
         )
         .unwrap();
         let mut request = drift_fixture.request.clone();
         request.derived_drafts = vec![AuthorityDerivedDraft {
-            path: "vela.lock".into(),
+            path: "targets.json".into(),
             postimage: Some(b"after\n".to_vec()),
         }];
         let mut adapter = drift_fixture.adapter();
@@ -4045,7 +4057,7 @@ mod tests {
         )
         .unwrap();
         fs::write(
-            drift_fixture.temporary.path().join("vela.lock"),
+            drift_fixture.temporary.path().join("targets.json"),
             b"changed after signing\n",
         )
         .unwrap();
@@ -4061,7 +4073,7 @@ mod tests {
         request.event_drafts.clear();
         request.object_drafts.clear();
         request.derived_drafts = vec![AuthorityDerivedDraft {
-            path: "frontier.json".into(),
+            path: "targets.json".into(),
             postimage: Some(b"derived only\n".to_vec()),
         }];
         let mut adapter = derived_only_fixture.adapter();
