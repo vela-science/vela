@@ -562,7 +562,13 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
         println!(
             "{}",
             serde_json::to_string_pretty(&json!({
+                /* ui.rs states the contract: under --json every outcome is one
+                   object carrying {ok, command, ...}. This payload named the
+                   command and nothing else, so an agent could not test one
+                   field to know whether the run succeeded. */
+                "ok": failed == 0,
                 "command": "reproduce",
+                "schema": "vela.reproduction-summary.v1",
                 "scope": scope,
                 "proposal_id": proposal_id,
                 "authority_effect": "none",

@@ -743,7 +743,23 @@ pub(crate) fn cmd_decision_inbox(frontier: &Path, json_output: bool) {
     crate::ui::require_initialized_frontier(frontier);
     let projection = project(frontier).unwrap_or_else(|error| crate::cli::fail(&error));
     if json_output {
-        crate::cli::print_json(&projection);
+        /* The envelope wraps the projection rather than joining it. Adding
+        `ok` and `command` as struct fields would change `projection_root`,
+        which is computed over this struct and is a rooted value the web
+        projection builder checks. The keys the builder reads keep their
+        places; `ok` and `command` sit beside them, which is what ui.rs
+        promises every JSON outcome carries. */
+        let mut envelope = serde_json::to_value(&projection).unwrap_or_else(|error| {
+            crate::cli::fail(&format!("serialize decision inbox: {error}"))
+        });
+        if let Some(object) = envelope.as_object_mut() {
+            object.insert("ok".into(), serde_json::Value::Bool(true));
+            object.insert(
+                "command".into(),
+                serde_json::Value::String("review.inbox".into()),
+            );
+        }
+        crate::cli::print_json(&envelope);
         return;
     }
 
